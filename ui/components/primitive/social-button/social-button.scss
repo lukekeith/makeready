@@ -1,0 +1,32 @@
+.SocialButton {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: 3rem;
+  padding: 0 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  gap: 10px;
+  color: hsl(var(--foreground));
+
+  &__text {
+    display: flex;
+    align-items: center;
+    color: inherit;
+  }
+
+  .Icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  > span {
+    display: flex;
+  }
+
+  /* Ensure icon inherits color */
+  svg {
+    color: inherit;
+  }
+}
