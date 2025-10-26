@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom'
 import { Application } from '@/store/ApplicationStore'
 import { HomeLayout, Avatar, AvatarImage, AvatarFallback, Button } from 'ui'
 import { when } from 'util'
+import logoMark from 'ui/assets/images/logo-mark.svg'
 
 export const HomePage = observer(() => {
   const { user } = Application.session
@@ -36,6 +37,7 @@ export const HomePage = observer(() => {
   return (
     <HomeLayout
       title="MakeReady"
+      logo={logoMark}
       user={user}
       avatar={
         <Avatar>

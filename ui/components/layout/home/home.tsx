@@ -31,6 +31,7 @@ export interface IHomeLayout {
 
   // Header props
   title?: string;
+  logo?: string;
   user?: IUser;
   avatar?: React.ReactNode;
   headerActions?: React.ReactNode;
@@ -46,6 +47,7 @@ export const HomeLayout = observer(
       className,
       containerProps,
       title = "MakeReady Admin",
+      logo,
       user,
       avatar,
       headerActions,
@@ -67,7 +69,17 @@ export const HomeLayout = observer(
         {/* Header */}
         <header className="HomeLayout__header border-b border-border">
           <div className="container flex items-center justify-between h-16 px-4">
-            <h1 className="text-xl font-semibold">{title}</h1>
+            {when(
+              !!logo,
+              <div className="flex items-center gap-2">
+                <img src={logo} alt={title} className="h-8 w-8" />
+                <span className="text-xl font-semibold">{title}</span>
+              </div>
+            )}
+            {when(
+              !logo,
+              <h1 className="text-xl font-semibold">{title}</h1>
+            )}
 
             <div className="flex items-center gap-4">
               {when(
