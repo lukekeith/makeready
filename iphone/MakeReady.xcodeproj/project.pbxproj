@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		962517132EADF96D0098FAB0 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517142EADF96D0098FAB0 /* AuthManager.swift */; };
+		962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517162EADF96D0098FAB0 /* UserMenu.swift */; };
 		A1000001000000000000001 /* MakeReadyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000001 /* MakeReadyApp.swift */; };
 		A1000003000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000004000000000000001 /* ContentView.swift */; };
 		A1000005000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* Assets.xcassets */; };
@@ -17,11 +19,14 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		A1000009000000000000001 /* MakeReady.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MakeReady.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		962517142EADF96D0098FAB0 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		962517162EADF96D0098FAB0 /* UserMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserMenu.swift; sourceTree = "<group>"; };
+		9625170F2EADF96C0098FAB0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000002000000000000001 /* MakeReadyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeReadyApp.swift; sourceTree = "<group>"; };
 		A1000004000000000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A1000006000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000008000000000000001 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		A1000009000000000000001 /* MakeReady.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MakeReady.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A1000026000000000000001 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		A1000028000000000000001 /* NavBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavBar.swift; sourceTree = "<group>"; };
 		A1000030000000000000001 /* HomePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePage.swift; sourceTree = "<group>"; };
@@ -41,6 +46,7 @@
 		A1000011000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				9625170F2EADF96C0098FAB0 /* Info.plist */,
 				A1000012000000000000001 /* MakeReady */,
 				A1000013000000000000001 /* Products */,
 			);
@@ -50,10 +56,12 @@
 			isa = PBXGroup;
 			children = (
 				A1000002000000000000001 /* MakeReadyApp.swift */,
+				962517142EADF96D0098FAB0 /* AuthManager.swift */,
 				A1000004000000000000001 /* ContentView.swift */,
 				A1000026000000000000001 /* LoginView.swift */,
 				A1000030000000000000001 /* HomePage.swift */,
 				A1000028000000000000001 /* NavBar.swift */,
+				962517162EADF96D0098FAB0 /* UserMenu.swift */,
 				A1000006000000000000001 /* Assets.xcassets */,
 				A1000014000000000000001 /* Preview Content */,
 			);
@@ -148,9 +156,11 @@
 			files = (
 				A1000003000000000000001 /* ContentView.swift in Sources */,
 				A1000001000000000000001 /* MakeReadyApp.swift in Sources */,
+				962517132EADF96D0098FAB0 /* AuthManager.swift in Sources */,
 				A1000025000000000000001 /* LoginView.swift in Sources */,
 				A1000027000000000000001 /* NavBar.swift in Sources */,
 				A1000029000000000000001 /* HomePage.swift in Sources */,
+				962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -285,7 +295,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"MakeReady/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MakeReady/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -313,7 +324,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"MakeReady/Preview Content\"";
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MakeReady/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

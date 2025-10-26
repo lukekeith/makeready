@@ -9,9 +9,26 @@ import SwiftUI
 
 @main
 struct MakeReadyApp: App {
+    @StateObject private var authManager = AuthManager()
+
     var body: some Scene {
         WindowGroup {
-            LoginView()
+            Group {
+                if authManager.isAuthenticated {
+                    HomePage()
+                        .environmentObject(authManager)
+                } else {
+                    LoginView()
+                        .environmentObject(authManager)
+                }
+            }
+            .onOpenURL { url in
+                NSLog("🔗 App received URL: %@", url.absoluteString)
+                NSLog("🔗 URL scheme: %@", url.scheme ?? "none")
+                NSLog("🔗 URL host: %@", url.host ?? "none")
+                NSLog("🔗 URL path: %@", url.path)
+                NSLog("🔗 URL query: %@", url.query ?? "none")
+            }
         }
     }
 }

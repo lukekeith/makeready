@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct NavBar: View {
+    @Binding var showUserMenu: Bool
+
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
@@ -31,9 +33,11 @@ struct NavBar: View {
                     print("People tapped")
                 }
 
-                // Menu
+                // Menu (Hamburger)
                 NavBarButton(icon: "IconMenu") {
-                    print("Menu tapped")
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        showUserMenu = true
+                    }
                 }
             }
             .frame(height: 96)
@@ -70,7 +74,7 @@ struct NavBarButton: View {
 #Preview {
     VStack {
         Spacer()
-        NavBar()
+        NavBar(showUserMenu: .constant(false))
     }
     .background(Color(hex: "#0d101a"))
 }

@@ -1,9 +1,16 @@
 import express from 'express'
+import https from 'https'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import cors from 'cors'
 import dotenv from 'dotenv'
 import session from 'express-session'
 import { passport } from './config/passport'
 import authRoutes from './routes/auth'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 
 dotenv.config()
 
@@ -13,7 +20,25 @@ const PORT = process.env.PORT || 3001
 // CORS configuration to allow credentials
 app.use(
   cors({
-    origin: process.env.CLIENT_URL || 'http://localhost:5173',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, curl)
+      if (!origin) return callback(null, true)
+
+      // Allow localhost and 127.0.0.1 for development
+      const allowedOrigins = [
+        'https://localhost:5173',
+        'https://127.0.0.1:5173',
+        'http://localhost:5173',
+        'http://127.0.0.1:5173',
+        process.env.CLIENT_URL
+      ].filter(Boolean)
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true)
+      } else {
+        callback(null, true) // Allow all origins in development
+      }
+    },
     credentials: true,
   })
 )
@@ -31,7 +56,7 @@ app.use(
     cookie: {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       httpOnly: true,
-      secure: false, // Set to false for localhost development
+      secure: false, // HTTP for local development (iOS Simulator)
       sameSite: 'lax', // Must be 'lax' for OAuth redirects
       domain: undefined, // Let browser set the domain
     },
@@ -55,6 +80,8 @@ app.get('/api', (req, res) => {
   res.json({ message: 'MakeReady API is running' })
 })
 
+// Start HTTP server for local development (iOS Simulator)
 app.listen(PORT, () => {
   console.log(`🚀 MakeReady server running on http://localhost:${PORT}`)
+  console.log(`📱 HTTP enabled for iOS Simulator development`)
 })

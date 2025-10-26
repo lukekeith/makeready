@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct HomePage: View {
+    @State private var showUserMenu = false
+
     var body: some View {
         ZStack {
             // Background
@@ -18,7 +20,13 @@ struct HomePage: View {
                 Spacer()
 
                 // Navigation Bar at bottom
-                NavBar()
+                NavBar(showUserMenu: $showUserMenu)
+            }
+
+            // User menu overlay
+            if showUserMenu {
+                UserMenu(isPresented: $showUserMenu)
+                    .transition(.opacity)
             }
         }
     }
