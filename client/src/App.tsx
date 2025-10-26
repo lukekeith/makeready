@@ -1,18 +1,18 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { observer } from 'mobx-react'
+import { LoginPage } from '@/pages/login/login.page'
+import { HomePage } from '@/pages/home/home.page'
+import { AdminPage } from '@/pages/admin/admin.page'
 
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-background text-foreground">
         <Routes>
-          <Route path="/" element={
-            <div className="flex flex-col items-center justify-center min-h-screen">
-              <img src="/logo-mark.svg" alt="MakeReady" className="w-32 h-32 mb-8" />
-              <h1 className="text-4xl font-bold mb-4">Welcome to MakeReady</h1>
-              <p className="text-muted-foreground">Your app is ready to build!</p>
-            </div>
-          } />
+          <Route path="/" element={<Navigate to="/home" replace />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/home" element={<HomePage />} />
+          <Route path="/admin" element={<AdminPage />} />
         </Routes>
       </div>
     </Router>

@@ -24,6 +24,8 @@ export interface IAuthLayout {
   title?: string;
   description?: string;
   showTerms?: boolean;
+  termsUrl?: string;
+  privacyUrl?: string;
   showBranding?: boolean;
   brandingQuote?: string;
   brandingAuthor?: string;
@@ -39,6 +41,8 @@ export const AuthLayout = observer((props: IAuthLayout) => {
     title = "Create an account",
     description = "Enter your email below to create your account",
     showTerms = true,
+    termsUrl = "/terms",
+    privacyUrl = "/privacy",
     showBranding = false,
     brandingQuote = "Preparing men for the future, to become leaders in their families and communities.",
     brandingAuthor = "Scott Stickane",
@@ -71,14 +75,14 @@ export const AuthLayout = observer((props: IAuthLayout) => {
         <p className="px-8 text-center text-xs text-muted-foreground">
           By clicking continue, you agree to our{' '}
           <a
-            href="#"
+            href={termsUrl}
             className="underline underline-offset-4 hover:text-primary"
           >
             Terms of Service
           </a>{' '}
           and{' '}
           <a
-            href="#"
+            href={privacyUrl}
             className="underline underline-offset-4 hover:text-primary"
           >
             Privacy Policy

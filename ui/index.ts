@@ -12,3 +12,6 @@ export * from './components/primitive/label/label';
 export * from './components/primitive/social-button/social-button';
 export * from './components/primitive/toggle/toggle';
 export * from './components/primitive/verify-code/verify-code';
+
+// Layout Components
+export * from './components/layout/auth/auth';

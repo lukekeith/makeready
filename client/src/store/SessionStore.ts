@@ -1,10 +1,10 @@
 import { observable, makeObservable, computed, action } from 'mobx'
 import { Store } from './Store'
 import { ApplicationStore } from './ApplicationStore'
+import { User } from './domain/auth.domain'
 
 export class SessionStore extends Store {
-  @observable token?: string
-  @observable userId?: string
+  @observable user: User | null = null
 
   constructor(application: ApplicationStore) {
     super(application)
@@ -13,18 +13,16 @@ export class SessionStore extends Store {
 
   @computed
   get isAuthenticated(): boolean {
-    return !!this.token && !!this.userId
+    return !!this.user
   }
 
   @action
-  setAuth(token: string, userId: string) {
-    this.token = token
-    this.userId = userId
+  setUser(user: User | null) {
+    this.user = user
   }
 
   @action
   clearAuth() {
-    this.token = undefined
-    this.userId = undefined
+    this.user = null
   }
 }

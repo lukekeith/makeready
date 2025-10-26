@@ -1,14 +1,14 @@
 import { observable, makeObservable } from 'mobx'
 import { Store } from './Store'
 import { ApplicationStore } from './ApplicationStore'
+import { AuthDomain } from './domain/auth.domain'
 
 export class DomainStore extends Store {
-  // Add domain stores here as the app grows
-  // Example:
-  // @observable users = new UsersStore(this.application)
+  @observable auth: AuthDomain
 
   constructor(application: ApplicationStore) {
     super(application)
+    this.auth = new AuthDomain(application)
     makeObservable(this)
   }
 }
