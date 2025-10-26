@@ -17,6 +17,7 @@ This project uses specialized sub-agents to ensure architecture compliance. **Al
 
 | Task | Use Sub-Agent | Why |
 |------|---------------|-----|
+| **Bootstrap new project** | `/boot` | **Creates complete project from scratch with all architecture** |
 | Creating UI components | `/component` | Ensures proper CVA, SCSS, story creation |
 | Creating pages | `/page` | Ensures proper imports, store usage, patterns |
 | Creating stores | `/store` | Ensures Domain/Session/UI separation |
@@ -28,14 +29,55 @@ This project uses specialized sub-agents to ensure architecture compliance. **Al
 
 ## 📋 Sub-Agent Definitions
 
+### 0. `/boot` - Project Bootstrap
+
+**Purpose:** Bootstrap a complete web project from scratch in an empty folder
+
+**Responsibilities:**
+- Initialize Git repository
+- Create complete folder structure (ui/, util/, client/, .storybook/)
+- Generate all configuration files with **working Tailwind + shadcn setup**
+- Create core utilities (CVA wrapper, classnames, when, useLifecycle)
+- Create MobX store structure (ApplicationStore, Domain/Session/UI stores)
+- Generate Hello World component with Storybook story
+- Install all dependencies
+- Start Storybook server
+- Create initial Git commit
+
+**Usage:**
+```
+# 1. Create empty folder and copy .claude into it
+mkdir my-app && cd my-app
+cp -r /path/to/makeready/.claude ./
+
+# 2. Run boot command
+/boot
+```
+
+**What You Get:**
+- ✅ Complete architecture following MakeReady patterns
+- ✅ Tailwind + shadcn configured correctly (HSL format, inlined config)
+- ✅ Storybook running at http://localhost:6006
+- ✅ Hello World component visible in Storybook
+- ✅ MobX stores ready to use
+- ✅ All dependencies installed
+- ✅ Git initialized with first commit
+
+**Time:** 2-3 minutes (including dependency install)
+
+**See:** `.claude/commands/boot.md` for complete details
+
+---
+
 ### 1. `/component` - UI Component Generator
 
 **Purpose:** Create UI components in `ui/components/` following architecture patterns
 
 **Responsibilities:**
 - Create component in correct category (primitive/domain/layout)
+- **IMPORTANT**: Component file must be in a folder: `ui/components/[category]/[component-name]/[component-name].tsx`
 - Generate CVA variants with custom wrapper
-- Create SCSS file with BEM naming
+- Create SCSS file with BEM naming in the same folder
 - Generate Storybook story in `ui/stories/`
 - Add export to `ui/index.ts`
 - Ensure component is view-only (no app logic)
@@ -47,7 +89,21 @@ This project uses specialized sub-agents to ensure architecture compliance. **Al
 /component home-layout layout
 ```
 
+**File Structure:**
+```
+ui/components/
+├── primitive/
+│   └── button/
+│       ├── button.tsx      ← Component file
+│       ├── button.scss     ← Styles
+│       └── button.test.tsx ← Optional tests
+├── layout/
+│   └── auth/
+│       └── auth.tsx        ← Component file (layout components may not need SCSS)
+```
+
 **Required Checks:**
+- ✅ Component in folder: `ui/components/[category]/[name]/[name].tsx` (NOT `ui/components/[category]/[name].tsx`)
 - ✅ Uses custom CVA wrapper from `util/cva`
 - ✅ Imports only from `util/` (never from client)
 - ✅ Observer + forwardRef pattern
@@ -354,9 +410,20 @@ TWILIO_VERIFY_SERVICE_ID=your_service_id_here
 
 ## 🚫 Critical Rules (NEVER VIOLATE)
 
+### 0. **Component Creation - USE THE SUB-AGENT!**
+- ❌ NEVER EVER create components manually - ALWAYS use `/component` slash command
+- ❌ NEVER place component files directly in category folder (e.g., `ui/components/layout/auth.tsx`)
+- ❌ NEVER write component code yourself - let the sub-agent do it
+- ✅ **ALWAYS use `/component [name] [category]` command for ANY new component**
+- ✅ The sub-agent will create: component file, SCSS, story, and barrel export
+- ✅ Component file path must be: `ui/components/[category]/[name]/[name].tsx`
+- ✅ Examples: `/component button primitive`, `/component auth-layout layout`
+
+**IMPORTANT**: If the user asks to create a component, your FIRST action must be to use the `/component` slash command. Do not write any component code manually.
+
 ### 1. **Component Location**
 - ❌ NEVER put components in `client/src/components/`
-- ✅ ALWAYS put components in `ui/components/[category]/`
+- ✅ ALWAYS put components in `ui/components/[category]/[name]/`
 
 ### 2. **Component Imports**
 - ❌ NEVER import from `client/` in UI components

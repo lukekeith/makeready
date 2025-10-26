@@ -15,6 +15,7 @@ New to this template? Read in this order:
 - **[README.md](./README.md)** - Features, setup, workflow
 - **[QUICKSTART.md](./QUICKSTART.md)** - Fast 4-step setup
 - **[SETUP_SCRIPT.md](./SETUP_SCRIPT.md)** - Manual setup instructions
+- **[TAILWIND_SHADCN_SETUP.md](./TAILWIND_SHADCN_SETUP.md)** - ⚠️ CRITICAL: Tailwind + shadcn configuration
 
 ### Architecture & Patterns
 - **[ARCHITECTURE_SPEC.md](./ARCHITECTURE_SPEC.md)** - Complete architecture specification
@@ -37,6 +38,7 @@ New to this template? Read in this order:
 ### Setup
 - [Run setup script](./setup-architecture.sh)
 - [Manual setup steps](./SETUP_SCRIPT.md)
+- [⚠️ Tailwind + shadcn setup](./TAILWIND_SHADCN_SETUP.md) - **READ THIS FIRST**
 - [Troubleshooting](./QUICKSTART.md#troubleshooting)
 
 ### Architecture
@@ -60,9 +62,10 @@ New to this template? Read in this order:
 
 ### "I want to create a single web app"
 1. Read [QUICKSTART.md](./QUICKSTART.md)
-2. Run setup script
-3. Generate components with `/component`
-4. See [ARCHITECTURE_SPEC.md](./ARCHITECTURE_SPEC.md) for patterns
+2. **Read [TAILWIND_SHADCN_SETUP.md](./TAILWIND_SHADCN_SETUP.md)** - Critical setup info
+3. Run setup script
+4. Generate components with `/component`
+5. See [ARCHITECTURE_SPEC.md](./ARCHITECTURE_SPEC.md) for patterns
 
 ### "I want to create a full-stack app (web + backend)"
 1. Read [MONOREPO_GUIDE.md](./MONOREPO_GUIDE.md#pattern-2-frontend--backend)
@@ -90,9 +93,10 @@ New to this template? Read in this order:
 
 ### Developer (First Time)
 1. [QUICKSTART.md](./QUICKSTART.md) - Get started fast
-2. [SUMMARY.md](./SUMMARY.md) - Understand structure
-3. Generate first component with `/component`
-4. Read [ARCHITECTURE_SPEC.md](./ARCHITECTURE_SPEC.md) as reference
+2. **[TAILWIND_SHADCN_SETUP.md](./TAILWIND_SHADCN_SETUP.md)** - ⚠️ Must read before Storybook setup
+3. [SUMMARY.md](./SUMMARY.md) - Understand structure
+4. Generate first component with `/component`
+5. Read [ARCHITECTURE_SPEC.md](./ARCHITECTURE_SPEC.md) as reference
 
 ### Architect
 1. [ARCHITECTURE_SPEC.md](./ARCHITECTURE_SPEC.md) - Complete patterns
@@ -147,6 +151,7 @@ Choose method from [PACKAGE_LIST.md](./PACKAGE_LIST.md)
 ├── SUMMARY.md                         # Quick overview
 ├── README.md                          # Features & setup
 ├── QUICKSTART.md                      # 4-step guide
+├── TAILWIND_SHADCN_SETUP.md           # ⚠️ CRITICAL: Tailwind + shadcn config
 ├── ARCHITECTURE_SPEC.md               # Complete patterns
 ├── MONOREPO_GUIDE.md                  # Multi-app guide
 ├── PACKAGE_LIST.md                    # Distribution

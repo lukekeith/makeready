@@ -1,0 +1,91 @@
+@use '@/styles/colors';
+
+.Toggle {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  padding: 0;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  &__knob {
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  // Default toggle switch
+  &--default {
+    width: 63px;
+    height: 28px;
+    border-radius: 40px;
+    padding: 3px 4px;
+    overflow: hidden;
+    justify-content: flex-start;
+
+    .Toggle__knob {
+      width: 33px;
+      height: 21px;
+      background: #0d101a;
+      border-radius: 10px;
+      transform: translateX(0);
+    }
+
+    &.Toggle--enabled {
+      background: colors.text(100);
+
+      .Toggle__knob {
+        transform: translateX(22px);
+      }
+    }
+
+    &.Toggle--disabled {
+      background: rgba(255, 255, 255, 0.5);
+
+      .Toggle__knob {
+        transform: translateX(0);
+      }
+    }
+  }
+
+  // Radio toggle
+  &--radio {
+    width: 24px;
+    height: 24px;
+    border-radius: 40px;
+    border: 2px solid colors.text(100);
+    background: transparent;
+    padding: 4px;
+
+    .Toggle__knob {
+      width: 16px;
+      height: 16px;
+      background: colors.text(100);
+      border-radius: 10px;
+      opacity: 0;
+      transform: scale(0);
+      transition: all 0.2s ease;
+    }
+
+    &.Toggle--enabled {
+      .Toggle__knob {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    &.Toggle--disabled {
+      .Toggle__knob {
+        opacity: 0;
+        transform: scale(0);
+      }
+    }
+  }
+}

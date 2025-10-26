@@ -25,7 +25,7 @@ const socialLabels = {
   github: 'GitHub',
 };
 
-export interface ISocialButton extends Omit<IButton, 'children'> {
+export interface ISocialButton extends IButton {
   provider: SocialProvider;
   label?: string;
 }
@@ -35,7 +35,7 @@ export const SocialButton = observer(
     const {
       provider,
       label,
-      variant = ButtonCva.variant.Outline,
+      variant = "Outline" as keyof typeof ButtonCva.variant,
       className,
       ...restProps
     } = props;
@@ -54,7 +54,7 @@ export const SocialButton = observer(
           <IconComponent />
         </Icon>
         <span className="SocialButton__text">
-          {label || `Sign up with ${defaultLabel}`}
+          {label || `Sign in with ${defaultLabel}`}
         </span>
       </Button>
     );

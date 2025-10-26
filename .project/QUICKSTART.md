@@ -200,6 +200,18 @@ my-awesome-app/
 
 ## Troubleshooting
 
+### Tailwind + shadcn/ui Issues
+
+**CRITICAL:** See [TAILWIND_SHADCN_SETUP.md](TAILWIND_SHADCN_SETUP.md) for complete setup guide.
+
+Common issues:
+- **Tailwind classes not applying** → CSS variables must be HSL format, config must be inlined
+- **Dark mode text unreadable** → Check `globals.css` uses HSL, not hex
+- **SVG imports fail** → Install `vite-plugin-svgr` and configure in `.storybook/main.ts`
+- **CSS variables broken** → Don't include `hsl()` in variable definition
+
+**Read the full guide:** `.project/TAILWIND_SHADCN_SETUP.md`
+
 ### Script fails
 - Check Node.js version (18+)
 - Verify git is installed
@@ -211,8 +223,10 @@ my-awesome-app/
 - Try: `npm cache clean --force`
 
 ### Storybook won't start
+- **First, read:** `TAILWIND_SHADCN_SETUP.md`
 - Delete `node_modules` and reinstall
-- Check `.storybook/main.js` paths
+- Check `.storybook/main.ts` (not `.js` - using TypeScript)
+- Ensure PostCSS config is inlined, not external file
 - Run with debug: `npm run storybook -- --debug`
 
 ## Support

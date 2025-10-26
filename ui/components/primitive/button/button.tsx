@@ -27,7 +27,9 @@ export const ButtonCva = cva("Button", {
   },
 });
 
-export interface IButton extends VariantProps<typeof ButtonCva.variants> {
+export interface IButton {
+  variant?: keyof typeof ButtonCva.variant;
+  size?: keyof typeof ButtonCva.size;
   children?: React.ReactNode;
   className?: string;
   onClick?: () => void;

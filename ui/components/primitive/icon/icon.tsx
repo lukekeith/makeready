@@ -20,7 +20,8 @@ export const IconCva = cva("Icon", {
   },
 });
 
-export interface IIcon extends VariantProps<typeof IconCva.variants> {
+export interface IIcon {
+  size?: keyof typeof IconCva.size;
   children: React.ReactNode;
   className?: string;
   containerProps?: React.HTMLAttributes<HTMLSpanElement>;
