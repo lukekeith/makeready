@@ -15,3 +15,4 @@ export * from './components/primitive/verify-code/verify-code';
 
 // Layout Components
 export * from './components/layout/auth/auth';
+export * from './components/layout/home/home';

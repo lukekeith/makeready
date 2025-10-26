@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { observer } from 'mobx-react'
 import { Navigate } from 'react-router-dom'
 import { Application } from '@/store/ApplicationStore'
-import { Avatar, AvatarImage, AvatarFallback } from 'ui'
+import { HomeLayout, Avatar, AvatarImage, AvatarFallback, Button } from 'ui'
+import { when } from 'util'
 
 export const HomePage = observer(() => {
   const { user } = Application.session
@@ -12,9 +13,7 @@ export const HomePage = observer(() => {
   // Check auth on mount
   useEffect(() => {
     const doAuthCheck = async () => {
-      console.log('🔍 HomePage: Checking auth...')
-      const isAuth = await checkAuth()
-      console.log('🔍 HomePage: Auth check complete, isAuth:', isAuth, 'user:', Application.session.user)
+      await checkAuth()
       setChecking(false)
     }
     doAuthCheck()
@@ -22,7 +21,6 @@ export const HomePage = observer(() => {
 
   // Show loading while checking auth
   if (checking) {
-    console.log('🔍 HomePage: Still checking auth...')
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p className="text-muted-foreground">Loading...</p>
@@ -32,21 +30,48 @@ export const HomePage = observer(() => {
 
   // Redirect to login if not authenticated
   if (!user) {
-    console.log('❌ HomePage: No user, redirecting to login')
     return <Navigate to="/login" replace />
   }
 
-  console.log('✅ HomePage: User authenticated, showing page')
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header with avatar in top right */}
-      <header className="absolute top-0 right-0 p-4">
+    <HomeLayout
+      title="MakeReady"
+      user={user}
+      avatar={
         <Avatar>
-          <AvatarImage src={user.picture || undefined} alt={user.name} />
+          <AvatarImage
+            src={user.picture || undefined}
+            alt={user.name}
+            referrerPolicy="no-referrer"
+          />
           <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
-      </header>
-    </div>
+      }
+      headerActions={
+        <Button
+          onClick={() => Application.domain.auth.logout()}
+          variant="Destructive"
+          size="Sm"
+        >
+          Logout
+        </Button>
+      }
+      centerContent
+    >
+      <div className="text-center">
+        <h2 className="text-3xl font-bold mb-4">Welcome, {user.name}!</h2>
+        <p className="text-muted-foreground mb-8">
+          You are successfully authenticated with Google.
+        </p>
+
+        {when(
+          !!user.email,
+          <p className="text-sm text-muted-foreground">
+            Logged in as: {user.email}
+          </p>
+        )}
+      </div>
+    </HomeLayout>
   )
 })
 
