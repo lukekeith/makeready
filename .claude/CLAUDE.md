@@ -21,9 +21,11 @@ This project uses specialized sub-agents to ensure architecture compliance. **Al
 | Creating UI components | `/component` | Ensures proper CVA, SCSS, story creation |
 | Creating pages | `/page` | Ensures proper imports, store usage, patterns |
 | Creating stores | `/store` | Ensures Domain/Session/UI separation |
+| **Creating/managing APIs** | `/api` | **Creates Express routes, updates Prisma schema, regenerates Postman** |
 | Refactoring architecture | `/architect` | Reviews against spec, ensures compliance |
 | Adding features | `/feature` | Coordinates multiple sub-agents |
 | Phone verification (Twilio) | `/phone-verification` | Implements SMS verification with proper patterns |
+| Generating Postman collection | `/postman` | Regenerates API collection from routes |
 
 ---
 
@@ -298,7 +300,48 @@ export class UserManagementUI extends Store {
 
 ---
 
-### 4. `/architect` - Architecture Compliance Reviewer
+### 4. `/api` - API & Database Manager
+
+**Purpose:** Create and manage Express API routes with Prisma schema updates and automatic Postman regeneration
+
+**Responsibilities:**
+- Create new Express route files in `server/src/routes/`
+- Generate full CRUD endpoints (GET, POST, PATCH, DELETE)
+- Update Prisma schema for new database models
+- Run database migrations
+- Mount routes in `server/src/index.ts`
+- Automatically regenerate Postman collection
+
+**Usage:**
+```
+/api create tasks
+/api update users
+/api schema Task title:String completed:Boolean
+```
+
+**Required Checks:**
+- ✅ Route file created in `server/src/routes/`
+- ✅ Routes mounted in `server/src/index.ts`
+- ✅ Prisma schema updated (if needed)
+- ✅ Database migration run successfully
+- ✅ All CRUD endpoints functional
+- ✅ Error handling with try/catch
+- ✅ TypeScript types correct
+- ✅ Postman collection regenerated
+
+**Workflow:**
+1. Create route file with full CRUD operations
+2. Update Prisma schema if database model needed
+3. Run `npx prisma migrate dev`
+4. Mount routes in index.ts
+5. Run `/postman` to regenerate collection
+6. Test endpoints
+
+**See:** `.claude/commands/api.md` for complete implementation guide
+
+---
+
+### 5. `/architect` - Architecture Compliance Reviewer
 
 **Purpose:** Review code changes against architecture spec, enforce compliance
 
@@ -328,7 +371,7 @@ export class UserManagementUI extends Store {
 
 ---
 
-### 5. `/feature` - Feature Implementation Coordinator
+### 6. `/feature` - Feature Implementation Coordinator
 
 **Purpose:** Coordinate multiple sub-agents to implement complete features
 
@@ -356,7 +399,7 @@ export class UserManagementUI extends Store {
 
 ---
 
-### 6. `/phone-verification` - Twilio SMS Verification Implementation
+### 7. `/phone-verification` - Twilio SMS Verification Implementation
 
 **Purpose:** Implement phone verification using Twilio's Verify API for authentication flows
 
@@ -505,14 +548,20 @@ Task: Create something
 3. Is it a store?
    → Use `/store`
 
-4. Is it a complete feature?
+4. Is it an API endpoint or database model?
+   → Use `/api`
+
+5. Is it a complete feature?
    → Use `/feature`
 
-5. Need to review/refactor?
+6. Need to review/refactor?
    → Use `/architect`
 
-6. Multiple types?
+7. Multiple types?
    → Use `/feature` to coordinate
+
+8. Need to update Postman collection?
+   → Use `/postman`
 ```
 
 ---

@@ -2,6 +2,8 @@
 
 Generate a Postman collection file from the Express API routes in the server.
 
+**Usage:** Run `/postman` whenever you add or modify API routes to regenerate the collection.
+
 ## Task
 
 You are a specialized agent that generates Postman collection files for API testing.
@@ -26,8 +28,8 @@ You are a specialized agent that generates Postman collection files for API test
    - Add authentication headers where needed
 
 4. **Save collection file**:
-   - Save as `server/postman/makeready-api.postman_collection.json`
-   - Create a corresponding environment file: `server/postman/makeready-local.postman_environment.json`
+   - Save as `postman/makeready-api.postman_collection.json`
+   - Create a corresponding environment file: `postman/makeready-local.postman_environment.json`
 
 ## Output Format
 
@@ -90,7 +92,7 @@ Create a local environment with:
 - ✅ All API routes are included
 - ✅ Requests are organized logically
 - ✅ Authentication is properly configured
-- ✅ Files are saved in `server/postman/`
+- ✅ Files are saved in `postman/`
 - ✅ Collection can be imported into Postman
 - ✅ User is informed of the file locations
 
@@ -101,8 +103,8 @@ After generating the files, tell the user:
 ✅ Postman collection generated!
 
 Files created:
-- server/postman/makeready-api.postman_collection.json
-- server/postman/makeready-local.postman_environment.json
+- postman/makeready-api.postman_collection.json
+- postman/makeready-local.postman_environment.json
 
 To use in Postman:
 1. Open Postman
@@ -110,4 +112,6 @@ To use in Postman:
 3. Import both files
 4. Select "MakeReady Local" environment
 5. Start testing your APIs!
+
+💡 Tip: Run /postman again whenever you add or modify API routes to keep the collection up to date.
 ```
