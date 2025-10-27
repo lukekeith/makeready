@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		962517132EADF96D0098FAB0 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517142EADF96D0098FAB0 /* AuthManager.swift */; };
 		962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517162EADF96D0098FAB0 /* UserMenu.swift */; };
+		834B77671D2633F5816A8A7F /* AddMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 521B4F457E4F2F2A18A75F4D /* AddMenu.swift */; };
 		A1000001000000000000001 /* MakeReadyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000001 /* MakeReadyApp.swift */; };
 		A1000003000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000004000000000000001 /* ContentView.swift */; };
 		A1000005000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* Assets.xcassets */; };
@@ -20,6 +21,7 @@
 
 /* Begin PBXFileReference section */
 		962517142EADF96D0098FAB0 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
+		521B4F457E4F2F2A18A75F4D /* AddMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMenu.swift; sourceTree = "<group>"; };
 		962517162EADF96D0098FAB0 /* UserMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserMenu.swift; sourceTree = "<group>"; };
 		9625170F2EADF96C0098FAB0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A1000002000000000000001 /* MakeReadyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeReadyApp.swift; sourceTree = "<group>"; };
@@ -61,6 +63,7 @@
 				A1000026000000000000001 /* LoginView.swift */,
 				A1000030000000000000001 /* HomePage.swift */,
 				A1000028000000000000001 /* NavBar.swift */,
+				521B4F457E4F2F2A18A75F4D /* AddMenu.swift */,
 				962517162EADF96D0098FAB0 /* UserMenu.swift */,
 				A1000006000000000000001 /* Assets.xcassets */,
 				A1000014000000000000001 /* Preview Content */,
@@ -161,6 +164,7 @@
 				A1000027000000000000001 /* NavBar.swift in Sources */,
 				A1000029000000000000001 /* HomePage.swift in Sources */,
 				962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */,
+				834B77671D2633F5816A8A7F /* AddMenu.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

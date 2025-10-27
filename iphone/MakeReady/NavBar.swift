@@ -9,43 +9,45 @@ import SwiftUI
 
 struct NavBar: View {
     @Binding var showUserMenu: Bool
+    @Binding var showAddMenu: Bool
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                // Home
-                NavBarButton(icon: "IconHome") {
-                    print("Home tapped")
-                }
+        HStack(spacing: 0) {
+            // Home
+            NavBarButton(icon: "IconHome") {
+                print("Home tapped")
+            }
 
-                // Calendar
-                NavBarButton(icon: "IconCalendar") {
-                    print("Calendar tapped")
-                }
+            // Calendar
+            NavBarButton(icon: "IconCalendar") {
+                print("Calendar tapped")
+            }
 
-                // Plus (Add)
-                NavBarButton(icon: "IconPlus", tintColor: .green) {
-                    print("Add tapped")
-                }
-
-                // People
-                NavBarButton(icon: "IconPeople") {
-                    print("People tapped")
-                }
-
-                // Menu (Hamburger)
-                NavBarButton(icon: "IconMenu") {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        showUserMenu = true
-                    }
+            // Plus (Add)
+            NavBarButton(icon: "IconPlus", tintColor: .green) {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    showAddMenu = true
                 }
             }
-            .frame(height: 96)
-            .padding(.horizontal, 16)
+
+            // People
+            NavBarButton(icon: "IconPeople") {
+                print("People tapped")
+            }
+
+            // Menu (Hamburger)
+            NavBarButton(icon: "IconMenu") {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    showUserMenu = true
+                }
+            }
         }
+        .padding(.horizontal, 16)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
         .background(
             // 10% white with 20px blur
-            Color.white.opacity(0.1)
+            Color.white.opacity(0)
                 .background(.ultraThinMaterial)
                 .ignoresSafeArea(edges: .bottom)
         )
@@ -74,7 +76,7 @@ struct NavBarButton: View {
 #Preview {
     VStack {
         Spacer()
-        NavBar(showUserMenu: .constant(false))
+        NavBar(showUserMenu: .constant(false), showAddMenu: .constant(false))
     }
     .background(Color(hex: "#0d101a"))
 }
