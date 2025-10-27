@@ -1,0 +1,241 @@
+{
+  "info": {
+    "name": "MakeReady API",
+    "description": "Complete API collection for MakeReady platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3001",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "System",
+      "description": "System health and status endpoints",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Check if the server is running and get current timestamp"
+          },
+          "response": []
+        },
+        {
+          "name": "API Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api",
+              "host": ["{{baseUrl}}"],
+              "path": ["api"]
+            },
+            "description": "Get API status message"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "description": "Google OAuth authentication flow and session management",
+      "item": [
+        {
+          "name": "Initiate Google OAuth (Web)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google?platform=web",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "web",
+                  "description": "Platform identifier (web or ios)"
+                }
+              ]
+            },
+            "description": "Initiates Google OAuth flow for web platform. Redirects to Google login page."
+          },
+          "response": []
+        },
+        {
+          "name": "Initiate Google OAuth (iOS)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google?platform=ios",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "ios",
+                  "description": "Platform identifier (web or ios)"
+                }
+              ]
+            },
+            "description": "Initiates Google OAuth flow for iOS platform. Redirects to iOS app after authentication."
+          },
+          "response": []
+        },
+        {
+          "name": "Exchange Auth Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Extract and save sessionId from response",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.sessionId) {",
+                  "        pm.collectionVariables.set('sessionId', jsonData.sessionId);",
+                  "        console.log('Session ID saved:', jsonData.sessionId);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"your-auth-code-here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/exchange",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "exchange"]
+            },
+            "description": "Exchange one-time authorization code for session cookie (iOS flow). Returns signed session ID and user ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "connect.sid={{sessionId}}",
+                "description": "Session cookie for authentication"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Get currently authenticated user information. Requires valid session cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Clear sessionId on successful logout",
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('sessionId', '');",
+                  "    console.log('Session ID cleared');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "connect.sid={{sessionId}}",
+                "description": "Session cookie for authentication"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout current user and destroy session"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User management and listing endpoints",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Get all users in the database. Returns users array and total count."
+          },
+          "response": []
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "User UUID"
+                }
+              ]
+            },
+            "description": "Get a specific user by their ID"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

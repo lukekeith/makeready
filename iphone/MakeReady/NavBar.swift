@@ -10,17 +10,20 @@ import SwiftUI
 struct NavBar: View {
     @Binding var showUserMenu: Bool
     @Binding var showAddMenu: Bool
+    var onHomeTap: (() -> Void)?
+    var onScheduleTap: (() -> Void)?
+    var onMembersTap: (() -> Void)?
 
     var body: some View {
         HStack(spacing: 0) {
             // Home
             NavBarButton(icon: "IconHome") {
-                print("Home tapped")
+                onHomeTap?()
             }
 
             // Calendar
             NavBarButton(icon: "IconCalendar") {
-                print("Calendar tapped")
+                onScheduleTap?()
             }
 
             // Plus (Add)
@@ -32,7 +35,7 @@ struct NavBar: View {
 
             // People
             NavBarButton(icon: "IconPeople") {
-                print("People tapped")
+                onMembersTap?()
             }
 
             // Menu (Hamburger)
@@ -76,7 +79,13 @@ struct NavBarButton: View {
 #Preview {
     VStack {
         Spacer()
-        NavBar(showUserMenu: .constant(false), showAddMenu: .constant(false))
+        NavBar(
+            showUserMenu: .constant(false),
+            showAddMenu: .constant(false),
+            onHomeTap: { print("Home") },
+            onScheduleTap: { print("Schedule") },
+            onMembersTap: { print("Members") }
+        )
     }
     .background(Color(hex: "#0d101a"))
 }

@@ -1,13 +1,13 @@
 //
-//  HomePage.swift
+//  SchedulePage.swift
 //  MakeReady
 //
-//  Created by MakeReady Team
+//  Schedule page with calendar and events
 //
 
 import SwiftUI
 
-struct HomePage: View {
+struct SchedulePage: View {
     @State private var showUserMenu = false
     @State private var showAddMenu = false
     @State private var activeTab = 0
@@ -21,7 +21,7 @@ struct HomePage: View {
             VStack(spacing: 0) {
                 // Page Header with tabs
                 PageHeader(
-                    tabs: ["Home"],
+                    tabs: ["Schedule"],
                     activeTab: $activeTab,
                     avatarURL: nil,
                     onNotificationTap: {
@@ -51,11 +51,6 @@ struct HomePage: View {
     }
 }
 
-// MARK: - Color Extensions
-extension Color {
-    static let appBackground = Color(hex: "#0d101a")
-}
-
 #Preview {
-    HomePage()
+    SchedulePage()
 }

@@ -8,6 +8,7 @@ import dotenv from 'dotenv'
 import session from 'express-session'
 import { passport } from './config/passport'
 import authRoutes from './routes/auth'
+import usersRoutes from './routes/users'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -74,6 +75,9 @@ app.get('/health', (req, res) => {
 
 // Auth routes
 app.use('/auth', authRoutes)
+
+// Users routes
+app.use('/api/users', usersRoutes)
 
 // API routes
 app.get('/api', (req, res) => {

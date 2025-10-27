@@ -15,7 +15,7 @@ struct MakeReadyApp: App {
         WindowGroup {
             Group {
                 if authManager.isAuthenticated {
-                    HomePage()
+                    MainView()
                         .environmentObject(authManager)
                 } else {
                     LoginView()
