@@ -129,19 +129,24 @@ struct SchedulePageContent: View {
                 )
 
                 // Calendar content
-                VStack(spacing: 24) {
+                VStack(spacing: 0) {
                     // Year selector
-                    YearSelector(selectedYear: $selectedYear)
+                    YearSelector(
+                        selectedYear: $selectedYear,
+                        selectedMonth: $selectedMonth
+                    )
+                    .padding(.bottom, 8)
 
                     // Month selector
                     MonthSelector(selectedMonth: $selectedMonth, selectedYear: selectedYear)
+                    .padding(.bottom, 16)
 
                     // Calendar grid
                     CalendarGrid(selectedMonth: selectedMonth, selectedYear: selectedYear)
 
                     Spacer()
                 }
-                .padding(.top, 16)
+                .padding(.top, 8)
             }
         }
     }
@@ -200,40 +205,83 @@ struct MembersPageContent: View {
 // MARK: - Year Selector
 struct YearSelector: View {
     @Binding var selectedYear: Int
+    @Binding var selectedMonth: Int
 
-    private let startYear = 2020
-    private var endYear: Int {
-        Calendar.current.component(.year, from: Date()) + 1
+    private var currentYear: Int {
+        Calendar.current.component(.year, from: Date())
+    }
+
+    private var yearRange: [Int] {
+        let start = currentYear - 2
+        let end = currentYear + 2
+        return Array(start...end)
+    }
+
+    private func jumpToToday() {
+        let today = Date()
+        let calendar = Calendar.current
+        withAnimation {
+            selectedYear = calendar.component(.year, from: today)
+            selectedMonth = calendar.component(.month, from: today)
+        }
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 32) {
-                    ForEach(startYear...endYear, id: \.self) { year in
-                        Button(action: {
-                            withAnimation {
-                                selectedYear = year
+        HStack(spacing: 0) {
+            // Scrollable years
+            GeometryReader { geometry in
+                ScrollViewReader { proxy in
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 16) {
+                            ForEach(yearRange, id: \.self) { year in
+                                Button(action: {
+                                    withAnimation {
+                                        selectedYear = year
+                                    }
+                                }) {
+                                    Text("\(year)")
+                                        .font(.system(size: 17, weight: .regular))
+                                        .foregroundColor(year == selectedYear ? .white : .white.opacity(0.3))
+                                }
+                                .id(year)
                             }
-                        }) {
-                            Text("\(year)")
-                                .font(.system(size: 17, weight: .regular))
-                                .foregroundColor(year == selectedYear ? .white : .white.opacity(0.3))
                         }
-                        .id(year)
+                        .padding(.horizontal, geometry.size.width / 2)
+                    }
+                    .mask(
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .black, location: 0.15),
+                                .init(color: .black, location: 0.85),
+                                .init(color: .clear, location: 1.0)
+                            ]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .onAppear {
+                        proxy.scrollTo(selectedYear, anchor: .center)
+                    }
+                    .onChange(of: selectedYear) { newYear in
+                        withAnimation {
+                            proxy.scrollTo(newYear, anchor: .center)
+                        }
                     }
                 }
-                .padding(.horizontal, 16)
             }
-            .onAppear {
-                proxy.scrollTo(selectedYear, anchor: .center)
+
+            Spacer()
+
+            // Today button on the right
+            Button(action: jumpToToday) {
+                Text("Today")
+                    .font(.system(size: 17, weight: .regular))
+                    .foregroundColor(.white.opacity(0.3))
             }
-            .onChange(of: selectedYear) { newYear in
-                withAnimation {
-                    proxy.scrollTo(newYear, anchor: .center)
-                }
-            }
+            .padding(.trailing, 16)
         }
+        .frame(height: 20)
     }
 }
 
@@ -284,7 +332,7 @@ struct CalendarGrid: View {
     private let daysOfWeek = ["SUN", "MON", "TUES", "WED", "THU", "FRI", "SAT"]
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 10) {
             // Days of week header
             HStack(spacing: 0) {
                 ForEach(daysOfWeek, id: \.self) { day in
@@ -297,7 +345,7 @@ struct CalendarGrid: View {
             .padding(.horizontal, 16)
 
             // Calendar days
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 16) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 10) {
                 ForEach(calendarDays, id: \.id) { day in
                     ZStack {
                         if day.isToday {
