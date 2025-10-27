@@ -107,6 +107,8 @@ struct SchedulePageContent: View {
     @Binding var showAddMenu: Bool
     let avatarURL: String?
     @State private var activeTab = 0
+    @State private var selectedYear = Calendar.current.component(.year, from: Date())
+    @State private var selectedMonth = Calendar.current.component(.month, from: Date())
 
     var body: some View {
         ZStack {
@@ -126,7 +128,20 @@ struct SchedulePageContent: View {
                     }
                 )
 
-                Spacer()
+                // Calendar content
+                VStack(spacing: 24) {
+                    // Year selector
+                    YearSelector(selectedYear: $selectedYear)
+
+                    // Month selector
+                    MonthSelector(selectedMonth: $selectedMonth, selectedYear: selectedYear)
+
+                    // Calendar grid
+                    CalendarGrid(selectedMonth: selectedMonth, selectedYear: selectedYear)
+
+                    Spacer()
+                }
+                .padding(.top, 16)
             }
         }
     }
@@ -180,6 +195,191 @@ struct MembersPageContent: View {
             }
         }
     }
+}
+
+// MARK: - Year Selector
+struct YearSelector: View {
+    @Binding var selectedYear: Int
+
+    private let startYear = 2020
+    private var endYear: Int {
+        Calendar.current.component(.year, from: Date()) + 1
+    }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 32) {
+                    ForEach(startYear...endYear, id: \.self) { year in
+                        Button(action: {
+                            withAnimation {
+                                selectedYear = year
+                            }
+                        }) {
+                            Text("\(year)")
+                                .font(.system(size: 17, weight: .regular))
+                                .foregroundColor(year == selectedYear ? .white : .white.opacity(0.3))
+                        }
+                        .id(year)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .onAppear {
+                proxy.scrollTo(selectedYear, anchor: .center)
+            }
+            .onChange(of: selectedYear) { newYear in
+                withAnimation {
+                    proxy.scrollTo(newYear, anchor: .center)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Month Selector
+struct MonthSelector: View {
+    @Binding var selectedMonth: Int
+    let selectedYear: Int
+
+    private let monthNames = ["January", "February", "March", "April", "May", "June",
+                             "July", "August", "September", "October", "November", "December"]
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 32) {
+                    ForEach(1...12, id: \.self) { month in
+                        Button(action: {
+                            withAnimation {
+                                selectedMonth = month
+                            }
+                        }) {
+                            Text(monthNames[month - 1])
+                                .font(.system(size: 28, weight: .regular))
+                                .foregroundColor(month == selectedMonth ? Color(hex: "#6c47ff") : .white.opacity(0.3))
+                        }
+                        .id(month)
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            .onAppear {
+                proxy.scrollTo(selectedMonth, anchor: .center)
+            }
+            .onChange(of: selectedMonth) { newMonth in
+                withAnimation {
+                    proxy.scrollTo(newMonth, anchor: .center)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Calendar Grid
+struct CalendarGrid: View {
+    let selectedMonth: Int
+    let selectedYear: Int
+
+    private let daysOfWeek = ["SUN", "MON", "TUES", "WED", "THU", "FRI", "SAT"]
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // Days of week header
+            HStack(spacing: 0) {
+                ForEach(daysOfWeek, id: \.self) { day in
+                    Text(day)
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            .padding(.horizontal, 16)
+
+            // Calendar days
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 16) {
+                ForEach(calendarDays, id: \.id) { day in
+                    ZStack {
+                        if day.isToday {
+                            Circle()
+                                .fill(Color.white.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                        }
+                        Text("\(day.day)")
+                            .font(.system(size: 12, weight: .regular))
+                            .foregroundColor(day.isCurrentMonth ? .white : .white.opacity(0.5))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 40)
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    private var calendarDays: [CalendarDay] {
+        var days: [CalendarDay] = []
+
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let todayComponents = calendar.dateComponents([.year, .month, .day], from: today)
+
+        let dateComponents = DateComponents(year: selectedYear, month: selectedMonth)
+        guard let date = calendar.date(from: dateComponents),
+              let range = calendar.range(of: .day, in: .month, for: date),
+              let firstDayOfMonth = calendar.date(from: dateComponents) else {
+            return days
+        }
+
+        // Get the weekday of the first day (1 = Sunday, 7 = Saturday)
+        let firstWeekday = calendar.component(.weekday, from: firstDayOfMonth)
+
+        // Add previous month's days
+        if firstWeekday > 1 {
+            let previousMonth = selectedMonth == 1 ? 12 : selectedMonth - 1
+            let previousYear = selectedMonth == 1 ? selectedYear - 1 : selectedYear
+            let prevDateComponents = DateComponents(year: previousYear, month: previousMonth)
+
+            if let prevDate = calendar.date(from: prevDateComponents),
+               let prevRange = calendar.range(of: .day, in: .month, for: prevDate) {
+                let daysToShow = firstWeekday - 1
+                let startDay = prevRange.count - daysToShow + 1
+
+                for day in startDay...prevRange.count {
+                    let isToday = day == todayComponents.day && previousMonth == todayComponents.month && previousYear == todayComponents.year
+                    days.append(CalendarDay(day: day, month: previousMonth, year: previousYear, isCurrentMonth: false, isToday: isToday))
+                }
+            }
+        }
+
+        // Add current month's days
+        for day in range {
+            let isToday = day == todayComponents.day && selectedMonth == todayComponents.month && selectedYear == todayComponents.year
+            days.append(CalendarDay(day: day, month: selectedMonth, year: selectedYear, isCurrentMonth: true, isToday: isToday))
+        }
+
+        // Add next month's days to fill the grid
+        let remainingCells = 42 - days.count // 6 rows × 7 days
+        let nextMonth = selectedMonth == 12 ? 1 : selectedMonth + 1
+        let nextYear = selectedMonth == 12 ? selectedYear + 1 : selectedYear
+
+        for day in 1...remainingCells {
+            let isToday = day == todayComponents.day && nextMonth == todayComponents.month && nextYear == todayComponents.year
+            days.append(CalendarDay(day: day, month: nextMonth, year: nextYear, isCurrentMonth: false, isToday: isToday))
+        }
+
+        return days
+    }
+}
+
+// MARK: - Calendar Day Model
+struct CalendarDay: Identifiable {
+    let id = UUID()
+    let day: Int
+    let month: Int
+    let year: Int
+    let isCurrentMonth: Bool
+    let isToday: Bool
 }
 
 #Preview {
