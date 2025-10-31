@@ -20,6 +20,18 @@
 		A1000007000000000000001 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000008000000000000001 /* Preview Assets.xcassets */; };
 		A1000025000000000000001 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000026000000000000001 /* LoginView.swift */; };
 		A1000027000000000000001 /* NavBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000028000000000000001 /* NavBar.swift */; };
+		A1000050000000000000001 /* TextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000051000000000000001 /* TextInput.swift */; };
+		A1000052000000000000001 /* MultilineTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000053000000000000001 /* MultilineTextInput.swift */; };
+		A1000054000000000000001 /* ToggleControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000055000000000000001 /* ToggleControl.swift */; };
+		A1000056000000000000001 /* DatePickerField.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000057000000000000001 /* DatePickerField.swift */; };
+		A1000058000000000000001 /* MenuInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000059000000000000001 /* MenuInput.swift */; };
+		A1000060000000000000001 /* ProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000061000000000000001 /* ProfilePage.swift */; };
+		A1000062000000000000001 /* ComponentsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000063000000000000001 /* ComponentsPage.swift */; };
+		A1000064000000000000001 /* HamburgerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000065000000000000001 /* HamburgerMenu.swift */; };
+		A1000066000000000000001 /* GroupButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000067000000000000001 /* GroupButton.swift */; };
+		A1000068000000000000001 /* MemberListItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000069000000000000001 /* MemberListItem.swift */; };
+		A1000070000000000000001 /* LargeTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000071000000000000001 /* LargeTextInput.swift */; };
+		A1000072000000000000001 /* InputTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000073000000000000001 /* InputTypes.swift */; };
 
 						A1000029000000000000001 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D034F7F424BE8526 /* MainView.swift */; };
 
@@ -29,6 +41,7 @@
 
 						A1000029000000000000001 /* MembersPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14B3C070B23C6384 /* MembersPage.swift */; };
 		A1000029000000000000001 /* HomePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000030000000000000001 /* HomePage.swift */; };
+		A1000049000000000000001 /* PageTitle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000048000000000000001 /* PageTitle.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -48,6 +61,19 @@
 		A1000026000000000000001 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoginView.swift; sourceTree = "<group>"; };
 		A1000028000000000000001 /* NavBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavBar.swift; sourceTree = "<group>"; };
 		A1000030000000000000001 /* HomePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomePage.swift; sourceTree = "<group>"; };
+		A1000048000000000000001 /* PageTitle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PageTitle.swift; sourceTree = "<group>"; };
+		A1000051000000000000001 /* TextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextInput.swift; sourceTree = "<group>"; };
+		A1000053000000000000001 /* MultilineTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultilineTextInput.swift; sourceTree = "<group>"; };
+		A1000055000000000000001 /* ToggleControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToggleControl.swift; sourceTree = "<group>"; };
+		A1000057000000000000001 /* DatePickerField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatePickerField.swift; sourceTree = "<group>"; };
+		A1000059000000000000001 /* MenuInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MenuInput.swift; sourceTree = "<group>"; };
+		A1000061000000000000001 /* ProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfilePage.swift; sourceTree = "<group>"; };
+		A1000063000000000000001 /* ComponentsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ComponentsPage.swift; sourceTree = "<group>"; };
+		A1000065000000000000001 /* HamburgerMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HamburgerMenu.swift; sourceTree = "<group>"; };
+		A1000067000000000000001 /* GroupButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupButton.swift; sourceTree = "<group>"; };
+		A1000069000000000000001 /* MemberListItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberListItem.swift; sourceTree = "<group>"; };
+		A1000071000000000000001 /* LargeTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LargeTextInput.swift; sourceTree = "<group>"; };
+		A1000073000000000000001 /* InputTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InputTypes.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -80,11 +106,24 @@
 				A1000030000000000000001 /* HomePage.swift */,
 				A1000041000000000000001 /* MainView.swift */,
 				A1000043000000000000001 /* PageHeader.swift */,
+				A1000048000000000000001 /* PageTitle.swift */,
 				A1000045000000000000001 /* SchedulePage.swift */,
 				A1000047000000000000001 /* MembersPage.swift */,
 				A1000028000000000000001 /* NavBar.swift */,
 				521B4F457E4F2F2A18A75F4D /* AddMenu.swift */,
 				962517162EADF96D0098FAB0 /* UserMenu.swift */,
+				A1000065000000000000001 /* HamburgerMenu.swift */,
+				A1000061000000000000001 /* ProfilePage.swift */,
+				A1000063000000000000001 /* ComponentsPage.swift */,
+				A1000051000000000000001 /* TextInput.swift */,
+				A1000053000000000000001 /* MultilineTextInput.swift */,
+				A1000055000000000000001 /* ToggleControl.swift */,
+				A1000057000000000000001 /* DatePickerField.swift */,
+				A1000059000000000000001 /* MenuInput.swift */,
+				A1000067000000000000001 /* GroupButton.swift */,
+				A1000069000000000000001 /* MemberListItem.swift */,
+				A1000071000000000000001 /* LargeTextInput.swift */,
+				A1000073000000000000001 /* InputTypes.swift */,
 				A1000006000000000000001 /* Assets.xcassets */,
 				A1000014000000000000001 /* Preview Content */,
 			);
@@ -183,12 +222,25 @@
 				A1000025000000000000001 /* LoginView.swift in Sources */,
 				A1000040000000000000001 /* MainView.swift in Sources */,
 				A1000042000000000000001 /* PageHeader.swift in Sources */,
+				A1000049000000000000001 /* PageTitle.swift in Sources */,
 				A1000044000000000000001 /* SchedulePage.swift in Sources */,
 				A1000046000000000000001 /* MembersPage.swift in Sources */,
 				A1000027000000000000001 /* NavBar.swift in Sources */,
 				A1000029000000000000001 /* HomePage.swift in Sources */,
 				962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */,
 				834B77671D2633F5816A8A7F /* AddMenu.swift in Sources */,
+				A1000050000000000000001 /* TextInput.swift in Sources */,
+				A1000052000000000000001 /* MultilineTextInput.swift in Sources */,
+				A1000054000000000000001 /* ToggleControl.swift in Sources */,
+				A1000056000000000000001 /* DatePickerField.swift in Sources */,
+				A1000058000000000000001 /* MenuInput.swift in Sources */,
+				A1000060000000000000001 /* ProfilePage.swift in Sources */,
+				A1000062000000000000001 /* ComponentsPage.swift in Sources */,
+				A1000064000000000000001 /* HamburgerMenu.swift in Sources */,
+				A1000066000000000000001 /* GroupButton.swift in Sources */,
+				A1000068000000000000001 /* MemberListItem.swift in Sources */,
+				A1000070000000000000001 /* LargeTextInput.swift in Sources */,
+				A1000072000000000000001 /* InputTypes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

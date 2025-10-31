@@ -10,6 +10,7 @@ import SwiftUI
 struct NavBar: View {
     @Binding var showUserMenu: Bool
     @Binding var showAddMenu: Bool
+    @Binding var showHamburgerMenu: Bool
     var onHomeTap: (() -> Void)?
     var onScheduleTap: (() -> Void)?
     var onMembersTap: (() -> Void)?
@@ -41,7 +42,7 @@ struct NavBar: View {
             // Menu (Hamburger)
             NavBarButton(icon: "IconMenu") {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                    showUserMenu = true
+                    showHamburgerMenu = true
                 }
             }
         }
@@ -82,6 +83,7 @@ struct NavBarButton: View {
         NavBar(
             showUserMenu: .constant(false),
             showAddMenu: .constant(false),
+            showHamburgerMenu: .constant(false),
             onHomeTap: { print("Home") },
             onScheduleTap: { print("Schedule") },
             onMembersTap: { print("Members") }

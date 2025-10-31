@@ -10,6 +10,7 @@ import SwiftUI
 struct UserMenu: View {
     @EnvironmentObject var authManager: AuthManager
     @Binding var isPresented: Bool
+    @Binding var showProfilePage: Bool
 
     var body: some View {
         ZStack {
@@ -58,28 +59,50 @@ struct UserMenu: View {
                     .padding(.top, 40)
                     .padding(.bottom, 32)
 
-                    // Logout button
-                    Button(action: handleLogout) {
-                        HStack(spacing: 12) {
-                            Image("IconLogout")
-                                .resizable()
-                                .renderingMode(.template)
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 20, height: 20)
-                                .foregroundColor(.white)
+                    // Menu buttons
+                    VStack(spacing: 12) {
+                        // My Profile button
+                        Button(action: handleMyProfile) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: 20, weight: .regular))
+                                    .foregroundColor(.white)
+                                    .frame(width: 20, height: 20)
 
-                            Text("Logout")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundColor(.white)
+                                Text("My profile")
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.white)
 
-                            Spacer()
+                                Spacer()
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 16)
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(12)
                         }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 16)
-                        .background(Color.white.opacity(0.1))
-                        .cornerRadius(12)
+                        .buttonStyle(PlainButtonStyle())
+
+                        // Logout button
+                        Button(action: handleLogout) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "rectangle.portrait.and.arrow.right")
+                                    .font(.system(size: 20, weight: .regular))
+                                    .foregroundColor(.white)
+                                    .frame(width: 20, height: 20)
+
+                                Text("Logout")
+                                    .font(.system(size: 17, weight: .medium))
+                                    .foregroundColor(.white)
+
+                                Spacer()
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 16)
+                            .background(Color.white.opacity(0.1))
+                            .cornerRadius(12)
+                        }
+                        .buttonStyle(PlainButtonStyle())
                     }
-                    .buttonStyle(PlainButtonStyle())
                     .padding(.horizontal, 24)
                     .padding(.bottom, 40)
                 }
@@ -90,6 +113,17 @@ struct UserMenu: View {
                 .offset(y: isPresented ? 0 : 500)
             }
             .ignoresSafeArea()
+        }
+    }
+
+    private func handleMyProfile() {
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+            isPresented = false
+        }
+
+        // Delay to allow menu animation to complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            showProfilePage = true
         }
     }
 
@@ -107,6 +141,9 @@ struct UserMenu: View {
 }
 
 #Preview {
-    UserMenu(isPresented: .constant(true))
-        .environmentObject(AuthManager())
+    UserMenu(
+        isPresented: .constant(true),
+        showProfilePage: .constant(false)
+    )
+    .environmentObject(AuthManager())
 }

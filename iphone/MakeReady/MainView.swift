@@ -18,6 +18,9 @@ struct MainView: View {
     @State private var currentTab: MainTab = .home
     @State private var showUserMenu = false
     @State private var showAddMenu = false
+    @State private var showHamburgerMenu = false
+    @State private var showProfilePage = false
+    @State private var showComponentsPage = false
 
     var body: some View {
         ZStack {
@@ -51,6 +54,7 @@ struct MainView: View {
                 NavBar(
                     showUserMenu: $showUserMenu,
                     showAddMenu: $showAddMenu,
+                    showHamburgerMenu: $showHamburgerMenu,
                     onHomeTap: { currentTab = .home },
                     onScheduleTap: { currentTab = .schedule },
                     onMembersTap: { currentTab = .members }
@@ -59,13 +63,31 @@ struct MainView: View {
 
             // User menu overlay
             if showUserMenu {
-                UserMenu(isPresented: $showUserMenu)
+                UserMenu(
+                    isPresented: $showUserMenu,
+                    showProfilePage: $showProfilePage
+                )
             }
 
             // Add menu overlay
             if showAddMenu {
                 AddMenu(isPresented: $showAddMenu)
             }
+
+            // Hamburger menu overlay
+            if showHamburgerMenu {
+                HamburgerMenu(
+                    isPresented: $showHamburgerMenu,
+                    showComponentsPage: $showComponentsPage
+                )
+            }
+        }
+        .sheet(isPresented: $showProfilePage) {
+            ProfilePage()
+                .environmentObject(authManager)
+        }
+        .sheet(isPresented: $showComponentsPage) {
+            ComponentsPage()
         }
     }
 }
@@ -92,7 +114,9 @@ struct HomePageContent: View {
                         print("Notification tapped")
                     },
                     onAvatarTap: {
-                        print("Avatar tapped")
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showUserMenu = true
+                        }
                     }
                 )
 
@@ -124,7 +148,9 @@ struct SchedulePageContent: View {
                         print("Notification tapped")
                     },
                     onAvatarTap: {
-                        print("Avatar tapped")
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showUserMenu = true
+                        }
                     }
                 )
 
@@ -172,7 +198,9 @@ struct MembersPageContent: View {
                         print("Notification tapped")
                     },
                     onAvatarTap: {
-                        print("Avatar tapped")
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showUserMenu = true
+                        }
                     }
                 )
 
@@ -239,7 +267,7 @@ struct YearSelector: View {
                                         selectedYear = year
                                     }
                                 }) {
-                                    Text("\(year)")
+                                    Text(verbatim: String(year))
                                         .font(.system(size: 17, weight: .regular))
                                         .foregroundColor(year == selectedYear ? .white : .white.opacity(0.3))
                                 }

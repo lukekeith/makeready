@@ -10,6 +10,8 @@ import SwiftUI
 struct MembersPage: View {
     @State private var showUserMenu = false
     @State private var showAddMenu = false
+    @State private var showHamburgerMenu = false
+    @State private var showProfilePage = false
     @State private var activeTab = 0
 
     var body: some View {
@@ -28,7 +30,9 @@ struct MembersPage: View {
                         print("Notification tapped")
                     },
                     onAvatarTap: {
-                        print("Avatar tapped")
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            showUserMenu = true
+                        }
                     }
                 )
 
@@ -55,12 +59,19 @@ struct MembersPage: View {
                 .tabViewStyle(.page(indexDisplayMode: .never))
 
                 // Navigation Bar at bottom
-                NavBar(showUserMenu: $showUserMenu, showAddMenu: $showAddMenu)
+                NavBar(
+                    showUserMenu: $showUserMenu,
+                    showAddMenu: $showAddMenu,
+                    showHamburgerMenu: $showHamburgerMenu
+                )
             }
 
             // User menu overlay
             if showUserMenu {
-                UserMenu(isPresented: $showUserMenu)
+                UserMenu(
+                    isPresented: $showUserMenu,
+                    showProfilePage: $showProfilePage
+                )
             }
 
             // Add menu overlay
