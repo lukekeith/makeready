@@ -1,0 +1,33 @@
+@use '@/styles/colors';
+
+.SocialButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 3rem;
+  padding: 0 1.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  gap: 0.75rem;
+  color: colors.text(100); /* White text */
+
+  &__text {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: inherit;
+    width: fit-content;
+  }
+
+  .Icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: colors.primary(400); /* Purple icon */
+  }
+
+  /* Ensure icon uses purple color */
+  svg {
+    color: colors.primary(400);
+  }
+}

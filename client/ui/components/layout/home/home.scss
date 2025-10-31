@@ -1,0 +1,22 @@
+// HomeLayout Component Styles
+
+.HomeLayout {
+  // Base layout styles (most handled by Tailwind)
+
+  &__header {
+    // Header-specific styles if needed
+  }
+
+  &__main {
+    // Main content styles if needed
+  }
+
+  // Variants
+  &--comfortable {
+    // Comfortable spacing variant
+  }
+
+  &--compact {
+    // Compact spacing variant
+  }
+}
