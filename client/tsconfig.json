@@ -23,12 +23,12 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "ui": ["../ui/index.ts"],
-      "ui/*": ["../ui/*"],
-      "util": ["../util/index.ts"],
-      "util/*": ["../util/*"],
-      "shared/*": ["../shared/*"]
+      "ui": ["./ui/index.ts"],
+      "ui/*": ["./ui/*"],
+      "util": ["./util/index.ts"],
+      "util/*": ["./util/*"],
+      "shared/*": ["./shared/*"]
     }
   },
-  "include": ["src", "../ui", "../util", "../shared"]
+  "include": ["src", "./ui", "./util", "./shared"]
 }
