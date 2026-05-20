@@ -1,0 +1,23 @@
+# Seed Version Manifest
+# Defines versioned seed data and environment-specific seeds
+
+versions:
+  - version: "1.0.0"
+    description: "Initial RBAC system - permissions, roles, and role-permission mappings"
+    files:
+      - permissions.yaml
+      - roles.yaml
+      - role_permissions.yaml
+  - version: "1.1.0"
+    description: "Marketing FAQ content for API-backed website pages"
+    files:
+      - faq_items.yaml
+
+current: "1.1.0"
+
+environments:
+  development:
+    - dev/test_data.yaml
+  production: []
+  test:
+    - dev/test_data.yaml

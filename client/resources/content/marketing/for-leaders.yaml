@@ -1,0 +1,39 @@
+meta:
+  title: "For Leaders — MakeReady"
+  description: "MakeReady helps group leaders create study programs, enroll groups, send daily activities, and support follow-through."
+
+hero:
+  label: "For Leaders"
+  title: "Guide the rhythm. Keep the group moving."
+  body: "MakeReady delivers leaders a clear, powerful workspace for study programs, group management, daily activities, and real accountability — while members stay light with simple text links. Leadership stays human. Tech stays in the background."
+  cta:
+    text: "Join the beta"
+    href: "/join-beta"
+  secondary:
+    text: "Member experience"
+    href: "/for-members"
+
+split:
+  eyebrow: "Leader workflow"
+  title: "Plan once, lead daily."
+  body: "Create the program, enroll the group, and send the next activity. MakeReady is built around the leader/member interaction that makes growth groups work."
+  reversed: true
+
+features:
+  layout: "wide"
+  items:
+    - title: "Program builder"
+      description: "Shape a journey around lessons, prompts, reading, video, reflection, and action."
+    - title: "Group enrollment"
+      description: "Connect a group to a study program and keep the shared path organized."
+    - title: "Follow-through signals"
+      description: "See enough context to encourage people personally instead of guessing who needs help."
+
+cta_panel:
+  eyebrow: "Apply first"
+  title: "Leader access is reviewed before activation."
+  body: "Beta applications create pending, inactive leader and organization records until MakeReady approves access."
+  buttons:
+    - text: "Join the beta"
+      href: "/join-beta"
+      style: "primary"

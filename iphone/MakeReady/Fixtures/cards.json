@@ -1,0 +1,334 @@
+{
+  "study": {
+    "row": [
+      {
+        "id": "study-1",
+        "title": "Study title",
+        "description": "Description of the study, maximum of two lines, then ellipsis.",
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=144&h=216&fit=crop"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "28"
+          },
+          {
+            "number": "28",
+            "label": "Participants"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "id": "study-2",
+        "title": "Study title",
+        "description": "Description of the study, maximum of two lines, then ellipsis.",
+        "imageStyle": {
+          "type": "icon",
+          "systemName": "book.fill",
+          "backgroundColor": "purple"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "28"
+          },
+          {
+            "number": "28",
+            "label": "Participants"
+          }
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "study-3",
+        "title": "Study title",
+        "description": "Description of the study, maximum of two lines, then ellipsis.",
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=144&h=216&fit=crop"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "28"
+          },
+          {
+            "number": "28",
+            "label": "Participants"
+          }
+        ],
+        "status": "pending"
+      }
+    ],
+    "mini": [
+      {
+        "id": "study-4",
+        "title": "Study title",
+        "description": null,
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=240&h=228&fit=crop"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "28"
+          }
+        ],
+        "status": "confirmed"
+      },
+      {
+        "id": "study-5",
+        "title": "Study title",
+        "description": null,
+        "imageStyle": {
+          "type": "icon",
+          "systemName": "book.fill",
+          "backgroundColor": "orange"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "28"
+          }
+        ],
+        "status": "pending"
+      },
+      {
+        "id": "study-6",
+        "title": "Study title",
+        "description": null,
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=240&h=228&fit=crop"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "28"
+          }
+        ],
+        "status": "pending"
+      }
+    ]
+  },
+  "event": {
+    "row": [
+      {
+        "id": "event-1",
+        "title": "Event title",
+        "subtitle": "Weekly bible study",
+        "imageStyle": {
+          "type": "dateDisplay",
+          "month": "SEP",
+          "day": "18"
+        },
+        "metadata": [
+          {
+            "icon": "mappin",
+            "value": "Starbucks, Little Elm TX"
+          }
+        ]
+      },
+      {
+        "id": "event-2",
+        "title": "Event title",
+        "subtitle": "Weekly bible study",
+        "imageStyle": {
+          "type": "dateDisplay",
+          "month": "OCT",
+          "day": "30"
+        },
+        "metadata": [
+          {
+            "icon": "mappin",
+            "value": "Starbucks, Little Elm TX"
+          }
+        ]
+      }
+    ],
+    "mini": [
+      {
+        "id": "event-3",
+        "title": "Event title",
+        "imageStyle": {
+          "type": "dateDisplay",
+          "month": "SEP",
+          "day": "18"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "7:00 PM"
+          }
+        ]
+      },
+      {
+        "id": "event-4",
+        "title": "Event title",
+        "imageStyle": {
+          "type": "dateDisplay",
+          "month": "OCT",
+          "day": "25"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "7:00 PM"
+          }
+        ]
+      }
+    ]
+  },
+  "group": {
+    "row": [
+      {
+        "id": "group-1",
+        "title": "Group title",
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=144&h=144&fit=crop"
+        },
+        "metadata": [
+          {
+            "icon": "person",
+            "value": "28"
+          },
+          {
+            "icon": "calendar",
+            "value": "30 days"
+          }
+        ]
+      },
+      {
+        "id": "group-2",
+        "title": "Group title",
+        "imageStyle": {
+          "type": "icon",
+          "systemName": "person.3.fill",
+          "backgroundColor": "blue"
+        },
+        "metadata": [
+          {
+            "icon": "person",
+            "value": "28"
+          },
+          {
+            "icon": "calendar",
+            "value": "30 days"
+          }
+        ]
+      }
+    ],
+    "mini": [
+      {
+        "id": "group-3",
+        "title": "Group title",
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=240&h=240&fit=crop"
+        },
+        "metadata": [
+          {
+            "icon": "person",
+            "value": "28"
+          }
+        ]
+      },
+      {
+        "id": "group-4",
+        "title": "Group title",
+        "imageStyle": {
+          "type": "icon",
+          "systemName": "person.3.fill",
+          "backgroundColor": "green"
+        },
+        "metadata": [
+          {
+            "icon": "person",
+            "value": "28"
+          }
+        ]
+      }
+    ]
+  },
+  "video": {
+    "row": [
+      {
+        "id": "video-1",
+        "title": "Video title",
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "asset://VideoExample"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "12:34"
+          },
+          {
+            "icon": "eye",
+            "value": "1.2K"
+          }
+        ],
+        "category": "Videos"
+      },
+      {
+        "id": "video-2",
+        "title": "Video title",
+        "imageStyle": {
+          "type": "icon",
+          "systemName": "video.fill",
+          "backgroundColor": "red"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "12:34"
+          },
+          {
+            "icon": "eye",
+            "value": "1.2K"
+          }
+        ],
+        "category": "Videos"
+      }
+    ],
+    "mini": [
+      {
+        "id": "video-3",
+        "title": "Video title",
+        "imageStyle": {
+          "type": "photo",
+          "imageURL": "asset://VideoExample"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "12:34"
+          }
+        ],
+        "category": "Videos"
+      },
+      {
+        "id": "video-4",
+        "title": "Video title",
+        "imageStyle": {
+          "type": "icon",
+          "systemName": "video.fill",
+          "backgroundColor": "purple"
+        },
+        "metadata": [
+          {
+            "icon": "clock",
+            "value": "12:34"
+          }
+        ],
+        "category": "Videos"
+      }
+    ]
+  }
+}

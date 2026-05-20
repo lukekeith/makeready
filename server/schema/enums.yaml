@@ -1,0 +1,98 @@
+# Enum Definitions for MakeReady
+# These are converted to both PostgreSQL enums and Prisma enums
+
+version: "1.0"
+
+enums:
+  Testament:
+    values:
+      - OLD_TESTAMENT
+      - NEW_TESTAMENT
+
+  HighlightColor:
+    values:
+      - YELLOW
+      - BLUE
+      - GREEN
+      - ORANGE
+      - PURPLE
+      - PINK
+
+  TemplateActivityType:
+    values:
+      - USER_INPUT
+      - READ
+      - VIDEO
+      - YOUTUBE
+      - EXEGESIS
+
+  EventType:
+    values:
+      - LESSON     # Daily study lesson from enrollment
+      - MEETING    # In-person gathering
+      - ONLINE     # Virtual meeting
+      - DEADLINE   # Due dates, reminders
+      - SOCIAL     # Social gatherings
+      - OTHER      # Catch-all
+
+  EventVisibility:
+    values:
+      - PRIVATE    # Group members only
+      - PUBLIC     # Anyone with link can attend
+
+  RsvpStatus:
+    values:
+      - GOING
+      - MAYBE
+      - NOT_GOING
+      - PENDING    # Default for invited attendees
+
+  RecurrenceFrequency:
+    values:
+      - NONE
+      - DAILY
+      - WEEKLY
+      - BIWEEKLY   # Every 2 weeks
+      - MONTHLY
+      - YEARLY
+
+  PostType:
+    values:
+      - WELCOME       # Auto-generated on enrollment
+      - POLL          # Poll with options
+      - VIDEO         # Video post
+      - EVENT         # Event announcement
+      - ANNOUNCEMENT  # General announcement
+
+  LogCategory:
+    values:
+      - AUTH     # Authentication events
+      - JOIN     # Join events (groups, events, studies)
+      - ACCESS   # Resource access
+
+  LogStatus:
+    values:
+      - SUCCESS
+      - FAILURE
+      - WARNING
+
+  ActivityAction:
+    values:
+      - CREATED
+      - UPDATED
+      - DELETED
+      - JOINED
+      - LEFT
+      - PUBLISHED
+      - ENROLLED
+      - COMPLETED
+      - SUBMITTED
+      - SENT
+      - NOTIFIED
+
+  BetaApplicationStatus:
+    values:
+      - PENDING
+      - APPROVED
+      - REJECTED
+      - WITHDRAWN

@@ -1,0 +1,33 @@
+{
+  "platform": "client",
+  "view": "pages.join-group",
+  "step": "info",
+  "output": "01-info.png",
+  "title": "Join Group: Invitation",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "group": {
+      "id": 1234,
+      "organizationId": 42,
+      "name": "Sunday Morning Group",
+      "coverImageUrl": "./group-cover.png",
+      "memberCount": 24,
+      "isPrivate": false,
+      "creator": {
+        "name": "Pastor Mike",
+        "picture": "./leader-photo.png"
+      }
+    }
+  }
+}

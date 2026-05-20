@@ -1,0 +1,110 @@
+/* No Theme — fade in, natural scrolling. Designed for large amounts of text. */
+
+.ThemePlayer.theme-no-theme-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    height: 100%;
+    padding: 216px 32px 32px;
+    box-sizing: border-box;
+    background: #0d1117;
+    text-align: left;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+}
+
+/* Scale tiers */
+.theme-no-theme-container.scale-xl {
+    font-size: 1.2em;
+}
+.theme-no-theme-container.scale-lg {
+    font-size: 1.2em;
+}
+.theme-no-theme-container.scale-md {
+    font-size: 1.2em;
+}
+.theme-no-theme-container.scale-sm {
+    font-size: 1.2em;
+}
+.theme-no-theme-container.scale-xs {
+    font-size: 1.2em;
+}
+
+/* Phases */
+.theme-no-theme-container .ThemePlayer__phase {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* Headings */
+.theme-no-theme-container .ThemePlayer__token--h1,
+.theme-no-theme-container .ThemePlayer__token--h2,
+.theme-no-theme-container .ThemePlayer__token--h3 {
+    font-weight: 700;
+    color: rgba(255, 255, 255, 1);
+    margin-bottom: 0.4em;
+    line-height: 1.25;
+}
+
+.theme-no-theme-container .ThemePlayer__token--h1 {
+    font-size: 1.6em;
+}
+.theme-no-theme-container .ThemePlayer__token--h2 {
+    font-size: 1.3em;
+}
+.theme-no-theme-container .ThemePlayer__token--h3 {
+    font-size: 1.1em;
+}
+
+/* Paragraphs */
+.theme-no-theme-container .ThemePlayer__token--p {
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.65;
+    margin-bottom: 0.4em;
+}
+
+/* List items */
+.theme-no-theme-container .ThemePlayer__token--li {
+    color: rgba(255, 255, 255, 0.85);
+    line-height: 1.6;
+    margin-bottom: 0.35em;
+    padding-left: 2em;
+    position: relative;
+
+    &[data-list-number]::before {
+        content: var(--list-number);
+        position: absolute;
+        left: 0;
+        font-weight: 600;
+        opacity: 0.7;
+        min-width: 1.6em;
+    }
+
+    &:not([data-list-number])::before {
+        content: "";
+        position: absolute;
+        left: 0.5em;
+        top: 0.55em;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: currentColor;
+        opacity: 0.4;
+    }
+}
+
+/* Blockquotes */
+.theme-no-theme-container .ThemePlayer__token--blockquote {
+    color: rgba(255, 255, 255, 0.65);
+    font-style: italic;
+    border-left: 3px solid rgba(255, 255, 255, 0.25);
+    padding-left: 1em;
+    margin: 0.25em 0;
+}

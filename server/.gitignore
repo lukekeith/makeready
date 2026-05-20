@@ -1,0 +1,23 @@
+node_modules
+# Keep environment variables out of version control
+.env
+.env.*
+!.env.example
+
+/src/generated/prisma
+
+# SSL certificates for local development
+certs/
+
+# Build artifacts
+dist/
+coverage/
+tsconfig.tsbuildinfo
+
+# Atlas generated schema (regenerated from YAML)
+atlas/.schema.hcl
+bin/
+
+# Claude Code / GSD tool artifacts
+.bg-shell/
+.gsd/

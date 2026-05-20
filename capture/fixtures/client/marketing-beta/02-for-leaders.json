@@ -1,0 +1,10 @@
+{
+  "platform": "client",
+  "view": "pages.marketing.for-leaders",
+  "path": "/for-leaders",
+  "step": "for-leaders",
+  "output": "for-leaders.png",
+  "title": "For Leaders",
+  "devices": ["desktop-1440", "ipad", "iphone-15", "iphone-se"],
+  "fullPage": true
+}

@@ -1,0 +1,97 @@
+# RBAC Role-Permission Mappings - Version 1.0.0
+# Defines which permissions each role has
+
+version: "1.0.0"
+model: RolePermission
+strategy: sync
+# sync strategy: removes mappings not in this file for the given roles
+
+# Role permission mappings use role and permission names (resolved at runtime)
+role_mappings:
+  Super Admin:
+    # ALL permissions
+    permissions: ALL
+
+  Owner:
+    permissions:
+      # Organization permissions (full control)
+      - organization.read
+      - organization.update
+      - organization.delete
+      - organization.invite
+      # Group permissions (full control)
+      - group.create
+      - group.read
+      - group.update
+      - group.delete
+      - group.invite
+      # Member permissions (full control)
+      - member.create
+      - member.read
+      - member.update
+      - member.delete
+      # Media permissions (full control)
+      - media.create
+      - media.read
+      - media.update
+      - media.delete
+      - media.publish
+      # Role permissions
+      - role.create
+      - role.read
+      - role.update
+      - role.delete
+      - role.assign
+
+  Admin:
+    permissions:
+      # Organization permissions (limited)
+      - organization.read
+      - organization.update
+      - organization.invite
+      # Group permissions (full control)
+      - group.create
+      - group.read
+      - group.update
+      - group.delete
+      - group.invite
+      # Member permissions (full control)
+      - member.create
+      - member.read
+      - member.update
+      - member.delete
+      # Media permissions (full control)
+      - media.create
+      - media.read
+      - media.update
+      - media.delete
+      - media.publish
+      # Role permissions (limited - cannot create roles)
+      - role.read
+      - role.assign
+
+  Group Leader:
+    permissions:
+      # Group permissions (limited - can manage assigned groups)
+      - group.read
+      - group.update
+      - group.invite
+      # Member permissions (within groups only)
+      - member.read
+      - member.update
+      # Media permissions (can create and manage)
+      - media.create
+      - media.read
+      - media.update
+      - media.delete
+      - media.publish
+
+  Contributor:
+    permissions:
+      # Group permissions (read only)
+      - group.read
+      # Member permissions (read only)
+      - member.read
+      # Media permissions (can create, read own, update own)
+      - media.create
+      - media.read

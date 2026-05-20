@@ -1,0 +1,107 @@
+@use 'styles/colors';
+
+.Confirmation {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2xl);
+  padding: var(--space-lg);
+  width: 100%;
+
+  // The icon badge is rendered by `<x-primitive.icon-circle>` — see
+  // resources/css/components/primitive/icon-circle.scss for sizing and the
+  // color-variant tokens. The Confirmation blade forwards its `color` prop
+  // straight through as the IconCircle variant.
+
+  // Message section
+  &__message {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-lg);
+    border-radius: var(--radius-lg);
+    width: 100%;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    text-align: center;
+    width: 100%;
+  }
+
+  &__title {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-title);
+    font-weight: 700;
+    line-height: var(--leading-title);
+    letter-spacing: -0.15px;
+    color: white;
+    margin: 0;
+  }
+
+  &__description {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-lead);
+    font-weight: 300;
+    line-height: var(--leading-lead);
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+
+    // Bold text within description
+    strong,
+    b {
+      font-weight: 700;
+      color: rgba(255, 255, 255, 1);
+    }
+  }
+
+  // Color variants — the `color` prop is forwarded to the inner IconCircle,
+  // which owns the background + icon color. No per-color rules needed on
+  // .Confirmation itself; add them here only if a color also needs to tint
+  // the surrounding panel (none do today).
+
+  // Action element (link or button)
+  &__action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-sm);
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-lead);
+    font-weight: 400;
+    line-height: var(--leading-lead);
+    color: rgba(255, 255, 255, 1);
+    margin-top: var(--space-xl);
+    width: 100%;
+
+    // Forms wrapping a block-mode button should fill the action width
+    // so the button inside (.Button--mode-block) renders at 100%.
+    > form {
+      width: 100%;
+    }
+
+    // Link-style actions (not Button components)
+    > a,
+    > button:not(.Button) {
+      background: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+      color: #5fbdff;
+      text-decoration: none;
+
+      &:hover {
+        text-decoration: underline;
+      }
+    }
+  }
+}

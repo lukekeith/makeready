@@ -1,0 +1,20 @@
+{
+  "platform": "iphone",
+  "view": "pages.create-program",
+  "output": "01-empty-form.png",
+  "title": "Create Study Program: Empty Form",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  }
+}

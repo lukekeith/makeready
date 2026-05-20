@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity Logs — MakeReady</title>
+  <link rel="icon" type="image/svg+xml" href="/logo-mark.svg" />
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0D101A; color: #e6edf3; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+    #app { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+    /* ── Fixed header ──────────────────────────────────────────────────────── */
+    .header { padding: 12px 16px; background: #0D101A; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .header__top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .header__logo { width: 28px; height: 28px; }
+    .header__title { font-size: 15px; font-weight: 600; color: #fff; }
+    .header__count { font-size: 12px; color: rgba(255,255,255,0.35); margin-left: auto; }
+    .header__refresh { background: none; border: 1px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.6); border-radius: 6px; padding: 4px 10px; font-size: 12px; cursor: pointer; }
+    .header__refresh:hover { border-color: rgba(255,255,255,0.3); color: #fff; }
+
+    /* Filters row */
+    .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+    .filters select, .filters input { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #e6edf3; border-radius: 6px; padding: 5px 8px; font-size: 12px; outline: none; }
+    .filters select:focus, .filters input:focus { border-color: rgba(96,165,250,0.5); }
+    .filters input { width: 180px; }
+    .filters input.narrow { width: 120px; }
+    .filters__clear { background: none; border: none; color: rgba(255,255,255,0.35); font-size: 11px; cursor: pointer; padding: 5px 6px; }
+    .filters__clear:hover { color: #f87171; }
+
+    /* Session tracking banner */
+    .session-banner { display: flex; align-items: center; gap: 8px; padding: 6px 16px; background: rgba(59,130,246,0.08); border-bottom: 1px solid rgba(59,130,246,0.15); font-size: 12px; color: #60a5fa; flex-shrink: 0; }
+    .session-banner button { background: none; border: none; color: #60a5fa; cursor: pointer; text-decoration: underline; font-size: 12px; }
+    .session-banner .close { margin-left: auto; text-decoration: none; opacity: 0.6; }
+
+    /* ── Virtual scroll container ───────────────────────────────────────────── */
+    .scroll-container { flex: 1; overflow-y: auto; }
+    .scroll-spacer { position: relative; }
+
+    /* ── Log rows ──────────────────────────────────────────────────────────── */
+    .log-row { display: flex; align-items: flex-start; gap: 10px; padding: 6px 16px; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; cursor: pointer; transition: background 0.1s; }
+    .log-row:hover { background: rgba(255,255,255,0.04); }
+    .log-row--selected { background: rgba(59,130,246,0.08) !important; }
+
+    .log-row__time { font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 11px; color: rgba(255,255,255,0.35); white-space: nowrap; min-width: 70px; padding-top: 1px; }
+    .log-row__badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 4px; white-space: nowrap; min-width: 55px; text-align: center; }
+    .log-row__badge--SUCCESS { background: rgba(34,197,94,0.12); color: #4ade80; border: 1px solid rgba(34,197,94,0.2); }
+    .log-row__badge--FAILURE { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.2); }
+    .log-row__badge--WARNING { background: rgba(234,179,8,0.12); color: #fbbf24; border: 1px solid rgba(234,179,8,0.2); }
+    .log-row__type { font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 11px; color: rgba(255,255,255,0.5); white-space: nowrap; min-width: 200px; }
+    .log-row__message { flex: 1; color: #e6edf3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .log-row__ip { font-size: 11px; color: rgba(255,255,255,0.25); white-space: nowrap; cursor: pointer; }
+    .log-row__ip:hover { color: #60a5fa; text-decoration: underline; }
+
+    /* ── Detail panel ──────────────────────────────────────────────────────── */
+    .detail { position: fixed; right: 0; top: 0; bottom: 0; width: 420px; background: #141824; border-left: 1px solid rgba(255,255,255,0.1); overflow-y: auto; z-index: 10; padding: 16px; transform: translateX(100%); transition: transform 0.2s ease; }
+    .detail--open { transform: translateX(0); }
+    .detail__close { position: absolute; top: 12px; right: 12px; background: none; border: none; color: rgba(255,255,255,0.5); font-size: 18px; cursor: pointer; }
+    .detail__field { margin-bottom: 10px; }
+    .detail__label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.35); margin-bottom: 2px; }
+    .detail__value { font-size: 13px; color: #e6edf3; word-break: break-all; }
+    .detail__value--mono { font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 12px; }
+    .detail__value--link { color: #60a5fa; cursor: pointer; }
+    .detail__value--link:hover { text-decoration: underline; }
+    .detail__json { background: rgba(0,0,0,0.3); border-radius: 6px; padding: 10px; font-family: ui-monospace, 'SF Mono', Consolas, monospace; font-size: 11px; color: rgba(255,255,255,0.7); white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow-y: auto; }
+    .detail__session-btn { background: rgba(59,130,246,0.15); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; border-radius: 6px; padding: 6px 12px; font-size: 12px; cursor: pointer; margin-top: 6px; width: 100%; }
+    .detail__session-btn:hover { background: rgba(59,130,246,0.25); }
+
+    /* ── Empty / loading ───────────────────────────────────────────────────── */
+    .empty { display: flex; align-items: center; justify-content: center; height: 200px; color: rgba(255,255,255,0.3); font-size: 14px; }
+    .loading { text-align: center; padding: 40px; color: rgba(255,255,255,0.4); font-size: 13px; }
+
+    /* ── Category badges ───────────────────────────────────────────────────── */
+    .cat--AUTH { color: #c084fc; }
+    .cat--JOIN { color: #34d399; }
+    .cat--ACCESS { color: #60a5fa; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <!-- Fixed header with filters -->
+  <div class="header">
+    <div class="header__top">
+      <img src="/logo-mark.svg" alt="" class="header__logo">
+      <div class="header__title">Activity Logs</div>
+      <div class="header__count" v-if="total">{{ total.toLocaleString() }} logs</div>
+      <button class="header__refresh" @click="refresh">Refresh</button>
+    </div>
+    <div class="filters">
+      <select v-model="filters.category" @change="reload">
+        <option value="">All Categories</option>
+        <option value="AUTH">AUTH</option>
+        <option value="JOIN">JOIN</option>
+        <option value="ACCESS">ACCESS</option>
+      </select>
+      <select v-model="filters.status" @change="reload">
+        <option value="">All Status</option>
+        <option value="SUCCESS">SUCCESS</option>
+        <option value="FAILURE">FAILURE</option>
+        <option value="WARNING">WARNING</option>
+      </select>
+      <input v-model="filters.activityType" @input="debounceReload" placeholder="Activity type..." class="narrow">
+      <input v-model="filters.search" @input="debounceReload" placeholder="Search messages...">
+      <input v-model="filters.groupId" @input="debounceReload" placeholder="Group ID..." class="narrow">
+      <input v-model="filters.memberId" @input="debounceReload" placeholder="Member ID..." class="narrow">
+      <select v-model="filters.timeRange" @change="reload">
+        <option value="1h">Last 1 hour</option>
+        <option value="6h">Last 6 hours</option>
+        <option value="24h">Last 24 hours</option>
+        <option value="7d">Last 7 days</option>
+        <option value="30d">Last 30 days</option>
+        <option value="">All time</option>
+      </select>
+      <button class="filters__clear" @click="clearFilters" v-if="hasActiveFilters">Clear all</button>
+    </div>
+  </div>
+
+  <!-- Session tracking banner -->
+  <div class="session-banner" v-if="sessionFilter">
+    Tracking session: {{ sessionFilter.type === 'ip' ? sessionFilter.value : 'Member ' + sessionFilter.value.substring(0,8) + '...' }}
+    ({{ logs.length }} events)
+    <button class="close" @click="clearSession">&times;</button>
+  </div>
+
+  <!-- Virtual scroll list -->
+  <div class="scroll-container" ref="scrollEl" @scroll="onScroll">
+    <div v-if="isLoading && logs.length === 0" class="loading">Loading activity logs...</div>
+    <div v-else-if="logs.length === 0" class="empty">No logs found matching filters</div>
+    <div v-else class="scroll-spacer" :style="{ height: totalHeight + 'px' }">
+      <div v-for="item in visibleItems" :key="item.log.id"
+        class="log-row"
+        :class="{ 'log-row--selected': selectedLog?.id === item.log.id }"
+        :style="{ position: 'absolute', top: item.top + 'px', left: 0, right: 0 }"
+        @click="selectLog(item.log)">
+        <span class="log-row__time">{{ formatTime(item.log.createdAt) }}</span>
+        <span class="log-row__badge" :class="'log-row__badge--' + item.log.status">{{ item.log.status }}</span>
+        <span class="log-row__type" :class="'cat--' + item.log.category">{{ item.log.activityType }}</span>
+        <span class="log-row__message">{{ item.log.message }}</span>
+        <span class="log-row__ip" v-if="item.log.actorIp" @click.stop="trackByIp(item.log.actorIp)">{{ item.log.actorIp }}</span>
+      </div>
+    </div>
+    <!-- Load more sentinel -->
+    <div v-if="hasMore && !isLoading" ref="sentinel" style="height:1px;"></div>
+  </div>
+
+  <!-- Detail panel -->
+  <div class="detail" :class="{ 'detail--open': !!selectedLog }">
+    <button class="detail__close" @click="selectedLog = null">&times;</button>
+    <template v-if="selectedLog">
+      <div class="detail__field">
+        <div class="detail__label">Time</div>
+        <div class="detail__value detail__value--mono">{{ new Date(selectedLog.createdAt).toLocaleString() }}</div>
+      </div>
+      <div class="detail__field">
+        <div class="detail__label">Activity Type</div>
+        <div class="detail__value detail__value--mono" :class="'cat--' + selectedLog.category">{{ selectedLog.activityType }}</div>
+      </div>
+      <div class="detail__field">
+        <div class="detail__label">Status</div>
+        <div class="detail__value"><span class="log-row__badge" :class="'log-row__badge--' + selectedLog.status">{{ selectedLog.status }}</span></div>
+      </div>
+      <div class="detail__field">
+        <div class="detail__label">Message</div>
+        <div class="detail__value">{{ selectedLog.message }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.errorMessage">
+        <div class="detail__label">Error</div>
+        <div class="detail__value" style="color:#f87171">{{ selectedLog.errorMessage }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.actorIp">
+        <div class="detail__label">IP Address</div>
+        <div class="detail__value detail__value--link" @click="trackByIp(selectedLog.actorIp)">{{ selectedLog.actorIp }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.userAgent">
+        <div class="detail__label">User Agent</div>
+        <div class="detail__value" style="font-size:11px;color:rgba(255,255,255,0.4)">{{ selectedLog.userAgent }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.memberId">
+        <div class="detail__label">Member ID</div>
+        <div class="detail__value detail__value--mono detail__value--link" @click="trackByMember(selectedLog.memberId)">{{ selectedLog.memberId }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.userId">
+        <div class="detail__label">User ID</div>
+        <div class="detail__value detail__value--mono">{{ selectedLog.userId }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.groupId">
+        <div class="detail__label">Group ID</div>
+        <div class="detail__value detail__value--mono detail__value--link" @click="filterByGroup(selectedLog.groupId)">{{ selectedLog.groupId }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.route">
+        <div class="detail__label">Route</div>
+        <div class="detail__value detail__value--mono">{{ selectedLog.method }} {{ selectedLog.route }}</div>
+      </div>
+      <div class="detail__field" v-if="selectedLog.metadata">
+        <div class="detail__label">Metadata</div>
+        <div class="detail__json">{{ JSON.stringify(selectedLog.metadata, null, 2) }}</div>
+      </div>
+      <!-- Session tracking button -->
+      <button class="detail__session-btn" v-if="selectedLog.actorIp && !sessionFilter" @click="trackByIp(selectedLog.actorIp)">
+        Track this session (by IP)
+      </button>
+      <button class="detail__session-btn" v-if="selectedLog.memberId && !sessionFilter" @click="trackByMember(selectedLog.memberId)">
+        Track this member's activity
+      </button>
+    </template>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed, watch, onMounted, nextTick } = Vue
+const ROW_HEIGHT = 32
+const OVERSCAN = 10
+const PAGE_SIZE = 200
+
+createApp({
+  setup() {
+    const apiKey = ref('__INJECTED_API_KEY__')
+    const showKeyPrompt = ref(false)
+
+    const logs = ref([])
+    const total = ref(0)
+    const isLoading = ref(false)
+    const hasMore = ref(false)
+    const nextCursor = ref(null)
+    const selectedLog = ref(null)
+    const scrollEl = ref(null)
+    const sentinel = ref(null)
+    const sessionFilter = ref(null)
+    const scrollTop = ref(0)
+    const containerHeight = ref(800)
+    let debounceTimer = null
+    let observer = null
+
+    const filters = ref({
+      category: '',
+      status: '',
+      activityType: '',
+      search: '',
+      groupId: '',
+      memberId: '',
+      timeRange: '24h',
+    })
+
+    const hasActiveFilters = computed(() =>
+      filters.value.category || filters.value.status || filters.value.activityType ||
+      filters.value.search || filters.value.groupId || filters.value.memberId
+    )
+
+    const totalHeight = computed(() => logs.value.length * ROW_HEIGHT)
+
+    const visibleItems = computed(() => {
+      const start = Math.max(0, Math.floor(scrollTop.value / ROW_HEIGHT) - OVERSCAN)
+      const end = Math.min(logs.value.length, Math.ceil((scrollTop.value + containerHeight.value) / ROW_HEIGHT) + OVERSCAN)
+      const items = []
+      for (let i = start; i < end; i++) {
+        items.push({ log: logs.value[i], top: i * ROW_HEIGHT })
+      }
+      return items
+    })
+
+    function buildParams(cursor) {
+      const p = new URLSearchParams()
+      if (filters.value.category) p.set('category', filters.value.category)
+      if (filters.value.status) p.set('status', filters.value.status)
+      if (filters.value.activityType) p.set('activityType', filters.value.activityType)
+      if (filters.value.search) p.set('search', filters.value.search)
+      if (filters.value.groupId) p.set('groupId', filters.value.groupId)
+      if (filters.value.memberId) p.set('memberId', filters.value.memberId)
+      if (sessionFilter.value) {
+        if (sessionFilter.value.type === 'ip') {
+          p.set('actorIp', sessionFilter.value.value)
+        } else {
+          p.set('memberId', sessionFilter.value.value)
+        }
+      }
+      if (filters.value.timeRange) {
+        const now = new Date()
+        const ms = { '1h': 36e5, '6h': 216e5, '24h': 864e5, '7d': 6048e5, '30d': 2592e6 }
+        const offset = ms[filters.value.timeRange]
+        if (offset) p.set('startDate', new Date(now - offset).toISOString())
+      }
+      p.set('limit', PAGE_SIZE.toString())
+      if (cursor) p.set('cursor', cursor)
+      return p.toString()
+    }
+
+    async function fetchLogs(append = false) {
+      isLoading.value = true
+      try {
+        const cursor = append ? nextCursor.value : null
+        const headers = {}
+        if (apiKey.value) headers['Authorization'] = `Bearer ${apiKey.value}`
+        const res = await fetch(`/api/activity-logs?${buildParams(cursor)}`, {
+          credentials: 'include',
+          headers,
+        })
+        const data = await res.json()
+        if (!data.success) throw new Error(data.error)
+
+        const newLogs = data.logs || []
+
+        if (append) {
+          logs.value = [...logs.value, ...newLogs]
+        } else {
+          logs.value = newLogs
+        }
+        total.value = data.pagination?.count ?? newLogs.length
+        hasMore.value = data.pagination?.hasMore ?? false
+        nextCursor.value = data.pagination?.nextCursor ?? null
+      } catch (e) {
+        console.error('Failed to fetch logs:', e)
+      }
+      isLoading.value = false
+      nextTick(setupObserver)
+    }
+
+    function setupObserver() {
+      if (observer) observer.disconnect()
+      if (!sentinel.value || !hasMore.value) return
+      observer = new IntersectionObserver(entries => {
+        if (entries[0].isIntersecting && !isLoading.value && hasMore.value) {
+          fetchLogs(true)
+        }
+      }, { root: scrollEl.value, threshold: 0 })
+      observer.observe(sentinel.value)
+    }
+
+    function onScroll() {
+      if (!scrollEl.value) return
+      scrollTop.value = scrollEl.value.scrollTop
+      containerHeight.value = scrollEl.value.clientHeight
+    }
+
+    function reload() { fetchLogs(false) }
+    function refresh() { fetchLogs(false) }
+
+    function debounceReload() {
+      clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => fetchLogs(false), 300)
+    }
+
+    function clearFilters() {
+      filters.value = { category: '', status: '', activityType: '', search: '', groupId: '', memberId: '', timeRange: '24h' }
+      sessionFilter.value = null
+      fetchLogs(false)
+    }
+
+    function selectLog(log) {
+      selectedLog.value = selectedLog.value?.id === log.id ? null : log
+    }
+
+    function trackByIp(ip) {
+      sessionFilter.value = { type: 'ip', value: ip }
+      selectedLog.value = null
+      fetchLogs(false)
+    }
+
+    function trackByMember(memberId) {
+      sessionFilter.value = { type: 'member', value: memberId }
+      filters.value.memberId = ''
+      selectedLog.value = null
+      fetchLogs(false)
+    }
+
+    function filterByGroup(groupId) {
+      filters.value.groupId = groupId
+      selectedLog.value = null
+      fetchLogs(false)
+    }
+
+    function clearSession() {
+      sessionFilter.value = null
+      fetchLogs(false)
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso)
+      const now = new Date()
+      const diffMs = now - d
+      if (diffMs < 6e4) return Math.floor(diffMs / 1000) + 's ago'
+      if (diffMs < 36e5) return Math.floor(diffMs / 6e4) + 'm ago'
+      if (diffMs < 864e5) return Math.floor(diffMs / 36e5) + 'h ago'
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    }
+
+    onMounted(() => {
+      if (scrollEl.value) {
+        containerHeight.value = scrollEl.value.clientHeight
+      }
+      fetchLogs(false)
+    })
+
+    return {
+      showKeyPrompt,
+      logs, total, isLoading, hasMore, selectedLog, scrollEl, sentinel,
+      filters, hasActiveFilters, sessionFilter,
+      totalHeight, visibleItems,
+      onScroll, reload, refresh, debounceReload, clearFilters,
+      selectLog, trackByIp, trackByMember, filterByGroup, clearSession,
+      formatTime,
+    }
+  }
+}).mount('#app')
+</script>
+</body>
+</html>

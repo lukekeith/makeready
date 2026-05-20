@@ -1,0 +1,10 @@
+{
+  "platform": "client",
+  "view": "pages.marketing.about",
+  "path": "/about",
+  "step": "about",
+  "output": "about.png",
+  "title": "About",
+  "devices": ["desktop-1440", "ipad", "iphone-15", "iphone-se"],
+  "fullPage": true
+}

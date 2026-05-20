@@ -1,0 +1,112 @@
+.MemberLoginPage {
+  height: 100dvh; // Dynamic viewport height
+  height: 100vh; // Fallback
+  width: 100%;
+  max-width: 440px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; // Prevent scrolling
+
+  @supports (height: 100dvh) {
+    height: 100dvh;
+  }
+
+  &__container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: clamp(12px, 2dvh, 16px);
+    padding-bottom: calc(clamp(12px, 2dvh, 16px) + env(safe-area-inset-bottom, 0px));
+    box-sizing: border-box;
+    min-height: 0; // Allow flex children to shrink
+    overflow: hidden;
+  }
+
+  &__back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: clamp(8px, 2dvh, 16px);
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+
+    &:hover {
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+
+  &__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(12px, 2dvh, 16px);
+    min-height: 0; // Allow shrinking
+  }
+
+  &__title {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: clamp(18px, 4vw, 22px);
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  &__description {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: clamp(15px, 3.5vw, 17px);
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    line-height: 1.3;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  &__code-wrapper {
+    padding: clamp(16px, 4dvh, 32px) 0;
+    flex-shrink: 0;
+  }
+
+  &__button-section {
+    margin-top: auto;
+    flex-shrink: 0;
+  }
+
+  &__error {
+    color: #ef4444;
+    text-align: center;
+    font-size: clamp(12px, 2.5vw, 14px);
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    flex-shrink: 0;
+  }
+
+  &__resend {
+    background: none;
+    border: none;
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: clamp(15px, 3.5vw, 17px);
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: clamp(12px, 2.5dvh, 20px);
+    text-align: center;
+    -webkit-tap-highlight-color: transparent;
+    margin-top: auto; // Push to bottom
+    flex-shrink: 0;
+
+    &:disabled {
+      color: rgba(255, 255, 255, 0.3);
+      cursor: default;
+    }
+  }
+}

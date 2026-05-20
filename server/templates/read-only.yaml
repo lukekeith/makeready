@@ -1,0 +1,17 @@
+id: "a0000000-0000-0000-0000-000000000006"
+name: "Read Only"
+description: "A simple template for reading Scripture with a single response prompt."
+
+activities:
+  - type: READ
+    orderNumber: 1
+    title: "Scripture"
+    displayName: "Read"
+
+  - type: USER_INPUT
+    orderNumber: 2
+    title: "Response"
+    displayName: "Study"
+    helpTitle: "Your thoughts"
+    helpDescription: "Write down your thoughts, reflections, or prayers after reading."
+    helpIcon: "pencil"

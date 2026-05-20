@@ -1,0 +1,190 @@
+.SiteNavbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+
+  &__bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 80px;
+    padding: 0 20px;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    position: relative;
+    z-index: 2;
+  }
+
+  &__logo {
+    display: flex;
+    align-items: center;
+    transition: opacity 0.3s ease;
+
+    img {
+      width: 40px;
+      height: 40px;
+      filter: brightness(0) invert(1);
+    }
+  }
+
+  &__trigger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    position: relative;
+    z-index: 3;
+  }
+
+  // Two-line hamburger icon
+  &__icon {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    gap: 10px;
+  }
+
+  &__line {
+    display: block;
+    width: 28px;
+    height: 2px;
+    background: #ffffff;
+    border-radius: 1px;
+    transition: transform 0.24s cubic-bezier(0.42, 0, 0.58, 1),
+                opacity 0.24s cubic-bezier(0.42, 0, 0.58, 1);
+    transform-origin: center center;
+  }
+
+  // Menu overlay
+  &__menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 80px 48px 48px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+  }
+
+  &__links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 48px;
+  }
+
+  &__link {
+    font-size: 28px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: white;
+    text-decoration: none;
+    padding: 6px 0;
+    display: flex;
+    width: fit-content;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+
+  &__legal {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__legal-label {
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 4px;
+  }
+
+  &__legal-link {
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.7);
+    text-decoration: none;
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: white;
+    }
+  }
+
+  // ── Open state ──────────────────────────────────────────────
+  &--open {
+    .SiteNavbar__logo {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .SiteNavbar__bar {
+      background: transparent;
+    }
+
+    .SiteNavbar__menu {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    // Top line rotates 45° clockwise to form "\"
+    .SiteNavbar__line--top {
+      transform: translateY(6px) rotate(45deg);
+    }
+
+    // Bottom line rotates -45° to form "/"
+    .SiteNavbar__line--bottom {
+      transform: translateY(-6px) rotate(-45deg);
+    }
+  }
+
+  @media (max-width: 768px) {
+    &__bar {
+      height: 40px;
+      padding: 0 16px;
+    }
+
+    &__logo img {
+      width: 24px;
+      height: 24px;
+    }
+
+    &__icon {
+      width: 18px;
+      height: 18px;
+      gap: 6px;
+    }
+
+    &__line {
+      width: 16px;
+    }
+
+    &--open .SiteNavbar__line--top {
+      transform: translateY(4px) rotate(45deg);
+    }
+
+    &--open .SiteNavbar__line--bottom {
+      transform: translateY(-4px) rotate(-45deg);
+    }
+  }
+}

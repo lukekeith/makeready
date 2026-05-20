@@ -1,0 +1,12 @@
+.LandingPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #303131 0%, #141413 100%);
+
+  &__logo {
+    width: 200px;
+    height: 200px;
+  }
+}

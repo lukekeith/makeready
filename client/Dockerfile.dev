@@ -1,0 +1,54 @@
+FROM php:8.3-fpm-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    nodejs \
+    npm \
+    git \
+    curl \
+    libpng-dev \
+    libzip-dev \
+    oniguruma-dev \
+    zip \
+    unzip
+
+# Install PHP extensions
+RUN docker-php-ext-install \
+    pdo \
+    mbstring \
+    exif \
+    pcntl \
+    bcmath \
+    gd \
+    zip
+
+# Install Composer
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /var/www/html
+
+# Copy composer files and install dependencies
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --no-scripts
+
+# Copy package files and install node dependencies
+COPY package*.json ./
+RUN npm install --legacy-peer-deps
+
+# Copy application source
+COPY . .
+
+# Run post-install scripts
+RUN composer run-script post-autoload-dump || true
+
+# Ensure storage directories exist
+RUN mkdir -p storage/framework/sessions \
+    storage/framework/cache \
+    storage/framework/views \
+    storage/logs \
+    && chmod -R 775 storage bootstrap/cache
+
+EXPOSE 8000
+
+# Run artisan serve + vite dev server
+CMD php artisan serve --host=0.0.0.0 --port=8000 & npm run dev -- --host 0.0.0.0 & wait

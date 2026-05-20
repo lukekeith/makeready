@@ -1,0 +1,16 @@
+// Release.xcconfig
+// Configuration for production (App Store / TestFlight)
+
+// Server Configuration
+API_BASE_URL = https:/$()/api.makeready.org
+
+// App Configuration
+PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app
+PRODUCT_NAME = MakeReady
+
+// Version Configuration
+MARKETING_VERSION = 1.1.2
+
+// Build Settings
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = RELEASE
+ENABLE_USER_SCRIPT_SANDBOXING = NO

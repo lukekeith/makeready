@@ -1,0 +1,94 @@
+.ProfilePage {
+  width: 100%;
+  max-width: 440px;
+  min-height: 100vh;
+  margin: 0 auto;
+  background: linear-gradient(180deg, #191919 0%, #0b0b0a 100%);
+  display: flex;
+  flex-direction: column;
+
+  &--loading {
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__loading-text {
+    color: rgba(255, 255, 255, 0.5);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+  }
+
+  &__content {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  &__avatar-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    align-self: flex-start;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(108, 71, 255, 0.5);
+      outline-offset: 4px;
+      border-radius: 50%;
+    }
+  }
+
+  &__avatar {
+  }
+
+  &__avatar-fallback {
+    font-size: 72px;
+    font-weight: 500;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  &__avatar-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: -8px;
+  }
+
+  &__google-sync {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+}

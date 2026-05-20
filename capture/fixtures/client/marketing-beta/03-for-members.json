@@ -1,0 +1,10 @@
+{
+  "platform": "client",
+  "view": "pages.marketing.for-members",
+  "path": "/for-members",
+  "step": "for-members",
+  "output": "for-members.png",
+  "title": "For Members",
+  "devices": ["desktop-1440", "ipad", "iphone-15", "iphone-se"],
+  "fullPage": true
+}

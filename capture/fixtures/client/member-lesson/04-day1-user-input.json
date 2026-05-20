@@ -1,0 +1,98 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "04-day1-user-input.png",
+  "title": "Day 1: User Input — with help (pencil icon)",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-001",
+    "lessonScheduleId": "ls-capture-001",
+    "step": 4,
+    "lessonData": {
+      "lesson": {
+        "id": "959b9d49-d918-4ed8-adf1-cba263722f09",
+        "title": "Do you want to be healed?",
+        "dayNumber": 1,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": {
+          "name": "Daily Inspiration"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "9978d068-03ad-4581-81cf-23e5034c5a60",
+            "type": "READ",
+            "title": "John 5:5-6",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "8601b2ad",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "1673a539-bce3-492f-ab63-d0333bc263b6",
+            "type": "READ",
+            "title": "Question",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "bc9b7ba5",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "a55033c0-0e24-4adf-a622-5c70d70dc08f",
+            "type": "READ",
+            "title": "2 Corinthians 5:17",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "0b983c0f",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "9728bdb5-2a18-4b0d-b80f-a13b1354383b",
+            "type": "USER_INPUT",
+            "title": "Do you want to get well?",
+            "isHelpEnabled": true,
+            "helpTitle": "What’s keeping you from wanting to be healed?",
+            "helpDescription": "Write down your thoughts, reflections, or prayers after reading.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "pencil",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  },
+  "step": 4
+}

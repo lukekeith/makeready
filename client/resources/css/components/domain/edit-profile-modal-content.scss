@@ -1,0 +1,155 @@
+.EditProfileModalContent {
+  width: 100%;
+  max-width: 440px;
+  min-height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+
+  &--loading,
+  &--error {
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    gap: 20px;
+  }
+
+  &__loading-text,
+  &__error-text {
+    color: rgba(255, 255, 255, 0.5);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    text-align: center;
+  }
+
+  &__error-text {
+    color: rgba(255, 100, 100, 0.8);
+  }
+
+  // Header with Cancel/Title/Save — uses PageTitle for layout, only adds sticky bg
+  &__header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: linear-gradient(180deg, #272529 0%, #272529 60%, transparent 100%);
+  }
+
+  &__header-cancel {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+
+  &__header-title {
+    font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+  }
+
+  &__header-save {
+    background: none;
+    border: none;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    font-weight: 500;
+    color: #6C47FF;
+    cursor: pointer;
+    padding: 4px;
+    transition: opacity 0.15s ease;
+
+    &:disabled {
+      color: rgba(255, 255, 255, 0.3);
+      cursor: not-allowed;
+    }
+  }
+
+  // Content area
+  &__content {
+    flex: 1;
+    padding: 0 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  // Avatar
+  &__avatar-button {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    align-self: flex-start;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(108, 71, 255, 0.5);
+      outline-offset: 4px;
+      border-radius: 50%;
+    }
+  }
+
+  &__avatar {
+  }
+
+  &__file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  &__avatar-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: -8px;
+  }
+
+  &__google-sync {
+    background: none;
+    border: none;
+    padding: 0;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      color: rgba(255, 255, 255, 0.7);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  }
+
+  &__save-error {
+    color: rgba(255, 100, 100, 0.8);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    margin: 0;
+    padding: 8px 12px;
+    background: rgba(255, 100, 100, 0.1);
+    border-radius: 8px;
+  }
+}

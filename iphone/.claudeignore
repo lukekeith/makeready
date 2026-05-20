@@ -1,0 +1,54 @@
+# Xcode Build Artifacts
+build/
+DerivedData/
+*.app
+*.ipa
+*.dSYM
+*.dSYM.zip
+
+# Xcode User Settings (user-specific, auto-generated)
+xcuserdata/
+*.xcuserdatad
+*.xcuserstate
+*.xcworkspace
+*.xccheckout
+
+# Xcode Project (mostly auto-generated binary data)
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/*.xcscheme
+
+# Asset Catalogs (large binary files)
+*.xcassets/
+
+# Provisioning & Certificates
+*.mobileprovision
+*.p12
+*.cer
+*.certSigningRequest
+
+# Archives & Exports
+*.xcarchive/
+ExportOptions.plist
+
+# Dependencies
+Pods/
+Carthage/Build/
+.build/
+
+# System Files
+.DS_Store
+*.swp
+*.swo
+*~
+
+# Package Manager
+*.resolved
+.swiftpm/
+
+# Testing
+*.xcresult/
+coverage/
+
+# Logs
+*.log

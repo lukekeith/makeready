@@ -1,0 +1,122 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "12-day3-complete.png",
+  "title": "Day 3: Complete step",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-002",
+    "lessonScheduleId": "ls-capture-003",
+    "step": 7,
+    "lessonData": {
+      "lesson": {
+        "id": "aabe2aaf-a7b6-484c-9345-2d3cd110a29a",
+        "title": "Jesus restores",
+        "dayNumber": 3,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": {
+          "name": "Daily Inspiration"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "162c894c-039c-4f92-8638-805d94d1c861",
+            "type": "READ",
+            "title": "The calling of Peter",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "2a56b492",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "3b220da1-b95d-45b9-807c-5b0dc8e4769b",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "Your calling",
+            "helpDescription": "Has Jesus asked you to give up anything to follow him? Are you willing?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "hand.raised.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "bafa8a36-ce2c-4c7c-81f7-8e2cba53d5ac",
+            "type": "READ",
+            "title": "Denial of Peter",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "a593610d",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "51e9d43f-47fe-4c2e-b8f5-1fd76fc11daf",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "How did Peter feel?",
+            "helpDescription": "If you denied Jesus after spending 3 years with Him and seeing all the miracles, calling Him the Messiah etc, how would you feel here?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "lightbulb.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "20c60c51-f359-4ffb-b29d-8ba71208feea",
+            "type": "READ",
+            "title": "The restoration of Peter",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "a2cece84",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "d1fe43eb-0b34-41e4-a3f8-cc8a01697a41",
+            "type": "USER_INPUT",
+            "title": "Reflect",
+            "isHelpEnabled": true,
+            "helpTitle": "Have you screwed up?",
+            "helpDescription": "Jesus stands with the ability to forgive you of your sins.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "heart.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  },
+  "step": 7
+}

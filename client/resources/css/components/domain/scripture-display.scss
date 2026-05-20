@@ -1,0 +1,70 @@
+.ScriptureDisplay {
+  width: 100%;
+  padding: 0 16px;
+
+  &__reference {
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 22px;
+    color: rgba(255, 255, 255, 1);
+    margin: 0 0 16px 0;
+  }
+
+  &__verses {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  &__verse {
+    display: block;
+    position: relative;
+    margin: 0;
+    padding-left: 32px;
+    line-height: 1.55;
+  }
+
+  &__verse-number {
+    position: absolute;
+    left: 0;
+    top: 0;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 1);
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  &__verse-text {
+    display: inline;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 1);
+  }
+
+  // Size variants
+  &--size-default {
+    .ScriptureDisplay__reference {
+      font-size: 17px;
+    }
+
+    .ScriptureDisplay__verse-text {
+      font-size: 18px;
+    }
+  }
+
+  &--size-large {
+    .ScriptureDisplay__reference {
+      font-size: 20px;
+    }
+
+    .ScriptureDisplay__verse-text {
+      font-size: 22px;
+    }
+  }
+}

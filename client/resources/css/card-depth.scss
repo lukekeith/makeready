@@ -1,0 +1,13 @@
+// Card Depth Utility Classes
+// Use these to maintain consistent border-radius for nested cards
+//
+// .CardParent - Top-level cards (16px border-radius)
+// .CardChild - Cards nested inside another card (8px border-radius)
+
+.CardParent {
+  border-radius: 16px !important;
+}
+
+.CardChild {
+  border-radius: 8px !important;
+}

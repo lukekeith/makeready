@@ -1,0 +1,302 @@
+// GroupPostCard - Matches iPhone GroupPostCard.swift design
+// Structure: author row → content text → type-specific → action bar
+
+.GroupPostCard {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 1rem; // 16px matching iOS
+
+  // Author Row (40px avatar + name/timestamp)
+  &__author-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; // 8px
+  }
+
+  &__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, #6c47ff 0%, #9747ff 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    span {
+      font-size: 0.875rem; // 14px
+      font-weight: 600;
+      color: white;
+    }
+  }
+
+  &__author-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem; // 2px
+    flex: 1;
+  }
+
+  &__author-name {
+    font-size: 0.9375rem; // 15px matching iOS
+    font-weight: 700;
+    color: white;
+  }
+
+  &__timestamp {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem; // 4px
+  }
+
+  &__timestamp-value {
+    font-size: 0.6875rem; // 11px matching iOS
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__timestamp-unit {
+    font-size: 0.6875rem; // 11px matching iOS
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  // Content text
+  &__content {
+    font-size: 0.8125rem; // 13px matching iOS
+    font-weight: 400;
+    color: white;
+    line-height: 1.5; // 6px line spacing
+    margin: 0;
+    white-space: pre-wrap;
+  }
+
+  // Post image (for announcement/welcome)
+  &__post-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 0;
+  }
+
+  // Action Bar (views, shares, bookmark, share icons)
+  &__action-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 18px;
+  }
+
+  &__action-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 1rem; // 16px
+  }
+
+  &__action-bar-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem; // 16px
+
+    svg {
+      color: white;
+    }
+  }
+
+  &__action-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; // 8px
+
+    svg {
+      color: white;
+    }
+
+    span {
+      font-size: 0.8125rem; // 13px
+      font-weight: 400;
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+
+  // Event Card
+  &__event-card {
+    display: flex;
+    flex-direction: column;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  &__event-image {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+  }
+
+  &__event-image-placeholder {
+    width: 100%;
+    height: 200px;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      color: rgba(255, 255, 255, 0.3);
+    }
+  }
+
+  &__event-details {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  &__event-date-column {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem;
+  }
+
+  &__event-day {
+    font-size: 1.75rem; // 28px
+    font-weight: 400;
+    color: white;
+  }
+
+  &__event-month {
+    font-size: 0.9375rem; // 15px
+    font-weight: 700;
+    color: #6c47ff;
+  }
+
+  &__event-info {
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    gap: 0;
+  }
+
+  &__event-title {
+    font-size: 1.0625rem; // 17px
+    font-weight: 700;
+    color: white;
+  }
+
+  &__event-datetime {
+    font-size: 0.8125rem; // 13px
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__event-attendees {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  &__event-attendee-count {
+    font-size: 0.8125rem; // 13px
+    font-weight: 700;
+    color: white;
+  }
+
+  &__event-attendee-label {
+    font-size: 0.8125rem; // 13px
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  // Poll
+  &__poll {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; // 8px
+  }
+
+  &__poll-option {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem; // 8px
+    padding: 0.625rem 0.75rem; // 10px 12px
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 40px;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  &__poll-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: rgba(108, 71, 255, 0.2);
+    transition: width 0.3s ease;
+  }
+
+  &__poll-indicator {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
+
+    &--voted {
+      border-color: #6c47ff;
+      background: #6c47ff;
+    }
+  }
+
+  &__poll-text {
+    position: relative;
+    flex: 1;
+    font-size: 0.875rem; // 14px
+    font-weight: 400;
+    color: white;
+  }
+
+  &__poll-count {
+    position: relative;
+    font-size: 0.875rem; // 14px
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  // Video
+  &__video {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem; // 12px
+  }
+
+  &__video-thumbnail {
+    width: 80px;
+    height: 48px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      color: white;
+    }
+  }
+
+  &__video-label {
+    font-size: 0.875rem; // 14px
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+  }
+}

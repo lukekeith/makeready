@@ -1,0 +1,104 @@
+/**
+ * Design System Tokens
+ *
+ * CSS custom properties for spacing, typography, control sizes, and radius.
+ * Components reference these instead of hardcoding pixel values, so one
+ * media query at the root can shrink every token at once for small viewports
+ * — no per-component breakpoints needed.
+ *
+ * Usage:
+ *   padding: var(--space-lg);
+ *   font-size: var(--text-heading);
+ *   height: var(--control-h-lg);
+ *
+ * Naming: --<category>-<scale>. Scales follow a rough t-shirt size order:
+ *   2xs, xs, sm, md, lg, xl, 2xl, 3xl — typography adds body/lead/title/display.
+ *
+ * Breakpoint: anything at or below 360px viewport width (covers iPhone SE at
+ * 320) gets a shrunk set of tokens. This lives in ONE place; do NOT add new
+ * per-component media queries for mobile sizing — instead, adopt the tokens.
+ */
+
+:root {
+  // ─── Spacing (4px base) ────────────────────────────────────────────────────
+  --space-2xs: 2px;
+  --space-xs:  4px;
+  --space-sm:  8px;
+  --space-md:  12px;
+  --space-lg:  16px;
+  --space-xl:  24px;
+  --space-2xl: 32px;
+  --space-3xl: 48px;
+
+  // ─── Typography (type scale) ───────────────────────────────────────────────
+  // Scale targets: xs 11 / sm 13 / md 16 / lead 17 / subheading 20 /
+  //                heading 22 / title 28 / display 32. `--text-md` covers
+  //                14/15/16 hardcodes; `--text-subheading` covers 20/21.
+  --text-xs:          11px;
+  --text-sm:          13px;
+  --text-md:          16px;
+  --text-lead:        17px;
+  --text-subheading:  20px;
+  --text-heading:     22px;
+  --text-title:       28px;
+  --text-display:     32px;
+
+  --leading-xs:          15px;
+  --leading-sm:          18px;
+  --leading-md:          22px;
+  --leading-lead:        22px;
+  --leading-subheading:  26px;
+  --leading-heading:     28px;
+  --leading-title:       34px;
+  --leading-display:     38px;
+
+  // ─── Control heights ───────────────────────────────────────────────────────
+  --control-h-sm: 32px;
+  --control-h-md: 40px;
+  --control-h-lg: 48px;
+
+  // ─── Radius ────────────────────────────────────────────────────────────────
+  --radius-sm:   4px;
+  --radius-md:   8px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+}
+
+// Small phones (iPhone SE @ 320 and similar). Shrinks every primitive so
+// components that reference the tokens get a tighter layout automatically.
+// The cut-off at 360px excludes iPhone 13 Mini (375) and all current standard
+// iPhones, so typical phones keep the regular scale.
+@media (max-width: 360px) {
+  :root {
+    --space-2xs: 2px;
+    --space-xs:  3px;
+    --space-sm:  5px;
+    --space-md:  8px;
+    --space-lg:  10px;
+    --space-xl:  14px;
+    --space-2xl: 20px;
+    --space-3xl: 30px;
+
+    --text-xs:          10px;
+    --text-sm:          11px;
+    --text-md:          13px;
+    --text-lead:        14px;
+    --text-subheading:  16px;
+    --text-heading:     18px;
+    --text-title:       22px;
+    --text-display:     24px;
+
+    --leading-xs:          13px;
+    --leading-sm:          15px;
+    --leading-md:          17px;
+    --leading-lead:        18px;
+    --leading-subheading:  21px;
+    --leading-heading:     22px;
+    --leading-title:       28px;
+    --leading-display:     30px;
+
+    --control-h-sm: 26px;
+    --control-h-md: 32px;
+    --control-h-lg: 40px;
+  }
+}

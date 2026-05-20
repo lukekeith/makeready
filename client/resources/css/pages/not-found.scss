@@ -1,0 +1,14 @@
+.NotFoundPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #303131 0%, #141413 100%);
+
+  &__text {
+    font-size: 120px;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.2);
+    user-select: none;
+  }
+}

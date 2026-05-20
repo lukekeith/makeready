@@ -1,0 +1,86 @@
+.GroupHome {
+  width: 100%;
+  max-width: 440px;
+  min-height: 100vh;
+  background: #0d101a;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  position: relative;
+
+  &__studies {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+    background: rgba(37, 41, 54, 0.5);
+    border-radius: 16px;
+  }
+
+  &__posts {
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+    padding-bottom: 112px;
+
+    &--with-leader-buttons {
+      padding-bottom: 160px;
+    }
+
+    > * + * {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 16px;
+      margin-top: 16px;
+    }
+  }
+
+  &__empty-state {
+    text-align: center;
+    padding: 48px 16px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &__empty-title {
+    margin: 0;
+    font-size: 16px;
+  }
+
+  &__empty-description {
+    margin: 8px 0 0;
+    font-size: 14px;
+  }
+
+  &__loading-skeleton {
+    height: 150px;
+    background: #1a1d2e;
+    border-radius: 12px;
+    animation: groupHomePulse 1.5s infinite;
+  }
+
+  &__leader-buttons {
+    position: fixed;
+    bottom: 112px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+  }
+
+  &__navigation {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 440px;
+  }
+}
+
+@keyframes groupHomePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

@@ -1,0 +1,15 @@
+// Debug.xcconfig
+// Configuration for local development with debugger
+
+// Server Configuration
+API_BASE_URL = http:/$()/127.0.0.1:3010
+
+// App Configuration
+PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.debug
+PRODUCT_NAME = MakeReady-Debug
+
+// Version Configuration
+MARKETING_VERSION = 1.1.2
+
+// Build Settings
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG

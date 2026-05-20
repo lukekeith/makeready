@@ -1,0 +1,153 @@
+{
+  "name": "Star Wars",
+  "slug": "star-wars",
+  "description": "Continuous scroll-up crawl — classic perspective-tilt text roll",
+  "definition": {
+    "version": 2,
+    "readBlockSequencing": "all-at-once",
+    "background": {
+      "color": "#000005",
+      "image": null,
+      "video": null,
+      "overlay": null
+    },
+    "interaction": {
+      "mode": "auto-play",
+      "autoPlayDelay": 500,
+      "tapAdvances": true,
+      "swipeAdvances": false,
+      "showProgress": false
+    },
+    "typography": {
+      "fontFamily": "'Georgia', serif",
+      "fontSize": 18,
+      "color": "#ffe81f",
+      "lineHeight": 1.9
+    },
+    "elements": {
+      "h1": {
+        "style": {
+          "fontSize": 26,
+          "fontWeight": "bold",
+          "color": "#ffe81f",
+          "textAlign": "center",
+          "textTransform": "uppercase",
+          "letterSpacing": 3
+        },
+        "enter": {
+          "type": "scroll-up",
+          "duration": 15000
+        },
+        "display": "fullscreen",
+        "align": "center"
+      },
+      "h2": {
+        "style": {
+          "fontSize": 22,
+          "fontWeight": "bold",
+          "color": "#ffe81f",
+          "textTransform": "uppercase",
+          "letterSpacing": 2
+        },
+        "enter": {
+          "type": "scroll-up",
+          "duration": 12000
+        },
+        "align": "center"
+      },
+      "p": {
+        "style": {
+          "color": "#ffe81f",
+          "textAlign": "center"
+        },
+        "enter": {
+          "type": "scroll-up",
+          "duration": 10000
+        },
+        "align": "center"
+      },
+      "li": {
+        "style": {
+          "color": "#ffe81f",
+          "textAlign": "center"
+        },
+        "enter": {
+          "type": "scroll-up",
+          "duration": 10000
+        },
+        "align": "center"
+      },
+      "verse": {
+        "style": {
+          "fontSize": 18,
+          "color": "#ffe81f",
+          "textAlign": "center"
+        },
+        "enter": {
+          "type": "scroll-up",
+          "duration": 12000
+        },
+        "display": "fullscreen",
+        "align": "center"
+      },
+      "verse-number": {
+        "style": {
+          "fontSize": 12,
+          "opacity": 0.5,
+          "color": "#ffe81f"
+        }
+      },
+      "verse-reference": {
+        "style": {
+          "fontSize": 13,
+          "color": "#ffe81f",
+          "textTransform": "uppercase",
+          "letterSpacing": 3,
+          "textAlign": "center"
+        },
+        "enter": {
+          "type": "fade",
+          "duration": 800
+        },
+        "align": "center"
+      }
+    },
+    "sequences": [
+      {
+        "match": "h1",
+        "phase": "solo",
+        "pauseAfter": true,
+        "minDisplayDuration": 15000
+      },
+      {
+        "match": "h2",
+        "phase": "solo",
+        "pauseAfter": true,
+        "minDisplayDuration": 12000
+      },
+      {
+        "match": "verse-reference",
+        "phase": "solo",
+        "pauseAfter": false
+      },
+      {
+        "match": "verse",
+        "phase": "solo",
+        "pauseAfter": true,
+        "minDisplayDuration": 12000
+      },
+      {
+        "match": "p",
+        "phase": "solo",
+        "pauseAfter": true,
+        "minDisplayDuration": 10000
+      },
+      {
+        "match": "li",
+        "phase": "group",
+        "pauseAfter": true,
+        "minDisplayDuration": 10000
+      }
+    ]
+  }
+}

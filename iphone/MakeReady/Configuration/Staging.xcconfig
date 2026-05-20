@@ -1,0 +1,12 @@
+// Staging.xcconfig
+// Configuration for staging/testing environment
+
+// Server Configuration
+API_BASE_URL = https:/$()/staging.makeready.org
+
+// App Configuration
+PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.staging
+PRODUCT_NAME = MakeReady-Staging
+
+// Build Settings
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = STAGING

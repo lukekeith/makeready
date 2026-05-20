@@ -1,0 +1,78 @@
+meta:
+  title: "MakeReady | Growth through human connection"
+  description: "MakeReady helps leaders guide study programs, daily activities, accountability, and follow-through without asking members to install another app."
+
+hero:
+  label: "Invite-only groups for men"
+  title: "Drive personal growth through human connection"
+  body: "MakeReady gives group leaders the tools to create study programs and
+    send daily activities. No app required. Members participate through text
+    links, no app required."
+  cta:
+    text: "Join the beta"
+    href: "/join-beta"
+  secondary:
+    text: "See leader tools"
+    href: "/for-leaders"
+  screenshots:
+    - src: "/screenshots/hero/join-group.png"
+      alt: "Join a group"
+    - src: "/screenshots/hero/home.png"
+      alt: "Home dashboard"
+    - src: "/screenshots/hero/read-activity.png"
+      alt: "Daily activity"
+
+band:
+  - number: "01"
+    title: "Create"
+    caption: "Build Shared Paths with lessons, activities, prompts, and follow-through moments."
+  - number: "02"
+    title: "Enroll"
+    caption: "Leaders guide members into a simple, consistent rhythm — everything delivered through easy text links."
+  - number: "03"
+    title: "Connect"
+    caption: "Members receive focused links each day that advance the shared path — zero extra apps zero friction."
+
+split:
+  eyebrow: "Not another app"
+  title: "Leaders get the tools. Members get the link."
+  body: "MakeReady is designed for high-touch groups where human leadership matters more than software adoption. The app supports the leader; the member experience stays lightweight."
+  screenshots:
+    - src: "/screenshots/hero/create-program.png"
+      alt: "Create a study program in MakeReady"
+      width: "260px"
+    - src: "/screenshots/hero/program-with-lessons.png"
+      alt: "Program home with lessons in MakeReady"
+      width: "260px"
+
+features:
+  - title: "Study programs"
+    description: "Structure multi-day growth journeys around content, reflection, and action."
+    image: "/images/image-01.png"
+  - title: "Daily activities"
+    description: "Keep the next step obvious with bite-sized links and clear expectations."
+    image: "/images/image-02.png"
+  - title: "Accountability"
+    description: "Help leaders see momentum and follow up with care."
+    image: "/images/image-03.png"
+  - title: "Community"
+    description: "Build real relationships in small groups where everyone knows each other by name."
+    image: "/images/image-04.png"
+  - title: "Groups"
+    description: "Organize and lead small groups with tools built for how leaders actually work."
+    image: "/images/image-05.png"
+  - title: "Live events"
+    description: "Gather your people for in-person or online experiences that deepen community."
+    image: "/images/image-06.png"
+
+cta_panel:
+  eyebrow: "Beta access"
+  title: "Bring MakeReady to your group."
+  body: "We are reviewing prospective leader groups manually while the beta expands."
+  buttons:
+    - text: "Join the beta"
+      href: "/join-beta"
+      style: "primary"
+    - text: "Read our story"
+      href: "/about"
+      style: "ghost"

@@ -1,0 +1,174 @@
+.GroupCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 100%;
+  height: 240px;
+  border-radius: 16px;
+  overflow: hidden;
+
+  &--with-cover {
+    // Has cover image with gradient
+  }
+
+  &--without-cover {
+    background: #252936;
+  }
+
+  &--clickable {
+    cursor: pointer;
+    transition: opacity 200ms ease;
+
+    &:hover {
+      opacity: 0.9;
+    }
+  }
+
+  &--with-chevron {
+    padding-right: 48px;
+  }
+
+  &__cover-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__gradient {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      to bottom,
+      rgba(37, 41, 54, 0.5) 0%,
+      rgba(37, 41, 54, 0.5) 50%,
+      rgba(37, 41, 54, 1) 100%
+    );
+  }
+
+  &__top {
+    position: relative;
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    padding: 16px;
+  }
+
+  &__alert {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    background: #6C47FF;
+    border-radius: 4px;
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 20px;
+    color: white;
+  }
+
+  &__back-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: -8px; // Offset for larger touch target
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+
+  &__bottom {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px;
+  }
+
+  &__title {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 28px;
+    letter-spacing: -0.1px;
+    color: white;
+    margin: 0;
+  }
+
+  &__joined {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 18px;
+    margin: 0;
+  }
+
+  &__joined-label {
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &__joined-date {
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__details {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__detail {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 18px;
+    color: rgba(255, 255, 255, 0.7);
+
+    svg {
+      width: 20px;
+      height: 20px;
+      opacity: 0.7;
+    }
+  }
+
+  &__member-count {
+    color: white;
+  }
+
+  &__chevron {
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+}

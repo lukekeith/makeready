@@ -1,0 +1,18 @@
+{
+  "platform": "client",
+  "view": "pages.marketing.join-beta-submitted",
+  "path": "/join-beta/submitted",
+  "step": "join-beta-submitted",
+  "output": "join-beta-submitted.png",
+  "title": "Beta application submitted",
+  "devices": ["desktop-1440", "ipad", "iphone-15", "iphone-se"],
+  "fullPage": true,
+  "data": {
+    "session": {
+      "join_beta_submission": {
+        "organizationName": "Example Growth Collective",
+        "status": "PENDING"
+      }
+    }
+  }
+}

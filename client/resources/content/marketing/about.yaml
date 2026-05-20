@@ -1,0 +1,30 @@
+meta:
+  title: "About — MakeReady"
+  description: "MakeReady is an invite-only experience for personal growth through human connection, accountability, and study."
+
+statement:
+  eyebrow: "About MakeReady"
+  title: "An invite-only experience for growth groups that still believe people change people… together."
+  body: "We don't replace the leader/member relationship — we build the infrastructure around it."
+
+features:
+  - title: "Human-led"
+    description: "The leader remains central. MakeReady helps them prepare, send, and follow up."
+    image: "/images/image-01.png"
+  - title: "Member-light"
+    description: "Participation should be easy enough to fit into daily life and meaningful enough to sustain growth."
+    image: "/images/image-02.png"
+  - title: "Trust-aware"
+    description: "Beta access, identity, SMS consent, and compliance are treated as product responsibilities."
+    image: "/images/image-03.png"
+  - title: "Carefully expanding"
+    description: "We are onboarding groups intentionally before opening broader access."
+    image: "/images/image-04.png"
+
+cta_panel:
+  eyebrow: "Interested?"
+  title: "Apply to bring MakeReady to your group."
+  buttons:
+    - text: "Join the beta"
+      href: "/join-beta"
+      style: "primary"

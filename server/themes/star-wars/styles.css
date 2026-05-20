@@ -1,0 +1,108 @@
+/* ============================================================================
+ * Theme Styles
+ * 
+ * Custom CSS for this theme. Loaded at runtime when the theme is active.
+ * Use these selectors to override or extend the default themed content styles.
+ * ============================================================================ */
+
+
+/* ── Background ────────────────────────────────────────────────────────────── */
+
+.ThemedBackground {}
+.ThemedBackground__color {}
+.ThemedBackground__image {}
+.ThemedBackground__video {}
+.ThemedBackground__overlay {}
+
+
+/* ── Sequence Player (animation container) ─────────────────────────────────── */
+
+.ThemedSequencePlayer {}
+.ThemedSequencePlayer__content {}
+
+/* Phase — a group of elements that animate together */
+.ThemedSequencePlayer__phase {}
+.ThemedSequencePlayer__phase--fullscreen {}
+.ThemedSequencePlayer__phase--centered {}
+
+/* Progress indicators */
+.ThemedSequencePlayer__progress {}
+.ThemedSequencePlayer__progress--numbers {}
+.ThemedSequencePlayer__progress--bar {}
+.ThemedSequencePlayer__progress-fill {}
+.ThemedSequencePlayer__dot {}
+.ThemedSequencePlayer__dot--active {}
+
+
+/* ── Elements (individual content tokens) ──────────────────────────────────── */
+
+/* Headings */
+.ThemedElement--h1 {}
+.ThemedElement--h2 {}
+.ThemedElement--h3 {}
+.ThemedElement--h4 {}
+
+/* Body text */
+.ThemedElement--p {}
+
+/* List items */
+.ThemedElement--li {}
+.ThemedElement--li::before {} /* bullet marker */
+
+/* Block quotes */
+.ThemedElement--blockquote {}
+
+/* Bible verses */
+.ThemedElement--verse {}
+.ThemedElement__verse-number {}
+.ThemedElement__verse-text {}
+
+/* Verse reference (e.g. "Romans 8:28") */
+.ThemedElement--verse-reference {}
+
+
+/* ── Plain rendering (non-themed fallback) ─────────────────────────────────── */
+
+.ThemedContent__plain {}
+.ThemedContent__plain h1 {}
+.ThemedContent__plain h2 {}
+.ThemedContent__plain h3 {}
+.ThemedContent__plain h4 {}
+.ThemedContent__plain p {}
+.ThemedContent__plain ul {}
+.ThemedContent__plain ol {}
+.ThemedContent__plain li {}
+.ThemedContent__plain blockquote {}
+.ThemedContent__plain strong {}
+.ThemedContent__plain em {}
+
+/* Plain verse rendering */
+.ThemedContent__verses {}
+.ThemedContent__verse-reference {}
+.ThemedContent__verse-list {}
+.ThemedContent__verse {}
+.ThemedContent__verse-number {}
+.ThemedContent__verse-text {}
+
+
+/* ── Custom fonts ──────────────────────────────────────────────────────────── */
+
+/*
+@font-face {
+  font-family: 'CustomFont';
+  src: url('/themes/<slug>/fonts/custom.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+
+/* ── Custom keyframe animations ────────────────────────────────────────────── */
+
+/*
+@keyframes custom-entrance {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+*/

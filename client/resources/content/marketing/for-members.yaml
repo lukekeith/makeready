@@ -1,0 +1,30 @@
+meta:
+  title: "For Members — MakeReady"
+  description: "Members participate in MakeReady through simple links and reminders. No app required."
+
+hero:
+  label: "For Members"
+  title: "No app required. Just the next step."
+  body: "Members participate through text-linked activities that are easy to open, complete, and return to. The technology stays quiet so the group can stay connected."
+  cta:
+    text: "For leader teams"
+    href: "/for-leaders"
+  secondary:
+    text: "Join the beta"
+    href: "/join-beta"
+
+band:
+  - label: "Text"
+    title: "Receive the link"
+    caption: "Your leader sends the daily activity or group invitation."
+  - label: "Act"
+    title: "Complete the step"
+    caption: "Read, reflect, watch, or respond in a focused mobile experience."
+  - label: "Grow"
+    title: "Stay with the group"
+    caption: "Follow-through becomes part of the shared rhythm, not another login."
+
+split:
+  eyebrow: "Member promise"
+  title: "Lower friction, deeper participation."
+  body: "MakeReady is built for members who want to engage with their group, not manage another platform. Leaders carry the setup; members respond to clear invitations."

@@ -1,0 +1,143 @@
+@use 'styles/colors';
+
+.DateInput {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: colors.text(400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  &__input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+    z-index: 1;
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+
+    // For WebKit browsers, make the calendar icon clickable
+    &::-webkit-calendar-picker-indicator {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+  }
+
+  &__display {
+    flex: 1;
+    padding: 0;
+    font-size: 1rem;
+    font-weight: 400;
+    color: colors.text(100);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid colors.text(700);
+    transition: border-color 0.2s ease;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+
+    &:empty::before {
+      content: attr(data-placeholder);
+      color: colors.text(500);
+    }
+  }
+
+  &__icon {
+    position: absolute;
+    right: 0;
+    color: colors.text(400);
+    pointer-events: none;
+  }
+
+  // Variants
+  &--default {
+    .DateInput__display {
+      border-bottom: 1px solid colors.text(700);
+    }
+
+    &:focus-within .DateInput__display {
+      border-color: colors.primary(400);
+    }
+  }
+
+  &--outline {
+    .DateInput__display {
+      border: 1px solid colors.text(700);
+      border-radius: 0.5rem;
+      padding: 0 2.5rem 0 0.75rem;
+    }
+
+    &:focus-within .DateInput__display {
+      border-color: colors.primary(400);
+      box-shadow: 0 0 0 2px rgba(108, 71, 255, 0.2);
+    }
+
+    .DateInput__icon {
+      right: 0.75rem;
+    }
+  }
+
+  // Sizes
+  &--size-default {
+    .DateInput__display {
+      min-height: 2.5rem;
+      font-size: 1rem;
+    }
+  }
+
+  &--size-sm {
+    .DateInput__display {
+      min-height: 2rem;
+      font-size: 0.875rem;
+    }
+
+    .DateInput__icon {
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  &--size-lg {
+    .DateInput__display {
+      min-height: 3rem;
+      font-size: 1.125rem;
+    }
+
+    .DateInput__icon {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  // Disabled state
+  &:has(.DateInput__input:disabled) {
+    opacity: 0.5;
+
+    .DateInput__display {
+      cursor: not-allowed;
+    }
+  }
+}

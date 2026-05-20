@@ -1,0 +1,24 @@
+{
+  "platform": "client",
+  "view": "pages.join-event",
+  "step": "confirmed",
+  "output": "05-confirmed.png",
+  "title": "Join Event: Confirmation",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "event": {
+      "name": "Spring Retreat 2026"
+    }
+  }
+}

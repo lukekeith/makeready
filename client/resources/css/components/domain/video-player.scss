@@ -1,0 +1,235 @@
+.VideoPlayer {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  border-radius: 16px;
+  overflow: hidden;
+  background-color: #1a1a1a;
+
+  // Video element
+  &__video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+
+    // Remove default controls on iOS
+    &::-webkit-media-controls {
+      display: none !important;
+    }
+
+    &::-webkit-media-controls-enclosure {
+      display: none !important;
+    }
+  }
+
+  // Enable pointer events for click handling
+  &--state-idle,
+  &--state-paused,
+  &--state-ended {
+    .VideoPlayer__video {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+  }
+
+  &--state-playing {
+    .VideoPlayer__video {
+      pointer-events: auto;
+      cursor: pointer;
+    }
+  }
+
+  // Play button (center)
+  &__play-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 77px;
+    height: 77px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    user-select: none;
+
+    svg {
+      margin-left: 4px;
+    }
+
+    &:hover {
+      transform: translate(-50%, -50%) scale(1.05);
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    &:active {
+      transform: translate(-50%, -50%) scale(0.95);
+      background-color: rgba(255, 255, 255, 0.25);
+    }
+  }
+
+  // Replay button (bottom right)
+  &__replay-button {
+    position: absolute;
+    bottom: 56px;
+    right: 16px;
+    width: 55px;
+    height: 55px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    user-select: none;
+
+    &:hover {
+      transform: scale(1.05);
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    &:active {
+      transform: scale(0.95);
+      background-color: rgba(255, 255, 255, 0.25);
+    }
+  }
+
+  // Volume control container (bottom left)
+  &__volume-control {
+    position: absolute;
+    bottom: 56px;
+    left: 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  // Mute button
+  &__mute-button {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    user-select: none;
+    flex-shrink: 0;
+
+    &:hover {
+      transform: scale(1.05);
+      background-color: rgba(255, 255, 255, 0.3);
+    }
+
+    &:active {
+      transform: scale(0.95);
+      background-color: rgba(255, 255, 255, 0.25);
+    }
+  }
+
+  // Volume slider (vertical, above mute button)
+  &__volume-slider {
+    width: 4px;
+    height: 0;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    cursor: pointer;
+    position: relative;
+    overflow: visible;
+    opacity: 0;
+    transition: height 0.2s ease, opacity 0.2s ease, margin-bottom 0.2s ease;
+    margin-bottom: 0;
+
+    &--visible {
+      height: 80px;
+      opacity: 1;
+      margin-bottom: 8px;
+    }
+
+    &:hover {
+      width: 6px;
+    }
+  }
+
+  &__volume-slider-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    background-color: #6C47FF;
+    border-radius: 2px;
+    pointer-events: none;
+  }
+
+  &__volume-slider-handle {
+    position: absolute;
+    left: 50%;
+    width: 12px;
+    height: 12px;
+    background-color: white;
+    border-radius: 50%;
+    transform: translateX(-50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+
+  // Scrubber/Progress bar
+  &__scrubber {
+    position: absolute;
+    bottom: 16px;
+    left: 16px;
+    right: 16px;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+    cursor: pointer;
+    transition: height 0.15s ease;
+
+    &:hover {
+      height: 6px;
+    }
+  }
+
+  &__scrubber-progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    background-color: #6C47FF;
+    border-radius: 2px;
+    pointer-events: none;
+  }
+
+  &__scrubber-handle {
+    position: absolute;
+    top: 50%;
+    width: 14px;
+    height: 14px;
+    background-color: white;
+    border-radius: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    pointer-events: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "platform": "client",
+  "view": "pages.marketing.join-beta-application",
+  "path": "/join-beta/application",
+  "step": "join-beta-application",
+  "output": "join-beta-application.png",
+  "title": "Beta application",
+  "devices": ["desktop-1440", "ipad", "iphone-15", "iphone-se"],
+  "fullPage": true,
+  "data": {
+    "session": {
+      "join_beta_id_token": "capture.fixture.token",
+      "join_beta_microsoft_user": {
+        "email": "leader@example.org",
+        "name": "Jordan Leader"
+      }
+    }
+  }
+}

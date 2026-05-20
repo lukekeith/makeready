@@ -1,0 +1,26 @@
+{
+  "platform": "client",
+  "view": "pages.join-event",
+  "step": "verify",
+  "output": "04-verify.png",
+  "title": "Join Event: Verify Code",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "wait": {
+    "selector": "input, button",
+    "timeoutMs": 5000
+  },
+  "data": {
+    "phone": "+15551234567"
+  }
+}

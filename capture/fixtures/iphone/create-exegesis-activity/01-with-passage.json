@@ -1,0 +1,59 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-exegesis-activity",
+  "output": "01-with-passage.png",
+  "title": "Create Exegesis Activity: With Passage and Highlights",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-exegesis-1",
+      "type": "EXEGESIS",
+      "title": "Romans 8:28",
+      "orderNumber": 2,
+      "status": "COMPLETE",
+      "readBlocks": [
+        {
+          "id": "block-exegesis-1",
+          "orderNumber": 1,
+          "title": "Romans 8:28",
+          "content": "And we know that in all things God works for the good of those who love him, who have been called according to his purpose.",
+          "isLocked": true,
+          "sourceReferenceId": "ref-exegesis-1",
+          "backgroundColor": "#1a1233",
+          "backgroundOverlayOpacity": 0.85,
+          "fontSize": "m",
+          "selections": [
+            { "start": 13, "end": 25, "style": "highlight" },
+            { "start": 64, "end": 78, "style": "bold" }
+          ]
+        }
+      ],
+      "sourceReferences": [
+        {
+          "id": "ref-exegesis-1",
+          "passageReference": "Romans 8:28",
+          "bookNumber": 45,
+          "bookName": "Romans",
+          "chapterStart": 8,
+          "verseStart": 28,
+          "verseEnd": 28
+        }
+      ]
+    }
+  }
+}

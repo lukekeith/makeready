@@ -1,0 +1,8 @@
+# PostgreSQL Extensions
+# These are enabled via Atlas migrations
+
+version: "1.0"
+
+extensions:
+  - name: uuid-ossp
+    description: UUID generation functions

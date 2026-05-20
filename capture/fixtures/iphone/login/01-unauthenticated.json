@@ -1,0 +1,15 @@
+{
+  "platform": "iphone",
+  "view": "pages.login",
+  "output": "01-unauthenticated.png",
+  "title": "Login: Unauthenticated",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": false,
+    "currentUser": null
+  }
+}

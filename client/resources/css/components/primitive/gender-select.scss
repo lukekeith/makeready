@@ -1,0 +1,188 @@
+@use 'styles/colors';
+
+.GenderSelect {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  position: relative;
+
+  &__label {
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: colors.text(400);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  &__wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    cursor: pointer;
+    outline: none;
+
+    &:focus-visible {
+      .GenderSelect__display {
+        border-color: colors.primary(400);
+      }
+    }
+  }
+
+  &__display {
+    flex: 1;
+    padding: 0;
+    padding-right: 2rem;
+    font-size: 1rem;
+    font-weight: 400;
+    color: colors.text(100);
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid colors.text(700);
+    transition: border-color 0.2s ease;
+    min-height: 2.5rem;
+    display: flex;
+    align-items: center;
+
+    &--placeholder {
+      color: colors.text(500);
+    }
+  }
+
+  &__icon {
+    position: absolute;
+    right: 0;
+    color: colors.text(400);
+    transition: transform 0.2s ease;
+  }
+
+  &__dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 0.25rem;
+    background: colors.text(800);
+    border: 1px solid colors.text(700);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  &__option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    color: colors.text(100);
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+
+    &:hover {
+      background: colors.text(800);
+    }
+
+    &--selected {
+      background: colors.primary(900);
+      color: colors.primary(400);
+
+      &:hover {
+        background: colors.primary(800);
+      }
+    }
+  }
+
+  &__check {
+    color: colors.primary(400);
+  }
+
+  // Open state
+  &--open {
+    .GenderSelect__icon {
+      transform: rotate(180deg);
+    }
+
+    .GenderSelect__display {
+      border-color: colors.primary(400);
+    }
+  }
+
+  // Disabled state
+  &--disabled {
+    opacity: 0.5;
+
+    .GenderSelect__wrapper {
+      cursor: not-allowed;
+    }
+  }
+
+  // Variants
+  &--default {
+    .GenderSelect__display {
+      border-bottom: 1px solid colors.text(700);
+    }
+  }
+
+  &--outline {
+    .GenderSelect__display {
+      border: 1px solid colors.text(700);
+      border-radius: 0.5rem;
+      padding: 0 2.5rem 0 0.75rem;
+    }
+
+    &.GenderSelect--open .GenderSelect__display,
+    .GenderSelect__wrapper:focus-visible .GenderSelect__display {
+      border-color: colors.primary(400);
+      box-shadow: 0 0 0 2px rgba(108, 71, 255, 0.2);
+    }
+
+    .GenderSelect__icon {
+      right: 0.75rem;
+    }
+  }
+
+  // Sizes
+  &--size-default {
+    .GenderSelect__display {
+      min-height: 2.5rem;
+      font-size: 1rem;
+    }
+  }
+
+  &--size-sm {
+    .GenderSelect__display {
+      min-height: 2rem;
+      font-size: 0.875rem;
+    }
+
+    .GenderSelect__icon {
+      width: 16px;
+      height: 16px;
+    }
+
+    .GenderSelect__option {
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+    }
+  }
+
+  &--size-lg {
+    .GenderSelect__display {
+      min-height: 3rem;
+      font-size: 1.125rem;
+    }
+
+    .GenderSelect__icon {
+      width: 24px;
+      height: 24px;
+    }
+
+    .GenderSelect__option {
+      padding: 1rem 1.25rem;
+      font-size: 1.125rem;
+    }
+  }
+}

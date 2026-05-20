@@ -1,0 +1,32 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-user-input-activity",
+  "output": "01-empty.png",
+  "title": "Create User Input Activity: Empty Form",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-userinput-empty",
+      "type": "USER_INPUT",
+      "title": "",
+      "orderNumber": 3,
+      "status": "PENDING",
+      "isHelpEnabled": false
+    }
+  }
+}

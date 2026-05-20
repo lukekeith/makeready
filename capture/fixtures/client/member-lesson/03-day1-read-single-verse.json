@@ -1,0 +1,118 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "03-day1-read-single-verse.png",
+  "title": "Day 1: Read — Single verse with empty block",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-001",
+    "lessonScheduleId": "ls-capture-001",
+    "step": 3,
+    "lessonData": {
+      "lesson": {
+        "id": "959b9d49-d918-4ed8-adf1-cba263722f09",
+        "title": "Do you want to be healed?",
+        "dayNumber": 1,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": {
+          "name": "Daily Inspiration"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "9978d068-03ad-4581-81cf-23e5034c5a60",
+            "type": "READ",
+            "title": "John 5:5-6",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "8601b2ad",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "1673a539-bce3-492f-ab63-d0333bc263b6",
+            "type": "READ",
+            "title": "Question",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "bc9b7ba5",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "a55033c0-0e24-4adf-a622-5c70d70dc08f",
+            "type": "READ",
+            "title": "2 Corinthians 5:17",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "0f49943a-b04c-4a42-8783-0109cd1ba444",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "2 Corinthians 5:17",
+                "bookNumber": 47,
+                "chapterStart": 5,
+                "verseStart": 17,
+                "verseEnd": 17
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "0b983c0f-67c8-4e49-9c9e-50cb9c9c769c",
+                "orderNumber": 1,
+                "title": "2 Corinthians 5:17",
+                "content": "17. Therefore if anyone is in Christ, this person is a new creation; the old things passed away; behold, new things have come.",
+                "sourceReferenceId": "0f49943a-b04c-4a42-8783-0109cd1ba444",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "00f4e670-1a72-45e7-8651-19e0c0b7dde9",
+                "orderNumber": 2,
+                "content": null,
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "9728bdb5-2a18-4b0d-b80f-a13b1354383b",
+            "type": "USER_INPUT",
+            "title": "Do you want to get well?",
+            "isHelpEnabled": true,
+            "helpTitle": "What’s keeping you from wanting to be healed?",
+            "helpDescription": "Write down your thoughts, reflections, or prayers after reading.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "pencil",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  },
+  "step": 3
+}

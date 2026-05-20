@@ -1,0 +1,255 @@
+// Public Event Join Pages - BEM Styles
+// Routes: /event/:id, /event/:id/phone, /event/:id/verify, /event/:id/confirmed
+
+.EventJoinPage {
+  min-height: 100vh;
+  width: 100%;
+  // Background gradient lives on body.AuthPage.
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  box-sizing: border-box;
+
+  &__container {
+    width: 100%;
+    max-width: 440px;
+  }
+
+  &__cards {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-lg);
+
+    > .GroupLeaderNote,
+    > .EventCard,
+    > .Confirmation,
+    > .EventJoinPage__content,
+    > .EventJoinPage__error {
+      width: 100%;
+    }
+  }
+
+  &__content {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  &__loading {
+    color: white;
+    text-align: center;
+  }
+
+  &__button-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    padding-top: var(--space-xl);
+  }
+
+  &__code-wrapper {
+    padding-bottom: var(--space-2xl);
+  }
+
+}
+
+// Step Title Component
+.StepTitle {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+
+  // Variant: step title prefixed by an IconCircle above the heading.
+  // Centers children so the fixed-size IconCircle sits centered above
+  // the (full-width) heading + description lines. Adds extra spacing
+  // below the icon so icon → heading matches the Confirmation panel's
+  // gap (var(--space-2xl)) while heading → description keeps the
+  // default var(--space-lg) gap from the flex container.
+  &--with-icon {
+    align-items: center;
+
+    .IconCircle {
+      margin-bottom: calc(var(--space-2xl) - var(--space-lg));
+    }
+  }
+
+  &__heading {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-heading);
+    font-weight: 700;
+    color: white;
+    text-align: center;
+  }
+
+  &__description {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-lead);
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    line-height: var(--leading-lead);
+  }
+}
+
+// Phone Entry Step
+.EventJoinPhone {
+  padding: var(--space-2xl);
+
+  &__display {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 32px;
+    font-weight: 400;
+    color: white;
+    text-align: center;
+    letter-spacing: 2px;
+    width: 100%;
+    height: 48px;
+    padding: 0 0 8px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
+// Verification Step
+.EventJoinVerify {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__resend {
+    background: none;
+    border: none;
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 17px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 20px;
+    text-align: center;
+    width: 100%;
+
+    &:disabled {
+      color: rgba(255, 255, 255, 0.3);
+      cursor: default;
+    }
+  }
+}
+
+// SMS Consent Checkbox — custom styled (not native)
+.SmsConsent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  padding: 12px 0;
+  text-align: left;
+
+  &__checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    margin: 2px 0 0;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.55);
+    }
+
+    &:checked {
+      background: #8B7BF7;
+      border-color: #8B7BF7;
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 1px;
+        width: 5px;
+        height: 10px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid #8B7BF7;
+      outline-offset: 2px;
+    }
+  }
+
+  &__text {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.5;
+    text-align: left;
+  }
+
+  &__link {
+    color: #8B7BF7;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+// Error Modal
+.EventJoinError {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+
+  &__overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(20px);
+  }
+
+  &__modal {
+    position: relative;
+    padding: 32px;
+    border-radius: 16px;
+    border: 1px solid #FF4759;
+    background: rgba(20, 20, 19, 0.95);
+    max-width: 320px;
+    width: calc(100% - 32px);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  &__message {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 16px;
+    color: white;
+    text-align: center;
+    line-height: 1.5;
+  }
+}

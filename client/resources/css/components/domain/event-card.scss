@@ -1,0 +1,108 @@
+.EventCard {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+  transition: background 200ms ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  &__cover {
+    width: 100%;
+    height: 200px;
+    position: relative;
+  }
+
+  &__cover-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__details {
+    display: flex;
+    align-items: stretch;
+  }
+
+  &__date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+    flex-shrink: 0;
+  }
+
+  &__day {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-title);
+    font-weight: 400;
+    line-height: var(--leading-title);
+    letter-spacing: -0.15px;
+    color: white;
+  }
+
+  &__month {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-md);
+    font-weight: 700;
+    line-height: var(--leading-md);
+    color: #6C47FF;
+    text-transform: uppercase;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    padding: var(--space-lg);
+    gap: var(--space-2xs);
+  }
+
+  &__title {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-lead);
+    font-weight: 700;
+    line-height: var(--leading-lead);
+    color: white;
+    margin: 0;
+  }
+
+  &__location {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 400;
+    line-height: var(--leading-sm);
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__location-highlight {
+    color: white;
+  }
+
+  &__attendance {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+  }
+
+  &__attendance-count {
+    font-weight: 700;
+    color: white;
+  }
+
+  &__attendance-label {
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+}

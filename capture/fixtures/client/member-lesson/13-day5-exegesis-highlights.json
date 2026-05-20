@@ -1,0 +1,158 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "13-day5-exegesis-highlights.png",
+  "title": "Day 5: Exegesis — Scripture with highlighted notes",
+  "step": 1,
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-005",
+    "lessonScheduleId": "ls-capture-005",
+    "step": 1,
+    "lessonData": {
+      "lesson": {
+        "id": "lesson-exegesis-001",
+        "title": "The armor of God",
+        "dayNumber": 5,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": { "name": "Daily Inspiration" },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "activity-exeg-001",
+            "type": "EXEGESIS",
+            "title": "Ephesians 6:10-17",
+            "isHelpEnabled": false,
+            "readBlocks": [
+              {
+                "id": "block-exeg-001",
+                "orderNumber": 1,
+                "title": "Ephesians 6:10-17",
+                "content": "10. Finally, be strong in the Lord and in the strength of His might.\n11. Put on the full armor of God, so that you will be able to stand firm against the schemes of the devil.\n12. For our struggle is not against flesh and blood, but against the rulers, against the powers, against the world forces of this darkness, against the spiritual forces of wickedness in the heavenly places.\n13. Therefore, take up the full armor of God, so that you will be able to resist on the evil day, and having done everything, to stand firm.\n14. Stand firm therefore, having belted your waist with truth, and having put on the breastplate of righteousness,\n15. and having strapped on your feet the preparation of the gospel of peace;\n16. in addition to all, taking up the shield of faith with which you will be able to extinguish all the flaming arrows of the evil one.\n17. And take the helmet of salvation and the sword of the Spirit, which is the word of God.",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "exegesisHighlights": [
+                  {
+                    "id": "hl-001",
+                    "orderNumber": 1,
+                    "start": 62,
+                    "end": 127,
+                    "noteMarkdown": "The armor isn't something we manufacture — it's God's armor that He gives us. Our job is to **put it on**, not to build it ourselves."
+                  },
+                  {
+                    "id": "hl-002",
+                    "orderNumber": 2,
+                    "start": 129,
+                    "end": 320,
+                    "noteMarkdown": "Paul makes clear that the real battle isn't with people. When someone wrongs you, the enemy isn't the person — they're being influenced by spiritual forces.\n\nThis changes how we respond to conflict entirely."
+                  },
+                  {
+                    "id": "hl-003",
+                    "orderNumber": 3,
+                    "start": 679,
+                    "end": 783,
+                    "noteMarkdown": "Faith is described as a **shield** — it's defensive. It doesn't prevent the arrows from being fired, but it stops them from reaching you.\n\nWhat are the \"flaming arrows\" in your life right now?"
+                  }
+                ]
+              }
+            ],
+            "sourceReferences": [
+              {
+                "id": "ref-exeg-001",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "Ephesians 6:10-17",
+                "bookNumber": 49,
+                "chapterStart": 6,
+                "verseStart": 10,
+                "verseEnd": 17
+              }
+            ]
+          },
+          {
+            "id": "activity-exeg-002",
+            "type": "EXEGESIS",
+            "title": "Psalm 23:1-6",
+            "isHelpEnabled": false,
+            "readBlocks": [
+              {
+                "id": "block-exeg-002",
+                "orderNumber": 1,
+                "title": "Psalm 23:1-6",
+                "content": "1. The Lord is my shepherd, I will not be in need.\n2. He lets me lie down in green pastures; He leads me beside quiet waters.\n3. He restores my soul; He guides me in the paths of righteousness for the sake of His name.\n4. Even though I walk through the valley of the shadow of death, I fear no evil, for You are with me; Your rod and Your staff, they comfort me.\n5. You prepare a table before me in the presence of my enemies; You have anointed my head with oil; my cup overflows.\n6. Certainly goodness and faithfulness will follow me all the days of my life, and my dwelling will be in the house of the Lord forever.",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "exegesisHighlights": [
+                  {
+                    "id": "hl-004",
+                    "orderNumber": 1,
+                    "start": 0,
+                    "end": 51,
+                    "noteMarkdown": "David doesn't say \"The Lord is **a** shepherd\" — he says \"**my** shepherd.\" This is personal. Do you know Him as YOUR shepherd, or just as a concept?"
+                  },
+                  {
+                    "id": "hl-005",
+                    "orderNumber": 2,
+                    "start": 199,
+                    "end": 330,
+                    "noteMarkdown": "Notice David doesn't say \"if\" but \"even though.\" The valley isn't hypothetical — it's guaranteed. But the promise isn't that you avoid it. The promise is that **He is with you** in it."
+                  }
+                ]
+              }
+            ],
+            "sourceReferences": [
+              {
+                "id": "ref-exeg-002",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "Psalm 23:1-6",
+                "bookNumber": 19,
+                "chapterStart": 23,
+                "verseStart": 1,
+                "verseEnd": 6
+              }
+            ]
+          },
+          {
+            "id": "activity-video-001",
+            "type": "VIDEO",
+            "title": "A word from Pastor Mike",
+            "videoUrl": "https://customer-eq3doicvmpgtqoqo.cloudflarestream.com/sample-video/manifest/video.m3u8",
+            "video": {
+              "playbackUrl": "https://customer-eq3doicvmpgtqoqo.cloudflarestream.com/sample-video/manifest/video.m3u8",
+              "thumbnailUrl": "https://customer-eq3doicvmpgtqoqo.cloudflarestream.com/sample-video/thumbnails/thumbnail.jpg"
+            }
+          },
+          {
+            "id": "activity-yt-001",
+            "type": "YOUTUBE",
+            "title": "The full armor of God explained",
+            "youtubeUrl": "https://www.youtube.com/watch?v=xrzq_X1NNaA",
+            "youtubeVideoId": "xrzq_X1NNaA"
+          },
+          {
+            "id": "activity-input-005",
+            "type": "USER_INPUT",
+            "title": "Apply it",
+            "isHelpEnabled": true,
+            "helpTitle": "Which piece of armor do you need most today?",
+            "helpDescription": "Think about what you're facing this week. Which piece of God's armor do you need to intentionally put on?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "bolt.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  }
+}

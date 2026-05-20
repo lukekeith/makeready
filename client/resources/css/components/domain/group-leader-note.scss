@@ -1,0 +1,77 @@
+.GroupLeaderNote {
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  padding: var(--space-lg);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  box-sizing: border-box;
+
+  &--default {
+    // Default variant
+  }
+
+  &--invite {
+    // Invite mode (default)
+  }
+
+  &--member {
+    // Member mode - no avatar, centered text
+    justify-content: center;
+    text-align: center;
+
+    .GroupLeaderNote__content {
+      align-items: center;
+    }
+  }
+
+  &__avatar {
+    .Avatar__fallback {
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: var(--text-title);
+      font-weight: 600;
+    }
+  }
+
+  &__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  &__recipient {
+    margin: 0;
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-lead);
+    font-weight: 700;
+    line-height: var(--leading-lead);
+    color: rgba(255, 255, 255, 1);
+  }
+
+  &__text {
+    margin: 0;
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-lead);
+    font-weight: 400;
+    line-height: var(--leading-lead);
+    color: rgba(255, 255, 255, 1);
+
+    strong {
+      font-weight: 700;
+    }
+  }
+}
+
+// Avatar inside GroupLeaderNote is sized via inline style (`:size="80"`) by
+// the blade prop. Inline styles beat CSS specificity, so the `!important`
+// override here is required to shrink the circle at small viewports without
+// changing every caller of x-primitive.avatar.
+@media (max-width: 360px) {
+  .GroupLeaderNote__avatar {
+    --avatar-size: 56px !important;
+  }
+}

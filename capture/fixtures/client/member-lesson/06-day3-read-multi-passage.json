@@ -1,0 +1,277 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "06-day3-read-multi-passage.png",
+  "title": "Day 3: Read — Multiple passages with theme",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-002",
+    "lessonScheduleId": "ls-capture-003",
+    "step": 1,
+    "lessonData": {
+      "lesson": {
+        "id": "aabe2aaf-a7b6-484c-9345-2d3cd110a29a",
+        "title": "Jesus restores",
+        "dayNumber": 3,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": {
+          "name": "Daily Inspiration"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "162c894c-039c-4f92-8638-805d94d1c861",
+            "type": "READ",
+            "title": "The calling of Peter",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "ec1c77b2-f749-428f-ab93-4f4db86c9cf9",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "Luke 5:4-6",
+                "bookNumber": 42,
+                "chapterStart": 5,
+                "verseStart": 4,
+                "verseEnd": 6
+              },
+              {
+                "id": "788f105a-63e7-499a-ae37-c00c594bbe5e",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "Mark 1:16-18",
+                "bookNumber": 41,
+                "chapterStart": 1,
+                "verseStart": 16,
+                "verseEnd": 18
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "2a56b492-aa7f-47f9-8fde-08502491f5fa",
+                "orderNumber": 1,
+                "title": "Mark 1:16-18",
+                "content": "16. As He was going along the Sea of Galilee, He saw Simon and Andrew, the brother of Simon, casting a net in the sea; for they were fishermen.\n17. And Jesus said to them, “Follow Me, and I will have you become fishers of people.”\n18. Immediately they left their nets and followed Him.",
+                "sourceReferenceId": "788f105a-63e7-499a-ae37-c00c594bbe5e",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "selections": [
+                  {
+                    "end": 228,
+                    "start": 173,
+                    "style": "highlight"
+                  }
+                ]
+              },
+              {
+                "id": "55e92659-311c-4a04-a2cb-c86bea5e8abd",
+                "orderNumber": 2,
+                "title": "Luke 5:4-6",
+                "content": "4. Now when He had finished speaking, He said to Simon, “Put out into the deep water and let down your nets for a catch.”\n5. Simon responded and said, “Master, we worked hard all night and caught nothing, but I will do as You say and let down the nets.”\n6. And when they had done this, they caught a great quantity of fish, and their nets began to tear;",
+                "sourceReferenceId": "ec1c77b2-f749-428f-ab93-4f4db86c9cf9",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "selections": [
+                  {
+                    "end": 322,
+                    "start": 286,
+                    "style": "highlight"
+                  }
+                ]
+              },
+              {
+                "id": "afc22118-f941-4b76-b18a-aa62be61277c",
+                "orderNumber": 3,
+                "title": null,
+                "content": "This is the calling of Peter",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "ad81a135-247e-4fc6-9745-8eb7e5b6935a",
+                "orderNumber": 4,
+                "title": null,
+                "content": "Jesus find Peter (Simon - Jesus changes his name later) and calls him to leave behind the greatest catch of his life to follow Him and Peter does it.",
+                "isLocked": false,
+                "themeId": "f170c335-4a81-41e1-9859-dd7b94c16523",
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "3b220da1-b95d-45b9-807c-5b0dc8e4769b",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "Your calling",
+            "helpDescription": "Has Jesus asked you to give up anything to follow him? Are you willing?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "hand.raised.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "bafa8a36-ce2c-4c7c-81f7-8e2cba53d5ac",
+            "type": "READ",
+            "title": "Denial of Peter",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "3b576c5f-1ae5-44bf-93e0-973e9cd1f7de",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 18:25-27",
+                "bookNumber": 43,
+                "chapterStart": 18,
+                "verseStart": 25,
+                "verseEnd": 27
+              },
+              {
+                "id": "90d31417-eb6c-4f1f-b5e0-cfef228e2595",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 18:15-17",
+                "bookNumber": 43,
+                "chapterStart": 18,
+                "verseStart": 15,
+                "verseEnd": 17
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "a593610d-069e-47ee-88da-ee47155c5bfe",
+                "orderNumber": 1,
+                "title": "John 18:15-17",
+                "content": "15. Simon Peter was following Jesus, and so was another disciple. Now that disciple was known to the high priest, and he entered with Jesus into the courtyard of the high priest,\n16. but Peter was standing at the door outside. So the other disciple, who was known to the high priest, went out and spoke to the doorkeeper, and brought Peter in.\n17. Then the slave woman who was the doorkeeper *said to Peter, “You are not also one of this Man’s disciples, are you?” He *said, “I am not.”",
+                "sourceReferenceId": "90d31417-eb6c-4f1f-b5e0-cfef228e2595",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "73d4d920-3180-40e1-b0e4-2267071dccaa",
+                "orderNumber": 2,
+                "title": "John 18:25-27",
+                "content": "25. Now Simon Peter was still standing and warming himself. So they said to him, “You are not one of His disciples as well, are you?” He denied it, and said, “I am not.”\n26. One of the slaves of the high priest, who was related to the one whose ear Peter cut off, *said, “Did I not see you in the garden with Him?”\n27. Peter then denied it again, and immediately a rooster crowed. Jesus before Pilate",
+                "sourceReferenceId": "3b576c5f-1ae5-44bf-93e0-973e9cd1f7de",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "5e59df5d-337d-48af-b941-7df6623ebe10",
+                "orderNumber": 3,
+                "content": null,
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "51e9d43f-47fe-4c2e-b8f5-1fd76fc11daf",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "How did Peter feel?",
+            "helpDescription": "If you denied Jesus after spending 3 years with Him and seeing all the miracles, calling Him the Messiah etc, how would you feel here?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "lightbulb.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "20c60c51-f359-4ffb-b29d-8ba71208feea",
+            "type": "READ",
+            "title": "The restoration of Peter",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "8537f99a-0c6f-4b09-8531-c963a470ec16",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 21:3-7",
+                "bookNumber": 43,
+                "chapterStart": 21,
+                "verseStart": 3,
+                "verseEnd": 7
+              },
+              {
+                "id": "37b49e8a-c52a-4320-b9c2-454f3b38b3d2",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 21:17-19",
+                "bookNumber": 43,
+                "chapterStart": 21,
+                "verseStart": 17,
+                "verseEnd": 19
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "a2cece84-5c0e-4607-bf9c-3e9c62bb307f",
+                "orderNumber": 1,
+                "title": "John 21:17-19",
+                "content": "17. He *said to him the third time, “Simon, son of John, do you love Me?” Peter was hurt because He said to him the third time, “Do you love Me?” And he said to Him, “Lord, You know all things; You know that I love You.” Jesus *said to him, “Tend My sheep. Our Times Are in His Hand\n18. Truly, truly I tell you, when you were younger, you used to put on your belt and walk wherever you wanted; but when you grow old, you will stretch out your hands and someone else will put your belt on you, and bring you where you do not want to go.”\n19. Now He said this, indicating by what kind of death he would glorify God. And when He had said this, He *said to him, “Follow Me!”",
+                "sourceReferenceId": "37b49e8a-c52a-4320-b9c2-454f3b38b3d2",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "selections": [
+                  {
+                    "end": 670,
+                    "start": 659,
+                    "style": "highlight"
+                  }
+                ]
+              },
+              {
+                "id": "ff7c03c3-4d3d-4084-a9d6-fac10036a79b",
+                "orderNumber": 2,
+                "title": "John 21:3-7",
+                "content": "3. Simon Peter *said to them, “I am going fishing.” They *said to him, “We are also coming with you.” They went out and got into the boat; and that night they caught nothing.\n4. But when the day was now breaking, Jesus stood on the beach; yet the disciples did not know that it was Jesus.\n5. So Jesus *said to them, “Children, you do not have any fish to eat, do you?” They answered Him, “No.”\n6. And He said to them, “Cast the net on the right-hand side of the boat, and you will find the fish.” So they cast it, and then they were not able to haul it in because of the great quantity of fish.\n7. Therefore that disciple whom Jesus loved *said to Peter, “It is the Lord!” So when Simon Peter heard that it was the Lord, he put on his outer garment (for he was stripped for work), and threw himself into the sea.",
+                "sourceReferenceId": "8537f99a-0c6f-4b09-8531-c963a470ec16",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "c038e1cd-5e4f-4059-9e3c-bdf0669c0425",
+                "orderNumber": 3,
+                "title": null,
+                "content": "Jesus recreates the same scenario as when Peter was first called.",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "cb823c44-1b8f-44a2-a30a-73c2444b2e56",
+                "orderNumber": 4,
+                "title": null,
+                "content": "Jesus tells Peter, even though you denied me, I forgive you and the calling on your life isn’t forfeit. Follow me",
+                "isLocked": false,
+                "themeId": "f170c335-4a81-41e1-9859-dd7b94c16523",
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "d1fe43eb-0b34-41e4-a3f8-cc8a01697a41",
+            "type": "USER_INPUT",
+            "title": "Reflect",
+            "isHelpEnabled": true,
+            "helpTitle": "Have you screwed up?",
+            "helpDescription": "Jesus stands with the ability to forgive you of your sins. You may have denied Jesus, but the calling on your life remains the same. His power isn’t diminished. In fact, His power is made perfect in your weakness.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "heart.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  },
+  "step": 1
+}

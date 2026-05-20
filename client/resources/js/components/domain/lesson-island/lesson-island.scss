@@ -1,0 +1,208 @@
+.LessonActivity {
+  // position: relative is required so the `--read-fullscreen` variant can
+  // position `__content` absolutely within this container (inset:0) and let
+  // theme backgrounds extend behind the sticky header.
+  position: relative;
+  width: 100%;
+  max-width: 440px;
+  height: 100vh;
+  height: 100dvh;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+
+  // When the active step is READ, the activity takes the full container —
+  // including the area behind the header — so theme background images and
+  // colors fill the entire viewport. The header stays on top via z-index
+  // (it has a transparent background, so the theme shows through behind
+  // the progress bar / title / chevrons).
+  &--read-fullscreen {
+    .LessonActivity__content {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .LessonActivity__header {
+      // Keeps it above the absolutely-positioned content layer.
+      z-index: 10;
+    }
+  }
+
+  // Loading state
+  &--loading {
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+
+  // Error state
+  &--error {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 16px;
+  }
+
+  &__error-message {
+    color: #ef4444;
+    text-align: center;
+    font-size: 16px;
+  }
+
+  // Header area (fixed)
+  &__header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  // Lesson title — now rendered above the back/next nav row rather than
+  // centered between them. Keeps the same typography as the old
+  // .LessonPageHeader__title but flows in block layout.
+  &__title {
+    margin: 0;
+    padding: 0 16px;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 22px;
+    color: white;
+    text-align: center;
+  }
+
+  &__step-indicator {
+    padding: 16px 16px 0;
+  }
+
+  &__progress-bar {
+    width: 100%;
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.2);
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: white;
+    transition: width 300ms ease;
+  }
+
+  &__page-header {
+    padding: 0 16px;
+  }
+
+  // Content area
+  &__content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  // Empty state
+  &__empty {
+    color: white;
+    padding: 16px;
+    text-align: center;
+  }
+
+  // Video step
+  &__video-step {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+    padding: 16px;
+    gap: 16px;
+  }
+
+  // Scripture / Read step
+  &__scripture-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 24px 0;
+    overflow-y: auto;
+    gap: 32px;
+  }
+
+  &__read-block {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__read-block-sequential {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  &__block-progress {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 8px 0;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  &__read-text {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__read-text-title {
+    font-family: 'SF Pro Text', -apple-system, sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__read-text-content {
+    font-family: 'SF Pro Text', -apple-system, sans-serif;
+    font-size: 17px;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.9);
+    white-space: pre-wrap;
+  }
+
+  // Input step (Observe, Application, Prayer)
+  &__input-step {
+    flex: 1;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  // Complete step
+  &__complete-step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 16px;
+  }
+
+  &__complete-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__complete-action {
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+}

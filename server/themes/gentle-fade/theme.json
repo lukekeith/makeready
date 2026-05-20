@@ -1,0 +1,28 @@
+{
+  "name": "Gentle Fade",
+  "slug": "gentle-fade",
+  "description": "Calm sequential fade — elements appear one after another and stay visible",
+  "definition": {
+    "version": 2,
+    "readBlockSequencing": "all-at-once",
+    "background": { "color": "#0d1117", "image": null, "video": null, "overlay": null },
+    "interaction": { "mode": "auto-play", "autoPlayDelay": 2000, "tapAdvances": true, "swipeAdvances": true, "showProgress": true, "progressStyle": "dots" },
+    "typography": { "fontFamily": "'SF Pro Text', -apple-system, sans-serif", "fontSize": 17, "color": "rgba(255,255,255,0.85)", "lineHeight": 1.7 },
+    "elements": {
+      "h1": { "style": { "fontSize": 28, "fontWeight": "bold", "color": "#ffffff" }, "enter": { "type": "fade", "duration": 800, "easing": "ease-out" }, "exit": null },
+      "h2": { "style": { "fontSize": 22, "fontWeight": "bold" }, "enter": { "type": "fade", "duration": 700, "easing": "ease-out" }, "exit": null },
+      "p": { "style": {}, "enter": { "type": "fade", "duration": 800, "easing": "ease-out" }, "exit": null },
+      "li": { "style": {}, "enter": { "type": "fade", "duration": 600, "stagger": 400, "easing": "ease-out" }, "exit": null },
+      "verse": { "style": { "fontSize": 18, "lineHeight": 1.8 }, "enter": { "type": "fade", "duration": 800, "stagger": 400 }, "exit": null },
+      "verse-number": { "style": { "fontSize": 12, "opacity": 0.4, "fontWeight": "bold" } },
+      "verse-reference": { "style": { "fontSize": 13, "textTransform": "uppercase", "letterSpacing": 1.5, "opacity": 0.7 }, "enter": { "type": "fade", "duration": 500 } }
+    },
+    "sequences": [
+      { "match": "h1", "phase": "solo", "pauseAfter": false },
+      { "match": "h2", "phase": "solo", "pauseAfter": false },
+      { "match": "li", "phase": "group", "stagger": 400, "pauseAfter": false },
+      { "match": "verse", "phase": "group", "stagger": 400, "pauseAfter": false },
+      { "match": "p", "phase": "solo", "pauseAfter": false }
+    ]
+  }
+}

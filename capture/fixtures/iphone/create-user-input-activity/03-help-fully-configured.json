@@ -1,0 +1,35 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-user-input-activity",
+  "output": "03-help-fully-configured.png",
+  "title": "Create User Input Activity: Help Fully Configured with Icon",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-userinput-full-help",
+      "type": "USER_INPUT",
+      "title": "Application",
+      "orderNumber": 3,
+      "status": "PENDING",
+      "isHelpEnabled": true,
+      "helpTitle": "How to Apply",
+      "helpDescription": "Think about one specific way you can apply this passage to your life this week. Be concrete — pick a person, a habit, or a situation.",
+      "helpIcon": "heart.fill"
+    }
+  }
+}

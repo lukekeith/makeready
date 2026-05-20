@@ -1,0 +1,130 @@
+@use 'styles/colors';
+
+.GroupInfoCard {
+  display: flex;
+  flex-direction: column;
+  // Gap between photo and actions. Combined with the actions block's
+  // padding-top below, the visual photo → first-button spacing matches
+  // the join-event pattern (EventCard → EventJoinPage__button-wrapper).
+  gap: var(--space-lg);
+  width: 100%;
+
+  // Button layout variants
+  &--button-layout-horizontal {
+    .GroupInfoCard__actions {
+      flex-direction: row;
+    }
+
+    .GroupInfoCard__actions > * {
+      flex: 1;
+    }
+  }
+
+  &--button-layout-vertical {
+    .GroupInfoCard__actions {
+      flex-direction: column;
+    }
+
+    .GroupInfoCard__actions > * {
+      width: 100%;
+    }
+  }
+
+  // Photo container with gradient
+  &__photo {
+    position: relative;
+    width: 100%;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  &__photo-image {
+    width: 100%;
+    height: 240px;
+    object-fit: cover;
+    display: block;
+  }
+
+  // Gradient overlay
+  &__gradient {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    background: linear-gradient(
+      to bottom,
+      rgba(13, 16, 26, 0) 50%,
+      rgba(13, 16, 26, 1) 100%
+    );
+  }
+
+  // Details section
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    padding: var(--space-lg);
+  }
+
+  // Group name
+  &__name {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-heading);
+    font-weight: 400;
+    line-height: var(--leading-heading);
+    letter-spacing: -0.1px;
+    color: colors.text(100);
+    margin: 0;
+  }
+
+  // Meta info row
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+  }
+
+  // Private group indicator
+  &__private {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 400;
+    line-height: var(--leading-sm);
+    color: colors.text(70);
+
+    svg {
+      color: colors.text(100);
+    }
+  }
+
+  // Member count
+  &__members {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--text-sm);
+    font-weight: 400;
+    line-height: var(--leading-sm);
+  }
+
+  &__members-count {
+    color: colors.text(100);
+  }
+
+  &__members-label {
+    color: colors.text(70);
+  }
+
+  // Action buttons
+  &__actions {
+    display: flex;
+    gap: var(--space-sm);
+    padding-top: var(--space-xl);
+    width: 100%;
+  }
+}

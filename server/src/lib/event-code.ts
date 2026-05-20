@@ -1,0 +1,41 @@
+import { prisma } from './prisma.js'
+
+// Characters: A-Z + 2-9 (exclude 0, 1, O, I, L for readability)
+const CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'
+
+/**
+ * Generate a random 6-character event code
+ * Uses only unambiguous characters (no 0, 1, O, I, L)
+ */
+export function generateEventCode(): string {
+  let code = ''
+  for (let i = 0; i < 6; i++) {
+    code += CHARS[Math.floor(Math.random() * CHARS.length)]
+  }
+  return code
+}
+
+/**
+ * Generate a unique event code that doesn't exist in the database
+ * Retries if collision occurs (extremely unlikely with 30^6 = 729M possibilities)
+ * Note: Event codes are unique within events only, not across groups
+ */
+export async function generateUniqueEventCode(): Promise<string> {
+  let code = generateEventCode()
+  let exists = await prisma.event.findUnique({ where: { code } })
+
+  // Retry until we find a unique code (collision is extremely rare)
+  while (exists) {
+    code = generateEventCode()
+    exists = await prisma.event.findUnique({ where: { code } })
+  }
+
+  return code
+}
+
+/**
+ * Normalize an event code to uppercase for comparison
+ */
+export function normalizeEventCode(code: string): string {
+  return code.toUpperCase().trim()
+}

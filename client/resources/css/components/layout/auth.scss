@@ -1,0 +1,140 @@
+// AuthLayout Component Styles
+// Port from archive/react-spa:ui/components/layout/auth/auth.tsx
+// Note: Archive auth.tsx used Tailwind utilities — these are BEM equivalents
+
+.AuthLayout {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+
+  &--split {
+    display: grid;
+
+    @media (min-width: 1024px) {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+
+  &--minimal {
+    // Minimal is same as default centered
+  }
+
+  // Inner content wrapper (centered card)
+  &__inner {
+    width: 100%;
+    max-width: 350px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  // Header: title + description
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  &__title {
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    color: #fff;
+
+    .AuthLayout--minimal & {
+      font-size: 30px;
+      font-weight: 700;
+    }
+  }
+
+  &__description {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  // Body: email form + social buttons + children
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  // Social buttons row
+  &__social {
+    display: grid;
+    gap: 8px;
+  }
+
+  // Terms and privacy footer
+  &__terms {
+    padding: 0 32px;
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.5;
+
+    a {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+      color: rgba(255, 255, 255, 0.7);
+
+      &:hover {
+        color: #fff;
+      }
+    }
+  }
+
+  // Branding panel (Split layout, left side)
+  &__branding {
+    display: none;
+    position: relative;
+    flex-direction: column;
+    background: #1a1a1a;
+    padding: 40px;
+    color: #fff;
+
+    @media (min-width: 1024px) {
+      display: flex;
+    }
+  }
+
+  &__branding-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: auto;
+
+    img {
+      width: 24px;
+      height: 24px;
+    }
+  }
+
+  &__branding-quote {
+    margin-top: auto;
+
+    p {
+      font-size: 18px;
+      line-height: 1.6;
+      margin-bottom: 8px;
+    }
+
+    footer {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  }
+
+  // Split layout: right panel
+  &__panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+  }
+}

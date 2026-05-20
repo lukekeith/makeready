@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MakeReady API</title>
+  <link rel="icon" type="image/svg+xml" href="/logo-mark.svg" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0D101A;
+      color: #ffffff;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2rem;
+      max-width: 600px;
+      width: 100%;
+    }
+
+    .logo {
+      width: 200px;
+      height: 200px;
+      filter: drop-shadow(0 10px 30px rgba(108, 71, 255, 0.3));
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+
+    .status-section {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .status-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1.25rem;
+      transition: all 0.3s ease;
+    }
+
+    .status-card:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: rgba(108, 71, 255, 0.5);
+    }
+
+    .status-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: rgba(255, 255, 255, 0.6);
+      margin-bottom: 0.5rem;
+    }
+
+    .status-value {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .status-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    .status-indicator.healthy {
+      background-color: #10b981;
+      box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+    }
+
+    .status-indicator.unhealthy {
+      background-color: #ef4444;
+      box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+    }
+
+    .status-indicator.loading {
+      background-color: #6b7280;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .loading {
+      color: rgba(255, 255, 255, 0.4);
+      font-style: italic;
+    }
+
+    .error {
+      color: #ef4444;
+    }
+
+    @media (max-width: 600px) {
+      .logo {
+        width: 150px;
+        height: 150px;
+      }
+
+      .status-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="/logo.svg" alt="MakeReady" class="logo">
+
+    <div class="status-section">
+      <!-- System Status Cards -->
+      <div class="status-grid">
+        <div class="status-card">
+          <div class="status-label">Database</div>
+          <div class="status-value" id="db-status">
+            <span class="status-indicator loading"></span>
+            <span class="loading">Loading...</span>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <div class="status-label">Uptime</div>
+          <div class="status-value" id="uptime">
+            <span class="loading">Loading...</span>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <div class="status-label">Environment</div>
+          <div class="status-value" id="environment">
+            <span class="loading">Loading...</span>
+          </div>
+        </div>
+
+        <div class="status-card">
+          <div class="status-label">Response Time</div>
+          <div class="status-value" id="response-time">
+            <span class="loading">Loading...</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Fetch system status from API
+    async function fetchSystemStatus() {
+      try {
+        const startTime = performance.now();
+        const response = await fetch('/api/status');
+        const responseTime = Math.round(performance.now() - startTime);
+        const data = await response.json();
+
+        if (data.success) {
+          // Update database status
+          const dbStatusEl = document.getElementById('db-status');
+          const isHealthy = data.database.status === 'healthy';
+          dbStatusEl.innerHTML = `
+            <span class="status-indicator ${isHealthy ? 'healthy' : 'unhealthy'}"></span>
+            ${isHealthy ? 'Connected' : 'Disconnected'}
+          `;
+
+          // Update uptime
+          document.getElementById('uptime').textContent = data.server.uptime;
+
+          // Update environment
+          const envEl = document.getElementById('environment');
+          envEl.textContent = data.server.environment.charAt(0).toUpperCase() +
+                              data.server.environment.slice(1);
+
+          // Update response time
+          document.getElementById('response-time').textContent = `${responseTime}ms`;
+        }
+      } catch (error) {
+        console.error('Failed to fetch system status:', error);
+
+        // Show error state
+        document.getElementById('db-status').innerHTML =
+          '<span class="status-indicator unhealthy"></span><span class="error">Error</span>';
+        document.getElementById('uptime').innerHTML = '<span class="error">--</span>';
+        document.getElementById('environment').innerHTML = '<span class="error">--</span>';
+        document.getElementById('response-time').innerHTML = '<span class="error">--</span>';
+      }
+    }
+
+    // Fetch status on page load
+    fetchSystemStatus();
+
+    // Refresh status every 30 seconds
+    setInterval(fetchSystemStatus, 30000);
+  </script>
+</body>
+</html>

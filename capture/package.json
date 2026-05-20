@@ -1,0 +1,27 @@
+{
+  "name": "makeready-capture",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n server,vite -c blue,green 'node server.mjs' 'vite'",
+    "server": "node server.mjs",
+    "build": "vite build",
+    "preview": "vite preview",
+    "client:serve": "CAPTURE_FIXTURES_PATH=$(pwd)/fixtures/client php ../client/artisan serve",
+    "capture:client": "node runners/client/capture.mjs",
+    "capture:iphone": "bash runners/iphone/capture.sh"
+  },
+  "dependencies": {
+    "concurrently": "^9.0.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.0",
+    "playwright": "^1.59.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.27.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^7.0.7"
+  }
+}

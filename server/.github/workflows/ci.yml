@@ -1,0 +1,253 @@
+name: Server CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  NODE_VERSION: '20.18.1'
+
+jobs:
+  # ─────────────────────────────────────────────────────────
+  # TypeScript Strict Check (parallel)
+  # Runs tsc --noEmit with strict mode from tsconfig.json
+  # ─────────────────────────────────────────────────────────
+  typecheck:
+    name: TypeScript Strict Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - run: npm install --loglevel=verbose
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: TypeScript Strict Mode Check
+        run: npx tsc --noEmit --strict
+
+  # ─────────────────────────────────────────────────────────
+  # Server Unit Tests (with PostgreSQL)
+  # ─────────────────────────────────────────────────────────
+  test:
+    name: Server Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: makeready_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - run: npm install --loglevel=verbose
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/makeready_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/makeready_test
+
+      - name: Enable PostgreSQL Extensions
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d makeready_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Setup Test DB Schema
+        run: npx prisma db push --skip-generate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/makeready_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/makeready_test
+
+      - name: Run Server Tests
+        run: npx vitest run --reporter=verbose --exclude='test/integration/production.test.ts' --exclude='test/rate-limit-verification.test.ts'
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/makeready_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/makeready_test
+          SESSION_SECRET: test-secret-key
+          CLIENT_URL: http://localhost:5173
+          PORT: 3001
+          # Mock Twilio credentials for tests (tests should mock actual API calls)
+          TWILIO_ACCOUNT_SID: ACtest00000000000000000000000000
+          TWILIO_AUTH_TOKEN: test_auth_token_00000000000000
+          TWILIO_VERIFY_SERVICE_ID: VAtest0000000000000000000000000
+          TWILIO_PHONE_NUMBER: "+15555555555"
+          # Mock Google OAuth credentials for passport initialization
+          GOOGLE_CLIENT_ID: test-client-id.apps.googleusercontent.com
+          GOOGLE_CLIENT_SECRET: test-client-secret
+          GOOGLE_CALLBACK_URL: http://localhost:3001/auth/google/callback
+
+      - name: Generate Coverage Summary
+        if: always()
+        run: |
+          if [ -f coverage/coverage-summary.json ]; then
+            echo "## Server Test Coverage" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            cat coverage/coverage-summary.json >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ─────────────────────────────────────────────────────────
+  # Migration Check (main branch only)
+  # Validates Atlas migrations apply cleanly on a fresh database
+  # ─────────────────────────────────────────────────────────
+  migration-check:
+    name: Migration Validation
+    runs-on: ubuntu-latest
+    needs: [typecheck, test]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    services:
+      postgres:
+        image: pgvector/pgvector:pg15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: makeready_migration_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Atlas CLI
+        run: |
+          curl -sSf https://atlasgo.sh | sh -s -- -y
+          echo "$HOME/.atlas/bin" >> $GITHUB_PATH
+
+      - name: Enable PostgreSQL Extensions
+        run: |
+          PGPASSWORD=postgres psql -h localhost -U postgres -d makeready_migration_test -c "CREATE EXTENSION IF NOT EXISTS \"uuid-ossp\";"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d makeready_migration_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+      - name: Run All Atlas Migrations on Fresh DB
+        run: |
+          cd atlas && atlas migrate apply --env test --url "postgres://postgres:postgres@localhost:5432/makeready_migration_test?sslmode=disable"
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/makeready_migration_test
+
+      - name: Validate Migration Status
+        run: |
+          cd atlas && atlas migrate status --env test --url "postgres://postgres:postgres@localhost:5432/makeready_migration_test?sslmode=disable"
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/makeready_migration_test
+
+  # ─────────────────────────────────────────────────────────
+  # Build Verification
+  # Only runs after typecheck and tests pass
+  # ─────────────────────────────────────────────────────────
+  build:
+    name: Build Server
+    runs-on: ubuntu-latest
+    needs: [typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - run: npm install --loglevel=verbose
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+          DIRECT_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Build TypeScript
+        run: npm run build:only
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-build
+          path: dist/
+
+  # ─────────────────────────────────────────────────────────
+  # Deploy Migrations (main branch only, after all checks pass)
+  # Uses Atlas to apply migrations, then triggers Railway deploy
+  # ─────────────────────────────────────────────────────────
+  deploy-migrations:
+    name: Deploy Migrations to Production
+    runs-on: ubuntu-latest
+    needs: [build, migration-check]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Atlas CLI
+        run: |
+          curl -sSf https://atlasgo.sh | sh -s -- -y
+          echo "$HOME/.atlas/bin" >> $GITHUB_PATH
+
+      - name: Apply Atlas Migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          cd atlas && atlas migrate apply --env production --url "$DATABASE_URL?sslmode=disable"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Load Theme Definitions
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          npm install
+          npx prisma generate
+          npx tsx src/scripts/load-themes.ts
+
+      - name: Backfill Lesson Time Estimates
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+        run: npx tsx src/scripts/backfill-lesson-estimates.ts
+
+      - name: Backfill Video Media Library Entries
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DATABASE_URL }}
+        run: npx tsx src/scripts/backfill-video-media.ts
+
+      - name: Trigger Railway Deployment
+        if: success()
+        run: |
+          echo "🚂 Triggering Railway deployment..."
+          curl -X POST \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            --data '{"query":"mutation { serviceInstanceRedeploy(serviceId: \"${{ secrets.RAILWAY_SERVICE_ID }}\", environmentId: \"${{ secrets.RAILWAY_ENVIRONMENT_ID }}\") }"}' \
+            https://backboard.railway.app/graphql/v2
+          echo "✅ Railway deployment triggered"

@@ -1,0 +1,2003 @@
+{
+  "info": {
+    "name": "MakeReady API",
+    "description": "Complete API collection for MakeReady server with many-to-many Member-Organization support",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "2.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "{{baseUrl}}",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "description": "User authentication endpoints (Google OAuth)",
+      "item": [
+        {
+          "name": "Initiate Google OAuth (Web)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"]
+            },
+            "description": "Redirects to Google OAuth consent screen for web clients"
+          }
+        },
+        {
+          "name": "Initiate Google OAuth (iOS)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google?platform=ios",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "ios"
+                }
+              ]
+            },
+            "description": "Redirects to Google OAuth for iOS clients"
+          }
+        },
+        {
+          "name": "Exchange Auth Code (iOS Only)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"abc123xyz789\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/exchange",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "exchange"]
+            },
+            "description": "Exchange one-time auth code for session cookie (iOS only)"
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Get currently authenticated user (requires session cookie)"
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout current user"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Members",
+      "description": "Member endpoints with many-to-many organization support",
+      "item": [
+        {
+          "name": "Verify Phone Number",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+12025551234\",\n  \"organizationId\": \"550e8400-e29b-41d4-a716-446655440000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/members/verify-phone",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", "verify-phone"]
+            },
+            "description": "Send SMS verification code to phone number. Returns organizations array if member exists."
+          }
+        },
+        {
+          "name": "Confirm Phone Verification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+12025551234\",\n  \"code\": \"123456\",\n  \"organizationId\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john@example.com\",\n  \"birthday\": \"1990-01-15T00:00:00.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/members/confirm-verification",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", "confirm-verification"]
+            },
+            "description": "Verify SMS code and create/update member. Auto-joins member to organization. Creates member session."
+          }
+        },
+        {
+          "name": "Get Current Member Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/members/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", "me"]
+            },
+            "description": "Get currently authenticated member profile (requires member session)"
+          }
+        },
+        {
+          "name": "Check Member Session",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/members/session",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", "session"]
+            },
+            "description": "Check if member is authenticated and get member data"
+          }
+        },
+        {
+          "name": "Logout Member",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/members/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", "logout"]
+            },
+            "description": "Logout current member (clear member session)"
+          }
+        },
+        {
+          "name": "Get Member by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/members/:memberId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", ":memberId"],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "member-uuid"
+                }
+              ]
+            },
+            "description": "Get member profile by ID (requires member auth or org owner auth)"
+          }
+        },
+        {
+          "name": "Update Member Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Smith\",\n  \"email\": \"jane@example.com\",\n  \"birthday\": \"1992-05-20T00:00:00.000Z\",\n  \"profilePicture\": \"https://example.com/profile.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/members/:memberId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", ":memberId"],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "member-uuid"
+                }
+              ]
+            },
+            "description": "Update member profile (requires member auth or org owner auth)"
+          }
+        },
+        {
+          "name": "Delete Member",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/members/:memberId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", ":memberId"],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "member-uuid"
+                }
+              ]
+            },
+            "description": "Soft delete member (requires member auth or org owner auth)"
+          }
+        },
+        {
+          "name": "Get Member Groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/members/:memberId/groups?includeInactive=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "members", ":memberId", "groups"],
+              "query": [
+                {
+                  "key": "includeInactive",
+                  "value": "false"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "memberId",
+                  "value": "member-uuid"
+                }
+              ]
+            },
+            "description": "Get all groups a member belongs to (requires member auth or org owner auth)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Organizations",
+      "description": "Organization management endpoints",
+      "item": [
+        {
+          "name": "Get Organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/organizations/:organizationId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "organizations", ":organizationId"],
+              "variable": [
+                {
+                  "key": "organizationId",
+                  "value": "org-uuid"
+                }
+              ]
+            },
+            "description": "Get organization details (requires org owner auth)"
+          }
+        },
+        {
+          "name": "Get My Organization",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/organizations/my/organization",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "organizations", "my", "organization"]
+            },
+            "description": "Get current user's organization (requires auth)"
+          }
+        },
+        {
+          "name": "Update Organization Name",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Organization Name\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/organizations/:organizationId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "organizations", ":organizationId"],
+              "variable": [
+                {
+                  "key": "organizationId",
+                  "value": "org-uuid"
+                }
+              ]
+            },
+            "description": "Update organization name (requires org owner auth)"
+          }
+        },
+        {
+          "name": "Get Organization Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/organizations/:organizationId/members?search=&includeInactive=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "organizations", ":organizationId", "members"],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Search query for member name, email, or phone"
+                },
+                {
+                  "key": "includeInactive",
+                  "value": "false",
+                  "description": "Include inactive members"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "organizationId",
+                  "value": "org-uuid"
+                }
+              ]
+            },
+            "description": "Get all members in organization (requires org owner auth). Members include their full organizations array."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Group Members",
+      "description": "Group membership management",
+      "item": [
+        {
+          "name": "Get Group Members",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/members?includeInactive=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "members"],
+              "query": [
+                {
+                  "key": "includeInactive",
+                  "value": "false"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            },
+            "description": "Get all members in a group (requires group owner auth)"
+          }
+        },
+        {
+          "name": "Add Member to Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"memberId\": \"member-uuid\",\n  \"role\": \"member\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/members",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "members"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            },
+            "description": "Add member to group. Validates member belongs to same organization as group (many-to-many check)."
+          }
+        },
+        {
+          "name": "Remove Member from Group",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/members/:memberId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "members", ":memberId"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                },
+                {
+                  "key": "memberId",
+                  "value": "member-uuid"
+                }
+              ]
+            },
+            "description": "Remove member from group (soft delete)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invites",
+      "description": "Group invitation endpoints",
+      "item": [
+        {
+          "name": "Create Invite (QR Code)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"group-uuid\",\n  \"expiresAt\": \"2024-12-31T23:59:59.000Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invites",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invites"]
+            },
+            "description": "Create invite for QR code generation (requires auth)"
+          }
+        },
+        {
+          "name": "Send Group Invite via SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"group-uuid\",\n  \"recipientPhone\": \"+12025551234\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invites/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invites", "send"]
+            },
+            "description": "Send group invitation via SMS (requires auth, must be group creator)"
+          }
+        },
+        {
+          "name": "Get Invite by Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invites/:token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invites", ":token"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "ABC123XYZ"
+                }
+              ]
+            },
+            "description": "Get invite details by token (public, no auth required)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User management endpoints",
+      "item": [
+        {
+          "name": "List All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Get all users"
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "user-uuid"
+                }
+              ]
+            },
+            "description": "Get user by ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public",
+      "description": "Public endpoints (no auth required)",
+      "item": [
+        {
+          "name": "Generate QR Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/qrcode?text=https://makeready.app/invite/ABC123",
+              "host": ["{{baseUrl}}"],
+              "path": ["qrcode"],
+              "query": [
+                {
+                  "key": "text",
+                  "value": "https://makeready.app/invite/ABC123"
+                }
+              ]
+            },
+            "description": "Generate QR code image (returns PNG)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Bible",
+      "description": "Bible reading, search, and user features (highlights, notes, bookmarks)",
+      "item": [
+        {
+          "name": "Reading",
+          "description": "Bible reading endpoints (public)",
+          "item": [
+            {
+              "name": "List Translations",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/translations",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "translations"]
+                },
+                "description": "List all available Bible translations"
+              }
+            },
+            {
+              "name": "Get Books for Translation",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/translations/:code/books",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "translations", ":code", "books"],
+                  "variable": [
+                    {
+                      "key": "code",
+                      "value": "KJV"
+                    }
+                  ]
+                },
+                "description": "Get all 66 books for a specific translation"
+              }
+            },
+            {
+              "name": "Read Chapter",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/:code/:book/:chapter",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", ":code", ":book", ":chapter"],
+                  "variable": [
+                    {
+                      "key": "code",
+                      "value": "KJV"
+                    },
+                    {
+                      "key": "book",
+                      "value": "43"
+                    },
+                    {
+                      "key": "chapter",
+                      "value": "3"
+                    }
+                  ]
+                },
+                "description": "Read a full chapter (e.g., John 3). Book 43 = John. Includes user highlights/notes if authenticated."
+              }
+            },
+            {
+              "name": "Read Single Verse",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/:code/:book/:chapter/:verse",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", ":code", ":book", ":chapter", ":verse"],
+                  "variable": [
+                    {
+                      "key": "code",
+                      "value": "KJV"
+                    },
+                    {
+                      "key": "book",
+                      "value": "43"
+                    },
+                    {
+                      "key": "chapter",
+                      "value": "3"
+                    },
+                    {
+                      "key": "verse",
+                      "value": "16"
+                    }
+                  ]
+                },
+                "description": "Read a single verse (e.g., John 3:16)"
+              }
+            },
+            {
+              "name": "Read Verse Range",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/:code/:book/:chapter/verses?start=1&end=5",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", ":code", ":book", ":chapter", "verses"],
+                  "query": [
+                    {
+                      "key": "start",
+                      "value": "1"
+                    },
+                    {
+                      "key": "end",
+                      "value": "5"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "code",
+                      "value": "KJV"
+                    },
+                    {
+                      "key": "book",
+                      "value": "43"
+                    },
+                    {
+                      "key": "chapter",
+                      "value": "3"
+                    }
+                  ]
+                },
+                "description": "Read a range of verses (e.g., John 3:1-5)"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search & Download",
+          "description": "Search and offline download endpoints",
+          "item": [
+            {
+              "name": "Search Bible",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/search?query=love&translation=KJV&limit=10&offset=0",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "search"],
+                  "query": [
+                    {
+                      "key": "query",
+                      "value": "love",
+                      "description": "Search query"
+                    },
+                    {
+                      "key": "translation",
+                      "value": "KJV",
+                      "description": "Translation code (optional, defaults to KJV)"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10",
+                      "description": "Results per page (default 20, max 100)"
+                    },
+                    {
+                      "key": "offset",
+                      "value": "0",
+                      "description": "Pagination offset"
+                    }
+                  ]
+                },
+                "description": "Full-text search across Bible verses"
+              }
+            },
+            {
+              "name": "Download Translation",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/translations/:code/download",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "translations", ":code", "download"],
+                  "variable": [
+                    {
+                      "key": "code",
+                      "value": "KJV"
+                    }
+                  ]
+                },
+                "description": "Download complete translation for offline use (~5-8 MB JSON)"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Highlights",
+          "description": "User verse highlights (requires authentication)",
+          "item": [
+            {
+              "name": "Get User Highlights",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/highlights",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "highlights"]
+                },
+                "description": "Get all highlights for authenticated user (requires session cookie)"
+              }
+            },
+            {
+              "name": "Create Highlight",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"translationCode\": \"KJV\",\n  \"bookNumber\": 43,\n  \"chapter\": 3,\n  \"verseStart\": 16,\n  \"verseEnd\": null,\n  \"color\": \"YELLOW\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/highlights",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "highlights"]
+                },
+                "description": "Create a verse highlight. Colors: YELLOW, BLUE, GREEN, ORANGE, PURPLE, PINK"
+              }
+            },
+            {
+              "name": "Update Highlight",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"color\": \"BLUE\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/highlights/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "highlights", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "highlight-uuid"
+                    }
+                  ]
+                },
+                "description": "Update highlight color"
+              }
+            },
+            {
+              "name": "Delete Highlight",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/highlights/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "highlights", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "highlight-uuid"
+                    }
+                  ]
+                },
+                "description": "Delete a highlight"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Notes",
+          "description": "User verse notes (requires authentication)",
+          "item": [
+            {
+              "name": "Get User Notes",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/notes",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "notes"]
+                },
+                "description": "Get all notes for authenticated user"
+              }
+            },
+            {
+              "name": "Get Note by ID",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/notes/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "notes", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "note-uuid"
+                    }
+                  ]
+                },
+                "description": "Get a specific note by ID"
+              }
+            },
+            {
+              "name": "Create Note",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"translationCode\": \"KJV\",\n  \"bookNumber\": 43,\n  \"chapter\": 3,\n  \"verseStart\": 16,\n  \"verseEnd\": null,\n  \"content\": \"This is one of my favorite verses!\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/notes",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "notes"]
+                },
+                "description": "Create a note on a verse or passage"
+              }
+            },
+            {
+              "name": "Update Note",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"content\": \"Updated note content\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/notes/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "notes", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "note-uuid"
+                    }
+                  ]
+                },
+                "description": "Update note content"
+              }
+            },
+            {
+              "name": "Delete Note",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/notes/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "notes", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "note-uuid"
+                    }
+                  ]
+                },
+                "description": "Delete a note"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Bookmarks",
+          "description": "User bookmarks (requires authentication)",
+          "item": [
+            {
+              "name": "Get User Bookmarks",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/bookmarks",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "bookmarks"]
+                },
+                "description": "Get all bookmarks for authenticated user"
+              }
+            },
+            {
+              "name": "Create Bookmark",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"translationCode\": \"KJV\",\n  \"bookNumber\": 43,\n  \"chapter\": 3,\n  \"verseStart\": 16,\n  \"verseEnd\": null,\n  \"label\": \"Favorite verse\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/bookmarks",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "bookmarks"]
+                },
+                "description": "Create a bookmark (label is optional)"
+              }
+            },
+            {
+              "name": "Delete Bookmark",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bible/bookmarks/:id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "bible", "bookmarks", ":id"],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "bookmark-uuid"
+                    }
+                  ]
+                },
+                "description": "Delete a bookmark"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Smart Search",
+      "description": "Intelligent Bible search with direct references and semantic/LLM search",
+      "item": [
+        {
+          "name": "Smart Search - Direct Reference",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"John 3:16\",\n  \"translation\": \"KJV\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/search/smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "smart"]
+            },
+            "description": "Search by direct verse reference. Auto-detected patterns: 'John 3:16', 'Rom 8:28', 'Psalm 23'"
+          }
+        },
+        {
+          "name": "Smart Search - Verse Range",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Genesis 1:1-3\",\n  \"translation\": \"KJV\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/search/smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "smart"]
+            },
+            "description": "Search by verse range (e.g., 'Genesis 1:1-3', 'John 3:16-17')"
+          }
+        },
+        {
+          "name": "Smart Search - Full Chapter",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Psalm 23\",\n  \"translation\": \"KJV\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/search/smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "smart"]
+            },
+            "description": "Get entire chapter (e.g., 'Psalm 23', 'Romans 8')"
+          }
+        },
+        {
+          "name": "Smart Search - Semantic (Love)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"verses about love\",\n  \"translation\": \"KJV\",\n  \"limit\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/search/smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "smart"]
+            },
+            "description": "Semantic/LLM search for passages about love. Requires embeddings to be generated."
+          }
+        },
+        {
+          "name": "Smart Search - Semantic (Grace)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"top passages on grace\",\n  \"translation\": \"KJV\",\n  \"limit\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/search/smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "smart"]
+            },
+            "description": "Semantic search for passages about grace"
+          }
+        },
+        {
+          "name": "Smart Search - Semantic (Creation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"the creation story\",\n  \"translation\": \"KJV\",\n  \"limit\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/search/smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "smart"]
+            },
+            "description": "Semantic search for creation narrative"
+          }
+        },
+        {
+          "name": "Smart Search - Semantic (Marriage)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"what does the bible say about marriage\",\n  \"translation\": \"KJV\",\n  \"limit\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/search/smart",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "smart"]
+            },
+            "description": "Semantic search for marriage passages"
+          }
+        },
+        {
+          "name": "Book Suggestions (Autocomplete)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/search/suggestions?q=rom&translation=KJV",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search", "suggestions"],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "rom",
+                  "description": "Search prefix (e.g., 'rom', 'john', 'gen')"
+                },
+                {
+                  "key": "translation",
+                  "value": "KJV",
+                  "description": "Translation code"
+                }
+              ]
+            },
+            "description": "Get book name autocomplete suggestions for search input"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Groups",
+      "description": "Group management endpoints",
+      "item": [
+        {
+          "name": "Create Group",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Young Adults Bible Study\",\n  \"description\": \"Weekly Bible study for young professionals\",\n  \"isPrivate\": true,\n  \"ageRangeMin\": 18,\n  \"ageRangeMax\": 35\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups"]
+            }
+          }
+        },
+        {
+          "name": "List My Groups",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups"]
+            }
+          }
+        },
+        {
+          "name": "Get Group by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Group by Code (Public)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/code/:code",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", "code", ":code"],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "ABC123"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Group Invite",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "description": "Get invite information including QR code for sharing. Returns group code, invite URL, and base64 QR code image.",
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:id/invite",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":id", "invite"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Group",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Group Name\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Group",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "description": "Event management with recurrence, attendees, and attachments",
+      "item": [
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"MEETING\",\n  \"title\": \"Weekly Bible Study\",\n  \"description\": \"Join us for our weekly study\",\n  \"date\": \"2025-01-15T18:00:00Z\",\n  \"startTime\": \"18:00\",\n  \"endTime\": \"19:30\",\n  \"visibility\": \"PRIVATE\",\n  \"locationName\": \"Community Center\",\n  \"locationAddress\": \"123 Main St, Dallas, TX\",\n  \"recurrenceFrequency\": \"WEEKLY\",\n  \"alertMinutesBefore\": 60\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/events",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "events"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Group Events",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/events?startDate=2025-01-01T00:00:00Z&limit=50",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "events"],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2025-01-01T00:00:00Z"
+                },
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Event by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Public Event by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/code/:code",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "code", ":code"],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "ABC123"
+                }
+              ]
+            },
+            "description": "Get a public event by its 6-digit code (no auth required)"
+          }
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Event Title\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update Recurring Series",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated Series Title\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/update-series?scope=future",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "update-series"],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "future",
+                  "description": "Options: this, future, all"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Recurring Series",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/delete-series?scope=all",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "delete-series"],
+              "query": [
+                {
+                  "key": "scope",
+                  "value": "all",
+                  "description": "Options: this, future, all"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload Cover Image",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"imageData\": \"base64-encoded-image-data\",\n  \"contentType\": \"image/jpeg\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/cover-image",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "cover-image"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Upload Attachment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileData\": \"base64-encoded-file\",\n  \"fileName\": \"menu.pdf\",\n  \"fileType\": \"application/pdf\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/attachments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "attachments"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Attachment",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/attachments/:attachmentId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "attachments", ":attachmentId"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                },
+                {
+                  "key": "attachmentId",
+                  "value": "attachment-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "List Attendees",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/attendees",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "attendees"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Invite Group Members",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inviteAll\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/invite",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "invite"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "RSVP (Private Event - Member Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rsvpStatus\": \"GOING\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/rsvp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "rsvp"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                }
+              ]
+            },
+            "description": "RSVP to a private event (requires member auth)"
+          }
+        },
+        {
+          "name": "RSVP (Public Event - No Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+12145551234\",\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"gender\": \"male\",\n  \"birthdate\": \"1990-01-15T00:00:00Z\",\n  \"rsvpStatus\": \"GOING\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/code/:code/rsvp",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", "code", ":code", "rsvp"],
+              "variable": [
+                {
+                  "key": "code",
+                  "value": "ABC123"
+                }
+              ]
+            },
+            "description": "RSVP to a public event by code (no auth required)"
+          }
+        },
+        {
+          "name": "Update Attendee",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"rsvpStatus\": \"GOING\",\n  \"checkedIn\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/attendees/:attendeeId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "attendees", ":attendeeId"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                },
+                {
+                  "key": "attendeeId",
+                  "value": "attendee-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Remove Attendee",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/events/:id/attendees/:attendeeId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "events", ":id", "attendees", ":attendeeId"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "event-uuid"
+                },
+                {
+                  "key": "attendeeId",
+                  "value": "attendee-uuid"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "description": "Group feed posts",
+      "item": [
+        {
+          "name": "List Group Posts",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/posts?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "posts"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Post",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"ANNOUNCEMENT\",\n  \"title\": \"Welcome to our group!\",\n  \"content\": \"Excited to have everyone here.\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/posts",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "posts"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/:id",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "posts", ":id"],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "post-uuid"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Group Join Requests",
+      "description": "Join request workflow for group code joining",
+      "item": [
+        {
+          "name": "Submit Join Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"I'd love to join your study group!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/join-requests",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "join-requests"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            },
+            "description": "Submit a join request (requires member auth)"
+          }
+        },
+        {
+          "name": "Check My Request Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/join-requests/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "join-requests", "me"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            },
+            "description": "Check status of own join request (requires member auth)"
+          }
+        },
+        {
+          "name": "List Pending Requests",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/join-requests?status=pending",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "join-requests"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "pending"
+                }
+              ],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                }
+              ]
+            },
+            "description": "List join requests (requires group owner auth)"
+          }
+        },
+        {
+          "name": "Approve Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/join-requests/:requestId/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "join-requests", ":requestId", "approve"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                },
+                {
+                  "key": "requestId",
+                  "value": "request-uuid"
+                }
+              ]
+            },
+            "description": "Approve a join request (requires group owner auth)"
+          }
+        },
+        {
+          "name": "Reject Request",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/groups/:groupId/join-requests/:requestId/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "groups", ":groupId", "join-requests", ":requestId", "reject"],
+              "variable": [
+                {
+                  "key": "groupId",
+                  "value": "group-uuid"
+                },
+                {
+                  "key": "requestId",
+                  "value": "request-uuid"
+                }
+              ]
+            },
+            "description": "Reject a join request (requires group owner auth)"
+          }
+        }
+      ]
+    }
+  ]
+}

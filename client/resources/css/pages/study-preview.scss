@@ -1,0 +1,103 @@
+// StudyPreview - Page layout styles for study preview
+// Same fixed viewport pattern as study-home but without bottom navigation
+
+// Prevent body scroll when this fixed-viewport page is active
+body:has(.StudyPreview) {
+  overflow: hidden;
+  height: 100vh;
+}
+
+.StudyPreview {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  &__viewport {
+    width: 100%;
+    max-width: 440px;
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+  }
+
+  &__scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+  }
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+  }
+
+  &__lessons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__lesson-link {
+    display: block;
+  }
+
+  // Error states
+  &__error {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    gap: 12px;
+  }
+
+  &__error-title {
+    font-family: 'SF Pro Text', -apple-system, sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: white;
+  }
+
+  &__error-message {
+    font-family: 'SF Pro Text', -apple-system, sans-serif;
+    font-size: 16px;
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    line-height: 1.5;
+  }
+}

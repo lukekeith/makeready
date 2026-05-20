@@ -1,0 +1,84 @@
+// StudyHome - Page layout styles for study home
+// Uses fixed viewport with scrollable content (not body scroll)
+// for app-like feel with fixed navigation
+
+.StudyHome {
+  // Fixed viewport container
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+
+  // Center content on larger screens
+  &__viewport {
+    width: 100%;
+    max-width: 440px;
+    height: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  &--loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+  }
+
+  // Scrollable content area (everything except navigation)
+  &__scroll-container {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; // Smooth scrolling on iOS
+
+    // Hide scrollbar but keep functionality
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+  }
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px;
+  }
+
+  &__lessons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  // Bottom spacer to ensure content doesn't hide behind navigation
+  &__bottom-spacer {
+    height: 96px; // Height of navigation bar
+    flex-shrink: 0;
+  }
+
+  // Fixed navigation at bottom
+  &__navigation {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+}

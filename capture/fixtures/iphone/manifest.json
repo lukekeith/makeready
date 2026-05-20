@@ -1,0 +1,11 @@
+{
+  "sets": [
+    { "title": "Login", "folder": "login" },
+    { "title": "Home", "folder": "home" },
+    { "title": "Create Study Program", "folder": "create-program" },
+    { "title": "Create Read Activity", "folder": "create-read-activity" },
+    { "title": "Create Exegesis Activity", "folder": "create-exegesis-activity" },
+    { "title": "Create Video Activity", "folder": "create-video-activity" },
+    { "title": "Create User Input Activity", "folder": "create-user-input-activity" }
+  ]
+}

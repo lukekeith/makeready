@@ -1,0 +1,228 @@
+.Loading {
+  --loading-size: 32px;
+  --loading-color: rgba(255, 255, 255, 1);
+  --loading-duration: 1s;
+  --loading-thickness: 3px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--loading-size);
+  height: var(--loading-size);
+
+  // ==========================================================================
+  // Size Variants
+  // ==========================================================================
+
+  &--sm {
+    --loading-size: 16px;
+    --loading-thickness: 2px;
+  }
+
+  &--md {
+    --loading-size: 32px;
+    --loading-thickness: 3px;
+  }
+
+  &--lg {
+    --loading-size: 48px;
+    --loading-thickness: 4px;
+  }
+
+  &--xl {
+    --loading-size: 64px;
+    --loading-thickness: 5px;
+  }
+
+  // ==========================================================================
+  // Speed Variants
+  // ==========================================================================
+
+  &--slow {
+    --loading-duration: 1.5s;
+  }
+
+  &--normal {
+    --loading-duration: 1s;
+  }
+
+  &--fast {
+    --loading-duration: 0.6s;
+  }
+
+  // ==========================================================================
+  // Color Variants
+  // ==========================================================================
+
+  &--white {
+    --loading-color: rgba(255, 255, 255, 1);
+  }
+
+  &--dark {
+    --loading-color: rgba(0, 0, 0, 0.8);
+  }
+
+  &--primary {
+    --loading-color: #3b82f6;
+  }
+
+  &--purple {
+    --loading-color: #6C47FF;
+  }
+
+  // ==========================================================================
+  // Spinner Variant
+  // ==========================================================================
+
+  &--spinner {
+    .Loading__spinner {
+      width: 100%;
+      height: 100%;
+      border: var(--loading-thickness) solid rgba(255, 255, 255, 0.2);
+      border-top-color: var(--loading-color);
+      border-radius: 50%;
+      animation: loading-spin var(--loading-duration) linear infinite;
+    }
+  }
+
+  // ==========================================================================
+  // Grid Variant (canvas-based pulse animation)
+  // ==========================================================================
+
+  &--grid {
+    .Loading__grid {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // ==========================================================================
+  // Dots Variant (3 bouncing dots)
+  // ==========================================================================
+
+  &--dots {
+    .Loading__dots {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(var(--loading-size) * 0.15);
+      width: 100%;
+      height: 100%;
+    }
+
+    .Loading__dot {
+      width: calc(var(--loading-size) * 0.22);
+      height: calc(var(--loading-size) * 0.22);
+      background: var(--loading-color);
+      border-radius: 50%;
+      animation: loading-bounce var(--loading-duration) ease-in-out infinite;
+
+      &:nth-child(1) {
+        animation-delay: 0s;
+      }
+
+      &:nth-child(2) {
+        animation-delay: calc(var(--loading-duration) * 0.15);
+      }
+
+      &:nth-child(3) {
+        animation-delay: calc(var(--loading-duration) * 0.3);
+      }
+    }
+  }
+
+  // ==========================================================================
+  // Pulse Variant
+  // ==========================================================================
+
+  &--pulse {
+    .Loading__pulse {
+      width: 100%;
+      height: 100%;
+      background: var(--loading-color);
+      border-radius: 50%;
+      animation: loading-pulse var(--loading-duration) ease-in-out infinite;
+    }
+  }
+
+  // ==========================================================================
+  // Bars Variant (4 audio-style bars)
+  // ==========================================================================
+
+  &--bars {
+    .Loading__bars {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: calc(var(--loading-size) * 0.08);
+      width: 100%;
+      height: 100%;
+    }
+
+    .Loading__bar {
+      width: calc(var(--loading-size) * 0.15);
+      height: 40%;
+      background: var(--loading-color);
+      border-radius: calc(var(--loading-size) * 0.05);
+      animation: loading-bars var(--loading-duration) ease-in-out infinite;
+
+      &:nth-child(1) {
+        animation-delay: 0s;
+      }
+
+      &:nth-child(2) {
+        animation-delay: calc(var(--loading-duration) * 0.15);
+      }
+
+      &:nth-child(3) {
+        animation-delay: calc(var(--loading-duration) * 0.3);
+      }
+
+      &:nth-child(4) {
+        animation-delay: calc(var(--loading-duration) * 0.45);
+      }
+    }
+  }
+}
+
+// ==========================================================================
+// Keyframe Animations
+// ==========================================================================
+
+@keyframes loading-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes loading-bounce {
+  0%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(calc(var(--loading-size) * -0.3));
+  }
+}
+
+@keyframes loading-pulse {
+  0%, 100% {
+    transform: scale(0.8);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes loading-bars {
+  0%, 100% {
+    height: 40%;
+  }
+  50% {
+    height: 100%;
+  }
+}

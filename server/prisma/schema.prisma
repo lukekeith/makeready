@@ -1,0 +1,1449 @@
+// Auto-generated Prisma schema from schema/schema.yaml
+// DO NOT EDIT DIRECTLY - Run: npm run schema:generate
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// =============================================================================
+// IMPORTANT: Session Table (Not managed by Prisma)
+// =============================================================================
+// The `session` table is required for Express session storage (connect-pg-simple).
+// It is NOT a Prisma model because connect-pg-simple manages it directly.
+//
+// If you run `prisma migrate reset` or drop tables, you MUST recreate it:
+//
+//   CREATE TABLE IF NOT EXISTS session (
+//     sid VARCHAR NOT NULL PRIMARY KEY,
+//     sess JSON NOT NULL,
+//     expire TIMESTAMP(6) NOT NULL
+//   );
+//   CREATE INDEX IF NOT EXISTS IDX_session_expire ON session (expire);
+//
+// Or run: npm run db:ensure-session
+// =============================================================================
+
+enum Testament {
+  OLD_TESTAMENT
+  NEW_TESTAMENT
+}
+
+enum HighlightColor {
+  YELLOW
+  BLUE
+  GREEN
+  ORANGE
+  PURPLE
+  PINK
+}
+
+enum TemplateActivityType {
+  USER_INPUT
+  READ
+  VIDEO
+  YOUTUBE
+  EXEGESIS
+}
+
+enum EventType {
+  LESSON
+  MEETING
+  ONLINE
+  DEADLINE
+  SOCIAL
+  OTHER
+}
+
+enum EventVisibility {
+  PRIVATE
+  PUBLIC
+}
+
+enum RsvpStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+  PENDING
+}
+
+enum RecurrenceFrequency {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum PostType {
+  WELCOME
+  POLL
+  VIDEO
+  EVENT
+  ANNOUNCEMENT
+}
+
+enum LogCategory {
+  AUTH
+  JOIN
+  ACCESS
+}
+
+enum LogStatus {
+  SUCCESS
+  FAILURE
+  WARNING
+}
+
+enum ActivityAction {
+  CREATED
+  UPDATED
+  DELETED
+  JOINED
+  LEFT
+  PUBLISHED
+  ENROLLED
+  COMPLETED
+  SUBMITTED
+  SENT
+  NOTIFIED
+}
+
+enum BetaApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+model User {
+  id                   String @id @default(uuid())
+  googleId             String? @unique
+  microsoftId          String? @unique // Microsoft Entra ID object ID for Microsoft-authenticated beta/admin users
+  email                String @unique
+  name                 String
+  picture              String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  phoneNumber          String? @unique
+  phoneVerified        Boolean @default(false)
+  smsConsent           Boolean @default(false) // Whether user has consented to receive SMS
+  smsConsentAt         DateTime? // When SMS consent was last changed
+  organizationId       String? // Deprecated - Use UserRole relation instead
+  isSuperAdmin         Boolean @default(false) // Platform-wide super admin
+  isActive             Boolean @default(true) // Inactive users cannot authenticate or access leader/admin app surfaces
+
+  createdGroups        Group[] @relation("GroupCreator")
+  sentInvites          Invite[]
+  ownedOrganization    Organization? @relation("OrganizationOwner")
+  roles                UserRole[]
+  uploadedMedia        Media[] @relation("MediaUploader")
+  videos               Video[] @relation("VideoUploader")
+  highlights           Highlight[]
+  verseNotes           VerseNote[]
+  bookmarks            Bookmark[]
+  createdTemplates     LessonTemplate[] @relation("TemplateCreator")
+  studyPrograms        StudyProgram[] @relation("StudyProgramCreator")
+  enrollments          Enrollment[] @relation("EnrollmentCreator")
+  posts                Post[] @relation("PostAuthor")
+  reviewedJoinRequests GroupJoinRequest[] @relation("JoinRequestReviewer")
+  createdEvents        Event[] @relation("EventCreator")
+  uploadedAttachments  EventAttachment[] @relation("AttachmentUploader")
+  studyNotes           StudyNote[]
+  apiKeys              ApiKey[]
+  deviceTokens         DeviceToken[]
+  notifications        Notification[]
+  linkedMember         Member? @relation("UserMemberLink")
+  activities           Activity[] @relation("ActivityActor")
+  targetedActivities   Activity[] @relation("ActivityTarget")
+  updatedGroups        Group[] @relation("GroupUpdater")
+  updatedPrograms      StudyProgram[] @relation("StudyProgramUpdater")
+  updatedEnrollments   Enrollment[] @relation("EnrollmentUpdater")
+  updatedEvents        Event[] @relation("EventUpdater")
+  updatedPosts         Post[] @relation("PostUpdater")
+  updatedTemplates     LessonTemplate[] @relation("TemplateUpdater")
+  preferences          UserPreference[]
+  searchHistory        SearchHistory[]
+  createdThemes        TextTheme[] @relation("ThemeCreator")
+  betaApplications     BetaApplication[]
+  @@index([organizationId])
+  @@index([isSuperAdmin])
+  @@index([isActive])
+  @@map("users")
+}
+
+model DeviceToken {
+  id                   String @id @default(uuid())
+  userId               String
+  token                String @unique
+  platform             String @default("ios") // ios or android
+  environment          String @default("production") // sandbox or production
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+model Group {
+  id                   String @id @default(uuid())
+  code                 String? @unique // 6-char alphanumeric for public join
+  name                 String
+  description          String?
+  coverImageUrl        String?
+  isPrivate            Boolean @default(false)
+  allowInvites         Boolean @default(true)
+  welcomeMessage       String?
+  ageRangeMin          Int?
+  ageRangeMax          Int?
+  maxMembers           Int?
+  creatorId            String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  organizationId       String?
+  isActive             Boolean @default(true)
+  memberDirectoryEnabled Boolean @default(true) // Allow members to see contact info of other members
+  updatedById          String? // User who last updated this group
+
+  members              GroupMember[]
+  creator              User @relation("GroupCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  updatedBy            User? @relation("GroupUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  invites              Invite[]
+  media                Media[]
+  enrollments          Enrollment[]
+  events               Event[]
+  posts                Post[]
+  joinRequests         GroupJoinRequest[]
+  activities           Activity[] @relation("ActivityGroup")
+  @@index([organizationId])
+  @@index([isActive])
+  @@index([organizationId, isActive])
+  @@map("groups")
+}
+
+model GroupMember {
+  id                   String @id @default(uuid())
+  groupId              String
+  role                 String @default("member")
+  joinedAt             DateTime @default(now())
+  memberId             String?
+  isActive             Boolean @default(true)
+
+  group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member               Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  eventAttendance      EventAttendee[]
+
+  @@unique([groupId, memberId])
+  @@index([groupId])
+  @@index([memberId])
+  @@index([isActive])
+  @@index([groupId, isActive])
+  @@map("group_members")
+}
+
+model Invite {
+  id                   String @id @default(uuid())
+  token                String @unique
+  groupId              String?
+  inviterId            String
+  recipientPhone       String?
+  status               String @default("pending")
+  expiresAt            DateTime?
+  createdAt            DateTime @default(now())
+  acceptedAt           DateTime?
+
+  group                Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  inviter              User @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+  @@map("invites")
+}
+
+model Organization {
+  id                   String @id @default(uuid())
+  name                 String
+  ownerId              String @unique // Deprecated - Kept for backward compatibility
+  isActive             Boolean @default(true)
+  twilioVerifyServiceSid String? // Twilio Verify Service SID for org-branded SMS
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  members              MemberOrganization[]
+  owner                User @relation("OrganizationOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  roles                Role[]
+  userRoles            UserRole[]
+  media                Media[]
+  themes               TextTheme[]
+  betaApplications     BetaApplication[]
+  @@index([ownerId])
+  @@index([isActive])
+  @@map("organizations")
+}
+
+model Member {
+  id                   String @id @default(uuid())
+  phoneNumber          String @unique
+  phoneVerified        Boolean @default(false)
+  smsConsent           Boolean @default(false) // Whether member has consented to receive SMS
+  smsConsentAt         DateTime? // When SMS consent was last changed
+  firstName            String?
+  lastName             String?
+  email                String?
+  gender               String? // male or female
+  birthday             DateTime?
+  profilePicture       String?
+  isActive             Boolean @default(true)
+  lastVerifiedAt       DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  googleId             String? @unique // Google ID for profile sync (not for auth)
+  googleEmail          String? // Email from linked Google account
+  googlePicture        String? // Profile picture URL from Google
+  googleLinkedAt       DateTime? // When Google profile was linked
+  userId               String? @unique // Links Member to User account for bidirectional access
+  userLinkedAt         DateTime? // When account was linked to User
+
+  groupMemberships     GroupMember[]
+  organizations        MemberOrganization[]
+  joinRequests         GroupJoinRequest[]
+  studyNotes           StudyNote[]
+  activityProgress     MemberActivityProgress[]
+  videoProgress        MemberVideoProgress[]
+  lessonProgress       MemberLessonProgress[]
+  linkedUser           User? @relation("UserMemberLink", fields: [userId], references: [id], onDelete: SetNull)
+  preferences          UserPreference[]
+  searchHistory        SearchHistory[]
+  @@index([isActive])
+  @@index([phoneNumber])
+  @@index([googleId])
+  @@index([userId])
+  @@map("members")
+}
+
+model MemberOrganization {
+  id                   String @id @default(uuid())
+  memberId             String
+  organizationId       String
+  joinedAt             DateTime @default(now())
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, organizationId])
+  @@index([memberId])
+  @@index([organizationId])
+  @@map("member_organizations")
+}
+
+model Role {
+  id                   String @id @default(uuid())
+  name                 String // Super Admin, Owner, Admin, Group Leader, Contributor
+  description          String?
+  organizationId       String? // NULL for system roles
+  isSystem             Boolean @default(false) // true for predefined roles
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  permissions          RolePermission[]
+  userRoles            UserRole[]
+
+  @@unique([name, organizationId])
+  @@index([organizationId])
+  @@index([isSystem])
+  @@map("roles")
+}
+
+model Permission {
+  id                   String @id @default(uuid())
+  resource             String // organization, group, member, event, announcement, media, form
+  action               String // create, read, update, delete, invite, publish
+  name                 String @unique // organization.update, event.create
+  description          String?
+  createdAt            DateTime @default(now())
+
+  roles                RolePermission[]
+  @@index([resource])
+  @@index([action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  id                   String @id @default(uuid())
+  roleId               String
+  permissionId         String
+  createdAt            DateTime @default(now())
+
+  role                 Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission           Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  id                   String @id @default(uuid())
+  userId               String
+  roleId               String
+  organizationId       String // Scope of this role assignment
+  assignedAt           DateTime @default(now())
+  assignedBy           String? // User ID who assigned this role
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role                 Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, organizationId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([organizationId])
+  @@map("user_roles")
+}
+
+model Media {
+  id                   String @id @default(uuid())
+  title                String
+  description          String?
+  url                  String // Cloud storage URL
+  type                 String // photo, video, document
+  mimeType             String? // image/jpeg, video/mp4, application/pdf
+  fileSize             Int? // Size in bytes
+  organizationId       String
+  groupId              String? // NULL = organization-wide media
+  uploadedBy           String
+  visibility           String @default("members") // public | members | group
+  videoId              String? // FK to Video for Cloudflare Stream media
+  thumbnailUrl         String? // Preview thumbnail URL
+  uploadStatus         String @default("ready") // pending, processing, ready, error
+  source               String? // How media entered library: direct, auto_capture, import
+  duration             Int? // Duration in seconds for video/audio
+  width                Int? // Image/video width in pixels
+  height               Int? // Image/video height in pixels
+  aspectRatio          String? // Aspect ratio e.g. 16:9, 4:3, 1:1
+  dominantColor        String? // Dominant color as hex e.g. #3a5f8c
+  altText              String? // Accessibility alt text
+  fileHash             String? // SHA-256 hash for deduplication
+  exifData             Json? // EXIF metadata: camera, GPS, date taken, etc.
+  videoResolution      String? // Video resolution e.g. 720p, 1080p, 4k
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  group                Group? @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  uploader             User @relation("MediaUploader", fields: [uploadedBy], references: [id], onDelete: Cascade)
+  video                Video? @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  tags                 MediaTag[]
+  usages               MediaUsage[]
+  @@index([organizationId])
+  @@index([groupId])
+  @@index([uploadedBy])
+  @@index([visibility])
+  @@index([isActive])
+  @@index([type])
+  @@index([videoId])
+  @@index([uploadStatus])
+  @@map("media")
+}
+
+model MediaTag {
+  id                   String @id @default(uuid())
+  mediaId              String
+  tag                  String // Lowercase, trimmed tag string
+  createdAt            DateTime @default(now())
+
+  media                Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, tag])
+  @@index([mediaId])
+  @@index([tag])
+  @@map("media_tags")
+}
+
+model MediaUsage {
+  id                   String @id @default(uuid())
+  mediaId              String
+  usageType            String // LESSON_ACTIVITY, PROGRAM_COVER, GROUP_COVER, POST, SCHEDULED_ACTIVITY
+  resourceId           String // ID of the resource using this media
+  resourceName         String? // Human-readable name for display
+  createdAt            DateTime @default(now())
+
+  media                Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaId, usageType, resourceId])
+  @@index([mediaId])
+  @@index([usageType])
+  @@index([resourceId])
+  @@map("media_usages")
+}
+
+model Video {
+  id                   String @id @default(uuid())
+  title                String?
+  description          String?
+  cloudflareUid        String @unique // Cloudflare video UID
+  playbackUrl          String // HLS playback URL
+  thumbnailUrl         String? // Auto-generated thumbnail
+  duration             Int? // Duration in seconds
+  status               String @default("pending") // pending, ready, error
+  userId               String
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User @relation("VideoUploader", fields: [userId], references: [id], onDelete: Cascade)
+  activities           LessonActivity[]
+  scheduledActivities  ScheduledLessonActivity[]
+  mediaEntries         Media[]
+  @@index([userId])
+  @@index([status])
+  @@index([isActive])
+  @@map("videos")
+}
+
+model Translation {
+  id                   String @id @default(uuid())
+  code                 String @unique // ESV, KJV, NIV
+  name                 String // English Standard Version
+  language             String // en, es, fr
+  description          String?
+  copyright            String?
+  license              String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  books                Book[]
+  verses               Verse[]
+  highlights           Highlight[]
+  verseNotes           VerseNote[]
+  @@index([code])
+  @@map("translations")
+}
+
+model Book {
+  id                   String @id @default(uuid())
+  translationId        String
+  bookNumber           Int // 1-66 (canonical order)
+  bookName             String // Genesis, Matthew
+  bookAbbrev           String // Gen, Matt
+  testament            Testament
+  chapters             Int // Total chapters in book
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  translation          Translation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+  verses               Verse[]
+
+  @@unique([translationId, bookNumber])
+  @@unique([translationId, bookName])
+  @@index([translationId, testament])
+  @@index([bookNumber])
+  @@map("books")
+}
+
+model Verse {
+  id                   String @id @default(uuid())
+  translationId        String
+  bookId               String
+  bookNumber           Int // Denormalized for faster queries
+  chapter              Int
+  verse                Int
+  text                 String @db.Text
+  searchVector         Unsupported("tsvector")? // Full-text search
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  translation          Translation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+  book                 Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+
+  @@unique([translationId, bookNumber, chapter, verse])
+  @@index([bookId, chapter, verse])
+  @@index([translationId, bookNumber, chapter, verse])
+  @@map("verses")
+}
+
+model Highlight {
+  id                   String @id @default(uuid())
+  userId               String
+  translationId        String
+  bookNumber           Int
+  chapter              Int
+  verseStart           Int
+  verseEnd             Int? // For ranges, null for single verse
+  color                HighlightColor
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  translation          Translation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, translationId, bookNumber, chapter, verseStart, verseEnd])
+  @@index([userId, translationId])
+  @@map("highlights")
+}
+
+model VerseNote {
+  id                   String @id @default(uuid())
+  userId               String
+  translationId        String
+  bookNumber           Int
+  chapter              Int
+  verseStart           Int
+  verseEnd             Int? // For passage notes
+  content              String @db.Text
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  translation          Translation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+  @@index([userId, translationId])
+  @@map("verse_notes")
+}
+
+model Bookmark {
+  id                   String @id @default(uuid())
+  userId               String
+  translationId        String
+  bookNumber           Int
+  chapter              Int
+  verseStart           Int
+  verseEnd             Int?
+  label                String? // Optional label like 'Favorite verse'
+  createdAt            DateTime @default(now())
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@map("bookmarks")
+}
+
+model ApiBibleVersion {
+  id                   String @id @default(uuid())
+  apiBibleId           String @unique // e.g. a761ca71e0b3ddcf-01
+  abbreviation         String // e.g. NASB, KJV
+  name                 String // e.g. New American Standard Bible 2020
+  language             String @default("eng")
+  description          String?
+  copyright            String? @db.Text
+  popularity           Int @default(0) // Popularity score (100=most popular). Based on ECPA bestseller rankings.
+  isActive             Boolean @default(true)
+  cachedAt             DateTime @default(now())
+  expiresAt            DateTime // cachedAt + 24h
+  @@index([abbreviation])
+  @@index([language])
+  @@index([isActive])
+  @@index([expiresAt])
+  @@index([popularity])
+  @@map("api_bible_versions")
+}
+
+model BibleContentCache {
+  id                   String @id @default(uuid())
+  cacheKey             String @unique // chapter:{bibleId}:{chapterId}
+  bibleId              String // API.Bible bibleId
+  contentType          String // chapter, verse, passage
+  responseJson         String @db.Text // JSON string of parsed verse data
+  copyright            String? @db.Text
+  verseCount           Int @default(0)
+  cachedAt             DateTime @default(now())
+  expiresAt            DateTime // cachedAt + 14 days
+  accessCount          Int @default(0) // Track popularity for re-warming
+  lastAccessed         DateTime @default(now())
+  @@index([expiresAt])
+  @@index([bibleId, contentType])
+  @@index([accessCount])
+  @@map("bible_content_cache")
+}
+
+model UserPreference {
+  id                   String @id @default(uuid())
+  userId               String?
+  memberId             String?
+  key                  String // bible_translation, theme, etc.
+  value                String // Plain string or JSON
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  member               Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@unique([memberId, key])
+  @@index([userId])
+  @@index([memberId])
+  @@map("user_preferences")
+}
+
+model SearchHistory {
+  id                   String @id @default(uuid())
+  userId               String?
+  memberId             String?
+  query                String // The search query text
+  searchType           String @default("bible") // bible, media, program, etc.
+  resultCount          Int? // Number of results returned
+  createdAt            DateTime @default(now())
+
+  user                 User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  member               Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  @@index([userId, createdAt])
+  @@index([memberId, createdAt])
+  @@index([searchType])
+  @@map("search_history")
+}
+
+model LessonTemplate {
+  id                   String @id @default(uuid())
+  name                 String // e.g., 'SOAP', 'Read & Discuss'
+  description          String? @db.Text
+  isSystem             Boolean @default(false) // System templates available to all
+  creatorId            String? // NULL for system templates
+  updatedById          String? // User who last updated this template
+  organizationId       String? // Direct org association for efficient filtering
+  sourceTemplateId     String? // If duplicated from another template
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  creator              User? @relation("TemplateCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+  updatedBy            User? @relation("TemplateUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  sourceTemplate       LessonTemplate? @relation("TemplateDuplicate", fields: [sourceTemplateId], references: [id], onDelete: SetNull)
+  duplicates           LessonTemplate[] @relation("TemplateDuplicate")
+  activities           LessonTemplateActivity[]
+  programs             StudyProgram[]
+  lessonSchedules      LessonSchedule[]
+  @@index([creatorId])
+  @@index([isSystem])
+  @@index([organizationId])
+  @@map("lesson_templates")
+}
+
+model LessonTemplateActivity {
+  id                   String @id @default(uuid())
+  templateId           String
+  type                 TemplateActivityType
+  orderNumber          Int // 1-based position
+  title                String // e.g., 'Scripture', 'Observation'
+  displayName          String? // Human-readable name for the activity type, e.g., 'Read', 'Study', 'Video'
+  helpTitle            String? // Helper title for USER_INPUT
+  helpDescription      String? @db.Text // Helper body for USER_INPUT
+  helpAlwaysVisible    Boolean @default(false) // Show expanded or collapsed
+  helpIcon             String? // Icon identifier
+  referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  template             LessonTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([templateId, orderNumber])
+  @@index([templateId])
+  @@map("lesson_template_activities")
+}
+
+model StudyProgram {
+  id                   String @id @default(uuid())
+  name                 String
+  description          String?
+  templateId           String? // FK to LessonTemplate
+  days                 Int @default(30)
+  coverImageUrl        String?
+  requireResponse      Boolean @default(true) // Frontend flag: require user input before step completion
+  isPublished          Boolean @default(false) // Only published programs can be enrolled
+  publishedAt          DateTime? // When the program was first published
+  creatorId            String
+  updatedById          String? // User who last updated this program
+  organizationId       String? // Direct org association for efficient filtering
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  creator              User @relation("StudyProgramCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  updatedBy            User? @relation("StudyProgramUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  lessons              Lesson[]
+  enrollments          Enrollment[]
+  tags                 StudyProgramTag[]
+  @@index([creatorId])
+  @@index([isActive])
+  @@index([templateId])
+  @@index([organizationId])
+  @@map("study_programs")
+}
+
+model StudyProgramTag {
+  id                   String @id @default(uuid())
+  studyProgramId       String
+  tag                  String // Lowercase, trimmed tag string
+  createdAt            DateTime @default(now())
+
+  studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
+
+  @@unique([studyProgramId, tag])
+  @@index([studyProgramId])
+  @@index([tag])
+  @@map("study_program_tags")
+}
+
+model Lesson {
+  id                   String @id @default(uuid())
+  studyProgramId       String
+  dayNumber            Int // 1-based day number
+  title                String? // Optional display title for lesson card
+  estimatedMinutes     Int? // Calculated time estimate in minutes for all activities
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
+  activities           LessonActivity[]
+  schedules            LessonSchedule[]
+
+  @@unique([studyProgramId, dayNumber])
+  @@index([studyProgramId])
+  @@map("lessons")
+}
+
+model LessonActivity {
+  id                   String @id @default(uuid())
+  lessonId             String
+  activityType         TemplateActivityType // USER_INPUT, READ, VIDEO
+  orderNumber          Int @default(1) // For multiple activities per day
+  title                String // Activity title
+  helpTitle            String?
+  helpDescription      String? @db.Text
+  helpAlwaysVisible    Boolean @default(false)
+  helpIcon             String?
+  isHelpEnabled        Boolean @default(true)
+  referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
+  readContent          String? @db.Text // Markdown for READ activities
+  videoId              String?
+  videoUrl             String? // Cloudflare Stream playback URL
+  themeId              String? // Optional theme for animated rendering
+  youtubeUrl           String? // YouTube video URL for YOUTUBE activities
+  youtubeVideoId       String? // Extracted YouTube video ID
+  youtubeStartSeconds  Int? // Start time in seconds for YouTube clip
+  youtubeEndSeconds    Int? // End time in seconds for YouTube clip
+  youtubeThumbnailUrl  String? // YouTube video thumbnail URL from oEmbed
+  estimatedSeconds     Int? // Calculated time estimate in seconds for this activity
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  video                Video? @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  theme                TextTheme? @relation(fields: [themeId], references: [id], onDelete: SetNull)
+  sourceReferences     ActivitySourceReference[]
+  readBlocks           ActivityReadBlock[]
+  scheduledCopies      ScheduledLessonActivity[]
+  memberProgress       MemberActivityProgress[]
+  videoProgress        MemberVideoProgress[]
+
+  @@unique([lessonId, orderNumber])
+  @@index([lessonId])
+  @@index([videoId])
+  @@index([themeId])
+  @@map("lesson_activities")
+}
+
+model Enrollment {
+  id                   String @id @default(uuid())
+  groupId              String
+  studyProgramId       String
+  startDate            DateTime
+  endDate              DateTime
+  enabledDays          String // JSON array: ['Mon','Tue','Wed','Thu','Fri']
+  smsTime              String? // Time to send SMS, e.g. '08:00'
+  timezone             String? // e.g. 'America/Chicago'
+  requireResponse      Boolean @default(true) // Require user input before step completion
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  createdById          String?
+  updatedById          String? // User who last updated this enrollment
+
+  group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
+  createdBy            User? @relation("EnrollmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy            User? @relation("EnrollmentUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  lessonSchedules      LessonSchedule[]
+  events               Event[]
+  welcomePost          Post?
+  @@index([groupId])
+  @@index([studyProgramId])
+  @@index([createdById])
+  @@index([startDate])
+  @@map("enrollments")
+}
+
+model LessonSchedule {
+  id                   String @id @default(uuid())
+  code                 String? @unique // 6-char alphanumeric for deep linking
+  enrollmentId         String
+  lessonId             String
+  scheduledDate        DateTime
+  smsSentAt            DateTime?
+  templateId           String? // FK to LessonTemplate for display
+  templateName         String? // Denormalized for fast card rendering
+  title                String? // Display title for lesson card (copied from Lesson)
+  estimatedMinutes     Int? // Snapshot of time estimate at enrollment time
+
+  enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  scheduledActivities  ScheduledLessonActivity[]
+  event                Event?
+  memberProgress       MemberActivityProgress[]
+  videoProgress        MemberVideoProgress[]
+  lessonProgress       MemberLessonProgress[]
+
+  @@unique([enrollmentId, lessonId])
+  @@index([enrollmentId])
+  @@index([lessonId])
+  @@index([scheduledDate])
+  @@index([smsSentAt])
+  @@index([code])
+  @@map("lesson_schedules")
+}
+
+model Event {
+  id                   String @id @default(uuid())
+  code                 String? @unique // 6-char alphanumeric
+  groupId              String
+  type                 EventType
+  title                String
+  description          String? @db.Text
+  date                 DateTime // Event date
+  startTime            String? // HH:mm format
+  endTime              String? // HH:mm format
+  isAllDay             Boolean @default(false)
+  timezone             String? // e.g., 'America/Chicago'
+  coverImageUrl        String? // R2 storage URL
+  externalUrl          String? // External link (Zoom, website)
+  visibility           EventVisibility @default(PRIVATE)
+  locationName         String? // Starbucks - Richardson
+  locationAddress      String? // Full formatted address
+  locationLat          Decimal? @db.Decimal(10, 8)
+  locationLng          Decimal? @db.Decimal(11, 8)
+  googlePlaceId        String? // Google Places ID
+  recurrenceFrequency  RecurrenceFrequency @default(NONE)
+  recurrenceEndDate    DateTime? // When recurrence stops
+  recurrenceCount      Int? // Stop after N occurrences
+  recurrenceGroupId    String? // UUID linking recurring instances
+  isRecurrenceParent   Boolean @default(false)
+  alertMinutesBefore   Int? // 5, 10, 30, 60, 120, 1440, 2880, 10080
+  lessonScheduleId     String? @unique
+  enrollmentId         String? // Quick reference to enrollment
+  dayNumber            Int? // Day number in study program (1-based)
+  createdById          String?
+  updatedById          String? // User who last updated this event
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  createdBy            User? @relation("EventCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy            User? @relation("EventUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  lessonSchedule       LessonSchedule? @relation(fields: [lessonScheduleId], references: [id], onDelete: SetNull)
+  enrollment           Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  attendees            EventAttendee[]
+  attachments          EventAttachment[]
+  @@index([groupId])
+  @@index([date])
+  @@index([groupId, date])
+  @@index([type])
+  @@index([visibility])
+  @@index([code])
+  @@index([recurrenceGroupId])
+  @@index([enrollmentId])
+  @@map("events")
+}
+
+model EventAttendee {
+  id                   String @id @default(uuid())
+  eventId              String
+  groupMemberId        String? // For PRIVATE events
+  phoneNumber          String? // For PUBLIC events
+  firstName            String?
+  lastName             String?
+  gender               String? // male, female, other
+  birthdate            DateTime? // Date only
+  rsvpStatus           RsvpStatus @default(PENDING)
+  rsvpAt               DateTime?
+  checkedIn            Boolean @default(false)
+  checkedInAt          DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  event                Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  groupMember          GroupMember? @relation(fields: [groupMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, groupMemberId])
+  @@unique([eventId, phoneNumber])
+  @@index([eventId])
+  @@index([rsvpStatus])
+  @@map("event_attendees")
+}
+
+model EventAttachment {
+  id                   String @id @default(uuid())
+  eventId              String
+  url                  String // R2 storage URL
+  fileName             String // Original filename
+  fileType             String // MIME type
+  fileSize             Int // Size in bytes
+  uploadedById         String?
+  createdAt            DateTime @default(now())
+
+  event                Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uploadedBy           User? @relation("AttachmentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  @@index([eventId])
+  @@map("event_attachments")
+}
+
+model Post {
+  id                   String @id @default(uuid())
+  groupId              String
+  authorId             String? // NULL for system-generated posts
+  type                 PostType
+  title                String?
+  content              String @db.Text
+  imageUrl             String? // Cover image
+  pollOptions          Json? // For POLL: [{id, text, voteCount}]
+  videoUrl             String? // For VIDEO: Cloudflare Stream URL
+  eventDate            DateTime? // For EVENT: date/time
+  eventLocation        String? // For EVENT: location string
+  enrollmentId         String? @unique // For WELCOME posts
+  updatedById          String? // User who last updated this post
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  author               User? @relation("PostAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  updatedBy            User? @relation("PostUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  enrollment           Enrollment? @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  @@index([groupId])
+  @@index([groupId, createdAt])
+  @@index([authorId])
+  @@index([type])
+  @@index([isActive])
+  @@map("posts")
+}
+
+model GroupJoinRequest {
+  id                   String @id @default(uuid())
+  groupId              String
+  memberId             String
+  status               String @default("pending") // pending, approved, rejected
+  message              String? // Optional message from requester
+  reviewedById         String? // User who approved/rejected
+  reviewedAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  reviewedBy           User? @relation("JoinRequestReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([groupId, memberId])
+  @@index([groupId, status])
+  @@index([memberId])
+  @@map("group_join_requests")
+}
+
+model StudyNote {
+  id                   String @id @default(uuid())
+  memberId             String?
+  userId               String?
+  type                 String // OBSERVATION, APPLICATION, PRAYER, JOURNAL, etc.
+  content              String @db.Text
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  member               Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  user                 User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+  links                NoteLink[]
+  @@index([memberId])
+  @@index([userId])
+  @@index([memberId, type])
+  @@index([userId, type])
+  @@index([memberId, createdAt])
+  @@index([userId, createdAt])
+  @@index([type])
+  @@index([createdAt])
+  @@index([isActive])
+  @@map("study_notes")
+}
+
+model NoteLink {
+  id                   String @id @default(uuid())
+  noteId               String
+  refType              String // LESSON, LESSON_ACTIVITY, LESSON_SCHEDULE, ENROLLMENT, GROUP, VERSE, PROGRAM
+  refId                String // UUID of the referenced entity
+  metadata             Json? // Additional context like verse references
+  createdAt            DateTime @default(now())
+
+  note                 StudyNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@unique([noteId, refType, refId])
+  @@index([refType, refId])
+  @@index([noteId])
+  @@index([refType])
+  @@map("note_links")
+}
+
+model MemberActivityProgress {
+  id                   String @id @default(uuid())
+  memberId             String
+  lessonScheduleId     String
+  lessonActivityId     String? // Legacy FK, nullable for new records
+  scheduledActivityId  String? // FK to ScheduledLessonActivity
+  startedAt            DateTime @default(now())
+  completedAt          DateTime? // When fully completed
+  lastUpdatedAt        DateTime @updatedAt
+  exegesisVisitedHighlightIds Json? // JSON array of visited ExegesisHighlight IDs for EXEGESIS activities
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
+  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, lessonScheduleId, scheduledActivityId])
+  @@index([memberId])
+  @@index([lessonScheduleId])
+  @@index([scheduledActivityId])
+  @@index([memberId, completedAt])
+  @@map("member_activity_progress")
+}
+
+model MemberVideoProgress {
+  id                   String @id @default(uuid())
+  memberId             String
+  lessonScheduleId     String
+  lessonActivityId     String? // Legacy FK, nullable for new records
+  scheduledActivityId  String? // FK to ScheduledLessonActivity
+  watchedSeconds       Int @default(0)
+  totalDuration        Int? // Total video duration in seconds
+  watchPercentage      Float @default(0)
+  startedAt            DateTime @default(now())
+  lastWatchedAt        DateTime @updatedAt
+  completedAt          DateTime? // Set when >= 90% watched
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
+  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, lessonScheduleId, scheduledActivityId])
+  @@index([memberId])
+  @@index([lessonScheduleId])
+  @@index([scheduledActivityId])
+  @@index([memberId, completedAt])
+  @@map("member_video_progress")
+}
+
+model MemberLessonProgress {
+  id                   String @id @default(uuid())
+  memberId             String
+  lessonScheduleId     String
+  startedAt            DateTime @default(now())
+  completedAt          DateTime? // Set when all activities in the lesson are complete
+  lastUpdatedAt        DateTime @updatedAt
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, lessonScheduleId])
+  @@index([memberId])
+  @@index([lessonScheduleId])
+  @@index([memberId, completedAt])
+  @@map("member_lesson_progress")
+}
+
+model ScheduledLessonActivity {
+  id                   String @id @default(uuid())
+  lessonScheduleId     String
+  type                 TemplateActivityType
+  orderNumber          Int
+  title                String
+  helpTitle            String?
+  helpDescription      String? @db.Text
+  helpAlwaysVisible    Boolean @default(false)
+  helpIcon             String?
+  isHelpEnabled        Boolean @default(true) // Whether help info (helpTitle/helpDescription) is shown to members
+  referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
+  readContent          String? @db.Text // Markdown for READ activities
+  videoId              String?
+  videoUrl             String?
+  youtubeUrl           String? // YouTube video URL for YOUTUBE activities
+  youtubeVideoId       String? // Extracted YouTube video ID
+  youtubeStartSeconds  Int? // Start time in seconds for YouTube clip
+  youtubeEndSeconds    Int? // End time in seconds for YouTube clip
+  youtubeThumbnailUrl  String? // YouTube video thumbnail URL from oEmbed
+  estimatedSeconds     Int? // Calculated time estimate in seconds for this activity
+  sourceLessonActivityId String? // Link back to source LessonActivity for reload
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  video                Video? @relation(fields: [videoId], references: [id], onDelete: SetNull)
+  sourceLessonActivity LessonActivity? @relation(fields: [sourceLessonActivityId], references: [id], onDelete: SetNull)
+  sourceReferences     ActivitySourceReference[]
+  readBlocks           ActivityReadBlock[]
+  activityProgress     MemberActivityProgress[]
+  videoProgress        MemberVideoProgress[]
+
+  @@unique([lessonScheduleId, orderNumber])
+  @@index([lessonScheduleId])
+  @@index([sourceLessonActivityId])
+  @@map("scheduled_lesson_activities")
+}
+
+model ActivitySourceReference {
+  id                   String @id @default(uuid())
+  lessonActivityId     String? // For program lesson activities
+  scheduledActivityId  String? // For enrolled lesson activities
+  sourceType           String // SCRIPTURE (future: URL, BOOK)
+  passageReference     String? // Romans 1:1-5
+  bookNumber           Int? // 1-66
+  bookName             String?
+  chapterStart         Int?
+  chapterEnd           Int?
+  verseStart           Int?
+  verseEnd             Int?
+  createdAt            DateTime @default(now())
+
+  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
+  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
+  readBlocks           ActivityReadBlock[]
+  @@index([lessonActivityId])
+  @@index([scheduledActivityId])
+  @@index([sourceType])
+  @@map("activity_source_references")
+}
+
+model TextTheme {
+  id                   String @id @default(uuid())
+  name                 String
+  slug                 String @unique
+  description          String?
+  definition           Json // Theme definition (colors, animations, styles)
+  isSystem             Boolean @default(false)
+  isActive             Boolean @default(true)
+  creatorId            String?
+  organizationId       String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  creator              User? @relation("ThemeCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  lessonActivities     LessonActivity[]
+  readBlocks           ActivityReadBlock[]
+  @@index([slug])
+  @@index([organizationId])
+  @@map("text_themes")
+}
+
+model ActivityReadBlock {
+  id                   String @id @default(uuid())
+  lessonActivityId     String? // For program lesson activities
+  scheduledActivityId  String? // For enrolled lesson activities
+  orderNumber          Int @default(1) // Sort order within the activity
+  title                String? // Block title, e.g., 'Romans 1:1-5' for Bible verse blocks
+  content              String? @db.Text // Text/markdown content of this block
+  isLocked             Boolean @default(false) // Locked blocks cannot be edited (e.g., Bible verses)
+  sourceReferenceId    String? // Links to ActivitySourceReference for Bible verse blocks
+  themeId              String? // Optional theme for animated rendering
+  contentFormat        String @default("markdown") // Content format: html or markdown
+  backgroundImageUrl   String?
+  backgroundColor      String? // Hex color for block background
+  backgroundOverlayOpacity Float? // 0-1 opacity for background overlay
+  fontSize             String? // Font size: xs, s, m, lg, xl
+  selections           Json? // Array of styled text spans with start, end, style
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  lessonActivity       LessonActivity? @relation(fields: [lessonActivityId], references: [id], onDelete: Cascade)
+  scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
+  sourceReference      ActivitySourceReference? @relation(fields: [sourceReferenceId], references: [id], onDelete: SetNull)
+  theme                TextTheme? @relation(fields: [themeId], references: [id], onDelete: SetNull)
+  exegesisHighlights   ExegesisHighlight[]
+  @@index([lessonActivityId])
+  @@index([scheduledActivityId])
+  @@index([themeId])
+  @@map("activity_read_blocks")
+}
+
+model ExegesisHighlight {
+  id                   String @id @default(uuid())
+  readBlockId          String // FK to ActivityReadBlock (locked scripture block) that this highlight applies to
+  orderNumber          Int // Stable ordering for highlight navigation
+  start                Int // Start character offset (plain-text) into the block content
+  end                  Int // End character offset (exclusive)
+  noteMarkdown         String @db.Text // Leader-authored markdown shown to members when they open the highlight
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  readBlock            ActivityReadBlock @relation(fields: [readBlockId], references: [id], onDelete: Cascade)
+
+  @@unique([readBlockId, orderNumber])
+  @@unique([readBlockId, start, end])
+  @@index([readBlockId])
+  @@index([readBlockId, orderNumber])
+  @@map("exegesis_highlights")
+}
+
+model FaqItem {
+  id                   String @id @default(uuid())
+  scope                String // Page or surface where this FAQ is rendered (home, for-leaders, for-members, about, join-beta)
+  question             String
+  answer               String @db.Text
+  sortOrder            Int @default(0)
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@unique([scope, question])
+  @@index([scope])
+  @@index([scope, isActive])
+  @@index([scope, sortOrder])
+  @@map("faq_items")
+}
+
+model BetaApplication {
+  id                   String @id @default(uuid())
+  microsoftId          String @unique // Microsoft Entra ID object ID or subject for the authenticated applicant
+  applicantEmail       String @unique
+  applicantName        String
+  applicantPicture     String?
+  phoneNumber          String?
+  organizationName     String
+  organizationWebsite  String?
+  groupMemberAgeRange  String
+  numberOfGroups       Int
+  estimatedGroupMembers Int
+  groupDescription     String @db.Text
+  status               BetaApplicationStatus @default(PENDING)
+  userId               String?
+  organizationId       String?
+  reviewNotes          String? @db.Text
+  reviewedAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization         Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  @@index([status])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([microsoftId])
+  @@index([applicantEmail])
+  @@map("beta_applications")
+}
+
+model ActivityLog {
+  id                   String @id @default(uuid())
+  category             LogCategory
+  activityType         String // e.g., AUTH_GOOGLE_LOGIN, JOIN_GROUP_REQUEST
+  status               LogStatus
+  userId               String? // User ID for User-authenticated actions
+  memberId             String? // Member ID for Member-authenticated actions
+  actorIp              String? // IP address for rate-limiting/security
+  userAgent            String? // For device tracking
+  route                String // e.g., /auth/google/callback
+  method               String // HTTP method: GET, POST, etc.
+  groupId              String?
+  eventId              String?
+  enrollmentId         String?
+  lessonId             String?
+  organizationId       String?
+  inviteId             String?
+  message              String // Human-readable log message
+  errorCode            String? // Error code if status is FAILURE
+  errorMessage         String? // Error message if status is FAILURE
+  warningMessage       String? // Warning message if status is WARNING
+  metadata             Json? // Additional structured data
+  createdAt            DateTime @default(now())
+  @@index([category])
+  @@index([activityType])
+  @@index([status])
+  @@index([userId])
+  @@index([memberId])
+  @@index([groupId])
+  @@index([createdAt])
+  @@index([category, createdAt])
+  @@index([activityType, status])
+  @@map("activity_logs")
+}
+
+model ApiKey {
+  id                   String @id @default(uuid())
+  keyHash              String @unique // SHA-256 hash of full key (irreversible)
+  keyPrefix            String // First 8 chars for display (e.g., mr_abc12)
+  name                 String // Friendly name (e.g., 'Claude Code')
+  description          String?
+  userId               String
+  isActive             Boolean @default(true)
+  expiresAt            DateTime?
+  lastUsedAt           DateTime?
+  usageCount           Int @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId])
+  @@index([keyPrefix])
+  @@map("api_keys")
+}
+
+model Notification {
+  id                   String @id @default(uuid())
+  userId               String
+  type                 String // JOIN_REQUEST, MEMBER_JOINED
+  title                String
+  body                 String
+  isRead               Boolean @default(false)
+  data                 Json?
+  createdAt            DateTime @default(now())
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
+  @@map("notifications")
+}
+
+model Activity {
+  id                   String @id @default(uuid())
+  actorId              String // User who performed the action
+  action               ActivityAction
+  resourceType         String // GROUP, PROGRAM, LESSON, EVENT, POST, ENROLLMENT, TEMPLATE, MEMBER
+  resourceId           String // UUID of affected resource (polymorphic, no FK)
+  resourceName         String // Denormalized display name for feed rendering
+  organizationId       String? // For scoping feed to an org
+  groupId              String? // Group context for group-level feeds
+  targetUserId         String? // Target user for directed/notification activities
+  title                String? // Display title (for notification-style activities)
+  body                 String? @db.Text // Display body (for notification-style activities)
+  isRead               Boolean @default(false) // Read status for targeted activities
+  metadata             Json? // Extra context (changed fields, etc.)
+  createdAt            DateTime @default(now())
+
+  actor                User @relation("ActivityActor", fields: [actorId], references: [id], onDelete: Cascade)
+  group                Group? @relation("ActivityGroup", fields: [groupId], references: [id], onDelete: SetNull)
+  targetUser           User? @relation("ActivityTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  @@index([actorId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([resourceType, resourceId])
+  @@index([createdAt])
+  @@index([groupId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([targetUserId, isRead])
+  @@map("activities")
+}

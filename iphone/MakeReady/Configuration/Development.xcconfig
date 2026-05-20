@@ -1,0 +1,12 @@
+// Development.xcconfig
+// Configuration for local development without debugger
+
+// Server Configuration
+API_BASE_URL = http:/$()/127.0.0.1:3010
+
+// App Configuration
+PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.dev
+PRODUCT_NAME = MakeReady-Dev
+
+// Build Settings
+SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEVELOPMENT

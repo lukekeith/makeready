@@ -1,0 +1,35 @@
+{
+  "platform": "client",
+  "view": "pages.join-event",
+  "step": "info",
+  "output": "01-info.png",
+  "title": "Join Event: Invitation",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "event": {
+      "id": 5678,
+      "organizationId": 42,
+      "name": "Spring Retreat 2026",
+      "date": "2026-05-15",
+      "time": "6:00 PM",
+      "location": "Camp Tecumseh, IN",
+      "coverImageUrl": "./event-cover.png",
+      "attendeeCount": 48,
+      "creator": {
+        "name": "Pastor Mike",
+        "picture": "./leader-photo.png"
+      }
+    }
+  }
+}

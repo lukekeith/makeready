@@ -1,0 +1,305 @@
+// Compliance pages — shared styles
+// BEM: .SmsOptIn (PrivacyPage and TermsPage are in pages/ SCSS)
+
+// -----------------------------------------------------------------------
+// SMS Opt-In Page
+// -----------------------------------------------------------------------
+
+$compliance-max-width: 760px;
+$compliance-padding-x: 24px;
+$compliance-padding-y: 48px;
+$compliance-heading-color: #ffffff;
+$compliance-text-color: rgba(255, 255, 255, 0.8);
+$compliance-muted-color: rgba(255, 255, 255, 0.5);
+$compliance-link-color: #4a9eff;
+$compliance-border-color: rgba(255, 255, 255, 0.1);
+$compliance-section-gap: 40px;
+
+.SmsOptIn {
+    min-height: 100vh;
+    padding: 80px 64px 48px;
+
+    @media (max-width: 768px) {
+        padding: 64px 24px 24px;
+    }
+
+    &__container {
+        max-width: $compliance-max-width;
+        margin: 0 auto;
+    }
+
+    &__header {
+        margin-bottom: $compliance-section-gap;
+        padding-bottom: 24px;
+        border-bottom: 1px solid $compliance-border-color;
+    }
+
+    &__heading {
+        font-size: 2rem;
+        font-weight: 700;
+        color: $compliance-heading-color;
+        margin-bottom: 12px;
+    }
+
+    &__intro {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: $compliance-text-color;
+    }
+
+    &__section {
+        margin-bottom: $compliance-section-gap;
+    }
+
+    &__subheading {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: $compliance-heading-color;
+        margin-bottom: 12px;
+    }
+
+    &__text {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: $compliance-text-color;
+        margin-bottom: 12px;
+
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    &__demo {
+        margin: 24px 0;
+    }
+
+    &__demo-frame {
+        border: 1px solid $compliance-border-color;
+        border-radius: 12px;
+        padding: 24px;
+        background: rgba(255, 255, 255, 0.04);
+    }
+
+    &__demo-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: $compliance-muted-color;
+        margin-bottom: 16px;
+    }
+
+    &__demo-content {
+        padding: 16px;
+        background: rgba(255, 255, 255, 0.06);
+        border-radius: 8px;
+        margin-bottom: 12px;
+    }
+
+    &__checkbox-label {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        cursor: default;
+    }
+
+    &__checkbox {
+        flex-shrink: 0;
+        margin-top: 3px;
+        width: 18px;
+        height: 18px;
+        cursor: default;
+    }
+
+    &__checkbox-text {
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        color: $compliance-text-color;
+    }
+
+    &__demo-note {
+        font-size: 0.8125rem;
+        color: $compliance-muted-color;
+        font-style: italic;
+    }
+
+    &__list {
+        list-style: disc;
+        padding-left: 24px;
+        margin-top: 8px;
+
+        &--ordered {
+            list-style: decimal;
+        }
+    }
+
+    &__list-item {
+        font-size: 1rem;
+        line-height: 1.7;
+        color: $compliance-text-color;
+        margin-bottom: 4px;
+    }
+
+    &__link {
+        color: $compliance-link-color;
+        text-decoration: underline;
+
+        &:hover {
+            opacity: 0.85;
+        }
+    }
+
+    // -------------------------------------------------------------------
+    // Horizontal screenshot carousel (App-Store-style)
+    // -------------------------------------------------------------------
+
+    &__carousel {
+        position: relative;
+        margin: 24px calc(50% - 50vw) 12px;
+        padding: 0;
+
+        @media (min-width: 900px) {
+            margin: 24px 0 12px;
+        }
+    }
+
+    &__carousel-nav {
+        display: none;
+
+        @media (min-width: 900px) {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: absolute;
+            top: calc(50% - 30px);
+            transform: translateY(-50%);
+            z-index: 2;
+            width: 44px;
+            height: 44px;
+            padding: 0;
+            border-radius: 50%;
+            border: 1px solid $compliance-border-color;
+            background: rgba(20, 20, 24, 0.85);
+            backdrop-filter: blur(8px);
+            color: #ffffff;
+            cursor: pointer;
+            transition: background 0.15s ease, opacity 0.2s ease, transform 0.15s ease;
+            box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.5);
+
+            &:hover:not(:disabled) {
+                background: rgba(40, 40, 48, 0.95);
+                transform: translateY(-50%) scale(1.05);
+            }
+
+            &:focus-visible {
+                outline: 2px solid $compliance-link-color;
+                outline-offset: 2px;
+            }
+
+            &:disabled,
+            &.is-hidden {
+                opacity: 0;
+                pointer-events: none;
+            }
+        }
+
+        &--prev {
+            left: -8px;
+        }
+
+        &--next {
+            right: -8px;
+        }
+    }
+
+    &__carousel-track {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        scroll-snap-type: x mandatory;
+        scroll-padding-inline: 24px;
+        padding: 8px 24px 24px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+
+    &__carousel-card {
+        flex: 0 0 auto;
+        width: min(78vw, 280px);
+        scroll-snap-align: center;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+
+        &--featured {
+            .SmsOptIn__carousel-phone {
+                outline: 2px solid $compliance-link-color;
+                outline-offset: 4px;
+            }
+        }
+    }
+
+    &__carousel-phone {
+        position: relative;
+        aspect-ratio: 9 / 19.5;
+        border-radius: 36px;
+        background: #000;
+        padding: 8px;
+        box-shadow:
+            0 24px 48px -12px rgba(0, 0, 0, 0.6),
+            0 8px 16px -4px rgba(0, 0, 0, 0.4);
+        overflow: hidden;
+    }
+
+    &__carousel-image {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 28px;
+    }
+
+    &__carousel-caption {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 0 4px;
+    }
+
+    &__carousel-step {
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: $compliance-link-color;
+    }
+
+    &__carousel-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: $compliance-heading-color;
+    }
+
+    &__carousel-desc {
+        font-size: 0.875rem;
+        line-height: 1.5;
+        color: $compliance-text-color;
+    }
+
+    &__carousel-hint {
+        text-align: center;
+        font-size: 0.8125rem;
+        color: $compliance-muted-color;
+        font-style: italic;
+        margin-top: 8px;
+
+        @media (min-width: 900px) {
+            display: none;
+        }
+    }
+}

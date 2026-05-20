@@ -1,0 +1,223 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "01-day1-read-scripture.png",
+  "title": "Day 1: Read — Scripture with highlights",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-001",
+    "lessonScheduleId": "ls-capture-001",
+    "step": 1,
+    "lessonData": {
+      "lesson": {
+        "id": "959b9d49-d918-4ed8-adf1-cba263722f09",
+        "title": "Do you want to be healed?",
+        "dayNumber": 1,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": {
+          "name": "Daily Inspiration"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "9978d068-03ad-4581-81cf-23e5034c5a60",
+            "type": "READ",
+            "title": "John 5:5-6",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "05e9791b-3133-49d3-8114-a8dde4e1402c",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 5:5-6",
+                "bookNumber": 43,
+                "chapterStart": 5,
+                "verseStart": 5,
+                "verseEnd": 6
+              },
+              {
+                "id": "16d9ba9c-c6de-4588-8639-ede1b4b0f5d8",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 5:2-9",
+                "bookNumber": 43,
+                "chapterStart": 5,
+                "verseStart": 2,
+                "verseEnd": 9
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "8601b2ad-c07e-4241-a8f9-a6b845e88fa1",
+                "orderNumber": 1,
+                "title": "John 5:2-9",
+                "content": "2. Now in Jerusalem, by the Sheep Gate, there is a pool which in Hebrew is called Bethesda, having five porticoes.\n3. In these porticoes lay a multitude of those who were sick, blind, limping, or paralyzed.\n5. Now a man was there who had been ill for thirty-eight years.\n6. Jesus, upon seeing this man lying there and knowing that he had already been in that condition for a long time, *said to him, “Do you want to get well?”\n7. The sick man answered Him, “Sir, I have no man to put me into the pool when the water is stirred up, but while I am coming, another steps down before me.”\n8. Jesus *said to him, “Get up, pick up your pallet and walk.”\n9. Immediately the man became well, and picked up his pallet and began to walk. Now it was a Sabbath on that day.",
+                "sourceReferenceId": "16d9ba9c-c6de-4588-8639-ede1b4b0f5d8",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "selections": [
+                  {
+                    "end": 206,
+                    "start": 141,
+                    "style": "highlight"
+                  },
+                  {
+                    "end": 584,
+                    "start": 457,
+                    "style": "highlight"
+                  }
+                ]
+              },
+              {
+                "id": "275ab94b-3dd4-452b-b280-e66769cbb7cd",
+                "orderNumber": 2,
+                "title": "John 5:5-6",
+                "content": "5. Now a man was there who had been ill for thirty-eight years.\n6. Jesus, upon seeing this man lying there and knowing that he had already been in that condition for a long time, *said to him, “Do you want to get well?”",
+                "sourceReferenceId": "05e9791b-3133-49d3-8114-a8dde4e1402c",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "selections": [
+                  {
+                    "end": 218,
+                    "start": 194,
+                    "style": "highlight"
+                  }
+                ]
+              },
+              {
+                "id": "6c93b198-b9fb-4677-b028-281e607c01ef",
+                "orderNumber": 3,
+                "title": null,
+                "content": "Seems like a crazy question for Jesus to ask the guy. Doesn’t it?",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "f0649125-912b-4639-bb9e-57d81e782d06",
+                "orderNumber": 4,
+                "title": null,
+                "content": "Let’s read it in context - understanding Jesus FULLY understands the human condition.",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "3407ea94-cf78-4b33-9a47-cde5c497aef7",
+                "orderNumber": 5,
+                "title": null,
+                "content": "There are lots of other people with conditions like his there. This man’s condition had become his identity.",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "b5714867-0e5a-4cad-88d3-fa07dd7d4e2f",
+                "orderNumber": 6,
+                "title": null,
+                "content": "This man’s disability had become his excuse.",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "a369fab7-69e5-4cee-b202-76c3d3e9a954",
+                "orderNumber": 7,
+                "title": null,
+                "content": "Was it the water that healed any of them?",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "1673a539-bce3-492f-ab63-d0333bc263b6",
+            "type": "READ",
+            "title": "Question",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "bc9b7ba5-a840-4b9e-a2fa-5820f6115dd8",
+                "orderNumber": 1,
+                "content": "Is your condition your identity?",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "fa09acf6-a7b9-41e7-bbab-91eebafcc3eb",
+                "orderNumber": 2,
+                "content": "Do you want to be healed?",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "fb715ca8-005f-404f-90e4-4e032eed329d",
+                "orderNumber": 3,
+                "content": "Do you want to give up the old for the new? To become uncomfortable and have to re-learn some things?",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "a55033c0-0e24-4adf-a622-5c70d70dc08f",
+            "type": "READ",
+            "title": "2 Corinthians 5:17",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "0f49943a-b04c-4a42-8783-0109cd1ba444",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "2 Corinthians 5:17",
+                "bookNumber": 47,
+                "chapterStart": 5,
+                "verseStart": 17,
+                "verseEnd": 17
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "0b983c0f-67c8-4e49-9c9e-50cb9c9c769c",
+                "orderNumber": 1,
+                "title": "2 Corinthians 5:17",
+                "content": "17. Therefore if anyone is in Christ, this person is a new creation; the old things passed away; behold, new things have come.",
+                "sourceReferenceId": "0f49943a-b04c-4a42-8783-0109cd1ba444",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "00f4e670-1a72-45e7-8651-19e0c0b7dde9",
+                "orderNumber": 2,
+                "content": null,
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "9728bdb5-2a18-4b0d-b80f-a13b1354383b",
+            "type": "USER_INPUT",
+            "title": "Do you want to get well?",
+            "isHelpEnabled": true,
+            "helpTitle": "What’s keeping you from wanting to be healed?",
+            "helpDescription": "Write down your thoughts, reflections, or prayers after reading.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "pencil",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  },
+  "step": 1
+}

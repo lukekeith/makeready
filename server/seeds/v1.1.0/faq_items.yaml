@@ -1,0 +1,52 @@
+version: "1.1.0"
+model: FaqItem
+strategy: upsert
+upsert_key:
+  - scope
+  - question
+data:
+  - scope: home
+    question: "Who is MakeReady for?"
+    answer: "MakeReady is for group leaders who want to guide people through study programs, daily activities, accountability, and follow-through without asking members to install another app."
+    sortOrder: 10
+    isActive: true
+  - scope: home
+    question: "Do members need to download an app?"
+    answer: "No. Members participate through text-linked experiences, so leaders get the tools while members get simple links and reminders."
+    sortOrder: 20
+    isActive: true
+  - scope: home
+    question: "Is MakeReady available to everyone?"
+    answer: "MakeReady is currently invite-only while we onboard beta groups carefully and review leader fit before granting access."
+    sortOrder: 30
+    isActive: true
+  - scope: for-leaders
+    question: "What can a leader do with MakeReady?"
+    answer: "Leaders can create study programs, enroll groups, schedule daily activities, and keep people moving together through shared accountability."
+    sortOrder: 10
+    isActive: true
+  - scope: for-leaders
+    question: "What happens after I join the beta?"
+    answer: "Your application is reviewed manually. If approved, MakeReady activates your organization and leader access for the beta program."
+    sortOrder: 20
+    isActive: true
+  - scope: for-members
+    question: "Will MakeReady send me reminders?"
+    answer: "Your group leader may use MakeReady to send activity links and reminders by text. You can opt out of SMS messages according to the instructions in each message."
+    sortOrder: 10
+    isActive: true
+  - scope: for-members
+    question: "Do I need a password?"
+    answer: "No app account is required for standard member participation. Members follow secure links sent by their leader or group."
+    sortOrder: 20
+    isActive: true
+  - scope: join-beta
+    question: "Why do I need to sign in with Microsoft?"
+    answer: "Microsoft sign-in verifies the applicant identity before MakeReady stores a beta request. It does not grant app access until the request is approved."
+    sortOrder: 10
+    isActive: true
+  - scope: join-beta
+    question: "Will my group be active immediately?"
+    answer: "No. Beta submissions create pending, inactive organization and leader records. Access is enabled only after review and approval."
+    sortOrder: 20
+    isActive: true

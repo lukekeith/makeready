@@ -1,0 +1,24 @@
+{
+  "platform": "client",
+  "view": "pages.join-group",
+  "step": "phone",
+  "output": "04-phone.png",
+  "title": "Join Group: Phone Number",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "wait": {
+    "selector": "input, button",
+    "timeoutMs": 5000
+  },
+  "data": {}
+}

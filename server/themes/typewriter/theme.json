@@ -1,0 +1,28 @@
+{
+  "name": "Typewriter",
+  "slug": "typewriter",
+  "description": "Deliberate character-by-character reveal with monospace font",
+  "definition": {
+    "version": 2,
+    "readBlockSequencing": "all-at-once",
+    "background": { "color": "#111111", "image": null, "video": null, "overlay": null },
+    "interaction": { "mode": "auto-play", "autoPlayDelay": 500, "tapAdvances": true, "swipeAdvances": true, "showProgress": false },
+    "typography": { "fontFamily": "'Courier New', 'Courier', monospace", "fontSize": 17, "color": "rgba(255,255,255,0.9)", "lineHeight": 1.6 },
+    "elements": {
+      "h1": { "style": { "fontSize": 28, "fontWeight": "bold", "fontFamily": "'Courier New', monospace" }, "enter": { "type": "typewriter", "duration": 1500, "easing": "linear" }, "exit": { "type": "fade", "duration": 300 } },
+      "h2": { "style": { "fontSize": 22, "fontWeight": "bold", "fontFamily": "'Courier New', monospace" }, "enter": { "type": "typewriter", "duration": 1200, "easing": "linear" }, "exit": { "type": "fade", "duration": 300 } },
+      "p": { "style": { "fontFamily": "'Courier New', monospace" }, "enter": { "type": "typewriter", "duration": 1200, "easing": "linear" }, "exit": { "type": "fade", "duration": 300 } },
+      "li": { "style": { "fontFamily": "'Courier New', monospace" }, "enter": { "type": "typewriter", "duration": 1000, "stagger": 200, "easing": "linear" }, "exit": { "type": "fade", "duration": 300 } },
+      "verse": { "style": { "fontSize": 17, "lineHeight": 1.7, "fontFamily": "'SF Pro Text', -apple-system, sans-serif" }, "enter": { "type": "fade", "duration": 600, "stagger": 300 }, "exit": { "type": "fade", "duration": 300 } },
+      "verse-number": { "style": { "fontSize": 12, "opacity": 0.5, "fontWeight": "bold" } },
+      "verse-reference": { "style": { "fontSize": 13, "textTransform": "uppercase", "letterSpacing": 1 }, "enter": { "type": "fade", "duration": 400 } }
+    },
+    "sequences": [
+      { "match": "h1", "phase": "solo", "pauseAfter": true },
+      { "match": "h2", "phase": "solo", "pauseAfter": true },
+      { "match": "li", "phase": "group", "stagger": 200, "pauseAfter": true },
+      { "match": "verse", "phase": "group", "stagger": 300, "pauseAfter": true },
+      { "match": "p", "phase": "solo", "pauseAfter": false }
+    ]
+  }
+}

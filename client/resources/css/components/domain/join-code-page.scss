@@ -1,0 +1,91 @@
+.JoinCodePage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+  background: linear-gradient(180deg, #191919 0%, #0B0B0A 100%);
+
+  &__container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 440px;
+    gap: 1.5rem;
+  }
+
+  &__logo {
+    width: 100px;
+    height: 100px;
+    margin-bottom: 0.5rem;
+  }
+
+  &__title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white;
+    text-align: center;
+    margin: 0;
+  }
+
+  &__description {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 22px;
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    margin: 0;
+  }
+
+  &__input-wrapper {
+    width: 100%;
+    padding: 32px;
+    box-sizing: border-box;
+  }
+
+  &__button {
+    width: 100%;
+    height: 54px;
+    border-radius: 12px;
+  }
+
+  &__return-home {
+    padding-top: 8px;
+  }
+
+  &--loading {
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  &--error {
+    // Error state visual
+  }
+}
+
+@media (max-width: 480px) {
+  .JoinCodePage {
+    padding: 1.5rem;
+
+    &__container {
+      gap: 1.25rem;
+    }
+
+    &__logo {
+      width: 80px;
+      height: 80px;
+    }
+
+    &__title {
+      font-size: 1.5rem;
+    }
+
+    &__description {
+      font-size: 15px;
+      line-height: 20px;
+    }
+  }
+}

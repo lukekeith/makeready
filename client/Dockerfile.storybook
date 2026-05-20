@@ -1,0 +1,49 @@
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+# Install dependencies
+COPY package.json ./
+RUN npm install --no-audit --no-fund --legacy-peer-deps
+
+# Histoire 0.17 bundles jiti v1 and vite-node 0.x, both incompatible
+# with Vite 7. Install compatible versions and remove nested copies
+# so Histoire resolves them from the top-level node_modules.
+RUN npm install --no-save --legacy-peer-deps vite-node@^2 jiti@^2 && \
+    rm -rf node_modules/histoire/node_modules/jiti \
+           node_modules/histoire/node_modules/vite-node
+
+# Copy source files needed for Histoire build
+COPY histoire.config.ts vite.config.js tsconfig.json ./
+COPY resources/ resources/
+
+# Patch Histoire's config loader to use native import() instead of jiti
+# (jiti v2 still has edge cases with Vite 7's import.meta usage)
+RUN node -e " \
+  const fs = require('fs'); \
+  let code = fs.readFileSync('node_modules/histoire/dist/node/config.js', 'utf8'); \
+  code = code.replace( \
+    /export async function loadConfigFile\(configFile\) \{[\s\S]*?^}/m, \
+    'export async function loadConfigFile(configFile) { const m = await import(configFile); return m.default; }' \
+  ); \
+  fs.writeFileSync('node_modules/histoire/dist/node/config.js', code); \
+"
+
+# Convert config to .js so native import() works (package.json has type:module)
+RUN mv histoire.config.ts histoire.config.js
+
+# Build Histoire
+RUN npx histoire build
+
+# ── Serve stage ──────────────────────────────────────────────────────
+FROM node:22-alpine
+
+WORKDIR /app
+
+RUN npm install -g serve@14
+
+COPY --from=build /app/.histoire/dist ./dist
+
+EXPOSE 3000
+
+CMD ["serve", "dist", "-l", "3000", "-s"]

@@ -1,0 +1,119 @@
+.Modal {
+  position: fixed;
+  z-index: 1000;
+  background: #272529;
+  overflow-y: auto;
+
+  &:focus {
+    outline: none;
+  }
+
+  // Fullscreen mode (default)
+  &--fullscreen {
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 0;
+    padding: 40px 24px 24px;
+    animation: modalSlideUpFullscreen 0.3s ease-out;
+  }
+
+  // Menu mode (bottom sheet that hugs content)
+  &--menu {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    max-height: 90vh;
+    border-radius: 16px 16px 0 0;
+    padding: 20px 24px 24px;
+    animation: modalSlideUpMenu 0.3s ease-out;
+  }
+
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    animation: modalFadeIn 0.2s ease-out;
+  }
+
+  &__close-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.15s ease;
+
+    &:hover {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    &:focus {
+      outline: none;
+    }
+
+    &:focus-visible {
+      outline: 2px solid rgba(255, 255, 255, 0.4);
+      outline-offset: 2px;
+    }
+  }
+
+  &__content {
+    // Content wrapper - allows children to define their own layout
+  }
+
+  // Visually hidden for accessibility
+  &__aria-title,
+  &__aria-description {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+// Fullscreen animation - slides from viewport bottom to top
+@keyframes modalSlideUpFullscreen {
+  from {
+    transform: translateY(100vh);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+// Menu animation - slides up only as far as its content height
+@keyframes modalSlideUpMenu {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

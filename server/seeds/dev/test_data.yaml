@@ -1,0 +1,18 @@
+# Development Test Data
+# Only loaded in development and test environments
+
+version: "dev"
+description: "Test data for local development"
+
+# This file is a placeholder for development-only test data
+# Add test users, organizations, groups, etc. here as needed
+
+# Example format:
+# data:
+#   User:
+#     strategy: upsert
+#     upsert_key: email
+#     records:
+#       - email: test@example.com
+#         name: Test User
+#         googleId: test-google-id-123

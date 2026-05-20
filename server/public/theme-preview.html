@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Theme Preview — MakeReady</title>
+  <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif; background: #111; color: #e0e0e0; height: 100vh; overflow: hidden; }
+
+    .app { display: flex; flex-direction: column; height: 100vh; }
+
+    /* Top bar */
+    .topbar { display: flex; align-items: center; gap: 12px; padding: 12px 16px; background: #1a1a1a; border-bottom: 1px solid #333; flex-shrink: 0; }
+    .topbar__title { font-size: 14px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+    .topbar__select { background: #222; color: #e0e0e0; border: 1px solid #444; border-radius: 6px; padding: 6px 12px; font-size: 14px; outline: none; min-width: 200px; }
+    .topbar__select:focus { border-color: #666; }
+    .topbar__spacer { flex: 1; }
+    .topbar__desc { font-size: 12px; color: #666; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .topbar__btn { background: #2563eb; color: #fff; border: none; border-radius: 6px; padding: 8px 20px; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 0.15s; }
+    .topbar__btn:hover { background: #1d4ed8; }
+    .topbar__btn--secondary { background: #333; }
+    .topbar__btn--secondary:hover { background: #444; }
+    .topbar__separator { font-size: 12px; color: #555; }
+
+    /* Block tabs */
+    .blocktabs { display: flex; align-items: center; gap: 0; padding: 0 16px; background: #1a1a1a; border-bottom: 1px solid #333; flex-shrink: 0; }
+    .blocktabs__tab { padding: 8px 16px; font-size: 12px; color: #888; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.15s; }
+    .blocktabs__tab:hover { color: #ccc; }
+    .blocktabs__tab--active { color: #e0e0e0; border-bottom-color: #2563eb; }
+    .blocktabs__add { padding: 8px 12px; font-size: 14px; color: #666; cursor: pointer; transition: color 0.15s; }
+    .blocktabs__add:hover { color: #e0e0e0; }
+    .blocktabs__remove { margin-left: 6px; font-size: 10px; color: #666; cursor: pointer; }
+    .blocktabs__remove:hover { color: #f44; }
+
+    /* Main content area */
+    .main { display: flex; flex: 1; overflow: hidden; }
+
+    /* Editor */
+    .editor { flex: 1; display: flex; flex-direction: column; border-right: 1px solid #333; }
+    .editor__label { font-size: 11px; color: #666; padding: 8px 16px 4px; text-transform: uppercase; letter-spacing: 1px; }
+    .editor__textarea { flex: 1; background: #0d0d0d; color: #d4d4d4; border: none; padding: 16px; font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 14px; line-height: 1.6; resize: none; outline: none; }
+    .editor__textarea::placeholder { color: #444; }
+
+    /* Preview */
+    .preview { flex: 1; display: flex; flex-direction: column; position: relative; overflow: hidden; }
+    .preview__label { font-size: 11px; color: #666; padding: 8px 16px 4px; text-transform: uppercase; letter-spacing: 1px; background: #1a1a1a; z-index: 1; }
+    .preview__container { flex: 1; position: relative; overflow-y: auto; }
+    .preview__bg { position: absolute; inset: 0; z-index: 0; }
+    .preview__content { position: relative; z-index: 1; padding: 32px 24px; min-height: 100%; }
+
+    /* Rendered elements */
+    .preview__phase { margin-bottom: 16px; opacity: 0; transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+    .preview__phase--visible { opacity: 1; transform: translateY(0) !important; }
+    .preview__phase--fullscreen { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+
+    /* Phase progress */
+    .preview__progress { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 6px; z-index: 2; }
+    .preview__dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.25); transition: background 0.3s; }
+    .preview__dot--active { background: rgba(255,255,255,0.9); }
+    .preview__dot--past { background: rgba(255,255,255,0.5); }
+
+    /* Tap hint */
+    .preview__hint { position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%); font-size: 11px; color: rgba(255,255,255,0.3); z-index: 2; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 0.6; } }
+
+    /* Block indicator */
+    .preview__block-indicator { position: absolute; top: 12px; right: 16px; font-size: 11px; color: rgba(255,255,255,0.4); letter-spacing: 1px; text-transform: uppercase; z-index: 2; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="app">
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="topbar__title">Theme Preview</div>
+      <select class="topbar__select" v-model="selectedSlug" @change="onThemeChange">
+        <option v-for="t in themes" :key="t.slug" :value="t.slug">{{ t.name }}</option>
+      </select>
+      <div class="topbar__desc">{{ selectedTheme?.description }}</div>
+      <div class="topbar__spacer"></div>
+      <div class="topbar__separator" v-if="selectedTheme?.definition?.readBlockSequencing === 'sequential'">Sequential</div>
+      <div class="topbar__separator" v-else>All at once</div>
+      <button class="topbar__btn" @click="run">Run</button>
+    </div>
+
+    <!-- Block tabs -->
+    <div class="blocktabs">
+      <div
+        v-for="(block, i) in blocks"
+        :key="i"
+        class="blocktabs__tab"
+        :class="{ 'blocktabs__tab--active': activeBlock === i }"
+        @click="activeBlock = i"
+      >
+        Block {{ i + 1 }}
+        <span v-if="blocks.length > 1" class="blocktabs__remove" @click.stop="removeBlock(i)">&times;</span>
+      </div>
+      <div class="blocktabs__add" @click="addBlock">+ Add Block</div>
+    </div>
+
+    <!-- Main area -->
+    <div class="main">
+      <!-- Editor -->
+      <div class="editor">
+        <div class="editor__label">Markdown</div>
+        <textarea
+          class="editor__textarea"
+          v-model="blocks[activeBlock]"
+          placeholder="# Heading&#10;&#10;Some paragraph text...&#10;&#10;- Bullet one&#10;- Bullet two"
+          @keydown.meta.enter="run"
+        ></textarea>
+      </div>
+
+      <!-- Preview -->
+      <div class="preview" @click="advancePhase" ref="previewEl">
+        <div class="preview__label">Preview</div>
+        <div class="preview__container">
+          <!-- Background -->
+          <div class="preview__bg" :style="bgStyle"></div>
+          <!-- Content -->
+          <div class="preview__content" :style="contentStyle">
+            <div
+              v-for="(phase, pi) in phases"
+              :key="'phase-' + runKey + '-' + pi"
+              class="preview__phase"
+              :class="{
+                'preview__phase--visible': pi <= currentPhase,
+                'preview__phase--fullscreen': phase.display === 'fullscreen'
+              }"
+              :style="phaseEntryStyle(phase, pi)"
+            >
+              <div v-for="(token, ti) in phase.tokens" :key="ti" v-html="renderToken(token)" :style="tokenStyle(token)"></div>
+            </div>
+          </div>
+          <!-- Progress dots -->
+          <div v-if="showProgress && phases.length > 1" class="preview__progress">
+            <div
+              v-for="(_, pi) in phases"
+              :key="pi"
+              class="preview__dot"
+              :class="{ 'preview__dot--active': pi === currentPhase, 'preview__dot--past': pi < currentPhase }"
+            ></div>
+          </div>
+          <!-- Block indicator for sequential -->
+          <div v-if="blocks.length > 1" class="preview__block-indicator">
+            Block {{ previewBlockIndex + 1 }} / {{ blocks.length }}
+          </div>
+          <!-- Tap hint -->
+          <div v-if="interaction?.mode === 'tap-to-advance' && currentPhase < phases.length - 1" class="preview__hint">Tap to advance</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const { createApp, ref, computed, watch, nextTick } = Vue
+
+createApp({
+  setup() {
+    const themes = ref([])
+    const selectedSlug = ref('')
+    const blocks = ref(['# Welcome\n\nThis is your first read block.\n\n- Point one\n- Point two\n- Point three'])
+    const activeBlock = ref(0)
+    const runKey = ref(0)
+    const currentPhase = ref(0)
+    const previewBlockIndex = ref(0)
+    const phases = ref([])
+    const previewEl = ref(null)
+
+    const selectedTheme = computed(() => themes.value.find(t => t.slug === selectedSlug.value))
+    const definition = computed(() => selectedTheme.value?.definition || null)
+    const interaction = computed(() => definition.value?.interaction || null)
+    const isSequential = computed(() => definition.value?.readBlockSequencing === 'sequential')
+    const showProgress = computed(() => interaction.value?.showProgress !== false)
+
+    const bgStyle = computed(() => {
+      if (!definition.value) return { background: '#111' }
+      const bg = definition.value.background || {}
+      const styles = { background: bg.color || '#111' }
+      if (bg.overlay) {
+        styles.background = `${bg.overlay}, ${bg.color || '#111'}`
+      }
+      return styles
+    })
+
+    const contentStyle = computed(() => {
+      if (!definition.value) return {}
+      const typo = definition.value.typography || {}
+      return {
+        fontFamily: typo.fontFamily || 'sans-serif',
+        fontSize: (typo.fontSize || 16) + 'px',
+        color: typo.color || '#fff',
+        lineHeight: typo.lineHeight || 1.6,
+      }
+    })
+
+    // Parse markdown into tokens
+    function parseMarkdown(md) {
+      const rawTokens = marked.lexer(md || '')
+      const tokens = []
+      for (const t of rawTokens) {
+        if (t.type === 'heading') {
+          tokens.push({ type: 'h' + t.depth, text: t.text, html: t.text })
+        } else if (t.type === 'paragraph') {
+          tokens.push({ type: 'p', text: t.text, html: t.tokens ? marked.parser([t]) : t.text })
+        } else if (t.type === 'list') {
+          for (const item of (t.items || [])) {
+            tokens.push({ type: 'li', text: item.text, html: item.tokens ? marked.parser([{ type: 'paragraph', tokens: item.tokens }]) : item.text })
+          }
+        } else if (t.type === 'blockquote') {
+          tokens.push({ type: 'blockquote', text: t.text || '', html: t.tokens ? marked.parser([t]) : (t.text || '') })
+        }
+      }
+      return tokens
+    }
+
+    // Build phases from tokens using sequence rules
+    function buildPhases(tokens) {
+      if (!definition.value || !tokens.length) {
+        return [{ tokens, display: undefined, pauseAfter: false }]
+      }
+      const seqs = definition.value.sequences || []
+      const elements = definition.value.elements || {}
+      const result = []
+      let i = 0
+
+      while (i < tokens.length) {
+        const token = tokens[i]
+        const rule = seqs.find(s => token.type.startsWith(s.match) || s.match === token.type)
+
+        if (rule) {
+          if (rule.phase === 'solo') {
+            const elConfig = elements[token.type] || {}
+            result.push({
+              tokens: [token],
+              display: elConfig.display || undefined,
+              pauseAfter: rule.pauseAfter !== false,
+              stagger: rule.stagger,
+            })
+            i++
+          } else {
+            // group: collect consecutive tokens of same type
+            const group = [token]
+            i++
+            while (i < tokens.length && tokens[i].type === token.type) {
+              group.push(tokens[i])
+              i++
+            }
+            result.push({
+              tokens: group,
+              display: undefined,
+              pauseAfter: rule.pauseAfter !== false,
+              stagger: rule.stagger,
+            })
+          }
+        } else {
+          result.push({ tokens: [token], display: undefined, pauseAfter: false })
+          i++
+        }
+      }
+      return result
+    }
+
+    function runBlock(blockIndex) {
+      const md = blocks.value[blockIndex] || ''
+      const tokens = parseMarkdown(md)
+      phases.value = buildPhases(tokens)
+      currentPhase.value = -1
+      runKey.value++
+
+      nextTick(() => {
+        currentPhase.value = 0
+        if (interaction.value?.mode === 'auto-play') {
+          autoAdvance()
+        }
+      })
+    }
+
+    function run() {
+      previewBlockIndex.value = 0
+      activeBlock.value = 0
+      runBlock(0)
+    }
+
+    let autoTimer = null
+    function autoAdvance() {
+      if (autoTimer) clearInterval(autoTimer)
+      const delay = interaction.value?.autoPlayDelay || 2000
+      autoTimer = setInterval(() => {
+        if (currentPhase.value < phases.value.length - 1) {
+          currentPhase.value++
+        } else {
+          clearInterval(autoTimer)
+          autoTimer = null
+          // Advance to next block
+          if (previewBlockIndex.value < blocks.value.length - 1) {
+            setTimeout(() => {
+              previewBlockIndex.value++
+              activeBlock.value = previewBlockIndex.value
+              runBlock(previewBlockIndex.value)
+            }, delay)
+          }
+        }
+      }, delay)
+    }
+
+    function advancePhase() {
+      if (currentPhase.value < phases.value.length - 1) {
+        currentPhase.value++
+      } else if (previewBlockIndex.value < blocks.value.length - 1) {
+        // Advance to next block when all phases in current block are done
+        previewBlockIndex.value++
+        activeBlock.value = previewBlockIndex.value
+        runBlock(previewBlockIndex.value)
+      }
+    }
+
+    function phaseEntryStyle(phase, index) {
+      if (index > currentPhase.value) {
+        const token = phase.tokens[0]
+        const elConfig = definition.value?.elements?.[token?.type] || {}
+        const enterType = elConfig.enter?.type || 'fade'
+        if (enterType === 'slide-up') return { transform: 'translateY(30px)' }
+        if (enterType === 'slide-right') return { transform: 'translateX(-30px)' }
+        if (enterType === 'slide-left') return { transform: 'translateX(30px)' }
+        return {}
+      }
+      return {}
+    }
+
+    function tokenStyle(token) {
+      if (!definition.value) return {}
+      const elConfig = definition.value.elements?.[token.type] || {}
+      const style = { ...(elConfig.style || {}) }
+      const result = {}
+      if (style.fontSize) result.fontSize = style.fontSize + 'px'
+      if (style.fontWeight) result.fontWeight = style.fontWeight
+      if (style.color) result.color = style.color
+      if (style.textAlign) result.textAlign = style.textAlign
+      if (style.textTransform) result.textTransform = style.textTransform
+      if (style.letterSpacing) result.letterSpacing = style.letterSpacing + 'px'
+      if (style.lineHeight) result.lineHeight = style.lineHeight
+      if (style.fontFamily) result.fontFamily = style.fontFamily
+      if (style.opacity !== undefined) result.opacity = style.opacity
+      if (elConfig.align) result.textAlign = elConfig.align
+      if (elConfig.width) result.maxWidth = elConfig.width
+      return result
+    }
+
+    function renderToken(token) {
+      const tag = token.type === 'li' ? 'div' : (token.type.startsWith('h') ? token.type : 'div')
+      const content = token.html || token.text || ''
+      if (tag.startsWith('h')) {
+        return `<${tag} style="margin: 0">${content}</${tag}>`
+      }
+      return `<div style="margin: 4px 0">${content}</div>`
+    }
+
+    function onThemeChange() {
+      previewBlockIndex.value = 0
+      run()
+    }
+
+    function addBlock() {
+      blocks.value.push('# Block ' + (blocks.value.length + 1) + '\n\nContent here...')
+      activeBlock.value = blocks.value.length - 1
+    }
+
+    function removeBlock(i) {
+      if (blocks.value.length <= 1) return
+      blocks.value.splice(i, 1)
+      if (activeBlock.value >= blocks.value.length) activeBlock.value = blocks.value.length - 1
+      if (previewBlockIndex.value >= blocks.value.length) previewBlockIndex.value = 0
+    }
+
+    // Load themes
+    fetch('/api/themes/public/list')
+      .then(r => r.json())
+      .then(data => {
+        themes.value = data.themes || []
+        if (themes.value.length > 0) {
+          selectedSlug.value = themes.value[0].slug
+          nextTick(() => run())
+        }
+      })
+
+    return {
+      themes, selectedSlug, selectedTheme, blocks, activeBlock,
+      runKey, currentPhase, phases, previewEl,
+      bgStyle, contentStyle, interaction, isSequential, showProgress,
+      previewBlockIndex,
+      run, advancePhase, onThemeChange, addBlock, removeBlock,
+      phaseEntryStyle, tokenStyle, renderToken,
+    }
+  }
+}).mount('#app')
+</script>
+</body>
+</html>

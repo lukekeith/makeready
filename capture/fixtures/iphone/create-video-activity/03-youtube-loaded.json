@@ -1,0 +1,34 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-youtube-activity",
+  "output": "03-youtube-loaded.png",
+  "title": "Create Video Activity: YouTube Video Loaded with Thumbnail",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-youtube-loaded",
+      "type": "YOUTUBE",
+      "title": "The Eternal Nature of God",
+      "orderNumber": 2,
+      "status": "PENDING",
+      "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "youtubeVideoId": "dQw4w9WgXcQ",
+      "youtubeThumbnailUrl": "https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
+    }
+  }
+}

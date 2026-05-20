@@ -1,0 +1,137 @@
+@use 'styles/colors';
+
+.VerifyCode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+
+  &__input-wrapper {
+    flex: 1;
+    min-width: 0;
+    position: relative;
+  }
+
+  &__input {
+    width: 100%;
+    height: 60px;
+    border: 2px solid colors.primary(400);
+    border-radius: 8px;
+    background: transparent;
+    color: colors.text(100);
+    font-size: 24px;
+    font-weight: 600;
+    text-align: center;
+    font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+
+    // Hide cursor and prevent text selection
+    caret-color: transparent;
+    user-select: none;
+    -webkit-user-select: none;
+
+    &:focus {
+      border-color: white;
+      box-shadow: none;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    &::placeholder {
+      color: colors.text(500);
+    }
+
+    // Prevent text selection highlight
+    &::selection {
+      background: transparent;
+    }
+
+    // Remove spinner buttons for number input
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    &[type='number'] {
+      -moz-appearance: textfield;
+    }
+  }
+
+  // Blinking cursor underscore
+  &__cursor {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    right: 8px;
+    height: 2px;
+    background: colors.text(100);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+  }
+
+  // Show cursor when input is focused
+  &__input:focus + &__cursor {
+    animation: verify-code-blink 1s ease-in-out infinite;
+  }
+
+  @keyframes verify-code-blink {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.2;
+    }
+  }
+
+  // Size variants
+  &--size-default {
+    .VerifyCode__input {
+      height: 60px;
+      font-size: 24px;
+    }
+  }
+
+  &--size-large {
+    .VerifyCode__input {
+      height: 72px;
+      font-size: 32px;
+    }
+  }
+
+  // Theme variants
+  &--theme-dark {
+    // Default dark theme (already applied via base styles)
+  }
+
+  &--theme-light {
+    .VerifyCode__input {
+      border-color: rgba(255, 255, 255, 0.2);
+      background: transparent;
+
+      &:hover:not(:focus):not(:disabled) {
+        border-color: rgba(255, 255, 255, 0.5);
+      }
+
+      &:focus {
+        border-color: rgba(255, 255, 255, 1);
+        box-shadow: none;
+      }
+    }
+  }
+
+  // Mode variants (no visual difference, just for specificity)
+  &--mode-numeric,
+  &--mode-alphanumeric {
+    .VerifyCode__input {
+      text-transform: uppercase;
+    }
+  }
+}

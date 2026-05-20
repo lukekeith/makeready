@@ -1,0 +1,43 @@
+{
+  "platform": "client",
+  "view": "pages.join-study",
+  "step": "info",
+  "output": "01-info.png",
+  "title": "Join Study: Invitation",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "lesson": {
+      "id": 9876,
+      "organizationId": 42,
+      "dayNumber": 3,
+      "studyProgram": {
+        "id": 11,
+        "name": "The Gospel of John",
+        "title": "The Gospel of John",
+        "coverImageUrl": "./study-cover.png",
+        "days": 21,
+        "lessonCount": 21
+      },
+      "group": {
+        "id": 1234,
+        "name": "Sunday Morning Group",
+        "coverImageUrl": "./group-cover.png",
+        "creator": {
+          "name": "Pastor Mike",
+          "picture": "./leader-photo.png"
+        }
+      }
+    }
+  }
+}

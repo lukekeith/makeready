@@ -1,0 +1,161 @@
+@use 'styles/colors';
+
+.PageTitle {
+  width: 100%;
+
+  &__container {
+    position: relative;
+    height: 56px;
+    padding: 0 8px;
+  }
+
+  &__left {
+    position: absolute;
+    left: 8px;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  &__right {
+    position: absolute;
+    right: 8px;
+    top: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  &__center {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  &__title {
+    font-size: 17px;
+    font-weight: 700;
+    color: white;
+    white-space: nowrap;
+  }
+
+  &__icon-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: white;
+    padding: 0;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    &:active {
+      opacity: 0.6;
+    }
+
+    &--disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+
+      &:hover,
+      &:active {
+        opacity: 0.3;
+      }
+    }
+
+    svg {
+      width: 17px;
+      height: 17px;
+    }
+  }
+
+  &__link-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    padding: 0 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: colors.primary(400);
+    font-size: 17px;
+    font-weight: 400;
+    font-family: inherit;
+    transition: opacity 0.15s ease;
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    &:active {
+      opacity: 0.6;
+    }
+
+    &--muted {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    &--white {
+      color: rgba(255, 255, 255, 1);
+    }
+
+    &--disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+
+      &:hover,
+      &:active {
+        opacity: 0.3;
+      }
+    }
+  }
+
+  &__dropdown-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: white;
+    padding: 4px;
+    transition: opacity 0.15s ease;
+    pointer-events: auto;
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    svg {
+      width: 14px;
+      height: 14px;
+    }
+  }
+
+  &__icons {
+    display: flex;
+    align-items: center;
+    gap: 0;
+  }
+
+  // Default variant
+  &--default {
+    // Base styles applied above
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "platform": "client",
+  "view": "pages.marketing.home",
+  "path": "/",
+  "step": "home",
+  "output": "home.png",
+  "title": "Marketing home",
+  "devices": ["desktop-1440", "ipad", "iphone-15", "iphone-se"],
+  "fullPage": true
+}

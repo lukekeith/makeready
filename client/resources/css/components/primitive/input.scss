@@ -1,0 +1,29 @@
+@use 'styles/colors';
+
+.Input {
+  display: flex;
+  height: 2.5rem;
+  width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid colors.text(700);
+  background: colors.text(900);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  color: colors.text(100);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &::placeholder {
+    color: colors.text(500);
+  }
+
+  &:focus {
+    border-color: colors.primary(400);
+    box-shadow: 0 0 0 2px rgba(108, 71, 255, 0.2);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+}

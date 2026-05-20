@@ -1,0 +1,125 @@
+.StudyJoinPage {
+  min-height: 100vh;
+  width: 100%;
+  // Background gradient lives on body.AuthPage.
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-lg);
+  box-sizing: border-box;
+
+  &__container {
+    width: 100%;
+    max-width: 440px;
+  }
+
+  &__cards {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-lg);
+
+    > .GroupLeaderNote,
+    > .StudyInfoCard,
+    > .Confirmation,
+    > .StudyJoinPage__content,
+    > .StudyJoinPage__error {
+      width: 100%;
+    }
+  }
+
+  &__content {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg);
+  }
+
+  &__code-wrapper {
+    padding-bottom: var(--space-2xl);
+  }
+
+  // Loading state
+  &__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-lg);
+  }
+
+  &__text {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: var(--text-sm);
+  }
+
+}
+
+.SmsConsent {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  cursor: pointer;
+  padding: 12px 0;
+  text-align: left;
+
+  &__checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 20px;
+    height: 20px;
+    margin: 2px 0 0;
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-radius: 4px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.15s ease, border-color 0.15s ease;
+
+    &:hover {
+      border-color: rgba(255, 255, 255, 0.55);
+    }
+
+    &:checked {
+      background: #8B7BF7;
+      border-color: #8B7BF7;
+
+      &::after {
+        content: '';
+        position: absolute;
+        left: 5px;
+        top: 1px;
+        width: 5px;
+        height: 10px;
+        border: solid #fff;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+      }
+    }
+
+    &:focus-visible {
+      outline: 2px solid #8B7BF7;
+      outline-offset: 2px;
+    }
+  }
+
+  &__text {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.5;
+    text-align: left;
+  }
+
+  &__link {
+    color: #8B7BF7;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}

@@ -1,0 +1,137 @@
+@use "styles/colors";
+
+.GroupLeaderInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  width: 100%;
+
+  &__label {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: colors.text(400);
+    line-height: 1.125rem;
+    margin: 0;
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  &__avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: linear-gradient(135deg, colors.primary(600) 0%, colors.primary(400) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  &__avatar-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__avatar-initials {
+    font-size: 1.75rem;
+    font-weight: 600;
+    color: colors.text(100);
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  &__name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: colors.text(100);
+    line-height: 1.3125rem;
+    margin: 0;
+  }
+
+  &__date {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: colors.text(400);
+    line-height: 1.125rem;
+    margin: 0;
+  }
+
+  // Layouts
+  &--vertical {
+    .GroupLeaderInfo__content {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  &--horizontal {
+    .GroupLeaderInfo__content {
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .GroupLeaderInfo__avatar {
+      width: 48px;
+      height: 48px;
+    }
+
+    .GroupLeaderInfo__avatar-initials {
+      font-size: 1.125rem;
+    }
+  }
+
+  // Sizes
+  &--size-default {
+    .GroupLeaderInfo__avatar {
+      width: 80px;
+      height: 80px;
+    }
+
+    .GroupLeaderInfo__avatar-initials {
+      font-size: 1.75rem;
+    }
+
+    .GroupLeaderInfo__name {
+      font-size: 1rem;
+    }
+  }
+
+  &--size-compact {
+    gap: 0.75rem;
+
+    .GroupLeaderInfo__content {
+      gap: 0.75rem;
+    }
+
+    .GroupLeaderInfo__avatar {
+      width: 48px;
+      height: 48px;
+    }
+
+    .GroupLeaderInfo__avatar-initials {
+      font-size: 1.125rem;
+    }
+
+    .GroupLeaderInfo__name {
+      font-size: 0.875rem;
+    }
+
+    .GroupLeaderInfo__date {
+      font-size: 0.75rem;
+    }
+
+    .GroupLeaderInfo__label {
+      font-size: 0.75rem;
+    }
+  }
+}

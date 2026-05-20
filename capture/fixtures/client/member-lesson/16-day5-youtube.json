@@ -1,0 +1,81 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "16-day5-youtube.png",
+  "title": "Day 5: YouTube — Embedded player",
+  "step": 4,
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-005",
+    "lessonScheduleId": "ls-capture-005",
+    "step": 4,
+    "lessonData": {
+      "lesson": {
+        "id": "lesson-exegesis-001",
+        "title": "The armor of God",
+        "dayNumber": 5,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": { "name": "Daily Inspiration" },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "activity-exeg-001",
+            "type": "EXEGESIS",
+            "title": "Ephesians 6:10-17",
+            "isHelpEnabled": false,
+            "readBlocks": [
+              { "id": "block-exeg-001", "orderNumber": 1, "content": "...", "isLocked": true, "contentFormat": "markdown", "exegesisHighlights": [] }
+            ],
+            "sourceReferences": []
+          },
+          {
+            "id": "activity-exeg-002",
+            "type": "EXEGESIS",
+            "title": "Psalm 23:1-6",
+            "isHelpEnabled": false,
+            "readBlocks": [
+              { "id": "block-exeg-002", "orderNumber": 1, "content": "...", "isLocked": true, "contentFormat": "markdown", "exegesisHighlights": [] }
+            ],
+            "sourceReferences": []
+          },
+          {
+            "id": "activity-video-001",
+            "type": "VIDEO",
+            "title": "A word from Pastor Mike",
+            "videoUrl": "https://customer-eq3doicvmpgtqoqo.cloudflarestream.com/sample/manifest/video.m3u8"
+          },
+          {
+            "id": "activity-yt-001",
+            "type": "YOUTUBE",
+            "title": "The full armor of God explained",
+            "youtubeUrl": "https://www.youtube.com/watch?v=xrzq_X1NNaA",
+            "youtubeVideoId": "xrzq_X1NNaA"
+          },
+          {
+            "id": "activity-input-005",
+            "type": "USER_INPUT",
+            "title": "Apply it",
+            "isHelpEnabled": true,
+            "helpTitle": "Which piece of armor do you need most today?",
+            "helpDescription": "Think about what you're facing this week.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "bolt.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  }
+}

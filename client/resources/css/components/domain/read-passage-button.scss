@@ -1,0 +1,62 @@
+.ReadPassageButton {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: #6C47FF;
+  }
+
+  &__text {
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 22px;
+    color: rgba(255, 255, 255, 1);
+    text-align: left;
+  }
+
+  // Size variants
+  &--size-default {
+    padding: 16px 20px;
+
+    .ReadPassageButton__text {
+      font-size: 17px;
+    }
+
+    .ReadPassageButton__icon {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  &--size-large {
+    padding: 20px 24px;
+
+    .ReadPassageButton__text {
+      font-size: 18px;
+    }
+
+    .ReadPassageButton__icon {
+      width: 24px;
+      height: 24px;
+    }
+  }
+}

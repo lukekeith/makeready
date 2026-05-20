@@ -1,0 +1,32 @@
+{
+  "platform": "client",
+  "view": "pages.join-group",
+  "step": "confirmed",
+  "output": "08-confirmed-already-member.png",
+  "title": "Join Group: You're already a member",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "group": {
+      "id": 1234,
+      "name": "Sunday Morning Group",
+      "coverImageUrl": "./group-cover.png"
+    },
+    "membershipStatus": "member",
+    "member": {
+      "id": 5678,
+      "firstName": "Returning",
+      "lastName": "Member"
+    }
+  }
+}

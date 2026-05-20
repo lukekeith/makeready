@@ -1,0 +1,33 @@
+# RBAC Roles - Version 1.0.0
+# System roles definition
+
+version: "1.0.0"
+model: Role
+strategy: upsert
+upsert_key: [name, organizationId]
+
+data:
+  - name: Super Admin
+    description: Platform-wide administrator with unlimited access to all organizations
+    isSystem: true
+    organizationId: null
+
+  - name: Owner
+    description: Organization owner with full control over the organization and all groups
+    isSystem: true
+    organizationId: null
+
+  - name: Admin
+    description: Organization administrator with most permissions except organization deletion
+    isSystem: true
+    organizationId: null
+
+  - name: Group Leader
+    description: Can manage groups and create content
+    isSystem: true
+    organizationId: null
+
+  - name: Contributor
+    description: Can create content but cannot delete or modify others' content
+    isSystem: true
+    organizationId: null

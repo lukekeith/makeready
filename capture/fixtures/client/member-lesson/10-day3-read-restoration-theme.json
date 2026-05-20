@@ -1,0 +1,177 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "10-day3-read-restoration-theme.png",
+  "title": "Day 3: Read — Restoration with theme block",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-002",
+    "lessonScheduleId": "ls-capture-003",
+    "step": 5,
+    "lessonData": {
+      "lesson": {
+        "id": "aabe2aaf-a7b6-484c-9345-2d3cd110a29a",
+        "title": "Jesus restores",
+        "dayNumber": 3,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": {
+          "name": "Daily Inspiration"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "162c894c-039c-4f92-8638-805d94d1c861",
+            "type": "READ",
+            "title": "The calling of Peter",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "2a56b492",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "3b220da1-b95d-45b9-807c-5b0dc8e4769b",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "Your calling",
+            "helpDescription": "Has Jesus asked you to give up anything to follow him? Are you willing?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "hand.raised.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "bafa8a36-ce2c-4c7c-81f7-8e2cba53d5ac",
+            "type": "READ",
+            "title": "Denial of Peter",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "a593610d",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "51e9d43f-47fe-4c2e-b8f5-1fd76fc11daf",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "How did Peter feel?",
+            "helpDescription": "If you denied Jesus after spending 3 years with Him and seeing all the miracles, calling Him the Messiah etc, how would you feel here?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "lightbulb.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "20c60c51-f359-4ffb-b29d-8ba71208feea",
+            "type": "READ",
+            "title": "The restoration of Peter",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "8537f99a-0c6f-4b09-8531-c963a470ec16",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 21:3-7",
+                "bookNumber": 43,
+                "chapterStart": 21,
+                "verseStart": 3,
+                "verseEnd": 7
+              },
+              {
+                "id": "37b49e8a-c52a-4320-b9c2-454f3b38b3d2",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 21:17-19",
+                "bookNumber": 43,
+                "chapterStart": 21,
+                "verseStart": 17,
+                "verseEnd": 19
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "a2cece84-5c0e-4607-bf9c-3e9c62bb307f",
+                "orderNumber": 1,
+                "title": "John 21:17-19",
+                "content": "17. He *said to him the third time, “Simon, son of John, do you love Me?” Peter was hurt because He said to him the third time, “Do you love Me?” And he said to Him, “Lord, You know all things; You know that I love You.” Jesus *said to him, “Tend My sheep. Our Times Are in His Hand\n18. Truly, truly I tell you, when you were younger, you used to put on your belt and walk wherever you wanted; but when you grow old, you will stretch out your hands and someone else will put your belt on you, and bring you where you do not want to go.”\n19. Now He said this, indicating by what kind of death he would glorify God. And when He had said this, He *said to him, “Follow Me!”",
+                "sourceReferenceId": "37b49e8a-c52a-4320-b9c2-454f3b38b3d2",
+                "isLocked": true,
+                "contentFormat": "markdown",
+                "selections": [
+                  {
+                    "end": 670,
+                    "start": 659,
+                    "style": "highlight"
+                  }
+                ]
+              },
+              {
+                "id": "ff7c03c3-4d3d-4084-a9d6-fac10036a79b",
+                "orderNumber": 2,
+                "title": "John 21:3-7",
+                "content": "3. Simon Peter *said to them, “I am going fishing.” They *said to him, “We are also coming with you.” They went out and got into the boat; and that night they caught nothing.\n4. But when the day was now breaking, Jesus stood on the beach; yet the disciples did not know that it was Jesus.\n5. So Jesus *said to them, “Children, you do not have any fish to eat, do you?” They answered Him, “No.”\n6. And He said to them, “Cast the net on the right-hand side of the boat, and you will find the fish.” So they cast it, and then they were not able to haul it in because of the great quantity of fish.\n7. Therefore that disciple whom Jesus loved *said to Peter, “It is the Lord!” So when Simon Peter heard that it was the Lord, he put on his outer garment (for he was stripped for work), and threw himself into the sea.",
+                "sourceReferenceId": "8537f99a-0c6f-4b09-8531-c963a470ec16",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "c038e1cd-5e4f-4059-9e3c-bdf0669c0425",
+                "orderNumber": 3,
+                "title": null,
+                "content": "Jesus recreates the same scenario as when Peter was first called.",
+                "isLocked": false,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "cb823c44-1b8f-44a2-a30a-73c2444b2e56",
+                "orderNumber": 4,
+                "title": null,
+                "content": "Jesus tells Peter, even though you denied me, I forgive you and the calling on your life isn’t forfeit. Follow me",
+                "isLocked": false,
+                "themeId": "f170c335-4a81-41e1-9859-dd7b94c16523",
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "d1fe43eb-0b34-41e4-a3f8-cc8a01697a41",
+            "type": "USER_INPUT",
+            "title": "Reflect",
+            "isHelpEnabled": true,
+            "helpTitle": "Have you screwed up?",
+            "helpDescription": "Jesus stands with the ability to forgive you of your sins. You may have denied Jesus, but the calling on your life remains the same. His power isn’t diminished. In fact, His power is made perfect in your weakness.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "heart.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  },
+  "step": 5
+}

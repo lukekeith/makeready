@@ -1,0 +1,10 @@
+{
+  "platform": "client",
+  "view": "pages.marketing.join-beta",
+  "path": "/join-beta",
+  "step": "join-beta",
+  "output": "join-beta.png",
+  "title": "Join the beta",
+  "devices": ["desktop-1440", "ipad", "iphone-15", "iphone-se"],
+  "fullPage": true
+}

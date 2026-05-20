@@ -1,0 +1,55 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-exegesis-activity",
+  "output": "03-passage-no-highlights.png",
+  "title": "Create Exegesis Activity: Passage Selected, No Highlights",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-exegesis-passage",
+      "type": "EXEGESIS",
+      "title": "John 3:16",
+      "orderNumber": 2,
+      "status": "PENDING",
+      "readBlocks": [
+        {
+          "id": "block-exegesis-passage",
+          "orderNumber": 1,
+          "title": "John 3:16",
+          "content": "For God so loved the world that he gave his one and only Son, that whoever believes in him shall not perish but have eternal life.",
+          "isLocked": true,
+          "sourceReferenceId": "ref-exegesis-passage",
+          "backgroundColor": "#0a1628",
+          "backgroundOverlayOpacity": 0.8,
+          "fontSize": "l"
+        }
+      ],
+      "sourceReferences": [
+        {
+          "id": "ref-exegesis-passage",
+          "passageReference": "John 3:16",
+          "bookNumber": 43,
+          "bookName": "John",
+          "chapterStart": 3,
+          "verseStart": 16,
+          "verseEnd": 16
+        }
+      ]
+    }
+  }
+}

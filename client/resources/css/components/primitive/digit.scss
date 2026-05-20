@@ -1,0 +1,82 @@
+.Digit {
+  // Sizing tokens — scale continuously between the smallest (iPhone SE 320)
+  // and largest (iPhone 17 Pro Max 440) join-flow viewports using clamp().
+  // This avoids the tier-based breakpoints we had before (which drifted
+  // between adjacent iPhones), while still giving bigger phones bigger
+  // buttons. At 320 width → 64px circle; at 440 width → 80px circle;
+  // scales linearly (18vw) between and clamps at both ends so desktop
+  // previews don't blow up.
+  --digit-size: clamp(64px, 20vw, 88px);
+  --digit-font: clamp(22px, 6.8vw, 30px);
+  --digit-line: clamp(27px, 8.4vw, 37px);
+  --digit-icon-asterisk: clamp(15px, 4.8vw, 21px);
+  --digit-icon-backspace: clamp(18px, 5.5vw, 24px);
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: var(--digit-size);
+  height: var(--digit-size);
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  padding: 0;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  &:active {
+    background: rgba(255, 255, 255, 0.25);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  &__label {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: var(--digit-font);
+    font-weight: 400;
+    line-height: var(--digit-line);
+    letter-spacing: -0.15px;
+    color: white;
+    text-align: center;
+  }
+
+  &--style-digit {
+    // Default styles applied above
+  }
+
+  &--style-asterisk {
+    svg {
+      width: var(--digit-icon-asterisk);
+      height: calc(var(--digit-icon-asterisk) + 1px);
+      color: white;
+    }
+  }
+
+  &--style-hashtag {
+    // Uses same label styling as digit
+  }
+
+  &--style-backspace {
+    svg {
+      width: var(--digit-icon-backspace);
+      height: var(--digit-icon-backspace);
+      color: white;
+    }
+  }
+}

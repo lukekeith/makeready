@@ -1,0 +1,102 @@
+# Dependencies
+node_modules/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.fleet/
+.idea/
+.nova/
+.vscode/
+.zed/
+
+# Logs
+*.log
+
+# ============================================
+# Client
+# ============================================
+client/.histoire/
+client/public/build
+client/public/hot
+client/public/storage
+client/storage/*.key
+client/storage/pail
+client/vendor/
+
+# Generated capture screenshots (JSON fixtures + assets stay tracked)
+client/capture/*/screenshots/
+client/capture/_ui/node_modules/
+
+# ============================================
+# Server
+# ============================================
+server/src/generated/prisma
+server/certs/
+server/dist/
+server/coverage/
+server/tsconfig.tsbuildinfo
+server/atlas/.schema.hcl
+server/bin/
+
+# ============================================
+# iPhone
+# ============================================
+iphone/xcuserdata/
+iphone/*.xcscmblueprint
+iphone/*.xccheckout
+iphone/build/
+iphone/DerivedData/
+iphone/*.moved-aside
+iphone/*.pbxuser
+!iphone/default.pbxuser
+iphone/*.mode1v3
+!iphone/default.mode1v3
+iphone/*.mode2v3
+!iphone/default.mode2v3
+iphone/*.perspectivev3
+!iphone/default.perspectivev3
+iphone/*.hmap
+iphone/*.ipa
+iphone/*.dSYM.zip
+iphone/*.dSYM
+iphone/timeline.xctimeline
+iphone/playground.xcworkspace
+iphone/.build/
+iphone/Carthage/Build/
+iphone/Dependencies/
+iphone/.accio/
+iphone/fastlane/report.xml
+iphone/fastlane/Preview.html
+iphone/fastlane/screenshots/**/*.png
+iphone/fastlane/test_output
+iphone/InjectionProject/
+
+# ============================================
+# Capture
+# ============================================
+capture/node_modules/
+
+# ============================================
+# Claude Code / GSD tool artifacts
+# ============================================
+.bg-shell/
+.gsd/
+.agents/
+.artifacts/
+.mcp.json
+
+# Backup and temporary files
+*.bak
+*.orig
+*.swp
+*.swo
+*~
+.#*

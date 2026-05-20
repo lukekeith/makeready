@@ -1,0 +1,3769 @@
+# MakeReady Schema Definition
+# Source of truth for database schema
+# Generates: Atlas HCL (migrations) + Prisma schema (ORM)
+
+version: "1.0"
+database: postgresql
+
+imports:
+  - enums.yaml
+  - extensions.yaml
+
+# Prisma generator configuration
+generators:
+  client:
+    provider: prisma-client-js
+    output: ../src/generated/prisma
+
+datasource:
+  provider: postgresql
+  url: env(DATABASE_URL)
+  directUrl: env(DIRECT_URL)
+
+# =============================================================================
+# MODELS
+# =============================================================================
+
+models:
+  # ===========================================================================
+  # User & Authentication
+  # ===========================================================================
+  User:
+    table_name: users
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      googleId:
+        type: string
+        nullable: true
+        unique: true
+      microsoftId:
+        type: string
+        nullable: true
+        unique: true
+        description: "Microsoft Entra ID object ID for Microsoft-authenticated beta/admin users"
+      email:
+        type: string
+        unique: true
+      name:
+        type: string
+      picture:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+      phoneNumber:
+        type: string
+        nullable: true
+        unique: true
+      phoneVerified:
+        type: boolean
+        default: false
+      smsConsent:
+        type: boolean
+        default: false
+        description: "Whether user has consented to receive SMS"
+      smsConsentAt:
+        type: datetime
+        nullable: true
+        description: "When SMS consent was last changed"
+      organizationId:
+        type: string
+        nullable: true
+        deprecated: true
+        deprecation_note: "Use UserRole relation instead"
+      isSuperAdmin:
+        type: boolean
+        default: false
+        description: "Platform-wide super admin"
+      isActive:
+        type: boolean
+        default: true
+        description: "Inactive users cannot authenticate or access leader/admin app surfaces"
+    relations:
+      createdGroups:
+        type: one_to_many
+        target: Group
+        name: GroupCreator
+      sentInvites:
+        type: one_to_many
+        target: Invite
+      ownedOrganization:
+        type: one_to_one
+        target: Organization
+        name: OrganizationOwner
+      roles:
+        type: one_to_many
+        target: UserRole
+      uploadedMedia:
+        type: one_to_many
+        target: Media
+        name: MediaUploader
+      videos:
+        type: one_to_many
+        target: Video
+        name: VideoUploader
+      highlights:
+        type: one_to_many
+        target: Highlight
+      verseNotes:
+        type: one_to_many
+        target: VerseNote
+      bookmarks:
+        type: one_to_many
+        target: Bookmark
+      createdTemplates:
+        type: one_to_many
+        target: LessonTemplate
+        name: TemplateCreator
+      studyPrograms:
+        type: one_to_many
+        target: StudyProgram
+        name: StudyProgramCreator
+      enrollments:
+        type: one_to_many
+        target: Enrollment
+        name: EnrollmentCreator
+      posts:
+        type: one_to_many
+        target: Post
+        name: PostAuthor
+      reviewedJoinRequests:
+        type: one_to_many
+        target: GroupJoinRequest
+        name: JoinRequestReviewer
+      createdEvents:
+        type: one_to_many
+        target: Event
+        name: EventCreator
+      uploadedAttachments:
+        type: one_to_many
+        target: EventAttachment
+        name: AttachmentUploader
+      studyNotes:
+        type: one_to_many
+        target: StudyNote
+      apiKeys:
+        type: one_to_many
+        target: ApiKey
+      deviceTokens:
+        type: one_to_many
+        target: DeviceToken
+      notifications:
+        type: one_to_many
+        target: Notification
+      linkedMember:
+        type: one_to_one
+        target: Member
+        name: UserMemberLink
+      activities:
+        type: one_to_many
+        target: Activity
+        name: ActivityActor
+      targetedActivities:
+        type: one_to_many
+        target: Activity
+        name: ActivityTarget
+      updatedGroups:
+        type: one_to_many
+        target: Group
+        name: GroupUpdater
+      updatedPrograms:
+        type: one_to_many
+        target: StudyProgram
+        name: StudyProgramUpdater
+      updatedEnrollments:
+        type: one_to_many
+        target: Enrollment
+        name: EnrollmentUpdater
+      updatedEvents:
+        type: one_to_many
+        target: Event
+        name: EventUpdater
+      updatedPosts:
+        type: one_to_many
+        target: Post
+        name: PostUpdater
+      updatedTemplates:
+        type: one_to_many
+        target: LessonTemplate
+        name: TemplateUpdater
+      preferences:
+        type: one_to_many
+        target: UserPreference
+      searchHistory:
+        type: one_to_many
+        target: SearchHistory
+      createdThemes:
+        type: one_to_many
+        target: TextTheme
+        name: ThemeCreator
+      betaApplications:
+        type: one_to_many
+        target: BetaApplication
+    indexes:
+      - fields: [organizationId]
+      - fields: [isSuperAdmin]
+      - fields: [isActive]
+
+  DeviceToken:
+    table_name: device_tokens
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+      token:
+        type: string
+        unique: true
+      platform:
+        type: string
+        default: "ios"
+        description: "ios or android"
+      environment:
+        type: string
+        default: "production"
+        description: "sandbox or production"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId]
+
+  # ===========================================================================
+  # Groups
+  # ===========================================================================
+  Group:
+    table_name: groups
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      code:
+        type: string
+        nullable: true
+        unique: true
+        description: "6-char alphanumeric for public join"
+      name:
+        type: string
+      description:
+        type: string
+        nullable: true
+      coverImageUrl:
+        type: string
+        nullable: true
+      isPrivate:
+        type: boolean
+        default: false
+      allowInvites:
+        type: boolean
+        default: true
+      welcomeMessage:
+        type: string
+        nullable: true
+      ageRangeMin:
+        type: int
+        nullable: true
+      ageRangeMax:
+        type: int
+        nullable: true
+      maxMembers:
+        type: int
+        nullable: true
+      creatorId:
+        type: string
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+      organizationId:
+        type: string
+        nullable: true
+      isActive:
+        type: boolean
+        default: true
+      memberDirectoryEnabled:
+        type: boolean
+        default: true
+        description: "Allow members to see contact info of other members"
+      updatedById:
+        type: string
+        nullable: true
+        description: "User who last updated this group"
+    relations:
+      members:
+        type: one_to_many
+        target: GroupMember
+      creator:
+        type: many_to_one
+        target: User
+        fields: [creatorId]
+        references: [id]
+        name: GroupCreator
+        onDelete: Cascade
+      updatedBy:
+        type: many_to_one
+        target: User
+        fields: [updatedById]
+        references: [id]
+        name: GroupUpdater
+        onDelete: SetNull
+        nullable: true
+      invites:
+        type: one_to_many
+        target: Invite
+      media:
+        type: one_to_many
+        target: Media
+      enrollments:
+        type: one_to_many
+        target: Enrollment
+      events:
+        type: one_to_many
+        target: Event
+      posts:
+        type: one_to_many
+        target: Post
+      joinRequests:
+        type: one_to_many
+        target: GroupJoinRequest
+      activities:
+        type: one_to_many
+        target: Activity
+        name: ActivityGroup
+    indexes:
+      - fields: [organizationId]
+      - fields: [isActive]
+      - fields: [organizationId, isActive]
+
+  GroupMember:
+    table_name: group_members
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      groupId:
+        type: string
+      role:
+        type: string
+        default: "member"
+      joinedAt:
+        type: datetime
+        default: now()
+      memberId:
+        type: string
+        nullable: true
+      isActive:
+        type: boolean
+        default: true
+    relations:
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      eventAttendance:
+        type: one_to_many
+        target: EventAttendee
+    indexes:
+      - fields: [groupId]
+      - fields: [memberId]
+      - fields: [isActive]
+      - fields: [groupId, isActive]
+    unique:
+      - fields: [groupId, memberId]
+
+  # ===========================================================================
+  # Invites
+  # ===========================================================================
+  Invite:
+    table_name: invites
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      token:
+        type: string
+        unique: true
+      groupId:
+        type: string
+        nullable: true
+      inviterId:
+        type: string
+      recipientPhone:
+        type: string
+        nullable: true
+      status:
+        type: string
+        default: "pending"
+      expiresAt:
+        type: datetime
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      acceptedAt:
+        type: datetime
+        nullable: true
+    relations:
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      inviter:
+        type: many_to_one
+        target: User
+        fields: [inviterId]
+        references: [id]
+        onDelete: Cascade
+
+  # ===========================================================================
+  # Organizations
+  # ===========================================================================
+  Organization:
+    table_name: organizations
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      name:
+        type: string
+      ownerId:
+        type: string
+        unique: true
+        deprecated: true
+        deprecation_note: "Kept for backward compatibility"
+      isActive:
+        type: boolean
+        default: true
+      twilioVerifyServiceSid:
+        type: string
+        nullable: true
+        description: "Twilio Verify Service SID for org-branded SMS"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      members:
+        type: one_to_many
+        target: MemberOrganization
+      owner:
+        type: many_to_one
+        target: User
+        fields: [ownerId]
+        references: [id]
+        name: OrganizationOwner
+        onDelete: Cascade
+      roles:
+        type: one_to_many
+        target: Role
+      userRoles:
+        type: one_to_many
+        target: UserRole
+      media:
+        type: one_to_many
+        target: Media
+      themes:
+        type: one_to_many
+        target: TextTheme
+      betaApplications:
+        type: one_to_many
+        target: BetaApplication
+    indexes:
+      - fields: [ownerId]
+      - fields: [isActive]
+
+  # ===========================================================================
+  # Members (Phone-authenticated users)
+  # ===========================================================================
+  Member:
+    table_name: members
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      phoneNumber:
+        type: string
+        unique: true
+      phoneVerified:
+        type: boolean
+        default: false
+      smsConsent:
+        type: boolean
+        default: false
+        description: "Whether member has consented to receive SMS"
+      smsConsentAt:
+        type: datetime
+        nullable: true
+        description: "When SMS consent was last changed"
+      firstName:
+        type: string
+        nullable: true
+      lastName:
+        type: string
+        nullable: true
+      email:
+        type: string
+        nullable: true
+      gender:
+        type: string
+        nullable: true
+        description: "male or female"
+      birthday:
+        type: datetime
+        nullable: true
+      profilePicture:
+        type: string
+        nullable: true
+      isActive:
+        type: boolean
+        default: true
+      lastVerifiedAt:
+        type: datetime
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+      # Google profile linking (for profile sync, NOT authentication)
+      googleId:
+        type: string
+        nullable: true
+        unique: true
+        description: "Google ID for profile sync (not for auth)"
+      googleEmail:
+        type: string
+        nullable: true
+        description: "Email from linked Google account"
+      googlePicture:
+        type: string
+        nullable: true
+        description: "Profile picture URL from Google"
+      googleLinkedAt:
+        type: datetime
+        nullable: true
+        description: "When Google profile was linked"
+      # Account linking (bidirectional User <-> Member)
+      userId:
+        type: string
+        nullable: true
+        unique: true
+        description: "Links Member to User account for bidirectional access"
+      userLinkedAt:
+        type: datetime
+        nullable: true
+        description: "When account was linked to User"
+    relations:
+      groupMemberships:
+        type: one_to_many
+        target: GroupMember
+      organizations:
+        type: one_to_many
+        target: MemberOrganization
+      joinRequests:
+        type: one_to_many
+        target: GroupJoinRequest
+      studyNotes:
+        type: one_to_many
+        target: StudyNote
+      activityProgress:
+        type: one_to_many
+        target: MemberActivityProgress
+      videoProgress:
+        type: one_to_many
+        target: MemberVideoProgress
+      lessonProgress:
+        type: one_to_many
+        target: MemberLessonProgress
+      linkedUser:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+        name: UserMemberLink
+      preferences:
+        type: one_to_many
+        target: UserPreference
+      searchHistory:
+        type: one_to_many
+        target: SearchHistory
+    indexes:
+      - fields: [isActive]
+      - fields: [phoneNumber]
+      - fields: [googleId]
+      - fields: [userId]
+
+  MemberOrganization:
+    table_name: member_organizations
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      memberId:
+        type: string
+      organizationId:
+        type: string
+      joinedAt:
+        type: datetime
+        default: now()
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [memberId]
+      - fields: [organizationId]
+    unique:
+      - fields: [memberId, organizationId]
+
+  # ===========================================================================
+  # RBAC Models
+  # ===========================================================================
+  Role:
+    table_name: roles
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      name:
+        type: string
+        description: "Super Admin, Owner, Admin, Group Leader, Contributor"
+      description:
+        type: string
+        nullable: true
+      organizationId:
+        type: string
+        nullable: true
+        description: "NULL for system roles"
+      isSystem:
+        type: boolean
+        default: false
+        description: "true for predefined roles"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      permissions:
+        type: one_to_many
+        target: RolePermission
+      userRoles:
+        type: one_to_many
+        target: UserRole
+    indexes:
+      - fields: [organizationId]
+      - fields: [isSystem]
+    unique:
+      - fields: [name, organizationId]
+
+  Permission:
+    table_name: permissions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      resource:
+        type: string
+        description: "organization, group, member, event, announcement, media, form"
+      action:
+        type: string
+        description: "create, read, update, delete, invite, publish"
+      name:
+        type: string
+        unique: true
+        description: "organization.update, event.create"
+      description:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      roles:
+        type: one_to_many
+        target: RolePermission
+    indexes:
+      - fields: [resource]
+      - fields: [action]
+
+  RolePermission:
+    table_name: role_permissions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      roleId:
+        type: string
+      permissionId:
+        type: string
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      role:
+        type: many_to_one
+        target: Role
+        fields: [roleId]
+        references: [id]
+        onDelete: Cascade
+      permission:
+        type: many_to_one
+        target: Permission
+        fields: [permissionId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [roleId]
+      - fields: [permissionId]
+    unique:
+      - fields: [roleId, permissionId]
+
+  UserRole:
+    table_name: user_roles
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+      roleId:
+        type: string
+      organizationId:
+        type: string
+        description: "Scope of this role assignment"
+      assignedAt:
+        type: datetime
+        default: now()
+      assignedBy:
+        type: string
+        nullable: true
+        description: "User ID who assigned this role"
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+      role:
+        type: many_to_one
+        target: Role
+        fields: [roleId]
+        references: [id]
+        onDelete: Cascade
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId]
+      - fields: [roleId]
+      - fields: [organizationId]
+    unique:
+      - fields: [userId, roleId, organizationId]
+
+  # ===========================================================================
+  # Media & Videos
+  # ===========================================================================
+  Media:
+    table_name: media
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      title:
+        type: string
+      description:
+        type: string
+        nullable: true
+      url:
+        type: string
+        description: "Cloud storage URL"
+      type:
+        type: string
+        description: "photo, video, document"
+      mimeType:
+        type: string
+        nullable: true
+        description: "image/jpeg, video/mp4, application/pdf"
+      fileSize:
+        type: int
+        nullable: true
+        description: "Size in bytes"
+      organizationId:
+        type: string
+      groupId:
+        type: string
+        nullable: true
+        description: "NULL = organization-wide media"
+      uploadedBy:
+        type: string
+      visibility:
+        type: string
+        default: "members"
+        description: "public | members | group"
+      videoId:
+        type: string
+        nullable: true
+        description: "FK to Video for Cloudflare Stream media"
+      thumbnailUrl:
+        type: string
+        nullable: true
+        description: "Preview thumbnail URL"
+      uploadStatus:
+        type: string
+        default: "ready"
+        description: "pending, processing, ready, error"
+      source:
+        type: string
+        nullable: true
+        description: "How media entered library: direct, auto_capture, import"
+      duration:
+        type: int
+        nullable: true
+        description: "Duration in seconds for video/audio"
+      width:
+        type: int
+        nullable: true
+        description: "Image/video width in pixels"
+      height:
+        type: int
+        nullable: true
+        description: "Image/video height in pixels"
+      aspectRatio:
+        type: string
+        nullable: true
+        description: "Aspect ratio e.g. 16:9, 4:3, 1:1"
+      dominantColor:
+        type: string
+        nullable: true
+        description: "Dominant color as hex e.g. #3a5f8c"
+      altText:
+        type: string
+        nullable: true
+        description: "Accessibility alt text"
+      fileHash:
+        type: string
+        nullable: true
+        description: "SHA-256 hash for deduplication"
+      exifData:
+        type: json
+        nullable: true
+        description: "EXIF metadata: camera, GPS, date taken, etc."
+      videoResolution:
+        type: string
+        nullable: true
+        description: "Video resolution e.g. 720p, 1080p, 4k"
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        onDelete: Cascade
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      uploader:
+        type: many_to_one
+        target: User
+        fields: [uploadedBy]
+        references: [id]
+        name: MediaUploader
+        onDelete: Cascade
+      video:
+        type: many_to_one
+        target: Video
+        fields: [videoId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      tags:
+        type: one_to_many
+        target: MediaTag
+      usages:
+        type: one_to_many
+        target: MediaUsage
+    indexes:
+      - fields: [organizationId]
+      - fields: [groupId]
+      - fields: [uploadedBy]
+      - fields: [visibility]
+      - fields: [isActive]
+      - fields: [type]
+      - fields: [videoId]
+      - fields: [uploadStatus]
+
+  # ---------------------------------------------------------------------------
+  # Media Tags (free-form taxonomy)
+  # ---------------------------------------------------------------------------
+  MediaTag:
+    table_name: media_tags
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      mediaId:
+        type: string
+      tag:
+        type: string
+        description: "Lowercase, trimmed tag string"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      media:
+        type: many_to_one
+        target: Media
+        fields: [mediaId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [mediaId]
+      - fields: [tag]
+    unique:
+      - fields: [mediaId, tag]
+
+  # ---------------------------------------------------------------------------
+  # Media Usage Tracking (where media is used)
+  # ---------------------------------------------------------------------------
+  MediaUsage:
+    table_name: media_usages
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      mediaId:
+        type: string
+      usageType:
+        type: string
+        description: "LESSON_ACTIVITY, PROGRAM_COVER, GROUP_COVER, POST, SCHEDULED_ACTIVITY"
+      resourceId:
+        type: string
+        description: "ID of the resource using this media"
+      resourceName:
+        type: string
+        nullable: true
+        description: "Human-readable name for display"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      media:
+        type: many_to_one
+        target: Media
+        fields: [mediaId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [mediaId]
+      - fields: [usageType]
+      - fields: [resourceId]
+    unique:
+      - fields: [mediaId, usageType, resourceId]
+
+  Video:
+    table_name: videos
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      title:
+        type: string
+        nullable: true
+      description:
+        type: string
+        nullable: true
+      cloudflareUid:
+        type: string
+        unique: true
+        description: "Cloudflare video UID"
+      playbackUrl:
+        type: string
+        description: "HLS playback URL"
+      thumbnailUrl:
+        type: string
+        nullable: true
+        description: "Auto-generated thumbnail"
+      duration:
+        type: int
+        nullable: true
+        description: "Duration in seconds"
+      status:
+        type: string
+        default: "pending"
+        description: "pending, ready, error"
+      userId:
+        type: string
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        name: VideoUploader
+        onDelete: Cascade
+      activities:
+        type: one_to_many
+        target: LessonActivity
+      scheduledActivities:
+        type: one_to_many
+        target: ScheduledLessonActivity
+      mediaEntries:
+        type: one_to_many
+        target: Media
+    indexes:
+      - fields: [userId]
+      - fields: [status]
+      - fields: [isActive]
+
+  # ===========================================================================
+  # Bible Models
+  # ===========================================================================
+  Translation:
+    table_name: translations
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      code:
+        type: string
+        unique: true
+        description: "ESV, KJV, NIV"
+      name:
+        type: string
+        description: "English Standard Version"
+      language:
+        type: string
+        description: "en, es, fr"
+      description:
+        type: string
+        nullable: true
+      copyright:
+        type: string
+        nullable: true
+      license:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      books:
+        type: one_to_many
+        target: Book
+      verses:
+        type: one_to_many
+        target: Verse
+      highlights:
+        type: one_to_many
+        target: Highlight
+      verseNotes:
+        type: one_to_many
+        target: VerseNote
+    indexes:
+      - fields: [code]
+
+  Book:
+    table_name: books
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      translationId:
+        type: string
+      bookNumber:
+        type: int
+        description: "1-66 (canonical order)"
+      bookName:
+        type: string
+        description: "Genesis, Matthew"
+      bookAbbrev:
+        type: string
+        description: "Gen, Matt"
+      testament:
+        type: enum
+        enum: Testament
+      chapters:
+        type: int
+        description: "Total chapters in book"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      translation:
+        type: many_to_one
+        target: Translation
+        fields: [translationId]
+        references: [id]
+        onDelete: Cascade
+      verses:
+        type: one_to_many
+        target: Verse
+    indexes:
+      - fields: [translationId, testament]
+      - fields: [bookNumber]
+    unique:
+      - fields: [translationId, bookNumber]
+      - fields: [translationId, bookName]
+
+  Verse:
+    table_name: verses
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      translationId:
+        type: string
+      bookId:
+        type: string
+      bookNumber:
+        type: int
+        description: "Denormalized for faster queries"
+      chapter:
+        type: int
+      verse:
+        type: int
+      text:
+        type: text
+      searchVector:
+        type: unsupported
+        db_type: "tsvector"
+        nullable: true
+        description: "Full-text search"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      translation:
+        type: many_to_one
+        target: Translation
+        fields: [translationId]
+        references: [id]
+        onDelete: Cascade
+      book:
+        type: many_to_one
+        target: Book
+        fields: [bookId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [bookId, chapter, verse]
+      - fields: [translationId, bookNumber, chapter, verse]
+    unique:
+      - fields: [translationId, bookNumber, chapter, verse]
+
+  Highlight:
+    table_name: highlights
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+      translationId:
+        type: string
+      bookNumber:
+        type: int
+      chapter:
+        type: int
+      verseStart:
+        type: int
+      verseEnd:
+        type: int
+        nullable: true
+        description: "For ranges, null for single verse"
+      color:
+        type: enum
+        enum: HighlightColor
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+      translation:
+        type: many_to_one
+        target: Translation
+        fields: [translationId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId, translationId]
+    unique:
+      - fields: [userId, translationId, bookNumber, chapter, verseStart, verseEnd]
+
+  VerseNote:
+    table_name: verse_notes
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+      translationId:
+        type: string
+      bookNumber:
+        type: int
+      chapter:
+        type: int
+      verseStart:
+        type: int
+      verseEnd:
+        type: int
+        nullable: true
+        description: "For passage notes"
+      content:
+        type: text
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+      translation:
+        type: many_to_one
+        target: Translation
+        fields: [translationId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId, translationId]
+
+  Bookmark:
+    table_name: bookmarks
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+      translationId:
+        type: string
+      bookNumber:
+        type: int
+      chapter:
+        type: int
+      verseStart:
+        type: int
+      verseEnd:
+        type: int
+        nullable: true
+      label:
+        type: string
+        nullable: true
+        description: "Optional label like 'Favorite verse'"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId, createdAt]
+
+  # ===========================================================================
+  # API.Bible Integration
+  # ===========================================================================
+  ApiBibleVersion:
+    table_name: api_bible_versions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      apiBibleId:
+        type: string
+        unique: true
+        description: "e.g. a761ca71e0b3ddcf-01"
+      abbreviation:
+        type: string
+        description: "e.g. NASB, KJV"
+      name:
+        type: string
+        description: "e.g. New American Standard Bible 2020"
+      language:
+        type: string
+        default: "eng"
+      description:
+        type: string
+        nullable: true
+      copyright:
+        type: text
+        nullable: true
+      popularity:
+        type: int
+        default: 0
+        description: "Popularity score (100=most popular). Based on ECPA bestseller rankings."
+      isActive:
+        type: boolean
+        default: true
+      cachedAt:
+        type: datetime
+        default: now()
+      expiresAt:
+        type: datetime
+        description: "cachedAt + 24h"
+    indexes:
+      - fields: [abbreviation]
+      - fields: [language]
+      - fields: [isActive]
+      - fields: [expiresAt]
+      - fields: [popularity]
+
+  BibleContentCache:
+    table_name: bible_content_cache
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      cacheKey:
+        type: string
+        unique: true
+        description: "chapter:{bibleId}:{chapterId}"
+      bibleId:
+        type: string
+        description: "API.Bible bibleId"
+      contentType:
+        type: string
+        description: "chapter, verse, passage"
+      responseJson:
+        type: text
+        description: "JSON string of parsed verse data"
+      copyright:
+        type: text
+        nullable: true
+      verseCount:
+        type: int
+        default: 0
+      cachedAt:
+        type: datetime
+        default: now()
+      expiresAt:
+        type: datetime
+        description: "cachedAt + 14 days"
+      accessCount:
+        type: int
+        default: 0
+        description: "Track popularity for re-warming"
+      lastAccessed:
+        type: datetime
+        default: now()
+    indexes:
+      - fields: [expiresAt]
+      - fields: [bibleId, contentType]
+      - fields: [accessCount]
+
+  # ===========================================================================
+  # User Preferences
+  # ===========================================================================
+  UserPreference:
+    table_name: user_preferences
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+        nullable: true
+      memberId:
+        type: string
+        nullable: true
+      key:
+        type: string
+        description: "bible_translation, theme, etc."
+      value:
+        type: string
+        description: "Plain string or JSON"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [userId]
+      - fields: [memberId]
+    unique:
+      - fields: [userId, key]
+      - fields: [memberId, key]
+
+  # ===========================================================================
+  # Search History
+  # ===========================================================================
+  SearchHistory:
+    table_name: search_history
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: string
+        nullable: true
+      memberId:
+        type: string
+        nullable: true
+      query:
+        type: string
+        description: "The search query text"
+      searchType:
+        type: string
+        default: "bible"
+        description: "bible, media, program, etc."
+      resultCount:
+        type: int
+        nullable: true
+        description: "Number of results returned"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [userId, createdAt]
+      - fields: [memberId, createdAt]
+      - fields: [searchType]
+
+  # ===========================================================================
+  # Lesson Template Models
+  # ===========================================================================
+  LessonTemplate:
+    table_name: lesson_templates
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      name:
+        type: string
+        description: "e.g., 'SOAP', 'Read & Discuss'"
+      description:
+        type: text
+        nullable: true
+      isSystem:
+        type: boolean
+        default: false
+        description: "System templates available to all"
+      creatorId:
+        type: string
+        nullable: true
+        description: "NULL for system templates"
+      updatedById:
+        type: string
+        nullable: true
+        description: "User who last updated this template"
+      organizationId:
+        type: string
+        nullable: true
+        description: "Direct org association for efficient filtering"
+      sourceTemplateId:
+        type: string
+        nullable: true
+        description: "If duplicated from another template"
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      creator:
+        type: many_to_one
+        target: User
+        fields: [creatorId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+        name: TemplateCreator
+      updatedBy:
+        type: many_to_one
+        target: User
+        fields: [updatedById]
+        references: [id]
+        name: TemplateUpdater
+        onDelete: SetNull
+        nullable: true
+      sourceTemplate:
+        type: many_to_one
+        target: LessonTemplate
+        fields: [sourceTemplateId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+        name: TemplateDuplicate
+      duplicates:
+        type: one_to_many
+        target: LessonTemplate
+        name: TemplateDuplicate
+      activities:
+        type: one_to_many
+        target: LessonTemplateActivity
+      programs:
+        type: one_to_many
+        target: StudyProgram
+      lessonSchedules:
+        type: one_to_many
+        target: LessonSchedule
+    indexes:
+      - fields: [creatorId]
+      - fields: [isSystem]
+      - fields: [organizationId]
+
+  LessonTemplateActivity:
+    table_name: lesson_template_activities
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      templateId:
+        type: string
+      type:
+        type: enum
+        enum: TemplateActivityType
+      orderNumber:
+        type: int
+        description: "1-based position"
+      title:
+        type: string
+        description: "e.g., 'Scripture', 'Observation'"
+      displayName:
+        type: string
+        nullable: true
+        description: "Human-readable name for the activity type, e.g., 'Read', 'Study', 'Video'"
+      helpTitle:
+        type: string
+        nullable: true
+        description: "Helper title for USER_INPUT"
+      helpDescription:
+        type: text
+        nullable: true
+        description: "Helper body for USER_INPUT"
+      helpAlwaysVisible:
+        type: boolean
+        default: false
+        description: "Show expanded or collapsed"
+      helpIcon:
+        type: string
+        nullable: true
+        description: "Icon identifier"
+      referenceTitle:
+        type: string
+        nullable: true
+        description: "Display reference for READ activities, e.g., 'Romans 1:1-5'"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      template:
+        type: many_to_one
+        target: LessonTemplate
+        fields: [templateId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [templateId]
+    unique:
+      - fields: [templateId, orderNumber]
+
+  # ===========================================================================
+  # Study Program Models
+  # ===========================================================================
+  StudyProgram:
+    table_name: study_programs
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      name:
+        type: string
+      description:
+        type: string
+        nullable: true
+      templateId:
+        type: string
+        nullable: true
+        description: "FK to LessonTemplate"
+      days:
+        type: int
+        default: 30
+      coverImageUrl:
+        type: string
+        nullable: true
+      requireResponse:
+        type: boolean
+        default: true
+        description: "Frontend flag: require user input before step completion"
+      isPublished:
+        type: boolean
+        default: false
+        description: "Only published programs can be enrolled"
+      publishedAt:
+        type: datetime
+        nullable: true
+        description: "When the program was first published"
+      creatorId:
+        type: string
+      updatedById:
+        type: string
+        nullable: true
+        description: "User who last updated this program"
+      organizationId:
+        type: string
+        nullable: true
+        description: "Direct org association for efficient filtering"
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      template:
+        type: many_to_one
+        target: LessonTemplate
+        fields: [templateId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      creator:
+        type: many_to_one
+        target: User
+        fields: [creatorId]
+        references: [id]
+        name: StudyProgramCreator
+        onDelete: Cascade
+      updatedBy:
+        type: many_to_one
+        target: User
+        fields: [updatedById]
+        references: [id]
+        name: StudyProgramUpdater
+        onDelete: SetNull
+        nullable: true
+      lessons:
+        type: one_to_many
+        target: Lesson
+      enrollments:
+        type: one_to_many
+        target: Enrollment
+      tags:
+        type: one_to_many
+        target: StudyProgramTag
+    indexes:
+      - fields: [creatorId]
+      - fields: [isActive]
+      - fields: [templateId]
+      - fields: [organizationId]
+
+  # ---------------------------------------------------------------------------
+  # Study Program Tags (free-form taxonomy)
+  # ---------------------------------------------------------------------------
+  StudyProgramTag:
+    table_name: study_program_tags
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      studyProgramId:
+        type: string
+      tag:
+        type: string
+        description: "Lowercase, trimmed tag string"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      studyProgram:
+        type: many_to_one
+        target: StudyProgram
+        fields: [studyProgramId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [studyProgramId]
+      - fields: [tag]
+    unique:
+      - fields: [studyProgramId, tag]
+
+  Lesson:
+    table_name: lessons
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      studyProgramId:
+        type: string
+      dayNumber:
+        type: int
+        description: "1-based day number"
+      title:
+        type: string
+        nullable: true
+        description: "Optional display title for lesson card"
+      estimatedMinutes:
+        type: int
+        nullable: true
+        description: "Calculated time estimate in minutes for all activities"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      studyProgram:
+        type: many_to_one
+        target: StudyProgram
+        fields: [studyProgramId]
+        references: [id]
+        onDelete: Cascade
+      activities:
+        type: one_to_many
+        target: LessonActivity
+      schedules:
+        type: one_to_many
+        target: LessonSchedule
+    indexes:
+      - fields: [studyProgramId]
+    unique:
+      - fields: [studyProgramId, dayNumber]
+
+  LessonActivity:
+    table_name: lesson_activities
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      lessonId:
+        type: string
+      activityType:
+        type: enum
+        enum: TemplateActivityType
+        description: "USER_INPUT, READ, VIDEO"
+      orderNumber:
+        type: int
+        default: 1
+        description: "For multiple activities per day"
+      title:
+        type: string
+        description: "Activity title"
+      helpTitle:
+        type: string
+        nullable: true
+      helpDescription:
+        type: text
+        nullable: true
+      helpAlwaysVisible:
+        type: boolean
+        default: false
+      helpIcon:
+        type: string
+        nullable: true
+      isHelpEnabled:
+        type: boolean
+        default: true
+      referenceTitle:
+        type: string
+        nullable: true
+        description: "Display reference for READ activities, e.g., 'Romans 1:1-5'"
+      readContent:
+        type: text
+        nullable: true
+        description: "Markdown for READ activities"
+      videoId:
+        type: string
+        nullable: true
+      videoUrl:
+        type: string
+        nullable: true
+        description: "Cloudflare Stream playback URL"
+      themeId:
+        type: string
+        nullable: true
+        description: "Optional theme for animated rendering"
+      youtubeUrl:
+        type: string
+        nullable: true
+        description: "YouTube video URL for YOUTUBE activities"
+      youtubeVideoId:
+        type: string
+        nullable: true
+        description: "Extracted YouTube video ID"
+      youtubeStartSeconds:
+        type: int
+        nullable: true
+        description: "Start time in seconds for YouTube clip"
+      youtubeEndSeconds:
+        type: int
+        nullable: true
+        description: "End time in seconds for YouTube clip"
+      youtubeThumbnailUrl:
+        type: string
+        nullable: true
+        description: "YouTube video thumbnail URL from oEmbed"
+      estimatedSeconds:
+        type: int
+        nullable: true
+        description: "Calculated time estimate in seconds for this activity"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      lesson:
+        type: many_to_one
+        target: Lesson
+        fields: [lessonId]
+        references: [id]
+        onDelete: Cascade
+      video:
+        type: many_to_one
+        target: Video
+        fields: [videoId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      theme:
+        type: many_to_one
+        target: TextTheme
+        fields: [themeId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      sourceReferences:
+        type: one_to_many
+        target: ActivitySourceReference
+      readBlocks:
+        type: one_to_many
+        target: ActivityReadBlock
+      scheduledCopies:
+        type: one_to_many
+        target: ScheduledLessonActivity
+      memberProgress:
+        type: one_to_many
+        target: MemberActivityProgress
+      videoProgress:
+        type: one_to_many
+        target: MemberVideoProgress
+    indexes:
+      - fields: [lessonId]
+      - fields: [videoId]
+      - fields: [themeId]
+    unique:
+      - fields: [lessonId, orderNumber]
+
+  # ===========================================================================
+  # Enrollment Models
+  # ===========================================================================
+  Enrollment:
+    table_name: enrollments
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      groupId:
+        type: string
+      studyProgramId:
+        type: string
+      startDate:
+        type: datetime
+      endDate:
+        type: datetime
+      enabledDays:
+        type: string
+        description: "JSON array: ['Mon','Tue','Wed','Thu','Fri']"
+      smsTime:
+        type: string
+        nullable: true
+        description: "Time to send SMS, e.g. '08:00'"
+      timezone:
+        type: string
+        nullable: true
+        description: "e.g. 'America/Chicago'"
+      requireResponse:
+        type: boolean
+        default: true
+        description: "Require user input before step completion"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+      createdById:
+        type: string
+        nullable: true
+      updatedById:
+        type: string
+        nullable: true
+        description: "User who last updated this enrollment"
+    relations:
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+      studyProgram:
+        type: many_to_one
+        target: StudyProgram
+        fields: [studyProgramId]
+        references: [id]
+        onDelete: Cascade
+      createdBy:
+        type: many_to_one
+        target: User
+        fields: [createdById]
+        references: [id]
+        name: EnrollmentCreator
+        onDelete: SetNull
+        nullable: true
+      updatedBy:
+        type: many_to_one
+        target: User
+        fields: [updatedById]
+        references: [id]
+        name: EnrollmentUpdater
+        onDelete: SetNull
+        nullable: true
+      lessonSchedules:
+        type: one_to_many
+        target: LessonSchedule
+      events:
+        type: one_to_many
+        target: Event
+      welcomePost:
+        type: one_to_one
+        target: Post
+    indexes:
+      - fields: [groupId]
+      - fields: [studyProgramId]
+      - fields: [createdById]
+      - fields: [startDate]
+
+  LessonSchedule:
+    table_name: lesson_schedules
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      code:
+        type: string
+        nullable: true
+        unique: true
+        description: "6-char alphanumeric for deep linking"
+      enrollmentId:
+        type: string
+      lessonId:
+        type: string
+      scheduledDate:
+        type: datetime
+      smsSentAt:
+        type: datetime
+        nullable: true
+      templateId:
+        type: string
+        nullable: true
+        description: "FK to LessonTemplate for display"
+      templateName:
+        type: string
+        nullable: true
+        description: "Denormalized for fast card rendering"
+      title:
+        type: string
+        nullable: true
+        description: "Display title for lesson card (copied from Lesson)"
+      estimatedMinutes:
+        type: int
+        nullable: true
+        description: "Snapshot of time estimate at enrollment time"
+    relations:
+      enrollment:
+        type: many_to_one
+        target: Enrollment
+        fields: [enrollmentId]
+        references: [id]
+        onDelete: Cascade
+      lesson:
+        type: many_to_one
+        target: Lesson
+        fields: [lessonId]
+        references: [id]
+        onDelete: Cascade
+      template:
+        type: many_to_one
+        target: LessonTemplate
+        fields: [templateId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      scheduledActivities:
+        type: one_to_many
+        target: ScheduledLessonActivity
+      event:
+        type: one_to_one
+        target: Event
+      memberProgress:
+        type: one_to_many
+        target: MemberActivityProgress
+      videoProgress:
+        type: one_to_many
+        target: MemberVideoProgress
+      lessonProgress:
+        type: one_to_many
+        target: MemberLessonProgress
+    indexes:
+      - fields: [enrollmentId]
+      - fields: [lessonId]
+      - fields: [scheduledDate]
+      - fields: [smsSentAt]
+      - fields: [code]
+    unique:
+      - fields: [enrollmentId, lessonId]
+
+  # ===========================================================================
+  # Event Models
+  # ===========================================================================
+  Event:
+    table_name: events
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      code:
+        type: string
+        nullable: true
+        unique: true
+        description: "6-char alphanumeric"
+      groupId:
+        type: string
+      type:
+        type: enum
+        enum: EventType
+      title:
+        type: string
+      description:
+        type: text
+        nullable: true
+      date:
+        type: datetime
+        description: "Event date"
+      startTime:
+        type: string
+        nullable: true
+        description: "HH:mm format"
+      endTime:
+        type: string
+        nullable: true
+        description: "HH:mm format"
+      isAllDay:
+        type: boolean
+        default: false
+      timezone:
+        type: string
+        nullable: true
+        description: "e.g., 'America/Chicago'"
+      coverImageUrl:
+        type: string
+        nullable: true
+        description: "R2 storage URL"
+      externalUrl:
+        type: string
+        nullable: true
+        description: "External link (Zoom, website)"
+      visibility:
+        type: enum
+        enum: EventVisibility
+        default: PRIVATE
+      locationName:
+        type: string
+        nullable: true
+        description: "Starbucks - Richardson"
+      locationAddress:
+        type: string
+        nullable: true
+        description: "Full formatted address"
+      locationLat:
+        type: decimal
+        precision: 10
+        scale: 8
+        nullable: true
+      locationLng:
+        type: decimal
+        precision: 11
+        scale: 8
+        nullable: true
+      googlePlaceId:
+        type: string
+        nullable: true
+        description: "Google Places ID"
+      recurrenceFrequency:
+        type: enum
+        enum: RecurrenceFrequency
+        default: NONE
+      recurrenceEndDate:
+        type: datetime
+        nullable: true
+        description: "When recurrence stops"
+      recurrenceCount:
+        type: int
+        nullable: true
+        description: "Stop after N occurrences"
+      recurrenceGroupId:
+        type: string
+        nullable: true
+        description: "UUID linking recurring instances"
+      isRecurrenceParent:
+        type: boolean
+        default: false
+      alertMinutesBefore:
+        type: int
+        nullable: true
+        description: "5, 10, 30, 60, 120, 1440, 2880, 10080"
+      lessonScheduleId:
+        type: string
+        nullable: true
+        unique: true
+      enrollmentId:
+        type: string
+        nullable: true
+        description: "Quick reference to enrollment"
+      dayNumber:
+        type: int
+        nullable: true
+        description: "Day number in study program (1-based)"
+      createdById:
+        type: string
+        nullable: true
+      updatedById:
+        type: string
+        nullable: true
+        description: "User who last updated this event"
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+      createdBy:
+        type: many_to_one
+        target: User
+        fields: [createdById]
+        references: [id]
+        name: EventCreator
+        onDelete: SetNull
+        nullable: true
+      updatedBy:
+        type: many_to_one
+        target: User
+        fields: [updatedById]
+        references: [id]
+        name: EventUpdater
+        onDelete: SetNull
+        nullable: true
+      lessonSchedule:
+        type: many_to_one
+        target: LessonSchedule
+        fields: [lessonScheduleId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      enrollment:
+        type: many_to_one
+        target: Enrollment
+        fields: [enrollmentId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      attendees:
+        type: one_to_many
+        target: EventAttendee
+      attachments:
+        type: one_to_many
+        target: EventAttachment
+    indexes:
+      - fields: [groupId]
+      - fields: [date]
+      - fields: [groupId, date]
+      - fields: [type]
+      - fields: [visibility]
+      - fields: [code]
+      - fields: [recurrenceGroupId]
+      - fields: [enrollmentId]
+
+  EventAttendee:
+    table_name: event_attendees
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      eventId:
+        type: string
+      groupMemberId:
+        type: string
+        nullable: true
+        description: "For PRIVATE events"
+      phoneNumber:
+        type: string
+        nullable: true
+        description: "For PUBLIC events"
+      firstName:
+        type: string
+        nullable: true
+      lastName:
+        type: string
+        nullable: true
+      gender:
+        type: string
+        nullable: true
+        description: "male, female, other"
+      birthdate:
+        type: datetime
+        nullable: true
+        description: "Date only"
+      rsvpStatus:
+        type: enum
+        enum: RsvpStatus
+        default: PENDING
+      rsvpAt:
+        type: datetime
+        nullable: true
+      checkedIn:
+        type: boolean
+        default: false
+      checkedInAt:
+        type: datetime
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      event:
+        type: many_to_one
+        target: Event
+        fields: [eventId]
+        references: [id]
+        onDelete: Cascade
+      groupMember:
+        type: many_to_one
+        target: GroupMember
+        fields: [groupMemberId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [eventId]
+      - fields: [rsvpStatus]
+    unique:
+      - fields: [eventId, groupMemberId]
+      - fields: [eventId, phoneNumber]
+
+  EventAttachment:
+    table_name: event_attachments
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      eventId:
+        type: string
+      url:
+        type: string
+        description: "R2 storage URL"
+      fileName:
+        type: string
+        description: "Original filename"
+      fileType:
+        type: string
+        description: "MIME type"
+      fileSize:
+        type: int
+        description: "Size in bytes"
+      uploadedById:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      event:
+        type: many_to_one
+        target: Event
+        fields: [eventId]
+        references: [id]
+        onDelete: Cascade
+      uploadedBy:
+        type: many_to_one
+        target: User
+        fields: [uploadedById]
+        references: [id]
+        name: AttachmentUploader
+        onDelete: SetNull
+        nullable: true
+    indexes:
+      - fields: [eventId]
+
+  # ===========================================================================
+  # Post Model (Group Feed)
+  # ===========================================================================
+  Post:
+    table_name: posts
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      groupId:
+        type: string
+      authorId:
+        type: string
+        nullable: true
+        description: "NULL for system-generated posts"
+      type:
+        type: enum
+        enum: PostType
+      title:
+        type: string
+        nullable: true
+      content:
+        type: text
+      imageUrl:
+        type: string
+        nullable: true
+        description: "Cover image"
+      pollOptions:
+        type: json
+        nullable: true
+        description: "For POLL: [{id, text, voteCount}]"
+      videoUrl:
+        type: string
+        nullable: true
+        description: "For VIDEO: Cloudflare Stream URL"
+      eventDate:
+        type: datetime
+        nullable: true
+        description: "For EVENT: date/time"
+      eventLocation:
+        type: string
+        nullable: true
+        description: "For EVENT: location string"
+      enrollmentId:
+        type: string
+        nullable: true
+        unique: true
+        description: "For WELCOME posts"
+      updatedById:
+        type: string
+        nullable: true
+        description: "User who last updated this post"
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+      author:
+        type: many_to_one
+        target: User
+        fields: [authorId]
+        references: [id]
+        name: PostAuthor
+        onDelete: SetNull
+        nullable: true
+      updatedBy:
+        type: many_to_one
+        target: User
+        fields: [updatedById]
+        references: [id]
+        name: PostUpdater
+        onDelete: SetNull
+        nullable: true
+      enrollment:
+        type: many_to_one
+        target: Enrollment
+        fields: [enrollmentId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [groupId]
+      - fields: [groupId, createdAt]
+      - fields: [authorId]
+      - fields: [type]
+      - fields: [isActive]
+
+  # ===========================================================================
+  # Group Join Request
+  # ===========================================================================
+  GroupJoinRequest:
+    table_name: group_join_requests
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      groupId:
+        type: string
+      memberId:
+        type: string
+      status:
+        type: string
+        default: "pending"
+        description: "pending, approved, rejected"
+      message:
+        type: string
+        nullable: true
+        description: "Optional message from requester"
+      reviewedById:
+        type: string
+        nullable: true
+        description: "User who approved/rejected"
+      reviewedAt:
+        type: datetime
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      reviewedBy:
+        type: many_to_one
+        target: User
+        fields: [reviewedById]
+        references: [id]
+        name: JoinRequestReviewer
+        nullable: true
+    indexes:
+      - fields: [groupId, status]
+      - fields: [memberId]
+    unique:
+      - fields: [groupId, memberId]
+
+  # ===========================================================================
+  # Study Notes Engine
+  # ===========================================================================
+  StudyNote:
+    table_name: study_notes
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      memberId:
+        type: string
+        nullable: true
+      userId:
+        type: string
+        nullable: true
+      type:
+        type: string
+        description: "OBSERVATION, APPLICATION, PRAYER, JOURNAL, etc."
+      content:
+        type: text
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      links:
+        type: one_to_many
+        target: NoteLink
+    indexes:
+      - fields: [memberId]
+      - fields: [userId]
+      - fields: [memberId, type]
+      - fields: [userId, type]
+      - fields: [memberId, createdAt]
+      - fields: [userId, createdAt]
+      - fields: [type]
+      - fields: [createdAt]
+      - fields: [isActive]
+
+  NoteLink:
+    table_name: note_links
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      noteId:
+        type: string
+      refType:
+        type: string
+        description: "LESSON, LESSON_ACTIVITY, LESSON_SCHEDULE, ENROLLMENT, GROUP, VERSE, PROGRAM"
+      refId:
+        type: string
+        description: "UUID of the referenced entity"
+      metadata:
+        type: json
+        nullable: true
+        description: "Additional context like verse references"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      note:
+        type: many_to_one
+        target: StudyNote
+        fields: [noteId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [refType, refId]
+      - fields: [noteId]
+      - fields: [refType]
+    unique:
+      - fields: [noteId, refType, refId]
+
+  # ===========================================================================
+  # Member Progress Models
+  # ===========================================================================
+  MemberActivityProgress:
+    table_name: member_activity_progress
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      memberId:
+        type: string
+      lessonScheduleId:
+        type: string
+      lessonActivityId:
+        type: string
+        nullable: true
+        description: "Legacy FK, nullable for new records"
+      scheduledActivityId:
+        type: string
+        nullable: true
+        description: "FK to ScheduledLessonActivity"
+      startedAt:
+        type: datetime
+        default: now()
+      completedAt:
+        type: datetime
+        nullable: true
+        description: "When fully completed"
+      lastUpdatedAt:
+        type: datetime
+        updatedAt: true
+      exegesisVisitedHighlightIds:
+        type: json
+        nullable: true
+        description: "JSON array of visited ExegesisHighlight IDs for EXEGESIS activities"
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      lessonSchedule:
+        type: many_to_one
+        target: LessonSchedule
+        fields: [lessonScheduleId]
+        references: [id]
+        onDelete: Cascade
+      lessonActivity:
+        type: many_to_one
+        target: LessonActivity
+        fields: [lessonActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      scheduledActivity:
+        type: many_to_one
+        target: ScheduledLessonActivity
+        fields: [scheduledActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [memberId]
+      - fields: [lessonScheduleId]
+      - fields: [scheduledActivityId]
+      - fields: [memberId, completedAt]
+    unique:
+      - fields: [memberId, lessonScheduleId, scheduledActivityId]
+
+  MemberVideoProgress:
+    table_name: member_video_progress
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      memberId:
+        type: string
+      lessonScheduleId:
+        type: string
+      lessonActivityId:
+        type: string
+        nullable: true
+        description: "Legacy FK, nullable for new records"
+      scheduledActivityId:
+        type: string
+        nullable: true
+        description: "FK to ScheduledLessonActivity"
+      watchedSeconds:
+        type: int
+        default: 0
+      totalDuration:
+        type: int
+        nullable: true
+        description: "Total video duration in seconds"
+      watchPercentage:
+        type: float
+        default: 0
+      startedAt:
+        type: datetime
+        default: now()
+      lastWatchedAt:
+        type: datetime
+        updatedAt: true
+      completedAt:
+        type: datetime
+        nullable: true
+        description: "Set when >= 90% watched"
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      lessonSchedule:
+        type: many_to_one
+        target: LessonSchedule
+        fields: [lessonScheduleId]
+        references: [id]
+        onDelete: Cascade
+      lessonActivity:
+        type: many_to_one
+        target: LessonActivity
+        fields: [lessonActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      scheduledActivity:
+        type: many_to_one
+        target: ScheduledLessonActivity
+        fields: [scheduledActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [memberId]
+      - fields: [lessonScheduleId]
+      - fields: [scheduledActivityId]
+      - fields: [memberId, completedAt]
+    unique:
+      - fields: [memberId, lessonScheduleId, scheduledActivityId]
+
+  MemberLessonProgress:
+    table_name: member_lesson_progress
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      memberId:
+        type: string
+      lessonScheduleId:
+        type: string
+      startedAt:
+        type: datetime
+        default: now()
+      completedAt:
+        type: datetime
+        nullable: true
+        description: "Set when all activities in the lesson are complete"
+      lastUpdatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      lessonSchedule:
+        type: many_to_one
+        target: LessonSchedule
+        fields: [lessonScheduleId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [memberId]
+      - fields: [lessonScheduleId]
+      - fields: [memberId, completedAt]
+    unique:
+      - fields: [memberId, lessonScheduleId]
+
+  # ===========================================================================
+  # Scheduled Lesson Activity (flat copy for enrolled lessons)
+  # ===========================================================================
+  ScheduledLessonActivity:
+    table_name: scheduled_lesson_activities
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      lessonScheduleId:
+        type: string
+      type:
+        type: enum
+        enum: TemplateActivityType
+      orderNumber:
+        type: int
+      title:
+        type: string
+      helpTitle:
+        type: string
+        nullable: true
+      helpDescription:
+        type: text
+        nullable: true
+      helpAlwaysVisible:
+        type: boolean
+        default: false
+      helpIcon:
+        type: string
+        nullable: true
+      isHelpEnabled:
+        type: boolean
+        default: true
+        description: "Whether help info (helpTitle/helpDescription) is shown to members"
+      referenceTitle:
+        type: string
+        nullable: true
+        description: "Display reference for READ activities, e.g., 'Romans 1:1-5'"
+      readContent:
+        type: text
+        nullable: true
+        description: "Markdown for READ activities"
+      videoId:
+        type: string
+        nullable: true
+      videoUrl:
+        type: string
+        nullable: true
+      youtubeUrl:
+        type: string
+        nullable: true
+        description: "YouTube video URL for YOUTUBE activities"
+      youtubeVideoId:
+        type: string
+        nullable: true
+        description: "Extracted YouTube video ID"
+      youtubeStartSeconds:
+        type: int
+        nullable: true
+        description: "Start time in seconds for YouTube clip"
+      youtubeEndSeconds:
+        type: int
+        nullable: true
+        description: "End time in seconds for YouTube clip"
+      youtubeThumbnailUrl:
+        type: string
+        nullable: true
+        description: "YouTube video thumbnail URL from oEmbed"
+      estimatedSeconds:
+        type: int
+        nullable: true
+        description: "Calculated time estimate in seconds for this activity"
+      sourceLessonActivityId:
+        type: string
+        nullable: true
+        description: "Link back to source LessonActivity for reload"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      lessonSchedule:
+        type: many_to_one
+        target: LessonSchedule
+        fields: [lessonScheduleId]
+        references: [id]
+        onDelete: Cascade
+      video:
+        type: many_to_one
+        target: Video
+        fields: [videoId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      sourceLessonActivity:
+        type: many_to_one
+        target: LessonActivity
+        fields: [sourceLessonActivityId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      sourceReferences:
+        type: one_to_many
+        target: ActivitySourceReference
+      readBlocks:
+        type: one_to_many
+        target: ActivityReadBlock
+      activityProgress:
+        type: one_to_many
+        target: MemberActivityProgress
+      videoProgress:
+        type: one_to_many
+        target: MemberVideoProgress
+    indexes:
+      - fields: [lessonScheduleId]
+      - fields: [sourceLessonActivityId]
+    unique:
+      - fields: [lessonScheduleId, orderNumber]
+
+  # ===========================================================================
+  # Activity Source Reference (Bible verse metadata for READ activities)
+  # ===========================================================================
+  ActivitySourceReference:
+    table_name: activity_source_references
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      lessonActivityId:
+        type: string
+        nullable: true
+        description: "For program lesson activities"
+      scheduledActivityId:
+        type: string
+        nullable: true
+        description: "For enrolled lesson activities"
+      sourceType:
+        type: string
+        description: "SCRIPTURE (future: URL, BOOK)"
+      passageReference:
+        type: string
+        nullable: true
+        description: "Romans 1:1-5"
+      bookNumber:
+        type: int
+        nullable: true
+        description: "1-66"
+      bookName:
+        type: string
+        nullable: true
+      chapterStart:
+        type: int
+        nullable: true
+      chapterEnd:
+        type: int
+        nullable: true
+      verseStart:
+        type: int
+        nullable: true
+      verseEnd:
+        type: int
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      lessonActivity:
+        type: many_to_one
+        target: LessonActivity
+        fields: [lessonActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      scheduledActivity:
+        type: many_to_one
+        target: ScheduledLessonActivity
+        fields: [scheduledActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      readBlocks:
+        type: one_to_many
+        target: ActivityReadBlock
+    indexes:
+      - fields: [lessonActivityId]
+      - fields: [scheduledActivityId]
+      - fields: [sourceType]
+
+  # ===========================================================================
+  # Text Themes (animated rendering themes for read blocks)
+  # ===========================================================================
+  TextTheme:
+    table_name: text_themes
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      name:
+        type: string
+      slug:
+        type: string
+        unique: true
+      description:
+        type: string
+        nullable: true
+      definition:
+        type: json
+        description: "Theme definition (colors, animations, styles)"
+      isSystem:
+        type: boolean
+        default: false
+      isActive:
+        type: boolean
+        default: true
+      creatorId:
+        type: string
+        nullable: true
+      organizationId:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      creator:
+        type: many_to_one
+        target: User
+        fields: [creatorId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+        name: ThemeCreator
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      lessonActivities:
+        type: one_to_many
+        target: LessonActivity
+      readBlocks:
+        type: one_to_many
+        target: ActivityReadBlock
+    indexes:
+      - fields: [slug]
+      - fields: [organizationId]
+
+  # ===========================================================================
+  # Activity Read Blocks (multiple text blocks per READ activity)
+  # ===========================================================================
+  ActivityReadBlock:
+    table_name: activity_read_blocks
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      lessonActivityId:
+        type: string
+        nullable: true
+        description: "For program lesson activities"
+      scheduledActivityId:
+        type: string
+        nullable: true
+        description: "For enrolled lesson activities"
+      orderNumber:
+        type: int
+        default: 1
+        description: "Sort order within the activity"
+      title:
+        type: string
+        nullable: true
+        description: "Block title, e.g., 'Romans 1:1-5' for Bible verse blocks"
+      content:
+        type: text
+        nullable: true
+        description: "Text/markdown content of this block"
+      isLocked:
+        type: boolean
+        default: false
+        description: "Locked blocks cannot be edited (e.g., Bible verses)"
+      sourceReferenceId:
+        type: string
+        nullable: true
+        description: "Links to ActivitySourceReference for Bible verse blocks"
+      themeId:
+        type: string
+        nullable: true
+        description: "Optional theme for animated rendering"
+      contentFormat:
+        type: string
+        default: "markdown"
+        description: "Content format: html or markdown"
+      backgroundImageUrl:
+        type: string
+        nullable: true
+      backgroundColor:
+        type: string
+        nullable: true
+        description: "Hex color for block background"
+      backgroundOverlayOpacity:
+        type: float
+        nullable: true
+        description: "0-1 opacity for background overlay"
+      fontSize:
+        type: string
+        nullable: true
+        description: "Font size: xs, s, m, lg, xl"
+      selections:
+        type: json
+        nullable: true
+        description: "Array of styled text spans with start, end, style"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      lessonActivity:
+        type: many_to_one
+        target: LessonActivity
+        fields: [lessonActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      scheduledActivity:
+        type: many_to_one
+        target: ScheduledLessonActivity
+        fields: [scheduledActivityId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
+      sourceReference:
+        type: many_to_one
+        target: ActivitySourceReference
+        fields: [sourceReferenceId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      theme:
+        type: many_to_one
+        target: TextTheme
+        fields: [themeId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      exegesisHighlights:
+        type: one_to_many
+        target: ExegesisHighlight
+    indexes:
+      - fields: [lessonActivityId]
+      - fields: [scheduledActivityId]
+      - fields: [themeId]
+
+  # ===========================================================================
+  # Exegesis Highlights (leader-authored highlights + markdown notes)
+  # ===========================================================================
+  ExegesisHighlight:
+    table_name: exegesis_highlights
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      readBlockId:
+        type: string
+        description: "FK to ActivityReadBlock (locked scripture block) that this highlight applies to"
+      orderNumber:
+        type: int
+        description: "Stable ordering for highlight navigation"
+      start:
+        type: int
+        description: "Start character offset (plain-text) into the block content"
+      end:
+        type: int
+        description: "End character offset (exclusive)"
+      noteMarkdown:
+        type: text
+        description: "Leader-authored markdown shown to members when they open the highlight"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      readBlock:
+        type: many_to_one
+        target: ActivityReadBlock
+        fields: [readBlockId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [readBlockId]
+      - fields: [readBlockId, orderNumber]
+    unique:
+      - fields: [readBlockId, orderNumber]
+      - fields: [readBlockId, start, end]
+
+  # ===========================================================================
+  # Marketing Content
+  # ===========================================================================
+  FaqItem:
+    table_name: faq_items
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      scope:
+        type: string
+        description: "Page or surface where this FAQ is rendered (home, for-leaders, for-members, about, join-beta)"
+      question:
+        type: string
+      answer:
+        type: text
+      sortOrder:
+        type: int
+        default: 0
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    indexes:
+      - fields: [scope]
+      - fields: [scope, isActive]
+      - fields: [scope, sortOrder]
+    unique:
+      - fields: [scope, question]
+
+  # ===========================================================================
+  # Beta Onboarding
+  # ===========================================================================
+  BetaApplication:
+    table_name: beta_applications
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      microsoftId:
+        type: string
+        unique: true
+        description: "Microsoft Entra ID object ID or subject for the authenticated applicant"
+      applicantEmail:
+        type: string
+        unique: true
+      applicantName:
+        type: string
+      applicantPicture:
+        type: string
+        nullable: true
+      phoneNumber:
+        type: string
+        nullable: true
+      organizationName:
+        type: string
+      organizationWebsite:
+        type: string
+        nullable: true
+      groupMemberAgeRange:
+        type: string
+      numberOfGroups:
+        type: int
+      estimatedGroupMembers:
+        type: int
+      groupDescription:
+        type: text
+      status:
+        type: enum
+        enum: BetaApplicationStatus
+        default: PENDING
+      userId:
+        type: string
+        nullable: true
+      organizationId:
+        type: string
+        nullable: true
+      reviewNotes:
+        type: text
+        nullable: true
+      reviewedAt:
+        type: datetime
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+    indexes:
+      - fields: [status]
+      - fields: [createdAt]
+      - fields: [userId]
+      - fields: [organizationId]
+      - fields: [microsoftId]
+      - fields: [applicantEmail]
+
+  # ===========================================================================
+  # Activity Logging
+  # ===========================================================================
+  ActivityLog:
+    table_name: activity_logs
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      category:
+        type: enum
+        enum: LogCategory
+      activityType:
+        type: string
+        description: "e.g., AUTH_GOOGLE_LOGIN, JOIN_GROUP_REQUEST"
+      status:
+        type: enum
+        enum: LogStatus
+      userId:
+        type: string
+        nullable: true
+        description: "User ID for User-authenticated actions"
+      memberId:
+        type: string
+        nullable: true
+        description: "Member ID for Member-authenticated actions"
+      actorIp:
+        type: string
+        nullable: true
+        description: "IP address for rate-limiting/security"
+      userAgent:
+        type: string
+        nullable: true
+        description: "For device tracking"
+      route:
+        type: string
+        description: "e.g., /auth/google/callback"
+      method:
+        type: string
+        description: "HTTP method: GET, POST, etc."
+      groupId:
+        type: string
+        nullable: true
+      eventId:
+        type: string
+        nullable: true
+      enrollmentId:
+        type: string
+        nullable: true
+      lessonId:
+        type: string
+        nullable: true
+      organizationId:
+        type: string
+        nullable: true
+      inviteId:
+        type: string
+        nullable: true
+      message:
+        type: string
+        description: "Human-readable log message"
+      errorCode:
+        type: string
+        nullable: true
+        description: "Error code if status is FAILURE"
+      errorMessage:
+        type: string
+        nullable: true
+        description: "Error message if status is FAILURE"
+      warningMessage:
+        type: string
+        nullable: true
+        description: "Warning message if status is WARNING"
+      metadata:
+        type: json
+        nullable: true
+        description: "Additional structured data"
+      createdAt:
+        type: datetime
+        default: now()
+    indexes:
+      - fields: [category]
+      - fields: [activityType]
+      - fields: [status]
+      - fields: [userId]
+      - fields: [memberId]
+      - fields: [groupId]
+      - fields: [createdAt]
+      - fields: [category, createdAt]
+      - fields: [activityType, status]
+
+  # ===========================================================================
+  # API Keys
+  # ===========================================================================
+  ApiKey:
+    table_name: api_keys
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      keyHash:
+        type: string
+        unique: true
+        description: "SHA-256 hash of full key (irreversible)"
+      keyPrefix:
+        type: string
+        description: "First 8 chars for display (e.g., mr_abc12)"
+      name:
+        type: string
+        description: "Friendly name (e.g., 'Claude Code')"
+      description:
+        type: string
+        nullable: true
+      userId:
+        type: string
+      isActive:
+        type: boolean
+        default: true
+      expiresAt:
+        type: datetime
+        nullable: true
+      lastUsedAt:
+        type: datetime
+        nullable: true
+      usageCount:
+        type: int
+        default: 0
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId]
+      - fields: [keyPrefix]
+
+  # ===========================================================================
+  # Notifications
+  # ===========================================================================
+  Notification:
+    table_name: notifications
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      userId:
+        type: uuid
+      type:
+        type: string
+        description: "JOIN_REQUEST, MEMBER_JOINED"
+      title:
+        type: string
+      body:
+        type: string
+      isRead:
+        type: boolean
+        default: false
+      data:
+        type: json
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [userId, isRead]
+      - fields: [userId, createdAt]
+
+  # ===========================================================================
+  # Activity Ledger (User-Facing Activity Feed)
+  # ===========================================================================
+  Activity:
+    table_name: activities
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      actorId:
+        type: string
+        description: "User who performed the action"
+      action:
+        type: enum
+        enum: ActivityAction
+      resourceType:
+        type: string
+        description: "GROUP, PROGRAM, LESSON, EVENT, POST, ENROLLMENT, TEMPLATE, MEMBER"
+      resourceId:
+        type: string
+        description: "UUID of affected resource (polymorphic, no FK)"
+      resourceName:
+        type: string
+        description: "Denormalized display name for feed rendering"
+      organizationId:
+        type: string
+        nullable: true
+        description: "For scoping feed to an org"
+      groupId:
+        type: string
+        nullable: true
+        description: "Group context for group-level feeds"
+      targetUserId:
+        type: string
+        nullable: true
+        description: "Target user for directed/notification activities"
+      title:
+        type: string
+        nullable: true
+        description: "Display title (for notification-style activities)"
+      body:
+        type: text
+        nullable: true
+        description: "Display body (for notification-style activities)"
+      isRead:
+        type: boolean
+        default: false
+        description: "Read status for targeted activities"
+      metadata:
+        type: json
+        nullable: true
+        description: "Extra context (changed fields, etc.)"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      actor:
+        type: many_to_one
+        target: User
+        fields: [actorId]
+        references: [id]
+        name: ActivityActor
+        onDelete: Cascade
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        name: ActivityGroup
+        onDelete: SetNull
+        nullable: true
+      targetUser:
+        type: many_to_one
+        target: User
+        fields: [targetUserId]
+        references: [id]
+        name: ActivityTarget
+        onDelete: Cascade
+        nullable: true
+    indexes:
+      - fields: [actorId, createdAt]
+      - fields: [organizationId, createdAt]
+      - fields: [resourceType, resourceId]
+      - fields: [createdAt]
+      - fields: [groupId, createdAt]
+      - fields: [targetUserId, createdAt]
+      - fields: [targetUserId, isRead]
+
+# =============================================================================
+# Special Tables (Not managed by Prisma)
+# =============================================================================
+# The `session` table is required for Express session storage (connect-pg-simple).
+# It is NOT a Prisma model because connect-pg-simple manages it directly.
+#
+# CREATE TABLE IF NOT EXISTS session (
+#   sid VARCHAR NOT NULL PRIMARY KEY,
+#   sess JSON NOT NULL,
+#   expire TIMESTAMP(6) NOT NULL
+# );
+# CREATE INDEX IF NOT EXISTS IDX_session_expire ON session (expire);
+#
+# Run: npm run db:ensure-session
+
+# =============================================================================
+# Seed Version Tracking Table
+# =============================================================================
+# CREATE TABLE IF NOT EXISTS _seed_versions (
+#   version VARCHAR PRIMARY KEY,
+#   applied_at TIMESTAMP DEFAULT NOW(),
+#   checksum VARCHAR
+# );

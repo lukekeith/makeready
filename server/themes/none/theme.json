@@ -1,0 +1,24 @@
+{
+  "name": "No Theme",
+  "slug": "none",
+  "description": "Designed for large amounts of text",
+  "definition": {
+    "version": 2,
+    "readBlockSequencing": "sequential",
+    "background": { "color": "#0a0a0f", "image": null, "video": null, "overlay": null },
+    "interaction": { "mode": "tap-to-advance", "autoPlayDelay": null, "swipeAdvances": true, "showProgress": false },
+    "typography": { "fontFamily": "-apple-system, BlinkMacSystemFont, sans-serif", "fontSize": 17, "color": "rgba(255,255,255,0.9)", "lineHeight": 1.6 },
+    "elements": {
+      "h1": { "style": { "fontSize": 28, "fontWeight": "bold" }, "enter": { "type": "none", "duration": 0 } },
+      "h2": { "style": { "fontSize": 22, "fontWeight": "bold" }, "enter": { "type": "none", "duration": 0 } },
+      "h3": { "style": { "fontSize": 18, "fontWeight": "600" }, "enter": { "type": "none", "duration": 0 } },
+      "p":  { "style": {}, "enter": { "type": "none", "duration": 0 } },
+      "li": { "style": {}, "enter": { "type": "none", "duration": 0 } },
+      "blockquote": { "style": {}, "enter": { "type": "none", "duration": 0 } },
+      "verse": { "style": { "fontSize": 17, "lineHeight": 1.8 }, "enter": { "type": "none", "duration": 0 } },
+      "verse-number": { "style": { "fontSize": 12, "opacity": 0.5, "fontWeight": "bold" } },
+      "verse-reference": { "style": { "fontSize": 13, "textTransform": "uppercase", "letterSpacing": 1.5, "opacity": 0.6 }, "enter": { "type": "none", "duration": 0 } }
+    },
+    "sequences": []
+  }
+}

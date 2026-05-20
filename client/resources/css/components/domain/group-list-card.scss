@@ -1,0 +1,124 @@
+// GroupListCard - Matches iPhone CardGroup.swift design
+// Row layout: 72x72 circular image | title + member count
+
+.GroupListCard {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem; // 16px
+  padding: 1rem; // 16px
+  width: 100%;
+  height: 104px; // 72px image + 16px padding top/bottom
+  background: #1a1d2e; // cardBackground
+  border-radius: 16px;
+  box-sizing: border-box;
+
+  // Image container (72x72 circular)
+  &__image {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    overflow: hidden;
+  }
+
+  &__image-photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__image-fallback {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(108, 71, 255, 0.2); // iconContainerBackground
+    color: white;
+  }
+
+  &__image-selected {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(108, 71, 255, 0.8); // brandPrimary 80%
+    border-radius: 50%;
+  }
+
+  // Content section
+  &__content {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+  }
+
+  &__name {
+    font-size: 1.0625rem; // 17px
+    font-weight: 700;
+    color: white;
+    margin: 0;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__metadata {
+    display: flex;
+    align-items: center;
+    gap: 1rem; // 16px
+    margin-top: 1rem; // 16px
+  }
+
+  &__member-count {
+    display: flex;
+    align-items: baseline;
+    gap: 0.25rem;
+  }
+
+  &__member-number {
+    font-size: 1.0625rem; // 17px
+    font-weight: 600;
+    color: white;
+  }
+
+  &__member-label {
+    font-size: 0.8125rem; // 13px
+    font-weight: 400;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  // Interactive variant
+  &--interactive {
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.1s ease;
+
+    &:hover {
+      background: #242838;
+    }
+
+    &:active {
+      transform: scale(0.98);
+    }
+
+    &:focus-visible {
+      outline: 2px solid #6c47ff;
+      outline-offset: 2px;
+    }
+  }
+
+  // Selected variant
+  &--selected {
+    background: #242838;
+  }
+}

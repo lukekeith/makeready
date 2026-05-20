@@ -1,0 +1,14 @@
+// Shared body-level styling for the AuthPage layout (join workflows, login,
+// public home). Applies a dark vertical gradient to the whole viewport so
+// every step — including PhoneEntry and any other centered component that
+// doesn't paint its own background — sits on the same backdrop. Page-level
+// wrappers (.JoinPage, .EventJoinPage, .StudyJoinPage) paint the same
+// gradient on top; making them transparent would also work, but leaving
+// them as-is keeps page-scoped overrides possible.
+body.AuthPage {
+  margin: 0;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #191919 0%, #0B0B0A 100%);
+  background-attachment: fixed;
+  color: white;
+}

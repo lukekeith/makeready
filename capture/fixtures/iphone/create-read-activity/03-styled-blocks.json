@@ -1,0 +1,84 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-read-activity",
+  "output": "03-styled-blocks.png",
+  "title": "Create Read Activity: Styled Scripture Blocks",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-read-styled",
+      "type": "READ",
+      "title": "The Word of God",
+      "orderNumber": 1,
+      "status": "PENDING",
+      "readBlocks": [
+        {
+          "id": "block-styled-1",
+          "orderNumber": 1,
+          "title": "Hebrews 4:12",
+          "content": "For the word of God is alive and active. Sharper than any double-edged sword, it penetrates even to dividing soul and spirit, joints and marrow; it judges the thoughts and attitudes of the heart.",
+          "isLocked": true,
+          "sourceReferenceId": "ref-styled-1",
+          "backgroundColor": "#0d2137",
+          "backgroundOverlayOpacity": 0.8,
+          "fontSize": "m",
+          "selections": [
+            { "start": 4, "end": 28, "style": "highlight" }
+          ]
+        },
+        {
+          "id": "block-styled-2",
+          "orderNumber": 2,
+          "content": "## Why Scripture Matters\n\nThe Bible isn't just a historical document — it **speaks into your life today**.\n\n- It reveals what's truly in our hearts\n- It cuts through self-deception\n- It brings healing and transformation\n\nTake time to read slowly. Let the words sink in.",
+          "isLocked": false
+        },
+        {
+          "id": "block-styled-3",
+          "orderNumber": 3,
+          "title": "2 Timothy 3:16-17",
+          "content": "All Scripture is God-breathed and is useful for teaching, rebuking, correcting and training in righteousness, so that the servant of God may be thoroughly equipped for every good work.",
+          "isLocked": true,
+          "sourceReferenceId": "ref-styled-2",
+          "backgroundColor": "#1a2e1a",
+          "backgroundOverlayOpacity": 0.75,
+          "fontSize": "l"
+        }
+      ],
+      "sourceReferences": [
+        {
+          "id": "ref-styled-1",
+          "passageReference": "Hebrews 4:12",
+          "bookNumber": 58,
+          "bookName": "Hebrews",
+          "chapterStart": 4,
+          "verseStart": 12,
+          "verseEnd": 12
+        },
+        {
+          "id": "ref-styled-2",
+          "passageReference": "2 Timothy 3:16-17",
+          "bookNumber": 55,
+          "bookName": "2 Timothy",
+          "chapterStart": 3,
+          "verseStart": 16,
+          "verseEnd": 17
+        }
+      ]
+    }
+  }
+}

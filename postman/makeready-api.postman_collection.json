@@ -1,0 +1,578 @@
+{
+  "info": {
+    "name": "MakeReady API",
+    "description": "Complete API collection for MakeReady application",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3001",
+      "type": "string"
+    },
+    {
+      "key": "sessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Auto-include session cookie if authenticated",
+          "const sessionId = pm.collectionVariables.get('sessionId');",
+          "",
+          "if (sessionId) {",
+          "    pm.request.headers.upsert({",
+          "        key: 'Cookie',",
+          "        value: `connect.sid=${sessionId}`",
+          "    });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "description": "Server health and status endpoints",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Health check endpoint with database status"
+          }
+        },
+        {
+          "name": "System Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "status"]
+            },
+            "description": "System health and status information - public endpoint"
+          }
+        },
+        {
+          "name": "API Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api",
+              "host": ["{{baseUrl}}"],
+              "path": ["api"]
+            },
+            "description": "Basic API info endpoint"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "description": "Google OAuth authentication flow and session management",
+      "item": [
+        {
+          "name": "Initiate Google OAuth (Web)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google?platform=web",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "web",
+                  "description": "Platform identifier (web or ios)"
+                }
+              ]
+            },
+            "description": "Initiates Google OAuth flow for web platform. Redirects to Google login page."
+          }
+        },
+        {
+          "name": "Initiate Google OAuth (iOS)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/google?platform=ios",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "google"],
+              "query": [
+                {
+                  "key": "platform",
+                  "value": "ios",
+                  "description": "Platform identifier (web or ios)"
+                }
+              ]
+            },
+            "description": "Initiates Google OAuth flow for iOS platform. Redirects to iOS app after authentication."
+          }
+        },
+        {
+          "name": "Exchange Auth Code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Extract and save sessionId and userId from response",
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    ",
+                  "    if (jsonData.sessionId) {",
+                  "        pm.collectionVariables.set('sessionId', jsonData.sessionId);",
+                  "        console.log('✅ Session authenticated');",
+                  "        console.log('   Session ID:', jsonData.sessionId.substring(0, 20) + '...');",
+                  "    }",
+                  "    ",
+                  "    if (jsonData.userId) {",
+                  "        pm.collectionVariables.set('userId', jsonData.userId);",
+                  "        console.log('   User ID:', jsonData.userId);",
+                  "    }",
+                  "} else {",
+                  "    console.log('❌ Authentication failed');",
+                  "    pm.collectionVariables.set('sessionId', '');",
+                  "    pm.collectionVariables.set('userId', '');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"your-auth-code-here\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/exchange",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "exchange"]
+            },
+            "description": "Exchange one-time authorization code for session cookie (iOS flow). Returns signed session ID and user ID."
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "me"]
+            },
+            "description": "Get currently authenticated user information. Requires valid session cookie."
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Clear sessionId on successful logout",
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set('sessionId', '');",
+                  "    console.log('Session ID cleared');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout current user and destroy session"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "description": "User management and listing endpoints",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users"]
+            },
+            "description": "Get all users in the database. Returns users array and total count."
+          }
+        },
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/users/:userId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "users", ":userId"],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "",
+                  "description": "User UUID"
+                }
+              ]
+            },
+            "description": "Get a specific user by their ID"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Phone Verification",
+      "description": "Twilio Verify API endpoints for phone verification",
+      "item": [
+        {
+          "name": "Send Verification Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+12345678900\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/verification/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "verification", "send"]
+            },
+            "description": "Send verification code to phone number (E.164 format)"
+          }
+        },
+        {
+          "name": "Verify Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+12345678900\",\n  \"code\": \"123456\",\n  \"inviteToken\": \"ABC123XYZ0\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/verification/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "verification", "verify"]
+            },
+            "description": "Verify code and optionally accept invite. Returns userId and groupId if invite accepted."
+          }
+        },
+        {
+          "name": "Resend Verification Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phoneNumber\": \"+12345678900\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/verification/resend",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "verification", "resend"]
+            },
+            "description": "Resend verification code to phone number"
+          }
+        }
+      ]
+    },
+    {
+      "name": "SMS",
+      "description": "SMS messaging endpoints using Twilio",
+      "item": [
+        {
+          "name": "Send SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"+12345678900\",\n  \"message\": \"Hello from MakeReady!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sms/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sms", "send"]
+            },
+            "description": "Send custom SMS message (requires authentication)"
+          }
+        },
+        {
+          "name": "Send SMS to Self",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Test message to myself\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sms/send-to-self",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sms", "send-to-self"]
+            },
+            "description": "Send SMS to authenticated user's verified phone number"
+          }
+        },
+        {
+          "name": "Test SMS (No Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"to\": \"+12345678900\",\n  \"message\": \"Test message for A2P approval\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/sms/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "sms", "test"]
+            },
+            "description": "Test endpoint for A2P approval - NO AUTHENTICATION REQUIRED (remove in production)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "QR Code",
+      "description": "QR code generation endpoints with logo embedding",
+      "item": [
+        {
+          "name": "Generate QR Code",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"https://makeready.app/invite/ABC123XYZ0\",\n  \"color\": \"#6c47ff\",\n  \"backgroundColor\": \"#ffffff\",\n  \"size\": 300,\n  \"errorCorrectionLevel\": \"H\",\n  \"includeLogo\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/qrcode/generate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "qrcode", "generate"]
+            },
+            "description": "Generate QR code for any data (URL, text, invite code, etc.) with custom styling and optional logo (requires authentication)"
+          }
+        },
+        {
+          "name": "Test QR Code (No Auth)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"data\": \"https://makeready.app\",\n  \"includeLogo\": true,\n  \"size\": 300\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/qrcode/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "qrcode", "test"]
+            },
+            "description": "Test QR code generation for any data without authentication"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invites",
+      "description": "Group invitation management",
+      "item": [
+        {
+          "name": "Create Invite",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"group-uuid-here\",\n  \"expiresAt\": \"2025-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invites",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invites"]
+            },
+            "description": "Create new invite for QR code generation (requires authentication)"
+          }
+        },
+        {
+          "name": "Send Invite via SMS",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"groupId\": \"group-uuid-here\",\n  \"recipientPhone\": \"+12345678900\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/invites/send",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invites", "send"]
+            },
+            "description": "Send group invitation via SMS (requires authentication and group membership)"
+          }
+        },
+        {
+          "name": "Get Invite by Token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invites/:token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invites", ":token"],
+              "variable": [
+                {
+                  "key": "token",
+                  "value": "ABC123XYZ0",
+                  "description": "Invite token (10 char alphanumeric)"
+                }
+              ]
+            },
+            "description": "Get invite details by token - NO AUTHENTICATION REQUIRED (public invite link)"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public",
+      "description": "Public endpoints (no authentication required)",
+      "item": [
+        {
+          "name": "Public QR Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/public/qrcode?url=https://makeready.app&size=400&includeLogo=true&color=%236c47ff&bg=%23ffffff",
+              "host": ["{{baseUrl}}"],
+              "path": ["public", "qrcode"],
+              "query": [
+                {
+                  "key": "url",
+                  "value": "https://makeready.app",
+                  "description": "Full URL to encode in QR (REQUIRED)"
+                },
+                {
+                  "key": "size",
+                  "value": "400",
+                  "description": "QR code size in pixels (100-2000, default: 300)"
+                },
+                {
+                  "key": "includeLogo",
+                  "value": "true",
+                  "description": "Embed logo in center (default: true)"
+                },
+                {
+                  "key": "color",
+                  "value": "%236c47ff",
+                  "description": "Hex color for QR pixels (default: #6c47ff)"
+                },
+                {
+                  "key": "bg",
+                  "value": "%23ffffff",
+                  "description": "Hex color for background (default: #ffffff)"
+                }
+              ]
+            },
+            "description": "Generate QR code for any URL - PUBLIC ENDPOINT (returns PNG image)"
+          }
+        }
+      ]
+    }
+  ]
+}

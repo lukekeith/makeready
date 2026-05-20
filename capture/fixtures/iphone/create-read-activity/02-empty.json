@@ -1,0 +1,33 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-read-activity",
+  "output": "02-empty.png",
+  "title": "Create Read Activity: Empty (No Blocks)",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-read-empty",
+      "type": "READ",
+      "title": "",
+      "orderNumber": 1,
+      "status": "PENDING",
+      "readBlocks": [],
+      "sourceReferences": []
+    }
+  }
+}

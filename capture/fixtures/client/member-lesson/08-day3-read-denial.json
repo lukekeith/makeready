@@ -1,0 +1,160 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "08-day3-read-denial.png",
+  "title": "Day 3: Read — Two passages with empty trailing block",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-002",
+    "lessonScheduleId": "ls-capture-003",
+    "step": 3,
+    "lessonData": {
+      "lesson": {
+        "id": "aabe2aaf-a7b6-484c-9345-2d3cd110a29a",
+        "title": "Jesus restores",
+        "dayNumber": 3,
+        "studyEnrollmentId": "enroll-capture-001",
+        "studyProgram": {
+          "name": "Daily Inspiration"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "162c894c-039c-4f92-8638-805d94d1c861",
+            "type": "READ",
+            "title": "The calling of Peter",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "2a56b492",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "3b220da1-b95d-45b9-807c-5b0dc8e4769b",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "Your calling",
+            "helpDescription": "Has Jesus asked you to give up anything to follow him? Are you willing?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "hand.raised.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "bafa8a36-ce2c-4c7c-81f7-8e2cba53d5ac",
+            "type": "READ",
+            "title": "Denial of Peter",
+            "isHelpEnabled": true,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [
+              {
+                "id": "3b576c5f-1ae5-44bf-93e0-973e9cd1f7de",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 18:25-27",
+                "bookNumber": 43,
+                "chapterStart": 18,
+                "verseStart": 25,
+                "verseEnd": 27
+              },
+              {
+                "id": "90d31417-eb6c-4f1f-b5e0-cfef228e2595",
+                "sourceType": "BIBLE_PASSAGE",
+                "passageReference": "John 18:15-17",
+                "bookNumber": 43,
+                "chapterStart": 18,
+                "verseStart": 15,
+                "verseEnd": 17
+              }
+            ],
+            "readBlocks": [
+              {
+                "id": "a593610d-069e-47ee-88da-ee47155c5bfe",
+                "orderNumber": 1,
+                "title": "John 18:15-17",
+                "content": "15. Simon Peter was following Jesus, and so was another disciple. Now that disciple was known to the high priest, and he entered with Jesus into the courtyard of the high priest,\n16. but Peter was standing at the door outside. So the other disciple, who was known to the high priest, went out and spoke to the doorkeeper, and brought Peter in.\n17. Then the slave woman who was the doorkeeper *said to Peter, “You are not also one of this Man’s disciples, are you?” He *said, “I am not.”",
+                "sourceReferenceId": "90d31417-eb6c-4f1f-b5e0-cfef228e2595",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "73d4d920-3180-40e1-b0e4-2267071dccaa",
+                "orderNumber": 2,
+                "title": "John 18:25-27",
+                "content": "25. Now Simon Peter was still standing and warming himself. So they said to him, “You are not one of His disciples as well, are you?” He denied it, and said, “I am not.”\n26. One of the slaves of the high priest, who was related to the one whose ear Peter cut off, *said, “Did I not see you in the garden with Him?”\n27. Peter then denied it again, and immediately a rooster crowed. Jesus before Pilate",
+                "sourceReferenceId": "3b576c5f-1ae5-44bf-93e0-973e9cd1f7de",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              },
+              {
+                "id": "5e59df5d-337d-48af-b941-7df6623ebe10",
+                "orderNumber": 3,
+                "content": null,
+                "isLocked": false,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "51e9d43f-47fe-4c2e-b8f5-1fd76fc11daf",
+            "type": "USER_INPUT",
+            "title": "Think",
+            "isHelpEnabled": true,
+            "helpTitle": "How did Peter feel?",
+            "helpDescription": "If you denied Jesus after spending 3 years with Him and seeing all the miracles, calling Him the Messiah etc, how would you feel here?",
+            "helpAlwaysVisible": false,
+            "helpIcon": "lightbulb.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          },
+          {
+            "id": "20c60c51-f359-4ffb-b29d-8ba71208feea",
+            "type": "READ",
+            "title": "The restoration of Peter",
+            "isHelpEnabled": true,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "a2cece84",
+                "orderNumber": 1,
+                "content": "...",
+                "isLocked": true,
+                "contentFormat": "markdown"
+              }
+            ]
+          },
+          {
+            "id": "d1fe43eb-0b34-41e4-a3f8-cc8a01697a41",
+            "type": "USER_INPUT",
+            "title": "Reflect",
+            "isHelpEnabled": true,
+            "helpTitle": "Have you screwed up?",
+            "helpDescription": "Jesus stands with the ability to forgive you of your sins.",
+            "helpAlwaysVisible": false,
+            "helpIcon": "heart.fill",
+            "sourceReferences": [],
+            "readBlocks": []
+          }
+        ]
+      }
+    }
+  },
+  "step": 3
+}

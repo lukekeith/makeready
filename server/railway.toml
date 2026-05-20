@@ -1,0 +1,27 @@
+[build]
+builder = "nixpacks"
+
+# Dummy DATABASE_URL required for Prisma schema generation during build
+# Railway will inject the real DATABASE_URL and DIRECT_URL at runtime from environment variables
+[build.env]
+DATABASE_URL = "postgresql://dummy:dummy@localhost:5432/dummy?schema=public"
+DIRECT_URL = "postgresql://dummy:dummy@localhost:5432/dummy?schema=public"
+
+[deploy]
+# The Dockerfile's CMD now applies pending Atlas migrations before booting
+# the server (see Dockerfile). Railway will use that CMD automatically when
+# it detects the Dockerfile — no startCommand override needed.
+
+# Health check configuration
+healthcheckPath = "/health"
+healthcheckTimeout = 300  # 300ms timeout (increased from 100ms)
+healthcheckInterval = 10  # Check every 10 seconds
+
+# Restart policy
+restartPolicyType = "on_failure"
+restartPolicyMaxRetries = 10
+
+# Watch paths - trigger redeployment only when these change
+# Uncomment to enable more selective deployments
+# [deploy.watchPaths]
+# paths = ["src/**", "prisma/**", "package.json", "package-lock.json"]

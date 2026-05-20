@@ -1,0 +1,150 @@
+.ModalProvider {
+  // Container takes full space
+  width: 100%;
+  height: 100%;
+
+  // Overlay for each modal
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    animation: modalProviderFadeIn 0.2s ease-out;
+  }
+
+  // Modal base styles
+  &__modal {
+    position: fixed;
+    background: #272529;
+    overflow-y: auto;
+
+    &:focus {
+      outline: none;
+    }
+
+    // Fullscreen mode
+    &--fullscreen {
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      border-radius: 0;
+      padding: 0;
+      animation: modalProviderSlideUpFullscreen 0.3s ease-out;
+    }
+
+    // Menu mode (bottom sheet)
+    &--menu {
+      left: 0;
+      right: 0;
+      bottom: 0;
+      max-height: 90vh;
+      border-radius: 16px 16px 0 0;
+      padding: 20px 24px 24px;
+      animation: modalProviderSlideUpMenu 0.3s ease-out;
+    }
+
+    // Transitioning state
+    &--transitioning {
+      // Add subtle transition effect
+    }
+  }
+
+  // Loading bar for content transitions
+  &__loading-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.6) 50%,
+      transparent 100%
+    );
+    animation: modalProviderLoadingBar 0.3s ease-out;
+    z-index: 10;
+  }
+
+  // Close button container (centered at top for fullscreen)
+  &__close-container {
+    display: flex;
+    justify-content: center;
+    padding: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(180deg, #272529 0%, #272529 60%, transparent 100%);
+    pointer-events: none; // Container doesn't capture clicks
+
+    // But the button inside does
+    > * {
+      pointer-events: auto;
+    }
+  }
+
+  // Close button container for menu (centered)
+  &__menu-close-container {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+
+  // Close button
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.7);
+    transition: color 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+
+    &:hover {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    &:active {
+      color: rgba(255, 255, 255, 1);
+    }
+  }
+
+  // Content area
+  &__content {
+    height: 100%;
+
+    &--transitioning {
+      opacity: 0.5;
+      transition: opacity 0.15s ease;
+    }
+  }
+}
+
+// Animations
+@keyframes modalProviderFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modalProviderSlideUpFullscreen {
+  from { transform: translateY(100vh); }
+  to { transform: translateY(0); }
+}
+
+@keyframes modalProviderSlideUpMenu {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+@keyframes modalProviderLoadingBar {
+  0% { transform: scaleX(0); transform-origin: left; }
+  50% { transform: scaleX(1); transform-origin: left; }
+  51% { transform-origin: right; }
+  100% { transform: scaleX(0); transform-origin: right; }
+}

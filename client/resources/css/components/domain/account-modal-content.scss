@@ -1,0 +1,211 @@
+.AccountModalContent {
+  width: 100%;
+  max-width: 440px;
+  min-height: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+
+  &--loading,
+  &--error {
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+  }
+
+  &__loading-text,
+  &__error-text {
+    color: rgba(255, 255, 255, 0.5);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    text-align: center;
+    padding: 0 24px;
+  }
+
+  // Header uses PageTitle for layout — only add spacing
+  &__header {
+    padding-bottom: 8px;
+  }
+
+  &__header-title {
+    font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: #ffffff;
+    margin: 0;
+    flex: 1;
+    text-align: center;
+  }
+
+  &__header-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+
+    &:hover {
+      color: #ffffff;
+    }
+  }
+
+  // Main view
+  &__main {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  &__links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  // Phone entry view
+  &__phone {
+    display: flex;
+    flex-direction: column;
+    padding-top: 24px;
+  }
+
+  // Verify step styles
+  &__verify {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 0;
+    gap: 24px;
+  }
+
+  &__verify-title {
+    color: #ffffff;
+    font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    margin: 0;
+  }
+
+  &__verify-subtitle {
+    color: rgba(255, 255, 255, 0.5);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    text-align: center;
+    margin: -12px 0 0 0;
+  }
+
+  &__verify-error {
+    color: #ff6b6b;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    text-align: center;
+    margin: 0;
+  }
+
+  &__verify-resend {
+    margin-top: 16px;
+  }
+
+  &__resend-button {
+    background: none;
+    border: none;
+    padding: 8px 16px;
+    color: rgba(255, 255, 255, 0.7);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    cursor: pointer;
+    transition: color 0.15s ease;
+
+    &:hover:not(:disabled) {
+      color: #ffffff;
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  &__resend-timer {
+    color: rgba(255, 255, 255, 0.3);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    margin: 0;
+  }
+
+  // Success step styles
+  &__success {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 0;
+    gap: 16px;
+  }
+
+  &__success-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(76, 175, 80, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #4caf50;
+    margin-bottom: 8px;
+  }
+
+  &__success-title {
+    color: #ffffff;
+    font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    margin: 0;
+  }
+
+  &__success-subtitle {
+    color: rgba(255, 255, 255, 0.5);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    text-align: center;
+    margin: 0 0 24px 0;
+  }
+
+  // Confirmation modal styles
+  &__confirm {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 8px 0;
+  }
+
+  &__confirm-title {
+    color: #ffffff;
+    font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  &__confirm-description {
+    color: rgba(255, 255, 255, 0.6);
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  &__confirm-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+  }
+}

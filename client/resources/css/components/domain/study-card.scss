@@ -1,0 +1,394 @@
+.StudyCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  overflow: hidden;
+  width: 100%;
+  cursor: pointer;
+  user-select: none;
+
+  &--interactive {
+    cursor: pointer;
+  }
+
+  // Default mode variants
+  &--default {
+    // Default mode specific styles
+  }
+
+  // With cover image variant - full bleed image with gradient
+  &--with-cover {
+    height: 240px;
+  }
+
+  // Without cover image variant - solid background
+  &--without-cover {
+    background: rgba(255, 255, 255, 0.1);
+    transition: background-color 200ms ease;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  }
+
+  // Lesson mode variant
+  &--lesson {
+    border-radius: 16px;
+    background-color: #252936;
+    transition: background-color 200ms ease;
+
+    &:hover {
+      background-color: #1F232F;
+    }
+  }
+
+  // Header mode variant
+  &--header {
+    border-radius: 16px;
+    background-color: #252936;
+  }
+
+  // Progress mode variant
+  &--progress {
+    border-radius: 16px;
+    background-color: rgba(37, 41, 54, 0.9);
+  }
+
+  // LessonList mode variant
+  &--lesson-list {
+    border-radius: 16px;
+    background-color: rgba(37, 41, 54, 0.9);
+  }
+
+  // LessonList complete variant (different background)
+  &--lesson-list-complete {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  &__cover-image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+
+    &--faded {
+      opacity: 0.1;
+    }
+  }
+
+  &__overlay {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    flex: 1;
+
+    .StudyCard--with-cover & {
+      background: linear-gradient(
+        to bottom,
+        rgba(37, 41, 54, 0.5) 0%,
+        rgba(37, 41, 54, 0.5) 50%,
+        rgba(37, 41, 54, 1) 100%
+      );
+    }
+  }
+
+  &__content {
+    display: flex;
+    align-items: center;
+    position: relative;
+  }
+
+  &__date {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    padding: 16px 0;
+    flex-shrink: 0;
+    align-self: stretch;
+  }
+
+  &__label {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    letter-spacing: 0.1px;
+    color: #6C47FF;
+    text-transform: uppercase;
+
+    &--active {
+      color: #6C47FF;
+    }
+
+    &--complete {
+      color: rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  &__month {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 20px;
+    color: #6C47FF;
+    text-transform: uppercase;
+  }
+
+  &__day {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 22px;
+    font-weight: 400;
+    line-height: 28px;
+    letter-spacing: -0.1px;
+    color: white;
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    gap: 4px;
+    padding: 16px;
+    justify-content: center;
+
+    &--lesson {
+      gap: 16px;
+    }
+
+    &--progress {
+      gap: 16px;
+    }
+
+    &--lesson-list {
+      gap: 8px;
+      align-items: flex-start;
+    }
+  }
+
+  &__title-section {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__title {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.5em;
+    color: white;
+    margin: 0;
+  }
+
+  &__full-date {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    letter-spacing: 0.1px;
+    color: white;
+    margin: 0;
+  }
+
+  &__description {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1.5em;
+    letter-spacing: 0.1px;
+    color: rgba(255, 255, 255, 0.7);
+    margin: 0;
+  }
+
+  &__activities {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+    padding-top: 2px;
+  }
+
+  &__activity-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+
+    svg {
+      opacity: 0.5;
+    }
+
+    &--typed {
+      svg {
+        opacity: 1;
+      }
+    }
+  }
+
+  &__activity-overflow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  // Header mode styles
+  &__header-content {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    position: relative;
+  }
+
+  &__back-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin: -8px; // Offset for larger touch target
+
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+
+    &:hover {
+      opacity: 0.7;
+    }
+  }
+
+  &__header-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  // Progress bar styles
+  &__progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    background: white;
+    border-radius: 4px;
+    transition: width 300ms ease;
+  }
+
+  // Status badge for LessonList mode
+  &__status-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+
+    &--complete {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &--next {
+      background: #6C47FF;
+    }
+
+    &--text {
+      // No background, just text
+      padding: 0;
+    }
+  }
+
+  &__status-text {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 20px;
+    color: white;
+
+    .StudyCard__status-badge--complete & {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .StudyCard__status-badge--text & {
+      color: rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  // Sections styles for Progress mode
+  &__sections {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  &__section {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  &__section-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    flex-shrink: 0;
+    margin-top: 2px;
+
+    &--complete {
+      background: white;
+      border-color: white;
+    }
+  }
+
+  &__section-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__section-name {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 20px;
+    color: white;
+  }
+
+  &__section-date {
+    font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 16px;
+    letter-spacing: 0.1px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+}

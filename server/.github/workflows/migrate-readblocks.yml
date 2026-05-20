@@ -1,0 +1,30 @@
+name: Migrate Read Blocks to Markdown
+
+on:
+  workflow_dispatch:
+
+jobs:
+  migrate:
+    name: Convert HTML to Markdown
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Run HTML to Markdown Migration
+        run: npx tsx scripts/migrate-readblocks-to-markdown.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}

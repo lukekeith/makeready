@@ -1,0 +1,71 @@
+/* Star Wars theme — perspective crawl container */
+.theme-star-wars-container {
+  position: relative;
+  font-family: 'Georgia', serif;
+  color: #ffe81f;
+  background: #000005;
+  text-align: center;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+  font-size: 1.2em;
+  padding: 32px;
+  box-sizing: border-box;
+
+  /* Deeper perspective reduces side-clipping on the tilt */
+  perspective: 600px;
+  perspective-origin: 50% 25%;
+}
+
+.theme-star-wars-crawl {
+  position: absolute;
+  /* 80% width centred — keeps text clear of the clipped edges */
+  left: 10%;
+  right: 10%;
+  width: 80%;
+  transform-origin: 50% 100%;
+  /* Shallower tilt so content is readable across the full width */
+  transform: rotateX(12deg);
+  will-change: transform;
+
+  h1, h2, h3 {
+    font-size: 1.3em;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 0.6em;
+  }
+
+  p, li {
+    font-size: 1em;
+    line-height: 1.65;
+    margin-bottom: 0.6em;
+  }
+
+  .sw-item-num {
+    font-weight: bold;
+    opacity: 0.7;
+    margin-right: 0.25em;
+    font-size: 0.85em;
+    vertical-align: top;
+    line-height: 1.9;
+  }
+
+  .sw-item-bullet {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: currentColor;
+    opacity: 0.4;
+    margin-right: 0.35em;
+    vertical-align: middle;
+    font-size: 0;
+  }
+
+  blockquote {
+    font-style: italic;
+    opacity: 0.85;
+    margin: 0.5em 1.5em;
+  }
+}

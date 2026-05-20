@@ -1,0 +1,60 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-exegesis-activity",
+  "output": "04-with-highlights-and-notes.png",
+  "title": "Create Exegesis Activity: Multiple Highlights with Notes",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "lessonId": "lesson-capture-1",
+    "activity": {
+      "id": "activity-exegesis-notes",
+      "type": "EXEGESIS",
+      "title": "Philippians 4:6-7",
+      "orderNumber": 2,
+      "status": "PENDING",
+      "readBlocks": [
+        {
+          "id": "block-exegesis-notes",
+          "orderNumber": 1,
+          "title": "Philippians 4:6-7",
+          "content": "Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God. And the peace of God, which transcends all understanding, will guard your hearts and your minds in Christ Jesus.",
+          "isLocked": true,
+          "sourceReferenceId": "ref-exegesis-notes",
+          "backgroundColor": "#1c1433",
+          "backgroundOverlayOpacity": 0.85,
+          "fontSize": "m",
+          "selections": [
+            { "start": 0, "end": 28, "style": "highlight" },
+            { "start": 61, "end": 97, "style": "highlight" },
+            { "start": 115, "end": 164, "style": "highlight" }
+          ]
+        }
+      ],
+      "sourceReferences": [
+        {
+          "id": "ref-exegesis-notes",
+          "passageReference": "Philippians 4:6-7",
+          "bookNumber": 50,
+          "bookName": "Philippians",
+          "chapterStart": 4,
+          "verseStart": 6,
+          "verseEnd": 7
+        }
+      ]
+    }
+  }
+}

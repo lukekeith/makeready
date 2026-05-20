@@ -1,0 +1,28 @@
+{
+  "platform": "client",
+  "view": "pages.join-group",
+  "step": "confirmed",
+  "output": "09-confirmed-approved.png",
+  "title": "Join Group: You're in! (approved)",
+  "devices": [
+    "iphone-se",
+    "iphone-13-mini",
+    "iphone-14",
+    "iphone-14-plus",
+    "iphone-14-pro",
+    "iphone-14-pro-max",
+    "iphone-15",
+    "iphone-15-plus",
+    "iphone-16-pro",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "group": {
+      "id": 1234,
+      "name": "Sunday Morning Group",
+      "coverImageUrl": "./group-cover.png"
+    },
+    "membershipStatus": "approved",
+    "member": null
+  }
+}

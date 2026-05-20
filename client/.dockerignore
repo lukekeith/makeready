@@ -1,0 +1,11 @@
+node_modules
+.git
+.histoire
+.storybook
+.claude
+.planning
+public/build
+public/hot
+.env
+.env.*
+*.log

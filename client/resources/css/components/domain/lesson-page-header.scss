@@ -1,0 +1,121 @@
+.LessonPageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0;
+  min-height: 44px;
+
+  &__left,
+  &__right {
+    flex: 1;
+    display: flex;
+  }
+
+  &__left {
+    justify-content: flex-start;
+  }
+
+  &__right {
+    justify-content: flex-end;
+  }
+
+  &__title {
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 22px;
+    text-align: center;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  &__nav-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(108, 71, 255, 0.2);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+    user-select: none;
+
+    &:hover {
+      opacity: 0.8;
+    }
+
+    &:active {
+      opacity: 0.6;
+    }
+
+    &--prev {
+      padding: 8px 16px 8px 8px;
+    }
+
+    &--next {
+      padding: 8px 8px 8px 16px;
+    }
+
+    &--disabled {
+      cursor: not-allowed;
+      pointer-events: none;
+      background: rgba(255, 255, 255, 0.1);
+
+      .LessonPageHeader__nav-label,
+      .LessonPageHeader__icon {
+        color: rgba(255, 255, 255, 0.5) !important;
+      }
+    }
+  }
+
+  &__nav-label {
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 17px;
+    font-weight: 400;
+    line-height: 22px;
+  }
+
+  &__icon {
+    flex-shrink: 0;
+  }
+
+  // Theme variants
+  &--theme-dark {
+    .LessonPageHeader__title {
+      color: rgba(255, 255, 255, 1);
+    }
+
+    .LessonPageHeader__nav-button {
+      color: #6C47FF;
+    }
+
+    .LessonPageHeader__nav-label {
+      color: #6C47FF;
+    }
+
+    .LessonPageHeader__icon {
+      color: #6C47FF;
+    }
+  }
+
+  &--theme-light {
+    .LessonPageHeader__title {
+      color: rgba(0, 0, 0, 1);
+    }
+
+    .LessonPageHeader__nav-button {
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    .LessonPageHeader__nav-label {
+      color: rgba(0, 0, 0, 0.7);
+    }
+
+    .LessonPageHeader__icon {
+      color: rgba(0, 0, 0, 0.7);
+    }
+  }
+}

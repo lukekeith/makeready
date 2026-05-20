@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Activity — MakeReady</title>
+  <link rel="icon" type="image/svg+xml" href="/logo-mark.svg" />
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #0D101A;
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .header img {
+      width: 36px;
+      height: 36px;
+    }
+
+    .header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .header .subtitle {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.4);
+      margin-left: auto;
+    }
+
+    /* Warnings banner */
+    .warnings {
+      background: rgba(234, 179, 8, 0.1);
+      border: 1px solid rgba(234, 179, 8, 0.2);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.8rem;
+      color: #fbbf24;
+    }
+
+    /* Three-column grid */
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 1.5rem;
+      align-items: start;
+    }
+
+    .column {
+      min-width: 0;
+    }
+
+    .column-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.75rem 0.75rem;
+      margin-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .column-header .repo-badge {
+      font-size: 0.75rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+
+    .column-header .commit-count {
+      font-size: 0.75rem;
+      color: rgba(255, 255, 255, 0.35);
+      margin-left: auto;
+    }
+
+    .repo-badge.server {
+      background: rgba(168, 85, 247, 0.15);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+    }
+
+    .repo-badge.web {
+      background: rgba(59, 130, 246, 0.15);
+      color: #60a5fa;
+      border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+
+    .repo-badge.iphone {
+      background: rgba(249, 115, 22, 0.15);
+      color: #fb923c;
+      border: 1px solid rgba(249, 115, 22, 0.3);
+    }
+
+    /* Date group */
+    .date-group {
+      margin-bottom: 0.75rem;
+    }
+
+    .date-header {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 0.4rem 0.75rem;
+    }
+
+    /* Commit rows */
+    .commit-row {
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      transition: background 0.15s ease;
+    }
+
+    .commit-row:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .commit-message {
+      font-size: 0.8rem;
+      color: #e6edf3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+    }
+
+    .commit-meta-row {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.15rem;
+    }
+
+    .sha-link {
+      font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.35);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .sha-link:hover {
+      color: #58a6ff;
+      text-decoration: underline;
+    }
+
+    .commit-meta {
+      font-size: 0.7rem;
+      color: rgba(255, 255, 255, 0.25);
+      white-space: nowrap;
+    }
+
+    /* Loading state */
+    .loading-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      padding: 1rem 0.75rem;
+    }
+
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 4px;
+      height: 1rem;
+    }
+
+    .skeleton.wide { width: 85%; }
+    .skeleton.medium { width: 60%; }
+    .skeleton.narrow { width: 40%; }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* Error state */
+    .error-message {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: rgba(255, 255, 255, 0.5);
+      grid-column: 1 / -1;
+    }
+
+    .error-message .icon {
+      font-size: 1.5rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .error-message .retry-btn {
+      margin-top: 1rem;
+      padding: 0.5rem 1.25rem;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #e6edf3;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+
+    .error-message .retry-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .empty-column {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: rgba(255, 255, 255, 0.25);
+      font-size: 0.8rem;
+    }
+
+    /* Responsive: stack on smaller screens */
+    @media (max-width: 900px) {
+      .columns {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 1rem 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <img src="/logo-mark.svg" alt="MakeReady">
+      <h1>Recent Activity</h1>
+      <span class="subtitle" id="commit-count"></span>
+    </div>
+
+    <div id="warnings-container"></div>
+    <div id="content" class="columns">
+      <div class="column" id="col-server">
+        <div class="column-header">
+          <span class="repo-badge server">server</span>
+          <span class="commit-count" id="count-server"></span>
+        </div>
+        <div class="loading-container">
+          <div class="skeleton wide"></div>
+          <div class="skeleton medium"></div>
+          <div class="skeleton wide"></div>
+          <div class="skeleton narrow"></div>
+          <div class="skeleton wide"></div>
+        </div>
+      </div>
+      <div class="column" id="col-web">
+        <div class="column-header">
+          <span class="repo-badge web">web</span>
+          <span class="commit-count" id="count-web"></span>
+        </div>
+        <div class="loading-container">
+          <div class="skeleton wide"></div>
+          <div class="skeleton medium"></div>
+          <div class="skeleton wide"></div>
+          <div class="skeleton narrow"></div>
+          <div class="skeleton wide"></div>
+        </div>
+      </div>
+      <div class="column" id="col-iphone">
+        <div class="column-header">
+          <span class="repo-badge iphone">iphone</span>
+          <span class="commit-count" id="count-iphone"></span>
+        </div>
+        <div class="loading-container">
+          <div class="skeleton wide"></div>
+          <div class="skeleton medium"></div>
+          <div class="skeleton wide"></div>
+          <div class="skeleton narrow"></div>
+          <div class="skeleton wide"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadCommits() {
+      const countEl = document.getElementById('commit-count');
+      const warningsEl = document.getElementById('warnings-container');
+
+      try {
+        const res = await fetch('/api/github/commits?per_page=60');
+        const data = await res.json();
+
+        if (!data.success) {
+          throw new Error(data.error || 'Failed to load commits');
+        }
+
+        if (data.warnings && data.warnings.length > 0) {
+          warningsEl.innerHTML = '<div class="warnings">Some repos could not be loaded: ' +
+            data.warnings.map(escapeHtml).join(', ') + '</div>';
+        }
+
+        const commits = data.commits;
+        if (!commits || commits.length === 0) {
+          document.getElementById('content').innerHTML =
+            '<div class="error-message"><div class="icon">📭</div>No commits found</div>';
+          return;
+        }
+
+        const totals = data.totals || {};
+        const totalAll = Object.values(totals).reduce((sum, n) => sum + (n || 0), 0);
+        countEl.textContent = totalAll ? totalAll.toLocaleString() + ' total commits' : '';
+
+        // Split commits by repo
+        const byRepo = { server: [], web: [], iphone: [] };
+        commits.forEach(c => {
+          if (byRepo[c.repo]) byRepo[c.repo].push(c);
+        });
+
+        // Render each column
+        for (const [repo, repoCommits] of Object.entries(byRepo)) {
+          renderColumn(repo, repoCommits, totals[repo]);
+        }
+      } catch (err) {
+        document.getElementById('content').innerHTML =
+          '<div class="error-message">' +
+          '<div class="icon">⚠️</div>' +
+          '<div>' + escapeHtml(err.message) + '</div>' +
+          '<button class="retry-btn" onclick="loadCommits()">Retry</button>' +
+          '</div>';
+      }
+    }
+
+    function renderColumn(repo, commits, totalCount) {
+      const col = document.getElementById('col-' + repo);
+      const countEl = document.getElementById('count-' + repo);
+      if (!col) return;
+
+      // Keep the header, replace the rest
+      const header = col.querySelector('.column-header');
+      col.innerHTML = '';
+      col.appendChild(header);
+
+      countEl.textContent = totalCount ? totalCount.toLocaleString() + ' commits' : commits.length + ' commits';
+
+      if (commits.length === 0) {
+        col.insertAdjacentHTML('beforeend', '<div class="empty-column">No commits</div>');
+        return;
+      }
+
+      // Group by date
+      const groups = {};
+      commits.forEach(c => {
+        const date = new Date(c.date);
+        const key = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(c);
+      });
+
+      let html = '';
+      for (const [date, dateCommits] of Object.entries(groups)) {
+        html += '<div class="date-group">';
+        html += '<div class="date-header">' + escapeHtml(date) + '</div>';
+
+        dateCommits.forEach(c => {
+          const firstLine = c.message.split('\n')[0];
+          const relTime = relativeTime(c.date);
+
+          html += '<div class="commit-row">';
+          html += '  <div class="commit-message" title="' + escapeAttr(c.message) + '">' + escapeHtml(firstLine) + '</div>';
+          html += '  <div class="commit-meta-row">';
+          html += '    <a class="sha-link" href="' + escapeAttr(c.url) + '" target="_blank" rel="noopener">' + escapeHtml(c.sha) + '</a>';
+          html += '    <span class="commit-meta">' + escapeHtml(c.author) + ' &middot; ' + relTime + '</span>';
+          html += '  </div>';
+          html += '</div>';
+        });
+
+        html += '</div>';
+      }
+
+      col.insertAdjacentHTML('beforeend', html);
+    }
+
+    function relativeTime(dateStr) {
+      const now = Date.now();
+      const then = new Date(dateStr).getTime();
+      const diff = Math.floor((now - then) / 1000);
+
+      if (diff < 60) return 'just now';
+      if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+      if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+      if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+      return Math.floor(diff / 604800) + 'w ago';
+    }
+
+    function escapeHtml(str) {
+      const d = document.createElement('div');
+      d.textContent = str;
+      return d.innerHTML;
+    }
+
+    function escapeAttr(str) {
+      return str.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    loadCommits();
+  </script>
+</body>
+</html>

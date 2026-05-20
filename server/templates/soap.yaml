@@ -1,0 +1,33 @@
+id: "a0000000-0000-0000-0000-000000000001"
+name: "SOAP"
+description: "Scripture, Observation, Application, Prayer - A classic Bible study method for personal devotion."
+
+activities:
+  - type: READ
+    orderNumber: 1
+    title: "Scripture"
+    displayName: "Read"
+
+  - type: USER_INPUT
+    orderNumber: 2
+    title: "Observation"
+    displayName: "Study"
+    helpTitle: "What is the point?"
+    helpDescription: "Write in your own words what the passage means. Summarize the main point or truth the author is communicating, without adding your personal opinion yet."
+    helpIcon: "eye"
+
+  - type: USER_INPUT
+    orderNumber: 3
+    title: "Application"
+    displayName: "Study"
+    helpTitle: "How does it apply?"
+    helpDescription: "Describe how this passage connects to your life today. Think about what it means for your relationships, work, struggles, or decisions. Ask, \"How can I live differently because of this truth?\""
+    helpIcon: "lightbulb"
+
+  - type: USER_INPUT
+    orderNumber: 4
+    title: "Prayer"
+    displayName: "Study"
+    helpTitle: "How will you respond in prayer or life changes?"
+    helpDescription: "Write how the passage personally moves you to take action. This could be a step of obedience, a change in attitude, or a way to live differently because of what God is showing you. Be specific about what you will do in response."
+    helpIcon: "hands.sparkles"

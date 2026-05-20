@@ -1,0 +1,96 @@
+@use "styles/colors";
+
+.InviteHeader {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+
+  &__image-container {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__image-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, colors.text(700) 0%, colors.text(900) 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: colors.text(500);
+  }
+
+  &__gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      transparent 50%,
+      colors.text(900)
+    );
+    pointer-events: none;
+  }
+
+  &__content {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  &__title {
+    font-size: 1.375rem;
+    font-weight: 400;
+    color: colors.text(100);
+    line-height: 1.75rem;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  &__description {
+    font-size: 0.8125rem;
+    font-weight: 400;
+    color: colors.text(300);
+    line-height: 1.125rem;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  // Sizes
+  &--size-default {
+    .InviteHeader__image-container {
+      aspect-ratio: 16 / 10;
+      min-height: 240px;
+    }
+  }
+
+  &--size-compact {
+    .InviteHeader__image-container {
+      aspect-ratio: 16 / 9;
+      min-height: 180px;
+    }
+
+    .InviteHeader__title {
+      font-size: 1.125rem;
+    }
+
+    .InviteHeader__description {
+      -webkit-line-clamp: 2;
+    }
+  }
+}

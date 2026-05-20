@@ -1,0 +1,133 @@
+# RBAC Permissions - Version 1.0.0
+# Initial system permissions
+
+version: "1.0.0"
+model: Permission
+strategy: upsert
+upsert_key: name
+
+data:
+  # Organization permissions
+  - resource: organization
+    action: create
+    name: organization.create
+    description: Create new organizations
+
+  - resource: organization
+    action: read
+    name: organization.read
+    description: View organization details
+
+  - resource: organization
+    action: update
+    name: organization.update
+    description: Update organization settings
+
+  - resource: organization
+    action: delete
+    name: organization.delete
+    description: Delete organization
+
+  - resource: organization
+    action: invite
+    name: organization.invite
+    description: Invite users to organization
+
+  # Group permissions
+  - resource: group
+    action: create
+    name: group.create
+    description: Create new groups
+
+  - resource: group
+    action: read
+    name: group.read
+    description: View group details
+
+  - resource: group
+    action: update
+    name: group.update
+    description: Update group settings
+
+  - resource: group
+    action: delete
+    name: group.delete
+    description: Delete groups
+
+  - resource: group
+    action: invite
+    name: group.invite
+    description: Invite members to groups
+
+  # Member permissions
+  - resource: member
+    action: create
+    name: member.create
+    description: Add new members
+
+  - resource: member
+    action: read
+    name: member.read
+    description: View member details
+
+  - resource: member
+    action: update
+    name: member.update
+    description: Update member information
+
+  - resource: member
+    action: delete
+    name: member.delete
+    description: Remove members
+
+  # Media permissions
+  - resource: media
+    action: create
+    name: media.create
+    description: Upload media files
+
+  - resource: media
+    action: read
+    name: media.read
+    description: View media files
+
+  - resource: media
+    action: update
+    name: media.update
+    description: Update media files
+
+  - resource: media
+    action: delete
+    name: media.delete
+    description: Delete media files
+
+  - resource: media
+    action: publish
+    name: media.publish
+    description: Publish media to members
+
+  # Role permissions
+  - resource: role
+    action: create
+    name: role.create
+    description: Create custom roles
+
+  - resource: role
+    action: read
+    name: role.read
+    description: View roles
+
+  - resource: role
+    action: update
+    name: role.update
+    description: Update role permissions
+
+  - resource: role
+    action: delete
+    name: role.delete
+    description: Delete custom roles
+
+  - resource: role
+    action: assign
+    name: role.assign
+    description: Assign roles to users
