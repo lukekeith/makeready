@@ -18,6 +18,24 @@ class ApiService
     }
 
     /**
+     * Build the standard headers forwarded to the API on every request.
+     *
+     * Includes X-Forwarded-Proto so Express honours its `secure` cookie flag
+     * even when the Laravel → API call travels over Railway's internal HTTP
+     * network. Without this header Express sees req.secure = false and refuses
+     * to set the connect.sid session cookie in production.
+     */
+    private function apiHeaders(Request $request): array
+    {
+        return [
+            'Cookie'            => $this->extractApiCookies($request),
+            'Content-Type'      => 'application/json',
+            'Accept'            => 'application/json',
+            'X-Forwarded-Proto' => $request->isSecure() ? 'https' : 'http',
+        ];
+    }
+
+    /**
      * Make an API GET request, forwarding browser cookies.
      *
      * Returns an array with:
@@ -38,11 +56,8 @@ class ApiService
     {
         $start = microtime(true);
         try {
-            $response = Http::timeout(10)->withHeaders([
-                'Cookie'       => $this->extractApiCookies($request),
-                'Content-Type' => 'application/json',
-                'Accept'       => 'application/json',
-            ])->get("{$this->baseUrl}{$endpoint}");
+            $response = Http::timeout(10)->withHeaders($this->apiHeaders($request))
+                ->get("{$this->baseUrl}{$endpoint}");
 
             $body = $response->json() ?? [];
             $this->logApiCall('GET', $endpoint, [], $request, $response->status(), $body, $start);
@@ -74,20 +89,17 @@ class ApiService
     {
         $start = microtime(true);
         try {
-            $cookieHeader = $this->extractApiCookies($request);
+            $headers = $this->apiHeaders($request);
 
             // Merge Set-Cookie values from a prior API call so the second
             // request in a chain (e.g. confirm-verification → join-request)
             // carries the session cookie that was just issued.
             if (! empty($extraSetCookies)) {
-                $cookieHeader = $this->mergeCookies($cookieHeader, $extraSetCookies);
+                $headers['Cookie'] = $this->mergeCookies($headers['Cookie'], $extraSetCookies);
             }
 
-            $response = Http::timeout(10)->withHeaders([
-                'Cookie'       => $cookieHeader,
-                'Content-Type' => 'application/json',
-                'Accept'       => 'application/json',
-            ])->post("{$this->baseUrl}{$endpoint}", $data);
+            $response = Http::timeout(10)->withHeaders($headers)
+                ->post("{$this->baseUrl}{$endpoint}", $data);
 
             $body = $response->json() ?? [];
             $this->logApiCall('POST', $endpoint, $data, $request, $response->status(), $body, $start);
@@ -119,11 +131,8 @@ class ApiService
     {
         $start = microtime(true);
         try {
-            $response = Http::timeout(10)->withHeaders([
-                'Cookie'       => $this->extractApiCookies($request),
-                'Content-Type' => 'application/json',
-                'Accept'       => 'application/json',
-            ])->patch("{$this->baseUrl}{$endpoint}", $data);
+            $response = Http::timeout(10)->withHeaders($this->apiHeaders($request))
+                ->patch("{$this->baseUrl}{$endpoint}", $data);
 
             $body = $response->json() ?? [];
             $this->logApiCall('PATCH', $endpoint, $data, $request, $response->status(), $body, $start);
@@ -155,11 +164,8 @@ class ApiService
     {
         $start = microtime(true);
         try {
-            $response = Http::timeout(10)->withHeaders([
-                'Cookie'       => $this->extractApiCookies($request),
-                'Content-Type' => 'application/json',
-                'Accept'       => 'application/json',
-            ])->delete("{$this->baseUrl}{$endpoint}");
+            $response = Http::timeout(10)->withHeaders($this->apiHeaders($request))
+                ->delete("{$this->baseUrl}{$endpoint}");
 
             $body = $response->json() ?? [];
             $this->logApiCall('DELETE', $endpoint, [], $request, $response->status(), $body, $start);
@@ -197,10 +203,10 @@ class ApiService
             'size'     => $file->getSize(),
         ];
         try {
-            $response = Http::timeout(30)->withHeaders([
-                'Cookie' => $this->extractApiCookies($request),
-                'Accept' => 'application/json',
-            ])->attach($fileKey, $file->getContent(), $file->getClientOriginalName())
+            $uploadHeaders = $this->apiHeaders($request);
+            unset($uploadHeaders['Content-Type']); // Let HTTP client set multipart boundary
+            $response = Http::timeout(30)->withHeaders($uploadHeaders)
+                ->attach($fileKey, $file->getContent(), $file->getClientOriginalName())
               ->post("{$this->baseUrl}{$endpoint}");
 
             $body = $response->json() ?? [];
