@@ -1,0 +1,88 @@
+name: Promote to Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        type: choice
+        options:
+          - Web (app.makeready.org)
+          - API (api.makeready.org)
+          - Capture
+          - All
+      confirm:
+        description: 'Type "promote" to confirm production deployment'
+        required: true
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  RAILWAY_ENV_ID: "47a94190-6ea6-48fd-b9db-9973f4f5912a"
+  WEB_SERVICE_ID: "6cb4987b-0344-4e4c-85bd-7490eb0e22d1"
+  API_SERVICE_ID: "f5dc2315-9c49-4c85-b32d-99418eeba49d"
+  CAPTURE_SERVICE_ID: "5a0e4ee7-d839-481d-b08b-220d30c29e60"
+
+jobs:
+  promote:
+    name: Deploy ${{ github.event.inputs.service }} to Production
+    runs-on: ubuntu-latest
+    if: github.event.inputs.confirm == 'promote'
+
+    steps:
+      - name: Deploy Web
+        if: contains(github.event.inputs.service, 'Web') || github.event.inputs.service == 'All'
+        run: |
+          echo "Deploying Web to production..."
+          curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$WEB_SERVICE_ID\\\") }\"}" \
+            | tee /tmp/web-response.json
+          echo ""
+
+          if grep -q '"errors"' /tmp/web-response.json; then
+            echo "::error::Web deploy failed"
+            cat /tmp/web-response.json
+            exit 1
+          fi
+          echo "Web deploy triggered."
+
+      - name: Deploy API
+        if: contains(github.event.inputs.service, 'API') || github.event.inputs.service == 'All'
+        run: |
+          echo "Deploying API to production..."
+          curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$API_SERVICE_ID\\\") }\"}" \
+            | tee /tmp/api-response.json
+          echo ""
+
+          if grep -q '"errors"' /tmp/api-response.json; then
+            echo "::error::API deploy failed"
+            cat /tmp/api-response.json
+            exit 1
+          fi
+          echo "API deploy triggered."
+
+      - name: Deploy Capture
+        if: contains(github.event.inputs.service, 'Capture') || github.event.inputs.service == 'All'
+        run: |
+          echo "Deploying Capture to production..."
+          curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
+            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$CAPTURE_SERVICE_ID\\\") }\"}" \
+            | tee /tmp/capture-response.json
+          echo ""
+
+          if grep -q '"errors"' /tmp/capture-response.json; then
+            echo "::error::Capture deploy failed"
+            cat /tmp/capture-response.json
+            exit 1
+          fi
+          echo "Capture deploy triggered."
