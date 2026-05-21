@@ -22,11 +22,11 @@ class ComplianceTest extends TestCase
         $response->assertSee('No mobile information will be shared with third parties');
     }
 
-    public function test_privacy_uses_auth_layout_with_navbar(): void
+    public function test_privacy_uses_marketing_layout_with_navbar(): void
     {
         $response = $this->get('/pages/privacy');
-        $response->assertSee('SiteNavbar', false);
-        $response->assertDontSee('partials.navigation', false);
+        $response->assertSee('MarketingNav', false);
+        $response->assertSee('MarketingFooter', false);
     }
 
     // -----------------------------------------------------------------------

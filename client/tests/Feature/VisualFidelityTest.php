@@ -56,25 +56,25 @@ class VisualFidelityTest extends TestCase
     // ─── Public pages (no auth required) ───────────────────────────────────────
 
     /**
-     * VF-01: GET /privacy renders with root class PrivacyPage.
+     * VF-01: GET /privacy renders with root class InfoPage.
      */
     public function test_privacy_page_has_root_bem_class(): void
     {
         $response = $this->get('/pages/privacy');
 
         $response->assertStatus(200);
-        $response->assertSee('PrivacyPage', false);
+        $response->assertSee('InfoPage', false);
     }
 
     /**
-     * VF-02: GET /terms renders with root class TermsPage.
+     * VF-02: GET /terms renders with root class InfoPage.
      */
     public function test_terms_page_has_root_bem_class(): void
     {
         $response = $this->get('/pages/terms');
 
         $response->assertStatus(200);
-        $response->assertSee('TermsPage', false);
+        $response->assertSee('InfoPage', false);
     }
 
     /**
