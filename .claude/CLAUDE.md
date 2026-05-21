@@ -2,9 +2,9 @@
 
 ## 🏗️ Architecture Overview
 
-This is a **multi-repo project** with three separate applications, each with its own git repository. Before making ANY changes, you MUST:
+This is a **multi-app project** with four applications. Three have independent git repositories; one (capture) lives in the workspace without its own repo. Before making ANY changes, you MUST:
 
-1. **Understand the multi-repo structure**: Three separate git repos (client, server, iphone)
+1. **Understand the multi-app structure**: Three git repos (client, server, iphone) + one workspace app (capture)
 2. **Read the architecture spec**: `.project/ARCHITECTURE_SPEC.md`
 3. **Use the appropriate sub-agent** for the task
 4. **Follow the component patterns** exactly as specified
@@ -13,14 +13,15 @@ This is a **multi-repo project** with three separate applications, each with its
 
 ## 🗂️ Multi-Repo Structure
 
-This project contains **three separate applications with independent git repositories**:
+This project contains **four applications**. Three have independent git repositories; one (capture) lives in the workspace without its own repo:
 
-- **`/client`** - Web client (React + MobX + Vite) - Has own `.git` repo
-- **`/server`** - Backend API (Express + Prisma) - Has own `.git` repo
+- **`/client`** - Web app (Laravel 11 + Vue 3 + Pinia + PrimeVue) - Has own `.git` repo
+- **`/server`** - Backend API (Express + Prisma + PostgreSQL) - Has own `.git` repo
 - **`/iphone`** - iOS app (Swift/SwiftUI) - Has own `.git` repo
+- **`/capture`** - Screenshot & visual regression tool (React + Vite + Playwright) - No git repo (workspace-level)
 - **Root folder** - Has NO git repo (workspace coordination only)
 
-Each app also has its own `.claude/` folder for app-specific configurations.
+Each app with a git repo also has its own `.claude/` folder for app-specific configurations.
 
 ### ⚠️ Git Operations - CRITICAL
 
@@ -40,6 +41,74 @@ cd iphone && git status && git add . && git commit -m "..."
 **NEVER run git commands from the root folder** - it has no `.git` repository.
 
 For cross-app changes (e.g., API update + client update), commit to each affected repository separately.
+
+## 🔗 App Responsibilities & How They Connect
+
+### Data Flow
+
+```
+Browser → Client (Laravel :8000) → Server (Express :3010) → PostgreSQL / Cloudflare / Twilio / etc.
+iPhone App ──────────────────────→ Server (Express :3010) → PostgreSQL / Cloudflare / Twilio / etc.
+Capture Tool → Client (Playwright) & iPhone Simulator (screenshots)
+```
+
+### Server (`/server`) — Single Source of Truth
+
+All business logic, data, and external integrations live here. Client and iPhone are consumers only.
+
+- **Stack:** Express + Prisma + PostgreSQL (55 models, 43 route modules, 28 services)
+- **Auth:** Google OAuth (admins/leaders), phone SMS verification (members via Twilio)
+- **External integrations:** Twilio (SMS/verify), Cloudflare R2 (media storage) + Stream (video), API.Bible, Claude AI (tagging/alt text), APNs (push notifications)
+- **RBAC:** Org-scoped roles and permissions (Super Admin, Owner, Admin, Group Leader, Member)
+- **Key domains:** Groups, study programs, lessons, activities, enrollments, members, events, posts, Bible content, media library, notes
+
+### Client (`/client`) — Web Frontend + API Proxy
+
+Laravel serves Blade templates with Vue 3 "islands" mounted into server-rendered pages.
+
+- **Stack:** Laravel 11 + Vue 3 + Pinia + PrimeVue + SCSS + ApexCharts
+- **Architecture:** Vue "islands" — interactive Vue components mounted into server-rendered Blade pages (not a full SPA except admin)
+- **Admin SPA:** Vue Router at `/admin/*` with Pinia stores (domain stores for API data, UI stores for view state)
+- **API proxy:** Proxies admin API calls via `/admin/api/{path}` → server at `:3010`
+- **Session management:** Client has its OWN Laravel sessions, separate from server sessions — forwards `connect.sid` cookies to the server
+- **Member-facing:** Phone login, group join, lesson playback (video, reading, SOAP input)
+- **Admin-facing:** Group/program/member management, analytics dashboard, content creation/editor
+
+### iPhone (`/iphone`) — Native iOS App
+
+Mirrors admin/leader functionality from client, connects directly to server API (no client proxy).
+
+- **Stack:** Swift 5 + SwiftUI (iOS 17.0+), @Observable + Actions pattern
+- **State:** Centralized `AppState.shared` singleton with normalized entity stores, disk-cached for offline support
+- **Auth:** Google OAuth via ASWebAuthenticationSession → exchanges code with server directly
+- **Unique features:** Custom video recorder with teleprompter, full Bible reader with search/highlighting, push notifications (APNs) with deep linking
+- **Components:** 122 custom SwiftUI components, 239 page files
+
+### Capture (`/capture`) — Internal Dev Tool
+
+Visual regression testing and screenshot capture. Not a production app.
+
+- **Stack:** React + Vite (frontend on :5950) + Express (backend on :5951) + Playwright
+- **Purpose:** Manifest-driven screenshot capture for both client (via Playwright) and iPhone (via simulator)
+- **Structure:** JSON fixtures define screens, viewports, and expected output per platform
+- **No git repo** — lives in workspace, no separate version control
+
+### Cross-App Impact Guide
+
+Use this table when making changes to understand which apps may be affected:
+
+| Change type | Apps affected | What to check |
+|---|---|---|
+| Database schema change | server → client, iphone | Both consumers use the same API responses |
+| New API endpoint | server + whichever consumer uses it | Client proxy config if admin route |
+| Auth flow change | server + client + iphone | Client proxies sessions; iPhone uses direct OAuth |
+| UI component (Vue) | client only | Histoire/Storybook stories |
+| Study/lesson content model | server → client (lesson player) + iphone (lesson views) | Both render the same content differently |
+| Push notifications | server + iphone | Server sends via APNs; iPhone handles deep links |
+| Media/video upload | server (R2/Stream) → client + iphone | Both consume Cloudflare URLs |
+| Screenshot fixtures | capture only | Update manifest and re-run captures |
+
+---
 
 ## 🤖 Sub-Agent Strategy
 
@@ -551,16 +620,26 @@ TWILIO_VERIFY_SERVICE_ID=your_service_id_here
 makeready/                   # Root folder (NO .git repo)
 ├── .claude/                # Root-level Claude configuration
 ├── .project/               # Architecture documentation
-├── client/                 # Web app (has own .git repo)
+├── client/                 # Web app - Laravel + Vue 3 (has own .git repo)
 │   ├── .git/              # Client git repository
 │   ├── .claude/           # Client-specific Claude config
 │   ├── .storybook/        # Storybook config (in client!)
+│   ├── app/               # Laravel controllers, services, middleware
+│   ├── routes/            # Laravel route definitions (web.php)
+│   ├── resources/
+│   │   ├── js/
+│   │   │   ├── app.js         # Entry point, Vue island auto-mounter
+│   │   │   ├── components/    # Vue components (primitive, domain, admin, layout)
+│   │   │   ├── islands/       # Vue islands (admin-island SPA, slides-island, etc.)
+│   │   │   │   └── admin-island/
+│   │   │   │       ├── router.ts    # Vue Router for /admin/*
+│   │   │   │       └── stores/      # Pinia stores (domain/ + ui/)
+│   │   │   └── stores/       # Global stores (modal)
+│   │   ├── css/              # SCSS styles
+│   │   └── views/            # Blade templates
 │   ├── ui/                # UI components (client-specific)
 │   │   ├── components/
 │   │   │   ├── primitive/  # Base components
-│   │   │   │   └── button/
-│   │   │   │       ├── button.tsx
-│   │   │   │       └── button.scss
 │   │   │   ├── domain/     # Business components
 │   │   │   └── layout/     # Page layouts
 │   │   ├── stories/       # Storybook stories
@@ -587,21 +666,36 @@ makeready/                   # Root folder (NO .git repo)
 │   ├── .git/             # Server git repository
 │   ├── .claude/          # Server-specific Claude config
 │   ├── src/
-│   │   ├── routes/       # Express routes
+│   │   ├── routes/       # Express routes (43 modules)
+│   │   ├── services/     # Business logic (28 modules)
+│   │   ├── middleware/    # Auth, API key, bot guard, logging
 │   │   └── index.ts      # Server entry
-│   ├── prisma/           # Database schema
+│   ├── prisma/           # Database schema (55 models)
+│   ├── schema/           # YAML source of truth for DB schema
 │   └── .env              # Server environment variables
-└── iphone/               # iOS app (has own .git repo)
-    ├── .git/            # iPhone git repository
-    ├── .claude/         # iPhone-specific Claude config
-    └── MakeReady/       # Swift project
+├── iphone/               # iOS app (has own .git repo)
+│   ├── .git/            # iPhone git repository
+│   ├── .claude/         # iPhone-specific Claude config
+│   └── MakeReady/       # Swift project
+│       ├── State/       # AppState, Actions, EntityStore, Models
+│       ├── Pages/       # SwiftUI pages (239 files)
+│       ├── Components/  # SwiftUI components (122 files)
+│       └── Services/    # Bible, search, push notifications
+└── capture/             # Screenshot tool (NO .git repo)
+    ├── fixtures/        # Screenshot specs & output
+    │   ├── client/      # Web client captures
+    │   └── iphone/      # iPhone captures
+    ├── runners/         # Platform-specific capture scripts
+    ├── src/             # React frontend
+    └── server.mjs       # Express backend
 ```
 
 **Key Points:**
 - ❌ NO shared `/ui` or `/util` at root level
 - ✅ `/client/ui` and `/client/util` are client-specific
 - ✅ Three separate git repositories (client, server, iphone)
-- ✅ Each app has its own `.claude/` configuration
+- ✅ Capture app has NO git repo — lives in workspace
+- ✅ Each git-repo app has its own `.claude/` configuration
 - ✅ Root folder coordinates workspaces but has NO git repo
 
 ---
@@ -690,7 +784,7 @@ import { Application } from "@/store/ApplicationStore";
 
 ## 🚀 Getting Started
 
-1. **Understand multi-repo structure**: Three separate git repos (client, server, iphone)
+1. **Understand multi-app structure**: Three git repos (client, server, iphone) + capture (workspace-level)
 2. **Read the spec**: `.project/ARCHITECTURE_SPEC.md`
 3. **Review examples**: Check existing components in `client/ui/components/primitive/`
 4. **Use sub-agents**: Don't create components manually
@@ -706,6 +800,6 @@ import { Application } from "@/store/ApplicationStore";
 - ✅ Type safety with CVA
 - ✅ Testability in Storybook
 - ✅ Scalability as the project grows
-- ✅ Independent git history per app
+- ✅ Independent git history per app (client, server, iphone — not capture)
 
 **Always use the appropriate sub-agent AND commit to the correct git repository!**
