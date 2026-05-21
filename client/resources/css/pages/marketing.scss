@@ -1030,9 +1030,10 @@
 }
 
 .MarketingFooter {
-    width: min(1180px, calc(100% - 2rem));
+    width: 100%;
+    max-width: 1180px;
     margin: 0 auto;
-    padding: 2rem 0 3rem;
+    padding: 2rem 1rem 3rem;
     display: flex;
     justify-content: space-between;
     gap: 1rem;

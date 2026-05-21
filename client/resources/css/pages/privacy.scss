@@ -1,6 +1,5 @@
 .PrivacyPage {
-  min-height: 100vh;
-  padding: 80px 64px 48px;
+  padding: 0;
 
   &__container {
     display: flex;
@@ -76,7 +75,4 @@
     }
   }
 
-  @media (max-width: 768px) {
-    padding: 64px 24px 24px;
-  }
 }

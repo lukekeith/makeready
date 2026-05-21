@@ -4,7 +4,6 @@
 // @use rules must come first
 @use 'styles/tokens';
 @use 'layouts/auth' as layout-auth;
-@use 'compliance';
 @use 'card-depth';
 
 // Primitive components
@@ -90,9 +89,7 @@
 @use 'pages/public-event-join' as page-public-event-join;
 @use 'pages/landing' as page-landing;
 @use 'pages/not-found' as page-not-found;
-@use 'pages/privacy' as page-privacy;
-@use 'pages/terms' as page-terms;
-@use 'pages/contact' as page-contact;
+@use 'pages/info-page' as page-info;
 @use 'pages/marketing' as page-marketing;
 
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;500;600;700;800&display=swap');

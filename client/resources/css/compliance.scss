@@ -16,12 +16,7 @@ $compliance-border-color: rgba(255, 255, 255, 0.1);
 $compliance-section-gap: 40px;
 
 .SmsOptIn {
-    min-height: 100vh;
-    padding: 80px 64px 48px;
-
-    @media (max-width: 768px) {
-        padding: 64px 24px 24px;
-    }
+    padding: 0;
 
     &__container {
         max-width: $compliance-max-width;

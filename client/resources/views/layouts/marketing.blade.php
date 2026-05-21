@@ -190,7 +190,6 @@
             <p>Personal growth through human connection, accountability, and study.</p>
         </div>
         <nav aria-label="Footer navigation">
-            <a href="/contact">Contact</a>
             <a href="/privacy">Privacy</a>
             <a href="/terms">Terms</a>
             <a href="/sms-terms">SMS Terms</a>
