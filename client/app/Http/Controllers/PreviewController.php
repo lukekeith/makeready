@@ -219,8 +219,29 @@ class PreviewController extends Controller
      */
     private function fetchAuthedPreview(Request $request, string $endpoint): array
     {
-        $adminSessionId = $request->session()->get('admin_user_session');
+        // Strategy 1: Preview token from query param (iPhone WKWebView).
+        // Pass the token straight through to the API — it validates internally.
+        $previewToken = $request->query('preview_token');
+        if ($previewToken) {
+            $separator = str_contains($endpoint, '?') ? '&' : '?';
+            $tokenEndpoint = "{$endpoint}{$separator}preview_token={$previewToken}";
+            try {
+                $response = \Illuminate\Support\Facades\Http::timeout(10)->withHeaders([
+                    'Accept' => 'application/json',
+                ])->get(config('services.makeready.url') . $tokenEndpoint);
+                return [
+                    'status'     => $response->status(),
+                    'body'       => $response->json() ?? [],
+                    'setCookies' => [],
+                ];
+            } catch (\Throwable $e) {
+                \Log::error('Preview token fetch failed: ' . $e->getMessage());
+                return ['status' => 500, 'body' => ['error' => $e->getMessage()], 'setCookies' => []];
+            }
+        }
 
+        // Strategy 2: Admin session (desktop browser logged in via /admin/login)
+        $adminSessionId = $request->session()->get('admin_user_session');
         if ($adminSessionId) {
             try {
                 $response = \Illuminate\Support\Facades\Http::timeout(10)->withHeaders([
@@ -238,6 +259,7 @@ class PreviewController extends Controller
             }
         }
 
+        // Strategy 3: Forward browser cookies (planted connect.sid)
         return $this->api->get($endpoint, $request);
     }
 }

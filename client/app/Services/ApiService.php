@@ -31,6 +31,7 @@ class ApiService
             'Cookie'            => $this->extractApiCookies($request),
             'Content-Type'      => 'application/json',
             'Accept'            => 'application/json',
+            'User-Agent'        => $request->userAgent() ?: 'MakeReady-Client/1.0',
             'X-Forwarded-Proto' => $request->isSecure() ? 'https' : 'http',
         ];
     }

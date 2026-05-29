@@ -320,21 +320,56 @@ class AuthManager: NSObject, ObservableObject {
         }
     }
 
-    // MARK: - DEBUG: Bypass Authentication
-    #if DEBUG
-    func debugBypassAuthentication() {
-        print("🔓 DEBUG: Bypassing authentication")
-        let mockUser = User(
-            id: "debug-user-123",
-            name: "Debug User",
-            email: "debug@makeready.app",
-            picture: nil
+    // MARK: - Dev Login (local development only)
+
+    /// Authenticate against the local dev server using email instead of Google OAuth.
+    /// Calls POST /auth/dev-login which creates a real server session.
+    /// Only works when the server is running in NODE_ENV=development.
+    @MainActor
+    func devLogin(email: String) async throws {
+        print("🔓 Dev login: \(email) → \(Configuration.baseURL)")
+
+        guard let url = URL(string: "\(Configuration.baseURL)/auth/dev-login") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse,
+              httpResponse.statusCode == 200 else {
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
+            print("❌ Dev login failed: HTTP \(statusCode)")
+            throw URLError(.userAuthenticationRequired)
+        }
+
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        guard let success = json?["success"] as? Bool, success,
+              let sessionCookie = json?["sessionCookie"] as? String,
+              let userDict = json?["user"] as? [String: Any] else {
+            print("❌ Dev login: invalid response")
+            throw URLError(.userAuthenticationRequired)
+        }
+
+        // Store session cookie using the same mechanism as exchangeAuthCode
+        storeSessionCookie(sessionCookie)
+        print("🍪 Dev login: stored session cookie")
+
+        // Set current user
+        let user = User(
+            id: userDict["id"] as? String ?? "",
+            name: userDict["name"] as? String ?? "",
+            email: userDict["email"] as? String ?? "",
+            picture: userDict["avatarURL"] as? String
         )
-        self.currentUser = mockUser
+        self.currentUser = user
         self.isAuthenticated = true
-        print("✅ DEBUG: Authenticated as \(mockUser.name)")
+        print("✅ Dev login: authenticated as \(user.name)")
     }
-    #endif
 
     // MARK: - Invite Management
 

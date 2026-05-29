@@ -492,6 +492,7 @@ struct StudyActivity: Codable, Identifiable {
     var helpDescription: String?   // Helper text body
     var helpAlwaysVisible: Bool?   // Show helper expanded
     var helpIcon: String?          // Icon identifier
+    var placeholder: String?       // Custom placeholder text for USER_INPUT activities
     var readContent: String?       // Markdown content for READ activities
     var sourceReferences: [ActivitySourceReference]?  // Source references
     var readBlocks: [ActivityReadBlock]?              // Read blocks for multi-block READ activities
@@ -532,7 +533,7 @@ struct StudyActivity: Codable, Identifiable {
     enum CodingKeys: String, CodingKey {
         case id, lessonId, type, activityType, status, orderNumber
         case createdAt, updatedAt
-        case title, isHelpEnabled, helpTitle, helpDescription, helpAlwaysVisible, helpIcon
+        case title, isHelpEnabled, helpTitle, helpDescription, helpAlwaysVisible, helpIcon, placeholder
         case readContent, sourceReferences, readBlocks
         case themeId
         case videoId, videoUrl, video
@@ -572,6 +573,7 @@ struct StudyActivity: Codable, Identifiable {
         helpDescription = try container.decodeIfPresent(String.self, forKey: .helpDescription)
         helpAlwaysVisible = try container.decodeIfPresent(Bool.self, forKey: .helpAlwaysVisible)
         helpIcon = try container.decodeIfPresent(String.self, forKey: .helpIcon)
+        placeholder = try container.decodeIfPresent(String.self, forKey: .placeholder)
         readContent = try container.decodeIfPresent(String.self, forKey: .readContent)
         sourceReferences = try container.decodeIfPresent([ActivitySourceReference].self, forKey: .sourceReferences)
         readBlocks = try container.decodeIfPresent([ActivityReadBlock].self, forKey: .readBlocks)
@@ -676,6 +678,7 @@ struct StudyActivity: Codable, Identifiable {
         helpDescription: String? = nil,
         helpAlwaysVisible: Bool? = nil,
         helpIcon: String? = nil,
+        placeholder: String? = nil,
         readContent: String? = nil,
         sourceReferences: [ActivitySourceReference]? = nil,
         readBlocks: [ActivityReadBlock]? = nil,
@@ -708,6 +711,7 @@ struct StudyActivity: Codable, Identifiable {
         self.helpDescription = helpDescription
         self.helpAlwaysVisible = helpAlwaysVisible
         self.helpIcon = helpIcon
+        self.placeholder = placeholder
         self.readContent = readContent
         self.sourceReferences = sourceReferences
         self.readBlocks = readBlocks

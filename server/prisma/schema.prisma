@@ -737,6 +737,7 @@ model LessonTemplateActivity {
   helpDescription      String? @db.Text // Helper body for USER_INPUT
   helpAlwaysVisible    Boolean @default(false) // Show expanded or collapsed
   helpIcon             String? // Icon identifier
+  placeholder          String? // Custom placeholder text for USER_INPUT activities
   referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -820,6 +821,7 @@ model LessonActivity {
   helpDescription      String? @db.Text
   helpAlwaysVisible    Boolean @default(false)
   helpIcon             String?
+  placeholder          String? // Custom placeholder text for USER_INPUT activities
   isHelpEnabled        Boolean @default(true)
   referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
   readContent          String? @db.Text // Markdown for READ activities
@@ -1176,6 +1178,7 @@ model ScheduledLessonActivity {
   helpDescription      String? @db.Text
   helpAlwaysVisible    Boolean @default(false)
   helpIcon             String?
+  placeholder          String? // Custom placeholder text for USER_INPUT activities
   isHelpEnabled        Boolean @default(true) // Whether help info (helpTitle/helpDescription) is shown to members
   referenceTitle       String? // Display reference for READ activities, e.g., 'Romans 1:1-5'
   readContent          String? @db.Text // Markdown for READ activities

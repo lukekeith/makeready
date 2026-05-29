@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import BulletTextInput from '../../../primitive/bullet-text-input/bullet-text-input.vue'
 import Modal from '../../../primitive/modal/modal.vue'
+import { useLessonState } from '../use-lesson-state'
 
 interface Note {
   content?: string
@@ -18,6 +19,7 @@ interface Activity {
   helpIcon?: string
   helpText?: string
   noteType?: string
+  placeholder?: string
   note?: Note
 }
 
@@ -88,9 +90,23 @@ function closeHelp() {
   showHelpModal.value = false
 }
 
+const lessonState = useLessonState()
+
 /** True once the user has typed meaningful content (whitespace-only doesn't
  *  count). Drives the Save button's disabled + visual state. */
 const hasContent = computed(() => noteContent.value.trim().length > 0)
+
+// Report progress to lesson state
+onMounted(() => {
+  lessonState.reportProgress('Write your response', false)
+})
+
+watch(hasContent, (has) => {
+  lessonState.reportProgress(
+    has ? 'Submit your response' : 'Write your response',
+    false // canProceed stays false until submitted — submit auto-advances
+  )
+})
 
 /** Style maps for the Save button. Kept inline (rather than hoisted into
  *  the SCSS layer) to match the file's existing inline-style approach for
@@ -115,6 +131,11 @@ function handleSave() {
 
 <template>
   <div class="LessonActivity__input-step">
+    <!-- Activity title -->
+    <h3 v-if="activity.title" class="LessonActivity__input-step-title">
+      {{ activity.title }}
+    </h3>
+
     <!-- Always-visible context: title + description rendered inline -->
     <div v-if="hasHelp && activity.helpAlwaysVisible" class="LessonActivity__help-inline">
       <span class="LessonActivity__help-inline-title">
@@ -147,12 +168,21 @@ function handleSave() {
       </span>
     </button>
 
-    <BulletTextInput
-      v-model="noteContent"
-      :placeholder="`Add your thoughts...`"
-      :fill="true"
-      :autoFocus="false"
-    />
+    <div class="LessonActivity__input-wrap">
+      <!-- Animated pointer arrow — hidden once the user starts typing -->
+      <div v-if="!hasContent" class="LessonActivity__input-pointer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+          <polyline points="6 9 12 15 18 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <BulletTextInput
+        v-model="noteContent"
+        :placeholder="activity.placeholder || 'Add your thoughts...'"
+        :fill="true"
+        :autoFocus="false"
+        class="LessonActivity__input-field"
+      />
+    </div>
 
     <div v-if="isSaving" style="text-align: center; color: rgba(255,255,255,0.4); font-size: 14px; padding: 8px 0;">
       Saving...
@@ -190,6 +220,48 @@ function handleSave() {
 </template>
 
 <style scoped>
+.LessonActivity__input-step-title {
+  margin: 0;
+  font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 22px;
+  color: white;
+  text-align: center;
+}
+
+.LessonActivity__input-wrap {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.LessonActivity__input-field {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+}
+
+.LessonActivity__input-pointer {
+  position: absolute;
+  top: 0;
+  left: 8px;
+  color: #6c47ff;
+  animation: input-pointer-bounce 4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes input-pointer-bounce {
+  0%, 100% {
+    transform: translateY(-24px);
+  }
+  50% {
+    transform: translateY(-16px);
+  }
+}
+
 .LessonActivity__help-row {
   display: flex;
   align-items: center;

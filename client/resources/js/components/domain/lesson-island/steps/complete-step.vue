@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
+import { useLessonState } from '../use-lesson-state'
+
 interface Props {
   groupId: string
   studyEnrollmentId?: string
@@ -10,6 +13,12 @@ const props = withDefaults(defineProps<Props>(), {
   isPreview: false,
   studyEnrollmentId: '',
   previewToken: '',
+})
+
+const lessonState = useLessonState()
+
+onMounted(() => {
+  lessonState.reportProgress('', true)
 })
 
 const studyHomeHref = props.isPreview && props.previewToken

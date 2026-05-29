@@ -12,7 +12,7 @@ struct EditUserInputActivityPage: View {
     let activity: StudyActivity
     let programId: String?
     let onCancel: () -> Void
-    let onSave: (String?, Bool, Bool, String?, String?, String?) -> Void
+    let onSave: (String?, Bool, Bool, String?, String?, String?, String?) -> Void
 
     @EnvironmentObject var authManager: AuthManager
 
@@ -30,6 +30,7 @@ struct EditUserInputActivityPage: View {
     @State private var helpTitle: String = ""
     @State private var helpDescription: String = ""
     @State private var helpIcon: String = "None"
+    @State private var placeholder: String = ""
 
     // Snapshot of values at last-saved-or-opened — drives the Save/Done
     // toggle. `hasChanges` compares live state to this snapshot; saving
@@ -40,6 +41,7 @@ struct EditUserInputActivityPage: View {
     @State private var originalHelpTitle: String = ""
     @State private var originalHelpDescription: String = ""
     @State private var originalHelpIcon: String = "None"
+    @State private var originalPlaceholder: String = ""
 
     @State private var isSaving = false
 
@@ -52,7 +54,8 @@ struct EditUserInputActivityPage: View {
         helpAlwaysVisible != originalHelpAlwaysVisible ||
         helpTitle != originalHelpTitle ||
         helpDescription != originalHelpDescription ||
-        helpIcon != originalHelpIcon
+        helpIcon != originalHelpIcon ||
+        placeholder != originalPlaceholder
     }
 
     private let iconOptions = [
@@ -97,7 +100,8 @@ struct EditUserInputActivityPage: View {
                                     isHelpEnabled ? helpAlwaysVisible : true,
                                     isHelpEnabled ? (helpTitle.isEmpty ? nil : helpTitle) : nil,
                                     isHelpEnabled ? (helpDescription.isEmpty ? nil : helpDescription) : nil,
-                                    isHelpEnabled ? (helpIcon == "None" ? nil : helpIcon) : nil
+                                    isHelpEnabled ? (helpIcon == "None" ? nil : helpIcon) : nil,
+                                    placeholder.isEmpty ? nil : placeholder
                                 )
                             }
                         }
@@ -117,6 +121,12 @@ struct EditUserInputActivityPage: View {
                                 floatingLabel: "Activity title",
                                 autocorrect: true,
                                 text: $title
+                            )
+                            FieldGroupDivider()
+                            TextInput(
+                                floatingLabel: "Placeholder text",
+                                autocorrect: true,
+                                text: $placeholder
                             )
                         }
                         .padding(.horizontal, 16)
@@ -240,6 +250,7 @@ struct EditUserInputActivityPage: View {
             helpTitle = activity.helpTitle ?? ""
             helpDescription = activity.helpDescription ?? ""
             helpIcon = activity.helpIcon ?? "None"
+            placeholder = activity.placeholder ?? ""
 
             // Snapshot matches initial values → hasChanges is false, so the
             // right-link opens as "Done". Any edit flips it to "Save".
@@ -249,6 +260,7 @@ struct EditUserInputActivityPage: View {
             originalHelpTitle = helpTitle
             originalHelpDescription = helpDescription
             originalHelpIcon = helpIcon
+            originalPlaceholder = placeholder
         }
     }
 
@@ -266,6 +278,7 @@ struct EditUserInputActivityPage: View {
         let pendingHelpTitle = isHelpEnabled ? (helpTitle.isEmpty ? nil : helpTitle) : nil
         let pendingHelpDescription = isHelpEnabled ? (helpDescription.isEmpty ? nil : helpDescription) : nil
         let pendingHelpIcon = isHelpEnabled ? (helpIcon == "None" ? nil : helpIcon) : nil
+        let pendingPlaceholder = placeholder.isEmpty ? nil : placeholder
 
         Task {
             do {
@@ -276,7 +289,8 @@ struct EditUserInputActivityPage: View {
                     helpAlwaysVisible: pendingHelpAlwaysVisible,
                     helpTitle:      pendingHelpTitle,
                     helpDescription: pendingHelpDescription,
-                    helpIcon:       pendingHelpIcon
+                    helpIcon:       pendingHelpIcon,
+                    placeholder:    pendingPlaceholder
                 )
                 await MainActor.run {
                     originalTitle = pendingTitle
@@ -285,6 +299,7 @@ struct EditUserInputActivityPage: View {
                     originalHelpTitle = helpTitle
                     originalHelpDescription = helpDescription
                     originalHelpIcon = helpIcon
+                    originalPlaceholder = placeholder
                     isSaving = false
                 }
             } catch {
@@ -315,8 +330,8 @@ struct EditUserInputActivityPage: View {
         ),
         programId: nil,
         onCancel: { print("Cancel") },
-        onSave: { title, isHelpEnabled, helpAlwaysVisible, helpTitle, helpDesc, helpIcon in
-            print("Save: \(title ?? "nil"), helpEnabled=\(isHelpEnabled), alwaysVisible=\(helpAlwaysVisible), \(helpTitle ?? "nil"), \(helpDesc ?? "nil"), \(helpIcon ?? "nil")")
+        onSave: { title, isHelpEnabled, helpAlwaysVisible, helpTitle, helpDesc, helpIcon, placeholder in
+            print("Save: \(title ?? "nil"), helpEnabled=\(isHelpEnabled), alwaysVisible=\(helpAlwaysVisible), \(helpTitle ?? "nil"), \(helpDesc ?? "nil"), \(helpIcon ?? "nil"), placeholder=\(placeholder ?? "nil")")
         }
     )
 }

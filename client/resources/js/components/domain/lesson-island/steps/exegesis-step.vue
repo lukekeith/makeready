@@ -5,6 +5,7 @@ import {
     isStableNumberedScriptureMarkdown,
     normalizeScriptureMarkdown,
 } from "@/utils/scripture-content-normalizer";
+import { useLessonState } from "../use-lesson-state";
 
 interface ExegesisHighlight {
     id: string;
@@ -66,6 +67,8 @@ const emit = defineEmits<{
     complete: [value: boolean];
     "hide-title": [value: boolean];
 }>();
+
+const lessonState = useLessonState();
 
 // Exegesis should show the lesson title in the header.
 emit("hide-title", false);
@@ -146,6 +149,22 @@ const isComplete = computed(() => {
 });
 
 watch(isComplete, (val) => emit("complete", val), { immediate: true });
+
+// Report progress to lesson state — updates as highlights are visited
+watch(
+    [visited, highlights],
+    () => {
+        const total = highlights.value.length;
+        const done = visited.value.size;
+        if (total === 0) return;
+        if (done >= total) {
+            lessonState.reportProgress("All highlights reviewed", true);
+        } else {
+            lessonState.reportProgress(`Tap each highlight (${done} of ${total})`, false);
+        }
+    },
+    { immediate: true, deep: true },
+);
 
 watch([overlayOpen, activeHighlight], () => {
     nextTick(() => updateOverlayHeight());

@@ -47,6 +47,51 @@ function mutationFilter(userId: string) {
   return { creatorId: userId }
 }
 
+// ─── Preview Tokens ─────────────────────────────────────────────────────────
+// Short-lived tokens that let WKWebView authenticate preview routes without
+// cookie planting. The iPhone requests a token (authenticated via session),
+// then appends it to the preview URL as ?preview_token=xxx. The Laravel
+// client exchanges it for the userId via /api/preview-token/validate.
+
+const previewTokens = new Map<string, { userId: string; expiresAt: number }>()
+
+// Clean up expired tokens periodically
+setInterval(() => {
+  const now = Date.now()
+  for (const [token, data] of previewTokens) {
+    if (data.expiresAt < now) previewTokens.delete(token)
+  }
+}, 60_000)
+
+/**
+ * POST /api/preview-token — generate a short-lived preview token.
+ * The token can be reused for multiple preview requests within 5 minutes.
+ */
+router.post('/preview-token', requireAuth, (_req, res) => {
+  const userId = (_req.user as any).id
+  const token = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
+  previewTokens.set(token, { userId, expiresAt: Date.now() + 5 * 60 * 1000 }) // 5 min
+  res.json({ success: true, token })
+})
+
+/**
+ * Resolve a userId from either the session (requireAuth) or a preview_token
+ * query param. Returns null if neither is valid.
+ */
+function resolvePreviewUser(req: any): string | null {
+  // Session-based auth
+  if (req.isAuthenticated?.()) return (req.user as any).id
+
+  // Token-based auth via query param
+  const token = req.query.preview_token as string | undefined
+  if (token) {
+    const data = previewTokens.get(token)
+    if (data && data.expiresAt >= Date.now()) return data.userId
+  }
+
+  return null
+}
+
 /**
  * Check if a user can preview content created by another user.
  * Returns true if they are the creator OR belong to the same org.
@@ -1322,9 +1367,10 @@ router.delete(
  *       200: { description: Activity + blocks + theme definitions }
  *       404: { description: Activity not found or not owned by the user }
  */
-router.get('/activities/:id/preview-data', requireAuth, async (req, res) => {
+router.get('/activities/:id/preview-data', async (req, res) => {
   try {
-    const userId = (req.user as any).id
+    const userId = resolvePreviewUser(req)
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const { id } = req.params
 
     const activity = await prisma.lessonActivity.findUnique({
@@ -1422,9 +1468,10 @@ router.get('/activities/:id/preview-data', requireAuth, async (req, res) => {
  *       200: { description: Program with ordered lesson list }
  *       404: { description: Program not found or not owned by the user }
  */
-router.get('/programs/:id/preview-data', requireAuth, async (req, res) => {
+router.get('/programs/:id/preview-data', async (req, res) => {
   try {
-    const userId = (req.user as any).id
+    const userId = resolvePreviewUser(req)
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const { id } = req.params
 
     const program = await prisma.studyProgram.findUnique({
@@ -1525,9 +1572,10 @@ router.get('/programs/:id/preview-data', requireAuth, async (req, res) => {
  *       200: { description: Lesson with activities, readBlocks, and theme definitions }
  *       404: { description: Lesson not found or not owned by the user }
  */
-router.get('/lessons/:id/preview-data', requireAuth, async (req, res) => {
+router.get('/lessons/:id/preview-data', async (req, res) => {
   try {
-    const userId = (req.user as any).id
+    const userId = resolvePreviewUser(req)
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const { id } = req.params
 
     const lesson = await prisma.lesson.findUnique({
@@ -1633,6 +1681,7 @@ router.patch('/activities/:id', requireAuth, async (req, res) => {
       helpDescription: z.string().max(2000).nullable().optional(),
       helpAlwaysVisible: z.boolean().optional(),
       helpIcon: z.string().max(50).nullable().optional(),
+      placeholder: z.string().max(200).nullable().optional(),
       readContent: z.string().nullable().optional(),
       videoId: z.string().uuid().nullable().optional(),
       videoUrl: z.string().url().nullable().optional(),

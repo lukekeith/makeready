@@ -186,8 +186,8 @@ struct EditDay: View {
                                 activity: activity,
                                 programId: programId,
                                 onCancel: dismissEditActivity,
-                                onSave: { title, isHelpEnabled, helpAlwaysVisible, helpTitle, helpDescription, helpIcon in
-                                    saveUserInputContent(title: title, isHelpEnabled: isHelpEnabled, helpAlwaysVisible: helpAlwaysVisible, helpTitle: helpTitle, helpDescription: helpDescription, helpIcon: helpIcon)
+                                onSave: { title, isHelpEnabled, helpAlwaysVisible, helpTitle, helpDescription, helpIcon, placeholder in
+                                    saveUserInputContent(title: title, isHelpEnabled: isHelpEnabled, helpAlwaysVisible: helpAlwaysVisible, helpTitle: helpTitle, helpDescription: helpDescription, helpIcon: helpIcon, placeholder: placeholder)
                                 }
                             )
                             .id(activity.id)
@@ -698,7 +698,7 @@ struct EditDay: View {
         onLessonUpdated(updatedLesson)
     }
 
-    private func saveUserInputContent(title: String?, isHelpEnabled: Bool, helpAlwaysVisible: Bool, helpTitle: String?, helpDescription: String?, helpIcon: String?) {
+    private func saveUserInputContent(title: String?, isHelpEnabled: Bool, helpAlwaysVisible: Bool, helpTitle: String?, helpDescription: String?, helpIcon: String?, placeholder: String?) {
         // The page saves directly via ProgramActions now (matches the read
         // activity flow). This handler is invoked only by the page's "Done"
         // tap, so here we just dismiss and notify the parent lesson view.
@@ -1158,50 +1158,31 @@ struct LessonPreviewWebView: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = UIColor(named: "appBackground")
         webView.scrollView.backgroundColor = UIColor(named: "appBackground")
-        plantSessionAndLoad(into: webView)
+        loadWithPreviewToken(into: webView)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
-    /// Plant the iPhone's `connect.sid` into the WebView's cookie store
-    /// before navigation so authenticated preview routes (e.g. /preview/study/{id})
-    /// work without redirecting through the admin login. Token-based public
-    /// URLs (/public/preview/{token}/...) ignore the cookie, so this is a
-    /// no-op for them. See BackgroundPickerModal / ReadActivityPreviewModal
-    /// for the same planting approach — including the percent-encoding that
-    /// lets base64 signed-cookie padding survive the Cookie header parsers.
-    private func plantSessionAndLoad(into webView: WKWebView) {
-        let raw = APIClient.shared.sessionCookieValue ?? ""
-        guard !raw.isEmpty, url.host?.hasSuffix("makeready.org") == true else {
-            NSLog("👁️ LessonPreviewWebView: loading \(url.absoluteString) — no cookie planted (emptyCookie=\(raw.isEmpty), host=\(url.host ?? "nil"))")
-            webView.load(URLRequest(url: url))
-            return
-        }
-        let encoded = raw.addingPercentEncoding(withAllowedCharacters: Self.cookieValueAllowed) ?? raw
-        let props: [HTTPCookiePropertyKey: Any] = [
-            .domain: ".makeready.org",
-            .path:   "/",
-            .name:   "connect.sid",
-            .value:  encoded,
-            .secure: url.scheme == "https",
-        ]
-        guard let cookie = HTTPCookie(properties: props) else {
-            NSLog("❌ LessonPreviewWebView: failed to construct HTTPCookie")
-            webView.load(URLRequest(url: url))
-            return
-        }
-        NSLog("👁️ LessonPreviewWebView: planting connect.sid for .makeready.org, then loading \(url.absoluteString)")
-        webView.configuration.websiteDataStore.httpCookieStore.setCookie(cookie) {
-            webView.load(URLRequest(url: url))
+    /// Request a preview token from the API, append it to the URL, and load.
+    private func loadWithPreviewToken(into webView: WKWebView) {
+        _ = Task {
+            do {
+                let token = try await PreviewWebView.fetchPreviewToken()
+                let separator = url.absoluteString.contains("?") ? "&" : "?"
+                let tokenURL = URL(string: "\(url.absoluteString)\(separator)preview_token=\(token)")!
+                NSLog("👁️ LessonPreviewWebView: loading \(tokenURL.absoluteString)")
+                await MainActor.run {
+                    webView.load(URLRequest(url: tokenURL))
+                }
+            } catch {
+                NSLog("❌ LessonPreviewWebView: failed to get preview token — \(error.localizedDescription)")
+                await MainActor.run {
+                    webView.load(URLRequest(url: url))
+                }
+            }
         }
     }
-
-    private static let cookieValueAllowed: CharacterSet = {
-        var set = CharacterSet.alphanumerics
-        set.insert(charactersIn: ".-_~:")
-        return set
-    }()
 }
 
 // MARK: - Preview

@@ -25,7 +25,7 @@ struct QRCodeGenerator {
         size: CGSize = CGSize(width: 400, height: 400),
         includeLogo: Bool = false
     ) throws -> UIImage {
-        let url = "https://app.makeready.org/join/group/\(inviteCode)"
+        let url = "\(Configuration.clientBaseURL)/join/group/\(inviteCode)"
         return try generateQR(
             text: url,
             size: size,

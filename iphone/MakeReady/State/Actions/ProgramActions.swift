@@ -741,7 +741,8 @@ struct ProgramActions {
         helpAlwaysVisible: Bool? = nil,
         helpTitle: String? = nil,
         helpDescription: String? = nil,
-        helpIcon: String? = nil
+        helpIcon: String? = nil,
+        placeholder: String? = nil
     ) async throws -> StudyActivity {
         var body: [String: Any] = [
             "status": "COMPLETE"
@@ -754,6 +755,7 @@ struct ProgramActions {
         if let helpTitle = helpTitle { body["helpTitle"] = helpTitle }
         if let helpDescription = helpDescription { body["helpDescription"] = helpDescription }
         if let helpIcon = helpIcon { body["helpIcon"] = helpIcon }
+        if let placeholder = placeholder { body["placeholder"] = placeholder }
 
         let response: UpdateActivityResponse = try await api.patch(
             "/api/activities/\(activityId)",

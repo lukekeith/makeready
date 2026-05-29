@@ -2,7 +2,7 @@
 // Configuration for staging/testing environment
 
 // Server Configuration
-API_BASE_URL = https:/$()/staging.makeready.org
+API_BASE_URL = https:/$()/staging.api.makeready.org
 
 // App Configuration
 PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.staging

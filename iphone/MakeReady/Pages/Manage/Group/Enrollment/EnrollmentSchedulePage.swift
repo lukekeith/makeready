@@ -83,7 +83,7 @@ struct EnrollmentSchedulePage: View {
                 previewData: previewDetails != nil ? LessonInviteData(
                     lessonScheduleId: schedule.id,
                     code: "PREVIEW",
-                    inviteUrl: "https://app.makeready.org/join/study/\(schedule.id)",
+                    inviteUrl: "\(Configuration.clientBaseURL)/join/study/\(schedule.id)",
                     qrCode: "",
                     dayNumber: schedule.lesson.dayNumber,
                     scheduledDate: ISO8601DateFormatter().string(from: schedule.scheduledDate),
@@ -362,7 +362,7 @@ struct EnrollmentSchedulePage: View {
     private func handleShareLesson(_ schedule: LessonSchedule) {
         // Build the invite URL
         let studyName = enrollment.studyProgram?.name ?? "Study"
-        let inviteURL = "https://app.makeready.org/join/study/\(schedule.id)"
+        let inviteURL = "\(Configuration.clientBaseURL)/join/study/\(schedule.id)"
         let shareText = "Join Day \(schedule.lesson.dayNumber) of \(studyName) on MakeReady: \(inviteURL)"
 
         let activityVC = UIActivityViewController(

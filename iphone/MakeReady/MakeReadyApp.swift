@@ -15,6 +15,7 @@ struct MakeReadyApp: App {
     @StateObject private var authManager = AuthManager()
 
     init() {
+        Configuration.migrateLocalServerIP()
         Configuration.printConfiguration()
         KeyboardToolbarInstaller.install()
         KeyboardScrollManager.shared.activate()

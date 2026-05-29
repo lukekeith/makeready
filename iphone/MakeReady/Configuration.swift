@@ -2,12 +2,81 @@
 //  Configuration.swift
 //  MakeReady
 //
-//  Environment configuration for local development, staging, and production
+//  Environment configuration for local development, staging, and production.
+//  When DEV_MODE is YES (set in xcconfig), the user menu shows an environment
+//  switcher. The selected environment persists across launches via UserDefaults.
 //
 
 import Foundation
 
 struct Configuration {
+
+    // MARK: - Developer Mode
+
+    /// Whether DEV_MODE is enabled in the build configuration (xcconfig → Info.plist).
+    /// When true, the user menu shows environment radio buttons.
+    /// When false, the app always uses production URLs.
+    static var devMode: Bool {
+        guard let value = Bundle.main.object(forInfoDictionaryKey: "DEV_MODE") as? String else {
+            return false
+        }
+        return value.uppercased() == "YES"
+    }
+
+    // MARK: - Selected Environment
+
+    /// User-selected environment, persisted in UserDefaults.
+    /// Only meaningful when devMode is true — otherwise always production.
+    enum SelectedEnvironment: String, CaseIterable {
+        case local = "Local"
+        case staging = "Staging"
+        case production = "Production"
+    }
+
+    private static let environmentKey = "selectedEnvironment"
+    private static let localServerIPKey = "localServerIP"
+    static let defaultLocalIP = "192.168.1.65"
+
+    /// User-specified local server IP address.
+    /// Persisted in UserDefaults. Falls back to defaultLocalIP.
+    static var localServerIP: String? {
+        get {
+            let saved = UserDefaults.standard.string(forKey: localServerIPKey)
+            if let saved, !saved.isEmpty { return saved }
+            // No value saved yet — persist and return the default
+            UserDefaults.standard.set(defaultLocalIP, forKey: localServerIPKey)
+            return defaultLocalIP
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: localServerIPKey)
+        }
+    }
+
+    /// Call once at app startup to migrate stale local server IP.
+    /// Removes any IP that is no longer reachable so the default takes over.
+    static func migrateLocalServerIP() {
+        guard devMode else { return }
+        let saved = UserDefaults.standard.string(forKey: localServerIPKey)
+        // Reset if the saved IP doesn't match the current default
+        // (handles IP changes between networks)
+        if let saved, saved != defaultLocalIP {
+            UserDefaults.standard.set(defaultLocalIP, forKey: localServerIPKey)
+        }
+    }
+
+    static var selectedEnvironment: SelectedEnvironment {
+        get {
+            guard devMode else { return .production }
+            guard let raw = UserDefaults.standard.string(forKey: environmentKey),
+                  let env = SelectedEnvironment(rawValue: raw) else {
+                return .production // Default to production until explicitly changed
+            }
+            return env
+        }
+        set {
+            UserDefaults.standard.set(newValue.rawValue, forKey: environmentKey)
+        }
+    }
 
     // MARK: - Install Source Detection
 
@@ -73,70 +142,77 @@ struct Configuration {
 
     // MARK: - API Configuration
 
-    /// Base URL for API requests
-    /// - Simulator: Always uses local development server (127.0.0.1)
-    /// - Xcode on Physical Device: Uses Bonjour-discovered server or fallback IP
-    /// - TestFlight/App Store: Uses production server
+    /// Base URL for API requests.
+    /// When devMode is on, uses the selected environment.
+    /// When devMode is off, always uses production.
     static var baseURL: String {
-        switch InstallSource.current {
-        case .xcode:
+        guard devMode else { return "https://api.makeready.org" }
+
+        switch selectedEnvironment {
+        case .local:
             #if targetEnvironment(simulator)
-            // Simulator can use localhost directly.
-            // Prefer API_BASE_URL from Info.plist (wired to xcconfig), fallback to 127.0.0.1:3010.
             if let base = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
                !base.isEmpty {
                 return base
             }
             return "http://127.0.0.1:3010"
             #else
-            // Physical device via Xcode
-            // 1) Prefer explicit LOCAL_SERVER_URL (Info.plist)
-            // 2) Else use Bonjour-discovered server if available
-            // 3) Else use API_BASE_URL *if* it's not a loopback host
-            // 4) Else fall back to production
-            if let localURL = Bundle.main.object(forInfoDictionaryKey: "LOCAL_SERVER_URL") as? String,
-               !localURL.isEmpty {
-                return localURL
+            // Physical device — prefer user-specified IP, then Bonjour, then cached
+            if let ip = localServerIP, !ip.isEmpty {
+                return "http://\(ip):3010"
             }
-
             if let discoveredURL = LocalServerDiscovery.shared.serverURL {
                 return discoveredURL
             }
-
-            if let base = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
-               !base.isEmpty,
-               !base.contains("127.0.0.1"),
-               !base.contains("localhost") {
-                return base
+            if let cachedURL = LocalServerDiscovery.shared.cachedServerURL {
+                return cachedURL
             }
-
             return "https://api.makeready.org"
             #endif
 
-        case .testFlight, .appStore:
+        case .staging:
+            return "https://staging.api.makeready.org"
+
+        case .production:
             return "https://api.makeready.org"
         }
     }
 
     /// Base URL for the web client (Laravel), used for preview URLs, deep links, etc.
-    /// Laravel dev server is `php artisan serve` on :8000 — NOT Vite on :5173
-    /// (Vite only serves built assets, not Blade routes).
+    /// When devMode is on, uses the selected environment.
+    /// When devMode is off, always uses production.
     static var clientBaseURL: String {
-        switch InstallSource.current {
-        case .xcode:
+        guard devMode else { return "https://app.makeready.org" }
+
+        switch selectedEnvironment {
+        case .local:
             #if targetEnvironment(simulator)
             return "http://localhost:8000"
             #else
+            // Physical device — prefer user-specified IP, then Bonjour, then cached
+            if let ip = localServerIP, !ip.isEmpty {
+                return "http://\(ip):8000"
+            }
+            if let discoveredURL = LocalServerDiscovery.shared.clientURL {
+                return discoveredURL
+            }
+            if let cachedURL = LocalServerDiscovery.shared.cachedClientURL {
+                return cachedURL
+            }
             return "https://app.makeready.org"
             #endif
-        case .testFlight, .appStore:
+
+        case .staging:
+            return "https://staging.app.makeready.org"
+
+        case .production:
             return "https://app.makeready.org"
         }
     }
 
     /// Whether the app is using local development server
     static var isLocalDevelopment: Bool {
-        return InstallSource.current == .xcode
+        return devMode && selectedEnvironment == .local
     }
 
     /// OAuth redirect URI scheme
@@ -149,19 +225,19 @@ struct Configuration {
 
     // MARK: - Debug Features
 
-    /// Whether authentication bypass is available (Xcode builds only)
+    /// Whether authentication bypass is available (dev mode + local only)
     static var allowAuthBypass: Bool {
-        return InstallSource.current == .xcode
+        return devMode && selectedEnvironment == .local
     }
 
-    /// Whether to show debug information in UI (Xcode builds only)
+    /// Whether to show debug information in UI (dev mode only)
     static var showDebugInfo: Bool {
-        return InstallSource.current == .xcode
+        return devMode
     }
 
     /// Whether this is running in production mode
     static var isProduction: Bool {
-        return InstallSource.current != .xcode
+        return !devMode || selectedEnvironment == .production
     }
 
     // MARK: - Target Environment
@@ -183,18 +259,25 @@ struct Configuration {
         print("   Install Source: \(InstallSource.current.displayName)")
         print("   Target: \(targetEnvironment)")
         print("   Build: \(current.displayName)")
-        print("   Base URL: \(baseURL)")
+        print("   Dev Mode: \(devMode ? "ON" : "OFF")")
+        if devMode {
+            print("   Environment: \(selectedEnvironment.rawValue)")
+        }
+        print("   API URL: \(baseURL)")
+        print("   Client URL: \(clientBaseURL)")
         print("   Bundle ID: \(bundleIdentifier)")
-        print("   Local Development: \(isLocalDevelopment ? "Yes" : "No")")
         print("   Auth Bypass: \(allowAuthBypass ? "Enabled" : "Disabled")")
-        print("   Debug Info: \(showDebugInfo ? "Enabled" : "Disabled")")
-        print("   Is Production: \(isProduction ? "Yes" : "No")")
 
         if isLocalDevelopment {
-            if let discoveredURL = LocalServerDiscovery.shared.serverURL {
-                print("   📡 Bonjour: Connected to \(discoveredURL)")
+            if let apiURL = LocalServerDiscovery.shared.serverURL {
+                print("   📡 Bonjour API: \(apiURL)")
             } else {
-                print("   📡 Bonjour: Searching for local server...")
+                print("   📡 Bonjour API: Searching...")
+            }
+            if let clientURL = LocalServerDiscovery.shared.clientURL {
+                print("   📡 Bonjour Client: \(clientURL)")
+            } else {
+                print("   📡 Bonjour Client: Searching...")
             }
         }
     }

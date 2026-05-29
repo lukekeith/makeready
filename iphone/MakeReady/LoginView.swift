@@ -111,7 +111,12 @@ struct LoginView: View {
 
         Task {
             do {
-                try await authManager.signInWithGoogle()
+                if Configuration.isLocalDevelopment {
+                    // Local dev: use dev-login endpoint (no Google OAuth needed)
+                    try await authManager.devLogin(email: "luke@lukekeith.com")
+                } else {
+                    try await authManager.signInWithGoogle()
+                }
                 print("✅ Sign in completed successfully")
             } catch {
                 print("❌ Sign in error: \(error.localizedDescription)")
@@ -126,7 +131,9 @@ struct LoginView: View {
     #if DEBUG
     private func handleDebugBypass() {
         print("🔓 DEBUG: Bypass button tapped")
-        authManager.debugBypassAuthentication()
+        Task {
+            try? await authManager.devLogin(email: "luke@lukekeith.com")
+        }
     }
     #endif
 }

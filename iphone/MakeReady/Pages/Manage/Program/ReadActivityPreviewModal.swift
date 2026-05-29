@@ -19,6 +19,11 @@
 import SwiftUI
 import WebKit
 
+private struct PreviewTokenResponse: Codable {
+    let success: Bool
+    let token: String?
+}
+
 // MARK: - Modal
 
 struct ReadActivityPreviewModal: View {
@@ -88,84 +93,50 @@ struct PreviewWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
 
-    /// Build the preview URL from the template served by /api/themes, plant
-    /// the session cookie into the WebView's private cookie store, then load.
+    /// Request a short-lived preview token from the API, build the preview
+    /// URL with the token as a query param, then load. No cookie planting needed.
     private func loadPreview(into webView: WKWebView) {
-        guard let url = Self.buildPreviewURL(activityId: activityId) else {
+        guard let baseURL = Self.buildPreviewURL(activityId: activityId) else {
             NSLog("❌ ActivityPreview: could not build URL (activityId=\(activityId))")
             return
         }
 
-        let sessionValue = APIClient.shared.sessionCookieValue ?? ""
-        if sessionValue.isEmpty {
-            NSLog("⚠️ ActivityPreview: no session cookie available — preview may redirect to login")
-        }
-
-        // Percent-encode before planting so `=`, `+`, `/` etc. in signed-cookie
-        // HMAC values survive the HTTPCookie → Cookie header → Laravel proxy
-        // chain without parser ambiguity. ApiService::extractApiCookies calls
-        // urldecode() before forwarding to the API, restoring the raw value.
-        let encodedValue = sessionValue.addingPercentEncoding(
-            withAllowedCharacters: Self.cookieValueAllowed
-        ) ?? sessionValue
-
-        let cookieProps = Self.cookieProperties(for: url, sessionValue: encodedValue)
-        guard let cookie = HTTPCookie(properties: cookieProps) else {
-            NSLog("❌ ActivityPreview: failed to construct HTTPCookie")
-            webView.load(URLRequest(url: url))
-            return
-        }
-
-        NSLog("👁️ ActivityPreview: loading \(url.absoluteString)")
-        webView.configuration.websiteDataStore.httpCookieStore.setCookie(cookie) {
-            webView.load(URLRequest(url: url))
+        _ = Task {
+            do {
+                let token = try await Self.fetchPreviewToken()
+                let url = URL(string: "\(baseURL.absoluteString)?preview_token=\(token)")!
+                NSLog("👁️ ActivityPreview: loading \(url.absoluteString)")
+                await MainActor.run {
+                    webView.load(URLRequest(url: url))
+                }
+            } catch {
+                NSLog("❌ ActivityPreview: failed to get preview token — \(error.localizedDescription)")
+                // Fall back to loading without token (will likely 404)
+                await MainActor.run {
+                    webView.load(URLRequest(url: baseURL))
+                }
+            }
         }
     }
 
-    /// Substitute `{activityId}` into the template from AppState, falling back
-    /// to `Configuration.clientBaseURL + /preview/activity/{id}` so previews
-    /// still work even if /api/themes hasn't returned yet (offline/first launch).
+    /// Request a short-lived preview token from POST /api/preview-token
+    static func fetchPreviewToken() async throws -> String {
+        let response: PreviewTokenResponse = try await APIClient.shared.post(
+            "/api/preview-token",
+            body: [:] as [String: String],
+            responseType: PreviewTokenResponse.self
+        )
+        guard response.success, let token = response.token else {
+            throw URLError(.userAuthenticationRequired)
+        }
+        return token
+    }
+
     static func buildPreviewURL(activityId: String) -> URL? {
-        let template = AppState.shared.previewUrlTemplate
-            ?? "\(Configuration.clientBaseURL)/preview/activity/{activityId}"
+        let template = "\(Configuration.clientBaseURL)/preview/activity/{activityId}"
         let encoded = activityId.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? activityId
         let raw = template.replacingOccurrences(of: "{activityId}", with: encoded)
         return URL(string: raw)
-    }
-
-    /// Alphanumerics plus `.-_~:` only. `=`, `+`, `/` and other base64-padding
-    /// characters that appear in signed-cookie HMACs are percent-encoded so
-    /// the value survives HTTPCookie → Cookie header → Laravel `$request->header('Cookie')`
-    /// → `explode(';')` / `strpos('=')` parsing. ApiService::extractApiCookies
-    /// urldecodes on the far side before forwarding to the API.
-    static let cookieValueAllowed: CharacterSet = {
-        var set = CharacterSet.alphanumerics
-        set.insert(charactersIn: ".-_~:")
-        return set
-    }()
-
-    /// Build cookie properties appropriate for the target URL's host + scheme.
-    /// Prod uses `.makeready.org` so both `app.` and `api.` subdomains see it
-    /// inside the WebView's private cookie jar. Local dev (localhost) omits
-    /// the leading dot and drops the Secure flag.
-    static func cookieProperties(for url: URL, sessionValue: String) -> [HTTPCookiePropertyKey: Any] {
-        let host = url.host ?? "localhost"
-        let isSecure = url.scheme == "https"
-        let domain: String
-        if host == "localhost" || host.hasPrefix("127.") {
-            domain = host
-        } else if host.hasSuffix("makeready.org") {
-            domain = ".makeready.org"
-        } else {
-            domain = host
-        }
-        return [
-            .domain: domain,
-            .path:   "/",
-            .name:   "connect.sid",
-            .value:  sessionValue,
-            .secure: isSecure,
-        ]
     }
 
     // MARK: Coordinator

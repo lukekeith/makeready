@@ -1138,4 +1138,61 @@ router.post('/google/token-exchange', async (req, res) => {
   }
 })
 
+// ============================================================================
+// Dev-Only Login (bypasses Google OAuth for local development)
+// ============================================================================
+
+/**
+ * POST /auth/dev-login
+ * Creates a real session for a user by email. Only available in development.
+ * Used by the iPhone app when the environment is set to "Local" so OAuth
+ * doesn't need to work over a LAN IP.
+ */
+router.post('/dev-login', async (req, res) => {
+  if (process.env.NODE_ENV !== 'development') {
+    return res.status(404).json({ error: 'Not found' })
+  }
+
+  const { email } = req.body
+  if (!email) {
+    return res.status(400).json({ success: false, error: 'Email is required' })
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
+      return res.status(404).json({ success: false, error: 'User not found' })
+    }
+
+    // Create a real Passport session for this user
+    await new Promise<void>((resolve, reject) => {
+      req.logIn(user, (err) => {
+        if (err) return reject(err)
+        resolve()
+      })
+    })
+
+    console.log(`🔓 Dev login: ${user.email} (${user.id})`)
+
+    // Return session cookie info so the iOS app can store it
+    const sessionCookie = req.sessionID
+    const secret = process.env.SESSION_SECRET!
+    const signed = 's:' + signature.sign(sessionCookie, secret)
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarURL: user.picture,
+      },
+      sessionCookie: signed,
+    })
+  } catch (error) {
+    console.error('❌ Dev login error:', error)
+    res.status(500).json({ success: false, error: 'Login failed' })
+  }
+})
+
 export default router

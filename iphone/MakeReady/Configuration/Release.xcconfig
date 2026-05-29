@@ -11,5 +11,8 @@ PRODUCT_NAME = MakeReady
 // Version Configuration
 MARKETING_VERSION = 1.1.2
 
+// Developer Mode (enables environment switcher in user menu)
+DEV_MODE = NO
+
 // Build Settings
 SWIFT_ACTIVE_COMPILATION_CONDITIONS = RELEASE

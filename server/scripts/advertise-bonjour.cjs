@@ -16,8 +16,10 @@ const bonjour = require('bonjour')()
 const os = require('os')
 
 // Default to 3010 to match server/src/index.ts
-const PORT = parseInt(process.env.PORT || '3010', 10)
-const SERVICE_TYPE = 'makeready'
+const API_PORT = parseInt(process.env.PORT || '3010', 10)
+const CLIENT_PORT = parseInt(process.env.CLIENT_PORT || '8000', 10)
+const API_SERVICE_TYPE = 'makeready'
+const CLIENT_SERVICE_TYPE = 'makeready-client'
 
 // Get local IP addresses
 function getLocalIPs() {
@@ -36,63 +38,75 @@ function getLocalIPs() {
   return ips
 }
 
-// Publish the service
+// Publish both services
 function advertise() {
   const hostname = os.hostname()
   const ips = getLocalIPs()
 
   console.log('')
-  console.log('📡 Advertising MakeReady development server via Bonjour...')
+  console.log('📡 Advertising MakeReady development servers via Bonjour...')
   console.log('')
-  console.log(`   Service type: _${SERVICE_TYPE}._tcp`)
-  console.log(`   Port: ${PORT}`)
+  console.log(`   API:    _${API_SERVICE_TYPE}._tcp on port ${API_PORT}`)
+  console.log(`   Client: _${CLIENT_SERVICE_TYPE}._tcp on port ${CLIENT_PORT}`)
   console.log(`   Hostname: ${hostname}`)
   console.log('')
   console.log('   Network interfaces:')
   for (const ip of ips) {
-    console.log(`     ${ip.name}: http://${ip.address}:${PORT}`)
+    console.log(`     ${ip.name}: API http://${ip.address}:${API_PORT} | Client http://${ip.address}:${CLIENT_PORT}`)
   }
   console.log('')
 
-  const service = bonjour.publish({
-    name: `MakeReady Dev (${hostname})`,
-    type: SERVICE_TYPE,
-    port: PORT,
-    txt: {
-      version: '1.0',
-      hostname: hostname,
-      // Include IPs in TXT record for debugging
-      ips: ips.map((ip) => ip.address).join(','),
-    },
+  const txtRecord = {
+    version: '1.0',
+    hostname: hostname,
+    ips: ips.map((ip) => ip.address).join(','),
+  }
+
+  const apiService = bonjour.publish({
+    name: `MakeReady API (${hostname})`,
+    type: API_SERVICE_TYPE,
+    port: API_PORT,
+    txt: txtRecord,
   })
 
-  service.on('up', () => {
-    console.log('✅ Bonjour service is now advertised on the local network')
+  const clientService = bonjour.publish({
+    name: `MakeReady Client (${hostname})`,
+    type: CLIENT_SERVICE_TYPE,
+    port: CLIENT_PORT,
+    txt: txtRecord,
+  })
+
+  apiService.on('up', () => {
+    console.log(`✅ API service advertised (_${API_SERVICE_TYPE}._tcp:${API_PORT})`)
+  })
+
+  clientService.on('up', () => {
+    console.log(`✅ Client service advertised (_${CLIENT_SERVICE_TYPE}._tcp:${CLIENT_PORT})`)
     console.log('')
-    console.log('   iOS devices running MakeReady from Xcode will auto-discover this server.')
+    console.log('   iOS devices running MakeReady from Xcode will auto-discover both servers.')
     console.log('')
   })
 
-  service.on('error', (err) => {
-    console.error('❌ Bonjour advertisement error:', err)
+  apiService.on('error', (err) => {
+    console.error('❌ API Bonjour error:', err)
+  })
+
+  clientService.on('error', (err) => {
+    console.error('❌ Client Bonjour error:', err)
   })
 
   // Handle graceful shutdown
-  process.on('SIGINT', () => {
+  function shutdown() {
     console.log('')
-    console.log('🛑 Stopping Bonjour advertisement...')
-    service.stop(() => {
-      bonjour.destroy()
-      process.exit(0)
-    })
-  })
+    console.log('🛑 Stopping Bonjour advertisements...')
+    let stopped = 0
+    const done = () => { if (++stopped >= 2) { bonjour.destroy(); process.exit(0) } }
+    apiService.stop(done)
+    clientService.stop(done)
+  }
 
-  process.on('SIGTERM', () => {
-    service.stop(() => {
-      bonjour.destroy()
-      process.exit(0)
-    })
-  })
+  process.on('SIGINT', shutdown)
+  process.on('SIGTERM', shutdown)
 }
 
 advertise()

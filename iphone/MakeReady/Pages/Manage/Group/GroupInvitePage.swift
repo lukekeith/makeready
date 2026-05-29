@@ -334,7 +334,7 @@ struct GroupInvitePage: View {
     }
 
     private func openJoinPage() {
-        if let url = URL(string: "https://app.makeready.org/join/group") {
+        if let url = URL(string: "\(Configuration.clientBaseURL)/join/group") {
             UIApplication.shared.open(url)
         }
     }

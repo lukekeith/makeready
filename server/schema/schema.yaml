@@ -1714,6 +1714,10 @@ models:
         type: string
         nullable: true
         description: "Icon identifier"
+      placeholder:
+        type: string
+        nullable: true
+        description: "Custom placeholder text for USER_INPUT activities"
       referenceTitle:
         type: string
         nullable: true
@@ -1937,6 +1941,10 @@ models:
       helpIcon:
         type: string
         nullable: true
+      placeholder:
+        type: string
+        nullable: true
+        description: "Custom placeholder text for USER_INPUT activities"
       isHelpEnabled:
         type: boolean
         default: true
@@ -2972,6 +2980,10 @@ models:
       helpIcon:
         type: string
         nullable: true
+      placeholder:
+        type: string
+        nullable: true
+        description: "Custom placeholder text for USER_INPUT activities"
       isHelpEnabled:
         type: boolean
         default: true

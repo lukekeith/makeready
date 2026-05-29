@@ -2,8 +2,12 @@
 //  LocalServerDiscovery.swift
 //  MakeReady
 //
-//  Discovers the local development server on the network using Bonjour/mDNS.
-//  This allows physical iOS devices to connect to the dev server running on a Mac.
+//  Discovers local development servers on the network using Bonjour/mDNS.
+//  This allows physical iOS devices to connect to dev servers running on a Mac.
+//
+//  Two services are discovered:
+//    _makeready._tcp        → API server (Express, default port 3010)
+//    _makeready-client._tcp → Client server (Laravel, default port 8000)
 //
 
 import Foundation
@@ -17,13 +21,46 @@ class LocalServerDiscovery: ObservableObject {
 
     static let shared = LocalServerDiscovery()
 
+    // MARK: - Persistence Keys
+
+    private static let cachedAPIURLKey = "bonjour.cachedAPIURL"
+    private static let cachedClientURLKey = "bonjour.cachedClientURL"
+
     // MARK: - Published Properties
 
-    /// The discovered server URL (e.g., "http://192.168.1.100:3010")
-    /// Port is taken from the Bonjour-advertised service, not hardcoded.
-    @Published private(set) var serverURL: String?
+    /// The discovered API server URL (e.g., "http://192.168.1.100:3010")
+    /// Falls back to the last cached value from a previous discovery.
+    @Published private(set) var serverURL: String? {
+        didSet {
+            if let url = serverURL {
+                UserDefaults.standard.set(url, forKey: Self.cachedAPIURLKey)
+            }
+        }
+    }
 
-    /// Whether we are currently searching for a server
+    /// The discovered client server URL (e.g., "http://192.168.1.100:8000")
+    /// Falls back to the last cached value from a previous discovery.
+    @Published private(set) var clientURL: String? {
+        didSet {
+            if let url = clientURL {
+                UserDefaults.standard.set(url, forKey: Self.cachedClientURLKey)
+            }
+        }
+    }
+
+    /// Cached API URL from a previous Bonjour discovery session.
+    /// Available immediately on launch, unlike live discovery.
+    var cachedServerURL: String? {
+        UserDefaults.standard.string(forKey: Self.cachedAPIURLKey)
+    }
+
+    /// Cached client URL from a previous Bonjour discovery session.
+    /// Available immediately on launch, unlike live discovery.
+    var cachedClientURL: String? {
+        UserDefaults.standard.string(forKey: Self.cachedClientURLKey)
+    }
+
+    /// Whether we are currently searching for servers
     @Published private(set) var isSearching: Bool = false
 
     /// Error message if discovery fails
@@ -31,9 +68,11 @@ class LocalServerDiscovery: ObservableObject {
 
     // MARK: - Private Properties
 
-    private var browser: NWBrowser?
+    private var apiBrowser: NWBrowser?
+    private var clientBrowser: NWBrowser?
     private let queue = DispatchQueue(label: "com.makeready.localserverdiscovery")
-    private let serviceType = "_makeready._tcp"
+    private let apiServiceType = "_makeready._tcp"
+    private let clientServiceType = "_makeready-client._tcp"
 
     // MARK: - Initialization
 
@@ -60,37 +99,30 @@ class LocalServerDiscovery: ObservableObject {
 
     /// Start browsing for local servers
     func startBrowsing() {
-        guard browser == nil else { return }
+        guard apiBrowser == nil && clientBrowser == nil else { return }
 
         isSearching = true
         errorMessage = nil
 
-        let parameters = NWParameters()
-        parameters.includePeerToPeer = true
-
-        let browserDescriptor = NWBrowser.Descriptor.bonjour(type: serviceType, domain: "local.")
-        browser = NWBrowser(for: browserDescriptor, using: parameters)
-
-        browser?.stateUpdateHandler = { [weak self] state in
-            DispatchQueue.main.async {
-                self?.handleStateUpdate(state)
-            }
+        apiBrowser = createBrowser(for: apiServiceType) { [weak self] url in
+            self?.serverURL = url
+            self?.checkSearchComplete()
+            print("📡 LocalServerDiscovery: Discovered API server at \(url)")
         }
 
-        browser?.browseResultsChangedHandler = { [weak self] results, changes in
-            DispatchQueue.main.async {
-                self?.handleResultsChanged(results: results)
-            }
+        clientBrowser = createBrowser(for: clientServiceType) { [weak self] url in
+            self?.clientURL = url
+            self?.checkSearchComplete()
+            print("📡 LocalServerDiscovery: Discovered client server at \(url)")
         }
-
-        browser?.start(queue: queue)
-        print("📡 LocalServerDiscovery: Started browsing for \(serviceType)")
     }
 
     /// Stop browsing for local servers
     func stopBrowsing() {
-        browser?.cancel()
-        browser = nil
+        apiBrowser?.cancel()
+        apiBrowser = nil
+        clientBrowser?.cancel()
+        clientBrowser = nil
         isSearching = false
         print("📡 LocalServerDiscovery: Stopped browsing")
     }
@@ -99,42 +131,72 @@ class LocalServerDiscovery: ObservableObject {
     func refresh() {
         stopBrowsing()
         serverURL = nil
+        clientURL = nil
         startBrowsing()
     }
 
     // MARK: - Private Methods
 
-    private func handleStateUpdate(_ state: NWBrowser.State) {
+    private func checkSearchComplete() {
+        if serverURL != nil && clientURL != nil {
+            isSearching = false
+        }
+    }
+
+    private func createBrowser(for serviceType: String, onDiscovered: @escaping (String) -> Void) -> NWBrowser {
+        let parameters = NWParameters()
+        parameters.includePeerToPeer = true
+
+        let browserDescriptor = NWBrowser.Descriptor.bonjour(type: serviceType, domain: "local.")
+        let browser = NWBrowser(for: browserDescriptor, using: parameters)
+
+        browser.stateUpdateHandler = { [weak self] state in
+            DispatchQueue.main.async {
+                self?.handleStateUpdate(state, serviceType: serviceType)
+            }
+        }
+
+        browser.browseResultsChangedHandler = { [weak self] results, changes in
+            DispatchQueue.main.async {
+                self?.handleResultsChanged(results: results, serviceType: serviceType, onDiscovered: onDiscovered)
+            }
+        }
+
+        browser.start(queue: queue)
+        print("📡 LocalServerDiscovery: Started browsing for \(serviceType)")
+        return browser
+    }
+
+    private func handleStateUpdate(_ state: NWBrowser.State, serviceType: String) {
         switch state {
         case .ready:
-            print("📡 LocalServerDiscovery: Browser ready")
+            print("📡 LocalServerDiscovery: Browser ready (\(serviceType))")
 
         case .failed(let error):
-            print("📡 LocalServerDiscovery: Browser failed - \(error.localizedDescription)")
+            print("📡 LocalServerDiscovery: Browser failed (\(serviceType)) - \(error.localizedDescription)")
             errorMessage = error.localizedDescription
             isSearching = false
 
         case .cancelled:
-            print("📡 LocalServerDiscovery: Browser cancelled")
-            isSearching = false
+            print("📡 LocalServerDiscovery: Browser cancelled (\(serviceType))")
 
         case .waiting(let error):
-            print("📡 LocalServerDiscovery: Browser waiting - \(error.localizedDescription)")
+            print("📡 LocalServerDiscovery: Browser waiting (\(serviceType)) - \(error.localizedDescription)")
 
         case .setup:
-            print("📡 LocalServerDiscovery: Browser setting up")
+            print("📡 LocalServerDiscovery: Browser setting up (\(serviceType))")
 
         @unknown default:
             break
         }
     }
 
-    private func handleResultsChanged(results: Set<NWBrowser.Result>) {
+    private func handleResultsChanged(results: Set<NWBrowser.Result>, serviceType: String, onDiscovered: @escaping (String) -> Void) {
         for result in results {
             switch result.endpoint {
             case .service(let name, let type, let domain, _):
                 print("📡 LocalServerDiscovery: Found service - \(name) (\(type).\(domain))")
-                resolveService(result: result)
+                resolveService(result: result, onDiscovered: onDiscovered)
 
             default:
                 break
@@ -142,11 +204,11 @@ class LocalServerDiscovery: ObservableObject {
         }
 
         if results.isEmpty {
-            print("📡 LocalServerDiscovery: No services found")
+            print("📡 LocalServerDiscovery: No services found for \(serviceType)")
         }
     }
 
-    private func resolveService(result: NWBrowser.Result) {
+    private func resolveService(result: NWBrowser.Result, onDiscovered: @escaping (String) -> Void) {
         let parameters = NWParameters()
         parameters.includePeerToPeer = true
 
@@ -158,7 +220,7 @@ class LocalServerDiscovery: ObservableObject {
             case .ready:
                 // Get the resolved endpoint
                 if let endpoint = connection.currentPath?.remoteEndpoint {
-                    self?.extractAddress(from: endpoint)
+                    self?.extractAddress(from: endpoint, onDiscovered: onDiscovered)
                 }
                 connection.cancel()
 
@@ -177,7 +239,7 @@ class LocalServerDiscovery: ObservableObject {
         connection.start(queue: queue)
     }
 
-    private func extractAddress(from endpoint: NWEndpoint) {
+    private func extractAddress(from endpoint: NWEndpoint, onDiscovered: @escaping (String) -> Void) {
         switch endpoint {
         case .hostPort(let host, let resolvedPort):
             var ipAddress: String?
@@ -220,9 +282,7 @@ class LocalServerDiscovery: ObservableObject {
             if let ip = ipAddress {
                 let url = "http://\(ip):\(resolvedPort.rawValue)"
                 DispatchQueue.main.async {
-                    self.serverURL = url
-                    self.isSearching = false
-                    print("📡 LocalServerDiscovery: Discovered server at \(url)")
+                    onDiscovered(url)
                 }
             }
 

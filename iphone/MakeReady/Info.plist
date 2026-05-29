@@ -57,7 +57,9 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>277</string>
+	<string>10</string>
+	<key>DEV_MODE</key>
+	<string>$(DEV_MODE)</string>
 	<key>LOCAL_SERVER_URL</key>
 	<string>$(LOCAL_SERVER_URL)</string>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
@@ -87,6 +89,7 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_makeready._tcp</string>
+		<string>_makeready-client._tcp</string>
 	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>MakeReady needs camera access to record videos for your content.</string>

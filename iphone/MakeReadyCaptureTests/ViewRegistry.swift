@@ -126,7 +126,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 activity: activity,
                 programId: programId,
                 onCancel: {},
-                onSave: { _, _, _, _, _, _ in }
+                onSave: { _, _, _, _, _, _, _ in }
             )
             .environmentObject(authManager)
         )

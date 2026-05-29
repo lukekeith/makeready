@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import VideoPlayer from '../../../domain/video-player/video-player.vue'
+import { useLessonState } from '../use-lesson-state'
 
 interface Activity {
   id: string
@@ -21,13 +22,22 @@ const emit = defineEmits<{
   videoProgress: [activityId: string, progress: number]
 }>()
 
+const lessonState = useLessonState()
+
 const videoSrc = computed(() => props.activity.video?.playbackUrl ?? props.activity.video?.url ?? props.activity.videoUrl ?? '')
 const progress = ref(0)
 const hasWatched = ref(false)
 
+onMounted(() => {
+  lessonState.reportProgress('Watch the video', false)
+})
+
 function handleProgress(p: number) {
   progress.value = p
-  if (p >= 0.9) hasWatched.value = true
+  if (p >= 0.9 && !hasWatched.value) {
+    hasWatched.value = true
+    lessonState.reportProgress('Video complete', true)
+  }
   emit('videoProgress', props.activity.id, p)
 }
 </script>

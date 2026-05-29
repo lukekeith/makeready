@@ -19,7 +19,7 @@ struct QRCodeScreenPage: View {
     @State private var showCopiedFeedback = false
 
     private var inviteURL: String {
-        "https://app.makeready.org/join/group/\(inviteCode)"
+        "\(Configuration.clientBaseURL)/join/group/\(inviteCode)"
     }
 
     var body: some View {

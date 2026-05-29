@@ -94,7 +94,7 @@ struct MainCalendar: View {
                     }
                 },
                 onShareLesson: {
-                    let inviteURL = "https://app.makeready.org/join/study/\(entry.schedule.id)"
+                    let inviteURL = "\(Configuration.clientBaseURL)/join/study/\(entry.schedule.id)"
                     let shareText = "Join Day \(entry.schedule.lesson.dayNumber) of \(entry.studyName) on MakeReady: \(inviteURL)"
 
                     let activityVC = UIActivityViewController(

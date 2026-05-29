@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
+import { useLessonState } from '../use-lesson-state'
 
 interface Activity {
   id: string
@@ -22,6 +23,14 @@ const emit = defineEmits<{
   next: []
   videoProgress: [activityId: string, progress: number]
 }>()
+
+const lessonState = useLessonState()
+
+// YouTube embeds don't provide reliable ended events, so we allow
+// proceeding immediately — the user can watch at their own pace.
+onMounted(() => {
+  lessonState.reportProgress('Watch the video', true)
+})
 
 const videoId = computed(() => {
   if (props.activity.youtubeVideoId) return props.activity.youtubeVideoId

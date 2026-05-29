@@ -19,6 +19,7 @@
 import { ref, onMounted } from 'vue'
 import axios from 'axios'
 import ActivityPreviewPlayer from '@/preview/ActivityPreviewPlayer.vue'
+import { useLessonState } from '../use-lesson-state'
 import type { PreviewPayload, PreviewBlock } from '@/preview/ActivityPreviewPlayer.vue'
 import {
   isStableNumberedScriptureMarkdown,
@@ -118,6 +119,8 @@ const READ_FULLSCREEN_TOP_INSET = 'calc(env(safe-area-inset-top) + 140px)'
 const READ_FULLSCREEN_TOP_MASK = '200px'
 
 // ─── State ────────────────────────────────────────────────────────────────────
+
+const lessonState = useLessonState()
 
 const isLoading = ref(true)
 const payload = ref<PreviewPayload | null>(null)
@@ -241,6 +244,8 @@ async function buildPayload(): Promise<PreviewPayload> {
 }
 
 onMounted(async () => {
+  lessonState.reportProgress('Continue reading', false)
+
   payload.value = await buildPayload()
   isLoading.value = false
 
