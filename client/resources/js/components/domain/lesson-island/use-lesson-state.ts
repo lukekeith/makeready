@@ -92,6 +92,9 @@ export interface LessonState {
   messageCollapsed: Ref<boolean>
   messageAlert: Ref<boolean>
 
+  // UI persistence
+  contextCollapsed: Ref<boolean>
+
   // Loading state
   isLoading: Ref<boolean>
   isSaving: Ref<boolean>
@@ -138,6 +141,7 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
   const isLoading = ref(false)
   const isSaving = ref(false)
   const hideTitle = ref(false)
+  const contextCollapsed = ref(false)
 
   // ─── Progress reporting ─────────────────────────────────────────────────────
 
@@ -290,6 +294,7 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     message,
     messageCollapsed,
     messageAlert,
+    contextCollapsed,
     isLoading,
     isSaving,
     hideTitle,
