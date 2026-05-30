@@ -101,6 +101,11 @@ struct ProfilePage: View {
             } else if !localIP.isEmpty {
                 Configuration.localServerIP = localIP
             }
+
+            // Auto-check health of the currently selected environment
+            if Configuration.devMode {
+                checkEnvironmentHealth(selectedEnvironment)
+            }
         }
     }
 }
