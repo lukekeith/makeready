@@ -170,10 +170,12 @@ describe('Members API', () => {
     it('should allow verification without organizationId (for groups without org)', async () => {
       // organizationId is optional - verification should proceed without it
       // This supports the join flow where groups may not have an organization
+      // Use a unique phone number to avoid collisions with existing test data
+      const uniquePhone = `+1555000${Date.now().toString().slice(-4)}`
       const response = await request(app)
         .post('/api/members/confirm-verification')
         .send({
-          phoneNumber: '+15555551234',
+          phoneNumber: uniquePhone,
           code: '123456', // Test verification code
         })
 
