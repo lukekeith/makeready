@@ -57,7 +57,9 @@ describe('Member Lesson Progress API', () => {
     await prisma.group.deleteMany({
       where: { creator: { googleId: 'test-member-lessons-google-id' } },
     })
-    await prisma.memberOrganization.deleteMany({})
+    await prisma.memberOrganization.deleteMany({
+      where: { member: { phoneNumber: testPhoneNumber } },
+    })
     await prisma.member.deleteMany({ where: { phoneNumber: testPhoneNumber } })
     await prisma.organization.deleteMany({
       where: { owner: { googleId: 'test-member-lessons-google-id' } },

@@ -1,4 +1,4 @@
-name: Server CI
+name: CI
 
 on:
   push:
@@ -14,17 +14,132 @@ on:
       - 'client/**'
       - 'iphone/**'
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   NODE_VERSION: '20.18.1'
 
-defaults:
-  run:
-    working-directory: server
-
 jobs:
-  typecheck:
-    name: TypeScript Strict Check
+  # ─── Client ──────────────────────────────────────────────────────────────────
+
+  client-test:
+    name: Client — Build & Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo, zip, gd, bcmath
+          coverage: none
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: client/vendor
+          key: composer-${{ runner.os }}-${{ hashFiles('client/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: client/node_modules
+          key: npm-client-${{ runner.os }}-${{ hashFiles('client/package-lock.json') }}
+          restore-keys: npm-client-${{ runner.os }}-
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --optimize-autoloader
+
+      - name: Install NPM dependencies and build assets
+        run: npm install --no-audit --no-fund --legacy-peer-deps && npm run build
+
+      - name: Copy .env
+        run: cp .env.example .env
+
+      - name: Generate app key
+        run: php artisan key:generate
+
+      - name: Run PHP tests
+        run: php artisan test
+
+  client-docker:
+    name: Client — Docker Build
+    runs-on: ubuntu-latest
+    needs: [client-test]
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: docker-client-${{ runner.os }}-${{ hashFiles('client/Dockerfile', 'client/composer.lock', 'client/package-lock.json') }}
+          restore-keys: docker-client-${{ runner.os }}-
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: client
+          load: true
+          tags: makeready-client:test
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+
+      - name: Rotate Docker cache
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name: Smoke test — Laravel /up health route
+        run: |
+          docker run -d -p 8080:8080 \
+            -e PORT=8080 \
+            -e APP_KEY=base64:dGVzdGtleTEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI= \
+            -e APP_ENV=testing \
+            -e API_URL=https://api.makeready.org \
+            -e SESSION_DRIVER=file \
+            --name test-container makeready-client:test
+
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8080/up > /dev/null 2>&1; then
+              echo "Container ready after ~${i}s"
+              break
+            fi
+            sleep 1
+          done
+
+          curl -v http://localhost:8080/up || (docker logs test-container && exit 1)
+          docker stop test-container
+
+  # ─── Server ──────────────────────────────────────────────────────────────────
+
+  server-typecheck:
+    name: Server — TypeScript Strict Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
     steps:
       - uses: actions/checkout@v4
 
@@ -43,9 +158,13 @@ jobs:
       - name: TypeScript Strict Mode Check
         run: npx tsc --noEmit --strict
 
-  test:
-    name: Server Tests
+  server-test:
+    name: Server — Tests
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -103,21 +222,15 @@ jobs:
           GOOGLE_CLIENT_SECRET: test-client-secret
           GOOGLE_CALLBACK_URL: http://localhost:3001/auth/google/callback
 
-      - name: Generate Coverage Summary
-        if: always()
-        run: |
-          if [ -f coverage/coverage-summary.json ]; then
-            echo "## Server Test Coverage" >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
-            cat coverage/coverage-summary.json >> $GITHUB_STEP_SUMMARY
-            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  migration-check:
-    name: Migration Validation
+  server-migration:
+    name: Server — Migration Validation
     runs-on: ubuntu-latest
-    needs: [typecheck, test]
+    needs: [server-typecheck, server-test]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    defaults:
+      run:
+        working-directory: server
+
     services:
       postgres:
         image: pgvector/pgvector:pg15
@@ -158,10 +271,14 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/makeready_migration_test
 
-  build:
-    name: Build Server
+  server-build:
+    name: Server — Build
     runs-on: ubuntu-latest
-    needs: [typecheck, test]
+    needs: [server-typecheck, server-test]
+    defaults:
+      run:
+        working-directory: server
+
     steps:
       - uses: actions/checkout@v4
 
@@ -184,4 +301,3 @@ jobs:
         with:
           name: server-build
           path: server/dist/
-
