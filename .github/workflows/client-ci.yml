@@ -4,11 +4,15 @@ on:
   push:
     branches: [main, develop]
     paths:
+      - 'server/**'
       - 'client/**'
+      - 'iphone/**'
   pull_request:
     branches: [main, develop]
     paths:
+      - 'server/**'
       - 'client/**'
+      - 'iphone/**'
 
 concurrency:
   group: client-ci-${{ github.ref }}

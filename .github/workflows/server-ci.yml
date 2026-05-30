@@ -5,10 +5,14 @@ on:
     branches: [main, develop]
     paths:
       - 'server/**'
+      - 'client/**'
+      - 'iphone/**'
   pull_request:
     branches: [main, develop]
     paths:
       - 'server/**'
+      - 'client/**'
+      - 'iphone/**'
 
 env:
   NODE_VERSION: '20.18.1'
