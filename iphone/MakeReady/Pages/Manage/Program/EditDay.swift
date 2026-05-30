@@ -186,8 +186,8 @@ struct EditDay: View {
                                 activity: activity,
                                 programId: programId,
                                 onCancel: dismissEditActivity,
-                                onSave: { title, isHelpEnabled, helpAlwaysVisible, helpTitle, helpDescription, helpIcon, placeholder in
-                                    saveUserInputContent(title: title, isHelpEnabled: isHelpEnabled, helpAlwaysVisible: helpAlwaysVisible, helpTitle: helpTitle, helpDescription: helpDescription, helpIcon: helpIcon, placeholder: placeholder)
+                                onSave: { title, isHelpEnabled, helpTitle, helpDescription, placeholder in
+                                    saveUserInputContent(title: title, isHelpEnabled: isHelpEnabled, helpTitle: helpTitle, helpDescription: helpDescription, placeholder: placeholder)
                                 }
                             )
                             .id(activity.id)
@@ -525,7 +525,7 @@ struct EditDay: View {
                 isSwipeEnabled: canEdit,
                 onTap: {
                     guard !isLoading else { return }
-                    NSLog("📋 Activity tapped - id: \(activity.id), type: \(activity.type.rawValue), title: \(activity.title ?? "nil"), helpTitle: \(activity.helpTitle ?? "nil"), helpIcon: \(activity.helpIcon ?? "nil")")
+                    NSLog("📋 Activity tapped - id: \(activity.id), type: \(activity.type.rawValue), title: \(activity.title ?? "nil"), helpTitle: \(activity.helpTitle ?? "nil")")
                     switch activity.type {
                     case .read, .userInput, .youtube, .exegesis:
                         editingActivityId = activity.id
@@ -698,7 +698,7 @@ struct EditDay: View {
         onLessonUpdated(updatedLesson)
     }
 
-    private func saveUserInputContent(title: String?, isHelpEnabled: Bool, helpAlwaysVisible: Bool, helpTitle: String?, helpDescription: String?, helpIcon: String?, placeholder: String?) {
+    private func saveUserInputContent(title: String?, isHelpEnabled: Bool, helpTitle: String?, helpDescription: String?, placeholder: String?) {
         // The page saves directly via ProgramActions now (matches the read
         // activity flow). This handler is invoked only by the page's "Done"
         // tap, so here we just dismiss and notify the parent lesson view.

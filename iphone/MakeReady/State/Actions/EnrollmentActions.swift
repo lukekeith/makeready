@@ -438,7 +438,6 @@ struct EnrollmentActions {
         title: String? = nil,
         helpTitle: String? = nil,
         helpDescription: String? = nil,
-        helpIcon: String? = nil,
         videoId: String? = nil
     ) async throws -> ScheduledActivity {
         struct Response: Decodable {
@@ -452,7 +451,6 @@ struct EnrollmentActions {
         ]
         if let helpTitle = helpTitle { body["helpTitle"] = helpTitle }
         if let helpDescription = helpDescription { body["helpDescription"] = helpDescription }
-        if let helpIcon = helpIcon { body["helpIcon"] = helpIcon }
         if let videoId = videoId { body["videoId"] = videoId }
 
         let response: Response = try await api.post(

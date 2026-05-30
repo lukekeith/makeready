@@ -129,7 +129,6 @@ const createTemplateSchema = z.object({
     helpTitle: z.string().max(200).nullable().optional(),
     helpDescription: z.string().max(1000).nullable().optional(),
     helpAlwaysVisible: z.boolean().optional().default(false),
-    helpIcon: z.string().max(50).nullable().optional(),
   })).min(1),
 })
 
@@ -190,7 +189,6 @@ router.post('/templates', requireAuth, async (req, res) => {
             helpTitle: a.helpTitle ?? null,
             helpDescription: a.helpDescription ?? null,
             helpAlwaysVisible: a.helpAlwaysVisible ?? false,
-            helpIcon: a.helpIcon ?? null,
           })),
         },
       },
@@ -426,7 +424,6 @@ const addActivitySchema = z.object({
   helpTitle: z.string().max(200).nullable().optional(),
   helpDescription: z.string().max(1000).nullable().optional(),
   helpAlwaysVisible: z.boolean().optional().default(false),
-  helpIcon: z.string().max(50).nullable().optional(),
 })
 
 /**
@@ -485,7 +482,6 @@ router.post('/templates/:id/activities', requireAuth, async (req, res) => {
         helpTitle: data.helpTitle ?? null,
         helpDescription: data.helpDescription ?? null,
         helpAlwaysVisible: data.helpAlwaysVisible ?? false,
-        helpIcon: data.helpIcon ?? null,
       },
     })
 
@@ -506,7 +502,6 @@ const updateActivitySchema = z.object({
   helpTitle: z.string().max(200).nullable().optional(),
   helpDescription: z.string().max(1000).nullable().optional(),
   helpAlwaysVisible: z.boolean().optional(),
-  helpIcon: z.string().max(50).nullable().optional(),
 })
 
 /**
@@ -569,7 +564,6 @@ router.patch('/templates/:id/activities/:activityId', requireAuth, async (req, r
         ...(data.helpTitle !== undefined && { helpTitle: data.helpTitle }),
         ...(data.helpDescription !== undefined && { helpDescription: data.helpDescription }),
         ...(data.helpAlwaysVisible !== undefined && { helpAlwaysVisible: data.helpAlwaysVisible }),
-        ...(data.helpIcon !== undefined && { helpIcon: data.helpIcon }),
       },
     })
 

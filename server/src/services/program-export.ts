@@ -57,7 +57,6 @@ const activitySchema = z.object({
   helpTitle: z.string().nullable().optional(),
   helpDescription: z.string().nullable().optional(),
   helpAlwaysVisible: z.boolean().default(false),
-  helpIcon: z.string().nullable().optional(),
   referenceTitle: z.string().nullable().optional(),
   readContent: z.string().nullable().optional(),
   themeSlug: z.string().nullable().optional(),
@@ -74,7 +73,6 @@ const templateActivitySchema = z.object({
   helpTitle: z.string().nullable().optional(),
   helpDescription: z.string().nullable().optional(),
   helpAlwaysVisible: z.boolean().default(false),
-  helpIcon: z.string().nullable().optional(),
   referenceTitle: z.string().nullable().optional(),
 })
 
@@ -426,7 +424,6 @@ export async function importProgram(zipBuffer: Buffer, userId: string): Promise<
           helpTitle: ta.helpTitle ?? null,
           helpDescription: ta.helpDescription ?? null,
           helpAlwaysVisible: ta.helpAlwaysVisible,
-          helpIcon: ta.helpIcon ?? null,
           referenceTitle: ta.referenceTitle ?? null,
         })),
       })
@@ -478,7 +475,6 @@ export async function importProgram(zipBuffer: Buffer, userId: string): Promise<
             helpTitle: actData.helpTitle ?? null,
             helpDescription: actData.helpDescription ?? null,
             helpAlwaysVisible: actData.helpAlwaysVisible,
-            helpIcon: actData.helpIcon ?? null,
             referenceTitle: actData.referenceTitle ?? null,
             readContent: actData.readContent ?? null,
             videoUrl: actData.video?.playbackUrl ?? null,

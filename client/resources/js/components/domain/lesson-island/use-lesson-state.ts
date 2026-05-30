@@ -11,7 +11,6 @@ export interface Activity {
   helpTitle?: string
   helpDescription?: string
   helpAlwaysVisible?: boolean
-  helpIcon?: string
   helpText?: string
   isHelpEnabled?: boolean
   noteType?: string

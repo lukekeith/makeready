@@ -2593,7 +2593,6 @@ router.patch('/scheduled-activities/:id', requireAuth, async (req, res) => {
       helpTitle: z.string().max(200).nullable().optional(),
       helpDescription: z.string().max(2000).nullable().optional(),
       helpAlwaysVisible: z.boolean().optional(),
-      helpIcon: z.string().max(50).nullable().optional(),
       isHelpEnabled: z.boolean().optional(),
       readContent: z.string().nullable().optional(),
       videoId: z.string().uuid().nullable().optional(),
@@ -2787,8 +2786,6 @@ router.get(
  *                 type: string
  *               helpDescription:
  *                 type: string
- *               helpIcon:
- *                 type: string
  *               videoId:
  *                 type: string
  *                 format: uuid
@@ -2813,7 +2810,6 @@ router.post(
         helpTitle: z.string().max(200).nullable().optional(),
         helpDescription: z.string().max(2000).nullable().optional(),
         helpAlwaysVisible: z.boolean().optional().default(false),
-        helpIcon: z.string().max(50).nullable().optional(),
         readContent: z.string().nullable().optional(),
         videoId: z.string().uuid().optional(),
       })
@@ -2868,7 +2864,6 @@ router.post(
           helpTitle: body.helpTitle ?? null,
           helpDescription: body.helpDescription ?? null,
           helpAlwaysVisible: body.helpAlwaysVisible ?? false,
-          helpIcon: body.helpIcon ?? null,
           isHelpEnabled: true,
           readContent: body.readContent ?? null,
           videoId: body.type === 'VIDEO' ? body.videoId ?? null : null,

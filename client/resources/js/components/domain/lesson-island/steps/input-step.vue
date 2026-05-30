@@ -15,7 +15,6 @@ interface Activity {
   helpTitle?: string
   helpDescription?: string
   helpAlwaysVisible?: boolean
-  helpIcon?: string
   helpText?: string
   noteType?: string
   placeholder?: string

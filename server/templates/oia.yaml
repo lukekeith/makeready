@@ -14,7 +14,6 @@ activities:
     displayName: "Study"
     helpTitle: "What does it say?"
     helpDescription: "Read carefully and write down what the text actually says. Note key words, phrases, and structure."
-    helpIcon: "eye"
 
   - type: USER_INPUT
     orderNumber: 3
@@ -22,7 +21,6 @@ activities:
     displayName: "Study"
     helpTitle: "What does it mean?"
     helpDescription: "What did this passage mean to the original audience? What is the main idea or teaching?"
-    helpIcon: "book"
 
   - type: USER_INPUT
     orderNumber: 4
@@ -30,4 +28,3 @@ activities:
     displayName: "Study"
     helpTitle: "How should I respond?"
     helpDescription: "Based on your observations and interpretation, how should you respond? What specific action will you take?"
-    helpIcon: "lightbulb"

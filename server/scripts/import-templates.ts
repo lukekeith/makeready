@@ -23,7 +23,6 @@ interface YamlActivity {
   helpTitle?: string
   helpDescription?: string
   helpAlwaysVisible?: boolean
-  helpIcon?: string
 }
 
 interface YamlTemplate {
@@ -100,7 +99,6 @@ async function main() {
           helpTitle: a.helpTitle ?? null,
           helpDescription: a.helpDescription ?? null,
           helpAlwaysVisible: a.helpAlwaysVisible ?? false,
-          helpIcon: a.helpIcon ?? null,
         })),
       })
     }

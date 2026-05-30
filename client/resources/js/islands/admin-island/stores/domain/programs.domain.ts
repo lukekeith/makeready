@@ -48,7 +48,6 @@ export interface Activity {
   isHelpEnabled?: boolean
   helpTitle?: string
   helpDescription?: string
-  helpIcon?: string
   readContent?: string
   sourceReferences?: ActivitySourceReference[]
   readBlocks?: ActivityReadBlock[]
@@ -70,7 +69,6 @@ export interface UpdateActivityPayload {
   isHelpEnabled?: boolean
   helpTitle?: string
   helpDescription?: string
-  helpIcon?: string
   videoId?: string
   videoUrl?: string
   passageReference?: string

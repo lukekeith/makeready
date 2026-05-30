@@ -3,7 +3,7 @@
 //  MakeReady
 //
 //  Form page for editing USER_INPUT activity fields:
-//  title, helpTitle, helpDescription, and helpIcon.
+//  title, helpTitle, and helpDescription.
 //
 
 import SwiftUI
@@ -12,7 +12,7 @@ struct EditUserInputActivityPage: View {
     let activity: StudyActivity
     let programId: String?
     let onCancel: () -> Void
-    let onSave: (String?, Bool, Bool, String?, String?, String?, String?) -> Void
+    let onSave: (String?, Bool, String?, String?, String?) -> Void
 
     @EnvironmentObject var authManager: AuthManager
 
@@ -26,10 +26,8 @@ struct EditUserInputActivityPage: View {
 
     @State private var title: String = ""
     @State private var isHelpEnabled: Bool = false
-    @State private var helpAlwaysVisible: Bool = true
     @State private var helpTitle: String = ""
     @State private var helpDescription: String = ""
-    @State private var helpIcon: String = "None"
     @State private var placeholder: String = ""
 
     // Snapshot of values at last-saved-or-opened — drives the Save/Done
@@ -37,10 +35,8 @@ struct EditUserInputActivityPage: View {
     // refreshes it so the button flips back to Done.
     @State private var originalTitle: String = ""
     @State private var originalIsHelpEnabled: Bool = false
-    @State private var originalHelpAlwaysVisible: Bool = true
     @State private var originalHelpTitle: String = ""
     @State private var originalHelpDescription: String = ""
-    @State private var originalHelpIcon: String = "None"
     @State private var originalPlaceholder: String = ""
 
     @State private var isSaving = false
@@ -51,27 +47,10 @@ struct EditUserInputActivityPage: View {
     private var hasChanges: Bool {
         title != originalTitle ||
         isHelpEnabled != originalIsHelpEnabled ||
-        helpAlwaysVisible != originalHelpAlwaysVisible ||
         helpTitle != originalHelpTitle ||
         helpDescription != originalHelpDescription ||
-        helpIcon != originalHelpIcon ||
         placeholder != originalPlaceholder
     }
-
-    private let iconOptions = [
-        "lightbulb.fill",
-        "questionmark.circle.fill",
-        "pencil",
-        "book.fill",
-        "text.cursor",
-        "hand.raised.fill",
-        "heart.fill",
-        "eye.fill",
-        "star.fill",
-        "bolt.fill",
-        "flame.fill",
-        "leaf.fill"
-    ]
 
     var body: some View {
         ZStack {
@@ -97,10 +76,8 @@ struct EditUserInputActivityPage: View {
                                 onSave(
                                     title,
                                     isHelpEnabled,
-                                    isHelpEnabled ? helpAlwaysVisible : true,
                                     isHelpEnabled ? (helpTitle.isEmpty ? nil : helpTitle) : nil,
                                     isHelpEnabled ? (helpDescription.isEmpty ? nil : helpDescription) : nil,
-                                    isHelpEnabled ? (helpIcon == "None" ? nil : helpIcon) : nil,
                                     placeholder.isEmpty ? nil : placeholder
                                 )
                             }
@@ -138,13 +115,6 @@ struct EditUserInputActivityPage: View {
                                 description: "Enabling this feature provides a helpful link on the lesson activity designed to provide additional context or help to the member who is completing the activity.",
                                 isOn: $isHelpEnabled
                             )
-                            if isHelpEnabled {
-                                ToggleControl(
-                                    title: "Always visible",
-                                    description: "When enabled, context help is displayed inline on the activity instead of hidden behind a link.",
-                                    isOn: $helpAlwaysVisible
-                                )
-                            }
                         }
                         .padding(.horizontal, 16)
                         .disabled(!canEdit)
@@ -170,48 +140,6 @@ struct EditUserInputActivityPage: View {
                             }
                             .disabled(!canEdit)
 
-                            // Icon picker grid
-                            VStack(alignment: .leading, spacing: 12) {
-                                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: 6), spacing: 12) {
-                                    // "None" option
-                                    Button {
-                                        helpIcon = "None"
-                                    } label: {
-                                        ZStack {
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .fill(helpIcon == "None" ? Color(hex: "#6c47ff").opacity(0.2) : Color.white.opacity(0.05))
-                                            RoundedRectangle(cornerRadius: 10)
-                                                .stroke(helpIcon == "None" ? Color(hex: "#6c47ff") : Color.white.opacity(0.08), lineWidth: 1.5)
-                                            Image(systemName: "xmark")
-                                                .font(.system(size: 18, weight: .medium))
-                                                .foregroundColor(helpIcon == "None" ? Color(hex: "#6c47ff") : .white.opacity(0.3))
-                                        }
-                                        .frame(height: 48)
-                                    }
-                                    .buttonStyle(.plain)
-
-                                    // Icon options
-                                    ForEach(iconOptions, id: \.self) { icon in
-                                        Button {
-                                            helpIcon = icon
-                                        } label: {
-                                            ZStack {
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .fill(helpIcon == icon ? Color(hex: "#6c47ff").opacity(0.2) : Color.white.opacity(0.05))
-                                                RoundedRectangle(cornerRadius: 10)
-                                                    .stroke(helpIcon == icon ? Color(hex: "#6c47ff") : Color.white.opacity(0.08), lineWidth: 1.5)
-                                                Image(systemName: icon)
-                                                    .font(.system(size: 18, weight: .medium))
-                                                    .foregroundColor(helpIcon == icon ? Color(hex: "#6c47ff") : .white.opacity(0.5))
-                                            }
-                                            .frame(height: 48)
-                                        }
-                                        .buttonStyle(.plain)
-                                    }
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                            .disabled(!canEdit)
                         }
 
                         // Preview button — only shown when programId is available
@@ -243,23 +171,19 @@ struct EditUserInputActivityPage: View {
             ReadActivityPreviewModal(activityId: activity.id, isPresented: $showPreviewModal)
         }
         .onAppear {
-            NSLog("EditUserInput onAppear - activity.id: \(activity.id), title: \(activity.title ?? "nil"), helpIcon: \(activity.helpIcon ?? "nil")")
+            NSLog("EditUserInput onAppear - activity.id: \(activity.id), title: \(activity.title ?? "nil")")
             title = activity.title ?? activity.type.displayName
             isHelpEnabled = activity.isHelpEnabled ?? false
-            helpAlwaysVisible = activity.helpAlwaysVisible ?? true
             helpTitle = activity.helpTitle ?? ""
             helpDescription = activity.helpDescription ?? ""
-            helpIcon = activity.helpIcon ?? "None"
             placeholder = activity.placeholder ?? ""
 
             // Snapshot matches initial values → hasChanges is false, so the
             // right-link opens as "Done". Any edit flips it to "Save".
             originalTitle = title
             originalIsHelpEnabled = isHelpEnabled
-            originalHelpAlwaysVisible = helpAlwaysVisible
             originalHelpTitle = helpTitle
             originalHelpDescription = helpDescription
-            originalHelpIcon = helpIcon
             originalPlaceholder = placeholder
         }
     }
@@ -274,10 +198,8 @@ struct EditUserInputActivityPage: View {
         isSaving = true
         let pendingTitle = title
         let pendingIsHelpEnabled = isHelpEnabled
-        let pendingHelpAlwaysVisible = isHelpEnabled ? helpAlwaysVisible : true
         let pendingHelpTitle = isHelpEnabled ? (helpTitle.isEmpty ? nil : helpTitle) : nil
         let pendingHelpDescription = isHelpEnabled ? (helpDescription.isEmpty ? nil : helpDescription) : nil
-        let pendingHelpIcon = isHelpEnabled ? (helpIcon == "None" ? nil : helpIcon) : nil
         let pendingPlaceholder = placeholder.isEmpty ? nil : placeholder
 
         Task {
@@ -286,19 +208,15 @@ struct EditUserInputActivityPage: View {
                     activityId:     activity.id,
                     title:          pendingTitle,
                     isHelpEnabled:  pendingIsHelpEnabled,
-                    helpAlwaysVisible: pendingHelpAlwaysVisible,
                     helpTitle:      pendingHelpTitle,
                     helpDescription: pendingHelpDescription,
-                    helpIcon:       pendingHelpIcon,
                     placeholder:    pendingPlaceholder
                 )
                 await MainActor.run {
                     originalTitle = pendingTitle
                     originalIsHelpEnabled = pendingIsHelpEnabled
-                    originalHelpAlwaysVisible = helpAlwaysVisible
                     originalHelpTitle = helpTitle
                     originalHelpDescription = helpDescription
-                    originalHelpIcon = helpIcon
                     originalPlaceholder = placeholder
                     isSaving = false
                 }
@@ -330,8 +248,8 @@ struct EditUserInputActivityPage: View {
         ),
         programId: nil,
         onCancel: { print("Cancel") },
-        onSave: { title, isHelpEnabled, helpAlwaysVisible, helpTitle, helpDesc, helpIcon, placeholder in
-            print("Save: \(title ?? "nil"), helpEnabled=\(isHelpEnabled), alwaysVisible=\(helpAlwaysVisible), \(helpTitle ?? "nil"), \(helpDesc ?? "nil"), \(helpIcon ?? "nil"), placeholder=\(placeholder ?? "nil")")
+        onSave: { title, isHelpEnabled, helpTitle, helpDesc, placeholder in
+            print("Save: \(title ?? "nil"), helpEnabled=\(isHelpEnabled), \(helpTitle ?? "nil"), \(helpDesc ?? "nil"), placeholder=\(placeholder ?? "nil")")
         }
     )
 }

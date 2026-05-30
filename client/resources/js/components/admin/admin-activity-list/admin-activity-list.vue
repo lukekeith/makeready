@@ -55,7 +55,7 @@ function handleActivityClick(activity: Activity) {
 const editTitle = ref(''); const editReadContent = ref(''); const editVideoUrl = ref(''); const editVideoId = ref('')
 const editYoutubeUrl = ref(''); const editYoutubeStartSeconds = ref<number | null>(null); const editYoutubeEndSeconds = ref<number | null>(null)
 const editPassageReference = ref(''); const editIsHelpEnabled = ref(false); const editHelpTitle = ref('')
-const editHelpDescription = ref(''); const editHelpIcon = ref(''); const isHelpExpanded = ref(false)
+const editHelpDescription = ref(''); const isHelpExpanded = ref(false)
 const isAddBlockOpen = ref(false); const newBlockTitle = ref(''); const newBlockContent = ref('')
 const editingBlockId = ref<string | null>(null); const editingBlockContent = ref('')
 const localReadBlocks = ref<ActivityReadBlock[]>([])
@@ -69,7 +69,7 @@ watch(() => activityUI.currentActivity, (a) => {
     editYoutubeUrl.value = (a as any).youtubeUrl ?? ''; editYoutubeStartSeconds.value = (a as any).youtubeStartSeconds ?? null
     editYoutubeEndSeconds.value = (a as any).youtubeEndSeconds ?? null
     editIsHelpEnabled.value = a.isHelpEnabled ?? false; editHelpTitle.value = a.helpTitle ?? ''
-    editHelpDescription.value = a.helpDescription ?? ''; editHelpIcon.value = a.helpIcon ?? ''
+    editHelpDescription.value = a.helpDescription ?? ''
     localReadBlocks.value = [...(a.readBlocks ?? [])]; isHelpExpanded.value = false
     editingBlockId.value = null; isAddBlockOpen.value = false; isAddRefOpen.value = false
   }
@@ -81,7 +81,7 @@ async function handleSaveActivity() {
   if (!activityUI.currentActivity || !activityUI.editingProgramId || !activityUI.editingLessonId) return
   activityUI.isSaving = true; activityUI.saveError = null
   try {
-    const payload: Record<string, any> = { title: editTitle.value, isHelpEnabled: editIsHelpEnabled.value, helpTitle: editHelpTitle.value || undefined, helpDescription: editHelpDescription.value || undefined, helpIcon: editHelpIcon.value || undefined }
+    const payload: Record<string, any> = { title: editTitle.value, isHelpEnabled: editIsHelpEnabled.value, helpTitle: editHelpTitle.value || undefined, helpDescription: editHelpDescription.value || undefined }
     if (activityUI.isReadType) payload.readContent = editReadContent.value || undefined
     else if (activityUI.isVideoType) { payload.videoUrl = editVideoUrl.value || undefined; payload.videoId = editVideoId.value || undefined }
     else if (activityUI.isYoutubeType) { payload.youtubeUrl = editYoutubeUrl.value || undefined; payload.youtubeStartSeconds = editYoutubeStartSeconds.value ?? undefined; payload.youtubeEndSeconds = editYoutubeEndSeconds.value ?? undefined }
@@ -268,10 +268,6 @@ async function handleAddSourceRef() {
                       <div style="display: flex; flex-direction: column; gap: 0.25rem;">
                         <label style="font-size: 0.75rem; font-weight: 500; text-transform: uppercase; color: var(--p-text-muted-color);">Help Description</label>
                         <Textarea v-model="editHelpDescription" :rows="3" placeholder="Help description..." fluid />
-                      </div>
-                      <div style="display: flex; flex-direction: column; gap: 0.25rem;">
-                        <label style="font-size: 0.75rem; font-weight: 500; text-transform: uppercase; color: var(--p-text-muted-color);">Help Icon</label>
-                        <InputText v-model="editHelpIcon" placeholder="Icon name (optional)" fluid />
                       </div>
                     </template>
                   </div>

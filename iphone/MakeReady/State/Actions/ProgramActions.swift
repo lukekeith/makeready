@@ -731,17 +731,15 @@ struct ProgramActions {
         state.persist()
     }
 
-    /// Update activity content fields (title, readContent, help text, icon)
+    /// Update activity content fields (title, readContent, help text)
     @MainActor
     func updateActivityContent(
         activityId: String,
         title: String? = nil,
         readContent: String? = nil,
         isHelpEnabled: Bool? = nil,
-        helpAlwaysVisible: Bool? = nil,
         helpTitle: String? = nil,
         helpDescription: String? = nil,
-        helpIcon: String? = nil,
         placeholder: String? = nil
     ) async throws -> StudyActivity {
         var body: [String: Any] = [
@@ -751,10 +749,8 @@ struct ProgramActions {
         if let title = title { body["title"] = title }
         if let readContent = readContent { body["readContent"] = readContent }
         if let isHelpEnabled = isHelpEnabled { body["isHelpEnabled"] = isHelpEnabled }
-        if let helpAlwaysVisible = helpAlwaysVisible { body["helpAlwaysVisible"] = helpAlwaysVisible }
         if let helpTitle = helpTitle { body["helpTitle"] = helpTitle }
         if let helpDescription = helpDescription { body["helpDescription"] = helpDescription }
-        if let helpIcon = helpIcon { body["helpIcon"] = helpIcon }
         if let placeholder = placeholder { body["placeholder"] = placeholder }
 
         let response: UpdateActivityResponse = try await api.patch(

@@ -1368,9 +1368,6 @@ router.delete(
  *                 nullable: true
  *               helpAlwaysVisible:
  *                 type: boolean
- *               helpIcon:
- *                 type: string
- *                 nullable: true
  *               readContent:
  *                 type: string
  *                 nullable: true
@@ -1753,7 +1750,6 @@ router.patch('/activities/:id', requireAuth, async (req, res) => {
       helpTitle: z.string().max(200).nullable().optional(),
       helpDescription: z.string().max(2000).nullable().optional(),
       helpAlwaysVisible: z.boolean().optional(),
-      helpIcon: z.string().max(50).nullable().optional(),
       placeholder: z.string().max(200).nullable().optional(),
       readContent: z.string().nullable().optional(),
       videoId: z.string().uuid().nullable().optional(),
@@ -1907,8 +1903,6 @@ router.patch('/activities/:id', requireAuth, async (req, res) => {
  *                 type: string
  *               helpDescription:
  *                 type: string
- *               helpIcon:
- *                 type: string
  *               videoId:
  *                 type: string
  *                 format: uuid
@@ -1934,7 +1928,6 @@ router.post(
         helpTitle: z.string().max(200).nullable().optional(),
         helpDescription: z.string().max(2000).nullable().optional(),
         helpAlwaysVisible: z.boolean().optional().default(false),
-        helpIcon: z.string().max(50).nullable().optional(),
         readContent: z.string().nullable().optional(),
         videoId: z.string().uuid().optional(),
         youtubeUrl: z.string().url().optional(),
@@ -2017,7 +2010,6 @@ router.post(
           helpTitle: body.helpTitle ?? null,
           helpDescription: body.helpDescription ?? null,
           helpAlwaysVisible: body.helpAlwaysVisible ?? false,
-          helpIcon: body.helpIcon ?? null,
           readContent: body.readContent ?? null,
           videoId: body.activityType === 'VIDEO' ? body.videoId : null,
           ...youtubeData,
