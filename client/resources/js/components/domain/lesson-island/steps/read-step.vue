@@ -244,7 +244,12 @@ async function buildPayload(): Promise<PreviewPayload> {
 }
 
 onMounted(async () => {
-  lessonState.reportProgress('Continue reading', false)
+  // If already completed from a prior visit, report immediately
+  const alreadyComplete = !!props.activity.progress?.completedAt
+  lessonState.reportProgress(
+    alreadyComplete ? 'Reading complete' : 'Continue reading',
+    alreadyComplete
+  )
 
   payload.value = await buildPayload()
   isLoading.value = false

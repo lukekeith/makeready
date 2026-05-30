@@ -108,6 +108,9 @@ export interface LessonState {
   // Note save callback — set by lesson-island, used by input activities
   saveNote: ((activityId: string, noteType: string, content: string) => Promise<void>) | null
 
+  // Update an activity's local state after a save so navigating back shows current data
+  updateActivityState: (activityId: string, updates: Partial<Activity>) => void
+
   // Methods
   reportProgress: (message: string, canProceed: boolean) => void
   goToStep: (n: number) => Promise<void>
@@ -237,6 +240,15 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     return Math.round((current / total) * 100)
   })
 
+  // ─── Activity state updates ─────────────────────────────────────────────────
+
+  function updateActivityState(activityId: string, updates: Partial<Activity>) {
+    const activities = lesson.value?.activities
+    if (!activities) return
+    const activity = activities.find(a => a.id === activityId)
+    if (activity) Object.assign(activity, updates)
+  }
+
   // ─── Navigation ─────────────────────────────────────────────────────────────
 
   function buildLessonUrl(stepNum: number): string {
@@ -252,6 +264,10 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
 
   function getExitUrl(): string {
     if (opts.isPreview && opts.previewToken) {
+      return `/preview/study/${lesson.value?.studyProgram?.id ?? ''}?preview_token=${opts.previewToken}`
+    }
+    // Synthetic preview (pvw- prefix) — exit to study overview
+    if (opts.groupId.startsWith('pvw-') && opts.previewToken) {
       return `/preview/study/${lesson.value?.studyProgram?.id ?? ''}?preview_token=${opts.previewToken}`
     }
     const enrollmentId = studyEnrollmentId.value
@@ -323,6 +339,7 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     beforeNavigateHook,
     registerBeforeNavigate,
     saveNote: opts.onSaveNote ?? null,
+    updateActivityState,
     reportProgress,
     goToStep,
     handleBack,

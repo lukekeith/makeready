@@ -587,7 +587,8 @@ function navigateBlock(direction: 1 | -1) {
   isPlaying.value     = false
   scrubPosition.value = scrubPos
   // Mark complete when we've reached the end of the last block (scrubPos = 1).
-  isCompleted.value   = scrubPos >= 1
+  // Once completed, stays completed — navigating back doesn't revoke progress.
+  if (scrubPos >= 1) isCompleted.value = true
   seekToPosition(seekPos)
 
   if (shouldPlay) {

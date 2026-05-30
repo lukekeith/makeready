@@ -45,6 +45,7 @@ const state = createLessonState({
       `/member/groups/${props.groupId}/lessons/${props.lessonScheduleId}/activity/${activityId}/submit`,
       { lessonScheduleId: props.lessonScheduleId, note: { type: noteType, content } }
     )
+    state.updateActivityState(activityId, { note: { content } })
   },
 })
 
@@ -58,6 +59,9 @@ async function saveVideoProgress(activityId: string, progress: number) {
       `/member/groups/${props.groupId}/lessons/${props.lessonScheduleId}/activity/${activityId}/video-progress`,
       { progress }
     )
+    state.updateActivityState(activityId, {
+      progress: { ...(state.lesson.value.activities?.find(a => a.id === activityId)?.progress ?? {}), completedAt: progress >= 0.9 ? new Date().toISOString() : undefined },
+    })
   } catch (err) {
     console.error('[LessonActivity] saveVideoProgress failed:', err)
   }
@@ -72,6 +76,11 @@ async function visitExegesisHighlight(activityId: string, highlightId: string) {
         highlightId,
       }
     )
+    const existing = state.lesson.value.activities?.find(a => a.id === activityId)?.progress?.exegesisVisitedHighlightIds ?? []
+    const visited = existing.includes(highlightId) ? existing : [...existing, highlightId]
+    state.updateActivityState(activityId, {
+      progress: { ...(state.lesson.value.activities?.find(a => a.id === activityId)?.progress ?? {}), exegesisVisitedHighlightIds: visited },
+    })
   } catch (err) {
     console.error('[LessonActivity] visitExegesisHighlight failed:', err)
   }
@@ -125,7 +134,10 @@ async function visitExegesisHighlight(activityId: string, highlightId: string) {
           :lessonScheduleId="lessonScheduleId"
           :fullScreen="!singleActivity"
           @next="state.handleNext"
-          @complete="(val: boolean) => state.reportProgress(val ? 'Reading complete' : 'Continue reading', val)"
+          @complete="(val: boolean) => {
+            if (val) state.updateActivityState(state.currentStep.value!.activity!.id, { progress: { ...(state.currentStep.value!.activity!.progress ?? {}), completedAt: new Date().toISOString() } })
+            state.reportProgress(val ? 'Reading complete' : 'Continue reading', val)
+          }"
           @hide-title="(val: boolean) => { state.hideTitle.value = val }"
         />
 
