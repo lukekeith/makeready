@@ -106,13 +106,13 @@ struct PreviewWebView: UIViewRepresentable {
                 let token = try await Self.fetchPreviewToken()
                 let url = URL(string: "\(baseURL.absoluteString)?preview_token=\(token)")!
                 NSLog("👁️ ActivityPreview: loading \(url.absoluteString)")
-                await MainActor.run {
+                _ = await MainActor.run {
                     webView.load(URLRequest(url: url))
                 }
             } catch {
                 NSLog("❌ ActivityPreview: failed to get preview token — \(error.localizedDescription)")
                 // Fall back to loading without token (will likely 404)
-                await MainActor.run {
+                _ = await MainActor.run {
                     webView.load(URLRequest(url: baseURL))
                 }
             }

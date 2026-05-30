@@ -164,10 +164,11 @@ class PreviewController extends Controller
         }
 
         $lessonData = $result['body']['lesson'] ?? $result['body'];
+        $previewToken = $request->session()->get('preview_token', '');
 
         $response = response()->view(
             'pages.lesson-preview-authed',
-            compact('lessonData', 'lessonId', 'step')
+            compact('lessonData', 'lessonId', 'step', 'previewToken')
         );
 
         foreach ($result['setCookies'] as $cookie) {
@@ -195,13 +196,14 @@ class PreviewController extends Controller
         $studyData = $body['program'] ?? $body;
         $lessons   = $body['lessons'] ?? $studyData['lessons'] ?? [];
 
-        // Pass null token to the Blade so any token-specific affordances
-        // (e.g. copy-link buttons) can hide themselves for the authed flow.
+        // Pass null token (public share token) so copy-link buttons hide.
+        // previewToken is the DB-backed auth token for navigation persistence.
         $token = null;
+        $previewToken = $request->session()->get('preview_token', '');
 
         $response = response()->view(
             'pages.study-preview',
-            compact('token', 'studyData', 'lessons')
+            compact('token', 'studyData', 'lessons', 'previewToken')
         );
 
         foreach ($result['setCookies'] as $cookie) {
@@ -219,9 +221,17 @@ class PreviewController extends Controller
      */
     private function fetchAuthedPreview(Request $request, string $endpoint): array
     {
-        // Strategy 1: Preview token from query param (iPhone WKWebView).
-        // Pass the token straight through to the API — it validates internally.
+        // Strategy 1: Preview token from query param OR session.
+        // On first access the token arrives as ?preview_token=xxx — we stash it
+        // in the Laravel session so subsequent page loads (prev/next + refresh)
+        // keep working without the query param.
         $previewToken = $request->query('preview_token');
+        if ($previewToken) {
+            $request->session()->put('preview_token', $previewToken);
+        } else {
+            $previewToken = $request->session()->get('preview_token');
+        }
+
         if ($previewToken) {
             $separator = str_contains($endpoint, '?') ? '&' : '?';
             $tokenEndpoint = "{$endpoint}{$separator}preview_token={$previewToken}";
@@ -261,5 +271,81 @@ class PreviewController extends Controller
 
         // Strategy 3: Forward browser cookies (planted connect.sid)
         return $this->api->get($endpoint, $request);
+    }
+
+    // ─── Preview actions (pvw-{token} routes) ──────────────────────────────
+
+    /**
+     * Proxy a POST action to the Express preview state endpoint.
+     */
+    private function proxyPreviewAction(string $token, string $stateType, string $activityId, array $data): array
+    {
+        try {
+            $response = \Illuminate\Support\Facades\Http::timeout(10)
+                ->withHeaders(['Accept' => 'application/json', 'Content-Type' => 'application/json'])
+                ->post(config('services.makeready.url') . "/api/preview/{$token}/state/{$stateType}/{$activityId}", $data);
+
+            return [
+                'status' => $response->status(),
+                'body'   => $response->json() ?? [],
+            ];
+        } catch (\Throwable $e) {
+            \Log::error("Preview action proxy failed ({$stateType}): " . $e->getMessage());
+            return ['status' => 500, 'body' => ['error' => $e->getMessage()]];
+        }
+    }
+
+    /**
+     * Render a lesson page via the pvw-{token} route.
+     * Fetches lesson data with preview state merged.
+     */
+    public function previewLesson(Request $request, string $pvwToken, string $pvwLessonId, int $step = 1)
+    {
+        $previewToken = $pvwToken;
+        $lessonId     = $pvwLessonId;
+
+        $request->session()->put('preview_token', $previewToken);
+
+        $result = $this->fetchAuthedPreview(
+            $request,
+            "/api/lessons/{$lessonId}/preview-data"
+        );
+
+        if ($result['status'] !== 200) {
+            abort(404);
+        }
+
+        $lessonData = $result['body']['lesson'] ?? $result['body'];
+
+        return response()->view('pages.lesson-preview-authed', compact(
+            'lessonData', 'lessonId', 'step', 'previewToken'
+        ));
+    }
+
+    public function previewSubmitNote(Request $request, string $pvwToken, string $pvwLessonId, string $activityId)
+    {
+        $result = $this->proxyPreviewAction($pvwToken, 'note', $activityId, $request->json()->all());
+        return response()->json($result['body'], $result['status']);
+    }
+
+    public function previewVideoProgress(Request $request, string $pvwToken, string $pvwLessonId, string $activityId)
+    {
+        $result = $this->proxyPreviewAction($pvwToken, 'video-progress', $activityId, $request->json()->all());
+        return response()->json($result['body'], $result['status']);
+    }
+
+    public function previewExegesisVisit(Request $request, string $pvwToken, string $pvwLessonId, string $activityId)
+    {
+        $result = $this->proxyPreviewAction($pvwToken, 'exegesis-visit', $activityId, $request->json()->all());
+        return response()->json($result['body'], $result['status']);
+    }
+
+    /**
+     * Handle exit URLs from preview routes.
+     * Redirects back to home — the programId isn't available in the URL.
+     */
+    public function previewExitRedirect(Request $request, string $pvwToken, ?string $enrollmentId = null)
+    {
+        return redirect('/');
     }
 }

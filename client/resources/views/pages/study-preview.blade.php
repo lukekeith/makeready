@@ -35,11 +35,12 @@
                                 $lessonDay   = $lesson['dayNumber'] ?? null;
                                 $lessonTitle = $lesson['title'] ?? '';
                                 $lessonActivities = $lesson['activities'] ?? [];
-                                // Token flow: /public/preview/{token}/lesson/{id}/1
-                                // Authed flow (no token): /preview/lesson/{id}
+                                // Use synthetic pvw- route for interactive preview when we have a token.
+                                // Falls back to read-only /preview/lesson/ if no token.
+                                $pvw = $token ?? ($previewToken ?? null);
                                 $lessonHref  = $lessonId
-                                    ? ($token
-                                        ? '/public/preview/' . $token . '/lesson/' . $lessonId . '/1'
+                                    ? ($pvw
+                                        ? '/member/groups/pvw-' . $pvw . '/lessons/pvw-' . $lessonId
                                         : '/preview/lesson/' . $lessonId)
                                     : null;
                             @endphp

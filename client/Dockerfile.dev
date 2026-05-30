@@ -51,4 +51,4 @@ RUN mkdir -p storage/framework/sessions \
 EXPOSE 8000
 
 # Run artisan serve + vite dev server
-CMD php artisan serve --host=0.0.0.0 --port=8000 & npm run dev -- --host 0.0.0.0 & wait
+CMD php artisan serve --host=0.0.0.0 --port=8000 & npm run dev & wait

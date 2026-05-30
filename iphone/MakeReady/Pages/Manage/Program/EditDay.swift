@@ -1172,12 +1172,12 @@ struct LessonPreviewWebView: UIViewRepresentable {
                 let separator = url.absoluteString.contains("?") ? "&" : "?"
                 let tokenURL = URL(string: "\(url.absoluteString)\(separator)preview_token=\(token)")!
                 NSLog("👁️ LessonPreviewWebView: loading \(tokenURL.absoluteString)")
-                await MainActor.run {
+                _ = await MainActor.run {
                     webView.load(URLRequest(url: tokenURL))
                 }
             } catch {
                 NSLog("❌ LessonPreviewWebView: failed to get preview token — \(error.localizedDescription)")
-                await MainActor.run {
+                _ = await MainActor.run {
                     webView.load(URLRequest(url: url))
                 }
             }

@@ -6,16 +6,16 @@
 @section('title', ($lessonData['title'] ?? 'Lesson Preview') . ' — MakeReady')
 
 @php
-    // Encode props safely for embedding in data attribute.
-    // isPreview=true disables AJAX POST calls (submitNote) inside LessonIsland.
-    // groupId and lessonScheduleId are empty strings — LessonIsland handles gracefully when isPreview=true.
+    // Synthetic pvw-{token} IDs route save actions to preview state storage.
+    // isPreview=false when we have a token so LessonIsland fires normal actions.
+    $pvwToken = $token ?? '';
     $islandProps = json_encode([
         'lessonData'       => $lessonData,
-        'groupId'          => '',
-        'lessonScheduleId' => '',
+        'groupId'          => $pvwToken ? 'pvw-' . $pvwToken : '',
+        'lessonScheduleId' => $pvwToken ? 'pvw-' . ($lessonId ?? '') : '',
         'initialStep'      => (int) $step,
-        'isPreview'        => true,
-        'previewToken'     => $token,
+        'isPreview'        => empty($pvwToken),
+        'previewToken'     => $pvwToken,
     ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 @endphp
 

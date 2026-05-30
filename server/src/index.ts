@@ -45,7 +45,7 @@ import githubRoutes from './routes/github.js'
 import templatesRoutes from './routes/templates.js'
 import activitiesRoutes from './routes/activities.js'
 import themesRoutes from './routes/themes.js'
-import { studyPreviewApiRouter, studyPreviewPublicRouter, studyPreviewDevRouter } from './routes/study-preview.js'
+import { studyPreviewApiRouter, studyPreviewPublicRouter, studyPreviewDevRouter, previewStateRouter } from './routes/study-preview.js'
 import { prisma } from './lib/prisma.js'
 import { setupSwagger } from './docs/swagger.js'
 import { authenticateApiKey } from './middleware/api-key.js'
@@ -301,6 +301,7 @@ app.use('/api/beta', betaRoutes)
 // Public routes (no authentication required)
 app.use('/public', publicRoutes)
 app.use('/public/preview', studyPreviewPublicRouter)
+app.use('/api/preview', previewStateRouter)
 
 // Auth routes
 app.use('/auth', authRoutes)

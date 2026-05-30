@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import BulletTextInput from '../../../primitive/bullet-text-input/bullet-text-input.vue'
 import { useLessonState } from '../use-lesson-state'
 
@@ -25,17 +25,11 @@ interface Activity {
 interface Props {
   activity: Activity
   isPreview?: boolean
-  isSaving?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   isPreview: false,
-  isSaving: false,
 })
-
-const emit = defineEmits<{
-  submit: [activityId: string, noteType: string, content: string]
-}>()
 
 // Pre-populate with existing note content if available
 const noteContent = ref(props.activity.note?.content ?? '')
@@ -58,41 +52,64 @@ const hasHelp = computed<boolean>(() => {
   )
 })
 
-/** True once the user has typed meaningful content (whitespace-only doesn't
- *  count). Drives the Save button's disabled + visual state. */
+/** True once the user has typed meaningful content (whitespace-only doesn't count). */
 const hasContent = computed(() => noteContent.value.trim().length > 0)
 
-// Report progress to lesson state
+// Track what has been saved to avoid redundant saves
+const lastSavedContent = ref(props.activity.note?.content ?? '')
+const isDirty = computed(() => noteContent.value !== lastSavedContent.value && hasContent.value)
+
+// ─── Debounced auto-save ──────────────────────────────────────────────────────
+
+let debounceTimer: ReturnType<typeof setTimeout> | null = null
+
+async function flushSave() {
+  if (debounceTimer) {
+    clearTimeout(debounceTimer)
+    debounceTimer = null
+  }
+  if (!isDirty.value || !lessonState.saveNote) return
+  try {
+    await lessonState.saveNote(props.activity.id, noteType.value, noteContent.value)
+    lastSavedContent.value = noteContent.value
+  } catch (err) {
+    console.error('[InputStep] auto-save failed:', err)
+  }
+}
+
+function scheduleSave() {
+  if (debounceTimer) clearTimeout(debounceTimer)
+  debounceTimer = setTimeout(flushSave, 1000)
+}
+
+watch(noteContent, () => {
+  if (props.isPreview || !lessonState.saveNote) return
+  scheduleSave()
+})
+
+onUnmounted(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
+
+// ─── Progress + before-navigate hook ──────────────────────────────────────────
+
 onMounted(() => {
-  lessonState.reportProgress('Write your response', false)
+  lessonState.reportProgress(
+    hasContent.value ? 'Continue' : 'Write your response',
+    hasContent.value
+  )
+  lessonState.registerBeforeNavigate(flushSave)
 })
 
 watch(hasContent, (has) => {
   lessonState.reportProgress(
-    has ? 'Submit your response' : 'Write your response',
-    false // canProceed stays false until submitted — submit auto-advances
+    has ? 'Continue' : 'Write your response',
+    has
   )
 })
 
 function toggleContext() {
   lessonState.contextCollapsed.value = !lessonState.contextCollapsed.value
-}
-
-const baseButtonStyle = `
-  border: none;
-  border-radius: 8px;
-  padding: 14px 24px;
-  font-size: 15px;
-  font-weight: 600;
-  width: 100%;
-  transition: background 150ms ease, color 150ms ease;
-`
-const activeStyle = `${baseButtonStyle} background: #6c47ff; color: #ffffff; cursor: pointer;`
-const mutedStyle  = `${baseButtonStyle} background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.35); cursor: not-allowed;`
-
-function handleSave() {
-  if (props.isPreview || props.isSaving || !hasContent.value) return
-  emit('submit', props.activity.id, noteType.value, noteContent.value)
 }
 </script>
 
@@ -104,23 +121,25 @@ function handleSave() {
     </h3>
 
     <!-- Collapsible context help -->
-    <div v-if="hasHelp" class="LessonActivity__context" :class="{ 'LessonActivity__context--collapsed': lessonState.contextCollapsed.value }">
-      <div class="LessonActivity__context-header" @click="toggleContext">
+    <div v-if="hasHelp" class="LessonActivity__context" :class="{ 'LessonActivity__context--collapsed': lessonState.contextCollapsed.value }" @click="toggleContext">
+      <div class="LessonActivity__context-header">
         <span class="LessonActivity__context-title">
           {{ activity.helpTitle || 'Help' }}
         </span>
-        <button type="button" class="LessonActivity__context-toggle">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+        <button type="button" class="LessonActivity__context-toggle" :class="{ 'LessonActivity__context-toggle--collapsed': lessonState.contextCollapsed.value }">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
             <polyline
-              :points="lessonState.contextCollapsed.value ? '6 9 12 15 18 9' : '6 15 12 9 18 15'"
+              points="6 15 12 9 18 15"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
             />
           </svg>
         </button>
       </div>
-      <p v-if="!lessonState.contextCollapsed.value && activity.helpDescription" class="LessonActivity__context-description">
-        {{ activity.helpDescription }}
-      </p>
+      <div class="LessonActivity__context-body" :class="{ 'LessonActivity__context-body--collapsed': lessonState.contextCollapsed.value }">
+        <p v-if="activity.helpDescription" class="LessonActivity__context-description">
+          {{ activity.helpDescription }}
+        </p>
+      </div>
     </div>
 
     <div class="LessonActivity__input-wrap">
@@ -138,19 +157,6 @@ function handleSave() {
         </svg>
       </div>
     </div>
-
-    <div v-if="isSaving" style="text-align: center; color: rgba(255,255,255,0.4); font-size: 14px; padding: 8px 0;">
-      Saving...
-    </div>
-
-    <button
-      v-else
-      :style="hasContent ? activeStyle : mutedStyle"
-      :disabled="!hasContent"
-      @click="handleSave"
-    >
-      Save &amp; Continue
-    </button>
   </div>
 </template>
 
@@ -171,9 +177,12 @@ function handleSave() {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 8px;
+  padding: 16px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.1);
+  user-select: none;
+  cursor: pointer;
+  transition: gap 300ms ease;
 }
 
 .LessonActivity__context--collapsed {
@@ -184,7 +193,6 @@ function handleSave() {
   display: flex;
   align-items: center;
   gap: 8px;
-  cursor: pointer;
 }
 
 .LessonActivity__context-title {
@@ -209,6 +217,29 @@ function handleSave() {
   color: rgba(255, 255, 255, 0.5);
   cursor: pointer;
   padding: 0;
+  transition: transform 300ms ease;
+}
+
+.LessonActivity__context-toggle--collapsed {
+  transform: rotate(180deg);
+}
+
+.LessonActivity__context-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 300ms ease, opacity 300ms ease;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.LessonActivity__context-body--collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+}
+
+.LessonActivity__context-body > p {
+  min-height: 0;
+  overflow: hidden;
 }
 
 .LessonActivity__context-description {

@@ -97,6 +97,22 @@ Route::get('/preview/lesson/{lessonId}/{step?}', [PreviewController::class, 'aut
 Route::get('/preview/study/{programId}', [PreviewController::class, 'authenticatedStudyPreview'])
     ->name('preview.study.authed');
 
+// ─── Preview actions (pvw/ prefix, no member auth) ──────────────────────────
+// These routes intercept requests with the pvw/ prefix before the member auth
+// group. The frontend doesn't know it's in preview mode — it fires the same
+// axios POSTs, and these routes store data in PreviewState.
+
+Route::prefix('member/groups/pvw-{pvwToken}/lessons/pvw-{pvwLessonId}')->group(function () {
+    Route::get('/{step?}', [PreviewController::class, 'previewLesson'])->name('preview.lesson.synthetic');
+    Route::post('/activity/{activityId}/submit', [PreviewController::class, 'previewSubmitNote']);
+    Route::post('/activity/{activityId}/video-progress', [PreviewController::class, 'previewVideoProgress']);
+    Route::post('/activity/{activityId}/exegesis-visit', [PreviewController::class, 'previewExegesisVisit']);
+});
+
+// Catch exit URLs with pvw- prefix
+Route::get('member/groups/pvw-{pvwToken}/study/{enrollmentId?}', [PreviewController::class, 'previewExitRedirect']);
+Route::get('member/groups/pvw-{pvwToken}', [PreviewController::class, 'previewExitRedirect']);
+
 // ─── Protected (require member auth) ──────────────────────────────────────────
 
 Route::middleware('member.auth')->prefix('member')->group(function () {

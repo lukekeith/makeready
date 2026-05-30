@@ -152,6 +152,9 @@ models:
       apiKeys:
         type: one_to_many
         target: ApiKey
+      previewToken:
+        type: one_to_one
+        target: PreviewToken
       deviceTokens:
         type: one_to_many
         target: DeviceToken
@@ -507,6 +510,9 @@ models:
       betaApplications:
         type: one_to_many
         target: BetaApplication
+      previewTokens:
+        type: one_to_many
+        target: PreviewToken
     indexes:
       - fields: [ownerId]
       - fields: [isActive]
@@ -3627,6 +3633,89 @@ models:
     indexes:
       - fields: [userId]
       - fields: [keyPrefix]
+
+  # ===========================================================================
+  # Preview Tokens
+  # ===========================================================================
+  PreviewToken:
+    table_name: preview_tokens
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      token:
+        type: string
+        unique: true
+        description: "The preview token string passed as ?preview_token=xxx"
+      userId:
+        type: string
+        unique: true
+        description: "One token per user — upsert replaces the old one"
+      organizationId:
+        type: string
+        description: "Org scope — any leader in this org can preview any org content"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      user:
+        type: many_to_one
+        target: User
+        fields: [userId]
+        references: [id]
+        onDelete: Cascade
+      organization:
+        type: many_to_one
+        target: Organization
+        fields: [organizationId]
+        references: [id]
+        onDelete: Cascade
+      previewStates:
+        type: one_to_many
+        target: PreviewState
+    indexes:
+      - fields: [token]
+      - fields: [userId]
+
+  # ===========================================================================
+  # Preview State (isolated storage for interactive previews)
+  # ===========================================================================
+  PreviewState:
+    table_name: preview_state
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      previewTokenId:
+        type: string
+        description: "FK to PreviewToken — cascade-deletes when token is replaced"
+      entityType:
+        type: string
+        description: "note | video_progress | exegesis_visit"
+      activityId:
+        type: string
+        description: "The lesson activity this state is for"
+      data:
+        type: json
+        description: "Saved state (note content, video seconds, visited highlight IDs)"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      previewToken:
+        type: many_to_one
+        target: PreviewToken
+        fields: [previewTokenId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [previewTokenId, entityType, activityId]
+        unique: true
 
   # ===========================================================================
   # Notifications

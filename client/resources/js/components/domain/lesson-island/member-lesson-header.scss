@@ -2,8 +2,60 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 8px;
-  padding: 16px 16px 0px 16px;
+  padding: 8px;
+
+  // ─── Container card ───────────────────────────────────────────────────────
+
+  &__container {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    padding: 8px;
+    border-radius: 24px;
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  // ─── Title bar ────────────────────────────────────────────────────────────
+
+  &__title-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+  }
+
+  &__title {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    overflow: hidden;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 15px;
+    line-height: 20px;
+  }
+
+  &__title-study {
+    flex: 1;
+    min-width: 0;
+    color: white;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__title-day {
+    flex-shrink: 0;
+    font-weight: 700;
+    color: #6c47ff;
+    text-align: center;
+    white-space: nowrap;
+  }
 
   // ─── Navigation pill ──────────────────────────────────────────────────────
 
@@ -14,9 +66,7 @@
     gap: 8px;
     width: 100%;
     height: 40px;
-    border-radius: 40px;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    border-radius: 32px;
     overflow: hidden;
   }
 
@@ -45,16 +95,6 @@
     }
   }
 
-  // ─── Left button group ─────────────────────────────────────────────────────
-
-  &__left {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
   // ─── Icon buttons ─────────────────────────────────────────────────────────
 
   &__btn {
@@ -78,6 +118,19 @@
       color: rgba(255, 255, 255, 0.7);
     }
 
+    &--icon {
+      // Title bar icon buttons
+    }
+
+    &--icon-dim {
+      opacity: 0.5;
+    }
+
+    &--spacer {
+      visibility: hidden;
+      cursor: default;
+    }
+
     &--disabled {
       opacity: 0.2;
       cursor: default;
@@ -85,12 +138,10 @@
     }
 
     &--next {
-      // Default: dimmed like other buttons
       color: rgba(255, 255, 255, 0.5);
     }
 
     &--active {
-      // When canProceed is true: full brightness
       color: rgba(255, 255, 255, 1);
     }
   }
@@ -123,81 +174,49 @@
   }
 
   // ─── Message row ──────────────────────────────────────────────────────────
-  // Same height and border-radius as __nav. Right-aligned so it collapses
-  // toward the right chevron above. Animates width between 100% (expanded)
-  // and 32px (collapsed).
 
-  &__message {
-    position: relative;
-    display: flex;
-    align-items: center;
-    align-self: flex-end;
-    width: 100%;
-    height: 40px;
-    border-radius: 40px;
+  &__message-wrap {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows 300ms ease;
     overflow: hidden;
-    background: #563C02;
-    transition: width 400ms ease, background 300ms ease;
 
     &--collapsed {
-      width: 40px;
+      grid-template-rows: 0fr;
     }
+  }
 
-    &--alert {
-      background: rgba(250, 47, 84, 0.5);
+  &__message {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 40px;
+    overflow: hidden;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: min-height 300ms ease;
+
+    .MemberLessonHeader__message-wrap--collapsed & {
+      min-height: 0;
     }
   }
 
   &__message-text {
-    position: relative;
-    z-index: 1;
     flex: 1;
     min-width: 0;
-    padding: 0 12px;
     font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, sans-serif;
     font-size: 13px;
     font-weight: 400;
-    line-height: 40px;
-    letter-spacing: 0.1px;
+    line-height: 18px;
     color: rgba(255, 255, 255, 0.7);
-    background-color: #563C02;
+    text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-
-    .MemberLessonHeader__message--collapsed & {
-      opacity: 0;
-      transition: opacity 200ms ease;
-    }
-  }
-
-  // Toggle button — absolutely positioned to the right so it stays
-  // fixed in place while the message bar width animates.
-  &__message-toggle {
-    position: absolute;
-    right: 0;
-    top: 0;
-    z-index: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border: none;
-    border-radius: 40px;
-    background: transparent;
-    color: rgba(255, 255, 255, 0.5);
-    cursor: pointer;
-    padding: 0;
-  }
-
-  // Both icons are stacked via absolute positioning and crossfade
-  &__message-icon {
-    position: absolute;
     opacity: 1;
-    transition: opacity 250ms ease;
+    transition: opacity 300ms ease;
 
-    &--hidden {
+    .MemberLessonHeader__message-wrap--collapsed & {
       opacity: 0;
     }
   }

@@ -1,21 +1,23 @@
 {{-- resources/views/pages/lesson-preview-authed.blade.php --}}
-{{-- Authenticated full-lesson preview — mirrors activity-preview-authed but for a whole lesson. --}}
-{{-- Mounts LessonIsland with isPreview=true so note submission is disabled; no token required. --}}
-{{-- Served by PreviewController::authenticatedLessonPreview for the iPhone WKWebView and desktop creators. --}}
+{{-- Authenticated full-lesson preview — fully interactive with preview state storage. --}}
+{{-- Synthetic pvw- IDs route save actions to PreviewState instead of real enrollment tables. --}}
+{{-- Served by PreviewController::authenticatedLessonPreview and ::previewLesson. --}}
 @extends('layouts.home')
 
 @section('title', ($lessonData['title'] ?? 'Lesson Preview') . ' — MakeReady')
 
 @php
-    // isPreview=true → LessonIsland skips POST calls (submitNote / video-progress).
-    // groupId + lessonScheduleId are empty strings; LessonIsland tolerates this when isPreview=true.
-    // previewToken is omitted — this preview is authenticated, not token-based.
+    // isPreview=false + synthetic pvw-{token} IDs → LessonIsland fires normal
+    // save actions, but Laravel routes intercept the pvw- prefix and proxy to
+    // the preview state API instead of the real member endpoints.
+    $pvwToken = $previewToken ?? '';
     $islandProps = json_encode([
         'lessonData'       => $lessonData,
-        'groupId'          => '',
-        'lessonScheduleId' => '',
+        'groupId'          => $pvwToken ? 'pvw-' . $pvwToken : '',
+        'lessonScheduleId' => $pvwToken ? 'pvw-' . ($lessonId ?? '') : '',
         'initialStep'      => (int) $step,
-        'isPreview'        => true,
+        'isPreview'        => empty($pvwToken),
+        'previewToken'     => $pvwToken,
     ], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT);
 @endphp
 

@@ -2,6 +2,7 @@ import { Router } from 'express'
 import crypto from 'crypto'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
+import { Prisma } from '../generated/prisma/index.js'
 import { requireAuth } from '../middleware/auth.js'
 
 // ---------------------------------------------------------------------------
@@ -562,5 +563,199 @@ studyPreviewPublicRouter.get('/:token/activity/:activityId', async (req, res) =>
   } catch (error) {
     console.error('Error fetching preview activity:', error)
     res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+// ---------------------------------------------------------------------------
+// Preview State router — mounted at /api/preview
+// Stores interactive preview data (notes, video progress, exegesis visits)
+// tied to a DB-backed preview token. No member enrollment required.
+// ---------------------------------------------------------------------------
+
+export const previewStateRouter = Router()
+
+/**
+ * Merge saved preview state (notes, video progress, exegesis visits) into
+ * activity data so LessonIsland sees pre-populated content on reload.
+ */
+async function mergePreviewState(previewTokenId: string, activities: any[]): Promise<any[]> {
+  const states = await prisma.previewState.findMany({
+    where: { previewTokenId },
+    select: { entityType: true, activityId: true, data: true },
+  })
+
+  if (states.length === 0) return activities
+
+  const stateMap = new Map<string, Map<string, any>>()
+  for (const s of states) {
+    if (!stateMap.has(s.activityId)) stateMap.set(s.activityId, new Map())
+    stateMap.get(s.activityId)!.set(s.entityType, s.data)
+  }
+
+  return activities.map(activity => {
+    const activityStates = stateMap.get(activity.id)
+    if (!activityStates) return activity
+
+    const merged = { ...activity }
+
+    const noteState = activityStates.get('note')
+    if (noteState) {
+      merged.note = { content: (noteState as any).content }
+    }
+
+    const videoState = activityStates.get('video_progress')
+    if (videoState) {
+      merged.progress = {
+        ...(merged.progress ?? {}),
+        completedAt: (videoState as any).progress >= 0.9 ? new Date().toISOString() : null,
+      }
+    }
+
+    const exegesisState = activityStates.get('exegesis_visit')
+    if (exegesisState) {
+      merged.progress = {
+        ...(merged.progress ?? {}),
+        exegesisVisitedHighlightIds: (exegesisState as any).visitedIds ?? [],
+      }
+    }
+
+    return merged
+  })
+}
+
+/**
+ * Resolve a DB-backed preview token. Returns the token record or sends
+ * an error response and returns null.
+ */
+async function resolveDbToken(token: string, res: any) {
+  const record = await prisma.previewToken.findUnique({
+    where: { token },
+    select: { id: true, userId: true, organizationId: true },
+  })
+  if (!record) {
+    res.status(404).json({ success: false, error: 'Preview token not found' })
+    return null
+  }
+  return record
+}
+
+// POST /api/preview/:token/state/note/:activityId
+previewStateRouter.post('/:token/state/note/:activityId', async (req, res) => {
+  try {
+    const tokenRecord = await resolveDbToken(req.params.token, res)
+    if (!tokenRecord) return
+
+    const { note } = req.body ?? {}
+    const content = note?.content ?? ''
+    const noteType = note?.type ?? 'NOTE'
+
+    await prisma.previewState.upsert({
+      where: {
+        previewTokenId_entityType_activityId: {
+          previewTokenId: tokenRecord.id,
+          entityType: 'note',
+          activityId: req.params.activityId,
+        },
+      },
+      update: { data: { type: noteType, content } as unknown as Prisma.InputJsonValue },
+      create: {
+        previewTokenId: tokenRecord.id,
+        entityType: 'note',
+        activityId: req.params.activityId,
+        data: { type: noteType, content } as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error saving preview note:', error)
+    res.status(500).json({ success: false, error: 'Failed to save preview note' })
+  }
+})
+
+// POST /api/preview/:token/state/video-progress/:activityId
+previewStateRouter.post('/:token/state/video-progress/:activityId', async (req, res) => {
+  try {
+    const tokenRecord = await resolveDbToken(req.params.token, res)
+    if (!tokenRecord) return
+
+    const { progress } = req.body ?? {}
+
+    await prisma.previewState.upsert({
+      where: {
+        previewTokenId_entityType_activityId: {
+          previewTokenId: tokenRecord.id,
+          entityType: 'video_progress',
+          activityId: req.params.activityId,
+        },
+      },
+      update: { data: { progress } as unknown as Prisma.InputJsonValue },
+      create: {
+        previewTokenId: tokenRecord.id,
+        entityType: 'video_progress',
+        activityId: req.params.activityId,
+        data: { progress } as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error saving preview video progress:', error)
+    res.status(500).json({ success: false, error: 'Failed to save preview video progress' })
+  }
+})
+
+// POST /api/preview/:token/state/exegesis-visit/:activityId
+previewStateRouter.post('/:token/state/exegesis-visit/:activityId', async (req, res) => {
+  try {
+    const tokenRecord = await resolveDbToken(req.params.token, res)
+    if (!tokenRecord) return
+
+    const { highlightId } = req.body ?? {}
+    if (!highlightId) {
+      return res.status(400).json({ success: false, error: 'highlightId is required' })
+    }
+
+    // Load existing visited IDs and merge
+    const existing = await prisma.previewState.findUnique({
+      where: {
+        previewTokenId_entityType_activityId: {
+          previewTokenId: tokenRecord.id,
+          entityType: 'exegesis_visit',
+          activityId: req.params.activityId,
+        },
+      },
+      select: { data: true },
+    })
+
+    const visitedIds: string[] = (existing?.data as any)?.visitedIds ?? []
+    if (!visitedIds.includes(highlightId)) {
+      visitedIds.push(highlightId)
+    }
+
+    await prisma.previewState.upsert({
+      where: {
+        previewTokenId_entityType_activityId: {
+          previewTokenId: tokenRecord.id,
+          entityType: 'exegesis_visit',
+          activityId: req.params.activityId,
+        },
+      },
+      update: { data: { visitedIds } as unknown as Prisma.InputJsonValue },
+      create: {
+        previewTokenId: tokenRecord.id,
+        entityType: 'exegesis_visit',
+        activityId: req.params.activityId,
+        data: { visitedIds } as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    res.json({
+      success: true,
+      data: { exegesisVisitedHighlightIds: visitedIds },
+    })
+  } catch (error) {
+    console.error('Error saving preview exegesis visit:', error)
+    res.status(500).json({ success: false, error: 'Failed to save preview exegesis visit' })
   }
 })

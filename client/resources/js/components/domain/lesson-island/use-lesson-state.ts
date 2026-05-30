@@ -54,7 +54,7 @@ export interface Lesson {
   dayNumber?: number
   activities?: Activity[]
   studyEnrollmentId?: string
-  studyProgram?: { name?: string }
+  studyProgram?: { id?: string; name?: string }
   requireResponse?: boolean
   requireResponses?: boolean
 }
@@ -100,13 +100,21 @@ export interface LessonState {
   isSaving: Ref<boolean>
   hideTitle: Ref<boolean>
 
+  // Before-navigate hook — activities register a callback that fires
+  // before any navigation (next, prev, exit). Cleared on step change.
+  beforeNavigateHook: Ref<(() => Promise<void>) | null>
+  registerBeforeNavigate: (fn: () => Promise<void>) => void
+
+  // Note save callback — set by lesson-island, used by input activities
+  saveNote: ((activityId: string, noteType: string, content: string) => Promise<void>) | null
+
   // Methods
   reportProgress: (message: string, canProceed: boolean) => void
-  goToStep: (n: number) => void
-  handleBack: () => void
-  handleNext: () => void
-  handleExit: () => void
-  tryNext: () => void
+  goToStep: (n: number) => Promise<void>
+  handleBack: () => Promise<void>
+  handleNext: () => Promise<void>
+  handleExit: () => Promise<void>
+  tryNext: () => Promise<void>
 }
 
 export const LESSON_STATE_KEY: InjectionKey<LessonState> = Symbol('lessonState')
@@ -131,6 +139,7 @@ export interface CreateLessonStateOptions {
   isPreview: boolean
   previewToken: string
   singleActivity: boolean
+  onSaveNote?: (activityId: string, noteType: string, content: string) => Promise<void>
 }
 
 export function createLessonState(opts: CreateLessonStateOptions): LessonState {
@@ -157,6 +166,20 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     canProceed.value = proceed
   }
 
+  // ─── Before-navigate hook ───────────────────────────────────────────────────
+
+  const beforeNavigateHook = ref<(() => Promise<void>) | null>(null)
+
+  function registerBeforeNavigate(fn: () => Promise<void>) {
+    beforeNavigateHook.value = fn
+  }
+
+  async function runBeforeNavigate() {
+    if (beforeNavigateHook.value) {
+      await beforeNavigateHook.value()
+    }
+  }
+
   // Reset activity-level state when navigating between steps.
   // messageCollapsed persists across steps intentionally.
   watch(currentStepNumber, () => {
@@ -164,6 +187,7 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     message.value = ''
     hideTitle.value = false
     messageAlert.value = false
+    beforeNavigateHook.value = null
     if (alertTimer) {
       clearTimeout(alertTimer)
       alertTimer = null
@@ -219,7 +243,7 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     if (opts.isPreview) {
       const lessonId = lesson.value?.id ?? ''
       if (opts.previewToken) {
-        return `/public/preview/${opts.previewToken}/lesson/${lessonId}/${stepNum}`
+        return `/preview/lesson/${lessonId}/${stepNum}?preview_token=${opts.previewToken}`
       }
       return `/preview/lesson/${lessonId}/${stepNum}`
     }
@@ -228,7 +252,7 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
 
   function getExitUrl(): string {
     if (opts.isPreview && opts.previewToken) {
-      return `/public/preview/${opts.previewToken}`
+      return `/preview/study/${lesson.value?.studyProgram?.id ?? ''}?preview_token=${opts.previewToken}`
     }
     const enrollmentId = studyEnrollmentId.value
     if (enrollmentId) {
@@ -237,36 +261,34 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     return `/member/groups/${opts.groupId}`
   }
 
-  function goToStep(n: number) {
+  async function goToStep(n: number) {
     if (n < 1 || n > totalSteps.value) return
+    await runBeforeNavigate()
     currentStepNumber.value = n
     window.history.pushState({ step: n }, '', buildLessonUrl(n))
   }
 
-  function handleBack() {
-    if (isFirstStep.value) return // chevron-left is disabled on first step
-    goToStep(currentStepNumber.value - 1)
+  async function handleBack() {
+    if (isFirstStep.value) return
+    await goToStep(currentStepNumber.value - 1)
   }
 
-  function handleNext() {
-    goToStep(currentStepNumber.value + 1)
+  async function handleNext() {
+    await goToStep(currentStepNumber.value + 1)
   }
 
-  function handleExit() {
+  async function handleExit() {
+    await runBeforeNavigate()
     window.location.href = getExitUrl()
   }
 
-  /** Called when user taps the next chevron. If canProceed is false,
-   *  flash the alert state instead of navigating. */
-  function tryNext() {
+  async function tryNext() {
     if (isCompleteStep.value) {
-      handleExit()
+      await handleExit()
       return
     }
     if (!canProceed.value) {
-      // Flash alert
       messageAlert.value = true
-      // If collapsed, temporarily expand to show the alert
       if (alertTimer) clearTimeout(alertTimer)
       alertTimer = setTimeout(() => {
         messageAlert.value = false
@@ -274,7 +296,7 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
       }, 3000)
       return
     }
-    handleNext()
+    await handleNext()
   }
 
   return {
@@ -298,6 +320,9 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
     isLoading,
     isSaving,
     hideTitle,
+    beforeNavigateHook,
+    registerBeforeNavigate,
+    saveNote: opts.onSaveNote ?? null,
     reportProgress,
     goToStep,
     handleBack,

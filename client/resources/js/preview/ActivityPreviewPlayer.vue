@@ -652,6 +652,10 @@ function activityToPayload(activity: ServerActivity): PreviewPayload {
 }
 
 onMounted(() => {
+  // Set --member-lesson-footer so other components know the footer height.
+  // Matches the "Swipe to continue" button's bottom offset.
+  document.body.style.setProperty('--member-lesson-footer', 'calc(env(safe-area-inset-bottom) + 40px + 16px)')
+
   const injected = (window as any).__PREVIEW_DATA__
   if (props.payload) {
     runPreview(props.payload)
@@ -662,6 +666,10 @@ onMounted(() => {
   } else {
     console.warn('[ActivityPreviewPlayer] no payload (props or window.__PREVIEW_DATA__)')
   }
+})
+
+onBeforeUnmount(() => {
+  document.body.style.removeProperty('--member-lesson-footer')
 })
 </script>
 
@@ -887,9 +895,8 @@ onMounted(() => {
 
   &__continue {
     position: absolute;
-    // Sit above the scrubber: safe-area + 16px bottom-gap + 40px scrubber
-    // + 16px breathing room between the hint and the scrubber track.
-    bottom: calc(env(safe-area-inset-bottom) + 16px + 40px + 16px);
+    // Sit above the scrubber: safe-area + 40px scrubber + 16px breathing room.
+    bottom: calc(env(safe-area-inset-bottom) + 40px + 16px);
     left: 50%;
     // Explicit font stack — inherited `font-family` from .ActivityPreviewPlayer
     // already sets this, but state the rule here too so a future style reset

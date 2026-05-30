@@ -40,33 +40,17 @@ const state = createLessonState({
   isPreview: props.isPreview,
   previewToken: props.previewToken,
   singleActivity: props.singleActivity,
+  onSaveNote: props.isPreview ? undefined : async (activityId, noteType, content) => {
+    await axios.post(
+      `/member/groups/${props.groupId}/lessons/${props.lessonScheduleId}/activity/${activityId}/submit`,
+      { lessonScheduleId: props.lessonScheduleId, note: { type: noteType, content } }
+    )
+  },
 })
 
 provideLessonState(state)
 
 // ─── AJAX Actions ─────────────────────────────────────────────────────────────
-
-async function submitNote(activityId: string, noteType: string, content: string) {
-  if (state.isSaving.value) return
-  state.isSaving.value = true
-  try {
-    const response = await axios.post(
-      `/member/groups/${props.groupId}/lessons/${props.lessonScheduleId}/activity/${activityId}/submit`,
-      {
-        lessonScheduleId: props.lessonScheduleId,
-        note: { type: noteType, content },
-      }
-    )
-    if (response.data?.lesson) {
-      state.lesson.value = response.data.lesson
-    }
-    state.handleNext()
-  } catch (err) {
-    console.error('[LessonActivity] submitNote failed:', err)
-  } finally {
-    state.isSaving.value = false
-  }
-}
 
 async function saveVideoProgress(activityId: string, progress: number) {
   try {
@@ -165,8 +149,6 @@ async function visitExegesisHighlight(activityId: string, highlightId: string) {
           :key="state.currentStepNumber.value"
           :activity="state.currentStep.value.activity"
           :isPreview="isPreview"
-          :isSaving="state.isSaving.value"
-          @submit="submitNote"
         />
 
         <!-- COMPLETE step -->

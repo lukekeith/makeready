@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { Router } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
@@ -48,57 +49,94 @@ function mutationFilter(userId: string) {
 }
 
 // ─── Preview Tokens ─────────────────────────────────────────────────────────
-// Short-lived tokens that let WKWebView authenticate preview routes without
-// cookie planting. The iPhone requests a token (authenticated via session),
-// then appends it to the preview URL as ?preview_token=xxx. The Laravel
-// client exchanges it for the userId via /api/preview-token/validate.
-
-const previewTokens = new Map<string, { userId: string; expiresAt: number }>()
-
-// Clean up expired tokens periodically
-setInterval(() => {
-  const now = Date.now()
-  for (const [token, data] of previewTokens) {
-    if (data.expiresAt < now) previewTokens.delete(token)
-  }
-}, 60_000)
+// Database-backed tokens that let WKWebView authenticate preview routes
+// without cookie planting. One token per user (upsert replaces the old one).
+// Tokens never expire — they persist until a new one is generated.
+// Org-scoped: any group leader in the org can preview any org content.
 
 /**
- * POST /api/preview-token — generate a short-lived preview token.
- * The token can be reused for multiple preview requests within 5 minutes.
+ * POST /api/preview-token — generate a preview token for the current user.
+ * Replaces any existing token for this user (one token per user).
+ * The token is org-scoped and never expires.
  */
-router.post('/preview-token', requireAuth, (_req, res) => {
-  const userId = (_req.user as any).id
-  const token = Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2)
-  previewTokens.set(token, { userId, expiresAt: Date.now() + 5 * 60 * 1000 }) // 5 min
-  res.json({ success: true, token })
+router.post('/preview-token', requireAuth, async (_req, res) => {
+  try {
+    const userId = (_req.user as any).id
+    const orgId = await getUserOrgId(userId)
+    if (!orgId) {
+      return res.status(400).json({ success: false, error: 'User has no organization' })
+    }
+
+    const token = crypto.randomBytes(24).toString('base64url')
+
+    // Upsert: one token per user — delete old, insert new
+    await prisma.previewToken.upsert({
+      where: { userId },
+      update: { token, organizationId: orgId },
+      create: { token, userId, organizationId: orgId },
+    })
+
+    res.json({ success: true, token })
+  } catch (error) {
+    console.error('Error generating preview token:', error)
+    res.status(500).json({ success: false, error: 'Failed to generate preview token' })
+  }
 })
 
 /**
- * Resolve a userId from either the session (requireAuth) or a preview_token
- * query param. Returns null if neither is valid.
+ * Resolve a userId from either the session or a preview_token query param.
+ * Preview tokens are org-scoped — the returned userId is the token owner's.
+ * Returns null if neither is valid.
  */
-function resolvePreviewUser(req: any): string | null {
+async function resolvePreviewUser(req: any): Promise<string | null> {
   // Session-based auth
   if (req.isAuthenticated?.()) return (req.user as any).id
 
-  // Token-based auth via query param
+  // Token-based auth via query param (DB lookup)
   const token = req.query.preview_token as string | undefined
   if (token) {
-    const data = previewTokens.get(token)
-    if (data && data.expiresAt >= Date.now()) return data.userId
+    const record = await prisma.previewToken.findUnique({
+      where: { token },
+      select: { userId: true, organizationId: true },
+    })
+    if (record) return record.userId
   }
 
   return null
 }
 
 /**
- * Check if a user can preview content created by another user.
- * Returns true if they are the creator OR belong to the same org.
+ * Resolve the organizationId from a preview token (if present).
+ * Used by canPreview to allow org-scoped access.
  */
-async function canPreview(userId: string, creatorId: string, programOrgId: string | null): Promise<boolean> {
+async function resolvePreviewOrgId(req: any): Promise<string | null> {
+  const token = req.query.preview_token as string | undefined
+  if (!token) return null
+  const record = await prisma.previewToken.findUnique({
+    where: { token },
+    select: { organizationId: true },
+  })
+  return record?.organizationId ?? null
+}
+
+/**
+ * Check if a user can preview content.
+ * Access is granted if:
+ *   1. The user is the program creator, OR
+ *   2. The preview token's org matches the program's org (org-scoped access)
+ *   3. Fallback: the user belongs to the same org as the program
+ */
+async function canPreview(userId: string, creatorId: string, programOrgId: string | null, req?: any): Promise<boolean> {
   if (userId === creatorId) return true
   if (!programOrgId) return false
+
+  // Check org-scoped preview token
+  if (req) {
+    const tokenOrgId = await resolvePreviewOrgId(req)
+    if (tokenOrgId === programOrgId) return true
+  }
+
+  // Fallback: check user's own org
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { organizationId: true },
@@ -1369,7 +1407,7 @@ router.delete(
  */
 router.get('/activities/:id/preview-data', async (req, res) => {
   try {
-    const userId = resolvePreviewUser(req)
+    const userId = await resolvePreviewUser(req)
     if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const { id } = req.params
 
@@ -1430,7 +1468,7 @@ router.get('/activities/:id/preview-data', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
-    const canAccess = await canPreview(userId, activity.lesson.studyProgram.creatorId, activity.lesson.studyProgram.organizationId ?? null)
+    const canAccess = await canPreview(userId, activity.lesson.studyProgram.creatorId, activity.lesson.studyProgram.organizationId ?? null, req)
     if (!canAccess) {
       console.warn(`[preview-data] Access denied for activity ${req.params.id}: userId=${userId}, creatorId=${activity.lesson.studyProgram.creatorId}, programOrgId=${activity.lesson.studyProgram.organizationId}`)
       return res.status(404).json({ success: false, error: 'Activity not found' })
@@ -1470,7 +1508,7 @@ router.get('/activities/:id/preview-data', async (req, res) => {
  */
 router.get('/programs/:id/preview-data', async (req, res) => {
   try {
-    const userId = resolvePreviewUser(req)
+    const userId = await resolvePreviewUser(req)
     if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const { id } = req.params
 
@@ -1510,7 +1548,7 @@ router.get('/programs/:id/preview-data', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Program not found' })
     }
 
-    const canAccess = await canPreview(userId, program.creatorId, program.organizationId ?? null)
+    const canAccess = await canPreview(userId, program.creatorId, program.organizationId ?? null, req)
     if (!canAccess) {
       console.warn(`[preview-data] Access denied for program ${req.params.id}: userId=${userId}, creatorId=${program.creatorId}, programOrgId=${program.organizationId}`)
       return res.status(404).json({ success: false, error: 'Program not found' })
@@ -1574,7 +1612,7 @@ router.get('/programs/:id/preview-data', async (req, res) => {
  */
 router.get('/lessons/:id/preview-data', async (req, res) => {
   try {
-    const userId = resolvePreviewUser(req)
+    const userId = await resolvePreviewUser(req)
     if (!userId) return res.status(401).json({ error: 'Not authenticated' })
     const { id } = req.params
 
@@ -1650,17 +1688,52 @@ router.get('/lessons/:id/preview-data', async (req, res) => {
       },
     })
 
-    if (!lesson || !(await canPreview(userId, lesson.studyProgram.creatorId, lesson.studyProgram.organizationId ?? null))) {
+    if (!lesson || !(await canPreview(userId, lesson.studyProgram.creatorId, lesson.studyProgram.organizationId ?? null, req))) {
       return res.status(404).json({ success: false, error: 'Lesson not found' })
     }
 
     // Match the shape LessonIsland expects — it keys on `type`, not activityType.
-    const formatted = {
-      ...lesson,
-      activities: lesson.activities.map(a => ({ ...a, type: a.activityType })),
+    let activities = lesson.activities.map(a => ({ ...a, type: a.activityType }))
+
+    // Merge saved preview state if this is a token-based preview request
+    const previewTokenStr = req.query.preview_token as string | undefined
+    if (previewTokenStr) {
+      const tokenRecord = await prisma.previewToken.findUnique({
+        where: { token: previewTokenStr },
+        select: { id: true },
+      })
+      if (tokenRecord) {
+        const states = await prisma.previewState.findMany({
+          where: { previewTokenId: tokenRecord.id },
+          select: { entityType: true, activityId: true, data: true },
+        })
+        if (states.length > 0) {
+          const stateMap = new Map<string, Map<string, any>>()
+          for (const s of states) {
+            if (!stateMap.has(s.activityId)) stateMap.set(s.activityId, new Map())
+            stateMap.get(s.activityId)!.set(s.entityType, s.data)
+          }
+          activities = activities.map(a => {
+            const aStates = stateMap.get(a.id)
+            if (!aStates) return a
+            const merged = { ...a }
+            const noteState = aStates.get('note')
+            if (noteState) merged.note = { content: (noteState as any).content }
+            const videoState = aStates.get('video_progress')
+            if (videoState) {
+              merged.progress = { ...(merged.progress ?? {}), completedAt: (videoState as any).progress >= 0.9 ? new Date().toISOString() : null }
+            }
+            const exState = aStates.get('exegesis_visit')
+            if (exState) {
+              merged.progress = { ...(merged.progress ?? {}), exegesisVisitedHighlightIds: (exState as any).visitedIds ?? [] }
+            }
+            return merged
+          })
+        }
+      }
     }
 
-    res.json({ success: true, lesson: formatted })
+    res.json({ success: true, lesson: { ...lesson, activities } })
   } catch (error) {
     console.error('Error fetching lesson preview data:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch lesson' })

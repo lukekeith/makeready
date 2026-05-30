@@ -158,6 +158,7 @@ model User {
   uploadedAttachments  EventAttachment[] @relation("AttachmentUploader")
   studyNotes           StudyNote[]
   apiKeys              ApiKey[]
+  previewToken         PreviewToken?
   deviceTokens         DeviceToken[]
   notifications        Notification[]
   linkedMember         Member? @relation("UserMemberLink")
@@ -281,6 +282,7 @@ model Organization {
   media                Media[]
   themes               TextTheme[]
   betaApplications     BetaApplication[]
+  previewTokens        PreviewToken[]
   @@index([ownerId])
   @@index([isActive])
   @@map("organizations")
@@ -1404,6 +1406,35 @@ model ApiKey {
   @@index([userId])
   @@index([keyPrefix])
   @@map("api_keys")
+}
+
+model PreviewToken {
+  id                   String @id @default(uuid())
+  token                String @unique // The preview token string passed as ?preview_token=xxx
+  userId               String @unique // One token per user — upsert replaces the old one
+  organizationId       String // Org scope — any leader in this org can preview any org content
+  createdAt            DateTime @default(now())
+
+  user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization         Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  previewStates        PreviewState[]
+  @@index([token])
+  @@index([userId])
+  @@map("preview_tokens")
+}
+
+model PreviewState {
+  id                   String @id @default(uuid())
+  previewTokenId       String // FK to PreviewToken — cascade-deletes when token is replaced
+  entityType           String // note | video_progress | exegesis_visit
+  activityId           String // The lesson activity this state is for
+  data                 Json // Saved state (note content, video seconds, visited highlight IDs)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  previewToken         PreviewToken @relation(fields: [previewTokenId], references: [id], onDelete: Cascade)
+  @@unique([previewTokenId, entityType, activityId])
+  @@map("preview_state")
 }
 
 model Notification {

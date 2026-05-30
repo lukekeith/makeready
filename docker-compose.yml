@@ -61,6 +61,7 @@ services:
       APP_DEBUG: "true"
       APP_URL: http://localhost:8000
       API_URL: http://server:3010
+      VITE_HOST: "0.0.0.0"
       VITE_PORT: "5174"
     depends_on:
       - server

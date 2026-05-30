@@ -49,10 +49,10 @@ export default defineConfig({
         },
     },
     server: {
+        host: process.env.VITE_HOST || 'localhost',
         port: parseInt(process.env.VITE_PORT || '5173'),
-        hmr: {
-            host: 'localhost',
-        },
+        cors: true,
+        ...(process.env.VITE_HOST ? { hmr: { host: process.env.VITE_HOST } } : {}),
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },

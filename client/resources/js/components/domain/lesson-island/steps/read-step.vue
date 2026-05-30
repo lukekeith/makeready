@@ -110,7 +110,7 @@ const emit = defineEmits<{ next: [], complete: [value: boolean], 'hide-title': [
  *  title) plus the iPhone safe-area. Consumed by ActivityPreviewPlayer's
  *  `topInset` so theme text renders below the chrome. The 62px covers the
  *  header nav row + title gap; the safe-area covers the notch. */
-const READ_FULLSCREEN_TOP_INSET = 'calc(env(safe-area-inset-top) + 140px)'
+const READ_FULLSCREEN_TOP_INSET = 'calc(var(--member-lesson-header, 200px) + 16px)'
 
 /** Height of the top fade gradient applied to the read-activity block when
  *  rendered under the lesson header. Matches `topInset` contextually — as
