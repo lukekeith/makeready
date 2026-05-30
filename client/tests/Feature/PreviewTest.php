@@ -123,7 +123,7 @@ class PreviewTest extends TestCase
 
     /**
      * CONT-06: GET /public/preview/{token}/lesson/{lessonId}/1 renders lesson preview
-     * with LessonIsland mount point and isPreview=true.
+     * with LessonIsland mount point and isPreview=false (interactive when token present).
      */
     public function test_lesson_preview_renders(): void
     {
@@ -138,8 +138,8 @@ class PreviewTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('data-vue="LessonIsland"', false);
-        // Blade {{ }} escapes double-quotes to &quot; so JSON keys appear as &quot;isPreview&quot;
-        $response->assertSee('&quot;isPreview&quot;:true', false);
+        // With a token, isPreview is false — synthetic pvw- IDs route saves to preview state
+        $response->assertSee('&quot;isPreview&quot;:false', false);
     }
 
     /**

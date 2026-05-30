@@ -575,55 +575,6 @@ studyPreviewPublicRouter.get('/:token/activity/:activityId', async (req, res) =>
 export const previewStateRouter = Router()
 
 /**
- * Merge saved preview state (notes, video progress, exegesis visits) into
- * activity data so LessonIsland sees pre-populated content on reload.
- */
-async function mergePreviewState(previewTokenId: string, activities: any[]): Promise<any[]> {
-  const states = await prisma.previewState.findMany({
-    where: { previewTokenId },
-    select: { entityType: true, activityId: true, data: true },
-  })
-
-  if (states.length === 0) return activities
-
-  const stateMap = new Map<string, Map<string, any>>()
-  for (const s of states) {
-    if (!stateMap.has(s.activityId)) stateMap.set(s.activityId, new Map())
-    stateMap.get(s.activityId)!.set(s.entityType, s.data)
-  }
-
-  return activities.map(activity => {
-    const activityStates = stateMap.get(activity.id)
-    if (!activityStates) return activity
-
-    const merged = { ...activity }
-
-    const noteState = activityStates.get('note')
-    if (noteState) {
-      merged.note = { content: (noteState as any).content }
-    }
-
-    const videoState = activityStates.get('video_progress')
-    if (videoState) {
-      merged.progress = {
-        ...(merged.progress ?? {}),
-        completedAt: (videoState as any).progress >= 0.9 ? new Date().toISOString() : null,
-      }
-    }
-
-    const exegesisState = activityStates.get('exegesis_visit')
-    if (exegesisState) {
-      merged.progress = {
-        ...(merged.progress ?? {}),
-        exegesisVisitedHighlightIds: (exegesisState as any).visitedIds ?? [],
-      }
-    }
-
-    return merged
-  })
-}
-
-/**
  * Resolve a DB-backed preview token. Returns the token record or sends
  * an error response and returns null.
  */

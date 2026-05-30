@@ -1693,7 +1693,7 @@ router.get('/lessons/:id/preview-data', async (req, res) => {
     }
 
     // Match the shape LessonIsland expects — it keys on `type`, not activityType.
-    let activities = lesson.activities.map(a => ({ ...a, type: a.activityType }))
+    let activities: any[] = lesson.activities.map(a => ({ ...a, type: a.activityType }))
 
     // Merge saved preview state if this is a token-based preview request
     const previewTokenStr = req.query.preview_token as string | undefined
