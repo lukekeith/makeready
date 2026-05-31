@@ -116,6 +116,14 @@ enum ActivityAction {
   NOTIFIED
 }
 
+enum SmsDeliveryStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  UNDELIVERED
+  FAILED
+}
+
 enum BetaApplicationStatus {
   PENDING
   APPROVED
@@ -174,6 +182,7 @@ model User {
   searchHistory        SearchHistory[]
   createdThemes        TextTheme[] @relation("ThemeCreator")
   betaApplications     BetaApplication[]
+  sentSmsLogs          SmsLog[] @relation("SmsSender")
   @@index([organizationId])
   @@index([isSuperAdmin])
   @@index([isActive])
@@ -1480,4 +1489,59 @@ model Activity {
   @@index([targetUserId, createdAt])
   @@index([targetUserId, isRead])
   @@map("activities")
+}
+
+model SmsCampaign {
+  id                   String @id @default(uuid())
+  slug                 String @unique // Lookup key, e.g. group-invite, study-invite
+  name                 String // Human-readable campaign name
+  description          String? @db.Text
+  messagingServiceSid  String? // Twilio Messaging Service SID (MG...) override. Falls back to TWILIO_MESSAGING_SERVICE_SID env var.
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  templates            SmsTemplate[]
+  @@map("sms_campaigns")
+}
+
+model SmsTemplate {
+  id                   String @id @default(uuid())
+  campaignId           String
+  slug                 String @unique // Lookup key, e.g. group-invite-v1
+  body                 String @db.Text // Template with {variable} placeholders
+  requiredProps        Json // JSON array of required context keys for rendering
+  minIntervalMinutes   Int @default(1200) // Min minutes between re-sends to the same phone (default 20hrs)
+  isActive             Boolean @default(true)
+  version              Int @default(1)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  campaign             SmsCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  logs                 SmsLog[]
+  @@index([campaignId])
+  @@map("sms_templates")
+}
+
+model SmsLog {
+  id                   String @id @default(uuid())
+  templateId           String
+  recipientPhone       String // E.164 phone number
+  messageBody          String @db.Text // The actual rendered message that was sent
+  twilioMessageSid     String?
+  status               SmsDeliveryStatus @default(QUEUED)
+  statusUpdatedAt      DateTime?
+  sentById             String?
+  metadata             Json? // Context data like groupId, enrollmentId
+  isDevSend            Boolean @default(false)
+  errorMessage         String?
+  createdAt            DateTime @default(now())
+
+  template             SmsTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  sentBy               User? @relation("SmsSender", fields: [sentById], references: [id], onDelete: SetNull)
+  @@index([templateId, recipientPhone, createdAt])
+  @@index([recipientPhone])
+  @@index([status])
+  @@index([twilioMessageSid])
+  @@map("sms_logs")
 }

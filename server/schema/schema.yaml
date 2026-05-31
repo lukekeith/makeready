@@ -210,6 +210,10 @@ models:
       betaApplications:
         type: one_to_many
         target: BetaApplication
+      sentSmsLogs:
+        type: one_to_many
+        target: SmsLog
+        name: SmsSender
     indexes:
       - fields: [organizationId]
       - fields: [isSuperAdmin]
@@ -3844,6 +3848,156 @@ models:
       - fields: [groupId, createdAt]
       - fields: [targetUserId, createdAt]
       - fields: [targetUserId, isRead]
+
+  # ===========================================================================
+  # SMS Campaigns (A2P compliant messaging)
+  # ===========================================================================
+  SmsCampaign:
+    table_name: sms_campaigns
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      slug:
+        type: string
+        unique: true
+        description: "Lookup key, e.g. group-invite, study-invite"
+      name:
+        type: string
+        description: "Human-readable campaign name"
+      description:
+        type: text
+        nullable: true
+      messagingServiceSid:
+        type: string
+        nullable: true
+        description: "Twilio Messaging Service SID (MG...) override. Falls back to TWILIO_MESSAGING_SERVICE_SID env var."
+      isActive:
+        type: boolean
+        default: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      templates:
+        type: one_to_many
+        target: SmsTemplate
+
+  SmsTemplate:
+    table_name: sms_templates
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      campaignId:
+        type: string
+      slug:
+        type: string
+        unique: true
+        description: "Lookup key, e.g. group-invite-v1"
+      body:
+        type: text
+        description: "Template with {variable} placeholders"
+      requiredProps:
+        type: json
+        description: "JSON array of required context keys for rendering"
+      minIntervalMinutes:
+        type: int
+        default: 1200
+        description: "Min minutes between re-sends to the same phone (default 20hrs)"
+      isActive:
+        type: boolean
+        default: true
+      version:
+        type: int
+        default: 1
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      campaign:
+        type: many_to_one
+        target: SmsCampaign
+        fields: [campaignId]
+        references: [id]
+        onDelete: Cascade
+      logs:
+        type: one_to_many
+        target: SmsLog
+    indexes:
+      - fields: [campaignId]
+
+  SmsLog:
+    table_name: sms_logs
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      templateId:
+        type: string
+      recipientPhone:
+        type: string
+        description: "E.164 phone number"
+      messageBody:
+        type: text
+        description: "The actual rendered message that was sent"
+      twilioMessageSid:
+        type: string
+        nullable: true
+      status:
+        type: enum
+        enum: SmsDeliveryStatus
+        default: QUEUED
+      statusUpdatedAt:
+        type: datetime
+        nullable: true
+      sentById:
+        type: string
+        nullable: true
+      metadata:
+        type: json
+        nullable: true
+        description: "Context data like groupId, enrollmentId"
+      isDevSend:
+        type: boolean
+        default: false
+      errorMessage:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      template:
+        type: many_to_one
+        target: SmsTemplate
+        fields: [templateId]
+        references: [id]
+        onDelete: Cascade
+      sentBy:
+        type: many_to_one
+        target: User
+        fields: [sentById]
+        references: [id]
+        name: SmsSender
+        onDelete: SetNull
+        nullable: true
+    indexes:
+      - fields: [templateId, recipientPhone, createdAt]
+        description: "Rate-limit lookups"
+      - fields: [recipientPhone]
+      - fields: [status]
+      - fields: [twilioMessageSid]
+        description: "Webhook lookup by Twilio SID"
 
 # =============================================================================
 # Special Tables (Not managed by Prisma)

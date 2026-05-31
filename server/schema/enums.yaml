@@ -90,6 +90,14 @@ enums:
       - SENT
       - NOTIFIED
 
+  SmsDeliveryStatus:
+    values:
+      - QUEUED
+      - SENT
+      - DELIVERED
+      - UNDELIVERED
+      - FAILED
+
   BetaApplicationStatus:
     values:
       - PENDING

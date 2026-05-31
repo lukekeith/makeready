@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto';
-import { sendSMS } from './twilio.js';
 import { prisma } from '../lib/prisma.js';
+import { sendCampaignSms } from './sms-campaign.js';
 
 /**
  * Invite Service
@@ -71,11 +71,18 @@ export async function sendGroupInvite(
       ? `${baseUrl}/join/group/${group.code}?invite=${token}`
       : `${baseUrl}/join/group?invite=${token}`;
 
-    // Create SMS message
-    const message = `${inviterName} invited you to join "${groupName}" on MakeReady! Tap here to join: ${inviteUrl}. Msg & data rates may apply. Reply STOP to opt out, HELP for help.`;
-
-    // Send SMS via Twilio
-    const smsResult = await sendSMS(recipientPhone, message);
+    // Send SMS via campaign system
+    const smsResult = await sendCampaignSms({
+      templateSlug: 'group-invite-v1',
+      recipientPhone,
+      context: {
+        'inviter.name': inviterName,
+        'group.name': groupName,
+        'joinUrl': inviteUrl,
+      },
+      sentById: inviterId,
+      metadata: { groupId, inviteId: invite.id },
+    });
 
     if (!smsResult.success) {
       // Delete invite if SMS failed

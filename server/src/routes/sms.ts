@@ -307,4 +307,91 @@ router.post('/incoming', async (req, res) => {
   }
 });
 
+/**
+ * @openapi
+ * /api/sms/status-callback:
+ *   post:
+ *     tags: [SMS]
+ *     summary: Twilio delivery status webhook
+ *     description: |
+ *       Webhook for Twilio to POST delivery status updates for campaign SMS.
+ *       Updates the SmsLog record matching the MessageSid.
+ *       Configure as the statusCallback URL when sending messages.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/x-www-form-urlencoded:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               MessageSid:
+ *                 type: string
+ *               MessageStatus:
+ *                 type: string
+ *                 enum: [queued, sent, delivered, undelivered, failed]
+ *     responses:
+ *       200:
+ *         description: Status received
+ *       403:
+ *         description: Invalid Twilio signature
+ */
+router.post('/status-callback', async (req, res) => {
+  try {
+    // Validate Twilio signature in production
+    if (process.env.NODE_ENV === 'production') {
+      const twilioSignature = req.headers['x-twilio-signature'] as string;
+      const authToken = process.env.TWILIO_AUTH_TOKEN;
+      const url = `${process.env.API_BASE_URL || ''}/api/sms/status-callback`;
+
+      if (authToken && !Twilio.validateRequest(authToken, twilioSignature, url, req.body)) {
+        console.warn('[SMS StatusCallback] Invalid Twilio signature');
+        return res.status(403).send('Forbidden');
+      }
+    }
+
+    const messageSid = req.body.MessageSid;
+    const messageStatus = req.body.MessageStatus;
+
+    if (!messageSid || !messageStatus) {
+      return res.status(400).send('Missing MessageSid or MessageStatus');
+    }
+
+    // Map Twilio status strings to our enum
+    const statusMap: Record<string, string> = {
+      queued: 'QUEUED',
+      sent: 'SENT',
+      delivered: 'DELIVERED',
+      undelivered: 'UNDELIVERED',
+      failed: 'FAILED',
+    };
+
+    const mappedStatus = statusMap[messageStatus];
+    if (!mappedStatus) {
+      console.warn(`[SMS StatusCallback] Unknown status: ${messageStatus} for SID: ${messageSid}`);
+      return res.sendStatus(200);
+    }
+
+    // Update the SmsLog record
+    const updated = await prisma.smsLog.updateMany({
+      where: { twilioMessageSid: messageSid },
+      data: {
+        status: mappedStatus as any,
+        statusUpdatedAt: new Date(),
+        ...(messageStatus === 'failed' || messageStatus === 'undelivered'
+          ? { errorMessage: req.body.ErrorMessage || req.body.ErrorCode || null }
+          : {}),
+      },
+    });
+
+    if (updated.count > 0) {
+      console.log(`[SMS StatusCallback] Updated SID ${messageSid} → ${mappedStatus}`);
+    }
+
+    res.sendStatus(200);
+  } catch (error: any) {
+    console.error('[SMS StatusCallback] Error:', error);
+    res.sendStatus(200); // Always return 200 to prevent Twilio retries
+  }
+});
+
 export default router;

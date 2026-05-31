@@ -41,6 +41,7 @@ import memberLessonsRoutes from './routes/member-lessons.js'
 import apiKeysRoutes from './routes/api-keys.js'
 import deviceTokensRoutes from './routes/device-tokens.js'
 import notificationsRoutes from './routes/notifications.js'
+import smsCampaignsRoutes from './routes/sms-campaigns.js'
 import githubRoutes from './routes/github.js'
 import templatesRoutes from './routes/templates.js'
 import activitiesRoutes from './routes/activities.js'
@@ -317,6 +318,9 @@ app.use('/api/verification', verificationRoutes)
 
 // SMS routes (Twilio Programmable SMS)
 app.use('/api/sms', smsRoutes)
+
+// SMS Campaign routes (A2P campaign management)
+app.use('/api/sms-campaigns', smsCampaignsRoutes)
 
 // Invites routes (Group invitations)
 app.use('/api/invites', invitesRoutes)

@@ -229,16 +229,17 @@ export async function verifyCode(
  * Send custom SMS message using Twilio Programmable SMS
  * @param to - Recipient phone number in E.164 format
  * @param message - Message body to send
+ * @param options - Optional settings (statusCallback, messagingServiceSid)
  * @returns Result object with message SID
  */
 export async function sendSMS(
   to: string,
-  message: string
+  message: string,
+  options?: string | { statusCallback?: string; messagingServiceSid?: string }
 ): Promise<SendSMSResult> {
   try {
-    if (!twilioPhoneNumber) {
-      throw new Error('Twilio phone number not configured');
-    }
+    // Normalize options: string arg is legacy statusCallback
+    const opts = typeof options === 'string' ? { statusCallback: options } : options || {};
 
     // Validate phone number format
     if (!to.match(/^\+[1-9]\d{1,14}$/)) {
@@ -266,11 +267,26 @@ export async function sendSMS(
     if (!twilioClient) {
       throw new Error('Twilio client not initialized (test mode is enabled)');
     }
-    const smsMessage = await twilioClient.messages.create({
+
+    // Use messagingServiceSid if provided, otherwise fall back to phone number
+    const effectiveMsgSvcSid = opts.messagingServiceSid || process.env.TWILIO_MESSAGING_SERVICE_SID;
+
+    const createParams: any = {
       body: message,
-      from: twilioPhoneNumber,
       to: to,
-    });
+      ...(opts.statusCallback ? { statusCallback: opts.statusCallback } : {}),
+    };
+
+    if (effectiveMsgSvcSid) {
+      createParams.messagingServiceSid = effectiveMsgSvcSid;
+    } else {
+      if (!twilioPhoneNumber) {
+        throw new Error('Twilio phone number or messaging service SID not configured');
+      }
+      createParams.from = twilioPhoneNumber;
+    }
+
+    const smsMessage = await twilioClient.messages.create(createParams);
 
     console.log(`[Twilio] SMS sent to ${to}, SID: ${smsMessage.sid}`);
 
