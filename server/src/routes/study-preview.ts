@@ -287,6 +287,7 @@ studyPreviewPublicRouter.get('/:token', async (req, res) => {
               select: {
                 activityType: true,
                 title: true,
+                estimatedSeconds: true,
                 sourceReferences: {
                   take: 1,
                   select: { passageReference: true },
@@ -312,12 +313,14 @@ studyPreviewPublicRouter.get('/:token', async (req, res) => {
       const firstActivity = lesson.activities[0]
       const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
       const displayTitle = lesson.title || passageRef || firstActivity?.title || `Day ${lesson.dayNumber}`
+      const totalSeconds = lesson.activities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
 
       return {
         id: lesson.id,
         dayNumber: lesson.dayNumber,
         title: displayTitle,
-        activities: lesson.activities.map((a) => a.activityType),
+        activities: lesson.activities.map((a) => ({ type: a.activityType, completed: false })),
+        estimatedMinutes: totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null,
         routes: {
           lesson: `${clientUrl}/public/preview/${token}/lesson/${lesson.id}`,
         },
@@ -708,5 +711,73 @@ previewStateRouter.post('/:token/state/exegesis-visit/:activityId', async (req, 
   } catch (error) {
     console.error('Error saving preview exegesis visit:', error)
     res.status(500).json({ success: false, error: 'Failed to save preview exegesis visit' })
+  }
+})
+
+// POST /api/preview/:token/state/activity-complete/:activityId
+// Marks a single activity as completed in a preview walkthrough. Notes/videos
+// already persist their own state, but READ/EXEGESIS steps don't — this gives a
+// uniform per-activity completion signal the study overview can read back so the
+// LessonCard cubes fill in as the leader steps through each activity.
+previewStateRouter.post('/:token/state/activity-complete/:activityId', async (req, res) => {
+  try {
+    const tokenRecord = await resolveDbToken(req.params.token, res)
+    if (!tokenRecord) return
+
+    await prisma.previewState.upsert({
+      where: {
+        previewTokenId_entityType_activityId: {
+          previewTokenId: tokenRecord.id,
+          entityType: 'activity_complete',
+          activityId: req.params.activityId,
+        },
+      },
+      update: { data: { completed: true } as unknown as Prisma.InputJsonValue },
+      create: {
+        previewTokenId: tokenRecord.id,
+        entityType: 'activity_complete',
+        activityId: req.params.activityId,
+        data: { completed: true } as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error saving preview activity completion:', error)
+    res.status(500).json({ success: false, error: 'Failed to save preview activity completion' })
+  }
+})
+
+// POST /api/preview/:token/state/lesson-complete/:lessonId
+// Marks a whole lesson as completed in a preview walkthrough. Preview has no
+// member progress and READ steps persist nothing, so the study overview can't
+// infer completion per-activity — instead the complete step records this marker
+// (activityId column holds the Lesson id) and the overview reads it back.
+previewStateRouter.post('/:token/state/lesson-complete/:lessonId', async (req, res) => {
+  try {
+    const tokenRecord = await resolveDbToken(req.params.token, res)
+    if (!tokenRecord) return
+
+    await prisma.previewState.upsert({
+      where: {
+        previewTokenId_entityType_activityId: {
+          previewTokenId: tokenRecord.id,
+          entityType: 'lesson_complete',
+          activityId: req.params.lessonId,
+        },
+      },
+      update: { data: { completed: true } as unknown as Prisma.InputJsonValue },
+      create: {
+        previewTokenId: tokenRecord.id,
+        entityType: 'lesson_complete',
+        activityId: req.params.lessonId,
+        data: { completed: true } as unknown as Prisma.InputJsonValue,
+      },
+    })
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error saving preview lesson completion:', error)
+    res.status(500).json({ success: false, error: 'Failed to save preview lesson completion' })
   }
 })

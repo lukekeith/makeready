@@ -62,6 +62,23 @@
   --radius-md:   8px;
   --radius-lg:   16px;
   --radius-full: 9999px;
+
+  // ─── White alpha scale ─────────────────────────────────────────────────────
+  // Translucent white used for borders, dividers, hover/active wells, and muted
+  // text on dark surfaces. Steps match the Figma "White/*" variables.
+  --white-0:   rgba(255, 255, 255, 0);
+  --white-5:   rgba(255, 255, 255, 0.05);
+  --white-10:  rgba(255, 255, 255, 0.10);
+  --white-20:  rgba(255, 255, 255, 0.20);
+  --white-50:  rgba(255, 255, 255, 0.50);
+  --white-70:  rgba(255, 255, 255, 0.70);
+  --white-100: rgba(255, 255, 255, 1);
+
+  // ─── Surfaces ──────────────────────────────────────────────────────────────
+  // Frosted overlay surface — #252936 @ 80% over a 20px backdrop blur. Used for
+  // the lesson navigation bar, lesson cards, and other floating panels.
+  --surface-overlay:      rgba(37, 41, 54, 0.8); // #252936 @ 80%
+  --surface-overlay-blur: 20px;
 }
 
 // Small phones (iPhone SE @ 320 and similar). Shrinks every primitive so

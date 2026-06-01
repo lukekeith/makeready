@@ -26,6 +26,7 @@ import LessonIsland from './components/domain/lesson-island/lesson-island.vue'
 import JoinCodeIsland from './components/domain/join-code-island/join-code-island.vue'
 import LoginVerifyIsland from './components/domain/login-verify-island/login-verify-island.vue'
 import NavigationIsland from './components/domain/navigation-island/navigation-island.vue'
+import StudyHomeIsland from './components/domain/study-home-island/study-home-island.vue'
 import HomeProfileButton from './components/domain/home-profile-button/home-profile-button.vue'
 import SlidesIsland from './islands/slides-island/slides-island.vue'
 
@@ -45,6 +46,7 @@ const componentRegistry = {
   'JoinCodeIsland': JoinCodeIsland,
   'LoginVerifyIsland': LoginVerifyIsland,
   'NavigationIsland': NavigationIsland,
+  'StudyHomeIsland': StudyHomeIsland,
   'HomeProfileButton': HomeProfileButton,
   'SlidesIsland': SlidesIsland,
 }

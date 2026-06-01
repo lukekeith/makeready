@@ -864,13 +864,16 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
               select: {
                 id: true,
                 dayNumber: true,
+                title: true,
               },
             },
             scheduledActivities: {
               orderBy: { orderNumber: 'asc' },
-              take: 1,
               select: {
+                id: true,
+                type: true,
                 title: true,
+                estimatedSeconds: true,
                 sourceReferences: {
                   take: 1,
                   select: { passageReference: true },
@@ -886,7 +889,8 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
       return res.json({ success: true, enrollment: null })
     }
 
-    // Get member's lesson completions by checking MemberActivityProgress
+    // Per-activity completion keyed by scheduledActivityId — drives the LessonCard
+    // activity cubes (filled = completed) and the lesson-state computation.
     const activityProgress = await prisma.memberActivityProgress.findMany({
       where: {
         memberId,
@@ -899,12 +903,17 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
       },
       select: {
         lessonScheduleId: true,
+        scheduledActivityId: true,
         completedAt: true,
       },
     })
 
+    const completedActivityIds = new Set<string>()
     const completionMap = new Map<string, Date>()
     for (const progress of activityProgress) {
+      if (progress.scheduledActivityId) {
+        completedActivityIds.add(progress.scheduledActivityId)
+      }
       if (progress.completedAt) {
         const existing = completionMap.get(progress.lessonScheduleId)
         if (!existing || progress.completedAt < existing) {
@@ -939,12 +948,21 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
       lessons: enrollment.lessonSchedules.map(ls => {
         const firstActivity = ls.scheduledActivities[0]
         const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
+        const activities = ls.scheduledActivities.map(a => ({
+          type: a.type,
+          completed: completedActivityIds.has(a.id),
+        }))
+        const totalSeconds = ls.scheduledActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
+        const estimatedMinutes = ls.estimatedMinutes
+          ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
           id: ls.id,
           dayNumber: ls.lesson.dayNumber,
-          title: passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
+          title: ls.lesson.title || passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
           templateName: ls.templateName,
           scheduledDate: ls.scheduledDate.toISOString(),
+          estimatedMinutes,
+          activities,
           completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
         }
       }),
@@ -1027,9 +1045,11 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
             },
             scheduledActivities: {
               orderBy: { orderNumber: 'asc' },
-              take: 1,
               select: {
+                id: true,
+                type: true,
                 title: true,
+                estimatedSeconds: true,
                 sourceReferences: {
                   take: 1,
                   select: { passageReference: true },
@@ -1045,17 +1065,25 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
+    // Per-activity completion keyed by scheduledActivityId — drives the LessonCard
+    // activity cubes (filled = completed) and the lesson-state computation.
     const activityProgress = await prisma.memberActivityProgress.findMany({
       where: {
         memberId,
         lessonScheduleId: { in: enrollment.lessonSchedules.map(ls => ls.id) },
         completedAt: { not: null },
       },
-      select: { lessonScheduleId: true, completedAt: true },
+      select: { lessonScheduleId: true, scheduledActivityId: true, completedAt: true },
     })
 
+    // Set of completed scheduledActivityIds, plus a lesson→earliest-completion map
+    // (kept for the legacy `completedAt` field and `completedLessons` count).
+    const completedActivityIds = new Set<string>()
     const completionMap = new Map<string, Date>()
     for (const progress of activityProgress) {
+      if (progress.scheduledActivityId) {
+        completedActivityIds.add(progress.scheduledActivityId)
+      }
       if (progress.completedAt) {
         const existing = completionMap.get(progress.lessonScheduleId)
         if (!existing || progress.completedAt < existing) {
@@ -1090,12 +1118,21 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
       lessons: enrollment.lessonSchedules.map(ls => {
         const firstActivity = ls.scheduledActivities[0]
         const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
+        const activities = ls.scheduledActivities.map(a => ({
+          type: a.type,
+          completed: completedActivityIds.has(a.id),
+        }))
+        const totalSeconds = ls.scheduledActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
+        const estimatedMinutes = ls.estimatedMinutes
+          ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
           id: ls.id,
           dayNumber: ls.lesson.dayNumber,
-          title: passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
+          title: ls.lesson.title || passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
           templateName: ls.templateName,
           scheduledDate: ls.scheduledDate.toISOString(),
+          estimatedMinutes,
+          activities,
           completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
         }
       }),

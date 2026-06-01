@@ -142,6 +142,9 @@ export interface CreateLessonStateOptions {
   previewToken: string
   singleActivity: boolean
   onSaveNote?: (activityId: string, noteType: string, content: string) => Promise<void>
+  // Fired the first time an activity step becomes complete (canProceed true).
+  // Used by the preview walkthrough to persist per-activity completion.
+  onActivityComplete?: (activityId: string) => void
 }
 
 export function createLessonState(opts: CreateLessonStateOptions): LessonState {
@@ -224,6 +227,15 @@ export function createLessonState(opts: CreateLessonStateOptions): LessonState {
   })
 
   const currentStep = computed<Step | undefined>(() => steps.value[currentStepNumber.value - 1])
+
+  // Notify when an activity step is satisfied (canProceed flips true) so the
+  // preview walkthrough can persist per-activity completion — covers READ /
+  // EXEGESIS steps that otherwise save no state.
+  watch(canProceed, (proceed) => {
+    if (!proceed) return
+    const activityId = currentStep.value?.activity?.id
+    if (activityId) opts.onActivityComplete?.(activityId)
+  })
   const totalSteps = computed(() => steps.value.length)
   const activityStepCount = computed(() => totalSteps.value - 1)
   const isCompleteStep = computed(() => currentStep.value?.type === 'complete')

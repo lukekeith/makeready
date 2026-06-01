@@ -107,6 +107,8 @@ Route::prefix('member/groups/pvw-{pvwToken}/lessons/pvw-{pvwLessonId}')->group(f
     Route::post('/activity/{activityId}/submit', [PreviewController::class, 'previewSubmitNote']);
     Route::post('/activity/{activityId}/video-progress', [PreviewController::class, 'previewVideoProgress']);
     Route::post('/activity/{activityId}/exegesis-visit', [PreviewController::class, 'previewExegesisVisit']);
+    Route::post('/activity/{activityId}/complete', [PreviewController::class, 'previewCompleteActivity']);
+    Route::post('/complete', [PreviewController::class, 'previewCompleteLesson']);
 });
 
 // Catch exit URLs with pvw- prefix

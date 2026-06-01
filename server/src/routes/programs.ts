@@ -1528,8 +1528,10 @@ router.get('/programs/:id/preview-data', async (req, res) => {
             activities: {
               orderBy: { orderNumber: 'asc' },
               select: {
+                id: true,
                 activityType: true,
                 title: true,
+                estimatedSeconds: true,
                 sourceReferences: {
                   take: 1,
                   select: { passageReference: true },
@@ -1551,17 +1553,54 @@ router.get('/programs/:id/preview-data', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Program not found' })
     }
 
+    // Reflect saved preview progress so the overview's cards/cells show completion.
+    // Lesson-level markers (entityType 'lesson_complete') cover whole-lesson
+    // completion (including READ steps that persist nothing); per-activity notes
+    // and finished videos drive partial completion.
+    const completedLessonIds = new Set<string>()
+    const completedActivityIds = new Set<string>()
+    const previewTokenStr = req.query.preview_token as string | undefined
+    if (previewTokenStr) {
+      const tokenRecord = await prisma.previewToken.findUnique({
+        where: { token: previewTokenStr },
+        select: { id: true },
+      })
+      if (tokenRecord) {
+        const states = await prisma.previewState.findMany({
+          where: { previewTokenId: tokenRecord.id },
+          select: { entityType: true, activityId: true, data: true },
+        })
+        for (const s of states) {
+          if (s.entityType === 'lesson_complete') {
+            completedLessonIds.add(s.activityId)
+          } else if (s.entityType === 'activity_complete') {
+            completedActivityIds.add(s.activityId)
+          } else if (s.entityType === 'note' && ((s.data as any)?.content ?? '').trim()) {
+            completedActivityIds.add(s.activityId)
+          } else if (s.entityType === 'video_progress' && ((s.data as any)?.progress ?? 0) >= 0.9) {
+            completedActivityIds.add(s.activityId)
+          }
+        }
+      }
+    }
+
     const clientUrl = process.env.CLIENT_URL || 'http://localhost:8000'
     const lessons = program.lessons.map((lesson) => {
       const firstActivity = lesson.activities[0]
       const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
       const displayTitle =
         lesson.title || passageRef || firstActivity?.title || `Day ${lesson.dayNumber}`
+      const totalSeconds = lesson.activities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
+      const lessonComplete = completedLessonIds.has(lesson.id)
       return {
         id: lesson.id,
         dayNumber: lesson.dayNumber,
         title: displayTitle,
-        activities: lesson.activities.map((a) => a.activityType),
+        activities: lesson.activities.map((a) => ({
+          type: a.activityType,
+          completed: lessonComplete || completedActivityIds.has(a.id),
+        })),
+        estimatedMinutes: totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null,
         routes: {
           // Authenticated lesson preview — no token in the path.
           lesson: `${clientUrl}/preview/lesson/${lesson.id}`,

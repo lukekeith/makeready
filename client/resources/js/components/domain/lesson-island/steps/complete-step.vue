@@ -1,15 +1,21 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
+import axios from 'axios'
 import { useLessonState } from '../use-lesson-state'
 
+// Props are still declared so the parent's bindings don't fall through as DOM
+// attributes, but the complete step no longer renders its own action — the user
+// exits via the header's next chevron or hamburger (both call handleExit).
 interface Props {
   groupId: string
+  lessonScheduleId?: string
   studyEnrollmentId?: string
   isPreview?: boolean
   previewToken?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  lessonScheduleId: '',
   isPreview: false,
   studyEnrollmentId: '',
   previewToken: '',
@@ -19,13 +25,17 @@ const lessonState = useLessonState()
 
 onMounted(() => {
   lessonState.reportProgress('', true)
-})
 
-const studyHomeHref = props.isPreview && props.previewToken
-  ? `/public/preview/${props.previewToken}`
-  : props.studyEnrollmentId
-    ? `/member/groups/${props.groupId}/study/${props.studyEnrollmentId}`
-    : `/member/groups/${props.groupId}`
+  // In the synthetic preview walkthrough (pvw- routes), record a lesson-level
+  // completion so the study overview reflects it. Preview has no member
+  // progress and READ steps persist nothing, so this is the only reliable
+  // whole-lesson signal. Real member completion is already tracked per-activity.
+  if (props.groupId.startsWith('pvw-') && props.lessonScheduleId) {
+    axios
+      .post(`/member/groups/${props.groupId}/lessons/${props.lessonScheduleId}/complete`, {})
+      .catch((err) => console.error('[CompleteStep] failed to save preview completion:', err))
+  }
+})
 </script>
 
 <template>
@@ -46,28 +56,6 @@ const studyHomeHref = props.isPreview && props.previewToken
           Great work! You've finished this lesson.
         </p>
       </div>
-    </div>
-
-    <div class="LessonActivity__complete-action">
-      <a
-        :href="studyHomeHref"
-        style="
-          display: block;
-          background: #ffffff;
-          color: #0d101a;
-          border: none;
-          border-radius: 8px;
-          padding: 14px 32px;
-          font-size: 15px;
-          font-weight: 600;
-          text-decoration: none;
-          text-align: center;
-          cursor: pointer;
-          width: 100%;
-        "
-      >
-        Back to Study
-      </a>
     </div>
   </div>
 </template>

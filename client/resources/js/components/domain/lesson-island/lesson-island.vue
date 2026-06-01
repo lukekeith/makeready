@@ -47,6 +47,16 @@ const state = createLessonState({
     )
     state.updateActivityState(activityId, { note: { content } })
   },
+  // Synthetic preview walkthrough (pvw- routes): persist per-activity completion
+  // so the study overview's LessonCard cubes fill in. Real member completion is
+  // tracked server-side per activity already.
+  onActivityComplete: props.groupId.startsWith('pvw-')
+    ? (activityId) => {
+        axios
+          .post(`/member/groups/${props.groupId}/lessons/${props.lessonScheduleId}/activity/${activityId}/complete`, {})
+          .catch((err) => console.error('[LessonActivity] failed to save preview activity completion:', err))
+      }
+    : undefined,
 })
 
 provideLessonState(state)
@@ -168,6 +178,7 @@ async function visitExegesisHighlight(activityId: string, highlightId: string) {
           v-else-if="state.currentStep.value.type === 'complete'"
           :key="state.currentStepNumber.value"
           :groupId="groupId"
+          :lessonScheduleId="lessonScheduleId"
           :studyEnrollmentId="state.studyEnrollmentId.value"
           :isPreview="isPreview"
           :previewToken="previewToken"

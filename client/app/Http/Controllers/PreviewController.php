@@ -340,6 +340,20 @@ class PreviewController extends Controller
         return response()->json($result['body'], $result['status']);
     }
 
+    public function previewCompleteActivity(Request $request, string $pvwToken, string $pvwLessonId, string $activityId)
+    {
+        $result = $this->proxyPreviewAction($pvwToken, 'activity-complete', $activityId, $request->json()->all());
+        return response()->json($result['body'], $result['status']);
+    }
+
+    public function previewCompleteLesson(Request $request, string $pvwToken, string $pvwLessonId)
+    {
+        // pvwLessonId is the Lesson id — recorded as a lesson-level completion
+        // marker so the study overview can reflect it.
+        $result = $this->proxyPreviewAction($pvwToken, 'lesson-complete', $pvwLessonId, $request->json()->all());
+        return response()->json($result['body'], $result['status']);
+    }
+
     /**
      * Handle exit URLs from preview routes.
      * Redirects back to home — the programId isn't available in the URL.
