@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import LessonNav from './lesson-nav.vue'
 import LessonCard from './lesson-card.vue'
 import StudyCalendar from './study-calendar.vue'
@@ -78,9 +78,50 @@ const completedIds = computed(() =>
 
 // ─── Parallax background (moves at 25% of scroll speed) ──────────────────────
 const scrollEl = ref<HTMLElement | null>(null)
+const navSectionEl = ref<HTMLElement | null>(null)
 const bgOffset = ref(0)
 function onScroll() {
   if (scrollEl.value) bgOffset.value = scrollEl.value.scrollTop * 0.25
+}
+
+// After a LessonNav change, smooth-scroll the calendar so the now-selected day
+// is never left hidden behind the sticky nav header (or off-screen below it).
+async function scrollSelectedIntoView() {
+  await nextTick()
+  const scroll = scrollEl.value
+  if (!scroll) return
+  const cell = scroll.querySelector<HTMLElement>('.StudyCalendar__cell--selected')
+  if (!cell) return
+
+  const scrollRect = scroll.getBoundingClientRect()
+  const cellRect = cell.getBoundingClientRect()
+  // The sticky nav header overlaps the top of the scroll viewport, so anything
+  // above its bottom edge is visually obscured.
+  const headerH = navSectionEl.value?.offsetHeight ?? 0
+  const margin = 16
+  const visibleTop = headerH + margin
+  const visibleBottom = scrollRect.height - margin
+
+  const cellTop = cellRect.top - scrollRect.top
+  const cellBottom = cellRect.bottom - scrollRect.top
+  if (cellTop >= visibleTop && cellBottom <= visibleBottom) return // already fully visible
+
+  // Position the cell just below the sticky header.
+  const target = scroll.scrollTop + cellTop - visibleTop
+  scroll.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+}
+
+function navPrev() {
+  state.prev()
+  scrollSelectedIntoView()
+}
+function navNext() {
+  state.next()
+  scrollSelectedIntoView()
+}
+function navJump() {
+  state.jumpToNext()
+  scrollSelectedIntoView()
 }
 
 function openLesson(lesson: StudyLesson) {
@@ -118,16 +159,16 @@ function goBack() {
         </div>
 
         <!-- Lesson navigation + selected card -->
-        <div class="StudyHomeIsland__nav-section">
+        <div ref="navSectionEl" class="StudyHomeIsland__nav-section">
           <LessonNav
             :current="state.selectedIndex.value + 1"
             :total="state.totalLessons.value"
             :can-prev="state.canPrev.value"
             :can-next="state.canNext.value"
             :show-jump="state.nextIndex.value !== state.selectedIndex.value"
-            @prev="state.prev"
-            @next="state.next"
-            @jump="state.jumpToNext"
+            @prev="navPrev"
+            @next="navNext"
+            @jump="navJump"
           />
 
           <LessonCard
