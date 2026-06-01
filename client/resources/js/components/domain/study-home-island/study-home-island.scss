@@ -67,7 +67,7 @@ $brand-200: #b1bcff;
 
   // ─── Page title ───────────────────────────────────────────────────────────
   &__page-title {
-    padding: max(48px, calc(env(safe-area-inset-top) + 16px)) 16px 0;
+    padding: max(48px, calc(env(safe-area-inset-top) + 16px)) 16px 8px;
   }
   &__back {
     width: 40px;
@@ -93,10 +93,13 @@ $brand-200: #b1bcff;
   }
 
   &__nav-section {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 16px 8px 0;
+    padding: 8px;
   }
 
   &__bottom-spacer { height: 96px; }
