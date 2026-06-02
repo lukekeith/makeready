@@ -298,8 +298,8 @@ struct EditReadActivityPage: View {
             .animation(.easeInOut(duration: 0.3), value: showThemeEditor)
         }
         .fullScreenCover(isPresented: $showSlidePreview) {
-            ReadActivityPreviewModal(
-                activityId: activity.id,
+            LessonPreviewModal(
+                url: LessonPreviewModal.lessonURL(forActivityId: activity.id, lessonId: lessonId),
                 isPresented: $showSlidePreview
             )
         }

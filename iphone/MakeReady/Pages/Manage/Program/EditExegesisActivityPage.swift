@@ -109,8 +109,8 @@ struct EditExegesisActivityPage: View {
             Task { await loadExegesisHighlights() }
         }
         .fullScreenCover(isPresented: $showSlidePreview) {
-            ReadActivityPreviewModal(
-                activityId: activity.id,
+            LessonPreviewModal(
+                url: LessonPreviewModal.lessonURL(forActivityId: activity.id),
                 isPresented: $showSlidePreview
             )
         }

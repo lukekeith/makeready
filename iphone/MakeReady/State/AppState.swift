@@ -260,6 +260,16 @@ final class AppState {
         return activities.getMany(activityIds).sorted { $0.orderNumber < $1.orderNumber }
     }
 
+    /// Find the program-lesson id that contains the given activity id by scanning
+    /// the lesson→activity index. Used when only an activity id is in hand and the
+    /// activity's own `lessonId` field is unreliable (it's often nil in the store —
+    /// the relationship lives in the index, not on the entity).
+    func lessonIdContaining(activityId: String) -> String? {
+        lessonActivityIndex.allParentIds.first {
+            lessonActivityIndex.contains(parentId: $0, childId: activityId)
+        }
+    }
+
     /// Get scheduled activities for a specific scheduled lesson (ordered by orderNumber).
     /// Reads from the lesson aggregate — the activities live inline on the lesson value.
     func scheduledActivitiesFor(lessonId: String) -> [ScheduledActivity] {

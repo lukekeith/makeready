@@ -280,7 +280,7 @@ struct EditDay: View {
             set: { if !$0 { previewingVideoActivityWeb = nil } }
         )) {
             if let activity = previewingVideoActivityWeb {
-                ReadActivityPreviewModal(activityId: activity.id, isPresented: Binding(
+                LessonPreviewModal(url: LessonPreviewModal.lessonURL(forActivityId: activity.id, lessonId: lesson.id), isPresented: Binding(
                     get: { previewingVideoActivityWeb != nil },
                     set: { if !$0 { previewingVideoActivityWeb = nil } }
                 ))
@@ -1154,6 +1154,29 @@ struct LessonPreviewModal: View {
             }
         }
         .background(Color.appBackground)
+    }
+}
+
+extension LessonPreviewModal {
+    /// Build the navigable member-lesson preview URL positioned at the step for
+    /// the given activity. The step is the activity's 1-based position within its
+    /// lesson's ordered activities — matching the web preview's step ordering
+    /// (use-lesson-state.ts builds one step per activity in orderNumber order).
+    ///
+    /// This lets the per-activity Preview buttons jump into the exact same
+    /// member lesson renderer (with prev/next navigation) that the study and
+    /// lesson previews use, with the activity pre-selected. Pass `lessonId`
+    /// explicitly when the caller knows it (the activity's own `lessonId` field
+    /// is unreliable — often nil in the store); otherwise it's resolved from the
+    /// lesson→activity index. Returns nil if the lesson can't be resolved.
+    static func lessonURL(forActivityId activityId: String, lessonId explicitLessonId: String? = nil) -> URL? {
+        guard let lessonId = explicitLessonId ?? AppState.shared.lessonIdContaining(activityId: activityId) else {
+            NSLog("⚠️ LessonPreviewModal.lessonURL: could not resolve lesson for activity \(activityId)")
+            return nil
+        }
+        let ordered = AppState.shared.programActivitiesFor(lessonId: lessonId)
+        let step = (ordered.firstIndex { $0.id == activityId } ?? 0) + 1
+        return URL(string: "\(Configuration.clientBaseURL)/preview/lesson/\(lessonId)/\(step)")
     }
 }
 

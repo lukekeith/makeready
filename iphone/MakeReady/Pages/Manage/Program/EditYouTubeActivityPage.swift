@@ -141,7 +141,7 @@ struct EditYouTubeActivityPage: View {
             }
         }
         .fullScreenCover(isPresented: $showPreviewModal) {
-            ReadActivityPreviewModal(activityId: activity.id, isPresented: $showPreviewModal)
+            LessonPreviewModal(url: LessonPreviewModal.lessonURL(forActivityId: activity.id), isPresented: $showPreviewModal)
         }
         .onAppear {
             title = activity.title ?? ""
