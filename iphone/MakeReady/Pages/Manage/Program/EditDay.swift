@@ -92,8 +92,10 @@ struct EditDay: View {
     @State private var showClearConfirmation = false
     @State private var clearingActivityId: String? = nil
 
-    // Preview state — uses item: binding to avoid nil-URL race
-    @State private var previewActivityId: String? = nil
+    // Preview state — uses item: binding to avoid nil-URL race.
+    // Holds the full-lesson preview URL so the member lesson view (with
+    // activity navigation) renders, mirroring ProgramHomePage's study preview.
+    @State private var previewLessonURL: IdentifiableURL? = nil
 
     // Swipe state to prevent scrolling during card swipes
     @StateObject private var swipeState = SwipeState()
@@ -267,10 +269,10 @@ struct EditDay: View {
                 }
             )
         }
-        .fullScreenCover(item: $previewActivityId) { activityId in
-            ReadActivityPreviewModal(activityId: activityId, isPresented: Binding(
-                get: { previewActivityId != nil },
-                set: { if !$0 { previewActivityId = nil } }
+        .fullScreenCover(item: $previewLessonURL) { item in
+            LessonPreviewModal(url: item.url, isPresented: Binding(
+                get: { previewLessonURL != nil },
+                set: { if !$0 { previewLessonURL = nil } }
             ))
         }
         .fullScreenCover(isPresented: Binding(
@@ -1080,9 +1082,16 @@ struct EditDay: View {
 
     // MARK: - Preview Lesson
 
+    /// Open the full member-lesson preview for this day, starting at the first
+    /// step. Uses the authenticated `/preview/lesson/{id}` route — the same
+    /// renderer the study overview drills into — so member lesson navigation
+    /// (prev/next between activities) is present. Mirrors how
+    /// ProgramHomePage.openStudyPreview opens the study overview.
     private func openPreview() {
-        guard let firstActivity = activities.first else { return }
-        previewActivityId = firstActivity.id
+        let urlString = "\(Configuration.clientBaseURL)/preview/lesson/\(lesson.id)"
+        guard let url = URL(string: urlString) else { return }
+        NSLog("👁️ LessonPreview: opening \(urlString)")
+        previewLessonURL = IdentifiableURL(url: url)
     }
 
     private func openVideoPreview(for activity: StudyActivity) {
