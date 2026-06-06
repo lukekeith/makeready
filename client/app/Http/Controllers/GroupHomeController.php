@@ -23,11 +23,15 @@ class GroupHomeController extends Controller
             'message' => "Group home viewed", 'memberId' => $memberId ?: null, 'groupId' => $groupId,
         ]);
 
+        // Groups the member belongs to — drives the group pager (loaded by middleware)
+        $memberGroups = $request->attributes->get('memberGroups', []);
+
         // Load all data upfront before rendering
         $groupResult      = $this->api->get("/api/groups/{$groupId}/public", $request);
         // Use /posts/public for members (React uses /posts for leaders, /posts/public for members)
         $postsResult      = $this->api->get("/api/groups/{$groupId}/posts/public?limit=20", $request);
-        $enrollmentResult = $this->api->get("/api/groups/{$groupId}/study-enrollment?memberId={$memberId}", $request);
+        // All study programs the group is enrolled in (one card each on the group home)
+        $enrollmentResult = $this->api->get("/api/groups/{$groupId}/study-enrollments?memberId={$memberId}", $request);
 
         // Extract with null-safe defaults
         $groupData = null;
@@ -37,7 +41,6 @@ class GroupHomeController extends Controller
 
         // Get memberSince from pre-loaded groups (loaded by middleware)
         if ($groupData) {
-            $memberGroups = $request->attributes->get('memberGroups', []);
             foreach ($memberGroups as $g) {
                 if (($g['id'] ?? '') === $groupId) {
                     $groupData['memberSince'] = $g['joinedAt'] ?? $g['createdAt'] ?? null;
@@ -51,9 +54,9 @@ class GroupHomeController extends Controller
             $postsData = $postsResult['body']['posts'] ?? $postsResult['body']['data'] ?? [];
         }
 
-        $enrollmentData = null;
+        $enrollments = [];
         if ($enrollmentResult['status'] === 200 && is_array($enrollmentResult['body'])) {
-            $enrollmentData = $enrollmentResult['body']['enrollment'] ?? $enrollmentResult['body']['data'] ?? null;
+            $enrollments = $enrollmentResult['body']['enrollments'] ?? $enrollmentResult['body']['data'] ?? [];
         }
 
         $response = response()->view('pages.group-home', compact(
@@ -61,7 +64,8 @@ class GroupHomeController extends Controller
             'groupId',
             'groupData',
             'postsData',
-            'enrollmentData'
+            'memberGroups',
+            'enrollments'
         ));
 
         // Forward Set-Cookie headers from all 3 responses

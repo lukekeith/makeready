@@ -1,0 +1,128 @@
+// EnrolledStudyCard — enrolled study cover + current/next lesson card
+// Figma: Make-Ready-Mobile "Study home page" → EnrolledStudyCard (node 3120:29927)
+
+.EnrolledStudyCard {
+  position: relative;
+  display: block;
+  width: 100%;
+  border-radius: 16px;
+  overflow: hidden;
+  text-decoration: none;
+  color: inherit;
+  background: #0d101a;
+
+  &__cover {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+  }
+
+  &__body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    background: linear-gradient(to bottom, rgba(13, 16, 26, 0.5) 0%, rgba(13, 16, 26, 0.9) 100%);
+  }
+
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 128px 16px 16px;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 22px;
+    color: #fff;
+  }
+
+  &__description {
+    margin: 0;
+    font-size: 13px;
+    line-height: 18px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  // ---- Embedded lesson card (frosted) ----
+  &__lesson {
+    display: flex;
+    height: 108px;
+    padding: 7px;
+    border-radius: 16px;
+    background: rgba(13, 16, 26, 0.8);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+
+  &__date {
+    flex-shrink: 0;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  &__month {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 22px;
+    color: #6c47ff;
+  }
+
+  &__day {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 22px;
+    color: #fff;
+  }
+
+  &__lesson-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px;
+  }
+
+  &__badge {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-radius: 4px;
+    background: #615fff;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 18px;
+    color: #fff;
+    white-space: nowrap;
+
+    &--overdue {
+      background: #e17100;
+    }
+  }
+
+  &__lesson-title {
+    margin: 0;
+    width: 100%;
+    font-size: 15px;
+    line-height: 22px;
+    color: #fff;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

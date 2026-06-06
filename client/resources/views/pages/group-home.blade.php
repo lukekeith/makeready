@@ -1,101 +1,199 @@
 {{-- resources/views/pages/group-home.blade.php --}}
-{{-- Group home page — group hero, current study, posts feed --}}
+{{-- Member group home — hero, group pager, leader, group panel, Up next studies, posts --}}
+{{-- Figma: Make-Ready-Mobile "Study home page" (node 3104:29472) --}}
 @extends('layouts.home')
 
 @section('title', ($groupData['name'] ?? 'Group') . ' — MakeReady')
 
 @php
-    $initials = '';
-    if (!empty($member['firstName'])) {
-        $initials .= strtoupper(substr($member['firstName'], 0, 1));
-    }
-    if (!empty($member['lastName'])) {
-        $initials .= strtoupper(substr($member['lastName'], 0, 1));
-    }
-    if ($initials === '') {
-        $initials = '?';
+    // --- Inputs (tolerant of both the live controller and capture fixtures) ---
+    $member        = $member        ?? [];
+    $groupData     = $groupData     ?? [];
+    $postsData     = $postsData     ?? [];
+    $memberGroups  = $memberGroups  ?? [];
+    $enrollments   = $enrollments   ?? null;   // new: array of enrolled studies
+    $enrollmentData = $enrollmentData ?? null; // legacy: single enrollment
+
+    $groupName   = $groupData['name'] ?? '';
+    $coverImage  = $groupData['coverImageUrl'] ?? $groupData['avatarUrl'] ?? null;
+    $memberCount = $groupData['memberCount'] ?? 0;
+    $isPrivate   = $groupData['isPrivate'] ?? false;
+    $orgName     = $groupData['organizationName'] ?? $groupData['orgName'] ?? null;
+    $creator     = $groupData['creator'] ?? null;
+    $leaderSince = $groupData['createdAt'] ?? $groupData['leaderSince'] ?? null;
+
+    $leaderName    = $creator['name'] ?? null;
+    $leaderPicture = $creator['picture'] ?? $creator['avatarUrl'] ?? null;
+    $leaderSinceLabel = null;
+    if ($leaderSince) {
+        try { $leaderSinceLabel = (new DateTime($leaderSince))->format('F j, Y'); }
+        catch (\Exception $e) { $leaderSinceLabel = null; }
     }
 
-    $groupName       = $groupData['name'] ?? '';
-    $coverImageUrl   = $groupData['coverImageUrl'] ?? $groupData['avatarUrl'] ?? null;
-    $memberCount     = $groupData['memberCount'] ?? 0;
-    $isPrivate       = $groupData['isPrivate'] ?? false;
-    $memberSince     = $groupData['memberSince'] ?? null;
-
-    // Enrollment / study progress — API returns fields at enrollment root level
-    $studyTitle       = $enrollmentData['studyTitle'] ?? $enrollmentData['study']['title'] ?? null;
-    $studyDescription = $enrollmentData['studyDescription'] ?? $enrollmentData['study']['description'] ?? null;
-    $studyCover       = $enrollmentData['coverImageUrl'] ?? $enrollmentData['study']['coverImageUrl'] ?? null;
-    $totalLessons     = $enrollmentData['totalLessons'] ?? 0;
-    $completedLessons = $enrollmentData['completedLessons'] ?? 0;
-    $studyProgress    = $totalLessons > 0 ? round(($completedLessons / $totalLessons) * 100) : 0;
-    $enrollmentId     = $enrollmentData['id'] ?? null;
-
-    // Find next lesson: first incomplete lesson scheduled for today or earlier
-    $nextLesson = null;
-    $lessons = $enrollmentData['lessons'] ?? [];
-    $today = date('Y-m-d');
-    foreach ($lessons as $lesson) {
-        if (!empty($lesson['completedAt'])) continue;
-        $scheduled = substr($lesson['scheduledDate'] ?? '', 0, 10);
-        if ($scheduled <= $today) {
-            $nextLesson = $lesson;
-            break;
+    // --- Normalize enrollments into a uniform list with a computed next lesson ---
+    $studies = [];
+    $normalizeNext = function ($lessons) {
+        $today = date('Y-m-d');
+        $next = null;
+        foreach (($lessons ?? []) as $lesson) {
+            if (!empty($lesson['completedAt'])) continue;
+            $scheduled = substr($lesson['scheduledDate'] ?? '', 0, 10);
+            if ($scheduled === '' || $scheduled <= $today) { $next = $lesson; break; }
         }
+        // Fall back to the first lesson if none are due yet
+        if (!$next && !empty($lessons)) { $next = $lessons[0]; }
+        return $next;
+    };
+
+    if (is_array($enrollments)) {
+        foreach ($enrollments as $e) {
+            $next = $e['nextLesson'] ?? $normalizeNext($e['lessons'] ?? []);
+            $studies[] = [
+                'id'          => $e['id'] ?? null,
+                'title'       => $e['studyTitle'] ?? $e['study']['title'] ?? '',
+                'description' => $e['studyDescription'] ?? $e['study']['description'] ?? null,
+                'cover'       => $e['coverImageUrl'] ?? $e['study']['coverImageUrl'] ?? null,
+                'next'        => $next,
+            ];
+        }
+    } elseif ($enrollmentData) {
+        $next = $enrollmentData['nextLesson'] ?? $normalizeNext($enrollmentData['lessons'] ?? []);
+        $studies[] = [
+            'id'          => $enrollmentData['id'] ?? null,
+            'title'       => $enrollmentData['studyTitle'] ?? $enrollmentData['study']['title'] ?? '',
+            'description' => $enrollmentData['studyDescription'] ?? $enrollmentData['study']['description'] ?? null,
+            'cover'       => $enrollmentData['coverImageUrl'] ?? $enrollmentData['study']['coverImageUrl'] ?? null,
+            'next'        => $next,
+        ];
     }
+
+    // Hero image: group cover, else first study cover
+    $heroImage = $coverImage ?? ($studies[0]['cover'] ?? null);
+
+    // --- Group pager (only meaningful with >1 group) ---
+    $groupCount = count($memberGroups);
+    $currentIndex = 0;
+    foreach ($memberGroups as $i => $g) {
+        if (($g['id'] ?? null) === $groupId) { $currentIndex = $i; break; }
+    }
+    $prevGroup = $groupCount > 1 ? $memberGroups[($currentIndex - 1 + $groupCount) % $groupCount] : null;
+    $nextGroup = $groupCount > 1 ? $memberGroups[($currentIndex + 1) % $groupCount] : null;
 @endphp
 
 @section('content')
 <div class="GroupHome">
     <div class="GroupHome__viewport">
-
-        {{-- Group Content --}}
-        {{-- Scrollable Content Area --}}
         <div class="GroupHome__scroll-container">
 
-            {{-- Group Header Card --}}
-            <x-domain.group-card
-                mode="Header"
-                :name="$groupName"
-                :coverImageUrl="$coverImageUrl"
-                :memberCount="$memberCount"
-                :isPrivate="$isPrivate"
-                :memberSince="$memberSince"
-                :backHref="route('home')"
-            />
+            {{-- Hero: cover image fading into the page, with pager + leader on top --}}
+            <div class="GroupHome__header">
+                @if($heroImage)
+                    <img src="{{ $heroImage }}" alt="" class="GroupHome__hero-image" />
+                @endif
+                <div class="GroupHome__hero-overlay"></div>
 
-            {{-- Study Enrollment Section — matches React: progress card + next lesson card --}}
-            @if($enrollmentData && $studyTitle)
-                <div class="GroupHome__studies CardParent">
-                    {{-- Progress Card (clickable → study home) --}}
-                    <a href="{{ $enrollmentId ? route('study.home', ['groupId' => $groupId, 'studyEnrollmentId' => $enrollmentId]) : '#' }}">
-                        <x-domain.study-card
-                            mode="Progress"
-                            :title="$studyTitle"
-                            :description="$studyDescription"
-                            :dayNumber="$totalLessons"
-                            dateLabel="day"
-                            :progress="$studyProgress"
-                            cardDepth="child"
-                        />
-                    </a>
+                <div class="GroupHome__header-content">
+                    {{-- Group pager --}}
+                    @if($groupCount > 1)
+                        <div class="GroupHome__pager">
+                            <a class="GroupHome__pager-btn"
+                               href="{{ route('group.home', ['groupId' => $prevGroup['id']]) }}"
+                               aria-label="Previous group">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M12.5 15L7.5 10L12.5 5" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                            <div class="GroupHome__pager-label">
+                                <span class="GroupHome__pager-count">
+                                    <span>{{ $currentIndex + 1 }}</span>
+                                    <span class="GroupHome__pager-sep">/</span>
+                                    <span>{{ $groupCount }}</span>
+                                </span>
+                                <span class="GroupHome__pager-word">GROUPS</span>
+                            </div>
+                            <a class="GroupHome__pager-btn"
+                               href="{{ route('group.home', ['groupId' => $nextGroup['id']]) }}"
+                               aria-label="Next group">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                                    <path d="M7.5 5L12.5 10L7.5 15" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </a>
+                        </div>
+                    @endif
 
-                    {{-- Next Lesson Card --}}
-                    @if($nextLesson)
-                        <a href="{{ route('lesson.show', ['groupId' => $groupId, 'lessonScheduleId' => $nextLesson['id'], 'step' => 1]) }}">
-                            <x-domain.study-card
-                                mode="LessonList"
-                                :title="$nextLesson['title'] ?? ''"
-                                :dayNumber="$nextLesson['dayNumber'] ?? null"
-                                status="next"
-                                cardDepth="child"
-                            />
-                        </a>
+                    {{-- Leader --}}
+                    @if($leaderName)
+                        <div class="GroupHome__leader">
+                            <div class="GroupHome__leader-avatar">
+                                @if($leaderPicture)
+                                    <img src="{{ $leaderPicture }}" alt="{{ $leaderName }}" />
+                                @else
+                                    <span>{{ strtoupper(substr($leaderName, 0, 1)) }}</span>
+                                @endif
+                            </div>
+                            <div class="GroupHome__leader-info">
+                                <p class="GroupHome__leader-name">{{ $leaderName }}</p>
+                                <p class="GroupHome__leader-meta">
+                                    @if($orgName)<span class="GroupHome__leader-org">{{ $orgName }}</span> @endif
+                                    <span class="GroupHome__leader-muted">group leader{{ $leaderSinceLabel ? ' since' : '' }}</span>
+                                    @if($leaderSinceLabel)<span class="GroupHome__leader-date"> {{ $leaderSinceLabel }}</span>@endif
+                                </p>
+                            </div>
+                        </div>
                     @endif
                 </div>
-            @endif
+            </div>
 
-            {{-- Posts Feed — no h2 heading, matches React structure --}}
+            <div class="GroupHome__body">
+            {{-- Group panel --}}
+            <div class="GroupHome__panel">
+                <div class="GroupHome__panel-header">
+                    <h1 class="GroupHome__group-name">{{ $groupName }}</h1>
+                    @if($orgName)
+                        <p class="GroupHome__group-org">{{ $orgName }}</p>
+                    @endif
+                    <div class="GroupHome__group-meta">
+                        <span class="GroupHome__group-privacy">
+                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+                                @if($isPrivate)
+                                    <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                                    <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.7949 3.25 13.25 4.70507 13.25 6.5V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                @else
+                                    <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                                    <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.4476 3.25 12.674 4.19668 13.0944 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                @endif
+                            </svg>
+                            {{ $isPrivate ? 'Private group' : 'Public group' }}
+                        </span>
+                        <span class="GroupHome__group-count">
+                            <strong>{{ $memberCount }}</strong> {{ \Illuminate\Support\Str::plural('member', $memberCount) }}
+                        </span>
+                    </div>
+                </div>
+
+                @if(count($studies) > 0)
+                    <div class="GroupHome__divider"></div>
+                    <p class="GroupHome__upnext-label">Your studies</p>
+                    <div class="GroupHome__upnext">
+                        @foreach($studies as $study)
+                            @php
+                                $studyHref = (!empty($study['id']))
+                                    ? route('study.home', ['groupId' => $groupId, 'studyEnrollmentId' => $study['id']])
+                                    : null;
+                            @endphp
+                            <x-domain.enrolled-study-card
+                                :studyTitle="$study['title']"
+                                :studyDescription="$study['description']"
+                                :coverImageUrl="$study['cover']"
+                                :nextLesson="$study['next']"
+                                :href="$studyHref"
+                            />
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            {{-- Posts feed --}}
             <div class="GroupHome__posts">
                 @if(count($postsData) > 0)
                     @foreach($postsData as $post)
@@ -115,46 +213,15 @@
                             :programImageUrl="$post['programImageUrl'] ?? null"
                         />
                     @endforeach
-                @else
-                    <div class="GroupHome__empty-state">
-                        <p class="GroupHome__empty-title">No posts yet</p>
-                        <p class="GroupHome__empty-description">
-                            Posts from your group leader will appear here.
-                        </p>
-                    </div>
                 @endif
             </div>
 
-            {{-- End of feed --}}
             @if(count($postsData) > 0)
                 <div class="GroupHome__end-of-feed">You&rsquo;re all caught up!</div>
             @endif
-
-            {{-- Bottom spacer for navigation clearance --}}
-            <div class="GroupHome__bottom-spacer"></div>
+            </div>{{-- /.GroupHome__body --}}
 
         </div>{{-- /.GroupHome__scroll-container --}}
-
-        {{-- Fixed Navigation --}}
-        <div class="GroupHome__navigation" data-vue="NavigationIsland" data-props="{{ json_encode([
-            'selected'         => 'home',
-            'avatarUrl'        => $member['profilePicture'] ?? $member['avatarUrl'] ?? null,
-            'initials'         => $initials ?? '?',
-            'homeHref'         => route('home'),
-            'profileHref'      => route('profile'),
-            'memberName'       => ($member['firstName'] ?? '') . ' ' . ($member['lastName'] ?? ''),
-            'memberPhone'      => format_phone($member['phoneNumber'] ?? $member['phone'] ?? null),
-            'memberFirstName'  => $member['firstName'] ?? '',
-            'memberLastName'   => $member['lastName'] ?? '',
-            'memberGender'     => $member['gender'] ?? '',
-            'memberBirthday'   => $member['birthday'] ?? '',
-            'memberId'         => $member['id'] ?? '',
-            'googleEmail'      => $member['googleEmail'] ?? null,
-            'googlePicture'    => $member['googlePicture'] ?? $member['profilePicture'] ?? null,
-            'logoutUrl'        => route('logout'),
-            'csrfToken'        => csrf_token(),
-        ], JSON_HEX_TAG) }}"></div>
-
     </div>{{-- /.GroupHome__viewport --}}
 </div>{{-- /.GroupHome --}}
 @endsection

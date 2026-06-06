@@ -1,0 +1,68 @@
+{
+  "platform": "client",
+  "view": "pages.group-home",
+  "output": "06-lesson-states.png",
+  "title": "Group Home — lesson card states (today / complete next / overdue)",
+  "devices": ["iphone-se", "iphone-13-mini", "iphone-14", "iphone-14-plus", "iphone-14-pro", "iphone-14-pro-max", "iphone-15", "iphone-15-plus", "iphone-16-pro", "iphone-17-pro-max"],
+  "data": {
+    "groupId": "g-001",
+    "member": {
+      "id": "m-001",
+      "firstName": "Alex",
+      "lastName": "Rivera",
+      "phoneNumber": "+15555550100"
+    },
+    "memberGroups": [
+      { "id": "g-001", "name": "Sunday Morning Group" }
+    ],
+    "groupData": {
+      "id": "g-001",
+      "name": "Sunday Morning Group",
+      "coverImageUrl": "./group-cover.png",
+      "isPrivate": true,
+      "memberCount": 27,
+      "createdAt": "2024-07-17T00:00:00Z",
+      "organizationName": "MakeReady",
+      "creator": { "name": "Guy Gardner", "picture": "./leader-photo.png" }
+    },
+    "enrollments": [
+      {
+        "id": "e-001",
+        "studyTitle": "Romans in 30 days",
+        "studyDescription": "Today's lesson — scheduled for today and not yet complete.",
+        "coverImageUrl": "./study-cover.png",
+        "nextLesson": {
+          "id": "l-001",
+          "title": "The Righteous Will Live by Faith",
+          "dayNumber": 5,
+          "scheduledDate": "2026-06-06"
+        }
+      },
+      {
+        "id": "e-002",
+        "studyTitle": "The Gospel of John",
+        "studyDescription": "Complete next — an available lesson from a few days ago, still incomplete.",
+        "coverImageUrl": "./study-cover-2.png",
+        "nextLesson": {
+          "id": "l-002",
+          "title": "In the Beginning Was the Word",
+          "dayNumber": 1,
+          "scheduledDate": "2026-06-02"
+        }
+      },
+      {
+        "id": "e-003",
+        "studyTitle": "Psalms of Ascent",
+        "studyDescription": "Overdue — more than a week old and still incomplete.",
+        "coverImageUrl": "./group-cover.png",
+        "nextLesson": {
+          "id": "l-003",
+          "title": "A Song for the Journey Home",
+          "dayNumber": 2,
+          "scheduledDate": "2026-05-25"
+        }
+      }
+    ],
+    "postsData": []
+  }
+}

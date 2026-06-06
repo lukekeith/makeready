@@ -21,11 +21,13 @@ class HomeController extends Controller
             'metadata' => ['groupCount' => count($groupList)],
         ]);
 
-        // Single-group redirect: take member straight to their only group
-        if (count($groupList) === 1) {
+        // Members land on a group home; the in-page pager handles navigating
+        // between groups when they belong to more than one.
+        if (count($groupList) >= 1) {
             return redirect()->route('group.home', ['groupId' => $groupList[0]['id']]);
         }
 
+        // No groups yet — show the empty/authenticated home.
         return response()->view('pages.home-authenticated', compact('member', 'groupList'));
     }
 }

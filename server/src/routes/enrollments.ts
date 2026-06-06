@@ -977,6 +977,117 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
 
 /**
  * @openapi
+ * /api/groups/{groupId}/study-enrollments:
+ *   get:
+ *     tags: [Enrollments]
+ *     summary: List all of a group's study enrollments for a member (member-facing)
+ *     description: >
+ *       Returns every study program the group is enrolled in, each with its
+ *       lesson schedule and the member's per-lesson completion, so the group
+ *       home can render a card (with current/next lesson) per study.
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: memberId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: List of enrollments
+ */
+router.get('/groups/:groupId/study-enrollments', async (req, res) => {
+  try {
+    const { groupId } = req.params
+    const { memberId } = req.query
+
+    if (!memberId || typeof memberId !== 'string') {
+      return res.status(400).json({ success: false, error: 'memberId is required' })
+    }
+
+    // Verify member exists and is in this group
+    const member = await prisma.member.findFirst({
+      where: {
+        id: memberId,
+        groupMemberships: { some: { groupId, isActive: true } },
+      },
+    })
+
+    if (!member) {
+      return res.status(404).json({ success: false, error: 'Member not found in group' })
+    }
+
+    const enrollments = await prisma.enrollment.findMany({
+      where: { groupId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        studyProgram: {
+          select: { id: true, name: true, description: true, coverImageUrl: true, days: true },
+        },
+        lessonSchedules: {
+          orderBy: { scheduledDate: 'asc' },
+          include: {
+            lesson: { select: { id: true, dayNumber: true, title: true } },
+          },
+        },
+      },
+    })
+
+    const formatted = await Promise.all(
+      enrollments.map(async enrollment => {
+        const scheduleIds = enrollment.lessonSchedules.map(ls => ls.id)
+
+        // Earliest activity completion per lesson schedule → drives "complete" state
+        const progress = scheduleIds.length
+          ? await prisma.memberActivityProgress.findMany({
+              where: {
+                memberId,
+                lessonScheduleId: { in: scheduleIds },
+                completedAt: { not: null },
+              },
+              select: { lessonScheduleId: true, completedAt: true },
+            })
+          : []
+
+        const completionMap = new Map<string, Date>()
+        for (const p of progress) {
+          if (!p.completedAt) continue
+          const existing = completionMap.get(p.lessonScheduleId)
+          if (!existing || p.completedAt < existing) {
+            completionMap.set(p.lessonScheduleId, p.completedAt)
+          }
+        }
+
+        return {
+          id: enrollment.id,
+          studyId: enrollment.studyProgramId,
+          studyTitle: enrollment.studyProgram.name,
+          studyDescription: enrollment.studyProgram.description || '',
+          coverImageUrl: enrollment.studyProgram.coverImageUrl,
+          totalLessons: enrollment.studyProgram.days,
+          completedLessons: completionMap.size,
+          lessons: enrollment.lessonSchedules.map(ls => ({
+            id: ls.id,
+            dayNumber: ls.lesson.dayNumber,
+            title: ls.lesson.title || `Day ${ls.lesson.dayNumber}`,
+            scheduledDate: ls.scheduledDate.toISOString(),
+            completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
+          })),
+        }
+      })
+    )
+
+    res.json({ success: true, enrollments: formatted })
+  } catch (error) {
+    console.error('Error fetching study enrollments:', error)
+    res.status(500).json({ success: false, error: 'Failed to fetch study enrollments' })
+  }
+})
+
+/**
+ * @openapi
  * /api/groups/{groupId}/study-enrollment/{enrollmentId}:
  *   get:
  *     tags: [Enrollments]

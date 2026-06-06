@@ -1,18 +1,23 @@
-// GroupHome - Page layout styles for group home
-// Uses fixed viewport with scrollable content (not body scroll)
-// for app-like feel with fixed navigation
+// GroupHome — member group home page
+// Fixed viewport with scrollable content + fixed bottom navigation.
+// Figma: Make-Ready-Mobile "Study home page" (node 3104:29472)
+
+$bg: #0d101a;
+$panel-bg: #030712;
+$brand-200: #b1bcff;
+$brand-500: #6c47ff;
+$white-70: rgba(255, 255, 255, 0.7);
+$white-50: rgba(255, 255, 255, 0.5);
+$white-10: rgba(255, 255, 255, 0.1);
+$white-05: rgba(255, 255, 255, 0.05);
 
 .GroupHome {
-  // Fixed viewport container
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   display: flex;
   flex-direction: column;
+  background: $bg;
 
-  // Center content on larger screens
   &__viewport {
     width: 100%;
     max-width: 440px;
@@ -23,137 +28,259 @@
     position: relative;
   }
 
-  &--loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-  }
-
   // Scrollable content area (everything except navigation)
   &__scroll-container {
     flex: 1;
+    display: flex;
+    flex-direction: column;
     overflow-y: auto;
     overflow-x: hidden;
-    -webkit-overflow-scrolling: touch; // Smooth scrolling on iOS
-
-    // Hide scrollbar but keep functionality
+    -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
     scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 
-    &::-webkit-scrollbar {
-      width: 4px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
+    &::-webkit-scrollbar { width: 4px; }
+    &::-webkit-scrollbar-track { background: transparent; }
     &::-webkit-scrollbar-thumb {
       background: rgba(255, 255, 255, 0.2);
       border-radius: 2px;
     }
   }
 
-  // When GroupCard is followed by studies, remove bottom radius from GroupCard
-  &__scroll-container > .GroupCard:has(+ .GroupHome__studies) {
-    border-bottom-left-radius: 0 !important;
-    border-bottom-right-radius: 0 !important;
+  // ---- Hero ----------------------------------------------------------------
+  &__header {
+    position: relative;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
   }
 
-  // When studies follows GroupCard, remove top radius from studies
-  &__scroll-container > .GroupCard + .GroupHome__studies {
-    border-top-left-radius: 0 !important;
-    border-top-right-radius: 0 !important;
+  &__hero-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
   }
 
-  &__studies {
+  &__hero-overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, rgba(13, 16, 26, 0.5) 0%, $bg 100%);
+    pointer-events: none;
+  }
+
+  &__header-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    padding: 48px 16px;
+  }
+
+  // ---- Group pager ---------------------------------------------------------
+  &__pager {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__pager-btn {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 20px;
+    background: $white-10;
+    color: #fff;
+    text-decoration: none;
+    transition: background 0.15s ease;
+
+    &:active { background: rgba(255, 255, 255, 0.2); }
+  }
+
+  &__pager-label {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1px;
+    text-transform: uppercase;
+  }
+
+  &__pager-count {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: #fff;
+  }
+
+  &__pager-sep { opacity: 0.5; }
+
+  &__pager-word { color: $white-50; }
+
+  // ---- Leader --------------------------------------------------------------
+  &__leader {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__leader-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 28px;
+    font-weight: 700;
+
+    img { width: 100%; height: 100%; object-fit: cover; }
+  }
+
+  &__leader-info {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    padding: 16px;
-    background: rgba(37, 41, 54, 0.5);
-    border-radius: 16px;
   }
 
+  &__leader-name {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 18px;
+    color: #fff;
+  }
+
+  &__leader-meta {
+    margin: 0;
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.1px;
+    color: $white-70;
+  }
+
+  &__leader-org { color: #fff; }
+  &__leader-muted { color: $white-70; }
+  &__leader-date { color: $brand-200; }
+
+  // ---- Below-hero body — dark sheet that fills all remaining height --------
+  // overlaps the header a little (rounded top, flush bottom)
+  &__body {
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    margin-top: -24px;
+    background: $panel-bg;
+    border-radius: 16px 16px 0 0;
+  }
+
+  // ---- Group panel (transparent content group inside the body) -------------
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__panel-header {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__group-name {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 25px;
+    letter-spacing: -0.1px;
+    color: #fff;
+  }
+
+  &__group-org {
+    margin: 0;
+    font-size: 12px;
+    line-height: 16px;
+    letter-spacing: 0.1px;
+    color: $brand-200;
+  }
+
+  &__group-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  &__group-privacy {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: $white-70;
+
+    svg { color: $white-70; }
+  }
+
+  &__group-count {
+    color: $white-70;
+    strong { color: #fff; font-weight: 400; }
+  }
+
+  &__divider {
+    height: 1px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &__upnext-label {
+    margin: 0;
+    font-size: 16px;
+    line-height: 21px;
+    color: #fff;
+  }
+
+  &__upnext {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  // ---- Posts feed ----------------------------------------------------------
   &__posts {
     display: flex;
     flex-direction: column;
-    padding: 16px;
-    padding-bottom: 16px; // Bottom padding handled by sentinel
 
-    // Add separator line between posts
     > * + * {
       border-top: 1px solid rgba(255, 255, 255, 0.1);
       padding-top: 16px;
       margin-top: 16px;
     }
+
+    &:empty { display: none; }
   }
 
-  &__empty-state {
-    text-align: center;
-    padding: 48px 16px;
-    color: rgba(255, 255, 255, 0.5);
-  }
-
-  &__empty-title {
-    margin: 0;
-    font-size: 16px;
-  }
-
-  &__empty-description {
-    margin: 8px 0 0;
-    font-size: 14px;
-  }
-
-  &__loading-skeleton {
-    height: 150px;
-    background: #1a1d2e;
-    border-radius: 12px;
-    animation: pulse 1.5s infinite;
-  }
-
-  // Sentinel element for infinite scroll detection
-  &__load-more-sentinel {
-    height: 1px;
-    width: 100%;
-  }
-
-  // Loading more indicator
-  &__loading-more {
-    display: flex;
-    justify-content: center;
-    padding: 24px 16px;
-  }
-
-  // End of feed message
   &__end-of-feed {
     text-align: center;
-    padding: 24px 16px;
+    padding: 8px 16px;
     color: rgba(255, 255, 255, 0.3);
     font-size: 14px;
-  }
-
-  // Bottom spacer to ensure content doesn't hide behind navigation
-  &__bottom-spacer {
-    height: 96px; // Height of navigation bar
-    flex-shrink: 0;
-  }
-
-  // Fixed navigation at bottom
-  &__navigation {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-}
-
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
   }
 }

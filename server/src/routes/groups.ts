@@ -761,11 +761,24 @@ router.get('/:id/public', async (req, res) => {
         _count: {
           select: { members: { where: { isActive: true } } },
         },
+        creator: {
+          select: { name: true, picture: true },
+        },
       },
     })
 
     if (!group) {
       return res.status(404).json({ success: false, error: 'Group not found' })
+    }
+
+    // Organization name (no relation on Group — look it up by id)
+    let organizationName: string | null = null
+    if (group.organizationId) {
+      const org = await prisma.organization.findUnique({
+        where: { id: group.organizationId },
+        select: { name: true },
+      })
+      organizationName = org?.name ?? null
     }
 
     // Return limited public info
@@ -778,6 +791,10 @@ router.get('/:id/public', async (req, res) => {
       isPrivate: group.isPrivate,
       memberCount: group._count.members,
       createdAt: group.createdAt,
+      organizationName,
+      creator: group.creator
+        ? { name: group.creator.name, picture: group.creator.picture }
+        : null,
     }
 
     res.json({ success: true, group: response })

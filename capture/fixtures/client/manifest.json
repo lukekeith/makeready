@@ -3,6 +3,7 @@
     { "title": "Join Group", "folder": "join-group" },
     { "title": "Join Study", "folder": "join-study" },
     { "title": "Join Event", "folder": "join-event" },
+    { "title": "Group Home", "folder": "group-home" },
     { "title": "Member Lesson", "folder": "member-lesson" },
     { "title": "Marketing + Beta", "folder": "marketing-beta" }
   ]

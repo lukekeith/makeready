@@ -39,6 +39,7 @@
 @use 'components/domain/group-card';
 // group-home component SCSS removed — page-level pages/group-home.scss is authoritative
 @use 'components/domain/group-home-header';
+@use 'components/domain/enrolled-study-card';
 @use 'components/domain/group-leader-info';
 @use 'components/domain/group-leader-note';
 @use 'components/domain/group-list-card';

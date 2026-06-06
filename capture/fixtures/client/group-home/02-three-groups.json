@@ -1,0 +1,53 @@
+{
+  "platform": "client",
+  "view": "pages.group-home",
+  "output": "02-three-groups.png",
+  "title": "Group Home — three groups (pager 1/3), one study",
+  "devices": ["iphone-se", "iphone-13-mini", "iphone-14", "iphone-14-plus", "iphone-14-pro", "iphone-14-pro-max", "iphone-15", "iphone-15-plus", "iphone-16-pro", "iphone-17-pro-max"],
+  "data": {
+    "groupId": "g-001",
+    "member": {
+      "id": "m-001",
+      "firstName": "Alex",
+      "lastName": "Rivera",
+      "phoneNumber": "+15555550100"
+    },
+    "memberGroups": [
+      { "id": "g-001", "name": "Sunday Morning Group" },
+      { "id": "g-002", "name": "Wednesday Men's Group" },
+      { "id": "g-003", "name": "College Ministry" }
+    ],
+    "groupData": {
+      "id": "g-001",
+      "name": "Sunday Morning Group",
+      "coverImageUrl": "./group-cover.png",
+      "isPrivate": true,
+      "memberCount": 27,
+      "createdAt": "2024-07-17T00:00:00Z",
+      "organizationName": "MakeReady",
+      "creator": { "name": "Guy Gardner", "picture": "./leader-photo.png" }
+    },
+    "enrollments": [
+      {
+        "id": "e-001",
+        "studyTitle": "Romans in 30 days",
+        "studyDescription": "A comprehensive look at the book of Romans and how it applies in a modern world.",
+        "coverImageUrl": "./study-cover.png",
+        "nextLesson": {
+          "id": "l-001",
+          "title": "The Righteous Will Live by Faith",
+          "dayNumber": 5,
+          "scheduledDate": "2026-06-06",
+          "estimatedMinutes": 10,
+          "activities": [
+            { "type": "EXEGESIS" },
+            { "type": "USER_INPUT" },
+            { "type": "USER_INPUT" },
+            { "type": "VIDEO" }
+          ]
+        }
+      }
+    ],
+    "postsData": []
+  }
+}
