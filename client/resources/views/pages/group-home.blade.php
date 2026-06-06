@@ -70,14 +70,31 @@
     // Hero image: group cover, else first study cover
     $heroImage = $coverImage ?? ($studies[0]['cover'] ?? null);
 
-    // --- Group pager (only meaningful with >1 group) ---
-    $groupCount = count($memberGroups);
-    $currentIndex = 0;
-    foreach ($memberGroups as $i => $g) {
-        if (($g['id'] ?? null) === $groupId) { $currentIndex = $i; break; }
+    // --- Group switcher (header opens a modal of every group the member is in) ---
+    $switcherGroups = [];
+    foreach ($memberGroups as $g) {
+        $gid = $g['id'] ?? null;
+        if (!$gid) continue;
+        $switcherGroups[] = [
+            'id'            => $gid,
+            'name'          => $g['name'] ?? 'Group',
+            'memberCount'   => $g['memberCount'] ?? 0,
+            'isPrivate'     => (bool) ($g['isPrivate'] ?? false),
+            'coverImageUrl' => $g['coverImageUrl'] ?? $g['avatarUrl'] ?? null,
+            'href'          => route('group.home', ['groupId' => $gid]),
+            'isCurrent'     => $gid === $groupId,
+        ];
     }
-    $prevGroup = $groupCount > 1 ? $memberGroups[($currentIndex - 1 + $groupCount) % $groupCount] : null;
-    $nextGroup = $groupCount > 1 ? $memberGroups[($currentIndex + 1) % $groupCount] : null;
+
+    $switcherProps = [
+        'current' => [
+            'name'        => $groupName,
+            'orgName'     => $orgName,
+            'memberCount' => $memberCount,
+            'isPrivate'   => (bool) $isPrivate,
+        ],
+        'groups' => $switcherGroups,
+    ];
 @endphp
 
 @section('content')
@@ -93,44 +110,16 @@
                 <div class="GroupHome__hero-overlay"></div>
 
                 <div class="GroupHome__header-content">
-                    {{-- Group pager --}}
-                    @if($groupCount > 1)
-                        <div class="GroupHome__pager">
-                            <a class="GroupHome__pager-btn"
-                               href="{{ route('group.home', ['groupId' => $prevGroup['id']]) }}"
-                               aria-label="Previous group">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                    <path d="M12.5 15L7.5 10L12.5 5" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </a>
-                            <div class="GroupHome__pager-label">
-                                <span class="GroupHome__pager-count">
-                                    <span>{{ $currentIndex + 1 }}</span>
-                                    <span class="GroupHome__pager-sep">/</span>
-                                    <span>{{ $groupCount }}</span>
-                                </span>
-                                <span class="GroupHome__pager-word">GROUPS</span>
-                            </div>
-                            <a class="GroupHome__pager-btn"
-                               href="{{ route('group.home', ['groupId' => $nextGroup['id']]) }}"
-                               aria-label="Next group">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                    <path d="M7.5 5L12.5 10L7.5 15" stroke="white" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
-                            </a>
-                        </div>
-                    @endif
-
                     {{-- Leader --}}
                     @if($leaderName)
                         <div class="GroupHome__leader">
-                            <div class="GroupHome__leader-avatar">
-                                @if($leaderPicture)
-                                    <img src="{{ $leaderPicture }}" alt="{{ $leaderName }}" />
-                                @else
-                                    <span>{{ strtoupper(substr($leaderName, 0, 1)) }}</span>
-                                @endif
-                            </div>
+                            <x-primitive.avatar
+                                :src="$leaderPicture"
+                                :name="$leaderName"
+                                :alt="$leaderName"
+                                :size="80"
+                                class="GroupHome__leader-avatar"
+                            />
                             <div class="GroupHome__leader-info">
                                 <p class="GroupHome__leader-name">{{ $leaderName }}</p>
                                 <p class="GroupHome__leader-meta">
@@ -147,38 +136,45 @@
             <div class="GroupHome__body">
             {{-- Group panel --}}
             <div class="GroupHome__panel">
-                <div class="GroupHome__panel-header">
-                    <h1 class="GroupHome__group-name">{{ $groupName }}</h1>
-                    @if($orgName)
-                        <p class="GroupHome__group-org">{{ $orgName }}</p>
-                    @endif
-                    <div class="GroupHome__group-meta">
-                        <span class="GroupHome__group-privacy">
-                            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-                                @if($isPrivate)
+                <div class="GroupSwitcher" data-vue="GroupSwitcherIsland" data-props="{{ json_encode($switcherProps, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}">
+                    {{-- Server-rendered fallback (matches the island's current-group header)
+                         so the panel isn't blank before the Vue island mounts. --}}
+                    <div class="GroupSwitcher__current GroupSwitcher__current--static">
+                        <div class="GroupSwitcher__title">
+                            <span class="GroupSwitcher__name">{{ $groupName }}</span>
+                        </div>
+                        @if($orgName)
+                            <p class="GroupSwitcher__org">{{ $orgName }}</p>
+                        @endif
+                        <div class="GroupSwitcher__meta">
+                            <span class="GroupSwitcher__privacy">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                                     <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-                                    <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.7949 3.25 13.25 4.70507 13.25 6.5V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                @else
-                                    <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-                                    <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.4476 3.25 12.674 4.19668 13.0944 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                @endif
-                            </svg>
-                            {{ $isPrivate ? 'Private group' : 'Public group' }}
-                        </span>
-                        <span class="GroupHome__group-count">
-                            <strong>{{ $memberCount }}</strong> {{ \Illuminate\Support\Str::plural('member', $memberCount) }}
-                        </span>
+                                    @if($isPrivate)
+                                        <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.7949 3.25 13.25 4.70507 13.25 6.5V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                    @else
+                                        <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.4476 3.25 12.674 4.19668 13.0944 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                                    @endif
+                                </svg>
+                                {{ $isPrivate ? 'Private group' : 'Public group' }}
+                            </span>
+                            <span class="GroupSwitcher__count">
+                                {{ $memberCount }} {{ \Illuminate\Support\Str::plural('member', $memberCount) }}
+                            </span>
+                        </div>
                     </div>
                 </div>
 
                 @if(count($studies) > 0)
-                    <div class="GroupHome__divider"></div>
                     <p class="GroupHome__upnext-label">Your studies</p>
                     <div class="GroupHome__upnext">
                         @foreach($studies as $study)
                             @php
                                 $studyHref = (!empty($study['id']))
                                     ? route('study.home', ['groupId' => $groupId, 'studyEnrollmentId' => $study['id']])
+                                    : null;
+                                $lessonHref = (!empty($study['next']['id']))
+                                    ? route('lesson.show', ['groupId' => $groupId, 'lessonScheduleId' => $study['next']['id'], 'step' => 1])
                                     : null;
                             @endphp
                             <x-domain.enrolled-study-card
@@ -187,38 +183,13 @@
                                 :coverImageUrl="$study['cover']"
                                 :nextLesson="$study['next']"
                                 :href="$studyHref"
+                                :lessonHref="$lessonHref"
                             />
                         @endforeach
                     </div>
                 @endif
             </div>
 
-            {{-- Posts feed --}}
-            <div class="GroupHome__posts">
-                @if(count($postsData) > 0)
-                    @foreach($postsData as $post)
-                        <x-domain.group-post-card
-                            :type="$post['type'] ?? 'ANNOUNCEMENT'"
-                            :title="$post['title'] ?? null"
-                            :content="$post['content'] ?? ''"
-                            :imageUrl="$post['imageUrl'] ?? null"
-                            :authorName="$post['authorName'] ?? ''"
-                            :authorAvatarUrl="$post['authorAvatarUrl'] ?? null"
-                            :createdAt="$post['createdAt'] ?? ''"
-                            :pollOptions="$post['pollOptions'] ?? []"
-                            :videoUrl="$post['videoUrl'] ?? null"
-                            :eventDate="$post['eventDate'] ?? null"
-                            :eventLocation="$post['eventLocation'] ?? null"
-                            :programName="$post['programName'] ?? null"
-                            :programImageUrl="$post['programImageUrl'] ?? null"
-                        />
-                    @endforeach
-                @endif
-            </div>
-
-            @if(count($postsData) > 0)
-                <div class="GroupHome__end-of-feed">You&rsquo;re all caught up!</div>
-            @endif
             </div>{{-- /.GroupHome__body --}}
 
         </div>{{-- /.GroupHome__scroll-container --}}

@@ -1,0 +1,9 @@
+# Local override: finpro-api occupies host port 8000, so the MakeReady
+# client is published on 8001 instead. Container port stays 8000.
+services:
+  client:
+    ports: !override
+      - "8001:8000"
+      - "5174:5174"
+    environment:
+      APP_URL: http://localhost:8001

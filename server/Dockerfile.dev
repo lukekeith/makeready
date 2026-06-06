@@ -15,5 +15,6 @@ COPY . .
 
 EXPOSE 3010
 
-# Run migrations then start dev server
-CMD npx prisma migrate deploy --schema=./prisma/schema.prisma && npm run dev
+# Regenerate client (build-time layer may be cached against an older schema),
+# run migrations, then start dev server
+CMD npx prisma generate --schema=./prisma/schema.prisma && npx prisma migrate deploy --schema=./prisma/schema.prisma && npm run dev

@@ -35,7 +35,11 @@ struct Configuration {
 
     private static let environmentKey = "selectedEnvironment"
     private static let localServerIPKey = "localServerIP"
+    private static let localAPIPortKey = "localAPIPort"
+    private static let localClientPortKey = "localClientPort"
     static let defaultLocalIP = "192.168.1.65"
+    static let defaultAPIPort = "3010"
+    static let defaultClientPort = "8000"
 
     /// User-specified local server IP address.
     /// Persisted in UserDefaults. Falls back to defaultLocalIP.
@@ -49,6 +53,34 @@ struct Configuration {
         }
         set {
             UserDefaults.standard.set(newValue, forKey: localServerIPKey)
+        }
+    }
+
+    /// User-specified local API server port (Express, default 3010).
+    /// Persisted in UserDefaults. Falls back to defaultAPIPort.
+    static var localAPIPort: String {
+        get {
+            let saved = UserDefaults.standard.string(forKey: localAPIPortKey)
+            if let saved, !saved.isEmpty { return saved }
+            return defaultAPIPort
+        }
+        set {
+            let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+            UserDefaults.standard.set(trimmed.isEmpty ? defaultAPIPort : trimmed, forKey: localAPIPortKey)
+        }
+    }
+
+    /// User-specified local web client port (Laravel, default 8000).
+    /// Persisted in UserDefaults. Falls back to defaultClientPort.
+    static var localClientPort: String {
+        get {
+            let saved = UserDefaults.standard.string(forKey: localClientPortKey)
+            if let saved, !saved.isEmpty { return saved }
+            return defaultClientPort
+        }
+        set {
+            let trimmed = newValue.trimmingCharacters(in: .whitespaces)
+            UserDefaults.standard.set(trimmed.isEmpty ? defaultClientPort : trimmed, forKey: localClientPortKey)
         }
     }
 
@@ -155,11 +187,11 @@ struct Configuration {
                !base.isEmpty {
                 return base
             }
-            return "http://127.0.0.1:3010"
+            return "http://127.0.0.1:\(localAPIPort)"
             #else
             // Physical device — prefer user-specified IP, then Bonjour, then cached
             if let ip = localServerIP, !ip.isEmpty {
-                return "http://\(ip):3010"
+                return "http://\(ip):\(localAPIPort)"
             }
             if let discoveredURL = LocalServerDiscovery.shared.serverURL {
                 return discoveredURL
@@ -187,11 +219,11 @@ struct Configuration {
         switch selectedEnvironment {
         case .local:
             #if targetEnvironment(simulator)
-            return "http://localhost:8000"
+            return "http://localhost:\(localClientPort)"
             #else
             // Physical device — prefer user-specified IP, then Bonjour, then cached
             if let ip = localServerIP, !ip.isEmpty {
-                return "http://\(ip):8000"
+                return "http://\(ip):\(localClientPort)"
             }
             if let discoveredURL = LocalServerDiscovery.shared.clientURL {
                 return discoveredURL

@@ -13,6 +13,8 @@ struct ProfilePage: View {
     @State private var selectedEnvironment = Configuration.selectedEnvironment
     @State private var environmentStatus: [Configuration.SelectedEnvironment: EnvironmentHealth] = [:]
     @State private var localIP: String = Configuration.localServerIP ?? "192.168.1.65"
+    @State private var apiPort: String = Configuration.localAPIPort
+    @State private var clientPort: String = Configuration.localClientPort
 
     enum EnvironmentHealth {
         case checking  // yellow
@@ -187,6 +189,22 @@ extension ProfilePage {
                     .background(Color.white.opacity(0.05))
                     .cornerRadius(12)
 
+                    Text("Ports")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                        .textCase(.uppercase)
+                        .padding(.horizontal, 16)
+                        .padding(.top, 4)
+
+                    HStack(spacing: 12) {
+                        portField(label: "API", text: $apiPort, placeholder: Configuration.defaultAPIPort) { newValue in
+                            Configuration.localAPIPort = newValue
+                        }
+                        portField(label: "Client", text: $clientPort, placeholder: Configuration.defaultClientPort) { newValue in
+                            Configuration.localClientPort = newValue
+                        }
+                    }
+
                     Text("API: \(Configuration.baseURL)")
                         .font(.system(size: 11, weight: .regular))
                         .foregroundColor(.white.opacity(0.3))
@@ -198,6 +216,34 @@ extension ProfilePage {
                         .padding(.horizontal, 16)
                 }
             }
+        }
+    }
+
+    private func portField(
+        label: String,
+        text: Binding<String>,
+        placeholder: String,
+        onSave: @escaping (String) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(size: 11, weight: .regular))
+                .foregroundColor(.white.opacity(0.4))
+                .padding(.leading, 16)
+
+            TextField(placeholder, text: text)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundColor(.white)
+                .keyboardType(.numberPad)
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+                .background(Color.white.opacity(0.05))
+                .cornerRadius(12)
+                .onChange(of: text.wrappedValue) { _, newValue in
+                    onSave(newValue)
+                }
         }
     }
 

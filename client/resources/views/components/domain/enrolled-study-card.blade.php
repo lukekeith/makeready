@@ -5,7 +5,8 @@
     'studyDescription' => null,
     'coverImageUrl'    => null,
     'nextLesson'       => null,   // ['title','dayNumber','scheduledDate']
-    'href'             => null,   // link to the lesson player
+    'href'             => null,   // top portion → study home (calendar + lessons)
+    'lessonHref'       => null,   // lesson card → straight into that lesson
     'badgeLabel'       => null,   // overrides the computed badge text
     'badgeVariant'     => null,   // overrides the computed badge color: 'default' | 'overdue'
 ])
@@ -50,27 +51,35 @@
     }
     $variant = $variant ?: 'default';
 
-    $Tag = $href ? 'a' : 'div';
+    // Two independent click targets: the top (cover + title) → study home,
+    // the lesson card → straight into the lesson.
+    $MainTag   = $href ? 'a' : 'div';
+    $LessonTag = $lessonHref ? 'a' : 'div';
 @endphp
 
-<{{ $Tag }}
-    @if($href) href="{{ $href }}" @endif
-    {{ $attributes->merge(['class' => 'EnrolledStudyCard']) }}
->
+<div {{ $attributes->merge(['class' => 'EnrolledStudyCard']) }}>
     @if($coverImageUrl)
         <img src="{{ $coverImageUrl }}" alt="{{ $studyTitle }}" class="EnrolledStudyCard__cover" />
     @endif
 
     <div class="EnrolledStudyCard__body">
-        <div class="EnrolledStudyCard__details">
-            <p class="EnrolledStudyCard__title">{{ $studyTitle }}</p>
-            @if($studyDescription)
-                <p class="EnrolledStudyCard__description">{{ $studyDescription }}</p>
-            @endif
-        </div>
+        <{{ $MainTag }}
+            @if($href) href="{{ $href }}" @endif
+            class="EnrolledStudyCard__main"
+        >
+            <div class="EnrolledStudyCard__details">
+                <p class="EnrolledStudyCard__title">{{ $studyTitle }}</p>
+                @if($studyDescription)
+                    <p class="EnrolledStudyCard__description">{{ $studyDescription }}</p>
+                @endif
+            </div>
+        </{{ $MainTag }}>
 
         @if($nextLesson)
-            <div class="EnrolledStudyCard__lesson">
+            <{{ $LessonTag }}
+                @if($lessonHref) href="{{ $lessonHref }}" @endif
+                class="EnrolledStudyCard__lesson"
+            >
                 <div class="EnrolledStudyCard__date">
                     @if($monthStr !== '')
                         <span class="EnrolledStudyCard__month">{{ $monthStr }}</span>
@@ -87,7 +96,7 @@
                     @endif
                     <p class="EnrolledStudyCard__lesson-title">{{ $nextLesson['title'] ?? '' }}</p>
                 </div>
-            </div>
+            </{{ $LessonTag }}>
         @endif
     </div>
-</{{ $Tag }}>
+</div>
