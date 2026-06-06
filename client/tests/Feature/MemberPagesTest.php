@@ -146,17 +146,17 @@ class MemberPagesTest extends TestCase
     }
 
     /**
-     * MEMB-03: GET /home renders groups list for authenticated member (2 groups, no redirect).
+     * MEMB-03: GET /home redirects a multi-group member to their first group's
+     * home. The group home pager handles navigating between groups, so members
+     * no longer land on a separate chooser list.
      */
-    public function test_authenticated_home_renders(): void
+    public function test_authenticated_home_multi_group_redirect(): void
     {
         $this->fakeAuthWithGroups($this->twoGroups());
 
         $response = $this->get('/member/home');
 
-        $response->assertStatus(200);
-        $response->assertSee('Test Group');
-        $response->assertSee('Other Group');
+        $response->assertRedirect('/member/groups/group-1');
     }
 
     /**
