@@ -415,7 +415,7 @@ struct MainHome: View {
                                     day: event.dayNumber ?? 1,
                                     mode: .lesson,
                                     activities: (event.activityIcons ?? []).map { icon in
-                                        LessonActivityData(icon: icon.icon, type: icon.rawType, title: icon.label)
+                                        LessonActivityData(icon: icon.icon, type: icon.rawType, title: icon.label, status: .incomplete)
                                     },
                                     title: event.title,
                                     date: event.startTime,

@@ -1217,11 +1217,38 @@ struct ProgramEnrollmentGroup: Codable, Equatable {
     let name: String
     let coverImageUrl: String?
     let _count: GroupMemberCount?
+    let creator: ProgramEnrollmentGroupCreator?
+}
+
+/// The group's leader (creator) summary, used to surface the leader's name.
+struct ProgramEnrollmentGroupCreator: Codable, Equatable {
+    let name: String?
 }
 
 /// Member count for group
 struct GroupMemberCount: Codable, Equatable {
     let members: Int
+}
+
+// MARK: - Enrollment Completion Analytics
+
+/// Group-completion counts for one enrollment, from
+/// `GET /api/enrollments/:id/completion-stats`. `memberCount` is the fraction
+/// denominator; per-activity/per-lesson counts are distinct members completed.
+struct EnrollmentCompletionStats: Codable, Equatable {
+    let memberCount: Int
+    let lessons: [LessonCompletionStat]
+}
+
+struct LessonCompletionStat: Codable, Equatable {
+    let lessonScheduleId: String
+    let completedCount: Int
+    let activities: [ActivityCompletionStat]
+}
+
+struct ActivityCompletionStat: Codable, Equatable {
+    let scheduledActivityId: String
+    let completedCount: Int
 }
 
 // MARK: - Unenroll Info

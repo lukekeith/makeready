@@ -74,6 +74,20 @@ struct ProgramHomePage: View {
         }
     }
 
+    /// Lessons that have no activities. A study cannot be published until
+    /// every lesson has at least one activity.
+    private var lessonsWithoutActivities: [Lesson] {
+        lessons.filter { $0.activities.isEmpty }
+    }
+
+    /// Message shown when a publish attempt is blocked by lessons missing activities.
+    private var publishBlockedMessage: String {
+        let count = lessonsWithoutActivities.count
+        let lessonNoun = count == 1 ? "lesson" : "lessons"
+        let verb = count == 1 ? "is" : "are"
+        return "There \(verb) \(count) \(lessonNoun) without an activity. Every lesson must have at least one activity before this study can be published."
+    }
+
     /// Whether we're loading program data (initial load only)
     private var isLoadingProgram: Bool {
         state.loadingStates.isInitialLoading(programId)
@@ -113,6 +127,7 @@ struct ProgramHomePage: View {
     // Publish status
     @State private var showPublishDialog = false
     @State private var showDraftAlert = false
+    @State private var showPublishBlockedAlert = false
 
     // Preview modal — uses IdentifiableURL so fullScreenCover(item:) triggers
     // only after the URL is set, avoiding the nil-URL race with isPresented.
@@ -429,7 +444,12 @@ struct ProgramHomePage: View {
                             }
                             .overlay(alignment: .topLeading) {
                                 Button {
-                                    showPublishDialog = true
+                                    // Block publishing a draft that still has lessons without activities.
+                                    if !(program.isPublished ?? false) && !lessonsWithoutActivities.isEmpty {
+                                        showPublishBlockedAlert = true
+                                    } else {
+                                        showPublishDialog = true
+                                    }
                                 } label: {
                                     PublishBadge(isPublished: program.isPublished ?? false)
                                 }
@@ -534,6 +554,11 @@ struct ProgramHomePage: View {
             Button("Ok", role: .cancel) {}
         } message: {
             Text("This study program must be published before it can be used for enrollment. Open the program and publish it first.")
+        }
+        .alert("Cannot Publish", isPresented: $showPublishBlockedAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(publishBlockedMessage)
         }
         .overlay {
             if showExportConfirm {
@@ -687,6 +712,12 @@ struct ProgramHomePage: View {
     }
 
     private func togglePublishStatus(programId: String, publish: Bool) {
+        // Guard: never publish a study that still has lessons without activities.
+        if publish && !lessonsWithoutActivities.isEmpty {
+            showPublishBlockedAlert = true
+            return
+        }
+
         // Optimistic update: immediately reflect in UI
         if var current = state.programs[programId] {
             current.isPublished = publish
@@ -1084,6 +1115,11 @@ struct ProgramHomePage: View {
                             showEditProgram = false
                         },
                         onRightLinkTap: {
+                            // Block publishing via settings if any lesson lacks an activity.
+                            if editIsPublished && !lessonsWithoutActivities.isEmpty {
+                                showPublishBlockedAlert = true
+                                return
+                            }
                             saveProgram(programId: program.id)
                             showEditProgram = false
                         }
@@ -1210,6 +1246,7 @@ struct ProgramHomePage: View {
                         data: CardGroupData(
                             id: enrollment.id,
                             title: enrollment.group?.name ?? "Unknown Group",
+                            subtitle: enrollment.group?.creator?.name,
                             imageStyle: enrollment.group?.coverImageUrl != nil
                                 ? .photo(imageURL: enrollment.group!.coverImageUrl!)
                                 : .icon(systemName: "person.2.fill", backgroundColor: .purple),

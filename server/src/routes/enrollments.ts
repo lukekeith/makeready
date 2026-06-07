@@ -10,6 +10,8 @@ import { logSuccess, logFailure } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 import { trackActivity } from '../services/activity.js'
 import { recalculateScheduledLessonEstimate } from '../services/lesson-estimate.service.js'
+import { getUserOrgId } from '../services/media-library.js'
+import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
 import { isStableNumberedScriptureMarkdown, normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
 
 const router = Router()
@@ -1534,12 +1536,16 @@ router.get('/programs/:programId/enrollments', requireAuth, async (req, res) => 
   try {
     const { programId } = req.params
     const userId = (req.user as any).id
+    const userOrgId = await getUserOrgId(userId)
 
-    // Verify program exists and user owns it
+    // Verify the program exists and is viewable by this user. Viewing is
+    // org-scoped (any group leader can VIEW any program in their org), matching
+    // GET /programs/:id — not creator-only, which is reserved for mutations.
+    const accessFilter = userOrgId ? { organizationId: userOrgId } : { creatorId: userId }
     const program = await prisma.studyProgram.findFirst({
       where: {
         id: programId,
-        creatorId: userId,
+        ...accessFilter,
         isActive: true,
       },
     })
@@ -1560,6 +1566,9 @@ router.get('/programs/:programId/enrollments', requireAuth, async (req, res) => 
             _count: {
               select: { members: true },
             },
+            creator: {
+              select: { name: true },
+            },
           },
         },
       },
@@ -1569,6 +1578,82 @@ router.get('/programs/:programId/enrollments', requireAuth, async (req, res) => 
   } catch (error) {
     console.error('Error fetching program enrollments:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch enrollments' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/enrollments/{id}/completion-stats:
+ *   get:
+ *     tags: [Enrollments]
+ *     summary: Group completion analytics for an enrollment
+ *     description: >
+ *       Active member count plus per-lesson and per-activity distinct-member
+ *       completion counts for the enrollment. Used to render group-completion
+ *       fill on lesson-card activity blocks (fraction = completedCount / memberCount).
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema: { type: string, format: uuid }
+ *     responses:
+ *       200:
+ *         description: Completion stats
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 stats:
+ *                   type: object
+ *                   properties:
+ *                     memberCount: { type: integer }
+ *                     lessons:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           lessonScheduleId: { type: string }
+ *                           completedCount: { type: integer }
+ *                           activities:
+ *                             type: array
+ *                             items:
+ *                               type: object
+ *                               properties:
+ *                                 scheduledActivityId: { type: string }
+ *                                 completedCount: { type: integer }
+ *       404:
+ *         description: Enrollment not found
+ */
+router.get('/enrollments/:id/completion-stats', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+    const userOrgId = await getUserOrgId(userId)
+
+    // Verify the enrollment exists and its program is viewable in this user's org.
+    // Org-scoped viewing, matching GET /programs/:programId/enrollments — not creator-only.
+    const accessFilter = userOrgId ? { organizationId: userOrgId } : { creatorId: userId }
+    const enrollment = await prisma.enrollment.findFirst({
+      where: {
+        id,
+        studyProgram: { ...accessFilter, isActive: true },
+      },
+      select: { id: true },
+    })
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const stats = await getEnrollmentCompletionStats(id)
+    res.json({ success: true, stats })
+  } catch (error) {
+    console.error('Error fetching enrollment completion stats:', error)
+    res.status(500).json({ success: false, error: 'Failed to fetch completion stats' })
   }
 })
 

@@ -34,6 +34,22 @@ struct EnrollmentSchedulePage: View {
 
     @State private var cachedWidth: CGFloat?
 
+    /// True once the modal's open animation has finished. Gates swapping loaded
+    /// content in: the network/local-server response can land mid-slide, and
+    /// inserting the content branch then is a structural change that doesn't
+    /// ride the slide-up — it appears at its final position and is clipped by
+    /// the still-opening modal. The skeleton is rendered from frame 1 and rides
+    /// the slide; real content swaps in cleanly once the modal is fully open.
+    /// Only deferred when presented as a modal; pushed navigation shows
+    /// immediately.
+    @Environment(\.isModalRoot) private var isModalRoot
+    @State private var readyToShowContent = false
+
+    /// Group-completion analytics for this enrollment. Drives the per-activity
+    /// fill opacity (fraction = completedCount / memberCount). Loaded in parallel
+    /// with details; nil until loaded → cards fall back to empty outlined blocks.
+    @State private var completionStats: EnrollmentCompletionStats?
+
     var body: some View {
         GeometryReader { geometry in
             let width = cachedWidth ?? geometry.size.width
@@ -67,6 +83,18 @@ struct EnrollmentSchedulePage: View {
             .onAppear {
                 if cachedWidth == nil {
                     cachedWidth = geometry.size.width
+                }
+                // Hold the structure stable until the modal finishes opening so
+                // loaded content rides the slide instead of popping in clipped.
+                // (Appear spring is response 0.4; 0.5s covers the settle.)
+                if isModalRoot {
+                    if !readyToShowContent {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            readyToShowContent = true
+                        }
+                    }
+                } else {
+                    readyToShowContent = true
                 }
             }
         }
@@ -110,7 +138,11 @@ struct EnrollmentSchedulePage: View {
                 isLoading = false
                 return
             }
-            await loadEnrollmentDetails()
+            // Load schedule and completion analytics concurrently so fills are
+            // ready when content appears.
+            async let details: Void = loadEnrollmentDetails()
+            async let stats: Void = loadCompletionStats()
+            _ = await (details, stats)
         }
         .alert("Delete Lesson?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -159,8 +191,9 @@ struct EnrollmentSchedulePage: View {
                 onIconTap: { onDismiss() }
             )
 
-            if isLoading {
-                // Loading state
+            if isLoading || !readyToShowContent {
+                // Loading state (also shown until the modal finishes opening so
+                // content doesn't swap in mid-slide and get clipped).
                 SwipeableScrollView {
                     VStack(spacing: 8) {
                         ForEach(0..<10, id: \.self) { _ in
@@ -290,6 +323,17 @@ struct EnrollmentSchedulePage: View {
                 self.error = error.localizedDescription
                 isLoading = false
             }
+        }
+    }
+
+    /// Load group-completion analytics. Failures are non-fatal — the cards just
+    /// fall back to empty outlined blocks until/unless stats are available.
+    private func loadCompletionStats() async {
+        do {
+            let stats = try await EnrollmentActions().getEnrollmentCompletionStats(id: enrollment.id)
+            await MainActor.run { completionStats = stats }
+        } catch {
+            NSLog("⚠️ Failed to load enrollment completion stats: \(error)")
         }
     }
 
@@ -434,14 +478,32 @@ struct EnrollmentSchedulePage: View {
     // MARK: - Card Data Mapping
 
     private func cardLessonData(for schedule: LessonSchedule) -> CardLessonData {
-        let isCompleted = schedule.isCompleted == true || schedule.scheduledDate < Date()
+        // Per-activity completion counts for this lesson, keyed by scheduled
+        // activity id. The fraction (completed / members) drives the fill opacity.
+        let memberCount = completionStats?.memberCount ?? 0
+        let lessonStat = completionStats?.lessons.first { $0.lessonScheduleId == schedule.id }
+        let completedByActivity: [String: Int] = (lessonStat?.activities ?? [])
+            .reduce(into: [:]) { $0[$1.scheduledActivityId] = $1.completedCount }
 
-        let activities = schedule.lesson.activities.sorted(by: { $0.orderNumber < $1.orderNumber }).map { activity in
-            LessonActivityData(
+        // A lesson is "released" once its scheduled date is today or in the past,
+        // which gives the card its brand (purple) background.
+        let calendar = Calendar.current
+        let isReleased = calendar.startOfDay(for: schedule.scheduledDate) <= calendar.startOfDay(for: Date())
+
+        let activities = schedule.lesson.activities.sorted(by: { $0.orderNumber < $1.orderNumber }).map { activity -> LessonActivityData in
+            let status: LessonActivityStatus
+            if completionStats != nil, memberCount > 0 {
+                let completed = completedByActivity[activity.id] ?? 0
+                status = .percentComplete(Double(completed) / Double(memberCount))
+            } else {
+                // Stats not loaded yet (or no members) → empty outlined block.
+                status = .incomplete
+            }
+            return LessonActivityData(
                 icon: ActivityStyle.icon(forRawType: activity.type),
                 type: activity.type,
                 title: activity.title ?? activityTypeLabel(for: activity.type),
-                status: isCompleted ? .complete : .default
+                status: status
             )
         }
 
@@ -452,7 +514,8 @@ struct EnrollmentSchedulePage: View {
             activities: activities,
             title: schedule.lesson.title,
             date: schedule.scheduledDate,
-            estimatedMinutes: schedule.lesson.totalEstimatedMinutes
+            estimatedMinutes: schedule.lesson.totalEstimatedMinutes,
+            isReleased: isReleased
         )
     }
 

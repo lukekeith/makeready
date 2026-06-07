@@ -155,6 +155,30 @@ struct EnrollmentActions {
         return enrollment
     }
 
+    /// Fetch group-completion analytics for an enrollment (member count plus
+    /// per-lesson and per-activity distinct-member completion counts). Used to
+    /// render group-completion fill on the enrollment lesson cards.
+    @MainActor
+    func getEnrollmentCompletionStats(id: String) async throws -> EnrollmentCompletionStats {
+        struct Response: Decodable {
+            let success: Bool
+            let stats: EnrollmentCompletionStats?
+            let error: String?
+        }
+
+        let response: Response = try await api.get(
+            "/api/enrollments/\(id)/completion-stats",
+            responseType: Response.self
+        )
+
+        guard response.success, let stats = response.stats else {
+            throw APIError.serverError(response.error ?? "Failed to fetch completion stats")
+        }
+
+        NSLog("📊 EnrollmentActions: Loaded completion stats for \(id) (\(stats.lessons.count) lessons, \(stats.memberCount) members)")
+        return stats
+    }
+
     // MARK: - Create Enrollment
 
     /// Create a new enrollment

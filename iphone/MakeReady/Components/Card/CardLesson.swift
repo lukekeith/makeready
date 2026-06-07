@@ -26,7 +26,10 @@ struct CardLesson: View {
     }
 
     private var hasIncompleteActivities: Bool {
-        data.activities.contains { $0.status == .incomplete }
+        data.activities.contains {
+            if case .incomplete = $0.status { return true }
+            return false
+        }
     }
 
     var body: some View {
@@ -99,8 +102,14 @@ struct CardLesson: View {
     // MARK: - Lesson Mode
 
     private var lessonBackgroundColor: Color {
-        let hasIncomplete = data.activities.contains { $0.status == .incomplete }
-        if showAnimatedBorder || !hasIncomplete {
+        let hasIncomplete = data.activities.contains {
+            if case .incomplete = $0.status { return true }
+            return false
+        }
+        // Released lessons (date today/past) take the brand background. The
+        // legacy incomplete-activity check is preserved for non-enrollment cards.
+        let highlight = data.isReleased || hasIncomplete
+        if showAnimatedBorder || !highlight {
             return Color(hex: "#252936")
         }
         return Color(hex: "#201B48")
@@ -428,7 +437,7 @@ struct CardLesson: View {
                     switch activity.status {
                     case .default:
                         Color.white.opacity(0.1)
-                    case .incomplete:
+                    case .incomplete, .percentComplete:
                         Color(hex: "#6c47ff")
                     case .complete:
                         Color.white.opacity(0.2)

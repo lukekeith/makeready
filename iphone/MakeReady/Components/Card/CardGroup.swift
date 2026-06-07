@@ -28,11 +28,20 @@ struct CardGroup: View {
 
                 // Right: Content
                 VStack(alignment: .leading, spacing: 0) {
-                    // Title (no subtitle for Groups)
-                    Text(data.title)
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(.white)
-                        .lineLimit(1)
+                    // Title + optional subtitle (e.g. the group leader's name)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(data.title)
+                            .font(.system(size: 17, weight: .bold))
+                            .foregroundColor(.white)
+                            .lineLimit(1)
+
+                        if let subtitle = data.subtitle {
+                            Text(subtitle)
+                                .font(.system(size: 14, weight: .regular))
+                                .foregroundColor(.white.opacity(0.5))
+                                .lineLimit(1)
+                        }
+                    }
 
                     // Metadata row
                     HStack(spacing: 16) {

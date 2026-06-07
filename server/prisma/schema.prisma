@@ -1132,6 +1132,7 @@ model MemberActivityProgress {
   @@index([lessonScheduleId])
   @@index([scheduledActivityId])
   @@index([memberId, completedAt])
+  @@index([lessonScheduleId, scheduledActivityId, completedAt])
   @@map("member_activity_progress")
 }
 
@@ -1158,6 +1159,7 @@ model MemberVideoProgress {
   @@index([lessonScheduleId])
   @@index([scheduledActivityId])
   @@index([memberId, completedAt])
+  @@index([lessonScheduleId, scheduledActivityId, completedAt])
   @@map("member_video_progress")
 }
 

@@ -2841,6 +2841,7 @@ models:
       - fields: [lessonScheduleId]
       - fields: [scheduledActivityId]
       - fields: [memberId, completedAt]
+      - fields: [lessonScheduleId, scheduledActivityId, completedAt]
     unique:
       - fields: [memberId, lessonScheduleId, scheduledActivityId]
 
@@ -2915,6 +2916,7 @@ models:
       - fields: [lessonScheduleId]
       - fields: [scheduledActivityId]
       - fields: [memberId, completedAt]
+      - fields: [lessonScheduleId, scheduledActivityId, completedAt]
     unique:
       - fields: [memberId, lessonScheduleId, scheduledActivityId]
 

@@ -671,10 +671,8 @@ struct GroupHomePage: View {
                 .tracking(0.5)
 
             // Upcoming lesson card
-            UpcomingLessonCard(
-                schedule: schedule,
-                programName: enrollment.studyProgram?.name ?? "Study",
-                coverImageUrl: enrollment.studyProgram?.coverImageUrl,
+            CardLesson(
+                data: cardLessonData(for: schedule, enrollment: enrollment),
                 onTap: {
                     handleNextLessonTap(schedule: schedule, enrollment: enrollment)
                 }
@@ -687,6 +685,39 @@ struct GroupHomePage: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 16)
+    }
+
+    // MARK: - Card Data Mapping
+
+    private func cardLessonData(for schedule: LessonSchedule, enrollment: EnrollmentWithProgram) -> CardLessonData {
+        let activities = schedule.lesson.activities.sorted(by: { $0.orderNumber < $1.orderNumber }).map { activity in
+            LessonActivityData(
+                icon: ActivityStyle.icon(forRawType: activity.type),
+                type: activity.type,
+                title: activity.title ?? activityTypeLabel(for: activity.type),
+                status: .incomplete
+            )
+        }
+
+        return CardLessonData(
+            id: schedule.id,
+            day: schedule.lesson.dayNumber,
+            mode: .lesson,
+            activities: activities,
+            title: schedule.lesson.title,
+            date: schedule.scheduledDate,
+            coverImageUrl: enrollment.studyProgram?.coverImageUrl,
+            estimatedMinutes: schedule.lesson.totalEstimatedMinutes
+        )
+    }
+
+    private func activityTypeLabel(for type: String) -> String {
+        switch type {
+        case "READ": return "Read"
+        case "VIDEO": return "Video"
+        case "USER_INPUT": return "Response"
+        default: return type.capitalized
+        }
     }
 
     private func handleNextLessonTap(schedule: LessonSchedule, enrollment: EnrollmentWithProgram) {

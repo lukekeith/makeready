@@ -56,6 +56,19 @@ enum ActivityStyle {
                 borderColor: nil,
                 borderWidth: 0
             )
+        case .percentComplete(let fraction):
+            // Always-present brand border (like .incomplete), with the fill at
+            // an opacity equal to the completion fraction. Clamp defensively.
+            // Once anyone has completed it, the icon goes white so it stays
+            // legible over the colored fill; an empty (0%) block keeps the
+            // brand-colored icon.
+            let clamped = min(max(fraction, 0), 1)
+            return ActivityAppearance(
+                backgroundColor: brandColor.opacity(clamped),
+                iconColor: clamped > 0 ? Color.white : brandColor,
+                borderColor: brandColor,
+                borderWidth: 1.5
+            )
         }
     }
 

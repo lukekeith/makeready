@@ -124,6 +124,9 @@ public struct CardEventData {
 public struct CardGroupData {
     public let id: String
     public let title: String
+    /// Optional secondary line shown directly beneath the title (e.g. the
+    /// group leader's name). Hidden when nil.
+    public let subtitle: String?
     public let imageStyle: CardImageStyle
     public let metadata: [DataItem]
     public let isSelected: Bool
@@ -136,6 +139,7 @@ public struct CardGroupData {
     public init(
         id: String,
         title: String,
+        subtitle: String? = nil,
         imageStyle: CardImageStyle,
         metadata: [DataItem] = [],
         isSelected: Bool = false,
@@ -144,6 +148,7 @@ public struct CardGroupData {
     ) {
         self.id = id
         self.title = title
+        self.subtitle = subtitle
         self.imageStyle = imageStyle
         self.metadata = metadata
         self.isSelected = isSelected
@@ -309,6 +314,10 @@ public enum LessonActivityStatus {
     case `default`
     case incomplete
     case complete
+    /// Group-completion fill: brand-colored border always shown, with the fill
+    /// at an opacity equal to the fraction (0…1) of members who completed the
+    /// activity. 0 reads as an empty outlined block. Used on enrollment cards.
+    case percentComplete(Double)
 }
 
 public struct LessonActivityData: Identifiable {
@@ -374,6 +383,10 @@ public struct CardLessonData {
     public let status: CardLessonStatus?
     public let coverImageUrl: String?
     public let estimatedMinutes: Int?
+    /// Whether the lesson has been released (its date is today or in the past).
+    /// In `.lesson` mode this drives the card background: released → brand
+    /// (purple), otherwise the neutral default. Defaults to false.
+    public let isReleased: Bool
     public let onTap: (() -> Void)?
 
     // Backward-compatible init (defaults to .planning mode)
@@ -395,6 +408,7 @@ public struct CardLessonData {
         self.status = nil
         self.coverImageUrl = nil
         self.estimatedMinutes = nil
+        self.isReleased = false
         self.onTap = onTap
     }
 
@@ -412,6 +426,7 @@ public struct CardLessonData {
         status: CardLessonStatus? = nil,
         coverImageUrl: String? = nil,
         estimatedMinutes: Int? = nil,
+        isReleased: Bool = false,
         onTap: (() -> Void)? = nil
     ) {
         self.id = id
@@ -426,6 +441,7 @@ public struct CardLessonData {
         self.status = status
         self.coverImageUrl = coverImageUrl
         self.estimatedMinutes = estimatedMinutes
+        self.isReleased = isReleased
         self.onTap = onTap
     }
 }
