@@ -72,7 +72,7 @@ class ComponentSmokeTest extends TestCase
             '<x-primitive.avatar src="/photo.jpg" alt="User" fallback="JD" />'
         );
         $html->assertSee('Avatar');
-        $html->assertSee('Avatar--has-image');
+        $html->assertSee('Avatar__image');
         $html->assertSee('/photo.jpg');
     }
 
