@@ -35,6 +35,7 @@ import joinRoutes from './routes/join.js'
 import groupJoinRequestRoutes from './routes/group-join-requests.js'
 import eventsRoutes from './routes/events.js'
 import activityLogsRoutes from './routes/activity-logs.js'
+import engagementRoutes from './routes/engagement.js'
 import notesRoutes from './routes/notes.js'
 import activityProgressRoutes from './routes/activity-progress.js'
 import memberLessonsRoutes from './routes/member-lessons.js'
@@ -270,10 +271,14 @@ setupSwagger(app)
 app.get('/health', async (_req, res) => {
   const health: {
     status: string
+    service: string
     timestamp: string
     database?: { status: string; error?: string }
   } = {
     status: 'ok',
+    // Stable fingerprint so clients (e.g. the iPhone app's local port healer)
+    // can positively identify a MakeReady API vs. other dev servers on nearby ports.
+    service: 'makeready',
     timestamp: new Date().toISOString(),
   }
 
@@ -450,6 +455,10 @@ app.use('/api/activities', activitiesRoutes)
 
 // Activity logs routes (read-only logging for debugging)
 app.use('/api/activity-logs', activityLogsRoutes)
+
+// Engagement analytics (leader dashboard heatmap + weekly charts, sourced
+// from real study progress rather than the request/audit log)
+app.use('/api/engagement', engagementRoutes)
 
 // API keys routes (CRUD for API key management)
 app.use('/api/api-keys', apiKeysRoutes)

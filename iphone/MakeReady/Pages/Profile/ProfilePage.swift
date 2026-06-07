@@ -104,9 +104,15 @@ struct ProfilePage: View {
                 Configuration.localServerIP = localIP
             }
 
-            // Auto-check health of the currently selected environment
+            // Auto-check health of the currently selected environment.
+            // For Local, heal the API port first (it may have moved) so the
+            // health check and displayed URL reflect the right port.
             if Configuration.devMode {
-                checkEnvironmentHealth(selectedEnvironment)
+                if selectedEnvironment == .local {
+                    healLocalPortThenCheck()
+                } else {
+                    checkEnvironmentHealth(selectedEnvironment)
+                }
             }
         }
     }
@@ -128,7 +134,11 @@ extension ProfilePage {
                     Button {
                         selectedEnvironment = env
                         Configuration.selectedEnvironment = env
-                        checkEnvironmentHealth(env)
+                        if env == .local {
+                            healLocalPortThenCheck()
+                        } else {
+                            checkEnvironmentHealth(env)
+                        }
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: selectedEnvironment == env ? "circle.inset.filled" : "circle")
@@ -244,6 +254,19 @@ extension ProfilePage {
                 .onChange(of: text.wrappedValue) { _, newValue in
                     onSave(newValue)
                 }
+        }
+    }
+
+    /// Heal the Local API port (probe the configured range for a MakeReady
+    /// server), reflect any change back into the field, then run the health check.
+    private func healLocalPortThenCheck() {
+        environmentStatus[.local] = .checking
+        Task {
+            await LocalPortHealer.heal()
+            await MainActor.run {
+                apiPort = Configuration.localAPIPort
+                checkEnvironmentHealth(.local)
+            }
         }
     }
 

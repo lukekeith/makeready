@@ -46,6 +46,11 @@ struct MakeReadyApp: App {
                 // Pre-download Bible data in background on app launch
                 await BibleCacheManager.shared.preloadBible()
             }
+            .task {
+                // On Local dev builds, make sure we're pointed at the right API
+                // port — heals it within the configured range if it moved.
+                await LocalPortHealer.heal()
+            }
         }
     }
 

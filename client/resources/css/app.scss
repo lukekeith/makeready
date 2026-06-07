@@ -3,6 +3,7 @@
 
 // @use rules must come first
 @use 'styles/tokens';
+@use 'styles/palette';
 @use 'layouts/auth' as layout-auth;
 @use 'card-depth';
 

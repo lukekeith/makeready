@@ -81,8 +81,10 @@ struct HomeActions {
     @MainActor
     private func loadHeatmapData() async {
         do {
+            let tz = TimeZone.current.identifier
+                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "UTC"
             let response: HeatmapResponse = try await api.get(
-                "/api/activity-logs/stats/heatmap",
+                "/api/engagement/heatmap?timezone=\(tz)&days=7",
                 responseType: HeatmapResponse.self
             )
 
@@ -97,8 +99,10 @@ struct HomeActions {
     @MainActor
     private func loadWeeklyActivityData() async {
         do {
+            let tz = TimeZone.current.identifier
+                .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "UTC"
             let response: WeeklyStatsResponse = try await api.get(
-                "/api/activity-logs/stats",
+                "/api/engagement/weekly?timezone=\(tz)&days=7",
                 responseType: WeeklyStatsResponse.self
             )
 

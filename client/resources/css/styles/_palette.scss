@@ -1,0 +1,269 @@
+// _palette.scss — design-system colors, generated from resources/export.json
+// (Figma "Primitives" + "Colors" collections; color tokens only). Do not edit by hand.
+//
+// Use in ANY scss:
+//   CSS vars:   color: var(--color-brand-500);   background: var(--bg-canvas);
+//   SCSS time:  @use 'styles/palette';   border: 1px solid palette.color('neutral-200');
+
+@use 'sass:map';
+
+// ─── Primitive palette (flat map for compile-time SCSS use) ───────────────────
+$palette: (
+  'white': #ffffff,
+  'black': #000000,
+  'neutral-50': #f5f6f7,
+  'neutral-100': #edeff2,
+  'neutral-200': #e5e7eb,
+  'neutral-300': #d1d5dc,
+  'neutral-400': #99a1af,
+  'neutral-500': #6a7282,
+  'neutral-600': #4a5565,
+  'neutral-700': #364153,
+  'neutral-800': #1e2939,
+  'neutral-900': #101828,
+  'neutral-950': #030712,
+  'brand-50': #e4e8ff,
+  'brand-100': #d1d8ff,
+  'brand-200': #b1bcff,
+  'brand-300': #a19bff,
+  'brand-400': #957aff,
+  'brand-500': #6c47ff,
+  'brand-600': #5c36f7,
+  'brand-700': #4522d3,
+  'brand-800': #3718b0,
+  'brand-900': #2d158b,
+  'brand-950': #24116e,
+  'indigo-50': #eef2ff,
+  'indigo-100': #e0e7ff,
+  'indigo-200': #c6d2ff,
+  'indigo-300': #a3b3ff,
+  'indigo-400': #7c86ff,
+  'indigo-500': #615fff,
+  'indigo-600': #4f39f6,
+  'indigo-700': #432dd7,
+  'indigo-800': #372aac,
+  'indigo-900': #312c85,
+  'indigo-950': #1e1a4d,
+  'error-50': #fef2f2,
+  'error-100': #ffe2e2,
+  'error-200': #ffc9c9,
+  'error-300': #ffa2a2,
+  'error-400': #ff6467,
+  'error-500': #fb2c36,
+  'error-600': #e7000b,
+  'error-700': #c10007,
+  'error-800': #9f0712,
+  'error-900': #82181a,
+  'error-950': #460809,
+  'warning-50': #fffbeb,
+  'warning-100': #fef3c6,
+  'warning-200': #fee685,
+  'warning-300': #ffd230,
+  'warning-400': #ffb900,
+  'warning-500': #fe9a00,
+  'warning-600': #e17100,
+  'warning-700': #bb4d00,
+  'warning-800': #973c00,
+  'warning-900': #7b3306,
+  'warning-950': #461901,
+  'success-50': #f0fdf4,
+  'success-100': #dcfce7,
+  'success-200': #b9f8cf,
+  'success-300': #7bf1a8,
+  'success-400': #05df72,
+  'success-500': #00c950,
+  'success-600': #00a63e,
+  'success-700': #008236,
+  'success-800': #016630,
+  'success-900': #0d542b,
+  'success-950': #032e15,
+  'dark-neutral-50': #3d3d40,
+  'dark-neutral-100': #38393b,
+  'dark-neutral-200': #363639,
+  'dark-neutral-300': #333437,
+  'dark-neutral-400': #2e2f32,
+  'dark-neutral-500': #2c2d30,
+  'dark-neutral-600': #27282b,
+  'dark-neutral-700': #252629,
+  'dark-neutral-800': #232426,
+  'dark-neutral-900': #1e1f22,
+  'dark-neutral-950': #121316,
+  'alpha-white-0': rgba(255, 255, 255, 0.01),
+  'alpha-black-20': rgba(0, 0, 0, 0.2),
+  'alpha-black-50': rgba(0, 0, 0, 0.5),
+  'alpha-brand-30': rgba(20, 71, 230, 0.3),
+  'alpha-success-20': rgba(0, 201, 80, 0.2),
+  'alpha-warning-20': rgba(254, 154, 0, 0.2),
+  'alpha-error-20': rgba(251, 44, 54, 0.2),
+);
+
+@function color($name) { @return map.get($palette, $name); }
+
+// ─── CSS custom properties ────────────────────────────────────────────────────
+:root {
+  // Primitives
+  // Base
+  --color-white: #ffffff;
+  --color-black: #000000;
+  // Neutral
+  --color-neutral-50: #f5f6f7;
+  --color-neutral-100: #edeff2;
+  --color-neutral-200: #e5e7eb;
+  --color-neutral-300: #d1d5dc;
+  --color-neutral-400: #99a1af;
+  --color-neutral-500: #6a7282;
+  --color-neutral-600: #4a5565;
+  --color-neutral-700: #364153;
+  --color-neutral-800: #1e2939;
+  --color-neutral-900: #101828;
+  --color-neutral-950: #030712;
+  // Brand
+  --color-brand-50: #e4e8ff;
+  --color-brand-100: #d1d8ff;
+  --color-brand-200: #b1bcff;
+  --color-brand-300: #a19bff;
+  --color-brand-400: #957aff;
+  --color-brand-500: #6c47ff;
+  --color-brand-600: #5c36f7;
+  --color-brand-700: #4522d3;
+  --color-brand-800: #3718b0;
+  --color-brand-900: #2d158b;
+  --color-brand-950: #24116e;
+  // Secondary
+  --color-indigo-50: #eef2ff;
+  --color-indigo-100: #e0e7ff;
+  --color-indigo-200: #c6d2ff;
+  --color-indigo-300: #a3b3ff;
+  --color-indigo-400: #7c86ff;
+  --color-indigo-500: #615fff;
+  --color-indigo-600: #4f39f6;
+  --color-indigo-700: #432dd7;
+  --color-indigo-800: #372aac;
+  --color-indigo-900: #312c85;
+  --color-indigo-950: #1e1a4d;
+  // Error
+  --color-error-50: #fef2f2;
+  --color-error-100: #ffe2e2;
+  --color-error-200: #ffc9c9;
+  --color-error-300: #ffa2a2;
+  --color-error-400: #ff6467;
+  --color-error-500: #fb2c36;
+  --color-error-600: #e7000b;
+  --color-error-700: #c10007;
+  --color-error-800: #9f0712;
+  --color-error-900: #82181a;
+  --color-error-950: #460809;
+  // Warning
+  --color-warning-50: #fffbeb;
+  --color-warning-100: #fef3c6;
+  --color-warning-200: #fee685;
+  --color-warning-300: #ffd230;
+  --color-warning-400: #ffb900;
+  --color-warning-500: #fe9a00;
+  --color-warning-600: #e17100;
+  --color-warning-700: #bb4d00;
+  --color-warning-800: #973c00;
+  --color-warning-900: #7b3306;
+  --color-warning-950: #461901;
+  // Success
+  --color-success-50: #f0fdf4;
+  --color-success-100: #dcfce7;
+  --color-success-200: #b9f8cf;
+  --color-success-300: #7bf1a8;
+  --color-success-400: #05df72;
+  --color-success-500: #00c950;
+  --color-success-600: #00a63e;
+  --color-success-700: #008236;
+  --color-success-800: #016630;
+  --color-success-900: #0d542b;
+  --color-success-950: #032e15;
+  // Dark Mode
+  --color-dark-neutral-50: #3d3d40;
+  --color-dark-neutral-100: #38393b;
+  --color-dark-neutral-200: #363639;
+  --color-dark-neutral-300: #333437;
+  --color-dark-neutral-400: #2e2f32;
+  --color-dark-neutral-500: #2c2d30;
+  --color-dark-neutral-600: #27282b;
+  --color-dark-neutral-700: #252629;
+  --color-dark-neutral-800: #232426;
+  --color-dark-neutral-900: #1e1f22;
+  --color-dark-neutral-950: #121316;
+  // Alpha
+  --color-alpha-white-0: rgba(255, 255, 255, 0.01);
+  --color-alpha-black-20: rgba(0, 0, 0, 0.2);
+  --color-alpha-black-50: rgba(0, 0, 0, 0.5);
+  --color-alpha-brand-30: rgba(20, 71, 230, 0.3);
+  --color-alpha-success-20: rgba(0, 201, 80, 0.2);
+  --color-alpha-warning-20: rgba(254, 154, 0, 0.2);
+  --color-alpha-error-20: rgba(251, 44, 54, 0.2);
+
+  // Semantic — Background
+  --bg-canvas: var(--color-neutral-50);
+  --bg-surface: var(--color-white);
+  --bg-subtle: var(--color-neutral-50);
+  --bg-subtle-2: var(--color-neutral-100);
+  --bg-disabled: var(--color-neutral-200);
+  --bg-brand-primary: var(--color-brand-700);
+  --bg-brand-secondary: var(--color-brand-900);
+  --bg-brand-subtle: var(--color-brand-50);
+  --bg-brand-subtle-2: var(--color-brand-100);
+  --bg-success-subtle: var(--color-success-50);
+  --bg-warning-subtle: var(--color-warning-50);
+  --bg-error-subtle: var(--color-error-50);
+  --bg-focus: var(--color-alpha-white-0);
+  --bg-overlay: var(--color-alpha-black-50);
+
+  // Semantic — Foreground
+  --fg-primary: var(--color-neutral-950);
+  --fg-secondary: var(--color-neutral-700);
+  --fg-tertiary: var(--color-neutral-500);
+  --fg-disabled: var(--color-neutral-400);
+  --fg-brand-primary: var(--color-brand-700);
+  --fg-brand-secondary: var(--color-brand-900);
+  --fg-inverse: var(--color-white);
+  --fg-white: var(--color-white);
+  --fg-error: var(--color-error-600);
+  --fg-warning: var(--color-warning-600);
+  --fg-success: var(--color-success-600);
+
+  // Semantic — Border
+  --border-primary: var(--color-neutral-200);
+  --border-brand-subtle: var(--color-brand-200);
+  --border-brand-primary: var(--color-brand-700);
+  --border-brand-secondary: var(--color-brand-900);
+  --border-disabled: var(--color-neutral-100);
+  --border-error: var(--color-error-600);
+
+  // Semantic — Badge
+  --badge-bg-neutral: var(--color-neutral-100);
+  --badge-fg-neutral: var(--color-neutral-700);
+  --badge-dot-neutral: var(--color-neutral-500);
+  --badge-bg-brand: var(--color-brand-100);
+  --badge-fg-brand: var(--color-brand-700);
+  --badge-dot-brand: var(--color-brand-500);
+  --badge-bg-error: var(--color-error-100);
+  --badge-fg-error: var(--color-error-700);
+  --badge-dot-error: var(--color-error-500);
+  --badge-bg-warning: var(--color-warning-100);
+  --badge-fg-warning: var(--color-warning-700);
+  --badge-dot-warning: var(--color-warning-500);
+  --badge-bg-success: var(--color-success-100);
+  --badge-fg-success: var(--color-success-700);
+  --badge-dot-success: var(--color-success-500);
+  --badge-bg-indigo: var(--color-indigo-100);
+  --badge-fg-indigo: var(--color-indigo-700);
+  --badge-dot-indigo: var(--color-indigo-500);
+
+  // Semantic — Data Viz
+  --data-categorical-1: var(--color-indigo-600);
+  --data-categorical-2: #ffffff;
+  --data-categorical-3: #ffffff;
+  --data-categorical-4: #ffffff;
+  --data-categorical-5: #ffffff;
+  --data-categorical-6: #ffffff;
+  --data-categorical-7: #ffffff;
+  --data-categorical-8: #ffffff;
+  --data-categorical-9: #ffffff;
+  --data-categorical-10: #ffffff;
+}

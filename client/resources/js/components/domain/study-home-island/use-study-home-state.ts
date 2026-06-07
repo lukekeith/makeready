@@ -30,12 +30,12 @@ export interface StudyHomeStateOptions {
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 /** Local-midnight Date for day-only comparisons. */
-function startOfDay(d: Date): Date {
+export function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate())
 }
 
 /** Whole calendar days from `from` to `to` (positive = future). */
-function daysBetween(from: Date, to: Date): number {
+export function daysBetween(from: Date, to: Date): number {
   const ms = startOfDay(to).getTime() - startOfDay(from).getTime()
   return Math.round(ms / 86_400_000)
 }

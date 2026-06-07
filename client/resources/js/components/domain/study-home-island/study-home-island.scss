@@ -2,387 +2,219 @@
 // Design tokens from Figma "Study Home Page" (3047:23166) + LessonCard (3075:370).
 
 // Surfaces + white-alpha steps come from the global design tokens in
-// resources/css/styles/_tokens.scss (var(--surface-overlay), var(--white-*)).
+// resources/css/styles/_tokens.scss (var(--surface-overlay), var(--color-white-*)).
 $bg: #0d101a;
 $brand-500: #6c47ff;
 $brand-200: #b1bcff;
 
 .StudyHomeIsland {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  background: $bg;
-  font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-
-  // ─── Parallax background ──────────────────────────────────────────────────
-  &__bg {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 560px;
-    z-index: 0;
-    will-change: transform;
-    max-width: 440px;
-    margin: 0 auto;
-  }
-  &__bg-image {
     position: absolute;
     inset: 0;
-    background-size: cover;
-    background-position: center;
-  }
-  &__bg-gradient {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      180deg,
-      rgba(13, 16, 26, 0.5) 0%,
-      rgba(13, 16, 26, 1) 55%,
-      rgba(13, 16, 26, 1) 100%
-    );
-  }
+    overflow: hidden;
+    background: $bg;
+    font-family:
+        "SF Pro Text",
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
 
-  // ─── Scroll container ─────────────────────────────────────────────────────
-  &__scroll {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: var(--white-20) transparent;
+    // ─── Parallax background ──────────────────────────────────────────────────
+    &__bg {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 560px;
+        z-index: 0;
+        will-change: transform;
+        max-width: 440px;
+        margin: 0 auto;
+    }
+    &__bg-image {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+    }
+    &__bg-gradient {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            180deg,
+            rgba(13, 16, 26, 0.5) 0%,
+            rgba(13, 16, 26, 1) 55%,
+            rgba(13, 16, 26, 1) 100%
+        );
+    }
 
-    &::-webkit-scrollbar { width: 4px; }
-    &::-webkit-scrollbar-track { background: transparent; }
-    &::-webkit-scrollbar-thumb { background: var(--white-20); border-radius: 2px; }
-  }
-  &__content {
-    width: 100%;
-    max-width: 440px;
-    margin: 0 auto;
-    min-height: 100%;
-  }
+    // ─── Scroll container ─────────────────────────────────────────────────────
+    &__scroll {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: var(--color-white-20) transparent;
 
-  // ─── Page title ───────────────────────────────────────────────────────────
-  &__page-title {
-    padding: max(48px, calc(env(safe-area-inset-top) + 16px)) 16px 8px;
-  }
-  &__back {
-    width: 40px;
-    height: 40px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: none;
-    background: transparent;
-    color: #fff;
-    cursor: pointer;
-    border-radius: 8px;
-    margin-left: -8px;
-    &:active { background: var(--white-10); }
-  }
-  &__title {
-    margin: 16px 0 0;
-    font-size: 22px;
-    line-height: 25px;
-    font-weight: 600;
-    letter-spacing: -0.1px;
-    color: #fff;
-  }
+        &::-webkit-scrollbar {
+            width: 4px;
+        }
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        &::-webkit-scrollbar-thumb {
+            background: var(--color-white-20);
+            border-radius: 2px;
+        }
+    }
+    &__content {
+        width: 100%;
+        max-width: 440px;
+        margin: 0 auto;
+        min-height: 100%;
+    }
 
-  &__nav-section {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px;
-  }
+    // ─── Page title ───────────────────────────────────────────────────────────
+    &__page-title {
+        padding: max(48px, calc(env(safe-area-inset-top) + 16px)) 16px 8px;
+    }
+    &__back {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        background: transparent;
+        color: #fff;
+        cursor: pointer;
+        border-radius: 8px;
+        margin-left: -8px;
+        &:active {
+            background: var(--color-white-10);
+        }
+    }
+    &__title {
+        margin: 16px 0 0;
+        font-size: 22px;
+        line-height: 25px;
+        font-weight: 600;
+        letter-spacing: -0.1px;
+        color: #fff;
+    }
 
-  &__bottom-spacer { height: 96px; }
+    &__nav-section {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 8px;
+    }
+
+    &__bottom-spacer {
+        height: 96px;
+    }
 }
 
 // ─── Lesson navigation ────────────────────────────────────────────────────────
 .LessonNav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  height: 56px;
-  padding: 8px;
-  border-radius: var(--radius-lg);
-  background: var(--white-5);
-  backdrop-filter: blur(var(--surface-overlay-blur));
-  -webkit-backdrop-filter: blur(var(--surface-overlay-blur));
-
-  &__arrow {
-    width: 40px;
-    height: 40px;
-    flex-shrink: 0;
     display: flex;
     align-items: center;
-    justify-content: center;
-    border: none;
-    border-radius: var(--radius-full);
-    background: var(--white-5);
-    color: #fff;
-    cursor: pointer;
-    &:disabled { opacity: 0.3; cursor: default; }
-    &:not(:disabled):active { background: var(--white-10); }
-  }
-
-  &__center {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     gap: 8px;
-    padding: 0 8px;
-  }
+    height: 56px;
+    padding: 8px;
+    border-radius: var(--radius-lg);
+    background: var(--color-white-5);
+    backdrop-filter: blur(var(--surface-overlay-blur));
+    -webkit-backdrop-filter: blur(var(--surface-overlay-blur));
 
-  &__count {
-    display: flex;
-    align-items: baseline;
-    gap: 4px;
-    color: #fff;
-    font-size: 13px;
-    line-height: 16px;
-  }
-  &__count-current,
-  &__count-sep,
-  &__count-total { font-weight: 600; }
-  &__count-label {
-    margin-left: 4px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-size: 11px;
-    color: var(--white-50);
-  }
+    &__arrow {
+        width: 40px;
+        height: 40px;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        border-radius: var(--radius-full);
+        background: var(--color-white-5);
+        color: #fff;
+        cursor: pointer;
+        &:disabled {
+            opacity: 0.3;
+            cursor: default;
+        }
+        &:not(:disabled):active {
+            background: var(--color-white-10);
+        }
+    }
 
-  &__jump {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
-    padding: 8px 14px;
-    border: none;
-    border-radius: 999px;
-    background: $brand-500;
-    color: #fff;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    &:active { filter: brightness(0.92); }
-  }
+    &__center {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 0 8px;
+    }
+
+    &__count {
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+        color: #fff;
+        font-size: 13px;
+        line-height: 16px;
+    }
+    &__count-current,
+    &__count-sep,
+    &__count-total {
+        font-weight: 600;
+    }
+    &__count-label {
+        margin-left: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        font-size: 11px;
+        color: var(--color-white-50);
+    }
+
+    &__jump {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+        padding: 8px 14px;
+        border: none;
+        border-radius: 999px;
+        background: $brand-500;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        &:active {
+            filter: brightness(0.92);
+        }
+    }
 }
 
 // ─── Lesson card (4 states) ─────────────────────────────────────────────────────
-.LessonCard {
-  display: flex;
-  align-items: stretch;
-  gap: 0;
-  height: 108px;
-  padding: 7px;
-  border-radius: 16px;
-  background: rgba($brand-500, 0.2);
-  backdrop-filter: blur(var(--surface-overlay-blur));
-  -webkit-backdrop-filter: blur(var(--surface-overlay-blur));
-  overflow: hidden;
-  cursor: pointer;
-  user-select: none;
-
-  // Purple tint by default (partial/complete); neutral white-5 when no progress.
-  &--incomplete { background: var(--white-5); }
-
-  &--unavailable { cursor: default; }
-
-  &__date {
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 16px;
-    min-width: 64px;
-    border-radius: 8px;
-    background: var(--white-5);
-    &--complete { background: rgba($brand-500, 0.5); }
-  }
-  &__month {
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 22px;
-    color: $brand-500;
-    &--complete { color: #fff; }
-  }
-  &__day {
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 22px;
-    color: #fff;
-  }
-
-  &__details {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 8px;
-    padding: 16px;
-  }
-  &__title {
-    margin: 0;
-    font-size: 17px;
-    line-height: 22px;
-    color: #fff;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  &__meta {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    min-width: 0;
-  }
-  &__activities {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-  &__activity-overflow {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    border-radius: 4px;
-    background: var(--white-5);
-    color: var(--white-70);
-    font-size: 13px;
-    font-weight: 600;
-    // When the whole lesson is complete the hidden activities are too, so the
-    // overflow gets a solid fill like the completed cubes.
-    &--complete {
-      background: $brand-500;
-      color: #fff;
-    }
-  }
-  &__minutes {
-    font-size: 13px;
-    line-height: 18px;
-    color: var(--white-50);
-    white-space: nowrap;
-  }
-  &__availability {
-    font-size: 13px;
-    line-height: 18px;
-    color: #fff;
-  }
-  &__availability-in { color: $brand-200; }
-}
 
 // ─── Activity cube ──────────────────────────────────────────────────────────────
 .ActivityCube {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
-// ─── Calendar ───────────────────────────────────────────────────────────────────
-.StudyCalendar {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-
-  &__weekdays {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-  }
-  &__weekday {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    color: var(--white-50);
-    padding: 8px 0;
-    text-align: center;
-  }
-
-  &__month {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  &__month-label {
-    font-size: 13px;
-    color: var(--white-50);
-    text-align: center;
-  }
-  &__grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 2px;
-  }
-
-  &__cell {
-    position: relative;
-    height: 56px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: 2px solid transparent;
+    flex-shrink: 0;
     border-radius: 4px;
-    background: transparent;
-    padding: 0;
-    cursor: default;
-
-    // Days with a lesson take on the grid-cell card styling.
-    &--lesson {
-      cursor: pointer;
-      background: var(--white-5);
-      backdrop-filter: blur(var(--surface-overlay-blur));
-      -webkit-backdrop-filter: blur(var(--surface-overlay-blur));
-      transition: background-color 300ms ease, border-color 300ms ease;
-      .StudyCalendar__day-num { color: #fff; }
-    }
-    &--selected { border-color: #a19bff !important; background: transparent; }
-    &--completed {
-      background: $brand-500;
-      border-color: $brand-500;
-    }
-  }
-
-  &__progress {
-    position: absolute;
-    left: 6px;
-    right: 6px;
-    bottom: 6px;
-    height: 2px;
-    border-radius: 2px;
-    background: var(--white-10);
+    border: 1px solid transparent;
+    box-sizing: border-box;
     overflow: hidden;
-  }
-  &__progress-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: var(--white-50);
-    transition: width 300ms ease;
-  }
-
-  &__day-num {
-    font-size: 13px;
-    color: var(--white-50);
-  }
 }
+

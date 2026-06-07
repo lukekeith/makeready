@@ -195,7 +195,7 @@
 		KPI00001000000000000001 /* Kpi.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPI00002000000000000001 /* Kpi.swift */; };
 		LDPC0003000000000000001 /* LessonDetailPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = LDPC0001000000000000001 /* LessonDetailPage.swift */; };
 		LSAM0001000000000000001 /* LessonActionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = LSAM0002000000000000001 /* LessonActionMenu.swift */; };
-		LSRV0001000000000000001 /* LocalServerDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = LSRV0002000000000000001 /* LocalServerDiscovery.swift */; };
+		LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
 		MDDO0001000000000001 /* MediaDetailOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDDO0002000000000001 /* MediaDetailOverlay.swift */; };
 		MDED000200000000000001 /* MarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDED000100000000000001 /* MarkdownEditor.swift */; };
@@ -484,7 +484,7 @@
 		KPI00002000000000000001 /* Kpi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kpi.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
 		LSAM0002000000000000001 /* LessonActionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonActionMenu.swift; sourceTree = "<group>"; };
-		LSRV0002000000000000001 /* LocalServerDiscovery.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalServerDiscovery.swift; sourceTree = "<group>"; };
+		LPHL0002000000000000001 /* LocalPortHealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPortHealer.swift; sourceTree = "<group>"; };
 		MDAC0002000000000000001 /* MediaActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaActions.swift; sourceTree = "<group>"; };
 		MDDO0002000000000001 /* MediaDetailOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailOverlay.swift; sourceTree = "<group>"; };
 		MDED000100000000000001 /* MarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditor.swift; sourceTree = "<group>"; };
@@ -1222,7 +1222,7 @@
 				BCMG0002000000000000001 /* BibleCacheManager.swift */,
 				OVLY0002000000000000001 /* OverlayManager.swift */,
 				VSEL0002000000000000001 /* PhotoLibraryManager.swift */,
-				LSRV0002000000000000001 /* LocalServerDiscovery.swift */,
+				LPHL0002000000000000001 /* LocalPortHealer.swift */,
 				PUSHMG0002000000000001 /* PushNotificationManager.swift */,
 				GSRC0001000000000000001 /* GlobalSearchEngine.swift */,
 			);
@@ -1537,7 +1537,7 @@
 				STB0AFF73E5FAA54CF0B89 /* StatePersistence.swift in Sources */,
 				STB2937FED5BDD147D384F /* PersistedState.swift in Sources */,
 				OVLY0001000000000000001 /* OverlayManager.swift in Sources */,
-				LSRV0001000000000000001 /* LocalServerDiscovery.swift in Sources */,
+				LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */,
 				161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */,
 				MODANIM0001000000000001 /* ModalAnimations.swift in Sources */,
 				OPTSHDW0001000000000001 /* OptimizedShadow.swift in Sources */,

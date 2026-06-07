@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import axios from 'axios'
 import { useLessonState } from '../use-lesson-state'
+import ConfirmationMessage from '../../confirmation-message/confirmation-message.vue'
 
 // Props are still declared so the parent's bindings don't fall through as DOM
 // attributes, but the complete step no longer renders its own action — the user
@@ -23,6 +24,13 @@ const props = withDefaults(defineProps<Props>(), {
 
 const lessonState = useLessonState()
 
+// Real members can jump back to their group home; preview has no group home.
+const groupHomeHref = computed(() =>
+  props.isPreview || props.groupId.startsWith('pvw-')
+    ? null
+    : `/member/groups/${props.groupId}`
+)
+
 onMounted(() => {
   lessonState.reportProgress('', true)
 
@@ -41,21 +49,21 @@ onMounted(() => {
 <template>
   <div class="LessonActivity__complete-step">
     <div class="LessonActivity__complete-content">
-      <div style="display: flex; flex-direction: column; align-items: center; gap: 24px; text-align: center;">
-        <div style="width: 64px; height: 64px; background: rgba(255,255,255,0.08); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+      <ConfirmationMessage
+        title="Lesson Complete!"
+        message="Great work! You've finished this lesson."
+      >
+        <template #icon>
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-        </div>
-
-        <h2 style="font-size: 24px; font-weight: 700; color: #fff; margin: 0;">
-          Lesson Complete!
-        </h2>
-
-        <p style="font-size: 15px; color: rgba(255,255,255,0.6); line-height: 1.5; margin: 0; max-width: 280px;">
-          Great work! You've finished this lesson.
-        </p>
-      </div>
+        </template>
+        <template #actions>
+          <a v-if="groupHomeHref" class="ConfirmationMessage__action" :href="groupHomeHref">
+            Return to Group Home
+          </a>
+        </template>
+      </ConfirmationMessage>
     </div>
   </div>
 </template>

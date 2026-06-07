@@ -76,6 +76,25 @@ const completedIds = computed(() =>
   state.lessons.value.filter((l) => state.lessonState(l) === 'complete').map((l) => l.id)
 )
 
+// Badge for the selected lesson card: COMPLETE when done, UP NEXT when it's the
+// lesson the member should do next, otherwise none.
+const selectedBadge = computed(() => {
+  if (state.selectedState.value === 'complete') return 'COMPLETE'
+  if (state.selectedIndex.value === state.nextIndex.value) return 'UP NEXT'
+  return null
+})
+const selectedBadgeVariant = computed(() =>
+  state.selectedState.value === 'complete' ? 'complete' : 'next'
+)
+
+// Id of the "up next" lesson (the one the member should do next), unless it's
+// already complete — drives the calendar cell's up-next styling.
+const upNextId = computed(() => {
+  const next = state.lessons.value[state.nextIndex.value]
+  if (!next || state.lessonState(next) === 'complete') return null
+  return next.id
+})
+
 // ─── Parallax background (moves at 25% of scroll speed) ──────────────────────
 const scrollEl = ref<HTMLElement | null>(null)
 const navSectionEl = ref<HTMLElement | null>(null)
@@ -177,6 +196,9 @@ function goBack() {
             :state="state.selectedState.value"
             :is-preview="isPreview"
             :days-until="state.selected.value ? state.daysUntilAvailable(state.selected.value) : 0"
+            :badge="selectedBadge"
+            :badge-variant="selectedBadgeVariant"
+            :up-next="selectedBadge === 'UP NEXT'"
             @open="openLesson"
           />
         </div>
@@ -186,6 +208,7 @@ function goBack() {
           v-if="showCalendar"
           :lessons="state.lessons.value"
           :selected-id="state.selected.value?.id"
+          :up-next-id="upNextId"
           :completed-ids="completedIds"
           :first-date="stateFirstDate"
           :last-date="stateLastDate"

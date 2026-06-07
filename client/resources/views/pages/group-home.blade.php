@@ -30,45 +30,45 @@
         catch (\Exception $e) { $leaderSinceLabel = null; }
     }
 
-    // --- Normalize enrollments into a uniform list with a computed next lesson ---
+    // --- Normalize enrollments for the MemberStudiesIsland (study meta + full
+    // lessons with hrefs). The island computes the next lesson, its state, and
+    // the status badge using the same lesson-state logic as the study-home page,
+    // so there's no duplicated next-lesson logic here. ---
     $studies = [];
-    $normalizeNext = function ($lessons) {
-        $today = date('Y-m-d');
-        $next = null;
-        foreach (($lessons ?? []) as $lesson) {
-            if (!empty($lesson['completedAt'])) continue;
-            $scheduled = substr($lesson['scheduledDate'] ?? '', 0, 10);
-            if ($scheduled === '' || $scheduled <= $today) { $next = $lesson; break; }
+    $mapStudy = function ($e) use ($groupId) {
+        // Live API returns lessons[]; fixtures provide a single nextLesson.
+        $rawLessons = $e['lessons'] ?? (!empty($e['nextLesson']) ? [$e['nextLesson']] : []);
+        $lessons = [];
+        foreach ($rawLessons as $l) {
+            if (empty($l['id'])) continue;
+            $lessons[] = [
+                'id'               => $l['id'],
+                'dayNumber'        => $l['dayNumber'] ?? null,
+                'title'            => $l['title'] ?? '',
+                'scheduledDate'    => $l['scheduledDate'] ?? null,
+                'completedAt'      => $l['completedAt'] ?? null,
+                'estimatedMinutes' => $l['estimatedMinutes'] ?? null,
+                'href'             => route('lesson.show', ['groupId' => $groupId, 'lessonScheduleId' => $l['id'], 'step' => 1]),
+            ];
         }
-        // Fall back to the first lesson if none are due yet
-        if (!$next && !empty($lessons)) { $next = $lessons[0]; }
-        return $next;
+        return [
+            'id'            => $e['id'] ?? null,
+            'title'         => $e['studyTitle'] ?? $e['study']['title'] ?? '',
+            'description'   => $e['studyDescription'] ?? $e['study']['description'] ?? null,
+            'coverImageUrl' => $e['coverImageUrl'] ?? $e['study']['coverImageUrl'] ?? null,
+            'studyHref'     => !empty($e['id']) ? route('study.home', ['groupId' => $groupId, 'studyEnrollmentId' => $e['id']]) : null,
+            'lessons'       => $lessons,
+        ];
     };
 
     if (is_array($enrollments)) {
-        foreach ($enrollments as $e) {
-            $next = $e['nextLesson'] ?? $normalizeNext($e['lessons'] ?? []);
-            $studies[] = [
-                'id'          => $e['id'] ?? null,
-                'title'       => $e['studyTitle'] ?? $e['study']['title'] ?? '',
-                'description' => $e['studyDescription'] ?? $e['study']['description'] ?? null,
-                'cover'       => $e['coverImageUrl'] ?? $e['study']['coverImageUrl'] ?? null,
-                'next'        => $next,
-            ];
-        }
+        foreach ($enrollments as $e) { $studies[] = $mapStudy($e); }
     } elseif ($enrollmentData) {
-        $next = $enrollmentData['nextLesson'] ?? $normalizeNext($enrollmentData['lessons'] ?? []);
-        $studies[] = [
-            'id'          => $enrollmentData['id'] ?? null,
-            'title'       => $enrollmentData['studyTitle'] ?? $enrollmentData['study']['title'] ?? '',
-            'description' => $enrollmentData['studyDescription'] ?? $enrollmentData['study']['description'] ?? null,
-            'cover'       => $enrollmentData['coverImageUrl'] ?? $enrollmentData['study']['coverImageUrl'] ?? null,
-            'next'        => $next,
-        ];
+        $studies[] = $mapStudy($enrollmentData);
     }
 
     // Hero image: group cover, else first study cover
-    $heroImage = $coverImage ?? ($studies[0]['cover'] ?? null);
+    $heroImage = $coverImage ?? ($studies[0]['coverImageUrl'] ?? null);
 
     // --- Group switcher (header opens a modal of every group the member is in) ---
     $switcherGroups = [];
@@ -167,26 +167,7 @@
 
                 @if(count($studies) > 0)
                     <p class="GroupHome__upnext-label">Your studies</p>
-                    <div class="GroupHome__upnext">
-                        @foreach($studies as $study)
-                            @php
-                                $studyHref = (!empty($study['id']))
-                                    ? route('study.home', ['groupId' => $groupId, 'studyEnrollmentId' => $study['id']])
-                                    : null;
-                                $lessonHref = (!empty($study['next']['id']))
-                                    ? route('lesson.show', ['groupId' => $groupId, 'lessonScheduleId' => $study['next']['id'], 'step' => 1])
-                                    : null;
-                            @endphp
-                            <x-domain.enrolled-study-card
-                                :studyTitle="$study['title']"
-                                :studyDescription="$study['description']"
-                                :coverImageUrl="$study['cover']"
-                                :nextLesson="$study['next']"
-                                :href="$studyHref"
-                                :lessonHref="$lessonHref"
-                            />
-                        @endforeach
-                    </div>
+                    <div class="GroupHome__upnext" data-vue="MemberStudiesIsland" data-props="{{ json_encode(['studies' => $studies], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}"></div>
                 @endif
             </div>
 

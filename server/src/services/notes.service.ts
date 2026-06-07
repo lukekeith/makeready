@@ -984,10 +984,12 @@ export interface SubmitActivityResponseData {
   lessonScheduleId: string
   lessonActivityId: string
   note?: {
-    type: 'OBSERVATION' | 'APPLICATION' | 'PRAYER'
+    type: string
     content: string
   }
-  action?: 'start' | 'skip_to_complete'
+  // 'complete' marks a non-input activity (READ/VIDEO/YOUTUBE/EXEGESIS) done once
+  // the member finishes its content. requireResponse only gates USER_INPUT.
+  action?: 'start' | 'skip_to_complete' | 'complete'
   isGroupLeader?: boolean
 }
 
@@ -1052,10 +1054,26 @@ export async function submitActivityResponse(
 
     // 4. In the new template model, each activity IS a step.
     // action: 'start' → mark the activity as started (not yet complete)
+    // action: 'complete' → mark a non-input activity (READ/VIDEO/YOUTUBE/EXEGESIS)
+    //   complete once its content is finished. requireResponse only governs
+    //   USER_INPUT activities, so it never blocks these.
     // action: 'skip_to_complete' → mark the activity as complete (if requireResponse is false)
     // note provided → save note and mark activity as complete
     const requireResponse = schedule.enrollment.requireResponse
+    const isUserInput = scheduledActivity.type === 'USER_INPUT'
     let shouldComplete = false
+
+    if (action === 'complete') {
+      // USER_INPUT activities are completed by submitting a note (or skipping
+      // when responses aren't required), not by a bare 'complete'.
+      if (isUserInput && requireResponse && !isGroupLeader) {
+        return {
+          success: false,
+          error: 'This activity requires a response',
+        }
+      }
+      shouldComplete = true
+    }
 
     if (action === 'skip_to_complete') {
       if (requireResponse && !isGroupLeader) {

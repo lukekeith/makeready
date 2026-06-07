@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, withDefaults } from 'vue'
 import type { StudyLesson } from './use-study-home-state'
+import './study-calendar.scss'
 
 const props = withDefaults(
   defineProps<{
     lessons: StudyLesson[]
     selectedId?: string
+    upNextId?: string | null
     completedIds?: string[]
     firstDate?: string | null
     lastDate?: string | null
@@ -103,6 +105,7 @@ const months = computed<Month[]>(() => {
             'StudyCalendar__cell--empty': c.day === null,
             'StudyCalendar__cell--lesson': !!c.lesson,
             'StudyCalendar__cell--selected': c.lesson && c.lesson.id === selectedId,
+            'StudyCalendar__cell--up-next': c.lesson && c.lesson.id === upNextId,
             'StudyCalendar__cell--completed': c.lesson && isCompleted(c.lesson.id),
           }"
           :disabled="!c.lesson"

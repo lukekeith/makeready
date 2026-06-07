@@ -56,82 +56,17 @@
     color: rgba(255, 255, 255, 0.7);
   }
 
-  // ---- Embedded lesson card (frosted) — its own click target → the lesson ----
-  &__lesson {
-    display: flex;
-    height: 108px;
-    padding: 7px;
-    border-radius: 16px;
-    background: rgba(13, 16, 26, 0.8);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+  // The embedded lesson is now rendered by the shared <LessonCard> component
+  // (see member-studies-island.vue / lesson-card.scss). When the lesson is open
+  // (available/complete) it's wrapped in this anchor so the whole card links
+  // straight to the lesson; upcoming lessons render a plain div (locked).
+  &__lesson-link {
+    display: block;
     text-decoration: none;
     color: inherit;
-  }
 
-  &__date {
-    flex-shrink: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 16px;
-    border-radius: 8px;
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  &__month {
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 22px;
-    color: #6c47ff;
-  }
-
-  &__day {
-    font-size: 17px;
-    font-weight: 700;
-    line-height: 22px;
-    color: #fff;
-  }
-
-  &__lesson-info {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 8px;
-    padding: 16px;
-  }
-
-  &__badge {
-    align-self: flex-start;
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: #615fff;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 18px;
-    color: #fff;
-    white-space: nowrap;
-
-    &--overdue {
-      background: #e17100;
-    }
-  }
-
-  &__lesson-title {
-    margin: 0;
-    width: 100%;
-    font-size: 15px;
-    line-height: 22px;
-    color: #fff;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    // The whole lesson card is a link here, even for upcoming (locked) lessons,
+    // so keep the pointer cursor (LessonCard sets cursor:default when unavailable).
+    .LessonCard { cursor: pointer; }
   }
 }

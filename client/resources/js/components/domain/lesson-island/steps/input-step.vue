@@ -5,6 +5,7 @@ import { useLessonState } from '../use-lesson-state'
 
 interface Note {
   content?: string
+  createdAt?: string
 }
 
 interface Activity {
@@ -18,7 +19,8 @@ interface Activity {
   helpText?: string
   noteType?: string
   placeholder?: string
-  note?: Note
+  note?: Note          // set in-session after a save (use-lesson-state)
+  notes?: Note[]        // returned by the server, newest first
 }
 
 interface Props {
@@ -30,8 +32,12 @@ const props = withDefaults(defineProps<Props>(), {
   isPreview: false,
 })
 
-// Pre-populate with existing note content if available
-const noteContent = ref(props.activity.note?.content ?? '')
+// Pre-populate with the member's saved response. The server returns notes as a
+// newest-first array (`notes`); an in-session save sets the singular `note`.
+const savedContent =
+  props.activity.note?.content ?? props.activity.notes?.[0]?.content ?? ''
+
+const noteContent = ref(savedContent)
 
 // Derive noteType from activity.noteType or from helpTitle
 const noteType = computed(() => {
@@ -55,7 +61,7 @@ const hasHelp = computed<boolean>(() => {
 const hasContent = computed(() => noteContent.value.trim().length > 0)
 
 // Track what has been saved to avoid redundant saves
-const lastSavedContent = ref(props.activity.note?.content ?? '')
+const lastSavedContent = ref(savedContent)
 const isDirty = computed(() => noteContent.value !== lastSavedContent.value && hasContent.value)
 
 // ─── Debounced auto-save ──────────────────────────────────────────────────────

@@ -66,13 +66,13 @@
   // ─── White alpha scale ─────────────────────────────────────────────────────
   // Translucent white used for borders, dividers, hover/active wells, and muted
   // text on dark surfaces. Steps match the Figma "White/*" variables.
-  --white-0:   rgba(255, 255, 255, 0);
-  --white-5:   rgba(255, 255, 255, 0.05);
-  --white-10:  rgba(255, 255, 255, 0.10);
-  --white-20:  rgba(255, 255, 255, 0.20);
-  --white-50:  rgba(255, 255, 255, 0.50);
-  --white-70:  rgba(255, 255, 255, 0.70);
-  --white-100: rgba(255, 255, 255, 1);
+  --color-white-0:   rgba(255, 255, 255, 0);
+  --color-white-5:   rgba(255, 255, 255, 0.05);
+  --color-white-10:  rgba(255, 255, 255, 0.10);
+  --color-white-20:  rgba(255, 255, 255, 0.20);
+  --color-white-50:  rgba(255, 255, 255, 0.50);
+  --color-white-70:  rgba(255, 255, 255, 0.70);
+  --color-white-100: rgba(255, 255, 255, 1);
 
   // ─── Surfaces ──────────────────────────────────────────────────────────────
   // Frosted overlay surface — #252936 @ 80% over a 20px backdrop blur. Used for

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node scripts/advertise-bonjour.cjs & tsx watch src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "prisma generate && tsc",
     "build:prod": "prisma generate && tsc && cp -r src/generated dist/ && cp -r public dist/",
     "build:only": "tsc",
@@ -86,7 +86,6 @@
     "@types/supertest": "^6.0.3",
     "@types/swagger-jsdoc": "^6.0.4",
     "@vitest/coverage-v8": "^2.1.8",
-    "bonjour": "^3.5.0",
     "dotenv-cli": "^11.0.0",
     "shadcn": "^3.5.0",
     "supertest": "^7.1.4",

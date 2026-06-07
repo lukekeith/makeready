@@ -121,8 +121,11 @@ $white-05: rgba(255, 255, 255, 0.05);
   &__body {
     position: relative;
     z-index: 2;
+    // flex:1 makes the dark sheet fill the viewport when content is short. No
+    // `min-height: 0` here: inside this flex-column scroll container it would let
+    // the body shrink below its content, leaving the overflowing cards (and the
+    // bottom padding) stranded with no space beneath the last card.
     flex: 1;
-    min-height: 0;
     display: flex;
     flex-direction: column;
     gap: 16px;

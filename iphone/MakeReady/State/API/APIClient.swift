@@ -52,7 +52,8 @@ final class APIClient {
 
     private let session: URLSession
 
-    /// Base URL is dynamic (can change when a Bonjour-discovered local server becomes available).
+    /// Base URL is dynamic — resolved from the environment selected on the
+    /// Profile screen (and the local IP/port when running against Local dev).
     private var baseURL: String { Configuration.baseURL }
 
     private init() {

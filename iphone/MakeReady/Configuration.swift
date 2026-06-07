@@ -189,17 +189,9 @@ struct Configuration {
             }
             return "http://127.0.0.1:\(localAPIPort)"
             #else
-            // Physical device — prefer user-specified IP, then Bonjour, then cached
-            if let ip = localServerIP, !ip.isEmpty {
-                return "http://\(ip):\(localAPIPort)"
-            }
-            if let discoveredURL = LocalServerDiscovery.shared.serverURL {
-                return discoveredURL
-            }
-            if let cachedURL = LocalServerDiscovery.shared.cachedServerURL {
-                return cachedURL
-            }
-            return "https://api.makeready.org"
+            // Physical device — use the IP/port configured on the Profile screen
+            // (falls back to defaultLocalIP when unset).
+            return "http://\(localServerIP ?? defaultLocalIP):\(localAPIPort)"
             #endif
 
         case .staging:
@@ -221,17 +213,9 @@ struct Configuration {
             #if targetEnvironment(simulator)
             return "http://localhost:\(localClientPort)"
             #else
-            // Physical device — prefer user-specified IP, then Bonjour, then cached
-            if let ip = localServerIP, !ip.isEmpty {
-                return "http://\(ip):\(localClientPort)"
-            }
-            if let discoveredURL = LocalServerDiscovery.shared.clientURL {
-                return discoveredURL
-            }
-            if let cachedURL = LocalServerDiscovery.shared.cachedClientURL {
-                return cachedURL
-            }
-            return "https://app.makeready.org"
+            // Physical device — use the IP/port configured on the Profile screen
+            // (falls back to defaultLocalIP when unset).
+            return "http://\(localServerIP ?? defaultLocalIP):\(localClientPort)"
             #endif
 
         case .staging:
@@ -299,18 +283,5 @@ struct Configuration {
         print("   Client URL: \(clientBaseURL)")
         print("   Bundle ID: \(bundleIdentifier)")
         print("   Auth Bypass: \(allowAuthBypass ? "Enabled" : "Disabled")")
-
-        if isLocalDevelopment {
-            if let apiURL = LocalServerDiscovery.shared.serverURL {
-                print("   📡 Bonjour API: \(apiURL)")
-            } else {
-                print("   📡 Bonjour API: Searching...")
-            }
-            if let clientURL = LocalServerDiscovery.shared.clientURL {
-                print("   📡 Bonjour Client: \(clientURL)")
-            } else {
-                print("   📡 Bonjour Client: Searching...")
-            }
-        }
     }
 }

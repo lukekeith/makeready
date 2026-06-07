@@ -77,6 +77,21 @@ async function saveVideoProgress(activityId: string, progress: number) {
   }
 }
 
+// Persist completion of a non-input activity (READ/EXEGESIS) once the member
+// finishes its content. USER_INPUT activities complete via note submit instead;
+// VIDEO completes via video-progress. No-op in preview (pvw- handles its own).
+async function markActivityComplete(activityId: string) {
+  if (props.isPreview) return
+  try {
+    await axios.post(
+      `/member/groups/${props.groupId}/lessons/${props.lessonScheduleId}/activity/${activityId}/submit`,
+      { lessonScheduleId: props.lessonScheduleId, action: 'complete' }
+    )
+  } catch (err) {
+    console.error('[LessonActivity] markActivityComplete failed:', err)
+  }
+}
+
 async function visitExegesisHighlight(activityId: string, highlightId: string) {
   try {
     await axios.post(
@@ -145,7 +160,12 @@ async function visitExegesisHighlight(activityId: string, highlightId: string) {
           :fullScreen="!singleActivity"
           @next="state.handleNext"
           @complete="(val: boolean) => {
-            if (val) state.updateActivityState(state.currentStep.value!.activity!.id, { progress: { ...(state.currentStep.value!.activity!.progress ?? {}), completedAt: new Date().toISOString() } })
+            if (val) {
+              const act = state.currentStep.value!.activity!
+              const wasComplete = !!act.progress?.completedAt
+              state.updateActivityState(act.id, { progress: { ...(act.progress ?? {}), completedAt: new Date().toISOString() } })
+              if (!wasComplete) markActivityComplete(act.id)
+            }
             state.reportProgress(val ? 'Reading complete' : 'Continue reading', val)
           }"
           @hide-title="(val: boolean) => { state.hideTitle.value = val }"

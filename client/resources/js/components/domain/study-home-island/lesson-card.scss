@@ -1,0 +1,180 @@
+// LessonCard — shared lesson card UI. Imported by lesson-card.vue so any island
+// that renders a <LessonCard> (study home + member group home) gets these styles.
+// White-alpha steps + surface tokens come from resources/css/styles/_tokens.scss.
+
+$brand-500: #6c47ff;
+$brand-200: #b1bcff;
+
+.LessonCard {
+    display: flex;
+    align-items: stretch;
+    gap: 16px;
+    // Min-height (not fixed) so a card with a badge (COMPLETE + title + activities)
+    // grows to fit instead of clipping its content.
+    min-height: 108px;
+    padding: 16px;
+    border-radius: 16px;
+    background: var(--color-white-5);
+    backdrop-filter: blur(var(--surface-overlay-blur));
+    -webkit-backdrop-filter: blur(var(--surface-overlay-blur));
+    overflow: hidden;
+    cursor: pointer;
+    user-select: none;
+
+    &--incomplete {
+        background: var(--color-white-5);
+    }
+
+    &--unavailable {
+        background: var(--color-white-10);
+        cursor: default;
+    }
+
+    // Completed lesson — success-500 (#00c950) at 20%, via the palette alpha token.
+    &--complete {
+        background: var(--color-alpha-success-20);
+    }
+
+    // Purple is reserved for the up-next card. Declared after --unavailable so a
+    // card that is both up-next and unavailable (next lesson scheduled tomorrow)
+    // still shows purple.
+    &--up-next {
+        background: rgba($brand-500, 0.2);
+    }
+
+    &__date {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 16px;
+        min-width: 64px;
+        border-radius: 8px;
+        background: var(--color-white-5);
+        &--complete {
+            background: var(--color-alpha-success-20);
+        }
+    }
+    &__month {
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 22px;
+        color: $brand-500;
+        &--complete {
+            color: #fff;
+        }
+        // Overdue (incomplete) — matches the INCOMPLETE badge color.
+        &--overdue {
+            color: var(--color-warning-600);
+        }
+    }
+    &__day {
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 22px;
+        color: #fff;
+    }
+
+    &__details {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 8px;
+        padding: 0px;
+        min-height: 96px;
+    }
+    // Status badge at the top of the details ("COMPLETE", "TODAY'S LESSON", etc.)
+    &__badge {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 4px;
+        background: var(--color-white-10, rgba(255, 255, 255, 0.1));
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 18px;
+        letter-spacing: 0.2px;
+        color: #fff;
+        text-transform: uppercase;
+        white-space: nowrap;
+
+        // Completed lesson.
+        &--complete {
+            background: #00a63e;
+            color: #ffffff;
+        }
+        // Current/next available lesson (today's lesson, complete-next).
+        &--next {
+            background: #615fff;
+        }
+        // Overdue lesson.
+        &--overdue {
+            background: var(--color-warning-600);
+        }
+    }
+    &__title {
+        margin: 0;
+        font-size: 17px;
+        line-height: 22px;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        min-height: 32px;
+    }
+    &__activities {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+    &__activity-overflow {
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 4px;
+        background: var(--color-white-5);
+        color: var(--color-white-70);
+        font-size: 13px;
+        font-weight: 600;
+        // When the whole lesson is complete the hidden activities are too, so the
+        // overflow gets a solid fill like the completed cubes.
+        &--complete {
+            background: $brand-500;
+            color: #ffffff;
+        }
+    }
+    &__minutes {
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--color-white-50);
+        white-space: nowrap;
+    }
+    &__no-activities {
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--color-white-50);
+        white-space: nowrap;
+    }
+    &__availability {
+        font-size: 13px;
+        line-height: 18px;
+        color: #fff;
+    }
+    &__availability-in {
+        color: $brand-200;
+    }
+}

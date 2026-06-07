@@ -29,6 +29,7 @@ import NavigationIsland from './components/domain/navigation-island/navigation-i
 import StudyHomeIsland from './components/domain/study-home-island/study-home-island.vue'
 import HomeProfileButton from './components/domain/home-profile-button/home-profile-button.vue'
 import GroupSwitcherIsland from './components/domain/group-switcher-island/group-switcher-island.vue'
+import MemberStudiesIsland from './components/domain/member-studies-island/member-studies-island.vue'
 import SlidesIsland from './islands/slides-island/slides-island.vue'
 
 const componentRegistry = {
@@ -50,6 +51,7 @@ const componentRegistry = {
   'StudyHomeIsland': StudyHomeIsland,
   'HomeProfileButton': HomeProfileButton,
   'GroupSwitcherIsland': GroupSwitcherIsland,
+  'MemberStudiesIsland': MemberStudiesIsland,
   'SlidesIsland': SlidesIsland,
 }
 

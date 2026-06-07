@@ -2,12 +2,20 @@
 import { computed } from 'vue'
 import ActivityCube from './activity-cube.vue'
 import type { StudyLesson, LessonState } from './use-study-home-state'
+import './lesson-card.scss'
 
 const props = defineProps<{
   lesson: StudyLesson
   state: LessonState
   isPreview: boolean
   daysUntil: number
+  // Optional status badge shown at the top of the details (e.g. "COMPLETE",
+  // "Next lesson", "Current lesson"). `badgeVariant` controls its color.
+  badge?: string | null
+  badgeVariant?: string
+  // The lesson the member should do next — gets the purple --up-next styling,
+  // even when also unavailable (scheduled in the future).
+  upNext?: boolean
 }>()
 
 const emit = defineEmits<{ (e: 'open', lesson: StudyLesson): void }>()
@@ -50,7 +58,7 @@ function onClick() {
 <template>
   <div
     class="LessonCard"
-    :class="`LessonCard--${state}`"
+    :class="[`LessonCard--${state}`, { 'LessonCard--up-next': upNext }]"
     role="button"
     :tabindex="isUnavailable ? -1 : 0"
     @click="onClick"
@@ -58,11 +66,16 @@ function onClick() {
     @keydown.space.prevent="onClick"
   >
     <div class="LessonCard__date" :class="{ 'LessonCard__date--complete': isComplete }">
-      <span class="LessonCard__month" :class="{ 'LessonCard__month--complete': isComplete }">{{ monthLabel }}</span>
+      <span class="LessonCard__month" :class="{ 'LessonCard__month--complete': isComplete, 'LessonCard__month--overdue': !isComplete && badgeVariant === 'overdue' }">{{ monthLabel }}</span>
       <span class="LessonCard__day">{{ dayLabel }}</span>
     </div>
 
     <div class="LessonCard__details">
+      <span
+        v-if="badge"
+        class="LessonCard__badge"
+        :class="`LessonCard__badge--${badgeVariant ?? 'default'}`"
+      >{{ badge }}</span>
       <p class="LessonCard__title">{{ lesson.title }}</p>
 
       <div class="LessonCard__meta">
@@ -72,7 +85,7 @@ function onClick() {
           </span>
         </template>
         <template v-else>
-          <div class="LessonCard__activities">
+          <div v-if="visibleActivities.length" class="LessonCard__activities">
             <ActivityCube
               v-for="(a, i) in visibleActivities"
               :key="i"
@@ -85,6 +98,7 @@ function onClick() {
               :class="{ 'LessonCard__activity-overflow--complete': isComplete }"
             >+{{ overflowCount }}</div>
           </div>
+          <span v-else class="LessonCard__no-activities">No activities</span>
           <span v-if="minutesLabel" class="LessonCard__minutes">{{ minutesLabel }}</span>
         </template>
       </div>

@@ -266,11 +266,15 @@ const submitActivitySchema = z.object({
   lessonScheduleId: z.string().uuid(),
   note: z
     .object({
-      type: z.enum(['OBSERVATION', 'APPLICATION', 'PRAYER']),
+      // StudyNote.type is a free-form string (OBSERVATION/APPLICATION/PRAYER/
+      // JOURNAL/etc.). Activities can define an arbitrary note type, or none —
+      // the client derives one — so accept any non-empty string here rather than
+      // rejecting otherwise-valid submissions with a 400.
+      type: z.string().min(1),
       content: z.string().min(1),
     })
     .optional(),
-  action: z.enum(['start', 'skip_to_complete']).optional(),
+  action: z.enum(['start', 'skip_to_complete', 'complete']).optional(),
 })
 
 // ============================================================================
