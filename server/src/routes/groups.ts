@@ -762,7 +762,7 @@ router.get('/:id/public', async (req, res) => {
           select: { members: { where: { isActive: true } } },
         },
         creator: {
-          select: { name: true, picture: true },
+          select: { name: true, picture: true, email: true, phoneNumber: true },
         },
       },
     })
@@ -793,7 +793,12 @@ router.get('/:id/public', async (req, res) => {
       createdAt: group.createdAt,
       organizationName,
       creator: group.creator
-        ? { name: group.creator.name, picture: group.creator.picture }
+        ? {
+            name: group.creator.name,
+            picture: group.creator.picture,
+            email: group.creator.email,
+            phoneNumber: group.creator.phoneNumber,
+          }
         : null,
     }
 

@@ -24,6 +24,8 @@
 
     $leaderName    = $creator['name'] ?? null;
     $leaderPicture = $creator['picture'] ?? $creator['avatarUrl'] ?? null;
+    $leaderPhone   = $creator['phoneNumber'] ?? $creator['phone'] ?? null;
+    $leaderEmail   = $creator['email'] ?? null;
     $leaderSinceLabel = null;
     if ($leaderSince) {
         try { $leaderSinceLabel = (new DateTime($leaderSince))->format('F j, Y'); }
@@ -95,6 +97,10 @@
         ],
         'groups' => $switcherGroups,
     ];
+
+    // The whole hero header is the switch trigger, but only when the member
+    // belongs to more than one group (mirrors the island's `canSwitch`).
+    $canSwitch = count($switcherGroups) > 1;
 @endphp
 
 @section('content')
@@ -102,68 +108,68 @@
     <div class="GroupHome__viewport">
         <div class="GroupHome__scroll-container">
 
-            {{-- Hero: cover image fading into the page, with pager + leader on top --}}
+            {{-- Hero: cover image fading into the page, with the switch-group pill +
+                 group identity on top (whole header opens the switcher modal) --}}
             <div class="GroupHome__header">
                 @if($heroImage)
                     <img src="{{ $heroImage }}" alt="" class="GroupHome__hero-image" />
                 @endif
                 <div class="GroupHome__hero-overlay"></div>
 
-                <div class="GroupHome__header-content">
-                    {{-- Leader --}}
-                    @if($leaderName)
-                        <div class="GroupHome__leader">
-                            <x-primitive.avatar
-                                :src="$leaderPicture"
-                                :name="$leaderName"
-                                :alt="$leaderName"
-                                :size="80"
-                                class="GroupHome__leader-avatar"
-                            />
-                            <div class="GroupHome__leader-info">
-                                <p class="GroupHome__leader-name">{{ $leaderName }}</p>
-                                <p class="GroupHome__leader-meta">
-                                    @if($orgName)<span class="GroupHome__leader-org">{{ $orgName }}</span> @endif
-                                    <span class="GroupHome__leader-muted">group leader{{ $leaderSinceLabel ? ' since' : '' }}</span>
-                                    @if($leaderSinceLabel)<span class="GroupHome__leader-date"> {{ $leaderSinceLabel }}</span>@endif
-                                </p>
-                            </div>
-                        </div>
-                    @endif
+                {{-- Group identity over the hero. Tapping anywhere on the header
+                     opens the group switcher modal (when the member is in >1 group).
+                     The island owns the modal; this is its server-rendered fallback. --}}
+                <div class="GroupHome__header-content" data-vue="GroupHeaderIsland" data-props="{{ json_encode($switcherProps, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}">
+                    <div class="GroupHeader{{ $canSwitch ? '' : ' GroupHeader--static' }}">
+                        @if($canSwitch)
+                            <span class="GroupHeader__switch">
+                                Switch group
+                                <svg class="GroupHeader__switch-icon" width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                                    <path d="M3 8H13M13 8L9 4M13 8L9 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </span>
+                        @endif
+                        <span class="GroupHeader__info">
+                            <span class="GroupHeader__heading">
+                                <span class="GroupHeader__name">{{ $groupName }}</span>
+                                @if($orgName)<span class="GroupHeader__org">{{ $orgName }}</span>@endif
+                            </span>
+                            <span class="GroupHeader__meta">
+                                <span class="GroupHeader__privacy">
+                                    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                                        <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5" />
+                                        @if($isPrivate)
+                                            <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.7949 3.25 13.25 4.70507 13.25 6.5V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                        @else
+                                            <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.4476 3.25 12.674 4.19668 13.0944 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                                        @endif
+                                    </svg>
+                                    {{ $isPrivate ? 'Private group' : 'Public group' }}
+                                </span>
+                                <span class="GroupHeader__count">
+                                    <span class="GroupHeader__count-value">{{ $memberCount }}</span>
+                                    <span class="GroupHeader__count-label">{{ \Illuminate\Support\Str::plural('member', $memberCount) }}</span>
+                                </span>
+                            </span>
+                        </span>
+                    </div>
                 </div>
             </div>
 
             <div class="GroupHome__body">
             {{-- Group panel --}}
             <div class="GroupHome__panel">
-                <div class="GroupSwitcher" data-vue="GroupSwitcherIsland" data-props="{{ json_encode($switcherProps, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) }}">
-                    {{-- Server-rendered fallback (matches the island's current-group header)
-                         so the panel isn't blank before the Vue island mounts. --}}
-                    <div class="GroupSwitcher__current GroupSwitcher__current--static">
-                        <div class="GroupSwitcher__title">
-                            <span class="GroupSwitcher__name">{{ $groupName }}</span>
-                        </div>
-                        @if($orgName)
-                            <p class="GroupSwitcher__org">{{ $orgName }}</p>
-                        @endif
-                        <div class="GroupSwitcher__meta">
-                            <span class="GroupSwitcher__privacy">
-                                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                                    <rect x="4.5" y="9" width="11" height="7.5" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
-                                    @if($isPrivate)
-                                        <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.7949 3.25 13.25 4.70507 13.25 6.5V9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                    @else
-                                        <path d="M6.75 9V6.5C6.75 4.70507 8.20507 3.25 10 3.25C11.4476 3.25 12.674 4.19668 13.0944 5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                                    @endif
-                                </svg>
-                                {{ $isPrivate ? 'Private group' : 'Public group' }}
-                            </span>
-                            <span class="GroupSwitcher__count">
-                                {{ $memberCount }} {{ \Illuminate\Support\Str::plural('member', $memberCount) }}
-                            </span>
-                        </div>
-                    </div>
-                </div>
+                {{-- Leader card (replaces the old in-panel group switcher; switching
+                     now lives in the hero header above). --}}
+                @if($leaderName)
+                    <x-domain.group-leader
+                        :name="$leaderName"
+                        :avatar-url="$leaderPicture"
+                        :since-label="$leaderSinceLabel"
+                        :phone="$leaderPhone"
+                        :email="$leaderEmail"
+                    />
+                @endif
 
                 @if(count($studies) > 0)
                     <p class="GroupHome__upnext-label">Your studies</p>

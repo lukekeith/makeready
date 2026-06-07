@@ -6,173 +6,437 @@ $bg: #0d101a;
 $panel-bg: #030712;
 $brand-200: #b1bcff;
 $brand-500: #6c47ff;
+$indigo-200: #c6d2ff;
+$contact: #7c86ff;
 $white-70: rgba(255, 255, 255, 0.7);
 $white-50: rgba(255, 255, 255, 0.5);
+$white-20: rgba(255, 255, 255, 0.2);
 $white-10: rgba(255, 255, 255, 0.1);
 $white-05: rgba(255, 255, 255, 0.05);
 
 .GroupHome {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  background: $bg;
-
-  &__viewport {
-    width: 100%;
-    max-width: 440px;
-    height: 100%;
-    margin: 0 auto;
+    position: fixed;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    position: relative;
-  }
+    background: $bg;
 
-  // Scrollable content area (everything except navigation)
-  &__scroll-container {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
-
-    &::-webkit-scrollbar { width: 4px; }
-    &::-webkit-scrollbar-track { background: transparent; }
-    &::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 2px;
+    &__viewport {
+        width: 100%;
+        max-width: 440px;
+        height: 100%;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        position: relative;
     }
-  }
 
-  // ---- Hero ----------------------------------------------------------------
-  &__header {
-    position: relative;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
+    // Scrollable content area (everything except navigation)
+    &__scroll-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 
-  &__hero-image {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    pointer-events: none;
-  }
+        &::-webkit-scrollbar {
+            width: 4px;
+        }
+        &::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        &::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 2px;
+        }
+    }
 
-  &__hero-overlay {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(to bottom, rgba(13, 16, 26, 0.5) 0%, $bg 100%);
-    pointer-events: none;
-  }
+    // ---- Hero ----------------------------------------------------------------
+    &__header {
+        position: relative;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
 
-  &__header-content {
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 32px;
-    padding: 48px 16px;
-  }
+    &__hero-image {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+    }
 
-  // ---- Leader --------------------------------------------------------------
-  &__leader {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
+    &__hero-overlay {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            to bottom,
+            rgba(13, 16, 26, 0.5) 0%,
+            $bg 100%
+        );
+        pointer-events: none;
+    }
 
-  // Avatar sizing/shape/fallback handled by the <x-primitive.avatar> component.
+    // Hosts the GroupHeader island/fallback; it stretches the trigger so the
+    // whole hero is one tap target. min-height gives the hero presence and room
+    // for the space-between layout (switch pill at top, group info at bottom).
+    &__header-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 300px;
+    }
 
-  &__leader-info {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
+    // ---- Below-hero body — dark sheet that fills all remaining height --------
+    // overlaps the header a little (rounded top, flush bottom)
+    &__body {
+        position: relative;
+        z-index: 2;
+        // flex:1 makes the dark sheet fill the viewport when content is short. No
+        // `min-height: 0` here: inside this flex-column scroll container it would let
+        // the body shrink below its content, leaving the overflowing cards (and the
+        // bottom padding) stranded with no space beneath the last card.
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+        margin-top: -24px;
+        background: $panel-bg;
+        border-radius: 16px 16px 0 0;
+    }
 
-  &__leader-name {
-    margin: 0;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 18px;
-    color: #fff;
-  }
+    // ---- Group panel (transparent content group inside the body) -------------
+    &__panel {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
 
-  &__leader-meta {
-    margin: 0;
-    font-size: 12px;
-    line-height: 16px;
-    letter-spacing: 0.1px;
-    color: $white-70;
-  }
+    &__upnext-label {
+        margin: 0;
+        font-size: 16px;
+        line-height: 21px;
+        color: #fff;
+    }
 
-  &__leader-org { color: #fff; }
-  &__leader-muted { color: $white-70; }
-  &__leader-date { color: $brand-200; }
+    &__upnext {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
 
-  // ---- Below-hero body — dark sheet that fills all remaining height --------
-  // overlaps the header a little (rounded top, flush bottom)
-  &__body {
-    position: relative;
-    z-index: 2;
-    // flex:1 makes the dark sheet fill the viewport when content is short. No
-    // `min-height: 0` here: inside this flex-column scroll container it would let
-    // the body shrink below its content, leaving the overflowing cards (and the
-    // bottom padding) stranded with no space beneath the last card.
+    // ---- Posts feed ----------------------------------------------------------
+    &__posts {
+        display: flex;
+        flex-direction: column;
+
+        > * + * {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 16px;
+            margin-top: 16px;
+        }
+
+        &:empty {
+            display: none;
+        }
+    }
+
+    &__end-of-feed {
+        text-align: center;
+        padding: 8px 16px;
+        color: rgba(255, 255, 255, 0.3);
+        font-size: 14px;
+    }
+}
+
+// GroupHeader — group identity over the hero + the group switcher modal.
+// Figma: Make-Ready-Mobile "Content" (node 3141:531).
+.GroupHeader {
+    // Fills .GroupHome__header-content so the entire hero is one tap target.
     flex: 1;
     display: flex;
     flex-direction: column;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+    // Bottom padding clears the .GroupHome__body sheet, which overlaps the hero
+    // by -24px — without it the privacy/member-count row sits under the sheet.
+    padding: 48px 16px 40px;
+    // Neutralize the <button> the island renders for the switch trigger.
+    background: none;
+    border: 0;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+
+    &:not(.GroupHeader--static):active {
+        opacity: 0.92;
+    }
+
+    // Single group: nothing to switch to, so push the info to the bottom and
+    // drop the pointer affordance.
+    &--static {
+        justify-content: flex-end;
+        cursor: default;
+    }
+
+    // ---- Switch group link (top) ---------------------------------------------
+    // Figma: Make-Ready-Mobile "SwitchGroup" (node 3142:521) — no fill/radius,
+    // indigo-200 text + a 1px bottom border.
+    &__switch {
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 0;
+        border-bottom: 1px solid $indigo-200;
+        font-size: 13px;
+        line-height: 18px;
+        color: $indigo-200;
+    }
+
+    &__switch-icon {
+        flex-shrink: 0;
+        color: inherit;
+    }
+
+    // ---- Group info (bottom) -------------------------------------------------
+    &__info {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    &__heading {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    &__name {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 25px;
+        letter-spacing: -0.1px;
+        color: #fff;
+        word-break: break-word;
+    }
+
+    &__org {
+        font-size: 13px;
+        line-height: 18px;
+        color: $brand-200;
+    }
+
+    &__meta {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        font-size: 13px;
+        line-height: 18px;
+    }
+
+    &__privacy {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        color: $white-70;
+
+        svg {
+            color: $white-70;
+        }
+    }
+
+    &__count {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    &__count-value {
+        color: #fff;
+    }
+    &__count-label {
+        color: $white-70;
+    }
+
+    // ---- Switcher modal (bottom-sheet menu) ----------------------------------
+    &__menu {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        width: 100%;
+    }
+
+    &__menu-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 21px;
+        color: #fff;
+    }
+
+    &__list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    &__card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 12px;
+        background: $white-05;
+        text-decoration: none;
+        color: inherit;
+        transition: background 0.15s ease;
+
+        &:active {
+            background: $white-10;
+        }
+
+        &--current {
+            background: var(--color-brand-500, #{$brand-500});
+            color: #fff;
+        }
+    }
+
+    &__card-cover {
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    }
+
+    &__card-initial {
+        font-size: 20px;
+        font-weight: 700;
+        color: #fff;
+    }
+
+    &__card-body {
+        flex: 1 0 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    &__card-name {
+        font-size: 16px;
+        font-weight: 700;
+        line-height: 21px;
+        color: #fff;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__card-meta {
+        font-size: 13px;
+        line-height: 18px;
+        color: $white-70;
+    }
+
+    &__card-check {
+        flex-shrink: 0;
+        color: #fff;
+    }
+}
+
+// GroupLeader — bordered leader card in the body panel.
+// Figma: Make-Ready-Mobile "GroupLeader" (node 3141:523).
+.GroupLeader {
+    display: flex;
+    align-items: center;
     gap: 16px;
     padding: 16px;
-    margin-top: -24px;
-    background: $panel-bg;
-    border-radius: 16px 16px 0 0;
-  }
+    background: var(--color-white-10);
+    border-radius: 8px;
 
-  // ---- Group panel (transparent content group inside the body) -------------
-  &__panel {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  &__upnext-label {
-    margin: 0;
-    font-size: 16px;
-    line-height: 21px;
-    color: #fff;
-  }
-
-  &__upnext {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  // ---- Posts feed ----------------------------------------------------------
-  &__posts {
-    display: flex;
-    flex-direction: column;
-
-    > * + * {
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
-      padding-top: 16px;
-      margin-top: 16px;
+    &__avatar {
+        flex-shrink: 0;
     }
 
-    &:empty { display: none; }
-  }
+    &__body {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
 
-  &__end-of-feed {
-    text-align: center;
-    padding: 8px 16px;
-    color: rgba(255, 255, 255, 0.3);
-    font-size: 14px;
-  }
+    &__name-block {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    &__name {
+        margin: 0;
+        font-size: 17px;
+        font-weight: 700;
+        line-height: 22px;
+        color: #fff;
+        word-break: break-word;
+    }
+
+    &__since {
+        margin: 0;
+        font-size: 12px;
+        line-height: 16px;
+        letter-spacing: 0.1px;
+        color: $white-70;
+    }
+
+    &__contact {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    &__contact-link {
+        font-size: 12px;
+        line-height: 16px;
+        letter-spacing: 0.1px;
+        color: $contact;
+        text-decoration: none;
+        word-break: break-word;
+
+        &:active {
+            opacity: 0.8;
+        }
+    }
+
+    &__contact-dot {
+        flex-shrink: 0;
+        width: 4px;
+        height: 4px;
+        border-radius: 50%;
+        background: $contact;
+    }
 }
