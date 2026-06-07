@@ -5,5 +5,11 @@ services:
     ports: !override
       - "8001:8000"
       - "5174:5174"
+    # The Dockerized client can't see the sibling ../capture dir the way a
+    # native `php artisan serve` can, so mount the screenshot fixtures in and
+    # point CaptureController at them explicitly for the /_capture preview route.
+    volumes:
+      - ./capture/fixtures/client:/var/www/html/capture
     environment:
       APP_URL: http://localhost:8001
+      CAPTURE_FIXTURES_PATH: /var/www/html/capture

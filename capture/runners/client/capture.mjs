@@ -21,7 +21,7 @@ import { getViewport, getViewportName } from './devices.mjs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const captureRoot = path.resolve(__dirname, '../../fixtures/client');
-const BASE_URL = process.env.CAPTURE_BASE_URL ?? 'http://localhost:8000';
+const BASE_URL = process.env.CAPTURE_BASE_URL ?? 'http://localhost:8001';
 const workflowFilter = process.argv[2];
 const screenFilter = process.argv[3]?.replace(/\.json$/, '');
 
