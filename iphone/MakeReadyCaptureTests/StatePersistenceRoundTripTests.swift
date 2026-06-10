@@ -4,9 +4,8 @@
 //
 //  CHARACTERIZATION tests for State/Persistence/PersistedState.swift.
 //  Encode → decode round-trips use the same JSONEncoder/JSONDecoder
-//  configuration as StatePersistence (iso8601 dates; prettyPrinted/sortedKeys
-//  output). Equality is asserted FIELD-BY-FIELD, never on encoded bytes,
-//  because an upcoming refactor intentionally removes .prettyPrinted/.sortedKeys.
+//  configuration as StatePersistence (iso8601 dates; compact output).
+//  Equality is asserted FIELD-BY-FIELD, never on encoded bytes.
 //
 
 import XCTest
@@ -18,7 +17,6 @@ final class StatePersistenceRoundTripTests: XCTestCase {
     private func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         return encoder
     }
 

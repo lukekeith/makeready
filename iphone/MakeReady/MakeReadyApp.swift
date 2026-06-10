@@ -14,6 +14,8 @@ struct MakeReadyApp: App {
 
     @StateObject private var authManager = AuthManager()
 
+    @Environment(\.scenePhase) private var scenePhase
+
     init() {
         Configuration.migrateLocalServerIP()
         Configuration.printConfiguration()
@@ -50,6 +52,12 @@ struct MakeReadyApp: App {
                 // On Local dev builds, make sure we're pointed at the right API
                 // port — heals it within the configured range if it moved.
                 await LocalPortHealer.heal()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .background {
+                    // Flush any debounced state write before the OS suspends us
+                    AppState.shared.persistImmediately()
+                }
             }
         }
     }

@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UIKit
 
 /// Handles persistence of app state to disk.
 /// Designed for synchronous load on app launch and async save after mutations.
@@ -25,15 +26,20 @@ final class StatePersistence {
     /// Queue for serializing write operations
     private let writeQueue = DispatchQueue(label: "com.makeready.persistence.write", qos: .utility)
 
-    /// Flag to track if we have any pending writes
-    private var hasPendingWrite = false
+    /// Protects `pendingWorkItem` and `pendingSnapshot` (accessed from caller threads and writeQueue)
+    private let pendingLock = NSLock()
+
+    /// The currently scheduled debounced write, if any
+    private var pendingWorkItem: DispatchWorkItem?
+
+    /// The latest snapshot waiting to be written by the debounced work item
+    private var pendingSnapshot: PersistedState?
 
     // MARK: - Initialization
 
     private init() {
         encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
 
         decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -78,29 +84,73 @@ final class StatePersistence {
 
     /// Save state to disk asynchronously.
     /// Debounced to avoid excessive writes during rapid mutations.
+    /// Always writes the LATEST snapshot: each call replaces the pending
+    /// snapshot and reschedules the write, so the last save before
+    /// quiescence is never dropped.
     func save(_ state: PersistedState) {
-        // Mark that we have a pending write
-        hasPendingWrite = true
-
-        // Debounce writes - wait a short time before actually writing
-        writeQueue.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+        let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
 
-            // Only write if this is still the most recent request
-            guard self.hasPendingWrite else { return }
-            self.hasPendingWrite = false
+            // Take the latest snapshot (it may be newer than the one
+            // captured when this item was scheduled).
+            self.pendingLock.lock()
+            let snapshot = self.pendingSnapshot
+            self.pendingSnapshot = nil
+            self.pendingWorkItem = nil
+            self.pendingLock.unlock()
 
-            self.performSave(state)
+            // Nil if saveImmediately/clear already consumed or cancelled it
+            guard let snapshot = snapshot else { return }
+            self.performSave(snapshot)
         }
+
+        pendingLock.lock()
+        pendingSnapshot = state
+        pendingWorkItem?.cancel()
+        pendingWorkItem = workItem
+        pendingLock.unlock()
+
+        // Debounce writes - wait a short time before actually writing
+        writeQueue.asyncAfter(deadline: .now() + 0.5, execute: workItem)
     }
 
     /// Save immediately without debouncing.
     /// Use when you need to ensure state is persisted (e.g., app going to background).
+    /// Cancels any pending debounced write (the passed-in state is the latest).
+    /// Does NOT block the caller: encoding and the disk write happen on the
+    /// write queue under a background-task assertion so the OS keeps the
+    /// process alive until the write lands even mid-suspension.
     func saveImmediately(_ state: PersistedState) {
-        hasPendingWrite = false
-        writeQueue.sync {
-            performSave(state)
+        cancelPendingWrite()
+
+        // Both the expiration handler and our completion run on the main
+        // queue, so taskID mutation is serialized.
+        var taskID: UIBackgroundTaskIdentifier = .invalid
+        taskID = UIApplication.shared.beginBackgroundTask(withName: "StatePersistence.saveImmediately") {
+            if taskID != .invalid {
+                UIApplication.shared.endBackgroundTask(taskID)
+                taskID = .invalid
+            }
         }
+
+        writeQueue.async { [weak self] in
+            self?.performSave(state)
+            DispatchQueue.main.async {
+                if taskID != .invalid {
+                    UIApplication.shared.endBackgroundTask(taskID)
+                    taskID = .invalid
+                }
+            }
+        }
+    }
+
+    /// Cancel any scheduled debounced write and discard its snapshot.
+    private func cancelPendingWrite() {
+        pendingLock.lock()
+        pendingWorkItem?.cancel()
+        pendingWorkItem = nil
+        pendingSnapshot = nil
+        pendingLock.unlock()
     }
 
     /// Perform the actual save operation
@@ -116,14 +166,19 @@ final class StatePersistence {
 
     // MARK: - Clear
 
-    /// Delete persisted state (e.g., on logout)
+    /// Delete persisted state (e.g., on logout).
+    /// Also cancels any pending debounced write so a queued snapshot
+    /// can't resurrect the cleared state.
     func clear() {
-        do {
-            try FileManager.default.removeItem(at: fileURL)
-            NSLog("💾 StatePersistence: Cleared persisted state")
-        } catch {
-            // Ignore error if file doesn't exist
-            NSLog("💾 StatePersistence: Clear - file may not exist")
+        cancelPendingWrite()
+        writeQueue.sync {
+            do {
+                try FileManager.default.removeItem(at: fileURL)
+                NSLog("💾 StatePersistence: Cleared persisted state")
+            } catch {
+                // Ignore error if file doesn't exist
+                NSLog("💾 StatePersistence: Clear - file may not exist")
+            }
         }
     }
 
