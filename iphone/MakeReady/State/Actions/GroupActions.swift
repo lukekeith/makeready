@@ -89,7 +89,7 @@ private let api: APIClientProtocol
             for id in groupIds {
                 group.addTask { @MainActor in
                     do {
-                        try await GroupActions().loadJoinRequests(groupId: id)
+                        try await self.loadJoinRequests(groupId: id)
                     } catch {
                         AppState.shared.recordError(error, context: "GroupActions.loadJoinRequests prefetch (\(id))")
                     }

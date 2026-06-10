@@ -121,6 +121,8 @@
 		BVT0001000000000000001 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
 		BVNT000100000000000001 /* BibleVerseContentNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */; };
 		ESTT000100000000000001 /* EntityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESTT000200000000000001 /* EntityStoreTests.swift */; };
+		STUB000100000000000001 /* StubAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = STUB000200000000000001 /* StubAPIClient.swift */; };
+		ASTB000100000000000001 /* ActionStubTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASTB000200000000000001 /* ActionStubTests.swift */; };
 		RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RITX000200000000000001 /* RelationshipIndexTests.swift */; };
 		SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */; };
 		MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLT000200000000000001 /* ModelDecodingTests.swift */; };
@@ -416,6 +418,8 @@
 		BVT0002000000000000001 /* BibleVerseTextLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseTextLayout.swift; sourceTree = "<group>"; };
 		BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseContentNormalizerTests.swift; sourceTree = "<group>"; };
 		ESTT000200000000000001 /* EntityStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStoreTests.swift; sourceTree = "<group>"; };
+		STUB000200000000000001 /* StubAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubAPIClient.swift; sourceTree = "<group>"; };
+		ASTB000200000000000001 /* ActionStubTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionStubTests.swift; sourceTree = "<group>"; };
 		RITX000200000000000001 /* RelationshipIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelationshipIndexTests.swift; sourceTree = "<group>"; };
 		SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatePersistenceRoundTripTests.swift; sourceTree = "<group>"; };
 		MDLT000200000000000001 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
@@ -813,6 +817,8 @@
 				FF676E78A8861B4738753BFC /* DeviceChrome.swift */,
 				BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */,
 				ESTT000200000000000001 /* EntityStoreTests.swift */,
+				STUB000200000000000001 /* StubAPIClient.swift */,
+				ASTB000200000000000001 /* ActionStubTests.swift */,
 				RITX000200000000000001 /* RelationshipIndexTests.swift */,
 				SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */,
 				MDLT000200000000000001 /* ModelDecodingTests.swift */,
@@ -1530,6 +1536,8 @@
 				395291F277BA9C4C13FB0CD9 /* DeviceChrome.swift in Sources */,
 				BVNT000100000000000001 /* BibleVerseContentNormalizerTests.swift in Sources */,
 				ESTT000100000000000001 /* EntityStoreTests.swift in Sources */,
+				STUB000100000000000001 /* StubAPIClient.swift in Sources */,
+				ASTB000100000000000001 /* ActionStubTests.swift in Sources */,
 				RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */,
 				SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */,
 				MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */,
