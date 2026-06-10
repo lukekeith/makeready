@@ -13,17 +13,9 @@ struct DatePickerField: View {
     @State private var showDatePicker = false
     @State private var showTimePicker = false
 
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM dd, yyyy"
-        return formatter
-    }
+    private var dateFormatter: DateFormatter { DateFormatters.monthPaddedDayYear }
 
-    private var timeFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        return formatter
-    }
+    private var timeFormatter: DateFormatter { DateFormatters.shortTime }
 
     var body: some View {
         HStack(spacing: 8) {

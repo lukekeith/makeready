@@ -46,9 +46,7 @@ struct CardStudySelectableData: Identifiable, Hashable {
     /// Formatted "enrolled until Jun 30" text
     var enrolledUntilText: String? {
         guard let date = enrolledUntilDate else { return nil }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return "enrolled until \(formatter.string(from: date))"
+        return "enrolled until \(DateFormatters.monthDay.string(from: date))"
     }
 
     static func == (lhs: CardStudySelectableData, rhs: CardStudySelectableData) -> Bool {

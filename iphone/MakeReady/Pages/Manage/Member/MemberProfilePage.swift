@@ -40,9 +40,7 @@ struct MemberProfilePage: View {
         var items: [InfoPanelItem] = []
 
         if let joinDate = profile.earliestJoinDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM d, yyyy"
-            items.append(InfoPanelItem(label: "Joined", value: formatter.string(from: joinDate)))
+            items.append(InfoPanelItem(label: "Joined", value: DateFormatters.monthDayYear.string(from: joinDate)))
         }
         if let age = profile.age {
             items.append(InfoPanelItem(label: "Age", value: "\(age)"))
@@ -52,8 +50,7 @@ struct MemberProfilePage: View {
 
     private var groupItems: [InfoPanelItem] {
         guard let profile = profile else { return [] }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
+        let formatter = DateFormatters.monthDayYear
         return profile.groups.map { group in
             InfoPanelItem(label: group.name, value: "Joined \(formatter.string(from: group.joinedAt))")
         }

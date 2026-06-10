@@ -54,10 +54,8 @@ struct MainHome: View {
     }
 
     private var weeklyActivityData: [BarChartDataPoint] {
-        let dayFormatter = DateFormatter()
-        dayFormatter.dateFormat = "yyyy-MM-dd"
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateFormat = "EEE"
+        let dayFormatter = DateFormatters.dateKey
+        let displayFormatter = DateFormatters.weekdayAbbrev
 
         return state.homeWeeklyActivity.compactMap { day in
             guard let date = dayFormatter.date(from: day.date) else { return nil }
@@ -366,8 +364,7 @@ struct MainHome: View {
     /// Get the next scheduled lesson from each enrollment (soonest per enrollment)
     private var upcomingLessons: [SplitCalendarEvent] {
         let today = Calendar.current.startOfDay(for: Date())
-        let dateKeyFormatter = DateFormatter()
-        dateKeyFormatter.dateFormat = "yyyy-MM-dd"
+        let dateKeyFormatter = DateFormatters.dateKey
 
         // Flatten all future events, sorted by date
         var allEvents: [SplitCalendarEvent] = []

@@ -40,7 +40,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     ) {
         // Convert token to hex string
         let tokenString = deviceToken.map { String(format: "%02.2hhx", $0) }.joined()
-        NSLog("📱 APNs device token received: %@", tokenString)
+        NSLog("📱 APNs device token received (length: %d, suffix: %@)", tokenString.count, String(tokenString.suffix(4)))
 
         // Store token and register with server
         PushNotificationManager.shared.handleDeviceToken(tokenString)

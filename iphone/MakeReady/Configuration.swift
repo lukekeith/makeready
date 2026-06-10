@@ -37,7 +37,21 @@ struct Configuration {
     private static let localServerIPKey = "localServerIP"
     private static let localAPIPortKey = "localAPIPort"
     private static let localClientPortKey = "localClientPort"
-    static let defaultLocalIP = "192.168.1.65"
+    /// Default LAN IP for physical-device local development.
+    /// Resolution order: LOCAL_SERVER_URL build setting (Debug.xcconfig) →
+    /// compile-time DEBUG fallback → loopback. The LAN IP is compiled out of
+    /// Staging/Release binaries so personal network IPs never ship.
+    static var defaultLocalIP: String {
+        if let value = Bundle.main.object(forInfoDictionaryKey: "LOCAL_SERVER_URL") as? String,
+           !value.isEmpty {
+            return value
+        }
+        #if DEBUG
+        return "192.168.1.65"
+        #else
+        return "127.0.0.1"
+        #endif
+    }
     static let defaultAPIPort = "3010"
     // 8001 — the Dockerized Laravel client publishes 8001:8000 because another
     // local container (finpro-api) occupies host port 8000.

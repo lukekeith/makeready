@@ -62,9 +62,9 @@ final class APIClient {
 
     // MARK: - Authentication
 
-    /// Get the session cookie from UserDefaults
+    /// Get the session cookie from the Keychain
     private func getSessionCookie() -> String? {
-        UserDefaults.standard.string(forKey: "makeready_session_cookie")
+        SessionCredentialStore.get()
     }
 
     /// Raw `connect.sid` cookie value — used by WKWebView consumers that need

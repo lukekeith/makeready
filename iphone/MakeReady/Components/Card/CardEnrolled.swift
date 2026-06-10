@@ -77,8 +77,7 @@ struct CardEnrolled: View {
     // MARK: - Date Range
 
     private var dateRangeText: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
+        let formatter = DateFormatters.monthDay
         return "\(formatter.string(from: data.startDate)) - \(formatter.string(from: data.endDate))"
     }
 

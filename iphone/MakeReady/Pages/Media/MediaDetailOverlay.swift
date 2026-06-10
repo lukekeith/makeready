@@ -818,11 +818,8 @@ final class MediaDetailOverlayView: UIView {
         }
 
         // Created
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateStyle = .medium
-        dateFormatter.timeStyle = .short
         let created = detail?.createdAt ?? item.createdAt
-        rows.append(("calendar", "Created", dateFormatter.string(from: created)))
+        rows.append(("calendar", "Created", DateFormatters.mediumDateShortTime.string(from: created)))
 
         // Uploader
         if let uploader = detail?.uploader ?? item.uploader {
@@ -933,9 +930,7 @@ final class MediaDetailOverlayView: UIView {
 
         let dateLabel = UILabel()
         if let date = usage.createdAt {
-            let formatter = DateFormatter()
-            formatter.dateStyle = .medium
-            dateLabel.text = formatter.string(from: date)
+            dateLabel.text = DateFormatters.mediumDate.string(from: date)
         } else {
             dateLabel.text = ""
         }

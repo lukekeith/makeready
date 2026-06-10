@@ -211,6 +211,10 @@
 		MNHM0001000000000000001 /* MainHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNHM0002000000000000001 /* MainHome.swift */; };
 		MNLB0001000000000000001 /* MainLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNLB0002000000000000001 /* MainLibrary.swift */; };
 		MODANIM0001000000000001 /* ModalAnimations.swift in Sources */ = {isa = PBXBuildFile; fileRef = MODANIM0002000000000001 /* ModalAnimations.swift */; };
+		SESSCRD0001000000000001 /* SessionCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESSCRD0002000000000001 /* SessionCredentialStore.swift */; };
+		SAFEMKD0001000000000001 /* AttributedString+SafeMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */; };
+		DATEFMT0001000000000001 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DATEFMT0002000000000001 /* Date+Formatting.swift */; };
+		UNENRLC0001000000000001 /* UnenrollConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNENRLC0002000000000001 /* UnenrollConfirmation.swift */; };
 		MPRP0001000000000000001 /* MemberProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MPRP0002000000000000001 /* MemberProfilePage.swift */; };
 		MRPP0001000000000000001 /* MemberRequestProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRPP0002000000000000001 /* MemberRequestProfilePage.swift */; };
 		MRQP0001000000000000001 /* MemberRequestsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRQP0002000000000000001 /* MemberRequestsPage.swift */; };
@@ -504,6 +508,10 @@
 		MNHM0002000000000000001 /* MainHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainHome.swift; sourceTree = "<group>"; };
 		MNLB0002000000000000001 /* MainLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainLibrary.swift; sourceTree = "<group>"; };
 		MODANIM0002000000000001 /* ModalAnimations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalAnimations.swift; sourceTree = "<group>"; };
+		SESSCRD0002000000000001 /* SessionCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCredentialStore.swift; sourceTree = "<group>"; };
+		SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AttributedString+SafeMarkdown.swift"; sourceTree = "<group>"; };
+		DATEFMT0002000000000001 /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
+		UNENRLC0002000000000001 /* UnenrollConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnenrollConfirmation.swift; sourceTree = "<group>"; };
 		MPRP0002000000000000001 /* MemberProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberProfilePage.swift; sourceTree = "<group>"; };
 		MRPP0002000000000000001 /* MemberRequestProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestProfilePage.swift; sourceTree = "<group>"; };
 		MRQP0002000000000000001 /* MemberRequestsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestsPage.swift; sourceTree = "<group>"; };
@@ -978,6 +986,7 @@
 			isa = PBXGroup;
 			children = (
 				CFOV0002000000000000001 /* ConfirmationOverlay.swift */,
+				UNENRLC0002000000000001 /* UnenrollConfirmation.swift */,
 			);
 			path = Feedback;
 			sourceTree = "<group>";
@@ -1317,6 +1326,9 @@
 				IMGVAR0002000000000001 /* String+ImageVariants.swift */,
 				D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */,
 				MODANIM0002000000000001 /* ModalAnimations.swift */,
+				SESSCRD0002000000000001 /* SessionCredentialStore.swift */,
+				SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */,
+				DATEFMT0002000000000001 /* Date+Formatting.swift */,
 				OPTSHDW0002000000000001 /* OptimizedShadow.swift */,
 				CACHIMG0002000000000001 /* CachedAsyncImage.swift */,
 				IMGCCH0002000000000001 /* ImageCache.swift */,
@@ -1556,6 +1568,9 @@
 				LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */,
 				161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */,
 				MODANIM0001000000000001 /* ModalAnimations.swift in Sources */,
+				SESSCRD0001000000000001 /* SessionCredentialStore.swift in Sources */,
+				SAFEMKD0001000000000001 /* AttributedString+SafeMarkdown.swift in Sources */,
+				DATEFMT0001000000000001 /* Date+Formatting.swift in Sources */,
 				OPTSHDW0001000000000001 /* OptimizedShadow.swift in Sources */,
 				CACHIMG0001000000000001 /* CachedAsyncImage.swift in Sources */,
 				IMGCCH0001000000000001 /* ImageCache.swift in Sources */,
@@ -1729,6 +1744,7 @@
 				ENED0001000000000000001 /* EditEnrollmentDay.swift in Sources */,
 				SINV0001000000000000001 /* StudyInvitePage.swift in Sources */,
 				CFOV0001000000000000001 /* ConfirmationOverlay.swift in Sources */,
+				UNENRLC0001000000000001 /* UnenrollConfirmation.swift in Sources */,
 				GRPM0001000000000000001 /* GroupMembersPage.swift in Sources */,
 				LSAM0001000000000000001 /* LessonActionMenu.swift in Sources */,
 				MNHM0001000000000000001 /* MainHome.swift in Sources */,

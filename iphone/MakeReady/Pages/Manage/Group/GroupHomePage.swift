@@ -1192,12 +1192,10 @@ struct GroupHomePage: View {
 
     private func showProcessingConfirmation(enrollmentData: EnrollmentData) {
         // Format the start date
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "MMMM d, yyyy"
-        let formattedDate = dateFormatter.string(from: enrollmentData.startDate)
+        let formattedDate = DateFormatters.fullMonthDayYear.string(from: enrollmentData.startDate)
 
         // Build the confirmation message with bold parts
-        let message = try! AttributedString(markdown: "**\(enrollmentData.group.name)** has been successfully enrolled in **\(enrollmentData.studyProgram.name)** starting on **\(formattedDate)**.")
+        let message = AttributedString.safeMarkdown("**\(enrollmentData.group.name)** has been successfully enrolled in **\(enrollmentData.studyProgram.name)** starting on **\(formattedDate)**.")
 
         overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
             ConfirmationOverlay(

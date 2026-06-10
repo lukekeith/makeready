@@ -105,8 +105,7 @@ class EnrollmentDateState: ObservableObject {
             return "SELECT START DATE"
         }
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
+        let formatter = DateFormatters.monthDay
 
         return "\(formatter.string(from: start).uppercased()) - \(formatter.string(from: end).uppercased())"
     }

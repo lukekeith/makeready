@@ -354,21 +354,15 @@ struct GroupPostCard: View {
     }
 
     private func dayNumber(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
+        return DateFormatters.dayOfMonth.string(from: date)
     }
 
     private func monthAbbrev(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date).uppercased()
+        return DateFormatters.monthAbbrev.string(from: date).uppercased()
     }
 
     private func formatEventDateTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE MMMM d - h:mma"
-        return formatter.string(from: date).replacingOccurrences(of: "AM", with: "am").replacingOccurrences(of: "PM", with: "pm")
+        return DateFormatters.weekdayFullMonthDayTime.string(from: date).replacingOccurrences(of: "AM", with: "am").replacingOccurrences(of: "PM", with: "pm")
     }
 }
 

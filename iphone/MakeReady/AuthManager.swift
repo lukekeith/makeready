@@ -34,7 +34,6 @@ class AuthManager: NSObject, ObservableObject {
     @Published var isAuthenticated: Bool = false
 
     private let userDefaultsKey = "makeready_current_user"
-    private let sessionCookieKey = "makeready_session_cookie"
 
     // Store session for WebAuthenticationSession
     private var authSession: ASWebAuthenticationSession?
@@ -48,10 +47,10 @@ class AuthManager: NSObject, ObservableObject {
     override init() {
         super.init()
         print("🔧 AuthManager initialized")
-        // Load session cookie from UserDefaults
-        self.sessionCookie = UserDefaults.standard.string(forKey: sessionCookieKey)
+        // Load session cookie from the Keychain (migrates from legacy UserDefaults)
+        self.sessionCookie = SessionCredentialStore.get()
         if let cookie = sessionCookie {
-            print("📦 Loaded session cookie from UserDefaults: \(cookie.prefix(20))...")
+            print("📦 Loaded session cookie from Keychain (length: \(cookie.count))")
         }
 
         // Restore cached user data immediately for fast UI
@@ -102,18 +101,17 @@ class AuthManager: NSObject, ObservableObject {
 
                 NSLog("🔵 OAuth callback handler started")
 
-                // Log the entire callback URL for debugging
+                // Log callback structure for debugging (query withheld — it carries the auth code)
                 if let callbackURL = callbackURL {
-                    NSLog("🔗 Full callback URL: %@", callbackURL.absoluteString)
                     NSLog("🔗 Callback scheme: %@", callbackURL.scheme ?? "none")
                     NSLog("🔗 Callback host: %@", callbackURL.host ?? "none")
                     NSLog("🔗 Callback path: %@", callbackURL.path)
-                    NSLog("🔗 Callback query: %@", callbackURL.query ?? "none")
+                    NSLog("🔗 Callback has query: %@", callbackURL.query != nil ? "yes" : "no")
 
                     // Extract auth code from callback URL
                     if let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
                        let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
-                        NSLog("✅ Auth code received: %@", code)
+                        NSLog("✅ Auth code received (length: %d)", code.count)
 
                         // Exchange auth code for session
                         Task {
@@ -170,15 +168,15 @@ class AuthManager: NSObject, ObservableObject {
     // MARK: - Session Cookie Management
     private func storeSessionCookie(_ cookie: String) {
         // Cookie is already URL-decoded by URLComponents
-        print("💾 Storing session cookie: \(cookie.prefix(20))...")
+        print("💾 Storing session cookie (length: \(cookie.count))")
         self.sessionCookie = cookie
-        UserDefaults.standard.set(cookie, forKey: sessionCookieKey)
+        SessionCredentialStore.set(cookie)
     }
 
     private func clearSessionCookie() {
         print("🗑️ Clearing session cookie")
         self.sessionCookie = nil
-        UserDefaults.standard.removeObject(forKey: sessionCookieKey)
+        SessionCredentialStore.clear()
     }
 
     // MARK: - Exchange Auth Code
@@ -213,7 +211,7 @@ class AuthManager: NSObject, ObservableObject {
         }
 
         let exchangeResponse = try JSONDecoder().decode(ExchangeResponse.self, from: data)
-        NSLog("✅ Received session ID: %@", String(exchangeResponse.sessionId.prefix(20)))
+        NSLog("✅ Received session ID (length: %d)", exchangeResponse.sessionId.count)
 
         // Store the full session cookie value (with signature)
         storeSessionCookie(exchangeResponse.sessionId)
@@ -232,7 +230,7 @@ class AuthManager: NSObject, ObservableObject {
         // Add session cookie if available
         if let sessionCookie = sessionCookie {
             request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
-            print("🍪 Adding session cookie to request: connect.sid=\(sessionCookie.prefix(20))...")
+            print("🍪 Adding session cookie to request (length: \(sessionCookie.count))")
         } else {
             print("⚠️ No session cookie available for request")
         }

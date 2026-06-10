@@ -117,9 +117,7 @@ struct LessonActionMenu: View {
     }
 
     private var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        return formatter.string(from: schedule.scheduledDate)
+        DateFormatters.monthDayYear.string(from: schedule.scheduledDate)
     }
 
     private func dismissMenu() {

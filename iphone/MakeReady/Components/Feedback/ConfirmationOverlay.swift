@@ -154,7 +154,7 @@ private struct AnimatedCompletionCircle: View {
 /// overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
 ///     ConfirmationOverlay(
 ///         style: .success,
-///         message: try! AttributedString(markdown: "**Group** has been enrolled in **Program**."),
+///         message: AttributedString.safeMarkdown("**Group** has been enrolled in **Program**."),
 ///         buttonLabel: "Done",
 ///         isProcessing: $isProcessing,
 ///         processingMessage: "Processing enrollment",
@@ -354,7 +354,7 @@ struct ConfirmationOverlay: View {
 
         ConfirmationOverlay(
             style: .success,
-            message: try! AttributedString(markdown: "**Young Professionals** has been successfully enrolled in **Ephesians** starting on **January 15, 2025**."),
+            message: AttributedString.safeMarkdown("**Young Professionals** has been successfully enrolled in **Ephesians** starting on **January 15, 2025**."),
             buttonLabel: "Done",
             isProcessing: .constant(true),
             processingMessage: "Processing enrollment",
@@ -389,7 +389,7 @@ struct ConfirmationOverlay: View {
 
         ConfirmationOverlay(
             style: .success,
-            message: try! AttributedString(markdown: "**Young Professionals** has been successfully enrolled in **Ephesians** starting on **January 15, 2025**."),
+            message: AttributedString.safeMarkdown("**Young Professionals** has been successfully enrolled in **Ephesians** starting on **January 15, 2025**."),
             buttonLabel: "Done",
             onDismiss: { print("Dismissed") }
         )
@@ -403,7 +403,7 @@ struct ConfirmationOverlay: View {
 
         ConfirmationOverlay(
             style: .error,
-            message: try! AttributedString(markdown: "Unable to complete enrollment. Please try again."),
+            message: AttributedString.safeMarkdown("Unable to complete enrollment. Please try again."),
             buttonLabel: "OK",
             onDismiss: { print("Dismissed") }
         )
@@ -417,7 +417,7 @@ struct ConfirmationOverlay: View {
 
         ConfirmationOverlay(
             style: .warning,
-            message: try! AttributedString(markdown: "**3 members** have not accepted their invitations yet."),
+            message: AttributedString.safeMarkdown("**3 members** have not accepted their invitations yet."),
             buttonLabel: "Got it",
             onDismiss: { print("Dismissed") }
         )
@@ -431,7 +431,7 @@ struct ConfirmationOverlay: View {
 
         ConfirmationOverlay(
             style: .info,
-            message: try! AttributedString(markdown: "You can invite more members from the **Members** tab."),
+            message: AttributedString.safeMarkdown("You can invite more members from the **Members** tab."),
             buttonLabel: "Continue",
             onDismiss: { print("Dismissed") }
         )

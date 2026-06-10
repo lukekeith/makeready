@@ -328,7 +328,7 @@ struct MainPrograms: View {
 
         // Show confirmation overlay immediately
         let programName = importPreviewData?.name ?? "Study Program"
-        let message = try! AttributedString(markdown: "**\(programName)** has been successfully imported and is ready to use.")
+        let message = AttributedString.safeMarkdown("**\(programName)** has been successfully imported and is ready to use.")
 
         showImportPreview = false
 
@@ -715,26 +715,15 @@ struct MainPrograms: View {
         unenrolledProgramName = state.programs[enrollment.studyProgramId]?.name ?? "the program"
         isProcessingUnenrollment = true
 
-        let successMessage: AttributedString
-        switch option {
-        case .fullRemoval:
-            successMessage = try! AttributedString(markdown: "Your group has been successfully unenrolled from **\(unenrolledProgramName)**.")
-        case .cancelFuture:
-            successMessage = try! AttributedString(markdown: "Future lessons have been cancelled for **\(unenrolledProgramName)**. Existing lesson data has been preserved.")
-        }
-
-        overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
-            ConfirmationOverlay(
-                style: .warning,
-                message: successMessage,
-                buttonLabel: "Done",
-                isProcessing: $isProcessingUnenrollment,
-                processingMessage: "Processing unenrollment",
-                onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
-                }
-            )
-        }
+        UnenrollConfirmation.present(
+            overlayManager: overlayManager,
+            option: option,
+            programName: unenrolledProgramName,
+            isProcessing: $isProcessingUnenrollment,
+            onDismiss: {
+                overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+            }
+        )
 
         Task {
             do {

@@ -100,26 +100,19 @@ enum TimeScale {
     case years
 
     func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-
         switch self {
         case .hours:
-            formatter.dateFormat = "ha"
-            return formatter.string(from: date).lowercased()
+            return DateFormatters.chartHourPOSIX.string(from: date).lowercased()
         case .days:
-            formatter.dateFormat = "EEE"
-            return formatter.string(from: date)
+            return DateFormatters.chartWeekdayPOSIX.string(from: date)
         case .weeks:
             let calendar = Calendar.current
             let weekOfYear = calendar.component(.weekOfYear, from: date)
             return "W\(weekOfYear)"
         case .months:
-            formatter.dateFormat = "MMM"
-            return formatter.string(from: date)
+            return DateFormatters.chartMonthPOSIX.string(from: date)
         case .years:
-            formatter.dateFormat = "yyyy"
-            return formatter.string(from: date)
+            return DateFormatters.chartYearPOSIX.string(from: date)
         }
     }
 }

@@ -144,7 +144,7 @@ class BibleSearchService {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         // Add session cookie if available
-        if let sessionCookie = UserDefaults.standard.string(forKey: "makeready_session_cookie") {
+        if let sessionCookie = SessionCredentialStore.get() {
             request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
         }
 
@@ -225,7 +225,7 @@ class BibleSearchService {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         // Add session cookie if available
-        if let sessionCookie = UserDefaults.standard.string(forKey: "makeready_session_cookie") {
+        if let sessionCookie = SessionCredentialStore.get() {
             request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
         }
 
@@ -278,7 +278,7 @@ class BibleSearchService {
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        if let sessionCookie = UserDefaults.standard.string(forKey: "makeready_session_cookie") {
+        if let sessionCookie = SessionCredentialStore.get() {
             request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
         }
 

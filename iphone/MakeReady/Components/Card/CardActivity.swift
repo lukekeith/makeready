@@ -117,9 +117,7 @@ struct CardActivity: View {
         if interval < 86400 { return "\(Int(interval / 3600))h ago" }
         if interval < 604800 { return "\(Int(interval / 86400))d ago" }
 
-        let df = DateFormatter()
-        df.dateFormat = "MMM d"
-        return df.string(from: date)
+        return DateFormatters.monthDay.string(from: date)
     }
 
     var body: some View {

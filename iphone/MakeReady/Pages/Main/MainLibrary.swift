@@ -1419,7 +1419,7 @@ struct MainLibrary: View {
         isProcessingImport = true
 
         let programName = importPreviewData?.name ?? "Study Program"
-        let message = try! AttributedString(markdown: "**\(programName)** has been successfully imported and is ready to use.")
+        let message = AttributedString.safeMarkdown("**\(programName)** has been successfully imported and is ready to use.")
 
         showImportPreview = false
 

@@ -558,9 +558,7 @@ struct MembersTabContent: View {
 
         // Add join date if available
         if let joinDate = member.joinDateAsDate {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMM yyyy"
-            items.append(DataItem(icon: "clock", value: formatter.string(from: joinDate)))
+            items.append(DataItem(icon: "clock", value: DateFormatters.monthYear.string(from: joinDate)))
         }
 
         return items

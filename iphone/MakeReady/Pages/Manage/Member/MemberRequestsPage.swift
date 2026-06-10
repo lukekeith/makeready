@@ -128,9 +128,7 @@ struct MemberRequestsPage: View {
             items.append(DataItem(label: "Group", value: groupName))
         }
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        items.append(DataItem(label: "Requested", value: formatter.string(from: groupRequest.request.createdAt)))
+        items.append(DataItem(label: "Requested", value: DateFormatters.monthDayYear.string(from: groupRequest.request.createdAt)))
 
         return items
     }

@@ -141,10 +141,13 @@ app.use(botGuard)
 import rateLimit from 'express-rate-limit'
 
 if (process.env.NODE_ENV !== 'test') {
-  // General API rate limit: 200 req/min per IP
+  // General API rate limit: 200 req/min per IP in production.
+  // Development gets generous headroom — the iPhone app currently re-fires
+  // loads on every view-appear (no request coalescing yet) and can burst
+  // past 200/min during normal navigation.
   const generalLimiter = rateLimit({
     windowMs: 60_000,
-    max: 200,
+    max: process.env.NODE_ENV === 'production' ? 200 : 2000,
     standardHeaders: true,
     legacyHeaders: false,
     message: { success: false, error: 'Too many requests, please try again later' },

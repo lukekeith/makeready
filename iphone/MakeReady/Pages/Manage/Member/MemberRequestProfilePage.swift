@@ -54,9 +54,7 @@ struct MemberRequestProfilePage: View {
             items.append(InfoPanelItem(label: "Gender", value: gender.capitalized))
         }
 
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        items.append(InfoPanelItem(label: "Requested", value: formatter.string(from: requestDate)))
+        items.append(InfoPanelItem(label: "Requested", value: DateFormatters.monthDayYear.string(from: requestDate)))
 
         return items
     }

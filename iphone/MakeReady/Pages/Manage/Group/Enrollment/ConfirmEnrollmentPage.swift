@@ -34,11 +34,7 @@ struct ConfirmEnrollmentPage: View {
         return calendar.date(from: components) ?? Date()
     }()
 
-    private let timeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "h:mm a"
-        return formatter
-    }()
+    private let timeFormatter: DateFormatter = DateFormatters.time12Hour
 
     /// Convert enabled days to array of day abbreviations
     private var enabledDayStrings: [String] {
@@ -333,15 +329,11 @@ struct ConfirmEnrollmentPage: View {
     }
 
     private func dayNumber(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: date)
+        return DateFormatters.dayOfMonth.string(from: date)
     }
 
     private func monthAbbreviation(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: date).uppercased()
+        return DateFormatters.monthAbbrev.string(from: date).uppercased()
     }
 
     // MARK: - Send Invites Section
@@ -370,9 +362,7 @@ struct ConfirmEnrollmentPage: View {
 
     private func submitEnrollment() {
         // Format time as HH:mm
-        let timeFormatter = DateFormatter()
-        timeFormatter.dateFormat = "HH:mm"
-        let smsTimeString = timeFormatter.string(from: smsTime)
+        let smsTimeString = DateFormatters.time24Hour.string(from: smsTime)
 
         // Pass data to parent - parent will handle API call and show skeleton
         onConfirm(enrollmentData, smsTimeString, requireResponse)

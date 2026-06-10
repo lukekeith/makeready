@@ -616,7 +616,7 @@ struct ProgramHomePage: View {
         exportedFileURL = nil
 
         let programName = program?.name ?? "Study Program"
-        let message = try! AttributedString(markdown: "**\(programName)** has been exported successfully.")
+        let message = AttributedString.safeMarkdown("**\(programName)** has been exported successfully.")
 
         showExportConfirm = false
 

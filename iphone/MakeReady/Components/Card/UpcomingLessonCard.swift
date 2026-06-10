@@ -78,9 +78,7 @@ struct UpcomingLessonCard: View {
     }
 
     private var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE, MMM d, yyyy"
-        return formatter.string(from: schedule.scheduledDate)
+        DateFormatters.weekdayMonthDayYear.string(from: schedule.scheduledDate)
     }
 
     // MARK: - Activity Icons

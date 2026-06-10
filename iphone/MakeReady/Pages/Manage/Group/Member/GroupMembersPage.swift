@@ -292,9 +292,7 @@ struct GroupMembersPage: View {
         var items: [DataItem] = []
 
         // Requested date
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        items.append(DataItem(label: "Requested", value: formatter.string(from: request.createdAt)))
+        items.append(DataItem(label: "Requested", value: DateFormatters.monthDayYear.string(from: request.createdAt)))
 
         return items
     }
@@ -351,9 +349,7 @@ struct GroupMembersPage: View {
         // items.append(DataItem(label: "Age", value: "\(age)"))
 
         // Joined date
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        items.append(DataItem(label: "Joined", value: formatter.string(from: member.joinedAt)))
+        items.append(DataItem(label: "Joined", value: DateFormatters.monthDayYear.string(from: member.joinedAt)))
 
         return items
     }
@@ -601,22 +597,16 @@ private struct GroupMembersPreviewWithData: View {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        return formatter.string(from: date)
+        return DateFormatters.monthDayYear.string(from: date)
     }
 
     private static func date(_ string: String) -> Date {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        return formatter.date(from: string) ?? Date()
+        return DateFormatters.monthDayYear.date(from: string) ?? Date()
     }
 }
 
 private func date(_ string: String) -> Date {
-    let formatter = DateFormatter()
-    formatter.dateFormat = "MMM d, yyyy"
-    return formatter.date(from: string) ?? Date()
+    return DateFormatters.monthDayYear.date(from: string) ?? Date()
 }
 
 /// Preview model for members

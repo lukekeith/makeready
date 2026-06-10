@@ -193,9 +193,7 @@ struct MemberListItem: View {
     }
 
     private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d, yyyy"
-        return formatter.string(from: date)
+        return DateFormatters.monthDayYear.string(from: date)
     }
 }
 

@@ -380,9 +380,7 @@ struct VideoLibraryGrid: View {
         guard photoLibrary.videoCount > 0,
               let asset = photoLibrary.videoAsset(at: topVisibleIndex),
               let date = asset.asset.creationDate else { return "" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMMM, d, yyyy"
-        return formatter.string(from: date)
+        return DateFormatters.fullMonthCommaDayYear.string(from: date)
     }
 
     var body: some View {
