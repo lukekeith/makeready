@@ -1,0 +1,39 @@
+{
+  "platform": "iphone",
+  "view": "pages.program-home",
+  "output": "01-program-home-second-screen.png",
+  "title": "Program Home: Second Screen (Slider Index 1)",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "screenIndex": 1,
+    "programId": "prog-capture-1",
+    "programName": "Who Is God?",
+    "programDays": 30,
+    "programCoverImagePath": "God.png",
+    "lessons": [
+      {
+        "id": "lesson-1",
+        "dayNumber": 1,
+        "title": "Creator and Sustainer",
+        "estimatedMinutes": 25,
+        "activities": [
+          { "id": "act-1-1", "type": "READ", "title": "Genesis 1:1-3", "orderNumber": 1, "status": "PENDING" },
+          { "id": "act-1-2", "type": "EXEGESIS", "title": "In the Beginning", "orderNumber": 2, "status": "PENDING" }
+        ]
+      }
+    ]
+  }
+}

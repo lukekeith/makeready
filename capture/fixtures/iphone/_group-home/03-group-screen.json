@@ -1,0 +1,51 @@
+{
+  "platform": "iphone",
+  "view": "pages.group-home",
+  "output": "03-group-screen.png",
+  "title": "Group Home: Group (Slider Screen 3)",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "groupId": "group-1",
+    "screenIndex": 2,
+    "groups": [
+      {
+        "id": "group-1",
+        "code": "ABC123",
+        "name": "Sunday Morning Group",
+        "description": "Weekly study group",
+        "coverImageUrl": null,
+        "isPrivate": false,
+        "allowInvites": true,
+        "memberDirectory": true,
+        "memberCount": 24,
+        "creatorId": "user-1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-05-01T00:00:00.000Z"
+      }
+    ],
+    "enrollments": [
+      {
+        "id": "enroll-1",
+        "groupId": "group-1",
+        "studyProgramId": "prog-1",
+        "startDate": "2026-06-01T00:00:00.000Z",
+        "endDate": "2026-06-30T00:00:00.000Z",
+        "studyProgram": { "id": "prog-1", "name": "Who Is God?", "days": 30 },
+        "isActive": true
+      }
+    ]
+  }
+}

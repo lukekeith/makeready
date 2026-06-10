@@ -1,0 +1,39 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-day",
+  "output": "02-edit-day.png",
+  "title": "Program: Edit Day",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-1",
+    "programName": "Who Is God?",
+    "programDays": 30,
+    "lessonId": "lesson-1",
+    "lessons": [
+      {
+        "id": "lesson-1",
+        "dayNumber": 1,
+        "title": "Creator and Sustainer",
+        "estimatedMinutes": 25,
+        "activities": [
+          { "id": "act-1-1", "type": "READ", "title": "Genesis 1:1-3", "orderNumber": 1, "status": "PENDING" },
+          { "id": "act-1-2", "type": "EXEGESIS", "title": "In the Beginning", "orderNumber": 2, "status": "PENDING" },
+          { "id": "act-1-3", "type": "USER_INPUT", "title": "What does it mean that God created everything?", "orderNumber": 3, "status": "PENDING" }
+        ]
+      }
+    ]
+  }
+}

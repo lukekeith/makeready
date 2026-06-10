@@ -1,0 +1,53 @@
+{
+  "platform": "iphone",
+  "view": "pages.main",
+  "output": "01-groups-tab.png",
+  "title": "Main Tabs: Groups Tab",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "mainTab": "groups",
+    "groups": [
+      {
+        "id": "group-1",
+        "code": "ABC123",
+        "name": "Sunday Morning Group",
+        "description": "Weekly study group",
+        "coverImageUrl": null,
+        "isPrivate": false,
+        "allowInvites": true,
+        "memberDirectory": true,
+        "memberCount": 24,
+        "creatorId": "user-1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-05-01T00:00:00.000Z"
+      },
+      {
+        "id": "group-2",
+        "code": "XYZ789",
+        "name": "Young Professionals",
+        "description": "Tuesday evenings",
+        "coverImageUrl": null,
+        "isPrivate": true,
+        "allowInvites": true,
+        "memberDirectory": true,
+        "memberCount": 11,
+        "creatorId": "user-1",
+        "createdAt": "2026-02-01T00:00:00.000Z",
+        "updatedAt": "2026-05-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

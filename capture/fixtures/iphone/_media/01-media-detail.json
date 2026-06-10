@@ -1,0 +1,41 @@
+{
+  "platform": "iphone",
+  "view": "pages.media-detail",
+  "output": "01-media-detail.png",
+  "title": "Media: Detail Overlay",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "mediaId": "media-1",
+    "media": [
+      {
+        "id": "media-1",
+        "title": "Sunrise over Galilee",
+        "description": "Cover image used across the Who Is God? study.",
+        "url": "God.png",
+        "type": "photo",
+        "mimeType": "image/png",
+        "fileSize": 1048576,
+        "thumbnailUrl": null,
+        "uploadStatus": "ready",
+        "duration": null,
+        "tags": ["nature", "cover"],
+        "usageCount": 3,
+        "createdAt": "2026-03-01T00:00:00.000Z",
+        "updatedAt": "2026-03-01T00:00:00.000Z"
+      }
+    ]
+  }
+}

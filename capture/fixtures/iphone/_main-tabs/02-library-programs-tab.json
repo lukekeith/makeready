@@ -1,0 +1,27 @@
+{
+  "platform": "iphone",
+  "view": "pages.main",
+  "output": "02-library-programs-tab.png",
+  "title": "Main Tabs: Library — Programs",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "mainTab": "library",
+    "librarySubTab": "programs",
+    "programId": "prog-1",
+    "programName": "Who Is God?",
+    "programDays": 30
+  }
+}

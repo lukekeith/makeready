@@ -1,0 +1,147 @@
+{
+  "platform": "iphone",
+  "view": "pages.program-home",
+  "output": "04-program-home-many-lessons.png",
+  "title": "Create Study Program: Dense Lesson List (No Cover)",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "programId": "prog-capture-2",
+    "programName": "Romans: Living Sacrifice",
+    "programDays": 30,
+    "lessons": [
+      {
+        "id": "rl-1",
+        "dayNumber": 1,
+        "title": "The Gospel Revealed",
+        "estimatedMinutes": 18,
+        "activities": [
+          { "id": "ra-1-1", "type": "READ", "title": "Romans 1:1-17", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-1-2", "type": "USER_INPUT", "title": "Why is the gospel power for salvation?", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-2",
+        "dayNumber": 2,
+        "title": "No Excuse",
+        "estimatedMinutes": 22,
+        "activities": [
+          { "id": "ra-2-1", "type": "READ", "title": "Romans 1:18-32", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-2-2", "type": "EXEGESIS", "title": "Exchanging the Truth", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-3",
+        "dayNumber": 3,
+        "title": "God's Righteous Judgment",
+        "estimatedMinutes": 20,
+        "activities": [
+          { "id": "ra-3-1", "type": "READ", "title": "Romans 2:1-16", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-3-2", "type": "YOUTUBE", "title": "Judgment and Mercy", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-4",
+        "dayNumber": 4,
+        "title": "All Have Sinned",
+        "estimatedMinutes": 25,
+        "activities": [
+          { "id": "ra-4-1", "type": "READ", "title": "Romans 3:9-31", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-4-2", "type": "VIDEO", "title": "Justified Freely", "orderNumber": 2, "status": "PENDING" },
+          { "id": "ra-4-3", "type": "USER_INPUT", "title": "What does justification mean to you?", "orderNumber": 3, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-5",
+        "dayNumber": 5,
+        "title": "Abraham's Faith",
+        "estimatedMinutes": 19,
+        "activities": [
+          { "id": "ra-5-1", "type": "READ", "title": "Romans 4:1-25", "orderNumber": 1, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-6",
+        "dayNumber": 6,
+        "title": "Peace with God",
+        "estimatedMinutes": 21,
+        "activities": [
+          { "id": "ra-6-1", "type": "READ", "title": "Romans 5:1-11", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-6-2", "type": "EXEGESIS", "title": "Hope Does Not Disappoint", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-7",
+        "dayNumber": 7,
+        "title": "Dead to Sin, Alive in Christ",
+        "estimatedMinutes": 24,
+        "activities": [
+          { "id": "ra-7-1", "type": "READ", "title": "Romans 6:1-14", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-7-2", "type": "USER_INPUT", "title": "Where do you need to reckon yourself dead to sin?", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-8",
+        "dayNumber": 8,
+        "title": "The Inner Struggle",
+        "estimatedMinutes": 23,
+        "activities": [
+          { "id": "ra-8-1", "type": "READ", "title": "Romans 7:14-25", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-8-2", "type": "YOUTUBE", "title": "Who Will Deliver Me?", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-9",
+        "dayNumber": 9,
+        "title": "Life in the Spirit",
+        "estimatedMinutes": 26,
+        "activities": [
+          { "id": "ra-9-1", "type": "READ", "title": "Romans 8:1-17", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-9-2", "type": "EXEGESIS", "title": "No Condemnation", "orderNumber": 2, "status": "PENDING" },
+          { "id": "ra-9-3", "type": "USER_INPUT", "title": "How does the Spirit lead you daily?", "orderNumber": 3, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-10",
+        "dayNumber": 10,
+        "title": "More Than Conquerors",
+        "estimatedMinutes": 20,
+        "activities": [
+          { "id": "ra-10-1", "type": "READ", "title": "Romans 8:28-39", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-10-2", "type": "VIDEO", "title": "Nothing Can Separate Us", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-11",
+        "dayNumber": 11,
+        "title": "Living Sacrifices",
+        "estimatedMinutes": 22,
+        "activities": [
+          { "id": "ra-11-1", "type": "READ", "title": "Romans 12:1-8", "orderNumber": 1, "status": "PENDING" },
+          { "id": "ra-11-2", "type": "USER_INPUT", "title": "What does a renewed mind look like for you?", "orderNumber": 2, "status": "PENDING" }
+        ]
+      },
+      {
+        "id": "rl-12",
+        "dayNumber": 12,
+        "title": "Love in Action",
+        "estimatedMinutes": 18,
+        "activities": [
+          { "id": "ra-12-1", "type": "READ", "title": "Romans 12:9-21", "orderNumber": 1, "status": "PENDING" }
+        ]
+      }
+    ]
+  }
+}

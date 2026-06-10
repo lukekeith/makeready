@@ -117,14 +117,18 @@ When editing code that already uses a component (like SearchField), KEEP using t
 
 ---
 
-**ALWAYS check API_REFERENCE.md before implementing API-dependent features.**
+**ALWAYS check the makeready-api MCP server before implementing API-dependent features.**
 
 Before implementing any feature that calls backend APIs:
-1. **Read `.claude/API_REFERENCE.md`** for documented endpoints and specifications
+1. **Use the `makeready-api` MCP tools** as the source of truth for endpoints:
+   - `mcp__makeready-api__list_api_endpoints` - List all server endpoints
+   - `mcp__makeready-api__get_endpoint_detail` - Full request/response spec for an endpoint
+   - `mcp__makeready-api__search_api` - Search the server API by keyword
+   - `mcp__makeready-api__get_schema` - Database schema for a model
 2. **Validate request/response formats** match the API documentation
 3. **Check authentication requirements** (session cookies, headers)
-4. **Verify base URLs** (local: http://127.0.0.1:3001, production: https://makeready.app)
-5. **Follow documented patterns** for error handling and data models
+4. **Verify base URLs** (local: http://127.0.0.1:3010, production: https://api.makeready.org)
+5. **Follow documented patterns** for error handling and data models (see the "API Endpoints" section below)
 
 This ensures API implementations match server specifications and prevents integration issues.
 
@@ -271,6 +275,11 @@ let data = try await api.get("/api/programs")
 | `GroupActions()` | Groups, posts, members | `loadGroups()`, `getGroup(id:)`, `createGroup()`, `loadPosts()`, `loadMembers()` |
 | `EnrollmentActions()` | Enrollments | `loadEnrollments(groupId:)`, `createEnrollment()`, `deleteEnrollment()` |
 | `VideoActions()` | Video library | `loadVideos()`, `uploadAndCreateVideo()`, `deleteVideo()` |
+| `HomeActions()` | Home dashboard, calendar | `loadHomeData(forceRefresh:)`, `loadCalendarEvents(forceRefresh:)` |
+| `MediaActions()` | Media library (photos, tags) | `loadLibrary()`, `searchLibrary()`, `uploadPhoto(image:title:)`, `loadDetail(id:)`, `loadUsages(id:)`, `updateMedia(id:title:description:)`, `deleteMedia(id:)`, `addTags()`, `removeTags()`, `syncTags()`, `loadAllMediaTags()` |
+| `NotificationActions()` | In-app notifications | `loadNotifications()`, `loadUnreadCount()`, `markAsRead(ids:)`, `markAllAsRead()` |
+| `DeviceTokenActions()` | APNs push tokens | `registerToken(_:environment:)`, `removeToken(_:)` |
+| `ThemeActions()` | Text themes for content styling | `loadThemes()` |
 
 ### Cache-First Loading Pattern
 
@@ -317,7 +326,12 @@ MakeReady/State/
 │   ├── ProgramActions.swift
 │   ├── GroupActions.swift
 │   ├── EnrollmentActions.swift
-│   └── VideoActions.swift
+│   ├── VideoActions.swift
+│   ├── HomeActions.swift
+│   ├── MediaActions.swift
+│   ├── NotificationActions.swift
+│   ├── DeviceTokenActions.swift
+│   └── ThemeActions.swift
 └── Persistence/
     ├── StatePersistence.swift  # Disk read/write
     └── PersistedState.swift    # Codable snapshot
@@ -355,7 +369,12 @@ iphone/
 │   │   │   ├── ProgramActions.swift
 │   │   │   ├── GroupActions.swift
 │   │   │   ├── EnrollmentActions.swift
-│   │   │   └── VideoActions.swift
+│   │   │   ├── VideoActions.swift
+│   │   │   ├── HomeActions.swift
+│   │   │   ├── MediaActions.swift
+│   │   │   ├── NotificationActions.swift
+│   │   │   ├── DeviceTokenActions.swift
+│   │   │   └── ThemeActions.swift
 │   │   └── Persistence/             # Disk caching
 │   │
 │   ├── Pages/               # Page views (use AppState + Actions)
@@ -376,7 +395,14 @@ iphone/
 **Key Architecture Rules:**
 - **State folder**: Contains ALL data management - never bypass this
 - **Pages**: Read from `AppState.shared`, mutate via Actions
-- **Components**: Pure UI, receive data via props, no state access
+- **Pure components (default)**: Pure UI, receive data via props, no state access
+- **Connected components (explicit exceptions)**: A small, fixed list of components that may READ `AppState.shared` (never call `APIClient` directly; mutations still go through Actions). Currently:
+  - `Components/Input/MediaLibraryPicker.swift`
+  - `Components/Input/BackgroundPickerModal.swift`
+  - `Components/Input/BlockStyleEditor.swift`
+  - `Components/Navigation/UserMenu.swift`
+
+  Any new connected component requires adding it to this list. Default to pure components unless there is a strong reason not to.
 
 ## 🤖 Sub-Agent Commands
 
@@ -645,7 +671,7 @@ All menus/sheets support binding for presentation state (`@Binding var isPresent
 - Handles session persistence with UserDefaults
 
 **OAuth Flow:**
-1. App opens: `http://127.0.0.1:3001/auth/google?platform=ios`
+1. App opens: `\(Configuration.baseURL)/auth/google?platform=ios` (local: `http://127.0.0.1:3010`, production: `https://api.makeready.org`)
 2. User signs in with Google (in SafariViewController)
 3. Callback: `makeready://auth/callback?code=xxx`
 4. App exchanges code for session with `/auth/exchange`
@@ -886,7 +912,7 @@ if let user = authManager.currentUser {
 - Reset simulator: Device → Erase All Content and Settings
 
 **OAuth Issues:**
-- Check server is running on port 3001
+- Check server is running on port 3010
 - Verify redirect URI in Google Console
 - Check `makeready://` URL scheme in `Info.plist`
 
@@ -904,7 +930,7 @@ print("Debug: \(value)")
 
 ### Internal Documentation
 - [Video Recording Guide](.claude/VIDEO_RECORDING.md) - Correct video orientation handling with RotationCoordinator
-- [API Reference](.claude/API_REFERENCE.md) - Backend API endpoint specifications
+- **API Reference** - Use the `makeready-api` MCP tools (`list_api_endpoints`, `get_endpoint_detail`, `search_api`, `get_schema`) for backend endpoint specifications, plus the "API Endpoints" section below
 - [Build Configuration](.claude/BUILD_CONFIGURATION.md) - TestFlight and environment setup
 - [SwiftUI Transitions](.claude/SWIFTUI_TRANSITIONS.md) - Patterns for page transitions, modals, and animations
 - [SwiftUI Animation Patterns](.claude/SWIFTUI_ANIMATION_PATTERNS.md) - Jitter-free gestures, menus, and overlay animations
@@ -919,13 +945,18 @@ print("Debug: \(value)")
 
 ## 🌐 API Endpoints
 
-The iPhone app communicates with the MakeReady backend server running at `http://127.0.0.1:3001` (local development) or `https://makeready.app` (production).
+The iPhone app communicates with the MakeReady backend server running at `http://127.0.0.1:3010` (local development), `https://staging.api.makeready.org` (staging), or `https://api.makeready.org` (production).
 
 ### Base URL
 
+The base URL is resolved at runtime by `Configuration.baseURL` (see `MakeReady/Configuration.swift`) — never hardcode it:
+
 ```swift
-let baseURL = "http://127.0.0.1:3001"  // Development
-// let baseURL = "https://makeready.app"  // Production
+Configuration.baseURL
+// Local (simulator):  http://127.0.0.1:3010
+// Local (device):     http://<local server IP>:3010 (configurable on Profile screen)
+// Staging:            https://staging.api.makeready.org
+// Production:         https://api.makeready.org
 ```
 
 ### Authentication Endpoints
@@ -1037,39 +1068,39 @@ Create new invite
 
 ### Making Authenticated Requests
 
-All authenticated endpoints require the session cookie from login:
+All authenticated requests go through `APIClient.shared` (`MakeReady/State/API/APIClient.swift`). It resolves the base URL from `Configuration.baseURL` and attaches the `connect.sid` session cookie automatically. **Only Actions call APIClient — views must go through Actions.**
 
 ```swift
-// In AuthManager.swift
-func makeAuthenticatedRequest(to endpoint: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
-    guard let sessionCookie = UserDefaults.standard.string(forKey: "sessionCookie") else {
-        throw NSError(domain: "Auth", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+// In an Actions struct (MakeReady/State/Actions/)
+struct NotificationActions {
+
+    private let api = APIClient.shared
+    private var state: AppState { AppState.shared }
+
+    @MainActor
+    func loadNotifications() async throws {
+        let response: NotificationListResponse = try await api.get(
+            "/api/notifications?limit=50",
+            responseType: NotificationListResponse.self
+        )
+
+        guard response.success, let notifications = response.notifications else {
+            throw APIError.serverError(response.error ?? "Failed to load notifications")
+        }
+
+        state.notifications.replaceAll(notifications)
     }
-
-    var request = URLRequest(url: URL(string: "\\(baseURL)\\(endpoint)")!)
-    request.httpMethod = method
-    request.setValue(sessionCookie, forHTTPHeaderField: "Cookie")
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-
-    if let body = body {
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-    }
-
-    let (data, response) = try await URLSession.shared.data(for: request)
-
-    guard let httpResponse = response as? HTTPURLResponse,
-          httpResponse.statusCode == 200 else {
-        throw NSError(domain: "API", code: (response as? HTTPURLResponse)?.statusCode ?? 500)
-    }
-
-    return data
 }
 ```
 
+`APIClient` also provides `post(_:body:responseType:)`, `patch(_:body:responseType:)`, `delete(_:responseType:)`, `upload(...)`, and `uploadImage(...)`. Never call `APIClient` or `URLSession` directly from a view — add a method to the appropriate Actions struct instead.
+
 ### Example: Generate QR Code
 
+QR code generation lives in `AuthManager.generateQRCode(...)` (a legacy exception that builds its request from `Configuration.baseURL` with the session cookie — it disables caching so QR codes are always fresh):
+
 ```swift
-// In AuthManager.swift
+// In AuthManager.swift (actual implementation, abridged)
 func generateQRCode(
     data: String,
     color: String = "#6c47ff",
@@ -1078,34 +1109,35 @@ func generateQRCode(
     errorCorrectionLevel: String = "M",
     includeLogo: Bool = true
 ) async throws -> UIImage {
-    let body: [String: Any] = [
+    guard let url = URL(string: "\(Configuration.baseURL)/api/qrcode/generate") else {
+        throw URLError(.badURL)
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.cachePolicy = .reloadIgnoringLocalCacheData  // Never cache QR codes
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    if let sessionCookie = sessionCookie {
+        request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
+    }
+    request.httpBody = try JSONSerialization.data(withJSONObject: [
         "data": data,
         "color": color,
         "backgroundColor": backgroundColor,
         "size": size,
         "errorCorrectionLevel": errorCorrectionLevel,
         "includeLogo": includeLogo
-    ]
+    ])
 
-    let requestData = try await makeAuthenticatedRequest(
-        to: "/api/qrcode/generate",
-        method: "POST",
-        body: body
-    )
+    let (responseData, _) = try await URLSession.shared.data(for: request)
+    let qrResponse = try JSONDecoder().decode(QRCodeResponse.self, from: responseData)
 
-    let response = try JSONDecoder().decode(QRCodeResponse.self, from: requestData)
-
-    guard response.success, let qrCodeDataURL = response.qrCode else {
-        throw NSError(domain: "QRCode", code: 500,
-                     userInfo: [NSLocalizedDescriptionKey: response.error ?? "Failed to generate QR code"])
-    }
-
-    // Parse data URL and convert to UIImage
-    let base64String = qrCodeDataURL.replacingOccurrences(of: "data:image/png;base64,", with: "")
-    guard let imageData = Data(base64Encoded: base64String),
+    guard qrResponse.success, let qrCodeDataURL = qrResponse.qrCode,
+          let base64String = qrCodeDataURL.components(separatedBy: ",").last,
+          let imageData = Data(base64Encoded: base64String),
           let image = UIImage(data: imageData) else {
-        throw NSError(domain: "QRCode", code: 500,
-                     userInfo: [NSLocalizedDescriptionKey: "Failed to decode QR code image"])
+        throw NSError(domain: "QRCode", code: -1,
+                     userInfo: [NSLocalizedDescriptionKey: qrResponse.error ?? "Failed to generate QR code"])
     }
 
     return image
@@ -1144,16 +1176,20 @@ The app automatically switches between local development and production environm
 
 ### Automatic Environment Switching
 
-| Build Type | Environment | Base URL | Auth Bypass |
-|------------|-------------|----------|-------------|
-| **Debug (Xcode Run)** | Development | http://127.0.0.1:3001 | Enabled |
-| **Release (Archive)** | Production | https://makeready.app | Disabled |
+| Build Type | DEV_MODE | Base URL | Auth Bypass |
+|------------|----------|----------|-------------|
+| **Debug (Xcode Run)** | YES (environment switcher in user menu) | http://127.0.0.1:3010 (Local), https://staging.api.makeready.org (Staging), https://api.makeready.org (Production — default) | Enabled when Local selected |
+| **Development** | NO | http://127.0.0.1:3010 | Disabled |
+| **Staging** | NO | https://staging.api.makeready.org | Disabled |
+| **Release (Archive)** | NO | https://api.makeready.org | Disabled |
+
+Defined in `MakeReady/Configuration/*.xcconfig` and resolved at runtime by `MakeReady/Configuration.swift`. With DEV_MODE on, the selected environment persists in UserDefaults and defaults to Production until changed. On a physical device, Local uses the IP/port configured on the Profile screen (default `192.168.1.65:3010`).
 
 ### For Local Development
 
 ```bash
-# Just run normally in Xcode
-# Automatically uses local server at 127.0.0.1:3001
+# Run normally in Xcode (Debug), then select "Local" in the
+# user-menu environment switcher to use the local server at 127.0.0.1:3010
 ```
 
 ### For TestFlight
@@ -1163,7 +1199,7 @@ The app automatically switches between local development and production environm
 Product → Archive
 
 # 2. Upload to App Store Connect
-# Automatically uses production server (makeready.app)
+# Automatically uses production server (api.makeready.org)
 ```
 
 **See `.claude/BUILD_CONFIGURATION.md` for complete guide on building for TestFlight, custom configurations, and troubleshooting.**

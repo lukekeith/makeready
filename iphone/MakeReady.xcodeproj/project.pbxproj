@@ -120,6 +120,10 @@
 		EXVV000200000000000001 /* ExegesisVerseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXVV000100000000000001 /* ExegesisVerseView.swift */; };
 		BVT0001000000000000001 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
 		BVNT000100000000000001 /* BibleVerseContentNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */; };
+		ESTT000100000000000001 /* EntityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESTT000200000000000001 /* EntityStoreTests.swift */; };
+		RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RITX000200000000000001 /* RelationshipIndexTests.swift */; };
+		SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */; };
+		MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLT000200000000000001 /* ModelDecodingTests.swift */; };
 		VSLG000200000000000001 /* VerseSelectionLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSLG000100000000000001 /* VerseSelectionLogic.swift */; };
 		ACST000200000000000001 /* ActivityStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACST000100000000000001 /* ActivityStyle.swift */; };
 		BSRV0001000000000000001 /* BibleSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSRV0002000000000000001 /* BibleSearchService.swift */; };
@@ -406,6 +410,10 @@
 		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
 		BVT0002000000000000001 /* BibleVerseTextLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseTextLayout.swift; sourceTree = "<group>"; };
 		BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseContentNormalizerTests.swift; sourceTree = "<group>"; };
+		ESTT000200000000000001 /* EntityStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStoreTests.swift; sourceTree = "<group>"; };
+		RITX000200000000000001 /* RelationshipIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelationshipIndexTests.swift; sourceTree = "<group>"; };
+		SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatePersistenceRoundTripTests.swift; sourceTree = "<group>"; };
+		MDLT000200000000000001 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
 		VSLG000100000000000001 /* VerseSelectionLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerseSelectionLogic.swift; sourceTree = "<group>"; };
 		ACST000100000000000001 /* ActivityStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStyle.swift; sourceTree = "<group>"; };
 		C0L0R5SW1FT00000001 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
@@ -794,6 +802,10 @@
 				813B940D8CC0C51848F38583 /* ViewRegistry.swift */,
 				FF676E78A8861B4738753BFC /* DeviceChrome.swift */,
 				BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */,
+				ESTT000200000000000001 /* EntityStoreTests.swift */,
+				RITX000200000000000001 /* RelationshipIndexTests.swift */,
+				SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */,
+				MDLT000200000000000001 /* ModelDecodingTests.swift */,
 			);
 			name = MakeReadyCaptureTests;
 			path = MakeReadyCaptureTests;
@@ -1502,6 +1514,10 @@
 				882434CACD6C96883CA0B4D4 /* ViewRegistry.swift in Sources */,
 				395291F277BA9C4C13FB0CD9 /* DeviceChrome.swift in Sources */,
 				BVNT000100000000000001 /* BibleVerseContentNormalizerTests.swift in Sources */,
+				ESTT000100000000000001 /* EntityStoreTests.swift in Sources */,
+				RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */,
+				SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */,
+				MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

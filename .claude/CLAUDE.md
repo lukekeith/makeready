@@ -61,7 +61,7 @@ Mirrors admin/leader functionality from client, connects directly to server API 
 - **State:** Centralized `AppState.shared` singleton with normalized entity stores, disk-cached for offline support
 - **Auth:** Google OAuth via ASWebAuthenticationSession → exchanges code with server directly
 - **Unique features:** Custom video recorder with teleprompter, full Bible reader with search/highlighting, push notifications (APNs) with deep linking
-- **Components:** 122 custom SwiftUI components, 239 page files
+- **Components:** 122 custom SwiftUI components, 68 page files
 
 ### Capture (`/capture`) — Internal Dev Tool
 
@@ -134,7 +134,7 @@ makeready/                   # Monorepo root (.git here)
 │   ├── .claude/          # iPhone-specific Claude instructions
 │   └── MakeReady/        # Swift project
 │       ├── State/        # AppState, Actions, EntityStore, Models
-│       ├── Pages/        # SwiftUI pages (239 files)
+│       ├── Pages/        # SwiftUI pages (68 files)
 │       ├── Components/   # SwiftUI components (122 files)
 │       └── Services/     # Bible, search, push notifications
 └── capture/             # Screenshot tool

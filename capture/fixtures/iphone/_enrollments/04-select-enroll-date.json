@@ -1,0 +1,26 @@
+{
+  "platform": "iphone",
+  "view": "pages.select-enroll-date",
+  "output": "04-select-enroll-date.png",
+  "title": "Enrollments: Select Enroll Date",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "groupId": "group-1",
+    "programId": "prog-1",
+    "programName": "Who Is God?",
+    "programDays": 30
+  }
+}

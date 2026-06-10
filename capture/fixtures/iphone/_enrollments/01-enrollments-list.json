@@ -1,0 +1,59 @@
+{
+  "platform": "iphone",
+  "view": "pages.enrollments-list",
+  "output": "01-enrollments-list.png",
+  "title": "Enrollments: List",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "groupId": "group-1",
+    "groups": [
+      {
+        "id": "group-1",
+        "code": "ABC123",
+        "name": "Sunday Morning Group",
+        "description": "Weekly study group",
+        "coverImageUrl": null,
+        "isPrivate": false,
+        "allowInvites": true,
+        "memberDirectory": true,
+        "memberCount": 24,
+        "creatorId": "user-1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-05-01T00:00:00.000Z"
+      }
+    ],
+    "enrollments": [
+      {
+        "id": "enroll-1",
+        "groupId": "group-1",
+        "studyProgramId": "prog-1",
+        "startDate": "2026-06-01T00:00:00.000Z",
+        "endDate": "2026-06-30T00:00:00.000Z",
+        "studyProgram": { "id": "prog-1", "name": "Who Is God?", "days": 30 },
+        "isActive": true
+      },
+      {
+        "id": "enroll-2",
+        "groupId": "group-1",
+        "studyProgramId": "prog-2",
+        "startDate": "2026-04-01T00:00:00.000Z",
+        "endDate": "2026-04-30T00:00:00.000Z",
+        "studyProgram": { "id": "prog-2", "name": "Romans: Living Sacrifice", "days": 30 },
+        "isActive": false
+      }
+    ]
+  }
+}

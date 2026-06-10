@@ -1,0 +1,21 @@
+{
+  "platform": "iphone",
+  "view": "pages.profile",
+  "output": "01-profile.png",
+  "title": "Profile: Signed-In User",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {}
+}

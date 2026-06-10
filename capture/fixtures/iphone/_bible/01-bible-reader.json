@@ -1,0 +1,29 @@
+{
+  "platform": "iphone",
+  "view": "pages.bible-reader",
+  "output": "01-bible-reader.png",
+  "title": "Bible Reader Overlay: John 3",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "bibleReference": {
+      "bookNumber": 43,
+      "bookName": "John",
+      "chapterStart": 3,
+      "verseStart": 1,
+      "verseEnd": 21
+    }
+  }
+}

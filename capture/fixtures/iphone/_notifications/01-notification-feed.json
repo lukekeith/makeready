@@ -1,0 +1,44 @@
+{
+  "platform": "iphone",
+  "view": "pages.notification-feed",
+  "output": "01-notification-feed.png",
+  "title": "Notifications: Feed with Unread Items",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "notifications": [
+      {
+        "id": "notif-1",
+        "userId": "user-1",
+        "type": "JOIN_REQUEST",
+        "title": "New join request",
+        "body": "Anna Bishop requested to join Sunday Morning Group",
+        "isRead": false,
+        "data": { "groupId": "group-1", "requestId": "req-1" },
+        "createdAt": "2026-06-09T14:00:00.000Z"
+      },
+      {
+        "id": "notif-2",
+        "userId": "user-1",
+        "type": "MEMBER_JOINED",
+        "title": "New member",
+        "body": "Caleb Doyle joined Young Professionals",
+        "isRead": true,
+        "data": { "groupId": "group-2", "requestId": null },
+        "createdAt": "2026-06-08T09:30:00.000Z"
+      }
+    ]
+  }
+}

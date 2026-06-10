@@ -1,0 +1,42 @@
+{
+  "platform": "iphone",
+  "view": "pages.member-home",
+  "output": "02-member-home.png",
+  "title": "Members: Member Home",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "groups": [
+      {
+        "id": "group-1",
+        "code": "ABC123",
+        "name": "Sunday Morning Group",
+        "description": "Weekly study group",
+        "coverImageUrl": null,
+        "isPrivate": false,
+        "allowInvites": true,
+        "memberDirectory": true,
+        "memberCount": 4,
+        "creatorId": "user-1",
+        "createdAt": "2026-01-01T00:00:00.000Z",
+        "updatedAt": "2026-05-01T00:00:00.000Z"
+      }
+    ],
+    "members": [
+      { "id": "member-1", "userId": "u-2", "groupId": "group-1", "firstName": "Anna", "lastName": "Bishop", "phoneNumber": "+15550000001", "avatarUrl": null, "joinedAt": "2026-01-05T00:00:00.000Z" },
+      { "id": "member-2", "userId": "u-3", "groupId": "group-1", "firstName": "Caleb", "lastName": "Doyle", "phoneNumber": "+15550000002", "avatarUrl": null, "joinedAt": "2026-01-12T00:00:00.000Z" }
+    ]
+  }
+}

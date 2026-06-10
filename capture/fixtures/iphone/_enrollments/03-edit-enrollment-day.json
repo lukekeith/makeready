@@ -1,0 +1,50 @@
+{
+  "platform": "iphone",
+  "view": "pages.edit-enrollment-day",
+  "output": "03-edit-enrollment-day.png",
+  "title": "Enrollments: Edit Enrollment Day",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "enrollmentId": "enroll-1",
+    "lessonId": "lesson-1",
+    "enrollments": [
+      {
+        "id": "enroll-1",
+        "groupId": "group-1",
+        "studyProgramId": "prog-1",
+        "startDate": "2026-06-01T00:00:00.000Z",
+        "endDate": "2026-06-30T00:00:00.000Z",
+        "studyProgram": { "id": "prog-1", "name": "Who Is God?", "days": 30 },
+        "isActive": true
+      }
+    ],
+    "programId": "prog-1",
+    "programName": "Who Is God?",
+    "programDays": 30,
+    "lessons": [
+      {
+        "id": "lesson-1",
+        "dayNumber": 1,
+        "title": "Creator and Sustainer",
+        "estimatedMinutes": 25,
+        "activities": [
+          { "id": "act-1-1", "type": "READ", "title": "Genesis 1:1-3", "orderNumber": 1, "status": "PENDING" },
+          { "id": "act-1-2", "type": "USER_INPUT", "title": "What does it mean that God created everything?", "orderNumber": 2, "status": "PENDING" }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "platform": "iphone",
+  "view": "pages.main",
+  "output": "03-library-media-tab.png",
+  "title": "Main Tabs: Library — Media Grid",
+  "devices": [
+    "iphone-se",
+    "iphone-15-pro",
+    "iphone-16-pro-max"
+  ],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": {
+      "id": "user-1",
+      "name": "Luke Keith",
+      "email": "luke@example.com",
+      "picture": null
+    }
+  },
+  "state": {
+    "mainTab": "library",
+    "librarySubTab": "media",
+    "media": [
+      {
+        "id": "media-1",
+        "title": "Sunrise over Galilee",
+        "description": null,
+        "url": "God.png",
+        "type": "photo",
+        "mimeType": "image/png",
+        "fileSize": 1048576,
+        "thumbnailUrl": null,
+        "uploadStatus": "ready",
+        "duration": null,
+        "tags": ["nature", "cover"],
+        "usageCount": 3,
+        "createdAt": "2026-03-01T00:00:00.000Z",
+        "updatedAt": "2026-03-01T00:00:00.000Z"
+      },
+      {
+        "id": "media-2",
+        "title": "Teaching: The I AM",
+        "description": "Week 2 intro video",
+        "url": "https://example.invalid/video.m3u8",
+        "type": "video",
+        "mimeType": "video/mp4",
+        "fileSize": 50331648,
+        "thumbnailUrl": null,
+        "uploadStatus": "ready",
+        "duration": 312,
+        "tags": ["teaching"],
+        "usageCount": 1,
+        "createdAt": "2026-03-05T00:00:00.000Z",
+        "updatedAt": "2026-03-05T00:00:00.000Z"
+      },
+      {
+        "id": "media-3",
+        "title": "Desert Wilderness",
+        "description": null,
+        "url": "God.png",
+        "type": "photo",
+        "mimeType": "image/png",
+        "fileSize": 786432,
+        "thumbnailUrl": null,
+        "uploadStatus": "ready",
+        "duration": null,
+        "tags": [],
+        "usageCount": 0,
+        "createdAt": "2026-03-10T00:00:00.000Z",
+        "updatedAt": "2026-03-10T00:00:00.000Z"
+      }
+    ]
+  }
+}
