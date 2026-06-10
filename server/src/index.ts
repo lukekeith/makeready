@@ -485,7 +485,7 @@ app.use('/api/themes', themesRoutes)
 // Study preview routes (preview tokens for program creators)
 app.use('/api/study-preview', studyPreviewApiRouter)
 
-// GitHub activity routes (commit feed from all repos)
+// GitHub activity routes (monorepo commit feed, classified by app folder)
 app.use('/api/github', githubRoutes)
 
 // ============================================================================

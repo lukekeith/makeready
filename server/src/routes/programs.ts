@@ -36,7 +36,12 @@ const router = Router()
  * creator-scoped otherwise. Lets org members view each other's programs.
  */
 function accessFilter(userOrgId: string | undefined, userId: string) {
-  return userOrgId ? { organizationId: userOrgId } : { creatorId: userId }
+  // Always include creator-scoped access so users can see their own programs
+  // even if org association is missing (e.g. programs created before org
+  // stamping covered non-owner roles).
+  return userOrgId
+    ? { OR: [{ organizationId: userOrgId }, { creatorId: userId }] }
+    : { creatorId: userId }
 }
 
 /**
@@ -227,12 +232,6 @@ router.post('/programs', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Template not found' })
     }
 
-    // Look up creator's organization for direct association
-    const creatorOrg = await prisma.organization.findFirst({
-      where: { ownerId: userId },
-      select: { id: true },
-    })
-
     // Create program with lessons in a transaction
     const program = await prisma.$transaction(async (tx) => {
       // Create the program
@@ -246,7 +245,10 @@ router.post('/programs', requireAuth, async (req, res) => {
           isPublished: body.isPublished,
           publishedAt: body.isPublished ? new Date() : null,
           creatorId: userId,
-          organizationId: creatorOrg?.id,
+          // userOrgId resolves owners, members, and role-holders (group
+          // leaders) — not just org owners — so leader-created programs are
+          // visible org-wide.
+          organizationId: userOrgId ?? null,
         },
       })
 
@@ -331,7 +333,7 @@ router.post('/programs', requireAuth, async (req, res) => {
         resourceType: 'PROGRAM',
         resourceId: program.id,
         resourceName: program.name,
-        organizationId: creatorOrg?.id,
+        organizationId: userOrgId,
       })
     }
 

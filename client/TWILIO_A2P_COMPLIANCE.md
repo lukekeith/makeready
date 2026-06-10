@@ -1,11 +1,37 @@
 # Twilio A2P 10DLC Campaign Compliance Guide
 
-## Current Status: REJECTED → FIXING
+## Current Status (verified 2026-06-08 via Twilio API)
 
-Campaign rejected for:
-- **Error 30891** — Unverifiable website / opt-in flow not found
+| Layer | Status | Identifier | Notes |
+|---|---|---|---|
+| **Brand** | ✅ **APPROVED / VERIFIED** | `BNd9e3607bbb5e796a19490d0e8a432a27` | Standard brand, identity verified — no action needed |
+| **Campaign** (attached to our Messaging Service) | ❌ **FAILED** | `QE2c6890da8086d771620e9b13fadeba0b` / CR id `CDUUE97`, use case `LOW_VOLUME` | Rejected in vetting — **error 30886** |
+| **Messaging Service** | live | `MG0a5743b83e7f972a517ba92eb206f927` ("Low Volume Mixed A2P Messaging Service") | Pool number `+14697131325` |
+| **Twilio account** | active | `ACb3ee…` ("MakeReady", Full, no subaccounts — full SID in `server/.env`) | These are the credentials in `server/.env` |
 
-## Root Cause Analysis
+**Progress since last update:** The earlier blocker (error **30891**, unverifiable opt-in flow) is **resolved** — the brand is approved and the opt-in/website fixes cleared review. The remaining blocker has moved to the **campaign description**.
+
+### Active rejection — error 30886 (Invalid Campaign Description)
+> *"Your A2P 10DLC campaign was rejected during vetting because the Campaign Description field does not clearly explain the messaging program. Describe who is sending the messages, who receives them, and why. Make sure the description matches your selected campaign use case, sample messages, and registered brand details."* — flagged field: `USE_CASE_DESCRIPTION`
+
+Likely triggers in the currently-submitted description:
+- Describes **two distinct message types** (one-time invites *and* recurring daily activity messages) under a single `LOW_VOLUME` use case.
+- States **"approximately one message per enrolled member per day"** — a recurring daily cadence that can read as inconsistent with a low-volume/transactional framing.
+
+### ⚠️ Open discrepancy — support vs. API (chase before resubmitting)
+On **2026-06-08**, Twilio Onboarding & Compliance support (Abdul Samad) replied that campaign **`CM0281920784ed1d026de2523662ec1e7e`** is now **approved**. However, that SID **does not exist in our account** (`ACb3ee07…`) — not on the Messaging Service, not at the account-level compliance endpoint, and there are no subaccounts. The only campaign in our account (`QE2c68…` / `CDUUE97`) remains **FAILED**.
+
+This means one of:
+1. The approved `CM…` campaign lives in a **different Twilio account/ISV** than the one whose credentials are in `server/.env`, or
+2. There is an account/SID mismatch on the support side.
+
+**Until the approved campaign is attached to Messaging Service `MG0a57…` (or we point the server at the account that owns it), live sends will continue to fail.** A live test on 2026-06-08 via `sendCampaignSms` (template `group-invite-v1`) was accepted by Twilio (SID `SMf0e491eb40f71a5cf48fd900735d8ab5`) but returned **undelivered, error 30034 (message from an unregistered number)** — consistent with the attached campaign being FAILED.
+
+**Next action:** Reply to Samad asking which **account SID** campaign `CM0281…` belongs to, and confirm it is linked to a Messaging Service with a sending number. Reconcile against `TWILIO_ACCOUNT_SID` / `TWILIO_MESSAGING_SERVICE_SID` in `server/.env`.
+
+---
+
+## Root Cause Analysis (original 30891 rejection — RESOLVED)
 
 The rejection was for "unverifiable website" which means the Twilio reviewer could not verify:
 1. The opt-in flow (SMS consent checkbox) on the website
@@ -74,17 +100,22 @@ https://app.makeready.org/pages/terms
 
 ---
 
-## Checklist Before Resubmission
+## Checklist
 
-- [ ] Deploy the code changes (consent text, noscript fallback, enhanced opt-in page)
-- [ ] Verify https://app.makeready.org/pages/sms-opt-in loads correctly and shows the checkbox demo
-- [ ] Verify https://app.makeready.org/pages/privacy loads correctly
-- [ ] Verify https://app.makeready.org/pages/terms loads correctly
-- [ ] Verify join flow pages have noscript fallback (view-source on /join/group/*/phone)
-- [ ] Update campaign description with the corrected text above
-- [ ] Update message flow / consent description with the corrected text above
-- [ ] Uncheck "Messages will include phone numbers" (has_embedded_phone → false)
-- [ ] Resubmit campaign
+### Original 30891 (opt-in) fix — ✅ DONE (brand approved, opt-in cleared)
+- [x] Deploy the code changes (consent text, noscript fallback, enhanced opt-in page)
+- [x] Verify https://app.makeready.org/pages/sms-opt-in loads correctly and shows the checkbox demo
+- [x] Verify https://app.makeready.org/pages/privacy loads correctly
+- [x] Verify https://app.makeready.org/pages/terms loads correctly
+- [x] Verify join flow pages have noscript fallback (view-source on /join/group/*/phone)
+- [x] Uncheck "Messages will include phone numbers" (has_embedded_phone → false)
+
+### Current 30886 (campaign description) — TODO
+- [ ] Resolve the support/API discrepancy: confirm which account SID owns approved campaign `CM0281…` (reply to Samad)
+- [ ] Rewrite the campaign **use-case description** so it cleanly matches the `LOW_VOLUME` use case, the two sample messages, and the brand (single coherent program; reconcile the "one msg/member/day" cadence)
+- [ ] Update message flow / consent description if needed
+- [ ] Resubmit campaign `QE2c68…` (or attach the approved `CM…` campaign to Messaging Service `MG0a57…`)
+- [ ] Re-run the live test (`docker exec -e TEST_VERIFICATION_CODES= makeready-server npx tsx src/scripts/send-a2p-test.ts`) and confirm Twilio status `delivered` (not `undelivered`/30034)
 
 ---
 
