@@ -15,6 +15,7 @@ enum ViewRegistryError: Error {
 
 /// Builds the SwiftUI view for a given fixture, wrapping it with
 /// the required environment objects (AuthManager, OverlayManager).
+@MainActor
 func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
     let authManager = makeMockAuthManager(from: fixture.auth)
 

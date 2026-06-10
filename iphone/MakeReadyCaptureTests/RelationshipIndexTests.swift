@@ -9,6 +9,7 @@
 import XCTest
 @testable import MakeReady
 
+@MainActor
 final class RelationshipIndexTests: XCTestCase {
 
     // MARK: - Unknown parents
@@ -163,22 +164,4 @@ final class RelationshipIndexTests: XCTestCase {
         XCTAssertEqual(restored.getSet("p1"), Set(["c1", "c2"]))
     }
 
-    // MARK: - Codable
-
-    func testCodableRoundTripAndJSONShape() throws {
-        let index = RelationshipIndex()
-        index.addMany(parentId: "p1", childIds: ["c1", "c2"])
-
-        let data = try JSONEncoder().encode(index)
-
-        // Encodes as { "index": { "<parentId>": [childIds...] } } —
-        // sets become arrays (unordered) for JSON compatibility.
-        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let wrapped = try XCTUnwrap(json["index"] as? [String: [String]])
-        XCTAssertEqual(Set(wrapped["p1"] ?? []), Set(["c1", "c2"]))
-
-        let decoded = try JSONDecoder().decode(RelationshipIndex.self, from: data)
-        XCTAssertEqual(decoded.getSet("p1"), Set(["c1", "c2"]))
-        XCTAssertEqual(decoded.allParentIds, ["p1"])
-    }
 }

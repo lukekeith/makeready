@@ -129,7 +129,8 @@ class BibleSearchService {
 
     /// Perform smart search (auto-detects reference vs semantic)
     func smartSearch(query: String, translation: String? = nil, limit: Int = 10) async throws -> BibleSearchResult {
-        let translation = translation ?? AppState.shared.selectedBibleTranslation
+        // AppState is @MainActor; hop to read the selected translation
+        let translation = if let translation { translation } else { await MainActor.run { AppState.shared.selectedBibleTranslation } }
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return .empty
         }
@@ -205,7 +206,8 @@ class BibleSearchService {
 
     /// Get book name suggestions for autocomplete
     func getSuggestions(query: String, translation: String? = nil) async throws -> [BookSuggestion] {
-        let translation = translation ?? AppState.shared.selectedBibleTranslation
+        // AppState is @MainActor; hop to read the selected translation
+        let translation = if let translation { translation } else { await MainActor.run { AppState.shared.selectedBibleTranslation } }
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             return []
         }

@@ -12,7 +12,7 @@ import UIKit
 /// Actions for group CRUD, posts, and member management.
 struct GroupActions {
 
-    private let state = AppState.shared
+    @MainActor private var state: AppState { AppState.shared }
     private let api = APIClient.shared
 
     // MARK: - Load Groups

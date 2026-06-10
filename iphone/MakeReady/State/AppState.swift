@@ -24,6 +24,10 @@ enum LessonContext {
 
 /// Central observable state store for the entire app.
 /// Uses @Observable for fine-grained reactivity (iOS 17+).
+/// Main-actor isolated: every read and mutation happens on the main thread,
+/// enforced by the compiler. Background work (uploads, encoding) must hop
+/// via `await MainActor.run` / `Task { @MainActor in }` to touch state.
+@MainActor
 @Observable
 final class AppState {
 
@@ -593,7 +597,6 @@ final class AppState {
 
     /// Load all initial data from API. Called once when user is authenticated.
     /// Uses cache-first pattern: shows cached data immediately, refreshes in background.
-    @MainActor
     func loadInitialData() async {
         guard !hasLoadedInitialData else { return }
         hasLoadedInitialData = true
@@ -613,7 +616,6 @@ final class AppState {
         NSLog("📦 AppState: Initial data load complete")
     }
 
-    @MainActor
     private func loadPrograms() async {
         do {
             try await ProgramActions().loadPrograms(forceRefresh: false)
@@ -622,7 +624,6 @@ final class AppState {
         }
     }
 
-    @MainActor
     private func loadTemplates() async {
         do {
             try await ProgramActions().loadTemplates(forceRefresh: false)
@@ -631,7 +632,6 @@ final class AppState {
         }
     }
 
-    @MainActor
     private func loadUnreadNotificationCount() async {
         do {
             try await NotificationActions().loadUnreadCount()
@@ -640,7 +640,6 @@ final class AppState {
         }
     }
 
-    @MainActor
     private func loadOrganization() async {
         do {
             let response: OrganizationResponse = try await APIClient.shared.get(
@@ -659,7 +658,6 @@ final class AppState {
         }
     }
 
-    @MainActor
     private func loadTextThemes() async {
         // Populate `textThemes` at startup so the Edit Theme page, theme
         // picker, and swatches render synchronously — previously each
@@ -671,7 +669,6 @@ final class AppState {
         }
     }
 
-    @MainActor
     private func loadBibleTranslations() async {
         do {
             let response: BibleTranslationsResponse = try await APIClient.shared.get(

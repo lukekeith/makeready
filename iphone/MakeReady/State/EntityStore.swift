@@ -11,8 +11,12 @@ import Foundation
 /// Generic normalized storage container for entities.
 /// Stores entities in a dictionary keyed by their ID for O(1) lookup.
 /// Requires entities to have String IDs (which all our models do).
+/// Main-actor isolated like AppState — persistence snapshots copy out
+/// via `all` on the main actor (see PersistedState), never by encoding
+/// the store itself.
+@MainActor
 @Observable
-class EntityStore<T: Identifiable & Codable>: Codable where T.ID == String {
+class EntityStore<T: Identifiable & Codable> where T.ID == String {
 
     // MARK: - Storage
 
@@ -137,22 +141,6 @@ class EntityStore<T: Identifiable & Codable>: Codable where T.ID == String {
     /// Get first entity matching predicate
     func first(where predicate: (T) -> Bool) -> T? {
         entities.values.first(where: predicate)
-    }
-
-    // MARK: - Codable
-
-    enum CodingKeys: String, CodingKey {
-        case entities
-    }
-
-    required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.entities = try container.decode([String: T].self, forKey: .entities)
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(entities, forKey: .entities)
     }
 }
 

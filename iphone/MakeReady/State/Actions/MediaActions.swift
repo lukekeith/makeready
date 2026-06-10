@@ -14,7 +14,7 @@ import MobileCoreServices
 /// Actions for media library CRUD operations.
 struct MediaActions {
 
-    private let state = AppState.shared
+    @MainActor private var state: AppState { AppState.shared }
     private let api = APIClient.shared
 
     // MARK: - Load Media Library

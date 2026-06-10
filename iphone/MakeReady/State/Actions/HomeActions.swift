@@ -12,7 +12,7 @@ import Foundation
 /// Handles API calls for charts and stats, stores results in AppState.
 struct HomeActions {
 
-    private let state = AppState.shared
+    @MainActor private var state: AppState { AppState.shared }
     private let api = APIClient.shared
 
     // MARK: - Load All Home Data

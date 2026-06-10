@@ -12,7 +12,7 @@ import Foundation
 /// Enrollments connect groups to study programs.
 struct EnrollmentActions {
 
-    private let state = AppState.shared
+    @MainActor private var state: AppState { AppState.shared }
     private let api = APIClient.shared
 
     // MARK: - Centralized State Sync

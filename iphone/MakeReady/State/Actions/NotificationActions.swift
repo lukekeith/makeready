@@ -11,7 +11,7 @@ import Foundation
 struct NotificationActions {
 
     private let api = APIClient.shared
-    private var state: AppState { AppState.shared }
+    @MainActor private var state: AppState { AppState.shared }
 
     // MARK: - Load Notifications
 

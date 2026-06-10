@@ -14,7 +14,7 @@ import UIKit
 /// Actions for video library management and uploads.
 struct VideoActions {
 
-    private let state = AppState.shared
+    @MainActor private var state: AppState { AppState.shared }
     private let api = APIClient.shared
 
     // Shared upload state (for cancellation)

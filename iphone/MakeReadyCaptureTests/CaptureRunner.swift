@@ -19,6 +19,7 @@ final class CaptureRunner: XCTestCase {
         isRecording = true
     }
 
+    @MainActor
     func testCaptureAll() throws {
         let fixtures = try CaptureFixtureLoader.loadAll()
 

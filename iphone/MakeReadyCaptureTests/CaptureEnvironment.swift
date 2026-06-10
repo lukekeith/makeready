@@ -11,6 +11,7 @@ import Foundation
 @testable import MakeReady
 
 /// Replaces AppState.shared with a fresh instance and populates from fixture data.
+@MainActor
 func setupCaptureState(from fixture: CaptureFixture) {
     // Fresh instance — every property at its default value
     AppState.shared = AppState()

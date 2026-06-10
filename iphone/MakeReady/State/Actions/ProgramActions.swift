@@ -18,7 +18,7 @@ private struct ReadBlockMutationResponse: Decodable {
 /// Actions for study program CRUD and lesson/activity management.
 struct ProgramActions {
 
-    private let state = AppState.shared
+    @MainActor private var state: AppState { AppState.shared }
     private let api = APIClient.shared
 
     // MARK: - Load Programs
@@ -603,6 +603,7 @@ struct ProgramActions {
     }
 
     /// Update a YOUTUBE activity with URL and optional time bounds
+    @MainActor
     func updateActivityYouTube(
         activityId: String,
         title: String,

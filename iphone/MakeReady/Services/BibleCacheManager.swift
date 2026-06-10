@@ -148,9 +148,12 @@ class BibleCacheManager {
     var downloadProgress: Double = 0
     var downloadStatus: String = ""
 
-    /// The currently active translation code
+    /// The currently active translation code.
+    /// Reads the same UserDefaults key AppState.selectedBibleTranslation
+    /// writes through to (same default), so it is safe to call off the main
+    /// actor — AppState itself is @MainActor and can't be read from here.
     var currentTranslation: String {
-        return AppState.shared.selectedBibleTranslation
+        return UserDefaults.standard.string(forKey: "selectedBibleTranslation") ?? "KJV"
     }
 
     private init() {}

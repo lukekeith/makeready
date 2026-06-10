@@ -75,6 +75,8 @@ enum ListType: String, Codable {
 
 /// Manages loading states for entities and lists.
 /// Provides granular feedback for UI (e.g., spinner on single card vs whole list).
+/// Main-actor isolated like AppState.
+@MainActor
 @Observable
 class LoadingStateManager {
 

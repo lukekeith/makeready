@@ -17,6 +17,7 @@ private struct TestEntity: Identifiable, Codable, Equatable {
     var score: Int?
 }
 
+@MainActor
 final class EntityStoreTests: XCTestCase {
 
     private func entity(_ id: String, _ name: String = "n", score: Int? = nil) -> TestEntity {
@@ -174,21 +175,4 @@ final class EntityStoreTests: XCTestCase {
         XCTAssertTrue(store.isEmpty)
     }
 
-    // MARK: - Codable
-
-    func testCodableRoundTripAndJSONShape() throws {
-        let store = EntityStore(entities: [entity("a", "Alpha", score: 1), entity("b", "Beta")])
-        let data = try JSONEncoder().encode(store)
-
-        // QUIRK: encodes as { "entities": { "<id>": {...} } } — a keyed
-        // dictionary under an "entities" wrapper, not an array.
-        let json = try XCTUnwrap(try JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let entities = try XCTUnwrap(json["entities"] as? [String: Any])
-        XCTAssertEqual(Set(entities.keys), Set(["a", "b"]))
-
-        let decoded = try JSONDecoder().decode(EntityStore<TestEntity>.self, from: data)
-        XCTAssertEqual(decoded.count, 2)
-        XCTAssertEqual(decoded["a"], entity("a", "Alpha", score: 1))
-        XCTAssertEqual(decoded["b"], entity("b", "Beta"))
-    }
 }

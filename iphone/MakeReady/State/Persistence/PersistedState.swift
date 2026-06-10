@@ -136,7 +136,10 @@ struct PersistedState: Codable {
         self.schemaVersion = 1
     }
 
-    /// Create from current AppState
+    /// Create from current AppState. Main-actor isolated because it reads
+    /// live state; the resulting value snapshot is then safe to encode on
+    /// any queue (see StatePersistence).
+    @MainActor
     init(from appState: AppState) {
         self.programs = appState.programs.all
         self.groups = appState.groups.all

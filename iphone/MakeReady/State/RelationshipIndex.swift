@@ -10,8 +10,12 @@ import Foundation
 
 /// Manages one-to-many relationship indexes between entities.
 /// Allows efficient lookup of related entity IDs without duplicating data.
+/// Main-actor isolated like AppState — persistence snapshots copy out via
+/// `toDictionary()` on the main actor (see PersistedState), never by
+/// encoding the index itself.
+@MainActor
 @Observable
-class RelationshipIndex: Codable {
+class RelationshipIndex {
 
     // MARK: - Storage
 
@@ -121,26 +125,6 @@ class RelationshipIndex: Codable {
             add(parentId: parentId, childId: childId)
         }
     }
-
-    // MARK: - Codable
-
-    enum CodingKeys: String, CodingKey {
-        case index
-    }
-
-    required init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        // Decode as [String: [String]] and convert to [String: Set<String>]
-        let arrayIndex = try container.decode([String: [String]].self, forKey: .index)
-        self.index = arrayIndex.mapValues { Set($0) }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        // Encode as [String: [String]] for JSON compatibility
-        let arrayIndex = index.mapValues { Array($0) }
-        try container.encode(arrayIndex, forKey: .index)
-    }
 }
 
 // MARK: - Serialization Helpers
@@ -167,7 +151,10 @@ extension RelationshipIndex {
 
 // MARK: - Debug Helpers
 
-extension RelationshipIndex: CustomDebugStringConvertible {
+extension RelationshipIndex {
+    /// Human-readable dump of the index (plain member, not a
+    /// CustomDebugStringConvertible conformance — that protocol's
+    /// requirement is nonisolated and can't read main-actor state).
     var debugDescription: String {
         var lines: [String] = ["RelationshipIndex:"]
         for (parentId, childIds) in index.sorted(by: { $0.key < $1.key }) {
