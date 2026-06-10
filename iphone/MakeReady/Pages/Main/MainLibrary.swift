@@ -1442,32 +1442,9 @@ struct MainLibrary: View {
                 importFileData = nil
             }
             do {
-                let boundary = UUID().uuidString
-                var body = Data()
-                body.append("--\(boundary)\r\n".data(using: .utf8)!)
-                body.append("Content-Disposition: form-data; name=\"file\"; filename=\"import.makeready\"\r\n".data(using: .utf8)!)
-                body.append("Content-Type: application/zip\r\n\r\n".data(using: .utf8)!)
-                body.append(fileData)
-                body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-
-                let response = try await APIClient.shared.upload(
-                    endpoint: "/api/programs/import",
-                    boundary: boundary,
-                    body: body
-                )
-
-                if let json = try? JSONSerialization.jsonObject(with: response) as? [String: Any],
-                   let success = json["success"] as? Bool, success {
-                    try? await ProgramActions().loadPrograms(forceRefresh: true)
-                    await MainActor.run { isProcessingImport = false }
-                } else {
-                    let errorMsg = (try? JSONSerialization.jsonObject(with: response) as? [String: Any])?["error"] as? String ?? "Import failed"
-                    NSLog("❌ Import failed: \(errorMsg)")
-                    await MainActor.run {
-                        isProcessingImport = false
-                        overlayManager.dismiss(id: OverlayID.confirmationOverlay)
-                    }
-                }
+                try await ProgramActions().importProgram(fileData: fileData)
+                try? await ProgramActions().loadPrograms(forceRefresh: true)
+                await MainActor.run { isProcessingImport = false }
             } catch {
                 NSLog("❌ Failed to import program: \(error)")
                 await MainActor.run {

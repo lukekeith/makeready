@@ -349,11 +349,13 @@ final class APIClient {
 /// client in tests. `APIClient.shared` remains the production default —
 /// see the `init(api:state:)` on each Actions struct.
 protocol APIClientProtocol {
+    func request(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data
     func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval, responseType: T.Type) async throws -> T
     func get<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T
     func post<T: Decodable>(_ endpoint: String, body: [String: Any]?, responseType: T.Type) async throws -> T
     func patch<T: Decodable>(_ endpoint: String, body: [String: Any], responseType: T.Type) async throws -> T
     func delete<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T
+    func upload(endpoint: String, boundary: String, body: Data, timeout: TimeInterval) async throws -> Data
     func uploadImage(endpoint: String, image: UIImage, maxDimension: CGFloat, quality: CGFloat) async throws -> Data
 }
 
@@ -371,6 +373,14 @@ extension APIClientProtocol {
 
     func uploadImage(endpoint: String, image: UIImage) async throws -> Data {
         try await uploadImage(endpoint: endpoint, image: image, maxDimension: 1200, quality: 0.6)
+    }
+
+    func request(endpoint: String, method: String = "GET", body: [String: Any]? = nil) async throws -> Data {
+        try await request(endpoint: endpoint, method: method, body: body, timeout: 30)
+    }
+
+    func upload(endpoint: String, boundary: String, body: Data) async throws -> Data {
+        try await upload(endpoint: endpoint, boundary: boundary, body: body, timeout: 60)
     }
 }
 

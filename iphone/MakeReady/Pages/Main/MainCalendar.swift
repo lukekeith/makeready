@@ -79,11 +79,8 @@ struct MainCalendar: View {
                 onOpenLesson: {
                     Task {
                         do {
-                            let response = try await APIClient.shared.get(
-                                "/api/lesson-schedules/\(entry.schedule.id)/invite",
-                                responseType: LessonInviteResponse.self
-                            )
-                            if let invite = response.invite, let url = URL(string: invite.inviteUrl) {
+                            let invite = try await EnrollmentActions().loadLessonInvite(scheduleId: entry.schedule.id)
+                            if let url = URL(string: invite.inviteUrl) {
                                 await MainActor.run {
                                     UIApplication.shared.open(url)
                                 }

@@ -197,21 +197,8 @@ struct OrgHomePage: View {
     }
 
     private func loadMemberCount() async {
-        // Decode only the fields we need so this doesn't break if the server
-        // adds/removes fields from the membership row shape.
-        struct MemberStub: Decodable {
-            let id: String
-        }
-        struct MembersResponse: Decodable {
-            let success: Bool?
-            let data: [MemberStub]?
-        }
         do {
-            let response: MembersResponse = try await APIClient.shared.get(
-                "/api/organizations/\(organization.id)/members",
-                responseType: MembersResponse.self
-            )
-            memberCount = response.data?.count
+            memberCount = try await OrgActions().loadMemberCount(organizationId: organization.id)
         } catch {
             // Best-effort; leave nil so the row simply doesn't render.
             NSLog("⚠️ OrgHomePage: member count load failed: \(error.localizedDescription)")

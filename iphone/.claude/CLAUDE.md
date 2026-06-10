@@ -1095,6 +1095,14 @@ struct NotificationActions {
 
 `APIClient` also provides `post(_:body:responseType:)`, `patch(_:body:responseType:)`, `delete(_:responseType:)`, `upload(...)`, and `uploadImage(...)`. Never call `APIClient` or `URLSession` directly from a view — add a method to the appropriate Actions struct instead.
 
+**Sanctioned `URLSession` exceptions** (everything else goes through Actions → APIClient; `APIClient` requires a session cookie, so endpoints that must work unauthenticated cannot route through it):
+- `ImageCache` / CDN image fetches (e.g. cover images) — loads media bytes from Cloudflare URLs, not the API
+- `LocalPortHealer` — dev-only port probing before auth exists
+- `ProfilePage` environment health checks — probes `/health` on arbitrary environments
+- `BibleCacheManager` / `BibleSearchService` — `/api/bible/*` and `/api/search/smart|suggestions` are deliberately session-optional on the server
+- `InviteQRCodeView` test endpoint — `/api/qrcode/test` exists precisely for the no-session case
+- `AuthManager` — legacy; owns the session lifecycle itself (being dissolved into Actions)
+
 ### Example: Generate QR Code
 
 QR code generation lives in `AuthManager.generateQRCode(...)` (a legacy exception that builds its request from `Configuration.baseURL` with the session cookie — it disables caching so QR codes are always fresh):

@@ -351,6 +351,30 @@ private let api: APIClientProtocol
         NSLog("📅 EnrollmentActions: Cancelled future lessons for enrollment \(id)")
     }
 
+    // MARK: - Lesson Invite
+
+    /// Fetch the invite (URL + QR payload) for a scheduled lesson.
+    /// Rehomed from StudyInvitePage / GroupHomePage / EnrollmentSchedulePage /
+    /// MainHome / MainCalendar (Phase 2.4) — those five sites fired the same
+    /// GET with the same parsing.
+    @MainActor
+    func loadLessonInvite(scheduleId: String) async throws -> LessonInviteData {
+        let response = try await api.get(
+            "/api/lesson-schedules/\(scheduleId)/invite",
+            responseType: LessonInviteResponse.self
+        )
+
+        guard response.success, let invite = response.invite else {
+            throw NSError(
+                domain: "LessonInvite",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: response.error ?? "Failed to load invite"]
+            )
+        }
+
+        return invite
+    }
+
     // MARK: - Delete Lesson Schedule
 
     /// Delete a lesson schedule from an enrollment

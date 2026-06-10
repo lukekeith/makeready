@@ -179,19 +179,13 @@ struct EditYouTubeActivityPage: View {
         isFetchingMetadata = true
         Task {
             do {
-                let response: YouTubeMetadataResponse = try await APIClient.shared.post(
-                    "/api/youtube/metadata",
-                    body: ["url": url],
-                    responseType: YouTubeMetadataResponse.self
-                )
+                let fetchedTitle = try await ProgramActions().fetchYouTubeMetadataTitle(url: url)
                 await MainActor.run {
                     isFetchingMetadata = false
-                    if let metadata = response.metadata {
-                        metadataTitle = metadata.title
-                        // Auto-fill title if empty
-                        if title.isEmpty, let fetchedTitle = metadata.title, !fetchedTitle.isEmpty {
-                            title = fetchedTitle
-                        }
+                    metadataTitle = fetchedTitle
+                    // Auto-fill title if empty
+                    if title.isEmpty, let fetchedTitle, !fetchedTitle.isEmpty {
+                        title = fetchedTitle
                     }
                 }
             } catch {
@@ -235,20 +229,6 @@ struct EditYouTubeActivityPage: View {
 }
 
 // MARK: - YouTube Metadata Response
-
-private struct YouTubeMetadataResponse: Codable {
-    let success: Bool
-    let metadata: YouTubeVideoMetadata?
-    let error: String?
-}
-
-private struct YouTubeVideoMetadata: Codable {
-    let videoId: String?
-    let title: String?
-    let thumbnailUrl: String?
-    let authorName: String?
-    let durationSeconds: Int?
-}
 
 // MARK: - YouTube Preview
 

@@ -291,20 +291,7 @@ struct GroupInvitePage: View {
     }
 
     private func fetchInviteData() async throws -> GroupInviteData {
-        let response = try await APIClient.shared.get(
-            "/api/groups/\(groupId)/invite",
-            responseType: GroupInviteResponse.self
-        )
-
-        guard response.success, let invite = response.invite else {
-            throw NSError(
-                domain: "GroupInvite",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: response.error ?? "Failed to load invite"]
-            )
-        }
-
-        return invite
+        try await GroupActions().loadGroupInvite(groupId: groupId)
     }
 
     private func decodeQRCodeImage(from dataURL: String) -> UIImage? {

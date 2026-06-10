@@ -19,11 +19,6 @@
 import SwiftUI
 import WebKit
 
-private struct PreviewTokenResponse: Codable {
-    let success: Bool
-    let token: String?
-}
-
 // MARK: - Modal
 
 struct ReadActivityPreviewModal: View {
@@ -119,17 +114,9 @@ struct PreviewWebView: UIViewRepresentable {
         }
     }
 
-    /// Request a short-lived preview token from POST /api/preview-token
+    /// Request a short-lived preview token (see ThemeActions.fetchPreviewToken)
     static func fetchPreviewToken() async throws -> String {
-        let response: PreviewTokenResponse = try await APIClient.shared.post(
-            "/api/preview-token",
-            body: [:] as [String: String],
-            responseType: PreviewTokenResponse.self
-        )
-        guard response.success, let token = response.token else {
-            throw URLError(.userAuthenticationRequired)
-        }
-        return token
+        try await ThemeActions().fetchPreviewToken()
     }
 
     static func buildPreviewURL(activityId: String) -> URL? {

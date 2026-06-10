@@ -259,6 +259,7 @@
 		TAGI0001000000000000001 /* TagInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = TAGI0002000000000000001 /* TagInput.swift */; };
 		TCVW0001000000000000001 /* ThemedContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TCVW0002000000000000001 /* ThemedContentView.swift */; };
 		THMA0001000000000001 /* ThemeActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = THMA0002000000000001 /* ThemeActions.swift */; };
+		ORGA0001000000000001 /* OrgActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ORGA0002000000000001 /* OrgActions.swift */; };
 		UKIN0001000000000000001 /* UIKitInputs.swift in Sources */ = {isa = PBXBuildFile; fileRef = UKIN0002000000000000001 /* UIKitInputs.swift */; };
 		UNOM0001000000000000001 /* UnenrollOptionsModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNOM0002000000000000001 /* UnenrollOptionsModal.swift */; };
 		UPCD0001000000000000001 /* UpcomingLessonCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = UPCD0002000000000000001 /* UpcomingLessonCard.swift */; };
@@ -556,6 +557,7 @@
 		TAGI0002000000000000001 /* TagInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagInput.swift; sourceTree = "<group>"; };
 		TCVW0002000000000000001 /* ThemedContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemedContentView.swift; sourceTree = "<group>"; };
 		THMA0002000000000001 /* ThemeActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeActions.swift; sourceTree = "<group>"; };
+		ORGA0002000000000001 /* OrgActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgActions.swift; sourceTree = "<group>"; };
 		UKIN0002000000000000001 /* UIKitInputs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitInputs.swift; sourceTree = "<group>"; };
 		UNOM0002000000000000001 /* UnenrollOptionsModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnenrollOptionsModal.swift; sourceTree = "<group>"; };
 		UPCD0002000000000000001 /* UpcomingLessonCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingLessonCard.swift; sourceTree = "<group>"; };
@@ -1262,6 +1264,7 @@
 				HMACT0002000000000001 /* HomeActions.swift */,
 				NOTIF0002000000000001 /* NotificationActions.swift */,
 				THMA0002000000000001 /* ThemeActions.swift */,
+				ORGA0002000000000001 /* OrgActions.swift */,
 			);
 			path = Actions;
 			sourceTree = "<group>";
@@ -1556,6 +1559,7 @@
 				HMACT0001000000000001 /* HomeActions.swift in Sources */,
 				NOTIF0001000000000001 /* NotificationActions.swift in Sources */,
 				THMA0001000000000001 /* ThemeActions.swift in Sources */,
+				ORGA0001000000000001 /* OrgActions.swift in Sources */,
 				NTFPG0001000000000001 /* NotificationFeedPage.swift in Sources */,
 				MDLG0001000000000001 /* MediaLibraryGrid.swift in Sources */,
 				MDDO0001000000000001 /* MediaDetailOverlay.swift in Sources */,

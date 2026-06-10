@@ -385,17 +385,11 @@ struct EnrollmentSchedulePage: View {
         // Fetch the invite URL from the API and open it
         Task {
             do {
-                let response = try await APIClient.shared.get(
-                    "/api/lesson-schedules/\(schedule.id)/invite",
-                    responseType: LessonInviteResponse.self
-                )
-
-                if let invite = response.invite, let url = URL(string: invite.inviteUrl) {
+                let invite = try await EnrollmentActions().loadLessonInvite(scheduleId: schedule.id)
+                if let url = URL(string: invite.inviteUrl) {
                     await MainActor.run {
                         UIApplication.shared.open(url)
                     }
-                } else {
-                    NSLog("Failed to get invite URL: \(response.error ?? "Unknown error")")
                 }
             } catch {
                 NSLog("Failed to fetch lesson invite: \(error)")

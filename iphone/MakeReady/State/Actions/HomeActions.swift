@@ -249,6 +249,21 @@ private let api: APIClientProtocol
 
     // MARK: - Activity Helpers
 
+    // MARK: - Activity Logs
+
+    /// Fetch a page of activity logs (newest first).
+    /// Rehomed from MainHome (Phase 2.4) — same request, same decoding;
+    /// the page keeps its AUTH-category filtering and cursor state.
+    @MainActor
+    func loadActivityLogs(limit: Int = 50, cursor: String? = nil) async throws -> ActivityLogResponse {
+        var endpoint = "/api/activity-logs?limit=\(limit)"
+        if let cursor {
+            endpoint += "&cursor=\(cursor)"
+        }
+        let data = try await api.request(endpoint: endpoint)
+        return try JSONDecoder.apiDecoder.decode(ActivityLogResponse.self, from: data)
+    }
+
     private static func activityLabel(for type: String) -> String {
         switch type {
         case "READ", "SCRIPTURE": return "Read"

@@ -345,20 +345,7 @@ struct StudyInvitePage: View {
     }
 
     private func fetchInviteData() async throws -> LessonInviteData {
-        let response = try await APIClient.shared.get(
-            "/api/lesson-schedules/\(scheduleId)/invite",
-            responseType: LessonInviteResponse.self
-        )
-
-        guard response.success, let invite = response.invite else {
-            throw NSError(
-                domain: "LessonInvite",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: response.error ?? "Failed to load invite"]
-            )
-        }
-
-        return invite
+        try await EnrollmentActions().loadLessonInvite(scheduleId: scheduleId)
     }
 
     private func decodeQRCodeImage(from dataURL: String) -> UIImage? {

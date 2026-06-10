@@ -288,6 +288,28 @@ private let api: APIClientProtocol
         return url
     }
 
+    // MARK: - Group Invite
+
+    /// Fetch the group invite (URL + QR code payload) for a group.
+    /// Rehomed from GroupInvitePage (Phase 2.4) — same request, same parsing.
+    @MainActor
+    func loadGroupInvite(groupId: String) async throws -> GroupInviteData {
+        let response = try await api.get(
+            "/api/groups/\(groupId)/invite",
+            responseType: GroupInviteResponse.self
+        )
+
+        guard response.success, let invite = response.invite else {
+            throw NSError(
+                domain: "GroupInvite",
+                code: -1,
+                userInfo: [NSLocalizedDescriptionKey: response.error ?? "Failed to load invite"]
+            )
+        }
+
+        return invite
+    }
+
     // MARK: - Posts
 
     /// Load posts for a group

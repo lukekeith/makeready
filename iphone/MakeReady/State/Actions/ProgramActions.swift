@@ -470,6 +470,72 @@ private let api: APIClientProtocol
         return url
     }
 
+    // MARK: - Export / Import / YouTube Metadata
+
+    /// Fetch YouTube metadata for a URL and return the video title (if any).
+    /// Rehomed from EditYouTubeActivityPage (Phase 2.4) — same request; the
+    /// page only consumed `metadata.title`.
+    @MainActor
+    func fetchYouTubeMetadataTitle(url: String) async throws -> String? {
+        struct MetadataResponse: Codable {
+            struct Metadata: Codable {
+                let title: String?
+            }
+            let success: Bool
+            let metadata: Metadata?
+            let error: String?
+        }
+
+        let response: MetadataResponse = try await api.post(
+            "/api/youtube/metadata",
+            body: ["url": url],
+            responseType: MetadataResponse.self
+        )
+        return response.metadata?.title
+    }
+
+    /// Fetch the raw export-preview JSON for a program.
+    /// Rehomed from ProgramHomePage (Phase 2.4); the page keeps its
+    /// dictionary-walking presentation logic.
+    @MainActor
+    func loadExportPreviewData(programId: String) async throws -> Data {
+        try await api.request(endpoint: "/api/programs/\(programId)/export-preview")
+    }
+
+    /// Export a program as a .makeready archive; returns the file bytes.
+    /// Rehomed from ProgramHomePage (Phase 2.4).
+    @MainActor
+    func exportProgramData(programId: String) async throws -> Data {
+        try await api.request(endpoint: "/api/programs/\(programId)/export", method: "POST")
+    }
+
+    /// Import a .makeready archive. Builds the multipart body and throws
+    /// APIError.serverError with the server's message on failure.
+    /// Rehomed from MainLibrary + StudyProgramHome (Phase 2.4), which carried
+    /// verbatim copies of this multipart assembly.
+    @MainActor
+    func importProgram(fileData: Data) async throws {
+        let boundary = UUID().uuidString
+        var body = Data()
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"import.makeready\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: application/zip\r\n\r\n".data(using: .utf8)!)
+        body.append(fileData)
+        body.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
+
+        let response = try await api.upload(
+            endpoint: "/api/programs/import",
+            boundary: boundary,
+            body: body
+        )
+
+        guard let json = try? JSONSerialization.jsonObject(with: response) as? [String: Any],
+              let success = json["success"] as? Bool, success else {
+            let errorMsg = ((try? JSONSerialization.jsonObject(with: response) as? [String: Any])?["error"] as? String) ?? "Import failed"
+            throw APIError.serverError(errorMsg)
+        }
+    }
+
     // MARK: - Lesson Operations
 
     /// Delete a lesson

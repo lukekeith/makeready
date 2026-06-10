@@ -581,9 +581,7 @@ struct ProgramHomePage: View {
         Task {
             defer { isLoadingExportPreview = false }
             do {
-                let data = try await APIClient.shared.request(
-                    endpoint: "/api/programs/\(programId)/export-preview"
-                )
+                let data = try await ProgramActions().loadExportPreviewData(programId: programId)
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let preview = json["preview"] as? [String: Any],
                    let counts = preview["counts"] as? [String: Any] {
@@ -642,10 +640,7 @@ struct ProgramHomePage: View {
         Task {
             defer { isExporting = false }
             do {
-                let data = try await APIClient.shared.request(
-                    endpoint: "/api/programs/\(programId)/export",
-                    method: "POST"
-                )
+                let data = try await ProgramActions().exportProgramData(programId: programId)
 
                 let fileName = "\(programName).makeready"
                 let tempURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)

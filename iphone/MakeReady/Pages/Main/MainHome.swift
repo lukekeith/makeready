@@ -266,10 +266,7 @@ struct MainHome: View {
         defer { isLoadingActivity = false }
 
         do {
-            let data = try await APIClient.shared.request(
-                endpoint: "/api/activity-logs?limit=50"
-            )
-            let response = try JSONDecoder.apiDecoder.decode(ActivityLogResponse.self, from: data)
+            let response = try await HomeActions().loadActivityLogs()
             // Filter to content and membership activities only (exclude auth/login noise)
             activityLogs = response.logs.filter { $0.category != "AUTH" }
             activityCursor = response.pagination.nextCursor
@@ -286,10 +283,7 @@ struct MainHome: View {
         Task {
             defer { isLoadingMoreActivity = false }
             do {
-                let data = try await APIClient.shared.request(
-                    endpoint: "/api/activity-logs?limit=50&cursor=\(cursor)"
-                )
-                let response = try JSONDecoder.apiDecoder.decode(ActivityLogResponse.self, from: data)
+                let response = try await HomeActions().loadActivityLogs(cursor: cursor)
                 activityLogs.append(contentsOf: response.logs.filter { $0.category != "AUTH" })
                 activityCursor = response.pagination.nextCursor
                 activityHasMore = response.pagination.hasMore
@@ -459,11 +453,8 @@ struct MainHome: View {
                 onOpenLesson: {
                     Task {
                         do {
-                            let response = try await APIClient.shared.get(
-                                "/api/lesson-schedules/\(entry.schedule.id)/invite",
-                                responseType: LessonInviteResponse.self
-                            )
-                            if let invite = response.invite, let url = URL(string: invite.inviteUrl) {
+                            let invite = try await EnrollmentActions().loadLessonInvite(scheduleId: entry.schedule.id)
+                            if let url = URL(string: invite.inviteUrl) {
                                 await MainActor.run {
                                     UIApplication.shared.open(url)
                                 }

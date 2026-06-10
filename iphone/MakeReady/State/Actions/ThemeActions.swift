@@ -70,3 +70,28 @@ struct ThemeActions {
         return sorted
     }
 }
+
+// MARK: - Preview Token
+
+extension ThemeActions {
+
+    /// Request a short-lived preview token from POST /api/preview-token.
+    /// Used by the activity-preview WebViews to load the canonical web
+    /// preview. Rehomed from ReadActivityPreviewModal (Phase 2.4).
+    func fetchPreviewToken() async throws -> String {
+        struct PreviewTokenResponse: Codable {
+            let success: Bool
+            let token: String?
+        }
+
+        let response: PreviewTokenResponse = try await api.post(
+            "/api/preview-token",
+            body: [:],
+            responseType: PreviewTokenResponse.self
+        )
+        guard response.success, let token = response.token else {
+            throw URLError(.userAuthenticationRequired)
+        }
+        return token
+    }
+}
