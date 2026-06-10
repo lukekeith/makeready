@@ -437,8 +437,9 @@ struct GlobalSearchEngine {
 
     // MARK: - Recent Items (from GET /api/activities)
 
+    @MainActor
     static func fetchRecentItems(
-        in state: AppState = .shared,
+        in state: AppState,
         maxPerCategory: Int = 3
     ) async -> [SearchResultCategory: CategoryResults] {
         let api = APIClient.shared
@@ -478,6 +479,7 @@ struct GlobalSearchEngine {
         }
     }
 
+    @MainActor
     private static func buildRecentResults(
         from activities: [UserActivity],
         state: AppState,
@@ -501,6 +503,7 @@ struct GlobalSearchEngine {
         return results
     }
 
+    @MainActor
     private static func recentResult(
         for activity: UserActivity,
         category: SearchResultCategory,

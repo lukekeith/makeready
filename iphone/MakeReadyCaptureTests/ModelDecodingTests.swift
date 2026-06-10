@@ -248,13 +248,16 @@ final class ModelDecodingTests: XCTestCase {
 
     // MARK: - Decoder configuration
 
-    func testApiDecoderRejectsFractionalSecondDates() {
-        // QUIRK: JSONDecoder.apiDecoder uses plain .iso8601, which does NOT
-        // accept fractional seconds ("...T10:30:00.000Z" fails to decode).
+    func testApiDecoderAcceptsFractionalSecondDates() throws {
+        // Documents current Foundation behavior: .iso8601 on this OS accepts
+        // fractional seconds ("...T10:30:00.000Z" decodes). Older Foundation
+        // rejected them — if this test ever fails on a new SDK, API date
+        // handling needs a custom strategy, not a test tweak.
         let json = """
         {"id":"v3","cloudflareUid":"cf","playbackUrl":"https://x","status":"ready",
          "userId":"u1","createdAt":"2025-01-15T10:30:00.000Z","updatedAt":"2025-01-15T10:30:00.000Z"}
         """
-        XCTAssertThrowsError(try JSONDecoder.apiDecoder.decode(Video.self, from: Data(json.utf8)))
+        let video = try JSONDecoder.apiDecoder.decode(Video.self, from: Data(json.utf8))
+        XCTAssertEqual(video.id, "v3")
     }
 }
