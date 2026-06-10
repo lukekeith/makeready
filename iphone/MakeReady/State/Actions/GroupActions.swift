@@ -12,8 +12,21 @@ import UIKit
 /// Actions for group CRUD, posts, and member management.
 struct GroupActions {
 
-    @MainActor private var state: AppState { AppState.shared }
-    private let api = APIClient.shared
+private let api: APIClientProtocol
+    private let stateOverride: AppState?
+
+    /// Injected state when testing, else the shared singleton.
+    @MainActor private var state: AppState { stateOverride ?? AppState.shared }
+
+    /// - Parameters:
+    ///   - api: client for network calls; stub in tests
+    ///   - state: AppState to read/mutate; nil means AppState.shared (an
+    ///     Optional because Swift 5 mode can't evaluate a @MainActor default
+    ///     argument like `= .shared` from a nonisolated init)
+    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil) {
+        self.api = api
+        self.stateOverride = state
+    }
 
     // MARK: - Load Groups
 

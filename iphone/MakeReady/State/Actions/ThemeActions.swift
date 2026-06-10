@@ -11,7 +11,21 @@ import Foundation
 /// Actions for loading text themes used in read block rendering.
 struct ThemeActions {
 
-    private let api = APIClient.shared
+    private let api: APIClientProtocol
+    private let stateOverride: AppState?
+
+    /// Injected state when testing, else the shared singleton.
+    @MainActor private var state: AppState { stateOverride ?? AppState.shared }
+
+    /// - Parameters:
+    ///   - api: client for network calls; stub in tests
+    ///   - state: AppState to read/mutate; nil means AppState.shared (an
+    ///     Optional because Swift 5 mode can't evaluate a @MainActor default
+    ///     argument like `= .shared` from a nonisolated init)
+    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil) {
+        self.api = api
+        self.stateOverride = state
+    }
 
     // MARK: - Load Themes
 
@@ -45,11 +59,11 @@ struct ThemeActions {
         }
 
         await MainActor.run {
-            AppState.shared.textThemes = sorted
+            state.textThemes = sorted
             if let template = response.previewUrlTemplate {
-                AppState.shared.previewUrlTemplate = template
+                state.previewUrlTemplate = template
             }
-            AppState.shared.persist()
+            state.persist()
         }
 
         NSLog("🎨 ThemeActions: Loaded \(sorted.count) themes (previewUrlTemplate=\(response.previewUrlTemplate ?? "nil"))")

@@ -343,6 +343,39 @@ final class APIClient {
     }
 }
 
+// MARK: - APIClientProtocol (DI seam for Actions)
+
+/// Abstraction over APIClient so Actions can be constructed with a stubbed
+/// client in tests. `APIClient.shared` remains the production default —
+/// see the `init(api:state:)` on each Actions struct.
+protocol APIClientProtocol {
+    func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval, responseType: T.Type) async throws -> T
+    func get<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T
+    func post<T: Decodable>(_ endpoint: String, body: [String: Any]?, responseType: T.Type) async throws -> T
+    func patch<T: Decodable>(_ endpoint: String, body: [String: Any], responseType: T.Type) async throws -> T
+    func delete<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T
+    func uploadImage(endpoint: String, image: UIImage, maxDimension: CGFloat, quality: CGFloat) async throws -> Data
+}
+
+/// Mirrors of APIClient's default arguments. Protocol requirements can't
+/// carry defaults, so these keep existing call sites compiling unchanged
+/// when `api` is typed as the protocol.
+extension APIClientProtocol {
+    func post<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T {
+        try await post(endpoint, body: nil, responseType: responseType)
+    }
+
+    func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, responseType: T.Type) async throws -> T {
+        try await request(endpoint: endpoint, method: method, body: body, timeout: 30, responseType: responseType)
+    }
+
+    func uploadImage(endpoint: String, image: UIImage) async throws -> Data {
+        try await uploadImage(endpoint: endpoint, image: image, maxDimension: 1200, quality: 0.6)
+    }
+}
+
+extension APIClient: APIClientProtocol {}
+
 // MARK: - Common Response Types
 
 /// Generic success response (used by many endpoints)

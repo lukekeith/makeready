@@ -28,7 +28,12 @@ struct DeviceTokenData: Codable {
 /// Actions for managing APNs device tokens on the server.
 struct DeviceTokenActions {
 
-    private let api = APIClient.shared
+    private let api: APIClientProtocol
+
+    /// - Parameter api: client for network calls; stub in tests
+    init(api: APIClientProtocol = APIClient.shared) {
+        self.api = api
+    }
 
     // MARK: - Register Token
 
