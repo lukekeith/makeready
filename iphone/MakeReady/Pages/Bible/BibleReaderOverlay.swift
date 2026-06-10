@@ -958,7 +958,7 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
         let sortedVerses = verses.sorted { $0.v < $1.v }
         let text = NSMutableAttributedString()
 
-        // Chapter heading
+        // Chapter heading — centered serif, echoing print-Bible chapter titles
         let headingStyle = NSMutableParagraphStyle()
         headingStyle.alignment = .center
         headingStyle.paragraphSpacingBefore = 8
@@ -966,15 +966,14 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
         text.append(NSAttributedString(
             string: "\(book.name) \(chapter)\n",
             attributes: [
-                .font: UIFont.systemFont(ofSize: 22, weight: .bold),
+                .font: BibleVerseTextLayout.serifFont(size: 24, weight: .bold),
                 .foregroundColor: UIColor.white,
                 .paragraphStyle: headingStyle,
             ]
         ))
 
-        let verseStyle = NSMutableParagraphStyle()
-        verseStyle.lineSpacing = 6
-        verseStyle.paragraphSpacing = 8
+        // Verse body — Charter, justified with hyphenation (shared style)
+        let verseStyle = BibleVerseTextLayout.paragraphStyle()
 
         let usedVerseKey = "\(book.id)-\(chapter)"
         let usedInThisChapter = usedVerses[usedVerseKey] ?? []
@@ -993,7 +992,7 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
             cleanText = cleanText.trimmingCharacters(in: .whitespaces)
 
             var bodyAttrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: 16),
+                .font: BibleVerseTextLayout.serifFont(size: 17),
                 .foregroundColor: UIColor.white,
                 .paragraphStyle: verseStyle,
             ]
@@ -1062,21 +1061,22 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
             let glyphRange = layoutManager.glyphRange(forCharacterRange: entry.range, actualCharacterRange: nil)
             let lineRect = layoutManager.lineFragmentRect(forGlyphAt: glyphRange.location, effectiveRange: nil)
 
-            // Position circle at the first line of this verse
+            // Plain gutter number at the first line of this verse (print-Bible
+            // style) — right-aligned toward the text column, tap target kept
+            // at the old circle's size. Used/selected states are expressed
+            // through the number's color (see updateVerseCircleHighlights).
             let circleY = lineRect.minY + inset.top
-            let circleX: CGFloat = 16  // left margin
 
-            let circle = UIView(frame: CGRect(x: circleX, y: circleY, width: 24, height: 24))
-            circle.layer.cornerRadius = 12
+            let circle = UIView(frame: CGRect(x: 0, y: circleY, width: BibleVerseTextLayout.textInsets.left - 8, height: 24))
+            circle.backgroundColor = .clear
 
             let isUsed = usedInThisChapter.contains(entry.verse)
-            circle.backgroundColor = isUsed ? brandPurple.withAlphaComponent(0.3) : UIColor(white: 1, alpha: 0.1)
 
             let label = UILabel()
             label.text = "\(entry.verse)"
-            label.font = .systemFont(ofSize: 11, weight: .semibold)
-            label.textColor = UIColor(white: 1, alpha: 0.6)
-            label.textAlignment = .center
+            label.font = BibleVerseTextLayout.verseNumberFont
+            label.textColor = isUsed ? brandPurple.withAlphaComponent(0.8) : BibleVerseTextLayout.verseNumberColor
+            label.textAlignment = .right
             label.frame = circle.bounds
             label.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             circle.addSubview(label)
@@ -1095,7 +1095,7 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
         let contentHeight = textView.contentSize.height
         verseCircleContainer.frame = CGRect(
             x: 0, y: 0,
-            width: 48,
+            width: BibleVerseTextLayout.textInsets.left,
             height: contentHeight
         )
     }
@@ -1194,15 +1194,16 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
             let overlapEnd = min(sel.location + sel.length, entry.range.location + entry.range.length)
             let isSelected = sel.length > 0 && overlapStart < overlapEnd
 
+            // Gutter numbers carry state through color alone — no badge fill.
             if isSelected {
-                circle.backgroundColor = brandPurple
-                label?.textColor = .white
+                label?.textColor = brandPurple
+                label?.font = BibleVerseTextLayout.serifFont(size: 12, weight: .bold)
             } else if isUsed {
-                circle.backgroundColor = brandPurple.withAlphaComponent(0.3)
-                label?.textColor = UIColor(white: 1, alpha: 0.6)
+                label?.textColor = brandPurple.withAlphaComponent(0.8)
+                label?.font = BibleVerseTextLayout.verseNumberFont
             } else {
-                circle.backgroundColor = UIColor(white: 1, alpha: 0.1)
-                label?.textColor = UIColor(white: 1, alpha: 0.6)
+                label?.textColor = BibleVerseTextLayout.verseNumberColor
+                label?.font = BibleVerseTextLayout.verseNumberFont
             }
         }
     }

@@ -30,6 +30,11 @@ struct SelectableLockedBlockView: UIViewRepresentable {
     /// When true, non-editing selections render as white bg with dark text
     /// (readable preview). When false, selections use purple highlight marker.
     var usePreviewHighlightStyle: Bool = false
+    /// True when the block's content was copied in by the Bible
+    /// book/chapter/verse highlight process (`sourceReferenceId != nil`).
+    /// Scripture renders in the print-Bible style (Charter serif, justified);
+    /// other locked blocks keep the standard system font.
+    var isScripture: Bool = true
 
     func makeUIView(context: Context) -> SelectionTextView {
         let view = SelectionTextView()
@@ -120,7 +125,9 @@ struct SelectableLockedBlockView: UIViewRepresentable {
             plainText: plainText,
             verseNumberRanges: parsed.numberRanges,
             fontSize: fontSize,
-            foregroundColor: baseColor
+            foregroundColor: baseColor,
+            paragraphStyle: BibleVerseTextLayout.paragraphStyle(justified: isScripture),
+            serif: isScripture
         )
 
         let editMarker = UIColor(red: 108.0/255.0, green: 71.0/255.0, blue: 255.0/255.0, alpha: 1.0)

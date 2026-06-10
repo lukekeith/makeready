@@ -1439,6 +1439,10 @@ router.get('/activities/:id/preview-data', async (req, res) => {
             title: true,
             content: true,
             isLocked: true,
+            // Marks blocks whose verses were copied in by the Bible
+            // book/chapter/verse process — the preview player uses it to
+            // apply print-Bible (serif) styling to scripture blocks only.
+            sourceReferenceId: true,
             themeId: true,
             backgroundImageUrl: true,
             backgroundColor: true,

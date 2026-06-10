@@ -237,6 +237,11 @@ async function buildPayload(): Promise<PreviewPayload> {
       backgroundOverlayOpacity: rb.backgroundOverlayOpacity ?? null,
       fontSize:                 rb.fontSize                 ?? null,
       selections,
+      // Print-Bible styling only for blocks whose verses were copied in by
+      // the Bible book/chapter/verse process — every such block (and only
+      // such blocks) carries a sourceReferenceId. Authored content that
+      // merely looks like numbered verses keeps the standard styling.
+      isScripture:              rb.sourceReferenceId != null,
     })
   }
 

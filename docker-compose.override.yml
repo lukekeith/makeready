@@ -1,6 +1,10 @@
 # Local override: finpro-api occupies host port 8000, so the MakeReady
 # client is published on 8001 instead. Container port stays 8000.
 services:
+  server:
+    environment:
+      # Keep CORS + preview URL templates pointed at the remapped client port.
+      CLIENT_URL: http://localhost:8001
   client:
     ports: !override
       - "8001:8000"
@@ -10,6 +14,15 @@ services:
     # point CaptureController at them explicitly for the /_capture preview route.
     volumes:
       - ./capture/fixtures/client:/var/www/html/capture
+      # vite.config.js isn't in the base compose mounts — mount it so config
+      # changes (e.g. VITE_ORIGIN support) apply without an image rebuild.
+      - ./client/vite.config.js:/var/www/html/vite.config.js
     environment:
       APP_URL: http://localhost:8001
       CAPTURE_FIXTURES_PATH: /var/www/html/capture
+      # Advertise the Vite dev server on the Mac's LAN IP so physical devices
+      # (iPhone preview WebViews) can load dev assets — 0.0.0.0 is unroutable
+      # from the phone. Works from the Mac too. Matches Configuration.swift's
+      # defaultLocalIP.
+      VITE_ORIGIN: http://192.168.1.65:5174
+      VITE_HMR_HOST: 192.168.1.65

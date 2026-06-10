@@ -52,7 +52,14 @@ export default defineConfig({
         host: process.env.VITE_HOST || 'localhost',
         port: parseInt(process.env.VITE_PORT || '5173'),
         cors: true,
-        ...(process.env.VITE_HOST ? { hmr: { host: process.env.VITE_HOST } } : {}),
+        // Advertised origin written to Laravel's `hot` file. When binding to
+        // 0.0.0.0 in Docker, browsers and devices must load dev assets from a
+        // routable host (e.g. the Mac's LAN IP for phone testing) — 0.0.0.0
+        // is unreachable from a physical device and renders pages blank.
+        ...(process.env.VITE_ORIGIN ? { origin: process.env.VITE_ORIGIN } : {}),
+        ...(process.env.VITE_HMR_HOST || process.env.VITE_HOST
+            ? { hmr: { host: process.env.VITE_HMR_HOST || process.env.VITE_HOST } }
+            : {}),
         watch: {
             ignored: ['**/storage/framework/views/**'],
         },

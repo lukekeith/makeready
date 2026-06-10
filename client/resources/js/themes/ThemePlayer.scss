@@ -55,6 +55,79 @@
     opacity: 0.8;
   }
 
+  // ── Scripture (Bible passage) presentation ───────────────────────────
+  // Print-Bible layout modeled on the Logos reading experience: Charter
+  // serif body, justified text, and verse numbers hung in a left gutter
+  // (small, muted, baseline-aligned with the verse's first line). Applied
+  // when the block is flagged `scripture` — verse lines arrive as ordered
+  // `li` tokens, so these rules replace the default "N." list rendering.
+  // The doubled `.ThemePlayer` class out-specifies per-theme `--li` rules
+  // regardless of stylesheet load order. The serif stack is inlined as a
+  // var() fallback so standalone preview bundles without _tokens.scss
+  // still resolve it.
+  &.ThemePlayer--scripture {
+    // Verse column sits exactly 32px from each screen edge regardless of the
+    // theme's own side padding; verse numbers hang inside the left 32px.
+    padding-left: 32px;
+    padding-right: 32px;
+
+    .ThemePlayer__token--p,
+    .ThemePlayer__token--li,
+    .ThemePlayer__token--blockquote {
+      font-family: var(--font-serif, Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, 'Times New Roman', serif);
+    }
+
+    // Passage reference headings (e.g. "Genesis 1:1-5") — centered serif,
+    // echoing print-Bible section titles.
+    .ThemePlayer__token--h1,
+    .ThemePlayer__token--h2,
+    .ThemePlayer__token--h3,
+    .ThemePlayer__token--h4 {
+      font-family: var(--font-serif, Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, 'Times New Roman', serif);
+      width: 100%;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    .ThemePlayer__token--li {
+      position: relative;
+      padding-left: 0;
+      margin-bottom: 0.4em;
+      text-align: justify;
+      hyphens: auto;
+      line-height: 1.65;
+
+      // Verse number: bare digits (no trailing period) from the
+      // data-list-number attribute. Rendered as an inline-block hung into
+      // the container's 32px left padding so verse text itself keeps the
+      // full 32px inset — net width is zero (26 − 32 + 6), so the text
+      // column is unaffected. Digits right-align 6px before the text and
+      // baseline-align with the first line naturally. The attribute
+      // selector out-specifies per-theme `[data-list-number]::before` rules.
+      &[data-list-number]::before {
+        content: attr(data-list-number);
+        display: inline-block;
+        position: static;
+        width: 26px;
+        margin-left: -32px;
+        margin-right: 6px;
+        text-align: right;
+        font-size: 0.65em;
+        font-weight: 400;
+        opacity: 0.55;
+        font-variant-numeric: lining-nums tabular-nums;
+      }
+
+      // Unnumbered list items inside a scripture block (shouldn't occur,
+      // but keep the bullet from rendering as a stray gutter glyph).
+      &:not([data-list-number])::before {
+        content: '';
+        margin: 0;
+        width: 0;
+      }
+    }
+  }
+
   // ── Read-block selection styles ──────────────────────────────────────
   // Inline spans wrapped around `selections` ranges stored on each read
   // block (server `selections: [{ start, end, style }]`). Style names map

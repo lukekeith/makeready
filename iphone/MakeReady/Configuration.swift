@@ -39,7 +39,9 @@ struct Configuration {
     private static let localClientPortKey = "localClientPort"
     static let defaultLocalIP = "192.168.1.65"
     static let defaultAPIPort = "3010"
-    static let defaultClientPort = "8000"
+    // 8001 — the Dockerized Laravel client publishes 8001:8000 because another
+    // local container (finpro-api) occupies host port 8000.
+    static let defaultClientPort = "8001"
 
     /// User-specified local server IP address.
     /// Persisted in UserDefaults. Falls back to defaultLocalIP.
@@ -93,6 +95,12 @@ struct Configuration {
         // (handles IP changes between networks)
         if let saved, saved != defaultLocalIP {
             UserDefaults.standard.set(defaultLocalIP, forKey: localServerIPKey)
+        }
+        // Migrate the old client-port default: 8000 now belongs to another
+        // local container (finpro-api), so a saved "8000" would point previews
+        // at the wrong service. Clearing it lets defaultClientPort apply.
+        if UserDefaults.standard.string(forKey: localClientPortKey) == "8000" {
+            UserDefaults.standard.removeObject(forKey: localClientPortKey)
         }
     }
 

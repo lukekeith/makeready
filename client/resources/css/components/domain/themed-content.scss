@@ -38,22 +38,25 @@
     line-height: 1.55;
   }
 
+  // Print-Bible verse treatment (matches ThemePlayer--scripture): Charter
+  // serif body with a small, muted gutter number instead of a bold prefix.
   &__verse-number {
     position: absolute;
     left: 0;
     top: 0;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1.55;
-    color: rgba(255, 255, 255, 1);
+    font-family: var(--font-serif, Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif);
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 27.9px; // = verse-text line box (18px × 1.55) so the number baseline-aligns
+    color: rgba(255, 255, 255, 0.55);
+    font-variant-numeric: lining-nums tabular-nums;
     user-select: none;
     -webkit-user-select: none;
   }
 
   &__verse-text {
     display: inline;
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: var(--font-serif, Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, serif);
     font-size: 18px;
     font-weight: 400;
     line-height: 1.55;
@@ -356,8 +359,10 @@
     position: absolute;
     left: 0;
     top: 0;
-    font-size: 0.8em;
-    font-weight: 700;
+    font-size: 0.65em;
+    font-weight: 400;
+    opacity: 0.55;
+    font-variant-numeric: lining-nums tabular-nums;
     user-select: none;
     -webkit-user-select: none;
   }

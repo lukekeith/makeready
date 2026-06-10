@@ -551,7 +551,7 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
                 attributed.addAttribute(.backgroundColor, value: UIColor.white, range: range)
                 attributed.addAttribute(.foregroundColor, value: UIColor.black, range: range)
             } else if ReadBlockSelectionStyle(rawValue: highlight.style) == .bold {
-                attributed.addAttribute(.font, value: UIFont.systemFont(ofSize: fontSize, weight: .bold), range: range)
+                attributed.addAttribute(.font, value: BibleVerseTextLayout.serifFont(size: fontSize, weight: .bold), range: range)
             } else if usePreviewHighlightStyle {
                 attributed.addAttribute(.backgroundColor, value: UIColor.white.withAlphaComponent(0.9), range: range)
                 attributed.addAttribute(.foregroundColor, value: UIColor.black, range: range)
@@ -698,12 +698,13 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
         for (verse, state) in states {
             guard let circle = circleViews[verse] else { continue }
             let label = circle.subviews.compactMap { $0 as? UILabel }.first
+            // Gutter numbers carry selection state through color alone.
             if state.isSelected {
-                circle.backgroundColor = brandPurple
-                label?.textColor = .white
+                label?.textColor = brandPurple
+                label?.font = BibleVerseTextLayout.serifFont(size: 12, weight: .bold)
             } else {
-                circle.backgroundColor = UIColor(white: 1, alpha: 0.1)
-                label?.textColor = UIColor(white: 1, alpha: 0.6)
+                label?.textColor = BibleVerseTextLayout.verseNumberColor
+                label?.font = BibleVerseTextLayout.verseNumberFont
             }
         }
     }

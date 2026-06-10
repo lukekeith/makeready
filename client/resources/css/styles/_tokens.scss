@@ -52,6 +52,10 @@
   --leading-title:       34px;
   --leading-display:     38px;
 
+  // Serif stack for scripture text — Charter ships on Apple platforms and is
+  // the iPhone app's Bible font, so web and iOS render scripture alike.
+  --font-serif: Charter, 'Bitstream Charter', 'Iowan Old Style', Georgia, 'Times New Roman', serif;
+
   // ─── Control heights ───────────────────────────────────────────────────────
   --control-h-sm: 32px;
   --control-h-md: 40px;

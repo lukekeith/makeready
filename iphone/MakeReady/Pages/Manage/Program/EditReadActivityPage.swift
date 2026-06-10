@@ -721,7 +721,8 @@ struct EditReadActivityPage: View {
                                 pendingSelectionRange = newValue
                                 pendingSelectionBlockId = newValue == nil ? nil : block.id
                             }
-                        )
+                        ),
+                        isScripture: block.sourceReferenceId != nil
                     )
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

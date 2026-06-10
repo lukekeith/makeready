@@ -45,6 +45,11 @@ export interface PreviewBlock {
    *  Each entry: { start, end, style: 'bold' | 'highlight' | … }. Forwarded
    *  to ThemePlayer; styled in `themes/ThemePlayer.scss`. */
   selections?: Array<{ start: number; end: number; style: string }>
+  /** True when `content` is a Bible passage — forwarded to ThemePlayer so
+   *  verses render in the print-Bible serif presentation. Payload builders
+   *  set this from the block's sourceReferenceId or the normalized-verse
+   *  content heuristic. */
+  isScripture?: boolean
 }
 
 export interface PreviewPayload {
@@ -62,6 +67,7 @@ interface ServerActivity {
     orderNumber: number
     content?: string | null
     isLocked?: boolean
+    sourceReferenceId?: string | null
     theme?: { slug?: string } | null
     backgroundImageUrl?: string | null
     backgroundColor?: string | null
@@ -648,6 +654,10 @@ function activityToPayload(activity: ServerActivity): PreviewPayload {
         backgroundOverlayOpacity: b.backgroundOverlayOpacity ?? null,
         fontSize:                 b.fontSize                 ?? null,
         selections:               b.selections               ?? [],
+        // Print-Bible styling only for blocks whose verses were copied in by
+        // the Bible book/chapter/verse process — exactly the blocks carrying
+        // a sourceReferenceId. Authored content keeps standard styling.
+        isScripture:              b.sourceReferenceId != null,
       })),
   }
 }
@@ -707,6 +717,7 @@ onBeforeUnmount(() => {
           :font-size="block.fontSize ?? null"
           :top-inset="topInset ?? null"
           :selections="block.selections ?? []"
+          :scripture="block.isScripture ?? false"
           content-format="markdown"
           external-clock
           @toggle-playback="() => {}"

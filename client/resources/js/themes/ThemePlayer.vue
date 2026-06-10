@@ -61,6 +61,11 @@ const props = withDefaults(defineProps<{
    *  span — styled in `ThemePlayer.scss`. Mirrors the server
    *  `activity_read_blocks.selections` JSONB column. */
   selections?: ReadBlockSelection[]
+  /** True when the block's content is a Bible passage. Adds the
+   *  `ThemePlayer--scripture` class so verse lines render in the print-Bible
+   *  presentation (Charter serif, justified, hanging gutter verse numbers)
+   *  instead of the default sans-serif list styling. */
+  scripture?: boolean
 }>(), {
   contentFormat: 'markdown',
   externalClock: false,
@@ -73,6 +78,7 @@ const props = withDefaults(defineProps<{
   fontSize: null,
   topInset: null,
   selections: () => [],
+  scripture: false,
 })
 
 /** t-shirt key → em size on the ThemePlayer container. 'm' matches the
@@ -520,6 +526,7 @@ defineExpose({
   <div
     ref="containerRef"
     class="ThemePlayer"
+    :class="{ 'ThemePlayer--scripture': scripture }"
     :style="containerStyle"
     @click="externalClock ? $emit('toggle-playback') : advance()"
     @touchstart.passive="onTouchStart"
