@@ -55,7 +55,7 @@ private let api: APIClientProtocol
                 do {
                     try await fetchLibrary(type: type, tags: tags, leaders: leaders)
                 } catch {
-                    NSLog("❌ MediaActions: Background refresh failed: \(error.localizedDescription)")
+                    state.recordError(error, context: "MediaActions.loadLibrary (background refresh)")
                 }
             }
             return

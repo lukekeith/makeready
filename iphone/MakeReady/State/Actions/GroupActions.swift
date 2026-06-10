@@ -42,7 +42,7 @@ private let api: APIClientProtocol
                 do {
                     try await fetchGroups()
                 } catch {
-                    NSLog("❌ GroupActions: Background refresh failed: \(error.localizedDescription)")
+                    state.recordError(error, context: "GroupActions.loadGroups (background refresh)")
                 }
             }
             return
@@ -91,7 +91,7 @@ private let api: APIClientProtocol
                     do {
                         try await GroupActions().loadJoinRequests(groupId: id)
                     } catch {
-                        NSLog("⚠️ GroupActions: join-requests prefetch failed for \(id): \(error.localizedDescription)")
+                        AppState.shared.recordError(error, context: "GroupActions.loadJoinRequests prefetch (\(id))")
                     }
                 }
             }

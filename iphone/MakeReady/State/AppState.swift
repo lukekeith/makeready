@@ -22,6 +22,20 @@ enum LessonContext {
     case enrollment
 }
 
+/// A recorded, user-relevant failure. Top-level (not nested in AppState)
+/// so the type itself carries no actor isolation.
+/// Rendering these is a deliberate no-op until the error-surface UI is
+/// approved (Decision Point A) — recording happens now so failures stop
+/// vanishing into logs.
+struct AppError: Identifiable {
+    let id = UUID()
+    /// Where the failure happened, e.g. "GroupActions.loadGroups"
+    let context: String
+    /// Human-readable description (error.localizedDescription)
+    let message: String
+    let occurredAt = Date()
+}
+
 /// Central observable state store for the entire app.
 /// Uses @Observable for fine-grained reactivity (iOS 17+).
 /// Main-actor isolated: every read and mutation happens on the main thread,
@@ -169,6 +183,31 @@ final class AppState {
 
     /// Per-entity and per-list loading states
     let loadingStates = LoadingStateManager()
+
+    // MARK: - Error Channel
+
+    /// Recent recorded failures, newest last, capped at `maxRecordedErrors`.
+    /// No UI renders these yet (Decision Point A) — the queue exists so
+    /// Actions stop swallowing errors into logs only.
+    private(set) var errors: [AppError] = []
+
+    private let maxRecordedErrors = 50
+
+    /// Record a failure into the error channel (and log it). The single
+    /// write path for error recording — when the visible error surface
+    /// lands, it observes `errors` and nothing else changes.
+    func recordError(_ error: Error, context: String) {
+        errors.append(AppError(context: context, message: error.localizedDescription))
+        if errors.count > maxRecordedErrors {
+            errors.removeFirst(errors.count - maxRecordedErrors)
+        }
+        NSLog("❌ \(context): \(error.localizedDescription)")
+    }
+
+    /// Drop all recorded errors (e.g. once a future surface has shown them).
+    func clearErrors() {
+        errors = []
+    }
 
     // MARK: - Home Stats
 
@@ -584,6 +623,7 @@ final class AppState {
         lessonScheduleMap = [:]
 
         loadingStates.clearAll()
+        errors = []
 
         StatePersistence.shared.clear()
 
@@ -620,7 +660,7 @@ final class AppState {
         do {
             try await ProgramActions().loadPrograms(forceRefresh: false)
         } catch {
-            NSLog("❌ AppState: Failed to load programs: \(error.localizedDescription)")
+            recordError(error, context: "AppState.loadPrograms")
         }
     }
 
@@ -628,7 +668,7 @@ final class AppState {
         do {
             try await ProgramActions().loadTemplates(forceRefresh: false)
         } catch {
-            NSLog("❌ AppState: Failed to load templates: \(error.localizedDescription)")
+            recordError(error, context: "AppState.loadTemplates")
         }
     }
 
@@ -636,7 +676,7 @@ final class AppState {
         do {
             try await NotificationActions().loadUnreadCount()
         } catch {
-            NSLog("❌ AppState: Failed to load notification count: \(error.localizedDescription)")
+            recordError(error, context: "AppState.loadUnreadNotificationCount")
         }
     }
 
@@ -654,7 +694,7 @@ final class AppState {
                 userOrganizations = []
             }
         } catch {
-            NSLog("⚠️ AppState: Failed to load organization: \(error.localizedDescription)")
+            recordError(error, context: "AppState.loadOrganization")
         }
     }
 
@@ -665,7 +705,7 @@ final class AppState {
         do {
             _ = try await ThemeActions().loadThemes()
         } catch {
-            NSLog("⚠️ AppState: Failed to load text themes — \(error.localizedDescription)")
+            recordError(error, context: "AppState.loadTextThemes")
         }
     }
 
@@ -680,7 +720,9 @@ final class AppState {
                 NSLog("📖 AppState: Loaded \(translations.count) Bible translations")
             }
         } catch {
-            NSLog("⚠️ AppState: Failed to load Bible translations, using defaults")
+            // Still falls back to bundled defaults; recorded so the failed
+            // call is visible once an error surface exists.
+            recordError(error, context: "AppState.loadBibleTranslations")
         }
     }
 

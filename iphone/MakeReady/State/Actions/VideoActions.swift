@@ -44,7 +44,7 @@ private let api: APIClientProtocol
                 do {
                     try await fetchVideos()
                 } catch {
-                    NSLog("❌ VideoActions: Background refresh failed: \(error.localizedDescription)")
+                    state.recordError(error, context: "VideoActions.loadVideos (background refresh)")
                 }
             }
             return

@@ -57,7 +57,7 @@ private let api: APIClientProtocol
                 do {
                     try await fetchPrograms()
                 } catch {
-                    NSLog("❌ ProgramActions: Background refresh failed: \(error.localizedDescription)")
+                    state.recordError(error, context: "ProgramActions.loadPrograms (background refresh)")
                 }
             }
             return
@@ -166,7 +166,7 @@ private let api: APIClientProtocol
                 do {
                     try await fetchTemplates()
                 } catch {
-                    NSLog("⚠️ ProgramActions: Background refresh of templates failed: \(error.localizedDescription)")
+                    state.recordError(error, context: "ProgramActions.loadTemplates (background refresh)")
                 }
             }
             return
@@ -1358,7 +1358,7 @@ private let api: APIClientProtocol
                 do {
                     _ = try await fetchProgramEnrollments(programId: programId)
                 } catch {
-                    NSLog("⚠️ ProgramActions: Background refresh of program enrollments failed: \(error)")
+                    state.recordError(error, context: "ProgramActions.loadProgramEnrollments (background refresh)")
                 }
             }
             return state.programEnrollmentsFor(programId: programId)

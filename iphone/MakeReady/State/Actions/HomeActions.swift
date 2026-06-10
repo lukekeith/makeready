@@ -77,7 +77,7 @@ private let api: APIClientProtocol
             }
             state.homeTotalMembers = allUserIds.count
         } catch {
-            NSLog("❌ HomeActions: Failed to load stats: \(error)")
+            state.recordError(error, context: "HomeActions.loadStats")
         }
     }
 
@@ -105,7 +105,7 @@ private let api: APIClientProtocol
                 state.homeHeatmapData = buckets
             }
         } catch {
-            NSLog("❌ HomeActions: Failed to load heatmap data: \(error)")
+            state.recordError(error, context: "HomeActions.loadHeatmapData")
         }
     }
 
@@ -123,7 +123,7 @@ private let api: APIClientProtocol
                 state.homeWeeklyActivity = days
             }
         } catch {
-            NSLog("❌ HomeActions: Failed to load weekly activity data: \(error)")
+            state.recordError(error, context: "HomeActions.loadWeeklyActivityData")
         }
     }
 
@@ -243,7 +243,7 @@ private let api: APIClientProtocol
 
             NSLog("📅 HomeActions: Loaded \(allSchedules.count) scheduled lessons across \(allEnrollments.count) enrollments (today+future only)")
         } catch {
-            NSLog("❌ HomeActions: Failed to load calendar events: \(error)")
+            state.recordError(error, context: "HomeActions.loadCalendarEvents")
         }
     }
 
