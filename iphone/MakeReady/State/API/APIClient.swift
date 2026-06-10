@@ -113,12 +113,39 @@ final class APIClient {
 
     // MARK: - Request Execution
 
-    /// Execute a request and return raw data
+    /// Coalesces identical in-flight GETs. Added (Phase 2.8) after a live
+    /// incident: normal navigation re-fired the same groups/enrollments
+    /// load cycle ~15× in seconds, tripping the server's 200 req/min rate
+    /// limit and blanking the app. Concurrent identical GETs now share one
+    /// wire call; sequential calls still hit the network every time.
+    private let getCoalescer = GETCoalescer()
+
+    /// Execute a request and return raw data.
+    /// Body-less GETs are coalesced: if an identical request is already in
+    /// flight, its response is shared instead of firing a duplicate. Callers
+    /// can't observe the difference (same bytes, same errors) except that a
+    /// shared request isn't cancelled when one of its awaiters goes away.
     func request(
         endpoint: String,
         method: String = "GET",
         body: [String: Any]? = nil,
         timeout: TimeInterval = 30
+    ) async throws -> Data {
+        if method == "GET", body == nil {
+            let key = "\(baseURL)\(endpoint)|\(timeout)"
+            return try await getCoalescer.data(for: key) { [self] in
+                try await performRequest(endpoint: endpoint, method: method, body: body, timeout: timeout)
+            }
+        }
+        return try await performRequest(endpoint: endpoint, method: method, body: body, timeout: timeout)
+    }
+
+    /// The uncoalesced request path (network + status handling).
+    private func performRequest(
+        endpoint: String,
+        method: String,
+        body: [String: Any]?,
+        timeout: TimeInterval
     ) async throws -> Data {
         let request = try buildRequest(endpoint: endpoint, method: method, body: body, timeout: timeout)
 
@@ -340,6 +367,31 @@ final class APIClient {
         return renderer.image { _ in
             image.draw(in: CGRect(origin: .zero, size: newSize))
         }
+    }
+}
+
+// MARK: - GET Coalescer
+
+/// Tracks in-flight GET requests by key so identical concurrent calls share
+/// one network task. An actor: APIClient is called from arbitrary contexts,
+/// so the in-flight table needs its own isolation.
+private actor GETCoalescer {
+
+    private var inFlight: [String: Task<Data, Error>] = [:]
+
+    /// Returns the in-flight task's result for `key` if one exists, else
+    /// fires `fire` and shares its result with any callers that arrive
+    /// before it completes. Errors propagate to every awaiter — identical
+    /// to each having fired its own failing request.
+    func data(for key: String, fire: @escaping @Sendable () async throws -> Data) async throws -> Data {
+        if let existing = inFlight[key] {
+            return try await existing.value
+        }
+
+        let task = Task { try await fire() }
+        inFlight[key] = task
+        defer { inFlight[key] = nil }
+        return try await task.value
     }
 }
 
