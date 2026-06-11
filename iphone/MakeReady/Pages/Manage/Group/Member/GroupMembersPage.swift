@@ -32,6 +32,28 @@ struct GroupMembersPage: View {
     @State private var showAcceptConfirmation: Bool = false
     @State private var requestToAccept: JoinRequest?
 
+    // Initialize from cache so the slide-in animates with content already
+    // laid out — async content arriving mid-slide is inserted outside the
+    // animation transaction and lands at its final position (see
+    // SWIFTUI_TRANSITIONS.md § Pre-loading Content).
+    init(
+        groupId: String,
+        groupName: String,
+        overlayManager: OverlayManager,
+        onDismiss: @escaping () -> Void
+    ) {
+        self.groupId = groupId
+        self.groupName = groupName
+        self.overlayManager = overlayManager
+        self.onDismiss = onDismiss
+
+        let cachedMembers = AppState.shared.membersFor(groupId: groupId)
+        let cachedRequests = AppState.shared.pendingJoinRequestsByGroupId[groupId] ?? []
+        _members = State(initialValue: cachedMembers)
+        _joinRequests = State(initialValue: cachedRequests)
+        _isLoading = State(initialValue: cachedMembers.isEmpty && cachedRequests.isEmpty)
+    }
+
     // Computed: filtered members based on search
     private var filteredMembers: [GroupMember] {
         if searchText.isEmpty {
@@ -357,7 +379,12 @@ struct GroupMembersPage: View {
     // MARK: - Data Loading
 
     private func loadData() async {
-        isLoading = true
+        // Only show the spinner when there's nothing cached to display —
+        // flipping to the loading branch mid-slide swaps the content
+        // subtree outside the animation transaction.
+        if members.isEmpty && joinRequests.isEmpty {
+            isLoading = true
+        }
         error = nil
 
         do {
@@ -374,7 +401,11 @@ struct GroupMembersPage: View {
             }
         } catch {
             await MainActor.run {
-                self.error = error.localizedDescription
+                // Keep showing cached content on a background refresh
+                // failure; only surface the error screen when empty.
+                if members.isEmpty && joinRequests.isEmpty {
+                    self.error = error.localizedDescription
+                }
                 isLoading = false
             }
         }

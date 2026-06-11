@@ -38,6 +38,31 @@ struct EnrollmentsListPage: View {
     // Swipe state to prevent scrolling during card swipes
     @StateObject private var swipeState = SwipeState()
 
+    // Initialize from cache so the slide-in animates with content already
+    // laid out — async content arriving mid-slide is inserted outside the
+    // animation transaction and lands at its final position (see
+    // SWIFTUI_TRANSITIONS.md § Pre-loading Content). GroupHomePage prefetches
+    // enrollments on open, so this is warm even on the first visit.
+    init(
+        groupId: String,
+        onDismiss: @escaping () -> Void,
+        overlayManager: OverlayManager? = nil,
+        onUnenroll: (() -> Void)? = nil,
+        pendingEnrollment: EnrollmentData? = nil,
+        isCreatingEnrollment: Bool = false
+    ) {
+        self.groupId = groupId
+        self.onDismiss = onDismiss
+        self.overlayManager = overlayManager
+        self.onUnenroll = onUnenroll
+        self.pendingEnrollment = pendingEnrollment
+        self.isCreatingEnrollment = isCreatingEnrollment
+
+        let cachedEnrollments = AppState.shared.enrollmentsFor(groupId: groupId)
+        _enrollments = State(initialValue: cachedEnrollments)
+        _isLoading = State(initialValue: cachedEnrollments.isEmpty)
+    }
+
     // Computed properties for sections
     private var activeEnrollments: [EnrollmentWithProgram] {
         enrollments.filter { $0.isActive }.sorted { $0.startDate > $1.startDate }
@@ -238,7 +263,12 @@ struct EnrollmentsListPage: View {
     // MARK: - Data Loading
 
     private func loadEnrollments() async {
-        isLoading = true
+        // Only show the spinner when there's nothing cached to display —
+        // flipping to the loading branch mid-slide swaps the content
+        // subtree outside the animation transaction.
+        if enrollments.isEmpty {
+            isLoading = true
+        }
         error = nil
 
         do {
@@ -249,7 +279,11 @@ struct EnrollmentsListPage: View {
             }
         } catch {
             await MainActor.run {
-                self.error = error.localizedDescription
+                // Keep showing cached content on a background refresh
+                // failure; only surface the error screen when empty.
+                if enrollments.isEmpty {
+                    self.error = error.localizedDescription
+                }
                 isLoading = false
             }
         }

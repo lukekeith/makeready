@@ -307,6 +307,7 @@ private let api: APIClientProtocol
             )
         }
 
+        state.groupInvitesByGroupId[groupId] = invite
         return invite
     }
 

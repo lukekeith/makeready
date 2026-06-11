@@ -179,6 +179,15 @@ final class AppState {
         return !requests.isEmpty
     }
 
+    // MARK: - Group Invites
+
+    /// Group invites (code + URL + QR payload) keyed by group ID. Populated
+    /// by `GroupActions.loadGroupInvite(groupId:)` so GroupInvitePage can
+    /// render synchronously from cache and ride slide-in animations instead
+    /// of popping in when the fetch lands mid-flight. In-memory only — the
+    /// QR payload is a large base64 blob and is cheap to refetch.
+    var groupInvitesByGroupId: [String: GroupInviteData] = [:]
+
     // MARK: - Loading States
 
     /// Per-entity and per-list loading states

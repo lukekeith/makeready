@@ -849,6 +849,11 @@ struct GroupHomePage: View {
         // Pre-fetch pending join requests so the `person.2` icon's red dot
         // is correct on first frame for direct navigation into the group.
         _ = try? await GroupActions().loadJoinRequests(groupId: groupId)
+
+        // Pre-fetch the group invite so GroupInvitePage renders from cache
+        // and rides the slide-in even on the first tap (its cache is
+        // in-memory only, so it starts cold every launch).
+        _ = try? await GroupActions().loadGroupInvite(groupId: groupId)
     }
 
     private func syncAgeStateFromGroup(_ group: UserGroup) {

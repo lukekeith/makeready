@@ -35,6 +35,20 @@ struct GroupInvitePage: View {
     @State private var showCopiedToast = false
     @State private var qrCodeImage: UIImage?
 
+    // Initialize from cache so the slide-in animates with content already
+    // laid out — async content arriving mid-slide is inserted outside the
+    // animation transaction and lands at its final position (see
+    // SWIFTUI_TRANSITIONS.md § Pre-loading Content).
+    init(groupId: String, onDismiss: @escaping () -> Void) {
+        self.groupId = groupId
+        self.onDismiss = onDismiss
+
+        let cached = AppState.shared.groupInvitesByGroupId[groupId]
+        _inviteData = State(initialValue: cached)
+        _isLoading = State(initialValue: cached == nil)
+        _qrCodeImage = State(initialValue: cached.flatMap { Self.decodeQRCodeImage(from: $0.qrCode) })
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             // Header
@@ -270,7 +284,12 @@ struct GroupInvitePage: View {
     // MARK: - Data Loading
 
     private func loadInviteData() async {
-        isLoading = true
+        // Only show the spinner when there's nothing cached to display —
+        // flipping to the loading branch mid-slide swaps the content
+        // subtree outside the animation transaction.
+        if inviteData == nil {
+            isLoading = true
+        }
         error = nil
 
         do {
@@ -279,11 +298,15 @@ struct GroupInvitePage: View {
                 self.inviteData = data
                 self.isLoading = false
                 // Decode QR code image from base64
-                self.qrCodeImage = decodeQRCodeImage(from: data.qrCode)
+                self.qrCodeImage = Self.decodeQRCodeImage(from: data.qrCode)
             }
         } catch let err {
             await MainActor.run {
-                self.error = err.localizedDescription
+                // Keep showing cached content on a background refresh
+                // failure; only surface the error screen when empty.
+                if inviteData == nil {
+                    self.error = err.localizedDescription
+                }
                 self.isLoading = false
             }
             NSLog("Failed to load invite data: \(err)")
@@ -294,7 +317,7 @@ struct GroupInvitePage: View {
         try await GroupActions().loadGroupInvite(groupId: groupId)
     }
 
-    private func decodeQRCodeImage(from dataURL: String) -> UIImage? {
+    private static func decodeQRCodeImage(from dataURL: String) -> UIImage? {
         // Remove data URL prefix: "data:image/png;base64,"
         let base64String = dataURL
             .replacingOccurrences(of: "data:image/png;base64,", with: "")
