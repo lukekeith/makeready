@@ -11,6 +11,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 const mockEmbedQuery = vi.fn()
+const mockEmbedQueries = vi.fn()
+const mockExpandQuery = vi.fn()
 const mockQueryRaw = vi.fn()
 const mockTranslationFindUnique = vi.fn()
 const mockVerseFindMany = vi.fn()
@@ -20,10 +22,16 @@ const mockGetVerse = vi.fn()
 
 vi.mock('../src/services/embeddings.js', () => ({
   embedQuery: mockEmbedQuery,
+  embedQueries: mockEmbedQueries,
   embedPassages: vi.fn(),
   isEmbeddingsEnabled: () => true,
   EMBEDDING_MODEL: 'Xenova/bge-small-en-v1.5',
   EMBEDDING_DIMS: 384,
+}))
+
+vi.mock('../src/services/query-expansion.js', () => ({
+  expandQuery: mockExpandQuery,
+  isExpansionEnabled: () => true,
 }))
 
 vi.mock('../src/lib/prisma.js', () => ({
@@ -85,6 +93,8 @@ function verseRow(overrides: Partial<VerseRow> = {}): VerseRow {
 beforeEach(() => {
   vi.clearAllMocks()
   mockEmbedQuery.mockResolvedValue(new Array(384).fill(0.05))
+  mockEmbedQueries.mockResolvedValue([])
+  mockExpandQuery.mockResolvedValue([])
   mockTranslationFindUnique.mockResolvedValue(null)
   mockResolveBibleId.mockResolvedValue(null)
 })
@@ -351,5 +361,70 @@ describe('searchVersesSemantic', () => {
     mockEmbedQuery.mockRejectedValue(new Error('model load failed'))
 
     await expect(searchVersesSemantic('a query', 'NASB', 10)).rejects.toThrow('model load failed')
+  })
+})
+
+describe('query expansion fusion', () => {
+  /** Route retrieval fixtures by table AND query vector (baseline 0.05s vs variant 0.07s). */
+  function setRowsByVector(fixtures: {
+    baseline?: { verses?: VerseRow[]; windows?: WindowRow[]; passages?: PassageRow[] }
+    variant?: { verses?: VerseRow[]; windows?: WindowRow[]; passages?: PassageRow[] }
+  }) {
+    mockQueryRaw.mockImplementation(async (q: { strings: readonly string[]; values: unknown[] }) => {
+      const sql = q.strings.join('')
+      const isVariant = String(q.values[0]).startsWith('[0.07')
+      const set = (isVariant ? fixtures.variant : fixtures.baseline) ?? {}
+      if (sql.includes('bible_passages')) return set.passages ?? []
+      if (sql.includes('verse_windows')) return set.windows ?? []
+      return set.verses ?? []
+    })
+  }
+
+  it('keeps the best similarity across original and variant retrievals (max-sim fusion)', async () => {
+    mockExpandQuery.mockResolvedValue(['the heavens declare the glory of God'])
+    mockEmbedQueries.mockResolvedValue([new Array(384).fill(0.07)])
+    setRowsByVector({
+      baseline: {
+        verses: [
+          verseRow({ bookNumber: 1, chapter: 8, verse: 15, similarity: 0.78, text: 'God spoke to Noah' }),
+          verseRow({ bookNumber: 19, chapter: 19, verse: 1, similarity: 0.62, text: 'The heavens declare' }),
+        ],
+      },
+      variant: {
+        verses: [verseRow({ bookNumber: 19, chapter: 19, verse: 1, similarity: 0.84, text: 'The heavens declare' })],
+      },
+    })
+
+    const result = await searchVersesSemantic('God speaking through creation', 'WEB', 10)
+
+    expect(result.results.map((r) => r.reference)).toEqual(['Psalms 19:1', 'Genesis 8:15'])
+    expect(result.results[0].similarity).toBe(0.84)
+  })
+
+  it('surfaces candidates found only by a variant query', async () => {
+    mockExpandQuery.mockResolvedValue(['perfect love casts out fear'])
+    mockEmbedQueries.mockResolvedValue([new Array(384).fill(0.07)])
+    setRowsByVector({
+      baseline: { verses: [verseRow({ similarity: 0.65 })] },
+      variant: {
+        verses: [verseRow({ bookNumber: 62, chapter: 4, verse: 18, similarity: 0.8, text: 'There is no fear in love' })],
+      },
+    })
+
+    const result = await searchVersesSemantic('overcoming fear', 'WEB', 10)
+
+    expect(result.results.map((r) => r.reference)).toEqual(['1 John 4:18', 'John 3:16'])
+  })
+
+  it('skips variant embedding and retrieval entirely when expansion returns no variants', async () => {
+    mockExpandQuery.mockResolvedValue([])
+    setRows([verseRow()])
+
+    const result = await searchVersesSemantic('a query', 'WEB', 10)
+
+    expect(result.total).toBe(1)
+    expect(mockEmbedQueries).not.toHaveBeenCalled()
+    // 3 granularity queries for the baseline only
+    expect(mockQueryRaw).toHaveBeenCalledTimes(3)
   })
 })

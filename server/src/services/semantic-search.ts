@@ -21,6 +21,14 @@
  *    "prodigal" never appears in the text. These results carry title and
  *    summary, and their text is an opening-verses snippet.
  *
+ * Abstract concept queries are additionally expanded into biblical-vocabulary
+ * variants (query-expansion.ts, Claude Haiku): all variants are embedded and
+ * retrieved, and each candidate keeps its best similarity across variants
+ * (max-sim fusion). This is what lets "God speaking to humanity through
+ * creation" rank Psalm 19:1 and Romans 1:19-20 above literal "God spoke"
+ * matches. Expansion runs concurrently with baseline retrieval and fails
+ * open — on timeout or error the original-query results stand alone.
+ *
  * Matching always runs against WEB embeddings, but display text is resolved
  * in the user's selected translation: from the local verses table when that
  * translation is stored locally, otherwise from API.Bible via the 14-day
@@ -30,7 +38,8 @@
  */
 
 import { prisma, Prisma } from '../lib/prisma.js'
-import { embedQuery } from './embeddings.js'
+import { embedQuery, embedQueries } from './embeddings.js'
+import { expandQuery } from './query-expansion.js'
 import { getBookByNumber, buildVerseId } from '../utils/bible-id-map.js'
 
 /** Minimum cosine similarity for a verse to count as a match.
@@ -99,41 +108,28 @@ async function searchInternal(
   translationCode: string,
   limit: number
 ): Promise<SemanticSearchResult> {
+  // Expansion (LLM) runs concurrently with the baseline embed+retrieval so
+  // its latency overlaps instead of adding to it.
+  const variantsPromise = expandQuery(query)
   const vector = await embedQuery(query)
-  const vectorLiteral = `[${vector.join(',')}]`
+  const baseline = await retrieveCandidates(vector, limit)
 
-  const [verseRows, windowRows, passageRows] = await Promise.all([
-    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verse: number; text: string; similarity: number }>>(
-      Prisma.sql`SELECT v."bookNumber", v.chapter, v.verse, v.text,
-                        1 - (v."embedding" <=> ${vectorLiteral}::vector) AS similarity
-                 FROM verses v
-                 WHERE v."embedding" IS NOT NULL
-                 ORDER BY v."embedding" <=> ${vectorLiteral}::vector
-                 LIMIT ${limit * 2}`
-    ),
-    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; text: string; similarity: number }>>(
-      Prisma.sql`SELECT w."bookNumber", w.chapter, w."verseStart", w."verseEnd", w.text,
-                        1 - (w."embedding" <=> ${vectorLiteral}::vector) AS similarity
-                 FROM verse_windows w
-                 WHERE w."embedding" IS NOT NULL
-                 ORDER BY w."embedding" <=> ${vectorLiteral}::vector
-                 LIMIT ${limit * 2}`
-    ),
-    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; title: string; summary: string; openingText: string; similarity: number }>>(
-      Prisma.sql`SELECT p."bookNumber", p.chapter, p."verseStart", p."verseEnd", p.title, p.summary, p."openingText",
-                        1 - (p."embedding" <=> ${vectorLiteral}::vector) AS similarity
-                 FROM bible_passages p
-                 WHERE p."embedding" IS NOT NULL
-                 ORDER BY p."embedding" <=> ${vectorLiteral}::vector
-                 LIMIT ${limit * 2}`
-    ),
-  ])
+  const variants = await variantsPromise
+  const fused = new Map<string, Candidate>(baseline)
+  if (variants.length > 0) {
+    const variantVectors = await embedQueries(variants)
+    const variantResults = await Promise.all(variantVectors.map((v) => retrieveCandidates(v, limit)))
+    // Max-sim fusion: a candidate keeps its best similarity across the
+    // original query and all variants.
+    for (const result of variantResults) {
+      for (const [key, c] of result) {
+        const prev = fused.get(key)
+        if (!prev || c.similarity > prev.similarity) fused.set(key, c)
+      }
+    }
+  }
 
-  const candidates: Candidate[] = [
-    ...verseRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verse, verseEnd: r.verse, text: r.text, similarity: r.similarity })),
-    ...windowRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.text, similarity: r.similarity })),
-    ...passageRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.openingText, similarity: r.similarity, title: r.title, summary: r.summary })),
-  ]
+  const candidates = [...fused.values()]
     .filter((c) => c.similarity >= SIMILARITY_THRESHOLD)
     .sort((a, b) => b.similarity - a.similarity)
 
@@ -180,6 +176,50 @@ async function searchInternal(
     fumsToken,
     copyright,
   }
+}
+
+/**
+ * Top candidates from all three granularities for one query vector, keyed by
+ * granularity + span so results for different query variants can be fused.
+ */
+async function retrieveCandidates(vector: number[], limit: number): Promise<Map<string, Candidate>> {
+  const vectorLiteral = `[${vector.join(',')}]`
+
+  const [verseRows, windowRows, passageRows] = await Promise.all([
+    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verse: number; text: string; similarity: number }>>(
+      Prisma.sql`SELECT v."bookNumber", v.chapter, v.verse, v.text,
+                        1 - (v."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                 FROM verses v
+                 WHERE v."embedding" IS NOT NULL
+                 ORDER BY v."embedding" <=> ${vectorLiteral}::vector
+                 LIMIT ${limit * 2}`
+    ),
+    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; text: string; similarity: number }>>(
+      Prisma.sql`SELECT w."bookNumber", w.chapter, w."verseStart", w."verseEnd", w.text,
+                        1 - (w."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                 FROM verse_windows w
+                 WHERE w."embedding" IS NOT NULL
+                 ORDER BY w."embedding" <=> ${vectorLiteral}::vector
+                 LIMIT ${limit * 2}`
+    ),
+    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; title: string; summary: string; openingText: string; similarity: number }>>(
+      Prisma.sql`SELECT p."bookNumber", p.chapter, p."verseStart", p."verseEnd", p.title, p.summary, p."openingText",
+                        1 - (p."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                 FROM bible_passages p
+                 WHERE p."embedding" IS NOT NULL
+                 ORDER BY p."embedding" <=> ${vectorLiteral}::vector
+                 LIMIT ${limit * 2}`
+    ),
+  ])
+
+  const candidates = new Map<string, Candidate>()
+  const add = (src: string, c: Candidate) =>
+    candidates.set(`${src}:${c.bookNumber}:${c.chapter}:${c.verseStart}:${c.verseEnd}`, c)
+
+  verseRows.forEach((r) => add('verse', { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verse, verseEnd: r.verse, text: r.text, similarity: r.similarity }))
+  windowRows.forEach((r) => add('window', { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.text, similarity: r.similarity }))
+  passageRows.forEach((r) => add('pericope', { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.openingText, similarity: r.similarity, title: r.title, summary: r.summary }))
+  return candidates
 }
 
 /**

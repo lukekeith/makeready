@@ -74,6 +74,12 @@ export async function embedQuery(text: string): Promise<number[]> {
   return vector
 }
 
+/** Embed several search queries in one model pass (bge query prefix applied). */
+export async function embedQueries(texts: string[]): Promise<number[][]> {
+  if (texts.length === 0) return []
+  return embed(texts.map((t) => QUERY_PREFIX + t))
+}
+
 /** Embed passage texts for indexing (no prefix). */
 export async function embedPassages(texts: string[]): Promise<number[][]> {
   if (texts.length === 0) return []
