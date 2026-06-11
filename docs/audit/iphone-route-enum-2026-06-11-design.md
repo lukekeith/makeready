@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | **Phase** | 3.6 of [iphone-2026-06-10-plan.md](./iphone-2026-06-10-plan.md) |
-| **Status** | **3.6a + 3.6b SHIPPED** (committed `de2244c`, build + 65 tests green). **3.6c ATTEMPTED AND REVERTED** — see banner below. **3.6d not started** (blocked on the slider regression; see progress doc ACTIVE PROBLEM). |
+| **Status** | **3.6a + 3.6b SHIPPED** (committed `de2244c`, build + 65 tests green). **3.6c REJECTED — FINAL** (see banner below; its motivating bug class is solved by the cache-first contract instead, commits `8b34f45`/`6023d94`). **3.6d UNBLOCKED** — slider regression closed, device-verified 2026-06-11. |
 
 > ⚠️ **3.6c (lazy `OverlayItem.content`) is REJECTED as written.** It was implemented and
 > built green, but on-device it broke **every overlay-hosted `SlideStack` slider**: making
@@ -14,6 +14,16 @@
 > If the async-content-pop class needs attacking, do it **per-overlay with cache-first init**
 > (the existing B2 pattern), not by globally rebuilding overlay content. 3.6a/3.6b (the typed
 > `Route` layer) stand on their own and are unaffected.
+>
+> **Finalized 2026-06-11:** this is exactly what happened. The slider regression turned out
+> to be pre-existing per-page Class 3 (independent of 3.6c), and the async-content-pop class
+> is now solved by the **cache-first detail page contract** (SWIFTUI_TRANSITIONS.md
+> § Pre-loading Content, enforced by `/push-page` + `/transition-review` B2a–c +
+> `/animation-debug` Class 3; applied in commits `8b34f45`/`6023d94`, device-verified).
+> **Do not reattempt 3.6c in any form** — "build at render time" cannot work while
+> `MainView`'s ForEach re-evaluates per frame during overlay animations; the per-page
+> contract achieves the same goal with no render-path risk. 3.6d proceeds with the stored
+> `AnyView` as-is.
 
 | **Prime directive (unchanged)** | Zero functionality loss. Zero design change. This is a type-level refactor; presentation behavior stays frame-identical. |
 | **Prereqs done** | 3.1 Motion tokens, 3.2 completion sequencing, 3.3 SlideStack, 3.4 sliders migrated. |

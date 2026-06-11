@@ -15,7 +15,7 @@
 | 3.1 — Motion tokens | ✅ Done (117 sites, machine-verified value-identical) | `bfd0d4c` |
 | 3.2 — Completion-based sequencing | ✅ Done (14/17 waits migrated; 3 triaged, see below) | `74cdb8e` |
 | 3.3 — SlideStack + EditDay pilot | ✅ Done, hand-feel verified | `7915e95` |
-| 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | 🟡 **Regression root-caused & fixed (uncommitted): per-page Class 3, NOT SlideStack.** Group-page flows (members/invite/enrollments/settings) verified riding correctly on device. Remaining: full 3.4 hand-feel checklist (nested EnrollmentSchedulePage/EditDay flows not yet audited for their own Class 3 instances), then commit. | `9b8dfe0`…`fa0f64e` + uncommitted fix |
+| 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | ✅ **Done — regression resolved, full hand-feel checklist verified on device.** Root cause was per-page Class 3 (NOT SlideStack): detail pages loaded in `.task` popped mid-slide once 3.4 made them mount on demand. Fixed with the cache-first contract on GroupMembersPage/GroupInvitePage/EnrollmentsListPage/EnrollmentSchedulePage; all other slider-hosted pages audited clean. | `9b8dfe0`…`fa0f64e`, fixes `8b34f45`+`6023d94`, contract codified `4159876` |
 | 3.5 — `/push-page` skill | ✅ Done, **committed** | `8c65369` |
 | 3.6a+3.6b — Route enum + route-keyed OverlayManager API (additive) | ✅ Done, **committed**, build + 65 tests green. Zero behavior change (legacy `OverlayID` + string API untouched). Design: [iphone-route-enum-2026-06-11-design.md](./iphone-route-enum-2026-06-11-design.md) | `de2244c` |
 | 3.6c — lazy `OverlayItem.content` | ❌ **REJECTED** — implemented + built green, but caused the slider regression (rebuilt overlay content every render). **Reverted; do not reattempt as written.** See ACTIVE PROBLEM. | reverted (was uncommitted) |
@@ -24,7 +24,7 @@
 | 5 — Enforcement layer | ⬜ Not started | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
-## 🟡 RESOLVED (pending checklist + commit) — slider regression
+## ✅ CLOSED — slider regression (fixed, device-verified, committed `8b34f45`+`6023d94`)
 
 > **Resolution (2026-06-11, Fable session):** Device retest WITHOUT 3.6c still showed the
 > bug → not 3.6c. Dismiss animated correctly while present didn't → not SlideStack's
