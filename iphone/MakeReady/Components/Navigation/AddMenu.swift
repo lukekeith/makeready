@@ -12,6 +12,7 @@ struct AddMenu: View {
     @Environment(AuthManager.self) var authManager
     @Environment(OverlayManager.self) private var overlayManager
     @Environment(\.dismissOverlay) private var dismissOverlay
+    @Environment(\.dismissOverlayThen) private var dismissOverlayThen
 
     // Submenu sliding state (internal to this menu)
     @State private var showSubmenu: Bool = false
@@ -60,9 +61,7 @@ struct AddMenu: View {
                             showSubmenu: false
                         ) {
                             print("Create group tapped")
-                            dismissMenu()
-                            // Delay showing the modal until the menu is dismissed
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            dismissMenu {
                                 overlayManager.presentModal(id: OverlayID.createGroup) {
                                     CreateGroupPage(overlayManager: overlayManager)
                                 }
@@ -75,9 +74,7 @@ struct AddMenu: View {
                             showSubmenu: false
                         ) {
                             print("Create study tapped")
-                            dismissMenu()
-                            // Delay showing the modal until the menu is dismissed
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                            dismissMenu {
                                 overlayManager.presentModal(id: OverlayID.createProgram) {
                                     CreateProgramPage(overlayManager: overlayManager)
                                 }
@@ -115,9 +112,7 @@ struct AddMenu: View {
                         dismissMenu()
                     },
                     onInviteContacts: {
-                        dismissMenu()
-                        // Delay showing the modal until the menu is dismissed
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        dismissMenu {
                             overlayManager.presentModal(id: OverlayID.inviteContacts) {
                                 InviteContactsPage(overlayManager: overlayManager)
                             }
@@ -165,8 +160,19 @@ struct AddMenu: View {
     }
 
     /// Dismiss menu using ManagedMenuView's animated dismissal
-    private func dismissMenu() {
-        dismissOverlay?()
+    /// Dismiss with optional completion that runs once the exit animation
+    /// actually finishes (Phase 3.2 — replaces wall-clock asyncAfter waits).
+    private func dismissMenu(then completion: (() -> Void)? = nil) {
+        if let completion {
+            if let dismissOverlayThen {
+                dismissOverlayThen(completion)
+            } else {
+                dismissOverlay?()
+                completion()
+            }
+        } else {
+            dismissOverlay?()
+        }
     }
 
     private func createInviteAndShowQR() {

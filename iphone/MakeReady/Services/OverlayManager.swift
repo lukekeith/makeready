@@ -19,6 +19,10 @@ private struct ModalProvidesDragIndicatorKey: EnvironmentKey {
 
 /// Environment key for dismissing the containing menu/modal
 /// Content can call this action to trigger the wrapper's animated dismissal
+private struct DismissOverlayThenActionKey: EnvironmentKey {
+    static let defaultValue: ((@escaping () -> Void) -> Void)? = nil
+}
+
 private struct DismissOverlayActionKey: EnvironmentKey {
     static let defaultValue: (() -> Void)? = nil
 }
@@ -42,6 +46,15 @@ extension EnvironmentValues {
     var dismissOverlay: (() -> Void)? {
         get { self[DismissOverlayActionKey.self] }
         set { self[DismissOverlayActionKey.self] = newValue }
+    }
+
+    /// Like `dismissOverlay`, but runs the supplied completion once the
+    /// overlay has actually left the stack (its exit animation finished).
+    /// Phase 3.2 — content uses this for dismiss-then-present choreography
+    /// instead of wall-clock asyncAfter waits.
+    var dismissOverlayThen: ((@escaping () -> Void) -> Void)? {
+        get { self[DismissOverlayThenActionKey.self] }
+        set { self[DismissOverlayThenActionKey.self] = newValue }
     }
 
     /// Indicates this view is the root of a modal (fullScreenCover or ManagedModal)
@@ -169,6 +182,20 @@ struct OverlayItem: Identifiable {
 class OverlayManager {
     private(set) var overlays: [OverlayItem] = []
 
+    /// Animated-dismiss handlers registered by the Managed wrapper views
+    /// (modal/menu/page chrome). Lets dismiss(id:then:) trigger the real
+    /// exit animation instead of removing instantly.
+    @ObservationIgnored private var animatedDismissHandlers: [String: () -> Void] = [:]
+
+    /// Completions waiting for an overlay to actually leave the stack.
+    @ObservationIgnored private var dismissCompletions: [String: [() -> Void]] = [:]
+
+    /// Called by the Managed wrapper views so the manager can drive their
+    /// exit animation from dismiss(id:then:).
+    func registerAnimatedDismiss(id: String, _ handler: @escaping () -> Void) {
+        animatedDismissHandlers[id] = handler
+    }
+
     /// Present a modal with full modal chrome (dark background, swipe-to-dismiss, animations)
     /// - Parameters:
     ///   - id: Unique identifier for the modal (used for dismissal)
@@ -258,10 +285,32 @@ class OverlayManager {
         overlays.sort { $0.priority < $1.priority }
     }
 
-    /// Dismiss an overlay by ID
+    /// Dismiss an overlay by ID (instant removal — the Managed wrappers
+    /// call this at the END of their exit animations)
     /// - Parameter id: The ID of the overlay to dismiss
     func dismiss(id: String) {
         overlays.removeAll { $0.id == id }
+        animatedDismissHandlers[id] = nil
+        for completion in dismissCompletions.removeValue(forKey: id) ?? [] {
+            completion()
+        }
+    }
+
+    /// Dismiss an overlay with its exit animation, then run `completion`
+    /// once it has actually left the overlay stack (Phase 3.2 — replaces
+    /// the wall-clock `asyncAfter(0.35)` dismiss-then-present waits).
+    /// Runs `completion` immediately if the overlay isn't presented.
+    func dismiss(id: String, then completion: @escaping () -> Void) {
+        guard isPresented(id: id) else {
+            completion()
+            return
+        }
+        dismissCompletions[id, default: []].append(completion)
+        if let animated = animatedDismissHandlers[id] {
+            animated()  // ends by calling dismiss(id:), which fires completions
+        } else {
+            dismiss(id: id)
+        }
     }
 
     /// Check if an overlay is currently presented
@@ -320,6 +369,7 @@ struct ManagedModalView<Content: View>: View {
                         .environment(\.modalProvidesDragIndicator, showDragIndicator)
                         .environment(\.isModalRoot, true)
                         .environment(\.dismissOverlay, dismiss)
+                        .environment(\.dismissOverlayThen) { completion in overlayManager.dismiss(id: id, then: completion) }
                 }
                 .frame(maxWidth: .infinity)
                 .background(Color.appBackground)
@@ -364,6 +414,7 @@ struct ManagedModalView<Content: View>: View {
             .ignoresSafeArea(edges: .bottom)
         }
         .onAppear {
+            overlayManager.registerAnimatedDismiss(id: id) { dismiss() }
             // Defer animation by one run loop iteration so the content layout
             // pass completes first. Without this, text elements (titles, descriptions)
             // may appear at their final position instead of sliding up with the modal.
@@ -433,6 +484,7 @@ struct ManagedPageView<Content: View>: View {
                 )
         }
         .onAppear {
+            overlayManager.registerAnimatedDismiss(id: id) { dismiss() }
             DispatchQueue.main.async {
                 withAnimation(Motion.pagePush) {
                     offset = 0
@@ -451,11 +503,11 @@ struct ManagedPageView<Content: View>: View {
         guard !isDismissing else { return }
         isDismissing = true
 
+        // Removal is tied to the actual slide-out animation (Phase 3.2)
+        // instead of an asyncAfter mirroring its duration.
         withAnimation(Motion.pageDismiss) {
             offset = Screen.bounds.width
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+        } completion: {
             overlayManager.dismiss(id: id)
         }
     }
@@ -541,6 +593,7 @@ struct ManagedMenuView<Content: View>: View {
                 content()
                     .environment(\.modalProvidesDragIndicator, showDragIndicator)
                     .environment(\.dismissOverlay, dismiss)
+                    .environment(\.dismissOverlayThen) { completion in overlayManager.dismiss(id: id, then: completion) }
             }
             .frame(maxWidth: .infinity)
             .background(Color(hex: "#111215"))
@@ -555,6 +608,7 @@ struct ManagedMenuView<Content: View>: View {
         }
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
+            overlayManager.registerAnimatedDismiss(id: id) { dismiss() }
             // Defer animation by one run loop iteration so the content layout
             // pass completes first. Without this, text elements (titles, descriptions)
             // may appear at their final position instead of sliding up with the menu.

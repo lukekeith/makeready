@@ -520,8 +520,7 @@ struct EditReadActivityPage: View {
                             image: .icon(systemName: "book.fill", backgroundColor: Color(hex: "#6c47ff")),
                             mode: .list,
                             onTap: {
-                                dismissSourceMenu()
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                dismissSourceMenu {
                                     showPassageSelection = true
                                 }
                             }
@@ -532,8 +531,7 @@ struct EditReadActivityPage: View {
                             image: .icon(systemName: "text.alignleft", backgroundColor: Color(hex: "#6c47ff")),
                             mode: .list,
                             onTap: {
-                                dismissSourceMenu()
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                dismissSourceMenu {
                                     addCustomTextBlock()
                                 }
                             }
@@ -838,13 +836,16 @@ struct EditReadActivityPage: View {
         )
     }
 
-    private func dismissSourceMenu() {
+    /// Optional completion runs when the exit animation finishes
+    /// (Phase 3.2 — replaces wall-clock asyncAfter waits).
+    private func dismissSourceMenu(then completion: (() -> Void)? = nil) {
         ModalAnimations.animateDismiss(
             offset: $sourceMenuOffset,
             overlayOpacity: $sourceMenuOverlayOpacity,
             screenHeight: Screen.bounds.height
         ) {
             showSourceMenu = false
+            completion?()
         }
     }
 

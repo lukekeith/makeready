@@ -138,7 +138,7 @@ struct MemberHomePage: View {
                                     title: "Create New",
                                     items: [
                                         ActionCardMenuItem(icon: "person.2.fill", title: "Group", description: "Create a new group") {
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                            overlayManager.dismiss(id: OverlayID.groupsAddMenu) {
                                                 overlayManager.presentModal(id: OverlayID.createGroup) {
                                                     CreateGroupPage(overlayManager: overlayManager)
                                                 }

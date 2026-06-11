@@ -533,6 +533,9 @@ struct EditEnrollmentDay: View {
     // MARK: - Inline Edit Helpers
 
     private func dismissEditActivity() {
+        // Two-step slider reverse: content stays mounted until the slide-out
+        // finishes. The wall-clock wait is removed when this slider migrates
+        // to SlideStack (Phase 3.3/3.4), which owns this sequencing.
         showEditActivity = false
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             editingActivityId = nil

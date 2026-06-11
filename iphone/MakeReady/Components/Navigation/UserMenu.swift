@@ -12,6 +12,7 @@ struct UserMenu: View {
     @Environment(AuthManager.self) var authManager
     @Environment(OverlayManager.self) private var overlayManager
     @Environment(\.dismissOverlay) private var dismissOverlay
+    @Environment(\.dismissOverlayThen) private var dismissOverlayThen
 
     /// Centralized state — read user's organization list from here.
     private var state: AppState { AppState.shared }
@@ -96,16 +97,24 @@ struct UserMenu: View {
         }
     }
 
-    /// Dismiss menu using ManagedMenuView's animated dismissal
-    private func dismissMenu() {
-        dismissOverlay?()
+    /// Dismiss menu using ManagedMenuView's animated dismissal.
+    /// With a completion, it runs once the exit animation actually finishes
+    /// (Phase 3.2 — replaces wall-clock asyncAfter waits).
+    private func dismissMenu(then completion: (() -> Void)? = nil) {
+        if let completion {
+            if let dismissOverlayThen {
+                dismissOverlayThen(completion)
+            } else {
+                dismissOverlay?()
+                completion()
+            }
+        } else {
+            dismissOverlay?()
+        }
     }
 
     private func handleMyProfile() {
-        dismissMenu()
-
-        // Delay to allow menu animation to complete, then show profile
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        dismissMenu {
             overlayManager.presentModal(id: OverlayID.profilePage) {
                 ProfilePage(overlayManager: overlayManager)
                     .environment(authManager)
@@ -142,10 +151,7 @@ struct UserMenu: View {
     }
 
     private func handleOpenOrg(org: OrganizationData) {
-        dismissMenu()
-
-        // Delay to allow menu animation to complete, then show org home.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+        dismissMenu {
             overlayManager.presentModal(id: OverlayID.orgHome) {
                 OrgHomePage(overlayManager: overlayManager, organization: org)
                     .environment(authManager)

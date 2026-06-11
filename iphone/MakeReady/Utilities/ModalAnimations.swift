@@ -55,12 +55,12 @@ enum ModalAnimations {
         screenHeight: CGFloat,
         completion: @escaping () -> Void
     ) {
+        // Completion is tied to the actual animation (Phase 3.2) instead of
+        // a wall-clock asyncAfter guess at its duration.
         withAnimation(dismiss) {
             offset.wrappedValue = screenHeight
             overlayOpacity.wrappedValue = 0
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + dismissDuration) {
+        } completion: {
             completion()
         }
     }
@@ -91,9 +91,7 @@ enum ModalAnimations {
             scale.wrappedValue = targetScale
             opacity.wrappedValue = 0
             blurOpacity?.wrappedValue = 0
-        }
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + dismissDuration) {
+        } completion: {
             completion()
         }
     }

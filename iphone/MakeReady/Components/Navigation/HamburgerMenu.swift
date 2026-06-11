@@ -14,6 +14,7 @@ struct HamburgerMenu: View {
 
     @Environment(OverlayManager.self) private var overlayManager
     @Environment(\.dismissOverlay) private var dismissOverlay
+    @Environment(\.dismissOverlayThen) private var dismissOverlayThen
 
     var body: some View {
         // Menu content only - ManagedMenuView provides chrome
@@ -24,8 +25,7 @@ struct HamburgerMenu: View {
                     icon: "book.closed.fill",
                     title: "Bible"
                 ) {
-                    dismissMenu()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    dismissMenu {
                         overlayManager.presentModal(id: OverlayID.bibleReader) {
                             BibleReaderModal(
                                 overlayManager: overlayManager,
@@ -41,8 +41,7 @@ struct HamburgerMenu: View {
                     icon: "magnifyingglass",
                     title: "Search"
                 ) {
-                    dismissMenu()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    dismissMenu {
                         onNavigateToSearch?()
                     }
                 }
@@ -51,8 +50,7 @@ struct HamburgerMenu: View {
                     icon: "text.book.closed.fill",
                     title: "Study Programs"
                 ) {
-                    dismissMenu()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    dismissMenu {
                         onNavigateToStudyPrograms?(0)
                     }
                 }
@@ -61,8 +59,7 @@ struct HamburgerMenu: View {
                     icon: "calendar.badge.clock",
                     title: "Enrollments"
                 ) {
-                    dismissMenu()
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                    dismissMenu {
                         onNavigateToStudyPrograms?(1)
                     }
                 }
@@ -88,8 +85,19 @@ struct HamburgerMenu: View {
     }
 
     /// Dismiss menu using ManagedMenuView's animated dismissal
-    private func dismissMenu() {
-        dismissOverlay?()
+    /// Dismiss with optional completion that runs once the exit animation
+    /// actually finishes (Phase 3.2 — replaces wall-clock asyncAfter waits).
+    private func dismissMenu(then completion: (() -> Void)? = nil) {
+        if let completion {
+            if let dismissOverlayThen {
+                dismissOverlayThen(completion)
+            } else {
+                dismissOverlay?()
+                completion()
+            }
+        } else {
+            dismissOverlay?()
+        }
     }
 }
 

@@ -246,7 +246,7 @@ struct MainLibrary: View {
                                     title: "Create New",
                                     items: [
                                         ActionCardMenuItem(icon: "book.fill", title: "Study Program", description: "Create a new study program") {
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                                            overlayManager.dismiss(id: OverlayID.libraryAddMenu) {
                                                 overlayManager.presentModal(id: OverlayID.createProgram) {
                                                     CreateProgramPage(overlayManager: overlayManager)
                                                 }

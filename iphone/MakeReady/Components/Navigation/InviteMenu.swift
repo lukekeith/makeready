@@ -14,6 +14,7 @@ struct InviteMenu: View {
 
     @Environment(AuthManager.self) var authManager
     @Environment(\.dismissOverlay) private var dismissOverlay
+    @Environment(\.dismissOverlayThen) private var dismissOverlayThen
 
     @State private var isCreatingInvite = false
 
@@ -39,8 +40,7 @@ struct InviteMenu: View {
                     }
 
                     SubmenuItem(icon: "IconUser", title: "Invite contacts") {
-                        dismissMenu()
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        dismissMenu {
                             overlayManager.presentModal(id: OverlayID.inviteContacts) {
                                 InviteContactsPage(overlayManager: overlayManager)
                             }
@@ -67,8 +67,19 @@ struct InviteMenu: View {
         }
     }
 
-    private func dismissMenu() {
-        dismissOverlay?()
+    /// Dismiss with optional completion that runs once the exit animation
+    /// actually finishes (Phase 3.2 — replaces wall-clock asyncAfter waits).
+    private func dismissMenu(then completion: (() -> Void)? = nil) {
+        if let completion {
+            if let dismissOverlayThen {
+                dismissOverlayThen(completion)
+            } else {
+                dismissOverlay?()
+                completion()
+            }
+        } else {
+            dismissOverlay?()
+        }
     }
 
     private func createInviteAndShowQR() {
