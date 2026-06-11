@@ -484,7 +484,7 @@ struct EditBlockBackgroundPage: View {
 
     /// Show the bottom-sheet source picker (Library / Photos / Camera).
     private func presentSourceMenu() {
-        overlayManager.presentMenu(id: OverlayID.backgroundSourceMenu(blockId: blockId)) {
+        overlayManager.present(.backgroundSourceMenu(blockId: blockId)) {
             BackgroundSourceMenu(
                 onPickFromLibrary: presentLibraryPicker,
                 onPickFromPhotos:  { showPhotoPicker = true },
@@ -497,7 +497,7 @@ struct EditBlockBackgroundPage: View {
     /// the chosen URL is written straight to the read block (no upload —
     /// the image is already in the org's media library).
     private func presentLibraryPicker() {
-        overlayManager.presentModal(id: OverlayID.mediaLibraryPicker(blockId: blockId)) {
+        overlayManager.present(.mediaLibraryPicker(blockId: blockId)) {
             MediaLibraryPicker { item in
                 Task { await applyLibraryImage(url: item.url) }
             }

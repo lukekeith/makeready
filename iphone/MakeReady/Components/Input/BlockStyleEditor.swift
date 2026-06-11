@@ -408,10 +408,10 @@ struct BlockStyleEditor: View {
     // MARK: - Image Actions
 
     private func presentImageSourceMenu() {
-        overlayManager.presentMenu(id: OverlayID.backgroundSourceMenu(blockId: blockId)) {
+        overlayManager.present(.backgroundSourceMenu(blockId: blockId)) {
             BackgroundSourceMenu(
                 onPickFromLibrary: {
-                    overlayManager.presentModal(id: OverlayID.mediaLibraryPicker(blockId: blockId)) {
+                    overlayManager.present(.mediaLibraryPicker(blockId: blockId)) {
                         MediaLibraryPicker { item in
                             Task { await applyLibraryImage(url: item.url) }
                         }

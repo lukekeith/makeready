@@ -1227,7 +1227,7 @@ struct EditReadActivityPage: View {
         let exactMatch = existing.first { $0.start == range.location && $0.end == range.location + range.length }
         let currentStyle = exactMatch.flatMap { ReadBlockSelectionStyle(rawValue: $0.style) }
 
-        overlayManager.presentMenu(id: OverlayID.stylePicker(blockId: blockId)) {
+        overlayManager.present(.stylePicker(blockId: blockId)) {
             StylePickerMenu(
                 snippet: snippet,
                 currentStyle: currentStyle,
