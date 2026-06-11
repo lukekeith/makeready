@@ -195,23 +195,25 @@ struct MainLibrary: View {
         state.loadingStates.isInitialLoading(.media)
     }
 
-    /// Media items filtered by time and sorted
+    /// Media items filtered by time and sorted.
+    /// One sort per evaluation (Phase 4.5) — this used to take orderedMedia
+    /// (already sorted newest-first) and then sort the whole array again,
+    /// every render.
     private var filteredMedia: [MediaLibraryItem] {
-        var result = state.orderedMedia
+        var result: [MediaLibraryItem]
+
+        switch mediaSortOption {
+        case .newestFirst:
+            result = state.orderedMedia  // already newest-first
+        case .mostUsed:
+            result = state.mediaLibrary.all.sorted { $0.usageCount > $1.usageCount }
+        case .alphabetical:
+            result = state.mediaLibrary.all.sorted { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
+        }
 
         // Time filter (client-side)
         if let cutoff = selectedTimeFilter.cutoffDate {
             result = result.filter { $0.createdAt >= cutoff }
-        }
-
-        // Sort
-        switch mediaSortOption {
-        case .newestFirst:
-            result.sort { $0.createdAt > $1.createdAt }
-        case .mostUsed:
-            result.sort { $0.usageCount > $1.usageCount }
-        case .alphabetical:
-            result.sort { $0.title.localizedCaseInsensitiveCompare($1.title) == .orderedAscending }
         }
 
         return result
