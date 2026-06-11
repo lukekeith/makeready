@@ -66,14 +66,29 @@ dismisses. Drive it from a button: `Button { editingActivityId = activity.id }`.
    // NOT: detail: { _ in inlineEditPane(activityId: editingActivityId!) }  // ❌ nils mid-slide
    ```
 2. **Detail content must be present and laid out BEFORE the slide starts** (this is
-   the whole point of SlideStack's two-step insertion). So inside the detail:
+   the whole point of SlideStack's two-step insertion — but SlideStack can only
+   guarantee the *pane*; the page's *data* is YOUR contract). Inside the detail:
    - **No `LazyVStack`/`LazyHStack`** — use plain `VStack` (`< ~50` items). Lazy
      children realize *after* the offset animation begins and land at final position.
-   - **Async-loaded data must be cache-first**: pre-populate from `AppState`/cache in
-     `init` via `State(initialValue:)`; let `.task` only fetch when the cache was
-     empty. Images use `CachedAsyncImage`, never raw `AsyncImage`. (Failure class B2 /
+   - **Any page that loads data follows the cache-first detail page contract**
+     (SWIFTUI_TRANSITIONS.md § Pre-loading Content — the #1 recurring slider bug;
+     this is what broke ALL the Phase 3.4 group sliders). All three rules:
+     1. `init` pre-populates display state from AppState via `State(initialValue:)`;
+        `isLoading` starts true only when the cache is empty.
+     2. The load function shows the spinner / error branch ONLY when there is
+        nothing to display — `.task` is a background refresh, never the primary
+        render path. (Skipping this re-pops even with a warm cache.)
+     3. Data with no AppState cache yet gets one: in-memory dict on AppState +
+        write-through in the Action + prefetch in the parent page.
+     Reference implementations: `GroupMembersPage` (rules 1+2), `GroupInvitePage`
+     (rule 3), `EnrollmentsListPage`, with parent prefetching in `GroupHomePage`.
+   - Images use `CachedAsyncImage`, never raw `AsyncImage`. (Failure class B2 /
      Class 3 — run `/animation-debug` if content pops in.)
    - **No `if let`/`if !items.isEmpty` branch that flips when data arrives mid-slide.**
+   - **This applies to EXISTING pages you newly host in a SlideStack detail** — a page
+     that worked as an always-mounted screen will pop once it mounts on demand. Audit
+     its `.task`/loading pattern as part of the wiring change, even though you didn't
+     write the page.
 3. **Never put `.opacity()` on the sliding detail pane**, and never add your own
    `.offset`, `.animation`, or `.transition` to it — SlideStack owns all motion. The
    old per-page opacity-swap third screens (e.g. ProgramHomePage) were *replaced* by a
@@ -138,6 +153,10 @@ the detail of one inside the primary/detail of another; each owns its own state 
 - The detail's dismiss button sets the binding to `nil`/`false` (no manual animation).
 - No `asyncAfter`, no hand-rolled `HStack { }.offset(x:)`, no `.opacity` on the pane,
   no `LazyVStack` in animated content, no `AsyncImage` in animated content.
+- **Every page hosted in a detail pane satisfies the cache-first contract** (init
+  pre-population + guarded spinner/error in the load function) — including
+  pre-existing pages you only re-hosted. Grep the page for `isLoading = true` at the
+  top of a load function: that's the tell.
 - **Run `/transition-review` on the diff** (rules B1–B4, E1, A2/A3 catch every mistake
   above). If anything pops/flickers when you test, run `/animation-debug`.
 - Reference: `SlideStack.swift` header, `EditDay.swift` (pilot), `SWIFTUI_TRANSITIONS.md`.

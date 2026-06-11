@@ -106,63 +106,112 @@ Regular `VStack` renders all items upfront, which uses more memory for long list
 
 ---
 
-## Pre-loading Content for Modal Animations
+## Pre-loading Content for Animated Containers (Modals & SlideStack details)
 
-### Problem: Content loaded asynchronously doesn't animate with modal slide-up
+### Problem: Content loaded asynchronously doesn't animate with the container
 
 **Symptoms:**
-- Modal container slides up correctly
-- Content loaded via `.task {}` appears but doesn't animate with modal
-- Swipe-to-dismiss works (content animates down)
-- Only the initial appearance animation is broken
+- Modal slides up / SlideStack detail slides in correctly, but the content inside
+  pops to its final position mid-flight ("everything appeared except the background")
+- Dismissal animates correctly (content already mounted) — only presentation breaks
+- Only pages that load data in `.task {}` are affected; sync-content siblings ride fine
 
 **Root Cause:**
-When content is loaded asynchronously in `.task {}`, the modal animation starts BEFORE the content is rendered. By the time content loads, the animation transaction has completed, so the new content just appears in place.
+Any structural view change that happens after the animation transaction starts (an
+`if isLoading` branch flipping, items arriving from `.task`) is inserted OUTSIDE the
+transaction and renders at the final offset immediately, while already-mounted views
+keep interpolating. SlideStack's two-step insertion guarantees the *pane* is laid out
+before the slide — it cannot guarantee the page's *data* exists. That is the page's
+contract, below. (This is how the Phase 3.4 slider regression shipped: the migration
+diffs touched slider mechanics, but the hosted pages still loaded in `.task`.)
 
-**Bad Pattern:**
+### The cache-first detail page contract (all three rules — rule 1 alone is NOT enough)
+
+Every page hosted in an animated container (overlay modal or SlideStack detail) must:
+
+1. **Render its first frame from cache.** `init` pre-populates ALL display state
+   synchronously via `State(initialValue:)` from AppState; `isLoading` starts `true`
+   only when the cache is empty.
+2. **Never regress the UI on refresh.** The load function shows the spinner only when
+   there is nothing to display, and surfaces the error branch only when there is
+   nothing to display. `.task` is a background refresh, never the primary render path.
+   (Without this rule, the `.task` refresh flips the body back to the spinner branch
+   mid-slide and the pop returns even with a warm cache.)
+3. **If no cache exists, create one.** Add an in-memory dictionary to AppState, write
+   it through in the Action, and — when the parent can afford the request — prefetch
+   in the parent so even the first tap is warm.
+
+**Good Pattern (complete contract):**
 ```swift
-struct MyModalPage: View {
-    @State private var items: [Item] = []  // Empty initially
-    @State private var isLoading = true
+struct MyDetailPage: View {
+    let groupId: String
 
-    var body: some View {
-        // Content based on items...
-    }
-    .task {
-        items = await loadItems()  // Loads AFTER animation starts
-    }
-}
-```
-
-**Good Pattern:**
-```swift
-struct MyModalPage: View {
     @State private var items: [Item]
     @State private var isLoading: Bool
+    @State private var error: String?
 
-    init(...) {
-        // Pre-load from cache synchronously so content is ready BEFORE animation
-        let cachedItems = ItemManager.shared.items
-        _items = State(initialValue: cachedItems)
-        _isLoading = State(initialValue: cachedItems.isEmpty)
+    init(groupId: String, ...) {
+        self.groupId = groupId
+        // Rule 1: first frame from cache, synchronously
+        let cached = AppState.shared.itemsFor(groupId: groupId)
+        _items = State(initialValue: cached)
+        _isLoading = State(initialValue: cached.isEmpty)
     }
 
     var body: some View {
-        // Content based on items...
+        // if isLoading { spinner } else if let error { ... } else { content }
     }
-    .task {
-        // Only fetch from API if cache was empty
+    // .task { await load() }
+
+    private func load() async {
+        // Rule 2: spinner only when there's nothing to display
         if items.isEmpty {
-            items = await loadItems()
+            isLoading = true
+        }
+        error = nil
+        do {
+            let loaded = try await ItemActions().loadItems(groupId: groupId)
+            await MainActor.run {
+                items = loaded
+                isLoading = false
+            }
+        } catch {
+            await MainActor.run {
+                // Rule 2: keep cached content on a background refresh failure
+                if items.isEmpty {
+                    self.error = error.localizedDescription
+                }
+                isLoading = false
+            }
         }
     }
 }
 ```
 
+**Rule 3 recipe (data with no AppState cache yet)** — what GroupInvitePage needed:
+1. AppState: `var fooByGroupId: [String: Foo] = [:]` — in-memory only is fine; skip
+   PersistedState for large or cheap-to-refetch payloads (mirror
+   `pendingJoinRequestsByGroupId` / `groupInvitesByGroupId`).
+2. The Action writes through before returning: `state.fooByGroupId[id] = foo`.
+3. Parent prefetch (ideal): `_ = try? await FooActions().loadFoo(...)` in the parent's
+   `loadInitialData()` — see GroupHomePage, which prefetches enrollments, join
+   requests, and the group invite for exactly this reason.
+
+**Residual cold-cache behavior (accepted):** on the very first visit ever, with
+nothing cached anywhere, the spinner rides the slide and content appears when the
+load lands. That's data genuinely not existing yet — do NOT "fix" it with wall-clock
+waits or by delaying the slide.
+
 **Why it works:**
-Content is initialized from cache in `init()`, which runs synchronously before the view is presented. When the modal animation starts, the content is already rendered and animates as a unit with the modal container.
+Content is initialized from cache in `init()`, which runs synchronously before the
+container's animation transaction starts. The first frame already contains the real
+content, so it rides as one unit; the background refresh then updates rows in place
+(stable identities) without structural swaps.
 
 **Files using this pattern:**
+- `GroupMembersPage.swift`, `EnrollmentsListPage.swift` - full contract (rules 1+2)
+- `GroupInvitePage.swift` - full contract incl. rule 3 (new AppState invite cache)
+- `GroupHomePage.swift` - parent-side prefetching + cache-first `group` in init
 - `ProgramHomePage.swift` - Pre-loads program from cache in init
 - `SelectStudyProgramPage.swift` - Pre-loads programs from cache in init
 

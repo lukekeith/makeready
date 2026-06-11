@@ -39,9 +39,13 @@ Ask (or determine from the report/code) these questions in order:
 - Doc: SWIFTUI_TRANSITIONS.md § LazyVStack and Modal Animations.
 
 ### Class 3 — Async-loaded content pops instead of sliding
-- **Fix:** pre-populate `@State` synchronously in `init` from the AppState/ImageCache cache via `State(initialValue:)`, so content is rendered from frame 1; `.task` then only fetches if cache was empty.
+- **Diagnostic signature:** dismiss animates correctly but present doesn't; the pane's background/chrome rides while the data-driven content pops; sync-content sibling screens (e.g. a settings pane built from already-loaded state) ride fine. Each affected screen is its own independent Class 3 instance — "all sliders broken" can be N per-page bugs, not one systemic one (this is what the Phase 3.4 group-slider regression turned out to be).
+- **Fix — apply the FULL cache-first detail page contract, not just rule 1:**
+  1. Pre-populate `@State` synchronously in `init` from the AppState/ImageCache cache via `State(initialValue:)` (`isLoading` starts true only when cache was empty), so content renders from frame 1.
+  2. Guard the load function: set `isLoading = true` / assign the error state ONLY when there is nothing to display — otherwise the `.task` refresh flips the body back to the spinner branch mid-slide and the pop returns even with a warm cache.
+  3. If the data has no AppState cache, create one: in-memory dict on AppState + write-through in the Action + (ideally) prefetch in the parent page so the first tap is warm.
 - For images: use `CachedAsyncImage` (it pre-populates from `ImageCache.shared.cachedImage(for:)` in init).
-- Reference implementations: `ProgramHomePage.swift`, `SelectStudyProgramPage.swift`, `Utilities/CachedAsyncImage.swift`.
+- Reference implementations: `GroupMembersPage.swift` (rules 1+2), `GroupInvitePage.swift` (rule 3 — `groupInvitesByGroupId`), `EnrollmentsListPage.swift`, `GroupHomePage.swift` (parent prefetching), `ProgramHomePage.swift`, `SelectStudyProgramPage.swift`, `Utilities/CachedAsyncImage.swift`.
 - Docs: SWIFTUI_TRANSITIONS.md § Pre-loading Content; SWIFTUI_ANIMATION_PATTERNS.md § Synchronous Cache Pre-Population.
 
 ### Class 4 — Slide-in appears instantly (HStack slider)

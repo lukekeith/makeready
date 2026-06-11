@@ -15,7 +15,7 @@
 | 3.1 — Motion tokens | ✅ Done (117 sites, machine-verified value-identical) | `bfd0d4c` |
 | 3.2 — Completion-based sequencing | ✅ Done (14/17 waits migrated; 3 triaged, see below) | `74cdb8e` |
 | 3.3 — SlideStack + EditDay pilot | ✅ Done, hand-feel verified | `7915e95` |
-| 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | 🔴 **REGRESSION REPORTED on device — see ACTIVE PROBLEM below.** Committed, build + 65 tests green, but hand-feel reveals incoming detail content does not ride the slide. | `9b8dfe0`…`fa0f64e` |
+| 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | 🟡 **Regression root-caused & fixed (uncommitted): per-page Class 3, NOT SlideStack.** Group-page flows (members/invite/enrollments/settings) verified riding correctly on device. Remaining: full 3.4 hand-feel checklist (nested EnrollmentSchedulePage/EditDay flows not yet audited for their own Class 3 instances), then commit. | `9b8dfe0`…`fa0f64e` + uncommitted fix |
 | 3.5 — `/push-page` skill | ✅ Done, **committed** | `8c65369` |
 | 3.6a+3.6b — Route enum + route-keyed OverlayManager API (additive) | ✅ Done, **committed**, build + 65 tests green. Zero behavior change (legacy `OverlayID` + string API untouched). Design: [iphone-route-enum-2026-06-11-design.md](./iphone-route-enum-2026-06-11-design.md) | `de2244c` |
 | 3.6c — lazy `OverlayItem.content` | ❌ **REJECTED** — implemented + built green, but caused the slider regression (rebuilt overlay content every render). **Reverted; do not reattempt as written.** See ACTIVE PROBLEM. | reverted (was uncommitted) |
@@ -24,10 +24,28 @@
 | 5 — Enforcement layer | ⬜ Not started | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
-## 🔴 ACTIVE PROBLEM — slider regression (START HERE — handed off mid-debug)
+## 🟡 RESOLVED (pending checklist + commit) — slider regression
 
-> **You are picking this up cold from a model switch (Claude → Fable). Read this whole
-> section before touching anything.** Use the `/animation-debug` and `/transition-review`
+> **Resolution (2026-06-11, Fable session):** Device retest WITHOUT 3.6c still showed the
+> bug → not 3.6c. Dismiss animated correctly while present didn't → not SlideStack's
+> two-step timing either. Root cause: **independent Class 3 instances in each detail
+> page** — GroupMembersPage / GroupInvitePage / EnrollmentsListPage all loaded in
+> `.task` with an `if isLoading` branch, so content was structurally inserted
+> mid-slide at final position (3.4 made them mount-on-demand; they were always-mounted
+> before). Fix (uncommitted, 5 files): full cache-first contract per page (init
+> pre-population + guarded spinner/error), new in-memory `groupInvitesByGroupId`
+> AppState cache written by `loadGroupInvite`, invite prefetch in GroupHomePage.
+> **User-verified on device: all group-page sliders ride correctly.** 3.6c remains
+> rejected (its revert was necessary but unrelated to this bug — it had its own
+> rebuild-every-render breakage). The contract is now codified in
+> SWIFTUI_TRANSITIONS.md § Pre-loading Content and enforced by `/push-page` (rule 2),
+> `/transition-review` (B2a/B2b/B2c + diff-scope expansion), `/animation-debug` (Class 3).
+> Remaining: run the 3.4 hand-feel checklist below (nested flows unaudited), update the
+> route-enum design doc to mark 3.6c rejected-with-rationale, then commit (ask first).
+
+### Original handoff (kept for context)
+
+> Use the `/animation-debug` and `/transition-review`
 > skills. **Build/commit require explicit user permission** (`iphone/.claude/CLAUDE.md`,
 > absolute rule — ask before any `xcodebuild`/simulator/`git commit`).
 

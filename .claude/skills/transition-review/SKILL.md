@@ -26,7 +26,12 @@ For each rule: inspect the diff (and enough surrounding file context to judge), 
 
 ### B. Structural-identity hazards (content must exist before the animation starts)
 - **B1 — No `LazyVStack`/`LazyHStack` inside content that animates in** with a modal/menu/slider (plain `VStack` for < ~50 items).
-- **B2 — Async-loaded content inside an animated container is pre-populated from cache in `init`** via `State(initialValue:)`; `.task` only fetches when cache was empty. Images in animated containers use `CachedAsyncImage`, not `AsyncImage`.
+- **B2 — Pages inside an animated container follow the cache-first detail page contract** (SWIFTUI_TRANSITIONS.md § Pre-loading Content). Three independent checks, each a FAIL on its own:
+  - **B2a** — display state is pre-populated from cache in `init` via `State(initialValue:)`, with `isLoading` starting true only when the cache was empty.
+  - **B2b** — the load function never sets `isLoading = true` or assigns the error state *unconditionally*; both are guarded by "is there nothing to display?" (an unguarded `isLoading = true` at the top of a load function re-pops the content even with a warm cache; an unguarded error assignment replaces displayed content with the error screen on a background refresh failure).
+  - **B2c** — data that has no AppState cache gets one (in-memory dict + Action write-through, optionally parent prefetch — `GroupInvitePage`/`groupInvitesByGroupId` is the reference), rather than a bare fetch-and-return.
+  Images in animated containers use `CachedAsyncImage`, not `AsyncImage`.
+  **Scope expansion (mandatory):** if the diff newly hosts a page inside a SlideStack detail / overlay — even by only changing the call site or wiring — review THAT PAGE's loading pattern against B2a/B2b too, even though the page file isn't in the diff. The hazard lives in the hosted page; reviewing only the wiring is how the Phase 3.4 regression shipped review-green.
 - **B3 — HStack sliders use the two-step pattern** (content set sync, visibility flipped next tick; reverse on dismiss) and the sliding pane has `.id(item.id)`. No `.opacity()` on a sliding pane.
 - **B4 — Always-visible background layers (base color, gradient, scrim) are NOT inside `if/else`** conditionals that flip when data loads.
 - **B5 — No `@State` mutation inside `.task`** for initialization (use `.onAppear`, build locally, assign once).
