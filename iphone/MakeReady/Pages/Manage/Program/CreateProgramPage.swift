@@ -23,11 +23,11 @@ struct CreateProgramPage: View {
     // Program state (after creation)
     @State private var currentProgram: StudyProgram?
 
-    // Navigation state
+    // Navigation state — lesson tracked by id so the EditDay pane reads live
+    // data from currentProgram.
     @State private var showProgramHome = false
     @State private var selectedTab = 0
-    @State private var editingLesson: Lesson? = nil
-    @State private var showEditDay = false
+    @State private var editingLessonId: String? = nil
 
     // Delete confirmation
     @State private var lessonToDelete: Lesson? = nil
@@ -101,51 +101,14 @@ struct CreateProgramPage: View {
 
     var body: some View {
         ZStack {
-            GeometryReader { geometry in
-                HStack(spacing: 0) {
-                    // Create program form
-                    createProgramView
-                        .frame(width: geometry.size.width)
-
-                    // Program home (after creation)
-                    programHomeView
-                        .frame(width: geometry.size.width)
-
-                    // Edit day (when editing a specific day)
-                    if let lesson = editingLesson, let program = currentProgram {
-                        EditDay(
-                            isPresented: $showEditDay,
-                            programId: program.id,
-                            lesson: lesson,
-                            onLessonUpdated: { updatedLesson in
-                                // Update the lesson in our local program state
-                                if var program = currentProgram,
-                                   var lessons = program.lessons,
-                                   let index = lessons.firstIndex(where: { $0.id == updatedLesson.id }) {
-                                    lessons[index] = updatedLesson
-                                    program.lessons = lessons
-                                    currentProgram = program
-                                }
-                            },
-                            onShowAddActivityMenu: { existingTypes, callback in
-                                overlayManager.present(id: OverlayID.addActivityMenu, priority: .topLevel) {
-                                    AddActivityMenu(
-                                        overlayManager: overlayManager,
-                                        existingActivityTypes: existingTypes,
-                                        onActivitySelected: { activityType in
-                                            callback(activityType)
-                                        }
-                                    )
-                                }
-                            }
-                        )
-                        .id(lesson.id)  // Force view recreation when lesson changes
-                        .frame(width: geometry.size.width)
-                    }
-                }
-                .offset(x: currentOffset(for: geometry.size.width))
-                .animation(Motion.standard, value: showProgramHome)
-                .animation(Motion.standard, value: showEditDay)
+            // Canonical slider (Phase 3.4): nested SlideStacks replace the
+            // 3-pane HStack + two-flag offset math. Outer: create form →
+            // program home (Bool-driven; never navigates back — the X
+            // dismisses the whole overlay). Inner: program home → EditDay.
+            SlideStack(isPresented: $showProgramHome) {
+                createProgramView
+            } detail: {
+                programHomeStack
             }
 
             // Loading overlay
@@ -166,16 +129,56 @@ struct CreateProgramPage: View {
         }
     }
 
-    private func currentOffset(for width: CGFloat) -> CGFloat {
-        if showEditDay {
-            return -width * 2  // Show EditDay (third screen)
-        } else if showProgramHome {
-            return -width      // Show programHomeView (second screen)
-        } else {
-            return 0           // Show createProgramView (first screen)
+    // MARK: - Program Home + Edit Day (Screens 2 and 3)
+
+    private var programHomeStack: some View {
+        SlideStack(item: $editingLessonId) {
+            programHomeView
+        } detail: { lessonId in
+            editDayPane(lessonId: lessonId)
         }
     }
-    
+
+    /// EditDay pane for the lesson being edited. Built from the
+    /// SlideStack-mounted id — NOT from editingLessonId, which clears at
+    /// dismissal while the pane is still sliding out. The lesson is looked
+    /// up live so onLessonUpdated writes re-render the pane.
+    @ViewBuilder
+    private func editDayPane(lessonId: String) -> some View {
+        if let program = currentProgram,
+           let lesson = program.lessons?.first(where: { $0.id == lessonId }) {
+            EditDay(
+                isPresented: Binding(
+                    get: { editingLessonId != nil },
+                    set: { if !$0 { editingLessonId = nil } }
+                ),
+                programId: program.id,
+                lesson: lesson,
+                onLessonUpdated: { updatedLesson in
+                    // Update the lesson in our local program state
+                    if var program = currentProgram,
+                       var lessons = program.lessons,
+                       let index = lessons.firstIndex(where: { $0.id == updatedLesson.id }) {
+                        lessons[index] = updatedLesson
+                        program.lessons = lessons
+                        currentProgram = program
+                    }
+                },
+                onShowAddActivityMenu: { existingTypes, callback in
+                    overlayManager.present(id: OverlayID.addActivityMenu, priority: .topLevel) {
+                        AddActivityMenu(
+                            overlayManager: overlayManager,
+                            existingActivityTypes: existingTypes,
+                            onActivitySelected: { activityType in
+                                callback(activityType)
+                            }
+                        )
+                    }
+                }
+            )
+        }
+    }
+
     // MARK: - Create Program View
     
     private var createProgramView: some View {
@@ -438,11 +441,7 @@ struct CreateProgramPage: View {
                         }
                     ],
                     onTap: {
-                        // Find the actual Lesson object to edit
-                        if let lesson = currentProgram?.lessons?.first(where: { $0.id == lessonData.id }) {
-                            editingLesson = lesson
-                            showEditDay = true
-                        }
+                        editingLessonId = lessonData.id
                     }
                 ) {
                     CardLesson(data: lessonData)
