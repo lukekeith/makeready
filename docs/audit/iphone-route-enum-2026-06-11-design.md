@@ -3,7 +3,18 @@
 | | |
 |---|---|
 | **Phase** | 3.6 of [iphone-2026-06-10-plan.md](./iphone-2026-06-10-plan.md) |
-| **Status** | Design complete — implementation is **build-gated** (96 call sites; the lazy-content sub-step changes the overlay render path). Not yet started in code. |
+| **Status** | **3.6a + 3.6b SHIPPED** (committed `de2244c`, build + 65 tests green). **3.6c ATTEMPTED AND REVERTED** — see banner below. **3.6d not started** (blocked on the slider regression; see progress doc ACTIVE PROBLEM). |
+
+> ⚠️ **3.6c (lazy `OverlayItem.content`) is REJECTED as written.** It was implemented and
+> built green, but on-device it broke **every overlay-hosted `SlideStack` slider**: making
+> `OverlayItem.content` a `() -> AnyView` evaluated each `MainView` render rebuilt the whole
+> overlay tree on every animation frame, desyncing the slide from its freshly-mounted detail
+> content (content appeared at final position while only the primary slid). Reverted. The
+> "build at render time" premise backfired — the stored-`AnyView` it replaced was correct.
+> If the async-content-pop class needs attacking, do it **per-overlay with cache-first init**
+> (the existing B2 pattern), not by globally rebuilding overlay content. 3.6a/3.6b (the typed
+> `Route` layer) stand on their own and are unaffected.
+
 | **Prime directive (unchanged)** | Zero functionality loss. Zero design change. This is a type-level refactor; presentation behavior stays frame-identical. |
 | **Prereqs done** | 3.1 Motion tokens, 3.2 completion sequencing, 3.3 SlideStack, 3.4 sliders migrated. |
 | **Unblocks** | 3.7 `/present-overlay` skill (needs Route registration), 3.8 NavigationCoordinator (keyed by Route), 3.9 `/nav-route`. |

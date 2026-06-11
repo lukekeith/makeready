@@ -2,7 +2,7 @@
 
 > Companion to [iphone-2026-06-10-plan.md](./iphone-2026-06-10-plan.md) (the phase definitions) and
 > [../plans/media-2026-06-10.md](../plans/media-2026-06-10.md) (media-at-scale plan).
-> Update this file at every phase/step boundary. Last updated: **2026-06-11 (session 4, after 3.5 + 3.6 design)**.
+> Update this file at every phase/step boundary. Last updated: **2026-06-11 (session 4 — 3.5 + 3.6a/3.6b shipped; 3.6c implemented then REVERTED after it broke all sliders; handing off mid-debug to Fable)**.
 
 ## Status at a glance
 
@@ -15,27 +15,102 @@
 | 3.1 — Motion tokens | ✅ Done (117 sites, machine-verified value-identical) | `bfd0d4c` |
 | 3.2 — Completion-based sequencing | ✅ Done (14/17 waits migrated; 3 triaged, see below) | `74cdb8e` |
 | 3.3 — SlideStack + EditDay pilot | ✅ Done, hand-feel verified | `7915e95` |
-| 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | ⚠️ **Committed, build + 65 tests green; awaiting hand-feel** | `9b8dfe0`…`fa0f64e` |
-| 3.5 — `/push-page` skill | ✅ Done (no-build; skill file only) | uncommitted: `.claude/skills/push-page/SKILL.md` |
-| 3.6 — Route enum | 🟡 **3.6a+3.6b done** (Route.swift + OverlayManager overloads, additive; **build + 65 tests green**). 3.6c (lazy content, capture-gated) + 3.6d (96 call-site migration) remain. Design: [iphone-route-enum-2026-06-11-design.md](./iphone-route-enum-2026-06-11-design.md) | uncommitted: `Services/Route.swift`, pbxproj, design doc |
+| 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | 🔴 **REGRESSION REPORTED on device — see ACTIVE PROBLEM below.** Committed, build + 65 tests green, but hand-feel reveals incoming detail content does not ride the slide. | `9b8dfe0`…`fa0f64e` |
+| 3.5 — `/push-page` skill | ✅ Done, **committed** | `8c65369` |
+| 3.6a+3.6b — Route enum + route-keyed OverlayManager API (additive) | ✅ Done, **committed**, build + 65 tests green. Zero behavior change (legacy `OverlayID` + string API untouched). Design: [iphone-route-enum-2026-06-11-design.md](./iphone-route-enum-2026-06-11-design.md) | `de2244c` |
+| 3.6c — lazy `OverlayItem.content` | ❌ **REJECTED** — implemented + built green, but caused the slider regression (rebuilt overlay content every render). **Reverted; do not reattempt as written.** See ACTIVE PROBLEM. | reverted (was uncommitted) |
+| 3.6d — migrate 96 call sites to Route | ⬜ Not started (depends on the slider bug being resolved first) | — |
 | 3.7–3.10 — Skills, NavigationCoordinator, cleanup | ⬜ Not started | — |
 | 5 — Enforcement layer | ⬜ Not started | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
-## ▶ First action on resume
+## 🔴 ACTIVE PROBLEM — slider regression (START HERE — handed off mid-debug)
 
-**Session 4 did the no-build work** (3.5 `/push-page` skill + 3.6 Route enum *design*) so
-forward progress didn't stall on the simulator. Two build-gated things now queue behind a
-single Xcode session:
-1. **Hand-feel verify the 3.4 migrations** (the original gate — flows below).
-2. **Implement 3.6** per the design doc — start with 3.6a/3.6b (zero-risk additive
-   `Route.swift` + OverlayManager overloads), then 3.6c lazy content (capture-diff every
-   overlay), then 3.6d the 96 call sites in groups.
-Also: the session-4 files (`push-page` skill + Route design doc) are **uncommitted** —
-commit when ready (iPhone CLAUDE.md requires explicit permission for git commit + build).
+> **You are picking this up cold from a model switch (Claude → Fable). Read this whole
+> section before touching anything.** Use the `/animation-debug` and `/transition-review`
+> skills. **Build/commit require explicit user permission** (`iphone/.claude/CLAUDE.md`,
+> absolute rule — ask before any `xcodebuild`/simulator/`git commit`).
 
-**Hand-feel verify the 3.4 migrations** before 3.5+ (every flow below, slide must be
-`Motion.standard` both directions; `/animation-debug` maps any symptom → failure class):
+### The bug (user report, verbatim intent)
+On a physical iPhone (built from Xcode), opening the **Group modal** then tapping the
+**members icon** at the top: the members screen does **not** slide in. Its elements
+**suddenly appear at their final positions** while only the **current (primary) view slides
+left underneath them**. User confirmed this is **consistent for ALL sliding views**, not
+just GroupHomePage. Expectation: *all elements of both the incoming and outgoing screens
+must move together with their containers* (the whole pane rides the slide).
+
+This is the **content-doesn't-ride-the-slide** family (`/animation-debug` Class 3/4): the
+detail pane is not laid out before the offset animation starts, so its content materializes
+mid-flight at final position while the container offset animates.
+
+### Git state RIGHT NOW
+- Last **app-code** commit = `de2244c` (3.6a+3.6b). There are **no uncommitted app-code
+  changes** — the only commits after it are this handoff's doc updates. `git status` should
+  show a clean tree (or only `docs/` if not yet committed).
+- **3.6c was reverted** before this handoff. `MainView.swift:142` is back to `item.content`
+  (stored `AnyView`), `OverlayItem.content` is back to a stored `AnyView` (not a closure).
+  Confirm with: `git diff 7915e95 HEAD -- iphone/MakeReady/Services/OverlayManager.swift`
+  (there should be NO `() -> AnyView` in `OverlayItem`).
+- So the build the user is about to make does **NOT** contain 3.6c.
+
+### Leading hypothesis (~80%): 3.6c was the cause — now reverted
+3.6c changed `OverlayItem.content` from a stored `AnyView` to `() -> AnyView` evaluated by
+`MainView`'s `ForEach` **every render pass**. Every slider page is presented as an
+OverlayManager modal, so during a slide the whole overlay tree (incl. the `SlideStack`)
+was being rebuilt each frame → broke the two-step insertion's layout-before-slide timing →
+content lands at final position. Evidence it's 3.6c and not SlideStack:
+1. `git diff 7915e95 HEAD -- …/SlideStack.swift` shows the two-step mechanism is **unchanged**
+   since the 3.3 pilot — only `detailEdge`/Bool-convenience were added.
+2. The 3.3 EditDay pilot (a SlideStack **inside the ProgramHome modal**) was hand-feel
+   verified working — so overlay-hosted SlideStack worked *before* 3.6c.
+3. 3.6c is the only change since 3.3 that touches the overlay render path, and it hits
+   every overlay uniformly → matches "all sliding views."
+
+### → FIRST ACTION: confirm the hypothesis
+Ask the user to **rebuild from Xcode (current clean tree, no 3.6c)** and retest:
+group → members icon, **and** program-home → tap a day. Then branch:
+
+- **Sliders now ride correctly** → 3.6c confirmed as the culprit. It's already reverted.
+  **Recommendation: drop 3.6c permanently** (its lazy-content premise backfired; 3.6a/3.6b
+  stand alone). Update `iphone-route-enum-2026-06-11-design.md` to mark 3.6c
+  *rejected-with-rationale*, set the 3.6c table row here to ❌ final, then proceed to the
+  remaining 3.4 hand-feel checklist below, then 3.6d / 3.7+.
+
+- **Still broken with 3.6c gone** → it's a **pre-existing 3.4 bug** (those 7 sliders were
+  committed build-green but NEVER hand-feel verified — only the 3.3 EditDay pilot was). Root
+  cause is then in `SlideStack`'s two-step insertion
+  (`iphone/MakeReady/Components/Layout/SlideStack.swift`, the `.onChange(of: item)` block):
+  the single `DispatchQueue.main.async` hop fires `withAnimation { slid = true }` before the
+  freshly-mounted `detailPane` has completed layout, so heavy detail content isn't laid out
+  when the offset animates. Fix options to evaluate (run `/animation-debug` Class 4 first):
+  (a) wait for the detail's first layout before sliding (e.g. trigger the slide from the
+  detail pane's `.onAppear`/a geometry-confirmed signal rather than a blind one-runloop hop);
+  (b) double-hop the deferral as a stopgap (fragile — last resort);
+  (c) keep the detail pane mounted at a fixed offscreen frame so it's always pre-laid-out,
+  and animate only the offset. Whatever the fix, it lives in `SlideStack` (systemic), NOT
+  per-page. Verify against the full 3.4 hand-feel checklist + `/transition-review` before commit.
+  Note: `EnrollmentSchedulePage` already hand-rolls a related guard (`readyToShowContent`,
+  0.5s `isModalRoot` gate) for "loaded content pops in clipped during modal open" — reference
+  it, don't duplicate it.
+
+### Key files
+- `iphone/MakeReady/Components/Layout/SlideStack.swift` — the canonical slider; two-step
+  insertion is in `body`'s `.onChange(of: item)` (mount `mountedItem`, then async
+  `withAnimation { slid = true }`). `detailPane(width:)` renders the mounted detail.
+- `iphone/MakeReady/MainView.swift:140-144` — overlay render loop (`item.content`).
+- `iphone/MakeReady/Services/OverlayManager.swift` — `OverlayItem` (stored `AnyView`),
+  `present/presentModal/presentMenu/presentPage`. (3.6c had changed `OverlayItem.content` to
+  a closure here — reverted.)
+- Slider call sites (all overlay-hosted): `GroupHomePage`, `ProgramHomePage`,
+  `EnrollmentSchedulePage`, `EnrollmentsListPage`, `EditEnrollmentDay`, `EditReadActivityPage`,
+  `CreateProgramPage`, `EditDay` (pilot). See the Phase 3.4 table below for commits.
+
+---
+
+## ▶ Remaining 3.4 hand-feel checklist (run after the slider bug is resolved)
+
+Every flow below, slide must be `Motion.standard` both directions; `/animation-debug` maps
+any symptom → failure class:
 1. Group → enrollments (book icon) → tap enrollment → tap a day in the schedule → edit a
    READ/USER_INPUT activity → Cancel and Save. That one path exercises **three nested
    SlideStacks** (EnrollmentsListPage → EnrollmentSchedulePage → EditEnrollmentDay).
@@ -91,8 +166,16 @@ waits. If a second wizard ever appears, that's the trigger for a `SlideFlow` con
 
 ## Session learnings (will bite again if forgotten)
 
-- **Builds/commits:** user granted standing "go" for build-verify cycles during phase work;
-  every step is an atomic commit (28 commits so far this effort, see `git log`).
+- **Builds/commits REQUIRE explicit per-request permission** (`iphone/.claude/CLAUDE.md` —
+  absolute, zero-exceptions rule for any `xcodebuild`/simulator/`git commit`). Earlier
+  sessions had an informal "standing go"; **do not assume it** — ask each time. Every step is
+  an atomic commit (30 commits so far this effort, see `git log`).
+- **3.6c lesson (capture is blind to overlays):** the `/capture` suite renders `ViewRegistry`
+  views directly and never goes through `OverlayManager`, so `sortedOverlays` is empty during
+  capture and any change to the overlay render path (like 3.6c) shows a CLEAN capture diff
+  while still being broken on device. Overlay/slider changes can ONLY be verified by
+  interactive hand-feel, never by capture. Build-green + tests-green + capture-clean did NOT
+  catch the 3.6c regression — a human on a device did.
 - **Swift 5 language mode:** default arguments evaluate *nonisolated* — `state: AppState = .shared`
   on a @MainActor type does NOT compile. Use `state: AppState? = nil` + `stateOverride ?? .shared`
   in a @MainActor computed property (pattern in every Actions struct).
