@@ -31,19 +31,12 @@ struct EditDay: View {
     // Navigation state — track by id so we always read live data from AppState.
     @State private var editingActivity: StudyActivity? = nil
     @State private var editingActivityId: String? = nil
-    @State private var showEditActivity = false
 
     /// Live activity list, read directly from AppState. ProgramActions writes
     /// to the same store on every mutation, so this view re-renders the moment
     /// any activity/block/verse changes anywhere in the app.
     private var activities: [StudyActivity] {
         AppState.shared.programActivitiesFor(lessonId: lesson.id)
-    }
-
-    /// The activity currently being edited inline (looked up live from AppState).
-    private var editingActivityInline: StudyActivity? {
-        guard let id = editingActivityId else { return nil }
-        return AppState.shared.activities[id]
     }
 
     /// Writable binding for Dragula reorder. Reads live from AppState; writes
@@ -136,17 +129,13 @@ struct EditDay: View {
         return counts
     }
 
-    var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Screen 1: Day content
-                dayContent
-                    .frame(width: geometry.size.width)
-
-                // Screen 2: Inline edit pages
-                ZStack {
-                    if let activity = editingActivityInline {
-                        switch activity.type {
+    /// Inline edit pane for the activity being edited. Built from the
+    /// SlideStack-mounted id — NOT from editingActivityId, which clears at
+    /// dismissal while the pane is still sliding out.
+    @ViewBuilder
+    private func inlineEditPane(activityId: String) -> some View {
+        if let activity = AppState.shared.activities[activityId] {
+            switch activity.type {
                         case .read:
                             EditReadActivityPage(
                                 activity: activity,
@@ -209,13 +198,19 @@ struct EditDay: View {
                             .id(activity.id)
                         default:
                             EmptyView()
-                        }
-                    }
-                }
-                .frame(width: geometry.size.width)
             }
-            .offset(x: showEditActivity ? -geometry.size.width : 0)
-            .animation(Motion.standard, value: showEditActivity)
+        }
+    }
+
+    var body: some View {
+        // Canonical slider (Phase 3.3 pilot): SlideStack owns the two-step
+        // insertion, the single animation driver, and the completion-tied
+        // unmount this page previously hand-rolled with showEditActivity +
+        // an asyncAfter(0.35) wait.
+        SlideStack(item: $editingActivityId) {
+            dayContent
+        } detail: { activityId in
+            inlineEditPane(activityId: activityId)
         }
         .onAppear {
             let title = lesson.title ?? ""
@@ -531,9 +526,6 @@ struct EditDay: View {
                     switch activity.type {
                     case .read, .userInput, .youtube, .exegesis:
                         editingActivityId = activity.id
-                        DispatchQueue.main.async {
-                            showEditActivity = true
-                        }
                     default:
                         editingActivity = activity
                     }
@@ -684,13 +676,7 @@ struct EditDay: View {
     // MARK: - Inline Edit Helpers
 
     private func dismissEditActivity() {
-        // Two-step slider reverse: content stays mounted until the slide-out
-        // finishes. The wall-clock wait is removed when this slider migrates
-        // to SlideStack (Phase 3.3/3.4), which owns this sequencing.
-        showEditActivity = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            editingActivityId = nil
-        }
+        editingActivityId = nil
     }
 
     private func saveReadContent(title: String?) {
@@ -916,7 +902,6 @@ struct EditDay: View {
                 // For EXEGESIS, jump straight into the dedicated editor (instead of the generic Bible picker).
                 if activityType == .exegesis {
                     editingActivityId = newActivity.id
-                    showEditActivity = true
                 }
 
                 // Notify parent of the change

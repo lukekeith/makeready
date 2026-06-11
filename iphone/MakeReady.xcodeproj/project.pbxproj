@@ -158,6 +158,7 @@
 		CSRC0003000000000000001 /* CardSearchResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSRC0002000000000000001 /* CardSearchResult.swift */; };
 		CSST0001000000000000001 /* CardStudySelectable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSST0002000000000000001 /* CardStudySelectable.swift */; };
 		D1DRA6U1B000000000001 /* Dragula.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1DRA6U1A000000000001 /* Dragula.swift */; };
+		SLDS0001000000000001 /* SlideStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLDS0002000000000001 /* SlideStack.swift */; };
 		D1ROH1B000000000000001 /* ReorderHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1ROH1A000000000000001 /* ReorderHelpers.swift */; };
 		D36C16D539AB484785FB7769 /* CoverImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA8B7D0A354FF7BF1E5543 /* CoverImagePicker.swift */; };
 		D513B9070B8342359214621F /* InviteContactsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93D2C8BF1DE463BA4E2869D /* InviteContactsPage.swift */; };
@@ -454,6 +455,7 @@
 		CSRC0002000000000000001 /* CardSearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSearchResult.swift; sourceTree = "<group>"; };
 		CSST0002000000000000001 /* CardStudySelectable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudySelectable.swift; sourceTree = "<group>"; };
 		D1DRA6U1A000000000001 /* Dragula.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dragula.swift; sourceTree = "<group>"; };
+		SLDS0002000000000001 /* SlideStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideStack.swift; sourceTree = "<group>"; };
 		D1ROH1A000000000000001 /* ReorderHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderHelpers.swift; sourceTree = "<group>"; };
 		D3558B3DA7CB229771AFC92B /* FullScreenImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenImageViewer.swift; sourceTree = "<group>"; };
 		D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeState.swift; sourceTree = "<group>"; };
@@ -861,6 +863,7 @@
 			isa = PBXGroup;
 			children = (
 				D1DRA6U1A000000000001 /* Dragula.swift */,
+				SLDS0002000000000001 /* SlideStack.swift */,
 				D1ROH1A000000000000001 /* ReorderHelpers.swift */,
 				9689B6372ED2850A00C5327F /* ModalOverlay.swift */,
 				9689B6392ED2855400C5327F /* MODAL_GUIDE.md */,
@@ -1556,6 +1559,7 @@
 			files = (
 				B7DCE42A21993C969D16AD17 /* KeyboardScrollManager.swift in Sources */,
 				D1DRA6U1B000000000001 /* Dragula.swift in Sources */,
+				SLDS0001000000000001 /* SlideStack.swift in Sources */,
 				FLOW0001000000000000001 /* FlowLayout.swift in Sources */,
 				TAGI0001000000000000001 /* TagInput.swift in Sources */,
 				D1ROH1B000000000000001 /* ReorderHelpers.swift in Sources */,
