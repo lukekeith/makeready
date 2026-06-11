@@ -257,33 +257,34 @@ private struct MediaCollectionView: UIViewRepresentable {
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.backgroundColor = .clear
         cv.register(MediaThumbnailCell.self, forCellWithReuseIdentifier: MediaThumbnailCell.reuseIdentifier)
-        cv.dataSource = context.coordinator
         cv.delegate = context.coordinator
         cv.showsVerticalScrollIndicator = false
         cv.contentInset = UIEdgeInsets(top: topInset, left: 0, bottom: 100, right: 0)
         cv.contentOffset = CGPoint(x: 0, y: -topInset)
 
         context.coordinator.collectionView = cv
+        context.coordinator.installDataSource(on: cv)
         return cv
     }
 
     func updateUIView(_ collectionView: UICollectionView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
-
-        let newIds = items.map(\.id)
-        if coordinator.lastItemIds != newIds {
-            coordinator.lastItemIds = newIds
-            collectionView.reloadData()
-        }
+        coordinator.applySnapshotIfNeeded()
     }
 
-    class Coordinator: NSObject, UICollectionViewDataSource, UICollectionViewDelegate {
+    class Coordinator: NSObject, UICollectionViewDelegate {
         var parent: MediaCollectionView
         weak var collectionView: UICollectionView?
         var lastItemIds: [String] = []
         var hiddenItemId: String?
         private var dismissObserver: NSObjectProtocol?
+
+        /// Diffable source keyed by item id (Phase 4.2) — structural changes
+        /// diff in place instead of reloadData() flashing every cell.
+        private var dataSource: UICollectionViewDiffableDataSource<Int, String>?
+        /// id → item lookup for the cell provider, refreshed per snapshot.
+        private var itemsById: [String: MediaLibraryItem] = [:]
 
         init(parent: MediaCollectionView) {
             self.parent = parent
@@ -305,23 +306,40 @@ private struct MediaCollectionView: UIViewRepresentable {
             }
         }
 
-        func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-            parent.items.count
+        func installDataSource(on collectionView: UICollectionView) {
+            let ds = UICollectionViewDiffableDataSource<Int, String>(collectionView: collectionView) { [weak self] cv, indexPath, itemId in
+                let cell = cv.dequeueReusableCell(
+                    withReuseIdentifier: MediaThumbnailCell.reuseIdentifier,
+                    for: indexPath
+                ) as! MediaThumbnailCell
+
+                if let self, let item = self.itemsById[itemId] {
+                    cell.configure(item: item)
+                    cell.contentView.alpha = (item.id == self.hiddenItemId) ? 0 : 1
+                }
+
+                return cell
+            }
+            dataSource = ds
+            applySnapshotIfNeeded()
         }
 
-        func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-            let cell = collectionView.dequeueReusableCell(
-                withReuseIdentifier: MediaThumbnailCell.reuseIdentifier,
-                for: indexPath
-            ) as! MediaThumbnailCell
+        /// Apply a new snapshot only when item identity changes — matching
+        /// the previous reloadData() trigger, which also ignored
+        /// content-only changes to an unchanged id list.
+        func applySnapshotIfNeeded() {
+            guard let dataSource else { return }
+            let newIds = parent.items.map(\.id)
+            guard lastItemIds != newIds else { return }
+            lastItemIds = newIds
+            itemsById = Dictionary(uniqueKeysWithValues: parent.items.map { ($0.id, $0) })
 
-            if indexPath.item < parent.items.count {
-                let item = parent.items[indexPath.item]
-                cell.configure(item: item)
-                cell.contentView.alpha = (item.id == hiddenItemId) ? 0 : 1
-            }
-
-            return cell
+            var snapshot = NSDiffableDataSourceSnapshot<Int, String>()
+            snapshot.appendSections([0])
+            snapshot.appendItems(newIds)
+            // No diff animation: cells slide-shuffling on refresh would be a
+            // visible change; without it the apply is still flash-free.
+            dataSource.apply(snapshot, animatingDifferences: false)
         }
 
         func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
