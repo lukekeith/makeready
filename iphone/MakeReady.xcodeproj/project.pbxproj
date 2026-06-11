@@ -1434,6 +1434,7 @@
 			buildConfigurationList = A1000016000000000000001 /* Build configuration list for PBXNativeTarget "MakeReady" */;
 			buildPhases = (
 				VER00001000000000000001 /* Auto Increment Build Number */,
+				LINT0001000000000000001 /* SwiftLint (audit conventions) */,
 				A1000017000000000000001 /* Sources */,
 				A1000010000000000000001 /* Frameworks */,
 				A1000018000000000000001 /* Resources */,
@@ -1522,6 +1523,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
 			shellScript = "# Auto-set build number from git commit count\n# Marketing version (CFBundleShortVersionString) is managed manually in Info.plist\n\nset -e\n\ncd \"${SRCROOT}\" || exit 1\n\nif ! /usr/bin/git rev-parse --git-dir > /dev/null 2>&1; then\n    echo \"⚠️  Not a git repository. Build number not updated.\"\n    exit 0\nfi\n\nBUILD_NUMBER=$(/usr/bin/git rev-list HEAD --count)\n\nif [ -z \"$BUILD_NUMBER\" ] || [ -z \"$INFOPLIST_FILE\" ] || [ ! -f \"$INFOPLIST_FILE\" ]; then\n    echo \"⚠️  Could not update build number.\"\n    exit 0\nfi\n\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD_NUMBER\" \"${INFOPLIST_FILE}\" 2>/dev/null || \\\n/usr/libexec/PlistBuddy -c \"Add :CFBundleVersion string $BUILD_NUMBER\" \"${INFOPLIST_FILE}\"\n\necho \"✅ Build number set to: $BUILD_NUMBER\"\n";
+			showEnvVarsInLog = 0;
+		};
+		LINT0001000000000000001 /* SwiftLint (audit conventions) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "SwiftLint (audit conventions)";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "# SwiftLint - audit conventions, NEW code only (Phase 5.1).\n# Existing violations live in .swiftlint-baseline.json; this fails the\n# build only for violations introduced after the baseline.\nif command -v swiftlint >/dev/null 2>&1; then\n  SWIFTLINT=swiftlint\nelif [ -x /opt/homebrew/bin/swiftlint ]; then\n  SWIFTLINT=/opt/homebrew/bin/swiftlint\nelse\n  echo \"warning: SwiftLint not installed (brew install swiftlint) - skipping audit lint\"\n  exit 0\nfi\ncd \"${SRCROOT}\" || exit 0\n\"$SWIFTLINT\" lint --quiet --baseline .swiftlint-baseline.json\nstatus=$?\nif [ $status -eq 2 ]; then\n  echo \"error: SwiftLint found NEW violations of the audit conventions (existing code is baselined - see iphone/.swiftlint.yml)\"\n  exit 2\nelif [ $status -ne 0 ]; then\n  echo \"warning: SwiftLint could not run cleanly (exit $status, possibly script sandboxing) - not failing the build\"\nfi\nexit 0\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */

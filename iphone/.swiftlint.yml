@@ -1,0 +1,70 @@
+# SwiftLint — audit enforcement layer (Phase 5.1, iphone-2026-06-10-plan.md)
+#
+# Philosophy: ONLY the audit's conventions, no stylistic noise. Every rule
+# here gates a regression class the 2026-06 audit found. Existing violations
+# are grandfathered in .swiftlint-baseline.json — rules gate NEW code only,
+# so nothing here forces a risky mass-edit.
+#
+# Regenerate the baseline ONLY when consciously accepting a violation:
+#   cd iphone && swiftlint lint --write-baseline .swiftlint-baseline.json
+
+only_rules:
+  - custom_rules
+  - force_try
+  - force_cast
+  - force_unwrapping
+
+included:
+  - MakeReady
+
+excluded:
+  - MakeReadyCaptureTests
+  - MakeReady/Preview Content
+
+force_try:
+  severity: error
+force_cast:
+  severity: error
+# Warning-only: pervasive in #Preview blocks, which SwiftLint can't scope.
+force_unwrapping:
+  severity: warning
+
+custom_rules:
+  no_print_or_nslog:
+    name: "No print/NSLog in new code"
+    regex: '(?<![\w.])(?:print|NSLog)\('
+    message: "New logging goes through the Log wrappers (os.Logger — audit 5.2). Existing call sites are baselined; don't add more."
+    severity: error
+
+  color_hex_outside_tokens:
+    name: "Inline Color(hex:) outside Colors.swift"
+    regex: 'Color\(hex:'
+    excluded: '.*Colors\.swift'
+    message: "Use a color token instead of an inline hex (audit 5.3)."
+    severity: error
+
+  raw_font_size_outside_typography:
+    name: "Raw .system(size:) outside Typography.swift"
+    regex: '\.system\(size:'
+    excluded: '.*Typography\.swift'
+    message: "Use a Typography token instead of a raw size (audit 5.4)."
+    severity: error
+
+  async_after_choreography:
+    name: "asyncAfter wall-clock wait"
+    regex: 'asyncAfter\(deadline:'
+    message: "No wall-clock waits for navigation/animation choreography — use withAnimation(_:){} completion:, dismiss(_:then:), or SlideStack onDismissComplete (audit 3.2 / review rule E1). Legitimate timers (e.g. toasts) get baselined consciously."
+    severity: error
+
+  nonstatic_formatter:
+    name: "Formatter must be static"
+    regex: '(?<!static )(?:let|var)\s+\w*[fF]ormatter\s*=\s*(?:Date|Number|ISO8601Date|ByteCount|DateComponents|RelativeDateTime|Measurement)Formatter\('
+    message: "Formatters are expensive to create — declare static and reuse (audit 5.1; see DateFormatters.swift)."
+    severity: error
+
+  lazy_container_in_overlay_content:
+    name: "Lazy container in animated overlay file"
+    regex: 'Lazy[VH](?:Stack|Grid)\('
+    excluded: '.*(?:MainLibrary|MainHome|MainCalendar|StudyProgramHome|VideoLibraryPage|SelectVideoPage|MediaLibraryGrid|CardMediaFull|SkeletonCardMediaFull|ProgramHomePage|Kpi|CardActivityType|AddActivityMenu)\.swift'
+    message: "Lazy containers inside content that animates in pop to final position (Class 2 — SWIFTUI_TRANSITIONS.md § Lazy Containers). Use VStack / chunked HStack rows for small fixed content; if this is a long scroll list or appeared-gated content, baseline it consciously and add the file to this rule's excluded list."
+    severity: error

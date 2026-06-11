@@ -173,6 +173,20 @@ This prevents recurring type-checker timeouts and ViewBuilder limit failures whe
 
 ---
 
+**SwiftLint gates every build against the audit conventions (Phase 5.1) — new code only.**
+
+The `SwiftLint (audit conventions)` build phase fails the build when NEW code violates:
+no `print`/`NSLog` (use Log wrappers once 5.2 lands), no `try!`/`as!`, no inline
+`Color(hex:)` outside `Colors.swift`, no raw `.system(size:)` outside `Typography.swift`,
+no `asyncAfter(deadline:)` choreography, formatters must be `static`, and no lazy
+containers in animated overlay files. The ~2,400 existing violations are grandfathered in
+`iphone/.swiftlint-baseline.json` — never regenerate the baseline to silence a new
+violation; fix the code, or (for a consciously-accepted case like a toast timer) regenerate
+deliberately and say so in the commit message:
+`cd iphone && swiftlint lint --write-baseline .swiftlint-baseline.json`
+
+---
+
 **ALWAYS use OverlayManager for modals and menus. NEVER use .fullScreenCover for forms, dialogs, or editing pages.**
 
 Before presenting any modal, menu, or overlay:
