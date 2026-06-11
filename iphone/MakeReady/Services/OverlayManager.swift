@@ -67,78 +67,12 @@ extension EnvironmentValues {
 
 // MARK: - Modal/Overlay IDs
 
-/// Type-safe identifiers for all overlays in the app
-enum OverlayID {
-    // Menus (raw overlays - handle their own chrome)
-    static let userMenu = "userMenu"
-    static let addMenu = "addMenu"
-    static let hamburgerMenu = "hamburgerMenu"
-    static let addActivityMenu = "addActivityMenu"
-    static let lessonActionMenu = "lessonActionMenu"
-
-    // Page modals (use presentModal for chrome)
-    static let profilePage = "profilePage"
-    static let createProgram = "createProgram"
-    static let componentsPage = "componentsPage"
-    static let globalSearch = "globalSearch"
-    static let studyCardsDemoPage = "studyCardsDemoPage"
-    static let studyProgramHome = "studyProgramHome"
-    static let biblePage = "biblePage"
-    static let bibleReader = "bibleReader"
-    static let bibleVersionMenu = "bibleVersionMenu"
-    static let inviteContacts = "inviteContacts"
-    static let shareInvite = "shareInvite"
-    static let programHome = "programHome"
-
-    // Group modals
-    static let createGroup = "createGroup"
-    static let groupHome = "groupHome"
-    static let editGroup = "editGroup"
-    static let enrollmentFlow = "enrollmentFlow"
-    static let programEnrollmentFlow = "programEnrollmentFlow"
-    static let enrollmentSchedule = "enrollmentSchedule"
-
-    // Organization modals
-    static let orgHome = "orgHome"
-
-    // Member modals
-    static let memberProfile = "memberProfile"
-    static let memberRequestProfile = "memberRequestProfile"
-    static let memberRequests = "memberRequests"
-
-    // Notifications
-    static let notificationFeed = "notificationFeed"
-
-    // Unenroll
-    static let unenrollOptions = "unenrollOptions"
-    static let editEnrollmentDay = "editEnrollmentDay"
-
-    // Sort menus
-    static let librarySortMenu = "librarySortMenu"
-
-    // Contextual add menus
-    static let libraryAddMenu = "libraryAddMenu"
-    static let groupsAddMenu = "groupsAddMenu"
-    static let groupsInviteMenu = "groupsInviteMenu"
-
-    // Feedback overlays
-    static let confirmationOverlay = "confirmationOverlay"
-
-    // Retained ID (no longer mounted as an overlay — see EditBlockBackgroundPage,
-    // which slides in as the third pane of EditReadActivityPage's HStack).
-    static func backgroundPicker(blockId: String) -> String { "backgroundPicker_\(blockId)" }
-
-    // Read-block background source selection (Library / Photos / Camera).
-    static func backgroundSourceMenu(blockId: String) -> String { "backgroundSourceMenu_\(blockId)" }
-    static func mediaLibraryPicker(blockId: String) -> String { "mediaLibraryPicker_\(blockId)" }
-
-    // Read-block styled-selection picker (Bold / Highlight / Remove).
-    static func stylePicker(blockId: String) -> String { "stylePicker_\(blockId)" }
-
-    // Exegesis highlight modal
-    static let exegesisHighlightModal = "exegesisHighlightModal"
-    static let exegesisHighlightActionMenu = "exegesisHighlightActionMenu"
-}
+// The stringly-typed `enum OverlayID` was removed in Phase 3.6d — `Route`
+// (Services/Route.swift) is the typed identity for every overlay surface.
+// `Route.id` produces the same strings, and the string-keyed methods below
+// remain as the underlying implementation (and for the handful of dynamic
+// per-entity ids, e.g. GlobalSearchPage lesson/video modals).
+// The retired `backgroundPicker_<blockId>` id is documented in Route.swift.
 
 /// Priority levels for overlays - higher values render on top
 enum OverlayPriority: Int, Comparable {

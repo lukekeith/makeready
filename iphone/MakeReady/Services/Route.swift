@@ -3,17 +3,19 @@
 //  MakeReady
 //
 //  Phase 3.6 — typed identity for every OverlayManager-presented surface.
-//  Replaces the stringly-typed `OverlayID`. `Route.id` returns the SAME string
-//  the legacy `OverlayID` values produce, so a route-keyed `present(_:)` and a
-//  legacy string `dismiss(id:)` interoperate during the migration — call sites
-//  move one group at a time, no flag day.
+//  Replaced the stringly-typed `OverlayID` (deleted in 3.6d; every call site
+//  now presents/dismisses by Route). `Route.id` produces the same strings the
+//  old `OverlayID` constants did, so the string-keyed OverlayManager methods
+//  remain as the underlying implementation — and stay available for the few
+//  dynamic per-entity ids (e.g. GlobalSearchPage's lesson/video modals) that
+//  have no fixed Route case.
 //
-//  This file is additive (3.6a + 3.6b): nothing here changes behavior. The
-//  legacy `OverlayID` enum and the string-keyed OverlayManager methods keep
-//  working until 3.6d migrates the last call site. The lazy-content change
-//  (3.6c) lives separately and is gated on a capture diff.
+//  Presenting a NEW overlay surface: add a Route case + its `id` string, set
+//  its `priority`/`chrome`/`dismissOnTapOutside` here (NOT at the call site),
+//  then call `overlayManager.present(.yourRoute) { ... }`.
 //
 //  See docs/audit/iphone-route-enum-2026-06-11-design.md.
+//  (3.6c lazy content was REJECTED — see that doc's banner; do not reattempt.)
 //
 
 import SwiftUI
@@ -72,8 +74,8 @@ enum Route: Equatable, Hashable {
     // is no longer an overlay (it's the third slide pane of EditReadActivityPage;
     // see OverlayManager.swift comment near the retired id).
 
-    /// Bridges to the legacy string id. Must stay byte-identical to the old
-    /// `OverlayID` values until 3.6d removes the last string call site.
+    /// The overlay-stack string id (byte-identical to the old `OverlayID`
+    /// values, so pre-3.6d persisted state / dynamic-id interop is unaffected).
     var id: String {
         switch self {
         case .userMenu: return "userMenu"
