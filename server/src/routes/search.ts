@@ -964,6 +964,14 @@ router.get('/', requireAuth, async (req, res) => {
  *                             type: integer
  *                             nullable: true
  *                             description: Present for multi-verse range results (verse = range start), e.g. Psalm 19:1-3
+ *                           title:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Present for named-passage (pericope) results, e.g. "The Parable of the Prodigal Son" — for these, text is an opening-verses snippet
+ *                           summary:
+ *                             type: string
+ *                             nullable: true
+ *                             description: 1-2 sentence passage summary (pericope results only)
  *                           text:
  *                             type: string
  *                           reference:

@@ -1286,6 +1286,48 @@ models:
     unique:
       - fields: [translationId, bookNumber, chapter, verse]
 
+  BiblePassage:
+    table_name: bible_passages
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      bookNumber:
+        type: int
+      chapter:
+        type: int
+      verseStart:
+        type: int
+      verseEnd:
+        type: int
+      title:
+        type: string
+        description: "Pericope title, e.g. 'The Parable of the Prodigal Son'"
+      summary:
+        type: text
+        description: "1-2 sentence summary of the passage"
+      themes:
+        type: string_array
+        description: "Theme keywords, e.g. repentance, fatherly love"
+      openingText:
+        type: text
+        description: "First 1-2 verses (WEB) used as the result snippet"
+      embedding:
+        type: unsupported
+        db_type: "vector(384)"
+        nullable: true
+        description: "Embedding of the concept card (title + summary + themes)"
+      createdAt:
+        type: datetime
+        default: now()
+    indexes:
+      - fields: [bookNumber, chapter]
+      # NOTE: bible_passages_embedding_hnsw_idx is hand-managed in migrations
+      # (see verses_embedding_hnsw_idx note on the Verse model)
+    unique:
+      - fields: [bookNumber, chapter, verseStart, verseEnd]
+
   VerseWindow:
     table_name: verse_windows
     fields:

@@ -56,11 +56,19 @@ const { searchVersesSemantic } = await import('../src/services/semantic-search.j
 type VerseRow = { bookNumber: number; chapter: number; verse: number; text: string; similarity: number }
 type WindowRow = { bookNumber: number; chapter: number; verseStart: number; verseEnd: number; text: string; similarity: number }
 
-/** Route the two pgvector queries (verses vs verse_windows) to their fixtures. */
-function setRows(verseRows: VerseRow[], windowRows: WindowRow[] = []) {
-  mockQueryRaw.mockImplementation(async (q: { strings: readonly string[] }) =>
-    q.strings.join('').includes('verse_windows') ? windowRows : verseRows
-  )
+type PassageRow = {
+  bookNumber: number; chapter: number; verseStart: number; verseEnd: number;
+  title: string; summary: string; openingText: string; similarity: number
+}
+
+/** Route the three pgvector queries (verses / verse_windows / bible_passages) to their fixtures. */
+function setRows(verseRows: VerseRow[], windowRows: WindowRow[] = [], passageRows: PassageRow[] = []) {
+  mockQueryRaw.mockImplementation(async (q: { strings: readonly string[] }) => {
+    const sql = q.strings.join('')
+    if (sql.includes('bible_passages')) return passageRows
+    if (sql.includes('verse_windows')) return windowRows
+    return verseRows
+  })
 }
 
 function verseRow(overrides: Partial<VerseRow> = {}): VerseRow {
@@ -118,6 +126,65 @@ describe('searchVersesSemantic', () => {
       reference: 'Psalms 19:1-3',
       similarity: 0.79,
     })
+  })
+
+  it('returns pericope hits with title, summary, and snippet text', async () => {
+    setRows([], [], [{
+      bookNumber: 42, chapter: 15, verseStart: 11, verseEnd: 24,
+      title: 'The Parable of the Prodigal Son',
+      summary: 'A son squanders his inheritance, returns home, and is welcomed by his father.',
+      openingText: 'He said, "A certain man had two sons. The younger of them said to his father..." …',
+      similarity: 0.84,
+    }])
+
+    const result = await searchVersesSemantic('the prodigal son', 'WEB', 10)
+
+    expect(result.results[0]).toMatchObject({
+      verseId: 'LUK.15.11',
+      verse: 11,
+      verseEnd: 24,
+      reference: 'Luke 15:11-24',
+      title: 'The Parable of the Prodigal Son',
+      summary: 'A son squanders his inheritance, returns home, and is welcomed by his father.',
+      similarity: 0.84,
+    })
+    expect(result.results[0].text).toContain('A certain man had two sons')
+  })
+
+  it('suppresses a lower-scoring verse inside a winning pericope', async () => {
+    setRows(
+      [verseRow({ bookNumber: 42, chapter: 15, verse: 20, similarity: 0.7, text: 'he ran and fell on his neck' })],
+      [],
+      [{
+        bookNumber: 42, chapter: 15, verseStart: 11, verseEnd: 24,
+        title: 'The Parable of the Prodigal Son', summary: 's', openingText: 'opening …', similarity: 0.8,
+      }]
+    )
+
+    const result = await searchVersesSemantic('a query', 'WEB', 10)
+
+    expect(result.total).toBe(1)
+    expect(result.results[0].title).toBe('The Parable of the Prodigal Son')
+  })
+
+  it('resolves pericope snippet text (first 2 verses + ellipsis) in the requested translation', async () => {
+    setRows([], [], [{
+      bookNumber: 42, chapter: 15, verseStart: 11, verseEnd: 24,
+      title: 'The Parable of the Prodigal Son', summary: 's',
+      openingText: 'WEB opening …', similarity: 0.8,
+    }])
+    mockResolveBibleId.mockResolvedValue('nasb-bible-id')
+    mockGetChapterVerses.mockResolvedValue({
+      verses: Array.from({ length: 32 }, (_, i) => ({ verse: i + 1, text: `NASB v${i + 1}.` })),
+      copyright: 'NASB ©',
+      fumsToken: 'tok',
+    })
+
+    const result = await searchVersesSemantic('a query', 'NASB', 10)
+
+    // Only the first two verses of the range, with ellipsis — not all 14 verses
+    expect(result.results[0].text).toBe('NASB v11. NASB v12. …')
+    expect(result.results[0].verseEnd).toBe(24)
   })
 
   it('merges verses and windows by similarity, suppressing overlaps', async () => {

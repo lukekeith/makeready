@@ -585,6 +585,24 @@ model Verse {
   @@map("verses")
 }
 
+model BiblePassage {
+  id                   String @id @default(uuid())
+  bookNumber           Int
+  chapter              Int
+  verseStart           Int
+  verseEnd             Int
+  title                String // Pericope title, e.g. 'The Parable of the Prodigal Son'
+  summary              String @db.Text // 1-2 sentence summary of the passage
+  themes               String[] // Theme keywords, e.g. repentance, fatherly love
+  openingText          String @db.Text // First 1-2 verses (WEB) used as the result snippet
+  embedding            Unsupported("vector(384)")? // Embedding of the concept card (title + summary + themes)
+  createdAt            DateTime @default(now())
+
+  @@unique([bookNumber, chapter, verseStart, verseEnd])
+  @@index([bookNumber, chapter])
+  @@map("bible_passages")
+}
+
 model VerseWindow {
   id                   String @id @default(uuid())
   translationId        String

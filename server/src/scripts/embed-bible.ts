@@ -1,18 +1,25 @@
 import 'dotenv/config'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { PrismaClient, Prisma } from '../generated/prisma'
 import { embedPassages, EMBEDDING_MODEL } from '../services/embeddings.js'
 
 /**
- * Backfill verse and verse-window embeddings for Bible concept search.
+ * Backfill all Bible concept-search embeddings.
  *
- * Two passes over the WEB translation with bge-small-en-v1.5:
- *  1. Single verses → verses.embedding (precise matches)
+ * Three passes with bge-small-en-v1.5:
+ *  1. Single WEB verses → verses.embedding (precise matches)
  *  2. 3-verse sliding windows (stride 1, within chapter) → verse_windows
- *     (concepts that span multiple verses, e.g. Psalm 19:1-3)
+ *     (concepts that span a few verses, e.g. Psalm 19:1-3)
+ *  3. Pericope concept cards → bible_passages (narrative/thematic queries:
+ *     "the prodigal son", "jealous older brother"). Rows come from the
+ *     committed artifact data/pericopes-web.json (generate-pericopes.ts);
+ *     the embedded text is title + summary + themes, NOT the passage text.
  *
- * Idempotent and crash-resumable: window rows are created with
- * skipDuplicates, and only rows with NULL embedding are processed, so
- * re-running continues where it left off.
+ * Idempotent and crash-resumable: rows are created with skipDuplicates, and
+ * only rows with NULL embedding are processed, so re-running continues where
+ * it left off.
  *
  * Run per environment from a dev machine:
  *   npm run embed:bible                          (local)
@@ -31,11 +38,17 @@ interface VerseRow {
   text: string
 }
 
-/** Embed all NULL-embedding rows of a table in batches, with progress logging. */
-async function embedTable(table: 'verses' | 'verse_windows', translationId: string) {
+/** Embed all NULL-embedding rows of a table in batches, with progress logging.
+ *  The text column embedded for bible_passages is the pre-built concept card. */
+async function embedTable(table: 'verses' | 'verse_windows' | 'bible_passages', translationId?: string) {
+  const where = translationId
+    ? Prisma.sql`"translationId" = ${translationId}::uuid AND "embedding" IS NULL`
+    : Prisma.sql`"embedding" IS NULL`
+  const textExpr = table === 'bible_passages'
+    ? Prisma.raw(`title || '. ' || summary || ' Themes: ' || array_to_string(themes, ', ') AS text`)
+    : Prisma.raw('text')
   const remaining = await prisma.$queryRaw<[{ count: bigint }]>(
-    Prisma.sql`SELECT count(*) FROM ${Prisma.raw(`"${table}"`)}
-               WHERE "translationId" = ${translationId}::uuid AND "embedding" IS NULL`
+    Prisma.sql`SELECT count(*) FROM ${Prisma.raw(`"${table}"`)} WHERE ${where}`
   )
   const toProcess = Number(remaining[0].count)
   if (toProcess === 0) {
@@ -49,8 +62,8 @@ async function embedTable(table: 'verses' | 'verse_windows', translationId: stri
 
   while (true) {
     const rows = await prisma.$queryRaw<VerseRow[]>(
-      Prisma.sql`SELECT id, text FROM ${Prisma.raw(`"${table}"`)}
-                 WHERE "translationId" = ${translationId}::uuid AND "embedding" IS NULL
+      Prisma.sql`SELECT id, ${textExpr} FROM ${Prisma.raw(`"${table}"`)}
+                 WHERE ${where}
                  ORDER BY id LIMIT ${BATCH_SIZE}`
     )
     if (rows.length === 0) break
@@ -124,6 +137,62 @@ async function createWindows(translationId: string) {
   console.log(`Windows: ${windows.length} total, ${created} newly created.`)
 }
 
+/**
+ * Create bible_passages rows from the committed pericope artifact (text-only
+ * — embedding filled by embedTable). openingText is the first 1-2 verses of
+ * the range, used as the search-result snippet.
+ */
+async function createPassages(translationId: string) {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
+  const artifactPath = path.resolve(__dirname, '../../data/pericopes-web.json')
+  if (!fs.existsSync(artifactPath)) {
+    console.log('⚠️  data/pericopes-web.json not found — skipping passage pass (run generate-pericopes.ts)')
+    return false
+  }
+  const artifact = JSON.parse(fs.readFileSync(artifactPath, 'utf8')) as Record<
+    string,
+    { verseStart: number; verseEnd: number; title: string; summary: string; themes: string[] }[]
+  >
+
+  const verses = await prisma.verse.findMany({
+    where: { translationId },
+    select: { bookNumber: true, chapter: true, verse: true, text: true },
+  })
+  const verseText = new Map(verses.map((v) => [`${v.bookNumber}:${v.chapter}:${v.verse}`, v.text]))
+
+  const rows = []
+  for (const [key, pericopes] of Object.entries(artifact)) {
+    const [bookNumber, chapter] = key.split(':').map(Number)
+    for (const p of pericopes) {
+      const opening = [
+        verseText.get(`${bookNumber}:${chapter}:${p.verseStart}`),
+        p.verseEnd > p.verseStart ? verseText.get(`${bookNumber}:${chapter}:${p.verseStart + 1}`) : undefined,
+      ].filter(Boolean).join(' ')
+      rows.push({
+        bookNumber,
+        chapter,
+        verseStart: p.verseStart,
+        verseEnd: p.verseEnd,
+        title: p.title,
+        summary: p.summary,
+        themes: p.themes,
+        openingText: opening + (p.verseEnd > p.verseStart + 1 ? ' …' : ''),
+      })
+    }
+  }
+
+  let created = 0
+  for (let i = 0; i < rows.length; i += 5000) {
+    const result = await prisma.biblePassage.createMany({
+      data: rows.slice(i, i + 5000),
+      skipDuplicates: true,
+    })
+    created += result.count
+  }
+  console.log(`Passages: ${rows.length} in artifact, ${created} newly created.`)
+  return true
+}
+
 async function embedBible() {
   try {
     const translation = await prisma.translation.findUnique({
@@ -142,12 +211,17 @@ async function embedBible() {
     await createWindows(translation.id)
     await embedTable('verse_windows', translation.id)
 
-    const verify = await prisma.$queryRaw<[{ v: bigint; w: bigint }]>(
+    // Pass 3: pericope concept cards
+    const hasPassages = await createPassages(translation.id)
+    if (hasPassages) await embedTable('bible_passages')
+
+    const verify = await prisma.$queryRaw<[{ v: bigint; w: bigint; p: bigint }]>(
       Prisma.sql`SELECT
         (SELECT count(*) FROM verses WHERE "translationId" = ${translation.id}::uuid AND "embedding" IS NULL) AS v,
-        (SELECT count(*) FROM verse_windows WHERE "translationId" = ${translation.id}::uuid AND "embedding" IS NULL) AS w`
+        (SELECT count(*) FROM verse_windows WHERE "translationId" = ${translation.id}::uuid AND "embedding" IS NULL) AS w,
+        (SELECT count(*) FROM bible_passages WHERE "embedding" IS NULL) AS p`
     )
-    console.log(`\n🎉 Backfill complete. Remaining without embedding: ${Number(verify[0].v)} verses, ${Number(verify[0].w)} windows`)
+    console.log(`\n🎉 Backfill complete. Remaining without embedding: ${Number(verify[0].v)} verses, ${Number(verify[0].w)} windows, ${Number(verify[0].p)} passages`)
   } catch (error) {
     console.error('\n❌ Embedding backfill failed:', error)
     process.exitCode = 1

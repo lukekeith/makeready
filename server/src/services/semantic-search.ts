@@ -9,12 +9,17 @@
  * embedded at request time. Result shape matches handleKeywordSearch in
  * routes/search.ts so consumers (iPhone, client) need no changes.
  *
- * Two granularities are searched and merged (higher similarity wins,
+ * Three granularities are searched and merged (higher similarity wins,
  * overlapping candidates suppressed):
  *  - single verses (verses.embedding) — precise punchy matches
  *  - 3-verse sliding windows (verse_windows) — concepts that span verses,
  *    e.g. "the heavens declare the glory of God..." across Psalm 19:1-3.
  *    Range results carry verseEnd; `verse` stays the range start.
+ *  - pericope concept cards (bible_passages) — narrative/thematic queries.
+ *    The embedding is of an LLM-generated title + summary + themes, so
+ *    "the prodigal son" matches Luke 15:11-24 even though the word
+ *    "prodigal" never appears in the text. These results carry title and
+ *    summary, and their text is an opening-verses snippet.
  *
  * Matching always runs against WEB embeddings, but display text is resolved
  * in the user's selected translation: from the local verses table when that
@@ -44,6 +49,9 @@ interface Candidate {
   verseEnd: number
   text: string
   similarity: number
+  /** Pericope results only */
+  title?: string
+  summary?: string
 }
 
 export interface SemanticVerseResult {
@@ -56,6 +64,10 @@ export interface SemanticVerseResult {
   text: string
   reference: string
   similarity: number
+  /** Pericope (named passage) results only, e.g. "The Parable of the Prodigal Son".
+   *  For these, text is an opening-verses snippet rather than the full passage. */
+  title?: string
+  summary?: string
   /** Set to 'WEB' only when text could not be resolved in the requested translation */
   sourceTranslation?: string
 }
@@ -90,7 +102,7 @@ async function searchInternal(
   const vector = await embedQuery(query)
   const vectorLiteral = `[${vector.join(',')}]`
 
-  const [verseRows, windowRows] = await Promise.all([
+  const [verseRows, windowRows, passageRows] = await Promise.all([
     prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verse: number; text: string; similarity: number }>>(
       Prisma.sql`SELECT v."bookNumber", v.chapter, v.verse, v.text,
                         1 - (v."embedding" <=> ${vectorLiteral}::vector) AS similarity
@@ -107,11 +119,20 @@ async function searchInternal(
                  ORDER BY w."embedding" <=> ${vectorLiteral}::vector
                  LIMIT ${limit * 2}`
     ),
+    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; title: string; summary: string; openingText: string; similarity: number }>>(
+      Prisma.sql`SELECT p."bookNumber", p.chapter, p."verseStart", p."verseEnd", p.title, p.summary, p."openingText",
+                        1 - (p."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                 FROM bible_passages p
+                 WHERE p."embedding" IS NOT NULL
+                 ORDER BY p."embedding" <=> ${vectorLiteral}::vector
+                 LIMIT ${limit * 2}`
+    ),
   ])
 
   const candidates: Candidate[] = [
     ...verseRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verse, verseEnd: r.verse, text: r.text, similarity: r.similarity })),
     ...windowRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.text, similarity: r.similarity })),
+    ...passageRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.openingText, similarity: r.similarity, title: r.title, summary: r.summary })),
   ]
     .filter((c) => c.similarity >= SIMILARITY_THRESHOLD)
     .sort((a, b) => b.similarity - a.similarity)
@@ -144,6 +165,7 @@ async function searchInternal(
         ? `${book.name} ${c.chapter}:${c.verseStart}-${c.verseEnd}`
         : `${book.name} ${c.chapter}:${c.verseStart}`,
       similarity: Math.round(c.similarity * 1000) / 1000,
+      ...(c.title ? { title: c.title, summary: c.summary } : {}),
     }
   })
 
@@ -186,7 +208,7 @@ async function resolveDisplayTexts(
         OR: results.map((r) => ({
           bookNumber: r.book.bookNumber,
           chapter: r.chapter,
-          verse: { gte: r.verse, lte: r.verseEnd ?? r.verse },
+          verse: { gte: r.verse, lte: textSpanEnd(r) },
         })),
       },
       select: { bookNumber: true, chapter: true, verse: true, text: true },
@@ -197,9 +219,9 @@ async function resolveDisplayTexts(
         const text = joinRangeText(
           (v) => texts.get(`${r.book.bookNumber}:${r.chapter}:${v}`),
           r.verse,
-          r.verseEnd ?? r.verse
+          textSpanEnd(r)
         )
-        if (text) r.text = text
+        if (text) r.text = withEllipsis(text, r)
         else r.sourceTranslation = SOURCE_TRANSLATION
       }
       return { fumsToken: undefined }
@@ -237,9 +259,9 @@ async function resolveDisplayTexts(
   for (const r of results) {
     const chapterMap = chapterTexts.get(`${r.book.bookNumber}:${r.chapter}`)
     const text = chapterMap
-      ? joinRangeText((v) => chapterMap.get(v), r.verse, r.verseEnd ?? r.verse)
+      ? joinRangeText((v) => chapterMap.get(v), r.verse, textSpanEnd(r))
       : undefined
-    if (text) r.text = text
+    if (text) r.text = withEllipsis(text, r)
     else r.sourceTranslation = SOURCE_TRANSLATION
   }
 
@@ -258,6 +280,22 @@ async function resolveDisplayTexts(
   }
 
   return { fumsToken, copyright }
+}
+
+/**
+ * The verse span whose TEXT is returned for a result. Verse and window
+ * results return their full range; pericope results (title set) return only
+ * the first two verses as a snippet — a 30-verse parable doesn't belong in a
+ * search-result list, and tapping through opens the full passage anyway.
+ */
+function textSpanEnd(r: SemanticVerseResult): number {
+  const end = r.verseEnd ?? r.verse
+  return r.title ? Math.min(r.verse + 1, end) : end
+}
+
+/** Append an ellipsis when the resolved text is a truncated snippet. */
+function withEllipsis(text: string, r: SemanticVerseResult): string {
+  return textSpanEnd(r) < (r.verseEnd ?? r.verse) ? `${text} …` : text
 }
 
 /**
