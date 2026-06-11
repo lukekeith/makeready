@@ -17,6 +17,20 @@ extension Notification.Name {
 
 // MARK: - MediaThumbnailCell
 
+/// Thumbnail URL for a media item — shared by the cell and the prefetcher.
+func mediaThumbnailURL(for item: MediaLibraryItem) -> URL? {
+    let thumbnailUrl: String?
+    if let url = item.thumbnailUrl, !url.isEmpty {
+        thumbnailUrl = url
+    } else if item.mediaType == .photo, !item.url.isEmpty {
+        thumbnailUrl = item.url.mediumImageUrl
+    } else {
+        thumbnailUrl = nil
+    }
+    guard let urlString = thumbnailUrl else { return nil }
+    return URL(string: urlString)
+}
+
 final class MediaThumbnailCell: UICollectionViewCell {
     static let reuseIdentifier = "MediaThumbnailCell"
 
@@ -167,17 +181,8 @@ final class MediaThumbnailCell: UICollectionViewCell {
         loadTask?.cancel()
 
         let itemId = item.id
-        let thumbnailUrl: String?
 
-        if let url = item.thumbnailUrl, !url.isEmpty {
-            thumbnailUrl = url
-        } else if item.mediaType == .photo, !item.url.isEmpty {
-            thumbnailUrl = item.url.mediumImageUrl
-        } else {
-            thumbnailUrl = nil
-        }
-
-        guard let urlString = thumbnailUrl, let url = URL(string: urlString) else {
+        guard let url = mediaThumbnailURL(for: item) else {
             imageView.isHidden = true
             placeholderView.isHidden = false
             typeIconView.isHidden = false
@@ -262,6 +267,7 @@ private struct MediaCollectionView: UIViewRepresentable {
         cv.contentInset = UIEdgeInsets(top: topInset, left: 0, bottom: 100, right: 0)
         cv.contentOffset = CGPoint(x: 0, y: -topInset)
 
+        cv.prefetchDataSource = context.coordinator
         context.coordinator.collectionView = cv
         context.coordinator.installDataSource(on: cv)
         return cv
@@ -273,7 +279,7 @@ private struct MediaCollectionView: UIViewRepresentable {
         coordinator.applySnapshotIfNeeded()
     }
 
-    class Coordinator: NSObject, UICollectionViewDelegate {
+    class Coordinator: NSObject, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching {
         var parent: MediaCollectionView
         weak var collectionView: UICollectionView?
         var lastItemIds: [String] = []
@@ -342,7 +348,37 @@ private struct MediaCollectionView: UIViewRepresentable {
             dataSource.apply(snapshot, animatingDifferences: false)
         }
 
+        // MARK: Prefetching (Phase 4.3)
+
+        /// Cache-warming tasks keyed by item id, cancellable when the
+        /// scroll direction reverses. ImageCache coalesces identical
+        /// fetches, so overlap with visible-cell loads costs nothing.
+        private var prefetchTasks: [String: Task<Void, Never>] = [:]
+
+        func collectionView(_ collectionView: UICollectionView, prefetchItemsAt indexPaths: [IndexPath]) {
+            for indexPath in indexPaths where indexPath.item < parent.items.count {
+                let item = parent.items[indexPath.item]
+                guard prefetchTasks[item.id] == nil,
+                      let url = mediaThumbnailURL(for: item),
+                      ImageCache.shared.cachedImage(for: url) == nil else { continue }
+                prefetchTasks[item.id] = Task {
+                    _ = try? await ImageCache.shared.fetch(url: url)
+                }
+            }
+        }
+
+        func collectionView(_ collectionView: UICollectionView, cancelPrefetchingForItemsAt indexPaths: [IndexPath]) {
+            for indexPath in indexPaths where indexPath.item < parent.items.count {
+                let id = parent.items[indexPath.item].id
+                prefetchTasks[id]?.cancel()
+                prefetchTasks[id] = nil
+            }
+        }
+
         func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+            if indexPath.item < parent.items.count {
+                prefetchTasks[parent.items[indexPath.item].id] = nil
+            }
             // Trigger the next page while ~2 rows of items remain below.
             if indexPath.item >= parent.items.count - 12 {
                 parent.onNearEnd?()
