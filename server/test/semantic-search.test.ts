@@ -130,6 +130,25 @@ describe('searchVersesSemantic', () => {
     expect(result.fumsToken).toBeUndefined()
   })
 
+  it('falls through to API.Bible when a local translation row has no verses (post-cleanup KJV)', async () => {
+    mockQueryRaw.mockResolvedValue([row()])
+    // KJV translation row still exists (highlight FKs) but its verses were cleaned up
+    mockTranslationFindUnique.mockResolvedValue({ id: 'kjv-id', code: 'KJV' })
+    mockVerseFindMany.mockResolvedValue([])
+    mockResolveBibleId.mockResolvedValue('kjv-bible-id')
+    mockGetChapterVerses.mockResolvedValue({
+      verses: [{ verse: 16, text: 'KJV via API.Bible' }],
+      copyright: null,
+      fumsToken: 'tok',
+    })
+
+    const result = await searchVersesSemantic('a query', 'KJV', 10)
+
+    expect(result.results[0].text).toBe('KJV via API.Bible')
+    expect(result.results[0].sourceTranslation).toBeUndefined()
+    expect(mockGetChapterVerses).toHaveBeenCalledWith('kjv-bible-id', 'JHN', 3, { skipFums: true })
+  })
+
   it('resolves text via cached API.Bible chapters for remote translations', async () => {
     mockQueryRaw.mockResolvedValue([
       row(),

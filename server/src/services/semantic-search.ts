@@ -132,7 +132,10 @@ async function resolveDisplayTexts(
     return { fumsToken: undefined }
   }
 
-  // 1. Translation stored locally (KJV, ASV, NET, WEB, ...) — one SQL query
+  // 1. Translation stored locally — one SQL query. Only WEB verses are kept
+  //    locally these days, but translation rows for removed translations
+  //    still exist (highlight/note FKs), so an empty result falls through to
+  //    API.Bible rather than treating the translation as local.
   const local = await prisma.translation.findUnique({ where: { code } })
   if (local) {
     const rows = await prisma.verse.findMany({
@@ -146,13 +149,15 @@ async function resolveDisplayTexts(
       },
       select: { bookNumber: true, chapter: true, verse: true, text: true },
     })
-    const texts = new Map(rows.map((r) => [`${r.bookNumber}:${r.chapter}:${r.verse}`, r.text]))
-    for (const r of results) {
-      const text = texts.get(`${r.book.bookNumber}:${r.chapter}:${r.verse}`)
-      if (text) r.text = text
-      else r.sourceTranslation = SOURCE_TRANSLATION
+    if (rows.length > 0) {
+      const texts = new Map(rows.map((r) => [`${r.bookNumber}:${r.chapter}:${r.verse}`, r.text]))
+      for (const r of results) {
+        const text = texts.get(`${r.book.bookNumber}:${r.chapter}:${r.verse}`)
+        if (text) r.text = text
+        else r.sourceTranslation = SOURCE_TRANSLATION
+      }
+      return { fumsToken: undefined }
     }
-    return { fumsToken: undefined }
   }
 
   // 2. API.Bible translation (NASB, ESV, ...) — cached chapter fetches

@@ -214,7 +214,7 @@ router.get('/perf', async (_req, res) => {
         SELECT v.id, v.text, v.chapter, v.verse
         FROM verses v
         JOIN translations t ON v."translationId" = t.id
-        WHERE t.code = 'KJV' AND v."bookNumber" = 43 AND v.chapter = 3 AND v.verse = 16
+        WHERE t.code = 'WEB' AND v."bookNumber" = 43 AND v.chapter = 3 AND v.verse = 16
         LIMIT 1
       `
     );
@@ -225,7 +225,7 @@ router.get('/perf', async (_req, res) => {
         SELECT v.id, v.verse, v.text
         FROM verses v
         JOIN translations t ON v."translationId" = t.id
-        WHERE t.code = 'KJV' AND v."bookNumber" = 43 AND v.chapter = 3
+        WHERE t.code = 'WEB' AND v."bookNumber" = 43 AND v.chapter = 3
         ORDER BY v.verse
       `
     );
@@ -238,7 +238,7 @@ router.get('/perf', async (_req, res) => {
         FROM verses v
         JOIN books b ON v."bookId" = b.id
         JOIN translations t ON v."translationId" = t.id
-        WHERE t.code = 'KJV' AND v."searchVector" @@ plainto_tsquery('english', 'love')
+        WHERE t.code = 'WEB' AND v."searchVector" @@ plainto_tsquery('english', 'love')
         ORDER BY rank DESC LIMIT 20
       `
     );
@@ -249,7 +249,7 @@ router.get('/perf', async (_req, res) => {
         SELECT b.id, b."bookName", b."bookAbbrev", b."bookNumber", b.chapters
         FROM books b
         JOIN translations t ON b."translationId" = t.id
-        WHERE t.code = 'KJV'
+        WHERE t.code = 'WEB'
         ORDER BY b."bookNumber"
       `
     );

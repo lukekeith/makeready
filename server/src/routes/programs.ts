@@ -2517,7 +2517,7 @@ router.post('/activities/:id/source-references', requireAuth, async (req, res) =
     let verseContent: string | null = normalizeScriptureMarkdown(body.content)
     if (!verseContent && body.bookNumber && body.chapterStart && body.verseStart) {
       const translation = await prisma.translation.findUnique({
-        where: { code: 'KJV' },
+        where: { code: 'WEB' },
       })
       if (translation) {
         const verseEnd = body.verseEnd ?? body.verseStart

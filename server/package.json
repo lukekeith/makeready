@@ -35,6 +35,7 @@
     "templates:import": "npx tsx scripts/import-templates.ts",
     "model:prefetch": "tsx src/scripts/prefetch-model.ts",
     "bible:import:web": "dotenv -- tsx src/scripts/import-web-bible.ts",
+    "bible:cleanup:translations": "dotenv -- tsx src/scripts/cleanup-local-translations.ts",
     "embed:bible": "dotenv -- tsx src/scripts/embed-bible.ts"
   },
   "dependencies": {

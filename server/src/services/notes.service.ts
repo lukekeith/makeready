@@ -224,7 +224,7 @@ async function fetchScriptureText(
   verseStart: number,
   chapterEnd?: number,
   verseEnd?: number,
-  translationCode: string = 'KJV'
+  translationCode: string = 'WEB'
 ): Promise<string | null> {
   try {
     const translation = await prisma.translation.findUnique({
