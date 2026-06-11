@@ -795,8 +795,8 @@ struct MainLibrary: View {
                 MediaLibraryGrid(
                     items: filteredMedia,
                     topInset: 116,
-                    onItemSelected: { item, sourceFrame in
-                        presentMediaDetail(item: item, sourceFrame: sourceFrame)
+                    onItemSelected: { item, sourceFrame, restore in
+                        presentMediaDetail(item: item, sourceFrame: sourceFrame, restoreGridCell: restore)
                     },
                     onNearEnd: {
                         Task { await loadMoreMedia() }
@@ -1040,7 +1040,7 @@ struct MainLibrary: View {
 
     // MARK: - Media Detail Presentation
 
-    private func presentMediaDetail(item: MediaLibraryItem, sourceFrame: CGRect) {
+    private func presentMediaDetail(item: MediaLibraryItem, sourceFrame: CGRect, restoreGridCell: @escaping () -> Void) {
         guard let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
               let window = windowScene.windows.first else { return }
 
@@ -1050,13 +1050,12 @@ struct MainLibrary: View {
             item: item,
             sourceFrame: sourceFrame,
             onDismiss: {
-                // Restore the hidden grid cell via notification
-                NotificationCenter.default.post(name: .mediaDetailDismissed, object: item.id)
+                restoreGridCell()
             },
             onUsageTap: { usage in
                 // Dismiss the detail overlay first, then open the linked resource
                 overlayRef?.dismissAnimated {
-                    NotificationCenter.default.post(name: .mediaDetailDismissed, object: item.id)
+                    restoreGridCell()
                     self.handleUsageTap(usage)
                 }
             }

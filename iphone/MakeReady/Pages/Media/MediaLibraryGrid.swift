@@ -9,12 +9,6 @@
 
 import SwiftUI
 
-// MARK: - Notifications
-
-extension Notification.Name {
-    static let mediaDetailDismissed = Notification.Name("mediaDetailDismissed")
-}
-
 // MARK: - MediaThumbnailCell
 
 /// Thumbnail URL for a media item — shared by the cell and the prefetcher.
@@ -232,7 +226,11 @@ final class MediaThumbnailCell: UICollectionViewCell {
 private struct MediaCollectionView: UIViewRepresentable {
     let items: [MediaLibraryItem]
     let topInset: CGFloat
-    let onItemSelected: (MediaLibraryItem, CGRect) -> Void
+    /// (item, source frame in window coords, restore). The selected cell is
+    /// hidden for the detail zoom transition; the presenter calls `restore`
+    /// on dismiss to un-hide it (Phase 4.4 — direct closure, replacing the
+    /// old NotificationCenter handshake).
+    let onItemSelected: (MediaLibraryItem, CGRect, @escaping () -> Void) -> Void
     /// Fired when scrolling nears the end of the loaded items — the host
     /// loads the next page (Phase 4.1). Re-fires are cheap: the Action
     /// no-ops while a page is in flight or when everything is loaded.
@@ -284,7 +282,6 @@ private struct MediaCollectionView: UIViewRepresentable {
         weak var collectionView: UICollectionView?
         var lastItemIds: [String] = []
         var hiddenItemId: String?
-        private var dismissObserver: NSObjectProtocol?
 
         /// Diffable source keyed by item id (Phase 4.2) — structural changes
         /// diff in place instead of reloadData() flashing every cell.
@@ -295,21 +292,6 @@ private struct MediaCollectionView: UIViewRepresentable {
         init(parent: MediaCollectionView) {
             self.parent = parent
             super.init()
-
-            // Listen for detail dismiss to restore hidden cell
-            dismissObserver = NotificationCenter.default.addObserver(
-                forName: .mediaDetailDismissed,
-                object: nil,
-                queue: .main
-            ) { [weak self] notification in
-                self?.restoreHiddenCell()
-            }
-        }
-
-        deinit {
-            if let observer = dismissObserver {
-                NotificationCenter.default.removeObserver(observer)
-            }
         }
 
         func installDataSource(on collectionView: UICollectionView) {
@@ -397,7 +379,9 @@ private struct MediaCollectionView: UIViewRepresentable {
             cell.contentView.alpha = 0
             hiddenItemId = item.id
 
-            parent.onItemSelected(item, globalFrame)
+            parent.onItemSelected(item, globalFrame) { [weak self] in
+                self?.restoreHiddenCell()
+            }
         }
 
         /// Restore hidden cell visibility
@@ -421,7 +405,9 @@ private struct MediaCollectionView: UIViewRepresentable {
 struct MediaLibraryGrid: View {
     let items: [MediaLibraryItem]
     var topInset: CGFloat = 0
-    let onItemSelected: (MediaLibraryItem, CGRect) -> Void
+    /// (item, source frame, restore) — call `restore` when whatever was
+    /// presented from the tap is dismissed, to un-hide the source cell.
+    let onItemSelected: (MediaLibraryItem, CGRect, @escaping () -> Void) -> Void
     var onNearEnd: (() -> Void)? = nil
 
     var body: some View {

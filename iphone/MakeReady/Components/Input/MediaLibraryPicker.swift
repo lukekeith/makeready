@@ -40,7 +40,7 @@ struct MediaLibraryPicker: View {
                 MediaLibraryGrid(
                     items: photoItems,
                     topInset: 8,
-                    onItemSelected: { item, _ in
+                    onItemSelected: { item, _, _ in
                         let chosen = item
                         dismissOverlay?()
                         // Defer the callback until the dismiss animation

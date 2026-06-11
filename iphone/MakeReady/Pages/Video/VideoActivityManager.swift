@@ -534,7 +534,7 @@ private struct MediaLibraryPickerView: View {
                 } else {
                     MediaLibraryGrid(
                         items: videoItems,
-                        onItemSelected: { item, _ in
+                        onItemSelected: { item, _, _ in
                             onItemSelected(item)
                         }
                     )
