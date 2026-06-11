@@ -11,7 +11,7 @@ You are reviewing a diff in `/iphone/MakeReady` for animation/transition correct
 
 Get the changed Swift files (`git diff` / `git diff --staged`, or the files the current session edited). Only review files under `iphone/`. If none of the trigger patterns below appear in the diff, report "no transition-relevant changes" and stop.
 
-Trigger patterns: `withAnimation`, `.animation(`, `.transition(`, `.offset(`, `DragGesture`, `@GestureState`, `matchedGeometryEffect`, `.fullScreenCover`, `.sheet(`, `presentModal`, `presentMenu`, `asyncAfter`, `.shadow(`, `LazyVStack`, `.task {`.
+Trigger patterns: `withAnimation`, `.animation(`, `.transition(`, `.offset(`, `DragGesture`, `@GestureState`, `matchedGeometryEffect`, `.fullScreenCover`, `.sheet(`, `presentModal`, `presentMenu`, `present(.`, `asyncAfter`, `.shadow(`, any lazy container (`LazyVStack`, `LazyHStack`, `LazyVGrid`, `LazyHGrid` — grep `LazyV\|LazyH`), `.task {`.
 
 ## Step 2 — Check every applicable rule
 
@@ -25,7 +25,7 @@ For each rule: inspect the diff (and enough surrounding file context to judge), 
 - **A5 — No `withAnimation` wrapping state changes for `matchedGeometryEffect`** (container-level `.animation(value:)` instead).
 
 ### B. Structural-identity hazards (content must exist before the animation starts)
-- **B1 — No `LazyVStack`/`LazyHStack` inside content that animates in** with a modal/menu/slider (plain `VStack` for < ~50 items).
+- **B1 — No lazy containers (`LazyVStack`/`LazyHStack`/`LazyVGrid`/`LazyHGrid`) inside content that animates in** with a modal/menu/slider. Plain `VStack` for < ~50 items; for grids, a `VStack` of `HStack` rows chunked by column count (reference: `BlockStyleColorPickerContent`). Grep `LazyV\|LazyH` — checking only "LazyVStack" is how a `LazyVGrid` color picker shipped broken. Sanctioned exception: cells opacity-gated behind an `appeared` flag that fade in after the menu settles (`AddActivityMenu`). Before flagging, confirm the container is live code (referenced), not a dead duplicate.
 - **B2 — Pages inside an animated container follow the cache-first detail page contract** (SWIFTUI_TRANSITIONS.md § Pre-loading Content). Three independent checks, each a FAIL on its own:
   - **B2a** — display state is pre-populated from cache in `init` via `State(initialValue:)`, with `isLoading` starting true only when the cache was empty.
   - **B2b** — the load function never sets `isLoading = true` or assigns the error state *unconditionally*; both are guarded by "is there nothing to display?" (an unguarded `isLoading = true` at the top of a load function re-pops the content even with a warm cache; an unguarded error assignment replaces displayed content with the error screen on a background refresh failure).

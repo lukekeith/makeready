@@ -15,7 +15,7 @@ Ask (or determine from the report/code) these questions in order:
 2. **Does only the tapped element misbehave** (semi-transparent, doesn't move with siblings)? → **Class 1**
 3. **Is it jitter/lag during a drag gesture** (finger tracking, swipe-to-dismiss)? → **Class 6**
 4. **Does content pop to its final position instead of riding an in-flight slide/modal animation?** This is the big family — narrow it down:
-   - Content is inside a `LazyVStack`/`LazyHStack`? → **Class 2**
+   - Content is inside ANY lazy container — `LazyVStack`/`LazyHStack`/**`LazyVGrid`/`LazyHGrid`** (grep `LazyV\|LazyH`, not one type name)? → **Class 2**
    - Content arrives from `.task`/async load after the animation starts (`if let` / `if !items.isEmpty` branch flips mid-flight)? → **Class 3**
    - The whole pane appears instantly when a slide-in was expected (HStack slider)? → **Class 4**
    - It's text that *intermittently* appears at final position in a menu/modal? → **Class 8**
@@ -34,9 +34,12 @@ Ask (or determine from the report/code) these questions in order:
 - **Exception:** HStack sliders using the two-step pattern (Class 4) *require* the implicit `.animation(value:)` — there, keep it and just add `.buttonStyle(.plain)`.
 - Doc: `iphone/.claude/SWIFTUI_TRANSITIONS.md` § Button Animation Conflicts.
 
-### Class 2 — LazyVStack children don't ride the modal slide-up
-- **Fix:** use plain `VStack` for modal content that animates in (acceptable < ~50 items). For long lists, keep Lazy and accept/defer the animation instead.
-- Doc: SWIFTUI_TRANSITIONS.md § LazyVStack and Modal Animations.
+### Class 2 — Lazy-container children don't ride the modal/menu slide
+- **Applies to all four lazy containers:** `LazyVStack`, `LazyHStack`, `LazyVGrid`, `LazyHGrid`. (The block-style color picker shipped this bug as a `LazyVGrid` because guidance/greps only named the stacks — search `LazyV\|LazyH`.)
+- **Fix:** build eagerly for small/fixed content (< ~50 items): plain `VStack` for lists; for grids, a `VStack` of `HStack` rows chunked by column count with `.frame(maxWidth: .infinity)` cells (reference: `BlockStyleColorPickerContent` in `BlockStyleEditor.swift`). For long lists, keep Lazy and accept/defer the animation instead.
+- **Sanctioned exception:** lazy cells opacity-gated behind an `appeared` flag that fade in AFTER the menu settles (e.g. `AddActivityMenu`'s staggered tiles) — realization happens while invisible.
+- **Trap:** confirm the lazy container you found is live code — check its enclosing property/struct for references before editing (`BlockStyleEditor.colorPickerGrid` is a dead ⚠️-marked duplicate of the real picker).
+- Doc: SWIFTUI_TRANSITIONS.md § Lazy Containers and Modal Animations.
 
 ### Class 3 — Async-loaded content pops instead of sliding
 - **Diagnostic signature:** dismiss animates correctly but present doesn't; the pane's background/chrome rides while the data-driven content pops; sync-content sibling screens (e.g. a settings pane built from already-loaded state) ride fine. Each affected screen is its own independent Class 3 instance — "all sliders broken" can be N per-page bugs, not one systemic one (this is what the Phase 3.4 group-slider regression turned out to be).

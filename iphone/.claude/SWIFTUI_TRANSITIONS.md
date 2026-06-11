@@ -63,17 +63,27 @@ Button(action: { ... }) {
 
 ---
 
-## LazyVStack and Modal Animations
+## Lazy Containers (LazyVStack/LazyVGrid) and Modal Animations
 
-### Problem: Content inside LazyVStack doesn't animate with modal slide-up
+### Problem: Content inside ANY lazy container doesn't animate with modal/menu slide-up
+
+**This applies to ALL four lazy containers: `LazyVStack`, `LazyHStack`, `LazyVGrid`,
+`LazyHGrid`.** Earlier versions of this section (and the review rules built on it) named
+only the stacks — which is exactly how the block-style color picker shipped a `LazyVGrid`
+of 24 swatches inside an animated menu: greps for "LazyVStack" walked right past it.
+If you're auditing, grep `LazyV\|LazyH`, not a specific type name.
 
 **Symptoms:**
-- Modal slides up with animation
+- Modal/menu slides up with animation
 - Some elements (like headers, search bars) animate correctly
-- List items inside LazyVStack stay fixed or pop in without animation
+- Items inside the lazy container stay fixed or pop in without animation
+  ("the picker appears fixed in place while the menu slides under it")
 
 **Root Cause:**
-`LazyVStack` renders items lazily as they become visible. When a modal starts sliding up from below the screen, the lazy items haven't been rendered yet. As the modal slides up and items become visible, they get rendered but don't participate in the ongoing animation because they weren't in the view hierarchy when the animation started.
+Lazy containers render items only as they become visible. When a modal starts sliding up
+from below the screen, the lazy items haven't been rendered yet. As the modal slides up
+and items become visible, they get rendered but don't participate in the ongoing
+animation because they weren't in the view hierarchy when the animation started.
 
 **Bad Pattern:**
 ```swift
@@ -87,7 +97,7 @@ ScrollView {
 }
 ```
 
-**Good Pattern:**
+**Good Pattern (list):**
 ```swift
 // Modal content with regular VStack
 ScrollView {
@@ -101,8 +111,32 @@ ScrollView {
 }
 ```
 
+**Good Pattern (grid):** replace `LazyVGrid` with a `VStack` of `HStack` rows chunked by
+column count — identical layout for fixed palettes, fully eager:
+```swift
+// 6-column grid, eager — rides the menu slide (was LazyVGrid, which popped)
+VStack(spacing: 2) {
+    ForEach(Array(stride(from: 0, to: Self.colorPalette.count, by: 6)), id: \.self) { rowStart in
+        HStack(spacing: 2) {
+            ForEach(Self.colorPalette[rowStart..<min(rowStart + 6, Self.colorPalette.count)], id: \.self) { hex in
+                swatch(hex)   // each cell .frame(maxWidth: .infinity) for equal widths
+            }
+        }
+    }
+}
+```
+Reference implementation: `BlockStyleColorPickerContent` in `BlockStyleEditor.swift`.
+
+**Sanctioned exception (masked-by-design):** lazy cells that start at opacity 0 behind an
+`appeared` flag and fade in only AFTER the menu settles (e.g. `AddActivityMenu`'s
+staggered tiles) are fine — the lazy realization happens while invisible.
+
+**Trap:** before fixing a lazy grid you found by grep, confirm it's the LIVE one — check
+its enclosing property/struct for references. `BlockStyleEditor` contains a dead inline
+copy of the color picker (`colorPickerGrid`, marked ⚠️ DEAD CODE) right above the real one.
+
 **Trade-off:**
-Regular `VStack` renders all items upfront, which uses more memory for long lists. Only use this pattern for modal content with reasonable item counts (< 50 items). For very long lists, consider alternative approaches like delaying the animation start.
+Regular `VStack` renders all items upfront, which uses more memory for long lists. Only use this pattern for modal content with reasonable item counts (< 50 items). For very long lists, keep the lazy container and accept/defer the animation instead (the media library and video grids do this deliberately).
 
 ---
 

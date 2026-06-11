@@ -68,7 +68,10 @@ dismisses. Drive it from a button: `Button { editingActivityId = activity.id }`.
 2. **Detail content must be present and laid out BEFORE the slide starts** (this is
    the whole point of SlideStack's two-step insertion — but SlideStack can only
    guarantee the *pane*; the page's *data* is YOUR contract). Inside the detail:
-   - **No `LazyVStack`/`LazyHStack`** — use plain `VStack` (`< ~50` items). Lazy
+   - **No lazy containers** — `LazyVStack`/`LazyHStack`/`LazyVGrid`/`LazyHGrid` (grep
+     `LazyV\|LazyH`; a `LazyVGrid` color picker shipped broken because checks only
+     named the stacks). Use plain `VStack` (`< ~50` items); for grids, a `VStack` of
+     `HStack` rows chunked by column count (see `BlockStyleColorPickerContent`). Lazy
      children realize *after* the offset animation begins and land at final position.
    - **Any page that loads data follows the cache-first detail page contract**
      (SWIFTUI_TRANSITIONS.md § Pre-loading Content — the #1 recurring slider bug;
@@ -152,7 +155,8 @@ the detail of one inside the primary/detail of another; each owns its own state 
 
 - The detail's dismiss button sets the binding to `nil`/`false` (no manual animation).
 - No `asyncAfter`, no hand-rolled `HStack { }.offset(x:)`, no `.opacity` on the pane,
-  no `LazyVStack` in animated content, no `AsyncImage` in animated content.
+  no lazy containers (incl. `LazyVGrid`) in animated content, no `AsyncImage` in
+  animated content.
 - **Every page hosted in a detail pane satisfies the cache-first contract** (init
   pre-population + guarded spinner/error in the load function) — including
   pre-existing pages you only re-hosted. Grep the page for `isLoading = true` at the
