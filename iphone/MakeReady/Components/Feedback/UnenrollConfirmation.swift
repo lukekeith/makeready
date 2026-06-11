@@ -31,7 +31,7 @@ enum UnenrollConfirmation {
     ) {
         let message = successMessage(option: option, programName: programName)
 
-        overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
+        overlayManager.present(.confirmationOverlay) {
             ConfirmationOverlay(
                 style: .warning,
                 message: message,

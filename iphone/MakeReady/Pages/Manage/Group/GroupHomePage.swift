@@ -1155,7 +1155,7 @@ struct GroupHomePage: View {
                     isProcessingEnrollment = false
 
                     // Dismiss the processing overlay and show error
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
 
                     // TODO: Show error overlay instead
                     NSLog("❌ Enrollment error: \(error)")
@@ -1171,7 +1171,7 @@ struct GroupHomePage: View {
         // Build the confirmation message with bold parts
         let message = AttributedString.safeMarkdown("**\(enrollmentData.group.name)** has been successfully enrolled in **\(enrollmentData.studyProgram.name)** starting on **\(formattedDate)**.")
 
-        overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
+        overlayManager.present(.confirmationOverlay) {
             ConfirmationOverlay(
                 style: .success,
                 message: message,
@@ -1179,7 +1179,7 @@ struct GroupHomePage: View {
                 isProcessing: $isProcessingEnrollment,
                 processingMessage: "Processing enrollment",
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                     // Return to the main group screen
                     showSettings = false
                     rightScreen = nil

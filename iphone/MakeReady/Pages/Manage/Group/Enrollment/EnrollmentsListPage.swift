@@ -297,7 +297,7 @@ struct EnrollmentsListPage: View {
     }
 
     private func presentUnenrollModal(enrollment: EnrollmentWithProgram) {
-        overlayManager?.presentModal(id: OverlayID.unenrollOptions) {
+        overlayManager?.present(.unenrollOptions) {
             UnenrollOptionsModal(
                 enrollmentId: enrollment.id,
                 programName: enrollment.studyProgram?.name ?? "Study Program",
@@ -306,14 +306,14 @@ struct EnrollmentsListPage: View {
                     handleUnenrollConfirmed(enrollment: enrollment, option: option)
                 },
                 onDismiss: {
-                    overlayManager?.dismiss(id: OverlayID.unenrollOptions)
+                    overlayManager?.dismiss(.unenrollOptions)
                 }
             )
         }
     }
 
     private func handleUnenrollConfirmed(enrollment: EnrollmentWithProgram, option: UnenrollOption) {
-        overlayManager?.dismiss(id: OverlayID.unenrollOptions)
+        overlayManager?.dismiss(.unenrollOptions)
 
         // Store program name and show processing overlay
         unenrolledProgramName = enrollment.studyProgram?.name ?? "the program"
@@ -354,7 +354,7 @@ struct EnrollmentsListPage: View {
             await MainActor.run {
                 isDeleting = false
                 isProcessingUnenrollment = false
-                overlayManager?.dismiss(id: OverlayID.confirmationOverlay)
+                overlayManager?.dismiss(.confirmationOverlay)
                 self.error = "Failed to unenroll: \(error.localizedDescription)"
             }
         }
@@ -369,7 +369,7 @@ struct EnrollmentsListPage: View {
             programName: unenrolledProgramName,
             isProcessing: $isProcessingUnenrollment,
             onDismiss: {
-                overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                overlayManager.dismiss(.confirmationOverlay)
                 if option == .fullRemoval {
                     onDismiss()
                 }

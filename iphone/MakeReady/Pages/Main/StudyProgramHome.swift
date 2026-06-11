@@ -332,7 +332,7 @@ struct MainPrograms: View {
 
         showImportPreview = false
 
-        overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
+        overlayManager.present(.confirmationOverlay) {
             ConfirmationOverlay(
                 style: .success,
                 message: message,
@@ -340,7 +340,7 @@ struct MainPrograms: View {
                 isProcessing: $isProcessingImport,
                 processingMessage: "Importing study program",
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                 }
             )
         }
@@ -359,7 +359,7 @@ struct MainPrograms: View {
                 NSLog("❌ Failed to import program: \(error)")
                 await MainActor.run {
                     isProcessingImport = false
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                 }
             }
         }
@@ -671,7 +671,7 @@ struct MainPrograms: View {
     }
 
     private func presentUnenrollModal(enrollment: ProgramEnrollment) {
-        overlayManager.presentModal(id: OverlayID.unenrollOptions) {
+        overlayManager.present(.unenrollOptions) {
             UnenrollOptionsModal(
                 enrollmentId: enrollment.id,
                 programName: state.programs[enrollment.studyProgramId]?.name ?? "Study Program",
@@ -680,14 +680,14 @@ struct MainPrograms: View {
                     handleEnrollmentUnenrollConfirmed(enrollment: enrollment, option: option)
                 },
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.unenrollOptions)
+                    overlayManager.dismiss(.unenrollOptions)
                 }
             )
         }
     }
 
     private func handleEnrollmentUnenrollConfirmed(enrollment: ProgramEnrollment, option: UnenrollOption) {
-        overlayManager.dismiss(id: OverlayID.unenrollOptions)
+        overlayManager.dismiss(.unenrollOptions)
 
         unenrolledProgramName = state.programs[enrollment.studyProgramId]?.name ?? "the program"
         isProcessingUnenrollment = true
@@ -698,7 +698,7 @@ struct MainPrograms: View {
             programName: unenrolledProgramName,
             isProcessing: $isProcessingUnenrollment,
             onDismiss: {
-                overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                overlayManager.dismiss(.confirmationOverlay)
             }
         )
 
@@ -718,7 +718,7 @@ struct MainPrograms: View {
             } catch {
                 await MainActor.run {
                     isProcessingUnenrollment = false
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                     NSLog("❌ Failed to unenroll: \(error)")
                 }
             }

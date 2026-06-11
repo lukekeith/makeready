@@ -627,7 +627,7 @@ struct ProgramHomePage: View {
 
         showExportConfirm = false
 
-        overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
+        overlayManager.present(.confirmationOverlay) {
             ConfirmationOverlay(
                 style: .success,
                 message: message,
@@ -636,11 +636,11 @@ struct ProgramHomePage: View {
                 isProcessing: $isProcessingExport,
                 processingMessage: "Exporting study program",
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                     presentShareSheet()
                 },
                 onSecondaryDismiss: {
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                     exportedFileURL = nil
                 }
             )
@@ -663,7 +663,7 @@ struct ProgramHomePage: View {
                 NSLog("❌ Failed to export program: \(error)")
                 await MainActor.run {
                     isProcessingExport = false
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                 }
             }
         }

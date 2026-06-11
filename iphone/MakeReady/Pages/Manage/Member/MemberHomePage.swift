@@ -808,7 +808,7 @@ struct MemberHomePage: View {
     }
 
     private func presentUnenrollModal(enrollment: ProgramEnrollment) {
-        overlayManager.presentModal(id: OverlayID.unenrollOptions) {
+        overlayManager.present(.unenrollOptions) {
             UnenrollOptionsModal(
                 enrollmentId: enrollment.id,
                 programName: state.programs[enrollment.studyProgramId]?.name ?? "Study Program",
@@ -817,14 +817,14 @@ struct MemberHomePage: View {
                     handleEnrollmentUnenrollConfirmed(enrollment: enrollment, option: option)
                 },
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.unenrollOptions)
+                    overlayManager.dismiss(.unenrollOptions)
                 }
             )
         }
     }
 
     private func handleEnrollmentUnenrollConfirmed(enrollment: ProgramEnrollment, option: UnenrollOption) {
-        overlayManager.dismiss(id: OverlayID.unenrollOptions)
+        overlayManager.dismiss(.unenrollOptions)
         unenrolledProgramName = state.programs[enrollment.studyProgramId]?.name ?? "the program"
         isProcessingUnenrollment = true
 
@@ -834,7 +834,7 @@ struct MemberHomePage: View {
             programName: unenrolledProgramName,
             isProcessing: $isProcessingUnenrollment,
             onDismiss: {
-                overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                overlayManager.dismiss(.confirmationOverlay)
             }
         )
 
@@ -853,7 +853,7 @@ struct MemberHomePage: View {
             } catch {
                 await MainActor.run {
                     isProcessingUnenrollment = false
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                     NSLog("❌ Failed to unenroll: \(error)")
                 }
             }

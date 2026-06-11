@@ -151,7 +151,7 @@ private struct AnimatedCompletionCircle: View {
 ///
 /// Usage:
 /// ```swift
-/// overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
+/// overlayManager.present(.confirmationOverlay) {
 ///     ConfirmationOverlay(
 ///         style: .success,
 ///         message: AttributedString.safeMarkdown("**Group** has been enrolled in **Program**."),
@@ -159,7 +159,7 @@ private struct AnimatedCompletionCircle: View {
 ///         isProcessing: $isProcessing,
 ///         processingMessage: "Processing enrollment",
 ///         onDismiss: {
-///             overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+///             overlayManager.dismiss(.confirmationOverlay)
 ///             // Navigate back
 ///         }
 ///     )

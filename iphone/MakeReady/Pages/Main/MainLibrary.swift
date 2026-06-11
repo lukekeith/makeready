@@ -1442,7 +1442,7 @@ struct MainLibrary: View {
 
         showImportPreview = false
 
-        overlayManager.present(id: OverlayID.confirmationOverlay, priority: .topLevel) {
+        overlayManager.present(.confirmationOverlay) {
             ConfirmationOverlay(
                 style: .success,
                 message: message,
@@ -1450,7 +1450,7 @@ struct MainLibrary: View {
                 isProcessing: $isProcessingImport,
                 processingMessage: "Importing study program",
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                 }
             )
         }
@@ -1468,7 +1468,7 @@ struct MainLibrary: View {
                 NSLog("❌ Failed to import program: \(error)")
                 await MainActor.run {
                     isProcessingImport = false
-                    overlayManager.dismiss(id: OverlayID.confirmationOverlay)
+                    overlayManager.dismiss(.confirmationOverlay)
                 }
             }
         }
