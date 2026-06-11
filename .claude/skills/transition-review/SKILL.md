@@ -43,8 +43,8 @@ For each rule: inspect the diff (and enough surrounding file context to judge), 
 - **C4 — No `.animation()`/`.transition()` on content inside `SwipeableCard`.**
 
 ### D. Presentation conventions (MODAL_GUIDE)
-- **D1 — New modals/menus use `overlayManager.presentModal()`/`presentMenu()`**, not `.fullScreenCover`/`.sheet`. Allowed exceptions ONLY: camera/video recording, video playback, photo/media pickers, UIKit VCs that must present modally.
-- **D2 — New overlay has a registered `OverlayID`** in `OverlayManager.swift`, and content dismisses via the `dismissOverlay` environment action (or a documented wrapper for `isPresented`-based views).
+- **D1 — New modals/menus use `overlayManager.present(.route)`**, not `.fullScreenCover`/`.sheet` (the string-keyed `presentModal(id:)`/`presentMenu(id:)` API is reserved for dynamic per-entity ids). Allowed exceptions ONLY: camera/video recording, video playback, photo/media pickers, UIKit VCs that must present modally.
+- **D2 — New overlay has a registered `Route` case** in `Services/Route.swift` (id arm + only-if-non-default priority/chrome/dismissOnTapOutside arms — never passed at the call site), and content dismisses via the `dismissOverlay`/`dismissOverlayThen` environment actions (or a documented wrapper for `isPresented`-based views). The `/present-overlay` skill scaffolds this.
 - **D3 — No simultaneous dismiss + present.** Sequenced via instant `dismiss(id:)` then present, or an animation completion handler.
 - **D4 — Menu/modal content contains no chrome** (no own dark overlay, offset animation, or background — `ManagedMenuView`/`ManagedModalView` provide it).
 

@@ -176,11 +176,11 @@ This prevents recurring type-checker timeouts and ViewBuilder limit failures whe
 **ALWAYS use OverlayManager for modals and menus. NEVER use .fullScreenCover for forms, dialogs, or editing pages.**
 
 Before presenting any modal, menu, or overlay:
-1. **Read `MakeReady/Components/Layout/MODAL_GUIDE.md`** for the correct pattern
-2. **Use `overlayManager.presentModal()`** for forms, detail views, and editing pages
-3. **Use `overlayManager.presentMenu()`** for bottom action menus
-4. **Only use `.fullScreenCover`** for video recording, video playback, and photo pickers (hardware access)
-5. **Register a new `OverlayID`** in `OverlayManager.swift` for each new modal
+1. **Use the /present-overlay skill** — it scaffolds the Route registration and presentation correctly
+2. **Read `MakeReady/Components/Layout/MODAL_GUIDE.md`** for the correct pattern
+3. **Register a `Route` case** in `Services/Route.swift` (id + only-if-non-default priority/chrome/dismissOnTapOutside) — chrome and z-order live on the type, never at the call site
+4. **Present via `overlayManager.present(.yourRoute)`** for forms, menus, confirmations, and push-style pages alike
+5. **Only use `.fullScreenCover`** for video recording, video playback, and photo pickers (hardware access)
 
 This prevents flickering, z-order bugs, missing drag indicators, and inconsistent dismiss behavior.
 
