@@ -236,13 +236,15 @@ private struct MediaCollectionView: UIViewRepresentable {
     /// no-ops while a page is in flight or when everything is loaded.
     var onNearEnd: (() -> Void)? = nil
 
-    private static let spacing: CGFloat = 2
-    private static let columnCount: CGFloat = 3
+    fileprivate static let spacing: CGFloat = 2
+    fileprivate static let columnCount: CGFloat = 3
 
-    static var itemSize: CGSize {
-        let screenWidth = Screen.bounds.width
-        let w = floor((screenWidth - spacing * (columnCount - 1)) / columnCount)
-        return CGSize(width: w, height: w) // 1:1 aspect ratio
+    /// Cell size derived from the collection view's own width (Phase 4.6 —
+    /// was computed once from static Screen.bounds, which is wrong on
+    /// rotation/iPad and identical on today's iPhones).
+    fileprivate static func itemSize(forContainerWidth width: CGFloat) -> CGSize {
+        let w = floor((width - spacing * (columnCount - 1)) / columnCount)
+        return CGSize(width: max(w, 1), height: max(w, 1)) // 1:1 aspect ratio
     }
 
     func makeCoordinator() -> Coordinator {
@@ -255,7 +257,8 @@ private struct MediaCollectionView: UIViewRepresentable {
         layout.minimumInteritemSpacing = Self.spacing
         layout.minimumLineSpacing = Self.spacing
         layout.sectionInset = .zero
-        layout.itemSize = Self.itemSize
+        // Item size comes from the flow-layout delegate (sizeForItemAt),
+        // which reads the live collection view width.
 
         let cv = UICollectionView(frame: .zero, collectionViewLayout: layout)
         cv.backgroundColor = .clear
@@ -277,7 +280,16 @@ private struct MediaCollectionView: UIViewRepresentable {
         coordinator.applySnapshotIfNeeded()
     }
 
-    class Coordinator: NSObject, UICollectionViewDelegate, UICollectionViewDataSourcePrefetching {
+    class Coordinator: NSObject, UICollectionViewDelegateFlowLayout, UICollectionViewDataSourcePrefetching {
+
+        func collectionView(_ collectionView: UICollectionView, layout collectionViewLayout: UICollectionViewLayout, sizeForItemAt indexPath: IndexPath) -> CGSize {
+            // Fall back to the window/screen width before first layout.
+            let width = collectionView.bounds.width > 0
+                ? collectionView.bounds.width
+                : (collectionView.window?.bounds.width ?? Screen.bounds.width)
+            return MediaCollectionView.itemSize(forContainerWidth: width)
+        }
+
         var parent: MediaCollectionView
         weak var collectionView: UICollectionView?
         var lastItemIds: [String] = []
