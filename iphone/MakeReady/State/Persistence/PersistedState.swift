@@ -191,8 +191,22 @@ struct PersistedState: Codable {
         // Templates
         self.templates = appState.templates.all
 
-        // Media library
-        self.mediaLibrary = appState.mediaLibrary.all
+        // Media library — cap the persisted snapshot at one page (media plan
+        // M0.1). Phase 4.1's pagination made the resident set unbounded (deep
+        // scrolling accumulates pages), and persisting it all made every disk
+        // write grow with scroll depth. Pre-pagination builds never persisted
+        // more than the first page, and cold launch only needs that: first
+        // page from disk, network refresh follows. Newest-first order so the
+        // persisted page is the one the grid shows first.
+        self.mediaLibrary = Array(appState.orderedMedia.prefix(MediaActions.libraryPageSize))
+        // M0.5 telemetry: scale problems should show in console before users
+        // feel them.
+        NSLog(
+            "💾 PersistedState: media resident=%d persisted=%d (cap %d)",
+            appState.mediaLibrary.count,
+            self.mediaLibrary.count,
+            MediaActions.libraryPageSize
+        )
         self.textThemes = appState.textThemes
         self.organizationId = appState.organizationId
 
