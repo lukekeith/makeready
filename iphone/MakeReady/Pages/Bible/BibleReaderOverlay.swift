@@ -938,10 +938,28 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
 
                 // Build verse circles after text is laid out
                 DispatchQueue.main.async { [weak self] in
-                    self?.layoutVerseCircles()
+                    guard let self else { return }
+
+                    // Force FULL text layout before measuring anything. Jumping
+                    // mid-chapter (e.g. a search result landing on verse 11)
+                    // otherwise only forces layout up to the target verse, and
+                    // UITextView's contentSize sticks at that partial extent —
+                    // clamping scrolling about one screen past the landing
+                    // verse instead of covering the whole chapter.
+                    self.readerTextView.layoutManager.ensureLayout(for: self.readerTextView.textContainer)
+                    let fitted = self.readerTextView.sizeThatFits(
+                        CGSize(width: self.readerTextView.bounds.width, height: .greatestFiniteMagnitude)
+                    )
+                    if self.readerTextView.contentSize.height < fitted.height {
+                        self.readerTextView.contentSize = CGSize(
+                            width: self.readerTextView.bounds.width, height: fitted.height
+                        )
+                    }
+
+                    self.layoutVerseCircles()
 
                     // Scroll to target verse (skip for verse 1 — stay at top showing chapter heading)
-                    if scrollToVerse > 1, let self, let entry = self.verseRanges.first(where: { $0.verse == scrollToVerse }) {
+                    if scrollToVerse > 1, let entry = self.verseRanges.first(where: { $0.verse == scrollToVerse }) {
                         let glyphRange = self.readerTextView.layoutManager.glyphRange(forCharacterRange: entry.range, actualCharacterRange: nil)
                         let rect = self.readerTextView.layoutManager.boundingRect(forGlyphRange: glyphRange, in: self.readerTextView.textContainer)
                         let offsetY = max(0, rect.minY + self.readerTextView.textContainerInset.top - 20)
@@ -1367,9 +1385,16 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
             return cell
         }
 
-        // Search result card
+        // Search result card. Named-passage (pericope) results carry a title
+        // and summary; result.verse is always the passage's start verse, so
+        // tapping lands the reader on the passage for every result kind.
         let result = searchResults[indexPath.row]
-        let cardView = CardBibleSearchResult(reference: result.reference, text: result.text) { [weak self] in
+        let cardView = CardBibleSearchResult(
+            reference: result.reference,
+            text: result.text,
+            title: result.title,
+            summary: result.summary
+        ) { [weak self] in
             guard let self, let bookInfo = bibleBooks.first(where: { $0.id == result.bookNumber }) else { return }
             // Navigate to the reader with the tapped verse highlighted, mirroring the
             // verses-grid tap behavior. Notify the parent (informational only) and

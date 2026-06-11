@@ -26,9 +26,16 @@ struct SemanticResult: Codable {
     let book: BibleBook
     let chapter: Int
     let verse: Int
+    /// Present for multi-verse range results (verse = range start), e.g. "Luke 15:11-24"
+    let verseEnd: Int?
     let text: String
     let reference: String
     let similarity: Double
+    /// Named-passage (pericope) results only, e.g. "The Parable of the Prodigal Son".
+    /// For these, text is an opening-verses snippet rather than the full passage.
+    let title: String?
+    /// 1-2 sentence passage summary (pericope results only)
+    let summary: String?
 }
 
 struct BookSuggestion: Codable {
@@ -99,7 +106,10 @@ struct SearchResultItem: Identifiable {
     let bookNumber: Int
     let chapter: Int
     let verse: Int
+    let verseEnd: Int?       // Multi-verse range results (verse = range start)
     let similarity: Double?  // Only for semantic results
+    let title: String?       // Named-passage (pericope) results only
+    let summary: String?     // 1-2 sentence passage summary (pericope results only)
 
     init(from verse: BibleVerse, book: BibleBook, chapter: Int) {
         self.reference = verse.reference
@@ -107,7 +117,10 @@ struct SearchResultItem: Identifiable {
         self.bookNumber = book.bookNumber
         self.chapter = chapter
         self.verse = verse.verse
+        self.verseEnd = nil
         self.similarity = nil
+        self.title = nil
+        self.summary = nil
     }
 
     init(from result: SemanticResult) {
@@ -116,7 +129,10 @@ struct SearchResultItem: Identifiable {
         self.bookNumber = result.book.bookNumber
         self.chapter = result.chapter
         self.verse = result.verse
+        self.verseEnd = result.verseEnd
         self.similarity = result.similarity
+        self.title = result.title
+        self.summary = result.summary
     }
 }
 
