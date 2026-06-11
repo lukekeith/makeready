@@ -991,6 +991,10 @@ models:
       - fields: [type]
       - fields: [videoId]
       - fields: [uploadStatus]
+      # Keyset pagination (media plan M1.1): equality on organizationId plus
+      # a range scan over (createdAt, id) keeps cursor pages index-served at
+      # any depth. Plain ASC btree — Postgres scans it backward for DESC.
+      - fields: [organizationId, createdAt, id]
 
   # ---------------------------------------------------------------------------
   # Media Tags (free-form taxonomy)

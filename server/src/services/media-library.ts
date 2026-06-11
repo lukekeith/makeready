@@ -55,7 +55,37 @@ export interface LibraryFilters {
   isActive?: boolean
   page?: number
   limit?: number
+  /// Keyset cursor (media plan M1.2): opaque base64 of `createdAt|id` from a
+  /// previous response's `nextCursor`. When set, `page` is ignored and the
+  /// response carries exact `hasMore` and omits `total` — clients keep the
+  /// exact total from their initial page-1 response (M1.4: this keeps
+  /// count(*) off the hot deep-paging path entirely).
+  cursor?: string
 }
+
+// MARK: Keyset cursor codec (M1.2). Opaque to clients; composes with every
+// filter because it's just an AND'd range predicate on the sort key.
+
+const CURSOR_SEPARATOR = '|'
+
+export function encodeLibraryCursor(createdAt: Date, id: string): string {
+  return Buffer.from(`${createdAt.toISOString()}${CURSOR_SEPARATOR}${id}`).toString('base64url')
+}
+
+export function decodeLibraryCursor(cursor: string): { createdAt: Date; id: string } | null {
+  try {
+    const raw = Buffer.from(cursor, 'base64url').toString('utf8')
+    const sep = raw.indexOf(CURSOR_SEPARATOR)
+    if (sep < 0) return null
+    const createdAt = new Date(raw.slice(0, sep))
+    const id = raw.slice(sep + 1)
+    if (Number.isNaN(createdAt.getTime()) || !id) return null
+    return { createdAt, id }
+  } catch {
+    return null
+  }
+}
+
 
 // ============================================================================
 // Org Resolution Helper
@@ -304,6 +334,7 @@ export async function listLibrary(filters: LibraryFilters) {
     isActive = true,
     page = 1,
     limit = 20,
+    cursor,
   } = filters
 
   const skip = (page - 1) * limit
@@ -348,33 +379,81 @@ export async function listLibrary(filters: LibraryFilters) {
     ]
   }
 
-  const [media, total] = await Promise.all([
-    prisma.media.findMany({
-      where,
-      include: {
-        uploader: { select: { id: true, name: true, email: true } },
-        tags: { select: { tag: true } },
-        video: { select: { id: true, status: true, duration: true, playbackUrl: true } },
-        _count: { select: { usages: true } },
+  // Keyset predicate (M1.2): strictly-after the cursor row in
+  // (createdAt DESC, id DESC) order. AND'd so it composes with every filter
+  // above — including the q/search OR clauses — without clobbering them.
+  const decodedCursor = cursor ? decodeLibraryCursor(cursor) : null
+  if (decodedCursor) {
+    where.AND = [
+      ...(where.AND ?? []),
+      // Redundant upper bound that the planner CAN push into the index
+      // condition — without it the OR below is only a post-scan filter and
+      // the backward index scan restarts from the newest row every page,
+      // degrading O(depth). With it, the scan starts at the cursor position.
+      { createdAt: { lte: decodedCursor.createdAt } },
+      {
+        OR: [
+          { createdAt: { lt: decodedCursor.createdAt } },
+          { createdAt: decodedCursor.createdAt, id: { lt: decodedCursor.id } },
+        ],
       },
-      orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-    }),
+    ]
+  }
+
+  const include = {
+    uploader: { select: { id: true, name: true, email: true } },
+    tags: { select: { tag: true } },
+    video: { select: { id: true, status: true, duration: true, playbackUrl: true } },
+    _count: { select: { usages: true } },
+  } as const
+
+  // `id` tiebreaker added to both modes: createdAt alone isn't unique, so
+  // without it rows with identical timestamps could repeat/skip across pages.
+  const orderBy = [{ createdAt: 'desc' as const }, { id: 'desc' as const }]
+
+  const mapRow = (m: any) => ({
+    ...m,
+    tags: m.tags.map((t: any) => t.tag),
+    usageCount: m._count.usages,
+    _count: undefined,
+  })
+
+  if (decodedCursor) {
+    // Cursor mode (M1.2): fetch limit+1 to derive an exact hasMore without
+    // any count(*) — `total` is intentionally omitted (clients keep the
+    // exact total from their initial page-1 response; M1.4).
+    const rows = await prisma.media.findMany({ where, include, orderBy, take: limit + 1 })
+    const hasMore = rows.length > limit
+    const pageRows = hasMore ? rows.slice(0, limit) : rows
+    const last = pageRows[pageRows.length - 1]
+
+    return {
+      data: pageRows.map(mapRow),
+      limit,
+      hasMore,
+      nextCursor: hasMore && last ? encodeLibraryCursor(last.createdAt, last.id) : null,
+    }
+  }
+
+  // Page mode — unchanged behavior for existing clients (web admin), plus
+  // nextCursor/hasMore so cursor-capable clients can switch to keyset
+  // paging after their first page-mode request.
+  const [media, total] = await Promise.all([
+    prisma.media.findMany({ where, include, orderBy, skip, take: limit }),
     prisma.media.count({ where }),
   ])
 
+  const last = media[media.length - 1]
+  const hasMore = skip + media.length < total
+
   return {
-    data: media.map((m) => ({
-      ...m,
-      tags: m.tags.map((t) => t.tag),
-      usageCount: m._count.usages,
-      _count: undefined,
-    })),
+    data: media.map(mapRow),
     total,
     page,
     limit,
     totalPages: Math.ceil(total / limit),
+    hasMore,
+    nextCursor: hasMore && last ? encodeLibraryCursor(last.createdAt, last.id) : null,
   }
 }
 

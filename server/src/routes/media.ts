@@ -1068,6 +1068,16 @@ router.delete(
  *         schema:
  *           type: integer
  *           default: 1
+ *         description: Offset paging (deprecated for deep paging — prefer cursor)
+ *       - in: query
+ *         name: cursor
+ *         schema:
+ *           type: string
+ *         description: |
+ *           Opaque keyset cursor from a previous response's `nextCursor`.
+ *           When set, `page` is ignored; the response carries exact `hasMore`
+ *           and `nextCursor` and omits `total` (use the total from your
+ *           initial page-mode request). Stays flat at any depth.
  *       - in: query
  *         name: limit
  *         schema:
@@ -1075,7 +1085,7 @@ router.delete(
  *           default: 20
  *     responses:
  *       200:
- *         description: Paginated library results
+ *         description: Paginated library results (page mode includes total/totalPages; both modes include hasMore/nextCursor)
  */
 router.get(
   '/organizations/:organizationId/media/library',
@@ -1085,7 +1095,7 @@ router.get(
     try {
       const { organizationId } = req.params
       const userId = (req.user as any)?.id
-      const { uploadedBy, leaders, type, tags, search, q, page, limit } = req.query
+      const { uploadedBy, leaders, type, tags, search, q, page, limit, cursor } = req.query
 
       const resolvedUploadedBy = uploadedBy === 'me' ? userId : (uploadedBy as string | undefined)
       const tagList = tags ? (tags as string).split(',').map((t) => t.trim()).filter(Boolean) : undefined
@@ -1101,6 +1111,7 @@ router.get(
         q: q as string | undefined,
         page: page ? parseInt(page as string, 10) : undefined,
         limit: limit ? parseInt(limit as string, 10) : undefined,
+        cursor: cursor as string | undefined,
       })
 
       res.json({ success: true, ...result })
