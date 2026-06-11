@@ -2,7 +2,7 @@
 
 > Companion to [iphone-2026-06-10-plan.md](./iphone-2026-06-10-plan.md) (the phase definitions) and
 > [../plans/media-2026-06-10.md](../plans/media-2026-06-10.md) (media-at-scale plan).
-> Update this file at every phase/step boundary. Last updated: **2026-06-10 (end of session 2)**.
+> Update this file at every phase/step boundary. Last updated: **2026-06-10 (session 3, after 3.4)**.
 
 ## Status at a glance
 
@@ -14,39 +14,56 @@
 | 4 — Media structural pass (all 7 steps) | ✅ Done (ran before Phase 3; plan allows parallel) | `fbe8e69`…`63c3a4d` |
 | 3.1 — Motion tokens | ✅ Done (117 sites, machine-verified value-identical) | `bfd0d4c` |
 | 3.2 — Completion-based sequencing | ✅ Done (14/17 waits migrated; 3 triaged, see below) | `74cdb8e` |
-| 3.3 — SlideStack + EditDay pilot | ⚠️ **Committed but awaiting HAND-FEEL verification** | `7915e95` |
-| 3.4 — Migrate remaining sliders | ⬜ Next (blocked on 3.3 hand-feel) | — |
+| 3.3 — SlideStack + EditDay pilot | ✅ Done, hand-feel verified | `7915e95` |
+| 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | ⚠️ **Committed, build + 65 tests green; awaiting hand-feel** | `9b8dfe0`…`fa0f64e` |
 | 3.5–3.10 — Skills, Route enum, NavigationCoordinator, cleanup | ⬜ Not started | — |
 | 5 — Enforcement layer | ⬜ Not started | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
 ## ▶ First action on resume
 
-**Hand-feel verify the SlideStack pilot** before any 3.4 work (the remaining sliders copy this pattern):
-1. Program → day → tap an activity: edit pane slides in, content fully present during the slide (no pop-in)
-2. Cancel and Save: identical slide-out, no flash at unmount
-3. Add an exegesis activity: jumps straight into its editor
-4. Menu flow (User menu → My Profile): modal appears the instant the menu closes
-If anything feels off, `/animation-debug` maps symptom → failure class; the slide must be `Motion.standard` both directions.
+**Hand-feel verify the 3.4 migrations** before 3.5+ (every flow below, slide must be
+`Motion.standard` both directions; `/animation-debug` maps any symptom → failure class):
+1. Group → enrollments (book icon) → tap enrollment → tap a day in the schedule → edit a
+   READ/USER_INPUT activity → Cancel and Save. That one path exercises **three nested
+   SlideStacks** (EnrollmentsListPage → EnrollmentSchedulePage → EditEnrollmentDay).
+2. EnrollmentSchedulePage as **modal** (lesson action menu → Edit activities): content must
+   still ride the open slide — `cachedWidth` was dropped; watch for any width jump.
+3. Edit READ activity → Edit Themes (now mounts on demand instead of always-mounted).
+4. Create program → lands on program home → tap a day (nested SlideStacks; EditDay pane
+   previously mounted+slid same-tick — should now slide with content present).
+5. Program home → gear (Edit Program) and → tap a day (enum-item SlideStack; the old
+   opacity swap is gone).
+6. Group home → gear/settings (**enters from the LEFT** — `detailEdge: .leading`), and
+   paperplane/person.2/book right screens. These panes were always-mounted before and now
+   mount on demand — if any content pops in mid-slide, fix is B2 (cache-first init) in that
+   page, not in SlideStack.
 
-## Phase 3.4 worklist (one commit per slider)
+## Phase 3.4 — DONE (7 sliders, one commit each)
 
-Pilot pattern established in `EditDay.swift` (see commit `7915e95`): replace the page's
-show-flag + GeometryReader/HStack/offset/`.animation` + asyncAfter unmount with
-`SlideStack(item:)`; detail content must build from the **mounted** item the builder
-receives, never from page state that nils at dismissal.
+All hand-rolled sliders are gone; `SlideStack` is the only slide-navigation mechanism:
 
-Migration order (audit 3.4): `EditEnrollmentDay` (has the same `dismissEditActivity`
-asyncAfter, already comment-flagged) → `EnrollmentSchedulePage` → `EditReadActivityPage` →
-`CreateProgramPage` → `ProgramHomePage` (nested opacity-swap third screen — may need a
-SlideStack variant or configuration) → `GroupHomePage` **last** (inverted screen-0-on-the-left
-quirk; preserve via configuration, don't "fix"). Run `/transition-review` on every diff.
+| Page | Commit | Notes |
+|---|---|---|
+| EditEnrollmentDay | `9b8dfe0` | absorbed its `dismissEditActivity` asyncAfter(0.35) |
+| EnrollmentSchedulePage | `de5c701` | dropped `cachedWidth` (pre-monorepo, no rationale) |
+| EditReadActivityPage | `b98e374` | added `SlideStack(isPresented:)` Bool convenience |
+| CreateProgramPage | `9d151f6` | nested SlideStacks (form → home → EditDay) |
+| ProgramHomePage | `c271241` | `DetailScreen` enum item replaced opacity swap; no variant needed |
+| GroupHomePage | `81396ab` | added `detailEdge: .leading` to preserve inverted layout; edge-swipe-back is trailing-only |
+| EnrollmentsListPage | `fa0f64e` | **audit miss** found by sweep; had an asyncAfter(**0.3**) the 0.35-grep missed |
+
+**EnrollmentFlowModal: deliberately NOT migrated.** It's a 4-step wizard (`panelIndex`
+over conditionally-present panels, bidirectional) — not a primary/detail stack. No unmount
+waits. If a second wizard ever appears, that's the trigger for a `SlideFlow` container.
 
 ## Triage decisions already made (don't re-litigate)
 
-- **3 surviving `asyncAfter(0.35)` sites:** `EditDay`+`EditEnrollmentDay` `dismissEditActivity`
-  (absorbed by SlideStack migration — EditDay's is already gone) and `ModalOverlay.swift`,
+- **Surviving `asyncAfter` choreography sites after 3.4:** only `ModalOverlay.swift` (0.35),
   which is **dead code** (zero call sites) — delete the whole file + pbxproj entries in 3.10.
+  The EditDay/EditEnrollmentDay/EnrollmentsListPage waits were all absorbed by SlideStack.
+  (`EnrollmentSchedulePage` keeps its 0.5s modal-open settle wait — that's modal-open gating,
+  not slider choreography; candidate for Decision Point work.)
 - **2.4 deviation:** BibleSearchService/BibleCacheManager/InviteQRCodeView stay on URLSession —
   the server intentionally serves `/api/bible/*`, `/api/search/smart|suggestions`,
   `/api/qrcode/test` without auth, and APIClient hard-requires a session cookie. Documented in
