@@ -148,3 +148,33 @@ struct SlideStack<Item: Equatable & Hashable, Primary: View, Detail: View>: View
         }
     }
 }
+
+// MARK: - Bool-driven convenience
+
+extension SlideStack where Item == Bool {
+    /// Flag-driven variant for sliders whose detail pane has no identity —
+    /// a single fixed second screen presented and dismissed by a Bool
+    /// (e.g. EditReadActivityPage's theme editor). Same choreography as the
+    /// item-driven form; the detail content mounts one runloop before the
+    /// slide and stays mounted until the slide-out completes.
+    init(
+        isPresented: Binding<Bool>,
+        animation: Animation = Motion.standard,
+        edgeSwipeBack: Bool = false,
+        onDismissComplete: (() -> Void)? = nil,
+        @ViewBuilder primary: @escaping () -> Primary,
+        @ViewBuilder detail: @escaping () -> Detail
+    ) {
+        self.init(
+            item: Binding<Bool?>(
+                get: { isPresented.wrappedValue ? true : nil },
+                set: { isPresented.wrappedValue = ($0 != nil) }
+            ),
+            animation: animation,
+            edgeSwipeBack: edgeSwipeBack,
+            onDismissComplete: onDismissComplete,
+            primary: primary,
+            detail: { _ in detail() }
+        )
+    }
+}

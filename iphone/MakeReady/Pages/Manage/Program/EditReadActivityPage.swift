@@ -284,18 +284,14 @@ struct EditReadActivityPage: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Screen 1: Edit Activity
-                editActivityContent
-                    .frame(width: geometry.size.width)
-
-                // Screen 2: Theme Editor (inline block style editors)
-                themeEditorContent
-                    .frame(width: geometry.size.width)
-            }
-            .offset(x: showThemeEditor ? -geometry.size.width : 0)
-            .animation(Motion.standard, value: showThemeEditor)
+        // Canonical slider (Phase 3.4): SlideStack owns the slide choreography
+        // this page previously hand-rolled with an always-mounted second pane +
+        // offset/.animation. The theme editor now mounts one runloop before the
+        // slide and unmounts when the slide-out completes.
+        SlideStack(isPresented: $showThemeEditor) {
+            editActivityContent
+        } detail: {
+            themeEditorContent
         }
         .fullScreenCover(isPresented: $showSlidePreview) {
             LessonPreviewModal(
