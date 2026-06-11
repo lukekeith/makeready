@@ -28,7 +28,10 @@
 | 3.8 — NavigationCoordinator | ✅ **Done — build green, deep links + KPI jumps device-verified.** Typed NavDestination + exhaustive handle(deepLink:); MainView tab state migrated; coordinator in environment. The 106-flag presentation-boolean migration happens opportunistically with future page work (by design, see NavigationCoordinator.swift header). | `dfc5438` |
 | 3.9 — `/nav-route` skill | ✅ Done | `cd2bdbf` |
 | 3.10 — Cleanup sweep | ✅ **Done — build green, sheets/pickers device-verified post-NavigationStack.** Deleted ContentView/ModalOverlay/BackgroundPickerModal/InlineColorPalette + BlockStyleEditor dead grid. 2 forbidden fullScreenCovers stay (Decision Point B). **Phase 3 (3.1–3.10) is COMPLETE.** | `488afcd` |
-| 5 — Enforcement layer | ⬜ Not started | — |
+| 5.1 — SwiftLint gate | 🟡 **Code complete, AWAITING USER BUILD** (the new Xcode phase must run once under ENABLE_USER_SCRIPT_SANDBOXING=YES; it degrades to a warning on tooling failure, fails only on real new violations). 2,449 existing violations baselined — the 5.3/5.4 migration backlog, frozen. | `4074c1a` |
+| 5.2 — os.Logger wrappers | 🟡 Same build gate. `Log.<domain>` (auth/state/nav/media/api/push/ui/bible); NSLog migration is opportunistic. | `443b975` |
+| 5.3–5.5, 5.7 — token migrations, fixtures, model splits | ⬜ Not started (mechanical; baseline counts: 1023 font sizes, 424 hexes, fixtures, splits) | — |
+| 5.6 — `/ios-error-surface` skill | ⬜ Blocked on Decision Point A (error toast UI) | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
 ## ✅ CLOSED — slider regression (fixed, device-verified, committed `8b34f45`+`6023d94`)
