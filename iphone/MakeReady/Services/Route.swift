@@ -124,6 +124,10 @@ enum Route: Equatable, Hashable {
 
     /// The z-index bucket this surface presents in — folds the priority that
     /// was previously passed positionally at each call site into the type.
+    /// Verified against every live call site during 3.6d:
+    /// `unenrollOptions` is presented via `presentModal` with default `.modal`
+    /// priority (NOT `.menu` as the design draft guessed); `stylePicker` is
+    /// presented via `presentMenu` with default `.menu` priority.
     var priority: OverlayPriority {
         switch self {
         case .addActivityMenu, .confirmationOverlay:
@@ -131,21 +135,46 @@ enum Route: Equatable, Hashable {
         case .userMenu, .addMenu, .hamburgerMenu, .lessonActionMenu,
              .librarySortMenu, .libraryAddMenu, .groupsAddMenu, .groupsInviteMenu,
              .bibleVersionMenu, .exegesisHighlightActionMenu, .backgroundSourceMenu,
-             .unenrollOptions:
+             .stylePicker:
             return .menu
         default:
             return .modal
         }
     }
 
-    /// Which chrome wrapper this route uses, so a future `present(_:content:)`
-    /// can pick presentModal vs presentMenu rather than the call site choosing.
-    /// 3.6d refines per-route (e.g. routes that should use presentPage) as the
-    /// matching call sites migrate; the menu/modal split below is the safe
-    /// default and matches today's priority buckets.
+    /// Which chrome wrapper this route uses, so `present(_:content:)` picks
+    /// presentModal vs presentMenu vs presentPage vs raw rather than the call
+    /// site choosing. Refined during 3.6d to match every live call site
+    /// byte-for-byte (prime directive: zero behavior change):
+    /// - `addActivityMenu` and `confirmationOverlay` are presented RAW —
+    ///   `AddActivityMenu`/`ConfirmationOverlay` own their chrome.
+    /// - `memberRequests` is push-style (`presentPage`).
     enum Chrome { case modal, menu, page, raw }
     var chrome: Chrome {
-        priority == .menu ? .menu : .modal
+        switch self {
+        case .addActivityMenu, .confirmationOverlay:
+            return .raw
+        case .memberRequests:
+            return .page
+        default:
+            return priority == .menu ? .menu : .modal
+        }
+    }
+
+    /// Whether tapping the dark background dismisses (modal chrome only) —
+    /// folds the per-call-site `dismissOnTapOutside:` flag into the type.
+    /// These flows have explicit Cancel/Done affordances and multi-step state
+    /// that a stray background tap must not discard. Every live call site for
+    /// these four routes passed `dismissOnTapOutside: false`; all other modal
+    /// routes used the default `true`.
+    var dismissOnTapOutside: Bool {
+        switch self {
+        case .enrollmentSchedule, .editEnrollmentDay,
+             .enrollmentFlow, .programEnrollmentFlow:
+            return false
+        default:
+            return true
+        }
     }
 }
 
@@ -159,7 +188,12 @@ extension OverlayManager {
     func present<V: View>(_ route: Route, @ViewBuilder content: () -> V) {
         switch route.chrome {
         case .modal:
-            presentModal(id: route.id, priority: route.priority, content: content)
+            presentModal(
+                id: route.id,
+                priority: route.priority,
+                dismissOnTapOutside: route.dismissOnTapOutside,
+                content: content
+            )
         case .menu:
             presentMenu(id: route.id, priority: route.priority, content: content)
         case .page:
