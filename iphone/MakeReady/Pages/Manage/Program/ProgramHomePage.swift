@@ -102,10 +102,17 @@ struct ProgramHomePage: View {
 
     @State private var selectedTab = 0
     @State private var coverImage: UIImage?
-    @State private var editingLesson: Lesson? = nil
-    @State private var showEditDay = false
-    @State private var showEditProgram = false
     @State private var isUploadingImage = false
+
+    /// Which detail pane the slider shows. One enum item replaces the old
+    /// showEditProgram/showEditDay flags + always-mounted opacity swap: only
+    /// the active detail is built, and SlideStack keys content identity off
+    /// the item so switching lessons recreates the EditDay pane.
+    private enum DetailScreen: Equatable, Hashable {
+        case editProgram
+        case editDay(lessonId: String)
+    }
+    @State private var detailScreen: DetailScreen? = nil
 
     // Delete confirmation
     @State private var lessonToDelete: Lesson? = nil
@@ -148,43 +155,17 @@ struct ProgramHomePage: View {
     @State private var editTags: [String] = []
     @State private var originalEditTags: [String] = []
 
-    private var showSecondScreen: Bool {
-        showEditProgram || showEditDay
-    }
-
     var body: some View {
-        GeometryReader { geometry in
+        Group {
             if let program = program {
-                HStack(spacing: 0) {
-                    // Screen 1: Main program view
+                // Canonical slider (Phase 3.4): SlideStack with an enum item
+                // replaces the hand-rolled offset slider whose second pane
+                // opacity-swapped between the two edit screens.
+                SlideStack(item: $detailScreen) {
                     mainContent(program: program)
-                        .frame(width: geometry.size.width)
-
-                    // Screen 2: Container for edit screens
-                    ZStack {
-                        // Edit program settings
-                        editProgramContent(program: program)
-                            .opacity(showEditProgram ? 1 : 0)
-
-                        // Edit day
-                        if let lesson = editingLesson {
-                            EditDay(
-                                isPresented: $showEditDay,
-                                programId: programId,
-                                lesson: lesson,
-                                onLessonUpdated: { _ in
-                                    // No-op: AppState updates automatically via Actions
-                                },
-                                onShowAddActivityMenu: onShowAddActivityMenu
-                            )
-                            .id(lesson.id)
-                            .opacity(showEditDay ? 1 : 0)
-                        }
-                    }
-                    .frame(width: geometry.size.width)
+                } detail: { screen in
+                    detailPane(screen: screen, program: program)
                 }
-                .offset(x: showSecondScreen ? -geometry.size.width : 0)
-                .animation(Motion.standard, value: showSecondScreen)
             } else if isLoadingProgram {
                 loadingContent
             } else {
@@ -195,6 +176,34 @@ struct ProgramHomePage: View {
         .task {
             // Trigger data load via Actions - AppState updates, view re-renders
             await loadProgramData()
+        }
+    }
+
+    // MARK: - Detail Pane (Screen 2)
+
+    /// Detail pane for the slider. Built from the SlideStack-mounted item —
+    /// NOT from detailScreen, which clears at dismissal while the pane is
+    /// still sliding out. The lesson is looked up live from AppState.
+    @ViewBuilder
+    private func detailPane(screen: DetailScreen, program: StudyProgram) -> some View {
+        switch screen {
+        case .editProgram:
+            editProgramContent(program: program)
+        case .editDay(let lessonId):
+            if let lesson = state.lessonsFor(programId: programId).first(where: { $0.id == lessonId }) {
+                EditDay(
+                    isPresented: Binding(
+                        get: { detailScreen != nil },
+                        set: { if !$0 { detailScreen = nil } }
+                    ),
+                    programId: programId,
+                    lesson: lesson,
+                    onLessonUpdated: { _ in
+                        // No-op: AppState updates automatically via Actions
+                    },
+                    onShowAddActivityMenu: onShowAddActivityMenu
+                )
+            }
         }
     }
 
@@ -410,7 +419,7 @@ struct ProgramHomePage: View {
                             editIsPublished = current?.isPublished ?? false
                             editTags = current?.tags ?? []
                             originalEditTags = editTags
-                            showEditProgram = true
+                            detailScreen = .editProgram
                             // Load tags from API in background
                             Task {
                                 if let tags = try? await ProgramActions().getTags(programId: programId) {
@@ -907,10 +916,7 @@ struct ProgramHomePage: View {
             ] : [],
             isSwipeEnabled: canEdit,
             onTap: {
-                editingLesson = lesson
-                DispatchQueue.main.async {
-                    showEditDay = true
-                }
+                detailScreen = .editDay(lessonId: lesson.id)
             }
         ) {
             CardLesson(data: cardLessonData(from: lesson), showAnimatedBorder: true)
@@ -1107,7 +1113,7 @@ struct ProgramHomePage: View {
                         leftIcon: "chevron.left",
                         rightLink: "Done",
                         onLeftIconTap: {
-                            showEditProgram = false
+                            detailScreen = nil
                         },
                         onRightLinkTap: {
                             // Block publishing via settings if any lesson lacks an activity.
@@ -1116,7 +1122,7 @@ struct ProgramHomePage: View {
                                 return
                             }
                             saveProgram(programId: program.id)
-                            showEditProgram = false
+                            detailScreen = nil
                         }
                     )
                 } else {
@@ -1126,7 +1132,7 @@ struct ProgramHomePage: View {
                         title: "Program",
                         icon: "chevron.left",
                         onIconTap: {
-                            showEditProgram = false
+                            detailScreen = nil
                         }
                     )
                 }
