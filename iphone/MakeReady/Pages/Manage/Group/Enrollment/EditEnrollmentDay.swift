@@ -18,20 +18,12 @@ struct EditEnrollmentDay: View {
     // Navigation state — track the activity being edited by id so we read live
     // data from AppState instead of holding a stale snapshot.
     @State private var editingActivityId: String? = nil
-    @State private var showEditActivity = false
 
     /// Live activity list, read directly from AppState. Mutations go through
     /// EnrollmentActions which upsert into the same store, so this view re-renders
     /// the moment any verse/block/order changes anywhere in the app.
     private var activities: [ScheduledActivity] {
         AppState.shared.scheduledActivitiesFor(lessonId: schedule.lesson.id)
-    }
-
-    /// Activity currently being edited inline (looked up live from the lesson
-    /// aggregate in AppState).
-    private var editingActivityInline: ScheduledActivity? {
-        guard let id = editingActivityId else { return nil }
-        return activities.first { $0.id == id }
     }
 
     /// Writable binding for Dragula reorder. Reads live from the lesson
@@ -115,23 +107,13 @@ struct EditEnrollmentDay: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            HStack(spacing: 0) {
-                // Screen 1: Day content (activity list)
-                dayContent
-                    .frame(width: geometry.size.width)
-
-                // Screen 2: Inline edit view
-                ZStack {
-                    if let activity = editingActivityInline {
-                        editActivityView(activity: activity)
-                            .id(activity.id)
-                    }
-                }
-                .frame(width: geometry.size.width)
-            }
-            .offset(x: showEditActivity ? -geometry.size.width : 0)
-            .animation(Motion.standard, value: showEditActivity)
+        // Canonical slider (Phase 3.4): SlideStack owns the two-step insertion,
+        // the single animation driver, and the completion-tied unmount this page
+        // previously hand-rolled with showEditActivity + an asyncAfter(0.35) wait.
+        SlideStack(item: $editingActivityId) {
+            dayContent
+        } detail: { activityId in
+            inlineEditPane(activityId: activityId)
         }
         .onAppear {
             let title = schedule.lesson.title ?? ""
@@ -344,9 +326,6 @@ struct EditEnrollmentDay: View {
                     switch activity.type {
                     case "READ", "USER_INPUT":
                         editingActivityId = activity.id
-                        DispatchQueue.main.async {
-                            showEditActivity = true
-                        }
                     default:
                         break
                     }
@@ -457,6 +436,16 @@ struct EditEnrollmentDay: View {
 
     // MARK: - Inline Edit View (Screen 2)
 
+    /// Inline edit pane for the activity being edited. Built from the
+    /// SlideStack-mounted id — NOT from editingActivityId, which clears at
+    /// dismissal while the pane is still sliding out.
+    @ViewBuilder
+    private func inlineEditPane(activityId: String) -> some View {
+        if let activity = activities.first(where: { $0.id == activityId }) {
+            editActivityView(activity: activity)
+        }
+    }
+
     @ViewBuilder
     private func editActivityView(activity: ScheduledActivity) -> some View {
         switch activity.type {
@@ -533,13 +522,7 @@ struct EditEnrollmentDay: View {
     // MARK: - Inline Edit Helpers
 
     private func dismissEditActivity() {
-        // Two-step slider reverse: content stays mounted until the slide-out
-        // finishes. The wall-clock wait is removed when this slider migrates
-        // to SlideStack (Phase 3.3/3.4), which owns this sequencing.
-        showEditActivity = false
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            editingActivityId = nil
-        }
+        editingActivityId = nil
     }
 
     private func saveUserInputContent(activity: ScheduledActivity, title: String?, isHelpEnabled: Bool, helpTitle: String?, helpDescription: String?) {
