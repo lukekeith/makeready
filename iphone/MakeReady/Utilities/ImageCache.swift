@@ -94,6 +94,10 @@ actor ImageCache {
         if fileManager.fileExists(atPath: diskPath.path),
            let data = try? Data(contentsOf: diskPath),
            let image = decode(data: data, maxPixelSize: maxPixelSize) {
+            // LRU touch (M0.3): trimDiskCache evicts by modification date,
+            // so a disk hit marks the file as recently used. Only runs on
+            // memory-cache misses, so the syscall is infrequent.
+            try? fileManager.setAttributes([.modificationDate: Date()], ofItemAtPath: diskPath.path)
             memoryCache.setObject(image, forKey: key as NSString, cost: cost(of: image, data: data, maxPixelSize: maxPixelSize))
             return image
         }
@@ -150,6 +154,48 @@ actor ImageCache {
     private func bitmapCost(of image: UIImage) -> Int {
         guard let cgImage = image.cgImage else { return 1 }
         return cgImage.bytesPerRow * cgImage.height
+    }
+
+    // MARK: - Disk Budget (M0.3)
+
+    /// Disk cache budget in bytes. Worst case of trimming is a re-download.
+    static let diskBudgetBytes = 512 * 1024 * 1024
+
+    /// Trim the disk cache to the budget, deleting least-recently-used files
+    /// first (modification date is touched on every disk hit). Called on
+    /// launch and when the app backgrounds — iOS exposes no public low-disk
+    /// notification, so backgrounding is the periodic trigger. Trims to 90%
+    /// of budget so consecutive trims don't thrash around the threshold.
+    func trimDiskCache(budget: Int = ImageCache.diskBudgetBytes) {
+        let keys: [URLResourceKey] = [.totalFileAllocatedSizeKey, .contentModificationDateKey]
+        guard let urls = try? fileManager.contentsOfDirectory(
+            at: diskCacheURL,
+            includingPropertiesForKeys: keys,
+            options: .skipsHiddenFiles
+        ) else { return }
+
+        var files: [(url: URL, size: Int, modified: Date)] = []
+        var total = 0
+        for url in urls {
+            guard let values = try? url.resourceValues(forKeys: Set(keys)) else { continue }
+            let size = values.totalFileAllocatedSize ?? 0
+            files.append((url, size, values.contentModificationDate ?? .distantPast))
+            total += size
+        }
+
+        guard total > budget else { return }
+
+        let target = budget * 9 / 10
+        var freed = 0
+        for file in files.sorted(by: { $0.modified < $1.modified }) {
+            guard total - freed > target else { break }
+            try? fileManager.removeItem(at: file.url)
+            freed += file.size
+        }
+        NSLog(
+            "🖼️ ImageCache: trimmed %d MB (disk was %d MB, budget %d MB, %d files)",
+            freed / 1_048_576, total / 1_048_576, budget / 1_048_576, files.count
+        )
     }
 
     // MARK: - Helpers

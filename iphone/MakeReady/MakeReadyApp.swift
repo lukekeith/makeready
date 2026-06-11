@@ -53,10 +53,17 @@ struct MakeReadyApp: App {
                 // port — heals it within the configured range if it moved.
                 await LocalPortHealer.heal()
             }
+            .task {
+                // M0.3: trim the image disk cache to its LRU budget on launch.
+                await ImageCache.shared.trimDiskCache()
+            }
             .onChange(of: scenePhase) { _, newPhase in
                 if newPhase == .background {
                     // Flush any debounced state write before the OS suspends us
                     AppState.shared.persistImmediately()
+                    // M0.3: periodic LRU trim — iOS has no public low-disk
+                    // notification, so backgrounding is the recurring trigger.
+                    Task { await ImageCache.shared.trimDiskCache() }
                 }
             }
         }
