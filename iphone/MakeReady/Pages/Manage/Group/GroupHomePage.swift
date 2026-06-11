@@ -62,15 +62,15 @@ struct GroupHomePage: View {
     @State private var ageMin: String = "18"
     @State private var ageMax: String = "34"
 
-    // Navigation state: 0 = settings (left), 1 = main (center), 2 = right screen (dynamic)
-    @State private var currentScreen: Int = 1
-
-    // Which page to show in the right screen position (screen 2)
-    @State private var activeRightScreen: RightScreenType = .none
+    // Navigation state (Phase 3.4): nested SlideStacks replace the 3-position
+    // currentScreen carousel. Settings is the LEADING detail of the outer
+    // stack (preserving the screen-0-on-the-left layout); the dynamic right
+    // screen is the trailing detail of the inner stack, keyed by type.
+    @State private var showSettings = false
+    @State private var rightScreen: RightScreenType? = nil
 
     /// Types of pages that can appear in the right screen position
-    enum RightScreenType {
-        case none
+    enum RightScreenType: Equatable, Hashable {
         case members
         case enrollments
         case invite
@@ -97,32 +97,28 @@ struct GroupHomePage: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Background at root level - stays fixed
-                Color.appBackground
-                    .ignoresSafeArea()
+        ZStack {
+            // Background at root level - stays fixed
+            Color.appBackground
+                .ignoresSafeArea()
 
-                if let group = group {
-                    HStack(spacing: 0) {
-                        // Screen 0: Edit group settings (LEFT of main)
-                        editGroupContent(group: group)
-                            .frame(width: geometry.size.width)
-
-                        // Screen 1: Main group view (CENTER)
+            if let group = group {
+                // Outer stack: settings enters from the LEFT (detailEdge:
+                // .leading preserves the inverted screen-0 layout). Inner
+                // stack: the dynamic right screen, keyed by type.
+                SlideStack(isPresented: $showSettings, detailEdge: .leading) {
+                    SlideStack(item: $rightScreen) {
                         mainContent(group: group)
-                            .frame(width: geometry.size.width)
-
-                        // Screen 2: Dynamic right screen (Members OR Enrollments)
-                        rightScreenContent
-                            .frame(width: geometry.size.width)
+                    } detail: { screen in
+                        rightScreenContent(screen)
                     }
-                    .offset(x: CGFloat(-currentScreen) * geometry.size.width)
-                    .clipped()  // Clip AFTER offset so icons animate with page
-                } else {
-                    // Loading state
-                    loadingContent
+                } detail: {
+                    editGroupContent(group: group)
                 }
+                .clipped()  // Clip AFTER offset so icons animate with page
+            } else {
+                // Loading state
+                loadingContent
             }
         }
         .task {
@@ -194,21 +190,19 @@ struct GroupHomePage: View {
 
     // MARK: - Right Screen Content (Dynamic)
 
+    /// Right-screen pane, built from the SlideStack-mounted type — NOT from
+    /// rightScreen, which clears at dismissal while the pane is still
+    /// sliding out. Dismissals just nil the item; SlideStack animates.
     @ViewBuilder
-    private var rightScreenContent: some View {
-        switch activeRightScreen {
-        case .none:
-            Color.appBackground
-
+    private func rightScreenContent(_ screen: RightScreenType) -> some View {
+        switch screen {
         case .members:
             GroupMembersPage(
                 groupId: groupId,
                 groupName: group?.name ?? "this group",
                 overlayManager: overlayManager,
                 onDismiss: {
-                    withAnimation(Motion.standard) {
-                        currentScreen = 1
-                    }
+                    rightScreen = nil
                 }
             )
 
@@ -216,9 +210,7 @@ struct GroupHomePage: View {
             EnrollmentsListPage(
                 groupId: groupId,
                 onDismiss: {
-                    withAnimation(Motion.standard) {
-                        currentScreen = 1
-                    }
+                    rightScreen = nil
                 },
                 overlayManager: overlayManager,
                 onUnenroll: {
@@ -236,9 +228,7 @@ struct GroupHomePage: View {
             GroupInvitePage(
                 groupId: groupId,
                 onDismiss: {
-                    withAnimation(Motion.standard) {
-                        currentScreen = 1
-                    }
+                    rightScreen = nil
                 }
             )
         }
@@ -397,9 +387,7 @@ struct GroupHomePage: View {
                     leftIcon: "chevron.left",
                     rightLink: "Done",
                     onLeftIconTap: {
-                        withAnimation(Motion.standard) {
-                            currentScreen = 1  // Back to main
-                        }
+                        showSettings = false  // Back to main
                     },
                     onRightLinkTap: {
                         saveGroup()
@@ -1003,9 +991,7 @@ struct GroupHomePage: View {
         let imageToUpload = coverImage
 
         // Immediately navigate back (optimistic UI)
-        withAnimation(Motion.standard) {
-            currentScreen = 1  // Back to main
-        }
+        showSettings = false  // Back to main
         coverImage = nil
 
         // If there's a cover image to upload, show the pending state
@@ -1070,17 +1056,11 @@ struct GroupHomePage: View {
     // MARK: - Actions
 
     private func handleInvite() {
-        activeRightScreen = .invite
-        withAnimation(Motion.standard) {
-            currentScreen = 2
-        }
+        rightScreen = .invite
     }
 
     private func handleMembers() {
-        activeRightScreen = .members
-        withAnimation(Motion.standard) {
-            currentScreen = 2
-        }
+        rightScreen = .members
     }
 
     private func handleCalendar() {
@@ -1089,16 +1069,11 @@ struct GroupHomePage: View {
     }
 
     private func handleSettings() {
-        withAnimation(Motion.standard) {
-            currentScreen = 0  // Settings is LEFT of main
-        }
+        showSettings = true  // Settings is LEFT of main (leading detail)
     }
 
     private func handleEnrollments() {
-        activeRightScreen = .enrollments
-        withAnimation(Motion.standard) {
-            currentScreen = 2
-        }
+        rightScreen = .enrollments
     }
 
     private func handleEnroll() {
@@ -1200,10 +1175,9 @@ struct GroupHomePage: View {
                 processingMessage: "Processing enrollment",
                 onDismiss: {
                     overlayManager.dismiss(id: OverlayID.confirmationOverlay)
-                    // Stay on group home page (currentScreen = 1)
-                    withAnimation(Motion.standard) {
-                        currentScreen = 1
-                    }
+                    // Return to the main group screen
+                    showSettings = false
+                    rightScreen = nil
                 }
             )
         }

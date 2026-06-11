@@ -37,9 +37,22 @@ import SwiftUI
 
 struct SlideStack<Item: Equatable & Hashable, Primary: View, Detail: View>: View {
 
+    /// Which side of the primary pane the detail slides in from.
+    /// `.trailing` (default) is the standard push-style slide. `.leading`
+    /// preserves the inverted detail-on-the-left layout some pages use
+    /// (e.g. GroupHomePage's settings screen) — the primary slides right
+    /// and the detail enters from the left.
+    enum DetailEdge {
+        case trailing
+        case leading
+    }
+
     @Binding var item: Item?
     var animation: Animation = Motion.standard
+    /// Edge-swipe-back is only supported for `.trailing` details; it is
+    /// ignored when `detailEdge == .leading`.
     var edgeSwipeBack: Bool = false
+    var detailEdge: DetailEdge = .trailing
     /// Runs after a dismissal's slide-out completes and the detail
     /// content has been unmounted.
     var onDismissComplete: (() -> Void)? = nil
@@ -61,37 +74,48 @@ struct SlideStack<Item: Equatable & Hashable, Primary: View, Detail: View>: View
 
     @GestureState private var dragOffset: CGFloat = 0
 
+    /// Whether edge-swipe-back is actually active (leading details don't
+    /// support it — the gesture geometry assumes a trailing pane).
+    private var swipeBackActive: Bool {
+        edgeSwipeBack && detailEdge == .trailing
+    }
+
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
+            // Trailing: [primary][detail], at rest offset 0, slid -width.
+            // Leading:  [detail][primary], at rest offset -width, slid 0.
+            let restOffset: CGFloat = detailEdge == .trailing ? 0 : -width
+            let slidOffset: CGFloat = detailEdge == .trailing ? -width : 0
 
             HStack(spacing: 0) {
+                if detailEdge == .leading {
+                    detailPane(width: width)
+                }
+
                 primary()
                     .frame(width: width)
 
-                ZStack {
-                    if let mountedItem {
-                        detail(mountedItem)
-                            .id(mountedItem)
-                    }
+                if detailEdge == .trailing {
+                    detailPane(width: width)
                 }
-                .frame(width: width)
             }
             .compositingGroup()
-            .offset(x: (slid ? -width : 0) + dragOffset + dismissDragCarry)
+            .offset(x: (slid ? slidOffset : restOffset) + dragOffset + dismissDragCarry)
             .gesture(
                 DragGesture(minimumDistance: 15, coordinateSpace: .global)
                     .updating($dragOffset) { value, state, transaction in
                         // Edge-swipe-back: right-drag starting at the left
                         // edge while the detail pane is shown.
-                        guard slid,
+                        guard swipeBackActive,
+                              slid,
                               value.startLocation.x < 40,
                               value.translation.width > 0 else { return }
                         transaction.animation = nil
                         state = value.translation.width
                     }
                     .onEnded { value in
-                        guard slid, value.startLocation.x < 40 else { return }
+                        guard swipeBackActive, slid, value.startLocation.x < 40 else { return }
                         if value.translation.width > 80 {
                             // Transfer the drag position so the dismissal
                             // animates from where the finger left off.
@@ -102,7 +126,7 @@ struct SlideStack<Item: Equatable & Hashable, Primary: View, Detail: View>: View
                 // .subviews fully disables the container gesture when
                 // swipe-back is off, so it can never compete with pane
                 // content gestures (scrolling, card reorder).
-                including: edgeSwipeBack ? .all : .subviews
+                including: swipeBackActive ? .all : .subviews
             )
         }
         .onChange(of: item) { _, newItem in
@@ -147,6 +171,17 @@ struct SlideStack<Item: Equatable & Hashable, Primary: View, Detail: View>: View
             }
         }
     }
+
+    @ViewBuilder
+    private func detailPane(width: CGFloat) -> some View {
+        ZStack {
+            if let mountedItem {
+                detail(mountedItem)
+                    .id(mountedItem)
+            }
+        }
+        .frame(width: width)
+    }
 }
 
 // MARK: - Bool-driven convenience
@@ -161,6 +196,7 @@ extension SlideStack where Item == Bool {
         isPresented: Binding<Bool>,
         animation: Animation = Motion.standard,
         edgeSwipeBack: Bool = false,
+        detailEdge: DetailEdge = .trailing,
         onDismissComplete: (() -> Void)? = nil,
         @ViewBuilder primary: @escaping () -> Primary,
         @ViewBuilder detail: @escaping () -> Detail
@@ -172,6 +208,7 @@ extension SlideStack where Item == Bool {
             ),
             animation: animation,
             edgeSwipeBack: edgeSwipeBack,
+            detailEdge: detailEdge,
             onDismissComplete: onDismissComplete,
             primary: primary,
             detail: { _ in detail() }
