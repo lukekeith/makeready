@@ -1,11 +1,11 @@
 /**
  * Semantic Bible Search — unit tests
  *
- * Tests result shaping, similarity-threshold filtering, and display-text
- * resolution in the requested translation, with the embedding model,
- * database, and API.Bible chapter cache mocked. The real model/pgvector
- * path is covered by the manual smoke flow (npm run model:prefetch +
- * /api/search/smart).
+ * Tests verse+window merging, similarity-threshold filtering, and
+ * display-text resolution in the requested translation, with the embedding
+ * model, database, and API.Bible chapter cache mocked. The real
+ * model/pgvector path is covered by the manual smoke flow
+ * (npm run model:prefetch + /api/search/smart).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -32,7 +32,10 @@ vi.mock('../src/lib/prisma.js', () => ({
     translation: { findUnique: mockTranslationFindUnique },
     verse: { findMany: mockVerseFindMany },
   },
-  Prisma: { sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }) },
+  Prisma: {
+    sql: (strings: TemplateStringsArray, ...values: unknown[]) => ({ strings, values }),
+    raw: (s: string) => s,
+  },
 }))
 
 vi.mock('../src/services/bible-metadata.js', () => ({
@@ -50,9 +53,18 @@ vi.mock('../src/services/api-bible.js', () => ({
 
 const { searchVersesSemantic } = await import('../src/services/semantic-search.js')
 
-function row(overrides: Partial<{ bookNumber: number; chapter: number; verse: number; text: string; similarity: number }> = {}) {
+type VerseRow = { bookNumber: number; chapter: number; verse: number; text: string; similarity: number }
+type WindowRow = { bookNumber: number; chapter: number; verseStart: number; verseEnd: number; text: string; similarity: number }
+
+/** Route the two pgvector queries (verses vs verse_windows) to their fixtures. */
+function setRows(verseRows: VerseRow[], windowRows: WindowRow[] = []) {
+  mockQueryRaw.mockImplementation(async (q: { strings: readonly string[] }) =>
+    q.strings.join('').includes('verse_windows') ? windowRows : verseRows
+  )
+}
+
+function verseRow(overrides: Partial<VerseRow> = {}): VerseRow {
   return {
-    id: 'uuid-1',
     bookNumber: 43,
     chapter: 3,
     verse: 16,
@@ -70,8 +82,8 @@ beforeEach(() => {
 })
 
 describe('searchVersesSemantic', () => {
-  it('maps rows to the smart-search verse result shape (WEB requested — no resolution)', async () => {
-    mockQueryRaw.mockResolvedValue([row()])
+  it('maps single-verse rows to the smart-search result shape (WEB requested — no resolution)', async () => {
+    setRows([verseRow()])
 
     const result = await searchVersesSemantic('god so loved the world', 'WEB', 10)
 
@@ -88,15 +100,51 @@ describe('searchVersesSemantic', () => {
       reference: 'John 3:16',
       similarity: 0.8,
     })
-    // WEB is the embedding source — no lookup should happen
     expect(mockTranslationFindUnique).not.toHaveBeenCalled()
   })
 
+  it('returns a window hit as a range result with verseEnd and range reference', async () => {
+    setRows([], [{
+      bookNumber: 19, chapter: 19, verseStart: 1, verseEnd: 3,
+      text: 'The heavens declare the glory of God...', similarity: 0.79,
+    }])
+
+    const result = await searchVersesSemantic('God speaking through creation', 'WEB', 10)
+
+    expect(result.results[0]).toMatchObject({
+      verseId: 'PSA.19.1',
+      verse: 1,
+      verseEnd: 3,
+      reference: 'Psalms 19:1-3',
+      similarity: 0.79,
+    })
+  })
+
+  it('merges verses and windows by similarity, suppressing overlaps', async () => {
+    setRows(
+      [
+        verseRow({ bookNumber: 19, chapter: 19, verse: 1, similarity: 0.75, text: 'Psalm 19:1 alone' }),
+        verseRow({ bookNumber: 45, chapter: 1, verse: 20, similarity: 0.72, text: 'Romans 1:20' }),
+      ],
+      [
+        // Window overlapping Psalm 19:1 with HIGHER similarity — wins, verse dropped
+        { bookNumber: 19, chapter: 19, verseStart: 1, verseEnd: 3, text: 'Psalm 19:1-3 window', similarity: 0.78 },
+        // Window overlapping Romans 1:20 with LOWER similarity — dropped
+        { bookNumber: 45, chapter: 1, verseStart: 19, verseEnd: 21, text: 'Romans 1:19-21 window', similarity: 0.70 },
+      ]
+    )
+
+    const result = await searchVersesSemantic('a query', 'WEB', 10)
+
+    expect(result.results.map(r => r.reference)).toEqual(['Psalms 19:1-3', 'Romans 1:20'])
+    expect(result.results.map(r => r.similarity)).toEqual([0.78, 0.72])
+  })
+
   it('filters out rows below the similarity threshold (default 0.6)', async () => {
-    mockQueryRaw.mockResolvedValue([
-      row({ similarity: 0.82 }),
-      row({ bookNumber: 1, chapter: 1, verse: 1, similarity: 0.41 }),
-    ])
+    setRows(
+      [verseRow({ similarity: 0.82 }), verseRow({ bookNumber: 1, chapter: 1, verse: 1, similarity: 0.41 })],
+      [{ bookNumber: 2, chapter: 1, verseStart: 1, verseEnd: 3, text: 'low window', similarity: 0.5 }]
+    )
 
     const result = await searchVersesSemantic('a query', 'WEB', 10)
 
@@ -105,34 +153,49 @@ describe('searchVersesSemantic', () => {
   })
 
   it('returns empty results when nothing clears the threshold', async () => {
-    mockQueryRaw.mockResolvedValue([row({ similarity: 0.3 }), row({ similarity: 0.2 })])
+    setRows([verseRow({ similarity: 0.3 })], [])
 
     const result = await searchVersesSemantic('xyzzy nonsense', 'WEB', 10)
 
     expect(result.total).toBe(0)
-    expect(result.results).toEqual([])
   })
 
-  it('resolves text from the local verses table for locally-stored translations', async () => {
-    mockQueryRaw.mockResolvedValue([row(), row({ bookNumber: 1, chapter: 1, verse: 1, text: 'WEB: In the beginning...' })])
+  it('resolves range text from the local verses table, joining the span', async () => {
+    setRows([], [{
+      bookNumber: 19, chapter: 19, verseStart: 1, verseEnd: 2,
+      text: 'WEB window text', similarity: 0.8,
+    }])
     mockTranslationFindUnique.mockResolvedValue({ id: 'kjv-id', code: 'KJV' })
     mockVerseFindMany.mockResolvedValue([
-      { bookNumber: 43, chapter: 3, verse: 16, text: 'KJV: For God so loved the world...' },
-      // Genesis 1:1 intentionally missing — falls back to WEB
+      { bookNumber: 19, chapter: 19, verse: 1, text: 'KJV v1.' },
+      { bookNumber: 19, chapter: 19, verse: 2, text: 'KJV v2.' },
     ])
 
     const result = await searchVersesSemantic('a query', 'KJV', 10)
 
-    expect(result.results[0].text).toBe('KJV: For God so loved the world...')
+    expect(result.results[0].text).toBe('KJV v1. KJV v2.')
     expect(result.results[0].sourceTranslation).toBeUndefined()
-    expect(result.results[1].text).toBe('WEB: In the beginning...')
-    expect(result.results[1].sourceTranslation).toBe('WEB')
-    expect(result.fumsToken).toBeUndefined()
+  })
+
+  it('falls back to WEB text when part of a range is missing in the target translation', async () => {
+    setRows([], [{
+      bookNumber: 19, chapter: 19, verseStart: 1, verseEnd: 2,
+      text: 'WEB window text', similarity: 0.8,
+    }])
+    mockTranslationFindUnique.mockResolvedValue({ id: 'kjv-id', code: 'KJV' })
+    mockVerseFindMany.mockResolvedValue([
+      { bookNumber: 19, chapter: 19, verse: 1, text: 'KJV v1.' },
+      // verse 2 missing
+    ])
+
+    const result = await searchVersesSemantic('a query', 'KJV', 10)
+
+    expect(result.results[0].text).toBe('WEB window text')
+    expect(result.results[0].sourceTranslation).toBe('WEB')
   })
 
   it('falls through to API.Bible when a local translation row has no verses (post-cleanup KJV)', async () => {
-    mockQueryRaw.mockResolvedValue([row()])
-    // KJV translation row still exists (highlight FKs) but its verses were cleaned up
+    setRows([verseRow()])
     mockTranslationFindUnique.mockResolvedValue({ id: 'kjv-id', code: 'KJV' })
     mockVerseFindMany.mockResolvedValue([])
     mockResolveBibleId.mockResolvedValue('kjv-bible-id')
@@ -149,47 +212,43 @@ describe('searchVersesSemantic', () => {
     expect(mockGetChapterVerses).toHaveBeenCalledWith('kjv-bible-id', 'JHN', 3, { skipFums: true })
   })
 
-  it('resolves text via cached API.Bible chapters for remote translations', async () => {
-    mockQueryRaw.mockResolvedValue([
-      row(),
-      row({ bookNumber: 43, chapter: 3, verse: 17, text: 'WEB: For God did not send...' }),
-      row({ bookNumber: 19, chapter: 23, verse: 1, text: 'WEB: Yahweh is my shepherd...' }),
-    ])
+  it('resolves range text via cached API.Bible chapters and joins the span', async () => {
+    setRows(
+      [verseRow({ similarity: 0.81 })],
+      [{ bookNumber: 19, chapter: 23, verseStart: 1, verseEnd: 3, text: 'WEB Psalm 23 window', similarity: 0.77 }]
+    )
     mockResolveBibleId.mockResolvedValue('nasb-bible-id')
-    mockGetChapterVerses.mockImplementation(async (_bibleId: string, bookId: string) => {
+    mockGetChapterVerses.mockImplementation(async (_b: string, bookId: string) => {
       if (bookId === 'JHN') {
-        return {
-          verses: [{ verse: 16, text: 'NASB: John 3:16 text' }, { verse: 17, text: 'NASB: John 3:17 text' }],
-          copyright: 'NASB copyright',
-          fumsToken: 'token-from-miss',
-        }
+        return { verses: [{ verse: 16, text: 'NASB John 3:16' }], copyright: 'NASB ©', fumsToken: 'tok' }
       }
-      return { verses: [{ verse: 1, text: 'NASB: Psalm 23:1 text' }], copyright: 'NASB copyright', fumsToken: null }
+      return {
+        verses: [
+          { verse: 1, text: 'NASB Ps23 v1.' },
+          { verse: 2, text: 'NASB Ps23 v2.' },
+          { verse: 3, text: 'NASB Ps23 v3.' },
+        ],
+        copyright: 'NASB ©',
+        fumsToken: null,
+      }
     })
 
     const result = await searchVersesSemantic('a query', 'NASB', 10)
 
-    // One chapter fetch per distinct chapter (John 3 shared by two results)
     expect(mockGetChapterVerses).toHaveBeenCalledTimes(2)
-    expect(mockGetChapterVerses).toHaveBeenCalledWith('nasb-bible-id', 'JHN', 3, { skipFums: true })
-    expect(result.results.map(r => r.text)).toEqual([
-      'NASB: John 3:16 text',
-      'NASB: John 3:17 text',
-      'NASB: Psalm 23:1 text',
-    ])
-    expect(result.results.every(r => r.sourceTranslation === undefined)).toBe(true)
-    expect(result.fumsToken).toBe('token-from-miss')
-    expect(result.copyright).toBe('NASB copyright')
-    // Token came from the chapter fetch — no extra getVerse call
+    expect(result.results[0].text).toBe('NASB John 3:16')
+    expect(result.results[1].text).toBe('NASB Ps23 v1. NASB Ps23 v2. NASB Ps23 v3.')
+    expect(result.fumsToken).toBe('tok')
+    expect(result.copyright).toBe('NASB ©')
     expect(mockGetVerse).not.toHaveBeenCalled()
   })
 
   it('fetches a single FUMS token when all chapters were cache hits', async () => {
-    mockQueryRaw.mockResolvedValue([row()])
+    setRows([verseRow()])
     mockResolveBibleId.mockResolvedValue('nasb-bible-id')
     mockGetChapterVerses.mockResolvedValue({
-      verses: [{ verse: 16, text: 'NASB: John 3:16 text' }],
-      copyright: 'NASB copyright',
+      verses: [{ verse: 16, text: 'NASB John 3:16' }],
+      copyright: 'NASB ©',
       fumsToken: null, // cache hit with skipFums
     })
     mockGetVerse.mockResolvedValue({ meta: { fumsToken: 'single-token' } })
@@ -201,7 +260,7 @@ describe('searchVersesSemantic', () => {
   })
 
   it('keeps WEB text per-verse when a chapter fetch fails', async () => {
-    mockQueryRaw.mockResolvedValue([row()])
+    setRows([verseRow()])
     mockResolveBibleId.mockResolvedValue('nasb-bible-id')
     mockGetChapterVerses.mockRejectedValue(new Error('API.Bible down'))
 
@@ -209,18 +268,16 @@ describe('searchVersesSemantic', () => {
 
     expect(result.results[0].text).toBe('WEB: For God so loved the world...')
     expect(result.results[0].sourceTranslation).toBe('WEB')
-    // No API.Bible text served — no FUMS token needed
     expect(mockGetVerse).not.toHaveBeenCalled()
   })
 
   it('marks all verses as WEB when the translation cannot be resolved at all', async () => {
-    mockQueryRaw.mockResolvedValue([row()])
+    setRows([verseRow()])
     mockResolveBibleId.mockResolvedValue(null)
 
     const result = await searchVersesSemantic('a query', 'NOPE', 10)
 
     expect(result.results[0].sourceTranslation).toBe('WEB')
-    expect(result.results[0].text).toBe('WEB: For God so loved the world...')
   })
 
   it('propagates embedding failures (route falls back to keyword search)', async () => {

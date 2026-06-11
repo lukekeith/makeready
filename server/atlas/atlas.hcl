@@ -27,6 +27,10 @@ env "local" {
     skip {
       // Don't drop columns - use soft delete pattern
       drop_column = true
+      // pgvector HNSW indexes (verses, verse_windows) are hand-managed in
+      // migrations — Atlas community can't express HNSW in HCL desired state,
+      // so without this skip every diff would try to drop them.
+      drop_index = true
     }
   }
 }
@@ -43,6 +47,7 @@ env "production" {
   diff {
     skip {
       drop_column = true
+      drop_index  = true
     }
   }
 }

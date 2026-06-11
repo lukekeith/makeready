@@ -960,6 +960,10 @@ router.get('/', requireAuth, async (req, res) => {
  *                             type: integer
  *                           verse:
  *                             type: integer
+ *                           verseEnd:
+ *                             type: integer
+ *                             nullable: true
+ *                             description: Present for multi-verse range results (verse = range start), e.g. Psalm 19:1-3
  *                           text:
  *                             type: string
  *                           reference:

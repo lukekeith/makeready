@@ -9,6 +9,13 @@
  * embedded at request time. Result shape matches handleKeywordSearch in
  * routes/search.ts so consumers (iPhone, client) need no changes.
  *
+ * Two granularities are searched and merged (higher similarity wins,
+ * overlapping candidates suppressed):
+ *  - single verses (verses.embedding) — precise punchy matches
+ *  - 3-verse sliding windows (verse_windows) — concepts that span verses,
+ *    e.g. "the heavens declare the glory of God..." across Psalm 19:1-3.
+ *    Range results carry verseEnd; `verse` stays the range start.
+ *
  * Matching always runs against WEB embeddings, but display text is resolved
  * in the user's selected translation: from the local verses table when that
  * translation is stored locally, otherwise from API.Bible via the 14-day
@@ -30,11 +37,11 @@ const SEARCH_TIMEOUT_MS = parseInt(process.env.SEMANTIC_SEARCH_TIMEOUT_MS ?? '80
 
 const SOURCE_TRANSLATION = 'WEB'
 
-interface SemanticRow {
-  id: string
+interface Candidate {
   bookNumber: number
   chapter: number
-  verse: number
+  verseStart: number
+  verseEnd: number
   text: string
   similarity: number
 }
@@ -44,6 +51,8 @@ export interface SemanticVerseResult {
   book: { bookNumber: number; name: string; abbrev: string }
   chapter: number
   verse: number
+  /** Present only for multi-verse range results (verse = range start) */
+  verseEnd?: number
   text: string
   reference: string
   similarity: number
@@ -81,29 +90,62 @@ async function searchInternal(
   const vector = await embedQuery(query)
   const vectorLiteral = `[${vector.join(',')}]`
 
-  const rows = await prisma.$queryRaw<SemanticRow[]>(
-    Prisma.sql`SELECT v.id, v."bookNumber", v.chapter, v.verse, v.text,
-                      1 - (v."embedding" <=> ${vectorLiteral}::vector) AS similarity
-               FROM verses v
-               WHERE v."embedding" IS NOT NULL
-               ORDER BY v."embedding" <=> ${vectorLiteral}::vector
-               LIMIT ${limit}`
-  )
+  const [verseRows, windowRows] = await Promise.all([
+    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verse: number; text: string; similarity: number }>>(
+      Prisma.sql`SELECT v."bookNumber", v.chapter, v.verse, v.text,
+                        1 - (v."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                 FROM verses v
+                 WHERE v."embedding" IS NOT NULL
+                 ORDER BY v."embedding" <=> ${vectorLiteral}::vector
+                 LIMIT ${limit * 2}`
+    ),
+    prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; text: string; similarity: number }>>(
+      Prisma.sql`SELECT w."bookNumber", w.chapter, w."verseStart", w."verseEnd", w.text,
+                        1 - (w."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                 FROM verse_windows w
+                 WHERE w."embedding" IS NOT NULL
+                 ORDER BY w."embedding" <=> ${vectorLiteral}::vector
+                 LIMIT ${limit * 2}`
+    ),
+  ])
 
-  const results: SemanticVerseResult[] = rows
-    .filter((row) => row.similarity >= SIMILARITY_THRESHOLD)
-    .map((row) => {
-      const book = getBookByNumber(row.bookNumber)
-      return {
-        verseId: buildVerseId(book.apiBibleId, row.chapter, row.verse),
-        book: { bookNumber: book.bookNumber, name: book.name, abbrev: book.abbrev },
-        chapter: row.chapter,
-        verse: row.verse,
-        text: row.text,
-        reference: `${book.name} ${row.chapter}:${row.verse}`,
-        similarity: Math.round(row.similarity * 1000) / 1000,
-      }
-    })
+  const candidates: Candidate[] = [
+    ...verseRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verse, verseEnd: r.verse, text: r.text, similarity: r.similarity })),
+    ...windowRows.map((r) => ({ bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.text, similarity: r.similarity })),
+  ]
+    .filter((c) => c.similarity >= SIMILARITY_THRESHOLD)
+    .sort((a, b) => b.similarity - a.similarity)
+
+  // Greedy merge: best similarity wins, overlapping candidates are dropped
+  // (a verse inside an already-taken window, a window covering a taken verse)
+  const taken: Candidate[] = []
+  for (const c of candidates) {
+    if (taken.length >= limit) break
+    const overlaps = taken.some(
+      (t) =>
+        t.bookNumber === c.bookNumber &&
+        t.chapter === c.chapter &&
+        !(c.verseEnd < t.verseStart || c.verseStart > t.verseEnd)
+    )
+    if (!overlaps) taken.push(c)
+  }
+
+  const results: SemanticVerseResult[] = taken.map((c) => {
+    const book = getBookByNumber(c.bookNumber)
+    const isRange = c.verseEnd > c.verseStart
+    return {
+      verseId: buildVerseId(book.apiBibleId, c.chapter, c.verseStart),
+      book: { bookNumber: book.bookNumber, name: book.name, abbrev: book.abbrev },
+      chapter: c.chapter,
+      verse: c.verseStart,
+      ...(isRange ? { verseEnd: c.verseEnd } : {}),
+      text: c.text,
+      reference: isRange
+        ? `${book.name} ${c.chapter}:${c.verseStart}-${c.verseEnd}`
+        : `${book.name} ${c.chapter}:${c.verseStart}`,
+      similarity: Math.round(c.similarity * 1000) / 1000,
+    }
+  })
 
   const { fumsToken, copyright } = await resolveDisplayTexts(results, translationCode)
 
@@ -144,7 +186,7 @@ async function resolveDisplayTexts(
         OR: results.map((r) => ({
           bookNumber: r.book.bookNumber,
           chapter: r.chapter,
-          verse: r.verse,
+          verse: { gte: r.verse, lte: r.verseEnd ?? r.verse },
         })),
       },
       select: { bookNumber: true, chapter: true, verse: true, text: true },
@@ -152,7 +194,11 @@ async function resolveDisplayTexts(
     if (rows.length > 0) {
       const texts = new Map(rows.map((r) => [`${r.bookNumber}:${r.chapter}:${r.verse}`, r.text]))
       for (const r of results) {
-        const text = texts.get(`${r.book.bookNumber}:${r.chapter}:${r.verse}`)
+        const text = joinRangeText(
+          (v) => texts.get(`${r.book.bookNumber}:${r.chapter}:${v}`),
+          r.verse,
+          r.verseEnd ?? r.verse
+        )
         if (text) r.text = text
         else r.sourceTranslation = SOURCE_TRANSLATION
       }
@@ -189,7 +235,10 @@ async function resolveDisplayTexts(
   }))
 
   for (const r of results) {
-    const text = chapterTexts.get(`${r.book.bookNumber}:${r.chapter}`)?.get(r.verse)
+    const chapterMap = chapterTexts.get(`${r.book.bookNumber}:${r.chapter}`)
+    const text = chapterMap
+      ? joinRangeText((v) => chapterMap.get(v), r.verse, r.verseEnd ?? r.verse)
+      : undefined
     if (text) r.text = text
     else r.sourceTranslation = SOURCE_TRANSLATION
   }
@@ -209,4 +258,23 @@ async function resolveDisplayTexts(
   }
 
   return { fumsToken, copyright }
+}
+
+/**
+ * Join verse texts for a range; returns undefined if ANY verse in the range
+ * is missing (versification gaps) so the caller falls back to WEB text
+ * rather than serving a silently-truncated passage.
+ */
+function joinRangeText(
+  lookup: (verse: number) => string | undefined,
+  verseStart: number,
+  verseEnd: number
+): string | undefined {
+  const parts: string[] = []
+  for (let v = verseStart; v <= verseEnd; v++) {
+    const text = lookup(v)
+    if (!text) return undefined
+    parts.push(text)
+  }
+  return parts.join(' ')
 }

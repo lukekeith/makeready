@@ -1175,6 +1175,9 @@ models:
       verseNotes:
         type: one_to_many
         target: VerseNote
+      verseWindows:
+        type: one_to_many
+        target: VerseWindow
     indexes:
       - fields: [code]
 
@@ -1277,8 +1280,53 @@ models:
     indexes:
       - fields: [bookId, chapter, verse]
       - fields: [translationId, bookNumber, chapter, verse]
+      # NOTE: verses_embedding_hnsw_idx (pgvector HNSW) is hand-managed in
+      # migrations — Atlas community edition can't express HNSW in HCL, so
+      # drop_index is skipped in atlas.hcl diffs to keep it from being dropped.
     unique:
       - fields: [translationId, bookNumber, chapter, verse]
+
+  VerseWindow:
+    table_name: verse_windows
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      translationId:
+        type: string
+      bookNumber:
+        type: int
+      chapter:
+        type: int
+      verseStart:
+        type: int
+      verseEnd:
+        type: int
+      text:
+        type: text
+        description: "Concatenated verse texts for the window"
+      embedding:
+        type: unsupported
+        db_type: "vector(384)"
+        nullable: true
+        description: "Semantic search embedding for multi-verse concepts"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      translation:
+        type: many_to_one
+        target: Translation
+        fields: [translationId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [translationId, bookNumber, chapter]
+      # NOTE: verse_windows_embedding_hnsw_idx is hand-managed in migrations
+      # (see verses_embedding_hnsw_idx note above)
+    unique:
+      - fields: [translationId, bookNumber, chapter, verseStart, verseEnd]
 
   Highlight:
     table_name: highlights

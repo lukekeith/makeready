@@ -537,6 +537,7 @@ model Translation {
   verses               Verse[]
   highlights           Highlight[]
   verseNotes           VerseNote[]
+  verseWindows         VerseWindow[]
   @@index([code])
   @@map("translations")
 }
@@ -582,6 +583,24 @@ model Verse {
   @@index([bookId, chapter, verse])
   @@index([translationId, bookNumber, chapter, verse])
   @@map("verses")
+}
+
+model VerseWindow {
+  id                   String @id @default(uuid())
+  translationId        String
+  bookNumber           Int
+  chapter              Int
+  verseStart           Int
+  verseEnd             Int
+  text                 String @db.Text // Concatenated verse texts for the window
+  embedding            Unsupported("vector(384)")? // Semantic search embedding for multi-verse concepts
+  createdAt            DateTime @default(now())
+
+  translation          Translation @relation(fields: [translationId], references: [id], onDelete: Cascade)
+
+  @@unique([translationId, bookNumber, chapter, verseStart, verseEnd])
+  @@index([translationId, bookNumber, chapter])
+  @@map("verse_windows")
 }
 
 model Highlight {

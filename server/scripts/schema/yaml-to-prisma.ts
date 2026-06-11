@@ -346,9 +346,14 @@ function generateModelPrisma(
     }
   }
 
-  // Indexes
+  // Indexes — skip indexes on Unsupported-type fields (e.g. pgvector HNSW):
+  // Prisma can't declare them; they exist only in the Atlas/HCL schema.
   if (model.indexes) {
     for (const index of model.indexes) {
+      const hasUnsupportedField = index.fields.some(
+        (f) => model.fields[f]?.type === 'unsupported'
+      )
+      if (hasUnsupportedField) continue
       lines.push(generateIndexPrisma(index))
     }
   }
