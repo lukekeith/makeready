@@ -48,6 +48,33 @@ struct EnrollmentSchedulePage: View {
     /// with details; nil until loaded → cards fall back to empty outlined blocks.
     @State private var completionStats: EnrollmentCompletionStats?
 
+    // Initialize from cache so the slide-in/modal-open animates with content
+    // already laid out — async content arriving mid-flight is inserted outside
+    // the animation transaction and lands at its final position (see
+    // SWIFTUI_TRANSITIONS.md § Pre-loading Content). A warm cache also skips
+    // the readyToShowContent skeleton gate: content that exists from frame 1
+    // rides the animation, so there is no mid-flight swap to defer.
+    init(
+        enrollment: EnrollmentWithProgram,
+        onDismiss: @escaping () -> Void,
+        leftIcon: String = "chevron.left",
+        overlayManager: OverlayManager? = nil,
+        titleOverride: String? = nil,
+        previewDetails: EnrollmentDetails? = nil
+    ) {
+        self.enrollment = enrollment
+        self.onDismiss = onDismiss
+        self.leftIcon = leftIcon
+        self.overlayManager = overlayManager
+        self.titleOverride = titleOverride
+        self.previewDetails = previewDetails
+
+        let cached = previewDetails ?? AppState.shared.enrollmentDetailsById[enrollment.id]
+        _enrollmentDetails = State(initialValue: cached)
+        _isLoading = State(initialValue: cached == nil)
+        _readyToShowContent = State(initialValue: cached != nil)
+    }
+
     var body: some View {
         // Canonical slider (Phase 3.4): SlideStack owns the two-step insertion,
         // the single animation driver, and the completion-tied unmount this page
@@ -307,7 +334,10 @@ struct EnrollmentSchedulePage: View {
     // MARK: - Data Loading
 
     private func loadEnrollmentDetails(showLoading: Bool = true) async {
-        if showLoading {
+        // Only show the skeleton when there's nothing cached to display —
+        // flipping to the loading branch mid-slide swaps the content
+        // subtree outside the animation transaction.
+        if showLoading && enrollmentDetails == nil {
             isLoading = true
         }
         error = nil
@@ -320,7 +350,11 @@ struct EnrollmentSchedulePage: View {
             }
         } catch {
             await MainActor.run {
-                self.error = error.localizedDescription
+                // Keep showing cached content on a background refresh
+                // failure; only surface the error screen when empty.
+                if enrollmentDetails == nil {
+                    self.error = error.localizedDescription
+                }
                 isLoading = false
             }
         }
@@ -464,6 +498,11 @@ struct EnrollmentSchedulePage: View {
     private func updateScheduleTitle(scheduleId: String, title: String) {
         guard let index = enrollmentDetails?.lessonSchedules.firstIndex(where: { $0.id == scheduleId }) else { return }
         enrollmentDetails?.lessonSchedules[index].lesson.title = title
+        // Keep the cache-first snapshot in sync so the next visit's first
+        // frame doesn't flash the pre-edit title while the refresh lands.
+        if let details = enrollmentDetails {
+            AppState.shared.enrollmentDetailsById[enrollment.id] = details
+        }
     }
 
     // MARK: - Card Data Mapping

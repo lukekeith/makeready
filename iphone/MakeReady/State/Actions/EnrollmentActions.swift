@@ -162,6 +162,7 @@ private let api: APIClientProtocol
         for schedule in enrollment.lessonSchedules {
             state.scheduledLessons.upsert(schedule.lesson)
         }
+        state.enrollmentDetailsById[id] = enrollment
         state.persist()
 
         NSLog("📅 EnrollmentActions: Loaded enrollment details for \(id)")

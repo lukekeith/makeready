@@ -188,6 +188,16 @@ final class AppState {
     /// QR payload is a large base64 blob and is cheap to refetch.
     var groupInvitesByGroupId: [String: GroupInviteData] = [:]
 
+    // MARK: - Enrollment Details
+
+    /// Full enrollment details (lesson schedules with activities) keyed by
+    /// enrollment ID. Populated by `EnrollmentActions.getEnrollmentDetails(id:)`
+    /// so EnrollmentSchedulePage renders synchronously from cache and rides
+    /// slide/modal animations. GroupHomePage's `prefetchEnrollments` already
+    /// fetches details for active enrollments, warming this for free.
+    /// In-memory only — refreshed on every visit.
+    var enrollmentDetailsById: [String: EnrollmentDetails] = [:]
+
     // MARK: - Loading States
 
     /// Per-entity and per-list loading states
