@@ -327,7 +327,7 @@ struct EditExegesisActivityPage: View {
                     onRangeSelected: { range in
                         selectedHighlightRange = nil
                         scrollSelectedHighlightIntoView = false
-                        overlayManager.dismiss(id: OverlayID.exegesisHighlightActionMenu)
+                        overlayManager.dismiss(.exegesisHighlightActionMenu)
                         applyStyle(.highlight, range: range, blockId: block.id, activityId: activity.id)
                     },
                     onHighlightTapped: { range in
@@ -346,11 +346,11 @@ struct EditExegesisActivityPage: View {
 
     private func presentHighlightActionMenu() {
         guard lockedBlock?.id != nil, selectedHighlightRange != nil else {
-            overlayManager.dismiss(id: OverlayID.exegesisHighlightActionMenu)
+            overlayManager.dismiss(.exegesisHighlightActionMenu)
             return
         }
 
-        overlayManager.presentMenu(id: OverlayID.exegesisHighlightActionMenu, priority: .menu) {
+        overlayManager.present(.exegesisHighlightActionMenu) {
             HighlightActionMenuContent(
                 selectedRange: $selectedHighlightRange,
                 highlightRanges: sortedHighlightRanges,

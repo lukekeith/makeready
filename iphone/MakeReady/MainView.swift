@@ -66,7 +66,7 @@ struct MainView: View {
                         overlayManager: overlayManager,
                         avatarURL: authManager.currentUser?.avatarURL,
                         onAddTap: {
-                            overlayManager.presentMenu(id: OverlayID.addMenu) {
+                            overlayManager.present(.addMenu) {
                                 AddMenu()
                                     .environment(authManager)
                             }
@@ -127,7 +127,7 @@ struct MainView: View {
                         currentTab = .search
                     },
                     onProfileTap: {
-                        overlayManager.presentMenu(id: OverlayID.userMenu) {
+                        overlayManager.present(.userMenu) {
                             UserMenu()
                                 .environment(authManager)
                         }

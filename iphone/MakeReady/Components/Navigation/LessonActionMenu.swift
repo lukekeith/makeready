@@ -44,7 +44,7 @@ struct LessonActionMenu: View {
                     style: .normal
                 ) {
                     // Dismiss instantly (no animation) to avoid flickering above the incoming modal
-                    overlayManager.dismiss(id: OverlayID.lessonActionMenu)
+                    overlayManager.dismiss(.lessonActionMenu)
                     onEditActivities()
                 }
 
@@ -54,7 +54,7 @@ struct LessonActionMenu: View {
                         title: "Edit Enrollment",
                         style: .normal
                     ) {
-                        overlayManager.dismiss(id: OverlayID.lessonActionMenu)
+                        overlayManager.dismiss(.lessonActionMenu)
                         onEditEnrollment()
                     }
                 }

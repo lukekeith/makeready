@@ -23,7 +23,7 @@ struct ProgramHomeModalContent: View {
                 overlayManager: overlayManager,
                 programId: programId,
                 onShowAddActivityMenu: { existingTypes, callback in
-                    overlayManager.present(id: OverlayID.addActivityMenu, priority: .topLevel) {
+                    overlayManager.present(.addActivityMenu) {
                         AddActivityMenu(
                             overlayManager: overlayManager,
                             existingActivityTypes: existingTypes,

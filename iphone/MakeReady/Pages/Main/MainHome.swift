@@ -442,7 +442,7 @@ struct MainHome: View {
             return
         }
 
-        overlayManager.presentMenu(id: OverlayID.lessonActionMenu) {
+        overlayManager.present(.lessonActionMenu) {
             LessonActionMenu(
                 schedule: entry.schedule,
                 studyName: entry.studyName,
@@ -864,7 +864,7 @@ struct EditEnrollmentDayWrapper: View {
             schedule: schedule,
             enrollmentId: enrollmentId,
             onShowAddActivityMenu: { existingTypes, onSelect in
-                overlayManager.present(id: OverlayID.addActivityMenu, priority: .topLevel) {
+                overlayManager.present(.addActivityMenu) {
                     AddActivityMenu(overlayManager: overlayManager, existingActivityTypes: existingTypes, onActivitySelected: onSelect)
                 }
             }

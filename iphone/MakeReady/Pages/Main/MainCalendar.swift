@@ -68,7 +68,7 @@ struct MainCalendar: View {
             return
         }
 
-        overlayManager.presentMenu(id: OverlayID.lessonActionMenu) {
+        overlayManager.present(.lessonActionMenu) {
             LessonActionMenu(
                 schedule: entry.schedule,
                 studyName: entry.studyName,

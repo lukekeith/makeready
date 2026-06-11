@@ -241,12 +241,12 @@ struct MainLibrary: View {
                         .buttonStyle(.plain)
 
                         Button {
-                            overlayManager.presentMenu(id: OverlayID.libraryAddMenu) {
+                            overlayManager.present(.libraryAddMenu) {
                                 ActionCardMenu(
                                     title: "Create New",
                                     items: [
                                         ActionCardMenuItem(icon: "book.fill", title: "Study Program", description: "Create a new study program") {
-                                            overlayManager.dismiss(id: OverlayID.libraryAddMenu) {
+                                            overlayManager.dismiss(.libraryAddMenu) {
                                                 overlayManager.presentModal(id: OverlayID.createProgram) {
                                                     CreateProgramPage(overlayManager: overlayManager)
                                                 }

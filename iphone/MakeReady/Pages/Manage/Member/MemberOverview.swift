@@ -51,7 +51,7 @@ struct MemberOverview: View {
                 // Navigation Bar at bottom
                 NavBar(
                     onProfileTap: {
-                        overlayManager.presentMenu(id: OverlayID.hamburgerMenu) {
+                        overlayManager.present(.hamburgerMenu) {
                             HamburgerMenu()
                         }
                     }

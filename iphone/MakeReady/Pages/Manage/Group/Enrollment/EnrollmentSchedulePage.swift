@@ -377,7 +377,7 @@ struct EnrollmentSchedulePage: View {
         NSLog("Tapped lesson: Day \(schedule.lesson.dayNumber) on \(schedule.scheduledDate)")
         selectedLessonForMenu = schedule
 
-        overlayManager?.presentMenu(id: OverlayID.lessonActionMenu) {
+        overlayManager?.present(.lessonActionMenu) {
             LessonActionMenu(
                 schedule: schedule,
                 studyName: enrollment.studyProgram?.name ?? "Study",
@@ -402,7 +402,7 @@ struct EnrollmentSchedulePage: View {
     }
 
     private func onShowAddActivityMenu(existingTypes: [String], onSelect: @escaping (String) -> Void) {
-        overlayManager?.present(id: OverlayID.addActivityMenu, priority: .topLevel) {
+        overlayManager?.present(.addActivityMenu) {
             AddActivityMenu(overlayManager: overlayManager!, existingActivityTypes: existingTypes, onActivitySelected: onSelect)
         }
     }

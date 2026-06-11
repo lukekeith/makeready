@@ -711,7 +711,7 @@ struct GroupHomePage: View {
     private func handleNextLessonTap(schedule: LessonSchedule, enrollment: EnrollmentWithProgram) {
         NSLog("Tapped next lesson: Day \(schedule.lesson.dayNumber)")
 
-        overlayManager.presentMenu(id: OverlayID.lessonActionMenu) {
+        overlayManager.present(.lessonActionMenu) {
             LessonActionMenu(
                 schedule: schedule,
                 studyName: enrollment.studyProgram?.name ?? "Study",

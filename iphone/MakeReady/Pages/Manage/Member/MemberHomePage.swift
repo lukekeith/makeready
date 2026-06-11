@@ -115,10 +115,10 @@ struct MemberHomePage: View {
                 ) {
                     HStack(spacing: 8) {
                         Button {
-                            overlayManager.presentMenu(id: OverlayID.groupsInviteMenu) {
+                            overlayManager.present(.groupsInviteMenu) {
                                 InviteMenu(
                                     overlayManager: overlayManager,
-                                    menuId: OverlayID.groupsInviteMenu
+                                    menuId: Route.groupsInviteMenu.id
                                 )
                                 .environment(authManager)
                             }
@@ -133,12 +133,12 @@ struct MemberHomePage: View {
                         .buttonStyle(.plain)
 
                         Button {
-                            overlayManager.presentMenu(id: OverlayID.groupsAddMenu) {
+                            overlayManager.present(.groupsAddMenu) {
                                 ActionCardMenu(
                                     title: "Create New",
                                     items: [
                                         ActionCardMenuItem(icon: "person.2.fill", title: "Group", description: "Create a new group") {
-                                            overlayManager.dismiss(id: OverlayID.groupsAddMenu) {
+                                            overlayManager.dismiss(.groupsAddMenu) {
                                                 overlayManager.presentModal(id: OverlayID.createGroup) {
                                                     CreateGroupPage(overlayManager: overlayManager)
                                                 }
