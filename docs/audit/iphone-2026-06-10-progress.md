@@ -2,7 +2,11 @@
 
 > Companion to [iphone-2026-06-10-plan.md](./iphone-2026-06-10-plan.md) (the phase definitions) and
 > [../plans/media-2026-06-10.md](../plans/media-2026-06-10.md) (media-at-scale plan).
-> Update this file at every phase/step boundary. Last updated: **2026-06-11 (session 4 — 3.5 + 3.6a/3.6b shipped; 3.6c implemented then REVERTED after it broke all sliders; handing off mid-debug to Fable)**.
+> Update this file at every phase/step boundary. Last updated: **2026-06-11 (session 5 —
+> slider regression root-caused as per-page Class 3 and fixed everywhere [cache-first
+> contract, codified in skills]; 3.6d/3.7/3.8/3.9/3.10 shipped and device-verified.
+> PHASE 3 COMPLETE. Next: Phase 5 enforcement layer, or media plan M0.1 [urgent], or
+> Decision Points A–D)**.
 
 ## Status at a glance
 
@@ -21,9 +25,9 @@
 | 3.6c — lazy `OverlayItem.content` | ❌ **REJECTED** — implemented + built green, but caused the slider regression (rebuilt overlay content every render). **Reverted; do not reattempt as written.** See ACTIVE PROBLEM. | reverted (was uncommitted) |
 | 3.6d — migrate 96 call sites to Route | ✅ **Done — user build green, overlay flows spot-checked on device** (menus, confirmation overlay, member-requests push, schedule-modal tap-outside, block pickers). Capture suite not re-run (overlay changes are capture-blind anyway — see session learnings). Prep commit corrected Route's chrome/priority to match live call sites (unenrollOptions=modal, stylePicker=menu, addActivityMenu+confirmationOverlay=raw, memberRequests=page) and folded `dismissOnTapOutside` into Route. Dynamic per-entity ids (GlobalSearchPage lesson/video modals, blockStyleColorPicker, shareInviteDemo) stay on the string API by design. | `71f3aee`, `2a49833`, `1dda16b`, `bdaee28`, `eee75cd`, `37dec9d` |
 | 3.7 — `/present-overlay` skill | ✅ Done (skill + MODAL_GUIDE rewritten for Route; /transition-review D1/D2 + iphone CLAUDE.md synced) | `4db862b` |
-| 3.8 — NavigationCoordinator | 🟡 **Code complete, AWAITING USER BUILD + deep-link device verification** (push tap → join requests/group, .makeready import, notification feed taps, KPI jumps). Typed NavDestination + exhaustive handle(deepLink:); MainView tab state migrated; coordinator in environment for opportunistic page migrations (106-flag bulk sweep NOT done — by design). | `dfc5438` |
+| 3.8 — NavigationCoordinator | ✅ **Done — build green, deep links + KPI jumps device-verified.** Typed NavDestination + exhaustive handle(deepLink:); MainView tab state migrated; coordinator in environment. The 106-flag presentation-boolean migration happens opportunistically with future page work (by design, see NavigationCoordinator.swift header). | `dfc5438` |
 | 3.9 — `/nav-route` skill | ✅ Done | `cd2bdbf` |
-| 3.10 — Cleanup sweep | 🟡 Code complete, same build gate: deleted ContentView/ModalOverlay/BackgroundPickerModal/InlineColorPalette + BlockStyleEditor dead grid; 5 NavigationView→NavigationStack (hand-check DatePickerField/MenuInput/GroupSelectorSheet/QRCode sheets render same). 2 forbidden fullScreenCovers stay (Decision Point B). | `488afcd` |
+| 3.10 — Cleanup sweep | ✅ **Done — build green, sheets/pickers device-verified post-NavigationStack.** Deleted ContentView/ModalOverlay/BackgroundPickerModal/InlineColorPalette + BlockStyleEditor dead grid. 2 forbidden fullScreenCovers stay (Decision Point B). **Phase 3 (3.1–3.10) is COMPLETE.** | `488afcd` |
 | 5 — Enforcement layer | ⬜ Not started | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
