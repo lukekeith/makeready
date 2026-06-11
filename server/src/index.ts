@@ -586,6 +586,18 @@ if (process.env.NODE_ENV !== 'test') {
     }).catch((err) => {
       console.warn('⚠️ Could not start cache eviction job:', err.message)
     })
+
+    // Warm up the embedding model (semantic Bible search) after boot so the
+    // first user query doesn't pay the ~2-5s model load. Non-blocking —
+    // /health is never affected.
+    if (process.env.EMBEDDINGS_WARMUP === 'true') {
+      setTimeout(() => {
+        import('./services/embeddings.js')
+          .then(({ embedQuery }) => embedQuery('warmup'))
+          .then(() => console.log('🔎 Embedding model warmed up'))
+          .catch((err) => console.warn('⚠️ Embedding warmup failed:', err.message))
+      }, 5000).unref()
+    }
   })
 }
 

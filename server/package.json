@@ -32,11 +32,15 @@
     "migrate:status": "dotenv -- bash -c 'cd atlas && ../bin/atlas migrate status --env local'",
     "db:seed": "tsx scripts/schema/run-seeds.ts",
     "db:seed:prod": "tsx scripts/schema/run-seeds.ts --env=production",
-    "templates:import": "npx tsx scripts/import-templates.ts"
+    "templates:import": "npx tsx scripts/import-templates.ts",
+    "model:prefetch": "tsx src/scripts/prefetch-model.ts",
+    "bible:import:web": "dotenv -- tsx src/scripts/import-web-bible.ts",
+    "embed:bible": "dotenv -- tsx src/scripts/embed-bible.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.80.0",
     "@aws-sdk/client-s3": "^3.991.0",
+    "@huggingface/transformers": "^4.2.0",
     "@parse/node-apn": "^6.5.0",
     "@prisma/client": "^6.18.0",
     "@types/express-session": "^1.18.2",

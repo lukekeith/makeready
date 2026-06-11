@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   postgres:
-    image: postgres:15
+    # pgvector required for semantic Bible search; pg15 (not pg17) keeps the
+    # existing volume's data directory format compatible
+    image: pgvector/pgvector:pg15
     container_name: makeready-postgres
     environment:
       POSTGRES_USER: postgres

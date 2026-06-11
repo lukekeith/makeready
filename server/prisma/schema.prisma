@@ -571,6 +571,7 @@ model Verse {
   verse                Int
   text                 String @db.Text
   searchVector         Unsupported("tsvector")? // Full-text search
+  embedding            Unsupported("vector(384)")? // Semantic search embedding (bge-small-en-v1.5, WEB translation only)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 

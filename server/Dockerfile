@@ -1,5 +1,6 @@
 # Build stage
-FROM node:20-alpine AS builder
+# Debian slim (not alpine): onnxruntime-node (embeddings) ships glibc-only binaries
+FROM node:20-slim AS builder
 
 WORKDIR /app
 
@@ -15,14 +16,22 @@ RUN npx prisma generate
 COPY . .
 RUN npm run build:only
 
+# Bake the embedding model into the image (Railway filesystem is ephemeral —
+# downloading from HuggingFace at runtime would repeat on every restart).
+# Also smoke-tests that onnxruntime inference works on this image.
+ENV HF_CACHE_DIR=/app/.hf-cache
+RUN node dist/scripts/prefetch-model.js
+
 # Download Atlas CLI (linux-amd64) for runtime migrations
-RUN apk add --no-cache curl \
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /app/bin \
  && curl -sSL -o /app/bin/atlas "https://release.ariga.io/atlas/atlas-community-linux-amd64-latest" \
  && chmod +x /app/bin/atlas
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
@@ -44,6 +53,10 @@ COPY --from=builder /app/public ./public
 
 # Copy theme files for the loader and static serving
 COPY --from=builder /app/themes ./themes
+
+# Copy pre-downloaded embedding model weights
+COPY --from=builder /app/.hf-cache ./.hf-cache
+ENV HF_CACHE_DIR=/app/.hf-cache
 
 # Copy Atlas migration files + binary so deploys can apply pending migrations
 COPY --from=builder /app/atlas ./atlas

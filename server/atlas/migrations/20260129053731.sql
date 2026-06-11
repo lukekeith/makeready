@@ -1098,7 +1098,7 @@ CREATE TABLE "public"."verses" (
   "verse" integer NOT NULL,
   "text" text NOT NULL,
   "searchVector" tsvector NULL,
-  "embedding" public.vector(384) NULL,
+  "embedding" vector(384) NULL,
   "createdAt" timestamp NOT NULL DEFAULT now(),
   "updatedAt" timestamp NOT NULL,
   PRIMARY KEY ("id"),

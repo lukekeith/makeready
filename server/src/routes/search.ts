@@ -859,7 +859,10 @@ router.get('/', requireAuth, async (req, res) => {
  *     description: |
  *       Unified search endpoint that automatically detects the query type and routes accordingly:
  *       - **Direct references** (e.g., "Romans 1:1", "John 3:16-17", "Psalm 23") → exact verse/chapter lookup via API.Bible
- *       - **Keyword queries** (e.g., "love", "forgiveness") → keyword search via API.Bible with AND matching and wildcards
+ *       - **Concept queries** (e.g., "overcoming fear", "forgiveness") → semantic search over locally-stored
+ *         verses using pgvector embeddings (bge-small-en-v1.5). Verse text comes from the public-domain WEB
+ *         translation (see `sourceTranslation`); falls back to API.Bible keyword search if embeddings are
+ *         unavailable (EMBEDDINGS_ENABLED=false or backfill not run).
  *
  *       Direct references use chapter-first caching — the entire chapter is cached on first access.
  *       Default translation is NASB, or the user's preferred translation if authenticated.
@@ -933,7 +936,7 @@ router.get('/', requireAuth, async (req, res) => {
  *                       type: string
  *                       nullable: true
  *                 - type: object
- *                   description: Keyword search result
+ *                   description: Concept (semantic) search result
  *                   properties:
  *                     type:
  *                       type: string
@@ -942,6 +945,10 @@ router.get('/', requireAuth, async (req, res) => {
  *                       type: string
  *                     translation:
  *                       type: string
+ *                     sourceTranslation:
+ *                       type: string
+ *                       nullable: true
+ *                       description: Translation the verse text was served from (WEB for semantic results)
  *                     results:
  *                       type: array
  *                       items:
@@ -1026,9 +1033,27 @@ router.post('/smart', async (req, res) => {
         .filter(Boolean) as typeof books
     }
 
-    // 2. Keyword search for verses
-    const verseResult = await handleKeywordSearch(query, translation, limit)
-    const verses = (verseResult as any).results || []
+    // 2. Concept search for verses — local pgvector embeddings, with
+    //    API.Bible keyword search as fallback (model unavailable, embeddings
+    //    not yet backfilled, or EMBEDDINGS_ENABLED=false)
+    const { isEmbeddingsEnabled } = await import('../services/embeddings.js')
+    let verseResult: any
+    if (isEmbeddingsEnabled()) {
+      try {
+        const { searchVersesSemantic } = await import('../services/semantic-search.js')
+        verseResult = await searchVersesSemantic(query, translation, limit)
+        if (verseResult.results.length === 0 && !(await hasVerseEmbeddings())) {
+          // Embeddings not backfilled in this environment yet
+          verseResult = await handleKeywordSearch(query, translation, limit)
+        }
+      } catch (err) {
+        console.error('Semantic search failed, falling back to API.Bible keyword search:', err)
+        verseResult = await handleKeywordSearch(query, translation, limit)
+      }
+    } else {
+      verseResult = await handleKeywordSearch(query, translation, limit)
+    }
+    const verses = verseResult.results || []
 
     const totalResults = books.length + verses.length
     saveSearchHistory(req, query, totalResults)
@@ -1040,7 +1065,8 @@ router.post('/smart', async (req, res) => {
       books,
       verses,
       total: totalResults,
-      fumsToken: (verseResult as any).fumsToken,
+      sourceTranslation: verseResult.sourceTranslation,
+      fumsToken: verseResult.fumsToken,
     })
   } catch (error) {
     console.error('Smart search error:', error)
@@ -1123,6 +1149,18 @@ async function handleDirectReference(query: string, translationCode: string) {
   } catch (error: any) {
     return { type: 'error', query, error: error.message || 'Failed to fetch reference' }
   }
+}
+
+// Whether any verse embeddings exist in this environment (backfilled via
+// `npm run embed:bible`). Cached once true — embeddings are never removed
+// at runtime, and this avoids a count query on every search.
+let verseEmbeddingsExist = false
+async function hasVerseEmbeddings(): Promise<boolean> {
+  if (verseEmbeddingsExist) return true
+  const rows = await prisma.$queryRaw<[{ exists: boolean }]>`
+    SELECT EXISTS(SELECT 1 FROM verses WHERE "embedding" IS NOT NULL) AS exists`
+  verseEmbeddingsExist = rows[0]?.exists ?? false
+  return verseEmbeddingsExist
 }
 
 /**

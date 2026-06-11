@@ -6,3 +6,5 @@ version: "1.0"
 extensions:
   - name: uuid-ossp
     description: UUID generation functions
+  - name: vector
+    description: pgvector for semantic verse search (Bible concept search)
