@@ -6,5 +6,8 @@ CREATE INDEX "idx_verse_windows_translationId_bookNumber_chapter" ON "verse_wind
 COMMENT ON COLUMN "verse_windows"."text" IS 'Concatenated verse texts for the window';
 -- Set comment to column: "embedding" on table: "verse_windows"
 COMMENT ON COLUMN "verse_windows"."embedding" IS 'Semantic search embedding for multi-verse concepts';
+-- Build HNSW in-process: parallel builds need a ~64MB dynamic shared memory
+-- segment, which exceeds Railway Postgres containers' /dev/shm.
+SET max_parallel_maintenance_workers = 0;
 -- HNSW cosine index (hand-managed: Atlas community can't express HNSW in HCL)
 CREATE INDEX "verse_windows_embedding_hnsw_idx" ON "verse_windows" USING hnsw ("embedding" vector_cosine_ops) WITH (m = 16, ef_construction = 64);

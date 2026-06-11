@@ -12,5 +12,8 @@ COMMENT ON COLUMN "bible_passages"."themes" IS 'Theme keywords, e.g. repentance,
 COMMENT ON COLUMN "bible_passages"."openingText" IS 'First 1-2 verses (WEB) used as the result snippet';
 -- Set comment to column: "embedding" on table: "bible_passages"
 COMMENT ON COLUMN "bible_passages"."embedding" IS 'Embedding of the concept card (title + summary + themes)';
+-- Build HNSW in-process: parallel builds need a ~64MB dynamic shared memory
+-- segment, which exceeds Railway Postgres containers' /dev/shm.
+SET max_parallel_maintenance_workers = 0;
 -- HNSW cosine index (hand-managed: Atlas community can't express HNSW in HCL)
 CREATE INDEX "bible_passages_embedding_hnsw_idx" ON "bible_passages" USING hnsw ("embedding" vector_cosine_ops) WITH (m = 16, ef_construction = 64);

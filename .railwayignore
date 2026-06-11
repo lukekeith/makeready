@@ -1,0 +1,10 @@
+.git/
+iphone/
+capture/
+client/
+node_modules/
+**/node_modules/
+server/.hf-cache/
+**/build/
+**/DerivedData/
+*.log
