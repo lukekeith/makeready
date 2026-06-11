@@ -65,12 +65,39 @@ private let api: APIClientProtocol
         try await fetchLibrary(type: type, tags: tags, leaders: leaders)
     }
 
-    /// Fetch media library from API and update state
+    /// Server page size for the media library.
+    static let libraryPageSize = 100
+
+    /// Load the next page of the library and append it (Phase 4.1 — the
+    /// library used to be silently capped at the first 100 items).
+    /// No-ops when everything is already loaded or a page is in flight.
+    /// Pass the same filters as the current loadLibrary call.
+    @MainActor
+    func loadMoreLibrary(
+        type: String? = nil,
+        tags: [String]? = nil,
+        leaders: [String]? = nil
+    ) async throws {
+        guard state.mediaLibrary.count < state.mediaLibraryTotal else { return }
+        guard !state.loadingStates.isLoading(context: "media-page"),
+              !state.loadingStates.isLoading(.media) else { return }
+
+        state.loadingStates.startLoading(context: "media-page", hasCachedData: true)
+        defer { state.loadingStates.finishLoading(context: "media-page") }
+
+        // Re-fetching a partially-loaded page is harmless: appends upsert.
+        let nextPage = state.mediaLibrary.count / Self.libraryPageSize + 1
+        try await fetchLibrary(type: type, tags: tags, leaders: leaders, page: nextPage)
+    }
+
+    /// Fetch one page of the media library and update state.
+    /// Page 1 replaces the store (refresh semantics); later pages append.
     @MainActor
     private func fetchLibrary(
         type: String? = nil,
         tags: [String]? = nil,
-        leaders: [String]? = nil
+        leaders: [String]? = nil,
+        page: Int = 1
     ) async throws {
         defer {
             state.loadingStates.finishLoading(.media)
@@ -81,7 +108,7 @@ private let api: APIClientProtocol
             return
         }
 
-        var endpoint = "/api/organizations/\(orgId)/media/library?limit=100"
+        var endpoint = "/api/organizations/\(orgId)/media/library?limit=\(Self.libraryPageSize)&page=\(page)"
         if let type = type {
             endpoint += "&type=\(type)"
         }
@@ -102,10 +129,14 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to load media library")
         }
 
-        state.mediaLibrary.replaceAll(items)
-        state.mediaLibraryTotal = response.total ?? items.count
+        if page <= 1 {
+            state.mediaLibrary.replaceAll(items)
+        } else {
+            state.mediaLibrary.upsertMany(items)
+        }
+        state.mediaLibraryTotal = response.total ?? state.mediaLibrary.count
         state.persist()
-        NSLog("📸 MediaActions: Loaded \(items.count) media items (total: \(state.mediaLibraryTotal))")
+        NSLog("📸 MediaActions: Loaded page \(page) (\(items.count) items, \(state.mediaLibrary.count)/\(state.mediaLibraryTotal))")
     }
 
     // MARK: - Delete Media

@@ -797,6 +797,9 @@ struct MainLibrary: View {
                     topInset: 116,
                     onItemSelected: { item, sourceFrame in
                         presentMediaDetail(item: item, sourceFrame: sourceFrame)
+                    },
+                    onNearEnd: {
+                        Task { await loadMoreMedia() }
                     }
                 )
             }
@@ -1206,6 +1209,21 @@ struct MainLibrary: View {
             )
         } catch {
             NSLog("❌ Failed to load media: \(error)")
+        }
+    }
+
+    /// Append the next library page using the current filters (Phase 4.1).
+    private func loadMoreMedia() async {
+        let tagsArray: [String]? = selectedMediaTags.isEmpty ? nil : Array(selectedMediaTags)
+        let leadersArray: [String]? = selectedMediaLeaders.isEmpty ? nil : Array(selectedMediaLeaders)
+        do {
+            try await MediaActions().loadMoreLibrary(
+                type: selectedMediaType.apiValue,
+                tags: tagsArray,
+                leaders: leadersArray
+            )
+        } catch {
+            state.recordError(error, context: "MainLibrary.loadMoreMedia")
         }
     }
 

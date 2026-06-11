@@ -228,6 +228,10 @@ private struct MediaCollectionView: UIViewRepresentable {
     let items: [MediaLibraryItem]
     let topInset: CGFloat
     let onItemSelected: (MediaLibraryItem, CGRect) -> Void
+    /// Fired when scrolling nears the end of the loaded items — the host
+    /// loads the next page (Phase 4.1). Re-fires are cheap: the Action
+    /// no-ops while a page is in flight or when everything is loaded.
+    var onNearEnd: (() -> Void)? = nil
 
     private static let spacing: CGFloat = 2
     private static let columnCount: CGFloat = 3
@@ -320,6 +324,13 @@ private struct MediaCollectionView: UIViewRepresentable {
             return cell
         }
 
+        func collectionView(_ collectionView: UICollectionView, willDisplay cell: UICollectionViewCell, forItemAt indexPath: IndexPath) {
+            // Trigger the next page while ~2 rows of items remain below.
+            if indexPath.item >= parent.items.count - 12 {
+                parent.onNearEnd?()
+            }
+        }
+
         func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
             guard indexPath.item < parent.items.count,
                   let cell = collectionView.cellForItem(at: indexPath),
@@ -357,12 +368,14 @@ struct MediaLibraryGrid: View {
     let items: [MediaLibraryItem]
     var topInset: CGFloat = 0
     let onItemSelected: (MediaLibraryItem, CGRect) -> Void
+    var onNearEnd: (() -> Void)? = nil
 
     var body: some View {
         MediaCollectionView(
             items: items,
             topInset: topInset,
-            onItemSelected: onItemSelected
+            onItemSelected: onItemSelected,
+            onNearEnd: onNearEnd
         )
     }
 }
