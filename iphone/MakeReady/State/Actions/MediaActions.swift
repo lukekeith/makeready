@@ -85,9 +85,17 @@ private let api: APIClientProtocol
         state.loadingStates.startLoading(context: "media-page", hasCachedData: true)
         defer { state.loadingStates.finishLoading(context: "media-page") }
 
-        // Re-fetching a partially-loaded page is harmless: appends upsert.
-        let nextPage = state.mediaLibrary.count / Self.libraryPageSize + 1
-        try await fetchLibrary(type: type, tags: tags, leaders: leaders, page: nextPage)
+        if let cursor = state.mediaLibraryNextCursor {
+            // Keyset paging (M1.5): flat at any depth; the server's hasMore
+            // is exact, so nextCursor goes nil precisely at the end.
+            try await fetchLibrary(type: type, tags: tags, leaders: leaders, cursor: cursor)
+        } else {
+            // Fallback for servers without cursor support (deploy-order
+            // safety). Re-fetching a partially-loaded page is harmless:
+            // appends upsert.
+            let nextPage = state.mediaLibrary.count / Self.libraryPageSize + 1
+            try await fetchLibrary(type: type, tags: tags, leaders: leaders, page: nextPage)
+        }
     }
 
     /// Fetch one page of the media library and update state.
@@ -97,7 +105,8 @@ private let api: APIClientProtocol
         type: String? = nil,
         tags: [String]? = nil,
         leaders: [String]? = nil,
-        page: Int = 1
+        page: Int = 1,
+        cursor: String? = nil
     ) async throws {
         defer {
             state.loadingStates.finishLoading(.media)
@@ -108,7 +117,13 @@ private let api: APIClientProtocol
             return
         }
 
-        var endpoint = "/api/organizations/\(orgId)/media/library?limit=\(Self.libraryPageSize)&page=\(page)"
+        var endpoint = "/api/organizations/\(orgId)/media/library?limit=\(Self.libraryPageSize)"
+        if let cursor {
+            let encoded = cursor.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? cursor
+            endpoint += "&cursor=\(encoded)"
+        } else {
+            endpoint += "&page=\(page)"
+        }
         if let type = type {
             endpoint += "&type=\(type)"
         }
@@ -129,14 +144,26 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to load media library")
         }
 
-        if page <= 1 {
+        if cursor == nil && page <= 1 {
             state.mediaLibrary.replaceAll(items)
         } else {
             state.mediaLibrary.upsertMany(items)
         }
-        state.mediaLibraryTotal = response.total ?? state.mediaLibrary.count
+
+        // Cursor-mode responses omit total by design (the exact total comes
+        // from the initial page-1 response) — keep the one we have unless
+        // the server says we've reached the end.
+        if let total = response.total {
+            state.mediaLibraryTotal = total
+        } else if response.hasMore == false {
+            state.mediaLibraryTotal = state.mediaLibrary.count
+        }
+
+        // nil on old servers → loadMoreLibrary falls back to page paging.
+        state.mediaLibraryNextCursor = response.nextCursor
+
         state.persist()
-        NSLog("📸 MediaActions: Loaded page \(page) (\(items.count) items, \(state.mediaLibrary.count)/\(state.mediaLibraryTotal))")
+        NSLog("📸 MediaActions: Loaded \(cursor != nil ? "cursor page" : "page \(page)") (\(items.count) items, \(state.mediaLibrary.count)/\(state.mediaLibraryTotal), cursor: \(response.nextCursor != nil ? "yes" : "no"))")
     }
 
     // MARK: - Delete Media
@@ -370,6 +397,9 @@ private let api: APIClientProtocol
 
         state.mediaLibrary.replaceAll(items)
         state.mediaLibraryTotal = response.total ?? items.count
+        // Search replaces the result set — restart keyset paging from the
+        // search response's own cursor (nil on old servers → page fallback).
+        state.mediaLibraryNextCursor = response.nextCursor
     }
 
     // MARK: - Tags

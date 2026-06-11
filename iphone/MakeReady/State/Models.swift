@@ -286,6 +286,9 @@ struct MediaLibraryResponse: Codable {
     let page: Int?
     let limit: Int?
     let totalPages: Int?
+    /// Keyset paging (media plan M1.5). Optional so old servers decode fine.
+    let nextCursor: String?
+    let hasMore: Bool?
     let error: String?
 }
 

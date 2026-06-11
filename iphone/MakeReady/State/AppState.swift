@@ -126,6 +126,13 @@ final class AppState {
     /// Total media count from server (for pagination)
     var mediaLibraryTotal: Int = 0
 
+    /// Keyset cursor for the next media library page (media plan M1.5).
+    /// In-memory only — never persisted; a fresh launch restarts from page 1.
+    /// nil means everything is loaded, a filter change reset it, or the
+    /// server didn't return cursors (loadMoreLibrary falls back to
+    /// page-derived paging for deploy-order safety).
+    var mediaLibraryNextCursor: String? = nil
+
     /// Bible translations
     var bibleTranslations: [BibleVersion] = knownBibleVersions
 
@@ -622,6 +629,7 @@ final class AppState {
         organizationId = nil
         userOrganizations = []
         mediaLibraryTotal = 0
+        mediaLibraryNextCursor = nil
 
         programEnrollmentIndex.clear()
         groupEnrollmentIndex.clear()
