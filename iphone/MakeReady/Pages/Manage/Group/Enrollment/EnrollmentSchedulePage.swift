@@ -28,11 +28,9 @@ struct EnrollmentSchedulePage: View {
     @State private var isAddingLesson = false
     @State private var deletingScheduleId: String? = nil
 
-    // Edit activities state
-    @State private var editingSchedule: LessonSchedule? = nil
-    @State private var showEditActivities = false
-
-    @State private var cachedWidth: CGFloat?
+    // Edit activities state — track by schedule id so the SlideStack detail
+    // pane reads live data from enrollmentDetails.
+    @State private var editingScheduleId: String? = nil
 
     /// True once the modal's open animation has finished. Gates swapping loaded
     /// content in: the network/local-server response can land mid-slide, and
@@ -51,51 +49,26 @@ struct EnrollmentSchedulePage: View {
     @State private var completionStats: EnrollmentCompletionStats?
 
     var body: some View {
-        GeometryReader { geometry in
-            let width = cachedWidth ?? geometry.size.width
-            HStack(spacing: 0) {
-                // Screen 1: Lesson list
-                scheduleContent
-                    .frame(width: width)
-
-                // Screen 2: Edit enrollment day
-                ZStack {
-                    if let schedule = editingSchedule {
-                        EditEnrollmentDay(
-                            isPresented: $showEditActivities,
-                            schedule: schedule,
-                            enrollmentId: enrollment.id,
-                            onShowAddActivityMenu: { existingTypes, onSelect in
-                                onShowAddActivityMenu(existingTypes: existingTypes, onSelect: onSelect)
-                            },
-                            onTitleChanged: { newTitle in
-                                updateScheduleTitle(scheduleId: schedule.id, title: newTitle)
-                            }
-                        )
-                        .environment(\.isModalRoot, false)
-                        .id(schedule.id)
+        // Canonical slider (Phase 3.4): SlideStack owns the two-step insertion,
+        // the single animation driver, and the completion-tied unmount this page
+        // previously hand-rolled with showEditActivities + a deferred flag flip.
+        SlideStack(item: $editingScheduleId) {
+            scheduleContent
+        } detail: { scheduleId in
+            editEnrollmentDayPane(scheduleId: scheduleId)
+        }
+        .onAppear {
+            // Hold the structure stable until the modal finishes opening so
+            // loaded content rides the slide instead of popping in clipped.
+            // (Appear spring is response 0.4; 0.5s covers the settle.)
+            if isModalRoot {
+                if !readyToShowContent {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        readyToShowContent = true
                     }
                 }
-                .frame(width: width)
-            }
-            .offset(x: showEditActivities ? -width : 0)
-            .animation(Motion.standard, value: showEditActivities)
-            .onAppear {
-                if cachedWidth == nil {
-                    cachedWidth = geometry.size.width
-                }
-                // Hold the structure stable until the modal finishes opening so
-                // loaded content rides the slide instead of popping in clipped.
-                // (Appear spring is response 0.4; 0.5s covers the settle.)
-                if isModalRoot {
-                    if !readyToShowContent {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                            readyToShowContent = true
-                        }
-                    }
-                } else {
-                    readyToShowContent = true
-                }
+            } else {
+                readyToShowContent = true
             }
         }
         .background(Color.appBackground)
@@ -177,6 +150,33 @@ struct EnrollmentSchedulePage: View {
                     DialogButtonConfig("Cancel", style: .secondary) {}
                 ]
             )
+        }
+    }
+
+    // MARK: - Edit Enrollment Day (Screen 2)
+
+    /// Inline edit pane for the schedule being edited. Built from the
+    /// SlideStack-mounted id — NOT from editingScheduleId, which clears at
+    /// dismissal while the pane is still sliding out. The schedule is looked
+    /// up live so title edits in enrollmentDetails re-render the pane.
+    @ViewBuilder
+    private func editEnrollmentDayPane(scheduleId: String) -> some View {
+        if let schedule = enrollmentDetails?.lessonSchedules.first(where: { $0.id == scheduleId }) {
+            EditEnrollmentDay(
+                isPresented: Binding(
+                    get: { editingScheduleId != nil },
+                    set: { if !$0 { editingScheduleId = nil } }
+                ),
+                schedule: schedule,
+                enrollmentId: enrollment.id,
+                onShowAddActivityMenu: { existingTypes, onSelect in
+                    onShowAddActivityMenu(existingTypes: existingTypes, onSelect: onSelect)
+                },
+                onTitleChanged: { newTitle in
+                    updateScheduleTitle(scheduleId: schedule.id, title: newTitle)
+                }
+            )
+            .environment(\.isModalRoot, false)
         }
     }
 
@@ -349,10 +349,7 @@ struct EnrollmentSchedulePage: View {
                 studyName: enrollment.studyProgram?.name ?? "Study",
                 enrollmentId: enrollment.id,
                 onEditActivities: {
-                    editingSchedule = schedule
-                    DispatchQueue.main.async {
-                        showEditActivities = true
-                    }
+                    editingScheduleId = schedule.id
                 },
                 onOpenLesson: {
                     handleOpenLesson(schedule)
