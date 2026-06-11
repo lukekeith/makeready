@@ -86,7 +86,7 @@ struct VideoPlayerPage: View {
                     } else if !isInline && value.translation.height > 100 {
                         handleDismiss()
                     }
-                    withAnimation(.easeOut(duration: 0.2)) {
+                    withAnimation(Motion.settle) {
                         dragOffset = .zero
                     }
                 }

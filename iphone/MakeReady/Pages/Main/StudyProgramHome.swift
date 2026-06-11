@@ -732,7 +732,7 @@ struct MainPrograms: View {
                 NSLog("🗑️ Deleted program: \(program.name)")
 
                 // Animate the card out
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(Motion.standard) {
                     deletingProgramId = program.id
                 }
 
@@ -864,12 +864,12 @@ private struct ImportConfirmOverlay: View {
         }
         .ignoresSafeArea()
         .onAppear {
-            withAnimation(.easeOut(duration: 0.25)) { visible = true }
+            withAnimation(Motion.pagePushBrisk) { visible = true }
         }
     }
 
     private func dismiss() {
-        withAnimation(.easeIn(duration: 0.2)) { visible = false }
+        withAnimation(Motion.exit) { visible = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             isPresented = false
         }

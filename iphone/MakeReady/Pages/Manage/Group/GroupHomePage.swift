@@ -206,7 +206,7 @@ struct GroupHomePage: View {
                 groupName: group?.name ?? "this group",
                 overlayManager: overlayManager,
                 onDismiss: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(Motion.standard) {
                         currentScreen = 1
                     }
                 }
@@ -216,7 +216,7 @@ struct GroupHomePage: View {
             EnrollmentsListPage(
                 groupId: groupId,
                 onDismiss: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(Motion.standard) {
                         currentScreen = 1
                     }
                 },
@@ -236,7 +236,7 @@ struct GroupHomePage: View {
             GroupInvitePage(
                 groupId: groupId,
                 onDismiss: {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(Motion.standard) {
                         currentScreen = 1
                     }
                 }
@@ -397,7 +397,7 @@ struct GroupHomePage: View {
                     leftIcon: "chevron.left",
                     rightLink: "Done",
                     onLeftIconTap: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
+                        withAnimation(Motion.standard) {
                             currentScreen = 1  // Back to main
                         }
                     },
@@ -1003,7 +1003,7 @@ struct GroupHomePage: View {
         let imageToUpload = coverImage
 
         // Immediately navigate back (optimistic UI)
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Motion.standard) {
             currentScreen = 1  // Back to main
         }
         coverImage = nil
@@ -1071,14 +1071,14 @@ struct GroupHomePage: View {
 
     private func handleInvite() {
         activeRightScreen = .invite
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Motion.standard) {
             currentScreen = 2
         }
     }
 
     private func handleMembers() {
         activeRightScreen = .members
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Motion.standard) {
             currentScreen = 2
         }
     }
@@ -1089,14 +1089,14 @@ struct GroupHomePage: View {
     }
 
     private func handleSettings() {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Motion.standard) {
             currentScreen = 0  // Settings is LEFT of main
         }
     }
 
     private func handleEnrollments() {
         activeRightScreen = .enrollments
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Motion.standard) {
             currentScreen = 2
         }
     }
@@ -1201,7 +1201,7 @@ struct GroupHomePage: View {
                 onDismiss: {
                     overlayManager.dismiss(id: OverlayID.confirmationOverlay)
                     // Stay on group home page (currentScreen = 1)
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(Motion.standard) {
                         currentScreen = 1
                     }
                 }

@@ -119,12 +119,12 @@ struct VideoActivityPicker: View {
                     let velocity = value.predictedEndTranslation.height - drag
 
                     if drag < -100 || velocity < -300 {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                        withAnimation(Motion.modalPresent) {
                             showingLibrary = true
                             committedDrag = 0
                         }
                     } else {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        withAnimation(Motion.springSnappy) {
                             committedDrag = 0
                         }
                     }
@@ -177,12 +177,12 @@ struct VideoActivityPicker: View {
                 let velocity = value.predictedEndTranslation.height - drag
 
                 if drag > 80 || velocity > 300 {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    withAnimation(Motion.modalPresent) {
                         showingLibrary = false
                         committedDrag = 0
                     }
                 } else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    withAnimation(Motion.springSnappy) {
                         committedDrag = 0
                     }
                 }
@@ -199,7 +199,7 @@ struct VideoActivityPicker: View {
                 onVideoSelected(result)
             },
             onOpenLibrary: {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                withAnimation(Motion.modalPresent) {
                     showingLibrary = true
                 }
             },

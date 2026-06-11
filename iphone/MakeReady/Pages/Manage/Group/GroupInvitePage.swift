@@ -264,7 +264,7 @@ struct GroupInvitePage: View {
                     .padding(.bottom, 32)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showCopiedToast)
+        .animation(Motion.standardBrisk, value: showCopiedToast)
     }
 
     // MARK: - Data Loading
@@ -522,6 +522,6 @@ private struct GroupInvitePagePreview: View {
                     .padding(.bottom, 32)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showCopiedToast)
+        .animation(Motion.standardBrisk, value: showCopiedToast)
     }
 }

@@ -149,7 +149,7 @@ struct AddMenu: View {
     }
 
     private func openSubmenu() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+        withAnimation(Motion.springSoft) {
             mainMenuOffset = -Screen.bounds.width
             submenuOffset = 0
             showSubmenu = true
@@ -157,7 +157,7 @@ struct AddMenu: View {
     }
 
     private func dismissSubmenu() {
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+        withAnimation(Motion.springSoft) {
             mainMenuOffset = 0
             submenuOffset = Screen.bounds.width
             showSubmenu = false

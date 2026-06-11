@@ -65,7 +65,7 @@ struct EnrollmentsListPage: View {
                             enrollment: enrollment,
                             onDismiss: {
                                 // Animate slide first, then clear selection after animation completes
-                                withAnimation(.easeInOut(duration: 0.3)) {
+                                withAnimation(Motion.standard) {
                                     currentScreen = 0
                                 }
                                 // Clear selection after animation
@@ -260,7 +260,7 @@ struct EnrollmentsListPage: View {
     private func handleEnrollmentTap(_ enrollment: EnrollmentWithProgram) {
         NSLog("Tapped enrollment: \(enrollment.id)")
         selectedEnrollment = enrollment
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Motion.standard) {
             currentScreen = 1
         }
     }

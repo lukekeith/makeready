@@ -130,7 +130,7 @@ private struct AnimatedCompletionCircle: View {
 
     private func animateCompletion() {
         // Step 1: Fill the circle from center (0.25s)
-        withAnimation(.easeOut(duration: 0.25)) {
+        withAnimation(Motion.pagePushBrisk) {
             fillScale = 1.0
             borderOpacity = 0
         }
@@ -242,7 +242,7 @@ struct ConfirmationOverlay: View {
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
-                    .animation(.easeInOut(duration: 0.2), value: isProcessing)
+                    .animation(Motion.micro, value: isProcessing)
 
                     Spacer()
                         .frame(height: 32)
@@ -261,7 +261,7 @@ struct ConfirmationOverlay: View {
                             .frame(height: 48)
                             .background(isProcessing ? Color.white.opacity(0.1) : Color(hex: "#6c47ff"))
                             .cornerRadius(8)
-                            .animation(.easeInOut(duration: 0.3), value: isProcessing)
+                            .animation(Motion.standard, value: isProcessing)
                     }
                     .buttonStyle(PlainButtonStyle())
                     .disabled(isProcessing)
@@ -283,7 +283,7 @@ struct ConfirmationOverlay: View {
                                 .frame(height: 48)
                                 .background(isProcessing ? Color.clear : Color.white.opacity(0.1))
                                 .cornerRadius(8)
-                                .animation(.easeInOut(duration: 0.3), value: isProcessing)
+                                .animation(Motion.standard, value: isProcessing)
                         }
                         .buttonStyle(PlainButtonStyle())
                         .disabled(isProcessing)

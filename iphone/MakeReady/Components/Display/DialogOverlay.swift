@@ -98,7 +98,7 @@ struct DialogOverlay: View {
                 .opacity(visible ? 1 : 0)
             }
             .onAppear {
-                withAnimation(.easeOut(duration: 0.2)) {
+                withAnimation(Motion.settle) {
                     visible = true
                 }
             }
@@ -106,7 +106,7 @@ struct DialogOverlay: View {
     }
 
     private func dismiss() {
-        withAnimation(.easeIn(duration: 0.15)) {
+        withAnimation(Motion.exitFast) {
             visible = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {

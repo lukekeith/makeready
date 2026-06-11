@@ -310,7 +310,7 @@ struct SplitMonthCalendarWithBar<CollapsedHeader: View, ExpandedHeader: View>: V
             )
             .padding(.leading, 16)
             .padding(.bottom, bottomPadding)
-            .animation(.easeInOut(duration: 0.25), value: navBarVisible)
+            .animation(Motion.standardBrisk, value: navBarVisible)
         }
     }
 }

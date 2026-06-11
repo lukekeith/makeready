@@ -243,7 +243,7 @@ struct CustomVideoRecorder: View {
             }
         }
         .padding(.horizontal, cameraManager.isRecording ? 56 : 0)
-        .animation(.easeInOut(duration: 0.3), value: cameraManager.isRecording)
+        .animation(Motion.standard, value: cameraManager.isRecording)
     }
 
     // MARK: - Blur Button Helper
@@ -340,7 +340,7 @@ struct CustomVideoRecorder: View {
             NSLog("🎬 Record/Stop button tapped. isRecording: \(cameraManager.isRecording)")
             cameraManager.toggleRecording()
         }
-        .animation(.easeInOut(duration: 0.2), value: cameraManager.isRecording)
+        .animation(Motion.micro, value: cameraManager.isRecording)
     }
 
     // MARK: - Bottom Controls

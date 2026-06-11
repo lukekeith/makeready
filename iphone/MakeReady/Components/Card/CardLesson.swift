@@ -227,7 +227,7 @@ struct CardLesson: View {
                             RoundedRectangle(cornerRadius: 2)
                                 .fill(Color.white)
                                 .frame(width: geometry.size.width * min(max(progress, 0), 1), height: 4)
-                                .animation(.easeInOut(duration: 0.3), value: progress)
+                                .animation(Motion.standard, value: progress)
                         }
                     }
                     .frame(height: 4)

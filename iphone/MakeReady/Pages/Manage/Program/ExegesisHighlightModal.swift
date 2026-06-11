@@ -68,12 +68,12 @@ struct ExegesisHighlightModal: View {
                 pendingRange: $pendingRange
             )
             .opacity(appeared ? 1 : 0)
-            .animation(.easeOut(duration: 0.25).delay(0.05), value: appeared)
+            .animation(Motion.pagePushBrisk.delay(0.05), value: appeared)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "#07080C").ignoresSafeArea())
         .opacity(appeared ? 1 : 0)
-        .animation(.easeOut(duration: 0.2), value: appeared)
+        .animation(Motion.settle, value: appeared)
         .onAppear { appeared = true }
         .onChange(of: pendingRange) { _, newRange in
             guard let range = newRange else { return }
@@ -82,7 +82,7 @@ struct ExegesisHighlightModal: View {
     }
 
     private func dismiss() {
-        withAnimation(.easeIn(duration: 0.15)) {
+        withAnimation(Motion.exitFast) {
             appeared = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {

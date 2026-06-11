@@ -215,7 +215,7 @@ struct EditDay: View {
                 .frame(width: geometry.size.width)
             }
             .offset(x: showEditActivity ? -geometry.size.width : 0)
-            .animation(.easeInOut(duration: 0.3), value: showEditActivity)
+            .animation(Motion.standard, value: showEditActivity)
         }
         .onAppear {
             let title = lesson.title ?? ""
@@ -888,7 +888,7 @@ struct EditDay: View {
         NSLog("🎬 Activity type parsed: \(activityType.rawValue)")
 
         await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(Motion.micro) {
                 addingActivity = true
             }
         }
@@ -906,7 +906,7 @@ struct EditDay: View {
             NSLog("✅ Activity added successfully: \(newActivity.id)")
 
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(Motion.standardBrisk) {
                     addingActivity = false
                 }
 
@@ -924,7 +924,7 @@ struct EditDay: View {
         } catch {
             NSLog("❌ Failed to add activity: \(error)")
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.micro) {
                     addingActivity = false
                 }
             }

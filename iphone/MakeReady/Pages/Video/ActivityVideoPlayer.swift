@@ -180,7 +180,7 @@ struct ActivityVideoPlayer: View {
 
                     // Trash button (top-right)
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Motion.micro) {
                             showRemoveConfirmation = true
                         }
                         player?.pause()
@@ -285,7 +285,7 @@ struct ActivityVideoPlayer: View {
             Color.black.opacity(0.7)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(Motion.micro) {
                         showRemoveConfirmation = false
                     }
                 }
@@ -326,7 +326,7 @@ struct ActivityVideoPlayer: View {
                     .disabled(isRemoving)
 
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Motion.micro) {
                             showRemoveConfirmation = false
                         }
                     } label: {

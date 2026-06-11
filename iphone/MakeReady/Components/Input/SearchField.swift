@@ -72,7 +72,7 @@ struct SearchField: View {
             .contentShape(Rectangle())
             .onTapGesture {
                 if !isActive {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(Motion.standard) {
                         isActive = true
                     }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -84,7 +84,7 @@ struct SearchField: View {
             // Close button — outside the field
             if isActive {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.3)) {
+                    withAnimation(Motion.standard) {
                         searchText = ""
                         isActive = false
                         onClose?()
@@ -109,7 +109,7 @@ struct SearchField: View {
                 .transition(.opacity.combined(with: .move(edge: .trailing)))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: isActive)
+        .animation(Motion.standard, value: isActive)
     }
 }
 

@@ -108,7 +108,7 @@ struct UnenrollOptionsModal: View {
                                 isDestructive: true
                             ) {
                                 selectedOption = .fullRemoval
-                                withAnimation(.easeInOut(duration: 0.2)) {
+                                withAnimation(Motion.micro) {
                                     phase = .confirm
                                 }
                             }
@@ -127,7 +127,7 @@ struct UnenrollOptionsModal: View {
                                 isDestructive: false
                             ) {
                                 selectedOption = .cancelFuture
-                                withAnimation(.easeInOut(duration: 0.2)) {
+                                withAnimation(Motion.micro) {
                                     phase = .confirm
                                 }
                             }
@@ -178,7 +178,7 @@ struct UnenrollOptionsModal: View {
                 title: "Confirm",
                 icon: "chevron.left",
                 onIconTap: {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(Motion.micro) {
                         phase = .options
                     }
                 }
@@ -224,7 +224,7 @@ struct UnenrollOptionsModal: View {
                     .buttonStyle(.plain)
 
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Motion.micro) {
                             phase = .options
                         }
                     }) {
@@ -362,13 +362,13 @@ struct UnenrollOptionsModal: View {
             let info = try await EnrollmentActions().getUnenrollInfo(id: enrollmentId)
             await MainActor.run {
                 unenrollInfo = info
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.micro) {
                     phase = .options
                 }
             }
         } catch {
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.micro) {
                     phase = .error(error.localizedDescription)
                 }
             }

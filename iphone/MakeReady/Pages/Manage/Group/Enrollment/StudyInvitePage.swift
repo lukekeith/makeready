@@ -318,7 +318,7 @@ struct StudyInvitePage: View {
                     .padding(.bottom, 32)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showCopiedToast)
+        .animation(Motion.standardBrisk, value: showCopiedToast)
     }
 
     // MARK: - Data Loading
@@ -582,7 +582,7 @@ private struct StudyInvitePagePreview: View {
                     .padding(.bottom, 32)
             }
         }
-        .animation(.easeInOut(duration: 0.25), value: showCopiedToast)
+        .animation(Motion.standardBrisk, value: showCopiedToast)
     }
 
     /// Helper to extract display URL from invite URL for preview

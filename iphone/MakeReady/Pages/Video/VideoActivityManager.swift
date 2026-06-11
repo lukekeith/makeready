@@ -81,7 +81,7 @@ struct VideoActivityManager: View {
                                 },
                                 onDismiss: {
                                     // User cancelled recording — return to video preview
-                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                    withAnimation(Motion.standard) {
                                         isRecording = false
                                     }
                                     setupPlayer()
@@ -165,7 +165,7 @@ struct VideoActivityManager: View {
                 player?.pause()
                 isPlaying = false
                 cleanupPlayer()
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(Motion.standard) {
                     isRecording = true
                 }
             }
@@ -218,7 +218,7 @@ struct VideoActivityManager: View {
 
                     // Remove video button
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Motion.micro) {
                             showRemoveConfirmation = true
                         }
                         player?.pause()
@@ -349,7 +349,7 @@ struct VideoActivityManager: View {
             Color.black.opacity(0.7)
                 .ignoresSafeArea()
                 .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(Motion.micro) {
                         showRemoveConfirmation = false
                     }
                 }
@@ -392,7 +392,7 @@ struct VideoActivityManager: View {
                     .disabled(isRemoving)
 
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Motion.micro) {
                             showRemoveConfirmation = false
                         }
                     } label: {

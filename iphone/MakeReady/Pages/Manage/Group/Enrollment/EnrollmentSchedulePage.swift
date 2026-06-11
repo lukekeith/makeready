@@ -79,7 +79,7 @@ struct EnrollmentSchedulePage: View {
                 .frame(width: width)
             }
             .offset(x: showEditActivities ? -width : 0)
-            .animation(.easeInOut(duration: 0.3), value: showEditActivities)
+            .animation(Motion.standard, value: showEditActivities)
             .onAppear {
                 if cachedWidth == nil {
                     cachedWidth = geometry.size.width
@@ -279,7 +279,7 @@ struct EnrollmentSchedulePage: View {
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
                     .padding(.bottom, 40)
-                    .animation(.easeInOut(duration: 0.2), value: isAddingLesson)
+                    .animation(Motion.micro, value: isAddingLesson)
                 }
             } else {
                 // Empty state
@@ -434,7 +434,7 @@ struct EnrollmentSchedulePage: View {
             )
 
             // Animate the card out
-            withAnimation(.easeInOut(duration: 0.3)) {
+            withAnimation(Motion.standard) {
                 deletingScheduleId = schedule.id
             }
 

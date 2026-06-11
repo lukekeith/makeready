@@ -295,7 +295,7 @@ struct EditReadActivityPage: View {
                     .frame(width: geometry.size.width)
             }
             .offset(x: showThemeEditor ? -geometry.size.width : 0)
-            .animation(.easeInOut(duration: 0.3), value: showThemeEditor)
+            .animation(Motion.standard, value: showThemeEditor)
         }
         .fullScreenCover(isPresented: $showSlidePreview) {
             LessonPreviewModal(
@@ -672,13 +672,13 @@ struct EditReadActivityPage: View {
                 // outside the active block exits highlight mode rather than
                 // toggling collapse.
                 if highlightingBlockId != nil && !isHighlighting {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(Motion.micro) {
                         highlightingBlockId = nil
                     }
                     return
                 }
                 if isHighlighting { return }
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.micro) {
                     if collapsedBlockIds.contains(block.id) {
                         collapsedBlockIds.remove(block.id)
                     } else {
@@ -748,7 +748,7 @@ struct EditReadActivityPage: View {
         .overlay(alignment: .topTrailing) {
             if !isCollapsed {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
+                    withAnimation(Motion.micro) {
                         highlightingBlockId = isHighlighting ? nil : block.id
                         pendingSelectionRange = nil
                         pendingSelectionBlockId = nil

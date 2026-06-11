@@ -87,7 +87,7 @@ struct TagInput: View {
                 VStack(spacing: 8) {
                     // Header with hide button
                     Button {
-                        withAnimation(.easeInOut(duration: 0.2)) {
+                        withAnimation(Motion.micro) {
                             showSuggestions = false
                         }
                     } label: {
@@ -127,7 +127,7 @@ struct TagInput: View {
             let result = await onRequestSuggestions()
             await MainActor.run {
                 isLoadingSuggestions = false
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.micro) {
                     suggestions = result
                     showSuggestions = true
                 }
@@ -142,7 +142,7 @@ struct TagInput: View {
             return
         }
 
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(Motion.micro) {
             tags.append(normalized)
         }
         inputText = ""
@@ -150,7 +150,7 @@ struct TagInput: View {
     }
 
     private func removeTag(_ tag: String) {
-        withAnimation(.easeInOut(duration: 0.2)) {
+        withAnimation(Motion.micro) {
             tags.removeAll { $0 == tag }
         }
         UIImpactFeedbackGenerator(style: .light).impactOccurred()

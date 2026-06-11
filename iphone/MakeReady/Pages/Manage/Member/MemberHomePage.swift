@@ -202,7 +202,7 @@ struct MemberHomePage: View {
         }
         .onChange(of: pendingSubTab) { _, newValue in
             if let tab = newValue {
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(Motion.standard) {
                     activeTab = tab
                 }
                 pendingSubTab = nil

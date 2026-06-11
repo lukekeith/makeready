@@ -105,7 +105,7 @@ struct TeleprompterOverlay: View {
 
     private func stopScrolling() {
         // Keep current position when stopped
-        withAnimation(.easeOut(duration: 0.3)) {
+        withAnimation(Motion.pagePush) {
             // Optionally reset or keep position
         }
     }

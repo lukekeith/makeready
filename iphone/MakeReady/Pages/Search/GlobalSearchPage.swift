@@ -315,7 +315,7 @@ struct GlobalSearchPage: View {
         let isSelected = filterCategory == category
 
         return Button {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(Motion.micro) {
                 filterCategory = isSelected ? nil : category
             }
         } label: {

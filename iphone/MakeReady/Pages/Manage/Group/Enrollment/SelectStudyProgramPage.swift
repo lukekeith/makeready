@@ -167,7 +167,7 @@ struct SelectStudyProgramPage: View {
                                 if !isPublished {
                                     showDraftAlert = true
                                 } else {
-                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                    withAnimation(Motion.micro) {
                                         if selectedProgramId == program.id {
                                             selectedProgramId = nil
                                         } else {
@@ -178,7 +178,7 @@ struct SelectStudyProgramPage: View {
                             }
                         )
                     )
-                    .animation(.easeInOut(duration: 0.3), value: isEnrollmentDataLoaded)
+                    .animation(Motion.standard, value: isEnrollmentDataLoaded)
                 }
             }
             .padding(.horizontal, 16)

@@ -184,7 +184,7 @@ struct ProgramHomePage: View {
                     .frame(width: geometry.size.width)
                 }
                 .offset(x: showSecondScreen ? -geometry.size.width : 0)
-                .animation(.easeInOut(duration: 0.3), value: showSecondScreen)
+                .animation(Motion.standard, value: showSecondScreen)
             } else if isLoadingProgram {
                 loadingContent
             } else {
@@ -829,7 +829,7 @@ struct ProgramHomePage: View {
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 16)
-                .animation(.easeInOut(duration: 0.2), value: isAddingDay)
+                .animation(Motion.micro, value: isAddingDay)
             } else {
                 // Reorder via DragulaView only for the creator. Non-creators
                 // get a bare ForEach so the lesson cards inherit the same
@@ -874,7 +874,7 @@ struct ProgramHomePage: View {
             }
         }
         .padding(.horizontal, 16)
-        .animation(.easeInOut(duration: 0.2), value: isAddingDay)
+        .animation(Motion.micro, value: isAddingDay)
         .onChange(of: lessons) { _, newLessons in
             orderedLessons = newLessons
         }
@@ -1417,12 +1417,12 @@ private struct ExportConfirmOverlay: View {
         }
         .ignoresSafeArea()
         .onAppear {
-            withAnimation(.easeOut(duration: 0.25)) { visible = true }
+            withAnimation(Motion.pagePushBrisk) { visible = true }
         }
     }
 
     private func dismiss() {
-        withAnimation(.easeIn(duration: 0.2)) { visible = false }
+        withAnimation(Motion.exit) { visible = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             isPresented = false
         }

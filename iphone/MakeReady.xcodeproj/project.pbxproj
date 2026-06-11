@@ -213,6 +213,7 @@
 		MNHM0001000000000000001 /* MainHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNHM0002000000000000001 /* MainHome.swift */; };
 		MNLB0001000000000000001 /* MainLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNLB0002000000000000001 /* MainLibrary.swift */; };
 		MODANIM0001000000000001 /* ModalAnimations.swift in Sources */ = {isa = PBXBuildFile; fileRef = MODANIM0002000000000001 /* ModalAnimations.swift */; };
+		MOTN0001000000000001 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = MOTN0002000000000001 /* Motion.swift */; };
 		SESSCRD0001000000000001 /* SessionCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESSCRD0002000000000001 /* SessionCredentialStore.swift */; };
 		SAFEMKD0001000000000001 /* AttributedString+SafeMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */; };
 		DATEFMT0001000000000001 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DATEFMT0002000000000001 /* Date+Formatting.swift */; };
@@ -514,6 +515,7 @@
 		MNHM0002000000000000001 /* MainHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainHome.swift; sourceTree = "<group>"; };
 		MNLB0002000000000000001 /* MainLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainLibrary.swift; sourceTree = "<group>"; };
 		MODANIM0002000000000001 /* ModalAnimations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalAnimations.swift; sourceTree = "<group>"; };
+		MOTN0002000000000001 /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
 		SESSCRD0002000000000001 /* SessionCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCredentialStore.swift; sourceTree = "<group>"; };
 		SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AttributedString+SafeMarkdown.swift"; sourceTree = "<group>"; };
 		DATEFMT0002000000000001 /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
@@ -1338,6 +1340,7 @@
 				IMGVAR0002000000000001 /* String+ImageVariants.swift */,
 				D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */,
 				MODANIM0002000000000001 /* ModalAnimations.swift */,
+				MOTN0002000000000001 /* Motion.swift */,
 				SESSCRD0002000000000001 /* SessionCredentialStore.swift */,
 				SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */,
 				DATEFMT0002000000000001 /* Date+Formatting.swift */,
@@ -1584,6 +1587,7 @@
 				LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */,
 				161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */,
 				MODANIM0001000000000001 /* ModalAnimations.swift in Sources */,
+				MOTN0001000000000001 /* Motion.swift in Sources */,
 				SESSCRD0001000000000001 /* SessionCredentialStore.swift in Sources */,
 				SAFEMKD0001000000000001 /* AttributedString+SafeMarkdown.swift in Sources */,
 				DATEFMT0001000000000001 /* Date+Formatting.swift in Sources */,

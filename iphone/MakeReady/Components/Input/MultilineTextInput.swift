@@ -41,7 +41,7 @@ struct MultilineTextInput: View {
                     )
                     .padding(.leading, 16)
                     .offset(y: isFloatingUp ? 2 : 12)
-                    .animation(.easeOut(duration: 0.2), value: isFloatingUp)
+                    .animation(Motion.settle, value: isFloatingUp)
                     .allowsHitTesting(false)
             }
         .frame(minHeight: minHeight)

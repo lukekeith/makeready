@@ -131,7 +131,7 @@ struct EditEnrollmentDay: View {
                 .frame(width: geometry.size.width)
             }
             .offset(x: showEditActivity ? -geometry.size.width : 0)
-            .animation(.easeInOut(duration: 0.3), value: showEditActivity)
+            .animation(Motion.standard, value: showEditActivity)
         }
         .onAppear {
             let title = schedule.lesson.title ?? ""
@@ -625,7 +625,7 @@ struct EditEnrollmentDay: View {
 
     private func addActivity(type: String) async {
         await MainActor.run {
-            withAnimation(.easeInOut(duration: 0.2)) {
+            withAnimation(Motion.micro) {
                 addingActivity = true
             }
         }
@@ -638,7 +638,7 @@ struct EditEnrollmentDay: View {
             )
 
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.25)) {
+                withAnimation(Motion.standardBrisk) {
                     // EnrollmentActions has already appended to AppState.
                     addingActivity = false
                 }
@@ -646,7 +646,7 @@ struct EditEnrollmentDay: View {
         } catch {
             NSLog("Failed to add scheduled activity: \(error)")
             await MainActor.run {
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.micro) {
                     addingActivity = false
                 }
             }

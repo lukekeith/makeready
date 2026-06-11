@@ -71,7 +71,7 @@ struct AddActivityMenu: View {
                     .opacity(appeared ? 1 : 0)
                     .scaleEffect(appeared ? 1 : 0.92)
                     .animation(
-                        .easeOut(duration: 0.25).delay(Double(index) * 0.05),
+                        Motion.pagePushBrisk.delay(Double(index) * 0.05),
                         value: appeared
                     )
                 }
@@ -83,14 +83,14 @@ struct AddActivityMenu: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "#07080C").ignoresSafeArea())
         .opacity(appeared ? 1 : 0)
-        .animation(.easeOut(duration: 0.2), value: appeared)
+        .animation(Motion.settle, value: appeared)
         .onAppear {
             appeared = true
         }
     }
 
     private func dismiss() {
-        withAnimation(.easeIn(duration: 0.15)) {
+        withAnimation(Motion.exitFast) {
             appeared = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {

@@ -1184,7 +1184,7 @@ struct MainLibrary: View {
             do {
                 try await ProgramActions().deleteProgram(id: program.id)
 
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(Motion.standard) {
                     deletingProgramId = program.id
                 }
 
@@ -1233,7 +1233,7 @@ struct MainLibrary: View {
             do {
                 try await MediaActions().deleteMedia(id: item.id)
 
-                withAnimation(.easeInOut(duration: 0.3)) {
+                withAnimation(Motion.standard) {
                     deletingMediaId = item.id
                 }
 
@@ -1581,12 +1581,12 @@ private struct ImportConfirmOverlay: View {
         }
         .ignoresSafeArea()
         .onAppear {
-            withAnimation(.easeOut(duration: 0.25)) { visible = true }
+            withAnimation(Motion.pagePushBrisk) { visible = true }
         }
     }
 
     private func dismiss() {
-        withAnimation(.easeIn(duration: 0.2)) { visible = false }
+        withAnimation(Motion.exit) { visible = false }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
             isPresented = false
         }

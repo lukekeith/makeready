@@ -227,7 +227,7 @@ struct EnrollmentFlowModal: View {
     // MARK: - Navigation
 
     private func navigateTo(_ step: EnrollmentFlowStep) {
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(Motion.standard) {
             currentStep = step
         }
     }

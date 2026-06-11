@@ -144,8 +144,8 @@ struct CreateProgramPage: View {
                     }
                 }
                 .offset(x: currentOffset(for: geometry.size.width))
-                .animation(.easeInOut(duration: 0.3), value: showProgramHome)
-                .animation(.easeInOut(duration: 0.3), value: showEditDay)
+                .animation(Motion.standard, value: showProgramHome)
+                .animation(Motion.standard, value: showEditDay)
             }
 
             // Loading overlay
@@ -196,7 +196,7 @@ struct CreateProgramPage: View {
                         if isFormValid {
                             createProgram()
                         } else {
-                            withAnimation(.easeInOut(duration: 0.25)) {
+                            withAnimation(Motion.standardBrisk) {
                                 showValidationErrors = true
                             }
                             // Scroll to first invalid field
@@ -350,12 +350,12 @@ struct CreateProgramPage: View {
         }
         .onChange(of: programName) { _, _ in
             if showValidationErrors && !isNameEmpty && !isTemplateEmpty {
-                withAnimation(.easeInOut(duration: 0.2)) { showValidationErrors = false }
+                withAnimation(Motion.micro) { showValidationErrors = false }
             }
         }
         .onChange(of: selectedTemplateId) { _, _ in
             if showValidationErrors && !isNameEmpty && !isTemplateEmpty {
-                withAnimation(.easeInOut(duration: 0.2)) { showValidationErrors = false }
+                withAnimation(Motion.micro) { showValidationErrors = false }
             }
         }
     }

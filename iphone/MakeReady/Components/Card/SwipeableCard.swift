@@ -166,7 +166,7 @@ struct SwipeableCard<Content: View>: View {
     private func handleSwipeEnded(translationX: CGFloat, velocityX: CGFloat) {
         let threshold = totalButtonWidth * 0.5
 
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+        withAnimation(Motion.springSnappy) {
             // Fast swipe left or past threshold = reveal
             if velocityX < -100 || abs(offset) > threshold {
                 offset = revealedOffset
@@ -223,7 +223,7 @@ struct SwipeableCard<Content: View>: View {
     }
 
     private func closeButtons() {
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+        withAnimation(Motion.springSnappy) {
             offset = 0
             isRevealed = false
             dragStartOffset = 0

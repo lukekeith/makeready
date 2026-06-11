@@ -24,7 +24,7 @@ final class KeyboardState {
         NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
             .compactMap { ($0.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height }
             .sink { [weak self] h in
-                withAnimation(.easeOut(duration: 0.25)) {
+                withAnimation(Motion.pagePushBrisk) {
                     self?.height = h
                 }
             }
@@ -32,7 +32,7 @@ final class KeyboardState {
 
         NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
             .sink { [weak self] _ in
-                withAnimation(.easeOut(duration: 0.25)) {
+                withAnimation(Motion.pagePushBrisk) {
                     self?.height = 0
                 }
             }

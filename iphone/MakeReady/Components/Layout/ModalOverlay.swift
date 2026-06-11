@@ -76,7 +76,7 @@ struct ModalOverlay<Content: View>: View {
             // Set initial offset to screen height
             offset = Screen.bounds.height
 
-            withAnimation(.easeOut(duration: 0.3)) {
+            withAnimation(Motion.pagePush) {
                 overlayOpacity = overlayMaxOpacity
             }
             withAnimation(.spring(response: springResponse, dampingFraction: springDamping)) {
@@ -123,7 +123,7 @@ struct ModalOverlay<Content: View>: View {
     }
 
     private func animateDismiss() {
-        withAnimation(.easeIn(duration: 0.25)) {
+        withAnimation(Motion.pageDismiss) {
             overlayOpacity = 0
         }
         withAnimation(.spring(response: 0.3, dampingFraction: springDamping)) {

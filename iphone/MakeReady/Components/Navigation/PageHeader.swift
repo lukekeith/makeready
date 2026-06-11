@@ -44,7 +44,7 @@ struct PageHeader<TrailingContent: View>: View {
                         isActive: index == activeTab,
                         index: index,
                         onTap: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
+                            withAnimation(Motion.standard) {
                                 activeTab = index
                             }
                         }
@@ -63,7 +63,7 @@ struct PageHeader<TrailingContent: View>: View {
                                 x: activeFrame.midX,
                                 y: geometry.size.height - 1
                             )
-                            .animation(.easeInOut(duration: 0.3), value: activeTab)
+                            .animation(Motion.standard, value: activeTab)
                     }
                 }
             }

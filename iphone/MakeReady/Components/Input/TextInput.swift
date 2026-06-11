@@ -138,7 +138,7 @@ struct TextInput: View {
                                 isFocused ? Color(hex: "#6c47ff") : .white.opacity(isFloatingUp ? 0.5 : 0.35)
                             )
                             .offset(y: isFloatingUp ? -18 : 0)
-                            .animation(.easeOut(duration: 0.2), value: isFloatingUp)
+                            .animation(Motion.settle, value: isFloatingUp)
                             .allowsHitTesting(false)
                     }
                 }

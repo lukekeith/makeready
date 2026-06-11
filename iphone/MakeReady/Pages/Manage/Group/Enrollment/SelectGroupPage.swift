@@ -139,7 +139,7 @@ struct SelectGroupPage: View {
                             metadata: metadata,
                             isSelected: selectedGroupId == group.id,
                             onTap: isEnrolled ? nil : {
-                                withAnimation(.easeInOut(duration: 0.2)) {
+                                withAnimation(Motion.micro) {
                                     if selectedGroupId == group.id {
                                         selectedGroupId = nil
                                     } else {

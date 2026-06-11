@@ -395,7 +395,7 @@ struct VideoLibraryGrid: View {
 
                 if !isDraggingScrubber && !isScrubbing {
                     if !showDateLabel {
-                        withAnimation(.easeInOut(duration: 0.15)) {
+                        withAnimation(Motion.microFast) {
                             showDateLabel = true
                         }
                     }
@@ -446,7 +446,7 @@ struct VideoLibraryGrid: View {
                             .contentShape(Rectangle())
                             .gesture(scrubberDragGesture(height: geo.size.height))
                             .padding(.trailing, isDraggingScrubber ? 72 : 12)
-                            .animation(.easeInOut(duration: 0.2), value: isDraggingScrubber)
+                            .animation(Motion.micro, value: isDraggingScrubber)
                     }
                     .offset(y: labelY)
                 }
@@ -459,7 +459,7 @@ struct VideoLibraryGrid: View {
         DragGesture(minimumDistance: 0, coordinateSpace: .named("scrubber"))
             .onChanged { value in
                 if !isDraggingScrubber {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                    withAnimation(Motion.microFast) {
                         isDraggingScrubber = true
                         showDateLabel = true
                     }
@@ -483,7 +483,7 @@ struct VideoLibraryGrid: View {
                 scrubberDragProgress = momentumProgress
                 scrollToTarget = momentumProgress
 
-                withAnimation(.easeInOut(duration: 0.2)) {
+                withAnimation(Motion.micro) {
                     isDraggingScrubber = false
                 }
 

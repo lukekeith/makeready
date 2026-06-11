@@ -434,7 +434,7 @@ struct ManagedPageView<Content: View>: View {
         }
         .onAppear {
             DispatchQueue.main.async {
-                withAnimation(.easeOut(duration: 0.3)) {
+                withAnimation(Motion.pagePush) {
                     offset = 0
                 }
             }
@@ -451,7 +451,7 @@ struct ManagedPageView<Content: View>: View {
         guard !isDismissing else { return }
         isDismissing = true
 
-        withAnimation(.easeIn(duration: 0.25)) {
+        withAnimation(Motion.pageDismiss) {
             offset = Screen.bounds.width
         }
 
