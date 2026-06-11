@@ -19,7 +19,7 @@
 | 3.5 — `/push-page` skill | ✅ Done, **committed** | `8c65369` |
 | 3.6a+3.6b — Route enum + route-keyed OverlayManager API (additive) | ✅ Done, **committed**, build + 65 tests green. Zero behavior change (legacy `OverlayID` + string API untouched). Design: [iphone-route-enum-2026-06-11-design.md](./iphone-route-enum-2026-06-11-design.md) | `de2244c` |
 | 3.6c — lazy `OverlayItem.content` | ❌ **REJECTED** — implemented + built green, but caused the slider regression (rebuilt overlay content every render). **Reverted; do not reattempt as written.** See ACTIVE PROBLEM. | reverted (was uncommitted) |
-| 3.6d — migrate 96 call sites to Route | ⬜ Not started (depends on the slider bug being resolved first) | — |
+| 3.6d — migrate 96 call sites to Route | 🟡 **Code complete, AWAITING USER BUILD + capture.** All OverlayID call sites migrated in 4 groups + `enum OverlayID` deleted. Prep commit corrected Route's chrome/priority to match live call sites (unenrollOptions=modal, stylePicker=menu, addActivityMenu+confirmationOverlay=raw, memberRequests=page) and folded `dismissOnTapOutside` into Route. Dynamic per-entity ids (GlobalSearchPage lesson/video modals, blockStyleColorPicker, shareInviteDemo) stay on the string API by design. | `71f3aee`, `2a49833`, `1dda16b`, `bdaee28`, `eee75cd`, `37dec9d` |
 | 3.7–3.10 — Skills, NavigationCoordinator, cleanup | ⬜ Not started | — |
 | 5 — Enforcement layer | ⬜ Not started | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
