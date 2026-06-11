@@ -31,9 +31,9 @@ struct EnrollmentsListPage: View {
     @State private var isProcessingUnenrollment = false
     @State private var unenrolledProgramName: String = ""
 
-    // Navigation state: 0 = list (main), 1 = schedule detail (right)
-    @State private var currentScreen: Int = 0
-    @State private var selectedEnrollment: EnrollmentWithProgram?
+    // Navigation state — track by enrollment id so the SlideStack detail
+    // pane reads live data from the loaded list.
+    @State private var selectedEnrollmentId: String? = nil
 
     // Swipe state to prevent scrolling during card swipes
     @StateObject private var swipeState = SwipeState()
@@ -48,39 +48,21 @@ struct EnrollmentsListPage: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Background at root level - stays fixed
-                Color.appBackground
-                    .ignoresSafeArea()
+        ZStack {
+            // Background at root level - stays fixed
+            Color.appBackground
+                .ignoresSafeArea()
 
-                HStack(spacing: 0) {
-                    // Screen 0: Enrollments list (main)
-                    enrollmentsListContent
-                        .frame(width: geometry.size.width)
-
-                    // Screen 1: Schedule detail (right)
-                    if let enrollment = selectedEnrollment {
-                        EnrollmentSchedulePage(
-                            enrollment: enrollment,
-                            onDismiss: {
-                                // Animate slide first, then clear selection after animation completes
-                                withAnimation(Motion.standard) {
-                                    currentScreen = 0
-                                }
-                                // Clear selection after animation
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                    selectedEnrollment = nil
-                                }
-                            },
-                            overlayManager: overlayManager
-                        )
-                        .frame(width: geometry.size.width)
-                    }
-                }
-                .offset(x: CGFloat(-currentScreen) * geometry.size.width)
-                .clipped()
+            // Canonical slider (Phase 3.4): SlideStack owns the two-step
+            // insertion, the single animation driver, and the completion-tied
+            // unmount this page previously hand-rolled with currentScreen +
+            // an asyncAfter(0.3) selection-clear wait.
+            SlideStack(item: $selectedEnrollmentId) {
+                enrollmentsListContent
+            } detail: { enrollmentId in
+                schedulePane(enrollmentId: enrollmentId)
             }
+            .clipped()
         }
         .task {
             await loadEnrollments()
@@ -92,6 +74,24 @@ struct EnrollmentsListPage: View {
                     await loadEnrollments()
                 }
             }
+        }
+    }
+
+    // MARK: - Schedule Detail (Screen 2)
+
+    /// Schedule pane for the enrollment being viewed. Built from the
+    /// SlideStack-mounted id — NOT from selectedEnrollmentId, which clears at
+    /// dismissal while the pane is still sliding out.
+    @ViewBuilder
+    private func schedulePane(enrollmentId: String) -> some View {
+        if let enrollment = enrollments.first(where: { $0.id == enrollmentId }) {
+            EnrollmentSchedulePage(
+                enrollment: enrollment,
+                onDismiss: {
+                    selectedEnrollmentId = nil
+                },
+                overlayManager: overlayManager
+            )
         }
     }
 
@@ -259,10 +259,7 @@ struct EnrollmentsListPage: View {
 
     private func handleEnrollmentTap(_ enrollment: EnrollmentWithProgram) {
         NSLog("Tapped enrollment: \(enrollment.id)")
-        selectedEnrollment = enrollment
-        withAnimation(Motion.standard) {
-            currentScreen = 1
-        }
+        selectedEnrollmentId = enrollment.id
     }
 
     private func presentUnenrollModal(enrollment: EnrollmentWithProgram) {
