@@ -2,7 +2,7 @@
 
 > Companion to [iphone-2026-06-10-plan.md](./iphone-2026-06-10-plan.md) (the phase definitions) and
 > [../plans/media-2026-06-10.md](../plans/media-2026-06-10.md) (media-at-scale plan).
-> Update this file at every phase/step boundary. Last updated: **2026-06-10 (session 3, after 3.4)**.
+> Update this file at every phase/step boundary. Last updated: **2026-06-11 (session 4, after 3.5 + 3.6 design)**.
 
 ## Status at a glance
 
@@ -16,11 +16,23 @@
 | 3.2 — Completion-based sequencing | ✅ Done (14/17 waits migrated; 3 triaged, see below) | `74cdb8e` |
 | 3.3 — SlideStack + EditDay pilot | ✅ Done, hand-feel verified | `7915e95` |
 | 3.4 — Migrate remaining sliders (7 pages, incl. 1 audit miss) | ⚠️ **Committed, build + 65 tests green; awaiting hand-feel** | `9b8dfe0`…`fa0f64e` |
-| 3.5–3.10 — Skills, Route enum, NavigationCoordinator, cleanup | ⬜ Not started | — |
+| 3.5 — `/push-page` skill | ✅ Done (no-build; skill file only) | uncommitted: `.claude/skills/push-page/SKILL.md` |
+| 3.6 — Route enum | 🟡 **3.6a+3.6b done** (Route.swift + OverlayManager overloads, additive; **build + 65 tests green**). 3.6c (lazy content, capture-gated) + 3.6d (96 call-site migration) remain. Design: [iphone-route-enum-2026-06-11-design.md](./iphone-route-enum-2026-06-11-design.md) | uncommitted: `Services/Route.swift`, pbxproj, design doc |
+| 3.7–3.10 — Skills, NavigationCoordinator, cleanup | ⬜ Not started | — |
 | 5 — Enforcement layer | ⬜ Not started | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
 ## ▶ First action on resume
+
+**Session 4 did the no-build work** (3.5 `/push-page` skill + 3.6 Route enum *design*) so
+forward progress didn't stall on the simulator. Two build-gated things now queue behind a
+single Xcode session:
+1. **Hand-feel verify the 3.4 migrations** (the original gate — flows below).
+2. **Implement 3.6** per the design doc — start with 3.6a/3.6b (zero-risk additive
+   `Route.swift` + OverlayManager overloads), then 3.6c lazy content (capture-diff every
+   overlay), then 3.6d the 96 call sites in groups.
+Also: the session-4 files (`push-page` skill + Route design doc) are **uncommitted** —
+commit when ready (iPhone CLAUDE.md requires explicit permission for git commit + build).
 
 **Hand-feel verify the 3.4 migrations** before 3.5+ (every flow below, slide must be
 `Motion.standard` both directions; `/animation-debug` maps any symptom → failure class):
