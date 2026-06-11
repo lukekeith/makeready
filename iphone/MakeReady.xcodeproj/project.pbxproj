@@ -228,6 +228,7 @@
 		OPTSHDW0001000000000001 /* OptimizedShadow.swift in Sources */ = {isa = PBXBuildFile; fileRef = OPTSHDW0002000000000001 /* OptimizedShadow.swift */; };
 		OVLY0001000000000000001 /* OverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = OVLY0002000000000000001 /* OverlayManager.swift */; };
 		ROUT0001000000000000001 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = ROUT0002000000000000001 /* Route.swift */; };
+		NAVC0001000000000000001 /* NavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVC0002000000000000001 /* NavigationCoordinator.swift */; };
 		PDPC0003000000000000001 /* PostDetailPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDPC0001000000000000001 /* PostDetailPage.swift */; };
 		PROG0001000000000000001 /* ProgramFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROG0002000000000000001 /* ProgramFixtures.swift */; };
 		PROG0003000000000000001 /* ProgramHomePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROG0004000000000000001 /* ProgramHomePage.swift */; };
@@ -532,6 +533,7 @@
 		OPTSHDW0002000000000001 /* OptimizedShadow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedShadow.swift; sourceTree = "<group>"; };
 		OVLY0002000000000000001 /* OverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayManager.swift; sourceTree = "<group>"; };
 		ROUT0002000000000000001 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
+		NAVC0002000000000000001 /* NavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCoordinator.swift; sourceTree = "<group>"; };
 		PDPC0001000000000000001 /* PostDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailPage.swift; sourceTree = "<group>"; };
 		PROG0002000000000000001 /* ProgramFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramFixtures.swift; sourceTree = "<group>"; };
 		PROG0004000000000000001 /* ProgramHomePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramHomePage.swift; sourceTree = "<group>"; };
@@ -1260,6 +1262,7 @@
 				BCMG0002000000000000001 /* BibleCacheManager.swift */,
 				OVLY0002000000000000001 /* OverlayManager.swift */,
 				ROUT0002000000000000001 /* Route.swift */,
+				NAVC0002000000000000001 /* NavigationCoordinator.swift */,
 				VSEL0002000000000000001 /* PhotoLibraryManager.swift */,
 				LPHL0002000000000000001 /* LocalPortHealer.swift */,
 				PUSHMG0002000000000001 /* PushNotificationManager.swift */,
@@ -1592,6 +1595,7 @@
 				STB2937FED5BDD147D384F /* PersistedState.swift in Sources */,
 				OVLY0001000000000000001 /* OverlayManager.swift in Sources */,
 				ROUT0001000000000000001 /* Route.swift in Sources */,
+				NAVC0001000000000000001 /* NavigationCoordinator.swift in Sources */,
 				LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */,
 				161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */,
 				MODANIM0001000000000001 /* ModalAnimations.swift in Sources */,
