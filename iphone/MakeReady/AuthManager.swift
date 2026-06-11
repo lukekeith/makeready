@@ -387,12 +387,16 @@ class AuthManager: NSObject {
 extension AuthManager: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         // Prefer the key window; fall back through any window to a fresh
-        // anchor rather than force-unwrapping (the app is foregrounded
-        // during OAuth, but a crash here would kill login entirely).
-        let scene = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first
-        return scene?.keyWindow ?? scene?.windows.first ?? ASPresentationAnchor()
+        // scene-anchored window rather than force-unwrapping (keyWindow CAN
+        // be nil during OAuth; a crash here would kill login entirely).
+        guard let scene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first else {
+            // Unreachable: OAuth only runs foregrounded, and with zero
+            // connected window scenes no anchor could present UI anyway.
+            preconditionFailure("No connected window scene to anchor OAuth presentation")
+        }
+        return scene.keyWindow ?? scene.windows.first ?? UIWindow(windowScene: scene)
     }
 }
 
