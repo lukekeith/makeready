@@ -16,7 +16,7 @@ struct InviteQRCodeView: View {
     @State private var qrCodeImage: UIImage?
     @State private var isGenerating = true
     @State private var error: Error?
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     init(
         inviteCode: String,
@@ -77,7 +77,7 @@ struct InviteQRCodeView: View {
                     includeLogo: includeLogo
                 )
             } else {
-                image = try await authManager.generateQRCode(
+                image = try await InviteActions().generateQRCode(
                     data: inviteURL,
                     color: "#6c47ff",
                     backgroundColor: "#ffffff",
@@ -149,7 +149,7 @@ struct InviteQRCodeView: View {
                 inviteCode: "ABC123XYZ",
                 size: 250
             )
-            .environmentObject(AuthManager())
+            .environment(AuthManager())
 
             Text("Scan to join team")
                 .font(.system(size: 14))

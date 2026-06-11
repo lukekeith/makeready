@@ -14,7 +14,7 @@ struct EditYouTubeActivityPage: View {
     let onCancel: () -> Void
     let onSave: (String, String?, Int?, Int?) -> Void
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     private var canEdit: Bool {
         guard let programId else { return false }

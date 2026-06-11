@@ -12,7 +12,7 @@ struct InviteMenu: View {
     let overlayManager: OverlayManager
     let menuId: String
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @Environment(\.dismissOverlay) private var dismissOverlay
 
     @State private var isCreatingInvite = false
@@ -77,7 +77,7 @@ struct InviteMenu: View {
 
         Task {
             do {
-                let invite = try await authManager.createInvite()
+                let invite = try await InviteActions().createInvite()
 
                 await MainActor.run {
                     isCreatingInvite = false
@@ -87,7 +87,7 @@ struct InviteMenu: View {
                             inviteCode: invite.code,
                             overlayManager: overlayManager
                         )
-                        .environmentObject(authManager)
+                        .environment(authManager)
                     }
 
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -115,7 +115,7 @@ struct InviteMenu: View {
                 overlayManager: OverlayManager(),
                 menuId: "preview"
             )
-            .environmentObject(AuthManager())
+            .environment(AuthManager())
         }
     }
 }

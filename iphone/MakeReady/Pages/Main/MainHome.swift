@@ -21,7 +21,7 @@ struct MainHome: View {
     var onKPITap: ((HomeKPIDestination) -> Void)? = nil
     @State private var activeTab = 0
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     // Centralized state
     private var state: AppState { AppState.shared }

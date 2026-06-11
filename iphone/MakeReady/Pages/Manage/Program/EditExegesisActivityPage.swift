@@ -22,7 +22,7 @@ struct EditExegesisActivityPage: View {
     let onCancel: () -> Void
     let onSave: () -> Void
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @Environment(OverlayManager.self) private var overlayManager
 
     private var canEdit: Bool {
@@ -1295,7 +1295,7 @@ private struct ExegesisPreviewWrapper: View {
             onCancel: {},
             onSave: {}
         )
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
         .environment(OverlayManager())
     }
 }

@@ -12,7 +12,7 @@ struct MakeReadyApp: App {
     // Connect AppDelegate for push notification handling
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
 
-    @StateObject private var authManager = AuthManager()
+    @State private var authManager = AuthManager()
 
     @Environment(\.scenePhase) private var scenePhase
 
@@ -28,10 +28,10 @@ struct MakeReadyApp: App {
             Group {
                 if authManager.isAuthenticated {
                     MainView()
-                        .environmentObject(authManager)
+                        .environment(authManager)
                 } else {
                     LoginView()
-                        .environmentObject(authManager)
+                        .environment(authManager)
                 }
             }
             .onOpenURL { url in

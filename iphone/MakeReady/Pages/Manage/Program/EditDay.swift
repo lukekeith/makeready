@@ -19,7 +19,7 @@ struct EditDay: View {
     let onLessonUpdated: (Lesson) -> Void
     let onShowAddActivityMenu: (([String], @escaping (String) -> Void) -> Void)?
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     /// True when the signed-in user is the creator of the parent program.
     /// Drives gating for save, plus, swipe, drag, and input fields so non-

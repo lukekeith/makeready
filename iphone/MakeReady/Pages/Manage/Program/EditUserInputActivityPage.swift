@@ -14,7 +14,7 @@ struct EditUserInputActivityPage: View {
     let onCancel: () -> Void
     let onSave: (String?, Bool, String?, String?, String?) -> Void
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     /// True when the signed-in user is the program creator. Drives the
     /// save/done switch and disables every input below so non-creators can

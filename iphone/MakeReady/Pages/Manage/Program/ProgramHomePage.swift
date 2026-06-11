@@ -28,7 +28,7 @@ struct ProgramHomePage: View {
     var onDismiss: (() -> Void)?
     var leftIcon: String
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     init(
         overlayManager: OverlayManager,

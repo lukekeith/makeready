@@ -11,7 +11,7 @@ import SwiftUI
 struct MemberOverview: View {
     @State private var overlayManager = OverlayManager()
     @State private var activeTab = 0
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     var body: some View {
         ZStack {
@@ -69,5 +69,5 @@ struct MemberOverview: View {
 
 #Preview {
     MemberOverview()
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
 }

@@ -76,7 +76,7 @@ struct MainLibrary: View {
     let overlayManager: OverlayManager
     @State private var activeTab = 0
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     // Use centralized state
     private var state: AppState { AppState.shared }

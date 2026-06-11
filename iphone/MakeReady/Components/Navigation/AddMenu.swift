@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct AddMenu: View {
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @Environment(OverlayManager.self) private var overlayManager
     @Environment(\.dismissOverlay) private var dismissOverlay
 
@@ -181,7 +181,7 @@ struct AddMenu: View {
                 NSLog("📤 Request body: { groupId: nil, expiresAt: nil }")
 
                 // Create invite via API
-                let invite = try await authManager.createInvite()
+                let invite = try await InviteActions().createInvite()
 
                 NSLog("📥 API Response received:")
                 NSLog("📥   success: true")
@@ -202,7 +202,7 @@ struct AddMenu: View {
                             inviteCode: invite.code,
                             overlayManager: overlayManager
                         )
-                        .environmentObject(authManager)
+                        .environment(authManager)
                     }
 
                     // Dismiss menu after a short delay to allow sheet to present
@@ -376,7 +376,7 @@ struct SubmenuItem: View {
             Spacer()
             AddMenu()
                 .environment(OverlayManager())
-                .environmentObject(AuthManager())
+                .environment(AuthManager())
         }
     }
 }

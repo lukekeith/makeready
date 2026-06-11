@@ -11,7 +11,7 @@ import SwiftUI
 struct ShareInviteSheet: View {
     let inviteCode: String
     let overlayManager: OverlayManager
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     @State private var qrCodeImage: UIImage?
     @State private var showCopiedFeedback = false
@@ -121,7 +121,7 @@ struct ShareInviteSheet: View {
             do {
                 // Build full invite URL to encode in QR code
                 let inviteURL = "https://www.makeready.org/join/\(inviteCode)"
-                let image = try await authManager.generateQRCode(
+                let image = try await InviteActions().generateQRCode(
                     data: inviteURL,
                     color: "#6c47ff",
                     backgroundColor: "#ffffff",
@@ -144,5 +144,5 @@ struct ShareInviteSheet: View {
         inviteCode: "PREVIEW123",
         overlayManager: OverlayManager()
     )
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
 }

@@ -53,7 +53,7 @@ struct MainPrograms: View {
     let avatarURL: String?
     @Binding var initialTab: Int?
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @State private var activeTab = 0
 
     // Program home modal state
@@ -882,5 +882,5 @@ private struct ImportConfirmOverlay: View {
         avatarURL: nil,
         initialTab: .constant(nil)
     )
-    .environmentObject(AuthManager())
+    .environment(AuthManager())
 }

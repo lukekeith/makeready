@@ -12,7 +12,7 @@ struct MemberHomePage: View {
     let avatarURL: String?
     @Binding var pendingSubTab: Int?
     @State private var activeTab = 0
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     // Use centralized state for fine-grained reactivity
     private var state: AppState { AppState.shared }
@@ -120,7 +120,7 @@ struct MemberHomePage: View {
                                     overlayManager: overlayManager,
                                     menuId: OverlayID.groupsInviteMenu
                                 )
-                                .environmentObject(authManager)
+                                .environment(authManager)
                             }
                         } label: {
                             Image(systemName: "paperplane")

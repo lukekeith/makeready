@@ -10,7 +10,7 @@ import SwiftUI
 
 struct QRCodeScreenPage: View {
     let inviteCode: String
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @Environment(\.dismiss) var dismiss
 
     @State private var qrCodeImage: UIImage?
@@ -198,7 +198,7 @@ struct QRCodeScreenPage: View {
 
             // Build full invite URL to encode in QR code
             let inviteURL = "https://www.makeready.org/join/\(inviteCode)"
-            let image = try await authManager.generateQRCode(
+            let image = try await InviteActions().generateQRCode(
                 data: inviteURL,
                 color: "#6c47ff",      // Brand purple
                 backgroundColor: "#ffffff",
@@ -230,5 +230,5 @@ struct QRCodeScreenPage: View {
 
 #Preview {
     QRCodeScreenPage(inviteCode: "PREVIEW123")
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
 }

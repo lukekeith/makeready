@@ -9,7 +9,7 @@
 import SwiftUI
 
 struct UserMenu: View {
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @Environment(OverlayManager.self) private var overlayManager
     @Environment(\.dismissOverlay) private var dismissOverlay
 
@@ -108,7 +108,7 @@ struct UserMenu: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             overlayManager.presentModal(id: OverlayID.profilePage) {
                 ProfilePage(overlayManager: overlayManager)
-                    .environmentObject(authManager)
+                    .environment(authManager)
             }
         }
     }
@@ -148,7 +148,7 @@ struct UserMenu: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             overlayManager.presentModal(id: OverlayID.orgHome) {
                 OrgHomePage(overlayManager: overlayManager, organization: org)
-                    .environmentObject(authManager)
+                    .environment(authManager)
             }
         }
     }
@@ -174,7 +174,7 @@ struct UserMenu: View {
             Spacer()
             UserMenu()
                 .environment(OverlayManager())
-                .environmentObject(AuthManager())
+                .environment(AuthManager())
         }
     }
 }

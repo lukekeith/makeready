@@ -23,19 +23,19 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
     case "pages.login":
         return AnyView(
             LoginView()
-                .environmentObject(authManager)
+                .environment(authManager)
         )
 
     case "pages.home":
         return AnyView(
             MainView()
-                .environmentObject(authManager)
+                .environment(authManager)
         )
 
     case "pages.create-program":
         return AnyView(
             CreateProgramPage(overlayManager: OverlayManager())
-                .environmentObject(authManager)
+                .environment(authManager)
         )
 
     case "pages.edit-read-activity":
@@ -54,7 +54,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onSave: { _ in }
             )
             .environment(OverlayManager())
-            .environmentObject(authManager)
+            .environment(authManager)
         )
 
     case "pages.edit-exegesis-activity":
@@ -71,7 +71,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onSave: {}
             )
             .environment(OverlayManager())
-            .environmentObject(authManager)
+            .environment(authManager)
         )
 
     case "pages.program-home":
@@ -88,7 +88,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onShowAddActivityMenu: nil,
                 initialCoverImage: coverImage
             )
-            .environmentObject(authManager)
+            .environment(authManager)
         )
 
     case "pages.video-activity-picker":
@@ -97,7 +97,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onDismiss: {},
                 onVideoSelected: { _ in }
             )
-            .environmentObject(authManager)
+            .environment(authManager)
         )
 
     case "pages.edit-youtube-activity":
@@ -113,7 +113,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onCancel: {},
                 onSave: { _, _, _, _ in }
             )
-            .environmentObject(authManager)
+            .environment(authManager)
         )
 
     case "pages.edit-user-input-activity":
@@ -129,7 +129,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onCancel: {},
                 onSave: { _, _, _, _, _ in }
             )
-            .environmentObject(authManager)
+            .environment(authManager)
         )
 
     default:

@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ProfilePage: View {
     let overlayManager: OverlayManager
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @State private var selectedEnvironment = Configuration.selectedEnvironment
     @State private var environmentStatus: [Configuration.SelectedEnvironment: EnvironmentHealth] = [:]
     @State private var localIP: String = Configuration.localServerIP ?? "192.168.1.65"
@@ -377,5 +377,5 @@ struct ProfileItem {
 
 #Preview {
     ProfilePage(overlayManager: OverlayManager())
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
 }

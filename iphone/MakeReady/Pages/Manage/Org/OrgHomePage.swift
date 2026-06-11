@@ -17,7 +17,7 @@ struct OrgHomePage: View {
     var onDismiss: (() -> Void)?
     var leftIcon: String = "xmark"
 
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     @State private var selectedTab: Int = 0
     @State private var groupLeaders: [GroupLeader] = []

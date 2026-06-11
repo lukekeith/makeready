@@ -947,7 +947,7 @@ struct ChartsTabContent: View {
 
 struct QRTabContent: View {
     let overlayManager: OverlayManager
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     var body: some View {
         VStack(spacing: 32) {
@@ -986,7 +986,7 @@ struct QRTabContent: View {
                             inviteCode: "DEMO123",
                             overlayManager: overlayManager
                         )
-                        .environmentObject(authManager)
+                        .environment(authManager)
                     }
                 }) {
                     HStack {
@@ -1411,5 +1411,5 @@ struct AlertsTabContent: View {
 
 #Preview {
     ComponentsPage(overlayManager: OverlayManager())
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
 }

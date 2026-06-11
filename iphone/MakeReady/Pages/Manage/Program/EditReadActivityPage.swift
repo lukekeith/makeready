@@ -101,7 +101,7 @@ struct EditReadActivityPage: View {
     var actions: ReadActivityActionProvider = .program
 
     @Environment(OverlayManager.self) private var overlayManager
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
 
     /// True when the signed-in user is the creator of the program containing
     /// this activity. Drives gating: hides save/done/plus, disables swipe,

@@ -30,7 +30,7 @@ extension EnvironmentValues {
 }
 
 struct MainView: View {
-    @EnvironmentObject var authManager: AuthManager
+    @Environment(AuthManager.self) var authManager
     @State private var currentTab: MainTab = .home
     @State private var groupsSubTab: Int?  // Set to switch MemberHomePage to a specific tab
     @State private var studyProgramsSubTab: Int?  // Set to switch MainPrograms to a specific tab
@@ -68,7 +68,7 @@ struct MainView: View {
                         onAddTap: {
                             overlayManager.presentMenu(id: OverlayID.addMenu) {
                                 AddMenu()
-                                    .environmentObject(authManager)
+                                    .environment(authManager)
                             }
                         },
                         onKPITap: { destination in
@@ -129,7 +129,7 @@ struct MainView: View {
                     onProfileTap: {
                         overlayManager.presentMenu(id: OverlayID.userMenu) {
                             UserMenu()
-                                .environmentObject(authManager)
+                                .environment(authManager)
                         }
                     }
                 )
@@ -203,5 +203,5 @@ struct MainView: View {
 
 #Preview {
     MainView()
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
 }

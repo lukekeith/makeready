@@ -2,7 +2,13 @@
 //  AuthManager.swift
 //  MakeReady
 //
-//  Authentication manager for Google Sign In
+//  Authentication lifecycle: Google OAuth via ASWebAuthenticationSession,
+//  dev login, session validation, and sign-out. The session credential
+//  itself is owned by APIClient (backed by SessionCredentialStore in the
+//  Keychain) — AuthManager writes it on login/logout but never caches it.
+//
+//  Invite creation and QR generation live in InviteActions (Phase 2.6
+//  dissolved the former god object).
 //
 
 import SwiftUI
@@ -18,46 +24,32 @@ struct User: Codable {
     var avatarURL: String? { picture }
 }
 
-// Invite model matching server response
-struct Invite: Codable {
-    let id: String
-    let code: String
-    let groupId: String?
-    let createdAt: String  // ISO date string
-    let expiresAt: String?  // ISO date string
-    let userId: String
-}
-
 // Authentication state manager
-class AuthManager: NSObject, ObservableObject {
-    @Published var currentUser: User?
-    @Published var isAuthenticated: Bool = false
+@Observable
+class AuthManager: NSObject {
+    var currentUser: User?
+    var isAuthenticated: Bool = false
 
     private let userDefaultsKey = "makeready_current_user"
 
     // Store session for WebAuthenticationSession
-    private var authSession: ASWebAuthenticationSession?
-    private var sessionCookie: String?
+    @ObservationIgnored private var authSession: ASWebAuthenticationSession?
 
-    /// Whether the user has a valid session cookie
+    /// Whether a session credential exists. APIClient owns the credential;
+    /// this just asks it.
     var hasSessionCookie: Bool {
-        return sessionCookie != nil
+        APIClient.shared.isAuthenticated
     }
 
     override init() {
         super.init()
         print("🔧 AuthManager initialized")
-        // Load session cookie from the Keychain (migrates from legacy UserDefaults)
-        self.sessionCookie = SessionCredentialStore.get()
-        if let cookie = sessionCookie {
-            print("📦 Loaded session cookie from Keychain (length: \(cookie.count))")
-        }
 
         // Restore cached user data immediately for fast UI
         loadUser()
 
-        // If we have a session cookie, validate it with the server in background
-        if sessionCookie != nil {
+        // If a session credential exists, validate it with the server in background
+        if APIClient.shared.isAuthenticated {
             Task {
                 print("🔍 Validating session with server...")
                 await checkAuthStatus()
@@ -166,16 +158,16 @@ class AuthManager: NSObject, ObservableObject {
     }
 
     // MARK: - Session Cookie Management
+
+    /// Write the session credential to its single owner (APIClient's
+    /// Keychain-backed store). Never cached here.
     private func storeSessionCookie(_ cookie: String) {
-        // Cookie is already URL-decoded by URLComponents
         print("💾 Storing session cookie (length: \(cookie.count))")
-        self.sessionCookie = cookie
         SessionCredentialStore.set(cookie)
     }
 
     private func clearSessionCookie() {
         print("🗑️ Clearing session cookie")
-        self.sessionCookie = nil
         SessionCredentialStore.clear()
     }
 
@@ -228,7 +220,7 @@ class AuthManager: NSObject, ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
         // Add session cookie if available
-        if let sessionCookie = sessionCookie {
+        if let sessionCookie = APIClient.shared.sessionCookieValue {
             request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
             print("🍪 Adding session cookie to request (length: \(sessionCookie.count))")
         } else {
@@ -291,7 +283,7 @@ class AuthManager: NSObject, ObservableObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             // Add session cookie for authenticated logout
-            if let sessionCookie = sessionCookie {
+            if let sessionCookie = APIClient.shared.sessionCookieValue {
                 request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
             }
 
@@ -369,158 +361,6 @@ class AuthManager: NSObject, ObservableObject {
         print("✅ Dev login: authenticated as \(user.name)")
     }
 
-    // MARK: - Invite Management
-
-    func createInvite(groupId: String? = nil, expiresAt: String? = nil) async throws -> Invite {
-        guard let url = URL(string: "\(Configuration.baseURL)/api/invites") else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        // Add session cookie for authentication
-        if let sessionCookie = sessionCookie {
-            request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
-        }
-
-        // Request body
-        var body: [String: Any] = [:]
-        if let groupId = groupId {
-            body["groupId"] = groupId
-        }
-        if let expiresAt = expiresAt {
-            body["expiresAt"] = expiresAt
-        }
-
-        if !body.isEmpty {
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        }
-
-        NSLog("📡 Sending request with cookie: %@", sessionCookie != nil ? "YES" : "NO")
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            NSLog("❌ Bad server response - not HTTP")
-            throw URLError(.badServerResponse)
-        }
-
-        NSLog("📥 Response status: %d", httpResponse.statusCode)
-
-        // Log response body for debugging
-        if let responseString = String(data: data, encoding: .utf8) {
-            NSLog("📥 Response body: %@", responseString)
-        }
-
-        // Check for authentication error
-        if httpResponse.statusCode == 401 {
-            NSLog("❌ 401 Unauthorized - Session expired or invalid")
-            throw NSError(domain: "AuthManager", code: 401, userInfo: [
-                NSLocalizedDescriptionKey: "Not authenticated. Please sign in."
-            ])
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            NSLog("❌ Non-200 status code: %d", httpResponse.statusCode)
-            throw URLError(.badServerResponse)
-        }
-
-        // Parse response
-        struct CreateInviteResponse: Codable {
-            let success: Bool
-            let invite: Invite?
-            let error: String?
-        }
-
-        let inviteResponse = try JSONDecoder().decode(CreateInviteResponse.self, from: data)
-
-        guard inviteResponse.success, let invite = inviteResponse.invite else {
-            throw NSError(domain: "AuthManager", code: 0, userInfo: [
-                NSLocalizedDescriptionKey: inviteResponse.error ?? "Failed to create invite"
-            ])
-        }
-
-        return invite
-    }
-
-    // MARK: - QR Code Generation
-    func generateQRCode(
-        data: String,
-        color: String = "#6c47ff",
-        backgroundColor: String = "#ffffff",
-        size: Int = 600,
-        errorCorrectionLevel: String = "M",
-        includeLogo: Bool = true
-    ) async throws -> UIImage {
-        guard let url = URL(string: "\(Configuration.baseURL)/api/qrcode/generate") else {
-            throw URLError(.badURL)
-        }
-
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.cachePolicy = .reloadIgnoringLocalCacheData  // Never cache QR codes
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        // Add session cookie for authentication
-        if let sessionCookie = sessionCookie {
-            request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
-        }
-
-        // Request body
-        let body: [String: Any] = [
-            "data": data,
-            "color": color,
-            "backgroundColor": backgroundColor,
-            "size": size,
-            "errorCorrectionLevel": errorCorrectionLevel,
-            "includeLogo": includeLogo
-        ]
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
-        let (responseData, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw URLError(.badServerResponse)
-        }
-
-        // Check for authentication errors
-        if httpResponse.statusCode == 401 {
-            print("❌ QR generation requires authentication")
-            throw URLError(.userAuthenticationRequired)
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            print("❌ Server error: \(httpResponse.statusCode)")
-            throw URLError(.badServerResponse)
-        }
-
-        // Parse response
-        let qrResponse = try JSONDecoder().decode(QRCodeResponse.self, from: responseData)
-
-        guard qrResponse.success, let qrCodeDataURL = qrResponse.qrCode else {
-            throw NSError(domain: "QRCode", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: qrResponse.error ?? "Failed to generate QR code"
-            ])
-        }
-
-        // Convert data URL to UIImage
-        // Format: "data:image/png;base64,..."
-        guard let base64String = qrCodeDataURL.components(separatedBy: ",").last,
-              let imageData = Data(base64Encoded: base64String),
-              let image = UIImage(data: imageData) else {
-            throw NSError(domain: "QRCode", code: -2, userInfo: [
-                NSLocalizedDescriptionKey: "Failed to decode QR code image"
-            ])
-        }
-
-        print("✅ QR code generated successfully for data: \(data.prefix(50))\(data.count > 50 ? "..." : "")")
-        return image
-    }
-
     // MARK: - Persistence
     private func saveUser() {
         guard let user = currentUser else { return }
@@ -546,22 +386,17 @@ class AuthManager: NSObject, ObservableObject {
 // MARK: - ASWebAuthenticationPresentationContextProviding
 extension AuthManager: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
-        // Return existing key window — always present during OAuth since app is in foreground
+        // Prefer the key window; fall back through any window to a fresh
+        // anchor rather than force-unwrapping (the app is foregrounded
+        // during OAuth, but a crash here would kill login entirely).
         let scene = UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }
-            .first!
-        return scene.keyWindow!
+            .first
+        return scene?.keyWindow ?? scene?.windows.first ?? ASPresentationAnchor()
     }
 }
 
 // MARK: - Response Models
 struct UserResponse: Codable {
     let user: User
-}
-
-struct QRCodeResponse: Codable {
-    let success: Bool
-    let qrCode: String?
-    let data: String?
-    let error: String?
 }
