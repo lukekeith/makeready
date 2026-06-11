@@ -52,13 +52,11 @@
 		8D2A4B7E9F5C46D3A8E1B2C3 /* SlideButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5F6A8B1C7D42A9B4D2E3F4 /* SlideButton.swift */; };
 		962517132EADF96D0098FAB0 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517142EADF96D0098FAB0 /* AuthManager.swift */; };
 		962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517162EADF96D0098FAB0 /* UserMenu.swift */; };
-		9689B6382ED2850A00C5327F /* ModalOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9689B6372ED2850A00C5327F /* ModalOverlay.swift */; };
 		9689B63A2ED2855400C5327F /* MODAL_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 9689B6392ED2855400C5327F /* MODAL_GUIDE.md */; };
 		96E9450B2ED04CBB00CAAE87 /* SectionedTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E9450A2ED04CBB00CAAE87 /* SectionedTableView.swift */; };
 		9A7B3C5D4E2A47F8B3D1E6F0 /* CardEventMini.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8E7A2D6B9F41C3A5E2D9B1 /* CardEventMini.swift */; };
 		9E3B5C8F1A6D47E4B9F2C3D4 /* SwipeableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F6A7B9C2D8E43B1C5E3F4A5 /* SwipeableCard.swift */; };
 		A1000001000000000000001 /* MakeReadyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000001 /* MakeReadyApp.swift */; };
-		A1000003000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000004000000000000001 /* ContentView.swift */; };
 		A1000005000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* Assets.xcassets */; };
 		A1000007000000000000001 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000008000000000000001 /* Preview Assets.xcassets */; };
 		A1000025000000000000001 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000026000000000000001 /* LoginView.swift */; };
@@ -111,11 +109,9 @@
 		BBVM0001000000000000001 /* BibleVersionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BBVM0002000000000000001 /* BibleVersionMenu.swift */; };
 		BCMG0001000000000000001 /* BibleCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCMG0002000000000000001 /* BibleCacheManager.swift */; };
 		BDC9313E2C64C58859952D80 /* FullScreenImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3558B3DA7CB229771AFC92B /* FullScreenImageViewer.swift */; };
-		BGPM000200000000000001 /* BackgroundPickerModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = BGPM000100000000000001 /* BackgroundPickerModal.swift */; };
 		BGSW000200000000000001 /* BackgroundSwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = BGSW000100000000000001 /* BackgroundSwatch.swift */; };
 		BSM0001000000000000001 /* BackgroundSourceMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSM0002000000000000001 /* BackgroundSourceMenu.swift */; };
 		IFSP000200000000000001 /* InlineFontSizePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = IFSP000100000000000001 /* InlineFontSizePicker.swift */; };
-		ICLP000200000000000001 /* InlineColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = ICLP000100000000000001 /* InlineColorPalette.swift */; };
 		BKSE000200000000000001 /* BlockStyleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKSE000100000000000001 /* BlockStyleEditor.swift */; };
 		EXVV000200000000000001 /* ExegesisVerseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXVV000100000000000001 /* ExegesisVerseView.swift */; };
 		BVT0001000000000000001 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
@@ -350,7 +346,6 @@
 		9625170F2EADF96C0098FAB0 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		962517142EADF96D0098FAB0 /* AuthManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthManager.swift; sourceTree = "<group>"; };
 		962517162EADF96D0098FAB0 /* UserMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserMenu.swift; sourceTree = "<group>"; };
-		9689B6372ED2850A00C5327F /* ModalOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalOverlay.swift; sourceTree = "<group>"; };
 		9689B6392ED2855400C5327F /* MODAL_GUIDE.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = MODAL_GUIDE.md; sourceTree = "<group>"; };
 		96E945082ECEBD0500CAAE87 /* Debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Debug.xcconfig; sourceTree = "<group>"; };
 		96E945092ECEBD2C00CAAE87 /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Release.xcconfig; sourceTree = "<group>"; };
@@ -360,7 +355,6 @@
 		9CF43B720F294A749CB91A24 /* LessonActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonActivity.swift; sourceTree = "<group>"; };
 		9E247DEC55ED45CEAAC6C959 /* cards.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = cards.json; sourceTree = "<group>"; };
 		A1000002000000000000001 /* MakeReadyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeReadyApp.swift; sourceTree = "<group>"; };
-		A1000004000000000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		A1000006000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A1000008000000000000001 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		A1000009000000000000001 /* MakeReady.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MakeReady.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -412,11 +406,9 @@
 		BBRO0002000000000000001 /* BibleReaderOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReaderOverlay.swift; sourceTree = "<group>"; };
 		BBVM0002000000000000001 /* BibleVersionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVersionMenu.swift; sourceTree = "<group>"; };
 		BCMG0002000000000000001 /* BibleCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleCacheManager.swift; sourceTree = "<group>"; };
-		BGPM000100000000000001 /* BackgroundPickerModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundPickerModal.swift; sourceTree = "<group>"; };
 		BGSW000100000000000001 /* BackgroundSwatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSwatch.swift; sourceTree = "<group>"; };
 		BSM0002000000000000001 /* BackgroundSourceMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSourceMenu.swift; sourceTree = "<group>"; };
 		IFSP000100000000000001 /* InlineFontSizePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFontSizePicker.swift; sourceTree = "<group>"; };
-		ICLP000100000000000001 /* InlineColorPalette.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineColorPalette.swift; sourceTree = "<group>"; };
 		BSRV0002000000000000001 /* BibleSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSearchService.swift; sourceTree = "<group>"; };
 		BKSE000100000000000001 /* BlockStyleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockStyleEditor.swift; sourceTree = "<group>"; };
 		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
@@ -748,7 +740,6 @@
 				C0L0R5SW1FT00000001 /* Colors.swift */,
 				962517142EADF96D0098FAB0 /* AuthManager.swift */,
 				CONF17012EADF96D0098FAB0 /* Configuration.swift */,
-				A1000004000000000000001 /* ContentView.swift */,
 				A1000026000000000000001 /* LoginView.swift */,
 				A1000041000000000000001 /* MainView.swift */,
 				A1000077000000000000001 /* FixturesManager.swift */,
@@ -869,7 +860,6 @@
 				D1DRA6U1A000000000001 /* Dragula.swift */,
 				SLDS0002000000000001 /* SlideStack.swift */,
 				D1ROH1A000000000000001 /* ReorderHelpers.swift */,
-				9689B6372ED2850A00C5327F /* ModalOverlay.swift */,
 				9689B6392ED2855400C5327F /* MODAL_GUIDE.md */,
 				5F6A7B8C9D1E42F3A4B5C6D7 /* SearchableList.swift */,
 				96E9450A2ED04CBB00CAAE87 /* SectionedTableView.swift */,
@@ -910,9 +900,7 @@
 				RTXI0002000000000000001 /* RichTextInput.swift */,
 				MDED000100000000000001 /* MarkdownEditor.swift */,
 				BGSW000100000000000001 /* BackgroundSwatch.swift */,
-				BGPM000100000000000001 /* BackgroundPickerModal.swift */,
 				IFSP000100000000000001 /* InlineFontSizePicker.swift */,
-				ICLP000100000000000001 /* InlineColorPalette.swift */,
 				BKSE000100000000000001 /* BlockStyleEditor.swift */,
 				KBTB0002000000000000001 /* KeyboardToolbar.swift */,
 				TAGI0002000000000000001 /* TagInput.swift */,
@@ -1611,7 +1599,6 @@
 				848498B9286B494A9009C6AC /* CardEvent.swift in Sources */,
 				9A7B3C5D4E2A47F8B3D1E6F0 /* CardEventMini.swift in Sources */,
 				25EAA99F978B4A43AED97C5C /* CardGroup.swift in Sources */,
-				9689B6382ED2850A00C5327F /* ModalOverlay.swift in Sources */,
 				73D885E34016441497B612D4 /* CardGroupMini.swift in Sources */,
 				CARD0001000000000000001 /* CardMember.swift in Sources */,
 				CARD0003000000000000001 /* CardContact.swift in Sources */,
@@ -1644,7 +1631,6 @@
 				88DDFCABE91A48FDB606F65B /* GroupSelectorSheet.swift in Sources */,
 				96E9450B2ED04CBB00CAAE87 /* SectionedTableView.swift in Sources */,
 				6441EB23AEE545CEB2379F55 /* ContactsManager.swift in Sources */,
-				A1000003000000000000001 /* ContentView.swift in Sources */,
 				A1000001000000000000001 /* MakeReadyApp.swift in Sources */,
 				C0L0R5SW1FT00000002 /* Colors.swift in Sources */,
 				962517132EADF96D0098FAB0 /* AuthManager.swift in Sources */,
@@ -1787,9 +1773,7 @@
 				RTXI0001000000000000001 /* RichTextInput.swift in Sources */,
 				MDED000200000000000001 /* MarkdownEditor.swift in Sources */,
 				BGSW000200000000000001 /* BackgroundSwatch.swift in Sources */,
-				BGPM000200000000000001 /* BackgroundPickerModal.swift in Sources */,
 				IFSP000200000000000001 /* InlineFontSizePicker.swift in Sources */,
-				ICLP000200000000000001 /* InlineColorPalette.swift in Sources */,
 				BKSE000200000000000001 /* BlockStyleEditor.swift in Sources */,
 				KBST0001000000000000001 /* KeyboardState.swift in Sources */,
 				KBTB0001000000000000001 /* KeyboardToolbar.swift in Sources */,

@@ -13,7 +13,7 @@ struct GroupSelectorSheet: View {
     @Binding var selectedGroup: GroupFixtureManager.GroupFixture?
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 // Background
                 Color.appBackground

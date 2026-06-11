@@ -237,7 +237,7 @@ struct MenuPickerSheet: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.appBackground
                     .ignoresSafeArea()
@@ -333,7 +333,7 @@ struct WheelPickerSheet: View {
     @Binding var isPresented: Bool
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             ZStack {
                 Color.appBackground
                     .ignoresSafeArea()
