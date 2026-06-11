@@ -263,6 +263,11 @@ struct BlockStyleEditor: View {
         "#064E3B", "#34D399", "#134E4A", "#0D9488", "#1E3A8A", "#2563EB",
     ]
 
+    // ⚠️ DEAD CODE — zero references. The live color picker is
+    // `BlockStyleColorPickerContent` (presented by `presentColorPicker()`
+    // above); this older inline copy was never removed. Slated for deletion
+    // in Phase 3.10 cleanup along with its private helpers. If you're fixing
+    // a color-picker bug, you almost certainly want the other struct.
     private var colorPickerGrid: some View {
         let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 6)
 
@@ -483,27 +488,20 @@ private struct BlockStyleColorPickerContent: View {
     ]
 
     var body: some View {
-        let columns = Array(repeating: GridItem(.flexible(), spacing: 2), count: 6)
-
         VStack(spacing: 16) {
-            LazyVGrid(columns: columns, spacing: 2) {
-                ForEach(Self.colorPalette, id: \.self) { hex in
-                    Button {
-                        pickColor(hex)
-                    } label: {
-                        RoundedRectangle(cornerRadius: 2)
-                            .fill(Color(hex: hex))
-                            .frame(height: 32)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 2)
-                                    .strokeBorder(
-                                        selectedColor?.caseInsensitiveCompare(hex) == .orderedSame
-                                            ? Color.white : Color.clear,
-                                        lineWidth: 2
-                                    )
-                            )
+            // Non-lazy grid: this content animates up with the menu, and
+            // LazyVGrid children realize only after the slide-up starts —
+            // they land at their final position instead of riding the
+            // animation (Class 2 — SWIFTUI_TRANSITIONS.md § LazyVStack and
+            // Modal Animations). 24 swatches are trivially cheap to build
+            // eagerly.
+            VStack(spacing: 2) {
+                ForEach(Array(stride(from: 0, to: Self.colorPalette.count, by: 6)), id: \.self) { rowStart in
+                    HStack(spacing: 2) {
+                        ForEach(Self.colorPalette[rowStart..<min(rowStart + 6, Self.colorPalette.count)], id: \.self) { hex in
+                            swatch(hex)
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
             }
 
@@ -571,6 +569,27 @@ private struct BlockStyleColorPickerContent: View {
             .disabled(selectedColor == nil)
         }
         .onAppear { localOpacity = storedOpacity ?? 0.8 }
+    }
+
+    /// Swatch cell for the non-lazy color grid above.
+    private func swatch(_ hex: String) -> some View {
+        Button {
+            pickColor(hex)
+        } label: {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Color(hex: hex))
+                .frame(height: 32)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 2)
+                        .strokeBorder(
+                            selectedColor?.caseInsensitiveCompare(hex) == .orderedSame
+                                ? Color.white : Color.clear,
+                            lineWidth: 2
+                        )
+                )
+        }
+        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity)
     }
 
     private func pickColor(_ hex: String) {
