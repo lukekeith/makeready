@@ -7,9 +7,14 @@
  *
  * Verses are embedded once by embed-bible.ts (WEB translation); queries are
  * embedded at request time. Result shape matches handleKeywordSearch in
- * routes/search.ts so consumers (iPhone, client) need no changes. Verse text
- * returned is always WEB (public domain — no FUMS token obligation);
- * sourceTranslation tells consumers which translation the text came from.
+ * routes/search.ts so consumers (iPhone, client) need no changes.
+ *
+ * Matching always runs against WEB embeddings, but display text is resolved
+ * in the user's selected translation: from the local verses table when that
+ * translation is stored locally, otherwise from API.Bible via the 14-day
+ * chapter cache (one API call per uncached chapter). Verses that can't be
+ * resolved (versification gaps, API errors) keep WEB text and are marked
+ * with per-verse sourceTranslation: 'WEB'.
  */
 
 import { prisma, Prisma } from '../lib/prisma.js'
@@ -34,22 +39,26 @@ interface SemanticRow {
   similarity: number
 }
 
+export interface SemanticVerseResult {
+  verseId: string
+  book: { bookNumber: number; name: string; abbrev: string }
+  chapter: number
+  verse: number
+  text: string
+  reference: string
+  similarity: number
+  /** Set to 'WEB' only when text could not be resolved in the requested translation */
+  sourceTranslation?: string
+}
+
 export interface SemanticSearchResult {
   type: 'semantic'
   query: string
   translation: string
-  sourceTranslation: string
-  results: Array<{
-    verseId: string
-    book: { bookNumber: number; name: string; abbrev: string }
-    chapter: number
-    verse: number
-    text: string
-    reference: string
-    similarity: number
-  }>
+  results: SemanticVerseResult[]
   total: number
-  fumsToken: undefined
+  fumsToken: string | undefined
+  copyright?: string
 }
 
 export async function searchVersesSemantic(
@@ -81,7 +90,7 @@ async function searchInternal(
                LIMIT ${limit}`
   )
 
-  const results = rows
+  const results: SemanticVerseResult[] = rows
     .filter((row) => row.similarity >= SIMILARITY_THRESHOLD)
     .map((row) => {
       const book = getBookByNumber(row.bookNumber)
@@ -96,13 +105,103 @@ async function searchInternal(
       }
     })
 
+  const { fumsToken, copyright } = await resolveDisplayTexts(results, translationCode)
+
   return {
     type: 'semantic',
     query,
     translation: translationCode,
-    sourceTranslation: SOURCE_TRANSLATION,
     results,
     total: results.length,
-    fumsToken: undefined,
+    fumsToken,
+    copyright,
   }
+}
+
+/**
+ * Replace WEB match text with the requested translation's text, in place.
+ * Local translations cost one SQL query; API.Bible translations cost one
+ * cached chapter fetch per distinct chapter (zero API calls once warm).
+ */
+async function resolveDisplayTexts(
+  results: SemanticVerseResult[],
+  translationCode: string
+): Promise<{ fumsToken: string | undefined; copyright?: string }> {
+  const code = translationCode.toUpperCase()
+  if (results.length === 0 || code === SOURCE_TRANSLATION) {
+    return { fumsToken: undefined }
+  }
+
+  // 1. Translation stored locally (KJV, ASV, NET, WEB, ...) — one SQL query
+  const local = await prisma.translation.findUnique({ where: { code } })
+  if (local) {
+    const rows = await prisma.verse.findMany({
+      where: {
+        translationId: local.id,
+        OR: results.map((r) => ({
+          bookNumber: r.book.bookNumber,
+          chapter: r.chapter,
+          verse: r.verse,
+        })),
+      },
+      select: { bookNumber: true, chapter: true, verse: true, text: true },
+    })
+    const texts = new Map(rows.map((r) => [`${r.bookNumber}:${r.chapter}:${r.verse}`, r.text]))
+    for (const r of results) {
+      const text = texts.get(`${r.book.bookNumber}:${r.chapter}:${r.verse}`)
+      if (text) r.text = text
+      else r.sourceTranslation = SOURCE_TRANSLATION
+    }
+    return { fumsToken: undefined }
+  }
+
+  // 2. API.Bible translation (NASB, ESV, ...) — cached chapter fetches
+  const { resolveBibleId } = await import('./bible-metadata.js')
+  const bibleId = await resolveBibleId(code)
+  if (!bibleId) {
+    results.forEach((r) => { r.sourceTranslation = SOURCE_TRANSLATION })
+    return { fumsToken: undefined }
+  }
+
+  const { getChapterVerses } = await import('./bible-chapter.js')
+  const chapterKeys = [...new Set(results.map((r) => `${r.book.bookNumber}:${r.chapter}`))]
+  const chapterTexts = new Map<string, Map<number, string>>()
+  let fumsToken: string | undefined
+  let copyright: string | undefined
+
+  await Promise.all(chapterKeys.map(async (key) => {
+    const [bookNumber, chapter] = key.split(':').map(Number)
+    try {
+      const book = getBookByNumber(bookNumber)
+      // skipFums: one token per response is enough — fetched below if needed
+      const result = await getChapterVerses(bibleId, book.apiBibleId, chapter, { skipFums: true })
+      chapterTexts.set(key, new Map(result.verses.map((v) => [v.verse, v.text])))
+      if (result.fumsToken) fumsToken = result.fumsToken
+      if (result.copyright) copyright = result.copyright
+    } catch (err) {
+      console.error(`Semantic search: failed to fetch ${code} chapter for ${key}:`, err)
+    }
+  }))
+
+  for (const r of results) {
+    const text = chapterTexts.get(`${r.book.bookNumber}:${r.chapter}`)?.get(r.verse)
+    if (text) r.text = text
+    else r.sourceTranslation = SOURCE_TRANSLATION
+  }
+
+  // FUMS compliance: copyrighted text views need a token. Cache misses above
+  // already produced one; on all-cache-hit fetch a single token.
+  const servedApiBibleText = results.some((r) => !r.sourceTranslation)
+  if (servedApiBibleText && !fumsToken) {
+    try {
+      const { getVerse, extractFumsToken } = await import('./api-bible.js')
+      const first = results.find((r) => !r.sourceTranslation)!
+      const response = await getVerse(bibleId, first.verseId)
+      fumsToken = extractFumsToken(response.meta) ?? undefined
+    } catch {
+      // token fetch failed — results still valid
+    }
+  }
+
+  return { fumsToken, copyright }
 }

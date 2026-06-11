@@ -860,8 +860,10 @@ router.get('/', requireAuth, async (req, res) => {
  *       Unified search endpoint that automatically detects the query type and routes accordingly:
  *       - **Direct references** (e.g., "Romans 1:1", "John 3:16-17", "Psalm 23") → exact verse/chapter lookup via API.Bible
  *       - **Concept queries** (e.g., "overcoming fear", "forgiveness") → semantic search over locally-stored
- *         verses using pgvector embeddings (bge-small-en-v1.5). Verse text comes from the public-domain WEB
- *         translation (see `sourceTranslation`); falls back to API.Bible keyword search if embeddings are
+ *         verses using pgvector embeddings (bge-small-en-v1.5). Matching runs against the public-domain WEB
+ *         translation; verse text is then resolved in the requested translation (local table or cached
+ *         API.Bible chapter fetch). Verses that can't be resolved keep WEB text and carry a per-verse
+ *         `sourceTranslation: "WEB"` marker. Falls back to API.Bible keyword search if embeddings are
  *         unavailable (EMBEDDINGS_ENABLED=false or backfill not run).
  *
  *       Direct references use chapter-first caching — the entire chapter is cached on first access.
@@ -945,10 +947,6 @@ router.get('/', requireAuth, async (req, res) => {
  *                       type: string
  *                     translation:
  *                       type: string
- *                     sourceTranslation:
- *                       type: string
- *                       nullable: true
- *                       description: Translation the verse text was served from (WEB for semantic results)
  *                     results:
  *                       type: array
  *                       items:
@@ -966,6 +964,12 @@ router.get('/', requireAuth, async (req, res) => {
  *                             type: string
  *                           reference:
  *                             type: string
+ *                           similarity:
+ *                             type: number
+ *                           sourceTranslation:
+ *                             type: string
+ *                             nullable: true
+ *                             description: Present (as "WEB") only when this verse's text could not be resolved in the requested translation
  *                     total:
  *                       type: integer
  *                     fumsToken:
@@ -1065,8 +1069,8 @@ router.post('/smart', async (req, res) => {
       books,
       verses,
       total: totalResults,
-      sourceTranslation: verseResult.sourceTranslation,
       fumsToken: verseResult.fumsToken,
+      copyright: verseResult.copyright,
     })
   } catch (error) {
     console.error('Smart search error:', error)
