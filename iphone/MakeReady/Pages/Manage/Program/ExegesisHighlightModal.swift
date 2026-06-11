@@ -86,7 +86,7 @@ struct ExegesisHighlightModal: View {
             appeared = false
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-            overlayManager.dismiss(id: OverlayID.exegesisHighlightModal)
+            overlayManager.dismiss(.exegesisHighlightModal)
         }
     }
 

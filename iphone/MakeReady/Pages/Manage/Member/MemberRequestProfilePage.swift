@@ -169,7 +169,7 @@ struct MemberRequestProfilePage: View {
                         leftIcon: "xmark",
                         rightLink: "Approve",
                         onLeftIconTap: {
-                            overlayManager.dismiss(id: OverlayID.memberRequestProfile)
+                            overlayManager.dismiss(.memberRequestProfile)
                         },
                         onRightLinkTap: {
                             showApproveConfirmation = true
@@ -244,7 +244,7 @@ struct MemberRequestProfilePage: View {
                 groupId: groupId,
                 requestId: requestId
             )
-            overlayManager.dismiss(id: OverlayID.memberRequestProfile)
+            overlayManager.dismiss(.memberRequestProfile)
             onApprove?()
         } catch {
             NSLog("Failed to approve request: \(error.localizedDescription)")

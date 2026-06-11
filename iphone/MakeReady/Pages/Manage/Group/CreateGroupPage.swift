@@ -68,7 +68,7 @@ struct CreateGroupPage: View {
                     rightLink: "Create",
                     rightLinkDisabled: !isFormValid,
                     onLeftIconTap: {
-                        overlayManager.dismiss(id: OverlayID.createGroup)
+                        overlayManager.dismiss(.createGroup)
                     },
                     onRightLinkTap: {
                         if isFormValid {
@@ -257,7 +257,7 @@ struct CreateGroupPage: View {
                 await MainActor.run {
                     isCreating = false
                     onGroupCreated?(finalGroup)
-                    overlayManager.dismiss(id: OverlayID.createGroup)
+                    overlayManager.dismiss(.createGroup)
                 }
             } catch {
                 await MainActor.run {

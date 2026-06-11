@@ -139,7 +139,7 @@ struct MemberHomePage: View {
                                     items: [
                                         ActionCardMenuItem(icon: "person.2.fill", title: "Group", description: "Create a new group") {
                                             overlayManager.dismiss(.groupsAddMenu) {
-                                                overlayManager.presentModal(id: OverlayID.createGroup) {
+                                                overlayManager.present(.createGroup) {
                                                     CreateGroupPage(overlayManager: overlayManager)
                                                 }
                                             }
@@ -334,12 +334,12 @@ struct MemberHomePage: View {
     private func presentGroupHome() {
         guard let groupId = selectedGroupId else { return }
 
-        overlayManager.presentModal(id: OverlayID.groupHome) {
+        overlayManager.present(.groupHome) {
             GroupHomePage(
                 overlayManager: overlayManager,
                 groupId: groupId,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.groupHome)
+                    overlayManager.dismiss(.groupHome)
                 }
             )
         }
@@ -490,7 +490,7 @@ struct MemberHomePage: View {
     }
 
     private func presentRequestsPage() {
-        overlayManager.presentPage(id: OverlayID.memberRequests) {
+        overlayManager.present(.memberRequests) {
             MemberRequestsPage(
                 overlayManager: overlayManager,
                 allJoinRequests: allJoinRequests,
@@ -738,7 +738,7 @@ struct MemberHomePage: View {
     }
 
     private func handleMemberTap(_ member: GroupMember) {
-        overlayManager.presentModal(id: OverlayID.memberProfile) {
+        overlayManager.present(.memberProfile) {
             MemberProfilePage(memberId: member.userId)
         }
     }
@@ -773,11 +773,11 @@ struct MemberHomePage: View {
             isActive: enrollment.isActive
         )
 
-        overlayManager.presentModal(id: OverlayID.enrollmentSchedule, dismissOnTapOutside: false) {
+        overlayManager.present(.enrollmentSchedule) {
             EnrollmentSchedulePage(
                 enrollment: enrollmentWithProgram,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.enrollmentSchedule)
+                    overlayManager.dismiss(.enrollmentSchedule)
                 },
                 leftIcon: "xmark",
                 overlayManager: overlayManager,

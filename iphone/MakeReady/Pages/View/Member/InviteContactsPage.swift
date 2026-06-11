@@ -68,8 +68,8 @@ struct InviteContactsPage: View {
             title: "Invite contacts",
             leftIcon: "xmark",
             rightLink: "Done",
-            onLeftIconTap: { overlayManager.dismiss(id: OverlayID.inviteContacts) },
-            onRightLinkTap: { overlayManager.dismiss(id: OverlayID.inviteContacts) }
+            onLeftIconTap: { overlayManager.dismiss(.inviteContacts) },
+            onRightLinkTap: { overlayManager.dismiss(.inviteContacts) }
         )
     }
 

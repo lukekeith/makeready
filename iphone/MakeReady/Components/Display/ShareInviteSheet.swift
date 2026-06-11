@@ -30,8 +30,8 @@ struct ShareInviteSheet: View {
                 PageTitle.iconLink(
                     leftIcon: "xmark",
                     rightLink: "Done",
-                    onLeftIconTap: { overlayManager.dismiss(id: OverlayID.shareInvite) },
-                    onRightLinkTap: { overlayManager.dismiss(id: OverlayID.shareInvite) }
+                    onLeftIconTap: { overlayManager.dismiss(.shareInvite) },
+                    onRightLinkTap: { overlayManager.dismiss(.shareInvite) }
                 )
 
                 // Content

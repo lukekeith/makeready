@@ -22,7 +22,7 @@ struct NotificationFeedPage: View {
                 title: "Notifications",
                 leftIcon: "xmark",
                 rightLink: state.unreadNotificationCount > 0 ? "Mark all read" : "",
-                onLeftIconTap: { overlayManager.dismiss(id: OverlayID.notificationFeed) },
+                onLeftIconTap: { overlayManager.dismiss(.notificationFeed) },
                 onRightLinkTap: {
                     Task { try? await NotificationActions().markAllAsRead() }
                 }
@@ -83,7 +83,7 @@ struct NotificationFeedPage: View {
 
         // Navigate to relevant content
         if let groupId = notification.data?.groupId {
-            overlayManager.dismiss(id: OverlayID.notificationFeed)
+            overlayManager.dismiss(.notificationFeed)
 
             // Navigate based on notification type
             switch notification.type {

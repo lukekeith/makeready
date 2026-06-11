@@ -41,7 +41,7 @@ struct InviteMenu: View {
 
                     SubmenuItem(icon: "IconUser", title: "Invite contacts") {
                         dismissMenu {
-                            overlayManager.presentModal(id: OverlayID.inviteContacts) {
+                            overlayManager.present(.inviteContacts) {
                                 InviteContactsPage(overlayManager: overlayManager)
                             }
                         }
@@ -93,7 +93,7 @@ struct InviteMenu: View {
                 await MainActor.run {
                     isCreatingInvite = false
 
-                    overlayManager.presentModal(id: OverlayID.shareInvite) {
+                    overlayManager.present(.shareInvite) {
                         ShareInviteSheet(
                             inviteCode: invite.code,
                             overlayManager: overlayManager

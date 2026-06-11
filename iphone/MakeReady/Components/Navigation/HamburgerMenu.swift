@@ -26,11 +26,11 @@ struct HamburgerMenu: View {
                     title: "Bible"
                 ) {
                     dismissMenu {
-                        overlayManager.presentModal(id: OverlayID.bibleReader) {
+                        overlayManager.present(.bibleReader) {
                             BibleReaderModal(
                                 overlayManager: overlayManager,
                                 onDismiss: {
-                                    overlayManager.dismiss(id: OverlayID.bibleReader)
+                                    overlayManager.dismiss(.bibleReader)
                                 }
                             )
                         }

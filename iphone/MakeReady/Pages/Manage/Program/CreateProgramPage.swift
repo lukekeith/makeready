@@ -193,7 +193,7 @@ struct CreateProgramPage: View {
                     leftIcon: "xmark",
                     rightLink: "Create",
                     onLeftIconTap: {
-                        overlayManager.dismiss(id: OverlayID.createProgram)
+                        overlayManager.dismiss(.createProgram)
                     },
                     onRightLinkTap: {
                         if isFormValid {
@@ -376,7 +376,7 @@ struct CreateProgramPage: View {
                     leftIcon: "xmark",
                     rightIcon: "gearshape",
                     onLeftIconTap: {
-                        overlayManager.dismiss(id: OverlayID.createProgram)
+                        overlayManager.dismiss(.createProgram)
                     },
                     onRightIconTap: {
                         print("Settings tapped")

@@ -247,7 +247,7 @@ struct MainLibrary: View {
                                     items: [
                                         ActionCardMenuItem(icon: "book.fill", title: "Study Program", description: "Create a new study program") {
                                             overlayManager.dismiss(.libraryAddMenu) {
-                                                overlayManager.presentModal(id: OverlayID.createProgram) {
+                                                overlayManager.present(.createProgram) {
                                                     CreateProgramPage(overlayManager: overlayManager)
                                                 }
                                             }
@@ -718,14 +718,14 @@ struct MainLibrary: View {
     // MARK: - Helpers
 
     private func presentProgramHome() {
-        guard !overlayManager.isPresented(id: OverlayID.programHome) else { return }
+        guard !overlayManager.isPresented(.programHome) else { return }
 
-        overlayManager.presentModal(id: OverlayID.programHome) {
+        overlayManager.present(.programHome) {
             ProgramHomeModalContent(
                 overlayManager: overlayManager,
                 selectedProgramId: $selectedProgramId,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.programHome)
+                    overlayManager.dismiss(.programHome)
                 }
             )
         }

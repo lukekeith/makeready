@@ -62,7 +62,7 @@ struct AddMenu: View {
                         ) {
                             print("Create group tapped")
                             dismissMenu {
-                                overlayManager.presentModal(id: OverlayID.createGroup) {
+                                overlayManager.present(.createGroup) {
                                     CreateGroupPage(overlayManager: overlayManager)
                                 }
                             }
@@ -75,7 +75,7 @@ struct AddMenu: View {
                         ) {
                             print("Create study tapped")
                             dismissMenu {
-                                overlayManager.presentModal(id: OverlayID.createProgram) {
+                                overlayManager.present(.createProgram) {
                                     CreateProgramPage(overlayManager: overlayManager)
                                 }
                             }
@@ -113,7 +113,7 @@ struct AddMenu: View {
                     },
                     onInviteContacts: {
                         dismissMenu {
-                            overlayManager.presentModal(id: OverlayID.inviteContacts) {
+                            overlayManager.present(.inviteContacts) {
                                 InviteContactsPage(overlayManager: overlayManager)
                             }
                         }
@@ -203,7 +203,7 @@ struct AddMenu: View {
                     self.isCreatingInvite = false
 
                     // Present share invite modal
-                    overlayManager.presentModal(id: OverlayID.shareInvite) {
+                    overlayManager.present(.shareInvite) {
                         ShareInviteSheet(
                             inviteCode: invite.code,
                             overlayManager: overlayManager

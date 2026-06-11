@@ -116,7 +116,7 @@ struct StudyCardsDemoPage: View {
                 PageTitle.iconTitle(
                     title: "Study Cards Demo",
                     icon: "xmark",
-                    onIconTap: { overlayManager.dismiss(id: OverlayID.studyCardsDemoPage) }
+                    onIconTap: { overlayManager.dismiss(.studyCardsDemoPage) }
                 )
             }
         }

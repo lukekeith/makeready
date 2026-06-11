@@ -115,7 +115,7 @@ struct UserMenu: View {
 
     private func handleMyProfile() {
         dismissMenu {
-            overlayManager.presentModal(id: OverlayID.profilePage) {
+            overlayManager.present(.profilePage) {
                 ProfilePage(overlayManager: overlayManager)
                     .environment(authManager)
             }
@@ -152,7 +152,7 @@ struct UserMenu: View {
 
     private func handleOpenOrg(org: OrganizationData) {
         dismissMenu {
-            overlayManager.presentModal(id: OverlayID.orgHome) {
+            overlayManager.present(.orgHome) {
                 OrgHomePage(overlayManager: overlayManager, organization: org)
                     .environment(authManager)
             }

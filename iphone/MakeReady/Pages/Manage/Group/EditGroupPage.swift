@@ -85,7 +85,7 @@ struct EditGroupPage: View {
                     rightLink: "Save",
                     rightLinkDisabled: !isFormValid,
                     onLeftIconTap: {
-                        overlayManager.dismiss(id: OverlayID.editGroup)
+                        overlayManager.dismiss(.editGroup)
                     },
                     onRightLinkTap: {
                         if isFormValid {
@@ -274,7 +274,7 @@ struct EditGroupPage: View {
                 await MainActor.run {
                     isSaving = false
                     onGroupUpdated?(finalGroup)
-                    overlayManager.dismiss(id: OverlayID.editGroup)
+                    overlayManager.dismiss(.editGroup)
                 }
             } catch {
                 await MainActor.run {

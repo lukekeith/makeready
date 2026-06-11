@@ -33,7 +33,7 @@ struct ProfilePage: View {
                     title: "My Profile",
                     icon: "xmark",
                     onIconTap: {
-                        overlayManager.dismiss(id: OverlayID.profilePage)
+                        overlayManager.dismiss(.profilePage)
                     }
                 )
 

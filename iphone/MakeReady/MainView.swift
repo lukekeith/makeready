@@ -189,12 +189,12 @@ struct MainView: View {
 
     /// Present the group home page as a modal overlay
     private func presentGroupHome(groupId: String) {
-        overlayManager.presentModal(id: OverlayID.groupHome) {
+        overlayManager.present(.groupHome) {
             GroupHomePage(
                 overlayManager: overlayManager,
                 groupId: groupId,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.groupHome)
+                    overlayManager.dismiss(.groupHome)
                 }
             )
         }

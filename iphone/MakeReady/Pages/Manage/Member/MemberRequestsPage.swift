@@ -29,7 +29,7 @@ struct MemberRequestsPage: View {
                     icon: "chevron.left",
                     onIconTap: {
                         if let pageDismiss { pageDismiss() }
-                        else { overlayManager.dismiss(id: OverlayID.memberRequests) }
+                        else { overlayManager.dismiss(.memberRequests) }
                     }
                 )
 
@@ -106,7 +106,7 @@ struct MemberRequestsPage: View {
 
     private func handleRequestTap(_ groupRequest: GroupJoinRequest) {
         let groupName = state.groups[groupRequest.groupId]?.name ?? "Unknown"
-        overlayManager.presentModal(id: OverlayID.memberRequestProfile) {
+        overlayManager.present(.memberRequestProfile) {
             MemberRequestProfilePage(
                 memberId: groupRequest.request.member.id,
                 groupId: groupRequest.groupId,

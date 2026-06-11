@@ -237,16 +237,16 @@ struct ProgramHomePage: View {
             return
         }
         let enrolledIds = Set(enrollments.filter { $0.isActive }.map { $0.groupId })
-        overlayManager.presentModal(id: OverlayID.programEnrollmentFlow, dismissOnTapOutside: false) {
+        overlayManager.present(.programEnrollmentFlow) {
             EnrollmentFlowModal(
                 preselectedGroup: nil,
                 preselectedProgram: program,
                 enrolledGroupIds: enrolledIds,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.programEnrollmentFlow)
+                    overlayManager.dismiss(.programEnrollmentFlow)
                 },
                 onComplete: { enrollmentData, smsTime, requireResponse in
-                    overlayManager.dismiss(id: OverlayID.programEnrollmentFlow)
+                    overlayManager.dismiss(.programEnrollmentFlow)
                     createEnrollmentFromProgram(enrollmentData: enrollmentData, smsTime: smsTime, requireResponse: requireResponse)
                 }
             )
@@ -309,11 +309,11 @@ struct ProgramHomePage: View {
             isActive: enrollment.isActive
         )
 
-        overlayManager.presentModal(id: OverlayID.enrollmentSchedule, dismissOnTapOutside: false) {
+        overlayManager.present(.enrollmentSchedule) {
             EnrollmentSchedulePage(
                 enrollment: enrollmentWithProgram,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.enrollmentSchedule)
+                    overlayManager.dismiss(.enrollmentSchedule)
                 },
                 leftIcon: "xmark",
                 overlayManager: overlayManager
@@ -356,7 +356,7 @@ struct ProgramHomePage: View {
                     leftIcon: leftIcon,
                     rightIcon: "gearshape",
                     onLeftIconTap: {
-                        overlayManager.dismiss(id: OverlayID.programHome)
+                        overlayManager.dismiss(.programHome)
                         onDismiss?()
                     },
                     onRightIconTap: {}
@@ -380,7 +380,7 @@ struct ProgramHomePage: View {
                     title: "Error",
                     icon: leftIcon,
                     onIconTap: {
-                        overlayManager.dismiss(id: OverlayID.programHome)
+                        overlayManager.dismiss(.programHome)
                         onDismiss?()
                     }
                 )
@@ -430,7 +430,7 @@ struct ProgramHomePage: View {
                         }
                     ],
                     onLeftIconTap: {
-                        overlayManager.dismiss(id: OverlayID.programHome)
+                        overlayManager.dismiss(.programHome)
                         onDismiss?()
                     }
                 )

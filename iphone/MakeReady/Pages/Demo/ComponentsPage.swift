@@ -22,7 +22,7 @@ struct ComponentsPage: View {
                     title: "Components",
                     icon: "xmark",
                     onIconTap: {
-                        overlayManager.dismiss(id: OverlayID.componentsPage)
+                        overlayManager.dismiss(.componentsPage)
                     }
                 )
 

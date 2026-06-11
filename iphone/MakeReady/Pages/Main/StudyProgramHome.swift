@@ -539,15 +539,15 @@ struct MainPrograms: View {
 
     private func presentProgramHome() {
         // Prevent double-taps while modal is already presented
-        guard !overlayManager.isPresented(id: OverlayID.programHome) else { return }
+        guard !overlayManager.isPresented(.programHome) else { return }
 
-        overlayManager.presentModal(id: OverlayID.programHome) {
+        overlayManager.present(.programHome) {
             ProgramHomeModalContent(
                 overlayManager: overlayManager,
                 selectedProgramId: $selectedProgramId,
                 onDismiss: {
                     // No reload needed - cache is already updated by ProgramHomePage
-                    overlayManager.dismiss(id: OverlayID.programHome)
+                    overlayManager.dismiss(.programHome)
                 }
             )
         }
@@ -642,11 +642,11 @@ struct MainPrograms: View {
             isActive: enrollment.isActive
         )
 
-        overlayManager.presentModal(id: OverlayID.enrollmentSchedule, dismissOnTapOutside: false) {
+        overlayManager.present(.enrollmentSchedule) {
             EnrollmentSchedulePage(
                 enrollment: enrollmentWithProgram,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.enrollmentSchedule)
+                    overlayManager.dismiss(.enrollmentSchedule)
                 },
                 leftIcon: "xmark",
                 overlayManager: overlayManager,

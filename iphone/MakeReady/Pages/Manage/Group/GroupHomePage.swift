@@ -717,7 +717,7 @@ struct GroupHomePage: View {
                 studyName: enrollment.studyProgram?.name ?? "Study",
                 enrollmentId: enrollment.id,
                 onEditActivities: {
-                    overlayManager.presentModal(id: OverlayID.editEnrollmentDay, dismissOnTapOutside: false) {
+                    overlayManager.present(.editEnrollmentDay) {
                         EditEnrollmentDayWrapper(
                             schedule: schedule,
                             enrollmentId: enrollment.id,
@@ -1085,18 +1085,18 @@ struct GroupHomePage: View {
         guard let group = group else { return }
 
         // Open modal immediately - pass cached data (may be nil, modal handles loading state)
-        overlayManager.presentModal(id: OverlayID.enrollmentFlow, dismissOnTapOutside: false) {
+        overlayManager.present(.enrollmentFlow) {
             EnrollmentFlowModal(
                 preselectedGroup: group,
                 preselectedProgram: nil,
                 existingEnrollments: cachedEnrollments,
                 existingLessonDates: cachedLessonDates,
                 onDismiss: {
-                    overlayManager.dismiss(id: OverlayID.enrollmentFlow)
+                    overlayManager.dismiss(.enrollmentFlow)
                 },
                 onComplete: { enrollmentData, smsTime, requireResponse in
                     // Dismiss modal immediately
-                    overlayManager.dismiss(id: OverlayID.enrollmentFlow)
+                    overlayManager.dismiss(.enrollmentFlow)
 
                     // Store data for confirmation overlay
                     confirmedEnrollmentData = enrollmentData

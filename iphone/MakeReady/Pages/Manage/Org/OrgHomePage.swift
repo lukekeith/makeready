@@ -6,7 +6,7 @@
 //  - Details: name, owner, created date, member count
 //  - Group Leaders: list of group leaders in the org
 //
-//  Presented from UserMenu via overlayManager.presentModal(id: OverlayID.orgHome).
+//  Presented from UserMenu via overlayManager.present(.orgHome).
 //
 
 import SwiftUI
@@ -208,7 +208,7 @@ struct OrgHomePage: View {
     // MARK: - Helpers
 
     private func dismiss() {
-        overlayManager.dismiss(id: OverlayID.orgHome)
+        overlayManager.dismiss(.orgHome)
         onDismiss?()
     }
 

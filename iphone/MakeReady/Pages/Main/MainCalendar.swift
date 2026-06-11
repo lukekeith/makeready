@@ -53,7 +53,7 @@ struct MainCalendar: View {
     // MARK: - Lesson Tap
 
     private func presentEditEnrollmentDay(schedule: LessonSchedule, enrollmentId: String) {
-        overlayManager.presentModal(id: OverlayID.editEnrollmentDay, dismissOnTapOutside: false) {
+        overlayManager.present(.editEnrollmentDay) {
             EditEnrollmentDayWrapper(
                 schedule: schedule,
                 enrollmentId: enrollmentId,
@@ -106,11 +106,11 @@ struct MainCalendar: View {
                 },
                 onEditEnrollment: { [self] in
                     if let enrollment = state.enrollments[entry.enrollmentId] {
-                        overlayManager.presentModal(id: OverlayID.enrollmentSchedule, dismissOnTapOutside: false) {
+                        overlayManager.present(.enrollmentSchedule) {
                             EnrollmentSchedulePage(
                                 enrollment: enrollment,
                                 onDismiss: {
-                                    overlayManager.dismiss(id: OverlayID.enrollmentSchedule)
+                                    overlayManager.dismiss(.enrollmentSchedule)
                                 },
                                 leftIcon: "xmark",
                                 overlayManager: overlayManager,

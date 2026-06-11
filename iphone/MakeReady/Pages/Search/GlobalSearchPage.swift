@@ -105,22 +105,22 @@ struct GlobalSearchPage: View {
         switch result.category {
         case .program:
             selectedProgramId = result.entityId
-            overlayManager.presentModal(id: OverlayID.programHome) {
+            overlayManager.present(.programHome) {
                 ProgramHomeModalContent(
                     overlayManager: overlayManager,
                     selectedProgramId: $selectedProgramId,
                     onDismiss: {
-                        overlayManager.dismiss(id: OverlayID.programHome)
+                        overlayManager.dismiss(.programHome)
                     }
                 )
             }
 
         case .group:
-            overlayManager.presentModal(id: OverlayID.groupHome) {
+            overlayManager.present(.groupHome) {
                 GroupHomePage(
                     overlayManager: overlayManager,
                     groupId: result.entityId,
-                    onDismiss: { overlayManager.dismiss(id: OverlayID.groupHome) }
+                    onDismiss: { overlayManager.dismiss(.groupHome) }
                 )
             }
 
@@ -157,19 +157,19 @@ struct GlobalSearchPage: View {
             }
 
         case .member:
-            overlayManager.presentModal(id: OverlayID.memberProfile) {
+            overlayManager.present(.memberProfile) {
                 MemberProfilePage(
                     memberId: result.entityId,
-                    onDismiss: { overlayManager.dismiss(id: OverlayID.memberProfile) }
+                    onDismiss: { overlayManager.dismiss(.memberProfile) }
                 )
             }
 
         case .enrollment:
             if let enrollment = state.enrollments[result.entityId] {
-                overlayManager.presentModal(id: OverlayID.enrollmentSchedule, dismissOnTapOutside: false) {
+                overlayManager.present(.enrollmentSchedule) {
                     EnrollmentSchedulePage(
                         enrollment: enrollment,
-                        onDismiss: { overlayManager.dismiss(id: OverlayID.enrollmentSchedule) },
+                        onDismiss: { overlayManager.dismiss(.enrollmentSchedule) },
                         overlayManager: overlayManager
                     )
                 }
@@ -200,7 +200,7 @@ struct GlobalSearchPage: View {
             }
 
         case .notification:
-            overlayManager.presentModal(id: OverlayID.notificationFeed) {
+            overlayManager.present(.notificationFeed) {
                 NotificationFeedPage()
             }
 

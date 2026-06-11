@@ -421,7 +421,7 @@ struct GroupMembersPage: View {
     // MARK: - Actions
 
     private func handleRequestTap(_ request: JoinRequest) {
-        overlayManager.presentModal(id: OverlayID.memberRequestProfile) {
+        overlayManager.present(.memberRequestProfile) {
             MemberRequestProfilePage(
                 memberId: request.member.id,
                 groupId: groupId,
@@ -437,7 +437,7 @@ struct GroupMembersPage: View {
     }
 
     private func handleMemberTap(_ member: GroupMember) {
-        overlayManager.presentModal(id: OverlayID.memberProfile) {
+        overlayManager.present(.memberProfile) {
             MemberProfilePage(memberId: member.userId)
         }
     }
