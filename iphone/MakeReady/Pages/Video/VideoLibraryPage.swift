@@ -367,32 +367,33 @@ struct VideoThumbnailCard: View {
     let onTap: () -> Void
     let onDelete: () -> Void
 
+    /// Card displays at ~190pt wide; decode capped at 600px so Cloudflare's
+    /// full-size stills don't hold full bitmaps in memory (Phase 4.7).
+    private static let thumbnailMaxPixelSize: CGFloat = 600
+
+    // Pre-populated from the synchronous cache so thumbnails are present
+    // on first render after the first load (AsyncImage re-fetched every
+    // cell appearance with no cross-cell cache).
+    @State private var thumbnail: UIImage?
+
     var body: some View {
         Button(action: onTap) {
             VStack(alignment: .leading, spacing: 0) {
                 // Thumbnail
                 ZStack {
-                    if let thumbnailUrl = video.thumbnailUrl, let url = URL(string: thumbnailUrl) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .empty:
-                                thumbnailPlaceholder
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            case .failure:
-                                thumbnailPlaceholder
-                            @unknown default:
-                                thumbnailPlaceholder
-                            }
-                        }
+                    if let thumbnail {
+                        Image(uiImage: thumbnail)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
                     } else {
                         thumbnailPlaceholder
                     }
                 }
                 .frame(height: 100)
                 .clipped()
+                .task(id: video.thumbnailUrl) {
+                    await loadThumbnail()
+                }
                 .overlay(alignment: .bottomTrailing) {
                     // Duration badge
                     if let duration = video.formattedDuration {
@@ -458,6 +459,20 @@ struct VideoThumbnailCard: View {
                 }
             }
         }
+    }
+
+    private func loadThumbnail() async {
+        guard let urlString = video.thumbnailUrl, let url = URL(string: urlString) else {
+            thumbnail = nil
+            return
+        }
+        if let cached = ImageCache.shared.cachedImage(for: url, maxPixelSize: Self.thumbnailMaxPixelSize) {
+            thumbnail = cached
+            return
+        }
+        // Failure leaves the placeholder showing, same as AsyncImage's
+        // .failure branch did.
+        thumbnail = try? await ImageCache.shared.fetch(url: url, maxPixelSize: Self.thumbnailMaxPixelSize)
     }
 
     private var thumbnailPlaceholder: some View {
