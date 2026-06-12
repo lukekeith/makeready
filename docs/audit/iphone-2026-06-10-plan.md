@@ -153,7 +153,7 @@ Because the constraint is "nothing changes," proof is the product:
 
 These are the only audit items this plan does NOT execute. Each is a small, separable conversation:
 
-- **A — Error toast UI**: plumbing ships in 2.5; what does the visible surface look like? (Component, placement, duration, retry affordance.)
+- **A — Error surface UI — ✅ RESOLVED 2026-06-11**: TOP BANNER (not a toast — user's call), red, slides down from under the status bar, above all overlays. Surfaces USER-INITIATED failures only (`recordError(surface: true)` opt-in; background refreshes stay console-only). Auto-dismiss 4s, swipe-up/tap dismisses, new error replaces current. Optional `retry:` closure shows a Retry button. Shipped: `ErrorBanner.swift` + `ErrorBannerHost` in MainView + 2 exemplar adoptions (GroupHomePage save + enrollment create); `/ios-error-surface` skill (5.6) enforces the catch-block contract.
 - **B — The 2 fullScreenCover forms** (`StudyInvitePage`, enrollment schedule): keep full-screen, or align with MODAL_GUIDE's bottom-sheet?
 - **C — Dynamic Type**: turn on `relativeTo:` scaling (layout changes for users with non-default text sizes) + accessibility-label pass. Recommended, but visible.
 - **D — Motion value consolidation**: collapse near-duplicate durations/curves (0.25 vs 0.3, easeOut vs easeInOut) into a smaller set. Feel change.

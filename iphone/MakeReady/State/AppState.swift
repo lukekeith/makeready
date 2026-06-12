@@ -34,6 +34,15 @@ struct AppError: Identifiable {
     /// Human-readable description (error.localizedDescription)
     let message: String
     let occurredAt = Date()
+    /// Whether this error shows the top error banner (Decision Point A:
+    /// user-INITIATED failures surface; background refreshes stay
+    /// console-only — the cache-first contract means users are looking at
+    /// valid cached content when a silent refresh fails).
+    var surface: Bool = false
+    /// Optional retry for surfaced errors — when set, the banner shows a
+    /// retry button that re-runs the failed operation. Only pass closures
+    /// that are safe to re-run.
+    var retry: (() -> Void)? = nil
 }
 
 /// Central observable state store for the entire app.
@@ -219,13 +228,43 @@ final class AppState {
 
     private let maxRecordedErrors = 50
 
+    /// The error currently shown in the top banner (Decision Point A).
+    /// Set by `recordError(surface: true, ...)`; cleared by the banner host
+    /// on auto-dismiss / swipe / tap. A new surfaced error replaces the
+    /// current one.
+    var activeSurfacedError: AppError? = nil
+
     /// Record a failure into the error channel (and log it). The single
-    /// write path for error recording — when the visible error surface
-    /// lands, it observes `errors` and nothing else changes.
-    func recordError(_ error: Error, context: String) {
-        errors.append(AppError(context: context, message: error.localizedDescription))
+    /// write path for error recording.
+    ///
+    /// - Parameters:
+    ///   - surface: `true` shows the top error banner. Only pass `true` for
+    ///     failures of actions the user just took (save, upload, delete,
+    ///     send) — background refresh/prefetch failures stay console-only.
+    ///   - friendlyMessage: optional user-facing wording for the banner
+    ///     ("Couldn't save changes"); the raw localizedDescription still
+    ///     goes to the log and the error history.
+    ///   - retry: optional safe-to-re-run closure; the banner shows a retry
+    ///     button when present.
+    func recordError(
+        _ error: Error,
+        context: String,
+        surface: Bool = false,
+        friendlyMessage: String? = nil,
+        retry: (() -> Void)? = nil
+    ) {
+        let appError = AppError(
+            context: context,
+            message: friendlyMessage ?? error.localizedDescription,
+            surface: surface,
+            retry: retry
+        )
+        errors.append(appError)
         if errors.count > maxRecordedErrors {
             errors.removeFirst(errors.count - maxRecordedErrors)
+        }
+        if surface {
+            activeSurfacedError = appError
         }
         NSLog("❌ \(context): \(error.localizedDescription)")
     }
@@ -233,6 +272,7 @@ final class AppState {
     /// Drop all recorded errors (e.g. once a future surface has shown them).
     func clearErrors() {
         errors = []
+        activeSurfacedError = nil
     }
 
     // MARK: - Home Stats

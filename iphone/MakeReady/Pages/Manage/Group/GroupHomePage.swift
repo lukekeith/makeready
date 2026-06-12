@@ -1009,7 +1009,13 @@ struct GroupHomePage: View {
         NSLog("  Name: \(currentGroup.name)")
         NSLog("  Has cover image: \(imageToUpload != nil)")
 
-        // Save in background
+        performGroupSave(currentGroup, imageToUpload: imageToUpload)
+    }
+
+    /// The actual save work, separated from saveGroup()'s one-shot UI
+    /// resets so the error banner's Retry can re-run it (idempotent
+    /// update-by-id + re-upload of the captured image).
+    private func performGroupSave(_ currentGroup: UserGroup, imageToUpload: UIImage?) {
         Task {
             do {
                 // Save group data
@@ -1048,12 +1054,32 @@ struct GroupHomePage: View {
                         await MainActor.run {
                             pendingCoverImage = nil
                             isUploadingCover = false
+                            // User-initiated (they picked a cover and hit
+                            // Done) — surface it, with retry re-running the
+                            // full save including the captured image.
+                            state.recordError(
+                                error,
+                                context: "GroupHomePage.saveGroup (cover upload)",
+                                surface: true,
+                                friendlyMessage: "Couldn't upload the cover image",
+                                retry: { performGroupSave(currentGroup, imageToUpload: imageToUpload) }
+                            )
                         }
-                        NSLog("Failed to upload cover image: \(error)")
                     }
                 }
             } catch {
-                NSLog("Failed to update group: \(error)")
+                await MainActor.run {
+                    // The user hit Done and we navigated back optimistically —
+                    // a silent failure here loses their edits (Decision
+                    // Point A exemplar). Retry re-runs the same save.
+                    state.recordError(
+                        error,
+                        context: "GroupHomePage.saveGroup",
+                        surface: true,
+                        friendlyMessage: "Couldn't save group changes",
+                        retry: { performGroupSave(currentGroup, imageToUpload: imageToUpload) }
+                    )
+                }
             }
         }
     }
@@ -1154,11 +1180,25 @@ struct GroupHomePage: View {
                     isCreatingEnrollment = false
                     isProcessingEnrollment = false
 
-                    // Dismiss the processing overlay and show error
+                    // Dismiss the processing overlay, then surface the
+                    // failure (Decision Point A — was a TODO). Retry re-runs
+                    // the whole flow incl. the processing overlay.
                     overlayManager.dismiss(.confirmationOverlay)
-
-                    // TODO: Show error overlay instead
-                    NSLog("❌ Enrollment error: \(error)")
+                    state.recordError(
+                        error,
+                        context: "GroupHomePage.createEnrollment",
+                        surface: true,
+                        friendlyMessage: "Couldn't create the enrollment",
+                        retry: {
+                            isProcessingEnrollment = true
+                            showProcessingConfirmation(enrollmentData: enrollmentData)
+                            createEnrollmentInBackground(
+                                enrollmentData: enrollmentData,
+                                smsTime: smsTime,
+                                requireResponse: requireResponse
+                            )
+                        }
+                    )
                 }
             }
         }

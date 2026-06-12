@@ -141,6 +141,11 @@ struct MainView: View {
                 item.content
             }
         }
+        // Error banner above EVERYTHING — surfaced failures can originate
+        // from modal flows (Decision Point A; see ErrorBanner.swift).
+        .overlay(alignment: .top) {
+            ErrorBannerHost()
+        }
         .environment(overlayManager)
         .environment(coordinator)
         // Handle pending deep links from push notifications

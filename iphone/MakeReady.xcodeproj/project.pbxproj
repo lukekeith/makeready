@@ -145,6 +145,7 @@
 		CCDIMG0001000000000001 /* CachedCardImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDIMG0002000000000001 /* CachedCardImage.swift */; };
 		CCW0001000000000000001 /* CameraCaptureWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCW0002000000000000001 /* CameraCaptureWrapper.swift */; };
 		CFOV0001000000000000001 /* ConfirmationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFOV0002000000000000001 /* ConfirmationOverlay.swift */; };
+		ERRB0001000000000000001 /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERRB0002000000000000001 /* ErrorBanner.swift */; };
 		CGCO0001000000000000001 /* CardGestureCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CGCO0002000000000000001 /* CardGestureCoordinator.swift */; };
 		CGRP0001000000000000001 /* CreateGroupPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CGRP0002000000000000001 /* CreateGroupPage.swift */; };
 		CLA_BLD_0002000000000001 /* CardLessonActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = CLA_REF_0001000000000001 /* CardLessonActivity.swift */; };
@@ -442,6 +443,7 @@
 		CCDIMG0002000000000001 /* CachedCardImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedCardImage.swift; sourceTree = "<group>"; };
 		CCW0002000000000000001 /* CameraCaptureWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCaptureWrapper.swift; sourceTree = "<group>"; };
 		CFOV0002000000000000001 /* ConfirmationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationOverlay.swift; sourceTree = "<group>"; };
+		ERRB0002000000000000001 /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
 		CGCO0002000000000000001 /* CardGestureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGestureCoordinator.swift; sourceTree = "<group>"; };
 		CGRP0002000000000000001 /* CreateGroupPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateGroupPage.swift; sourceTree = "<group>"; };
 		CLA_REF_0001000000000001 /* CardLessonActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLessonActivity.swift; sourceTree = "<group>"; };
@@ -998,6 +1000,7 @@
 			isa = PBXGroup;
 			children = (
 				CFOV0002000000000000001 /* ConfirmationOverlay.swift */,
+				ERRB0002000000000000001 /* ErrorBanner.swift */,
 				UNENRLC0002000000000001 /* UnenrollConfirmation.swift */,
 			);
 			path = Feedback;
@@ -1787,6 +1790,7 @@
 				ENED0001000000000000001 /* EditEnrollmentDay.swift in Sources */,
 				SINV0001000000000000001 /* StudyInvitePage.swift in Sources */,
 				CFOV0001000000000000001 /* ConfirmationOverlay.swift in Sources */,
+				ERRB0001000000000000001 /* ErrorBanner.swift in Sources */,
 				UNENRLC0001000000000001 /* UnenrollConfirmation.swift in Sources */,
 				GRPM0001000000000000001 /* GroupMembersPage.swift in Sources */,
 				LSAM0001000000000000001 /* LessonActionMenu.swift in Sources */,

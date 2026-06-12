@@ -33,7 +33,7 @@
 | 5.3 — Color token consolidation | 🟡 Code complete, same build gate. 278 sites → existing Colors.swift tokens (exact-value match only). **Cataloged, unchanged (no matching token — needs a design pass):** 146 sites / 49 distinct hexes, top: #47d4ff×16, #ff4444×10, #ff6b9d×9, #ffd93d×7, #ef4444×6, #4ade80×6, #3b82f6×5, #dc2626×5, #ffaa00×5, #7c7cff×5, #485470×4, #234d2e×4. | (with 5.4 commit) |
 | 5.4 — Typography tokens | 🟡 Code complete, same build gate. Generated `Typography.swift` (61 tokens, systematic size+weight names at current fixed sizes); 999 literal sites migrated; 24 dynamic-form sites (computed sizes / conditional weights) stay baselined. Formatters (54) deferred — need per-file static+`Self.` surgery, not regex-safe. Baseline: 2,449 → 1,172. CLAUDE.md teaches tokens now. | — |
 | 5.5, 5.7 — fixtures behind #if DEBUG, model splits | ⬜ Not started | — |
-| 5.6 — `/ios-error-surface` skill | ⬜ Blocked on Decision Point A (error toast UI) | — |
+| 5.6 — Error surface + `/ios-error-surface` skill | 🟡 **Code complete, same build gate.** Decision Point A RESOLVED (top banner, user-initiated only, 4s auto-dismiss + swipe-up, optional retry). ErrorBanner/ErrorBannerHost shipped + 2 exemplar adoptions in GroupHomePage (save failure with retry, enrollment-create failure — was a TODO). Remaining catch blocks adopt opportunistically via the skill. | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 
 ## ✅ CLOSED — slider regression (fixed, device-verified, committed `8b34f45`+`6023d94`)
