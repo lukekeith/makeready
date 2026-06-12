@@ -125,7 +125,7 @@ struct EditYouTubeActivityPage: View {
                                     ProgressView()
                                         .scaleEffect(0.8)
                                     Text("Loading video info...")
-                                        .font(.system(size: 13))
+                                        .font(Typography.s13)
                                         .foregroundColor(.white.opacity(0.5))
                                 }
                                 .padding(.horizontal, 16)
@@ -258,7 +258,7 @@ private struct YouTubePreview: View {
                 }
 
                 Image(systemName: "play.circle.fill")
-                    .font(.system(size: 48))
+                    .font(Typography.s48)
                     .foregroundColor(.white.opacity(0.9))
                     .shadow(radius: 4)
             }

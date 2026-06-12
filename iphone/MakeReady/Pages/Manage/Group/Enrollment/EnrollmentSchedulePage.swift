@@ -236,18 +236,18 @@ struct EnrollmentSchedulePage: View {
                 Spacer()
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 40))
+                        .font(Typography.s40)
                         .foregroundColor(.white.opacity(0.3))
 
                     Text(error)
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white.opacity(0.5))
                         .multilineTextAlignment(.center)
 
                     Button("Try Again") {
                         Task { await loadEnrollmentDetails() }
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                 }
                 .padding(32)
                 Spacer()
@@ -313,15 +313,15 @@ struct EnrollmentSchedulePage: View {
                 Spacer()
                 VStack(spacing: 16) {
                     Image(systemName: "calendar.badge.exclamationmark")
-                        .font(.system(size: 40))
+                        .font(Typography.s40)
                         .foregroundColor(.white.opacity(0.3))
 
                     Text("No lessons scheduled")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(.white)
 
                     Text("This enrollment doesn't have any lessons yet")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white.opacity(0.5))
                         .multilineTextAlignment(.center)
                 }

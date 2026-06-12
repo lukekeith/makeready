@@ -26,7 +26,7 @@ struct ActionCardMenu: View {
         VStack(spacing: 0) {
             VStack(spacing: 12) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Typography.s15Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -39,7 +39,7 @@ struct ActionCardMenu: View {
                     } label: {
                         HStack(spacing: 14) {
                             Image(systemName: item.icon)
-                                .font(.system(size: 18))
+                                .font(Typography.s18)
                                 .foregroundColor(Color(hex: "#7c7cff"))
                                 .frame(width: 36, height: 36)
                                 .background(Color(hex: "#7c7cff").opacity(0.12))
@@ -47,18 +47,18 @@ struct ActionCardMenu: View {
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(item.title)
-                                    .font(.system(size: 17, weight: .semibold))
+                                    .font(Typography.s17Semibold)
                                     .foregroundColor(.white)
 
                                 Text(item.description)
-                                    .font(.system(size: 13))
+                                    .font(Typography.s13)
                                     .foregroundColor(.white.opacity(0.5))
                             }
 
                             Spacer()
 
                             Image(systemName: "chevron.right")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(Typography.s13Semibold)
                                 .foregroundColor(.white.opacity(0.3))
                         }
                         .padding(14)
@@ -76,7 +76,7 @@ struct ActionCardMenu: View {
                 dismissOverlay?()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)

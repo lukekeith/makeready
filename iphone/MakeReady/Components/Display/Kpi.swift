@@ -163,21 +163,21 @@ struct Kpi: View {
             HStack(spacing: 6) {
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(resolvedIconColor)
                 }
                 Text(label)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
             }
 
             Text(formattedValue)
-                .font(.system(size: 28, weight: .bold))
+                .font(Typography.s28Bold)
                 .foregroundColor(.white)
 
             if let description = description {
                 Text(description)
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.3))
             }
         }
@@ -190,18 +190,18 @@ struct Kpi: View {
         HStack(spacing: 8) {
             if let icon = icon {
                 Image(systemName: icon)
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(resolvedIconColor)
             }
 
             Text(formattedValue)
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
 
             Spacer()
 
             Text(label)
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
         }
     }
@@ -212,16 +212,16 @@ struct Kpi: View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
                 Text(label)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
 
                 Text(formattedValue)
-                    .font(.system(size: 28, weight: .bold))
+                    .font(Typography.s28Bold)
                     .foregroundColor(.white)
 
                 if let description = description {
                     Text(description)
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.3))
                 }
             }
@@ -242,14 +242,14 @@ struct Kpi: View {
             // Value top-left, icon top-right, aligned on same row
             HStack(alignment: .top) {
                 Text(formattedValue)
-                    .font(.system(size: 24, weight: .bold))
+                    .font(Typography.s24Bold)
                     .foregroundColor(.white)
 
                 Spacer()
 
                 if let icon = icon {
                     Image(systemName: icon)
-                        .font(.system(size: 22))
+                        .font(Typography.s22)
                         .foregroundColor(resolvedIconColor)
                 }
             }
@@ -258,14 +258,14 @@ struct Kpi: View {
 
             // Label
             Text(label)
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
 
             if let description = description {
                 Spacer().frame(height: 8)
 
                 Text(description)
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.3))
             }
         }

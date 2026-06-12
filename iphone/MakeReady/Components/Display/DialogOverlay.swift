@@ -58,13 +58,13 @@ struct DialogOverlay: View {
                         VStack(spacing: 8) {
                             if let title {
                                 Text(title)
-                                    .font(.system(size: 17, weight: .bold))
+                                    .font(Typography.s17Bold)
                                     .foregroundColor(.white)
                                     .multilineTextAlignment(.center)
                             }
                             if let message {
                                 Text(message)
-                                    .font(.system(size: 14))
+                                    .font(Typography.s14)
                                     .foregroundColor(.white.opacity(0.6))
                                     .multilineTextAlignment(.center)
                             }
@@ -84,7 +84,7 @@ struct DialogOverlay: View {
                                     .frame(height: 48)
                                     .background(
                                         button.style == .primary
-                                            ? Color(hex: "#6c47ff")
+                                            ? Color.brandPrimary
                                             : Color.white.opacity(0.1)
                                     )
                                     .clipShape(RoundedRectangle(cornerRadius: 12))

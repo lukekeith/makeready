@@ -44,7 +44,7 @@ struct CardProgramFull: View {
         ZStack {
             Color.white.opacity(0.08)
             Image(systemName: "book.fill")
-                .font(.system(size: 32))
+                .font(Typography.s32)
                 .foregroundColor(.white.opacity(0.2))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -76,13 +76,13 @@ struct CardProgramFull: View {
                 // Group 1: Title + Description
                 VStack(alignment: .leading, spacing: 4) {
                     Text(data.title)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
                     if let description = data.description, !description.isEmpty {
                         Text(description)
-                            .font(.system(size: 14))
+                            .font(Typography.s14)
                             .foregroundColor(.white.opacity(0.7))
                             .lineLimit(2)
                     }
@@ -93,7 +93,7 @@ struct CardProgramFull: View {
                     HStack(spacing: 6) {
                         ForEach(data.tags, id: \.self) { tag in
                             Text(tag)
-                                .font(.system(size: 10, weight: .semibold))
+                                .font(Typography.s10Semibold)
                                 .foregroundColor(.white.opacity(0.7))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
@@ -115,12 +115,12 @@ struct CardProgramFull: View {
                 HStack {
                     if let author = data.authorName {
                         Text(author)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Typography.s12Medium)
                             .foregroundColor(.white.opacity(0.5))
                     }
                     Spacer()
                     Text(relativeDate)
-                        .font(.system(size: 12))
+                        .font(Typography.s12)
                         .foregroundColor(.white.opacity(0.3))
                 }
             }
@@ -135,11 +135,11 @@ struct CardProgramFull: View {
                     HStack {
                         Spacer()
                         Text("Published")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(Typography.s10Semibold)
                             .foregroundColor(Color(hex: "#234D2E"))
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
-                            .background(Capsule().fill(Color(hex: "#57DB5D")))
+                            .background(Capsule().fill(Color.success))
                             .padding(.top, 16)
                             .padding(.trailing, 16)
                     }

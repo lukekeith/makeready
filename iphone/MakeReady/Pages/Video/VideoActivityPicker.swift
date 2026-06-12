@@ -275,11 +275,11 @@ struct VideoActivityPicker: View {
             } label: {
                 HStack(spacing: 4) {
                     Text(photoLibrary.selectedAlbum?.title ?? "Library")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Typography.s12Semibold)
                         .foregroundColor(.white.opacity(0.6))
                 }
             }
@@ -305,11 +305,11 @@ struct VideoActivityPicker: View {
             HStack {
                 HStack(spacing: 4) {
                     Text("Library")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Typography.s12Semibold)
                         .foregroundColor(.white.opacity(0.6))
                 }
                 Spacer()

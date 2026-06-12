@@ -40,13 +40,13 @@ struct CardStudy: View {
                         // New variant: TYPE (uppercase), then description
                         if let type = data.type {
                             Text(type)
-                                .font(.system(size: 14, weight: .bold))
+                                .font(Typography.s14Bold)
                                 .foregroundColor(.white)
                         }
 
                         if let description = data.description {
                             Text(description)
-                                .font(.system(size: 16, weight: .bold))
+                                .font(Typography.s16Bold)
                                 .foregroundColor(.purple)
                                 .lineLimit(2)
                                 .padding(.top, 4)
@@ -54,13 +54,13 @@ struct CardStudy: View {
                     } else {
                         // Standard variant: Title, then description
                         Text(data.title)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(Typography.s17Bold)
                             .foregroundColor(.white)
                             .lineLimit(1)
 
                         if let description = data.description {
                             Text(description)
-                                .font(.system(size: 13, weight: .regular))
+                                .font(Typography.s13)
                                 .foregroundColor(Color.white.opacity(0.7))
                                 .lineLimit(2)
                                 .padding(.top, 0)
@@ -96,9 +96,9 @@ struct CardStudy: View {
                             .strokeBorder(
                                 AngularGradient(
                                     gradient: Gradient(colors: [
-                                        Color(hex: "#6c47ff"),
-                                        Color(hex: "#6c47ff").opacity(0.2),
-                                        Color(hex: "#6c47ff")
+                                        Color.brandPrimary,
+                                        Color.brandPrimary.opacity(0.2),
+                                        Color.brandPrimary
                                     ]),
                                     center: .center,
                                     angle: .degrees(borderRotation)
@@ -168,7 +168,7 @@ struct CardStudy: View {
         Color.iconContainerBackground
             .overlay(
                 Image(systemName: "book.fill")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
             .cornerRadius(8)
@@ -178,7 +178,7 @@ struct CardStudy: View {
         (backgroundColor ?? Color.iconContainerBackground)
             .overlay(
                 Image(systemName: systemName.isEmpty ? "book.fill" : systemName)
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(foregroundColor ?? .white)
             )
             .cornerRadius(8)
@@ -188,7 +188,7 @@ struct CardStudy: View {
 
     private var statusBadge: some View {
         Text("PENDING")
-            .font(.system(size: 11, weight: .bold))
+            .font(Typography.s11Bold)
             .foregroundColor(.white)
             .tracking(0.1)
             .frame(maxWidth: .infinity)
@@ -207,7 +207,7 @@ struct CardStudy: View {
 
         VStack(spacing: 12) {
             Text("Study Cards - Row")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
 
@@ -261,7 +261,7 @@ struct CardStudy: View {
             )
 
             Text("With Published / Draft Badge")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .padding(.top, 12)
@@ -274,7 +274,7 @@ struct CardStudy: View {
                     imageStyle: .icon(systemName: "book.fill"),
                     metadata: [
                         DataItem(icon: "calendar", value: "30 days"),
-                        DataItem(badge: "Published", color: Color(hex: "#57DB5D"), textColor: Color(hex: "#234D2E"))
+                        DataItem(badge: "Published", color: Color.success, textColor: Color(hex: "#234D2E"))
                     ],
                     status: .confirmed,
                     onTap: nil

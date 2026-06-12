@@ -32,7 +32,7 @@ struct UpcomingLessonCard: View {
             }
             .padding(16)
             .frame(height: 106)
-            .background(Color(hex: "#252936"))
+            .background(Color.cardBackground)
             .cornerRadius(4)
         }
         .buttonStyle(.plain)
@@ -43,12 +43,12 @@ struct UpcomingLessonCard: View {
     private var dayIndicator: some View {
         VStack(spacing: 2) {
             Text("DAY")
-                .font(.system(size: 12, weight: .regular))
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .font(Typography.s12)
+                .foregroundColor(Color.brandPrimary)
                 .tracking(0.1)
 
             Text("\(schedule.lesson.dayNumber)")
-                .font(.system(size: 22, weight: .regular))
+                .font(Typography.s22)
                 .foregroundColor(.white)
                 .tracking(-0.1)
         }
@@ -61,13 +61,13 @@ struct UpcomingLessonCard: View {
         VStack(alignment: .leading, spacing: 8) {
             // Program name
             Text(programName)
-                .font(.system(size: 15, weight: .bold))
+                .font(Typography.s15Bold)
                 .foregroundColor(.white)
                 .lineLimit(1)
 
             // Formatted date
             Text(formattedDate)
-                .font(.system(size: 12, weight: .regular))
+                .font(Typography.s12)
                 .foregroundColor(.white.opacity(0.5))
                 .lineLimit(1)
 
@@ -143,7 +143,7 @@ struct UpcomingLessonCard: View {
             .frame(width: 72, height: 74)
             .overlay(
                 Image(systemName: "book.fill")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white.opacity(0.5))
             )
     }
@@ -160,7 +160,7 @@ struct UpcomingLessonCard: View {
             // "NEXT LESSON" label
             HStack {
                 Text("NEXT LESSON")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Typography.s15Bold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(0.5)

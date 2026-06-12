@@ -244,10 +244,10 @@ struct GlobalSearchPage: View {
             if recentCategories.isEmpty {
                 VStack(spacing: 12) {
                     Image(systemName: "clock")
-                        .font(.system(size: 36))
+                        .font(Typography.s36)
                         .foregroundColor(.white20)
                     Text("No recent items")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white50)
                 }
                 .padding(.top, 80)
@@ -271,10 +271,10 @@ struct GlobalSearchPage: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 36))
+                .font(Typography.s36)
                 .foregroundColor(.white20)
             Text("No results for '\(searchText)'")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white50)
             Spacer()
         }
@@ -321,9 +321,9 @@ struct GlobalSearchPage: View {
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: category.icon)
-                    .font(.system(size: 12))
+                    .font(Typography.s12)
                 Text("\(category.displayName) \(count)")
-                    .font(.system(size: 13, weight: .medium))
+                    .font(Typography.s13Medium)
             }
             .foregroundColor(isSelected ? .white : .white50)
             .padding(.horizontal, 12)
@@ -342,12 +342,12 @@ struct GlobalSearchPage: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: category.icon)
-                    .font(.system(size: 14))
+                    .font(Typography.s14)
                     .foregroundColor(.white50)
                     .frame(width: 20, height: 20)
 
                 Text(category.displayName.uppercased())
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white50)
                     .kerning(1.2)
 
@@ -364,7 +364,7 @@ struct GlobalSearchPage: View {
                 Button {
                 } label: {
                     Text("Show all \(results.totalCount) results")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Typography.s13Medium)
                         .foregroundColor(Color.brandPrimary)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)

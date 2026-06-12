@@ -54,7 +54,7 @@ struct VideoGridItem: View {
             Color.white.opacity(0.2)
 
             Image(systemName: "camera.fill")
-                .font(.system(size: 24))
+                .font(Typography.s24)
                 .foregroundColor(.white)
         }
     }
@@ -79,7 +79,7 @@ struct VideoGridItem: View {
             VStack {
                 Spacer()
                 Image(systemName: "play.fill")
-                    .font(.system(size: 20))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.5), radius: 2)
                     .padding(.bottom, 12)

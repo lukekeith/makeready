@@ -31,7 +31,7 @@ struct CardContact<TrailingContent: View>: View {
 
                 // Middle: Name
                 Text(data.fullName)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
                     .lineLimit(1)
 
@@ -87,11 +87,11 @@ struct CardContact<TrailingContent: View>: View {
 
     private var initialsView: some View {
         Circle()
-            .fill(Color(hex: "#6c47ff"))
+            .fill(Color.brandPrimary)
             .frame(width: 40, height: 40)
             .overlay(
                 Text(initials)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Typography.s16Bold)
                     .foregroundColor(.white)
             )
     }
@@ -123,7 +123,7 @@ extension CardContact where TrailingContent == EmptyView {
 
         VStack(spacing: 12) {
             Text("Contact Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)

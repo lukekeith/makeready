@@ -81,7 +81,7 @@ struct CalendarEventListContent: View {
         VStack(alignment: .leading, spacing: 0) {
             // Date header
             Text(CalendarFormatters.fullDateHeader.string(from: selectedDate))
-                .font(.system(size: 14, weight: .semibold))
+                .font(Typography.s14Semibold)
                 .foregroundColor(.white70)
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -91,10 +91,10 @@ struct CalendarEventListContent: View {
                 // Empty state
                 VStack(spacing: 8) {
                     Image(systemName: "calendar.badge.plus")
-                        .font(.system(size: 32))
+                        .font(Typography.s32)
                         .foregroundColor(.white30)
                     Text("No events")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white50)
                 }
                 .frame(maxWidth: .infinity)
@@ -154,24 +154,24 @@ struct CalendarEventRow: View {
                 // Time
                 if !event.isAllDay {
                     Text(event.timeString)
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(.white50)
                 } else {
                     Text("All day")
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(.white50)
                 }
 
                 // Title
                 Text(event.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Typography.s15Semibold)
                     .foregroundColor(.white)
                     .lineLimit(1)
 
                 // Subtitle or location
                 if let subtitle = event.subtitle ?? event.location {
                     Text(subtitle)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(Typography.s13)
                         .foregroundColor(.white50)
                         .lineLimit(1)
                 }
@@ -181,7 +181,7 @@ struct CalendarEventRow: View {
 
             // Chevron
             Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
+                .font(Typography.s12Semibold)
                 .foregroundColor(.white30)
         }
         .padding(.horizontal, 12)

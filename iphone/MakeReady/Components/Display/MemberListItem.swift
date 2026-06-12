@@ -99,7 +99,7 @@ struct MemberListItem: View {
                             .fill(Color.gray.opacity(0.3))
                             .overlay(
                                 Text(getInitials(firstName: member?.firstName ?? contact?.firstName, lastName: member?.lastName ?? contact?.lastName))
-                                    .font(.system(size: 18, weight: .bold))
+                                    .font(Typography.s18Bold)
                                     .foregroundColor(.white)
                             )
                     }
@@ -112,7 +112,7 @@ struct MemberListItem: View {
                         .frame(width: 40, height: 40)
                         .overlay(
                             Text(getInitials(firstName: member?.firstName ?? contact?.firstName, lastName: member?.lastName ?? contact?.lastName))
-                                .font(.system(size: 18, weight: .bold))
+                                .font(Typography.s18Bold)
                                 .foregroundColor(.white)
                         )
                 }
@@ -121,7 +121,7 @@ struct MemberListItem: View {
                 VStack(alignment: .leading, spacing: 2) {
                     // Name
                     Text(member?.fullName ?? contact?.fullName ?? "Unknown")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     // Demographics (age and joined) - only for members
@@ -134,7 +134,7 @@ struct MemberListItem: View {
                                     Text("\(age)")
                                         .foregroundColor(.white.opacity(0.7))
                                 }
-                                .font(.system(size: 11, weight: .regular))
+                                .font(Typography.s11)
                                 .tracking(0.1)
                             }
 
@@ -145,7 +145,7 @@ struct MemberListItem: View {
                                     Text(formatDate(joinDate))
                                         .foregroundColor(.white.opacity(0.7))
                                 }
-                                .font(.system(size: 11, weight: .regular))
+                                .font(Typography.s11)
                                 .tracking(0.1)
                             }
                         }
@@ -155,8 +155,8 @@ struct MemberListItem: View {
                             HStack(spacing: 8) {
                                 ForEach(member.groups.prefix(2), id: \.self) { group in
                                     Text(group)
-                                        .font(.system(size: 11, weight: .regular))
-                                        .foregroundColor(Color(hex: "#6c47ff"))
+                                        .font(Typography.s11)
+                                        .foregroundColor(Color.brandPrimary)
                                         .tracking(0.1)
                                 }
                             }

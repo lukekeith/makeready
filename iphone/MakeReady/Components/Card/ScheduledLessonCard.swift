@@ -27,12 +27,12 @@ struct ScheduledLessonCard: View {
             return Color(hex: "#103E34")  // Green completed background
         }
         // Purple if no configured activities, default/dark if has configured activities
-        return schedule.lesson.hasConfiguredActivities ? Color(hex: "#252936") : Color(hex: "#201B48")
+        return schedule.lesson.hasConfiguredActivities ? Color.cardBackground : Color.backgroundPurple
     }
 
     /// Accent color - green for completed, purple for active
     private var accentColor: Color {
-        isCompleted ? Color(hex: "#57db5d") : Color(hex: "#6c47ff")
+        isCompleted ? Color.success : Color.brandPrimary
     }
 
     var body: some View {
@@ -63,12 +63,12 @@ struct ScheduledLessonCard: View {
     private var dateIndicator: some View {
         VStack(spacing: 0) {
             Text(schedule.monthAbbrev)
-                .font(.system(size: 12, weight: .regular))
+                .font(Typography.s12)
                 .foregroundColor(accentColor)
                 .tracking(0.1)
 
             Text(schedule.dayOfMonth)
-                .font(.system(size: 22, weight: .regular))
+                .font(Typography.s22)
                 .foregroundColor(.white)
                 .tracking(-0.1)
         }
@@ -85,7 +85,7 @@ struct ScheduledLessonCard: View {
             HStack {
                 Spacer()
                 Text("No activities")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.5))
                     .tracking(0.1)
             }
@@ -99,7 +99,7 @@ struct ScheduledLessonCard: View {
                 // If more than 3 activities, show count
                 if schedule.lesson.activities.count > 3 {
                     Text("+\(schedule.lesson.activities.count - 3) more")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
@@ -111,13 +111,13 @@ struct ScheduledLessonCard: View {
         HStack(spacing: 6) {
             // Activity icon - checkmark for completed, type icon for active
             Image(systemName: isCompleted ? "checkmark" : ActivityStyle.icon(forRawType: activity.type))
-                .font(.system(size: 12, weight: .regular))
+                .font(Typography.s12)
                 .foregroundColor(isCompleted ? .white : ActivityStyle.color(forRawType: activity.type))
                 .frame(width: 14, height: 14)
 
             // Activity type
             Text(activity.title ?? activityTypeLabel(for: activity.type))
-                .font(.system(size: 11, weight: .semibold))
+                .font(Typography.s11Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .tracking(0.1)
@@ -125,12 +125,12 @@ struct ScheduledLessonCard: View {
             // Activity title/reference
             if let title = activity.title, !title.isEmpty {
                 Text(title)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white)
                     .lineLimit(1)
             } else if let reference = activity.passageReference {
                 Text(reference)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white)
                     .lineLimit(1)
             }
@@ -159,7 +159,7 @@ struct ScheduledLessonCard: View {
     private var chevron: some View {
         VStack(spacing: 0) {
             Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .regular))
+                .font(Typography.s14)
                 .foregroundColor(.white.opacity(0.5))
                 .frame(width: 20, height: 20)
         }

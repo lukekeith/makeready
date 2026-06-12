@@ -104,7 +104,7 @@ struct MemberRequestProfilePage: View {
 
                         if let profile = profile {
                             Text(profile.displayName)
-                                .font(.system(size: 32, weight: .bold))
+                                .font(Typography.s32Bold)
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
 
@@ -276,18 +276,18 @@ struct MemberRequestProfilePage: View {
     private func errorView(_ message: String) -> some View {
         VStack(spacing: 12) {
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
+                .font(Typography.s40)
                 .foregroundColor(.white.opacity(0.3))
 
             Text(message)
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 
             Button("Try Again") {
                 Task { await loadProfile() }
             }
-            .foregroundColor(Color(hex: "#6c47ff"))
+            .foregroundColor(Color.brandPrimary)
         }
         .padding(32)
     }
@@ -308,7 +308,7 @@ struct MemberRequestProfilePage: View {
                     .frame(width: 240, height: 240)
                     .overlay(
                         Text(initials)
-                            .font(.system(size: 80, weight: .bold))
+                            .font(Typography.s80Bold)
                             .foregroundColor(.white.opacity(0.3))
                     )
 

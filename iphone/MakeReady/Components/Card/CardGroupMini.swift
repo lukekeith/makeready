@@ -29,7 +29,7 @@ struct CardGroupMini: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // Title (12pt with 0.1px tracking, max 32px height)
                     Text(data.title)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(Typography.s12Bold)
                         .foregroundColor(.white)
                         .lineLimit(2)
                         .frame(maxHeight: 32, alignment: .topLeading)
@@ -81,7 +81,7 @@ struct CardGroupMini: View {
             ZStack {
                 // Purple 80% overlay
                 Circle()
-                    .fill(Color(hex: "#6c47ff").opacity(0.8))
+                    .fill(Color.brandPrimary.opacity(0.8))
                     .frame(width: 72, height: 72)
 
                 // Checkmark icon (24×24)

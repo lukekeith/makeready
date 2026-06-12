@@ -51,7 +51,7 @@ struct ProfilePage: View {
                                     .fill(Color.gray.opacity(0.3))
                                     .overlay(
                                         Text(user.name.prefix(1))
-                                            .font(.system(size: 48, weight: .bold))
+                                            .font(Typography.s48Bold)
                                             .foregroundColor(.white)
                                     )
                             }
@@ -62,11 +62,11 @@ struct ProfilePage: View {
                             // User info
                             VStack(spacing: 12) {
                                 Text(user.name)
-                                    .font(.system(size: 28, weight: .bold))
+                                    .font(Typography.s28Bold)
                                     .foregroundColor(.white)
 
                                 Text(user.email)
-                                    .font(.system(size: 17, weight: .regular))
+                                    .font(Typography.s17)
                                     .foregroundColor(.white.opacity(0.7))
                             }
                             .padding(.top, 16)
@@ -124,7 +124,7 @@ extension ProfilePage {
     var environmentSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Environment")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .padding(.horizontal, 16)
@@ -142,12 +142,12 @@ extension ProfilePage {
                     } label: {
                         HStack(spacing: 12) {
                             Image(systemName: selectedEnvironment == env ? "circle.inset.filled" : "circle")
-                                .font(.system(size: 18, weight: .regular))
-                                .foregroundColor(selectedEnvironment == env ? Color(hex: "#6c47ff") : .white.opacity(0.3))
+                                .font(Typography.s18)
+                                .foregroundColor(selectedEnvironment == env ? Color.brandPrimary : .white.opacity(0.3))
                                 .frame(width: 24)
 
                             Text(env.rawValue)
-                                .font(.system(size: 17, weight: .regular))
+                                .font(Typography.s17)
                                 .foregroundColor(.white)
 
                             Spacer()
@@ -177,14 +177,14 @@ extension ProfilePage {
             if selectedEnvironment == .local {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Server IP Address")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .padding(.horizontal, 16)
 
                     HStack(spacing: 0) {
                         TextField("e.g. 192.168.1.100", text: $localIP)
-                            .font(.system(size: 17, weight: .regular))
+                            .font(Typography.s17)
                             .foregroundColor(.white)
                             .keyboardType(.decimalPad)
                             .autocorrectionDisabled()
@@ -200,7 +200,7 @@ extension ProfilePage {
                     .cornerRadius(12)
 
                     Text("Ports")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .padding(.horizontal, 16)
@@ -216,12 +216,12 @@ extension ProfilePage {
                     }
 
                     Text("API: \(Configuration.baseURL)")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.3))
                         .padding(.horizontal, 16)
 
                     Text("Client: \(Configuration.clientBaseURL)")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.3))
                         .padding(.horizontal, 16)
                 }
@@ -237,12 +237,12 @@ extension ProfilePage {
     ) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
-                .font(.system(size: 11, weight: .regular))
+                .font(Typography.s11)
                 .foregroundColor(.white.opacity(0.4))
                 .padding(.leading, 16)
 
             TextField(placeholder, text: text)
-                .font(.system(size: 17, weight: .regular))
+                .font(Typography.s17)
                 .foregroundColor(.white)
                 .keyboardType(.numberPad)
                 .autocorrectionDisabled()
@@ -329,7 +329,7 @@ struct ProfileSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(title)
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .padding(.horizontal, 16)
@@ -338,18 +338,18 @@ struct ProfileSection: View {
                 ForEach(Array(items.enumerated()), id: \.offset) { index, item in
                     HStack(spacing: 12) {
                         Image(systemName: item.icon)
-                            .font(.system(size: 16, weight: .regular))
-                            .foregroundColor(Color(hex: "#6c47ff"))
+                            .font(Typography.s16)
+                            .foregroundColor(Color.brandPrimary)
                             .frame(width: 24)
 
                         Text(item.label)
-                            .font(.system(size: 17, weight: .regular))
+                            .font(Typography.s17)
                             .foregroundColor(.white)
 
                         Spacer()
 
                         Text(item.value)
-                            .font(.system(size: 17, weight: .regular))
+                            .font(Typography.s17)
                             .foregroundColor(.white.opacity(0.5))
                     }
                     .padding(.horizontal, 16)

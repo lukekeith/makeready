@@ -16,7 +16,7 @@ struct CardMediaFull: View {
             Color.white.opacity(0.08)
             if item.mediaType != .photo {
                 Image(systemName: item.mediaType.icon)
-                    .font(.system(size: 28))
+                    .font(Typography.s28)
                     .foregroundColor(.white.opacity(0.2))
             }
         }
@@ -53,7 +53,7 @@ struct CardMediaFull: View {
                 // Usage count
                 if item.usageCount > 0 {
                     Text("\(item.usageCount)")
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Typography.s11Bold)
                         .foregroundColor(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -68,7 +68,7 @@ struct CardMediaFull: View {
                 // Duration for video/audio
                 if let duration = item.formattedDuration {
                     Text(duration)
-                        .font(.system(size: 11, weight: .bold))
+                        .font(Typography.s11Bold)
                         .foregroundColor(.white)
                         .padding(.horizontal, 5)
                         .padding(.vertical, 2)
@@ -83,7 +83,7 @@ struct CardMediaFull: View {
                 // Play icon for videos
                 if item.mediaType == .video {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 20))
+                        .font(Typography.s20)
                         .foregroundColor(.white.opacity(0.8))
                         .padding(10)
                         .background(Circle().fill(Color.black.opacity(0.4)))

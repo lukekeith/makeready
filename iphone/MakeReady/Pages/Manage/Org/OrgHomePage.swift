@@ -103,7 +103,7 @@ struct OrgHomePage: View {
             VStack {
                 Spacer().frame(height: 60)
                 Text(error)
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.5))
                 Spacer()
             }
@@ -112,7 +112,7 @@ struct OrgHomePage: View {
             VStack {
                 Spacer().frame(height: 60)
                 Text("No group leaders in this organization yet.")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -140,11 +140,11 @@ struct OrgHomePage: View {
     private func detailRow(label: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)
-                .font(.system(size: 14, weight: .medium))
+                .font(Typography.s14Medium)
                 .foregroundColor(.white.opacity(0.5))
             Spacer()
             Text(value)
-                .font(.system(size: 14, weight: .medium))
+                .font(Typography.s14Medium)
                 .foregroundColor(.white)
                 .multilineTextAlignment(.trailing)
         }
@@ -165,10 +165,10 @@ struct OrgHomePage: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(leader.displayName)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(Typography.s16Medium)
                     .foregroundColor(.white)
                 Text(leaderSubtitle(leader: leader))
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.5))
             }
             Spacer()

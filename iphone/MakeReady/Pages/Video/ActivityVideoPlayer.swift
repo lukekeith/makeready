@@ -169,7 +169,7 @@ struct ActivityVideoPlayer: View {
                         onDismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(Typography.s20Semibold)
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.6), radius: 4)
                             .frame(width: 40, height: 40)
@@ -187,7 +187,7 @@ struct ActivityVideoPlayer: View {
                         isPlaying = false
                     } label: {
                         Image(systemName: "trash")
-                            .font(.system(size: 20))
+                            .font(Typography.s20)
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.6), radius: 4)
                             .frame(width: 40, height: 40)
@@ -207,7 +207,7 @@ struct ActivityVideoPlayer: View {
                         player?.isMuted = isMuted
                     } label: {
                         Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            .font(.system(size: 20))
+                            .font(Typography.s20)
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.6), radius: 4)
                             .frame(width: 40, height: 40)
@@ -225,7 +225,7 @@ struct ActivityVideoPlayer: View {
                     togglePlayPause()
                 } label: {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 36))
+                        .font(Typography.s36)
                         .foregroundColor(.white)
                         .frame(width: 72, height: 72)
                         .background(Color.black.opacity(0.4))
@@ -249,7 +249,7 @@ struct ActivityVideoPlayer: View {
                 togglePlayPause()
             } label: {
                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 16))
+                    .font(Typography.s16)
                     .foregroundColor(.white)
                     .frame(width: 32, height: 32)
             }
@@ -271,7 +271,7 @@ struct ActivityVideoPlayer: View {
 
             // Time label
             Text(formatTime(currentTime))
-                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .font(Typography.s13MediumMono)
                 .foregroundColor(.white.opacity(0.7))
                 .frame(width: 44, alignment: .trailing)
         }
@@ -292,11 +292,11 @@ struct ActivityVideoPlayer: View {
 
             VStack(spacing: 16) {
                 Text("Remove video?")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Typography.s20Bold)
                     .foregroundColor(.white)
 
                 Text("This video will be removed from the activity but will not be deleted from your library.")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
@@ -314,7 +314,7 @@ struct ActivityVideoPlayer: View {
                                 .cornerRadius(12)
                         } else {
                             Text("Remove video")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(Typography.s17Semibold)
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 50)
@@ -331,7 +331,7 @@ struct ActivityVideoPlayer: View {
                         }
                     } label: {
                         Text("Cancel")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
@@ -456,13 +456,13 @@ struct ActivityVideoPlayer: View {
                     VStack {
                         HStack {
                             Image(systemName: "xmark")
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(Typography.s20Semibold)
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 4)
                                 .frame(width: 40, height: 40)
                             Spacer()
                             Image(systemName: "trash")
-                                .font(.system(size: 20))
+                                .font(Typography.s20)
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 4)
                                 .frame(width: 40, height: 40)
@@ -475,7 +475,7 @@ struct ActivityVideoPlayer: View {
                         HStack {
                             Spacer()
                             Image(systemName: "speaker.wave.2.fill")
-                                .font(.system(size: 20))
+                                .font(Typography.s20)
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 4)
                                 .frame(width: 40, height: 40)
@@ -485,7 +485,7 @@ struct ActivityVideoPlayer: View {
                     }
 
                     Image(systemName: "play.fill")
-                        .font(.system(size: 36))
+                        .font(Typography.s36)
                         .foregroundColor(.white)
                         .frame(width: 72, height: 72)
                         .background(Color.black.opacity(0.4))
@@ -495,12 +495,12 @@ struct ActivityVideoPlayer: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "play.fill")
-                    .font(.system(size: 16))
+                    .font(Typography.s16)
                     .foregroundColor(.white)
                     .frame(width: 32, height: 32)
                 Slider(value: .constant(0.35), in: 0...1).tint(.white)
                 Text("0:10")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .font(Typography.s13MediumMono)
                     .foregroundColor(.white.opacity(0.7))
                     .frame(width: 44, alignment: .trailing)
             }
@@ -530,13 +530,13 @@ struct ActivityVideoPlayer: View {
                     VStack {
                         HStack {
                             Image(systemName: "xmark")
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(Typography.s20Semibold)
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 4)
                                 .frame(width: 40, height: 40)
                             Spacer()
                             Image(systemName: "trash")
-                                .font(.system(size: 20))
+                                .font(Typography.s20)
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 4)
                                 .frame(width: 40, height: 40)
@@ -549,7 +549,7 @@ struct ActivityVideoPlayer: View {
                         HStack {
                             Spacer()
                             Image(systemName: "speaker.wave.2.fill")
-                                .font(.system(size: 20))
+                                .font(Typography.s20)
                                 .foregroundColor(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 4)
                                 .frame(width: 40, height: 40)
@@ -559,7 +559,7 @@ struct ActivityVideoPlayer: View {
                     }
 
                     Image(systemName: "play.fill")
-                        .font(.system(size: 36))
+                        .font(Typography.s36)
                         .foregroundColor(.white)
                         .frame(width: 72, height: 72)
                         .background(Color.black.opacity(0.4))
@@ -569,12 +569,12 @@ struct ActivityVideoPlayer: View {
 
             HStack(spacing: 12) {
                 Image(systemName: "play.fill")
-                    .font(.system(size: 16))
+                    .font(Typography.s16)
                     .foregroundColor(.white)
                     .frame(width: 32, height: 32)
                 Slider(value: .constant(0.65), in: 0...1).tint(.white)
                 Text("0:10")
-                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    .font(Typography.s13MediumMono)
                     .foregroundColor(.white.opacity(0.7))
                     .frame(width: 44, alignment: .trailing)
             }

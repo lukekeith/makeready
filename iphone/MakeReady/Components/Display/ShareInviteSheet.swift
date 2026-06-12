@@ -68,11 +68,11 @@ struct ShareInviteSheet: View {
                                     Image(systemName: "square.and.arrow.up")
                                     Text("Share QR Code")
                                 }
-                                .font(.system(size: 17, weight: .bold))
+                                .font(Typography.s17Bold)
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
-                                .background(Color(hex: "#6c47ff"))
+                                .background(Color.brandPrimary)
                                 .cornerRadius(12)
                             }
                         }
@@ -83,8 +83,8 @@ struct ShareInviteSheet: View {
                                 Image(systemName: showCopiedFeedback ? "checkmark" : "link")
                                 Text(showCopiedFeedback ? "Copied!" : "Copy Invite Link")
                             }
-                            .font(.system(size: 17, weight: .bold))
-                            .foregroundColor(Color(hex: "#6c47ff"))
+                            .font(Typography.s17Bold)
+                            .foregroundColor(Color.brandPrimary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 16)
                             .background(Color.white.opacity(0.1))

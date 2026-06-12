@@ -161,7 +161,7 @@ struct SelectVideoPage: View {
                 isPresented = false
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
@@ -173,14 +173,14 @@ struct SelectVideoPage: View {
                 handleNext()
             } label: {
                 Text("Next")
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(hasSelection ? .brandPrimary : .white.opacity(0.3))
             }
             .disabled(!hasSelection)
         }
         .overlay {
             Text("Select video")
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
         }
         .padding(.horizontal, 8)
@@ -236,7 +236,7 @@ struct SelectVideoPage: View {
                         showVideoPlayer = false
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(width: 44, height: 44)
                     }
@@ -257,7 +257,7 @@ struct SelectVideoPage: View {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         Text("Loading video...")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.7))
                             .padding(.top, 8)
                     }
@@ -304,18 +304,18 @@ struct SelectVideoPage: View {
                                     // Album info
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(album.title)
-                                            .font(.system(size: 17))
+                                            .font(Typography.s17)
                                             .foregroundColor(.white)
 
                                         Text("\(album.count) videos")
-                                            .font(.system(size: 13))
+                                            .font(Typography.s13)
                                             .foregroundColor(.white.opacity(0.6))
                                     }
 
                                     Spacer()
 
                                     Image(systemName: "chevron.right")
-                                        .font(.system(size: 14))
+                                        .font(Typography.s14)
                                         .foregroundColor(.white.opacity(0.5))
                                 }
                                 .padding(.horizontal, 16)

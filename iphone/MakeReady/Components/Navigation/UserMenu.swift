@@ -33,7 +33,7 @@ struct UserMenu: View {
 
                     // User name
                     Text(user.name)
-                        .font(.system(size: 20, weight: .semibold))
+                        .font(Typography.s20Semibold)
                         .foregroundColor(.white)
                 }
             }
@@ -46,12 +46,12 @@ struct UserMenu: View {
                 Button(action: handleMyProfile) {
                     HStack(spacing: 12) {
                         Image(systemName: "person.fill")
-                            .font(.system(size: 20, weight: .regular))
+                            .font(Typography.s20)
                             .foregroundColor(.white)
                             .frame(width: 20, height: 20)
 
                         Text("My profile")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(Typography.s17Medium)
                             .foregroundColor(.white)
 
                         Spacer()
@@ -75,12 +75,12 @@ struct UserMenu: View {
                 Button(action: handleLogout) {
                     HStack(spacing: 12) {
                         Image(systemName: "rectangle.portrait.and.arrow.right")
-                            .font(.system(size: 20, weight: .regular))
+                            .font(Typography.s20)
                             .foregroundColor(.white)
                             .frame(width: 20, height: 20)
 
                         Text("Logout")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(Typography.s17Medium)
                             .foregroundColor(.white)
 
                         Spacer()
@@ -130,12 +130,12 @@ struct UserMenu: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: "building.2.fill")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(width: 20, height: 20)
 
                 Text(org.name)
-                    .font(.system(size: 17, weight: .medium))
+                    .font(Typography.s17Medium)
                     .foregroundColor(.white)
                     .lineLimit(1)
                     .truncationMode(.tail)

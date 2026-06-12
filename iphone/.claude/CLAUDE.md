@@ -695,27 +695,33 @@ All menus/sheets support binding for presentation state (`@Binding var isPresent
 
 ### Colors
 
-Defined in `Assets.xcassets/Colors/`:
-- `appBackground` - Main background (#0a0a0f)
-- `brandPrimary` - Brand purple (#6c47ff)
-- Custom colors as needed
+Defined as `Color` extensions in `MakeReady/Colors.swift` (the ONLY file
+allowed to contain `Color(hex:)` — the SwiftLint gate enforces this):
+- `Color.appBackground` — main background (#0d101a)
+- `Color.brandPrimary` — brand purple (#6c47ff)
+- `Color.cardBackground`, `.backgroundDark`, `.error`, `.success`,
+  `.warning`, `.accentBlue`, `.destructive`, … (see Colors.swift)
 
 **Usage:**
 ```swift
 .background(Color.appBackground)
-.foregroundColor(Color(hex: "#6c47ff"))
+.foregroundColor(Color.brandPrimary)
+// Need a color that has no token? Add it to Colors.swift first.
 ```
 
 ### Typography
 
-**SF Pro Text** (iOS system font):
-- Regular: 17pt for body, 12pt for small text
-- Bold: 17pt for titles, 28pt for large headers
+**SF Pro Text** (iOS system font), via `Typography` tokens in
+`MakeReady/Typography.swift` (the ONLY file allowed to contain raw
+`.system(size:)` — the SwiftLint gate enforces this). Tokens are named by
+size+weight (`s17Bold` = 17pt bold) at the app's current fixed sizes;
+semantic naming and Dynamic Type are parked as Decision Point C.
 
 **Usage:**
 ```swift
 Text("Title")
-    .font(.system(size: 17, weight: .bold))
+    .font(Typography.s17Bold)
+// Need a new size/weight combo? Add a token to Typography.swift first.
 ```
 
 ### Spacing
@@ -807,7 +813,7 @@ Use SF Symbols for icons:
 
 ```swift
 Image(systemName: "chevron.left")
-    .font(.system(size: 20))
+    .font(Typography.s20)
 
 // Common icons:
 // - chevron.left, chevron.right, chevron.down

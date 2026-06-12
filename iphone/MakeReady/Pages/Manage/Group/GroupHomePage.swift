@@ -615,7 +615,7 @@ struct GroupHomePage: View {
         VStack(alignment: .leading, spacing: 4) {
             // Group name
             Text(group?.name ?? "Group")
-                .font(.system(size: 22, weight: .regular))
+                .font(Typography.s22)
                 .foregroundColor(.white)
                 .tracking(-0.1)
 
@@ -624,22 +624,22 @@ struct GroupHomePage: View {
                 // Privacy indicator
                 HStack(spacing: 4) {
                     Image(systemName: group?.isPrivate == true ? "lock.fill" : "lock.open.fill")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white)
 
                     Text(group?.isPrivate == true ? "Private group" : "Public group")
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.7))
                 }
 
                 // Member count
                 HStack(spacing: 4) {
                     Text("\(group?.memberCount ?? 0)")
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white)
 
                     Text("members")
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.7))
                 }
             }
@@ -653,7 +653,7 @@ struct GroupHomePage: View {
         VStack(alignment: .leading, spacing: 12) {
             // Section label
             Text("NEXT LESSON")
-                .font(.system(size: 15, weight: .bold))
+                .font(Typography.s15Bold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -801,15 +801,15 @@ struct GroupHomePage: View {
                 .frame(height: 40)
 
             Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 40))
+                .font(Typography.s40)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No posts yet")
-                .font(.system(size: 17, weight: .semibold))
+                .font(Typography.s17Semibold)
                 .foregroundColor(.white)
 
             Text("Be the first to share something with the group")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 

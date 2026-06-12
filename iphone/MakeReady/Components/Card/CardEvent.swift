@@ -26,14 +26,14 @@ struct CardEvent: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Title
                     Text(data.title)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
                     // Subtitle (if present)
                     if let subtitle = data.subtitle {
                         Text(subtitle)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.7))
                             .lineLimit(1)
                     }
@@ -93,7 +93,7 @@ struct CardEvent: View {
         Color.iconContainerBackground
             .overlay(
                 Image(systemName: "calendar")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
             .cornerRadius(8)
@@ -103,7 +103,7 @@ struct CardEvent: View {
         (backgroundColor ?? Color.iconContainerBackground)
             .overlay(
                 Image(systemName: systemName)
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(foregroundColor ?? .white)
             )
             .cornerRadius(8)
@@ -112,13 +112,13 @@ struct CardEvent: View {
     private func dateDisplayView(day: Int, month: String) -> some View {
         VStack(spacing: 4) {
             Text("\(day)")
-                .font(.system(size: 28, weight: .regular))
+                .font(Typography.s28)
                 .foregroundColor(.white)
                 .tracking(-0.15)
 
             Text(month.uppercased())
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .font(Typography.s15Bold)
+                .foregroundColor(Color.brandPrimary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "#485470").opacity(0.5))
@@ -128,14 +128,14 @@ struct CardEvent: View {
     private func timeDisplayView(time: String, period: String) -> some View {
         VStack(spacing: 4) {
             Text(time)
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .lineSpacing(24 - 20) // Target 24px line height
                 .foregroundColor(.white)
                 .tracking(-0.15)
 
             Text(period.uppercased())
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .font(Typography.s15Bold)
+                .foregroundColor(Color.brandPrimary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "#485470").opacity(0.5))
@@ -155,7 +155,7 @@ struct CardEvent: View {
                 // Row Event Cards
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Event Cards - Row")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -188,7 +188,7 @@ struct CardEvent: View {
                     )
 
                     Text("Event Cards - Time Display")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .padding(.top, 16)

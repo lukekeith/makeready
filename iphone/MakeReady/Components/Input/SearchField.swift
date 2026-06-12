@@ -38,18 +38,18 @@ struct SearchField: View {
             // Search field
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 16))
+                    .font(Typography.s16)
                     .foregroundColor(.white50)
 
                 ZStack(alignment: .leading) {
                     if searchText.isEmpty {
                         Text(placeholder)
-                            .font(.system(size: 15, weight: .regular))
+                            .font(Typography.s15)
                             .foregroundColor(.white50)
                     }
 
                     TextField("", text: $searchText)
-                        .font(.system(size: 15, weight: .regular))
+                        .font(Typography.s15)
                         .foregroundColor(.white)
                         .focused($isFocused)
                         .textContentType(.none)
@@ -92,7 +92,7 @@ struct SearchField: View {
                     }
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .medium))
+                        .font(Typography.s14Medium)
                         .foregroundColor(.white50)
                         .frame(width: 42, height: 42)
                         .background(

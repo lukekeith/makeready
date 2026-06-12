@@ -47,13 +47,13 @@ struct PostDetailPage: View {
 
                     // Title
                     Text(title)
-                        .font(.system(size: 20, weight: .bold))
+                        .font(Typography.s20Bold)
                         .foregroundColor(.white)
 
                     // Content
                     if let subtitle = subtitle, !subtitle.isEmpty {
                         Text(subtitle)
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.7))
                             .lineSpacing(4)
                     }

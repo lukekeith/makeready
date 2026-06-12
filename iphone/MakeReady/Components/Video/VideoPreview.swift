@@ -37,11 +37,11 @@ struct VideoPreview: View {
                         // No video selected - show placeholder
                         VStack(spacing: 12) {
                             Image(systemName: "video.fill")
-                                .font(.system(size: 48))
+                                .font(Typography.s48)
                                 .foregroundColor(.white.opacity(0.3))
 
                             Text("Select a video")
-                                .font(.system(size: 15))
+                                .font(Typography.s15)
                                 .foregroundColor(.white.opacity(0.5))
                         }
                     }

@@ -212,7 +212,7 @@ struct EditGroupPage: View {
                         .scaleEffect(1.5)
 
                     Text("Saving Changes")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(.white)
                 }
             }

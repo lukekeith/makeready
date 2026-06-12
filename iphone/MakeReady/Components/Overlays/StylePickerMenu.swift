@@ -27,7 +27,7 @@ struct StylePickerMenu: View {
         VStack(spacing: 0) {
             // Snippet preview so the user sees what they're styling.
             Text("\u{201C}\(snippet)\u{201D}")
-                .font(.system(size: 13))
+                .font(Typography.s13)
                 .foregroundColor(.white.opacity(0.5))
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -39,7 +39,7 @@ struct StylePickerMenu: View {
                 StylePickerRow(
                     label: "Bold",
                     sample: "Bold",
-                    sampleFont: .system(size: 17, weight: .bold),
+                    sampleFont: Typography.s17Bold,
                     isSelected: currentStyle == .bold
                 ) {
                     if currentStyle != .bold { onSelect(.bold) }
@@ -49,7 +49,7 @@ struct StylePickerMenu: View {
                 StylePickerRow(
                     label: "Highlight",
                     sample: "Highlight",
-                    sampleBackground: Color(hex: "#6c47ff").opacity(0.35),
+                    sampleBackground: Color.brandPrimary.opacity(0.35),
                     isSelected: currentStyle == .highlight
                 ) {
                     if currentStyle != .highlight { onSelect(.highlight) }
@@ -66,7 +66,7 @@ struct StylePickerMenu: View {
                     dismissOverlay?()
                 } label: {
                     Text("Remove style")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(Color(hex: "#ff5d5d"))
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
@@ -82,7 +82,7 @@ struct StylePickerMenu: View {
                 dismissOverlay?()
             } label: {
                 Text("Cancel")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white.opacity(0.7))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -102,7 +102,7 @@ struct StylePickerMenu: View {
 private struct StylePickerRow: View {
     let label: String
     let sample: String
-    var sampleFont: Font = .system(size: 17, weight: .regular)
+    var sampleFont: Font = Typography.s17
     var sampleColor: Color = .white
     var sampleBackground: Color = .clear
     var sampleUnderline: Bool = false
@@ -113,13 +113,13 @@ private struct StylePickerRow: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.system(size: 18, weight: .regular))
-                    .foregroundColor(isSelected ? Color(hex: "#6c47ff") : .white.opacity(0.25))
+                    .font(Typography.s18)
+                    .foregroundColor(isSelected ? Color.brandPrimary : .white.opacity(0.25))
                     .frame(width: 22, height: 22)
 
                 Text(label)
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(isSelected ? Color(hex: "#6c47ff") : .white)
+                    .font(Typography.s17Semibold)
+                    .foregroundColor(isSelected ? Color.brandPrimary : .white)
 
                 Spacer()
 

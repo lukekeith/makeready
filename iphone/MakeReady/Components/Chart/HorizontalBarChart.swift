@@ -50,7 +50,7 @@ struct HorizontalBarChart: View {
             .annotation(position: .trailing, alignment: .leading) {
                 if showValues {
                     Text(formatValue(dataPoint.value))
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Typography.s12Semibold)
                         .foregroundColor(.white.opacity(0.7))
                         .padding(.leading, 8)
                 }
@@ -61,7 +61,7 @@ struct HorizontalBarChart: View {
                 AxisValueLabel {
                     if let doubleValue = value.as(Double.self) {
                         Text(formatAxisValue(doubleValue))
-                            .font(.system(size: 11, weight: .regular))
+                            .font(Typography.s11)
                             .foregroundColor(.white.opacity(0.5))
                     }
                 }
@@ -72,7 +72,7 @@ struct HorizontalBarChart: View {
                 AxisValueLabel {
                     if let stringValue = value.as(String.self) {
                         Text(stringValue)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.9))
                     }
                 }
@@ -113,7 +113,7 @@ struct HorizontalBarChart: View {
             // Example 1: Member activity rankings
             VStack(alignment: .leading, spacing: 12) {
                 Text("Top Members (This Month)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -126,7 +126,7 @@ struct HorizontalBarChart: View {
             // Example 2: Task completion by category
             VStack(alignment: .leading, spacing: 12) {
                 Text("Tasks by Category")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -140,7 +140,7 @@ struct HorizontalBarChart: View {
             // Example 3: Revenue by region (with gradients)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Revenue by Region")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -158,11 +158,11 @@ struct HorizontalBarChart: View {
 
 private var memberActivityData: [BarChartDataPoint] {
     [
-        BarChartDataPoint(label: "Sarah J.", value: 145, color: Color(hex: "#6c47ff")),
-        BarChartDataPoint(label: "Mike T.", value: 132, color: Color(hex: "#6c47ff").opacity(0.8)),
-        BarChartDataPoint(label: "Emma W.", value: 118, color: Color(hex: "#6c47ff").opacity(0.6)),
-        BarChartDataPoint(label: "John D.", value: 95, color: Color(hex: "#6c47ff").opacity(0.4)),
-        BarChartDataPoint(label: "Lisa K.", value: 87, color: Color(hex: "#6c47ff").opacity(0.3))
+        BarChartDataPoint(label: "Sarah J.", value: 145, color: Color.brandPrimary),
+        BarChartDataPoint(label: "Mike T.", value: 132, color: Color.brandPrimary.opacity(0.8)),
+        BarChartDataPoint(label: "Emma W.", value: 118, color: Color.brandPrimary.opacity(0.6)),
+        BarChartDataPoint(label: "John D.", value: 95, color: Color.brandPrimary.opacity(0.4)),
+        BarChartDataPoint(label: "Lisa K.", value: 87, color: Color.brandPrimary.opacity(0.3))
     ]
 }
 
@@ -177,7 +177,7 @@ private var tasksByCategoryData: [BarChartDataPoint] {
 
 private var revenueByRegionData: [BarChartDataPoint] {
     [
-        BarChartDataPoint(label: "North America", value: 8500, color: Color(hex: "#6c47ff")),
+        BarChartDataPoint(label: "North America", value: 8500, color: Color.brandPrimary),
         BarChartDataPoint(label: "Europe", value: 6200, color: Color(hex: "#47d4ff")),
         BarChartDataPoint(label: "Asia Pacific", value: 4800, color: Color(hex: "#ff6b9d")),
         BarChartDataPoint(label: "Latin America", value: 2100, color: Color(hex: "#ffd93d"))

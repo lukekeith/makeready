@@ -17,11 +17,11 @@ struct ToggleControl: View {
             // Title and description
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
 
                 Text(description)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.5))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -54,7 +54,7 @@ struct CustomToggle: View {
 
                 // Knob
                 RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(hex: "#0d101a"))
+                    .fill(Color.appBackground)
                     .frame(width: 33, height: 21)
                     .padding(.horizontal, 4)
                     .padding(.vertical, 3.5)

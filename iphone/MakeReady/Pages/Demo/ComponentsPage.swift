@@ -162,11 +162,11 @@ struct ComponentTabButton: View {
         Button(action: onTap) {
             VStack(spacing: 4) {
                 Text(title)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(isActive ? .white : .white.opacity(0.7))
 
                 Rectangle()
-                    .fill(Color(hex: "#6c47ff"))
+                    .fill(Color.brandPrimary)
                     .frame(height: 2)
                     .opacity(isActive ? 1 : 0)
             }
@@ -209,7 +209,7 @@ struct FieldsTabContent: View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Text Input (Placeholder)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -220,7 +220,7 @@ struct FieldsTabContent: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Text Input (Labeled with Icons)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -235,7 +235,7 @@ struct FieldsTabContent: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Multiline Text Input")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -249,7 +249,7 @@ struct FieldsTabContent: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Toggle Controls")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -284,7 +284,7 @@ struct FieldsTabContent: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Date Picker")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -295,7 +295,7 @@ struct FieldsTabContent: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Menu Input")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -310,13 +310,13 @@ struct FieldsTabContent: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Large Text Input - Data Types")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .padding(.top, 20)
 
                 Text("These inputs automatically format and validate based on their type")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
                     .padding(.bottom, 8)
             }
@@ -325,7 +325,7 @@ struct FieldsTabContent: View {
                 // Phone
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Phone - Auto-formats as (###) ###-####")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.4))
                     LargeTextInput(
                         label: "Phone",
@@ -338,7 +338,7 @@ struct FieldsTabContent: View {
                 // Integer
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Integer - Numbers only")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.4))
                     LargeTextInput(
                         label: "Age",
@@ -351,7 +351,7 @@ struct FieldsTabContent: View {
                 // Float
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Float - Decimal numbers")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.4))
                     LargeTextInput(
                         label: "Weight (lbs)",
@@ -363,7 +363,7 @@ struct FieldsTabContent: View {
                 // Currency
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Currency - $ icon, thousand separators, 2 decimals")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.4))
                     LargeTextInput(
                         label: "Amount",
@@ -376,7 +376,7 @@ struct FieldsTabContent: View {
                 // Email
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Email - Validates email format")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.4))
                     LargeTextInput(
                         label: "Email",
@@ -389,7 +389,7 @@ struct FieldsTabContent: View {
                 // Percentage
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Percentage - 0-100 with % icon")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.4))
                     LargeTextInput(
                         label: "Completion",
@@ -401,7 +401,7 @@ struct FieldsTabContent: View {
                 // Alphanumeric (default)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Alphanumeric - Any characters (default)")
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.4))
                     LargeTextInput(
                         label: "Full name",
@@ -425,7 +425,7 @@ struct ButtonsTabContent: View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Purple variant")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -464,7 +464,7 @@ struct ButtonsTabContent: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("White variant")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -517,7 +517,7 @@ struct MembersTabContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Member Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
 
@@ -574,7 +574,7 @@ struct ContactsTabContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text("Contact Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
 
@@ -611,18 +611,18 @@ struct ChartsTabContent: View {
             // Example 1: Single line with gradient (matching Figma)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Growth Chart (Gradient)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Purple to cyan gradient with area fill. Smooth catmullRom curves for aesthetics.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 LineChart(
                     dataPoints: sampleData2023to2025,
                     color: .gradient(
-                        colors: [Color(hex: "#6c47ff"), Color(hex: "#47d4ff")],
+                        colors: [Color.brandPrimary, Color(hex: "#47d4ff")],
                         angle: 90
                     ),
                     lineWidth: 3,
@@ -635,12 +635,12 @@ struct ChartsTabContent: View {
             // Example 2: Solid color line
             VStack(alignment: .leading, spacing: 12) {
                 Text("Daily Activity (Solid)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Solid brand color. Linear interpolation for precise point-to-point connections.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 LineChart(
@@ -656,12 +656,12 @@ struct ChartsTabContent: View {
             // Example 3: Multiple trend lines
             VStack(alignment: .leading, spacing: 12) {
                 Text("Multiple Trends")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Two trend lines. Monotone interpolation for smooth, accurate comparisons.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 LineChart(
@@ -686,12 +686,12 @@ struct ChartsTabContent: View {
             // Example 4: Different gradient angle
             VStack(alignment: .leading, spacing: 12) {
                 Text("Weekly Progress (Diagonal)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Gradient at 45° angle. Uses default monotone interpolation (smooth + accurate).")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 LineChart(
@@ -708,12 +708,12 @@ struct ChartsTabContent: View {
             // Example 5: Budget Breakdown (Donut Chart)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Budget Breakdown (Donut)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Donut chart with center label. Perfect for part-to-whole relationships.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 VStack(spacing: 16) {
@@ -732,12 +732,12 @@ struct ChartsTabContent: View {
             // Example 6: Member Rankings (Horizontal Bar)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Top Members (Horizontal Bar)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Horizontal bars perfect for rankings on mobile. Long labels don't crowd.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 HorizontalBarChart(
@@ -749,12 +749,12 @@ struct ChartsTabContent: View {
             // Example 7: Monthly Metrics (Vertical Bar)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Monthly Revenue (Vertical Bar)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Classic vertical bars for time-series data. Works well with 5-7 categories.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 VerticalBarChart(
@@ -767,12 +767,12 @@ struct ChartsTabContent: View {
             // Example 8: Activity Heatmap
             VStack(alignment: .leading, spacing: 12) {
                 Text("Team Activity (Heat Map)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("GitHub-style heat map. Shows patterns over time with color intensity.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 HeatMapChart(
@@ -783,7 +783,7 @@ struct ChartsTabContent: View {
                 // Legend
                 HStack(spacing: 8) {
                     Text("Less")
-                        .font(.system(size: 11))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.5))
 
                     ForEach(0..<5) { index in
@@ -793,7 +793,7 @@ struct ChartsTabContent: View {
                     }
 
                     Text("More")
-                        .font(.system(size: 11))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
@@ -869,7 +869,7 @@ struct ChartsTabContent: View {
     // Sample data for donut chart
     private var budgetDonutData: [DonutChartDataPoint] {
         [
-            DonutChartDataPoint(label: "Marketing", value: 4500, color: Color(hex: "#6c47ff")),
+            DonutChartDataPoint(label: "Marketing", value: 4500, color: Color.brandPrimary),
             DonutChartDataPoint(label: "Development", value: 3500, color: Color(hex: "#47d4ff")),
             DonutChartDataPoint(label: "Design", value: 2000, color: Color(hex: "#ff6b9d")),
             DonutChartDataPoint(label: "Operations", value: 1500, color: Color(hex: "#ffd93d")),
@@ -880,23 +880,23 @@ struct ChartsTabContent: View {
     // Sample data for horizontal bar chart
     private var memberRankingsData: [BarChartDataPoint] {
         [
-            BarChartDataPoint(label: "Sarah J.", value: 145, color: Color(hex: "#6c47ff")),
-            BarChartDataPoint(label: "Mike T.", value: 132, color: Color(hex: "#6c47ff").opacity(0.8)),
-            BarChartDataPoint(label: "Emma W.", value: 118, color: Color(hex: "#6c47ff").opacity(0.6)),
-            BarChartDataPoint(label: "John D.", value: 95, color: Color(hex: "#6c47ff").opacity(0.4)),
-            BarChartDataPoint(label: "Lisa K.", value: 87, color: Color(hex: "#6c47ff").opacity(0.3))
+            BarChartDataPoint(label: "Sarah J.", value: 145, color: Color.brandPrimary),
+            BarChartDataPoint(label: "Mike T.", value: 132, color: Color.brandPrimary.opacity(0.8)),
+            BarChartDataPoint(label: "Emma W.", value: 118, color: Color.brandPrimary.opacity(0.6)),
+            BarChartDataPoint(label: "John D.", value: 95, color: Color.brandPrimary.opacity(0.4)),
+            BarChartDataPoint(label: "Lisa K.", value: 87, color: Color.brandPrimary.opacity(0.3))
         ]
     }
 
     // Sample data for vertical bar chart
     private var monthlyMetricsData: [BarChartDataPoint] {
         [
-            BarChartDataPoint(label: "Jan", value: 12500, color: Color(hex: "#6c47ff")),
-            BarChartDataPoint(label: "Feb", value: 14200, color: Color(hex: "#6c47ff")),
-            BarChartDataPoint(label: "Mar", value: 13800, color: Color(hex: "#6c47ff")),
-            BarChartDataPoint(label: "Apr", value: 16100, color: Color(hex: "#6c47ff")),
-            BarChartDataPoint(label: "May", value: 18300, color: Color(hex: "#6c47ff")),
-            BarChartDataPoint(label: "Jun", value: 19500, color: Color(hex: "#6c47ff"))
+            BarChartDataPoint(label: "Jan", value: 12500, color: Color.brandPrimary),
+            BarChartDataPoint(label: "Feb", value: 14200, color: Color.brandPrimary),
+            BarChartDataPoint(label: "Mar", value: 13800, color: Color.brandPrimary),
+            BarChartDataPoint(label: "Apr", value: 16100, color: Color.brandPrimary),
+            BarChartDataPoint(label: "May", value: 18300, color: Color.brandPrimary),
+            BarChartDataPoint(label: "Jun", value: 19500, color: Color.brandPrimary)
         ]
     }
 
@@ -930,13 +930,13 @@ struct ChartsTabContent: View {
         case 0:
             return Color.white.opacity(0.05)
         case 1:
-            return Color(hex: "#6c47ff").opacity(0.2)
+            return Color.brandPrimary.opacity(0.2)
         case 2:
-            return Color(hex: "#6c47ff").opacity(0.4)
+            return Color.brandPrimary.opacity(0.4)
         case 3:
-            return Color(hex: "#6c47ff").opacity(0.7)
+            return Color.brandPrimary.opacity(0.7)
         case 4:
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         default:
             return Color.white.opacity(0.05)
         }
@@ -954,12 +954,12 @@ struct QRTabContent: View {
             // Example 1: QR Code with Branding
             VStack(alignment: .leading, spacing: 12) {
                 Text("QR Code (Branded)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Custom-styled QR code with MakeReady branding. Generated from server API.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 InviteQRCodeView(
@@ -972,12 +972,12 @@ struct QRTabContent: View {
             // Example 2: Share Invite Sheet Demo
             VStack(alignment: .leading, spacing: 12) {
                 Text("Share Invite Sheet")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Complete share flow with QR code, copy link, and native sharing.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 Button(action: {
@@ -993,11 +993,11 @@ struct QRTabContent: View {
                         Image(systemName: "qrcode")
                         Text("Open Share Sheet")
                     }
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Typography.s15Semibold)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(Color(hex: "#6c47ff"))
+                    .background(Color.brandPrimary)
                     .cornerRadius(10)
                 }
             }
@@ -1023,12 +1023,12 @@ struct CardsTabContent: View {
             // Study Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Study Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Studies show interval (daily/weekly) and participants. Pending state shows PENDING badge inside image.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 // Row cards from fixtures
@@ -1049,12 +1049,12 @@ struct CardsTabContent: View {
             // Event Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Event Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Events display day/month instead of images. Primary data: location (Row), time (Mini).")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 // Row cards from fixtures
@@ -1075,12 +1075,12 @@ struct CardsTabContent: View {
             // Group Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Group Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Groups show image/icon and member count. Tap cards to toggle selected state (500ms animation).")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 // Row cards from fixtures
@@ -1123,12 +1123,12 @@ struct CardsTabContent: View {
             // Video Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Video Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Videos always have images with play button overlay. Shows views, time posted, shares.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 // Row card (first from fixtures)
@@ -1145,12 +1145,12 @@ struct CardsTabContent: View {
             // Lesson Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Lesson Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Lessons show day indicator and activities. Empty lessons show 'Select activities' prompt.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 // Show all lesson examples
@@ -1177,24 +1177,24 @@ struct SwipeableTabContent: View {
             // Instructions
             VStack(alignment: .leading, spacing: 8) {
                 Text("Swipeable Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Swipe cards left to reveal action buttons. Buttons grow from 24→48px and fade in progressively. Tap card when revealed to close.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
             }
 
             // Event Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Event Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Events can be rescheduled, skipped, or deleted.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 ForEach(fixtures.eventRowCards.prefix(2), id: \.id) { cardData in
@@ -1219,12 +1219,12 @@ struct SwipeableTabContent: View {
             // Study Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Study Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Studies can be rescheduled, skipped, edited, or deleted.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 ForEach(fixtures.studyRowCards.prefix(2), id: \.id) { cardData in
@@ -1252,12 +1252,12 @@ struct SwipeableTabContent: View {
             // Video Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Video Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Videos can be edited or deleted.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 if let videoCard = fixtures.videoRowCards.first {
@@ -1279,12 +1279,12 @@ struct SwipeableTabContent: View {
             // Group Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Group Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Groups can be edited or deleted.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 ForEach(fixtures.groupRowCards.prefix(2), id: \.id) { cardData in
@@ -1306,12 +1306,12 @@ struct SwipeableTabContent: View {
             // Lesson Cards
             VStack(alignment: .leading, spacing: 12) {
                 Text("Lesson Cards")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Lessons can be edited or deleted.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 // Only show lessons with activities (skip empty one)
@@ -1346,24 +1346,24 @@ struct AlertsTabContent: View {
             // Instructions
             VStack(alignment: .leading, spacing: 8) {
                 Text("Alert Components")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Alerts display important messages to users with distinct styles for warnings and critical issues.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
             }
 
             // Warning Alerts
             VStack(alignment: .leading, spacing: 12) {
                 Text("Warning Alerts")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Use for non-critical notifications that require user attention.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 Alert(message: "Your session will expire in 5 minutes.", variant: .warning)
@@ -1373,12 +1373,12 @@ struct AlertsTabContent: View {
             // Critical Alerts
             VStack(alignment: .leading, spacing: 12) {
                 Text("Critical Alerts")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Use for urgent issues that require immediate attention.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 Alert(message: "Failed to connect to server. Please check your internet connection.", variant: .critical)
@@ -1388,12 +1388,12 @@ struct AlertsTabContent: View {
             // Long Message Example
             VStack(alignment: .leading, spacing: 12) {
                 Text("Long Messages")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 Text("Alerts automatically expand to accommodate longer messages.")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.4))
 
                 Alert(

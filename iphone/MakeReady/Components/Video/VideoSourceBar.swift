@@ -55,11 +55,11 @@ struct VideoSourceBar: View {
             Button(action: onSourceTap) {
                 HStack(spacing: 4) {
                     Text(currentSource.rawValue)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Typography.s14Semibold)
                         .foregroundColor(.white)
                 }
             }

@@ -26,18 +26,18 @@ struct CardBibleSearchResult: View {
             HStack(alignment: .top, spacing: 8) {
                 // Book icon — open book for named passages, closed for verses
                 Image(systemName: isPassage ? "book.pages" : "book.closed")
-                    .font(.system(size: 14))
+                    .font(Typography.s14)
                     .foregroundColor(.white)
                     .frame(width: 24, height: 24)
 
                 if let title, isPassage {
                     // Named passage: title + reference header, summary preview
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(Text(title).font(.system(size: 12, weight: .bold)).foregroundColor(.white))  \(Text(reference).font(.system(size: 11)).foregroundColor(.white50))")
+                        Text("\(Text(title).font(Typography.s12Bold).foregroundColor(.white))  \(Text(reference).font(Typography.s11).foregroundColor(.white50))")
                             .lineLimit(2)
 
                         Text(summary ?? text)
-                            .font(.system(size: 12))
+                            .font(Typography.s12)
                             .foregroundColor(.white70)
                             .lineLimit(2)
                     }
@@ -46,12 +46,12 @@ struct CardBibleSearchResult: View {
                     // Single verse / range: reference + verse text
                     VStack(alignment: .leading, spacing: 0) {
                         Text(reference)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(Typography.s12Bold)
                             .foregroundColor(.white)
                             .lineLimit(1)
 
                         Text(text)
-                            .font(.system(size: 12))
+                            .font(Typography.s12)
                             .foregroundColor(.white70)
                             .lineLimit(1)
                     }

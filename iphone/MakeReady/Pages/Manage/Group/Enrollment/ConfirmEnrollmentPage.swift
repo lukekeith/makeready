@@ -99,12 +99,12 @@ struct ConfirmEnrollmentPage: View {
                 // Group Details
                 VStack(alignment: .leading, spacing: 8) {
                     Text(enrollmentData.group.name)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     if let description = enrollmentData.group.description {
                         Text(description)
-                            .font(.system(size: 13))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.7))
                             .lineLimit(2)
                     }
@@ -112,10 +112,10 @@ struct ConfirmEnrollmentPage: View {
                     // Private/Public indicator
                     HStack(spacing: 4) {
                         Image(systemName: enrollmentData.group.isPrivate ? "lock.fill" : "globe")
-                            .font(.system(size: 14))
+                            .font(Typography.s14)
                             .foregroundColor(.white.opacity(0.7))
                         Text(enrollmentData.group.isPrivate ? "Private group" : "Public group")
-                            .font(.system(size: 13))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.7))
                     }
                 }
@@ -130,7 +130,7 @@ struct ConfirmEnrollmentPage: View {
 
             // Down Arrow Icon
             Image(systemName: "arrow.down")
-                .font(.system(size: 32, weight: .medium))
+                .font(Typography.s32Medium)
                 .foregroundColor(.white.opacity(0.2))
 
             // Study Program Row
@@ -138,12 +138,12 @@ struct ConfirmEnrollmentPage: View {
                 // Study Details
                 VStack(alignment: .leading, spacing: 8) {
                     Text(enrollmentData.studyProgram.name)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     if let description = enrollmentData.studyProgram.description {
                         Text(description)
-                            .font(.system(size: 13))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.7))
                             .lineLimit(3)
                     }
@@ -151,10 +151,10 @@ struct ConfirmEnrollmentPage: View {
                     // Duration
                     HStack(spacing: 8) {
                         Image(systemName: "clock")
-                            .font(.system(size: 14))
+                            .font(Typography.s14)
                             .foregroundColor(.white.opacity(0.7))
                         Text("\(enrollmentData.studyProgram.days) days")
-                            .font(.system(size: 13))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.7))
                     }
                 }
@@ -189,7 +189,7 @@ struct ConfirmEnrollmentPage: View {
                         .fill(Color.white.opacity(0.1))
                         .overlay(
                             Image(systemName: "person.2.fill")
-                                .font(.system(size: 32))
+                                .font(Typography.s32)
                                 .foregroundColor(.white.opacity(0.3))
                         )
                 @unknown default:
@@ -201,7 +201,7 @@ struct ConfirmEnrollmentPage: View {
                 .fill(Color.white.opacity(0.1))
                 .overlay(
                     Image(systemName: "person.2.fill")
-                        .font(.system(size: 32))
+                        .font(Typography.s32)
                         .foregroundColor(.white.opacity(0.3))
                 )
         }
@@ -224,7 +224,7 @@ struct ConfirmEnrollmentPage: View {
                         .fill(Color.white.opacity(0.1))
                         .overlay(
                             Image(systemName: "book.fill")
-                                .font(.system(size: 32))
+                                .font(Typography.s32)
                                 .foregroundColor(.white.opacity(0.3))
                         )
                 @unknown default:
@@ -236,7 +236,7 @@ struct ConfirmEnrollmentPage: View {
                 .fill(Color.white.opacity(0.1))
                 .overlay(
                     Image(systemName: "book.fill")
-                        .font(.system(size: 32))
+                        .font(Typography.s32)
                         .foregroundColor(.white.opacity(0.3))
                 )
         }
@@ -249,10 +249,10 @@ struct ConfirmEnrollmentPage: View {
             // Members Included
             VStack(spacing: 4) {
                 Text("\(enrollmentData.group.memberCount)")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(Typography.s22Bold)
                     .foregroundColor(.white)
                 Text("Members included")
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.7))
             }
             .frame(maxWidth: .infinity)
@@ -260,10 +260,10 @@ struct ConfirmEnrollmentPage: View {
             // Members Excluded
             VStack(spacing: 4) {
                 Text("0")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(Typography.s22Bold)
                     .foregroundColor(.white)
                 Text("Members excluded")
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.7))
             }
             .frame(maxWidth: .infinity)
@@ -280,10 +280,10 @@ struct ConfirmEnrollmentPage: View {
             // Start Date
             VStack(spacing: 0) {
                 Text(dayNumber(from: enrollmentData.startDate))
-                    .font(.system(size: 28))
+                    .font(Typography.s28)
                     .foregroundColor(.white)
                 Text(monthAbbreviation(from: enrollmentData.startDate))
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Typography.s15Bold)
                     .foregroundColor(.brandPrimary)
             }
             .frame(width: 60)
@@ -293,7 +293,7 @@ struct ConfirmEnrollmentPage: View {
             // Center - Duration + Days
             VStack(spacing: 8) {
                 Text("\(enrollmentData.studyProgram.days) day study")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.5))
 
                 // Days of week circles
@@ -314,10 +314,10 @@ struct ConfirmEnrollmentPage: View {
             // End Date
             VStack(spacing: 0) {
                 Text(dayNumber(from: enrollmentData.endDate))
-                    .font(.system(size: 28))
+                    .font(Typography.s28)
                     .foregroundColor(.white)
                 Text(monthAbbreviation(from: enrollmentData.endDate))
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Typography.s15Bold)
                     .foregroundColor(.brandPrimary)
             }
             .frame(width: 60)
@@ -341,7 +341,7 @@ struct ConfirmEnrollmentPage: View {
     private var sendInvitesSection: some View {
         HStack {
             Text("Send invites")
-                .font(.system(size: 17))
+                .font(Typography.s17)
                 .foregroundColor(.white)
 
             Spacer()
@@ -377,7 +377,7 @@ private struct DayCircle: View {
 
     var body: some View {
         Text(day)
-            .font(.system(size: 13, weight: .bold))
+            .font(Typography.s13Bold)
             .foregroundColor(isEnabled ? .appBackground : .white.opacity(0.5))
             .frame(width: 24, height: 24)
             .background(isEnabled ? Color.white : Color.white.opacity(0.1))

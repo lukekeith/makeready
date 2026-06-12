@@ -39,7 +39,7 @@ struct LoginView: View {
                     HStack(spacing: 8) {
                         if isLoading {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#0d101a")))
+                                .progressViewStyle(CircularProgressViewStyle(tint: Color.appBackground))
                                 .frame(width: 14, height: 14)
                         } else {
                             // Google Logo
@@ -50,8 +50,8 @@ struct LoginView: View {
                         }
 
                         Text(isLoading ? "Signing in..." : "Continue with Google")
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundColor(Color(hex: "#0d101a"))
+                            .font(Typography.s13)
+                            .foregroundColor(Color.appBackground)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.horizontal, 32)
@@ -73,14 +73,14 @@ struct LoginView: View {
                     Spacer()
 
                     Text(error)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(Typography.s13)
                         .foregroundColor(.white)
                         .lineSpacing(18 - 13)
                         .multilineTextAlignment(.center)
                         .frame(maxWidth: .infinity)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 16)
-                        .background(Color(hex: "#FF4759"))
+                        .background(Color.error)
                         .cornerRadius(8)
                         .padding(.horizontal, 64)
                         .padding(.bottom, 32)

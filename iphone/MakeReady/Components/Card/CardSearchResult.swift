@@ -59,7 +59,7 @@ struct CardSearchResult: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     highlightedText(title, query: highlightQuery)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Typography.s15Semibold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
@@ -67,20 +67,20 @@ struct CardSearchResult: View {
                         HStack(spacing: 0) {
                             if let timestamp = timestamp {
                                 Text(timestamp)
-                                    .font(.system(size: 13))
+                                    .font(Typography.s13)
                                     .foregroundColor(.white30)
                                     .lineLimit(1)
 
                                 if subtitle != nil {
                                     Text("  ·  ")
-                                        .font(.system(size: 13))
+                                        .font(Typography.s13)
                                         .foregroundColor(.white20)
                                 }
                             }
 
                             if let subtitle = subtitle {
                                 Text(subtitle)
-                                    .font(.system(size: 13))
+                                    .font(Typography.s13)
                                     .foregroundColor(.white50)
                                     .lineLimit(1)
                             }
@@ -92,7 +92,7 @@ struct CardSearchResult: View {
 
                 if showChevron {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Typography.s12Medium)
                         .foregroundColor(.white20)
                 }
             }
@@ -133,7 +133,7 @@ struct CardSearchResult: View {
                 }
 
                 Image(systemName: "play.fill")
-                    .font(.system(size: 14))
+                    .font(Typography.s14)
                     .foregroundColor(.white.opacity(0.9))
             }
             .frame(width: 40, height: 40)
@@ -147,7 +147,7 @@ struct CardSearchResult: View {
             .clipShape(Circle())
         } else {
             Image(systemName: sfSymbol)
-                .font(.system(size: 16))
+                .font(Typography.s16)
                 .foregroundColor(Color.brandPrimary)
                 .frame(width: 40, height: 40)
                 .background(Color.brandPrimary.opacity(0.15))

@@ -91,7 +91,7 @@ struct ActionButton: View {
                 // Label
                 if let label = label {
                     Text(label)
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(labelColor)
                         .tracking(0.1)
                 }
@@ -160,7 +160,7 @@ struct ActionButton: View {
     private var backgroundColor: Color {
         switch variant {
         case .purple, .purpleIcon:
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         case .white, .whiteIcon, .swipeLarge:
             return Color.white.opacity(0.1)
         case .whitePurple:
@@ -173,7 +173,7 @@ struct ActionButton: View {
     private var iconColor: Color {
         switch variant {
         case .whitePurple:
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         case .purple, .purpleIcon, .white, .whiteIcon, .swipeLarge, .circleBlur:
             return Color.white
         }
@@ -182,7 +182,7 @@ struct ActionButton: View {
     private var labelColor: Color {
         switch variant {
         case .whitePurple:
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         case .purple, .purpleIcon, .white, .whiteIcon, .swipeLarge, .circleBlur:
             return Color.white
         }
@@ -197,7 +197,7 @@ struct ActionButton: View {
         VStack(spacing: 20) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Purple variant")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -218,7 +218,7 @@ struct ActionButton: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("White variant")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -239,7 +239,7 @@ struct ActionButton: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Circle blur variant")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 

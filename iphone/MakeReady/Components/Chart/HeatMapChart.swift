@@ -44,9 +44,9 @@ struct HeatMapChart: View {
         self.dataPoints = dataPoints
         self.colorScale = colorScale ?? [
             Color.clear,
-            Color(hex: "#6c47ff").opacity(0.3),
-            Color(hex: "#6c47ff").opacity(0.6),
-            Color(hex: "#6c47ff")
+            Color.brandPrimary.opacity(0.3),
+            Color.brandPrimary.opacity(0.6),
+            Color.brandPrimary
         ]
         self.showDayLabels = showDayLabels
         self.xLabels = xLabels
@@ -72,7 +72,7 @@ struct HeatMapChart: View {
                         AxisValueLabel(verticalSpacing: 8) {
                             if let index = value.as(Int.self), index < xLabels.count {
                                 Text(xLabels[index])
-                                    .font(.system(size: 10, weight: .regular))
+                                    .font(Typography.s10)
                                     .foregroundColor(.white.opacity(0.5))
                             }
                         }
@@ -85,7 +85,7 @@ struct HeatMapChart: View {
                         AxisValueLabel(horizontalSpacing: 8) {
                             if let index = value.as(Int.self), index < yLabels.count {
                                 Text(yLabels[index])
-                                    .font(.system(size: 10, weight: .regular))
+                                    .font(Typography.s10)
                                     .foregroundColor(.white.opacity(0.5))
                             }
                         }
@@ -95,7 +95,7 @@ struct HeatMapChart: View {
                         AxisValueLabel(horizontalSpacing: 8) {
                             if let dayIndex = value.as(Int.self) {
                                 Text(dayLabels[dayIndex])
-                                    .font(.system(size: 10, weight: .regular))
+                                    .font(Typography.s10)
                                     .foregroundColor(.white.opacity(0.5))
                             }
                         }
@@ -124,7 +124,7 @@ struct HeatMapChart: View {
         let t = value / maxValue
         // Continuous opacity from 0.1 to 1.0 based on relative value
         let opacity = 0.1 + (t * 0.9)
-        return Color(hex: "#6c47ff").opacity(opacity)
+        return Color.brandPrimary.opacity(opacity)
     }
 
     private var dayLabels: [String] {
@@ -143,7 +143,7 @@ struct HeatMapChart: View {
             // Example 1: Weekly activity (GitHub-style)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Team Activity (Last 8 Weeks)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -155,7 +155,7 @@ struct HeatMapChart: View {
                 // Legend
                 HStack(spacing: 8) {
                     Text("Less")
-                        .font(.system(size: 11))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.5))
 
                     ForEach(0..<5) { index in
@@ -165,7 +165,7 @@ struct HeatMapChart: View {
                     }
 
                     Text("More")
-                        .font(.system(size: 11))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
@@ -173,7 +173,7 @@ struct HeatMapChart: View {
             // Example 2: Availability grid (different colors)
             VStack(alignment: .leading, spacing: 12) {
                 Text("Availability (Next 4 Weeks)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -192,7 +192,7 @@ struct HeatMapChart: View {
             // Example 3: Compact view without day labels
             VStack(alignment: .leading, spacing: 12) {
                 Text("Task Completion Heatmap")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -265,13 +265,13 @@ private func intensityColor(for level: Int) -> Color {
     case 0:
         return Color.white.opacity(0.05)
     case 1:
-        return Color(hex: "#6c47ff").opacity(0.2)
+        return Color.brandPrimary.opacity(0.2)
     case 2:
-        return Color(hex: "#6c47ff").opacity(0.4)
+        return Color.brandPrimary.opacity(0.4)
     case 3:
-        return Color(hex: "#6c47ff").opacity(0.7)
+        return Color.brandPrimary.opacity(0.7)
     case 4:
-        return Color(hex: "#6c47ff")
+        return Color.brandPrimary
     default:
         return Color.white.opacity(0.05)
     }

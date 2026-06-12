@@ -34,7 +34,7 @@ struct WeekdayIndicator: View {
                 VStack(spacing: 4) {
                     // Day letter
                     Text(day.label)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(enabledDays.contains(day.index) ? .white : .white.opacity(0.3))
                         .frame(width: daySize, height: daySize)
 
@@ -57,19 +57,19 @@ struct WeekdayIndicator: View {
 
         VStack(spacing: 24) {
             Text("Mon-Fri enabled")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
 
             WeekdayIndicator(enabledDays: [1, 2, 3, 4, 5])
 
             Text("All days enabled")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
 
             WeekdayIndicator(enabledDays: [0, 1, 2, 3, 4, 5, 6])
 
             Text("Tue/Thu only")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
 
             WeekdayIndicator(enabledDays: [2, 4])

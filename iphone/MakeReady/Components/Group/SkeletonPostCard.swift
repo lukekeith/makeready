@@ -53,7 +53,7 @@ struct SkeletonPostCard: View {
             VStack(alignment: .leading, spacing: 8) {
                 if let programName = programName {
                     Text("\(programName) starts soon!")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Typography.s15Semibold)
                         .foregroundColor(.white.opacity(0.7))
                 } else {
                     // Generic title placeholder
@@ -117,7 +117,7 @@ struct SkeletonPostCard: View {
             HStack(spacing: 16) {
                 HStack(spacing: 4) {
                     Image(systemName: "eye")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.3))
                     RoundedRectangle(cornerRadius: 4)
                         .fill(shimmerGradient)
@@ -126,7 +126,7 @@ struct SkeletonPostCard: View {
 
                 HStack(spacing: 4) {
                     Image(systemName: "arrowshape.turn.up.right")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.3))
                     RoundedRectangle(cornerRadius: 4)
                         .fill(shimmerGradient)

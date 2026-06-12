@@ -238,7 +238,7 @@ struct LineChart: View {
                             if let selectedValue = selectedValue {
                                 VStack(spacing: 4) {
                                     Text(String(format: "%.1f", selectedValue))
-                                        .font(.system(size: 13, weight: .bold))
+                                        .font(Typography.s13Bold)
                                         .foregroundColor(.white)
                                 }
                                 .padding(8)
@@ -255,7 +255,7 @@ struct LineChart: View {
                     if let date = value.as(Date.self) {
                         AxisValueLabel {
                             Text(timeScale.formatDate(date))
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(Typography.s12Semibold)
                                 .foregroundColor(.white.opacity(0.5))
                         }
                     }
@@ -266,7 +266,7 @@ struct LineChart: View {
                     if let doubleValue = value.as(Double.self) {
                         AxisValueLabel {
                             Text(formatYAxisValue(doubleValue))
-                                .font(.system(size: 11, weight: .regular))
+                                .font(Typography.s11)
                                 .foregroundColor(.white.opacity(0.5))
                         }
                     }
@@ -345,14 +345,14 @@ struct LineChart: View {
             // Example 1: Single line with gradient (matching Figma)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Growth Chart (Gradient)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
                 LineChart(
                     dataPoints: sampleData2023to2025,
                     color: .gradient(
-                        colors: [Color(hex: "#6c47ff"), Color(hex: "#47d4ff")],
+                        colors: [Color.brandPrimary, Color(hex: "#47d4ff")],
                         angle: 90
                     ),
                     lineWidth: 3,
@@ -364,7 +364,7 @@ struct LineChart: View {
             // Example 2: Solid color line
             VStack(alignment: .leading, spacing: 8) {
                 Text("Revenue Chart (Solid)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -380,7 +380,7 @@ struct LineChart: View {
             // Example 3: Multiple trend lines
             VStack(alignment: .leading, spacing: 8) {
                 Text("Multiple Trends")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 

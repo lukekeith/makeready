@@ -796,12 +796,12 @@ private struct EditScheduledReadView: View {
                         if let readContent = activity.readContent, !readContent.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Content")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Typography.s13Semibold)
                                     .foregroundColor(.white.opacity(0.5))
                                     .textCase(.uppercase)
 
                                 Text(readContent)
-                                    .font(.system(size: 15))
+                                    .font(Typography.s15)
                                     .foregroundColor(.white.opacity(0.8))
                                     .padding(16)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -815,12 +815,12 @@ private struct EditScheduledReadView: View {
                         if let passage = activity.passageReference, !passage.isEmpty {
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Passage")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Typography.s13Semibold)
                                     .foregroundColor(.white.opacity(0.5))
                                     .textCase(.uppercase)
 
                                 Text(passage)
-                                    .font(.system(size: 15))
+                                    .font(Typography.s15)
                                     .foregroundColor(.white.opacity(0.8))
                                     .padding(16)
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -911,7 +911,7 @@ private struct EditScheduledUserInputView: View {
 
                             VStack(alignment: .leading, spacing: 8) {
                                 Text("Help description")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Typography.s13Semibold)
                                     .foregroundColor(.white.opacity(0.5))
                                     .textCase(.uppercase)
 

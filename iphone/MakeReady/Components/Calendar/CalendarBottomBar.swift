@@ -19,9 +19,9 @@ struct CalendarBottomBar: View {
             Button(action: onTodayTap) {
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Typography.s14Semibold)
                     Text("Today")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Typography.s14Semibold)
                 }
                 .foregroundColor(.white)
                 .padding(.horizontal, 16)

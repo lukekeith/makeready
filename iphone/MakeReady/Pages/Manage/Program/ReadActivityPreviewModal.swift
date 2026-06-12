@@ -33,7 +33,7 @@ struct ReadActivityPreviewModal: View {
                     isPresented = false
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white)
                         .frame(width: 32, height: 32)
                         .background(Color.white.opacity(0.1))
@@ -44,7 +44,7 @@ struct ReadActivityPreviewModal: View {
                 Spacer()
 
                 Text("Preview")
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Typography.s15Semibold)
                     .foregroundColor(.white.opacity(0.5))
 
                 Spacer()
@@ -54,12 +54,12 @@ struct ReadActivityPreviewModal: View {
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
-            .background(Color(hex: "#0a0a0f"))
+            .background(Color.backgroundDark)
 
             // Preview content
             PreviewWebView(activityId: activityId)
         }
-        .background(Color(hex: "#0a0a0f"))
+        .background(Color.backgroundDark)
     }
 }
 
@@ -76,7 +76,7 @@ struct PreviewWebView: UIViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.isOpaque = false
-        webView.backgroundColor = UIColor(Color(hex: "#0a0a0f"))
+        webView.backgroundColor = UIColor(Color.backgroundDark)
         webView.scrollView.isScrollEnabled = false
         webView.scrollView.backgroundColor = .clear
         webView.scrollView.contentInsetAdjustmentBehavior = .never

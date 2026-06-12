@@ -90,15 +90,15 @@ struct GroupInvitePage: View {
             Spacer()
 
             Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
+                .font(Typography.s40)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("Failed to load invite")
-                .font(.system(size: 17, weight: .semibold))
+                .font(Typography.s17Semibold)
                 .foregroundColor(.white)
 
             Text(message)
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 
@@ -149,7 +149,7 @@ struct GroupInvitePage: View {
                 HStack {
                     // Code text
                     Text(data.code)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(Typography.s24Bold)
                         .foregroundColor(.white)
                         .tracking(2)
 
@@ -160,27 +160,27 @@ struct GroupInvitePage: View {
                         copyToClipboard(data.code)
                     } label: {
                         Image(systemName: "doc.on.doc")
-                            .font(.system(size: 18))
-                            .foregroundColor(Color(hex: "#6c47ff"))
+                            .font(Typography.s18)
+                            .foregroundColor(Color.brandPrimary)
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(16)
-                .background(Color(hex: "#6c47ff").opacity(0.1))
+                .background(Color.brandPrimary.opacity(0.1))
                 .cornerRadius(8)
 
                 // Instructions
                 HStack(spacing: 4) {
                     Text("Use this code at")
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.5))
 
                     Button {
                         openJoinPage()
                     } label: {
                         Text("app.makeready.org/join/group")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(hex: "#6c47ff"))
+                            .font(Typography.s13Medium)
+                            .foregroundColor(Color.brandPrimary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -188,7 +188,7 @@ struct GroupInvitePage: View {
             .padding(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(hex: "#6c47ff").opacity(0.2), lineWidth: 2)
+                    .stroke(Color.brandPrimary.opacity(0.2), lineWidth: 2)
             )
         }
     }
@@ -217,7 +217,7 @@ struct GroupInvitePage: View {
 
             // Scan instruction
             Text("Scan to join \(data.groupName)")
-                .font(.system(size: 14))
+                .font(Typography.s14)
                 .foregroundColor(.white.opacity(0.5))
         }
     }
@@ -268,11 +268,11 @@ struct GroupInvitePage: View {
             Spacer()
             if showCopiedToast {
                 Text("Copied to clipboard")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Typography.s14Medium)
                     .foregroundColor(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color(hex: "#6c47ff"))
+                    .background(Color.brandPrimary)
                     .cornerRadius(8)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 32)
@@ -432,7 +432,7 @@ private struct GroupInvitePagePreview: View {
             VStack(spacing: 16) {
                 HStack {
                     Text(mockData.code)
-                        .font(.system(size: 24, weight: .bold))
+                        .font(Typography.s24Bold)
                         .foregroundColor(.white)
                         .tracking(2)
 
@@ -445,29 +445,29 @@ private struct GroupInvitePagePreview: View {
                         }
                     } label: {
                         Image(systemName: "doc.on.doc")
-                            .font(.system(size: 18))
-                            .foregroundColor(Color(hex: "#6c47ff"))
+                            .font(Typography.s18)
+                            .foregroundColor(Color.brandPrimary)
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(16)
-                .background(Color(hex: "#6c47ff").opacity(0.1))
+                .background(Color.brandPrimary.opacity(0.1))
                 .cornerRadius(8)
 
                 HStack(spacing: 4) {
                     Text("Use this code at")
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.5))
 
                     Text("app.makeready.org/join/group")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(hex: "#6c47ff"))
+                        .font(Typography.s13Medium)
+                        .foregroundColor(Color.brandPrimary)
                 }
             }
             .padding(16)
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
-                    .stroke(Color(hex: "#6c47ff").opacity(0.2), lineWidth: 2)
+                    .stroke(Color.brandPrimary.opacity(0.2), lineWidth: 2)
             )
         }
     }
@@ -481,12 +481,12 @@ private struct GroupInvitePagePreview: View {
 
                 // Placeholder QR code pattern for preview
                 Image(systemName: "qrcode")
-                    .font(.system(size: 180))
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .font(Typography.s180)
+                    .foregroundColor(Color.brandPrimary)
             }
 
             Text("Scan to join \(mockData.groupName)")
-                .font(.system(size: 14))
+                .font(Typography.s14)
                 .foregroundColor(.white.opacity(0.5))
         }
     }
@@ -535,11 +535,11 @@ private struct GroupInvitePagePreview: View {
             Spacer()
             if showCopiedToast {
                 Text("Copied to clipboard")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Typography.s14Medium)
                     .foregroundColor(.white)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
-                    .background(Color(hex: "#6c47ff"))
+                    .background(Color.brandPrimary)
                     .cornerRadius(8)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 32)

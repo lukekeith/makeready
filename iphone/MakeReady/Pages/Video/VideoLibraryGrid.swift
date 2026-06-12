@@ -437,8 +437,8 @@ struct VideoLibraryGrid: View {
                     HStack {
                         Spacer()
                         Text(currentDateLabel)
-                            .font(.system(size: 15))
-                            .foregroundColor(Color(hex: "#0d101a"))
+                            .font(Typography.s15)
+                            .foregroundColor(Color.appBackground)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 4)
                             .background(Color.white)

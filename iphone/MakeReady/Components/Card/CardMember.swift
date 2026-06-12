@@ -31,7 +31,7 @@ struct CardMember<TrailingContent: View>: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Name
                     Text(data.fullName)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
@@ -50,8 +50,8 @@ struct CardMember<TrailingContent: View>: View {
                         HStack(spacing: 8) {
                             ForEach(data.groups, id: \.self) { group in
                                 Text(group)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(Color(hex: "#6c47ff"))
+                                    .font(Typography.s13Medium)
+                                    .foregroundColor(Color.brandPrimary)
                             }
                         }
                         .padding(.top, 1)
@@ -102,11 +102,11 @@ struct CardMember<TrailingContent: View>: View {
 
     private var initialsView: some View {
         Circle()
-            .fill(Color(hex: "#6c47ff"))
+            .fill(Color.brandPrimary)
             .frame(width: 40, height: 40)
             .overlay(
                 Text(initials)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Typography.s16Bold)
                     .foregroundColor(.white)
             )
     }
@@ -137,7 +137,7 @@ extension CardMember where TrailingContent == EmptyView {
 
         VStack(spacing: 12) {
             Text("Member Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)

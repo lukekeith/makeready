@@ -30,7 +30,9 @@
 | 3.10 — Cleanup sweep | ✅ **Done — build green, sheets/pickers device-verified post-NavigationStack.** Deleted ContentView/ModalOverlay/BackgroundPickerModal/InlineColorPalette + BlockStyleEditor dead grid. 2 forbidden fullScreenCovers stay (Decision Point B). **Phase 3 (3.1–3.10) is COMPLETE.** | `488afcd` |
 | 5.1 — SwiftLint gate | 🟡 **Code complete, AWAITING USER BUILD** (the new Xcode phase must run once under ENABLE_USER_SCRIPT_SANDBOXING=YES; it degrades to a warning on tooling failure, fails only on real new violations). 2,449 existing violations baselined — the 5.3/5.4 migration backlog, frozen. | `4074c1a` |
 | 5.2 — os.Logger wrappers | 🟡 Same build gate. `Log.<domain>` (auth/state/nav/media/api/push/ui/bible); NSLog migration is opportunistic. | `443b975` |
-| 5.3–5.5, 5.7 — token migrations, fixtures, model splits | ⬜ Not started (mechanical; baseline counts: 1023 font sizes, 424 hexes, fixtures, splits) | — |
+| 5.3 — Color token consolidation | 🟡 Code complete, same build gate. 278 sites → existing Colors.swift tokens (exact-value match only). **Cataloged, unchanged (no matching token — needs a design pass):** 146 sites / 49 distinct hexes, top: #47d4ff×16, #ff4444×10, #ff6b9d×9, #ffd93d×7, #ef4444×6, #4ade80×6, #3b82f6×5, #dc2626×5, #ffaa00×5, #7c7cff×5, #485470×4, #234d2e×4. | (with 5.4 commit) |
+| 5.4 — Typography tokens | 🟡 Code complete, same build gate. Generated `Typography.swift` (61 tokens, systematic size+weight names at current fixed sizes); 999 literal sites migrated; 24 dynamic-form sites (computed sizes / conditional weights) stay baselined. Formatters (54) deferred — need per-file static+`Self.` surgery, not regex-safe. Baseline: 2,449 → 1,172. CLAUDE.md teaches tokens now. | — |
+| 5.5, 5.7 — fixtures behind #if DEBUG, model splits | ⬜ Not started | — |
 | 5.6 — `/ios-error-surface` skill | ⬜ Blocked on Decision Point A (error toast UI) | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 

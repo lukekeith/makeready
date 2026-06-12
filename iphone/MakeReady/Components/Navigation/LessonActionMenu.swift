@@ -27,11 +27,11 @@ struct LessonActionMenu: View {
             // Header with lesson info
             VStack(spacing: 4) {
                 Text(studyName)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 Text("Day \(schedule.lesson.dayNumber) - \(formattedDate)")
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.5))
             }
             .padding(.vertical, 16)
@@ -106,7 +106,7 @@ struct LessonActionMenu: View {
                 dismissMenu()
             }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(Typography.s20Medium)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)
@@ -141,7 +141,7 @@ struct LessonActionMenuItem: View {
     private var iconColor: Color {
         switch style {
         case .normal:
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         case .destructive:
             return Color(hex: "#ff4444")
         }
@@ -161,13 +161,13 @@ struct LessonActionMenuItem: View {
             HStack(spacing: 16) {
                 // Icon
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .regular))
+                    .font(Typography.s18)
                     .foregroundColor(iconColor)
                     .frame(width: 24, height: 24)
 
                 // Title
                 Text(title)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(textColor)
 
                 Spacer()
@@ -213,7 +213,7 @@ struct LessonActionMenuItem: View {
                 onAddLesson: { print("Add Lesson") },
                 onDelete: { print("Delete") }
             )
-            .background(Color(hex: "#252936"))
+            .background(Color.cardBackground)
             .clipShape(RoundedCornersShape(corners: [.topLeft, .topRight], radius: 16))
         }
     }

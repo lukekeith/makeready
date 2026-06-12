@@ -513,7 +513,7 @@ struct EditReadActivityPage: View {
                         CardActivityType(
                             title: "Bible verse",
                             description: "Add a passage from the Bible.",
-                            image: .icon(systemName: "book.fill", backgroundColor: Color(hex: "#6c47ff")),
+                            image: .icon(systemName: "book.fill", backgroundColor: Color.brandPrimary),
                             mode: .list,
                             onTap: {
                                 dismissSourceMenu {
@@ -524,7 +524,7 @@ struct EditReadActivityPage: View {
                         CardActivityType(
                             title: "Custom text",
                             description: "Add a rich text block you can write in.",
-                            image: .icon(systemName: "text.alignleft", backgroundColor: Color(hex: "#6c47ff")),
+                            image: .icon(systemName: "text.alignleft", backgroundColor: Color.brandPrimary),
                             mode: .list,
                             onTap: {
                                 dismissSourceMenu {
@@ -540,7 +540,7 @@ struct EditReadActivityPage: View {
                         dismissSourceMenu()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .medium))
+                            .font(Typography.s15Medium)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 32)
@@ -548,7 +548,7 @@ struct EditReadActivityPage: View {
                     .padding(.horizontal, 16)
                 }
                 .frame(maxWidth: .infinity)
-                .background(Color(hex: "#252936"))
+                .background(Color.cardBackground)
                 .clipShape(RoundedCornersShape(corners: [.topLeft, .topRight], radius: 16))
                 .offset(y: sourceMenuOffset)
             }
@@ -561,7 +561,7 @@ struct EditReadActivityPage: View {
 
                 setTitlesModalContent
                     .frame(maxWidth: .infinity)
-                    .background(Color(hex: "#252936"))
+                    .background(Color.cardBackground)
                     .clipShape(RoundedCornersShape(corners: [.topLeft, .topRight], radius: 16))
                     .offset(y: setTitlesModalOffset)
             }
@@ -685,7 +685,7 @@ struct EditReadActivityPage: View {
                 if let blockTitle = block.title, !blockTitle.isEmpty {
                     HStack(spacing: 16) {
                         Text(blockTitle)
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(Typography.s14Semibold)
                             .foregroundColor(.white.opacity(0.7))
                         Spacer()
                         // Reserve space where the externally-overlaid highlighter
@@ -695,7 +695,7 @@ struct EditReadActivityPage: View {
                             Color.clear.frame(width: 24, height: 24)
                         }
                         Image(systemName: isCollapsed ? "chevron.down" : "chevron.up")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(Typography.s12Semibold)
                             .foregroundColor(.white.opacity(0.3))
                     }
                     if !isCollapsed {
@@ -723,12 +723,12 @@ struct EditReadActivityPage: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(hex: "#252936"))
+            .background(Color.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(
-                        isHighlighting ? Color(hex: "#6c47ff").opacity(0.8) : Color.white.opacity(0.08),
+                        isHighlighting ? Color.brandPrimary.opacity(0.8) : Color.white.opacity(0.08),
                         lineWidth: isHighlighting ? 2 : 1
                     )
             )
@@ -749,8 +749,8 @@ struct EditReadActivityPage: View {
                     }
                 } label: {
                     Image(systemName: "highlighter")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(isHighlighting ? Color(hex: "#6c47ff") : .white.opacity(0.5))
+                        .font(Typography.s14Semibold)
+                        .foregroundColor(isHighlighting ? Color.brandPrimary : .white.opacity(0.5))
                         .frame(width: 24, height: 24)
                         .contentShape(Rectangle())
                 }
@@ -781,7 +781,7 @@ struct EditReadActivityPage: View {
                 blockToDelete = block
             } label: {
                 Image(systemName: "trash")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.6))
                     .frame(width: 28, height: 28)
                     .background(Color.white.opacity(0.08))
@@ -873,11 +873,11 @@ struct EditReadActivityPage: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 Text("Set titles?")
-                    .font(.system(size: 22, weight: .bold))
+                    .font(Typography.s22Bold)
                     .foregroundColor(.white)
 
                 Text("Select which of the titles below you would like to change or proceed without updating the title. You can update the activity and lesson title at any time.")
-                    .font(.system(size: 14))
+                    .font(Typography.s14)
                     .foregroundColor(.white.opacity(0.6))
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -930,17 +930,17 @@ struct EditReadActivityPage: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .center, spacing: 8) {
                 Text(label)
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white)
                 Spacer()
                 CustomToggle(isOn: isOn)
             }
             Text(currentTitle)
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.85))
                 .lineLimit(2)
             Text(description)
-                .font(.system(size: 13))
+                .font(Typography.s13)
                 .foregroundColor(.white.opacity(0.5))
                 .fixedSize(horizontal: false, vertical: true)
         }

@@ -21,14 +21,14 @@ struct LessonActivity: View {
         HStack(spacing: 8) {
             // Left section: Icon
             Image(systemName: data.icon)
-                .font(.system(size: 14, weight: .regular))
+                .font(Typography.s14)
                 .foregroundColor(.white)
                 .frame(width: 14, height: 14)
 
             // Middle section: Optional type label
             if style != .single, let type = data.type {
                 Text(type)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(Typography.s12Bold)
                     .foregroundColor(.white.opacity(0.5))
                     .tracking(0.1)
             }
@@ -36,14 +36,14 @@ struct LessonActivity: View {
             // Right section: Title
             if style == .select {
                 Text(data.label ?? data.title)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .font(Typography.s12)
+                    .foregroundColor(Color.brandPrimary)
                     .tracking(0.1)
                     .lineLimit(1)
                     .truncationMode(.tail)
             } else {
                 Text(data.title)
-                    .font(.system(size: 12, weight: .bold))
+                    .font(Typography.s12Bold)
                     .foregroundColor(.white)
                     .tracking(0.1)
                     .lineLimit(1)

@@ -40,7 +40,7 @@ struct RichTextInput: View {
             ZStack(alignment: .topLeading) {
                 if attributedText.characters.isEmpty {
                     Text(placeholder)
-                        .font(.system(size: 17))
+                        .font(Typography.s17)
                         .foregroundColor(.white.opacity(0.35))
                         .padding(.top, 12)
                         .padding(.leading, 12)
@@ -53,13 +53,13 @@ struct RichTextInput: View {
                     .scrollDisabled(autoGrow)
                     .fixedSize(horizontal: false, vertical: autoGrow)
                     .scrollContentBackground(.hidden)
-                    .tint(Color(hex: "#6c47ff"))
-                    .font(.system(size: 17))
+                    .tint(Color.brandPrimary)
+                    .font(Typography.s17)
                     .foregroundStyle(.white)
             }
-            .background(Color(hex: "#0a0a0f"))
+            .background(Color.backgroundDark)
         }
-        .background(Color(hex: "#0a0a0f"))
+        .background(Color.backgroundDark)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(borderOverlay)
         .onAppear {
@@ -275,7 +275,7 @@ private struct RichTextToolbar: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 44)
-        .background(Color(hex: "#252936"))
+        .background(Color.cardBackground)
     }
 
     // MARK: - Format Group (Bold, Italic, Underline)
@@ -350,14 +350,14 @@ private struct RichTextToolbar: View {
     private var headingMenuLabel: some View {
         HStack(spacing: 4) {
             Image(systemName: "textformat.size")
-                .font(.system(size: 14, weight: .medium))
+                .font(Typography.s14Medium)
             Image(systemName: "chevron.down")
-                .font(.system(size: 8, weight: .bold))
+                .font(Typography.s8Bold)
         }
-        .foregroundColor(isHeadingActive ? Color(hex: "#6c47ff") : .white.opacity(0.5))
+        .foregroundColor(isHeadingActive ? Color.brandPrimary : .white.opacity(0.5))
         .frame(height: 32)
         .padding(.horizontal, 8)
-        .background(isHeadingActive ? Color(hex: "#6c47ff").opacity(0.15) : Color.clear)
+        .background(isHeadingActive ? Color.brandPrimary.opacity(0.15) : Color.clear)
         .cornerRadius(6)
     }
 
@@ -387,10 +387,10 @@ private struct RichTextToolbar: View {
     private func toolbarButton(icon: String, isActive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(isActive ? Color(hex: "#6c47ff") : .white.opacity(0.5))
+                .font(Typography.s15Medium)
+                .foregroundColor(isActive ? Color.brandPrimary : .white.opacity(0.5))
                 .frame(width: 32, height: 32)
-                .background(isActive ? Color(hex: "#6c47ff").opacity(0.15) : Color.clear)
+                .background(isActive ? Color.brandPrimary.opacity(0.15) : Color.clear)
                 .cornerRadius(6)
         }
         .buttonStyle(.plain)
@@ -413,7 +413,7 @@ private struct RichTextToolbar: View {
 
         VStack(spacing: 20) {
             Text("Rich Text Input")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)

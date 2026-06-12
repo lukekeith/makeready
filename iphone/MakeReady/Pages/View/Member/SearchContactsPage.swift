@@ -52,7 +52,7 @@ struct SearchContactsPage: View {
             Button(action: { dismiss() }) {
                 HStack(spacing: 4) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 20))
+                        .font(Typography.s20)
                         .foregroundColor(.white)
                 }
                 .frame(width: 40, height: 40)
@@ -63,7 +63,7 @@ struct SearchContactsPage: View {
 
             // Title
             Text("Invite contacts")
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
 
             Spacer()
@@ -71,7 +71,7 @@ struct SearchContactsPage: View {
             // Done button
             Button(action: { dismiss() }) {
                 Text("Done")
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(.brandPrimary)
             }
             .frame(width: 60, height: 40)
@@ -135,18 +135,18 @@ private struct SearchContactsPagePreview: View {
         HStack(spacing: 0) {
             Button(action: { dismiss() }) {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 20))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
             Spacer()
             Text("Invite contacts")
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
             Spacer()
             Button(action: { dismiss() }) {
                 Text("Done")
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(.brandPrimary)
             }
             .frame(width: 60, height: 40)

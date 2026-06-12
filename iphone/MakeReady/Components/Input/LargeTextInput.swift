@@ -36,7 +36,7 @@ struct LargeTextInput: View {
         VStack(alignment: .leading, spacing: 8) {
             // Label
             Text(label)
-                .font(.system(size: 12, weight: .regular))
+                .font(Typography.s12)
                 .foregroundColor(.white.opacity(isFocused ? 0.7 : 0.5))
                 .tracking(0.1)
 
@@ -45,17 +45,17 @@ struct LargeTextInput: View {
                 // Left icon (for currency)
                 if inputType == .currency, let icon = inputType.icon {
                     Image(systemName: icon)
-                        .font(.system(size: 20, weight: .regular))
+                        .font(Typography.s20)
                         .foregroundColor(.white)
                         .frame(width: 60, height: 32, alignment: .leading)
                 }
 
                 // Text field
                 TextField("", text: $displayText)
-                    .font(.system(size: 28, weight: .regular))
+                    .font(Typography.s28)
                     .foregroundColor(.white)
                     .tracking(-0.15)
-                    .accentColor(Color(hex: "#6c47ff"))
+                    .accentColor(Color.brandPrimary)
                     .keyboardType(inputType.keyboardType)
                     .autocapitalization(.none)
                     .disableAutocorrection(true)
@@ -74,7 +74,7 @@ struct LargeTextInput: View {
                 // Right icon (for percentage, email, phone - if not currency)
                 if inputType != .currency, let icon = inputType.icon {
                     Image(systemName: icon)
-                        .font(.system(size: 20, weight: .regular))
+                        .font(Typography.s20)
                         .foregroundColor(.white)
                         .frame(width: 60, height: 32, alignment: .trailing)
                 }
@@ -88,8 +88,8 @@ struct LargeTextInput: View {
             // Error message
             if let error = validationError {
                 Text(error)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(Color(hex: "#FF4759"))
+                    .font(Typography.s12)
+                    .foregroundColor(Color.error)
                     .transition(.opacity)
             }
         }
@@ -106,9 +106,9 @@ struct LargeTextInput: View {
     // Border color based on focus and error state
     private var borderColor: Color {
         if validationError != nil {
-            return Color(hex: "#FF4759") // Error red
+            return Color.error // Error red
         } else if isFocused {
-            return Color(hex: "#6c47ff") // Focused purple
+            return Color.brandPrimary // Focused purple
         } else {
             return Color.white.opacity(0.2) // Default
         }
@@ -150,7 +150,7 @@ struct LargeTextInput: View {
         ScrollView {
             VStack(spacing: 32) {
                 Text("Large Text Input with Data Types")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
@@ -158,7 +158,7 @@ struct LargeTextInput: View {
                 // Alphanumeric
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Alphanumeric")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -169,7 +169,7 @@ struct LargeTextInput: View {
                 // Phone
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Phone")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -180,7 +180,7 @@ struct LargeTextInput: View {
                 // Integer
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Integer")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -191,7 +191,7 @@ struct LargeTextInput: View {
                 // Float
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Float")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -202,7 +202,7 @@ struct LargeTextInput: View {
                 // Currency
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Currency")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -213,7 +213,7 @@ struct LargeTextInput: View {
                 // Email
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Email")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -224,7 +224,7 @@ struct LargeTextInput: View {
                 // Percentage
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Percentage")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 

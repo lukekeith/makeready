@@ -23,7 +23,7 @@ struct CardEventMini: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // Title (12pt with 0.1px tracking, max 32px height)
                     Text(data.title)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(Typography.s12Bold)
                         .foregroundColor(.white)
                         .lineLimit(2)
                         .frame(maxHeight: 32, alignment: .topLeading)
@@ -75,7 +75,7 @@ struct CardEventMini: View {
             .frame(width: 120, height: 114)
             .overlay(
                 Image(systemName: "calendar")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
             .cornerRadius(8)
@@ -86,7 +86,7 @@ struct CardEventMini: View {
             .frame(width: 120, height: 114)
             .overlay(
                 Image(systemName: systemName)
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
             .cornerRadius(8)
@@ -95,13 +95,13 @@ struct CardEventMini: View {
     private func dateDisplayView(day: Int, month: String) -> some View {
         VStack(spacing: 4) {
             Text("\(day)")
-                .font(.system(size: 28, weight: .regular))
+                .font(Typography.s28)
                 .foregroundColor(.white)
                 .tracking(-0.15)
 
             Text(month.uppercased())
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .font(Typography.s15Bold)
+                .foregroundColor(Color.brandPrimary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "#485470").opacity(0.5))
@@ -111,13 +111,13 @@ struct CardEventMini: View {
     private func timeDisplayView(time: String, period: String) -> some View {
         VStack(spacing: 4) {
             Text(time)
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white)
                 .tracking(-0.15)
 
             Text(period.uppercased())
-                .font(.system(size: 15, weight: .bold))
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .font(Typography.s15Bold)
+                .foregroundColor(Color.brandPrimary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "#485470").opacity(0.5))

@@ -26,7 +26,7 @@ struct TeleprompterOverlay: View {
                 // Scrolling text
                 ScrollView(.vertical, showsIndicators: false) {
                     Text(text)
-                        .font(.system(size: 24, weight: .medium))
+                        .font(Typography.s24Medium)
                         .foregroundColor(.white)
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)

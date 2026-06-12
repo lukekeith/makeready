@@ -63,7 +63,7 @@ struct BlockStyleEditor: View {
             // Block title (optional)
             if let blockTitle, !blockTitle.isEmpty {
                 Text(blockTitle)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.5))
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -92,7 +92,7 @@ struct BlockStyleEditor: View {
             )
         }
         .padding(16)
-        .background(Color(hex: "#252936"))
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .fullScreenCover(isPresented: $showPhotoPicker) {
             PHPickerViewControllerWrapper(selectedImage: $pickedImage)
@@ -192,7 +192,7 @@ struct BlockStyleEditor: View {
                         }
                     } else if !isUploading {
                         Image(systemName: "photo.on.rectangle")
-                            .font(.system(size: 22, weight: .regular))
+                            .font(Typography.s22)
                             .foregroundColor(.white.opacity(0.3))
                     }
 
@@ -348,7 +348,7 @@ private struct BlockStyleColorPickerContent: View {
             // Opacity slider
             HStack(spacing: 12) {
                 Image(systemName: "circle.lefthalf.filled")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Typography.s14Semibold)
                     .foregroundColor(.white.opacity(selectedColor != nil ? 0.7 : 0.3))
 
                 GeometryReader { geo in
@@ -388,7 +388,7 @@ private struct BlockStyleColorPickerContent: View {
                 .frame(height: 28)
 
                 Text("\(Int(round(localOpacity * 100)))%")
-                    .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                    .font(Typography.s13Semibold.monospacedDigit())
                     .foregroundColor(.white.opacity(selectedColor != nil ? 0.85 : 0.3))
                     .frame(width: 40, alignment: .trailing)
             }
@@ -399,9 +399,9 @@ private struct BlockStyleColorPickerContent: View {
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "xmark.circle")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Typography.s12Semibold)
                     Text("Clear")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                 }
                 .foregroundColor(.white.opacity(selectedColor != nil ? 0.5 : 0.2))
             }

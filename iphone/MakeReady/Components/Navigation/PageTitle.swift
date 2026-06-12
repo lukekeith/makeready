@@ -111,7 +111,7 @@ struct PageTitle: View {
                             dismissKeyboardAndRun(onLeftIconTap)
                         }) {
                             Image(systemName: leftIcon)
-                                .font(.system(size: 17, weight: .regular))
+                                .font(Typography.s17)
                                 .foregroundColor(.white)
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
@@ -122,8 +122,8 @@ struct PageTitle: View {
                             dismissKeyboardAndRun(onLeftLinkTap)
                         }) {
                             Text(leftLink)
-                                .font(.system(size: 17, weight: .regular))
-                                .foregroundColor(Color(hex: "#6c47ff"))
+                                .font(Typography.s17)
+                                .foregroundColor(Color.brandPrimary)
                                 .frame(height: 44)
                                 .padding(.horizontal, 8)
                                 .contentShape(Rectangle())
@@ -142,7 +142,7 @@ struct PageTitle: View {
                                     dismissKeyboardAndRun(iconAction.action)
                                 }) {
                                     Image(systemName: iconAction.icon)
-                                        .font(.system(size: 17, weight: .regular))
+                                        .font(Typography.s17)
                                         .foregroundColor(.white)
                                         .frame(width: 44, height: 44)
                                         .overlay(alignment: .topTrailing) {
@@ -166,8 +166,8 @@ struct PageTitle: View {
                             dismissKeyboardAndRun(onRightLinkTap)
                         }) {
                             Text(rightLink)
-                                .font(.system(size: 17, weight: .regular))
-                                .foregroundColor(rightLinkDisabled ? Color(hex: "#6c47ff").opacity(0.3) : Color(hex: "#6c47ff"))
+                                .font(Typography.s17)
+                                .foregroundColor(rightLinkDisabled ? Color.brandPrimary.opacity(0.3) : Color.brandPrimary)
                                 .frame(height: 44)
                                 .padding(.horizontal, 8)
                                 .contentShape(Rectangle())
@@ -179,7 +179,7 @@ struct PageTitle: View {
                             dismissKeyboardAndRun(onRightIconTap)
                         }) {
                             Image(systemName: rightIcon)
-                                .font(.system(size: 17, weight: .regular))
+                                .font(Typography.s17)
                                 .foregroundColor(.white)
                                 .frame(width: 44, height: 44)
                                 .contentShape(Rectangle())
@@ -192,7 +192,7 @@ struct PageTitle: View {
                 if let title = title {
                     HStack(spacing: 8) {
                         Text(title)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(Typography.s17Bold)
                             .foregroundColor(.white)
 
                         // Dropdown chevron (if enabled)
@@ -201,7 +201,7 @@ struct PageTitle: View {
                                 dismissKeyboardAndRun(onDropdownTap)
                             }) {
                                 Image(systemName: "chevron.down")
-                                    .font(.system(size: 14, weight: .regular))
+                                    .font(Typography.s14)
                                     .foregroundColor(.white)
                             }
                         }
@@ -417,11 +417,11 @@ private struct BackLinkPageTitle: View {
                     }) {
                         HStack(spacing: 4) {
                             Image(systemName: "chevron.left")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Typography.s14Semibold)
                             Text(backText)
-                                .font(.system(size: 17, weight: .regular))
+                                .font(Typography.s17)
                         }
-                        .foregroundColor(Color(hex: "#6c47ff"))
+                        .foregroundColor(Color.brandPrimary)
                     }
                     .padding(.leading, 8)
 
@@ -430,7 +430,7 @@ private struct BackLinkPageTitle: View {
 
                 // Center: title
                 Text(title)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
             }
             .frame(height: 56)

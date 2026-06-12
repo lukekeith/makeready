@@ -176,7 +176,7 @@ struct YearSelector: View {
                                     }
                                 }) {
                                     Text(verbatim: String(year))
-                                        .font(.system(size: 17, weight: .regular))
+                                        .font(Typography.s17)
                                         .foregroundColor(year == selectedYear ? .white : .white.opacity(0.3))
                                 }
                                 .id(year)
@@ -212,7 +212,7 @@ struct YearSelector: View {
             // Today button on the right
             Button(action: jumpToToday) {
                 Text("Today")
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white.opacity(0.3))
             }
             .padding(.trailing, 16)
@@ -241,8 +241,8 @@ struct MonthSelector: View {
                             }
                         }) {
                             Text(monthNames[month - 1])
-                                .font(.system(size: 28, weight: .regular))
-                                .foregroundColor(month == selectedMonth ? Color(hex: "#6c47ff") : .white.opacity(0.3))
+                                .font(Typography.s28)
+                                .foregroundColor(month == selectedMonth ? Color.brandPrimary : .white.opacity(0.3))
                         }
                         .id(month)
                     }
@@ -275,7 +275,7 @@ struct CalendarGrid: View {
             HStack(spacing: 0) {
                 ForEach(daysOfWeek, id: \.self) { day in
                     Text(day)
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(.white.opacity(0.5))
                         .frame(maxWidth: .infinity)
                 }
@@ -292,7 +292,7 @@ struct CalendarGrid: View {
                                 .frame(width: 40, height: 40)
                         }
                         Text("\(day.day)")
-                            .font(.system(size: 12, weight: .regular))
+                            .font(Typography.s12)
                             .foregroundColor(day.isCurrentMonth ? .white : .white.opacity(0.5))
                     }
                     .frame(maxWidth: .infinity)

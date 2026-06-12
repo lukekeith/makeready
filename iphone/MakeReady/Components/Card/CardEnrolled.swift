@@ -29,18 +29,18 @@ struct CardEnrolled: View {
                 VStack(alignment: .leading, spacing: 16) {
                     // Study title
                     Text(data.studyTitle)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
                     // Date range + lessons left
                     HStack(spacing: 4) {
                         Image(systemName: "calendar")
-                            .font(.system(size: 14))
+                            .font(Typography.s14)
                             .foregroundColor(.white.opacity(0.7))
 
                         Text(dateRangeText)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.7))
 
                         if let lessonsLeft = data.lessonsLeft {
@@ -49,8 +49,8 @@ struct CardEnrolled: View {
                                 .frame(width: 3, height: 3)
 
                             let suffix = lessonsLeft == 1 ? "lesson" : "lessons"
-                            Text("\(Text("\(lessonsLeft)").font(.system(size: 13, weight: .bold)).foregroundColor(.white)) \(suffix) left")
-                                .font(.system(size: 13, weight: .regular))
+                            Text("\(Text("\(lessonsLeft)").font(Typography.s13Bold).foregroundColor(.white)) \(suffix) left")
+                                .font(Typography.s13)
                                 .foregroundColor(.white.opacity(0.7))
                         }
                     }
@@ -58,7 +58,7 @@ struct CardEnrolled: View {
 
                     // Group name
                     Text(data.groupName)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
                 }
@@ -136,7 +136,7 @@ struct CardEnrolled: View {
         Color.iconContainerBackground
             .overlay(
                 Image(systemName: systemName)
-                    .font(.system(size: 16, weight: .regular))
+                    .font(Typography.s16)
                     .foregroundColor(.white)
             )
     }
@@ -151,7 +151,7 @@ struct CardEnrolled: View {
 
         VStack(spacing: 12) {
             Text("Enrolled Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)

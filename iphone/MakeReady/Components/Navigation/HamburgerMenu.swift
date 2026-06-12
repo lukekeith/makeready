@@ -75,7 +75,7 @@ struct HamburgerMenu: View {
                 dismissMenu()
             }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)
@@ -112,14 +112,14 @@ struct HamburgerMenuItem: View {
             HStack(spacing: 16) {
                 // Title
                 Text(title)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 Spacer()
 
                 // Icon on the right
                 Image(systemName: icon)
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Typography.s20)
                     .foregroundColor(Color(hex: "#7c7cff"))
                     .frame(width: 32, height: 32)
             }

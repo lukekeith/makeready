@@ -24,14 +24,14 @@ struct CardVideoMini: View {
                     // Category/Description (above title)
                     if let description = data.description {
                         Text(description)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(Typography.s13)
                             .foregroundColor(Color.white.opacity(0.7))
                             .lineLimit(1)
                     }
 
                     // Title (12pt with 0.1px tracking, max 32px height)
                     Text(data.title)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(Typography.s12Bold)
                         .foregroundColor(.white)
                         .lineLimit(2)
                         .frame(maxHeight: 32, alignment: .topLeading)
@@ -100,7 +100,7 @@ struct CardVideoMini: View {
         Color.iconContainerBackground
             .overlay(
                 Image(systemName: "play.circle.fill")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
             .cornerRadius(8)
@@ -110,7 +110,7 @@ struct CardVideoMini: View {
         Color.iconContainerBackground
             .overlay(
                 Image(systemName: systemName)
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
             .cornerRadius(8)

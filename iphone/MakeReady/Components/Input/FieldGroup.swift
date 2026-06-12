@@ -48,7 +48,7 @@ struct FieldGroupDescription: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 13, weight: .regular))
+            .font(Typography.s13)
             .foregroundColor(.white.opacity(0.7))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)

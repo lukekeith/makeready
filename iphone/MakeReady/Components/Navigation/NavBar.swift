@@ -103,7 +103,7 @@ struct NavBar: View {
         .padding(.bottom, 48)
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial)
-        .background(Color(hex: "#0D101A").opacity(0.5))
+        .background(Color.appBackground.opacity(0.5))
         .clipped()
         .ignoresSafeArea(edges: .bottom)
     }
@@ -132,7 +132,7 @@ struct NavBarButton: View {
                     .foregroundColor(iconColor)
 
                 Text(label)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(Typography.s10Medium)
                     .foregroundColor(iconColor)
             }
         }
@@ -168,7 +168,7 @@ struct NavBarAvatarButton: View {
                 )
 
                 Text(label)
-                    .font(.system(size: 10, weight: .medium))
+                    .font(Typography.s10Medium)
                     .foregroundColor(labelColor)
             }
         }
@@ -192,5 +192,5 @@ struct NavBarAvatarButton: View {
             onProfileTap: { print("Profile") }
         )
     }
-    .background(Color(hex: "#0d101a"))
+    .background(Color.appBackground)
 }

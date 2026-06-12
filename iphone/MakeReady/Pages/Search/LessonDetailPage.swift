@@ -52,10 +52,10 @@ struct SearchLessonDetail: View {
                 Color.appBackground.ignoresSafeArea()
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 36))
+                        .font(Typography.s36)
                         .foregroundColor(.white20)
                     Text("Lesson not found")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white50)
                 }
             }

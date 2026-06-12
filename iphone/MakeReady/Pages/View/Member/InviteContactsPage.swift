@@ -112,16 +112,16 @@ struct InviteContactsPage: View {
     private var permissionRequestView: some View {
         VStack(spacing: 20) {
             Image(systemName: "person.crop.circle.badge.exclamationmark")
-                .font(.system(size: 60))
+                .font(Typography.s60)
                 .foregroundColor(.white50)
 
             VStack(spacing: 8) {
                 Text("Contacts Access Required")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Typography.s20Bold)
                     .foregroundColor(.white)
 
                 Text("MakeReady needs permission to access your contacts to invite them to your groups.")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white50)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -176,18 +176,18 @@ private struct InviteContactsPagePermissionPreview: View {
         HStack(spacing: 0) {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 16))
+                    .font(Typography.s16)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
             Spacer()
             Text("Invite contacts")
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
             Spacer()
             Button(action: { dismiss() }) {
                 Text("Done")
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(.brandPrimary)
             }
             .frame(width: 60, height: 40)
@@ -199,16 +199,16 @@ private struct InviteContactsPagePermissionPreview: View {
     private var permissionRequestView: some View {
         VStack(spacing: 20) {
             Image(systemName: "person.crop.circle.badge.exclamationmark")
-                .font(.system(size: 60))
+                .font(Typography.s60)
                 .foregroundColor(.white50)
 
             VStack(spacing: 8) {
                 Text("Contacts Access Required")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Typography.s20Bold)
                     .foregroundColor(.white)
 
                 Text("MakeReady needs permission to access your contacts to invite them to your groups.")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white50)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -330,18 +330,18 @@ private struct InviteContactsPagePreview: View {
         HStack(spacing: 0) {
             Button(action: { dismiss() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 16))
+                    .font(Typography.s16)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
             Spacer()
             Text("Invite contacts")
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
             Spacer()
             Button(action: { dismiss() }) {
                 Text("Done")
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(.brandPrimary)
             }
             .frame(width: 60, height: 40)

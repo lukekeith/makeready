@@ -28,7 +28,7 @@ struct AddActivityMenu: View {
             // Header
             HStack {
                 Text("Select activity")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(Typography.s24Bold)
                     .foregroundColor(.white)
 
                 Spacer()
@@ -37,7 +37,7 @@ struct AddActivityMenu: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Typography.s15Semibold)
                         .foregroundColor(.white)
                         .frame(width: 32, height: 32)
                         .background(Color.white.opacity(0.1))

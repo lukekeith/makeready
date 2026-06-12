@@ -641,7 +641,7 @@ class EnrollDayCell: UICollectionViewCell {
 
     private let circleView: UIView = {
         let view = UIView()
-        view.backgroundColor = UIColor(Color(hex: "#6c47ff"))
+        view.backgroundColor = UIColor(Color.brandPrimary)
         view.translatesAutoresizingMaskIntoConstraints = false
         view.isHidden = true
         return view
@@ -833,7 +833,7 @@ class EnrollDayCell: UICollectionViewCell {
         // Show one purple dot for existing lessons
         if let firstDot = eventDots.first {
             firstDot.isHidden = false
-            firstDot.backgroundColor = UIColor(Color(hex: "#6c47ff"))
+            firstDot.backgroundColor = UIColor(Color.brandPrimary)
         }
     }
 
@@ -2303,7 +2303,7 @@ struct SelectedRangePanel: View {
         VStack(spacing: 0) {
             // Date range display
             Text(state.formattedDateRange)
-                .font(.system(size: 12, weight: .bold))
+                .font(Typography.s12Bold)
                 .tracking(1.2)
                 .foregroundColor(.white)
                 .padding(.vertical, 10)
@@ -2363,8 +2363,8 @@ struct DayOfWeekToggle: View {
     var body: some View {
         Button(action: onToggle) {
             Text(label)
-                .font(.system(size: 13, weight: .bold))
-                .foregroundColor(isEnabled ? Color(hex: "#0d101a") : .white.opacity(0.5))
+                .font(Typography.s13Bold)
+                .foregroundColor(isEnabled ? Color.appBackground : .white.opacity(0.5))
                 .frame(width: 24, height: 24)
                 .background(isEnabled ? Color.white : Color.white.opacity(0.1))
                 .clipShape(Circle())

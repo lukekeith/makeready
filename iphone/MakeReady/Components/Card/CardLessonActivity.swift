@@ -153,7 +153,7 @@ struct CardLessonActivity: View {
                 imageView(width: 72, height: 72)
                 if let minutes = data.estimatedMinutes, minutes > 0 {
                     Text(formattedEstimate(minutes))
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
@@ -176,13 +176,13 @@ struct CardLessonActivity: View {
             // Right: Two lines of text
             VStack(alignment: .leading, spacing: 2) {
                 Text(data.title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Typography.s15Semibold)
                     .foregroundColor(.white)
                     .lineLimit(1)
 
                 if let description = data.description {
                     Text(description)
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.5))
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -193,7 +193,7 @@ struct CardLessonActivity: View {
 
             if let minutes = data.estimatedMinutes, minutes > 0 {
                 Text(formattedEstimate(minutes))
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.5))
             }
         }
@@ -212,13 +212,13 @@ struct CardLessonActivity: View {
         VStack(alignment: .leading, spacing: 4) {
             if let type = data.type {
                 Text(type)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(Typography.s14Bold)
                     .foregroundColor(.white)
             }
 
             if let description = data.description {
                 Text(description)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Typography.s16Bold)
                     .foregroundColor(Color.brandPrimary)
                     .lineLimit(2)
             }
@@ -230,13 +230,13 @@ struct CardLessonActivity: View {
         VStack(alignment: .leading, spacing: 0) {
             if let description = data.description {
                 Text(description)
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.7))
                     .lineLimit(1)
             }
 
             Text(data.title)
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
                 .lineLimit(1)
                 .padding(.top, data.description != nil ? 4 : 0)
@@ -256,13 +256,13 @@ struct CardLessonActivity: View {
     private var studyContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(data.title)
-                .font(.system(size: 17, weight: .bold))
+                .font(Typography.s17Bold)
                 .foregroundColor(.white)
                 .lineLimit(1)
 
             if let description = data.description {
                 Text(description)
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.7))
                     .lineLimit(2)
             }
@@ -441,9 +441,9 @@ struct CardLessonActivity: View {
                 .strokeBorder(
                     AngularGradient(
                         gradient: Gradient(colors: [
-                            Color(hex: "#6c47ff"),
-                            Color(hex: "#6c47ff").opacity(0.2),
-                            Color(hex: "#6c47ff")
+                            Color.brandPrimary,
+                            Color.brandPrimary.opacity(0.2),
+                            Color.brandPrimary
                         ]),
                         center: .center,
                         angle: .degrees(borderRotation)

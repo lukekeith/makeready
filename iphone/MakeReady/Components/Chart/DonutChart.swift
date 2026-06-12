@@ -64,21 +64,21 @@ struct DonutChart: View {
                 VStack(spacing: 4) {
                     if let centerText = centerLabelText {
                         Text(centerText)
-                            .font(.system(size: 24, weight: .bold))
+                            .font(Typography.s24Bold)
                             .foregroundColor(.white)
                     } else {
                         Text(totalFormatted)
-                            .font(.system(size: 24, weight: .bold))
+                            .font(Typography.s24Bold)
                             .foregroundColor(.white)
                     }
 
                     if let subtext = centerLabelSubtext {
                         Text(subtext)
-                            .font(.system(size: 14, weight: .regular))
+                            .font(Typography.s14)
                             .foregroundColor(.white.opacity(0.5))
                     } else {
                         Text("Total")
-                            .font(.system(size: 14, weight: .regular))
+                            .font(Typography.s14)
                             .foregroundColor(.white.opacity(0.5))
                     }
                 }
@@ -119,19 +119,19 @@ struct DonutChartLegend: View {
 
                     // Label
                     Text(dataPoint.label)
-                        .font(.system(size: 14, weight: .regular))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.9))
 
                     Spacer()
 
                     // Value
                     Text(formatValue(dataPoint.value))
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(Typography.s14Semibold)
                         .foregroundColor(.white)
 
                     // Percentage
                     Text(formatPercentage(dataPoint.value))
-                        .font(.system(size: 13, weight: .regular))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
@@ -169,7 +169,7 @@ struct DonutChartLegend: View {
             // Example 1: Budget breakdown with legend
             VStack(alignment: .leading, spacing: 16) {
                 Text("Budget Breakdown")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -189,7 +189,7 @@ struct DonutChartLegend: View {
             // Example 2: Task status (simple)
             VStack(alignment: .leading, spacing: 16) {
                 Text("Task Status")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -208,7 +208,7 @@ struct DonutChartLegend: View {
             // Example 3: Pie chart (no center hole)
             VStack(alignment: .leading, spacing: 16) {
                 Text("Team Roles")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -232,7 +232,7 @@ struct DonutChartLegend: View {
 
 private var budgetData: [DonutChartDataPoint] {
     [
-        DonutChartDataPoint(label: "Marketing", value: 4500, color: Color(hex: "#6c47ff")),
+        DonutChartDataPoint(label: "Marketing", value: 4500, color: Color.brandPrimary),
         DonutChartDataPoint(label: "Development", value: 3500, color: Color(hex: "#47d4ff")),
         DonutChartDataPoint(label: "Design", value: 2000, color: Color(hex: "#ff6b9d")),
         DonutChartDataPoint(label: "Operations", value: 1500, color: Color(hex: "#ffd93d")),
@@ -243,14 +243,14 @@ private var budgetData: [DonutChartDataPoint] {
 private var taskData: [DonutChartDataPoint] {
     [
         DonutChartDataPoint(label: "Completed", value: 145, color: Color(hex: "#4ade80")),
-        DonutChartDataPoint(label: "In Progress", value: 32, color: Color(hex: "#6c47ff")),
+        DonutChartDataPoint(label: "In Progress", value: 32, color: Color.brandPrimary),
         DonutChartDataPoint(label: "Pending", value: 18, color: Color.white.opacity(0.3))
     ]
 }
 
 private var teamRolesData: [DonutChartDataPoint] {
     [
-        DonutChartDataPoint(label: "Developers", value: 8, color: Color(hex: "#6c47ff")),
+        DonutChartDataPoint(label: "Developers", value: 8, color: Color.brandPrimary),
         DonutChartDataPoint(label: "Designers", value: 3, color: Color(hex: "#ff6b9d")),
         DonutChartDataPoint(label: "Managers", value: 2, color: Color(hex: "#47d4ff")),
         DonutChartDataPoint(label: "QA", value: 2, color: Color(hex: "#ffd93d"))

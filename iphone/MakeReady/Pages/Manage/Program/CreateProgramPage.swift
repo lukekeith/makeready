@@ -122,7 +122,7 @@ struct CreateProgramPage: View {
                         .scaleEffect(1.5)
 
                     Text("Creating Program")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(.white)
                 }
             }
@@ -245,7 +245,7 @@ struct CreateProgramPage: View {
                         .overlay(alignment: .topLeading) {
                             if showValidationErrors && isNameEmpty {
                                 Text("Required")
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(Typography.s11Semibold)
                                     .foregroundColor(.red.opacity(0.9))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
@@ -288,7 +288,7 @@ struct CreateProgramPage: View {
                         .overlay(alignment: .topLeading) {
                             if showValidationErrors && isTemplateEmpty {
                                 Text("Required")
-                                    .font(.system(size: 11, weight: .semibold))
+                                    .font(Typography.s11Semibold)
                                     .foregroundColor(.red.opacity(0.9))
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
@@ -503,15 +503,15 @@ struct CreateProgramPage: View {
                 .frame(height: 40)
 
             Image(systemName: "person.3")
-                .font(.system(size: 32))
+                .font(Typography.s32)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No enrollments yet")
-                .font(.system(size: 17, weight: .medium))
+                .font(Typography.s17Medium)
                 .foregroundColor(.white.opacity(0.5))
 
             Text("Groups enrolled in this program will appear here")
-                .font(.system(size: 14))
+                .font(Typography.s14)
                 .foregroundColor(.white.opacity(0.3))
                 .multilineTextAlignment(.center)
 
@@ -528,7 +528,7 @@ struct CreateProgramPage: View {
                 .frame(height: 80)
 
             Text("Coming soon")
-                .font(.system(size: 17))
+                .font(Typography.s17)
                 .foregroundColor(.white.opacity(0.5))
 
             Spacer()

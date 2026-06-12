@@ -139,18 +139,18 @@ struct GroupMembersPage: View {
             Spacer()
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 40))
+                    .font(Typography.s40)
                     .foregroundColor(.white.opacity(0.3))
 
                 Text(errorMessage)
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
 
                 Button("Try Again") {
                     Task { await loadData() }
                 }
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .foregroundColor(Color.brandPrimary)
             }
             .padding(32)
             Spacer()
@@ -241,11 +241,11 @@ struct GroupMembersPage: View {
             Spacer()
             VStack(spacing: 16) {
                 Image(systemName: "person.2")
-                    .font(.system(size: 48))
+                    .font(Typography.s48)
                     .foregroundColor(.white.opacity(0.3))
 
                 Text("No members")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white.opacity(0.2))
             }
             Spacer()
@@ -257,7 +257,7 @@ struct GroupMembersPage: View {
     private var noSearchResultsContent: some View {
         VStack(spacing: 12) {
             Text("No results for \"\(searchText)\"")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
         }
         .frame(maxWidth: .infinity)
@@ -270,7 +270,7 @@ struct GroupMembersPage: View {
         VStack(alignment: .leading, spacing: 12) {
             // Section header
             Text("Requests")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .tracking(0.5)
@@ -326,7 +326,7 @@ struct GroupMembersPage: View {
             // Section header (only show if there are also requests)
             if !joinRequests.isEmpty {
                 Text("Members")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -539,7 +539,7 @@ private struct GroupMembersPreviewWithData: View {
                             // Requests section
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Requests")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Typography.s13Semibold)
                                     .foregroundColor(.white.opacity(0.5))
                                     .textCase(.uppercase)
                                     .tracking(0.5)
@@ -568,7 +568,7 @@ private struct GroupMembersPreviewWithData: View {
                             // Members section
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Members")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Typography.s13Semibold)
                                     .foregroundColor(.white.opacity(0.5))
                                     .textCase(.uppercase)
                                     .tracking(0.5)
@@ -685,11 +685,11 @@ private struct GroupMembersPreviewEmpty: View {
                     Spacer()
                     VStack(spacing: 16) {
                         Image(systemName: "person.2")
-                            .font(.system(size: 48))
+                            .font(Typography.s48)
                             .foregroundColor(.white.opacity(0.3))
 
                         Text("No members")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white.opacity(0.2))
                     }
                     Spacer()

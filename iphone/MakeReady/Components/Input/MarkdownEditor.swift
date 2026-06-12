@@ -33,7 +33,7 @@ struct MarkdownEditor: View {
             divider
             editorArea
         }
-        .background(Color(hex: "#0a0a0f"))
+        .background(Color.backgroundDark)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(borderOverlay)
     }
@@ -56,7 +56,7 @@ struct MarkdownEditor: View {
         ZStack(alignment: .topLeading) {
             if attributedText.characters.isEmpty {
                 Text(placeholder)
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(.white.opacity(0.35))
                     .padding(.top, 12)
                     .padding(.leading, 12)
@@ -69,11 +69,11 @@ struct MarkdownEditor: View {
                 .scrollDisabled(autoGrow)
                 .fixedSize(horizontal: false, vertical: autoGrow)
                 .scrollContentBackground(.hidden)
-                .tint(Color(hex: "#6c47ff"))
-                .font(.system(size: 17))
+                .tint(Color.brandPrimary)
+                .font(Typography.s17)
                 .foregroundStyle(.white)
         }
-        .background(Color(hex: "#0a0a0f"))
+        .background(Color.backgroundDark)
         .onChange(of: attributedText) { oldValue, newValue in
             guard !isSanitizing else { return }
 
@@ -602,7 +602,7 @@ private struct MarkdownEditorToolbar: View {
         }
         .padding(.horizontal, 8)
         .frame(height: 44)
-        .background(Color(hex: "#252936"))
+        .background(Color.cardBackground)
     }
 
     // MARK: - Heading Menu
@@ -633,14 +633,14 @@ private struct MarkdownEditorToolbar: View {
         } label: {
             HStack(spacing: 2) {
                 Text(headingLabel)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(Typography.s13Bold)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(Typography.s8Bold)
             }
-            .foregroundColor(isActive ? Color(hex: "#6c47ff") : .white.opacity(0.5))
+            .foregroundColor(isActive ? Color.brandPrimary : .white.opacity(0.5))
             .frame(height: 32)
             .padding(.horizontal, 8)
-            .background(isActive ? Color(hex: "#6c47ff").opacity(0.15) : Color.clear)
+            .background(isActive ? Color.brandPrimary.opacity(0.15) : Color.clear)
             .cornerRadius(6)
         }
     }
@@ -673,7 +673,7 @@ private struct MarkdownEditorToolbar: View {
 
     private func clearFormatting() {
         attributedText.transformAttributes(in: &selection) { container in
-            container.font = .system(size: 17, weight: .regular)
+            container.font = Typography.s17
             container.underlineStyle = nil
         }
     }
@@ -701,10 +701,10 @@ private struct MarkdownEditorToolbar: View {
     private func toolbarButton(icon: String, isActive: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: icon)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundColor(isActive ? Color(hex: "#6c47ff") : .white.opacity(0.5))
+                .font(Typography.s15Medium)
+                .foregroundColor(isActive ? Color.brandPrimary : .white.opacity(0.5))
                 .frame(width: 32, height: 32)
-                .background(isActive ? Color(hex: "#6c47ff").opacity(0.15) : Color.clear)
+                .background(isActive ? Color.brandPrimary.opacity(0.15) : Color.clear)
                 .cornerRadius(6)
         }
         .buttonStyle(.plain)
@@ -727,7 +727,7 @@ private struct MarkdownEditorToolbar: View {
 
         VStack(spacing: 20) {
             Text("Markdown Editor")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)

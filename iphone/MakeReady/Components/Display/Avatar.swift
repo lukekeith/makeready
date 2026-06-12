@@ -208,7 +208,7 @@ extension Avatar {
                 // Size variants with photo
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Sizes - With Photo")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -220,7 +220,7 @@ extension Avatar {
                                 size: .xs
                             )
                             Text("xs (24)")
-                                .font(.system(size: 10))
+                                .font(Typography.s10)
                                 .foregroundColor(.white.opacity(0.5))
                         }
 
@@ -231,7 +231,7 @@ extension Avatar {
                                 size: .sm
                             )
                             Text("sm (32)")
-                                .font(.system(size: 10))
+                                .font(Typography.s10)
                                 .foregroundColor(.white.opacity(0.5))
                         }
 
@@ -242,7 +242,7 @@ extension Avatar {
                                 size: .md
                             )
                             Text("md (40)")
-                                .font(.system(size: 10))
+                                .font(Typography.s10)
                                 .foregroundColor(.white.opacity(0.5))
                         }
 
@@ -253,7 +253,7 @@ extension Avatar {
                                 size: .lg
                             )
                             Text("lg (48)")
-                                .font(.system(size: 10))
+                                .font(Typography.s10)
                                 .foregroundColor(.white.opacity(0.5))
                         }
 
@@ -264,7 +264,7 @@ extension Avatar {
                                 size: .xl
                             )
                             Text("xl (64)")
-                                .font(.system(size: 10))
+                                .font(Typography.s10)
                                 .foregroundColor(.white.opacity(0.5))
                         }
 
@@ -275,7 +275,7 @@ extension Avatar {
                                 size: .xxl
                             )
                             Text("xxl (96)")
-                                .font(.system(size: 10))
+                                .font(Typography.s10)
                                 .foregroundColor(.white.opacity(0.5))
                         }
                     }
@@ -284,7 +284,7 @@ extension Avatar {
                 // Initials variants
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Initials - Two Letters")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -300,7 +300,7 @@ extension Avatar {
 
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Initials - One Letter")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -317,7 +317,7 @@ extension Avatar {
                 // Icon fallback
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Icon Fallback (No Photo or Initials)")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -334,7 +334,7 @@ extension Avatar {
                 // Convenience initializer with names
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Using First/Last Name")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -347,7 +347,7 @@ extension Avatar {
                                 size: .xl
                             )
                             Text("John Doe\n(with photo)")
-                                .font(.system(size: 11))
+                                .font(Typography.s11)
                                 .foregroundColor(.white.opacity(0.5))
                                 .multilineTextAlignment(.center)
                         }
@@ -359,7 +359,7 @@ extension Avatar {
                                 size: .xl
                             )
                             Text("Jane Smith\n(initials)")
-                                .font(.system(size: 11))
+                                .font(Typography.s11)
                                 .foregroundColor(.white.opacity(0.5))
                                 .multilineTextAlignment(.center)
                         }
@@ -371,7 +371,7 @@ extension Avatar {
                                 size: .xl
                             )
                             Text("Unknown\n(icon)")
-                                .font(.system(size: 11))
+                                .font(Typography.s11)
                                 .foregroundColor(.white.opacity(0.5))
                                 .multilineTextAlignment(.center)
                         }

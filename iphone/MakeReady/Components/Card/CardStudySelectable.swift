@@ -85,13 +85,13 @@ struct CardStudySelectable: View {
                 // Left: Content
                 VStack(alignment: .leading, spacing: 4) {
                     Text(data.title)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
                     if let description = data.description {
                         Text(description)
-                            .font(.system(size: 13, weight: .regular))
+                            .font(Typography.s13)
                             .foregroundColor(Color.white.opacity(0.7))
                             .lineLimit(2)
                     }
@@ -101,27 +101,27 @@ struct CardStudySelectable: View {
                         HStack(spacing: 8) {
                             HStack(spacing: 4) {
                                 Image(systemName: "book.fill")
-                                    .font(.system(size: 12))
+                                    .font(Typography.s12)
                                     .foregroundColor(Color.white.opacity(0.5))
                                 Text("\(data.lessonCount) days")
-                                    .font(.system(size: 13, weight: .regular))
+                                    .font(Typography.s13)
                                     .foregroundColor(Color.white.opacity(0.5))
                             }
 
                             // Published/Draft badge
                             Text(data.isPublished ? "Published" : "Draft")
-                                .font(.system(size: 11, weight: .semibold))
+                                .font(Typography.s11Semibold)
                                 .foregroundColor(data.isPublished ? Color(hex: "#234D2E") : Color(hex: "#D3D4D7"))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 2)
-                                .background(data.isPublished ? Color(hex: "#57DB5D") : Color(hex: "#6E7079"))
+                                .background(data.isPublished ? Color.success : Color(hex: "#6E7079"))
                                 .cornerRadius(4)
                         }
 
                         // Enrolled until text (if currently enrolled)
                         if let enrolledText = data.enrolledUntilText {
                             Text(enrolledText)
-                                .font(.system(size: 13, weight: .regular))
+                                .font(Typography.s13)
                                 .foregroundColor(Color.brandPrimary)
                         }
                     }
@@ -191,7 +191,7 @@ struct CardStudySelectable: View {
             .frame(width: 72, height: 108)
             .overlay(
                 Image(systemName: "book.fill")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
     }
@@ -206,7 +206,7 @@ struct CardStudySelectable: View {
 
         VStack(spacing: 12) {
             Text("Selectable Study Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
 

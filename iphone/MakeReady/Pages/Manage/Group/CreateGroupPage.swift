@@ -194,7 +194,7 @@ struct CreateGroupPage: View {
                         .scaleEffect(1.5)
 
                     Text("Creating Group")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(.white)
                 }
             }

@@ -21,9 +21,9 @@ struct MultilineTextInput: View {
     var body: some View {
         // Text editor — fixed position, label overlaid absolutely
         TextEditor(text: $text)
-            .font(.system(size: 17, weight: .regular))
+            .font(Typography.s17)
             .foregroundColor(.white)
-            .tint(Color(hex: "#6c47ff"))
+            .tint(Color.brandPrimary)
             .scrollContentBackground(.hidden)
             .scrollDisabled(true)
             .autocorrectionDisabled(!autocorrect)
@@ -37,7 +37,7 @@ struct MultilineTextInput: View {
                 Text(placeholder)
                     .font(.system(size: isFloatingUp ? 12 : 17, weight: .regular))
                     .foregroundColor(
-                        isFocused ? Color(hex: "#6c47ff") : .white.opacity(isFloatingUp ? 0.5 : 0.35)
+                        isFocused ? Color.brandPrimary : .white.opacity(isFloatingUp ? 0.5 : 0.35)
                     )
                     .padding(.leading, 16)
                     .offset(y: isFloatingUp ? 2 : 12)

@@ -186,9 +186,9 @@ struct SwipeableCard<Content: View>: View {
     private func buttonBackground(for style: SlideButtonStyle) -> Color {
         switch style {
         case .reschedule:
-            return Color(hex: "#5680ff")  // Blue (Figma spec)
+            return Color.accentBlue  // Blue (Figma spec)
         case .delete:
-            return Color(hex: "#df1439")  // Red (Figma spec)
+            return Color.destructive  // Red (Figma spec)
         case .skip, .edit:
             return Color.white.opacity(0.2)  // White 20% (Figma spec)
         }

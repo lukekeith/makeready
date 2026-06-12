@@ -799,15 +799,15 @@ struct ProgramHomePage: View {
                         .frame(height: 40)
 
                     Image(systemName: "book.closed")
-                        .font(.system(size: 32))
+                        .font(Typography.s32)
                         .foregroundColor(.white.opacity(0.3))
 
                     Text("No lessons yet")
-                        .font(.system(size: 17, weight: .medium))
+                        .font(Typography.s17Medium)
                         .foregroundColor(.white.opacity(0.5))
 
                     Text("Add lessons to build your study program")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.3))
                         .multilineTextAlignment(.center)
 
@@ -1213,15 +1213,15 @@ struct ProgramHomePage: View {
                         .frame(height: 40)
 
                     Image(systemName: "person.3")
-                        .font(.system(size: 32))
+                        .font(Typography.s32)
                         .foregroundColor(.white.opacity(0.3))
 
                     Text("No enrollments yet")
-                        .font(.system(size: 17, weight: .medium))
+                        .font(Typography.s17Medium)
                         .foregroundColor(.white.opacity(0.5))
 
                     Text("Groups enrolled in this program will appear here")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.3))
                         .multilineTextAlignment(.center)
 
@@ -1290,7 +1290,7 @@ struct ProgramHomePage: View {
                 .frame(height: 80)
 
             Text("Coming soon")
-                .font(.system(size: 17))
+                .font(Typography.s17)
                 .foregroundColor(.white.opacity(0.5))
 
             Spacer()
@@ -1337,13 +1337,13 @@ private struct ExportConfirmOverlay: View {
             // Content
             VStack(spacing: 20) {
                 Text("Export Program")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 if let data = previewData {
                     // Program name
                     Text(data.name)
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.5))
 
                     // KPI grid
@@ -1371,10 +1371,10 @@ private struct ExportConfirmOverlay: View {
                     if let template = data.templateName {
                         HStack(spacing: 6) {
                             Image(systemName: "doc.text")
-                                .font(.system(size: 12))
+                                .font(Typography.s12)
                                 .foregroundColor(.white.opacity(0.4))
                             Text("Template: \(template)")
-                                .font(.system(size: 13))
+                                .font(Typography.s13)
                                 .foregroundColor(.white.opacity(0.4))
                         }
                     }
@@ -1386,13 +1386,13 @@ private struct ExportConfirmOverlay: View {
                         onExport()
                     } label: {
                         Text(isExporting ? "Exporting..." : "Export")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "#6c47ff"))
+                                    .fill(Color.brandPrimary)
                             )
                     }
                     .disabled(isExporting)
@@ -1401,7 +1401,7 @@ private struct ExportConfirmOverlay: View {
                         dismiss()
                     } label: {
                         Text("Cancel")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(Typography.s17Medium)
                             .foregroundColor(.white.opacity(0.7))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -1644,8 +1644,8 @@ private struct PublishBadge: View {
 
     var body: some View {
         Text(isPublished ? "Published" : "Draft")
-            .font(.system(size: 12, weight: .semibold))
-            .foregroundColor(isPublished ? Color(hex: "#0D101A") : .white)
+            .font(Typography.s12Semibold)
+            .foregroundColor(isPublished ? Color.appBackground : .white)
             .padding(.horizontal, 10)
             .padding(.vertical, 5)
             .background(

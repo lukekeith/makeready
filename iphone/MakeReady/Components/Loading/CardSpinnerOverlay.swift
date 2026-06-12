@@ -28,7 +28,7 @@ struct CardSpinnerOverlay: View {
 
         VStack(spacing: 20) {
             Text("Card Spinner Overlay")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
 
@@ -41,10 +41,10 @@ struct CardSpinnerOverlay: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text("Sample Card")
-                                    .font(.system(size: 17, weight: .bold))
+                                    .font(Typography.s17Bold)
                                     .foregroundColor(.white)
                                 Text("With spinner overlay")
-                                    .font(.system(size: 13))
+                                    .font(Typography.s13)
                                     .foregroundColor(.white.opacity(0.7))
                             }
                             .padding()

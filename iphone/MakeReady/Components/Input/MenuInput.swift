@@ -81,19 +81,19 @@ struct MenuInput: View {
             HStack(spacing: 8) {
                 // Label
                 Text(label)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
 
                 Spacer()
 
                 // Selected value
                 Text(selectedOption)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
 
                 // Chevron
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.5))
             }
             .padding(.horizontal, 16)
@@ -120,19 +120,19 @@ struct MenuInput: View {
             HStack(spacing: 8) {
                 // Label
                 Text(label)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
 
                 Spacer()
 
                 // Selected value
                 Text(selectedOption)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
 
                 // Chevron
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white.opacity(0.5))
             }
             .padding(.horizontal, 16)
@@ -162,17 +162,17 @@ struct MenuInput: View {
             }) {
                 HStack(spacing: 8) {
                     Text(label)
-                        .font(.system(size: 17, weight: .regular))
+                        .font(Typography.s17)
                         .foregroundColor(.white)
 
                     Spacer()
 
                     Text(selectedOption)
-                        .font(.system(size: 17, weight: .regular))
+                        .font(Typography.s17)
                         .foregroundColor(.white)
 
                     Image(systemName: showPicker ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(.white.opacity(0.5))
                 }
                 .padding(.horizontal, 16)
@@ -200,7 +200,7 @@ struct MenuInput: View {
         VStack(alignment: .leading, spacing: 8) {
             // Label
             Text(label)
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.7))
                 .textCase(.uppercase)
                 .padding(.horizontal, 16)
@@ -253,12 +253,12 @@ struct MenuPickerSheet: View {
                                     // Title and optional description
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(option)
-                                            .font(.system(size: 17, weight: .regular))
+                                            .font(Typography.s17)
                                             .foregroundColor(.white)
                                         
                                         if let description = optionDescription(for: option) {
                                             Text(description)
-                                                .font(.system(size: 13, weight: .regular))
+                                                .font(Typography.s13)
                                                 .foregroundColor(.white.opacity(0.5))
                                                 .lineLimit(2)
                                         }
@@ -268,8 +268,8 @@ struct MenuPickerSheet: View {
 
                                     if option == selectedOption {
                                         Image(systemName: "checkmark")
-                                            .font(.system(size: 17, weight: .semibold))
-                                            .foregroundColor(Color(hex: "#6c47ff"))
+                                            .font(Typography.s17Semibold)
+                                            .foregroundColor(Color.brandPrimary)
                                     }
                                 }
                                 .padding(.horizontal, 16)
@@ -298,14 +298,14 @@ struct MenuPickerSheet: View {
                     Button("Cancel") {
                         isPresented = false
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                 }
 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         isPresented = false
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                     .fontWeight(.semibold)
                 }
             }
@@ -314,7 +314,7 @@ struct MenuPickerSheet: View {
         }
         .presentationDetents([.height(estimatedContentHeight), .large])
         .presentationBackground {
-            Color(hex: "#0D101A").opacity(0.8)
+            Color.appBackground.opacity(0.8)
                 .ignoresSafeArea()
         }
     }
@@ -345,7 +345,7 @@ struct WheelPickerSheet: View {
                     Picker(label, selection: $selectedOption) {
                         ForEach(options, id: \.self) { option in
                             Text(option)
-                                .font(.system(size: 20))
+                                .font(Typography.s20)
                                 .foregroundColor(.white)
                                 .tag(option)
                         }
@@ -363,14 +363,14 @@ struct WheelPickerSheet: View {
                     Button("Cancel") {
                         isPresented = false
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         isPresented = false
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                     .fontWeight(.semibold)
                 }
             }
@@ -379,7 +379,7 @@ struct WheelPickerSheet: View {
         }
         .presentationDetents([.height(300)])
         .presentationBackground {
-            Color(hex: "#0D101A").opacity(0.8)
+            Color.appBackground.opacity(0.8)
                 .ignoresSafeArea()
         }
     }
@@ -395,7 +395,7 @@ struct WheelPickerSheet: View {
                 // Menu style (default)
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Menu Style (Default)")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white50)
                         .padding(.horizontal, 16)
                     
@@ -413,7 +413,7 @@ struct WheelPickerSheet: View {
                 // Menu style with descriptions
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Menu Style with Descriptions")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white50)
                         .padding(.horizontal, 16)
                     
@@ -435,7 +435,7 @@ struct WheelPickerSheet: View {
                 // Wheel style
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Wheel Style (Timer-like)")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white50)
                         .padding(.horizontal, 16)
                     
@@ -453,7 +453,7 @@ struct WheelPickerSheet: View {
                 // Segmented style
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Segmented Style (2-5 options)")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white50)
                         .padding(.horizontal, 16)
                     

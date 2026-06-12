@@ -46,7 +46,7 @@ struct SkeletonCardLesson: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 76)
-        .background(Color(hex: "#252936"))
+        .background(Color.cardBackground)
         .cornerRadius(4)
         .shimmer()
     }
@@ -61,7 +61,7 @@ struct SkeletonCardLesson: View {
 
         VStack(spacing: 4) {
             Text("Skeleton Lesson Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .padding(.bottom, 12)

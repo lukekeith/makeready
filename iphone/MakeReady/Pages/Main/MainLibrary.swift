@@ -232,7 +232,7 @@ struct MainLibrary: View {
                     HStack(spacing: 8) {
                         Button(action: { showFilePicker = true }) {
                             Image(systemName: "square.and.arrow.down")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(Typography.s16Semibold)
                                 .foregroundColor(.white)
                                 .frame(width: 32, height: 32)
                                 .background(Color.white.opacity(0.1))
@@ -260,7 +260,7 @@ struct MainLibrary: View {
                             }
                         } label: {
                             Image(systemName: "plus")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(Typography.s16Semibold)
                                 .foregroundColor(.white)
                                 .frame(width: 32, height: 32)
                                 .background(Color.white.opacity(0.1))
@@ -581,15 +581,15 @@ struct MainLibrary: View {
                 .frame(height: 80)
 
             Image(systemName: "book.closed")
-                .font(.system(size: 48))
+                .font(Typography.s48)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No Study Programs")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white)
 
             Text("Create your first study program to get started")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 
@@ -603,11 +603,11 @@ struct MainLibrary: View {
         VStack(spacing: 12) {
             HStack {
                 Text("Currently enrolled")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
                 Spacer()
                 Text("\(enrolledPrograms.count) active")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Typography.s14Semibold)
                     .foregroundColor(Color.brandPrimary)
             }
             .padding(.horizontal, 16)
@@ -645,7 +645,7 @@ struct MainLibrary: View {
         VStack(spacing: 12) {
             HStack {
                 Text("Browse all")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
                 Spacer()
                 Menu {
@@ -663,10 +663,10 @@ struct MainLibrary: View {
                 } label: {
                     HStack(spacing: 4) {
                         Text(sortOption.rawValue)
-                            .font(.system(size: 14, weight: .medium))
+                            .font(Typography.s14Medium)
                             .foregroundColor(.white.opacity(0.7))
                         Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 12))
+                            .font(Typography.s12)
                             .foregroundColor(.white.opacity(0.7))
                     }
                     .contentShape(Rectangle())
@@ -677,7 +677,7 @@ struct MainLibrary: View {
             if browsePrograms.isEmpty {
                 VStack(spacing: 12) {
                     Text("No programs found")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white.opacity(0.5))
                 }
                 .padding(.top, 40)
@@ -1022,11 +1022,11 @@ struct MainLibrary: View {
             Spacer()
 
             Image(systemName: "photo.on.rectangle")
-                .font(.system(size: 48))
+                .font(Typography.s48)
                 .foregroundColor(.white.opacity(0.2))
 
             Text("No Media")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white.opacity(0.2))
 
             Spacer()
@@ -1498,12 +1498,12 @@ private struct ImportConfirmOverlay: View {
 
             VStack(spacing: 20) {
                 Text("Import Program")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 if let data = previewData {
                     Text(data.name)
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.5))
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -1530,10 +1530,10 @@ private struct ImportConfirmOverlay: View {
                     if let template = data.templateName {
                         HStack(spacing: 6) {
                             Image(systemName: "doc.text")
-                                .font(.system(size: 12))
+                                .font(Typography.s12)
                                 .foregroundColor(.white.opacity(0.4))
                             Text("Template: \(template)")
-                                .font(.system(size: 13))
+                                .font(Typography.s13)
                                 .foregroundColor(.white.opacity(0.4))
                         }
                     }
@@ -1544,13 +1544,13 @@ private struct ImportConfirmOverlay: View {
                         onConfirm()
                     } label: {
                         Text("Confirm Import")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "#6c47ff"))
+                                    .fill(Color.brandPrimary)
                             )
                     }
                     .disabled(isImporting)
@@ -1559,7 +1559,7 @@ private struct ImportConfirmOverlay: View {
                         dismiss()
                     } label: {
                         Text("Cancel")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(Typography.s17Medium)
                             .foregroundColor(.white.opacity(0.7))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -1646,11 +1646,11 @@ private struct MainLibraryPreview: View {
                         VStack(spacing: 12) {
                             HStack {
                                 Text("Currently enrolled")
-                                    .font(.system(size: 17, weight: .bold))
+                                    .font(Typography.s17Bold)
                                     .foregroundColor(.white)
                                 Spacer()
                                 Text("2 active")
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(Typography.s14Semibold)
                                     .foregroundColor(Color.brandPrimary)
                             }
                             .padding(.horizontal, 16)
@@ -1681,15 +1681,15 @@ private struct MainLibraryPreview: View {
                         VStack(spacing: 12) {
                             HStack {
                                 Text("Browse all")
-                                    .font(.system(size: 17, weight: .bold))
+                                    .font(Typography.s17Bold)
                                     .foregroundColor(.white)
                                 Spacer()
                                 HStack(spacing: 4) {
                                     Text("Newest first")
-                                        .font(.system(size: 14, weight: .medium))
+                                        .font(Typography.s14Medium)
                                         .foregroundColor(.white.opacity(0.7))
                                     Image(systemName: "line.3.horizontal.decrease")
-                                        .font(.system(size: 12))
+                                        .font(Typography.s12)
                                         .foregroundColor(.white.opacity(0.7))
                                 }
                             }

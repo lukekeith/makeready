@@ -40,12 +40,12 @@ struct CardVideo: View {
                     if data.status == .new {
                         // New variant: "VIDEO" (uppercase), then description
                         Text(data.title)
-                            .font(.system(size: 14, weight: .bold))
+                            .font(Typography.s14Bold)
                             .foregroundColor(.white)
 
                         if let description = data.description {
                             Text(description)
-                                .font(.system(size: 16, weight: .bold))
+                                .font(Typography.s16Bold)
                                 .foregroundColor(Color.brandPrimary)
                                 .lineLimit(2)
                                 .padding(.top, 4)
@@ -54,14 +54,14 @@ struct CardVideo: View {
                         // Standard variant: Description above title
                         if let description = data.description {
                             Text(description)
-                                .font(.system(size: 13, weight: .regular))
+                                .font(Typography.s13)
                                 .foregroundColor(Color.white.opacity(0.7))
                                 .lineLimit(1)
                         }
 
                         // Title
                         Text(data.title)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(Typography.s17Bold)
                             .foregroundColor(.white)
                             .lineLimit(1)
                             .padding(.top, data.description != nil ? 4 : 0)
@@ -93,9 +93,9 @@ struct CardVideo: View {
                             .strokeBorder(
                                 AngularGradient(
                                     gradient: Gradient(colors: [
-                                        Color(hex: "#6c47ff"),
-                                        Color(hex: "#6c47ff").opacity(0.2),
-                                        Color(hex: "#6c47ff")
+                                        Color.brandPrimary,
+                                        Color.brandPrimary.opacity(0.2),
+                                        Color.brandPrimary
                                     ]),
                                     center: .center,
                                     angle: .degrees(borderRotation)
@@ -179,7 +179,7 @@ struct CardVideo: View {
         Color.iconContainerBackground
             .overlay(
                 Image(systemName: "play.circle.fill")
-                    .font(.system(size: 24, weight: .regular))
+                    .font(Typography.s24)
                     .foregroundColor(.white)
             )
             .cornerRadius(8)
@@ -192,11 +192,11 @@ struct CardVideo: View {
                     if data.status == .new {
                         // Centered play button for .new status
                         Image(systemName: "play.fill")
-                            .font(.system(size: 32, weight: .regular))
+                            .font(Typography.s32)
                             .foregroundColor(.white)
                     } else {
                         Image(systemName: systemName)
-                            .font(.system(size: 24, weight: .regular))
+                            .font(Typography.s24)
                             .foregroundColor(foregroundColor ?? .white)
                     }
                 }
@@ -231,7 +231,7 @@ struct CardVideo: View {
                 // Row Video Cards
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Video Cards - Row")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 

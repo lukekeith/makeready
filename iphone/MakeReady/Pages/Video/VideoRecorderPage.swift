@@ -171,12 +171,12 @@ struct VideoRecordAndUploadPage: View {
                         .frame(width: 200)
 
                     Text("Uploading... \(progress.percentage)%")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white)
                 }
             } else {
                 Text("Preparing upload...")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white)
             }
 
@@ -185,7 +185,7 @@ struct VideoRecordAndUploadPage: View {
                 isPresented = false
             } label: {
                 Text("Cancel")
-                    .font(.system(size: 15, weight: .medium))
+                    .font(Typography.s15Medium)
                     .foregroundColor(.white.opacity(0.7))
             }
             .padding(.top, 8)

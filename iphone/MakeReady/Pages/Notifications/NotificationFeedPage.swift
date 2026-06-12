@@ -37,10 +37,10 @@ struct NotificationFeedPage: View {
                 Spacer()
                 VStack(spacing: 8) {
                     Image(systemName: "bell.slash")
-                        .font(.system(size: 40))
+                        .font(Typography.s40)
                         .foregroundColor(.white.opacity(0.3))
                     Text("No notifications yet")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white.opacity(0.5))
                 }
                 Spacer()
@@ -108,12 +108,12 @@ private struct NotificationRow: View {
             // Icon
             ZStack {
                 Circle()
-                    .fill(Color(hex: "#6c47ff").opacity(0.2))
+                    .fill(Color.brandPrimary.opacity(0.2))
                     .frame(width: 40, height: 40)
 
                 Image(systemName: iconName)
-                    .font(.system(size: 16))
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .font(Typography.s16)
+                    .foregroundColor(Color.brandPrimary)
             }
 
             // Content
@@ -124,7 +124,7 @@ private struct NotificationRow: View {
                     .lineLimit(1)
 
                 Text(notification.body)
-                    .font(.system(size: 13))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.6))
                     .lineLimit(2)
             }
@@ -134,12 +134,12 @@ private struct NotificationRow: View {
             // Time + unread dot
             VStack(alignment: .trailing, spacing: 4) {
                 Text(notification.relativeTime)
-                    .font(.system(size: 11))
+                    .font(Typography.s11)
                     .foregroundColor(.white.opacity(0.4))
 
                 if !notification.isRead {
                     Circle()
-                        .fill(Color(hex: "#6c47ff"))
+                        .fill(Color.brandPrimary)
                         .frame(width: 8, height: 8)
                 }
             }

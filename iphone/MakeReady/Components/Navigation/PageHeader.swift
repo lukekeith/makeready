@@ -57,7 +57,7 @@ struct PageHeader<TrailingContent: View>: View {
                 GeometryReader { geometry in
                     if let activeFrame = frames[activeTab] {
                         Rectangle()
-                            .fill(Color(hex: "#6c47ff"))
+                            .fill(Color.brandPrimary)
                             .frame(width: activeFrame.width, height: 2)
                             .position(
                                 x: activeFrame.midX,
@@ -91,7 +91,7 @@ struct TabButton: View {
     var body: some View {
         Button(action: onTap) {
             Text(title)
-                .font(.system(size: 17, weight: .regular))
+                .font(Typography.s17)
                 .foregroundColor(isActive ? .white : .white.opacity(0.7))
                 .padding(.top, 8)
                 .padding(.bottom, 10)

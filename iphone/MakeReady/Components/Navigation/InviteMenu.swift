@@ -58,7 +58,7 @@ struct InviteMenu: View {
                 dismissMenu()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)

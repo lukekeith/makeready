@@ -23,24 +23,24 @@ struct SkeletonEnrollmentCard: View {
             VStack(alignment: .leading, spacing: 4) {
                 // Program name
                 Text(programName)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Typography.s15Semibold)
                     .foregroundColor(.white.opacity(0.7))
                     .lineLimit(1)
 
                 // Days count
                 Text("\(programDays) days")
-                    .font(.system(size: 13, weight: .regular))
+                    .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.4))
 
                 // Status indicator skeleton
                 HStack(spacing: 4) {
                     ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#6c47ff")))
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color.brandPrimary))
                         .scaleEffect(0.7)
 
                     Text("Creating...")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(Color(hex: "#6c47ff").opacity(0.7))
+                        .font(Typography.s12Medium)
+                        .foregroundColor(Color.brandPrimary.opacity(0.7))
                 }
             }
 
@@ -50,7 +50,7 @@ struct SkeletonEnrollmentCard: View {
         .background(Color.white.opacity(0.05))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(hex: "#6c47ff").opacity(0.3), lineWidth: 1)
+                .stroke(Color.brandPrimary.opacity(0.3), lineWidth: 1)
         )
         .cornerRadius(4)
         .onAppear {
@@ -94,10 +94,10 @@ struct SkeletonEnrollmentCard: View {
 
     private var imagePlaceholder: some View {
         RoundedRectangle(cornerRadius: 8)
-            .fill(Color(hex: "#6c47ff").opacity(isAnimating ? 0.4 : 0.2))
+            .fill(Color.brandPrimary.opacity(isAnimating ? 0.4 : 0.2))
             .overlay(
                 Image(systemName: "book.fill")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Typography.s20)
                     .foregroundColor(.white.opacity(0.5))
             )
     }

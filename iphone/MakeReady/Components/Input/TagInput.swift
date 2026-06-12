@@ -44,7 +44,7 @@ struct TagInput: View {
                 }
 
                 TextField(placeholder, text: $inputText)
-                    .font(.system(size: 14))
+                    .font(Typography.s14)
                     .foregroundColor(.white)
                     .focused($isFocused)
                     .submitLabel(.done)
@@ -70,10 +70,10 @@ struct TagInput: View {
                                 .scaleEffect(0.7)
                         } else {
                             Image(systemName: "sparkles")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(Typography.s12Medium)
                         }
                         Text("AI tag suggestions")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Typography.s12Medium)
                     }
                     .foregroundColor(.white.opacity(0.4))
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -93,11 +93,11 @@ struct TagInput: View {
                     } label: {
                         HStack(spacing: 4) {
                             Text("Hide suggestions")
-                                .font(.system(size: 12, weight: .medium))
+                                .font(Typography.s12Medium)
                                 .foregroundColor(.white.opacity(0.4))
 
                             Image(systemName: "chevron.up")
-                                .font(.system(size: 10, weight: .medium))
+                                .font(Typography.s10Medium)
                                 .foregroundColor(.white.opacity(0.3))
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -170,11 +170,11 @@ private struct TagPill: View {
         } label: {
             HStack(spacing: 4) {
                 Text(tag)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Typography.s12Semibold)
                     .foregroundColor(isNew ? .white.opacity(0.5) : .white)
 
                 Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
+                    .font(Typography.s8Bold)
                     .foregroundColor(isNew ? .white.opacity(0.4) : .white.opacity(0.7))
             }
             .padding(.horizontal, 8)
@@ -197,7 +197,7 @@ private struct SuggestionPill: View {
             onTap()
         } label: {
             Text(tag)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Typography.s12Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
@@ -249,7 +249,7 @@ private struct TagInputPreview: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Typography.s12Semibold)
                 .foregroundColor(.white.opacity(0.4))
                 .textCase(.uppercase)
 

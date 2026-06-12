@@ -114,13 +114,13 @@ enum ActivityStyle {
     /// Brand color for an activity type (ActivityType enum).
     static func color(for type: ActivityType) -> Color {
         switch type {
-        case .read:      return Color(hex: "#6c47ff")
+        case .read:      return Color.brandPrimary
         case .userInput: return Color(hex: "#3b82f6")
         case .video:     return Color.white
         case .youtube:   return Color(hex: "#dc2626")
         case .exegesis:  return Color(hex: "#f59e0b")
         case .soap, .oia, .dbs, .hear:
-                         return Color(hex: "#6c47ff")
+                         return Color.brandPrimary
         }
     }
 
@@ -128,7 +128,7 @@ enum ActivityStyle {
     static func color(forRawType type: String?) -> Color {
         switch type {
         case "READ", "SCRIPTURE", "SOAP", "OIA", "DBS", "HEAR":
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         case "USER_INPUT":
             return Color(hex: "#3b82f6")
         case "VIDEO":
@@ -142,7 +142,7 @@ enum ActivityStyle {
         case "REFLECTION":
             return Color(hex: "#0d9488")
         default:
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         }
     }
 

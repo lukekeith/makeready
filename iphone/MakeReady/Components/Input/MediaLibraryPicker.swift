@@ -69,10 +69,10 @@ struct MediaLibraryPicker: View {
         VStack(spacing: 12) {
             Spacer()
             Image(systemName: "photo.on.rectangle.angled")
-                .font(.system(size: 36, weight: .light))
+                .font(Typography.s36Light)
                 .foregroundColor(.white.opacity(0.3))
             Text("No photos in your library yet")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.6))
             Spacer()
         }

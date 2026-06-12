@@ -183,7 +183,7 @@ struct BoxButton: View {
 
         switch variant {
         case .primary:
-            return Color(hex: "#6C47FF")
+            return Color.brandPrimary
         case .secondary:
             return Color.white.opacity(0.05)
         case .destructive:
@@ -198,11 +198,11 @@ struct BoxButton: View {
 
         switch variant {
         case .primary:
-            return Color(hex: "#6C47FF")
+            return Color.brandPrimary
         case .secondary:
             return Color.white.opacity(1.0)
         case .destructive:
-            return Color(hex: "#FF4759")
+            return Color.error
         case .disabled:
             return Color.white.opacity(0.20)
         }
@@ -215,7 +215,7 @@ struct BoxButton: View {
         case .secondary:
             return Color.white
         case .destructive:
-            return Color(hex: "#FF4759")
+            return Color.error
         case .disabled:
             return Color.white.opacity(0.20)
         }
@@ -232,7 +232,7 @@ struct BoxButton: View {
                 // Primary variants
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Primary")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -268,7 +268,7 @@ struct BoxButton: View {
                 // Secondary variants
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Secondary")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -304,7 +304,7 @@ struct BoxButton: View {
                 // Destructive variants
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Destructive")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -332,7 +332,7 @@ struct BoxButton: View {
                 // Disabled variants
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Disabled")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -358,7 +358,7 @@ struct BoxButton: View {
                 // Full width examples
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Full Width")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -403,7 +403,7 @@ struct BoxButton: View {
                 // Primary icon only
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Primary")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -465,7 +465,7 @@ struct BoxButton: View {
                 // Secondary icon only
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Secondary")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -527,7 +527,7 @@ struct BoxButton: View {
                 // Destructive icon only
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Destructive")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 
@@ -562,7 +562,7 @@ struct BoxButton: View {
                 // Disabled icon only
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Disabled")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
 

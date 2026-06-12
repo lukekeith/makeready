@@ -13,7 +13,7 @@ struct DataComponent: View {
     let item: DataItem
 
     private var foregroundColor: Color {
-        item.isPurple ? Color(hex: "#6c47ff") : .white
+        item.isPurple ? Color.brandPrimary : .white
     }
 
     var body: some View {
@@ -23,24 +23,24 @@ struct DataComponent: View {
                 // Icon + value variant
                 if let iconName = item.iconName {
                     Image(systemName: iconName)
-                        .font(.system(size: 14, weight: .regular))
+                        .font(Typography.s14)
                         .foregroundColor(foregroundColor)
                         .frame(width: 14, height: 14)
                 }
 
                 Text(item.value)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(Typography.s13)
                     .foregroundColor(foregroundColor)
 
             case .number:
                 // Number + label variant
                 Text(item.value)
-                    .font(.system(size: 13, weight: .regular))
+                    .font(Typography.s13)
                     .foregroundColor(foregroundColor)
 
                 if let label = item.label {
                     Text(label)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(Typography.s13)
                         .foregroundColor(foregroundColor.opacity(0.7))
                 }
 
@@ -48,18 +48,18 @@ struct DataComponent: View {
                 // Label + value variant (11px, label 50% white, value 70% white)
                 if let label = item.label {
                     Text(label)
-                        .font(.system(size: 11, weight: .regular))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.5))
                 }
 
                 Text(item.value)
-                    .font(.system(size: 11, weight: .regular))
+                    .font(Typography.s11)
                     .foregroundColor(.white.opacity(0.7))
 
             case .badge:
                 // Small capsule badge (e.g., Published / Draft)
                 Text(item.value)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(Typography.s10Semibold)
                     .foregroundColor(item.badgeTextColor ?? .white)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 3)
@@ -104,7 +104,7 @@ struct SkeletonDataComponent: View {
         VStack(spacing: 24) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Icon Type")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -117,7 +117,7 @@ struct SkeletonDataComponent: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Number Type")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -130,7 +130,7 @@ struct SkeletonDataComponent: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Skeleton Loading State")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -142,7 +142,7 @@ struct SkeletonDataComponent: View {
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Mixed in Row (16px gaps)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 

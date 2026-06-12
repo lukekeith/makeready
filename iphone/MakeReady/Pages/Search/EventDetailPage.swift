@@ -47,17 +47,17 @@ struct EventDetailPage: View {
 
                     // Title
                     Text(title)
-                        .font(.system(size: 20, weight: .bold))
+                        .font(Typography.s20Bold)
                         .foregroundColor(.white)
 
                     // Location / date info
                     if let subtitle = subtitle, !subtitle.isEmpty {
                         HStack(spacing: 8) {
                             Image(systemName: "mappin")
-                                .font(.system(size: 14))
+                                .font(Typography.s14)
                                 .foregroundColor(.white50)
                             Text(subtitle)
-                                .font(.system(size: 15))
+                                .font(Typography.s15)
                                 .foregroundColor(.white.opacity(0.7))
                         }
                     }

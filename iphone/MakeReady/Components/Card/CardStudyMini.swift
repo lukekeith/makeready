@@ -23,7 +23,7 @@ struct CardStudyMini: View {
                 VStack(alignment: .leading, spacing: 8) {
                     // Title (12pt with 0.1px tracking, max 32px height)
                     Text(data.title)
-                        .font(.system(size: 12, weight: .bold))
+                        .font(Typography.s12Bold)
                         .foregroundColor(.white)
                         .lineLimit(2)
                         .frame(maxHeight: 32, alignment: .topLeading)
@@ -45,7 +45,7 @@ struct CardStudyMini: View {
 
     private var cardBackgroundColor: Color {
         if data.status == .pending {
-            return Color(hex: "#201B48")  // Solid dark purple for pending
+            return Color.backgroundPurple  // Solid dark purple for pending
         } else {
             return Color.cardBackground
         }
@@ -112,12 +112,12 @@ struct CardStudyMini: View {
 
     private var statusBadge: some View {
         Text("PENDING")
-            .font(.system(size: 11, weight: .bold))
+            .font(Typography.s11Bold)
             .foregroundColor(.white)
             .tracking(0.1)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
-            .background(Color(hex: "#6c47ff"))
+            .background(Color.brandPrimary)
             .cornerRadius(8)
     }
 }

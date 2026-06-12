@@ -58,20 +58,20 @@ struct CardLesson: View {
 
     private var planningBackgroundColor: Color {
         let isReady = !data.activities.isEmpty && data.activities.allSatisfy { $0.isConfigured }
-        return isReady ? Color(hex: "#252936") : Color(hex: "#201B48")
+        return isReady ? Color.cardBackground : Color.backgroundPurple
     }
 
     private var planningContent: some View {
         HStack(spacing: 8) {
-            dayIndicator(labelColor: Color(hex: "#6c47ff"), stretch: true)
+            dayIndicator(labelColor: Color.brandPrimary, stretch: true)
 
             // Center section: Activities or "Select activities"
             if data.activities.isEmpty {
                 HStack {
                     Spacer()
                     Text("Select activities")
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(Color(hex: "#6c47ff"))
+                        .font(Typography.s12)
+                        .foregroundColor(Color.brandPrimary)
                         .tracking(0.1)
                 }
             } else {
@@ -86,7 +86,7 @@ struct CardLesson: View {
             // Right section: Chevron
             VStack(spacing: 0) {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(Typography.s14)
                     .foregroundColor(.white50)
                     .frame(width: 20, height: 20)
             }
@@ -110,27 +110,27 @@ struct CardLesson: View {
         // legacy incomplete-activity check is preserved for non-enrollment cards.
         let highlight = data.isReleased || hasIncomplete
         if showAnimatedBorder || !highlight {
-            return Color(hex: "#252936")
+            return Color.cardBackground
         }
-        return Color(hex: "#201B48")
+        return Color.backgroundPurple
     }
 
     private var lessonContent: some View {
         HStack(spacing: 0) {
-            dayIndicator(labelColor: Color(hex: "#6c47ff"))
+            dayIndicator(labelColor: Color.brandPrimary)
                 .frame(width: 60)
 
             VStack(alignment: .leading, spacing: 4) {
                 if let title = data.title {
                     Text(title)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(Typography.s15Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
                 }
 
                 if let date = data.date {
                     Text(date.formatted(.dateTime.weekday(.wide).month(.abbreviated).day().year()))
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(.white)
                         .lineLimit(1)
                 }
@@ -166,9 +166,9 @@ struct CardLesson: View {
                         .strokeBorder(
                             AngularGradient(
                                 gradient: Gradient(colors: [
-                                    Color(hex: "#6c47ff"),
-                                    Color(hex: "#6c47ff").opacity(0.2),
-                                    Color(hex: "#6c47ff")
+                                    Color.brandPrimary,
+                                    Color.brandPrimary.opacity(0.2),
+                                    Color.brandPrimary
                                 ]),
                                 center: .center,
                                 angle: .degrees(borderRotation)
@@ -195,7 +195,7 @@ struct CardLesson: View {
 
     private var progressContent: some View {
         HStack(spacing: 0) {
-            dayIndicator(labelColor: Color(hex: "#6c47ff"))
+            dayIndicator(labelColor: Color.brandPrimary)
                 .frame(width: 60)
 
             VStack(alignment: .leading, spacing: 16) {
@@ -203,14 +203,14 @@ struct CardLesson: View {
                 VStack(alignment: .leading, spacing: 4) {
                     if let title = data.title {
                         Text(title)
-                            .font(.system(size: 15, weight: .bold))
+                            .font(Typography.s15Bold)
                             .foregroundColor(.white)
                             .lineLimit(1)
                     }
 
                     if let description = data.description {
                         Text(description)
-                            .font(.system(size: 12, weight: .regular))
+                            .font(Typography.s12)
                             .foregroundColor(.white.opacity(0.7))
                             .lineLimit(2)
                     }
@@ -267,20 +267,20 @@ struct CardLesson: View {
                         .frame(width: 20, height: 20)
 
                     Image(systemName: "checkmark")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(Color(hex: "#252936"))
+                        .font(Typography.s10Bold)
+                        .foregroundColor(Color.cardBackground)
                 }
             }
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(section.name)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(Typography.s15)
                     .foregroundColor(.white)
                     .lineLimit(1)
 
                 if let completedAt = section.completedAt {
                     Text(completedAt.formatted(.dateTime.month(.abbreviated).day().year().hour().minute()))
-                        .font(.system(size: 12, weight: .regular))
+                        .font(Typography.s12)
                         .foregroundColor(.white.opacity(0.5))
                 }
             }
@@ -290,12 +290,12 @@ struct CardLesson: View {
     // MARK: - LessonList Mode
 
     private var lessonListDayLabelColor: Color {
-        guard let status = data.status else { return Color(hex: "#6c47ff") }
+        guard let status = data.status else { return Color.brandPrimary }
         switch status {
         case .complete:
             return .white.opacity(0.5)
         case .next, .upcoming:
-            return Color(hex: "#6c47ff")
+            return Color.brandPrimary
         }
     }
 
@@ -323,7 +323,7 @@ struct CardLesson: View {
                 // Title
                 if let title = data.title {
                     Text(title)
-                        .font(.system(size: 15, weight: .bold))
+                        .font(Typography.s15Bold)
                         .foregroundColor(.white)
                         .lineLimit(1)
                 }
@@ -344,7 +344,7 @@ struct CardLesson: View {
         switch status {
         case .complete:
             Text("COMPLETE")
-                .font(.system(size: 10, weight: .bold))
+                .font(Typography.s10Bold)
                 .foregroundColor(.white.opacity(0.5))
                 .tracking(0.5)
                 .padding(.horizontal, 8)
@@ -354,17 +354,17 @@ struct CardLesson: View {
 
         case .next:
             Text("NEXT")
-                .font(.system(size: 10, weight: .bold))
+                .font(Typography.s10Bold)
                 .foregroundColor(.white)
                 .tracking(0.5)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 4)
-                .background(Color(hex: "#6c47ff"))
+                .background(Color.brandPrimary)
                 .cornerRadius(4)
 
         case .upcoming(let text):
             Text(text.uppercased())
-                .font(.system(size: 10, weight: .bold))
+                .font(Typography.s10Bold)
                 .foregroundColor(.white.opacity(0.5))
                 .tracking(0.5)
         }
@@ -386,7 +386,7 @@ struct CardLesson: View {
             }
             if overflow > 0 {
                 Text("+\(overflow)")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Typography.s12Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .frame(width: 32, height: 32)
                     .background(Color.white.opacity(0.1))
@@ -394,7 +394,7 @@ struct CardLesson: View {
             }
             Spacer()
             Text(formattedEstimate(data.estimatedMinutes ?? 0))
-                .font(.system(size: 12, weight: .regular))
+                .font(Typography.s12)
                 .foregroundColor(.white.opacity(0.5))
         }
     }
@@ -438,7 +438,7 @@ struct CardLesson: View {
                     case .default:
                         Color.white.opacity(0.1)
                     case .incomplete, .percentComplete:
-                        Color(hex: "#6c47ff")
+                        Color.brandPrimary
                     case .complete:
                         Color.white.opacity(0.2)
                     }
@@ -456,12 +456,12 @@ struct CardLesson: View {
     private func dayIndicator(labelColor: Color, stretch: Bool = false) -> some View {
         VStack(spacing: 0) {
             Text("DAY")
-                .font(.system(size: 12, weight: .regular))
+                .font(Typography.s12)
                 .foregroundColor(labelColor)
                 .tracking(0.1)
 
             Text("\(data.day)")
-                .font(.system(size: 22, weight: .regular))
+                .font(Typography.s22)
                 .foregroundColor(.white)
                 .tracking(-0.1)
         }

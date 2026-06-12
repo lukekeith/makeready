@@ -142,18 +142,18 @@ struct EnrollmentsListPage: View {
                 Spacer()
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 40))
+                        .font(Typography.s40)
                         .foregroundColor(.white.opacity(0.3))
 
                     Text(error)
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white.opacity(0.5))
                         .multilineTextAlignment(.center)
 
                     Button("Try Again") {
                         Task { await loadEnrollments() }
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                 }
                 .padding(32)
                 Spacer()
@@ -162,15 +162,15 @@ struct EnrollmentsListPage: View {
                 Spacer()
                 VStack(spacing: 16) {
                     Image(systemName: "book.closed")
-                        .font(.system(size: 40))
+                        .font(Typography.s40)
                         .foregroundColor(.white.opacity(0.3))
 
                     Text("No enrollments yet")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(.white)
 
                     Text("Enroll your group in a study program to get started")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white.opacity(0.5))
                         .multilineTextAlignment(.center)
                 }
@@ -184,7 +184,7 @@ struct EnrollmentsListPage: View {
                         if isCreatingEnrollment, let pending = pendingEnrollment {
                             VStack(alignment: .leading, spacing: 12) {
                                 Text("Creating...")
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(Typography.s13Semibold)
                                     .foregroundColor(.white.opacity(0.5))
                                     .textCase(.uppercase)
                                     .tracking(0.5)
@@ -230,7 +230,7 @@ struct EnrollmentsListPage: View {
             // Section header (optional)
             if let title = title {
                 Text(title)
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(0.5)

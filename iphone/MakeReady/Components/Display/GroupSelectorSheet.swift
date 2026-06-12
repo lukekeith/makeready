@@ -37,7 +37,7 @@ struct GroupSelectorSheet: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundColor(.white50)
-                            .font(.system(size: 24))
+                            .font(Typography.s24)
                     }
                 }
             }
@@ -58,11 +58,11 @@ struct GroupSelectorSheet: View {
             HStack(spacing: 16) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(group.name)
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     Text("\(group.memberCount) members")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white50)
                 }
 
@@ -72,7 +72,7 @@ struct GroupSelectorSheet: View {
                 if selectedGroup?.id == group.id {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.brandPrimary)
-                        .font(.system(size: 24))
+                        .font(Typography.s24)
                 }
             }
             .padding(.horizontal, 16)

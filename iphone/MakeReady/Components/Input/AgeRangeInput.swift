@@ -30,7 +30,7 @@ struct AgeRangeInput: View {
         HStack(spacing: 4) {
             // Label
             Text(label)
-                .font(.system(size: 17, weight: .regular))
+                .font(Typography.s17)
                 .foregroundColor(.white)
 
             Spacer()
@@ -40,7 +40,7 @@ struct AgeRangeInput: View {
                 showMinPicker = true
             }) {
                 Text(minAge)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
@@ -62,7 +62,7 @@ struct AgeRangeInput: View {
                 showMaxPicker = true
             }) {
                 Text(maxAge)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)

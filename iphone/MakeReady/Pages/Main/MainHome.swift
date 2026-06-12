@@ -62,7 +62,7 @@ struct MainHome: View {
             return BarChartDataPoint(
                 label: displayFormatter.string(from: date),
                 value: Double(day.count),
-                color: Color(hex: "#6c47ff")
+                color: Color.brandPrimary
             )
         }
     }
@@ -85,7 +85,7 @@ struct MainHome: View {
                         onAddTap?()
                     } label: {
                         Image(systemName: "plus")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(Typography.s16Semibold)
                             .foregroundColor(.white)
                             .frame(width: 32, height: 32)
                             .background(Color.white.opacity(0.1))
@@ -155,11 +155,11 @@ struct MainHome: View {
                             Spacer().frame(height: 40)
 
                             Image(systemName: "clock.arrow.circlepath")
-                                .font(.system(size: 32))
+                                .font(Typography.s32)
                                 .foregroundColor(.white.opacity(0.3))
 
                             Text(activitySearchText.isEmpty ? "No activity yet" : "No results")
-                                .font(.system(size: 17, weight: .medium))
+                                .font(Typography.s17Medium)
                                 .foregroundColor(.white.opacity(0.5))
 
                             Spacer()
@@ -393,7 +393,7 @@ struct MainHome: View {
             if !upcomingLessons.isEmpty {
                 VStack(alignment: .leading, spacing: 16) {
                     Text("Upcoming Lessons")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .textCase(.uppercase)
                         .tracking(0.5)
@@ -517,7 +517,7 @@ struct MainHome: View {
             // Bar chart: Last 7 days activity
             VStack(alignment: .leading, spacing: 16) {
                 Text("Last 7 Days")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -532,7 +532,7 @@ struct MainHome: View {
 
                         if weeklyActivityData.isEmpty {
                             Text("No activity in the last 7 days")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(Typography.s15Semibold)
                                 .foregroundColor(.white.opacity(0.2))
                         }
                     }
@@ -544,7 +544,7 @@ struct MainHome: View {
             // Heatmap: Activity by day/hour
             VStack(alignment: .leading, spacing: 16) {
                 Text("Activity Heatmap")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
                     .tracking(0.5)
@@ -561,7 +561,7 @@ struct MainHome: View {
 
                         if heatmapData.isEmpty {
                             Text("No lesson activity yet")
-                                .font(.system(size: 15, weight: .semibold))
+                                .font(Typography.s15Semibold)
                                 .foregroundColor(.white.opacity(0.2))
                         }
                     }
@@ -595,7 +595,7 @@ struct MainHome: View {
 
     private var emptyWeeklyData: [BarChartDataPoint] {
         ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map { day in
-            BarChartDataPoint(label: day, value: 0, color: Color(hex: "#6c47ff"))
+            BarChartDataPoint(label: day, value: 0, color: Color.brandPrimary)
         }
     }
 
@@ -654,7 +654,7 @@ private struct MainHomePreviewWithData: View {
     private var mockBarData: [BarChartDataPoint] {
         let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         return days.map { day in
-            BarChartDataPoint(label: day, value: Double.random(in: 3...28), color: Color(hex: "#6c47ff"))
+            BarChartDataPoint(label: day, value: Double.random(in: 3...28), color: Color.brandPrimary)
         }
     }
 
@@ -668,7 +668,7 @@ private struct MainHomePreviewWithData: View {
                 HStack {
                     Spacer()
                     Text("Home")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                     Spacer()
                 }
@@ -687,7 +687,7 @@ private struct MainHomePreviewWithData: View {
                         // Upcoming lessons
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Upcoming Lessons")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(Typography.s13Semibold)
                                 .foregroundColor(.white.opacity(0.5))
                                 .textCase(.uppercase)
                                 .tracking(0.5)
@@ -716,7 +716,7 @@ private struct MainHomePreviewWithData: View {
                         // Bar chart
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Last 7 Days")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(Typography.s13Semibold)
                                 .foregroundColor(.white.opacity(0.5))
                                 .textCase(.uppercase)
                                 .tracking(0.5)
@@ -727,7 +727,7 @@ private struct MainHomePreviewWithData: View {
                         // Heatmap
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Activity Heatmap")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(Typography.s13Semibold)
                                 .foregroundColor(.white.opacity(0.5))
                                 .textCase(.uppercase)
                                 .tracking(0.5)
@@ -766,7 +766,7 @@ private struct MainHomePreviewEmpty: View {
 
     private var emptyWeeklyData: [BarChartDataPoint] {
         ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map { day in
-            BarChartDataPoint(label: day, value: 0, color: Color(hex: "#6c47ff"))
+            BarChartDataPoint(label: day, value: 0, color: Color.brandPrimary)
         }
     }
 
@@ -779,7 +779,7 @@ private struct MainHomePreviewEmpty: View {
                 HStack {
                     Spacer()
                     Text("Home")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
                     Spacer()
                 }
@@ -798,7 +798,7 @@ private struct MainHomePreviewEmpty: View {
                         // Empty bar chart
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Last 7 Days")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(Typography.s13Semibold)
                                 .foregroundColor(.white.opacity(0.5))
                                 .textCase(.uppercase)
                                 .tracking(0.5)
@@ -811,7 +811,7 @@ private struct MainHomePreviewEmpty: View {
                                 )
 
                                 Text("No activity in the last 7 days")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(Typography.s15Semibold)
                                     .foregroundColor(.white.opacity(0.2))
                             }
                         }
@@ -819,7 +819,7 @@ private struct MainHomePreviewEmpty: View {
                         // Empty heatmap
                         VStack(alignment: .leading, spacing: 16) {
                             Text("Activity Heatmap")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(Typography.s13Semibold)
                                 .foregroundColor(.white.opacity(0.5))
                                 .textCase(.uppercase)
                                 .tracking(0.5)
@@ -834,7 +834,7 @@ private struct MainHomePreviewEmpty: View {
                                 )
 
                                 Text("No lesson activity yet")
-                                    .font(.system(size: 15, weight: .semibold))
+                                    .font(Typography.s15Semibold)
                                     .foregroundColor(.white.opacity(0.2))
                             }
                         }

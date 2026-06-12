@@ -301,7 +301,7 @@ struct SearchableList<Item: Identifiable & Hashable, Content: View, Filters: Vie
                                     } header: {
                                         if !letter.isEmpty {
                                             Text(letter)
-                                                .font(.system(size: 16, weight: .bold))
+                                                .font(Typography.s16Bold)
                                                 .foregroundColor(.white50)
                                                 .frame(maxWidth: .infinity, alignment: .leading)
                                                 .padding(.horizontal, 16)
@@ -354,16 +354,16 @@ struct SearchableList<Item: Identifiable & Hashable, Content: View, Filters: Vie
     private var defaultEmptyState: some View {
         VStack(spacing: 20) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 60))
+                .font(Typography.s60)
                 .foregroundColor(.white50)
 
             VStack(spacing: 8) {
                 Text("No results")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Typography.s20Bold)
                     .foregroundColor(.white)
 
                 Text("Try a different search term")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white50)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -510,14 +510,14 @@ private struct SearchableListPreview: View {
             // Row content
             HStack(spacing: 8) {
                 Text(contact.name)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 Spacer()
 
                 if contact.hasPhone {
                     Text("Invite")
-                        .font(.system(size: 12))
+                        .font(Typography.s12)
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)

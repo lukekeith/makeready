@@ -38,10 +38,10 @@ struct MemberRequestsPage: View {
                         Spacer()
                         VStack(spacing: 16) {
                             Image(systemName: "person.badge.clock")
-                                .font(.system(size: 48))
+                                .font(Typography.s48)
                                 .foregroundColor(.white.opacity(0.3))
                             Text("No pending requests")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(Typography.s17Semibold)
                                 .foregroundColor(.white.opacity(0.2))
                         }
                         Spacer()

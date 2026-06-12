@@ -33,11 +33,11 @@ struct QRCodeScreenPage: View {
                         // Header
                         VStack(spacing: 8) {
                             Text("Share Team Invite")
-                                .font(.system(size: 24, weight: .bold))
+                                .font(Typography.s24Bold)
                                 .foregroundColor(.white)
 
                             Text("Scan QR code or share invite link")
-                                .font(.system(size: 14, weight: .regular))
+                                .font(Typography.s14)
                                 .foregroundColor(.white.opacity(0.6))
                         }
                         .padding(.top, 20)
@@ -52,15 +52,15 @@ struct QRCodeScreenPage: View {
                             } else if let error = error {
                                 VStack(spacing: 12) {
                                     Image(systemName: "exclamationmark.triangle")
-                                        .font(.system(size: 48))
+                                        .font(Typography.s48)
                                         .foregroundColor(.red.opacity(0.8))
 
                                     Text("Failed to generate QR code")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(Typography.s16Semibold)
                                         .foregroundColor(.white)
 
                                     Text(error)
-                                        .font(.system(size: 14))
+                                        .font(Typography.s14)
                                         .foregroundColor(.white.opacity(0.6))
                                         .multilineTextAlignment(.center)
                                         .padding(.horizontal, 16)
@@ -70,8 +70,8 @@ struct QRCodeScreenPage: View {
                                             await loadQRCodeFromServer()
                                         }
                                     }
-                                    .font(.system(size: 15, weight: .semibold))
-                                    .foregroundColor(Color(hex: "#6c47ff"))
+                                    .font(Typography.s15Semibold)
+                                    .foregroundColor(Color.brandPrimary)
                                     .padding(.horizontal, 24)
                                     .padding(.vertical, 12)
                                     .background(Color.white.opacity(0.1))
@@ -95,11 +95,11 @@ struct QRCodeScreenPage: View {
                             // Invite Code Display
                             HStack(spacing: 12) {
                                 Text("Code:")
-                                    .font(.system(size: 14, weight: .regular))
+                                    .font(Typography.s14)
                                     .foregroundColor(.white.opacity(0.5))
 
                                 Text(inviteCode)
-                                    .font(.system(size: 16, weight: .bold))
+                                    .font(Typography.s16Bold)
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
@@ -126,11 +126,11 @@ struct QRCodeScreenPage: View {
                                         Image(systemName: "square.and.arrow.up")
                                         Text("Share QR Code")
                                     }
-                                    .font(.system(size: 17, weight: .bold))
+                                    .font(Typography.s17Bold)
                                     .foregroundColor(.white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 16)
-                                    .background(Color(hex: "#6c47ff"))
+                                    .background(Color.brandPrimary)
                                     .cornerRadius(12)
                                 }
                             }
@@ -141,8 +141,8 @@ struct QRCodeScreenPage: View {
                                     Image(systemName: showCopiedFeedback ? "checkmark" : "link")
                                     Text(showCopiedFeedback ? "Copied!" : "Copy Invite Link")
                                 }
-                                .font(.system(size: 17, weight: .bold))
-                                .foregroundColor(Color(hex: "#6c47ff"))
+                                .font(Typography.s17Bold)
+                                .foregroundColor(Color.brandPrimary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
                                 .background(Color.white.opacity(0.1))
@@ -160,7 +160,7 @@ struct QRCodeScreenPage: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(Typography.s16Semibold)
                             .foregroundColor(.white.opacity(0.7))
                     }
                 }

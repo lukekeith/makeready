@@ -27,7 +27,7 @@ enum ConfirmationOverlayStyle {
 
     var iconBackgroundColor: Color {
         switch self {
-        case .success: return Color(hex: "#57db5d")
+        case .success: return Color.success
         case .error: return Color(hex: "#ff4444")
         case .warning: return Color(hex: "#ffaa00")
         case .info: return Color(hex: "#4a90d9")
@@ -35,7 +35,7 @@ enum ConfirmationOverlayStyle {
     }
 
     var iconForegroundColor: Color {
-        Color(hex: "#0d101a")
+        Color.appBackground
     }
 }
 
@@ -106,7 +106,7 @@ private struct AnimatedCompletionCircle: View {
 
             // Icon (scales in with bounce after fill completes)
             Image(systemName: iconName)
-                .font(.system(size: 40, weight: .medium))
+                .font(Typography.s40Medium)
                 .foregroundColor(iconColor)
                 .scaleEffect(iconScale)
                 .opacity(iconOpacity)
@@ -238,7 +238,7 @@ struct ConfirmationOverlay: View {
                             Text(message)
                         }
                     }
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
                     .multilineTextAlignment(.center)
                     .lineSpacing(4)
@@ -254,12 +254,12 @@ struct ConfirmationOverlay: View {
                         }
                     }) {
                         Text(buttonLabel)
-                            .font(.system(size: 12, weight: .bold))
+                            .font(Typography.s12Bold)
                             .foregroundColor(isProcessing ? .white.opacity(0.3) : .white)
                             .tracking(0.1)
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
-                            .background(isProcessing ? Color.white.opacity(0.1) : Color(hex: "#6c47ff"))
+                            .background(isProcessing ? Color.white.opacity(0.1) : Color.brandPrimary)
                             .cornerRadius(8)
                             .animation(Motion.standard, value: isProcessing)
                     }
@@ -276,7 +276,7 @@ struct ConfirmationOverlay: View {
                             }
                         }) {
                             Text(secondaryLabel)
-                                .font(.system(size: 12, weight: .bold))
+                                .font(Typography.s12Bold)
                                 .foregroundColor(isProcessing ? .white.opacity(0.15) : .white.opacity(0.5))
                                 .tracking(0.1)
                                 .frame(maxWidth: .infinity)

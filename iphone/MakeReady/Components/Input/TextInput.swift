@@ -34,7 +34,7 @@ struct TextInput: View {
         self.placeholder = placeholder
         self.label = nil
         self.icon = nil
-        self.iconColor = Color(hex: "#6c47ff")
+        self.iconColor = Color.brandPrimary
         self.inputType = inputType
         self.autocorrect = autocorrect
         self.floatingLabel = false
@@ -47,7 +47,7 @@ struct TextInput: View {
     init(
         label: String,
         icon: String? = nil,
-        iconColor: Color = Color(hex: "#6c47ff"),
+        iconColor: Color = Color.brandPrimary,
         inputType: InputType = .alphanumeric,
         autocorrect: Bool = false,
         text: Binding<String>,
@@ -70,7 +70,7 @@ struct TextInput: View {
     init(
         floatingLabel: String,
         icon: String? = nil,
-        iconColor: Color = Color(hex: "#6c47ff"),
+        iconColor: Color = Color.brandPrimary,
         inputType: InputType = .alphanumeric,
         autocorrect: Bool = false,
         text: Binding<String>,
@@ -107,16 +107,16 @@ struct TextInput: View {
         HStack(spacing: 12) {
             if let icon = icon {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundColor(validationError != nil ? Color(hex: "#FF4759") : iconColor)
+                    .font(Typography.s16)
+                    .foregroundColor(validationError != nil ? Color.error : iconColor)
                     .frame(width: 24)
             }
 
             // Text field — fixed position, label overlaid absolutely
             TextField("", text: $displayText)
-                .font(.system(size: 17, weight: .regular))
+                .font(Typography.s17)
                 .foregroundColor(.white)
-                .accentColor(Color(hex: "#6c47ff"))
+                .accentColor(Color.brandPrimary)
                 .keyboardType(inputType.keyboardType)
                 .autocapitalization(.none)
                 .autocorrectionDisabled(!autocorrect)
@@ -135,7 +135,7 @@ struct TextInput: View {
                         Text(placeholder)
                             .font(.system(size: isFloatingUp ? 12 : 17, weight: .regular))
                             .foregroundColor(
-                                isFocused ? Color(hex: "#6c47ff") : .white.opacity(isFloatingUp ? 0.5 : 0.35)
+                                isFocused ? Color.brandPrimary : .white.opacity(isFloatingUp ? 0.5 : 0.35)
                             )
                             .offset(y: isFloatingUp ? -18 : 0)
                             .animation(Motion.settle, value: isFloatingUp)
@@ -167,15 +167,15 @@ struct TextInput: View {
             // Icon (if provided and labeled variant)
             if let icon = icon, label != nil {
                 Image(systemName: icon)
-                    .font(.system(size: 16, weight: .regular))
-                    .foregroundColor(validationError != nil ? Color(hex: "#FF4759") : iconColor)
+                    .font(Typography.s16)
+                    .foregroundColor(validationError != nil ? Color.error : iconColor)
                     .frame(width: 24)
             }
 
             // Label (if provided)
             if let label = label {
                 Text(label)
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(isFocused ? .white : .white.opacity(0.7))
 
                 Spacer()
@@ -183,9 +183,9 @@ struct TextInput: View {
 
             // Text field
             TextField("", text: $displayText, prompt: placeholder != nil ? Text(placeholder!).foregroundColor(.white.opacity(isFocused ? 0.25 : 0.5)) : nil)
-                .font(.system(size: 17, weight: .regular))
+                .font(Typography.s17)
                 .foregroundColor(label != nil ? .white.opacity(0.7) : .white)
-                .accentColor(Color(hex: "#6c47ff"))
+                .accentColor(Color.brandPrimary)
                 .keyboardType(inputType.keyboardType)
                 .autocapitalization(.none)
                 .autocorrectionDisabled(!autocorrect)
@@ -256,7 +256,7 @@ struct TextInput: View {
 
         VStack(spacing: 20) {
             Text("Placeholder variant")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -275,7 +275,7 @@ struct TextInput: View {
             .padding(.horizontal, 16)
 
             Text("Labeled variant")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -299,7 +299,7 @@ struct TextInput: View {
             .padding(.horizontal, 16)
 
             Text("Floating label variant")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
                 .frame(maxWidth: .infinity, alignment: .leading)

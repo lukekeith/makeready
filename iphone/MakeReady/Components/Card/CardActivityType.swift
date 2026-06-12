@@ -80,13 +80,13 @@ struct CardActivityType: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Typography.s15Semibold)
                     .foregroundColor(.white)
                     .lineLimit(1)
 
                 if let description = description {
                     Text(description)
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.5))
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -133,7 +133,7 @@ struct CardActivityType: View {
             backgroundColor
                 .overlay(
                     Image(systemName: systemName)
-                        .font(.system(size: 16))
+                        .font(Typography.s16)
                         .foregroundColor(.white)
                 )
                 .frame(width: width, height: height)
@@ -174,7 +174,7 @@ struct CardActivityType: View {
             backgroundColor
                 .overlay(
                     Image(systemName: systemName)
-                        .font(.system(size: 32))
+                        .font(Typography.s32)
                         .foregroundColor(iconColor)
                 )
                 .frame(width: size, height: size)
@@ -216,7 +216,7 @@ struct CardActivityType: View {
             CardActivityType(
                 title: "Read",
                 description: "Add a reading section with rich text content.",
-                image: .icon(systemName: "book.fill", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "book.fill", backgroundColor: Color.brandPrimary),
                 mode: .list,
                 onTap: {}
             )
@@ -224,7 +224,7 @@ struct CardActivityType: View {
             CardActivityType(
                 title: "Write",
                 description: "Add a prompt for members to write a response.",
-                image: .icon(systemName: "pencil.line", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "pencil.line", backgroundColor: Color.brandPrimary),
                 mode: .list,
                 onTap: {}
             )
@@ -232,7 +232,7 @@ struct CardActivityType: View {
             CardActivityType(
                 title: "Video",
                 description: "Add a video message from your library.",
-                image: .icon(systemName: "play.fill", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "play.fill", backgroundColor: Color.brandPrimary),
                 mode: .list,
                 onTap: {}
             )
@@ -240,7 +240,7 @@ struct CardActivityType: View {
             CardActivityType(
                 title: "YouTube",
                 description: "Add a YouTube video for members to watch.",
-                image: .icon(systemName: "play.rectangle.fill", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "play.rectangle.fill", backgroundColor: Color.brandPrimary),
                 mode: .list,
                 onTap: {}
             )
@@ -249,7 +249,7 @@ struct CardActivityType: View {
             CardActivityType(
                 title: "SOAP",
                 description: "Scripture, Observation, Application, Prayer.",
-                image: .icon(systemName: "book.fill", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "book.fill", backgroundColor: Color.brandPrimary),
                 mode: .list,
                 available: false,
                 onTap: {}
@@ -266,7 +266,7 @@ struct CardActivityType: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3), spacing: 8) {
             CardActivityType(
                 title: "Read",
-                image: .icon(systemName: "book.fill", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "book.fill", backgroundColor: Color.brandPrimary),
                 mode: .grid,
                 onTap: {}
             )
@@ -318,7 +318,7 @@ struct CardActivityType: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 2), spacing: 8) {
             CardActivityType(
                 title: "Read",
-                image: .icon(systemName: "book.fill", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "book.fill", backgroundColor: Color.brandPrimary),
                 mode: .grid,
                 onTap: {}
             )
@@ -353,7 +353,7 @@ struct CardActivityType: View {
         LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6) {
             CardActivityType(
                 title: "Read",
-                image: .icon(systemName: "book.fill", backgroundColor: Color(hex: "#6c47ff")),
+                image: .icon(systemName: "book.fill", backgroundColor: Color.brandPrimary),
                 mode: .grid,
                 onTap: {}
             )

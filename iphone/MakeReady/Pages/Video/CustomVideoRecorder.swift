@@ -54,7 +54,7 @@ struct CustomVideoRecorder: View {
                         .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         .scaleEffect(1.5)
                     Text("Processing video...")
-                        .font(.system(size: 17))
+                        .font(Typography.s17)
                         .foregroundColor(.white.opacity(0.7))
                 }
             } else {
@@ -176,7 +176,7 @@ struct CustomVideoRecorder: View {
 
     private var recordingTimerBadge: some View {
         Text(formatTimeHHMMSS(cameraManager.elapsedTime))
-            .font(.system(size: 17, weight: .bold))
+            .font(Typography.s17Bold)
             .foregroundColor(.white)
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
@@ -206,7 +206,7 @@ struct CustomVideoRecorder: View {
                         }
                     } label: {
                         Image(systemName: cameraManager.isPaused ? "play.fill" : "pause.fill")
-                            .font(.system(size: 24))
+                            .font(Typography.s24)
                             .foregroundColor(.white)
                     }
                 }
@@ -235,7 +235,7 @@ struct CustomVideoRecorder: View {
                         cameraManager.flipCamera()
                     } label: {
                         Image(systemName: "arrow.triangle.2.circlepath")
-                            .font(.system(size: 24))
+                            .font(Typography.s24)
                             .foregroundColor(.white)
                     }
                 }
@@ -273,7 +273,7 @@ struct CustomVideoRecorder: View {
                 }
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(Typography.s20Semibold)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
@@ -285,7 +285,7 @@ struct CustomVideoRecorder: View {
                 cameraManager.toggleFlash()
             } label: {
                 Image(systemName: cameraManager.isFlashOn ? "bolt.fill" : "bolt.slash.fill")
-                    .font(.system(size: 20))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
@@ -297,7 +297,7 @@ struct CustomVideoRecorder: View {
                 showSettings = true
             } label: {
                 Image(systemName: "gearshape.fill")
-                    .font(.system(size: 20))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
@@ -376,11 +376,11 @@ struct CustomVideoRecorder: View {
             } label: {
                 HStack(spacing: 4) {
                     Text("Teleprompter")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(Typography.s15Bold)
                         .foregroundColor(.white)
 
                     Image(systemName: "chevron.up")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Typography.s12Semibold)
                         .foregroundColor(.white)
                 }
             }
@@ -392,7 +392,7 @@ struct CustomVideoRecorder: View {
                 cameraManager.flipCamera()
             } label: {
                 Image(systemName: "arrow.triangle.2.circlepath.camera")
-                    .font(.system(size: 20))
+                    .font(Typography.s20)
                     .foregroundColor(.white)
                     .frame(width: 40, height: 40)
             }
@@ -435,14 +435,14 @@ struct CustomVideoRecorder: View {
                         try? FileManager.default.removeItem(at: videoURL)
                     } label: {
                         Text("Re-record")
-                            .font(.system(size: 17))
+                            .font(Typography.s17)
                             .foregroundColor(.white)
                     }
 
                     Spacer()
 
                     Text("Preview")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     Spacer()
@@ -460,7 +460,7 @@ struct CustomVideoRecorder: View {
                         isPresented = false
                     } label: {
                         Text("Next")
-                            .font(.system(size: 17))
+                            .font(Typography.s17)
                             .foregroundColor(.brandPrimary)
                     }
                 }
@@ -494,7 +494,7 @@ struct CustomVideoRecorder: View {
                     // Speed slider
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Scroll Speed")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.7))
 
                         Slider(value: $cameraManager.teleprompterSpeed, in: 0.5...3.0, step: 0.1)
@@ -505,7 +505,7 @@ struct CustomVideoRecorder: View {
                     // Text editor
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Script")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.7))
 
                         TextEditor(text: $cameraManager.teleprompterText)

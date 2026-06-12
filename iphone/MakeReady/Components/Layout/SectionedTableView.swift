@@ -59,7 +59,7 @@ struct SectionedTableView<Item: Identifiable & Hashable, Content: View>: UIViewC
         tableView.delegate = context.coordinator
         
         // Section index styling
-        tableView.sectionIndexColor = UIColor(Color(hex: "#5680ff"))
+        tableView.sectionIndexColor = UIColor(Color.accentBlue)
         tableView.sectionIndexBackgroundColor = .clear
         tableView.sectionIndexTrackingBackgroundColor = .clear
         
@@ -185,7 +185,7 @@ struct SectionedTableView<Item: Identifiable & Hashable, Content: View>: UIViewC
             
             let hostingController = UIHostingController(rootView:
                 Text(letter)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Typography.s16Bold)
                     .foregroundColor(.white50)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
@@ -264,7 +264,7 @@ struct SectionedTableView<Item: Identifiable & Hashable, Content: View>: UIViewC
         ) { item in
             HStack {
                 Text(item.name)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
                 Spacer()
             }

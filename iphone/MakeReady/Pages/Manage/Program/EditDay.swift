@@ -1105,7 +1105,7 @@ struct LessonPreviewModal: View {
                     isPresented = false
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Typography.s14Bold)
                         .foregroundColor(.white)
                         .frame(width: 32, height: 32)
                         .background(Color.white.opacity(0.1))
@@ -1119,7 +1119,7 @@ struct LessonPreviewModal: View {
                     reloadToken += 1
                 } label: {
                     Image(systemName: "arrow.counterclockwise")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(Typography.s14Bold)
                         .foregroundColor(.white)
                         .frame(width: 32, height: 32)
                         .background(Color.white.opacity(0.1))

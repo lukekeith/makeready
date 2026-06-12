@@ -61,7 +61,7 @@ struct CoverImagePicker: View {
                 showPhotoPicker = true
             }) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(Typography.s20Semibold)
                     .foregroundColor(.white)
                     .shadow(color: .black.opacity(0.3), radius: 4)
             }
@@ -98,8 +98,8 @@ struct CoverImagePicker: View {
                 // Bottom gradient overlay (always present)
                 LinearGradient(
                     gradient: Gradient(colors: [
-                        Color(hex: "#0d101a").opacity(0),
-                        Color(hex: "#0d101a")
+                        Color.appBackground.opacity(0),
+                        Color.appBackground
                     ]),
                     startPoint: .top,
                     endPoint: .bottom
@@ -114,31 +114,31 @@ struct CoverImagePicker: View {
                     if !programName.trimmingCharacters(in: .whitespaces).isEmpty {
                         // Show program name (with or without image)
                         Text(programName)
-                            .font(.system(size: 22, weight: .bold))
+                            .font(Typography.s22Bold)
                             .foregroundColor(.white)
                             .lineLimit(1)
 
                         if !programDescription.trimmingCharacters(in: .whitespaces).isEmpty {
                             Text(programDescription)
-                                .font(.system(size: 13, weight: .regular))
+                                .font(Typography.s13)
                                 .foregroundColor(.white.opacity(0.7))
                                 .lineLimit(2)
                                 .truncationMode(.tail)
                         } else if !hasImage {
                             // Show "Add cover image" as secondary text when no image
                             Text("Add cover image")
-                                .font(.system(size: 13, weight: .regular))
+                                .font(Typography.s13)
                                 .foregroundColor(.white.opacity(0.4))
                         }
                     } else if !hasImage {
                         // No name, no image - "Add cover image"
                         Text("Add cover image")
-                            .font(.system(size: 22, weight: .regular))
+                            .font(Typography.s22)
                             .foregroundColor(.white.opacity(0.2))
                     } else {
                         // Has image, no name - "Add program name"
                         Text("Add program name")
-                            .font(.system(size: 22, weight: .regular))
+                            .font(Typography.s22)
                             .foregroundColor(.white.opacity(0.2))
                     }
                 }
@@ -201,13 +201,13 @@ struct PHPickerViewControllerWrapper: UIViewControllerRepresentable {
 
 #Preview {
     ZStack {
-        Color(hex: "#0d101a")
+        Color.appBackground
             .ignoresSafeArea()
 
         ScrollView {
             VStack(spacing: 20) {
                 Text("Editable Mode")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)
@@ -229,7 +229,7 @@ struct PHPickerViewControllerWrapper: UIViewControllerRepresentable {
                 )
 
                 Text("Display Mode")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 16)

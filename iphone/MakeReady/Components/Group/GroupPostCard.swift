@@ -18,7 +18,7 @@ struct GroupPostCard: View {
 
             // Content text
             Text(post.content)
-                .font(.system(size: 13, weight: .regular))
+                .font(Typography.s13)
                 .foregroundColor(.white)
                 .lineSpacing(6)
                 .fixedSize(horizontal: false, vertical: true)
@@ -56,7 +56,7 @@ struct GroupPostCard: View {
             // Name + timestamp
             VStack(alignment: .leading, spacing: 2) {
                 Text(post.authorName)
-                    .font(.system(size: 15, weight: .bold))
+                    .font(Typography.s15Bold)
                     .foregroundColor(.white)
 
                 relativeTimestamp
@@ -78,11 +78,11 @@ struct GroupPostCard: View {
         let (value, unit) = relativeTimeComponents(from: post.createdAt)
         return HStack(spacing: 4) {
             Text(value)
-                .font(.system(size: 11, weight: .regular))
+                .font(Typography.s11)
                 .foregroundColor(.white.opacity(0.7))
 
             Text(unit)
-                .font(.system(size: 11, weight: .regular))
+                .font(Typography.s11)
                 .foregroundColor(.white.opacity(0.5))
         }
     }
@@ -96,22 +96,22 @@ struct GroupPostCard: View {
                 // Views
                 HStack(spacing: 8) {
                     Image(systemName: "eye.fill")
-                        .font(.system(size: 14, weight: .regular))
+                        .font(Typography.s14)
                         .foregroundColor(.white)
 
                     Text("\(post.viewCount ?? 0)")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.7))
                 }
 
                 // Shares/Reposts
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.2.squarepath")
-                        .font(.system(size: 14, weight: .regular))
+                        .font(Typography.s14)
                         .foregroundColor(.white)
 
                     Text("\(post.shareCount ?? 0)")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.7))
                 }
             }
@@ -122,12 +122,12 @@ struct GroupPostCard: View {
             HStack(spacing: 16) {
                 // Bookmark
                 Image(systemName: "bookmark")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(Typography.s14)
                     .foregroundColor(.white)
 
                 // Share/Export
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(Typography.s14)
                     .foregroundColor(.white)
             }
         }
@@ -164,12 +164,12 @@ struct GroupPostCard: View {
                 if let eventDate = post.eventDate {
                     VStack(spacing: 0) {
                         Text(dayNumber(from: eventDate))
-                            .font(.system(size: 28, weight: .regular))
+                            .font(Typography.s28)
                             .foregroundColor(.white)
 
                         Text(monthAbbrev(from: eventDate))
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(Color(hex: "#6c47ff"))
+                            .font(Typography.s15Bold)
+                            .foregroundColor(Color.brandPrimary)
                     }
                     .padding(16)
                 }
@@ -178,24 +178,24 @@ struct GroupPostCard: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Event title
                     Text(post.eventTitle ?? post.title ?? "Event")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     // Date and time
                     if let eventDate = post.eventDate {
                         Text(formatEventDateTime(eventDate))
-                            .font(.system(size: 13, weight: .regular))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.7))
                     }
 
                     // Attendee count
                     HStack(spacing: 4) {
                         Text("\(post.attendeeCount ?? 0)")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(Typography.s13Bold)
                             .foregroundColor(.white)
 
                         Text("people are going")
-                            .font(.system(size: 13, weight: .regular))
+                            .font(Typography.s13)
                             .foregroundColor(.white.opacity(0.5))
                     }
                 }
@@ -214,7 +214,7 @@ struct GroupPostCard: View {
             .frame(height: 200)
             .overlay(
                 Image(systemName: "calendar")
-                    .font(.system(size: 32, weight: .regular))
+                    .font(Typography.s32)
                     .foregroundColor(.white.opacity(0.3))
             )
     }
@@ -236,7 +236,7 @@ struct GroupPostCard: View {
                     .frame(height: 200)
                     .overlay(
                         Image(systemName: "photo")
-                            .font(.system(size: 32, weight: .regular))
+                            .font(Typography.s32)
                             .foregroundColor(.white.opacity(0.3))
                     )
             @unknown default:
@@ -267,23 +267,23 @@ struct GroupPostCard: View {
         return HStack(spacing: 8) {
             // Selection indicator
             Circle()
-                .strokeBorder(option.hasVoted ? Color(hex: "#6c47ff") : Color.white.opacity(0.3), lineWidth: 2)
+                .strokeBorder(option.hasVoted ? Color.brandPrimary : Color.white.opacity(0.3), lineWidth: 2)
                 .background(
                     Circle()
-                        .fill(option.hasVoted ? Color(hex: "#6c47ff") : Color.clear)
+                        .fill(option.hasVoted ? Color.brandPrimary : Color.clear)
                 )
                 .frame(width: 18, height: 18)
 
             // Option text
             Text(option.text)
-                .font(.system(size: 14, weight: .regular))
+                .font(Typography.s14)
                 .foregroundColor(.white)
 
             Spacer()
 
             // Vote count
             Text("\(option.voteCount)")
-                .font(.system(size: 14, weight: .medium))
+                .font(Typography.s14Medium)
                 .foregroundColor(.white.opacity(0.5))
         }
         .padding(.horizontal, 12)
@@ -291,7 +291,7 @@ struct GroupPostCard: View {
         .background(
             GeometryReader { geometry in
                 Rectangle()
-                    .fill(Color(hex: "#6c47ff").opacity(0.2))
+                    .fill(Color.brandPrimary.opacity(0.2))
                     .frame(width: geometry.size.width * percentage)
             }
         )
@@ -311,12 +311,12 @@ struct GroupPostCard: View {
                         .frame(width: 80, height: 48)
 
                     Image(systemName: "play.fill")
-                        .font(.system(size: 20, weight: .regular))
+                        .font(Typography.s20)
                         .foregroundColor(.white)
                 }
 
                 Text("Tap to play video")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(Typography.s14)
                     .foregroundColor(.white.opacity(0.5))
 
                 Spacer()

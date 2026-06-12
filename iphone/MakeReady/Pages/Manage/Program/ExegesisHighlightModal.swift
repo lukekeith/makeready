@@ -33,7 +33,7 @@ struct ExegesisHighlightModal: View {
             // Header
             HStack {
                 Text("Highlight Passage")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(Typography.s24Bold)
                     .foregroundColor(.white)
 
                 Spacer()
@@ -42,7 +42,7 @@ struct ExegesisHighlightModal: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Typography.s15Semibold)
                         .foregroundColor(.white)
                         .frame(width: 32, height: 32)
                         .background(Color.white.opacity(0.1))
@@ -117,12 +117,12 @@ struct ExegesisHighlightModal: View {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(snippet(for: h))
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Typography.s15Semibold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
                     Text(h.noteMarkdown.isEmpty ? "Tap to add note" : "Note added")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Typography.s13Semibold)
                         .foregroundColor(.white.opacity(0.5))
                         .lineLimit(1)
                 }
@@ -134,7 +134,7 @@ struct ExegesisHighlightModal: View {
                         onHighlightDeleted(h)
                     } label: {
                         Image(systemName: "trash")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(Typography.s13Semibold)
                             .foregroundColor(.white.opacity(0.6))
                             .frame(width: 28, height: 28)
                     }
@@ -142,7 +142,7 @@ struct ExegesisHighlightModal: View {
                 }
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Typography.s12Semibold)
                     .foregroundColor(.white.opacity(0.3))
             }
             .padding(16)

@@ -71,12 +71,12 @@ struct InfoPanel: View {
     private func keyValueRow(item: InfoPanelItem) -> some View {
         HStack(spacing: 16) {
             Text(item.label)
-                .font(.system(size: 14, weight: .semibold))
+                .font(Typography.s14Semibold)
                 .foregroundColor(.white)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(item.value)
-                .font(.system(size: 14, weight: .semibold))
+                .font(Typography.s14Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.trailing)
         }
@@ -99,12 +99,12 @@ struct InfoPanel: View {
     private func dataRowContent(item: InfoPanelItem) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(item.label)
-                .font(.system(size: 14, weight: .semibold))
+                .font(Typography.s14Semibold)
                 .foregroundColor(.white)
 
             Text(item.value)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(item.onTap != nil ? Color(hex: "#6c47ff") : .white.opacity(0.5))
+                .font(Typography.s14Semibold)
+                .foregroundColor(item.onTap != nil ? Color.brandPrimary : .white.opacity(0.5))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(16)

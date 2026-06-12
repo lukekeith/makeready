@@ -41,7 +41,7 @@ struct VerticalBarChart: View {
             .annotation(position: .top, alignment: .center) {
                 if showValues {
                     Text(formatValue(dataPoint.value))
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Typography.s11Semibold)
                         .foregroundColor(.white.opacity(0.7))
                         .padding(.top, 4)
                 }
@@ -52,7 +52,7 @@ struct VerticalBarChart: View {
                 AxisValueLabel(verticalSpacing: 8) {
                     if let stringValue = value.as(String.self) {
                         Text(stringValue)
-                            .font(.system(size: 12, weight: .regular))
+                            .font(Typography.s12)
                             .foregroundColor(.white.opacity(0.7))
                     }
                 }
@@ -63,7 +63,7 @@ struct VerticalBarChart: View {
                 AxisValueLabel(horizontalSpacing: 8) {
                     if let doubleValue = value.as(Double.self) {
                         Text(formatAxisValue(doubleValue))
-                            .font(.system(size: 11, weight: .regular))
+                            .font(Typography.s11)
                             .foregroundColor(.white.opacity(0.5))
                     }
                 }
@@ -109,7 +109,7 @@ struct VerticalBarChart: View {
             // Example 1: Monthly revenue
             VStack(alignment: .leading, spacing: 12) {
                 Text("Monthly Revenue (2024)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -123,7 +123,7 @@ struct VerticalBarChart: View {
             // Example 2: Weekly signups
             VStack(alignment: .leading, spacing: 12) {
                 Text("New Signups (Last 7 Days)")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -137,7 +137,7 @@ struct VerticalBarChart: View {
             // Example 3: Category breakdown
             VStack(alignment: .leading, spacing: 12) {
                 Text("Projects by Status")
-                    .font(.system(size: 13, weight: .semibold))
+                    .font(Typography.s13Semibold)
                     .foregroundColor(.white.opacity(0.5))
                     .textCase(.uppercase)
 
@@ -156,12 +156,12 @@ struct VerticalBarChart: View {
 
 private var monthlyRevenueData: [BarChartDataPoint] {
     [
-        BarChartDataPoint(label: "Jan", value: 12500, color: Color(hex: "#6c47ff")),
-        BarChartDataPoint(label: "Feb", value: 14200, color: Color(hex: "#6c47ff")),
-        BarChartDataPoint(label: "Mar", value: 13800, color: Color(hex: "#6c47ff")),
-        BarChartDataPoint(label: "Apr", value: 16100, color: Color(hex: "#6c47ff")),
-        BarChartDataPoint(label: "May", value: 18300, color: Color(hex: "#6c47ff")),
-        BarChartDataPoint(label: "Jun", value: 19500, color: Color(hex: "#6c47ff"))
+        BarChartDataPoint(label: "Jan", value: 12500, color: Color.brandPrimary),
+        BarChartDataPoint(label: "Feb", value: 14200, color: Color.brandPrimary),
+        BarChartDataPoint(label: "Mar", value: 13800, color: Color.brandPrimary),
+        BarChartDataPoint(label: "Apr", value: 16100, color: Color.brandPrimary),
+        BarChartDataPoint(label: "May", value: 18300, color: Color.brandPrimary),
+        BarChartDataPoint(label: "Jun", value: 19500, color: Color.brandPrimary)
     ]
 }
 

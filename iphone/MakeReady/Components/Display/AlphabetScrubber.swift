@@ -31,8 +31,8 @@ struct AlphabetScrubber: View {
             VStack(spacing: 2) {
                 ForEach(letters, id: \.self) { letter in
                     Text(letter)
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundColor(Color(hex: "#5680ff"))
+                        .font(Typography.s11Semibold)
+                        .foregroundColor(Color.accentBlue)
                         .frame(width: 28, height: letterHeight)
                 }
             }
@@ -85,12 +85,12 @@ struct AlphabetScrubber: View {
                     ForEach(["A", "B", "C", "D", "E", "F", "G", "H"], id: \.self) { letter in
                         VStack(alignment: .leading, spacing: 8) {
                             Text(letter)
-                                .font(.system(size: 20, weight: .bold))
+                                .font(Typography.s20Bold)
                                 .foregroundColor(.white)
 
                             ForEach(1...3, id: \.self) { index in
                                 Text("\(letter)dam Smith \(index)")
-                                    .font(.system(size: 17))
+                                    .font(Typography.s17)
                                     .foregroundColor(.white.opacity(0.8))
                                     .padding(.vertical, 8)
                             }

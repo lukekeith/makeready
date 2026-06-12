@@ -80,8 +80,8 @@ struct CardActivity: View {
 
     private var categoryColor: Color {
         switch entry.category {
-        case "AUTH": return Color(hex: "#6c47ff")
-        case "JOIN": return Color(hex: "#57db5d")
+        case "AUTH": return Color.brandPrimary
+        case "JOIN": return Color.success
         case "ACCESS": return Color(hex: "#4a90d9")
         default: return .white.opacity(0.5)
         }
@@ -89,7 +89,7 @@ struct CardActivity: View {
 
     private var statusColor: Color {
         switch entry.status {
-        case "SUCCESS": return Color(hex: "#57db5d")
+        case "SUCCESS": return Color.success
         case "FAILURE": return Color(hex: "#ff4444")
         case "WARNING": return Color(hex: "#ffaa00")
         default: return .white.opacity(0.3)
@@ -129,14 +129,14 @@ struct CardActivity: View {
                     .frame(width: 40, height: 40)
 
                 Image(systemName: categoryIcon)
-                    .font(.system(size: 16))
+                    .font(Typography.s16)
                     .foregroundColor(categoryColor)
             }
 
             // Message and metadata
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.message)
-                    .font(.system(size: 15, weight: .regular))
+                    .font(Typography.s15)
                     .foregroundColor(.white)
                     .lineLimit(2)
 
@@ -147,14 +147,14 @@ struct CardActivity: View {
                         .frame(width: 6, height: 6)
 
                     Text(entry.category.capitalized)
-                        .font(.system(size: 12, weight: .medium))
+                        .font(Typography.s12Medium)
                         .foregroundColor(.white.opacity(0.4))
 
                     Text("·")
                         .foregroundColor(.white.opacity(0.3))
 
                     Text(formattedTime)
-                        .font(.system(size: 12))
+                        .font(Typography.s12)
                         .foregroundColor(.white.opacity(0.3))
                 }
             }

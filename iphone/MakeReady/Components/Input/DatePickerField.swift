@@ -21,7 +21,7 @@ struct DatePickerField: View {
         HStack(spacing: 8) {
             // Label
             Text(label)
-                .font(.system(size: 17, weight: .regular))
+                .font(Typography.s17)
                 .foregroundColor(.white)
 
             Spacer()
@@ -31,7 +31,7 @@ struct DatePickerField: View {
                 showDatePicker = true
             }) {
                 Text(dateFormatter.string(from: date))
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
@@ -47,7 +47,7 @@ struct DatePickerField: View {
                 showTimePicker = true
             }) {
                 Text(timeFormatter.string(from: date))
-                    .font(.system(size: 17, weight: .regular))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 8)
@@ -101,13 +101,13 @@ struct DatePickerSheet: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .foregroundColor(Color.brandPrimary)
                 }
             }
         }

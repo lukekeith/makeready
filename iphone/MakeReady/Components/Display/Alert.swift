@@ -19,30 +19,30 @@ struct Alert: View {
     private var backgroundColor: Color {
         switch variant {
         case .warning:
-            return Color(hex: "#F4FF76").opacity(0.2)
+            return Color.warning.opacity(0.2)
         case .critical:
-            return Color(hex: "#FF4759").opacity(0.2)
+            return Color.error.opacity(0.2)
         }
     }
 
     private var iconColor: Color {
         switch variant {
         case .warning:
-            return Color(hex: "#F4FF76")
+            return Color.warning
         case .critical:
-            return Color(hex: "#FF4759")
+            return Color.error
         }
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 20))
+                .font(Typography.s20)
                 .foregroundColor(iconColor)
                 .frame(width: 20, height: 20)
 
             Text(message)
-                .font(.system(size: 13, weight: .regular))
+                .font(Typography.s13)
                 .foregroundColor(.white)
                 .lineSpacing(5)
                 .fixedSize(horizontal: false, vertical: true)
@@ -58,7 +58,7 @@ struct Alert: View {
 
 #Preview("Warning Alert") {
     ZStack {
-        Color(hex: "#0a0a0f")
+        Color.backgroundDark
             .ignoresSafeArea()
 
         VStack(spacing: 20) {
@@ -73,7 +73,7 @@ struct Alert: View {
 
 #Preview("Critical Alert") {
     ZStack {
-        Color(hex: "#0a0a0f")
+        Color.backgroundDark
             .ignoresSafeArea()
 
         VStack(spacing: 20) {
@@ -88,7 +88,7 @@ struct Alert: View {
 
 #Preview("Both Variants") {
     ZStack {
-        Color(hex: "#0a0a0f")
+        Color.backgroundDark
             .ignoresSafeArea()
 
         VStack(spacing: 20) {

@@ -64,7 +64,7 @@ struct UnenrollOptionsModal: View {
             ProgressView()
                 .tint(.white)
             Text("Checking enrollment status...")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
             Spacer()
         }
@@ -88,7 +88,7 @@ struct UnenrollOptionsModal: View {
                     // Summary
                     if let info = unenrollInfo {
                         Text("\(info.totalLessons) scheduled lessons")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.5))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 16)
@@ -98,7 +98,7 @@ struct UnenrollOptionsModal: View {
                             infoBanner(
                                 icon: "checkmark.circle.fill",
                                 text: "No members have submitted responses yet",
-                                color: Color(hex: "#57db5d")
+                                color: Color.success
                             )
 
                             optionCard(
@@ -136,14 +136,14 @@ struct UnenrollOptionsModal: View {
                             VStack(alignment: .leading, spacing: 8) {
                                 HStack(spacing: 10) {
                                     Image(systemName: "trash")
-                                        .font(.system(size: 16))
+                                        .font(Typography.s16)
                                         .foregroundColor(.white.opacity(0.2))
                                     Text("Remove Enrollment")
-                                        .font(.system(size: 16, weight: .semibold))
+                                        .font(Typography.s16Semibold)
                                         .foregroundColor(.white.opacity(0.2))
                                 }
                                 Text("Full removal is not available — \(info.lessonsWithData) lessons contain member data.")
-                                    .font(.system(size: 14))
+                                    .font(Typography.s14)
                                     .foregroundColor(.white.opacity(0.2))
                             }
                             .padding(16)
@@ -157,7 +157,7 @@ struct UnenrollOptionsModal: View {
                     // Never mind button
                     Button(action: { onDismiss() }) {
                         Text("Never mind")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.5))
                     }
                     .buttonStyle(.plain)
@@ -189,18 +189,18 @@ struct UnenrollOptionsModal: View {
             VStack(spacing: 24) {
                 // Icon
                 Image(systemName: selectedOption == .fullRemoval ? "trash.circle.fill" : "calendar.badge.minus")
-                    .font(.system(size: 48))
+                    .font(Typography.s48)
                     .foregroundColor(selectedOption == .fullRemoval ? Color(hex: "#ff4444") : Color(hex: "#ffaa00"))
 
                 // Title
                 Text(selectedOption == .fullRemoval ? "Remove Enrollment" : "Cancel Future Lessons")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Typography.s20Bold)
                     .foregroundColor(.white)
 
                 // Description
                 if let info = unenrollInfo {
                     Text(confirmDescription(info: info))
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white.opacity(0.6))
                         .multilineTextAlignment(.center)
                         .lineSpacing(4)
@@ -214,7 +214,7 @@ struct UnenrollOptionsModal: View {
                         }
                     }) {
                         Text("Yes, proceed")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(Typography.s15Semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
@@ -229,7 +229,7 @@ struct UnenrollOptionsModal: View {
                         }
                     }) {
                         Text("Go back")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.5))
                     }
                     .buttonStyle(.plain)
@@ -255,11 +255,11 @@ struct UnenrollOptionsModal: View {
 
             VStack(spacing: 16) {
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 40))
+                    .font(Typography.s40)
                     .foregroundColor(.white.opacity(0.3))
 
                 Text(message)
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
 
@@ -267,7 +267,7 @@ struct UnenrollOptionsModal: View {
                     phase = .loading
                     Task { await fetchUnenrollInfo() }
                 }
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .foregroundColor(Color.brandPrimary)
             }
             .padding(32)
 
@@ -287,7 +287,7 @@ struct UnenrollOptionsModal: View {
             .cornerRadius(10)
 
             Text(programName)
-                .font(.system(size: 18, weight: .bold))
+                .font(Typography.s18Bold)
                 .foregroundColor(.white)
                 .lineLimit(2)
 
@@ -299,11 +299,11 @@ struct UnenrollOptionsModal: View {
     private func infoBanner(icon: String, text: String, color: Color) -> some View {
         HStack(spacing: 10) {
             Image(systemName: icon)
-                .font(.system(size: 16))
+                .font(Typography.s16)
                 .foregroundColor(color)
 
             Text(text)
-                .font(.system(size: 14))
+                .font(Typography.s14)
                 .foregroundColor(color.opacity(0.9))
         }
         .padding(14)
@@ -317,7 +317,7 @@ struct UnenrollOptionsModal: View {
         Button(action: action) {
             HStack(spacing: 14) {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(Typography.s18)
                     .foregroundColor(isDestructive ? Color(hex: "#ff4444") : .white)
                     .frame(width: 36, height: 36)
                     .background(isDestructive ? Color(hex: "#ff4444").opacity(0.15) : Color.white.opacity(0.08))
@@ -325,10 +325,10 @@ struct UnenrollOptionsModal: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(Typography.s16Semibold)
                         .foregroundColor(isDestructive ? Color(hex: "#ff4444") : .white)
                     Text(description)
-                        .font(.system(size: 13))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.5))
                         .lineSpacing(2)
                 }
@@ -336,7 +336,7 @@ struct UnenrollOptionsModal: View {
                 Spacer()
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .medium))
+                    .font(Typography.s14Medium)
                     .foregroundColor(.white.opacity(0.3))
             }
             .padding(16)

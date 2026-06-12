@@ -17,12 +17,12 @@ struct GroupActionButton: View {
         Button(action: action) {
             HStack(spacing: 8) {
                 Text(label)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(Typography.s15Medium)
                     .foregroundColor(.white)
 
                 Image(systemName: icon)
-                    .font(.system(size: 14, weight: .regular))
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .font(Typography.s14)
+                    .foregroundColor(Color.brandPrimary)
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)

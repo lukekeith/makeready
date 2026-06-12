@@ -20,7 +20,7 @@ struct TabSlider: View {
                     selectedIndex = index
                 } label: {
                     Text(tab)
-                        .font(.system(size: 17, weight: .regular))
+                        .font(Typography.s17)
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 4)
@@ -28,7 +28,7 @@ struct TabSlider: View {
                             ZStack {
                                 if selectedIndex == index {
                                     RoundedRectangle(cornerRadius: 4)
-                                        .fill(Color(hex: "#6c47ff"))
+                                        .fill(Color.brandPrimary)
                                         .matchedGeometryEffect(id: "tab_background", in: animation)
                                 }
                             }

@@ -124,7 +124,7 @@ struct MemberHomePage: View {
                             }
                         } label: {
                             Image(systemName: "paperplane")
-                                .font(.system(size: 14, weight: .semibold))
+                                .font(Typography.s14Semibold)
                                 .foregroundColor(.white)
                                 .frame(width: 32, height: 32)
                                 .background(Color.white.opacity(0.1))
@@ -149,7 +149,7 @@ struct MemberHomePage: View {
                             }
                         } label: {
                             Image(systemName: "plus")
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(Typography.s16Semibold)
                                 .foregroundColor(.white)
                                 .frame(width: 32, height: 32)
                                 .background(Color.white.opacity(0.1))
@@ -267,15 +267,15 @@ struct MemberHomePage: View {
                 .frame(height: 60)
 
             Image(systemName: "person.3")
-                .font(.system(size: 48))
+                .font(Typography.s48)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No Groups")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white)
 
             Text("Create your first group to start connecting")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 
@@ -376,18 +376,18 @@ struct MemberHomePage: View {
             Spacer()
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 40))
+                    .font(Typography.s40)
                     .foregroundColor(.white.opacity(0.3))
 
                 Text(errorMessage)
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.5))
                     .multilineTextAlignment(.center)
 
                 Button("Try Again") {
                     Task { await loadAllMembers() }
                 }
-                .foregroundColor(Color(hex: "#6c47ff"))
+                .foregroundColor(Color.brandPrimary)
             }
             .padding(32)
             Spacer()
@@ -466,17 +466,17 @@ struct MemberHomePage: View {
         } label: {
             HStack {
                 Text("Member requests")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white)
 
                 Spacer()
 
                 Text("\(allJoinRequests.count)")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white.opacity(0.5))
 
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Typography.s14Semibold)
                     .foregroundColor(.white.opacity(0.3))
             }
             .padding(.horizontal, 16)
@@ -506,11 +506,11 @@ struct MemberHomePage: View {
             Spacer()
             VStack(spacing: 16) {
                 Image(systemName: "person.2")
-                    .font(.system(size: 48))
+                    .font(Typography.s48)
                     .foregroundColor(.white.opacity(0.3))
 
                 Text("No members")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white.opacity(0.2))
             }
             Spacer()
@@ -520,7 +520,7 @@ struct MemberHomePage: View {
     private var membersNoSearchResults: some View {
         VStack(spacing: 12) {
             Text("No results for \"\(memberSearchText)\"")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
         }
         .frame(maxWidth: .infinity)
@@ -584,15 +584,15 @@ struct MemberHomePage: View {
                 .frame(height: 80)
 
             Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 48))
+                .font(Typography.s48)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No Enrollments")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white)
 
             Text("Enroll a group in a study program to get started")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 

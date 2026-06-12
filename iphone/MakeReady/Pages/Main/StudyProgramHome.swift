@@ -109,7 +109,7 @@ struct MainPrograms: View {
                 ) {
                     Button(action: { showFilePicker = true }) {
                         Image(systemName: "square.and.arrow.down")
-                            .font(.system(size: 17, weight: .regular))
+                            .font(Typography.s17)
                             .foregroundColor(.white)
                             .frame(width: 44, height: 44)
                             .contentShape(Rectangle())
@@ -465,15 +465,15 @@ struct MainPrograms: View {
                 .frame(height: 80)
 
             Image(systemName: "calendar.badge.clock")
-                .font(.system(size: 48))
+                .font(Typography.s48)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No Enrollments")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white)
 
             Text("Enroll a group in a study program to get started")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 
@@ -489,15 +489,15 @@ struct MainPrograms: View {
                 .frame(height: 80)
 
             Image(systemName: "book.closed")
-                .font(.system(size: 48))
+                .font(Typography.s48)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No Study Programs")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white)
 
             Text("Create your first study program to get started")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)
 
@@ -579,7 +579,7 @@ struct MainPrograms: View {
         // Badge always last
         metadata.append(DataItem(
             badge: isPublished ? "Published" : "Draft",
-            color: isPublished ? Color(hex: "#57DB5D") : Color(hex: "#6E7079"),
+            color: isPublished ? Color.success : Color(hex: "#6E7079"),
             textColor: isPublished ? Color(hex: "#234D2E") : Color(hex: "#D3D4D7")
         ))
 
@@ -781,12 +781,12 @@ private struct ImportConfirmOverlay: View {
 
             VStack(spacing: 20) {
                 Text("Import Program")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 if let data = previewData {
                     Text(data.name)
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.5))
 
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
@@ -813,10 +813,10 @@ private struct ImportConfirmOverlay: View {
                     if let template = data.templateName {
                         HStack(spacing: 6) {
                             Image(systemName: "doc.text")
-                                .font(.system(size: 12))
+                                .font(Typography.s12)
                                 .foregroundColor(.white.opacity(0.4))
                             Text("Template: \(template)")
-                                .font(.system(size: 13))
+                                .font(Typography.s13)
                                 .foregroundColor(.white.opacity(0.4))
                         }
                     }
@@ -827,13 +827,13 @@ private struct ImportConfirmOverlay: View {
                         onConfirm()
                     } label: {
                         Text("Confirm Import")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(Color(hex: "#6c47ff"))
+                                    .fill(Color.brandPrimary)
                             )
                     }
                     .disabled(isImporting)
@@ -842,7 +842,7 @@ private struct ImportConfirmOverlay: View {
                         dismiss()
                     } label: {
                         Text("Cancel")
-                            .font(.system(size: 17, weight: .medium))
+                            .font(Typography.s17Medium)
                             .foregroundColor(.white.opacity(0.7))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)

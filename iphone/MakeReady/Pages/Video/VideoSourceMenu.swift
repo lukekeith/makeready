@@ -53,7 +53,7 @@ struct VideoSourceMenu: View {
                             .frame(width: 24, height: 24)
                     } else if let systemIcon = source.systemIcon {
                         Image(systemName: systemIcon)
-                            .font(.system(size: 18))
+                            .font(Typography.s18)
                             .foregroundColor(.white)
                             .frame(width: 24, height: 24)
                     }
@@ -61,7 +61,7 @@ struct VideoSourceMenu: View {
 
                 // Label
                 Text(source.rawValue)
-                    .font(.system(size: 17))
+                    .font(Typography.s17)
                     .foregroundColor(.white)
 
                 Spacer()
@@ -69,7 +69,7 @@ struct VideoSourceMenu: View {
                 // Checkmark if selected
                 if source == selectedSource {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(Typography.s16Semibold)
                         .foregroundColor(.white)
                 }
             }

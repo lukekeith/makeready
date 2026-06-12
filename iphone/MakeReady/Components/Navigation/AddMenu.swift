@@ -250,7 +250,7 @@ struct AddMenuItem: View {
 
                 // Title
                 Text(title)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 Spacer()
@@ -296,7 +296,7 @@ struct InviteMemberSubmenu: View {
                 Spacer()
 
                 Text("Invite member")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 Spacer()
@@ -351,7 +351,7 @@ struct SubmenuItem: View {
             HStack(spacing: 16) {
                 // Title
                 Text(title)
-                    .font(.system(size: 17, weight: .bold))
+                    .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
                 Spacer()

@@ -110,7 +110,7 @@ struct VideoLibraryPage: View {
                 isPresented = false
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
             }
@@ -118,7 +118,7 @@ struct VideoLibraryPage: View {
             Spacer()
 
             Text(isSelectionMode ? "Select Video" : "My Videos")
-                .font(.system(size: 17, weight: .semibold))
+                .font(Typography.s17Semibold)
                 .foregroundColor(.white)
 
             Spacer()
@@ -128,7 +128,7 @@ struct VideoLibraryPage: View {
                 showVideoPicker = true
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 17, weight: .semibold))
+                    .font(Typography.s17Semibold)
                     .foregroundColor(.white)
                     .frame(width: 44, height: 44)
             }
@@ -147,7 +147,7 @@ struct VideoLibraryPage: View {
                 .progressViewStyle(CircularProgressViewStyle(tint: .white))
                 .scaleEffect(1.5)
             Text("Loading videos...")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.7))
                 .padding(.top, 16)
             Spacer()
@@ -161,15 +161,15 @@ struct VideoLibraryPage: View {
             Spacer()
 
             Image(systemName: "video.badge.plus")
-                .font(.system(size: 64))
+                .font(Typography.s64)
                 .foregroundColor(.white.opacity(0.3))
 
             Text("No Videos Yet")
-                .font(.system(size: 20, weight: .semibold))
+                .font(Typography.s20Semibold)
                 .foregroundColor(.white)
 
             Text("Record or upload your first video to get started")
-                .font(.system(size: 15))
+                .font(Typography.s15)
                 .foregroundColor(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 40)
@@ -181,7 +181,7 @@ struct VideoLibraryPage: View {
                     Image(systemName: "square.and.arrow.up")
                     Text("Upload Video")
                 }
-                .font(.system(size: 15, weight: .semibold))
+                .font(Typography.s15Semibold)
                 .foregroundColor(.white)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 12)
@@ -250,12 +250,12 @@ struct VideoLibraryPage: View {
                             .frame(width: 200)
 
                         Text("Uploading... \(progress.percentage)%")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white)
                     }
                 } else {
                     Text("Preparing upload...")
-                        .font(.system(size: 15))
+                        .font(Typography.s15)
                         .foregroundColor(.white)
                 }
 
@@ -263,7 +263,7 @@ struct VideoLibraryPage: View {
                     VideoActions().cancelUpload()
                 } label: {
                     Text("Cancel")
-                        .font(.system(size: 15, weight: .medium))
+                        .font(Typography.s15Medium)
                         .foregroundColor(.white.opacity(0.7))
                 }
                 .padding(.top, 8)
@@ -398,7 +398,7 @@ struct VideoThumbnailCard: View {
                     // Duration badge
                     if let duration = video.formattedDuration {
                         Text(duration)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(Typography.s11Medium)
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -411,7 +411,7 @@ struct VideoThumbnailCard: View {
                     // Play icon
                     if video.videoStatus == .ready {
                         Image(systemName: "play.circle.fill")
-                            .font(.system(size: 32))
+                            .font(Typography.s32)
                             .foregroundColor(.white.opacity(0.9))
                     } else {
                         // Processing indicator
@@ -423,7 +423,7 @@ struct VideoThumbnailCard: View {
                     // Status badge for non-ready videos
                     if video.videoStatus != .ready {
                         Text(video.videoStatus.displayName)
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(Typography.s10Semibold)
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -436,12 +436,12 @@ struct VideoThumbnailCard: View {
                 // Info section
                 VStack(alignment: .leading, spacing: 4) {
                     Text(video.displayTitle)
-                        .font(.system(size: 13, weight: .medium))
+                        .font(Typography.s13Medium)
                         .foregroundColor(.white)
                         .lineLimit(2)
 
                     Text(video.createdAt.formatted(date: .abbreviated, time: .omitted))
-                        .font(.system(size: 11))
+                        .font(Typography.s11)
                         .foregroundColor(.white.opacity(0.6))
                 }
                 .padding(8)
@@ -479,7 +479,7 @@ struct VideoThumbnailCard: View {
         Color.sectionBackground
             .overlay(
                 Image(systemName: "video.fill")
-                    .font(.system(size: 24))
+                    .font(Typography.s24)
                     .foregroundColor(.white.opacity(0.3))
             )
     }
@@ -505,7 +505,7 @@ struct VideoPlayerSheet: View {
                         isPresented = false
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(width: 44, height: 44)
                     }
@@ -513,7 +513,7 @@ struct VideoPlayerSheet: View {
                     Spacer()
 
                     Text(video.displayTitle)
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
@@ -533,7 +533,7 @@ struct VideoPlayerSheet: View {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         Text("Loading video...")
-                            .font(.system(size: 15))
+                            .font(Typography.s15)
                             .foregroundColor(.white.opacity(0.7))
                             .padding(.top, 8)
                     }

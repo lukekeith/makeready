@@ -58,7 +58,7 @@ struct SkeletonCardStudy: View {
 
         VStack(spacing: 12) {
             Text("Skeleton Study Cards")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
 

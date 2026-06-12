@@ -29,11 +29,11 @@ struct FilterChipDropdownTrigger: View {
         Button(action: action) {
             HStack(spacing: 6) {
                 Text(label)
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isActive ? Color(hex: "#0d101a") : .white.opacity(0.7))
+                    .font(Typography.s13Medium)
+                    .foregroundColor(isActive ? Color.appBackground : .white.opacity(0.7))
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(isActive ? Color(hex: "#0d101a") : .white.opacity(0.5))
+                    .font(Typography.s10Semibold)
+                    .foregroundColor(isActive ? Color.appBackground : .white.opacity(0.5))
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
@@ -102,7 +102,7 @@ struct FilterChipDropdownPanel: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 12)
-                .fill(Color(hex: "#252936"))
+                .fill(Color.cardBackground)
         )
         .overlay(
             RoundedRectangle(cornerRadius: 12)
@@ -138,18 +138,18 @@ struct FilterChipDropdownPanel: View {
     private var searchField: some View {
         HStack(spacing: 6) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 14))
+                .font(Typography.s14)
                 .foregroundColor(.white.opacity(0.4))
 
             ZStack(alignment: .leading) {
                 if searchText.isEmpty {
                     Text("Search")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.4))
                         .allowsHitTesting(false)
                 }
                 TextField("", text: $searchText)
-                    .font(.system(size: 14))
+                    .font(Typography.s14)
                     .foregroundColor(.white)
                     .focused($isSearchFocused)
                     .textFieldStyle(.plain)
@@ -163,10 +163,10 @@ struct FilterChipDropdownPanel: View {
         Button(action: onClearAll) {
             HStack(spacing: 6) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(Typography.s14)
                     .foregroundColor(.white.opacity(0.5))
                 Text("Show all")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Typography.s14Semibold)
                     .foregroundColor(.white)
             }
             .contentShape(Rectangle())
@@ -180,7 +180,7 @@ struct FilterChipDropdownPanel: View {
     private var chipsArea: some View {
         if filteredItems.isEmpty {
             Text(searchText.isEmpty ? emptyMessage : "No matches")
-                .font(.system(size: 13))
+                .font(Typography.s13)
                 .foregroundColor(.white.opacity(0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(14)
@@ -214,8 +214,8 @@ struct FilterChipDropdownPanel: View {
             onToggle(item.id)
         } label: {
             Text(item.label)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(isSelected ? Color(hex: "#0d101a") : .white.opacity(0.7))
+                .font(Typography.s13Medium)
+                .foregroundColor(isSelected ? Color.appBackground : .white.opacity(0.7))
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(Capsule().fill(isSelected ? Color.white : Color.white.opacity(0.1)))

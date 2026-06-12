@@ -63,7 +63,7 @@ struct SwipeableScrollView<Content: View>: View {
                     ) {
                         HStack {
                             Text("Swipeable Item \(index + 1)")
-                                .font(.system(size: 17, weight: .bold))
+                                .font(Typography.s17Bold)
                                 .foregroundColor(.white)
                             Spacer()
                         }

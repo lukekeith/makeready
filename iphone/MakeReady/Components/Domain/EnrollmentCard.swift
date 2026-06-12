@@ -22,13 +22,13 @@ struct EnrollmentCard: View {
                 VStack(alignment: .leading, spacing: 4) {
                     // Program name
                     Text(enrollment.studyProgram?.name ?? "Study Program")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Typography.s15Semibold)
                         .foregroundColor(.white)
                         .lineLimit(1)
 
                     // Days count
                     Text("\(enrollment.studyProgram?.days ?? 0) days")
-                        .font(.system(size: 13, weight: .regular))
+                        .font(Typography.s13)
                         .foregroundColor(.white.opacity(0.5))
 
                     // Status indicator
@@ -39,7 +39,7 @@ struct EnrollmentCard: View {
 
                 // Chevron
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .regular))
+                    .font(Typography.s14)
                     .foregroundColor(.white.opacity(0.3))
             }
             .padding(12)
@@ -71,10 +71,10 @@ struct EnrollmentCard: View {
 
     private var imagePlaceholder: some View {
         RoundedRectangle(cornerRadius: 8)
-            .fill(Color(hex: "#6c47ff").opacity(0.3))
+            .fill(Color.brandPrimary.opacity(0.3))
             .overlay(
                 Image(systemName: "book.fill")
-                    .font(.system(size: 20, weight: .regular))
+                    .font(Typography.s20)
                     .foregroundColor(.white.opacity(0.5))
             )
     }
@@ -86,21 +86,21 @@ struct EnrollmentCard: View {
             if enrollment.isCompleted {
                 // Completed: green checkmark
                 Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(Color(hex: "#2ed573"))
 
                 Text("Completed")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(Typography.s12Medium)
                     .foregroundColor(Color(hex: "#2ed573"))
             } else {
                 // Active: clock + date range
                 Image(systemName: "clock")
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .font(Typography.s12)
+                    .foregroundColor(Color.brandPrimary)
 
                 Text(enrollment.dateRangeString)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(Color(hex: "#6c47ff"))
+                    .font(Typography.s12Medium)
+                    .foregroundColor(Color.brandPrimary)
             }
         }
     }

@@ -89,7 +89,7 @@ struct CalendarWeekdayHeader: View {
         HStack(spacing: 0) {
             ForEach(Array(days.enumerated()), id: \.offset) { _, day in
                 Text(day)
-                    .font(.system(size: 12, weight: .regular))
+                    .font(Typography.s12)
                     .foregroundColor(.white50)
                     .frame(maxWidth: .infinity)
             }

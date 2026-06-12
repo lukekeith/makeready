@@ -31,13 +31,13 @@ struct CardGroup: View {
                     // Title + optional subtitle (e.g. the group leader's name)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(data.title)
-                            .font(.system(size: 17, weight: .bold))
+                            .font(Typography.s17Bold)
                             .foregroundColor(.white)
                             .lineLimit(1)
 
                         if let subtitle = data.subtitle {
                             Text(subtitle)
-                                .font(.system(size: 14, weight: .regular))
+                                .font(Typography.s14)
                                 .foregroundColor(.white.opacity(0.5))
                                 .lineLimit(1)
                         }
@@ -93,7 +93,7 @@ struct CardGroup: View {
             ZStack {
                 // Purple 80% overlay
                 Circle()
-                    .fill(Color(hex: "#6c47ff").opacity(0.8))
+                    .fill(Color.brandPrimary.opacity(0.8))
                     .frame(width: 72, height: 72)
 
                 // Checkmark icon (24×24)
@@ -111,7 +111,7 @@ struct CardGroup: View {
             // indicators never compete.
             if data.pendingRequestCount > 0 && !data.isSelected {
                 Text(badgeText(for: data.pendingRequestCount))
-                    .font(.system(size: 13, weight: .bold))
+                    .font(Typography.s13Bold)
                     .foregroundColor(.white)
                     .padding(.horizontal, data.pendingRequestCount > 9 ? 6 : 0)
                     .frame(minWidth: 22, minHeight: 22)
@@ -160,7 +160,7 @@ struct CardGroup: View {
 
         VStack(spacing: 12) {
             Text("Group Cards - Row")
-                .font(.system(size: 13, weight: .semibold))
+                .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .textCase(.uppercase)
 

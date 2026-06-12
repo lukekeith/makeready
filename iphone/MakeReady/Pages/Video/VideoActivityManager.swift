@@ -207,7 +207,7 @@ struct VideoActivityManager: View {
                         onDismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(Typography.s20Semibold)
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.6), radius: 4)
                             .frame(width: 40, height: 40)
@@ -225,7 +225,7 @@ struct VideoActivityManager: View {
                         isPlaying = false
                     } label: {
                         Image(systemName: "trash")
-                            .font(.system(size: 20))
+                            .font(Typography.s20)
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.6), radius: 4)
                             .frame(width: 40, height: 40)
@@ -263,7 +263,7 @@ struct VideoActivityManager: View {
                         player?.isMuted = isMuted
                     } label: {
                         Image(systemName: isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                            .font(.system(size: 20))
+                            .font(Typography.s20)
                             .foregroundColor(.white)
                             .shadow(color: .black.opacity(0.6), radius: 4)
                             .frame(width: 40, height: 40)
@@ -281,7 +281,7 @@ struct VideoActivityManager: View {
                     togglePlayPause()
                 } label: {
                     Image(systemName: "play.fill")
-                        .font(.system(size: 36))
+                        .font(Typography.s36)
                         .foregroundColor(.white)
                         .frame(width: 72, height: 72)
                         .background(Color.black.opacity(0.4))
@@ -324,13 +324,13 @@ struct VideoActivityManager: View {
         Button(action: action) {
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 18))
+                    .font(Typography.s18)
                     .frame(width: 24)
                 Text(label)
-                    .font(.system(size: 16, weight: .medium))
+                    .font(Typography.s16Medium)
                 Spacer()
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Typography.s14Semibold)
                     .foregroundColor(.white.opacity(0.4))
             }
             .foregroundColor(.white)
@@ -356,11 +356,11 @@ struct VideoActivityManager: View {
 
             VStack(spacing: 16) {
                 Text("Remove video?")
-                    .font(.system(size: 20, weight: .bold))
+                    .font(Typography.s20Bold)
                     .foregroundColor(.white)
 
                 Text("This video will be removed from the activity but will not be deleted from your library.")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 8)
@@ -380,7 +380,7 @@ struct VideoActivityManager: View {
                                 .cornerRadius(12)
                         } else {
                             Text("Remove video")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(Typography.s17Semibold)
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 50)
@@ -397,7 +397,7 @@ struct VideoActivityManager: View {
                         }
                     } label: {
                         Text("Cancel")
-                            .font(.system(size: 17, weight: .semibold))
+                            .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
                             .frame(height: 50)
@@ -496,7 +496,7 @@ private struct MediaLibraryPickerView: View {
                         onDismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 20, weight: .semibold))
+                            .font(Typography.s20Semibold)
                             .foregroundColor(.white)
                             .frame(width: 40, height: 40)
                     }
@@ -505,7 +505,7 @@ private struct MediaLibraryPickerView: View {
                     Spacer()
 
                     Text("MakeReady Library")
-                        .font(.system(size: 17, weight: .bold))
+                        .font(Typography.s17Bold)
                         .foregroundColor(.white)
 
                     Spacer()
@@ -524,10 +524,10 @@ private struct MediaLibraryPickerView: View {
                     Spacer()
                     VStack(spacing: 12) {
                         Image(systemName: "video.slash")
-                            .font(.system(size: 40))
+                            .font(Typography.s40)
                             .foregroundColor(.white.opacity(0.3))
                         Text("No videos in library")
-                            .font(.system(size: 17))
+                            .font(Typography.s17)
                             .foregroundColor(.white.opacity(0.5))
                     }
                     Spacer()

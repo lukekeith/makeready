@@ -53,7 +53,7 @@ struct BackgroundSourceMenu: View {
 
             Button(action: { dismissOverlay?() }) {
                 Image(systemName: "xmark")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(Typography.s20Medium)
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 32)

@@ -43,11 +43,11 @@ struct InviteQRCodeView: View {
             } else if error != nil {
                 VStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 40))
+                        .font(Typography.s40)
                         .foregroundColor(.red.opacity(0.7))
 
                     Text("Failed to generate QR code")
-                        .font(.system(size: 14))
+                        .font(Typography.s14)
                         .foregroundColor(.white.opacity(0.7))
                 }
                 .frame(width: size, height: size)
@@ -142,7 +142,7 @@ struct InviteQRCodeView: View {
 
         VStack(spacing: 32) {
             Text("Invite QR Code")
-                .font(.system(size: 20, weight: .bold))
+                .font(Typography.s20Bold)
                 .foregroundColor(.white)
 
             InviteQRCodeView(
@@ -152,7 +152,7 @@ struct InviteQRCodeView: View {
             .environment(AuthManager())
 
             Text("Scan to join team")
-                .font(.system(size: 14))
+                .font(Typography.s14)
                 .foregroundColor(.white.opacity(0.7))
         }
         .padding(32)

@@ -183,10 +183,10 @@ struct SelectGroupPage: View {
             Spacer()
             VStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 40))
+                    .font(Typography.s40)
                     .foregroundColor(.orange)
                 Text(errorMessage)
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.7))
                     .multilineTextAlignment(.center)
                 Button("Retry") {
@@ -208,10 +208,10 @@ struct SelectGroupPage: View {
             Spacer()
             VStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .font(.system(size: 40))
+                    .font(Typography.s40)
                     .foregroundColor(.white.opacity(0.3))
                 Text(searchText.isEmpty ? "No groups found" : "No groups match your search")
-                    .font(.system(size: 15))
+                    .font(Typography.s15)
                     .foregroundColor(.white.opacity(0.7))
             }
             Spacer()

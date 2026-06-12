@@ -250,7 +250,7 @@ struct EditExegesisActivityPage: View {
     private var passageRow: some View {
         HStack {
             Text("Passage")
-                .font(.system(size: 16, weight: .bold))
+                .font(Typography.s16Bold)
                 .foregroundColor(.white)
 
             Spacer()
@@ -260,7 +260,7 @@ struct EditExegesisActivityPage: View {
                 selectPassageTapped()
             } label: {
                 Text(lockedBlock?.title ?? "select passage")
-                    .font(.system(size: 14, weight: .semibold))
+                    .font(Typography.s14Semibold)
                     .foregroundColor(hasPassage ? .white : .white.opacity(0.5))
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
@@ -271,7 +271,7 @@ struct EditExegesisActivityPage: View {
                                     .fill(Color.white.opacity(0.1))
                             } else {
                                 RoundedRectangle(cornerRadius: 6)
-                                    .stroke(Color(hex: "#6c47ff"), lineWidth: 1.5)
+                                    .stroke(Color.brandPrimary, lineWidth: 1.5)
                             }
                         }
                     )
@@ -280,7 +280,7 @@ struct EditExegesisActivityPage: View {
             .disabled(!canEdit)
         }
         .padding(16)
-        .background(Color(hex: "#252936"))
+        .background(Color.cardBackground)
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
@@ -852,16 +852,16 @@ private struct HighlightActionMenuContent: View {
             } label: {
                 HStack(spacing: 10) {
                     Image(systemName: "chevron.left")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(Typography.s9Bold)
                     Text("PREV")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Typography.s10Bold)
                         .tracking(1)
                 }
-                .foregroundColor(Color(hex: "#6c47ff").opacity(previousRange == nil ? 0.35 : 1.0))
+                .foregroundColor(Color.brandPrimary.opacity(previousRange == nil ? 0.35 : 1.0))
                 .padding(.leading, 8)
                 .padding(.trailing, 16)
                 .padding(.vertical, 8)
-                .background(Color(hex: "#6c47ff").opacity(previousRange == nil ? 0.1 : 0.2))
+                .background(Color.brandPrimary.opacity(previousRange == nil ? 0.1 : 0.2))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
@@ -873,17 +873,17 @@ private struct HighlightActionMenuContent: View {
             if let index = currentIndex {
                 HStack(spacing: 4) {
                     Text("\(index + 1)")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Typography.s10Bold)
                         .tracking(1)
                         .foregroundColor(.white)
                     Text("/")
-                        .font(.system(size: 10, weight: .regular))
+                        .font(Typography.s10)
                         .tracking(1)
                         .foregroundColor(.white.opacity(0.5))
                     Text("\(highlightRanges.count)")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Typography.s10Bold)
                         .tracking(1)
-                        .foregroundColor(Color(hex: "#6c47ff"))
+                        .foregroundColor(Color.brandPrimary)
                 }
             }
 
@@ -898,16 +898,16 @@ private struct HighlightActionMenuContent: View {
             } label: {
                 HStack(spacing: 10) {
                     Text("NEXT")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Typography.s10Bold)
                         .tracking(1)
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
+                        .font(Typography.s9Bold)
                 }
-                .foregroundColor(Color(hex: "#6c47ff").opacity(nextRange == nil ? 0.35 : 1.0))
+                .foregroundColor(Color.brandPrimary.opacity(nextRange == nil ? 0.35 : 1.0))
                 .padding(.leading, 16)
                 .padding(.trailing, 8)
                 .padding(.vertical, 8)
-                .background(Color(hex: "#6c47ff").opacity(nextRange == nil ? 0.1 : 0.2))
+                .background(Color.brandPrimary.opacity(nextRange == nil ? 0.1 : 0.2))
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
@@ -956,7 +956,7 @@ private struct HighlightActionMenuContent: View {
     private var noteEditorContent: some View {
         VStack(alignment: .leading, spacing: 16) {
             Text(selectedHighlightExcerpt)
-                .font(.system(size: 15, weight: .medium))
+                .font(Typography.s15Medium)
                 .foregroundColor(.white.opacity(0.78))
                 .lineLimit(3)
                 .truncationMode(.tail)
@@ -980,7 +980,7 @@ private struct HighlightActionMenuContent: View {
                     }
                 } label: {
                     Text("Cancel")
-                        .font(.system(size: 17, weight: .semibold))
+                        .font(Typography.s17Semibold)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .frame(height: 54)
@@ -999,13 +999,13 @@ private struct HighlightActionMenuContent: View {
                                 .tint(.white)
                         } else {
                             Text("Done")
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(Typography.s17Semibold)
                                 .foregroundColor(.white)
                         }
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 54)
-                    .background(Color(hex: "#6c47ff"))
+                    .background(Color.brandPrimary)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 }
                 .buttonStyle(.plain)

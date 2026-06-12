@@ -725,11 +725,11 @@ struct EventDaySection: View {
             // Day header - bold day name + regular date with 4px gap
             HStack(spacing: 4) {
                 Text(dayName)
-                    .font(.system(size: 16, weight: .bold))
+                    .font(Typography.s16Bold)
                     .foregroundColor(isToday ? Color.brandPrimary : (isPast ? .white.opacity(0.5) : .white))
 
                 Text(dayDate)
-                    .font(.system(size: 16, weight: .regular))
+                    .font(Typography.s16)
                     .foregroundColor(isToday ? Color.brandPrimary.opacity(0.5) : .white.opacity(0.5))
             }
             .padding(.horizontal, 16)
