@@ -7,6 +7,35 @@
 
 import Foundation
 
+// MARK: - Shared Formatters (Phase 5.1 formatter pass)
+
+/// File-private formatter cache for the model layer's display helpers.
+/// These computed properties run on the render path (per row, per render) —
+/// creating a formatter each call costs ~ms. Main-thread use only, like
+/// DateFormatters (see Date+Formatting.swift's thread-safety note).
+private enum ModelFormatters {
+    static let monthDay: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+    static let monthAbbrev: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM"
+        return f
+    }()
+    static let dayOfMonth: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d"
+        return f
+    }()
+    static let fileSize: ByteCountFormatter = {
+        let f = ByteCountFormatter()
+        f.countStyle = .file
+        return f
+    }()
+}
+
 // MARK: - Video Models
 
 /// Video status from Cloudflare Stream
@@ -347,9 +376,7 @@ struct MediaDetailItem: Codable {
     /// Formatted file size
     var formattedFileSize: String? {
         guard let size = fileSize, size > 0 else { return nil }
-        let formatter = ByteCountFormatter()
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: Int64(size))
+        return ModelFormatters.fileSize.string(fromByteCount: Int64(size))
     }
 
     /// Display title
@@ -582,11 +609,9 @@ struct EnrollmentWithProgram: Codable, Identifiable {
 
     /// Formatted date range string (e.g., "DEC 1 - FEB 22")
     var dateRangeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        let start = formatter.string(from: startDate).uppercased()
+        let start = ModelFormatters.monthDay.string(from: startDate).uppercased()
         guard endDate != Date.distantFuture else { return start }
-        let end = formatter.string(from: endDate).uppercased()
+        let end = ModelFormatters.monthDay.string(from: endDate).uppercased()
         return "\(start) - \(end)"
     }
 }
@@ -942,16 +967,12 @@ struct LessonSchedule: Codable, Identifiable {
 
     /// Formatted month abbreviation (e.g., "JAN")
     var monthAbbrev: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM"
-        return formatter.string(from: scheduledDate).uppercased()
+        ModelFormatters.monthAbbrev.string(from: scheduledDate).uppercased()
     }
 
     /// Day of month (e.g., "1", "15")
     var dayOfMonth: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d"
-        return formatter.string(from: scheduledDate)
+        ModelFormatters.dayOfMonth.string(from: scheduledDate)
     }
 }
 
@@ -1092,11 +1113,9 @@ struct EnrollmentDetails: Codable, Identifiable {
 
     /// Formatted date range string (e.g., "DEC 1 - FEB 22")
     var dateRangeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        let start = formatter.string(from: startDate).uppercased()
+        let start = ModelFormatters.monthDay.string(from: startDate).uppercased()
         guard endDate != Date.distantFuture else { return start }
-        let end = formatter.string(from: endDate).uppercased()
+        let end = ModelFormatters.monthDay.string(from: endDate).uppercased()
         return "\(start) - \(end)"
     }
 }
@@ -1201,11 +1220,9 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
 
     /// Formatted date range string (e.g., "JAN 1 - FEB 1")
     var dateRangeString: String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        let start = formatter.string(from: startDate).uppercased()
+        let start = ModelFormatters.monthDay.string(from: startDate).uppercased()
         guard endDate != Date.distantFuture else { return start }
-        let end = formatter.string(from: endDate).uppercased()
+        let end = ModelFormatters.monthDay.string(from: endDate).uppercased()
         return "\(start) - \(end)"
     }
 

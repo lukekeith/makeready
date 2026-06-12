@@ -95,39 +95,43 @@ struct Kpi: View {
         Self.format(value, type: valueType)
     }
 
+    /// Shared formatters (Phase 5.1 formatter pass): format() runs per KPI
+    /// cell per render. Views are MainActor, so mutating the fraction
+    /// digits on the shared instance per call is single-threaded by
+    /// construction.
+    private static let wholeNumber: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.maximumFractionDigits = 0
+        return f
+    }()
+
+    private static let fraction: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        return f
+    }()
+
     private static func format(_ value: Double, type: KpiValueType) -> String {
         switch type {
         case .number:
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.maximumFractionDigits = 0
-            return formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+            return wholeNumber.string(from: NSNumber(value: value)) ?? "\(Int(value))"
 
         case .decimal(let places):
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.minimumFractionDigits = places
-            formatter.maximumFractionDigits = places
-            return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.\(places)f", value)
+            fraction.minimumFractionDigits = places
+            fraction.maximumFractionDigits = places
+            return fraction.string(from: NSNumber(value: value)) ?? String(format: "%.\(places)f", value)
 
         case .currency(let symbol):
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.maximumFractionDigits = 0
-            return "\(symbol)\(formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))")"
+            return "\(symbol)\(wholeNumber.string(from: NSNumber(value: value)) ?? "\(Int(value))")"
 
         case .percent:
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.minimumFractionDigits = value.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1
-            formatter.maximumFractionDigits = 1
-            return "\(formatter.string(from: NSNumber(value: value)) ?? "\(value)")%"
+            fraction.minimumFractionDigits = value.truncatingRemainder(dividingBy: 1) == 0 ? 0 : 1
+            fraction.maximumFractionDigits = 1
+            return "\(fraction.string(from: NSNumber(value: value)) ?? "\(value)")%"
 
         case .custom(let prefix, let suffix):
-            let formatter = NumberFormatter()
-            formatter.numberStyle = .decimal
-            formatter.maximumFractionDigits = 0
-            let formatted = formatter.string(from: NSNumber(value: value)) ?? "\(Int(value))"
+            let formatted = wholeNumber.string(from: NSNumber(value: value)) ?? "\(Int(value))"
             return "\(prefix)\(formatted)\(suffix)"
         }
     }

@@ -76,18 +76,20 @@ class FixturesManager {
             return parts.joined(separator: " ")
         }
 
+        private static let fullDateFormatter: ISO8601DateFormatter = {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withFullDate]
+            return f
+        }()
+
         var birthDateAsDate: Date? {
             guard let birthDate = birthDate else { return nil }
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withFullDate]
-            return formatter.date(from: birthDate)
+            return Self.fullDateFormatter.date(from: birthDate)
         }
 
         var joinDateAsDate: Date? {
             guard let joinDate = joinDate else { return nil }
-            let formatter = ISO8601DateFormatter()
-            formatter.formatOptions = [.withFullDate]
-            return formatter.date(from: joinDate)
+            return Self.fullDateFormatter.date(from: joinDate)
         }
 
         var age: Int? {

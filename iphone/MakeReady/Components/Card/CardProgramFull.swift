@@ -34,10 +34,15 @@ struct CardProgramFull: View {
         Int(ceil(Double(data.days) / 7.0))
     }
 
+    /// Shared per-render formatter (Phase 5.1 formatter pass; main-thread).
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .full
+        return f
+    }()
+
     private var relativeDate: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .full
-        return formatter.localizedString(for: data.createdAt, relativeTo: Date())
+        return Self.relativeFormatter.localizedString(for: data.createdAt, relativeTo: Date())
     }
 
     private var imageFallback: some View {

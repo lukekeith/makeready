@@ -96,10 +96,15 @@ struct CardActivity: View {
         }
     }
 
+    /// Shared per-render formatter (Phase 5.1 formatter pass; main-thread).
+    private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
     private var formattedTime: String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        guard let date = formatter.date(from: entry.createdAt) else {
+        guard let date = Self.isoFormatter.date(from: entry.createdAt) else {
             // Try without fractional seconds
             formatter.formatOptions = [.withInternetDateTime]
             guard let date = formatter.date(from: entry.createdAt) else { return "" }

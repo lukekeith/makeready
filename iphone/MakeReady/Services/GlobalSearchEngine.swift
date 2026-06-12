@@ -234,6 +234,14 @@ struct UserActivityResponse: Codable {
 
 struct GlobalSearchEngine {
 
+    /// Shared formatter (Phase 5.1 formatter pass) — relative-date helper
+    /// runs per result row.
+    private static let monthDayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
     /// Format a date as relative time string
     private static func relativeTime(from date: Date) -> String {
         let now = Date()
@@ -248,9 +256,7 @@ struct GlobalSearchEngine {
         if days < 7 { return "\(days)d ago" }
         let weeks = days / 7
         if weeks < 4 { return "\(weeks)w ago" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MMM d"
-        return formatter.string(from: date)
+        return Self.monthDayFormatter.string(from: date)
     }
 
     /// Build a subtitle for video search results from duration and linked lessons/programs.

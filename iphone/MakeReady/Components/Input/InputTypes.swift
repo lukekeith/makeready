@@ -150,14 +150,18 @@ class InputFormatter {
         guard let amount = Int(digits) else { return "" }
 
         // Format with thousand separators and decimal
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-
         let dollars = Double(amount) / 100.0
-        return formatter.string(from: NSNumber(value: dollars)) ?? ""
+        return Self.currencyFormatter.string(from: NSNumber(value: dollars)) ?? ""
     }
+
+    /// Shared per-render formatter (Phase 5.1 formatter pass; main-thread).
+    private static let currencyFormatter: NumberFormatter = {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.minimumFractionDigits = 2
+        f.maximumFractionDigits = 2
+        return f
+    }()
 
     // MARK: - Percentage Formatter
 

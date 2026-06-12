@@ -59,7 +59,8 @@ custom_rules:
   nonstatic_formatter:
     name: "Formatter must be static"
     regex: '(?<!static )(?:let|var)\s+\w*[fF]ormatter\s*=\s*(?:Date|Number|ISO8601Date|ByteCount|DateComponents|RelativeDateTime|Measurement)Formatter\('
-    message: "Formatters are expensive to create — declare static and reuse (audit 5.1; see DateFormatters.swift)."
+    excluded: '.*(?:Date\+Formatting|CalendarModels)\.swift'
+    message: "Formatters are expensive to create — declare static and reuse (audit 5.1; see DateFormatters.swift). Inside a static-initializer closure, name the local `f` (the regex can't see closure context). Actions/Services keep deliberate once-per-OPERATION locals (see Date+Formatting.swift's thread note) — those are baselined, not new-code license."
     severity: error
 
   lazy_container_in_overlay_content:
