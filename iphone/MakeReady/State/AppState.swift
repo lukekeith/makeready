@@ -647,13 +647,28 @@ final class AppState {
         StatePersistence.shared.saveImmediately(state)
     }
 
-    /// Clear all state (for logout)
+    /// Clear all state (for logout) — wipes memory AND the current
+    /// environment's persisted file.
     func clearAllData() {
-        clear()
+        clearInMemory()
+        StatePersistence.shared.clear()
+        NSLog("📦 AppState: Cleared all state")
     }
 
-    /// Clear all state (for logout)
-    private func clear() {
+    /// Swap all cached data when the dev environment switches: drop the
+    /// in-memory stores (the outgoing environment's snapshot was already
+    /// flushed to ITS file by the caller) and load whatever the incoming
+    /// environment last persisted. Deletes nothing — each environment
+    /// keeps its own snapshot file.
+    func reloadForEnvironmentSwitch() {
+        clearInMemory()
+        hasLoadedInitialData = false
+        loadFromDisk()
+        Log.state.info("swapped cached state for environment switch")
+    }
+
+    /// Wipe every in-memory store and index (no disk side effects).
+    private func clearInMemory() {
         programs.clear()
         groups.clear()
         enrollments.clear()
@@ -691,10 +706,6 @@ final class AppState {
 
         loadingStates.clearAll()
         errors = []
-
-        StatePersistence.shared.clear()
-
-        NSLog("📦 AppState: Cleared all state")
     }
 
     // MARK: - Initial Data Loading

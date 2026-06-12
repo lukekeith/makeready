@@ -21,7 +21,20 @@ enum SessionCredentialStore {
         "\(Bundle.main.bundleIdentifier ?? "com.makeready.app").credentials"
     }
 
-    private static let account = "session_cookie"
+    /// Sessions are PER-ENVIRONMENT: a cookie minted by the production
+    /// server means nothing to a local or staging one — sending it there
+    /// just 401s every request. Each environment gets its own Keychain
+    /// slot; switching environments switches which session is presented,
+    /// and signing in stores under the environment that minted it.
+    /// Production keeps the original account name so existing sessions
+    /// survive this change.
+    private static var account: String {
+        switch Configuration.selectedEnvironment {
+        case .production: return "session_cookie"
+        case .local: return "session_cookie_local"
+        case .staging: return "session_cookie_staging"
+        }
+    }
 
     /// Legacy UserDefaults key — read once for migration, then deleted.
     private static let legacyUserDefaultsKey = "makeready_session_cookie"
@@ -29,63 +42,72 @@ enum SessionCredentialStore {
     // MARK: - In-Memory Cache
 
     /// Keychain reads are comparatively slow and the old code read
-    /// UserDefaults freely, so cache the value after the first read.
+    /// UserDefaults freely, so cache values after the first read (keyed
+    /// per environment account).
     private static let lock = NSLock()
-    private static var cachedValue: String?
-    private static var hasLoadedFromKeychain = false
+    private static var cachedValues: [String: String] = [:]
+    private static var loadedAccounts: Set<String> = []
 
     // MARK: - Public API
 
-    /// Returns the session cookie, or nil if the user has no session.
-    /// On first call, migrates any value left in the legacy UserDefaults key
-    /// into the Keychain so existing logged-in users stay logged in.
+    /// Returns the session cookie for the CURRENT environment, or nil if
+    /// the user has no session there. On first call for the production
+    /// slot, migrates any value left in the legacy UserDefaults key into
+    /// the Keychain so existing logged-in users stay logged in.
     static func get() -> String? {
+        let acct = account
         lock.lock()
         defer { lock.unlock() }
 
-        if hasLoadedFromKeychain {
-            return cachedValue
+        if loadedAccounts.contains(acct) {
+            return cachedValues[acct]
         }
 
-        var value = readFromKeychain()
+        var value = readFromKeychain(account: acct)
 
-        // One-time migration from the legacy UserDefaults key
-        if value == nil,
+        // One-time migration from the legacy UserDefaults key — that value
+        // could only ever have been a production session.
+        if value == nil, acct == "session_cookie",
            let legacy = UserDefaults.standard.string(forKey: legacyUserDefaultsKey) {
-            writeToKeychain(legacy)
+            writeToKeychain(legacy, account: acct)
             UserDefaults.standard.removeObject(forKey: legacyUserDefaultsKey)
             value = legacy
         }
 
-        cachedValue = value
-        hasLoadedFromKeychain = true
+        cachedValues[acct] = value
+        if value == nil { cachedValues.removeValue(forKey: acct) }
+        loadedAccounts.insert(acct)
         return value
     }
 
-    /// Stores the session cookie in the Keychain.
+    /// Stores the session cookie for the CURRENT environment.
     static func set(_ cookie: String) {
+        let acct = account
         lock.lock()
         defer { lock.unlock() }
 
-        writeToKeychain(cookie)
-        cachedValue = cookie
-        hasLoadedFromKeychain = true
+        writeToKeychain(cookie, account: acct)
+        cachedValues[acct] = cookie
+        loadedAccounts.insert(acct)
     }
 
-    /// Removes the session cookie from the Keychain (and any legacy copy).
+    /// Removes the CURRENT environment's session cookie from the Keychain
+    /// (and any legacy copy). Other environments' sessions are untouched —
+    /// signing out of Local does not sign you out of Production.
     static func clear() {
+        let acct = account
         lock.lock()
         defer { lock.unlock() }
 
-        deleteFromKeychain()
+        deleteFromKeychain(account: acct)
         UserDefaults.standard.removeObject(forKey: legacyUserDefaultsKey)
-        cachedValue = nil
-        hasLoadedFromKeychain = true
+        cachedValues.removeValue(forKey: acct)
+        loadedAccounts.insert(acct)
     }
 
     // MARK: - Keychain Primitives
 
-    private static var baseQuery: [String: Any] {
+    private static func baseQuery(account: String) -> [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -93,8 +115,8 @@ enum SessionCredentialStore {
         ]
     }
 
-    private static func readFromKeychain() -> String? {
-        var query = baseQuery
+    private static func readFromKeychain(account: String) -> String? {
+        var query = baseQuery(account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
 
@@ -109,14 +131,14 @@ enum SessionCredentialStore {
         return value
     }
 
-    private static func writeToKeychain(_ value: String) {
+    private static func writeToKeychain(_ value: String, account: String) {
         guard let data = value.data(using: .utf8) else { return }
 
         // Delete-then-add keeps the logic simple and ensures the
         // accessibility attribute is always applied.
-        SecItemDelete(baseQuery as CFDictionary)
+        SecItemDelete(baseQuery(account: account) as CFDictionary)
 
-        var query = baseQuery
+        var query = baseQuery(account: account)
         query[kSecValueData as String] = data
         // AfterFirstUnlock so background refreshes/pushes can still read the
         // session after a reboot, before the device is unlocked again.
@@ -128,7 +150,7 @@ enum SessionCredentialStore {
         }
     }
 
-    private static func deleteFromKeychain() {
-        SecItemDelete(baseQuery as CFDictionary)
+    private static func deleteFromKeychain(account: String) {
+        SecItemDelete(baseQuery(account: account) as CFDictionary)
     }
 }

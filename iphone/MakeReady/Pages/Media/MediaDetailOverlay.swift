@@ -1017,12 +1017,18 @@ final class MediaDetailOverlayView: UIView {
         self.editButton = editBtn
 
         NSLayoutConstraint.activate([
-            titleLabel.topAnchor.constraint(equalTo: titleContainer.topAnchor),
+            // Fixed 64pt title row; title + edit icon vertically centered so
+            // the header doesn't hug the top of the details pane.
+            titleContainer.heightAnchor.constraint(equalToConstant: 64),
+
+            titleLabel.centerYAnchor.constraint(equalTo: titleContainer.centerYAnchor),
             titleLabel.leadingAnchor.constraint(equalTo: titleContainer.leadingAnchor, constant: 16),
             titleLabel.trailingAnchor.constraint(equalTo: editBtn.leadingAnchor, constant: -8),
-            titleLabel.bottomAnchor.constraint(equalTo: titleContainer.bottomAnchor, constant: -16),
+            // Clamp long (multi-line) titles inside the fixed row
+            titleLabel.topAnchor.constraint(greaterThanOrEqualTo: titleContainer.topAnchor, constant: 8),
+            titleLabel.bottomAnchor.constraint(lessThanOrEqualTo: titleContainer.bottomAnchor, constant: -8),
 
-            editBtn.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            editBtn.centerYAnchor.constraint(equalTo: titleContainer.centerYAnchor),
             editBtn.trailingAnchor.constraint(equalTo: titleContainer.trailingAnchor, constant: -16),
             editBtn.widthAnchor.constraint(equalToConstant: 24),
             editBtn.heightAnchor.constraint(equalToConstant: 24),

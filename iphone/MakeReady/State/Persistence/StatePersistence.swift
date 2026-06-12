@@ -19,7 +19,18 @@ final class StatePersistence {
 
     // MARK: - Configuration
 
-    private let fileName = "app_state.json"
+    /// Persisted state is PER-ENVIRONMENT (matching SessionCredentialStore):
+    /// entities cached from the local dev server must not render while
+    /// pointed at production — they look real but 404 on every mutation.
+    /// Production keeps the legacy filename so existing installs keep
+    /// their cache.
+    private var fileName: String {
+        switch Configuration.selectedEnvironment {
+        case .production: return "app_state.json"
+        case .local: return "app_state_local.json"
+        case .staging: return "app_state_staging.json"
+        }
+    }
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
@@ -32,8 +43,11 @@ final class StatePersistence {
     /// The currently scheduled debounced write, if any
     private var pendingWorkItem: DispatchWorkItem?
 
-    /// The latest snapshot waiting to be written by the debounced work item
-    private var pendingSnapshot: PersistedState?
+    /// The latest snapshot waiting to be written by the debounced work item,
+    /// paired with the file URL captured when the save was REQUESTED — so a
+    /// write scheduled before an environment switch still lands in the
+    /// outgoing environment's file.
+    private var pendingSnapshot: (state: PersistedState, url: URL)?
 
     // MARK: - Initialization
 
@@ -88,6 +102,8 @@ final class StatePersistence {
     /// snapshot and reschedules the write, so the last save before
     /// quiescence is never dropped.
     func save(_ state: PersistedState) {
+        let url = fileURL // capture now — environment may switch before the write fires
+
         let workItem = DispatchWorkItem { [weak self] in
             guard let self = self else { return }
 
@@ -101,11 +117,11 @@ final class StatePersistence {
 
             // Nil if saveImmediately/clear already consumed or cancelled it
             guard let snapshot = snapshot else { return }
-            self.performSave(snapshot)
+            self.performSave(snapshot.state, to: snapshot.url)
         }
 
         pendingLock.lock()
-        pendingSnapshot = state
+        pendingSnapshot = (state, url)
         pendingWorkItem?.cancel()
         pendingWorkItem = workItem
         pendingLock.unlock()
@@ -121,6 +137,7 @@ final class StatePersistence {
     /// write queue under a background-task assertion so the OS keeps the
     /// process alive until the write lands even mid-suspension.
     func saveImmediately(_ state: PersistedState) {
+        let url = fileURL // capture now — environment may switch before the write lands
         cancelPendingWrite()
 
         // Both the expiration handler and our completion run on the main
@@ -134,7 +151,7 @@ final class StatePersistence {
         }
 
         writeQueue.async { [weak self] in
-            self?.performSave(state)
+            self?.performSave(state, to: url)
             DispatchQueue.main.async {
                 if taskID != .invalid {
                     UIApplication.shared.endBackgroundTask(taskID)
@@ -154,10 +171,10 @@ final class StatePersistence {
     }
 
     /// Perform the actual save operation
-    private func performSave(_ state: PersistedState) {
+    private func performSave(_ state: PersistedState, to url: URL) {
         do {
             let data = try encoder.encode(state)
-            try data.write(to: fileURL, options: [.atomic])
+            try data.write(to: url, options: [.atomic])
             NSLog("💾 StatePersistence: Saved state (\(data.count) bytes)")
         } catch {
             NSLog("❌ StatePersistence: Failed to save state: \(error.localizedDescription)")
@@ -170,10 +187,11 @@ final class StatePersistence {
     /// Also cancels any pending debounced write so a queued snapshot
     /// can't resurrect the cleared state.
     func clear() {
+        let url = fileURL // the CURRENT environment's file (logout semantics)
         cancelPendingWrite()
         writeQueue.sync {
             do {
-                try FileManager.default.removeItem(at: fileURL)
+                try FileManager.default.removeItem(at: url)
                 NSLog("💾 StatePersistence: Cleared persisted state")
             } catch {
                 // Ignore error if file doesn't exist

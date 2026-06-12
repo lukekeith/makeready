@@ -7,29 +7,25 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		97B60B5F3CE3435597217A2B /* CardData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F3E78E4EEC341A4ADAE55EE /* CardData.swift */; };
-		A7E0E3779D0841ECB1EE2F6C /* CardEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63E711311E1F46678776FA7D /* CardEvent.swift */; };
-		EFC89466ECFF4DE69945CF81 /* CardGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = E051712DCF8B4D60918BB00C /* CardGroup.swift */; };
-		AC352FE2FF7E4242BF4AAC72 /* CardGroupMini.swift in Sources */ = {isa = PBXBuildFile; fileRef = 186E12BE711D48FC9FFFF7B1 /* CardGroupMini.swift */; };
-		29E5C282670C4EEDA9C49DE3 /* CardStudy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01E5292C43794AC7AF974ADB /* CardStudy.swift */; };
-		1B36CD5350BF43F99AB288CE /* CardStudyMini.swift in Sources */ = {isa = PBXBuildFile; fileRef = E625E430B12A4F37BA6EFE91 /* CardStudyMini.swift */; };
-		9CC801F3C70B4B3BB1CCB414 /* CardVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */; };
-		0D2C1AC8A5FE49FB8EFC0755 /* CardVideoMini.swift in Sources */ = {isa = PBXBuildFile; fileRef = E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */; };
-		4B2D73FB5B3141A3832276E2 /* DataComponent.swift in Sources */ = {isa = PBXBuildFile; fileRef = B545E372C19C4C48BD291914 /* DataComponent.swift */; };
 		036FEDB46F28C3E6C5C68F71 /* SwipeableScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 973CC89CA447FE52CDCF45E0 /* SwipeableScrollView.swift */; };
 		0CF6C22AA21A555469B09E49 /* AddActivityMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E385B05771AF0FF8FBAF795B /* AddActivityMenu.swift */; };
+		0D2C1AC8A5FE49FB8EFC0755 /* CardVideoMini.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */; };
 		15CCA265E1BA226BE3153A90 /* DirectionalPanGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D4D8F64660C1B2450DC5EE5 /* DirectionalPanGesture.swift */; };
 		161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */; };
 		16CA3FB3363243D2AF6E2ADF /* CreateProgramPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37209AE4986545679D1F5B6C /* CreateProgramPage.swift */; };
 		18982B6CB2C2446898493906 /* CardStudy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F83849041714B098ECB2E1A /* CardStudy.swift */; };
 		1A2B3C4D5E6F47A8B9C2D3E4 /* SearchableList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5F6A7B8C9D1E42F3A4B5C6D7 /* SearchableList.swift */; };
+		1B36CD5350BF43F99AB288CE /* CardStudyMini.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = E625E430B12A4F37BA6EFE91 /* CardStudyMini.swift */; };
+		1B6C33D7BDC64C0C88844A88 /* EditExegesisActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF10EEACA707407AAB3CFB86 /* EditExegesisActivityPage.swift */; };
 		1D5107C5DF589417AD69FEA9 /* CardActivityType.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0FF0B250AF20FEA47BB6BD1 /* CardActivityType.swift */; };
 		25EAA99F978B4A43AED97C5C /* CardGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D7D008A13340DB946D6835 /* CardGroup.swift */; };
+		29E5C282670C4EEDA9C49DE3 /* CardStudy.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 01E5292C43794AC7AF974ADB /* CardStudy.swift */; };
 		339086D0ABED4B4D9FB4E5A0 /* LessonActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF43B720F294A749CB91A24 /* LessonActivity.swift */; };
 		38E9FA870E024870A07751C3 /* CardFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = E113650950D744FDB105AEA4 /* CardFixtures.swift */; };
 		395291F277BA9C4C13FB0CD9 /* DeviceChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF676E78A8861B4738753BFC /* DeviceChrome.swift */; };
 		40DDF4031DCBC093EB52FD3F /* CardSpinnerOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58DC32C1218C90578DE0ECEE /* CardSpinnerOverlay.swift */; };
 		48CD99C95DD23B935561C087 /* StudyCardsDemoPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E89C0105E9D7E00832450984 /* StudyCardsDemoPage.swift */; };
+		4B2D73FB5B3141A3832276E2 /* DataComponent.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = B545E372C19C4C48BD291914 /* DataComponent.swift */; };
 		50E5BAE142E6AC15F35C83C2 /* CaptureDevices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 564CCE44CA013CC1364A13B0 /* CaptureDevices.swift */; };
 		5111F771EA00BF999D3B5FBF /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E2579257CC2CAD3AD6D70103 /* SnapshotTesting */; };
 		555B79C66942476594E7AA52 /* CardVideoMini.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF0CD30E6F543A8A55B1E5F /* CardVideoMini.swift */; };
@@ -54,7 +50,9 @@
 		962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517162EADF96D0098FAB0 /* UserMenu.swift */; };
 		9689B63A2ED2855400C5327F /* MODAL_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 9689B6392ED2855400C5327F /* MODAL_GUIDE.md */; };
 		96E9450B2ED04CBB00CAAE87 /* SectionedTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E9450A2ED04CBB00CAAE87 /* SectionedTableView.swift */; };
+		97B60B5F3CE3435597217A2B /* CardData.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 1F3E78E4EEC341A4ADAE55EE /* CardData.swift */; };
 		9A7B3C5D4E2A47F8B3D1E6F0 /* CardEventMini.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C8E7A2D6B9F41C3A5E2D9B1 /* CardEventMini.swift */; };
+		9CC801F3C70B4B3BB1CCB414 /* CardVideo.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */; };
 		9E3B5C8F1A6D47E4B9F2C3D4 /* SwipeableCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F6A7B9C2D8E43B1C5E3F4A5 /* SwipeableCard.swift */; };
 		A1000001000000000000001 /* MakeReadyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000001 /* MakeReadyApp.swift */; };
 		A1000005000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* Assets.xcassets */; };
@@ -96,9 +94,13 @@
 		A1000105000000000000001 /* BoxButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000106000000000000001 /* BoxButton.swift */; };
 		A1AGERANGE0000000001 /* AgeRangeInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1AGERANGE0000000002 /* AgeRangeInput.swift */; };
 		A1FCDB5EFC55917AA7C4150D08 /* TabSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = A134ED71833F99709B1600C934 /* TabSlider.swift */; };
+		A7E0E3779D0841ECB1EE2F6C /* CardEvent.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 63E711311E1F46678776FA7D /* CardEvent.swift */; };
+		AC352FE2FF7E4242BF4AAC72 /* CardGroupMini.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 186E12BE711D48FC9FFFF7B1 /* CardGroupMini.swift */; };
 		AC3E72D154992545200DF99C /* SkeletonCardLesson.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AB523F9CAF69D044FDD3EA8 /* SkeletonCardLesson.swift */; };
 		ACMN0001000000000000001 /* ActionCardMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACMN0002000000000000001 /* ActionCardMenu.swift */; };
+		ACST000200000000000001 /* ActivityStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACST000100000000000001 /* ActivityStyle.swift */; };
 		APPDEL0001000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPDEL0002000000000001 /* AppDelegate.swift */; };
+		ASTB000100000000000001 /* ActionStubTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASTB000200000000000001 /* ActionStubTests.swift */; };
 		AVPL0001000000000000001 /* ActivityVideoPlayer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AVPL0002000000000000001 /* ActivityVideoPlayer.swift */; };
 		B30151228C9144D1A861162E /* CardData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14FCE9C9E36A49CE8967416E /* CardData.swift */; };
 		B7DCE42A21993C969D16AD17 /* KeyboardScrollManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28CD1027B7DCE42A21993C96 /* KeyboardScrollManager.swift */; };
@@ -110,23 +112,12 @@
 		BCMG0001000000000000001 /* BibleCacheManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = BCMG0002000000000000001 /* BibleCacheManager.swift */; };
 		BDC9313E2C64C58859952D80 /* FullScreenImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3558B3DA7CB229771AFC92B /* FullScreenImageViewer.swift */; };
 		BGSW000200000000000001 /* BackgroundSwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = BGSW000100000000000001 /* BackgroundSwatch.swift */; };
-		BSM0001000000000000001 /* BackgroundSourceMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSM0002000000000000001 /* BackgroundSourceMenu.swift */; };
-		IFSP000200000000000001 /* InlineFontSizePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = IFSP000100000000000001 /* InlineFontSizePicker.swift */; };
 		BKSE000200000000000001 /* BlockStyleEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = BKSE000100000000000001 /* BlockStyleEditor.swift */; };
-		EXVV000200000000000001 /* ExegesisVerseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXVV000100000000000001 /* ExegesisVerseView.swift */; };
-		BVT0001000000000000001 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
-		BVNT000100000000000001 /* BibleVerseContentNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */; };
-		ESTT000100000000000001 /* EntityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESTT000200000000000001 /* EntityStoreTests.swift */; };
-		STUB000100000000000001 /* StubAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = STUB000200000000000001 /* StubAPIClient.swift */; };
-		ASTB000100000000000001 /* ActionStubTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASTB000200000000000001 /* ActionStubTests.swift */; };
-		RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RITX000200000000000001 /* RelationshipIndexTests.swift */; };
-		SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */; };
-		MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLT000200000000000001 /* ModelDecodingTests.swift */; };
-		VSLG000200000000000001 /* VerseSelectionLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSLG000100000000000001 /* VerseSelectionLogic.swift */; };
-		ACST000200000000000001 /* ActivityStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACST000100000000000001 /* ActivityStyle.swift */; };
+		BSM0001000000000000001 /* BackgroundSourceMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSM0002000000000000001 /* BackgroundSourceMenu.swift */; };
 		BSRV0001000000000000001 /* BibleSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BSRV0002000000000000001 /* BibleSearchService.swift */; };
+		BVNT000100000000000001 /* BibleVerseContentNormalizerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */; };
+		BVT0001000000000000001 /* BibleVerseTextLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = BVT0002000000000000001 /* BibleVerseTextLayout.swift */; };
 		C0L0R5SW1FT00000002 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0L0R5SW1FT00000001 /* Colors.swift */; };
-		TYPO0001000000000000001 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = TYPO0002000000000000001 /* Typography.swift */; };
 		C19FD16D031C45E39A863237 /* SearchContactsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 001E7230FA584A33992A699C /* SearchContactsPage.swift */; };
 		C2109C7CCC6D1B1D58CE43E7 /* MemberHomePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 991240BC2C2C794C15923B10 /* MemberHomePage.swift */; };
 		CACHIMG0001000000000001 /* CachedAsyncImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CACHIMG0002000000000001 /* CachedAsyncImage.swift */; };
@@ -145,21 +136,21 @@
 		CCDIMG0001000000000001 /* CachedCardImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCDIMG0002000000000001 /* CachedCardImage.swift */; };
 		CCW0001000000000000001 /* CameraCaptureWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCW0002000000000000001 /* CameraCaptureWrapper.swift */; };
 		CFOV0001000000000000001 /* ConfirmationOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFOV0002000000000000001 /* ConfirmationOverlay.swift */; };
-		ERRB0001000000000000001 /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERRB0002000000000000001 /* ErrorBanner.swift */; };
 		CGCO0001000000000000001 /* CardGestureCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CGCO0002000000000000001 /* CardGestureCoordinator.swift */; };
 		CGRP0001000000000000001 /* CreateGroupPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CGRP0002000000000000001 /* CreateGroupPage.swift */; };
 		CLA_BLD_0002000000000001 /* CardLessonActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = CLA_REF_0001000000000001 /* CardLessonActivity.swift */; };
 		CMF00001000000000000001 /* CardMediaFull.swift in Sources */ = {isa = PBXBuildFile; fileRef = CMF00002000000000000001 /* CardMediaFull.swift */; };
 		CNFR0001000000000000001 /* ConfirmEnrollmentPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNFR0002000000000000001 /* ConfirmEnrollmentPage.swift */; };
+		CNTC0001000000000000001 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNTC0002000000000000001 /* Contact.swift */; };
 		CONF17022EADF96D0098FAB0 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CONF17012EADF96D0098FAB0 /* Configuration.swift */; };
 		CPF00001000000000000001 /* CardProgramFull.swift in Sources */ = {isa = PBXBuildFile; fileRef = CPF00002000000000000001 /* CardProgramFull.swift */; };
 		CSRC0003000000000000001 /* CardSearchResult.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSRC0002000000000000001 /* CardSearchResult.swift */; };
 		CSST0001000000000000001 /* CardStudySelectable.swift in Sources */ = {isa = PBXBuildFile; fileRef = CSST0002000000000000001 /* CardStudySelectable.swift */; };
 		D1DRA6U1B000000000001 /* Dragula.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1DRA6U1A000000000001 /* Dragula.swift */; };
-		SLDS0001000000000001 /* SlideStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLDS0002000000000001 /* SlideStack.swift */; };
 		D1ROH1B000000000000001 /* ReorderHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1ROH1A000000000000001 /* ReorderHelpers.swift */; };
 		D36C16D539AB484785FB7769 /* CoverImagePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = A9CA8B7D0A354FF7BF1E5543 /* CoverImagePicker.swift */; };
 		D513B9070B8342359214621F /* InviteContactsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A93D2C8BF1DE463BA4E2869D /* InviteContactsPage.swift */; };
+		DATEFMT0001000000000001 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DATEFMT0002000000000001 /* Date+Formatting.swift */; };
 		DLOV0001000000000000001 /* DialogOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DLOV0002000000000000001 /* DialogOverlay.swift */; };
 		DTKN0001000000000000001 /* DeviceTokenActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = DTKN0002000000000000001 /* DeviceTokenActions.swift */; };
 		E1C753228EC9487FAEE8A91A /* CardStudyMini.swift in Sources */ = {isa = PBXBuildFile; fileRef = 736A2A16F4DD499EBC585FCD /* CardStudyMini.swift */; };
@@ -167,21 +158,25 @@
 		E7A4B21F4D8A46C9B5E1F3A2 /* QRCodeScreenPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8B5C32E5E9B47D1A6F2E4B3 /* QRCodeScreenPage.swift */; };
 		EDIT0001000000000000001 /* EditDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDIT0002000000000000001 /* EditDay.swift */; };
 		EDPC0003000000000000001 /* EventDetailPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDPC0001000000000000001 /* EventDetailPage.swift */; };
+		EFC89466ECFF4DE69945CF81 /* CardGroup.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = E051712DCF8B4D60918BB00C /* CardGroup.swift */; };
 		EGRP0001000000000000001 /* EditGroupPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EGRP0002000000000000001 /* EditGroupPage.swift */; };
 		ENCD0001000000000000001 /* EnrollmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = ENCD0002000000000000001 /* EnrollmentCard.swift */; };
 		ENED0001000000000000001 /* EditEnrollmentDay.swift in Sources */ = {isa = PBXBuildFile; fileRef = ENED0002000000000000001 /* EditEnrollmentDay.swift */; };
 		ENFL0001000000000000001 /* EnrollmentFlowModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = ENFL0002000000000000001 /* EnrollmentFlowModal.swift */; };
 		ENLP0001000000000000001 /* EnrollmentsListPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ENLP0002000000000000001 /* EnrollmentsListPage.swift */; };
 		ERAD0001000000000000001 /* EditReadActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERAD0002000000000000001 /* EditReadActivityPage.swift */; };
-		1B6C33D7BDC64C0C88844A88 /* EditExegesisActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF10EEACA707407AAB3CFB86 /* EditExegesisActivityPage.swift */; };
-		EXHM0001000000000000001 /* ExegesisHighlightModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXHM0002000000000000001 /* ExegesisHighlightModal.swift */; };
+		ERRB0001000000000000001 /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERRB0002000000000000001 /* ErrorBanner.swift */; };
 		ESPH0001000000000000001 /* EnrollmentSchedulePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESPH0002000000000000001 /* EnrollmentSchedulePage.swift */; };
+		ESTT000100000000000001 /* EntityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESTT000200000000000001 /* EntityStoreTests.swift */; };
 		EUAP0001000000000000001 /* EditUserInputActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EUAP0002000000000000001 /* EditUserInputActivityPage.swift */; };
+		EXHM0001000000000000001 /* ExegesisHighlightModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXHM0002000000000000001 /* ExegesisHighlightModal.swift */; };
+		EXVV000200000000000001 /* ExegesisVerseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXVV000100000000000001 /* ExegesisVerseView.swift */; };
 		EYTA0001000000000000001 /* EditYouTubeActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */; };
 		F7348D39938C43569FB89F82 /* CardVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6821D6AC4FD6411793E6237E /* CardVideo.swift */; };
 		FBA761965D756D7E1B8A4EAC /* CaptureEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFA85A3C1CB013F77883FEC /* CaptureEnvironment.swift */; };
 		FCDD0001000000000000001 /* FilterChipDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDD0002000000000000001 /* FilterChipDropdown.swift */; };
 		FLOW0001000000000000001 /* FlowLayout.swift in Sources */ = {isa = PBXBuildFile; fileRef = FLOW0002000000000000001 /* FlowLayout.swift */; };
+		FLST0001000000000000001 /* FilterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FLST0002000000000000001 /* FilterState.swift */; };
 		GABT0001000000000000001 /* GroupActionButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = GABT0002000000000000001 /* GroupActionButton.swift */; };
 		GHMP0001000000000000001 /* GroupHomePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = GHMP0002000000000000001 /* GroupHomePage.swift */; };
 		GINV0001000000000000001 /* GroupInvitePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = GINV0002000000000000001 /* GroupInvitePage.swift */; };
@@ -191,29 +186,24 @@
 		GSRC0002000000000000001 /* GlobalSearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = GSRC0001000000000000001 /* GlobalSearchEngine.swift */; };
 		GSRC0004000000000000001 /* GlobalSearchPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = GSRC0003000000000000001 /* GlobalSearchPage.swift */; };
 		HMACT0001000000000001 /* HomeActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = HMACT0002000000000001 /* HomeActions.swift */; };
+		IFSP000200000000000001 /* InlineFontSizePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = IFSP000100000000000001 /* InlineFontSizePicker.swift */; };
 		IMGCCH0001000000000001 /* ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGCCH0002000000000001 /* ImageCache.swift */; };
 		IMGVAR0001000000000001 /* String+ImageVariants.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGVAR0002000000000001 /* String+ImageVariants.swift */; };
 		INFP0001000000000000001 /* InfoPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = INFP0002000000000000001 /* InfoPanel.swift */; };
+		INVA0001000000000001 /* InviteActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = INVA0002000000000001 /* InviteActions.swift */; };
 		IVMN0001000000000000001 /* InviteMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = IVMN0002000000000000001 /* InviteMenu.swift */; };
 		KBST0001000000000000001 /* KeyboardState.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBST0002000000000000001 /* KeyboardState.swift */; };
 		KBTB0001000000000000001 /* KeyboardToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = KBTB0002000000000000001 /* KeyboardToolbar.swift */; };
 		KPI00001000000000000001 /* Kpi.swift in Sources */ = {isa = PBXBuildFile; fileRef = KPI00002000000000000001 /* Kpi.swift */; };
 		LDPC0003000000000000001 /* LessonDetailPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = LDPC0001000000000000001 /* LessonDetailPage.swift */; };
-		LSAM0001000000000000001 /* LessonActionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = LSAM0002000000000000001 /* LessonActionMenu.swift */; };
+		LOGW0001000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGW0002000000000000001 /* Log.swift */; };
 		LPHL0001000000000000001 /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
+		LSAM0001000000000000001 /* LessonActionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = LSAM0002000000000000001 /* LessonActionMenu.swift */; };
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
 		MDDO0001000000000001 /* MediaDetailOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDDO0002000000000001 /* MediaDetailOverlay.swift */; };
 		MDED000200000000000001 /* MarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDED000100000000000001 /* MarkdownEditor.swift */; };
-		CNTC0001000000000000001 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNTC0002000000000000001 /* Contact.swift */; };
-		STMM0001000000000000001 /* ModelFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000001 /* ModelFormatters.swift */; };
-		STMM0001000000000000002 /* VideoModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000002 /* VideoModels.swift */; };
-		STMM0001000000000000003 /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000003 /* NotificationModels.swift */; };
-		STMM0001000000000000004 /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000004 /* MediaModels.swift */; };
-		STMM0001000000000000005 /* EnrollmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000005 /* EnrollmentModels.swift */; };
-		STMM0001000000000000006 /* LessonModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000006 /* LessonModels.swift */; };
-		STMM0001000000000000007 /* ThemeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000007 /* ThemeModels.swift */; };
-		STMM0001000000000000008 /* GroupMembershipModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000008 /* GroupMembershipModels.swift */; };
 		MDLG0001000000000001 /* MediaLibraryGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLG0002000000000001 /* MediaLibraryGrid.swift */; };
+		MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLT000200000000000001 /* ModelDecodingTests.swift */; };
 		MLP0001000000000000001 /* MediaLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = MLP0002000000000000001 /* MediaLibraryPicker.swift */; };
 		MNCL0001000000000000001 /* MainCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNCL0002000000000000001 /* MainCalendar.swift */; };
 		MNGR0001000000000000001 /* MainGroups.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNGR0002000000000000001 /* MainGroups.swift */; };
@@ -221,28 +211,27 @@
 		MNLB0001000000000000001 /* MainLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNLB0002000000000000001 /* MainLibrary.swift */; };
 		MODANIM0001000000000001 /* ModalAnimations.swift in Sources */ = {isa = PBXBuildFile; fileRef = MODANIM0002000000000001 /* ModalAnimations.swift */; };
 		MOTN0001000000000001 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = MOTN0002000000000001 /* Motion.swift */; };
-		SESSCRD0001000000000001 /* SessionCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESSCRD0002000000000001 /* SessionCredentialStore.swift */; };
-		SAFEMKD0001000000000001 /* AttributedString+SafeMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */; };
-		DATEFMT0001000000000001 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DATEFMT0002000000000001 /* Date+Formatting.swift */; };
-		UNENRLC0001000000000001 /* UnenrollConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNENRLC0002000000000001 /* UnenrollConfirmation.swift */; };
 		MPRP0001000000000000001 /* MemberProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MPRP0002000000000000001 /* MemberProfilePage.swift */; };
 		MRPP0001000000000000001 /* MemberRequestProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRPP0002000000000000001 /* MemberRequestProfilePage.swift */; };
 		MRQP0001000000000000001 /* MemberRequestsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRQP0002000000000000001 /* MemberRequestsPage.swift */; };
+		NAVC0001000000000000001 /* NavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVC0002000000000000001 /* NavigationCoordinator.swift */; };
 		NOTIF0001000000000001 /* NotificationActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIF0002000000000001 /* NotificationActions.swift */; };
 		NTFPG0001000000000001 /* NotificationFeedPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = NTFPG0002000000000001 /* NotificationFeedPage.swift */; };
 		OHMP0001000000000000001 /* OrgHomePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = OHMP0002000000000000001 /* OrgHomePage.swift */; };
 		OPTSHDW0001000000000001 /* OptimizedShadow.swift in Sources */ = {isa = PBXBuildFile; fileRef = OPTSHDW0002000000000001 /* OptimizedShadow.swift */; };
+		ORGA0001000000000001 /* OrgActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ORGA0002000000000001 /* OrgActions.swift */; };
 		OVLY0001000000000000001 /* OverlayManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = OVLY0002000000000000001 /* OverlayManager.swift */; };
-		ROUT0001000000000000001 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = ROUT0002000000000000001 /* Route.swift */; };
-		LOGW0001000000000000001 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = LOGW0002000000000000001 /* Log.swift */; };
-		NAVC0001000000000000001 /* NavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVC0002000000000000001 /* NavigationCoordinator.swift */; };
 		PDPC0003000000000000001 /* PostDetailPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = PDPC0001000000000000001 /* PostDetailPage.swift */; };
 		PROG0001000000000000001 /* ProgramFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROG0002000000000000001 /* ProgramFixtures.swift */; };
 		PROG0003000000000000001 /* ProgramHomePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = PROG0004000000000000001 /* ProgramHomePage.swift */; };
 		PUSHMG0001000000000001 /* PushNotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = PUSHMG0002000000000001 /* PushNotificationManager.swift */; };
 		RAPM0001000000000000001 /* ReadActivityPreviewModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = RAPM0002000000000000001 /* ReadActivityPreviewModal.swift */; };
+		RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RITX000200000000000001 /* RelationshipIndexTests.swift */; };
+		ROUT0001000000000000001 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = ROUT0002000000000000001 /* Route.swift */; };
 		RTXI0001000000000000001 /* RichTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = RTXI0002000000000000001 /* RichTextInput.swift */; };
+		SAFEMKD0001000000000001 /* AttributedString+SafeMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */; };
 		SEDP0001000000000000001 /* SelectEnrollDatePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEDP0002000000000000001 /* SelectEnrollDatePage.swift */; };
+		SESSCRD0001000000000001 /* SessionCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESSCRD0002000000000001 /* SessionCredentialStore.swift */; };
 		SINV0001000000000000001 /* StudyInvitePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = SINV0002000000000000001 /* StudyInvitePage.swift */; };
 		SKEN0001000000000000001 /* SkeletonEnrollmentCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKEN0002000000000000001 /* SkeletonEnrollmentCard.swift */; };
 		SKLA0002000000000000001 /* SkeletonCardLessonActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKLA0001000000000000001 /* SkeletonCardLessonActivity.swift */; };
@@ -251,32 +240,42 @@
 		SKPF0001000000000000001 /* SkeletonCardProgramFull.swift in Sources */ = {isa = PBXBuildFile; fileRef = SKPF0002000000000000001 /* SkeletonCardProgramFull.swift */; };
 		SLBV0001000000000000001 /* SelectableLockedBlockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLBV0002000000000000001 /* SelectableLockedBlockView.swift */; };
 		SLCD0001000000000000001 /* ScheduledLessonCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLCD0002000000000000001 /* ScheduledLessonCard.swift */; };
+		SLDS0001000000000001 /* SlideStack.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLDS0002000000000001 /* SlideStack.swift */; };
 		SLGP0001000000000000001 /* SelectGroupPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLGP0002000000000000001 /* SelectGroupPage.swift */; };
 		SLSP0001000000000000001 /* SelectStudyProgramPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLSP0002000000000000001 /* SelectStudyProgramPage.swift */; };
 		SPKM0001000000000000001 /* StylePickerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = SPKM0002000000000000001 /* StylePickerMenu.swift */; };
+		SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */; };
 		STB03B65BB4E42346EEB2A /* ProgramActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF9898162D0FC410484CC /* ProgramActions.swift */; };
-		STPA0001000000000000001 /* ProgramActions+Lessons.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPA0002000000000000001 /* ProgramActions+Lessons.swift */; };
-		STPA0001000000000000002 /* ProgramActions+Activities.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPA0002000000000000002 /* ProgramActions+Activities.swift */; };
 		STB0AFF73E5FAA54CF0B89 /* StatePersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST47947AFA5D7E4A43A27E /* StatePersistence.swift */; };
 		STB2937FED5BDD147D384F /* PersistedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST883D930DCFA6417980BE /* PersistedState.swift */; };
 		STB414690A44AD34D38816 /* VideoActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST5FADD273F9B744E7BBF2 /* VideoActions.swift */; };
 		STB5E53C4FB893A46F7AB1 /* RelationshipIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST8205EFDFA2FD4CCFB3DB /* RelationshipIndex.swift */; };
 		STB76F45E5B18BF4A21BA9 /* EnrollmentActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */; };
 		STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST7CF2EBB5F6944CE48C55 /* AppState.swift */; };
-		FLST0001000000000000001 /* FilterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FLST0002000000000000001 /* FilterState.swift */; };
 		STB9253AC4642DD4C0FBB2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEC62002E39284807A347 /* APIClient.swift */; };
 		STB9ABADE6E9B9D497CBB7 /* EntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF7F960A70FAA4CFB9D79 /* EntityStore.swift */; };
 		STBD17E0834F256426EB81 /* LoadingStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = STAE8698BCEFBA4FADA19C /* LoadingStateManager.swift */; };
 		STBFF9B4526579D4BA8820 /* GroupActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEA7C3A65D00D453EBCC6 /* GroupActions.swift */; };
 		STCT0001000000000000001 /* StripContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = STCT0002000000000000001 /* StripContent.swift */; };
 		STMD0001000000000000001 /* StudyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMD0002000000000000001 /* StudyModels.swift */; };
+		STMM0001000000000000001 /* ModelFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000001 /* ModelFormatters.swift */; };
+		STMM0001000000000000002 /* VideoModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000002 /* VideoModels.swift */; };
+		STMM0001000000000000003 /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000003 /* NotificationModels.swift */; };
+		STMM0001000000000000004 /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000004 /* MediaModels.swift */; };
+		STMM0001000000000000005 /* EnrollmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000005 /* EnrollmentModels.swift */; };
+		STMM0001000000000000006 /* LessonModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000006 /* LessonModels.swift */; };
+		STMM0001000000000000007 /* ThemeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000007 /* ThemeModels.swift */; };
+		STMM0001000000000000008 /* GroupMembershipModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000008 /* GroupMembershipModels.swift */; };
+		STPA0001000000000000001 /* ProgramActions+Lessons.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPA0002000000000000001 /* ProgramActions+Lessons.swift */; };
+		STPA0001000000000000002 /* ProgramActions+Activities.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPA0002000000000000002 /* ProgramActions+Activities.swift */; };
 		STPH0001000000000000001 /* StudyProgramHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPH0002000000000000001 /* StudyProgramHome.swift */; };
+		STUB000100000000000001 /* StubAPIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = STUB000200000000000001 /* StubAPIClient.swift */; };
 		TAGI0001000000000000001 /* TagInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = TAGI0002000000000000001 /* TagInput.swift */; };
 		TCVW0001000000000000001 /* ThemedContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TCVW0002000000000000001 /* ThemedContentView.swift */; };
 		THMA0001000000000001 /* ThemeActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = THMA0002000000000001 /* ThemeActions.swift */; };
-		ORGA0001000000000001 /* OrgActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ORGA0002000000000001 /* OrgActions.swift */; };
-		INVA0001000000000001 /* InviteActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = INVA0002000000000001 /* InviteActions.swift */; };
+		TYPO0001000000000000001 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = TYPO0002000000000000001 /* Typography.swift */; };
 		UKIN0001000000000000001 /* UIKitInputs.swift in Sources */ = {isa = PBXBuildFile; fileRef = UKIN0002000000000000001 /* UIKitInputs.swift */; };
+		UNENRLC0001000000000001 /* UnenrollConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNENRLC0002000000000001 /* UnenrollConfirmation.swift */; };
 		UNOM0001000000000000001 /* UnenrollOptionsModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNOM0002000000000000001 /* UnenrollOptionsModal.swift */; };
 		UPCD0001000000000000001 /* UpcomingLessonCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = UPCD0002000000000000001 /* UpcomingLessonCard.swift */; };
 		VAMG0001000000000000001 /* VideoActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VAMG0002000000000000001 /* VideoActivityManager.swift */; };
@@ -294,6 +293,7 @@
 		VSEL0017000000000000001 /* VideoLibraryPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSEL0018000000000000001 /* VideoLibraryPage.swift */; };
 		VSEL0019000000000000001 /* VideoRecorderPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSEL0020000000000000001 /* VideoRecorderPage.swift */; };
 		VSEL0023000000000000001 /* VideoPlayerPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSEL0024000000000000001 /* VideoPlayerPage.swift */; };
+		VSLG000200000000000001 /* VerseSelectionLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSLG000100000000000001 /* VerseSelectionLogic.swift */; };
 		WKDI0001000000000000001 /* WeekdayIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = WKDI0002000000000000001 /* WeekdayIndicator.swift */; };
 /* End PBXBuildFile section */
 
@@ -308,23 +308,18 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		1F3E78E4EEC341A4ADAE55EE /* CardData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardData.swift; sourceTree = "<group>"; };
-		63E711311E1F46678776FA7D /* CardEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEvent.swift; sourceTree = "<group>"; };
-		E051712DCF8B4D60918BB00C /* CardGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGroup.swift; sourceTree = "<group>"; };
-		186E12BE711D48FC9FFFF7B1 /* CardGroupMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGroupMini.swift; sourceTree = "<group>"; };
-		01E5292C43794AC7AF974ADB /* CardStudy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudy.swift; sourceTree = "<group>"; };
-		E625E430B12A4F37BA6EFE91 /* CardStudyMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudyMini.swift; sourceTree = "<group>"; };
-		00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
-		E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideoMini.swift; sourceTree = "<group>"; };
-		B545E372C19C4C48BD291914 /* DataComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataComponent.swift; sourceTree = "<group>"; };
 		001D190CE74A411A8561B558 /* DataComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataComponent.swift; sourceTree = "<group>"; };
 		001E7230FA584A33992A699C /* SearchContactsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchContactsPage.swift; sourceTree = "<group>"; };
+		00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
+		01E5292C43794AC7AF974ADB /* CardStudy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudy.swift; sourceTree = "<group>"; };
 		0358DC8F8392440D9FB81D02 /* CardData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardData.swift; sourceTree = "<group>"; };
 		067A81F2D190432AB322B817 /* ContactsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsManager.swift; sourceTree = "<group>"; };
 		0F83849041714B098ECB2E1A /* CardStudy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudy.swift; sourceTree = "<group>"; };
 		1445544F24204DA3BFDCA27F /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
 		14FCE9C9E36A49CE8967416E /* CardData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardData.swift; sourceTree = "<group>"; };
 		173CED3454416327E4C67B17 /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerView.swift; sourceTree = "<group>"; };
+		186E12BE711D48FC9FFFF7B1 /* CardGroupMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGroupMini.swift; sourceTree = "<group>"; };
+		1F3E78E4EEC341A4ADAE55EE /* CardData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardData.swift; sourceTree = "<group>"; };
 		280805AC8E1F4024BA7D665C /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
 		28CD1027B7DCE42A21993C96 /* KeyboardScrollManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardScrollManager.swift; sourceTree = "<group>"; };
 		2DB0E914FCC14598A891E3A4 /* FieldGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldGroup.swift; sourceTree = "<group>"; };
@@ -343,6 +338,7 @@
 		5D4D8F64660C1B2450DC5EE5 /* DirectionalPanGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectionalPanGesture.swift; sourceTree = "<group>"; };
 		5F6A7B8C9D1E42F3A4B5C6D7 /* SearchableList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchableList.swift; sourceTree = "<group>"; };
 		60DB6B15D8D449A68C443F7F /* CardStudyMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudyMini.swift; sourceTree = "<group>"; };
+		63E711311E1F46678776FA7D /* CardEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEvent.swift; sourceTree = "<group>"; };
 		67BC5F4643C94415A015EBC9 /* CardGroupMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGroupMini.swift; sourceTree = "<group>"; };
 		6821D6AC4FD6411793E6237E /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
 		6AB523F9CAF69D044FDD3EA8 /* SkeletonCardLesson.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonCardLesson.swift; sourceTree = "<group>"; };
@@ -412,31 +408,24 @@
 		A93D2C8BF1DE463BA4E2869D /* InviteContactsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteContactsPage.swift; sourceTree = "<group>"; };
 		A9CA8B7D0A354FF7BF1E5543 /* CoverImagePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoverImagePicker.swift; sourceTree = "<group>"; };
 		ACMN0002000000000000001 /* ActionCardMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionCardMenu.swift; sourceTree = "<group>"; };
+		ACST000100000000000001 /* ActivityStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStyle.swift; sourceTree = "<group>"; };
 		APPDEL0002000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		ASTB000200000000000001 /* ActionStubTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionStubTests.swift; sourceTree = "<group>"; };
 		AVPL0002000000000000001 /* ActivityVideoPlayer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityVideoPlayer.swift; sourceTree = "<group>"; };
+		B545E372C19C4C48BD291914 /* DataComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataComponent.swift; sourceTree = "<group>"; };
 		BBDT0002000000000000001 /* BibleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleData.swift; sourceTree = "<group>"; };
 		BBRB0002000000000000001 /* BibleReaderBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReaderBridge.swift; sourceTree = "<group>"; };
 		BBRO0002000000000000001 /* BibleReaderOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReaderOverlay.swift; sourceTree = "<group>"; };
 		BBVM0002000000000000001 /* BibleVersionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVersionMenu.swift; sourceTree = "<group>"; };
 		BCMG0002000000000000001 /* BibleCacheManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleCacheManager.swift; sourceTree = "<group>"; };
+		BF10EEACA707407AAB3CFB86 /* EditExegesisActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditExegesisActivityPage.swift; sourceTree = "<group>"; };
 		BGSW000100000000000001 /* BackgroundSwatch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSwatch.swift; sourceTree = "<group>"; };
-		BSM0002000000000000001 /* BackgroundSourceMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSourceMenu.swift; sourceTree = "<group>"; };
-		IFSP000100000000000001 /* InlineFontSizePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFontSizePicker.swift; sourceTree = "<group>"; };
-		BSRV0002000000000000001 /* BibleSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSearchService.swift; sourceTree = "<group>"; };
 		BKSE000100000000000001 /* BlockStyleEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlockStyleEditor.swift; sourceTree = "<group>"; };
-		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
-		BVT0002000000000000001 /* BibleVerseTextLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseTextLayout.swift; sourceTree = "<group>"; };
+		BSM0002000000000000001 /* BackgroundSourceMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackgroundSourceMenu.swift; sourceTree = "<group>"; };
+		BSRV0002000000000000001 /* BibleSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleSearchService.swift; sourceTree = "<group>"; };
 		BVNT000200000000000001 /* BibleVerseContentNormalizerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseContentNormalizerTests.swift; sourceTree = "<group>"; };
-		ESTT000200000000000001 /* EntityStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStoreTests.swift; sourceTree = "<group>"; };
-		STUB000200000000000001 /* StubAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubAPIClient.swift; sourceTree = "<group>"; };
-		ASTB000200000000000001 /* ActionStubTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActionStubTests.swift; sourceTree = "<group>"; };
-		RITX000200000000000001 /* RelationshipIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelationshipIndexTests.swift; sourceTree = "<group>"; };
-		SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatePersistenceRoundTripTests.swift; sourceTree = "<group>"; };
-		MDLT000200000000000001 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
-		VSLG000100000000000001 /* VerseSelectionLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerseSelectionLogic.swift; sourceTree = "<group>"; };
-		ACST000100000000000001 /* ActivityStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStyle.swift; sourceTree = "<group>"; };
+		BVT0002000000000000001 /* BibleVerseTextLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseTextLayout.swift; sourceTree = "<group>"; };
 		C0L0R5SW1FT00000001 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
-		TYPO0002000000000000001 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		CACHIMG0002000000000001 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		CAL_BAR00000000000001 /* CalendarBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBottomBar.swift; sourceTree = "<group>"; };
 		CAL_CTL00000000000001 /* SplitMonthCalendarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitMonthCalendarController.swift; sourceTree = "<group>"; };
@@ -453,41 +442,46 @@
 		CCDIMG0002000000000001 /* CachedCardImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedCardImage.swift; sourceTree = "<group>"; };
 		CCW0002000000000000001 /* CameraCaptureWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCaptureWrapper.swift; sourceTree = "<group>"; };
 		CFOV0002000000000000001 /* ConfirmationOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmationOverlay.swift; sourceTree = "<group>"; };
-		ERRB0002000000000000001 /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
 		CGCO0002000000000000001 /* CardGestureCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGestureCoordinator.swift; sourceTree = "<group>"; };
 		CGRP0002000000000000001 /* CreateGroupPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateGroupPage.swift; sourceTree = "<group>"; };
 		CLA_REF_0001000000000001 /* CardLessonActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLessonActivity.swift; sourceTree = "<group>"; };
 		CMF00002000000000000001 /* CardMediaFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardMediaFull.swift; sourceTree = "<group>"; };
 		CNFR0002000000000000001 /* ConfirmEnrollmentPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmEnrollmentPage.swift; sourceTree = "<group>"; };
+		CNTC0002000000000000001 /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
 		CONF17012EADF96D0098FAB0 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
 		CPF00002000000000000001 /* CardProgramFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardProgramFull.swift; sourceTree = "<group>"; };
 		CSRC0002000000000000001 /* CardSearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSearchResult.swift; sourceTree = "<group>"; };
 		CSST0002000000000000001 /* CardStudySelectable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudySelectable.swift; sourceTree = "<group>"; };
 		D1DRA6U1A000000000001 /* Dragula.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dragula.swift; sourceTree = "<group>"; };
-		SLDS0002000000000001 /* SlideStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideStack.swift; sourceTree = "<group>"; };
 		D1ROH1A000000000000001 /* ReorderHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderHelpers.swift; sourceTree = "<group>"; };
 		D3558B3DA7CB229771AFC92B /* FullScreenImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenImageViewer.swift; sourceTree = "<group>"; };
 		D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwipeState.swift; sourceTree = "<group>"; };
+		DATEFMT0002000000000001 /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		DFF2DBC59EB740E8A718B4AB /* CardLesson.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLesson.swift; sourceTree = "<group>"; };
 		DLOV0002000000000000001 /* DialogOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DialogOverlay.swift; sourceTree = "<group>"; };
 		DTKN0002000000000000001 /* DeviceTokenActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceTokenActions.swift; sourceTree = "<group>"; };
+		E051712DCF8B4D60918BB00C /* CardGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGroup.swift; sourceTree = "<group>"; };
 		E113650950D744FDB105AEA4 /* CardFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardFixtures.swift; sourceTree = "<group>"; };
 		E385B05771AF0FF8FBAF795B /* AddActivityMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddActivityMenu.swift; sourceTree = "<group>"; };
+		E625E430B12A4F37BA6EFE91 /* CardStudyMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudyMini.swift; sourceTree = "<group>"; };
+		E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideoMini.swift; sourceTree = "<group>"; };
 		E89C0105E9D7E00832450984 /* StudyCardsDemoPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyCardsDemoPage.swift; sourceTree = "<group>"; };
 		EB02409820064BFEBAA66B1E /* CardEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEvent.swift; sourceTree = "<group>"; };
 		EDIT0002000000000000001 /* EditDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditDay.swift; sourceTree = "<group>"; };
 		EDPC0001000000000000001 /* EventDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventDetailPage.swift; sourceTree = "<group>"; };
-		EF9E990745A08E8D86DDCAF6 /* MakeReadyCaptureTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MakeReadyCaptureTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EF9E990745A08E8D86DDCAF6 /* MakeReady-Debug.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MakeReady-Debug.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		EGRP0002000000000000001 /* EditGroupPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditGroupPage.swift; sourceTree = "<group>"; };
 		ENCD0002000000000000001 /* EnrollmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentCard.swift; sourceTree = "<group>"; };
 		ENED0002000000000000001 /* EditEnrollmentDay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditEnrollmentDay.swift; sourceTree = "<group>"; };
 		ENFL0002000000000000001 /* EnrollmentFlowModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentFlowModal.swift; sourceTree = "<group>"; };
 		ENLP0002000000000000001 /* EnrollmentsListPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentsListPage.swift; sourceTree = "<group>"; };
 		ERAD0002000000000000001 /* EditReadActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditReadActivityPage.swift; sourceTree = "<group>"; };
-		BF10EEACA707407AAB3CFB86 /* EditExegesisActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditExegesisActivityPage.swift; sourceTree = "<group>"; };
-		EXHM0002000000000000001 /* ExegesisHighlightModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisHighlightModal.swift; sourceTree = "<group>"; };
+		ERRB0002000000000000001 /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
 		ESPH0002000000000000001 /* EnrollmentSchedulePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentSchedulePage.swift; sourceTree = "<group>"; };
+		ESTT000200000000000001 /* EntityStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStoreTests.swift; sourceTree = "<group>"; };
 		EUAP0002000000000000001 /* EditUserInputActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditUserInputActivityPage.swift; sourceTree = "<group>"; };
+		EXHM0002000000000000001 /* ExegesisHighlightModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisHighlightModal.swift; sourceTree = "<group>"; };
+		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
 		EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditYouTubeActivityPage.swift; sourceTree = "<group>"; };
 		F0FF0B250AF20FEA47BB6BD1 /* CardActivityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardActivityType.swift; sourceTree = "<group>"; };
 		F288E33EC18546D2BC571B03 /* CardEnrolled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEnrolled.swift; sourceTree = "<group>"; };
@@ -496,6 +490,7 @@
 		FF676E78A8861B4738753BFC /* DeviceChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceChrome.swift; sourceTree = "<group>"; };
 		FFF25134ABAC41698CAEC187 /* CardActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardActivity.swift; sourceTree = "<group>"; };
 		FLOW0002000000000000001 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
+		FLST0002000000000000001 /* FilterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterState.swift; sourceTree = "<group>"; };
 		GABT0002000000000000001 /* GroupActionButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupActionButton.swift; sourceTree = "<group>"; };
 		GHMP0002000000000000001 /* GroupHomePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupHomePage.swift; sourceTree = "<group>"; };
 		GINV0002000000000000001 /* GroupInvitePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupInvitePage.swift; sourceTree = "<group>"; };
@@ -505,29 +500,24 @@
 		GSRC0001000000000000001 /* GlobalSearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSearchEngine.swift; sourceTree = "<group>"; };
 		GSRC0003000000000000001 /* GlobalSearchPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlobalSearchPage.swift; sourceTree = "<group>"; };
 		HMACT0002000000000001 /* HomeActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeActions.swift; sourceTree = "<group>"; };
+		IFSP000100000000000001 /* InlineFontSizePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InlineFontSizePicker.swift; sourceTree = "<group>"; };
 		IMGCCH0002000000000001 /* ImageCache.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageCache.swift; sourceTree = "<group>"; };
 		IMGVAR0002000000000001 /* String+ImageVariants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "String+ImageVariants.swift"; sourceTree = "<group>"; };
 		INFP0002000000000000001 /* InfoPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InfoPanel.swift; sourceTree = "<group>"; };
+		INVA0002000000000001 /* InviteActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteActions.swift; sourceTree = "<group>"; };
 		IVMN0002000000000000001 /* InviteMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteMenu.swift; sourceTree = "<group>"; };
 		KBST0002000000000000001 /* KeyboardState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardState.swift; sourceTree = "<group>"; };
 		KBTB0002000000000000001 /* KeyboardToolbar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KeyboardToolbar.swift; sourceTree = "<group>"; };
 		KPI00002000000000000001 /* Kpi.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Kpi.swift; sourceTree = "<group>"; };
 		LDPC0001000000000000001 /* LessonDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonDetailPage.swift; sourceTree = "<group>"; };
-		LSAM0002000000000000001 /* LessonActionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonActionMenu.swift; sourceTree = "<group>"; };
+		LOGW0002000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
 		LPHL0002000000000000001 /* LocalPortHealer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalPortHealer.swift; sourceTree = "<group>"; };
+		LSAM0002000000000000001 /* LessonActionMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonActionMenu.swift; sourceTree = "<group>"; };
 		MDAC0002000000000000001 /* MediaActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaActions.swift; sourceTree = "<group>"; };
 		MDDO0002000000000001 /* MediaDetailOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailOverlay.swift; sourceTree = "<group>"; };
 		MDED000100000000000001 /* MarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditor.swift; sourceTree = "<group>"; };
-		CNTC0002000000000000001 /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
-		STMM0002000000000000001 /* ModelFormatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFormatters.swift; sourceTree = "<group>"; };
-		STMM0002000000000000002 /* VideoModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoModels.swift; sourceTree = "<group>"; };
-		STMM0002000000000000003 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
-		STMM0002000000000000004 /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
-		STMM0002000000000000005 /* EnrollmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentModels.swift; sourceTree = "<group>"; };
-		STMM0002000000000000006 /* LessonModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonModels.swift; sourceTree = "<group>"; };
-		STMM0002000000000000007 /* ThemeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeModels.swift; sourceTree = "<group>"; };
-		STMM0002000000000000008 /* GroupMembershipModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupMembershipModels.swift; sourceTree = "<group>"; };
 		MDLG0002000000000001 /* MediaLibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryGrid.swift; sourceTree = "<group>"; };
+		MDLT000200000000000001 /* ModelDecodingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelDecodingTests.swift; sourceTree = "<group>"; };
 		MLP0002000000000000001 /* MediaLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryPicker.swift; sourceTree = "<group>"; };
 		MNCL0002000000000000001 /* MainCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainCalendar.swift; sourceTree = "<group>"; };
 		MNGR0002000000000000001 /* MainGroups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainGroups.swift; sourceTree = "<group>"; };
@@ -535,28 +525,27 @@
 		MNLB0002000000000000001 /* MainLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainLibrary.swift; sourceTree = "<group>"; };
 		MODANIM0002000000000001 /* ModalAnimations.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalAnimations.swift; sourceTree = "<group>"; };
 		MOTN0002000000000001 /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
-		SESSCRD0002000000000001 /* SessionCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCredentialStore.swift; sourceTree = "<group>"; };
-		SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AttributedString+SafeMarkdown.swift"; sourceTree = "<group>"; };
-		DATEFMT0002000000000001 /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
-		UNENRLC0002000000000001 /* UnenrollConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnenrollConfirmation.swift; sourceTree = "<group>"; };
 		MPRP0002000000000000001 /* MemberProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberProfilePage.swift; sourceTree = "<group>"; };
 		MRPP0002000000000000001 /* MemberRequestProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestProfilePage.swift; sourceTree = "<group>"; };
 		MRQP0002000000000000001 /* MemberRequestsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestsPage.swift; sourceTree = "<group>"; };
+		NAVC0002000000000000001 /* NavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCoordinator.swift; sourceTree = "<group>"; };
 		NOTIF0002000000000001 /* NotificationActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationActions.swift; sourceTree = "<group>"; };
 		NTFPG0002000000000001 /* NotificationFeedPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationFeedPage.swift; sourceTree = "<group>"; };
 		OHMP0002000000000000001 /* OrgHomePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgHomePage.swift; sourceTree = "<group>"; };
 		OPTSHDW0002000000000001 /* OptimizedShadow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OptimizedShadow.swift; sourceTree = "<group>"; };
+		ORGA0002000000000001 /* OrgActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgActions.swift; sourceTree = "<group>"; };
 		OVLY0002000000000000001 /* OverlayManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OverlayManager.swift; sourceTree = "<group>"; };
-		ROUT0002000000000000001 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
-		LOGW0002000000000000001 /* Log.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
-		NAVC0002000000000000001 /* NavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCoordinator.swift; sourceTree = "<group>"; };
 		PDPC0001000000000000001 /* PostDetailPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailPage.swift; sourceTree = "<group>"; };
 		PROG0002000000000000001 /* ProgramFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramFixtures.swift; sourceTree = "<group>"; };
 		PROG0004000000000000001 /* ProgramHomePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramHomePage.swift; sourceTree = "<group>"; };
 		PUSHMG0002000000000001 /* PushNotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationManager.swift; sourceTree = "<group>"; };
 		RAPM0002000000000000001 /* ReadActivityPreviewModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReadActivityPreviewModal.swift; sourceTree = "<group>"; };
+		RITX000200000000000001 /* RelationshipIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelationshipIndexTests.swift; sourceTree = "<group>"; };
+		ROUT0002000000000000001 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
 		RTXI0002000000000000001 /* RichTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextInput.swift; sourceTree = "<group>"; };
+		SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AttributedString+SafeMarkdown.swift"; sourceTree = "<group>"; };
 		SEDP0002000000000000001 /* SelectEnrollDatePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectEnrollDatePage.swift; sourceTree = "<group>"; };
+		SESSCRD0002000000000001 /* SessionCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCredentialStore.swift; sourceTree = "<group>"; };
 		SINV0002000000000000001 /* StudyInvitePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyInvitePage.swift; sourceTree = "<group>"; };
 		SKEN0002000000000000001 /* SkeletonEnrollmentCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonEnrollmentCard.swift; sourceTree = "<group>"; };
 		SKLA0001000000000000001 /* SkeletonCardLessonActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonCardLessonActivity.swift; sourceTree = "<group>"; };
@@ -565,13 +554,14 @@
 		SKPF0002000000000000001 /* SkeletonCardProgramFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonCardProgramFull.swift; sourceTree = "<group>"; };
 		SLBV0002000000000000001 /* SelectableLockedBlockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectableLockedBlockView.swift; sourceTree = "<group>"; };
 		SLCD0002000000000000001 /* ScheduledLessonCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduledLessonCard.swift; sourceTree = "<group>"; };
+		SLDS0002000000000001 /* SlideStack.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SlideStack.swift; sourceTree = "<group>"; };
 		SLGP0002000000000000001 /* SelectGroupPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectGroupPage.swift; sourceTree = "<group>"; };
 		SLSP0002000000000000001 /* SelectStudyProgramPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectStudyProgramPage.swift; sourceTree = "<group>"; };
 		SPKM0002000000000000001 /* StylePickerMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StylePickerMenu.swift; sourceTree = "<group>"; };
+		SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatePersistenceRoundTripTests.swift; sourceTree = "<group>"; };
 		ST47947AFA5D7E4A43A27E /* StatePersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatePersistence.swift; sourceTree = "<group>"; };
 		ST5FADD273F9B744E7BBF2 /* VideoActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoActions.swift; sourceTree = "<group>"; };
 		ST7CF2EBB5F6944CE48C55 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
-		FLST0002000000000000001 /* FilterState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterState.swift; sourceTree = "<group>"; };
 		ST8205EFDFA2FD4CCFB3DB /* RelationshipIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelationshipIndex.swift; sourceTree = "<group>"; };
 		ST883D930DCFA6417980BE /* PersistedState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistedState.swift; sourceTree = "<group>"; };
 		STAE8698BCEFBA4FADA19C /* LoadingStateManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoadingStateManager.swift; sourceTree = "<group>"; };
@@ -581,16 +571,25 @@
 		STF7F960A70FAA4CFB9D79 /* EntityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStore.swift; sourceTree = "<group>"; };
 		STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentActions.swift; sourceTree = "<group>"; };
 		STF9898162D0FC410484CC /* ProgramActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramActions.swift; sourceTree = "<group>"; };
+		STMD0002000000000000001 /* StudyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000001 /* ModelFormatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFormatters.swift; sourceTree = "<group>"; };
+		STMM0002000000000000002 /* VideoModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000003 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000004 /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000005 /* EnrollmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000006 /* LessonModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000007 /* ThemeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000008 /* GroupMembershipModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupMembershipModels.swift; sourceTree = "<group>"; };
 		STPA0002000000000000001 /* ProgramActions+Lessons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProgramActions+Lessons.swift"; sourceTree = "<group>"; };
 		STPA0002000000000000002 /* ProgramActions+Activities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProgramActions+Activities.swift"; sourceTree = "<group>"; };
-		STMD0002000000000000001 /* StudyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyModels.swift; sourceTree = "<group>"; };
 		STPH0002000000000000001 /* StudyProgramHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyProgramHome.swift; sourceTree = "<group>"; };
+		STUB000200000000000001 /* StubAPIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StubAPIClient.swift; sourceTree = "<group>"; };
 		TAGI0002000000000000001 /* TagInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagInput.swift; sourceTree = "<group>"; };
 		TCVW0002000000000000001 /* ThemedContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemedContentView.swift; sourceTree = "<group>"; };
 		THMA0002000000000001 /* ThemeActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeActions.swift; sourceTree = "<group>"; };
-		ORGA0002000000000001 /* OrgActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OrgActions.swift; sourceTree = "<group>"; };
-		INVA0002000000000001 /* InviteActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InviteActions.swift; sourceTree = "<group>"; };
+		TYPO0002000000000000001 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
 		UKIN0002000000000000001 /* UIKitInputs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitInputs.swift; sourceTree = "<group>"; };
+		UNENRLC0002000000000001 /* UnenrollConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnenrollConfirmation.swift; sourceTree = "<group>"; };
 		UNOM0002000000000000001 /* UnenrollOptionsModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnenrollOptionsModal.swift; sourceTree = "<group>"; };
 		UPCD0002000000000000001 /* UpcomingLessonCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpcomingLessonCard.swift; sourceTree = "<group>"; };
 		VAMG0002000000000000001 /* VideoActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoActivityManager.swift; sourceTree = "<group>"; };
@@ -608,6 +607,7 @@
 		VSEL0018000000000000001 /* VideoLibraryPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoLibraryPage.swift; sourceTree = "<group>"; };
 		VSEL0020000000000000001 /* VideoRecorderPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoRecorderPage.swift; sourceTree = "<group>"; };
 		VSEL0024000000000000001 /* VideoPlayerPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerPage.swift; sourceTree = "<group>"; };
+		VSLG000100000000000001 /* VerseSelectionLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerseSelectionLogic.swift; sourceTree = "<group>"; };
 		WKDI0002000000000000001 /* WeekdayIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekdayIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -616,15 +616,15 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				97B60B5F3CE3435597217A2B /* CardData.swift in Sources */,
-				A7E0E3779D0841ECB1EE2F6C /* CardEvent.swift in Sources */,
-				EFC89466ECFF4DE69945CF81 /* CardGroup.swift in Sources */,
-				AC352FE2FF7E4242BF4AAC72 /* CardGroupMini.swift in Sources */,
-				29E5C282670C4EEDA9C49DE3 /* CardStudy.swift in Sources */,
-				1B36CD5350BF43F99AB288CE /* CardStudyMini.swift in Sources */,
-				9CC801F3C70B4B3BB1CCB414 /* CardVideo.swift in Sources */,
-				0D2C1AC8A5FE49FB8EFC0755 /* CardVideoMini.swift in Sources */,
-				4B2D73FB5B3141A3832276E2 /* DataComponent.swift in Sources */,
+				97B60B5F3CE3435597217A2B /* CardData.swift in Frameworks */,
+				A7E0E3779D0841ECB1EE2F6C /* CardEvent.swift in Frameworks */,
+				EFC89466ECFF4DE69945CF81 /* CardGroup.swift in Frameworks */,
+				AC352FE2FF7E4242BF4AAC72 /* CardGroupMini.swift in Frameworks */,
+				29E5C282670C4EEDA9C49DE3 /* CardStudy.swift in Frameworks */,
+				1B36CD5350BF43F99AB288CE /* CardStudyMini.swift in Frameworks */,
+				9CC801F3C70B4B3BB1CCB414 /* CardVideo.swift in Frameworks */,
+				0D2C1AC8A5FE49FB8EFC0755 /* CardVideoMini.swift in Frameworks */,
+				4B2D73FB5B3141A3832276E2 /* DataComponent.swift in Frameworks */,
 				6A08BA9A8229E97A2B3D7ACD /* Foundation.framework in Frameworks */,
 				5111F771EA00BF999D3B5FBF /* SnapshotTesting in Frameworks */,
 			);
@@ -704,6 +704,14 @@
 				2F8C5B105E811B2DEBB52E5A /* iOS */,
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		756B0EB1E84948A8A08C4F6E /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				CF2D9BADB939460CAEDCAC30 /* Card */,
+			);
+			path = Components;
 			sourceTree = "<group>";
 		};
 		7DAFD3B4F1184D7E8D65BB4D /* Components */ = {
@@ -787,7 +795,7 @@
 			isa = PBXGroup;
 			children = (
 				A1000009000000000000001 /* MakeReady.app */,
-				EF9E990745A08E8D86DDCAF6 /* MakeReadyCaptureTests.xctest */,
+				EF9E990745A08E8D86DDCAF6 /* MakeReady-Debug.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -851,7 +859,6 @@
 				SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */,
 				MDLT000200000000000001 /* ModelDecodingTests.swift */,
 			);
-			name = MakeReadyCaptureTests;
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
 		};
@@ -949,6 +956,22 @@
 				CAL_BAR00000000000001 /* CalendarBottomBar.swift */,
 			);
 			path = Calendar;
+			sourceTree = "<group>";
+		};
+		CF2D9BADB939460CAEDCAC30 /* Card */ = {
+			isa = PBXGroup;
+			children = (
+				1F3E78E4EEC341A4ADAE55EE /* CardData.swift */,
+				63E711311E1F46678776FA7D /* CardEvent.swift */,
+				E051712DCF8B4D60918BB00C /* CardGroup.swift */,
+				186E12BE711D48FC9FFFF7B1 /* CardGroupMini.swift */,
+				01E5292C43794AC7AF974ADB /* CardStudy.swift */,
+				E625E430B12A4F37BA6EFE91 /* CardStudyMini.swift */,
+				00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */,
+				E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */,
+				B545E372C19C4C48BD291914 /* DataComponent.swift */,
+			);
+			path = Card;
 			sourceTree = "<group>";
 		};
 		D4E2F6A8C5B347G9B1F2D3E6 /* Button */ = {
@@ -1315,22 +1338,6 @@
 			path = API;
 			sourceTree = "<group>";
 		};
-		STMODELSGRP000000000001 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				CNTC0002000000000000001 /* Contact.swift */,
-				STMM0002000000000000001 /* ModelFormatters.swift */,
-				STMM0002000000000000002 /* VideoModels.swift */,
-				STMM0002000000000000003 /* NotificationModels.swift */,
-				STMM0002000000000000004 /* MediaModels.swift */,
-				STMM0002000000000000005 /* EnrollmentModels.swift */,
-				STMM0002000000000000006 /* LessonModels.swift */,
-				STMM0002000000000000007 /* ThemeModels.swift */,
-				STMM0002000000000000008 /* GroupMembershipModels.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
 		STGRPBEAB147BF1F74A738 /* State */ = {
 			isa = PBXGroup;
 			children = (
@@ -1352,6 +1359,22 @@
 			isa = PBXGroup;
 			children = (
 				STMD0002000000000000001 /* StudyModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		STMODELSGRP000000000001 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				CNTC0002000000000000001 /* Contact.swift */,
+				STMM0002000000000000001 /* ModelFormatters.swift */,
+				STMM0002000000000000002 /* VideoModels.swift */,
+				STMM0002000000000000003 /* NotificationModels.swift */,
+				STMM0002000000000000004 /* MediaModels.swift */,
+				STMM0002000000000000005 /* EnrollmentModels.swift */,
+				STMM0002000000000000006 /* LessonModels.swift */,
+				STMM0002000000000000007 /* ThemeModels.swift */,
+				STMM0002000000000000008 /* GroupMembershipModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1428,30 +1451,6 @@
 			path = Video;
 			sourceTree = "<group>";
 		};
-		756B0EB1E84948A8A08C4F6E /* Components */ = {
-			isa = PBXGroup;
-			children = (
-				CF2D9BADB939460CAEDCAC30 /* Card */,
-			);
-			path = Components;
-			sourceTree = "<group>";
-		};
-		CF2D9BADB939460CAEDCAC30 /* Card */ = {
-			isa = PBXGroup;
-			children = (
-				1F3E78E4EEC341A4ADAE55EE /* CardData.swift */,
-				63E711311E1F46678776FA7D /* CardEvent.swift */,
-				E051712DCF8B4D60918BB00C /* CardGroup.swift */,
-				186E12BE711D48FC9FFFF7B1 /* CardGroupMini.swift */,
-				01E5292C43794AC7AF974ADB /* CardStudy.swift */,
-				E625E430B12A4F37BA6EFE91 /* CardStudyMini.swift */,
-				00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */,
-				E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */,
-				B545E372C19C4C48BD291914 /* DataComponent.swift */,
-			);
-			path = Card;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -1473,7 +1472,7 @@
 				E2579257CC2CAD3AD6D70103 /* SnapshotTesting */,
 			);
 			productName = MakeReadyCaptureTests;
-			productReference = EF9E990745A08E8D86DDCAF6 /* MakeReadyCaptureTests.xctest */;
+			productReference = EF9E990745A08E8D86DDCAF6 /* MakeReady-Debug.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		A1000015000000000000001 /* MakeReady */ = {
@@ -1556,22 +1555,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		VER00001000000000000001 /* Auto Increment Build Number */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Auto Increment Build Number";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/bash;
-			shellScript = "# Auto-set build number from git commit count\n# Marketing version (CFBundleShortVersionString) is managed manually in Info.plist\n\nset -e\n\ncd \"${SRCROOT}\" || exit 1\n\nif ! /usr/bin/git rev-parse --git-dir > /dev/null 2>&1; then\n    echo \"⚠️  Not a git repository. Build number not updated.\"\n    exit 0\nfi\n\nBUILD_NUMBER=$(/usr/bin/git rev-list HEAD --count)\n\nif [ -z \"$BUILD_NUMBER\" ] || [ -z \"$INFOPLIST_FILE\" ] || [ ! -f \"$INFOPLIST_FILE\" ]; then\n    echo \"⚠️  Could not update build number.\"\n    exit 0\nfi\n\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD_NUMBER\" \"${INFOPLIST_FILE}\" 2>/dev/null || \\\n/usr/libexec/PlistBuddy -c \"Add :CFBundleVersion string $BUILD_NUMBER\" \"${INFOPLIST_FILE}\"\n\necho \"✅ Build number set to: $BUILD_NUMBER\"\n";
-			showEnvVarsInLog = 0;
-		};
 		LINT0001000000000000001 /* SwiftLint (audit conventions) */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -1586,6 +1569,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/bash;
 			shellScript = "# SwiftLint - audit conventions, NEW code only (Phase 5.1).\n# Existing violations live in .swiftlint-baseline.json; this fails the\n# build only for violations introduced after the baseline.\nif command -v swiftlint >/dev/null 2>&1; then\n  SWIFTLINT=swiftlint\nelif [ -x /opt/homebrew/bin/swiftlint ]; then\n  SWIFTLINT=/opt/homebrew/bin/swiftlint\nelse\n  echo \"warning: SwiftLint not installed (brew install swiftlint) - skipping audit lint\"\n  exit 0\nfi\ncd \"${SRCROOT}\" || exit 0\n\"$SWIFTLINT\" lint --quiet --baseline .swiftlint-baseline.json\nstatus=$?\nif [ $status -eq 2 ]; then\n  echo \"error: SwiftLint found NEW violations of the audit conventions (existing code is baselined - see iphone/.swiftlint.yml)\"\n  exit 2\nelif [ $status -ne 0 ]; then\n  echo \"warning: SwiftLint could not run cleanly (exit $status, possibly script sandboxing) - not failing the build\"\nfi\nexit 0\n";
+			showEnvVarsInLog = 0;
+		};
+		VER00001000000000000001 /* Auto Increment Build Number */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Auto Increment Build Number";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "# Auto-set build number from git commit count\n# Marketing version (CFBundleShortVersionString) is managed manually in Info.plist\n\nset -e\n\ncd \"${SRCROOT}\" || exit 1\n\nif ! /usr/bin/git rev-parse --git-dir > /dev/null 2>&1; then\n    echo \"⚠️  Not a git repository. Build number not updated.\"\n    exit 0\nfi\n\nBUILD_NUMBER=$(/usr/bin/git rev-list HEAD --count)\n\nif [ -z \"$BUILD_NUMBER\" ] || [ -z \"$INFOPLIST_FILE\" ] || [ ! -f \"$INFOPLIST_FILE\" ]; then\n    echo \"⚠️  Could not update build number.\"\n    exit 0\nfi\n\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD_NUMBER\" \"${INFOPLIST_FILE}\" 2>/dev/null || \\\n/usr/libexec/PlistBuddy -c \"Add :CFBundleVersion string $BUILD_NUMBER\" \"${INFOPLIST_FILE}\"\n\necho \"✅ Build number set to: $BUILD_NUMBER\"\n";
 			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
@@ -1893,6 +1892,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;
@@ -1911,6 +1911,7 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ENABLE_OBJC_WEAK = NO;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
 				DEVELOPMENT_TEAM = "";
 				GENERATE_INFOPLIST_FILE = YES;

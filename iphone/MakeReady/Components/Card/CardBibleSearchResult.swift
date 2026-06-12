@@ -30,14 +30,18 @@ struct CardBibleSearchResult: View {
                     .foregroundColor(.white)
                     .frame(width: 24, height: 24)
 
+                // lineSpacing(4): ~1.5em line height — system 14pt has a
+                // ~16.7pt natural line box, +4pt ≈ 21pt (1.5 × 14).
                 if let title, isPassage {
                     // Named passage: title + reference header, summary preview
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(Text(title).font(Typography.s12Bold).foregroundColor(.white))  \(Text(reference).font(Typography.s11).foregroundColor(.white50))")
+                        Text("\(Text(title).font(Typography.s14Bold).foregroundColor(.white))  \(Text(reference).font(Typography.s14).foregroundColor(.white50))")
+                            .lineSpacing(4)
                             .lineLimit(2)
 
                         Text(summary ?? text)
-                            .font(Typography.s12)
+                            .font(Typography.s14)
+                            .lineSpacing(4)
                             .foregroundColor(.white70)
                             .lineLimit(2)
                     }
@@ -46,12 +50,13 @@ struct CardBibleSearchResult: View {
                     // Single verse / range: reference + verse text
                     VStack(alignment: .leading, spacing: 0) {
                         Text(reference)
-                            .font(Typography.s12Bold)
+                            .font(Typography.s14Bold)
                             .foregroundColor(.white)
                             .lineLimit(1)
 
                         Text(text)
-                            .font(Typography.s12)
+                            .font(Typography.s14)
+                            .lineSpacing(4)
                             .foregroundColor(.white70)
                             .lineLimit(1)
                     }

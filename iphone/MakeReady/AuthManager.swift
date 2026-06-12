@@ -55,6 +55,16 @@ class AuthManager: NSObject {
                 await checkAuthStatus()
                 print("✅ Auth status check complete. isAuthenticated: \(self.isAuthenticated)")
             }
+        } else {
+            // No credential for the CURRENT environment (sessions are
+            // per-environment). The cached user loadUser() just restored
+            // belongs to whichever environment last signed in — it must not
+            // count as signed in here, or the app launches into a main UI
+            // where every request fails. The UserDefaults copy is kept so a
+            // relaunch on the owning environment still fast-restores.
+            currentUser = nil
+            isAuthenticated = false
+            Log.auth.info("launched with no session credential for this environment — showing login")
         }
     }
 
@@ -211,6 +221,22 @@ class AuthManager: NSObject {
 
     // MARK: - Fetch Current User
     func fetchCurrentUser() async throws {
+        // The Keychain credential for the CURRENT environment is the single
+        // source of truth. Without one we are not signed in here — don't
+        // even ask the server: URLSession's shared cookie jar can carry a
+        // stale session from a previous login and make /auth/me answer 200,
+        // while APIClient (which requires the credential) rejects every
+        // data request. That split-brain is exactly the bug this guard kills.
+        guard let sessionCookie = APIClient.shared.sessionCookieValue else {
+            Log.auth.info("no session credential for this environment — not signed in")
+            await MainActor.run {
+                self.currentUser = nil
+                self.isAuthenticated = false
+                self.clearUser()
+            }
+            throw NSError(domain: "AuthError", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
+        }
+
         guard let url = URL(string: "\(Configuration.baseURL)/auth/me") else {
             throw URLError(.badURL)
         }
@@ -218,14 +244,11 @@ class AuthManager: NSObject {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-        // Add session cookie if available
-        if let sessionCookie = APIClient.shared.sessionCookieValue {
-            request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
-            print("🍪 Adding session cookie to request (length: \(sessionCookie.count))")
-        } else {
-            print("⚠️ No session cookie available for request")
-        }
+        // Only the explicit Keychain credential authenticates this call —
+        // never ambient cookies from the shared jar.
+        request.httpShouldHandleCookies = false
+        request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
+        Log.auth.info("attaching session cookie to /auth/me (length: \(sessionCookie.count))")
 
         let (data, response) = try await URLSession.shared.data(for: request)
 

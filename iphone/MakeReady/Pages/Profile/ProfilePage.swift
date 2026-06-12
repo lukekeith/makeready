@@ -132,12 +132,35 @@ extension ProfilePage {
             VStack(spacing: 0) {
                 ForEach(Array(Configuration.SelectedEnvironment.allCases.enumerated()), id: \.element) { index, env in
                     Button {
+                        let previous = Configuration.selectedEnvironment
                         selectedEnvironment = env
+                        if previous != env {
+                            // Flush the outgoing environment's data to ITS
+                            // snapshot file before the switch (persistence
+                            // paths are environment-scoped).
+                            AppState.shared.persistImmediately()
+                        }
                         Configuration.selectedEnvironment = env
                         if env == .local {
                             healLocalPortThenCheck()
                         } else {
                             checkEnvironmentHealth(env)
+                        }
+                        if previous != env {
+                            // Swap caches: each environment renders only its
+                            // own data (entities created on local 404 when
+                            // mutated against production, and vice versa).
+                            AppState.shared.reloadForEnvironmentSwitch()
+                            // Sessions are per-environment too: re-evaluate
+                            // auth so the user lands on the login screen
+                            // instead of silent 401s; with a valid session,
+                            // refresh the new environment's data.
+                            Task {
+                                await authManager.checkAuthStatus()
+                                if authManager.isAuthenticated {
+                                    await AppState.shared.loadInitialData()
+                                }
+                            }
                         }
                     } label: {
                         HStack(spacing: 12) {
