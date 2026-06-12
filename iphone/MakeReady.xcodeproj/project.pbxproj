@@ -205,7 +205,14 @@
 		MDDO0001000000000001 /* MediaDetailOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDDO0002000000000001 /* MediaDetailOverlay.swift */; };
 		MDED000200000000000001 /* MarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDED000100000000000001 /* MarkdownEditor.swift */; };
 		CNTC0001000000000000001 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNTC0002000000000000001 /* Contact.swift */; };
-		MDLB7DB62EF3CE3C4877B7DB /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLA520C5F5031E4632BF131 /* Models.swift */; };
+		STMM0001000000000000001 /* ModelFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000001 /* ModelFormatters.swift */; };
+		STMM0001000000000000002 /* VideoModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000002 /* VideoModels.swift */; };
+		STMM0001000000000000003 /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000003 /* NotificationModels.swift */; };
+		STMM0001000000000000004 /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000004 /* MediaModels.swift */; };
+		STMM0001000000000000005 /* EnrollmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000005 /* EnrollmentModels.swift */; };
+		STMM0001000000000000006 /* LessonModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000006 /* LessonModels.swift */; };
+		STMM0001000000000000007 /* ThemeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000007 /* ThemeModels.swift */; };
+		STMM0001000000000000008 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000008 /* GroupModels.swift */; };
 		MDLG0001000000000001 /* MediaLibraryGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLG0002000000000001 /* MediaLibraryGrid.swift */; };
 		MLP0001000000000000001 /* MediaLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = MLP0002000000000000001 /* MediaLibraryPicker.swift */; };
 		MNCL0001000000000000001 /* MainCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNCL0002000000000000001 /* MainCalendar.swift */; };
@@ -248,6 +255,8 @@
 		SLSP0001000000000000001 /* SelectStudyProgramPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLSP0002000000000000001 /* SelectStudyProgramPage.swift */; };
 		SPKM0001000000000000001 /* StylePickerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = SPKM0002000000000000001 /* StylePickerMenu.swift */; };
 		STB03B65BB4E42346EEB2A /* ProgramActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF9898162D0FC410484CC /* ProgramActions.swift */; };
+		STPA0001000000000000001 /* ProgramActions+Lessons.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPA0002000000000000001 /* ProgramActions+Lessons.swift */; };
+		STPA0001000000000000002 /* ProgramActions+Activities.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPA0002000000000000002 /* ProgramActions+Activities.swift */; };
 		STB0AFF73E5FAA54CF0B89 /* StatePersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST47947AFA5D7E4A43A27E /* StatePersistence.swift */; };
 		STB2937FED5BDD147D384F /* PersistedState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST883D930DCFA6417980BE /* PersistedState.swift */; };
 		STB414690A44AD34D38816 /* VideoActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST5FADD273F9B744E7BBF2 /* VideoActions.swift */; };
@@ -510,7 +519,14 @@
 		MDDO0002000000000001 /* MediaDetailOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailOverlay.swift; sourceTree = "<group>"; };
 		MDED000100000000000001 /* MarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditor.swift; sourceTree = "<group>"; };
 		CNTC0002000000000000001 /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
-		MDLA520C5F5031E4632BF131 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		STMM0002000000000000001 /* ModelFormatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFormatters.swift; sourceTree = "<group>"; };
+		STMM0002000000000000002 /* VideoModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000003 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000004 /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000005 /* EnrollmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000006 /* LessonModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000007 /* ThemeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000008 /* GroupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupModels.swift; sourceTree = "<group>"; };
 		MDLG0002000000000001 /* MediaLibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryGrid.swift; sourceTree = "<group>"; };
 		MLP0002000000000000001 /* MediaLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryPicker.swift; sourceTree = "<group>"; };
 		MNCL0002000000000000001 /* MainCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainCalendar.swift; sourceTree = "<group>"; };
@@ -565,6 +581,8 @@
 		STF7F960A70FAA4CFB9D79 /* EntityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStore.swift; sourceTree = "<group>"; };
 		STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentActions.swift; sourceTree = "<group>"; };
 		STF9898162D0FC410484CC /* ProgramActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramActions.swift; sourceTree = "<group>"; };
+		STPA0002000000000000001 /* ProgramActions+Lessons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProgramActions+Lessons.swift"; sourceTree = "<group>"; };
+		STPA0002000000000000002 /* ProgramActions+Activities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProgramActions+Activities.swift"; sourceTree = "<group>"; };
 		STMD0002000000000000001 /* StudyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyModels.swift; sourceTree = "<group>"; };
 		STPH0002000000000000001 /* StudyProgramHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyProgramHome.swift; sourceTree = "<group>"; };
 		TAGI0002000000000000001 /* TagInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TagInput.swift; sourceTree = "<group>"; };
@@ -1273,6 +1291,8 @@
 			isa = PBXGroup;
 			children = (
 				STF9898162D0FC410484CC /* ProgramActions.swift */,
+				STPA0002000000000000001 /* ProgramActions+Lessons.swift */,
+				STPA0002000000000000002 /* ProgramActions+Activities.swift */,
 				STEA7C3A65D00D453EBCC6 /* GroupActions.swift */,
 				STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */,
 				ST5FADD273F9B744E7BBF2 /* VideoActions.swift */,
@@ -1299,6 +1319,14 @@
 			isa = PBXGroup;
 			children = (
 				CNTC0002000000000000001 /* Contact.swift */,
+				STMM0002000000000000001 /* ModelFormatters.swift */,
+				STMM0002000000000000002 /* VideoModels.swift */,
+				STMM0002000000000000003 /* NotificationModels.swift */,
+				STMM0002000000000000004 /* MediaModels.swift */,
+				STMM0002000000000000005 /* EnrollmentModels.swift */,
+				STMM0002000000000000006 /* LessonModels.swift */,
+				STMM0002000000000000007 /* ThemeModels.swift */,
+				STMM0002000000000000008 /* GroupModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1306,7 +1334,6 @@
 		STGRPBEAB147BF1F74A738 /* State */ = {
 			isa = PBXGroup;
 			children = (
-				MDLA520C5F5031E4632BF131 /* Models.swift */,
 				STMODELSGRP000000000001 /* Models */,
 				ST7CF2EBB5F6944CE48C55 /* AppState.swift */,
 				FLST0002000000000000001 /* FilterState.swift */,
@@ -1594,14 +1621,23 @@
 				FLOW0001000000000000001 /* FlowLayout.swift in Sources */,
 				TAGI0001000000000000001 /* TagInput.swift in Sources */,
 				D1ROH1B000000000000001 /* ReorderHelpers.swift in Sources */,
-				MDLB7DB62EF3CE3C4877B7DB /* Models.swift in Sources */,
 				CNTC0001000000000000001 /* Contact.swift in Sources */,
+				STMM0001000000000000001 /* ModelFormatters.swift in Sources */,
+				STMM0001000000000000002 /* VideoModels.swift in Sources */,
+				STMM0001000000000000003 /* NotificationModels.swift in Sources */,
+				STMM0001000000000000004 /* MediaModels.swift in Sources */,
+				STMM0001000000000000005 /* EnrollmentModels.swift in Sources */,
+				STMM0001000000000000006 /* LessonModels.swift in Sources */,
+				STMM0001000000000000007 /* ThemeModels.swift in Sources */,
+				STMM0001000000000000008 /* GroupModels.swift in Sources */,
 				STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */,
 				FLST0001000000000000001 /* FilterState.swift in Sources */,
 				STB9ABADE6E9B9D497CBB7 /* EntityStore.swift in Sources */,
 				STB5E53C4FB893A46F7AB1 /* RelationshipIndex.swift in Sources */,
 				STBD17E0834F256426EB81 /* LoadingStateManager.swift in Sources */,
 				STB03B65BB4E42346EEB2A /* ProgramActions.swift in Sources */,
+				STPA0001000000000000001 /* ProgramActions+Lessons.swift in Sources */,
+				STPA0001000000000000002 /* ProgramActions+Activities.swift in Sources */,
 				STBFF9B4526579D4BA8820 /* GroupActions.swift in Sources */,
 				STB76F45E5B18BF4A21BA9 /* EnrollmentActions.swift in Sources */,
 				STB414690A44AD34D38816 /* VideoActions.swift in Sources */,
