@@ -79,16 +79,6 @@ struct CardMediaFull: View {
                         .padding(6)
                 }
             }
-            .overlay(alignment: .center) {
-                // Play icon for videos
-                if item.mediaType == .video {
-                    Image(systemName: "play.fill")
-                        .font(Typography.s20)
-                        .foregroundColor(.white.opacity(0.8))
-                        .padding(10)
-                        .background(Circle().fill(Color.black.opacity(0.4)))
-                }
-            }
         }
         .aspectRatio(1, contentMode: .fit)
     }

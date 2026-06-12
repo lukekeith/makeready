@@ -122,6 +122,8 @@ struct MainLibrary: View {
     @State private var showMediaDeleteConfirmation = false
     @State private var deletingMediaId: String? = nil
     @State private var isMediaRefreshing = false
+    /// Grid ↔ detail-overlay pager handle (cell frames + hidden-cell retarget)
+    @State private var mediaGridBridge = MediaGridPagerBridge()
     @State private var mediaSearchText = ""
     @State private var isMediaSearchActive = false
     @FocusState private var isMediaSearchFocused: Bool
@@ -802,7 +804,8 @@ struct MainLibrary: View {
                     },
                     onNearEnd: {
                         Task { await loadMoreMedia() }
-                    }
+                    },
+                    pagerBridge: mediaGridBridge
                 )
             }
 
@@ -1050,7 +1053,9 @@ struct MainLibrary: View {
 
         let overlay = MediaDetailOverlayView(
             item: item,
+            items: filteredMedia,
             sourceFrame: sourceFrame,
+            gridBridge: mediaGridBridge,
             onDismiss: {
                 restoreGridCell()
             },

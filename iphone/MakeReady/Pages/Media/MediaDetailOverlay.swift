@@ -19,14 +19,52 @@ private class PlayerView: UIView {
     var playerLayer: AVPlayerLayer { layer as! AVPlayerLayer }
 }
 
+// MARK: - PassthroughTopScrollView
+
+/// The info-pane scroll view sits ABOVE the media in z-order so its content
+/// slides over the media when scrolled up. Touches landing where no content
+/// has scrolled yet (the media region) must fall through to the media views
+/// beneath. hitTest points are in bounds coordinates, which include the
+/// contentOffset — so a simple content-space y comparison does it.
+private final class PassthroughTopScrollView: UIScrollView {
+    /// Content-space y where the opaque info content begins.
+    var passthroughBelowContentY: CGFloat = 0
+
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        if point.y < passthroughBelowContentY { return nil }
+        return super.hitTest(point, with: event)
+    }
+}
+
 final class MediaDetailOverlayView: UIView {
 
     // MARK: - Properties
 
-    private let item: MediaLibraryItem
+    private var item: MediaLibraryItem
     private let sourceFrame: CGRect
     private let onDismiss: () -> Void
     private let onUsageTap: ((MediaUsage) -> Void)?
+
+    // Pager (swipe between items)
+    private let allItems: [MediaLibraryItem]
+    private var currentIndex: Int
+    private let gridBridge: MediaGridPagerBridge?
+    private let pageGap: CGFloat = 16
+    private var isPaging = false
+    private var leftPreview: UIImageView?
+    private var rightPreview: UIImageView?
+    private var leftPreviewItemId: String?
+    private var rightPreviewItemId: String?
+    /// High-res working set for the pager — ONLY current ± 1 live here, so
+    /// at most three decoded high-res images are retained no matter how far
+    /// the user pages. Pruned on every page commit.
+    private var pagerImageWindow: [String: UIImage] = [:]
+    private var pagerImageTasks: [String: Task<Void, Never>] = [:]
+    private var dismissPan: UIPanGestureRecognizer?
+    private var pagePan: UIPanGestureRecognizer?
+    /// Cell frame the dismiss animation targets — retargeted to the current
+    /// item's cell when the user has paged away from the original.
+    private var activeDismissTarget: CGRect = .zero
 
     // MARK: - State
 
@@ -104,8 +142,8 @@ final class MediaDetailOverlayView: UIView {
         return iv
     }()
 
-    private let scrollView: UIScrollView = {
-        let sv = UIScrollView()
+    private let scrollView: PassthroughTopScrollView = {
+        let sv = PassthroughTopScrollView()
         sv.showsVerticalScrollIndicator = false
         sv.alwaysBounceVertical = true
         sv.alpha = 0
@@ -178,9 +216,20 @@ final class MediaDetailOverlayView: UIView {
 
     // MARK: - Init
 
-    init(item: MediaLibraryItem, sourceFrame: CGRect, onDismiss: @escaping () -> Void, onUsageTap: ((MediaUsage) -> Void)? = nil) {
+    init(
+        item: MediaLibraryItem,
+        items: [MediaLibraryItem] = [],
+        sourceFrame: CGRect,
+        gridBridge: MediaGridPagerBridge? = nil,
+        onDismiss: @escaping () -> Void,
+        onUsageTap: ((MediaUsage) -> Void)? = nil
+    ) {
         self.item = item
+        self.allItems = items.isEmpty ? [item] : items
+        self.currentIndex = items.firstIndex(where: { $0.id == item.id }) ?? 0
+        self.gridBridge = gridBridge
         self.sourceFrame = sourceFrame
+        self.activeDismissTarget = sourceFrame
         self.onDismiss = onDismiss
         self.onUsageTap = onUsageTap
         super.init(frame: .zero)
@@ -197,7 +246,6 @@ final class MediaDetailOverlayView: UIView {
 
     private func setupViews() {
         addSubview(scrimView)
-        addSubview(scrollView)
 
         // Thumbnail starts at source frame
         thumbnailImageView.frame = sourceFrame
@@ -212,20 +260,23 @@ final class MediaDetailOverlayView: UIView {
         typeIconView.center = CGPoint(x: sourceFrame.width / 2, y: sourceFrame.height / 2)
         placeholderView.addSubview(typeIconView)
 
-        // Play icon for videos (on top of thumbnail)
-        if item.mediaType == .video {
-            addSubview(playIconView)
-            playIconView.isHidden = true // shown after expand
-
-            addSubview(fullscreenButton)
-            fullscreenButton.addTarget(self, action: #selector(fullscreenTapped), for: .touchUpInside)
-        }
-
         // Zoom scroll view — set up but not yet visible; activated after expand
         zoomScrollView.delegate = self
         zoomScrollView.isHidden = true
         addSubview(zoomScrollView)
 
+        // Play icon + fullscreen button — always added (paging can land on a
+        // video from a photo and vice versa); hidden unless the current item
+        // is a playable video.
+        addSubview(playIconView)
+        playIconView.isHidden = true // shown after expand (videos only)
+        addSubview(fullscreenButton)
+        fullscreenButton.addTarget(self, action: #selector(fullscreenTapped), for: .touchUpInside)
+
+        // Info pane sits ABOVE the media so it slides over it when scrolled
+        // up; its hitTest passes media-region touches through (see
+        // PassthroughTopScrollView).
+        addSubview(scrollView)
         scrollView.addSubview(contentBackground)
         scrollView.addSubview(contentStack)
         scrollView.addSubview(loadingSpinner)
@@ -233,12 +284,10 @@ final class MediaDetailOverlayView: UIView {
         addSubview(closeButton)
         closeButton.addTarget(self, action: #selector(closeTapped), for: .touchUpInside)
 
-        // Tap on the media area to play/pause video
-        if item.mediaType == .video {
-            let tap = UITapGestureRecognizer(target: self, action: #selector(mediaTapped))
-            thumbnailImageView.isUserInteractionEnabled = true
-            thumbnailImageView.addGestureRecognizer(tap)
-        }
+        // Tap on the media area to play/pause video (mediaTapped guards type)
+        let tap = UITapGestureRecognizer(target: self, action: #selector(mediaTapped))
+        thumbnailImageView.isUserInteractionEnabled = true
+        thumbnailImageView.addGestureRecognizer(tap)
 
         // Double-tap to zoom on images
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap(_:)))
@@ -250,10 +299,28 @@ final class MediaDetailOverlayView: UIView {
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         pan.delegate = self
         addGestureRecognizer(pan)
+        dismissPan = pan
+
+        // Horizontal pager between items (begins only in the media region —
+        // see gestureRecognizerShouldBegin)
+        let hPan = UIPanGestureRecognizer(target: self, action: #selector(handlePagePan(_:)))
+        hPan.delegate = self
+        addGestureRecognizer(hPan)
+        pagePan = hPan
 
         // The dismiss pan must recognize simultaneously with the scroll view's pan
         // so we can intercept downward swipes when scrolled to top
         scrollView.panGestureRecognizer.require(toFail: pan)
+    }
+
+    /// Canonical z-order, top-down: close button, info pane, media controls,
+    /// media (zoom view / player / thumbnail), placeholder, scrim. Called
+    /// after anything inserts media-level views.
+    private func restackZOrder() {
+        bringSubviewToFront(playIconView)
+        bringSubviewToFront(fullscreenButton)
+        bringSubviewToFront(scrollView)
+        bringSubviewToFront(closeButton)
     }
 
     // MARK: - Layout
@@ -294,6 +361,15 @@ final class MediaDetailOverlayView: UIView {
         let infoTop = expandedImageFrame.maxY + 16
         // Tall enough to cover well beyond any content
         contentBackground.frame = CGRect(x: 0, y: infoTop, width: bounds.width, height: bounds.height * 5)
+        // Touches above the info content fall through to the media beneath
+        scrollView.passthroughBelowContentY = infoTop
+    }
+
+    /// Bottom edge (in self coordinates) of the media area that is actually
+    /// visible — i.e. not yet covered by the info pane scrolled over it.
+    private var visibleMediaBottom: CGFloat {
+        let infoTopOnScreen = (expandedImageFrame.maxY + 16) - scrollView.contentOffset.y
+        return min(expandedImageFrame.maxY, infoTopOnScreen)
     }
 
     // MARK: - Present
@@ -315,17 +391,21 @@ final class MediaDetailOverlayView: UIView {
         loadDetailData()
     }
 
-    private func loadThumbnailImage() {
-        let urlString: String?
+    private func thumbnailURL(for item: MediaLibraryItem) -> URL? {
         if let url = item.thumbnailUrl, !url.isEmpty {
-            urlString = url
-        } else if item.mediaType == .photo, !item.url.isEmpty {
-            urlString = item.url.mediumImageUrl
-        } else {
-            urlString = nil
+            return URL(string: url)
         }
+        if item.mediaType == .photo, !item.url.isEmpty {
+            return URL(string: item.url.mediumImageUrl)
+        }
+        return nil
+    }
 
-        guard let urlString, let url = URL(string: urlString) else { return }
+    private func loadThumbnailImage() {
+        // Never downgrade: once the high-res window image exists for this
+        // item, the grid-size thumb must not replace it.
+        guard pagerImageWindow[item.id] == nil else { return }
+        guard let url = thumbnailURL(for: item) else { return }
 
         // Check cache first (synchronous, nonisolated)
         if let cached = ImageCache.shared.cachedImage(for: url) {
@@ -335,9 +415,12 @@ final class MediaDetailOverlayView: UIView {
             return
         }
 
+        let loadedItemId = item.id
         Task { @MainActor in
             do {
                 let image = try await ImageCache.shared.fetch(url: url)
+                guard self.item.id == loadedItemId else { return } // paged away
+                guard self.pagerImageWindow[loadedItemId] == nil else { return } // high-res landed first
                 self.thumbnailImageView.image = image
                 self.thumbnailImageView.isHidden = false
                 self.placeholderView.isHidden = true
@@ -358,9 +441,12 @@ final class MediaDetailOverlayView: UIView {
             self.scrimView.alpha = 1
             self.closeButton.alpha = 1
         } completion: { _ in
-            // After expand completes, enable pinch-to-zoom and load high-res
+            // After expand completes, enable pinch-to-zoom and load high-res.
+            // The grid-size thumbnail is used ONLY for this tap transition;
+            // from here on everything renders from the high-res window.
             self.enablePinchToZoom()
             self.loadFullResMedia()
+            self.warmImageWindow()
         }
 
         // Fade in scrollView after thumbnail settles
@@ -396,12 +482,8 @@ final class MediaDetailOverlayView: UIView {
         // Hide the placeholder since image is now in the zoom view
         placeholderView.isHidden = true
 
-        // Bring play/fullscreen controls above zoom view
-        if item.mediaType == .video {
-            bringSubviewToFront(playIconView)
-            bringSubviewToFront(fullscreenButton)
-        }
-        bringSubviewToFront(closeButton)
+        // Controls/info/close keep their canonical order above the zoom view
+        restackZOrder()
     }
 
     private func disablePinchToZoom() {
@@ -452,20 +534,18 @@ final class MediaDetailOverlayView: UIView {
     }
 
     private func loadFullResImage() {
-        // Load the original full-res image URL (not the medium variant)
-        let fullUrl = item.url
-        guard !fullUrl.isEmpty, let url = URL(string: fullUrl) else { return }
-
-        Task { @MainActor in
-            do {
-                let image = try await ImageCache.shared.fetch(url: url)
-                UIView.transition(with: self.thumbnailImageView, duration: 0.2, options: .transitionCrossDissolve) {
-                    self.thumbnailImageView.image = image
-                }
-            } catch {
-                // Silent: optional full-res upgrade — the thumbnail stays visible.
-            }
+        if let ready = pagerImageWindow[item.id] {
+            // Already in the high-res window (typical after paging — the
+            // neighbor preview carried this exact image). Direct set, no
+            // dissolve: this is what keeps the post-snap promotion blink-free.
+            thumbnailImageView.image = ready
+            thumbnailImageView.isHidden = false
+            placeholderView.isHidden = true
+            return
         }
+        // Not loaded yet — fetch into the window; applyWindowImage upgrades
+        // the on-screen view (cross-dissolve) when it lands.
+        ensureWindowImage(for: item)
     }
 
     private func loadVideoPlayer() {
@@ -491,13 +571,26 @@ final class MediaDetailOverlayView: UIView {
         let pv = PlayerView()
         pv.playerLayer.player = avPlayer
         pv.playerLayer.videoGravity = .resizeAspectFill
-        pv.frame = expandedImageFrame
         pv.alpha = 0
         pv.isUserInteractionEnabled = true
         let pvTap = UITapGestureRecognizer(target: self, action: #selector(mediaTapped))
         pv.addGestureRecognizer(pvTap)
-        insertSubview(pv, aboveSubview: thumbnailImageView)
+        // The thumbnail may already live inside zoomContentView (enablePinchToZoom
+        // runs before this on first load). Inserting "aboveSubview:" a view that
+        // isn't a direct child appends pv on TOP of everything — it then fades in
+        // over the play/fullscreen/close controls, which looks like they fade out.
+        // Insert into whichever container the thumbnail actually occupies.
+        if thumbnailImageView.superview === zoomContentView {
+            pv.frame = CGRect(origin: .zero, size: expandedImageFrame.size)
+            zoomContentView.addSubview(pv)
+        } else {
+            pv.frame = expandedImageFrame
+            insertSubview(pv, aboveSubview: thumbnailImageView)
+        }
         self.playerView = pv
+
+        // Controls/info/close always sit above the player.
+        restackZOrder()
 
         // Show play icon and fullscreen button
         playIconView.center = CGPoint(x: expandedImageFrame.midX, y: expandedImageFrame.midY)
@@ -544,16 +637,21 @@ final class MediaDetailOverlayView: UIView {
         if isPlaying {
             player.pause()
             isPlaying = false
-            UIView.animate(withDuration: 0.2) {
-                self.playIconView.alpha = 1
-            }
         } else {
             player.play()
             isPlaying = true
-            UIView.animate(withDuration: 0.2) {
-                self.playIconView.alpha = 0
-            }
         }
+        updatePlayPauseIcon()
+    }
+
+    /// The center icon persists through playback (it never fades out);
+    /// it toggles between play and pause to reflect state.
+    private func updatePlayPauseIcon() {
+        let config = UIImage.SymbolConfiguration(pointSize: 36, weight: .regular)
+        playIconView.image = UIImage(
+            systemName: isPlaying ? "pause.fill" : "play.fill",
+            withConfiguration: config
+        )
     }
 
     // MARK: - Fullscreen Video
@@ -564,9 +662,7 @@ final class MediaDetailOverlayView: UIView {
         // Pause while presenting fullscreen
         player.pause()
         isPlaying = false
-        UIView.animate(withDuration: 0.2) {
-            self.playIconView.alpha = 1
-        }
+        updatePlayPauseIcon()
 
         let playerVC = AVPlayerViewController()
         playerVC.player = player
@@ -584,14 +680,288 @@ final class MediaDetailOverlayView: UIView {
         }
     }
 
+    // MARK: - Pager (swipe left/right between items)
+
+    private var hasPrev: Bool { currentIndex > 0 }
+    private var hasNext: Bool { currentIndex < allItems.count - 1 }
+
+    /// Views that ride with the finger during a horizontal page drag.
+    /// disablePinchToZoom() runs at drag start, so the media lives at the
+    /// top level here (mirrors the dismiss pan's approach).
+    private var pagingMediaViews: [UIView] {
+        var views: [UIView] = [placeholderView, thumbnailImageView]
+        if let pv = playerView, pv.superview === self { views.append(pv) }
+        if !playIconView.isHidden { views.append(playIconView) }
+        if !fullscreenButton.isHidden { views.append(fullscreenButton) }
+        return views
+    }
+
+    @objc private func handlePagePan(_ gesture: UIPanGestureRecognizer) {
+        guard !isPaging else { return }
+        let dx = gesture.translation(in: self).x
+        let vx = gesture.velocity(in: self).x
+
+        switch gesture.state {
+        case .began:
+            disablePinchToZoom()
+            createNeighborPreviews()
+
+        case .changed:
+            applyPageDrag(dx)
+
+        case .ended, .cancelled:
+            let width = bounds.width
+            if hasNext && dx < 0 && (dx < -width * 0.35 || vx < -500) {
+                animatePage(direction: -1)   // current slides out left → next
+            } else if hasPrev && dx > 0 && (dx > width * 0.35 || vx > 500) {
+                animatePage(direction: 1)    // current slides out right → previous
+            } else {
+                animatePageSnapBack()
+            }
+
+        default:
+            break
+        }
+    }
+
+    /// Rubber-band when dragging past the first/last item.
+    private func resistedDx(_ dx: CGFloat) -> CGFloat {
+        if dx < 0 && !hasNext { return dx * 0.25 }
+        if dx > 0 && !hasPrev { return dx * 0.25 }
+        return dx
+    }
+
+    private func applyPageDrag(_ rawDx: CGFloat) {
+        let t = CGAffineTransform(translationX: resistedDx(rawDx), y: 0)
+        pagingMediaViews.forEach { $0.transform = t }
+        leftPreview?.transform = t
+        rightPreview?.transform = t
+    }
+
+    private func createNeighborPreviews() {
+        removeNeighborPreviews()
+        let pageWidth = bounds.width + pageGap
+        if hasPrev {
+            let neighbor = allItems[currentIndex - 1]
+            leftPreviewItemId = neighbor.id
+            leftPreview = makeNeighborPreview(
+                for: neighbor,
+                frame: expandedImageFrame.offsetBy(dx: -pageWidth, dy: 0)
+            )
+        }
+        if hasNext {
+            let neighbor = allItems[currentIndex + 1]
+            rightPreviewItemId = neighbor.id
+            rightPreview = makeNeighborPreview(
+                for: neighbor,
+                frame: expandedImageFrame.offsetBy(dx: pageWidth, dy: 0)
+            )
+        }
+    }
+
+    private func makeNeighborPreview(for neighbor: MediaLibraryItem, frame: CGRect) -> UIImageView {
+        let iv = UIImageView()
+        iv.contentMode = .scaleAspectFill
+        iv.clipsToBounds = true
+        iv.backgroundColor = UIColor(white: 1, alpha: 0.05)
+        iv.frame = frame
+        // Neighbors render HIGH-RES so the post-snap promotion doesn't blink.
+        // Seed instantly from the window (or the grid thumb as a stopgap
+        // while the high-res fetch completes), then upgrade in place.
+        if let ready = pagerImageWindow[neighbor.id] {
+            iv.image = ready
+        } else {
+            if let thumbURL = thumbnailURL(for: neighbor),
+               let cachedThumb = ImageCache.shared.cachedImage(for: thumbURL) {
+                iv.image = cachedThumb
+            }
+            ensureWindowImage(for: neighbor)
+        }
+        // Same layer as the media: above the scrim, below the info pane.
+        insertSubview(iv, belowSubview: scrollView)
+        return iv
+    }
+
+    private func removeNeighborPreviews() {
+        leftPreview?.removeFromSuperview()
+        leftPreview = nil
+        leftPreviewItemId = nil
+        rightPreview?.removeFromSuperview()
+        rightPreview = nil
+        rightPreviewItemId = nil
+    }
+
+    // MARK: - High-res image window (current ± 1)
+
+    private func fullResURL(for target: MediaLibraryItem) -> URL? {
+        if target.mediaType == .photo, !target.url.isEmpty {
+            return URL(string: target.url)
+        }
+        // Videos: the poster still is the displayable image.
+        return thumbnailURL(for: target)
+    }
+
+    /// Decode cap for window images: screen width at device scale with 2×
+    /// headroom for pinch zoom. Keeps each retained image bounded instead
+    /// of decoding multi-megapixel originals at full size.
+    private var windowMaxPixelSize: CGFloat {
+        let scale = window?.screen.scale ?? 3
+        return max(bounds.width, 320) * scale * 2
+    }
+
+    private var windowItemIds: Set<String> {
+        var ids: Set<String> = [allItems[currentIndex].id]
+        if hasPrev { ids.insert(allItems[currentIndex - 1].id) }
+        if hasNext { ids.insert(allItems[currentIndex + 1].id) }
+        return ids
+    }
+
+    /// Fetch the high-res image for an item into the window (no-op if it's
+    /// already there or in flight) and route it to whichever view currently
+    /// shows that item.
+    private func ensureWindowImage(for target: MediaLibraryItem) {
+        let id = target.id
+        guard pagerImageWindow[id] == nil, pagerImageTasks[id] == nil,
+              let url = fullResURL(for: target) else { return }
+        let maxSize = windowMaxPixelSize
+        pagerImageTasks[id] = Task { @MainActor in
+            defer { pagerImageTasks[id] = nil }
+            guard let image = try? await ImageCache.shared.fetch(url: url, maxPixelSize: maxSize) else { return }
+            guard self.windowItemIds.contains(id) else { return } // paged out of the window
+            self.pagerImageWindow[id] = image
+            self.applyWindowImage(id: id, image: image)
+        }
+    }
+
+    private func applyWindowImage(id: String, image: UIImage) {
+        if id == item.id {
+            let upgrading = thumbnailImageView.image != nil && !thumbnailImageView.isHidden
+            thumbnailImageView.isHidden = false
+            placeholderView.isHidden = true
+            if upgrading {
+                UIView.transition(with: thumbnailImageView, duration: 0.2, options: .transitionCrossDissolve) {
+                    self.thumbnailImageView.image = image
+                }
+            } else {
+                thumbnailImageView.image = image
+            }
+        } else if id == leftPreviewItemId {
+            leftPreview?.image = image
+        } else if id == rightPreviewItemId {
+            rightPreview?.image = image
+        }
+    }
+
+    /// Start high-res fetches for current ± 1.
+    private func warmImageWindow() {
+        ensureWindowImage(for: item)
+        if hasPrev { ensureWindowImage(for: allItems[currentIndex - 1]) }
+        if hasNext { ensureWindowImage(for: allItems[currentIndex + 1]) }
+    }
+
+    /// Drop retained images and cancel fetches outside current ± 1 — the
+    /// overlay never holds more than three high-res images.
+    private func pruneImageWindow() {
+        let keep = windowItemIds
+        pagerImageWindow = pagerImageWindow.filter { keep.contains($0.key) }
+        for (id, task) in pagerImageTasks where !keep.contains(id) {
+            task.cancel()
+            pagerImageTasks[id] = nil
+        }
+    }
+
+    /// direction: -1 = current slides out LEFT (advance to next item),
+    /// +1 = current slides out RIGHT (back to previous item).
+    private func animatePage(direction: CGFloat) {
+        isPaging = true
+        player?.pause()
+        let shift = direction * (bounds.width + pageGap)
+        let t = CGAffineTransform(translationX: shift, y: 0)
+        let incoming = direction < 0 ? rightPreview : leftPreview
+        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.88,
+                       initialSpringVelocity: 0, options: []) {
+            self.pagingMediaViews.forEach { $0.transform = t }
+            self.leftPreview?.transform = t
+            self.rightPreview?.transform = t
+        } completion: { _ in
+            self.commitPage(toIndex: self.currentIndex + (direction < 0 ? 1 : -1), incoming: incoming)
+        }
+    }
+
+    private func animatePageSnapBack() {
+        isPaging = true
+        UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.88,
+                       initialSpringVelocity: 0, options: []) {
+            self.pagingMediaViews.forEach { $0.transform = .identity }
+            self.leftPreview?.transform = .identity
+            self.rightPreview?.transform = .identity
+        } completion: { _ in
+            self.removeNeighborPreviews()
+            self.enablePinchToZoom()
+            self.isPaging = false
+        }
+    }
+
+    private func commitPage(toIndex newIndex: Int, incoming: UIImageView?) {
+        guard allItems.indices.contains(newIndex) else {
+            animatePageSnapBack()
+            return
+        }
+
+        // 1. Tear down the outgoing item's player
+        teardownPlayer()
+
+        // 2. Swap the model
+        item = allItems[newIndex]
+        currentIndex = newIndex
+
+        // 3. Reset transforms and rebind the media views to the new item
+        ([placeholderView, thumbnailImageView, zoomScrollView, playIconView, fullscreenButton] as [UIView])
+            .forEach { $0.transform = .identity }
+        thumbnailImageView.frame = expandedImageFrame
+        placeholderView.frame = expandedImageFrame
+        thumbnailImageView.image = incoming?.image
+        thumbnailImageView.isHidden = (incoming?.image == nil)
+        placeholderView.isHidden = !thumbnailImageView.isHidden
+        let config = UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)
+        typeIconView.image = UIImage(systemName: item.mediaType.icon, withConfiguration: config)
+        typeIconView.center = CGPoint(x: expandedImageFrame.width / 2, y: expandedImageFrame.height / 2)
+        playIconView.isHidden = true // re-shown by loadVideoPlayer for videos
+        fullscreenButton.isHidden = true
+        updatePlayPauseIcon()
+        removeNeighborPreviews()
+
+        // 4. The info pane reloads only NOW (after the snap, by design):
+        //    reset scroll, rebuild from the new item, fetch fresh detail.
+        scrollView.setContentOffset(.zero, animated: false)
+        detail = nil
+        usages = []
+        buildDetailContent()
+        loadThumbnailImage()
+        loadDetailData()
+
+        // 5. Re-arm zoom + full-res/video for the new item; retarget the
+        //    grid; slide the high-res window over (prune to the new ± 1,
+        //    then warm the new neighbors).
+        enablePinchToZoom()
+        loadFullResMedia()
+        gridBridge?.setHiddenItem?(item.id)
+        pruneImageWindow()
+        warmImageWindow()
+
+        isPaging = false
+    }
+
     // MARK: - Data Loading
 
     private func loadDetailData() {
         loadingSpinner.startAnimating()
 
+        let loadedItemId = item.id
         Task { @MainActor in
             do {
-                let detail = try await MediaActions().loadDetail(id: item.id)
+                let detail = try await MediaActions().loadDetail(id: loadedItemId)
+                guard self.item.id == loadedItemId else { return } // paged away
                 self.detail = detail
                 self.usages = detail.usages ?? []
                 self.loadingSpinner.stopAnimating()
@@ -599,14 +969,16 @@ final class MediaDetailOverlayView: UIView {
             } catch {
                 // Detail load on open — console-only.
                 AppState.shared.recordError(error, context: "MediaDetailOverlay.loadDetailData")
+                guard self.item.id == loadedItemId else { return } // paged away
                 self.loadingSpinner.stopAnimating()
                 // Try to load usages separately as fallback
                 do {
-                    self.usages = try await MediaActions().loadUsages(id: item.id)
+                    self.usages = try await MediaActions().loadUsages(id: loadedItemId)
                 } catch {
                     // Fallback load — console-only.
                     AppState.shared.recordError(error, context: "MediaDetailOverlay.loadDetailData.loadUsages")
                 }
+                guard self.item.id == loadedItemId else { return }
                 self.buildDetailContent()
             }
         }
@@ -1048,10 +1420,10 @@ final class MediaDetailOverlayView: UIView {
             self.playerView?.transform = CGAffineTransform(translationX: 0, y: parallaxShift)
         }
 
-        // Disable the main dismiss gesture during edit (but keep the image pan for edit dismiss)
-        if let mainPan = gestureRecognizers?.first(where: { $0 !== editImagePanGesture }) as? UIPanGestureRecognizer {
-            mainPan.isEnabled = false
-        }
+        // Disable the main dismiss + pager gestures during edit (the image
+        // pan stays enabled for edit dismiss)
+        dismissPan?.isEnabled = false
+        pagePan?.isEnabled = false
     }
 
     @objc private func handleEditPan(_ gesture: UIPanGestureRecognizer) {
@@ -1263,7 +1635,7 @@ final class MediaDetailOverlayView: UIView {
             self.placeholderView.transform = .identity
             self.playerView?.transform = .identity
             if self.item.mediaType == .video {
-                self.playIconView.alpha = self.isPlaying ? 0 : 1
+                self.playIconView.alpha = 1
                 self.fullscreenButton.alpha = 1
             }
             self.closeButton.alpha = 1
@@ -1362,12 +1734,14 @@ final class MediaDetailOverlayView: UIView {
     func dismissAnimated(completion: @escaping () -> Void) {
         player?.pause()
         disablePinchToZoom()
+        let target = currentDismissTarget()
+        activeDismissTarget = target
         UIView.animate(withDuration: 0.35, delay: 0, usingSpringWithDamping: 0.88,
                        initialSpringVelocity: 0, options: []) {
-            self.thumbnailImageView.frame = self.sourceFrame
-            self.placeholderView.frame = self.sourceFrame
-            self.playerView?.frame = self.sourceFrame
-            self.typeIconView.center = CGPoint(x: self.sourceFrame.width / 2, y: self.sourceFrame.height / 2)
+            self.thumbnailImageView.frame = target
+            self.placeholderView.frame = target
+            self.playerView?.frame = target
+            self.typeIconView.center = CGPoint(x: target.width / 2, y: target.height / 2)
             self.scrimView.alpha = 0
             self.scrollView.alpha = 0
             self.closeButton.alpha = 0
@@ -1387,8 +1761,15 @@ final class MediaDetailOverlayView: UIView {
 
     // MARK: - Pan Gesture (swipe down to dismiss)
 
+    /// The grid cell frame the dismiss should land on — the CURRENT item's
+    /// cell when the user has paged, falling back to the original source
+    /// frame when that cell isn't on screen.
+    private func currentDismissTarget() -> CGRect {
+        gridBridge?.frameForItem?(item.id) ?? sourceFrame
+    }
+
     private var dismissDragDistance: CGFloat {
-        max(abs(sourceFrame.midY - expandedImageFrame.midY), 200)
+        max(abs(activeDismissTarget.midY - expandedImageFrame.midY), 200)
     }
 
     @objc private func handlePan(_ gesture: UIPanGestureRecognizer) {
@@ -1399,6 +1780,7 @@ final class MediaDetailOverlayView: UIView {
 
         switch gesture.state {
         case .began:
+            activeDismissTarget = currentDismissTarget()
             disablePinchToZoom()
 
         case .changed:
@@ -1425,11 +1807,12 @@ final class MediaDetailOverlayView: UIView {
     }
 
     private func applyDismissProgress(_ t: CGFloat) {
+        let target = activeDismissTarget
         let f = CGRect(
-            x: lerp(expandedImageFrame.origin.x, sourceFrame.origin.x, t),
-            y: lerp(expandedImageFrame.origin.y, sourceFrame.origin.y, t),
-            width: lerp(expandedImageFrame.width, sourceFrame.width, t),
-            height: lerp(expandedImageFrame.height, sourceFrame.height, t)
+            x: lerp(expandedImageFrame.origin.x, target.origin.x, t),
+            y: lerp(expandedImageFrame.origin.y, target.origin.y, t),
+            width: lerp(expandedImageFrame.width, target.width, t),
+            height: lerp(expandedImageFrame.height, target.height, t)
         )
         thumbnailImageView.frame = f
         placeholderView.frame = f
@@ -1440,7 +1823,7 @@ final class MediaDetailOverlayView: UIView {
         scrimView.alpha = 1 - t
         scrollView.alpha = max(0, 1 - t * 3)
         closeButton.alpha = max(0, 1 - t * 3)
-        playIconView.alpha = max(0, (isPlaying ? 0 : 1) - t * 3)
+        playIconView.alpha = max(0, 1 - t * 3)
         fullscreenButton.alpha = max(0, 1 - t * 3)
     }
 
@@ -1468,12 +1851,14 @@ final class MediaDetailOverlayView: UIView {
     private func dismissToSource() {
         player?.pause()
         disablePinchToZoom()
+        let target = currentDismissTarget()
+        activeDismissTarget = target
         UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.88,
                        initialSpringVelocity: 0, options: []) {
-            self.thumbnailImageView.frame = self.sourceFrame
-            self.placeholderView.frame = self.sourceFrame
-            self.playerView?.frame = self.sourceFrame
-            self.typeIconView.center = CGPoint(x: self.sourceFrame.width / 2, y: self.sourceFrame.height / 2)
+            self.thumbnailImageView.frame = target
+            self.placeholderView.frame = target
+            self.playerView?.frame = target
+            self.typeIconView.center = CGPoint(x: target.width / 2, y: target.height / 2)
             self.scrimView.alpha = 0
             self.scrollView.alpha = 0
             self.closeButton.alpha = 0
@@ -1484,8 +1869,9 @@ final class MediaDetailOverlayView: UIView {
         }
     }
 
-    private func cleanup() {
-        // Clean up video player
+    /// Stop and remove the current player and its observers. Used both on
+    /// final cleanup and when paging away from a video item.
+    private func teardownPlayer() {
         if let observer = timeObserver {
             player?.removeTimeObserver(observer)
             timeObserver = nil
@@ -1498,8 +1884,16 @@ final class MediaDetailOverlayView: UIView {
         player = nil
         playerView?.removeFromSuperview()
         playerView = nil
+        isPlaying = false
         objc_setAssociatedObject(self, "readyObservation", nil, .OBJC_ASSOCIATION_RETAIN)
+    }
 
+    private func cleanup() {
+        teardownPlayer()
+        removeNeighborPreviews()
+        pagerImageTasks.values.forEach { $0.cancel() }
+        pagerImageTasks = [:]
+        pagerImageWindow = [:]
         removeFromSuperview()
         onDismiss()
     }
@@ -1594,14 +1988,24 @@ extension MediaDetailOverlayView: UIGestureRecognizerDelegate, UIScrollViewDeleg
         let velocity = pan.velocity(in: self)
         let location = pan.location(in: self)
 
-        // Must be a downward swipe
+        if pan === pagePan {
+            // Horizontal pager: media region only, never while editing,
+            // zoomed in, mid-page, or with nothing to page to.
+            guard isExpanded, !isEditing, !isPaging, allItems.count > 1 else { return false }
+            guard abs(velocity.x) > abs(velocity.y) else { return false }
+            if zoomScrollView.zoomScale > 1.01 { return false }
+            return location.y <= visibleMediaBottom
+        }
+
+        // Dismiss pan (and edit-mode image pan): must be a downward swipe
         guard velocity.y > abs(velocity.x) && velocity.y > 0 else { return false }
 
-        // Don't allow dismiss while zoomed in
-        if zoomScrollView.zoomScale > 1.01 { return false }
+        // Don't allow dismiss while zoomed in or mid-page
+        if zoomScrollView.zoomScale > 1.01 || isPaging { return false }
 
-        // Only allow dismiss when touch is in the image/media area
-        return location.y <= expandedImageFrame.maxY
+        // Only when the touch is on visible media (not info content that has
+        // scrolled up over the media area)
+        return location.y <= visibleMediaBottom
     }
 
     // MARK: - UIScrollViewDelegate (zoom)

@@ -409,13 +409,9 @@ struct VideoThumbnailCard: View {
                     }
                 }
                 .overlay(alignment: .center) {
-                    // Play icon
-                    if video.videoStatus == .ready {
-                        Image(systemName: "play.circle.fill")
-                            .font(Typography.s32)
-                            .foregroundColor(.white.opacity(0.9))
-                    } else {
-                        // Processing indicator
+                    // Ready videos are identified by the duration badge alone
+                    // (no center play icon); non-ready ones show a spinner.
+                    if video.videoStatus != .ready {
                         ProgressView()
                             .progressViewStyle(CircularProgressViewStyle(tint: .white))
                     }

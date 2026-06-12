@@ -52,19 +52,6 @@ final class MediaThumbnailCell: UICollectionViewCell {
         return iv
     }()
 
-    private let playIconView: UIImageView = {
-        let config = UIImage.SymbolConfiguration(pointSize: 20, weight: .medium)
-        let iv = UIImageView(image: UIImage(systemName: "play.fill", withConfiguration: config))
-        iv.tintColor = UIColor(white: 1, alpha: 0.8)
-        iv.contentMode = .center
-        iv.backgroundColor = UIColor.black.withAlphaComponent(0.4)
-        iv.layer.cornerRadius = 16
-        iv.clipsToBounds = true
-        iv.translatesAutoresizingMaskIntoConstraints = false
-        iv.isHidden = true
-        return iv
-    }()
-
     private let usageLabel: UILabel = {
         let label = UILabel()
         label.font = .systemFont(ofSize: 11, weight: .bold)
@@ -101,7 +88,6 @@ final class MediaThumbnailCell: UICollectionViewCell {
         contentView.addSubview(placeholderView)
         contentView.addSubview(imageView)
         contentView.addSubview(typeIconView)
-        contentView.addSubview(playIconView)
         contentView.addSubview(usageLabel)
         contentView.addSubview(durationLabel)
 
@@ -121,10 +107,6 @@ final class MediaThumbnailCell: UICollectionViewCell {
             typeIconView.widthAnchor.constraint(equalToConstant: 32),
             typeIconView.heightAnchor.constraint(equalToConstant: 32),
 
-            playIconView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
-            playIconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
-            playIconView.widthAnchor.constraint(equalToConstant: 32),
-            playIconView.heightAnchor.constraint(equalToConstant: 32),
 
             usageLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 6),
             usageLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 6),
@@ -148,8 +130,7 @@ final class MediaThumbnailCell: UICollectionViewCell {
         let config = UIImage.SymbolConfiguration(pointSize: 28, weight: .regular)
         typeIconView.image = UIImage(systemName: item.mediaType.icon, withConfiguration: config)
 
-        // Play icon for videos
-        playIconView.isHidden = item.mediaType != .video
+        // Videos are identified by the duration badge alone (no center play icon)
 
         // Usage count
         if item.usageCount > 0 {
@@ -188,7 +169,7 @@ final class MediaThumbnailCell: UICollectionViewCell {
             imageView.image = cached
             imageView.isHidden = false
             placeholderView.isHidden = true
-            typeIconView.isHidden = false
+            typeIconView.isHidden = true // icon is placeholder-only (was a faint play.fill over video thumbs)
             return
         }
 
@@ -214,7 +195,6 @@ final class MediaThumbnailCell: UICollectionViewCell {
         imageView.isHidden = true
         placeholderView.isHidden = false
         typeIconView.isHidden = false
-        playIconView.isHidden = true
         usageLabel.isHidden = true
         durationLabel.isHidden = true
         currentItemId = nil
@@ -235,6 +215,8 @@ private struct MediaCollectionView: UIViewRepresentable {
     /// loads the next page (Phase 4.1). Re-fires are cheap: the Action
     /// no-ops while a page is in flight or when everything is loaded.
     var onNearEnd: (() -> Void)? = nil
+    /// Optional handle for the detail overlay's pager (see MediaGridPagerBridge).
+    var pagerBridge: MediaGridPagerBridge? = nil
 
     fileprivate static let spacing: CGFloat = 2
     fileprivate static let columnCount: CGFloat = 3
@@ -271,12 +253,14 @@ private struct MediaCollectionView: UIViewRepresentable {
         cv.prefetchDataSource = context.coordinator
         context.coordinator.collectionView = cv
         context.coordinator.installDataSource(on: cv)
+        context.coordinator.wireBridge(pagerBridge)
         return cv
     }
 
     func updateUIView(_ collectionView: UICollectionView, context: Context) {
         let coordinator = context.coordinator
         coordinator.parent = self
+        coordinator.wireBridge(pagerBridge)
         coordinator.applySnapshotIfNeeded()
     }
 
@@ -409,7 +393,51 @@ private struct MediaCollectionView: UIViewRepresentable {
                 }
             }
         }
+
+        // MARK: Pager bridge (detail overlay paging)
+
+        func wireBridge(_ bridge: MediaGridPagerBridge?) {
+            guard let bridge else { return }
+            bridge.frameForItem = { [weak self] id in self?.frameForItem(id: id) }
+            bridge.setHiddenItem = { [weak self] id in self?.setHiddenItem(id: id) }
+        }
+
+        /// Window-coordinate frame of the visible cell for an item, if any.
+        func frameForItem(id: String) -> CGRect? {
+            guard let collectionView, let window = collectionView.window else { return nil }
+            for cell in collectionView.visibleCells {
+                guard let thumbCell = cell as? MediaThumbnailCell,
+                      thumbCell.currentItemId == id else { continue }
+                return cell.convert(cell.bounds, to: window)
+            }
+            return nil
+        }
+
+        /// Move the hidden-cell marker to a new item (the overlay paged):
+        /// restores the previously hidden cell and hides the new one.
+        func setHiddenItem(id: String?) {
+            guard hiddenItemId != id else { return }
+            restoreHiddenCell()
+            guard let id, let collectionView else { return }
+            hiddenItemId = id
+            for cell in collectionView.visibleCells {
+                guard let thumbCell = cell as? MediaThumbnailCell,
+                      thumbCell.currentItemId == id else { continue }
+                thumbCell.contentView.alpha = 0
+            }
+        }
     }
+}
+
+// MARK: - MediaGridPagerBridge
+
+/// Lets the media detail overlay coordinate with the grid while paging
+/// between items: look up a cell's frame to retarget the dismiss animation,
+/// and move the hidden-cell marker to whichever item the overlay shows.
+/// Wired by the grid's Coordinator; called by MediaDetailOverlayView.
+final class MediaGridPagerBridge {
+    var frameForItem: ((String) -> CGRect?)?
+    var setHiddenItem: ((String?) -> Void)?
 }
 
 // MARK: - MediaLibraryGrid (SwiftUI wrapper)
@@ -421,13 +449,15 @@ struct MediaLibraryGrid: View {
     /// presented from the tap is dismissed, to un-hide the source cell.
     let onItemSelected: (MediaLibraryItem, CGRect, @escaping () -> Void) -> Void
     var onNearEnd: (() -> Void)? = nil
+    var pagerBridge: MediaGridPagerBridge? = nil
 
     var body: some View {
         MediaCollectionView(
             items: items,
             topInset: topInset,
             onItemSelected: onItemSelected,
-            onNearEnd: onNearEnd
+            onNearEnd: onNearEnd,
+            pagerBridge: pagerBridge
         )
     }
 }
