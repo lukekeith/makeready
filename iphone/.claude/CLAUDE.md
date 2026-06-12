@@ -176,10 +176,11 @@ This prevents recurring type-checker timeouts and ViewBuilder limit failures whe
 **SwiftLint gates every build against the audit conventions (Phase 5.1) — new code only.**
 
 The `SwiftLint (audit conventions)` build phase fails the build when NEW code violates:
-no `print`/`NSLog` (use Log wrappers once 5.2 lands), no `try!`/`as!`, no inline
-`Color(hex:)` outside `Colors.swift`, no raw `.system(size:)` outside `Typography.swift`,
-no `asyncAfter(deadline:)` choreography, formatters must be `static`, and no lazy
-containers in animated overlay files. The ~2,400 existing violations are grandfathered in
+no `print`/`NSLog` (use the `Log.<domain>` wrappers — `Utilities/Log.swift`), no
+`try!`/`as!`, no inline `Color(hex:)` outside `Colors.swift`, no raw `.system(size:)`
+outside `Typography.swift`, no `asyncAfter(deadline:)` choreography, formatters must be
+`static`, and no lazy containers in animated overlay files. The ~1,100 existing
+violations (2,449 at gate creation) are grandfathered in
 `iphone/.swiftlint-baseline.json` — never regenerate the baseline to silence a new
 violation; fix the code, or (for a consciously-accepted case like a toast timer) regenerate
 deliberately and say so in the commit message:
@@ -248,19 +249,28 @@ struct MyNewPage: View {
         }
     }
 
-    // 4. Use Actions to load/modify data (NEVER call API directly)
+    // 4. Use Actions to load/modify data (NEVER call API directly).
+    //    Failures route through the error channel — see "Error Handling" below.
     private func loadData() async {
         do {
             try await ProgramActions().loadPrograms()
         } catch {
-            NSLog("Error: \(error)")
+            // Load/refresh failure: record, console-only (surface defaults to false)
+            state.recordError(error, context: "MyNewPage.loadData")
         }
     }
 
-    // 5. Use Actions for mutations
+    // 5. Use Actions for mutations — a failed user-initiated action surfaces the banner
     private func deleteProgram(_ id: String) async {
-        try? await ProgramActions().deleteProgram(id: id)
-        // No need to update local state - AppState updates, view auto-rerenders
+        do {
+            try await ProgramActions().deleteProgram(id: id)
+            // No need to update local state - AppState updates, view auto-rerenders
+        } catch {
+            state.recordError(error, context: "MyNewPage.deleteProgram",
+                              surface: true,
+                              friendlyMessage: "Couldn't delete the program",
+                              retry: { Task { await deleteProgram(id) } })
+        }
     }
 }
 ```
@@ -279,6 +289,9 @@ class MyCustomManager: ObservableObject { ... }
 
 // ❌ WRONG: Fetching data without Actions
 let data = try await api.get("/api/programs")
+
+// ❌ WRONG: Swallowing errors (log-and-stop) — route through the error channel
+catch { NSLog("Error: \(error)") }   // use state.recordError(...) instead
 ```
 
 ### Available Actions
@@ -294,6 +307,27 @@ let data = try await api.get("/api/programs")
 | `NotificationActions()` | In-app notifications | `loadNotifications()`, `loadUnreadCount()`, `markAsRead(ids:)`, `markAllAsRead()` |
 | `DeviceTokenActions()` | APNs push tokens | `registerToken(_:environment:)`, `removeToken(_:)` |
 | `ThemeActions()` | Text themes for content styling | `loadThemes()` |
+| `InviteActions()` | Group/org invites & QR codes | `createInvite(groupId:expiresAt:)`, `generateQRCode(...)` |
+| `OrgActions()` | Organization info | `loadMemberCount(organizationId:)` |
+
+Note: `ProgramActions` is split across three files (`ProgramActions.swift` +
+`ProgramActions+Lessons.swift` + `ProgramActions+Activities.swift`) — one struct, extension files by topic.
+
+### Error Handling — Route Failures Through the Error Channel
+
+Every `catch` must do one of three things (the **/ios-error-surface** skill walks the decision):
+
+1. **Route to the error channel:** `state.recordError(error, context: "Page.action")`.
+   Console-only by default. Pass `surface: true` (+ `friendlyMessage:`, optional `retry:`
+   closure) ONLY when the user just took the action that failed (save, upload, delete,
+   send) — the top `ErrorBanner` then shows it (4s auto-dismiss, swipe-up, retry button).
+   Background refreshes and prefetches stay console-only (`surface: false`, the default).
+2. **Recover meaningfully** — fallback value, cached data, retry logic.
+3. **Justify staying silent** with a `// Silent: <why>` comment.
+
+New logging goes through `Log.<domain>` (os.Logger wrappers in `Utilities/Log.swift`:
+`auth`/`state`/`nav`/`media`/`api`/`push`/`ui`/`bible`) — SwiftLint blocks new
+`print`/`NSLog`. Example: `Log.media.error("upload failed: \(error.localizedDescription, privacy: .public)")`.
 
 ### Cache-First Loading Pattern
 
@@ -333,11 +367,22 @@ MakeReady/State/
 ├── EntityStore.swift           # Generic normalized storage
 ├── RelationshipIndex.swift     # Parent→child mappings
 ├── LoadingStateManager.swift   # Per-entity loading states
-├── Models.swift                # Shared data models
+├── Models/                     # Data models split by domain (audit 5.7)
+│   ├── Contact.swift
+│   ├── EnrollmentModels.swift
+│   ├── GroupModels.swift
+│   ├── LessonModels.swift
+│   ├── MediaModels.swift
+│   ├── ModelFormatters.swift
+│   ├── NotificationModels.swift
+│   ├── ThemeModels.swift
+│   └── VideoModels.swift
 ├── API/
 │   └── APIClient.swift         # HTTP client (used by Actions only)
 ├── Actions/
-│   ├── ProgramActions.swift
+│   ├── ProgramActions.swift            # + extension files by topic:
+│   ├── ProgramActions+Lessons.swift
+│   ├── ProgramActions+Activities.swift
 │   ├── GroupActions.swift
 │   ├── EnrollmentActions.swift
 │   ├── VideoActions.swift
@@ -345,7 +390,9 @@ MakeReady/State/
 │   ├── MediaActions.swift
 │   ├── NotificationActions.swift
 │   ├── DeviceTokenActions.swift
-│   └── ThemeActions.swift
+│   ├── ThemeActions.swift
+│   ├── InviteActions.swift
+│   └── OrgActions.swift
 └── Persistence/
     ├── StatePersistence.swift  # Disk read/write
     └── PersistedState.swift    # Codable snapshot
@@ -372,23 +419,14 @@ iphone/
 ├── MakeReady.xcodeproj/     # Xcode project
 ├── MakeReady/
 │   ├── MakeReadyApp.swift   # App entry point
-│   ├── ContentView.swift    # Root view
 │   ├── AuthManager.swift    # Authentication state
-│   ├── MainView.swift       # Main navigation
+│   ├── MainView.swift       # Main navigation (root view)
 │   │
 │   ├── State/               # ⭐ CENTRALIZED STATE (see State Management section)
 │   │   ├── AppState.swift           # @Observable singleton
 │   │   ├── EntityStore.swift        # Generic storage
-│   │   ├── Actions/                 # Data operations
-│   │   │   ├── ProgramActions.swift
-│   │   │   ├── GroupActions.swift
-│   │   │   ├── EnrollmentActions.swift
-│   │   │   ├── VideoActions.swift
-│   │   │   ├── HomeActions.swift
-│   │   │   ├── MediaActions.swift
-│   │   │   ├── NotificationActions.swift
-│   │   │   ├── DeviceTokenActions.swift
-│   │   │   └── ThemeActions.swift
+│   │   ├── Models/                  # Domain models (Contact, Enrollment, Group, …)
+│   │   ├── Actions/                 # Data operations (see Available Actions table)
 │   │   └── Persistence/             # Disk caching
 │   │
 │   ├── Pages/               # Page views (use AppState + Actions)
@@ -412,9 +450,9 @@ iphone/
 - **Pure components (default)**: Pure UI, receive data via props, no state access
 - **Connected components (explicit exceptions)**: A small, fixed list of components that may READ `AppState.shared` (never call `APIClient` directly; mutations still go through Actions). Currently:
   - `Components/Input/MediaLibraryPicker.swift`
-  - `Components/Input/BackgroundPickerModal.swift`
   - `Components/Input/BlockStyleEditor.swift`
   - `Components/Navigation/UserMenu.swift`
+  - `Components/Feedback/ErrorBanner.swift` (ErrorBannerHost observes `AppState.activeSurfacedError`)
 
   Any new connected component requires adding it to this list. Default to pure components unless there is a strong reason not to.
 
@@ -802,7 +840,7 @@ Task {
     do {
         try await authManager.signInWithGoogle()
     } catch {
-        print("Error: \(error)")
+        Log.auth.error("sign-in failed: \(error.localizedDescription, privacy: .public)")
     }
 }
 ```
@@ -938,13 +976,18 @@ if let user = authManager.currentUser {
 
 ### Logging
 
-```swift
-// Use NSLog for important logs (shows in console)
-NSLog("🔵 Important event: %@", value)
+New code logs through the per-domain `os.Logger` wrappers in `Utilities/Log.swift`
+(SwiftLint blocks new `print`/`NSLog`; the existing call sites are baselined and
+migrate opportunistically):
 
-// Use print for debug logs
-print("Debug: \(value)")
+```swift
+Log.nav.info("navigated to \(destination, privacy: .public)")
+Log.media.error("upload failed: \(error.localizedDescription, privacy: .public)")
 ```
+
+Mark interpolations `.public` only when they carry no user data (route names, counts,
+durations); user identifiers and content stay private (the default). View with Console.app
+or `log stream --predicate 'subsystem == "<bundle id>"'`.
 
 ## 📖 Resources
 

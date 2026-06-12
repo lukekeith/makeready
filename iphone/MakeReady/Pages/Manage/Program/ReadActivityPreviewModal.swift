@@ -9,11 +9,10 @@
 //  handled by the web client's `ActivityPreviewPlayer.vue` — a single source
 //  of truth shared between the iPhone WebView and desktop browsers.
 //
-//  Auth: the iPhone's OAuth session cookie (`connect.sid` in UserDefaults)
-//  is planted into the WebView's private cookie store scoped to `.makeready.org`
-//  before navigation, so the server-side `/api/activities/:id/preview-data`
-//  fetch authenticates automatically. The cookie lives only in this WebView's
-//  WKWebsiteDataStore — it does not leak to Safari or other apps.
+//  Auth: a short-lived preview token (ThemeActions.fetchPreviewToken, requested
+//  through APIClient's authenticated session) is appended to the preview URL as
+//  a query param, so the WebView needs no session cookie at all — nothing is
+//  planted into its cookie store and nothing leaks to Safari or other apps.
 //
 
 import SwiftUI
