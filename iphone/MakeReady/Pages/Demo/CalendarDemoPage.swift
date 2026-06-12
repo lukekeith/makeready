@@ -1,3 +1,5 @@
+// DEBUG-ONLY (Phase 5.5): demo pages ship in no release binary.
+#if DEBUG
 //
 //  CalendarDemoPage.swift
 //  MakeReady
@@ -41,3 +43,4 @@ struct CalendarDemoPage: View {
 #Preview {
     CalendarDemoPage()
 }
+#endif

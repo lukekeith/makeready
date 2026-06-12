@@ -9,7 +9,7 @@ import SwiftUI
 import Contacts
 
 class ContactsManager: ObservableObject {
-    @Published var contacts: [FixturesManager.ContactFixture] = []
+    @Published var contacts: [Contact] = []
     @Published var hasPermission: Bool = false
     @Published var permissionStatus: CNAuthorizationStatus = .notDetermined
     @Published var searchQuery: String = ""
@@ -63,7 +63,7 @@ class ContactsManager: ObservableObject {
             ]
 
             let request = CNContactFetchRequest(keysToFetch: keysToFetch)
-            var fetchedContacts: [FixturesManager.ContactFixture] = []
+            var fetchedContacts: [Contact] = []
 
             do {
                 try store.enumerateContacts(with: request) { contact, _ in
@@ -74,7 +74,7 @@ class ContactsManager: ObservableObject {
                     let phoneNumber = contact.phoneNumbers.first?.value.stringValue
                     let imageData = contact.thumbnailImageData ?? contact.imageData
 
-                    let fixture = FixturesManager.ContactFixture(
+                    let fixture = Contact(
                         id: contact.identifier,
                         firstName: contact.givenName.isEmpty ? nil : contact.givenName,
                         lastName: contact.familyName.isEmpty ? nil : contact.familyName,
@@ -97,7 +97,7 @@ class ContactsManager: ObservableObject {
         }
     }
 
-    var filteredContacts: [FixturesManager.ContactFixture] {
+    var filteredContacts: [Contact] {
         if searchQuery.isEmpty {
             return contacts
         }
@@ -106,7 +106,7 @@ class ContactsManager: ObservableObject {
         }
     }
 
-    var sectionedContacts: [(String, [FixturesManager.ContactFixture])] {
+    var sectionedContacts: [(String, [Contact])] {
         let grouped = Dictionary(grouping: filteredContacts) { contact in
             contact.fullName.prefix(1).uppercased()
         }
@@ -120,7 +120,7 @@ class ContactsManager: ObservableObject {
         Array(Set(contacts.map { String($0.fullName.prefix(1).uppercased()) })).sorted()
     }
 
-    func scrollToLetter(_ letter: String) -> FixturesManager.ContactFixture? {
+    func scrollToLetter(_ letter: String) -> Contact? {
         return filteredContacts.first { $0.fullName.prefix(1).uppercased() == letter }
     }
 }

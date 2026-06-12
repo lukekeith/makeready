@@ -14,7 +14,7 @@ struct SearchContactsPage: View {
     @State private var selectedContactName = ""
 
     // Filtered contacts based on search
-    private var displayedContacts: [FixturesManager.ContactFixture] {
+    private var displayedContacts: [Contact] {
         contactsManager.filteredContacts
     }
 
@@ -81,7 +81,7 @@ struct SearchContactsPage: View {
     }
 
     // MARK: - Contact Row
-    private func contactRow(_ contact: FixturesManager.ContactFixture) -> some View {
+    private func contactRow(_ contact: Contact) -> some View {
         CardContact(
             data: CardContactData(
                 id: contact.id,
@@ -113,22 +113,22 @@ private struct SearchContactsPagePreview: View {
     @State private var showAlert = false
     @State private var selectedContactName = ""
     
-    private let mockContacts: [FixturesManager.ContactFixture] = [
-        FixturesManager.ContactFixture(id: "1", firstName: "Alice", lastName: "Anderson", phoneNumber: "555-0101", avatarURL: "https://i.pravatar.cc/150?u=alice", imageData: nil),
-        FixturesManager.ContactFixture(id: "2", firstName: "Bob", lastName: "Brown", phoneNumber: "555-0102", avatarURL: "https://i.pravatar.cc/150?u=bob", imageData: nil),
-        FixturesManager.ContactFixture(id: "3", firstName: "Charlie", lastName: "Chen", phoneNumber: "555-0103", avatarURL: nil, imageData: nil),
-        FixturesManager.ContactFixture(id: "4", firstName: "Diana", lastName: "Davis", phoneNumber: nil, avatarURL: "https://i.pravatar.cc/150?u=diana", imageData: nil),
-        FixturesManager.ContactFixture(id: "5", firstName: "Emily", lastName: "Evans", phoneNumber: "555-0105", avatarURL: "https://i.pravatar.cc/150?u=emily", imageData: nil),
-        FixturesManager.ContactFixture(id: "6", firstName: "Frank", lastName: "Foster", phoneNumber: "555-0106", avatarURL: nil, imageData: nil),
-        FixturesManager.ContactFixture(id: "7", firstName: "Grace", lastName: "Garcia", phoneNumber: nil, avatarURL: "https://i.pravatar.cc/150?u=grace", imageData: nil),
-        FixturesManager.ContactFixture(id: "8", firstName: "Henry", lastName: "Harris", phoneNumber: "555-0108", avatarURL: nil, imageData: nil),
-        FixturesManager.ContactFixture(id: "9", firstName: "Iris", lastName: "Irving", phoneNumber: "555-0109", avatarURL: "https://i.pravatar.cc/150?u=iris", imageData: nil),
-        FixturesManager.ContactFixture(id: "10", firstName: "Jack", lastName: "Johnson", phoneNumber: "555-0110", avatarURL: "https://i.pravatar.cc/150?u=jack", imageData: nil),
-        FixturesManager.ContactFixture(id: "11", firstName: "Karen", lastName: "King", phoneNumber: "555-0111", avatarURL: nil, imageData: nil),
-        FixturesManager.ContactFixture(id: "12", firstName: "Leo", lastName: "Lopez", phoneNumber: nil, avatarURL: nil, imageData: nil),
-        FixturesManager.ContactFixture(id: "13", firstName: "Maria", lastName: "Martinez", phoneNumber: "555-0113", avatarURL: "https://i.pravatar.cc/150?u=maria", imageData: nil),
-        FixturesManager.ContactFixture(id: "14", firstName: "Nathan", lastName: "Nelson", phoneNumber: "555-0114", avatarURL: nil, imageData: nil),
-        FixturesManager.ContactFixture(id: "15", firstName: "Olivia", lastName: "Owen", phoneNumber: "555-0115", avatarURL: "https://i.pravatar.cc/150?u=olivia", imageData: nil),
+    private let mockContacts: [Contact] = [
+        Contact(id: "1", firstName: "Alice", lastName: "Anderson", phoneNumber: "555-0101", avatarURL: "https://i.pravatar.cc/150?u=alice", imageData: nil),
+        Contact(id: "2", firstName: "Bob", lastName: "Brown", phoneNumber: "555-0102", avatarURL: "https://i.pravatar.cc/150?u=bob", imageData: nil),
+        Contact(id: "3", firstName: "Charlie", lastName: "Chen", phoneNumber: "555-0103", avatarURL: nil, imageData: nil),
+        Contact(id: "4", firstName: "Diana", lastName: "Davis", phoneNumber: nil, avatarURL: "https://i.pravatar.cc/150?u=diana", imageData: nil),
+        Contact(id: "5", firstName: "Emily", lastName: "Evans", phoneNumber: "555-0105", avatarURL: "https://i.pravatar.cc/150?u=emily", imageData: nil),
+        Contact(id: "6", firstName: "Frank", lastName: "Foster", phoneNumber: "555-0106", avatarURL: nil, imageData: nil),
+        Contact(id: "7", firstName: "Grace", lastName: "Garcia", phoneNumber: nil, avatarURL: "https://i.pravatar.cc/150?u=grace", imageData: nil),
+        Contact(id: "8", firstName: "Henry", lastName: "Harris", phoneNumber: "555-0108", avatarURL: nil, imageData: nil),
+        Contact(id: "9", firstName: "Iris", lastName: "Irving", phoneNumber: "555-0109", avatarURL: "https://i.pravatar.cc/150?u=iris", imageData: nil),
+        Contact(id: "10", firstName: "Jack", lastName: "Johnson", phoneNumber: "555-0110", avatarURL: "https://i.pravatar.cc/150?u=jack", imageData: nil),
+        Contact(id: "11", firstName: "Karen", lastName: "King", phoneNumber: "555-0111", avatarURL: nil, imageData: nil),
+        Contact(id: "12", firstName: "Leo", lastName: "Lopez", phoneNumber: nil, avatarURL: nil, imageData: nil),
+        Contact(id: "13", firstName: "Maria", lastName: "Martinez", phoneNumber: "555-0113", avatarURL: "https://i.pravatar.cc/150?u=maria", imageData: nil),
+        Contact(id: "14", firstName: "Nathan", lastName: "Nelson", phoneNumber: "555-0114", avatarURL: nil, imageData: nil),
+        Contact(id: "15", firstName: "Olivia", lastName: "Owen", phoneNumber: "555-0115", avatarURL: "https://i.pravatar.cc/150?u=olivia", imageData: nil),
     ]
     
     private var header: some View {

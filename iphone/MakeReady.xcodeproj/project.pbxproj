@@ -204,6 +204,7 @@
 		MDAC0001000000000000001 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
 		MDDO0001000000000001 /* MediaDetailOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDDO0002000000000001 /* MediaDetailOverlay.swift */; };
 		MDED000200000000000001 /* MarkdownEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDED000100000000000001 /* MarkdownEditor.swift */; };
+		CNTC0001000000000000001 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNTC0002000000000000001 /* Contact.swift */; };
 		MDLB7DB62EF3CE3C4877B7DB /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLA520C5F5031E4632BF131 /* Models.swift */; };
 		MDLG0001000000000001 /* MediaLibraryGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLG0002000000000001 /* MediaLibraryGrid.swift */; };
 		MLP0001000000000000001 /* MediaLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = MLP0002000000000000001 /* MediaLibraryPicker.swift */; };
@@ -508,6 +509,7 @@
 		MDAC0002000000000000001 /* MediaActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaActions.swift; sourceTree = "<group>"; };
 		MDDO0002000000000001 /* MediaDetailOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaDetailOverlay.swift; sourceTree = "<group>"; };
 		MDED000100000000000001 /* MarkdownEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownEditor.swift; sourceTree = "<group>"; };
+		CNTC0002000000000000001 /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
 		MDLA520C5F5031E4632BF131 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		MDLG0002000000000001 /* MediaLibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryGrid.swift; sourceTree = "<group>"; };
 		MLP0002000000000000001 /* MediaLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryPicker.swift; sourceTree = "<group>"; };
@@ -1293,10 +1295,19 @@
 			path = API;
 			sourceTree = "<group>";
 		};
+		STMODELSGRP000000000001 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				CNTC0002000000000000001 /* Contact.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
 		STGRPBEAB147BF1F74A738 /* State */ = {
 			isa = PBXGroup;
 			children = (
 				MDLA520C5F5031E4632BF131 /* Models.swift */,
+				STMODELSGRP000000000001 /* Models */,
 				ST7CF2EBB5F6944CE48C55 /* AppState.swift */,
 				FLST0002000000000000001 /* FilterState.swift */,
 				STF7F960A70FAA4CFB9D79 /* EntityStore.swift */,
@@ -1584,6 +1595,7 @@
 				TAGI0001000000000000001 /* TagInput.swift in Sources */,
 				D1ROH1B000000000000001 /* ReorderHelpers.swift in Sources */,
 				MDLB7DB62EF3CE3C4877B7DB /* Models.swift in Sources */,
+				CNTC0001000000000000001 /* Contact.swift in Sources */,
 				STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */,
 				FLST0001000000000000001 /* FilterState.swift in Sources */,
 				STB9ABADE6E9B9D497CBB7 /* EntityStore.swift in Sources */,

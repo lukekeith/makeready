@@ -1,3 +1,5 @@
+// DEBUG-ONLY (Phase 5.5): demo pages ship in no release binary.
+#if DEBUG
 //
 //  StudyCardsDemoPage.swift
 //  MakeReady
@@ -128,3 +130,4 @@ struct StudyCardsDemoPage: View {
 #Preview {
     StudyCardsDemoPage(overlayManager: OverlayManager())
 }
+#endif

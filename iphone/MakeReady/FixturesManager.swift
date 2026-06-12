@@ -2,8 +2,13 @@
 //  FixturesManager.swift
 //  MakeReady
 //
-//  Manager for loading test fixtures from JSON files
+//  Manager for loading test fixtures from JSON files. DEBUG-ONLY (Phase
+//  5.5): the release binary ships no fixture code. The `Contact` model it
+//  used to own lives in State/Models/Contact.swift — production code
+//  (ContactsManager) uses that, never this.
 //
+
+#if DEBUG
 
 import Foundation
 
@@ -14,67 +19,11 @@ class FixturesManager {
 
     // MARK: - Contact Fixtures
 
-    struct ContactFixture: Codable, Identifiable, Hashable {
-        let id: String
-        let firstName: String?
-        let lastName: String?
-        let phoneNumber: String?
-        let avatarURL: String?
-        var imageData: Data? = nil // For real contacts from device
-
-        var fullName: String {
-            let parts = [firstName, lastName].compactMap { $0 }
-            return parts.joined(separator: " ")
-        }
-
-        var initials: String? {
-            let first = firstName?.prefix(1).uppercased() ?? ""
-            let last = lastName?.prefix(1).uppercased() ?? ""
-
-            if !first.isEmpty && !last.isEmpty {
-                return first + last
-            } else if !first.isEmpty {
-                return first
-            } else if !last.isEmpty {
-                return last
-            }
-            return nil
-        }
-
-        var hasPhoneNumber: Bool {
-            phoneNumber != nil && !(phoneNumber?.isEmpty ?? true)
-        }
-
-        // Custom CodingKeys to handle optional imageData
-        enum CodingKeys: String, CodingKey {
-            case id, firstName, lastName, phoneNumber, avatarURL
-        }
-
-        // Custom init for real contacts (not from JSON)
-        init(id: String, firstName: String?, lastName: String?, phoneNumber: String?, avatarURL: String?, imageData: Data? = nil) {
-            self.id = id
-            self.firstName = firstName
-            self.lastName = lastName
-            self.phoneNumber = phoneNumber
-            self.avatarURL = avatarURL
-            self.imageData = imageData
-        }
-
-        // MARK: - Hashable
-        func hash(into hasher: inout Hasher) {
-            hasher.combine(id)
-        }
-
-        static func == (lhs: ContactFixture, rhs: ContactFixture) -> Bool {
-            lhs.id == rhs.id
-        }
-    }
-
     struct ContactsData: Codable {
-        let contacts: [ContactFixture]
+        let contacts: [Contact]
     }
 
-    func loadContacts() -> [ContactFixture] {
+    func loadContacts() -> [Contact] {
         NSLog("🔍 FixturesManager: Starting to load contacts...")
 
         // Try loading from Fixtures subdirectory first
@@ -187,3 +136,5 @@ class FixturesManager {
         return []
     }
 }
+
+#endif

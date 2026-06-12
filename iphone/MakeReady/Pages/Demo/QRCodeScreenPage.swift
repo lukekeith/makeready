@@ -1,3 +1,5 @@
+// DEBUG-ONLY (Phase 5.5): demo pages ship in no release binary.
+#if DEBUG
 //
 //  QRCodeScreenPage.swift
 //  MakeReady
@@ -232,3 +234,4 @@ struct QRCodeScreenPage: View {
     QRCodeScreenPage(inviteCode: "PREVIEW123")
         .environment(AuthManager())
 }
+#endif

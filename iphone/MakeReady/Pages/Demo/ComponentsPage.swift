@@ -1,3 +1,5 @@
+// DEBUG-ONLY (Phase 5.5): demo pages ship in no release binary.
+#if DEBUG
 //
 //  ComponentsPage.swift
 //  MakeReady
@@ -569,7 +571,7 @@ struct MembersTabContent: View {
 
 struct ContactsTabContent: View {
     // Load from fixtures
-    let contacts: [FixturesManager.ContactFixture] = FixturesManager.shared.loadContacts()
+    let contacts: [Contact] = FixturesManager.shared.loadContacts()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -1413,3 +1415,4 @@ struct AlertsTabContent: View {
     ComponentsPage(overlayManager: OverlayManager())
         .environment(AuthManager())
 }
+#endif
