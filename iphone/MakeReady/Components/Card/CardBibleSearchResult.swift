@@ -2,10 +2,10 @@
 //  CardBibleSearchResult.swift
 //  MakeReady
 //
-//  Bible search result card with book icon, reference title, and verse preview.
+//  Bible search result card with reference title and verse preview.
 //  Named-passage (pericope) results additionally carry a title and summary —
-//  rendered as "The Parable of the Prodigal Son — Luke 15:11-24" with the
-//  summary below, so concept-search hits read as first-class answers.
+//  rendered as the title with its reference stacked beneath and the summary
+//  below, so concept-search hits read as first-class answers.
 //
 
 import SwiftUI
@@ -23,21 +23,22 @@ struct CardBibleSearchResult: View {
         Button {
             onTap?()
         } label: {
-            HStack(alignment: .top, spacing: 8) {
-                // Book icon — open book for named passages, closed for verses
-                Image(systemName: isPassage ? "book.pages" : "book.closed")
-                    .font(Typography.s14)
-                    .foregroundColor(.white)
-                    .frame(width: 24, height: 24)
-
+            Group {
                 // lineSpacing(4): ~1.5em line height — system 14pt has a
                 // ~16.7pt natural line box, +4pt ≈ 21pt (1.5 × 14).
                 if let title, isPassage {
-                    // Named passage: title + reference header, summary preview
+                    // Named passage: title, reference beneath it, then summary
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(Text(title).font(Typography.s14Bold).foregroundColor(.white))  \(Text(reference).font(Typography.s14).foregroundColor(.white50))")
+                        Text(title)
+                            .font(Typography.s14Bold)
+                            .foregroundColor(.white)
                             .lineSpacing(4)
                             .lineLimit(2)
+
+                        Text(reference)
+                            .font(Typography.s14)
+                            .foregroundColor(.white50)
+                            .lineLimit(1)
 
                         Text(summary ?? text)
                             .font(Typography.s14)
@@ -63,7 +64,7 @@ struct CardBibleSearchResult: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(8)
+            .padding(16)
             .background(Color.white.opacity(0.05))
             .cornerRadius(4)
         }
