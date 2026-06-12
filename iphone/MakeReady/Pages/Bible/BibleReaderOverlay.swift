@@ -1264,12 +1264,13 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
                 }
             } catch {
                 guard !Task.isCancelled else { return }
-                print("Search error: \(error)")
                 await MainActor.run {
                     self.searchResults = []
                     self.matchedBooks = []
                     self.isSearchLoading = false
                     self.searchResultsTable.reloadData()
+                    // Falls back to the empty-results state — console-only.
+                    AppState.shared.recordError(error, context: "BibleReaderOverlayView.performSearch")
                 }
             }
         }
@@ -1288,11 +1289,12 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
                     self.searchResultsTable.reloadData()
                 }
             } catch {
-                print("Failed to load recent searches: \(error)")
                 await MainActor.run {
                     self.recentSearches = []
                     self.isLoadingRecents = false
                     self.searchResultsTable.reloadData()
+                    // Optional recents prefetch falls back to empty — console-only.
+                    AppState.shared.recordError(error, context: "BibleReaderOverlayView.loadRecentSearches")
                 }
             }
         }

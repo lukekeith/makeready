@@ -370,7 +370,7 @@ MakeReady/State/
 ├── Models/                     # Data models split by domain (audit 5.7)
 │   ├── Contact.swift
 │   ├── EnrollmentModels.swift
-│   ├── GroupModels.swift
+│   ├── GroupMembershipModels.swift
 │   ├── LessonModels.swift
 │   ├── MediaModels.swift
 │   ├── ModelFormatters.swift

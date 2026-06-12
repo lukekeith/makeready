@@ -212,7 +212,7 @@
 		STMM0001000000000000005 /* EnrollmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000005 /* EnrollmentModels.swift */; };
 		STMM0001000000000000006 /* LessonModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000006 /* LessonModels.swift */; };
 		STMM0001000000000000007 /* ThemeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000007 /* ThemeModels.swift */; };
-		STMM0001000000000000008 /* GroupModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000008 /* GroupModels.swift */; };
+		STMM0001000000000000008 /* GroupMembershipModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000008 /* GroupMembershipModels.swift */; };
 		MDLG0001000000000001 /* MediaLibraryGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDLG0002000000000001 /* MediaLibraryGrid.swift */; };
 		MLP0001000000000000001 /* MediaLibraryPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = MLP0002000000000000001 /* MediaLibraryPicker.swift */; };
 		MNCL0001000000000000001 /* MainCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = MNCL0002000000000000001 /* MainCalendar.swift */; };
@@ -526,7 +526,7 @@
 		STMM0002000000000000005 /* EnrollmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentModels.swift; sourceTree = "<group>"; };
 		STMM0002000000000000006 /* LessonModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LessonModels.swift; sourceTree = "<group>"; };
 		STMM0002000000000000007 /* ThemeModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeModels.swift; sourceTree = "<group>"; };
-		STMM0002000000000000008 /* GroupModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000008 /* GroupMembershipModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupMembershipModels.swift; sourceTree = "<group>"; };
 		MDLG0002000000000001 /* MediaLibraryGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryGrid.swift; sourceTree = "<group>"; };
 		MLP0002000000000000001 /* MediaLibraryPicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaLibraryPicker.swift; sourceTree = "<group>"; };
 		MNCL0002000000000000001 /* MainCalendar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainCalendar.swift; sourceTree = "<group>"; };
@@ -1326,7 +1326,7 @@
 				STMM0002000000000000005 /* EnrollmentModels.swift */,
 				STMM0002000000000000006 /* LessonModels.swift */,
 				STMM0002000000000000007 /* ThemeModels.swift */,
-				STMM0002000000000000008 /* GroupModels.swift */,
+				STMM0002000000000000008 /* GroupMembershipModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1629,7 +1629,7 @@
 				STMM0001000000000000005 /* EnrollmentModels.swift in Sources */,
 				STMM0001000000000000006 /* LessonModels.swift in Sources */,
 				STMM0001000000000000007 /* ThemeModels.swift in Sources */,
-				STMM0001000000000000008 /* GroupModels.swift in Sources */,
+				STMM0001000000000000008 /* GroupMembershipModels.swift in Sources */,
 				STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */,
 				FLST0001000000000000001 /* FilterState.swift in Sources */,
 				STB9ABADE6E9B9D497CBB7 /* EntityStore.swift in Sources */,

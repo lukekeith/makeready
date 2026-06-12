@@ -213,9 +213,9 @@ struct ProgramHomePage: View {
     private func loadProgramData() async {
         do {
             _ = try await ProgramActions().getProgram(id: programId)
-            NSLog("📚 ProgramHomePage: Loaded program \(programId)")
         } catch {
-            NSLog("❌ ProgramHomePage: Failed to load program: \(error)")
+            // Background load — console-only; cached content stays on screen.
+            state.recordError(error, context: "ProgramHomePage.loadProgramData")
         }
     }
 
@@ -223,9 +223,9 @@ struct ProgramHomePage: View {
     private func loadEnrollments() async {
         do {
             _ = try await ProgramActions().getProgramEnrollments(programId: programId)
-            NSLog("📚 ProgramHomePage: Loaded enrollments for \(programId)")
         } catch {
-            NSLog("❌ ProgramHomePage: Failed to load enrollments: \(error)")
+            // Background load — console-only.
+            state.recordError(error, context: "ProgramHomePage.loadEnrollments")
         }
     }
 
@@ -269,12 +269,26 @@ struct ProgramHomePage: View {
                     timezone: TimeZone.current.identifier,
                     requireResponse: requireResponse
                 )
-                NSLog("Created enrollment: \(enrollment.id)")
+                Log.state.info("Created enrollment: \(enrollment.id, privacy: .private)")
 
                 // Refresh enrollments list
                 await loadEnrollments()
             } catch {
-                NSLog("Enrollment error: \(error)")
+                // User just completed the enrollment flow — surface it.
+                // Retry re-runs the create with the captured flow values.
+                state.recordError(
+                    error,
+                    context: "ProgramHomePage.createEnrollmentFromProgram",
+                    surface: true,
+                    friendlyMessage: "Couldn't create the enrollment",
+                    retry: {
+                        createEnrollmentFromProgram(
+                            enrollmentData: enrollmentData,
+                            smsTime: smsTime,
+                            requireResponse: requireResponse
+                        )
+                    }
+                )
             }
         }
     }
@@ -337,10 +351,10 @@ struct ProgramHomePage: View {
                 break
             }
         } catch let error as NSError where error.code == NSURLErrorCancelled {
-            // Ignore cancellation - happens when view updates during refresh
-            NSLog("🔄 ProgramHomePage: Refresh cancelled (view updated)")
+            // Silent: refresh cancelled because the view updated mid-flight — expected, not a failure.
         } catch {
-            NSLog("❌ ProgramHomePage: Failed to refresh: \(error)")
+            // Background refresh — console-only; cached content stays on screen.
+            state.recordError(error, context: "ProgramHomePage.refreshCurrentTab")
         }
     }
 
@@ -611,7 +625,15 @@ struct ProgramHomePage: View {
                     showExportConfirm = true
                 }
             } catch {
-                NSLog("❌ Failed to load export preview: \(error)")
+                // User just tapped Export — without the preview nothing happens,
+                // so surface the failure. Safe to re-run as-is.
+                state.recordError(
+                    error,
+                    context: "ProgramHomePage.loadExportPreview",
+                    surface: true,
+                    friendlyMessage: "Couldn't load the export preview",
+                    retry: { loadExportPreview() }
+                )
             }
         }
     }
@@ -660,10 +682,18 @@ struct ProgramHomePage: View {
                     isProcessingExport = false
                 }
             } catch {
-                NSLog("❌ Failed to export program: \(error)")
                 await MainActor.run {
+                    // Cleanup first, then record — the banner must not sit
+                    // over a stuck processing overlay.
                     isProcessingExport = false
                     overlayManager.dismiss(.confirmationOverlay)
+                    state.recordError(
+                        error,
+                        context: "ProgramHomePage.exportProgram",
+                        surface: true,
+                        friendlyMessage: "Couldn't export the study program",
+                        retry: { exportProgram() }
+                    )
                 }
             }
         }
@@ -711,7 +741,8 @@ struct ProgramHomePage: View {
                 NSLog("📸 Cover image loaded successfully")
             }
         } catch {
-            NSLog("⚠️ Failed to load cover image: \(error)")
+            // Background CDN image load — console-only; page renders fine without the cover.
+            state.recordError(error, context: "ProgramHomePage.loadExistingCoverImage")
         }
     }
 
@@ -738,12 +769,19 @@ struct ProgramHomePage: View {
                 }
                 NSLog("📚 Program \(publish ? "published" : "unpublished")")
             } catch {
-                // Revert on failure
+                // Revert the optimistic update first, then surface — the user
+                // just tapped publish/unpublish.
                 if var current = state.programs[programId] {
                     current.isPublished = !publish
                     state.programs.upsert(current)
                 }
-                NSLog("⚠️ Failed to update publish status: \(error)")
+                state.recordError(
+                    error,
+                    context: "ProgramHomePage.togglePublishStatus",
+                    surface: true,
+                    friendlyMessage: publish ? "Couldn't publish the study" : "Couldn't unpublish the study",
+                    retry: { togglePublishStatus(programId: programId, publish: publish) }
+                )
             }
         }
     }
@@ -778,9 +816,16 @@ struct ProgramHomePage: View {
                 NSLog("📸 Cover image auto-saved")
             } catch {
                 await MainActor.run {
+                    // Cleanup first, then record — user just picked a cover image.
                     isUploadingImage = false
+                    state.recordError(
+                        error,
+                        context: "ProgramHomePage.uploadCoverImage",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the cover image",
+                        retry: { uploadCoverImage(image, programId: programId) }
+                    )
                 }
-                NSLog("⚠️ Failed to auto-save cover image: \(error)")
             }
         }
     }
@@ -942,7 +987,16 @@ struct ProgramHomePage: View {
                     lessonIds: lessonIds
                 )
             } catch {
-                NSLog("Failed to reorder lessons: \(error)")
+                // User just dragged lessons into a new order — surface it.
+                // No retry: the reload below resets the orderedLessons snapshot
+                // this function reads from, so a re-run would persist stale order.
+                state.recordError(
+                    error,
+                    context: "ProgramHomePage.persistLessonOrder",
+                    surface: true,
+                    friendlyMessage: "Couldn't save the new lesson order"
+                )
+                // Reload to restore the server's order
                 await loadProgramData()
             }
         }
@@ -1046,16 +1100,23 @@ struct ProgramHomePage: View {
                         state.programs.upsert(current)
                     }
                 }
-                NSLog("📝 Program saved successfully")
+                Log.state.info("Program saved successfully")
             } catch {
-                // Revert on failure
+                // Revert the optimistic update first, then surface — the user
+                // just tapped Done. No retry: a re-run would re-read the edit
+                // form @State, which the Done navigation has already left behind.
                 if var current = state.programs[programId] {
                     current.name = oldName ?? current.name
                     current.description = oldDescription
                     current.isPublished = oldIsPublished
                     state.programs.upsert(current)
                 }
-                NSLog("⚠️ Failed to save program: \(error)")
+                state.recordError(
+                    error,
+                    context: "ProgramHomePage.saveProgram",
+                    surface: true,
+                    friendlyMessage: "Couldn't save program changes"
+                )
             }
         }
     }
@@ -1073,9 +1134,16 @@ struct ProgramHomePage: View {
         Task {
             do {
                 try await ProgramActions().deleteLesson(programId: programId, lessonId: lesson.id)
-                NSLog("📝 Lesson deleted")
             } catch {
-                NSLog("⚠️ Failed to delete lesson: \(error)")
+                // User just confirmed the delete — surface it. Retry captures
+                // the lesson value, so it re-runs safely after the reload below.
+                state.recordError(
+                    error,
+                    context: "ProgramHomePage.deleteLesson",
+                    surface: true,
+                    friendlyMessage: "Couldn't delete the lesson",
+                    retry: { deleteLesson(lesson, programId: programId) }
+                )
                 // Reload to restore correct state
                 await loadProgramData()
             }
@@ -1088,12 +1156,26 @@ struct ProgramHomePage: View {
 
         Task {
             do {
-                let lesson = try await ProgramActions().addLesson(programId: programId)
-                NSLog("📝 Added day \(lesson.dayNumber)")
-                // Refresh to get full program state
-                _ = try await ProgramActions().getProgram(id: programId)
+                _ = try await ProgramActions().addLesson(programId: programId)
+                // Refresh to get full program state. Separate catch so a
+                // refresh failure after a successful add can't trigger an
+                // "add day" retry that would create a duplicate day.
+                do {
+                    _ = try await ProgramActions().getProgram(id: programId)
+                } catch {
+                    // Background refresh after the add — console-only.
+                    state.recordError(error, context: "ProgramHomePage.addDay (refresh)")
+                }
             } catch {
-                NSLog("⚠️ Failed to add day: \(error)")
+                // User just tapped the add-day button — cleanup, then surface.
+                isAddingDay = false
+                state.recordError(
+                    error,
+                    context: "ProgramHomePage.addDay",
+                    surface: true,
+                    friendlyMessage: "Couldn't add a day",
+                    retry: { addDay(programId: programId) }
+                )
             }
             isAddingDay = false
         }

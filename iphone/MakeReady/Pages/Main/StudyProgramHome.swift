@@ -227,12 +227,21 @@ struct MainPrograms: View {
                 showImportPreview = true
 
             } catch {
+                // Recovered: the existing "Incompatible File" alert tells the
+                // user; record console-only for the error history.
+                state.recordError(error, context: "StudyProgramHome.handleFileImport")
                 importErrorMessage = "Failed to read the selected file."
                 showImportError = true
             }
 
         case .failure(let error):
-            NSLog("❌ File picker error: \(error)")
+            // User just picked a file in the importer — surface it.
+            state.recordError(
+                error,
+                context: "StudyProgramHome.handleFileImport (picker)",
+                surface: true,
+                friendlyMessage: "Couldn't open the selected file"
+            )
         }
     }
 
@@ -356,10 +365,18 @@ struct MainPrograms: View {
                 try? await ProgramActions().loadPrograms(forceRefresh: true)
                 await MainActor.run { isProcessingImport = false }
             } catch {
-                NSLog("❌ Failed to import program: \(error)")
                 await MainActor.run {
                     isProcessingImport = false
                     overlayManager.dismiss(.confirmationOverlay)
+                    // User just confirmed the import — surface it. No retry:
+                    // the defer clears importFileData, so re-running
+                    // confirmImport() would guard out.
+                    state.recordError(
+                        error,
+                        context: "StudyProgramHome.confirmImport",
+                        surface: true,
+                        friendlyMessage: "Couldn't import the program"
+                    )
                 }
             }
         }
@@ -610,7 +627,8 @@ struct MainPrograms: View {
             try await ProgramActions().loadPrograms(forceRefresh: forceRefresh)
             NSLog("📚 MainPrograms: Programs loaded - \(programs.count) items")
         } catch {
-            NSLog("❌ MainPrograms: Failed to load programs: \(error)")
+            // Background/cache-first load — console-only.
+            state.recordError(error, context: "StudyProgramHome.loadPrograms")
         }
     }
 
@@ -664,7 +682,8 @@ struct MainPrograms: View {
                 do {
                     _ = try await actions.getProgramEnrollments(programId: program.id, forceRefresh: forceRefresh)
                 } catch {
-                    NSLog("⚠️ Failed to load enrollments for program \(program.id): \(error)")
+                    // Background prefetch — console-only.
+                    state.recordError(error, context: "StudyProgramHome.loadAllEnrollments")
                 }
             }
         }
@@ -719,7 +738,15 @@ struct MainPrograms: View {
                 await MainActor.run {
                     isProcessingUnenrollment = false
                     overlayManager.dismiss(.confirmationOverlay)
-                    NSLog("❌ Failed to unenroll: \(error)")
+                    // User just confirmed the unenroll — surface it. Retry
+                    // re-runs the whole flow incl. the processing overlay.
+                    state.recordError(
+                        error,
+                        context: "StudyProgramHome.unenroll",
+                        surface: true,
+                        friendlyMessage: "Couldn't unenroll from the program",
+                        retry: { handleEnrollmentUnenrollConfirmed(enrollment: enrollment, option: option) }
+                    )
                 }
             }
         }
@@ -740,7 +767,14 @@ struct MainPrograms: View {
                 try? await Task.sleep(nanoseconds: 350_000_000)
                 deletingProgramId = nil
             } catch {
-                NSLog("❌ Failed to delete program: \(error)")
+                // User just tapped Delete — surface it.
+                state.recordError(
+                    error,
+                    context: "StudyProgramHome.deleteProgram",
+                    surface: true,
+                    friendlyMessage: "Couldn't delete the program",
+                    retry: { deleteProgram(program) }
+                )
             }
         }
     }

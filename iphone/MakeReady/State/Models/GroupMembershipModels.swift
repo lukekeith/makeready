@@ -1,9 +1,11 @@
 //
-//  GroupModels.swift
+//  GroupMembershipModels.swift
 //  MakeReady
 //
 //  Join request and group leader models.
-//  Phase 5.7 — code motion from State/Models.swift.
+//  Phase 5.7 — code motion from State/Models.swift. (Renamed from
+//  GroupModels.swift: the basename collided with the page-local
+//  Pages/Manage/Group/Models/GroupModels.swift in the same target.)
 //
 
 import Foundation

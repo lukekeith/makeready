@@ -267,7 +267,18 @@ struct EditGroupPage: View {
                         finalGroup = try await GroupActions().getGroup(id: group.id)
                         NSLog("Cover image uploaded: \(coverImageUrl)")
                     } catch {
-                        NSLog("Failed to upload cover image (continuing anyway): \(error)")
+                        // Group save succeeded; only the cover upload failed —
+                        // continue with the saved group but tell the user.
+                        // No retry: the page dismisses right after, so the
+                        // captured flow can't safely re-run.
+                        await MainActor.run {
+                            AppState.shared.recordError(
+                                error,
+                                context: "EditGroupPage.saveGroup (cover upload)",
+                                surface: true,
+                                friendlyMessage: "Couldn't upload the cover image"
+                            )
+                        }
                     }
                 }
 
@@ -279,8 +290,15 @@ struct EditGroupPage: View {
             } catch {
                 await MainActor.run {
                     isSaving = false
+                    // User tapped Save — surface. The form stays up with the
+                    // edits intact, so the Save button itself is the retry.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditGroupPage.saveGroup",
+                        surface: true,
+                        friendlyMessage: "Couldn't save group changes"
+                    )
                 }
-                NSLog("Failed to update group: \(error)")
             }
         }
     }

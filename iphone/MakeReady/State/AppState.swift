@@ -266,7 +266,7 @@ final class AppState {
         if surface {
             activeSurfacedError = appError
         }
-        NSLog("❌ \(context): \(error.localizedDescription)")
+        Log.state.error("\(context, privacy: .public): \(error.localizedDescription, privacy: .public)")
     }
 
     /// Drop all recorded errors (e.g. once a future surface has shown them).

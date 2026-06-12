@@ -30,7 +30,7 @@ struct Member: Identifiable {
 }
 
 // Contact data model (simpler - just name and photo)
-struct Contact: Identifiable {
+struct MemberListContact: Identifiable {
     let id = UUID()
     let firstName: String
     let lastName: String
@@ -50,7 +50,7 @@ enum MemberListItemVariant {
 
 struct MemberListItem: View {
     let member: Member?
-    let contact: Contact?
+    let contact: MemberListContact?
     let variant: MemberListItemVariant
     let onInviteTap: (() -> Void)?
     let onTap: (() -> Void)?
@@ -71,7 +71,7 @@ struct MemberListItem: View {
 
     // For Contact
     init(
-        contact: Contact,
+        contact: MemberListContact,
         onInviteTap: (() -> Void)? = nil,
         onTap: (() -> Void)? = nil
     ) {
@@ -253,7 +253,7 @@ struct MemberListItem: View {
 
                 // Contact with invite button
                 MemberListItem(
-                    contact: Contact(
+                    contact: MemberListContact(
                         firstName: "Bruce",
                         lastName: "Banner",
                         avatarURL: nil

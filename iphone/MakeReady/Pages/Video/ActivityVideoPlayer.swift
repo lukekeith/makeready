@@ -420,9 +420,17 @@ struct ActivityVideoPlayer: View {
                     onVideoRemoved(updatedActivity)
                 }
             } catch {
-                NSLog("Failed to remove video: \(error)")
                 await MainActor.run {
                     isRemoving = false
+                    // User just confirmed Remove — surface, retry re-runs the
+                    // same idempotent remove-by-activity-id.
+                    AppState.shared.recordError(
+                        error,
+                        context: "ActivityVideoPlayer.removeVideo",
+                        surface: true,
+                        friendlyMessage: "Couldn't remove the video",
+                        retry: { removeVideo() }
+                    )
                 }
             }
         }

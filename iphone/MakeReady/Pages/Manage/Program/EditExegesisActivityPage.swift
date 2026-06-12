@@ -426,7 +426,8 @@ struct EditExegesisActivityPage: View {
             savedNoteMarkdownByHighlight = savedNotes
             NSLog("🟨 ExegesisSelectionTrace loaded exegesis highlights count=\(exegesisHighlights.count) activityId=\(activity.id)")
         } catch {
-            NSLog("❌ ExegesisSelectionTrace failed to load exegesis highlights activityId=\(activity.id) error=\(error.localizedDescription)")
+            // Background load on appear — console-only.
+            AppState.shared.recordError(error, context: "EditExegesisActivityPage.loadExegesisHighlights")
         }
     }
 
@@ -547,7 +548,14 @@ struct EditExegesisActivityPage: View {
                             hasSaved = false
                         }
                     } catch {
-                        NSLog("❌ Failed to set exegesis passage: \(error)")
+                        await MainActor.run {
+                            AppState.shared.recordError(
+                                error,
+                                context: "EditExegesisActivityPage.setExegesisPassage",
+                                surface: true,
+                                friendlyMessage: "Couldn't set the passage"
+                            )
+                        }
                     }
                 }
             },
@@ -591,7 +599,14 @@ struct EditExegesisActivityPage: View {
                         fontSize: snapshotFontSize
                     )
                 } catch {
-                    NSLog("❌ Failed to revert styling: \(error)")
+                    await MainActor.run {
+                        AppState.shared.recordError(
+                            error,
+                            context: "EditExegesisActivityPage.cancelAndRevert (styling)",
+                            surface: true,
+                            friendlyMessage: "Couldn't revert your changes"
+                        )
+                    }
                 }
 
                 // Revert title if it was saved during this session
@@ -599,7 +614,14 @@ struct EditExegesisActivityPage: View {
                     do {
                         _ = try await actions.updateActivityContent(activityId: activity.id, title: originalTitle)
                     } catch {
-                        NSLog("❌ Failed to revert title: \(error)")
+                        await MainActor.run {
+                            AppState.shared.recordError(
+                                error,
+                                context: "EditExegesisActivityPage.cancelAndRevert (title)",
+                                surface: true,
+                                friendlyMessage: "Couldn't revert the title"
+                            )
+                        }
                     }
                 }
 
@@ -672,7 +694,15 @@ struct EditExegesisActivityPage: View {
                     NSLog("🟨 ExegesisSelectionTrace applyStyle API save selections success activityId=\(activityId) blockId=\(blockId) mergedCount=\(merged.count)")
                 }
             } catch {
-                NSLog("❌ ExegesisSelectionTrace applyStyle API save failed activityId=\(activityId) blockId=\(blockId) error=\(error.localizedDescription)")
+                await MainActor.run {
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditExegesisActivityPage.applyStyle",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the highlight",
+                        retry: { applyStyle(style, range: range, blockId: blockId, activityId: activityId) }
+                    )
+                }
             }
         }
     }
@@ -740,8 +770,15 @@ struct EditExegesisActivityPage: View {
                     isSavingTitle = false
                 }
             } catch {
-                NSLog("❌ Failed to save exegesis activity changes: \(error)")
-                await MainActor.run { isSavingTitle = false }
+                await MainActor.run {
+                    isSavingTitle = false
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditExegesisActivityPage.saveTitle",
+                        surface: true,
+                        friendlyMessage: "Couldn't save changes"
+                    )
+                }
             }
         }
     }

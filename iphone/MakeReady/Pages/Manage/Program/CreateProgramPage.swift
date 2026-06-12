@@ -491,7 +491,16 @@ struct CreateProgramPage: View {
                     }
                 }
             } catch {
-                NSLog("Failed to delete lesson: \(error)")
+                // User just confirmed deleting the day — surface it.
+                await MainActor.run {
+                    AppState.shared.recordError(
+                        error,
+                        context: "CreateProgramPage.deleteLesson",
+                        surface: true,
+                        friendlyMessage: "Couldn't delete the lesson",
+                        retry: { deleteLesson(lesson) }
+                    )
+                }
             }
         }
     }
@@ -578,8 +587,17 @@ struct CreateProgramPage: View {
                         finalProgram = result.program
                         NSLog("📸 Cover image uploaded: \(coverImageUrl)")
                     } catch {
-                        NSLog("⚠️ Failed to upload cover image (continuing anyway): \(error)")
-                        // Continue without cover image - program was still created successfully
+                        // Continue without cover image - program was still
+                        // created successfully. User picked the cover and hit
+                        // Create — surface the partial failure.
+                        await MainActor.run {
+                            AppState.shared.recordError(
+                                error,
+                                context: "CreateProgramPage.createProgram (cover upload)",
+                                surface: true,
+                                friendlyMessage: "Couldn't upload the cover image"
+                            )
+                        }
                     }
                 }
 
@@ -597,8 +615,16 @@ struct CreateProgramPage: View {
             } catch {
                 await MainActor.run {
                     isCreating = false
+                    // User just hit Create; the form stays intact, so the
+                    // retry safely re-runs the same submission.
+                    AppState.shared.recordError(
+                        error,
+                        context: "CreateProgramPage.createProgram",
+                        surface: true,
+                        friendlyMessage: "Couldn't create the program",
+                        retry: { createProgram() }
+                    )
                 }
-                NSLog("Failed to create program: \(error)")
             }
         }
     }

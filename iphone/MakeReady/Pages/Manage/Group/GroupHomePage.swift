@@ -753,7 +753,17 @@ struct GroupHomePage: View {
                     }
                 }
             } catch {
-                NSLog("Failed to fetch lesson invite: \(error)")
+                await MainActor.run {
+                    // User tapped "Open Lesson" — surface; retry refetches
+                    // the invite from the captured schedule/enrollment.
+                    state.recordError(
+                        error,
+                        context: "GroupHomePage.handleOpenLesson",
+                        surface: true,
+                        friendlyMessage: "Couldn't open the lesson",
+                        retry: { handleOpenLesson(schedule: schedule, enrollment: enrollment) }
+                    )
+                }
             }
         }
     }
@@ -786,7 +796,25 @@ struct GroupHomePage: View {
                     _ = try? await EnrollmentActions().loadEnrollments(groupId: groupId)
                 }
             } catch {
-                NSLog("Failed to add scheduled lesson: \(error)")
+                await MainActor.run {
+                    // Clear the pending state before recording so the banner
+                    // never sits over a stuck spinner. User tapped "Add
+                    // Lesson" — surface; retry restores the captured
+                    // enrollment id and re-runs the same add.
+                    isAddingLesson = false
+                    addLessonEnrollmentId = nil
+                    state.recordError(
+                        error,
+                        context: "GroupHomePage.addScheduledLesson",
+                        surface: true,
+                        friendlyMessage: "Couldn't add the lesson",
+                        retry: {
+                            addLessonEnrollmentId = enrollmentId
+                            addScheduledLesson()
+                        }
+                    )
+                }
+                return
             }
             isAddingLesson = false
             addLessonEnrollmentId = nil
@@ -831,7 +859,10 @@ struct GroupHomePage: View {
                     syncAgeStateFromGroup(loadedGroup)
                 }
             } catch {
-                NSLog("Failed to load group: \(error)")
+                // Console-only: cold load in .task — no user action to answer.
+                await MainActor.run {
+                    state.recordError(error, context: "GroupHomePage.loadInitialData")
+                }
             }
         } else if let cachedGroup = group {
             // Sync age state from cached group
@@ -875,7 +906,10 @@ struct GroupHomePage: View {
                 group = loadedGroup
             }
         } catch {
-            NSLog("Failed to refresh group: \(error)")
+            // Console-only: refresh failure, page keeps showing cached group.
+            await MainActor.run {
+                state.recordError(error, context: "GroupHomePage.refreshData")
+            }
         }
 
         // Reload posts
@@ -900,8 +934,9 @@ struct GroupHomePage: View {
         } catch {
             await MainActor.run {
                 isLoadingPosts = false
+                // Console-only: background load, list keeps cached posts.
+                state.recordError(error, context: "GroupHomePage.loadPosts")
             }
-            NSLog("Failed to load posts: \(error)")
         }
     }
 
@@ -924,8 +959,9 @@ struct GroupHomePage: View {
             } catch {
                 await MainActor.run {
                     isLoadingPosts = false
+                    // Console-only: scroll pagination, list keeps loaded posts.
+                    state.recordError(error, context: "GroupHomePage.loadMorePosts")
                 }
-                NSLog("Failed to load more posts: \(error)")
             }
         }
     }
@@ -972,7 +1008,10 @@ struct GroupHomePage: View {
                         }
                     }
                 } catch {
-                    NSLog("⚠️ Failed to load enrollment details: \(error)")
+                    // Console-only: prefetch — calendar dots just stay stale.
+                    await MainActor.run {
+                        state.recordError(error, context: "GroupHomePage.prefetchEnrollments (details)")
+                    }
                 }
             }
 
@@ -983,7 +1022,11 @@ struct GroupHomePage: View {
 
             NSLog("📚 Pre-fetched \(enrollments.count) enrollments, \(lessonDates.count) lesson dates, next lesson: \(earliestUpcomingLesson != nil ? "Day \(earliestUpcomingLesson!.schedule.lesson.dayNumber)" : "none")")
         } catch {
-            NSLog("⚠️ Failed to pre-fetch enrollments: \(error)")
+            // Console-only: prefetch for instant modal display, modal handles
+            // its own loading state when the cache is empty.
+            await MainActor.run {
+                state.recordError(error, context: "GroupHomePage.prefetchEnrollments")
+            }
         }
     }
 

@@ -352,6 +352,8 @@ struct EnrollmentSchedulePage: View {
             await MainActor.run {
                 // Keep showing cached content on a background refresh
                 // failure; only surface the error screen when empty.
+                // Console-only: load failure, never banner-surfaced.
+                AppState.shared.recordError(error, context: "EnrollmentSchedulePage.loadEnrollmentDetails")
                 if enrollmentDetails == nil {
                     self.error = error.localizedDescription
                 }
@@ -367,7 +369,10 @@ struct EnrollmentSchedulePage: View {
             let stats = try await EnrollmentActions().getEnrollmentCompletionStats(id: enrollment.id)
             await MainActor.run { completionStats = stats }
         } catch {
-            NSLog("⚠️ Failed to load enrollment completion stats: \(error)")
+            // Console-only: background analytics load, cards fall back to empty.
+            await MainActor.run {
+                AppState.shared.recordError(error, context: "EnrollmentSchedulePage.loadCompletionStats")
+            }
         }
     }
 
@@ -423,7 +428,17 @@ struct EnrollmentSchedulePage: View {
                     }
                 }
             } catch {
-                NSLog("Failed to fetch lesson invite: \(error)")
+                // User tapped "Open Lesson" in the action menu — retry
+                // re-runs with the captured schedule.
+                await MainActor.run {
+                    AppState.shared.recordError(
+                        error,
+                        context: "EnrollmentSchedulePage.handleOpenLesson",
+                        surface: true,
+                        friendlyMessage: "Couldn't open the lesson",
+                        retry: { handleOpenLesson(schedule) }
+                    )
+                }
             }
         }
     }
@@ -474,7 +489,17 @@ struct EnrollmentSchedulePage: View {
             deletingScheduleId = nil
             await loadEnrollmentDetails(showLoading: false)
         } catch {
-            NSLog("Failed to delete lesson schedule: \(error)")
+            // User confirmed the delete dialog — retry re-runs with the
+            // captured schedule.
+            await MainActor.run {
+                AppState.shared.recordError(
+                    error,
+                    context: "EnrollmentSchedulePage.performDeleteLesson",
+                    surface: true,
+                    friendlyMessage: "Couldn't delete the lesson",
+                    retry: { Task { await performDeleteLesson(schedule) } }
+                )
+            }
         }
     }
 
@@ -487,7 +512,18 @@ struct EnrollmentSchedulePage: View {
                 try await EnrollmentActions().addScheduledLesson(enrollmentId: enrollment.id)
                 await loadEnrollmentDetails(showLoading: false)
             } catch {
-                NSLog("Failed to add scheduled lesson: \(error)")
+                // User tapped "Add lesson" — retry re-runs the add (the
+                // isAddingLesson guard has been cleared by then).
+                await MainActor.run {
+                    isAddingLesson = false
+                    AppState.shared.recordError(
+                        error,
+                        context: "EnrollmentSchedulePage.addScheduledLesson",
+                        surface: true,
+                        friendlyMessage: "Couldn't add the lesson",
+                        retry: { addScheduledLesson() }
+                    )
+                }
             }
             isAddingLesson = false
         }

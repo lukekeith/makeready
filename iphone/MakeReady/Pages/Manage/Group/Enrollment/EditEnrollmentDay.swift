@@ -153,7 +153,17 @@ struct EditEnrollmentDay: View {
                         do {
                             _ = try await EnrollmentActions().removeScheduledActivityVideo(activityId: activityId)
                         } catch {
-                            NSLog("❌ Failed to remove video: \(error)")
+                            // User-initiated (tapped Remove in the video manager).
+                            // No retry: the work lives in an inline closure, so a
+                            // safe re-run would require restructuring.
+                            await MainActor.run {
+                                AppState.shared.recordError(
+                                    error,
+                                    context: "EditEnrollmentDay.removeVideo",
+                                    surface: true,
+                                    friendlyMessage: "Couldn't remove the video"
+                                )
+                            }
                         }
                     }
                 }
@@ -511,9 +521,17 @@ struct EditEnrollmentDay: View {
                     isSavingTitle = false
                 }
             } catch {
-                NSLog("Failed to save lesson title: \(error)")
                 await MainActor.run {
                     isSavingTitle = false
+                    // User tapped Save — surface it. The title field keeps the
+                    // user's edits on failure, so re-running the save is safe.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditEnrollmentDay.saveLessonTitle",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the lesson title",
+                        retry: { saveLessonTitle() }
+                    )
                 }
             }
         }
@@ -550,10 +568,26 @@ struct EditEnrollmentDay: View {
                     dismissEditActivity()
                 }
             } catch {
-                NSLog("Failed to update scheduled activity: \(error)")
                 await MainActor.run {
                     savingActivityId = nil
                     dismissEditActivity()
+                    // User tapped Save and the pane dismisses optimistically —
+                    // retry re-runs with the captured parameter values.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditEnrollmentDay.saveUserInputContent",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the activity",
+                        retry: {
+                            saveUserInputContent(
+                                activity: activity,
+                                title: title,
+                                isHelpEnabled: isHelpEnabled,
+                                helpTitle: helpTitle,
+                                helpDescription: helpDescription
+                            )
+                        }
+                    )
                 }
             }
         }
@@ -576,9 +610,16 @@ struct EditEnrollmentDay: View {
                     deletingActivityId = nil
                 }
             } catch {
-                NSLog("Failed to delete scheduled activity: \(error)")
                 await MainActor.run {
                     deletingActivityId = nil
+                    // User confirmed Delete — retry re-runs with the captured activity.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditEnrollmentDay.deleteActivity",
+                        surface: true,
+                        friendlyMessage: "Couldn't delete the activity",
+                        retry: { deleteActivity(activity) }
+                    )
                 }
             }
         }
@@ -599,9 +640,16 @@ struct EditEnrollmentDay: View {
                     clearingActivityId = nil
                 }
             } catch {
-                NSLog("Failed to clear scheduled activity: \(error)")
                 await MainActor.run {
                     clearingActivityId = nil
+                    // User confirmed Clear — retry re-runs with the captured activity.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditEnrollmentDay.clearActivity",
+                        surface: true,
+                        friendlyMessage: "Couldn't clear the activity",
+                        retry: { clearActivity(activity) }
+                    )
                 }
             }
         }
@@ -630,11 +678,19 @@ struct EditEnrollmentDay: View {
                 }
             }
         } catch {
-            NSLog("Failed to add scheduled activity: \(error)")
             await MainActor.run {
                 withAnimation(Motion.micro) {
                     addingActivity = false
                 }
+                // User picked an activity type from the add menu — retry
+                // re-runs with the captured type.
+                AppState.shared.recordError(
+                    error,
+                    context: "EditEnrollmentDay.addActivity",
+                    surface: true,
+                    friendlyMessage: "Couldn't add the activity",
+                    retry: { Task { await addActivity(type: type) } }
+                )
             }
         }
     }
@@ -703,8 +759,18 @@ struct EditEnrollmentDay: View {
                 }
 
             } catch {
-                NSLog("❌ Failed to upload video for scheduled activity: \(error)")
-                await MainActor.run { savingActivityId = nil }
+                await MainActor.run {
+                    savingActivityId = nil
+                    // User just picked/recorded a video — retry re-runs the
+                    // export + upload + link with the captured result.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditEnrollmentDay.handleVideoSelected",
+                        surface: true,
+                        friendlyMessage: "Couldn't add the video",
+                        retry: { handleVideoSelected(result, for: activity) }
+                    )
+                }
             }
         }
     }
@@ -728,7 +794,17 @@ struct EditEnrollmentDay: View {
                     activityIds: activityIds
                 )
             } catch {
-                NSLog("Failed to reorder scheduled activities: \(error)")
+                // User just dropped a reorder and it silently reverts below —
+                // surface the failure. No retry: re-reading `activities` after
+                // the refetch would replay the reverted order, not the user's.
+                await MainActor.run {
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditEnrollmentDay.persistActivityOrder",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the new order"
+                    )
+                }
                 // Refetch enrollment details to restore the canonical order in AppState.
                 _ = try? await EnrollmentActions().getEnrollmentDetails(id: enrollmentId)
             }

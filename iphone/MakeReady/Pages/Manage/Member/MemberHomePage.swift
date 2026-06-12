@@ -792,7 +792,8 @@ struct MemberHomePage: View {
         do {
             try await actions.loadPrograms(forceRefresh: forceRefresh)
         } catch {
-            NSLog("⚠️ Failed to load programs: \(error)")
+            // Console-only: background load, list keeps cached programs.
+            state.recordError(error, context: "MemberHomePage.loadAllEnrollments (programs)")
         }
         for program in state.orderedPrograms {
             let hasEnrollments = (program._count?.enrollments ?? 0) > 0
@@ -801,7 +802,8 @@ struct MemberHomePage: View {
                 do {
                     _ = try await actions.getProgramEnrollments(programId: program.id, forceRefresh: forceRefresh)
                 } catch {
-                    NSLog("⚠️ Failed to load enrollments for program \(program.id): \(error)")
+                    // Console-only: background load, cards fall back to cache.
+                    state.recordError(error, context: "MemberHomePage.loadAllEnrollments (\(program.id))")
                 }
             }
         }
@@ -854,7 +856,16 @@ struct MemberHomePage: View {
                 await MainActor.run {
                     isProcessingUnenrollment = false
                     overlayManager.dismiss(.confirmationOverlay)
-                    NSLog("❌ Failed to unenroll: \(error)")
+                    // User confirmed the unenroll — surface; retry re-runs
+                    // the whole confirmed flow (captured enrollment + option),
+                    // including the processing overlay.
+                    state.recordError(
+                        error,
+                        context: "MemberHomePage.handleEnrollmentUnenrollConfirmed",
+                        surface: true,
+                        friendlyMessage: "Couldn't unenroll from the program",
+                        retry: { handleEnrollmentUnenrollConfirmed(enrollment: enrollment, option: option) }
+                    )
                 }
             }
         }
@@ -875,7 +886,8 @@ struct MemberHomePage: View {
                 }
             }
         } catch {
-            NSLog("Failed to load groups: \(error)")
+            // Console-only: background load, list keeps cached groups.
+            state.recordError(error, context: "MemberHomePage.loadGroups")
         }
     }
 
@@ -883,9 +895,16 @@ struct MemberHomePage: View {
         Task {
             do {
                 try await GroupActions().deleteGroup(id: group.id)
-                NSLog("Deleted group: \(group.name)")
+                Log.state.info("Deleted group \(group.id)")
             } catch {
-                NSLog("Failed to delete group: \(error)")
+                // User asked to delete — surface; delete by id is safe to re-run.
+                state.recordError(
+                    error,
+                    context: "MemberHomePage.deleteGroup",
+                    surface: true,
+                    friendlyMessage: "Couldn't delete the group",
+                    retry: { deleteGroup(group) }
+                )
             }
         }
     }

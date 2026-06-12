@@ -545,7 +545,8 @@ private struct MediaLibraryPickerView: View {
             do {
                 try await MediaActions().loadLibrary(type: "video")
             } catch {
-                NSLog("❌ Failed to load media library: \(error)")
+                // Initial library load — console-only.
+                state.recordError(error, context: "MediaLibraryPickerView.loadLibrary")
             }
             isLoading = false
         }

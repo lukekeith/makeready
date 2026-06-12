@@ -663,7 +663,9 @@ class CameraManager: NSObject, ObservableObject {
                     videoDeviceInput = input
                 }
             } catch {
-                print("Error creating video input: \(error)")
+                Task { @MainActor in
+                    AppState.shared.recordError(error, context: "CameraManager.setupSession.videoInput")
+                }
             }
         }
 
@@ -676,7 +678,9 @@ class CameraManager: NSObject, ObservableObject {
                     audioDeviceInput = input
                 }
             } catch {
-                print("Error creating audio input: \(error)")
+                Task { @MainActor in
+                    AppState.shared.recordError(error, context: "CameraManager.setupSession.audioInput")
+                }
             }
         }
 
@@ -863,7 +867,7 @@ class CameraManager: NSObject, ObservableObject {
             device.torchMode = isFlashOn ? .on : .off
             device.unlockForConfiguration()
         } catch {
-            print("Error toggling flash: \(error)")
+            AppState.shared.recordError(error, context: "CameraManager.toggleFlash")
         }
     }
 
@@ -881,10 +885,17 @@ class CameraManager: NSObject, ObservableObject {
             try await PHPhotoLibrary.shared().performChanges {
                 PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: url)
             }
-            print("Video saved to photo library")
             return true
         } catch {
-            print("Failed to save video to photo library: \(error)")
+            // User just confirmed the recording (tapped Next) — surface the
+            // Photos save failure. No retry: the temp file is handed off to
+            // the upload flow and may not exist by the time retry is tapped.
+            AppState.shared.recordError(
+                error,
+                context: "CameraManager.saveToPhotoLibrary",
+                surface: true,
+                friendlyMessage: "Couldn't save the video to your Photos library"
+            )
             return false
         }
     }
@@ -928,7 +939,9 @@ class CameraManager: NSObject, ObservableObject {
                     newInput = input
                 }
             } catch {
-                print("Error switching camera: \(error)")
+                Task { @MainActor in
+                    AppState.shared.recordError(error, context: "CameraManager.performCameraSwitch")
+                }
             }
         }
 
@@ -951,7 +964,14 @@ extension CameraManager: AVCaptureFileOutputRecordingDelegate {
             NSLog("🎬 Delegate: Set isRecording = false")
 
             if let error = error {
-                NSLog("🎬 Delegate: Recording error: \(error)")
+                // The user just recorded a take and it was lost — surface it.
+                // No retry: a failed recording can't be re-run.
+                AppState.shared.recordError(
+                    error,
+                    context: "CameraManager.fileOutput.didFinishRecording",
+                    surface: true,
+                    friendlyMessage: "Couldn't record the video"
+                )
                 return
             }
 
@@ -968,8 +988,9 @@ extension CameraManager: AVCaptureFileOutputRecordingDelegate {
 
                 recordedVideoURL = exportedURL
             } catch {
-                NSLog("🎬 Delegate: Export failed: \(error), using original file")
-                // Fall back to original file if export fails
+                // Recovers: falls back to the original (un-rotated) recording
+                // so the preview still works.
+                Log.media.error("orientation export failed, using original file: \(error.localizedDescription, privacy: .public)")
                 recordedVideoURL = outputFileURL
             }
 

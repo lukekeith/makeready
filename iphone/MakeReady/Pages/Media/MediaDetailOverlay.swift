@@ -342,7 +342,7 @@ final class MediaDetailOverlayView: UIView {
                 self.thumbnailImageView.isHidden = false
                 self.placeholderView.isHidden = true
             } catch {
-                // Leave placeholder
+                // Silent: optional thumbnail fetch — the placeholder stays visible.
             }
         }
     }
@@ -463,7 +463,7 @@ final class MediaDetailOverlayView: UIView {
                     self.thumbnailImageView.image = image
                 }
             } catch {
-                // Keep the thumbnail
+                // Silent: optional full-res upgrade — the thumbnail stays visible.
             }
         }
     }
@@ -597,13 +597,15 @@ final class MediaDetailOverlayView: UIView {
                 self.loadingSpinner.stopAnimating()
                 self.buildDetailContent()
             } catch {
-                NSLog("❌ MediaDetailOverlay: Failed to load detail: \(error)")
+                // Detail load on open — console-only.
+                AppState.shared.recordError(error, context: "MediaDetailOverlay.loadDetailData")
                 self.loadingSpinner.stopAnimating()
                 // Try to load usages separately as fallback
                 do {
                     self.usages = try await MediaActions().loadUsages(id: item.id)
                 } catch {
-                    NSLog("❌ MediaDetailOverlay: Failed to load usages: \(error)")
+                    // Fallback load — console-only.
+                    AppState.shared.recordError(error, context: "MediaDetailOverlay.loadDetailData.loadUsages")
                 }
                 self.buildDetailContent()
             }
@@ -1330,8 +1332,14 @@ final class MediaDetailOverlayView: UIView {
 
                 self.exitEditMode()
             } catch {
-                NSLog("❌ MediaDetailOverlay: Failed to save: \(error)")
-                // Show inline error — just exit edit mode for now
+                // User just tapped Save — surface. No retry: the edit panel is
+                // torn down below, so a safe re-run would need restructuring.
+                AppState.shared.recordError(
+                    error,
+                    context: "MediaDetailOverlay.editSaveTapped",
+                    surface: true,
+                    friendlyMessage: "Couldn't save media changes"
+                )
                 self.exitEditMode()
             }
         }

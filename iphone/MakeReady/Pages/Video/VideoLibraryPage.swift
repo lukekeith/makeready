@@ -306,7 +306,8 @@ struct VideoLibraryPage: View {
                     do {
                         _ = try await VideoActions().refreshVideoStatus(id: video.id)
                     } catch {
-                        print("Failed to refresh video status: \(error)")
+                        // Background status refresh — console-only.
+                        state.recordError(error, context: "VideoLibraryPage.handleVideoTap.refreshVideoStatus")
                     }
                 }
                 errorMessage = "This video is still processing. Please wait."

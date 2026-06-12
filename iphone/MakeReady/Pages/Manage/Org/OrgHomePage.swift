@@ -190,8 +190,10 @@ struct OrgHomePage: View {
             groupLeaders = leaders
             leadersError = nil
         } catch {
+            // Background load — the in-page error state shows it; record
+            // console-only for the error history.
             leadersError = "Failed to load group leaders."
-            NSLog("⚠️ OrgHomePage: leaders load failed: \(error.localizedDescription)")
+            AppState.shared.recordError(error, context: "OrgHomePage.loadLeaders")
         }
         isLoadingLeaders = false
     }
@@ -201,7 +203,8 @@ struct OrgHomePage: View {
             memberCount = try await OrgActions().loadMemberCount(organizationId: organization.id)
         } catch {
             // Best-effort; leave nil so the row simply doesn't render.
-            NSLog("⚠️ OrgHomePage: member count load failed: \(error.localizedDescription)")
+            // Background load — console-only.
+            AppState.shared.recordError(error, context: "OrgHomePage.loadMemberCount")
         }
     }
 

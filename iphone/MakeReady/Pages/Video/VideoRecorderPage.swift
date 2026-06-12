@@ -70,7 +70,16 @@ struct CameraViewControllerRepresentable: UIViewControllerRepresentable {
                     try FileManager.default.copyItem(at: videoURL, to: destURL)
                     parent.onVideoRecorded?(destURL)
                 } catch {
-                    print("Failed to copy video: \(error)")
+                    // The user just recorded a video and it was lost — surface it.
+                    // No retry: the picker's temp file is gone once the delegate returns.
+                    Task { @MainActor in
+                        AppState.shared.recordError(
+                            error,
+                            context: "CameraViewControllerRepresentable.Coordinator.didFinishPickingMedia",
+                            surface: true,
+                            friendlyMessage: "Couldn't save the recorded video"
+                        )
+                    }
                 }
             }
             parent.isPresented = false

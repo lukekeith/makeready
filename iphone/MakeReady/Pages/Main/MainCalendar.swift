@@ -86,7 +86,15 @@ struct MainCalendar: View {
                                 }
                             }
                         } catch {
-                            NSLog("Failed to open lesson: \(error)")
+                            // User just tapped "Open Lesson" — surface it.
+                            await MainActor.run {
+                                state.recordError(
+                                    error,
+                                    context: "MainCalendar.openLesson",
+                                    surface: true,
+                                    friendlyMessage: "Couldn't open the lesson"
+                                )
+                            }
                         }
                     }
                 },
@@ -128,7 +136,15 @@ struct MainCalendar: View {
                             )
                             await HomeActions().loadCalendarEvents(forceRefresh: true)
                         } catch {
-                            NSLog("Failed to delete lesson: \(error)")
+                            // User just tapped Delete in the lesson menu — surface it.
+                            await MainActor.run {
+                                state.recordError(
+                                    error,
+                                    context: "MainCalendar.deleteLessonSchedule",
+                                    surface: true,
+                                    friendlyMessage: "Couldn't delete the lesson"
+                                )
+                            }
                         }
                     }
                 }

@@ -2,13 +2,14 @@
 
 > Companion to [iphone-2026-06-10-plan.md](./iphone-2026-06-10-plan.md) (the phase definitions) and
 > [../plans/media-2026-06-10.md](../plans/media-2026-06-10.md) (media-at-scale plan).
-> Update this file at every phase/step boundary. Last updated: **2026-06-11 (session 5 —
-> slider regression root-caused as per-page Class 3 and fixed everywhere [cache-first
-> contract, codified in skills]; 3.6d/3.7/3.8/3.9/3.10 shipped and device-verified.
-> PHASE 3 COMPLETE; media M0+M1 SHIPPED (M0.2/M0.4 folded into M2); Phase 5 enforcement
-> layer LIVE (5.1–5.4, 5.6 done; baseline 2,449→1,172); Decision Point A RESOLVED (error
-> banner shipped). Remaining: 5.5 fixtures, 5.7 model splits, formatter pass, Decision
-> Points B–D, hex-catalog design pass, media M2/M3, 250k cursor benchmark)**.
+> Update this file at every phase/step boundary. Last updated: **2026-06-11 (session 6 —
+> AUDIT #2 RE-SCORE: 2.0 → 3.5 ([iphone-2026-06-11-rescore.md](./iphone-2026-06-11-rescore.md));
+> 5.5/5.x-formatters/5.7 BUILD-BLESSED (3 latent breaks found & fixed on first compile,
+> see table); criterion-4 CATCH-BLOCK SWEEP done — every NSLog/print-and-swallow catch in
+> Pages/ routed through the error channel (recordError 25→141 sites, surface:true 3→75,
+> recordError now logs via Log.state), build + 65 tests green, 0 new lint violations.
+> Remaining: Decision Points B–D, hex-catalog design pass, media M2/M3, opportunistic
+> NSLog→Log migration outside catches, presentation-boolean tail)**.
 
 ## Status at a glance
 
@@ -34,9 +35,10 @@
 | 5.2 — os.Logger wrappers | ✅ Done — build green. `Log.<domain>` (auth/state/nav/media/api/push/ui/bible); NSLog migration is opportunistic. | `443b975` |
 | 5.3 — Color token consolidation | ✅ Done — build green, screens visually identical. 278 sites → existing Colors.swift tokens (exact-value match only). **Cataloged, unchanged (no matching token — needs a design pass):** 146 sites / 49 distinct hexes, top: #47d4ff×16, #ff4444×10, #ff6b9d×9, #ffd93d×7, #ef4444×6, #4ade80×6, #3b82f6×5, #dc2626×5, #ffaa00×5, #7c7cff×5, #485470×4, #234d2e×4. | (with 5.4 commit) |
 | 5.4 — Typography tokens | ✅ Done — build green, screens visually identical. Generated `Typography.swift` (61 tokens, systematic size+weight names at current fixed sizes); 999 literal sites migrated; 24 dynamic-form sites (computed sizes / conditional weights) stay baselined. Formatters (54) deferred — need per-file static+`Self.` surgery, not regex-safe. Baseline: 2,449 → 1,172. CLAUDE.md teaches tokens now. | — |
-| 5.5 — Fixtures/demo DEBUG-only + Contact model | 🟡 Code complete, awaiting build. FixturesManager + 4 demo pages behind #if DEBUG; `Contact` promoted to State/Models/ (production no longer depends on fixture code). Backlog note: InviteContactsPage/SearchContactsPage live bodies list hardcoded mockContacts — product wiring decision. | `4783450` |
-| 5.x — Formatter pass | 🟡 Code complete, awaiting build. 17 render-path formatters made static; 34 of the "54" were false positives (sanctioned cache files, now rule-excluded); 3 deliberate once-per-operation Actions locals stay baselined. Baseline 1,172→1,118. | `feb8f7b` |
-| 5.7 — Model/Actions splits | 🟡 Code complete, awaiting build. Models.swift (1,475 lines, 50 types) → 8 domain files in State/Models/; ProgramActions (1,402) → +Lessons/+Activities EXTENSION files (call sites untouched). ⚠️ Compile must bless: ModelFormatters and ProgramActions.api/.state went private→internal (required by the file splits). Baseline total exactly unchanged (1,118). | `60389da` |
+| 5.5 — Fixtures/demo DEBUG-only + Contact model | ✅ **Done — build-blessed 2026-06-11.** FixturesManager + 4 demo pages behind #if DEBUG; `Contact` promoted to State/Models/. First compile surfaced an ambiguity the promotion missed: `MemberListItem.swift` declared its own preview-only `struct Contact` → renamed `MemberListContact`. Backlog note: InviteContactsPage/SearchContactsPage live bodies list hardcoded mockContacts — product wiring decision. | `4783450` + fix |
+| 5.x — Formatter pass | ✅ **Done — build-blessed 2026-06-11.** 17 render-path formatters made static; 34 of the "54" were false positives (sanctioned cache files, now rule-excluded); 3 deliberate once-per-operation Actions locals stay baselined. Baseline 1,172→1,118. First compile caught a dangling ref: `CardActivity.formattedTime` fallback still used the deleted local `formatter` (and would have mutated shared formatOptions) → second static `isoFormatterNoFraction` added. | `feb8f7b` + fix |
+| 5.7 — Model/Actions splits | ✅ **Done — build-blessed 2026-06-11.** Models.swift (1,475 lines, 50 types) → 8 domain files in State/Models/; ProgramActions (1,402) → +Lessons/+Activities EXTENSION files (call sites untouched); private→internal blessing compiled clean. First compile caught a basename collision: State/Models/GroupModels.swift vs the page-local Pages/Manage/Group/Models/GroupModels.swift (object-file clash in one target) → State file renamed `GroupMembershipModels.swift` (JoinRequest/GroupLeader types); the natural `GroupModels.swift` name stays reserved for when the page-local file moves to State/Models/ (5.7 tail, with StudyModels). | `60389da` + fix |
+| Criterion-4 sweep — catch blocks → error channel | ✅ **Done — build + 65 tests green, 0 new lint violations (2026-06-11).** Every NSLog/print-and-swallow catch in Pages/ (~105 sites, 31 files) now routes per `/ios-error-surface`: recordError 25→141 call sites; surface:true 3→75 (all verified user-initiated mutations — saves/creates/deletes/uploads/approvals/unenroll/export/import; ~half carry value-capturing retry closures); 4 justified `// Silent:` sites; recordError's internal NSLog → `Log.state.error` so all routed errors are structured os.Logger output. Deliberate nuance: ProgramHomePage.addDay's post-add refresh split into its own console-only catch so a refresh failure can't retry-duplicate a day. NOT device-verified yet — banner hand-feel on a failing save recommended. | — |
 | 5.6 — Error surface + `/ios-error-surface` skill | ✅ **Done — build green, banner verified on device.** Decision Point A RESOLVED (top banner, user-initiated only, 4s auto-dismiss + swipe-up, optional retry). ErrorBanner/ErrorBannerHost shipped + 2 exemplar adoptions in GroupHomePage (save failure with retry, enrollment-create failure — was a TODO). Remaining catch blocks adopt opportunistically via the skill. | — |
 | M0–M3 — Media at scale | ⬜ Planned (`docs/plans/media-2026-06-10.md`); M0.1 is urgent | — |
 

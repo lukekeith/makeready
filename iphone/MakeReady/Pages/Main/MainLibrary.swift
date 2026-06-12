@@ -467,14 +467,14 @@ struct MainLibrary: View {
                 do {
                     allTags = try await ProgramActions().loadAllTags()
                 } catch {
-                    NSLog("⚠️ Failed to load tags: \(error)")
+                    state.recordError(error, context: "MainLibrary.loadAllTags")
                 }
             }
             if allLeaders.isEmpty {
                 do {
                     allLeaders = try await ProgramActions().loadGroupLeaders()
                 } catch {
-                    NSLog("⚠️ Failed to load group leaders: \(error)")
+                    state.recordError(error, context: "MainLibrary.loadGroupLeaders")
                 }
             }
         }
@@ -836,14 +836,14 @@ struct MainLibrary: View {
                 do {
                     allMediaTags = try await MediaActions().loadAllMediaTags()
                 } catch {
-                    NSLog("⚠️ Failed to load media tags: \(error)")
+                    state.recordError(error, context: "MainLibrary.loadAllMediaTags")
                 }
             }
             if allLeaders.isEmpty {
                 do {
                     allLeaders = try await ProgramActions().loadGroupLeaders()
                 } catch {
-                    NSLog("⚠️ Failed to load group leaders: \(error)")
+                    state.recordError(error, context: "MainLibrary.loadGroupLeaders (media tab)")
                 }
             }
         }
@@ -1157,7 +1157,9 @@ struct MainLibrary: View {
                     leaders: leadersArray
                 )
             } catch {
-                NSLog("❌ Failed to load programs: \(error)")
+                await MainActor.run {
+                    state.recordError(error, context: "MainLibrary.loadPrograms")
+                }
             }
         }()
         async let tagsTask: () = {
@@ -1165,7 +1167,9 @@ struct MainLibrary: View {
                 let tags = try await ProgramActions().loadAllTags()
                 await MainActor.run { allTags = tags }
             } catch {
-                NSLog("⚠️ Failed to load tags: \(error)")
+                await MainActor.run {
+                    state.recordError(error, context: "MainLibrary.loadPrograms (tags)")
+                }
             }
         }()
         async let leadersTask: () = {
@@ -1173,7 +1177,9 @@ struct MainLibrary: View {
                 let leaders = try await ProgramActions().loadGroupLeaders()
                 await MainActor.run { allLeaders = leaders }
             } catch {
-                NSLog("⚠️ Failed to load group leaders: \(error)")
+                await MainActor.run {
+                    state.recordError(error, context: "MainLibrary.loadPrograms (leaders)")
+                }
             }
         }()
         _ = await (programsTask, tagsTask, leadersTask)
@@ -1191,7 +1197,15 @@ struct MainLibrary: View {
                 try? await Task.sleep(nanoseconds: 350_000_000)
                 deletingProgramId = nil
             } catch {
-                NSLog("❌ Failed to delete program: \(error)")
+                // User just confirmed the delete — surface it. Retry re-runs
+                // the idempotent delete-by-id with the captured program.
+                state.recordError(
+                    error,
+                    context: "MainLibrary.deleteProgram",
+                    surface: true,
+                    friendlyMessage: "Couldn't delete the program",
+                    retry: { deleteProgram(program) }
+                )
             }
         }
     }
@@ -1209,7 +1223,7 @@ struct MainLibrary: View {
                 forceRefresh: forceRefresh
             )
         } catch {
-            NSLog("❌ Failed to load media: \(error)")
+            state.recordError(error, context: "MainLibrary.loadMedia")
         }
     }
 
@@ -1240,7 +1254,15 @@ struct MainLibrary: View {
                 try? await Task.sleep(nanoseconds: 350_000_000)
                 deletingMediaId = nil
             } catch {
-                NSLog("❌ Failed to delete media: \(error)")
+                // User just confirmed the delete — surface it. Retry re-runs
+                // the idempotent delete-by-id with the captured item.
+                state.recordError(
+                    error,
+                    context: "MainLibrary.deleteMedia",
+                    surface: true,
+                    friendlyMessage: "Couldn't delete the media item",
+                    retry: { deleteMedia(item) }
+                )
             }
         }
     }
@@ -1256,7 +1278,7 @@ struct MainLibrary: View {
                 leaders: leadersArray
             )
         } catch {
-            NSLog("❌ Failed to search media: \(error)")
+            state.recordError(error, context: "MainLibrary.searchMedia")
         }
     }
 
@@ -1269,7 +1291,14 @@ struct MainLibrary: View {
             processImportURL(fileURL, requireSecurityScope: true)
 
         case .failure(let error):
-            NSLog("❌ File picker error: \(error)")
+            // User just picked a file — surface it. No retry: the picker
+            // selection can't be re-run programmatically.
+            state.recordError(
+                error,
+                context: "MainLibrary.handleFileImport",
+                surface: true,
+                friendlyMessage: "Couldn't open the selected file"
+            )
         }
     }
 
@@ -1465,10 +1494,18 @@ struct MainLibrary: View {
                 try? await ProgramActions().loadPrograms(forceRefresh: true)
                 await MainActor.run { isProcessingImport = false }
             } catch {
-                NSLog("❌ Failed to import program: \(error)")
                 await MainActor.run {
                     isProcessingImport = false
                     overlayManager.dismiss(.confirmationOverlay)
+                    // User just confirmed the import — surface it. No retry:
+                    // the deferred cleanup clears importFileData, so a re-run
+                    // would no-op at the guard.
+                    state.recordError(
+                        error,
+                        context: "MainLibrary.confirmImport",
+                        surface: true,
+                        friendlyMessage: "Couldn't import the program"
+                    )
                 }
             }
         }

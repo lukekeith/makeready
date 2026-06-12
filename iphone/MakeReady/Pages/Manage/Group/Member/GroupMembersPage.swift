@@ -450,8 +450,14 @@ struct GroupMembersPage: View {
             try await GroupActions().approveJoinRequest(groupId: groupId, requestId: request.id)
             await loadData()
         } catch {
-            NSLog("Failed to approve request: \(error.localizedDescription)")
-            // TODO: Show error to user
+            // User tapped Approve — surface; approval by id is safe to re-run.
+            state.recordError(
+                error,
+                context: "GroupMembersPage.approveRequest",
+                surface: true,
+                friendlyMessage: "Couldn't approve the request",
+                retry: { Task { await approveRequest(request) } }
+            )
         }
     }
 

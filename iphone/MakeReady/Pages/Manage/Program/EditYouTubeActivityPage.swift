@@ -189,8 +189,11 @@ struct EditYouTubeActivityPage: View {
                     }
                 }
             } catch {
-                await MainActor.run { isFetchingMetadata = false }
-                NSLog("⚠️ Failed to fetch YouTube metadata: \(error)")
+                await MainActor.run {
+                    isFetchingMetadata = false
+                    // Background metadata prefetch (auto-fill) — console-only.
+                    AppState.shared.recordError(error, context: "EditYouTubeActivityPage.fetchMetadata")
+                }
             }
         }
     }
@@ -215,8 +218,15 @@ struct EditYouTubeActivityPage: View {
                     originalYoutubeUrl = youtubeUrl
                 }
             } catch {
-                NSLog("❌ Failed to save YouTube activity: \(error)")
-                await MainActor.run { isSaving = false }
+                await MainActor.run {
+                    isSaving = false
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditYouTubeActivityPage.save",
+                        surface: true,
+                        friendlyMessage: "Couldn't save changes"
+                    )
+                }
             }
         }
     }

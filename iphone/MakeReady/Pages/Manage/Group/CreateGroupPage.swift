@@ -250,7 +250,18 @@ struct CreateGroupPage: View {
                         finalGroup = try await GroupActions().getGroup(id: group.id)
                         NSLog("Cover image uploaded: \(coverImageUrl)")
                     } catch {
-                        NSLog("Failed to upload cover image (continuing anyway): \(error)")
+                        // Group was created; only the cover upload failed —
+                        // continue with the created group but tell the user.
+                        // No retry: re-running the flow would create a
+                        // duplicate group.
+                        await MainActor.run {
+                            AppState.shared.recordError(
+                                error,
+                                context: "CreateGroupPage.createGroup (cover upload)",
+                                surface: true,
+                                friendlyMessage: "Couldn't upload the cover image"
+                            )
+                        }
                     }
                 }
 
@@ -262,8 +273,15 @@ struct CreateGroupPage: View {
             } catch {
                 await MainActor.run {
                     isCreating = false
+                    // User tapped Create — surface. The form stays up with
+                    // its values intact, so the Create button is the retry.
+                    AppState.shared.recordError(
+                        error,
+                        context: "CreateGroupPage.createGroup",
+                        surface: true,
+                        friendlyMessage: "Couldn't create the group"
+                    )
                 }
-                NSLog("Failed to create group: \(error)")
             }
         }
     }

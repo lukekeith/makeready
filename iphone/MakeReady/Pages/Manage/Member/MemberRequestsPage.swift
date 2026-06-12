@@ -143,7 +143,14 @@ struct MemberRequestsPage: View {
             )
             onRequestApproved()
         } catch {
-            NSLog("Failed to approve request: \(error.localizedDescription)")
+            // User tapped Approve — surface; approval by id is safe to re-run.
+            state.recordError(
+                error,
+                context: "MemberRequestsPage.approveRequest",
+                surface: true,
+                friendlyMessage: "Couldn't approve the request",
+                retry: { Task { await approveRequest(groupRequest) } }
+            )
         }
     }
 }

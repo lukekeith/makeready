@@ -258,7 +258,15 @@ struct EditDay: View {
                                 onLessonUpdated(updatedLesson)
                             }
                         } catch {
-                            NSLog("❌ Failed to remove video: \(error)")
+                            await MainActor.run {
+                                // User tapped Remove on the video — surface it.
+                                AppState.shared.recordError(
+                                    error,
+                                    context: "EditDay.removeActivityVideo",
+                                    surface: true,
+                                    friendlyMessage: "Couldn't remove the video"
+                                )
+                            }
                         }
                     }
                 }
@@ -734,9 +742,17 @@ struct EditDay: View {
                     isSavingTitle = false
                 }
             } catch {
-                NSLog("Failed to save lesson title: \(error)")
                 await MainActor.run {
                     isSavingTitle = false
+                    // User tapped Save on the title — surface it. The edited
+                    // title is still in the field, so re-running the save is safe.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditDay.saveLessonTitle",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the lesson title",
+                        retry: { saveLessonTitle() }
+                    )
                 }
             }
         }
@@ -801,10 +817,19 @@ struct EditDay: View {
                     editingActivity = nil
                 }
             } catch {
-                NSLog("Failed to update activity: \(error)")
                 await MainActor.run {
                     savingActivityId = nil
                     editingActivity = nil
+                    // User just confirmed a passage in the Bible reader —
+                    // surface it. Retry captures the passage values, so the
+                    // same update safely re-runs.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditDay.updateActivity",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the passage",
+                        retry: { updateActivity(activity, with: passageData, highlightRange: highlightRange) }
+                    )
                 }
             }
         }
@@ -826,9 +851,16 @@ struct EditDay: View {
                     onLessonUpdated(updatedLesson)
                 }
             } catch {
-                NSLog("Failed to reset activity: \(error)")
                 await MainActor.run {
                     resettingActivityId = nil
+                    // User confirmed the Reset alert — surface it.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditDay.resetActivity",
+                        surface: true,
+                        friendlyMessage: "Couldn't reset the activity",
+                        retry: { resetActivity(activity) }
+                    )
                 }
             }
         }
@@ -855,10 +887,17 @@ struct EditDay: View {
                     onLessonUpdated(updatedLesson)
                 }
             } catch {
-                NSLog("Failed to clear activity: \(error)")
                 await MainActor.run {
                     clearingActivityId = nil
                     AppState.shared.loadingStates.clearState(for: activity.id)
+                    // User confirmed the Clear alert — surface it.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditDay.clearActivity",
+                        surface: true,
+                        friendlyMessage: "Couldn't clear the activity",
+                        retry: { clearActivity(activity) }
+                    )
                 }
             }
         }
@@ -910,11 +949,18 @@ struct EditDay: View {
                 onLessonUpdated(updatedLesson)
             }
         } catch {
-            NSLog("❌ Failed to add activity: \(error)")
             await MainActor.run {
                 withAnimation(Motion.micro) {
                     addingActivity = false
                 }
+                // User picked an activity type from the add menu — surface it.
+                AppState.shared.recordError(
+                    error,
+                    context: "EditDay.addActivity",
+                    surface: true,
+                    friendlyMessage: "Couldn't add the activity",
+                    retry: { Task { await addActivity(type: type) } }
+                )
             }
         }
     }
@@ -1008,11 +1054,21 @@ struct EditDay: View {
                 }
 
             } catch {
-                NSLog("❌ Failed to upload video: \(error)")
                 await MainActor.run {
                     savingActivityId = nil
                     selectingVideoForActivity = nil
                     AppState.shared.loadingStates.clearState(for: activity.id)
+                    // User just picked/recorded a video — surface it. Retry
+                    // captures the selection result, so the whole link/export/
+                    // upload flow safely re-runs (temp files are only cleaned
+                    // up on success).
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditDay.handleVideoSelected",
+                        surface: true,
+                        friendlyMessage: "Couldn't upload the video",
+                        retry: { handleVideoSelected(result, for: activity) }
+                    )
                 }
             }
         }
@@ -1035,9 +1091,16 @@ struct EditDay: View {
                     onLessonUpdated(updatedLesson)
                 }
             } catch {
-                NSLog("Failed to delete activity: \(error)")
                 await MainActor.run {
                     deletingActivityId = nil
+                    // User confirmed the Delete alert — surface it.
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditDay.deleteActivity",
+                        surface: true,
+                        friendlyMessage: "Couldn't delete the activity",
+                        retry: { deleteActivity(activity) }
+                    )
                 }
             }
         }
@@ -1062,8 +1125,18 @@ struct EditDay: View {
                     activityIds: activityIds
                 )
             } catch {
-                NSLog("Failed to reorder activities: \(error)")
-                // AppState retains the optimistic local order; a refresh will reconcile.
+                // AppState retains the optimistic local order; a refresh will
+                // reconcile. User just dragged to reorder — surface it. Retry
+                // re-reads the (still optimistic) order and persists it again.
+                await MainActor.run {
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditDay.persistActivityOrder",
+                        surface: true,
+                        friendlyMessage: "Couldn't save the new order",
+                        retry: { persistActivityOrder() }
+                    )
+                }
             }
         }
     }
@@ -1196,7 +1269,8 @@ struct LessonPreviewWebView: UIViewRepresentable {
                     webView.load(URLRequest(url: tokenURL))
                 }
             } catch {
-                NSLog("❌ LessonPreviewWebView: failed to get preview token — \(error.localizedDescription)")
+                // Recover: fall back to loading the preview URL without a token.
+                Log.ui.error("LessonPreviewWebView: failed to get preview token — \(error.localizedDescription, privacy: .public)")
                 _ = await MainActor.run {
                     webView.load(URLRequest(url: url))
                 }

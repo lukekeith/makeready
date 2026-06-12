@@ -206,7 +206,11 @@ struct EnrollmentFlowModal: View {
                         lessonDates.insert(dayStart)
                     }
                 } catch {
-                    NSLog("Failed to load enrollment details: \(error)")
+                    // Console-only: per-enrollment prefetch for calendar
+                    // highlights; the loop continues with the others.
+                    await MainActor.run {
+                        AppState.shared.recordError(error, context: "EnrollmentFlowModal.loadEnrollmentsIfNeeded (details)")
+                    }
                 }
             }
 
@@ -216,10 +220,12 @@ struct EnrollmentFlowModal: View {
 
             NSLog("EnrollmentFlowModal: Loaded \(enrollments.count) enrollments, \(lessonDates.count) lesson dates")
         } catch {
-            NSLog("EnrollmentFlowModal: Failed to load enrollments: \(error)")
+            // Console-only: background load in .task; the flow proceeds with
+            // empty "already enrolled" data rather than blocking the wizard.
             await MainActor.run {
                 existingEnrollments = []
                 existingLessonDates = []
+                AppState.shared.recordError(error, context: "EnrollmentFlowModal.loadEnrollmentsIfNeeded")
             }
         }
     }

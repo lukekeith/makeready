@@ -221,8 +221,15 @@ struct EditUserInputActivityPage: View {
                     isSaving = false
                 }
             } catch {
-                NSLog("❌ EditUserInput: save failed — \(error.localizedDescription)")
-                await MainActor.run { isSaving = false }
+                await MainActor.run {
+                    isSaving = false
+                    AppState.shared.recordError(
+                        error,
+                        context: "EditUserInputActivityPage.save",
+                        surface: true,
+                        friendlyMessage: "Couldn't save changes"
+                    )
+                }
             }
         }
     }

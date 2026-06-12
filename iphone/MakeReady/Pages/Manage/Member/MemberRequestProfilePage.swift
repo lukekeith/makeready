@@ -247,7 +247,15 @@ struct MemberRequestProfilePage: View {
             overlayManager.dismiss(.memberRequestProfile)
             onApprove?()
         } catch {
-            NSLog("Failed to approve request: \(error.localizedDescription)")
+            // User tapped Accept — surface; approval by id is safe to re-run
+            // (the page only dismisses on success, so the ids are still valid).
+            state.recordError(
+                error,
+                context: "MemberRequestProfilePage.approveRequest",
+                surface: true,
+                friendlyMessage: "Couldn't approve the request",
+                retry: { Task { await approveRequest() } }
+            )
         }
     }
 

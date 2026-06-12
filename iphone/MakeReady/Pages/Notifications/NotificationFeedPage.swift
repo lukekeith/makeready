@@ -71,13 +71,16 @@ struct NotificationFeedPage: View {
         do {
             try await NotificationActions().loadNotifications()
         } catch {
-            NSLog("❌ NotificationFeedPage: Failed to load notifications: \(error)")
+            // Background feed load — console-only.
+            state.recordError(error, context: "NotificationFeedPage.loadNotifications")
         }
     }
 
     private func handleTap(_ notification: AppNotification) {
         // Mark as read
         if !notification.isRead {
+            // Silent: best-effort read receipt — the unread state self-corrects
+            // on the next feed load, and the user is mid-navigation.
             Task { try? await NotificationActions().markAsRead(ids: [notification.id]) }
         }
 

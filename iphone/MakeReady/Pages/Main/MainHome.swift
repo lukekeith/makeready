@@ -272,7 +272,8 @@ struct MainHome: View {
             activityCursor = response.pagination.nextCursor
             activityHasMore = response.pagination.hasMore
         } catch {
-            NSLog("❌ Failed to load activity logs: \(error)")
+            // Background load — console-only.
+            state.recordError(error, context: "MainHome.loadActivityLogs")
         }
     }
 
@@ -288,7 +289,8 @@ struct MainHome: View {
                 activityCursor = response.pagination.nextCursor
                 activityHasMore = response.pagination.hasMore
             } catch {
-                NSLog("❌ Failed to load more activity logs: \(error)")
+                // Background pagination load — console-only.
+                state.recordError(error, context: "MainHome.loadMoreActivityLogs")
             }
         }
     }
@@ -460,7 +462,15 @@ struct MainHome: View {
                                 }
                             }
                         } catch {
-                            NSLog("Failed to open lesson: \(error)")
+                            // User just tapped "Open Lesson" — surface it.
+                            await MainActor.run {
+                                state.recordError(
+                                    error,
+                                    context: "MainHome.openLesson",
+                                    surface: true,
+                                    friendlyMessage: "Couldn't open the lesson"
+                                )
+                            }
                         }
                     }
                 },
@@ -502,7 +512,15 @@ struct MainHome: View {
                             )
                             await HomeActions().loadCalendarEvents(forceRefresh: true)
                         } catch {
-                            NSLog("Failed to delete lesson: \(error)")
+                            // User just tapped Delete in the lesson menu — surface it.
+                            await MainActor.run {
+                                state.recordError(
+                                    error,
+                                    context: "MainHome.deleteLessonSchedule",
+                                    surface: true,
+                                    friendlyMessage: "Couldn't delete the lesson"
+                                )
+                            }
                         }
                     }
                 }

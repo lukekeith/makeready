@@ -811,7 +811,13 @@ struct EditReadActivityPage: View {
                 }
                 onBlocksChanged?(orderedBlocks)
             } catch {
-                NSLog("Failed to delete read block: \(error)")
+                AppState.shared.recordError(
+                    error,
+                    context: "EditReadActivityPage.deleteBlock",
+                    surface: true,
+                    friendlyMessage: "Couldn't delete the block",
+                    retry: { deleteBlock(block) }
+                )
             }
             deletingBlockId = nil
         }
@@ -1007,7 +1013,12 @@ struct EditReadActivityPage: View {
                 }
                 onBlocksChanged?(orderedBlocks)
             } catch {
-                NSLog("📖 Failed to create custom text block: \(error)")
+                AppState.shared.recordError(
+                    error,
+                    context: "EditReadActivityPage.addCustomTextBlock",
+                    surface: true,
+                    friendlyMessage: "Couldn't add the text block"
+                )
             }
         }
     }
@@ -1173,8 +1184,13 @@ struct EditReadActivityPage: View {
                 isSaving = false
                 hasSaved = true
             } catch {
-                NSLog("📖 Failed to save read activity: \(error)")
                 isSaving = false
+                AppState.shared.recordError(
+                    error,
+                    context: "EditReadActivityPage.save",
+                    surface: true,
+                    friendlyMessage: "Couldn't save changes"
+                )
             }
         }
     }
@@ -1272,7 +1288,13 @@ struct EditReadActivityPage: View {
             do {
                 try await actions.updateReadBlockSelections(activityId, blockId, merged)
             } catch {
-                NSLog("❌ Failed to save selections: \(error.localizedDescription)")
+                AppState.shared.recordError(
+                    error,
+                    context: "EditReadActivityPage.applyStyle",
+                    surface: true,
+                    friendlyMessage: "Couldn't save the highlight",
+                    retry: { applyStyle(style, range: range, blockId: blockId, activityId: activityId) }
+                )
             }
         }
     }
