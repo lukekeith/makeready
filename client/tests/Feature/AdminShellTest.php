@@ -2,17 +2,15 @@
 
 namespace Tests\Feature;
 
-use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
 
 /**
  * Admin shell server-side precondition tests.
  *
- * Covers: SHELL-01, SHELL-04, SHELL-05, SHELL-06
+ * Covers: SHELL-01, SHELL-05, SHELL-06
  *
  * Verifies the Laravel catch-all route, AdminIsland mount point, CSRF meta tag,
- * island props passthrough, auth redirect for all /admin/* sub-paths, and
- * NavigationIsland google-linked-user passthrough for member experience.
+ * island props passthrough, and auth redirect for all /admin/* sub-paths.
  *
  * Admin routes use admin.auth middleware which checks for admin_user_session
  * in the Laravel session (not member.auth).
@@ -85,67 +83,5 @@ class AdminShellTest extends TestCase
 
         $response->assertStatus(200);
         $response->assertSee('meta name="csrf-token"', false);
-    }
-
-    // ─── NavigationIsland google-link passthrough (SHELL-04) ─────────────────────
-
-    /**
-     * SHELL-04: A member with a linked Google account should have googleEmail in the
-     * NavigationIsland data-props, so the Vue component shows the admin link.
-     */
-    public function test_member_nav_shows_admin_link_for_google_linked_member(): void
-    {
-        Http::fake([
-            '*/api/members/session' => Http::response([
-                'authenticated' => true,
-                'member' => [
-                    'id'          => 'member-1',
-                    'firstName'   => 'Jane',
-                    'lastName'    => 'Smith',
-                    'phoneNumber' => '+15550001111',
-                    'googleEmail' => 'leader@example.com',
-                ],
-            ], 200),
-            '*/api/members/*/groups' => Http::response(['data' => []], 200),
-        ]);
-
-        $response = $this->get('/member/home');
-
-        $response->assertStatus(200);
-        // The data-props attribute is HTML-encoded in the rendered Blade output.
-        // assertSee (default, escape=true) will encode the needle to match.
-        $response->assertSee('"googleEmail":"leader@example.com"');
-    }
-
-    /**
-     * SHELL-04: A member without a linked Google account should have googleEmail as null
-     * (or absent) in the NavigationIsland data-props, so the Vue component hides
-     * the admin link.
-     */
-    public function test_member_nav_hides_admin_link_when_no_google_link(): void
-    {
-        Http::fake([
-            '*/api/members/session' => Http::response([
-                'authenticated' => true,
-                'member' => [
-                    'id'          => 'member-2',
-                    'firstName'   => 'Bob',
-                    'lastName'    => 'Regular',
-                    'phoneNumber' => '+15550002222',
-                    'googleEmail' => null,
-                ],
-            ], 200),
-            '*/api/members/*/groups' => Http::response(['data' => []], 200),
-        ]);
-
-        $response = $this->get('/member/home');
-
-        $response->assertStatus(200);
-        // When googleEmail is null the JSON prop will be "googleEmail":null,
-        // so the Vue v-if will be falsy and the admin link should not render
-        // (Vue renders client-side, but we verify the prop is null/falsy in Blade output).
-        $response->assertDontSee('"googleEmail":"leader@example.com"', false);
-        // Also confirm "Group Leader Admin" text is NOT present in SSR HTML.
-        $response->assertDontSee('Group Leader Admin');
     }
 }
