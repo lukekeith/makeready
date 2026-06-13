@@ -19,25 +19,6 @@
 
 @section('content')
 <main class="GroupsPage">
-    <div data-vue="NavigationIsland" data-props="{{ json_encode([
-        'selected'         => 'home',
-        'avatarUrl'        => $member['profilePicture'] ?? $member['avatarUrl'] ?? null,
-        'initials'         => $initials ?? '?',
-        'homeHref'         => route('home'),
-        'profileHref'      => route('profile'),
-        'memberName'       => ($member['firstName'] ?? '') . ' ' . ($member['lastName'] ?? ''),
-        'memberPhone'      => format_phone($member['phoneNumber'] ?? $member['phone'] ?? null),
-        'memberFirstName'  => $member['firstName'] ?? '',
-        'memberLastName'   => $member['lastName'] ?? '',
-        'memberGender'     => $member['gender'] ?? '',
-        'memberBirthday'   => $member['birthday'] ?? '',
-        'memberId'         => $member['id'] ?? '',
-        'googleEmail'      => $member['googleEmail'] ?? null,
-        'googlePicture'    => $member['googlePicture'] ?? $member['profilePicture'] ?? null,
-        'logoutUrl'        => route('logout'),
-        'csrfToken'        => csrf_token(),
-    ], JSON_HEX_TAG) }}"></div>
-
     <div class="GroupsPage__content">
         <x-panel.page-title title="Groups" />
 
