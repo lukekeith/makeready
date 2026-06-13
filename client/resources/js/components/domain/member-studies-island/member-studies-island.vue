@@ -80,10 +80,20 @@ function badgeFor(complete: boolean, overdue: boolean): Badge {
   return { label: 'UP NEXT', variant: 'next' }
 }
 
+// Lesson-level completion across the whole study, driving the card's progress
+// bar. Lessons carry server-derived completedAt, so a lesson counts as done once
+// it has a completion timestamp.
+function completionOf(lessons: StudyLessonInput[]): { completed: number; total: number; fraction: number } {
+  const total = lessons.length
+  const completed = lessons.filter((l) => l.completedAt).length
+  return { completed, total, fraction: total ? completed / total : 0 }
+}
+
 const cards = computed(() =>
   props.studies.map((study) => {
+    const { completed, total, fraction } = completionOf(study.lessons)
     const raw = nextLesson(study.lessons)
-    if (!raw) return { study, lesson: null as StudyLesson | null, state: 'incomplete' as LessonState, daysUntil: 0, badge: { label: null, variant: 'next' } as Badge, href: null as string | null }
+    if (!raw) return { study, lesson: null as StudyLesson | null, state: 'incomplete' as LessonState, daysUntil: 0, badge: { label: null, variant: 'next' } as Badge, href: null as string | null, completed, total, fraction }
     const available = isAvailable(raw)
     const complete = !!raw.completedAt
     const ago = daysAgo(raw)
@@ -100,6 +110,9 @@ const cards = computed(() =>
       // (locked) lessons can't be opened yet, so the whole card goes to the
       // study home page (calendar + lesson list) instead.
       href: state === 'unavailable' ? study.studyHref ?? null : raw.href ?? null,
+      completed,
+      total,
+      fraction,
     }
   })
 )
@@ -127,6 +140,12 @@ const cards = computed(() =>
         <div class="EnrolledStudyCard__details">
           <p class="EnrolledStudyCard__title">{{ card.study.title }}</p>
           <p v-if="card.study.description" class="EnrolledStudyCard__description">{{ card.study.description }}</p>
+          <div v-if="card.total > 0" class="EnrolledStudyCard__progress">
+            <div class="EnrolledStudyCard__progress-track">
+              <div class="EnrolledStudyCard__progress-fill" :style="{ width: card.fraction * 100 + '%' }" />
+            </div>
+            <span class="EnrolledStudyCard__progress-label">{{ card.completed }} of {{ card.total }} lessons complete</span>
+          </div>
         </div>
       </component>
 

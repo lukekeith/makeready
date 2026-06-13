@@ -56,6 +56,34 @@
     color: rgba(255, 255, 255, 0.7);
   }
 
+  // Lesson-level completion bar (completed / total lessons in the study).
+  &__progress {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+  }
+
+  &__progress-track {
+    height: 4px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.15);
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: #fff;
+    transition: width 300ms ease;
+  }
+
+  &__progress-label {
+    font-size: 12px;
+    line-height: 16px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
   // The embedded lesson is now rendered by the shared <LessonCard> component
   // (see member-studies-island.vue / lesson-card.scss). When the lesson is open
   // (available/complete) it's wrapped in this anchor so the whole card links
