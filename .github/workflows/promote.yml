@@ -33,6 +33,9 @@ jobs:
     if: github.event.inputs.confirm == 'promote'
 
     steps:
+      # serviceInstanceDeployV2 builds the LATEST commit on the connected
+      # branch. (serviceInstanceRedeploy only restarts the existing image —
+      # using it here silently froze production at the June 2 build.)
       - name: Deploy Web
         if: contains(github.event.inputs.service, 'Web') || github.event.inputs.service == 'All'
         run: |
@@ -40,7 +43,7 @@ jobs:
           curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$WEB_SERVICE_ID\\\") }\"}" \
+            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$WEB_SERVICE_ID\\\") }\"}" \
             | tee /tmp/web-response.json
           echo ""
 
@@ -58,7 +61,7 @@ jobs:
           curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$API_SERVICE_ID\\\") }\"}" \
+            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$API_SERVICE_ID\\\") }\"}" \
             | tee /tmp/api-response.json
           echo ""
 
@@ -76,7 +79,7 @@ jobs:
           curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceRedeploy(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$CAPTURE_SERVICE_ID\\\") }\"}" \
+            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$CAPTURE_SERVICE_ID\\\") }\"}" \
             | tee /tmp/capture-response.json
           echo ""
 
