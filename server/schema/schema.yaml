@@ -1325,6 +1325,10 @@ models:
       createdAt:
         type: datetime
         default: now()
+    relations:
+      queries:
+        type: one_to_many
+        target: PassageQuery
     indexes:
       - fields: [bookNumber, chapter]
       # NOTE: bible_passages_embedding_hnsw_idx is hand-managed in migrations
@@ -1373,6 +1377,43 @@ models:
       # (see verses_embedding_hnsw_idx note above)
     unique:
       - fields: [translationId, bookNumber, chapter, verseStart, verseEnd]
+
+  # Index-time generated queries ("doc2query"): natural-language questions each
+  # pericope answers, embedded so a user's question matches the passage even
+  # when its wording differs. One row per generated question (≈8 per pericope).
+  PassageQuery:
+    table_name: passage_queries
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      biblePassageId:
+        type: string
+      text:
+        type: text
+        description: "LLM-generated question the passage answers (doc2query)"
+      embedding:
+        type: unsupported
+        db_type: "vector(384)"
+        nullable: true
+        description: "Embedding of the generated question (bge-small-en-v1.5)"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      biblePassage:
+        type: many_to_one
+        target: BiblePassage
+        fields: [biblePassageId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [biblePassageId]
+      # NOTE: passage_queries_embedding_hnsw_idx is hand-managed in migrations
+      # (see verses_embedding_hnsw_idx note on the Verse model)
+    unique:
+      - fields: [biblePassageId, text]
 
   Highlight:
     table_name: highlights

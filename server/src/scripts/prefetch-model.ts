@@ -1,14 +1,15 @@
 /**
- * Prefetch Embedding Model
+ * Prefetch Local Models
  *
- * Downloads the embedding model weights into HF_CACHE_DIR and runs a smoke
- * test. Used:
+ * Downloads the embedding AND reranker model weights into HF_CACHE_DIR and runs
+ * smoke tests. Used:
  * - in the Docker build (bakes weights into the image so Railway never
- *   downloads from HuggingFace at runtime)
+ *   downloads from HuggingFace at runtime — the filesystem is ephemeral)
  * - locally as a sanity check: npm run model:prefetch
  */
 
 import { embedQuery, EMBEDDING_DIMS, EMBEDDING_MODEL } from '../services/embeddings.js'
+import { rerank } from '../services/reranker.js'
 
 async function main() {
   const started = Date.now()
@@ -24,7 +25,21 @@ async function main() {
     throw new Error(`Expected normalized vector, got norm=${norm}`)
   }
 
-  console.log(`OK: ${vector.length} dims, norm=${norm.toFixed(4)}, first values [${vector.slice(0, 3).map(v => v.toFixed(4)).join(', ')}], ${Date.now() - started}ms`)
+  console.log(`OK embeddings: ${vector.length} dims, norm=${norm.toFixed(4)}, ${Date.now() - started}ms`)
+
+  // Reranker: bake the cross-encoder in too, and assert it ranks an obviously
+  // relevant doc above an irrelevant one (guards against a bad ONNX export
+  // silently inverting ranking, which we hit with bge-reranker-base).
+  const rerankStart = Date.now()
+  const scores = await rerank('the parable of the prodigal son', [
+    'A certain man had two sons. The younger son traveled into a far country and wasted his property with riotous living.',
+    'In the beginning God created the heavens and the earth.',
+  ])
+  if (!scores) throw new Error('Reranker returned null (disabled or failed to load)')
+  if (scores[0] <= scores[1]) {
+    throw new Error(`Reranker ranking looks inverted: relevant=${scores[0].toFixed(2)} <= irrelevant=${scores[1].toFixed(2)}`)
+  }
+  console.log(`OK reranker: relevant=${scores[0].toFixed(2)} > irrelevant=${scores[1].toFixed(2)}, ${Date.now() - rerankStart}ms`)
 }
 
 main()

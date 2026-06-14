@@ -40,11 +40,24 @@
 import { prisma, Prisma } from '../lib/prisma.js'
 import { embedQuery, embedQueries } from './embeddings.js'
 import { expandQuery } from './query-expansion.js'
+import { rerank } from './reranker.js'
 import { getBookByNumber, buildVerseId } from '../utils/bible-id-map.js'
 
 /** Minimum cosine similarity for a verse to count as a match.
  *  bge cosine scores compress into roughly 0.5–0.85; tune via env. */
 const SIMILARITY_THRESHOLD = parseFloat(process.env.SEMANTIC_SIM_THRESHOLD ?? '0.6')
+
+/** Reciprocal Rank Fusion constant. Standard 60; larger = flatter weighting
+ *  across arms (top-rank dominance softened). */
+const RRF_K = parseInt(process.env.SEMANTIC_RRF_K ?? '60', 10)
+
+/** How many top fused candidates the cross-encoder reranks. Bounded so rerank
+ *  stays within the search budget on CPU. */
+const RERANK_POOL = parseInt(process.env.SEMANTIC_RERANK_POOL ?? '25', 10)
+
+/** doc2query retrieval arm (generated questions → pericope). Toggle off to fall
+ *  back to dense + lexical only. */
+const DOC2QUERY_ENABLED = process.env.SEMANTIC_DOC2QUERY_ENABLED !== 'false'
 
 /** Hard cap on a single semantic search, model load included. */
 const SEARCH_TIMEOUT_MS = parseInt(process.env.SEMANTIC_SEARCH_TIMEOUT_MS ?? '8000', 10)
@@ -112,31 +125,42 @@ async function searchInternal(
   // its latency overlaps instead of adding to it.
   const variantsPromise = expandQuery(query)
   const vector = await embedQuery(query)
-  const baseline = await retrieveCandidates(vector, limit)
+
+  // The user's actual query contributes dense (verse/window/pericope) AND
+  // lexical arms; variants contribute dense arms only (lexical matching on a
+  // paraphrase the user never typed adds noise, not recall).
+  const arms: Arm[] = await retrieveArms(vector, limit, query)
 
   const variants = await variantsPromise
-  const fused = new Map<string, Candidate>(baseline)
   if (variants.length > 0) {
     const variantVectors = await embedQueries(variants)
-    const variantResults = await Promise.all(variantVectors.map((v) => retrieveCandidates(v, limit)))
-    // Max-sim fusion: a candidate keeps its best similarity across the
-    // original query and all variants.
-    for (const result of variantResults) {
-      for (const [key, c] of result) {
-        const prev = fused.get(key)
-        if (!prev || c.similarity > prev.similarity) fused.set(key, c)
-      }
-    }
+    const variantArms = await Promise.all(variantVectors.map((v) => retrieveArms(v, limit)))
+    for (const set of variantArms) arms.push(...set)
   }
 
-  const candidates = [...fused.values()]
-    .filter((c) => c.similarity >= SIMILARITY_THRESHOLD)
-    .sort((a, b) => b.similarity - a.similarity)
+  // Reciprocal Rank Fusion across every arm: a candidate's score is the sum of
+  // 1/(K+rank) over each ranked list it appears in — robust to the fact that
+  // cosine similarity and ts_rank live on different scales. Dense cosine is
+  // retained (max across arms) as the displayed score and the dense relevance
+  // gate; lexical-only hits (exact names/quotes that dense embeddings miss)
+  // bypass that gate so they can surface.
+  const fused = fuseArms(arms)
 
-  // Greedy merge: best similarity wins, overlapping candidates are dropped
+  const candidates = [...fused.values()]
+    .filter((e) => e.sim >= SIMILARITY_THRESHOLD || e.lexical)
+    .sort((a, b) => b.rrf - a.rrf)
+    .map((e) => ({ ...e.cand, similarity: e.sim }))
+
+  // Second stage: re-order the top fused candidates by a cross-encoder's true
+  // query↔passage relevance — fixes RRF's tendency to float a multiply-retrieved
+  // mediocre verse above the single best passage. Fail-open: on disable/timeout
+  // the RRF order stands.
+  const ranked = await rerankCandidates(query, candidates)
+
+  // Greedy merge: best-ranked wins, overlapping candidates are dropped
   // (a verse inside an already-taken window, a window covering a taken verse)
   const taken: Candidate[] = []
-  for (const c of candidates) {
+  for (const c of ranked) {
     if (taken.length >= limit) break
     const overlaps = taken.some(
       (t) =>
@@ -178,21 +202,35 @@ async function searchInternal(
   }
 }
 
-/**
- * Top candidates from all three granularities for one query vector, keyed by
- * granularity + span so results for different query variants can be fused.
- */
-async function retrieveCandidates(vector: number[], limit: number): Promise<Map<string, Candidate>> {
-  const vectorLiteral = `[${vector.join(',')}]`
+/** One ranked retrieval arm: candidates in the arm's native order (best first),
+ *  each tagged with whether the arm is the lexical (full-text) one. */
+type Arm = Array<{ key: string; cand: Candidate; lexical: boolean }>
 
-  const [verseRows, windowRows, passageRows] = await Promise.all([
+// Fuse key is a span ("book:chapter:start:end"), granularity-agnostic, so the
+// SAME verse found by the dense and lexical arms fuses into one entry (and
+// accumulates RRF from both), while a verse and a window/pericope covering it
+// stay distinct (de-overlap resolves those later).
+
+/**
+ * Run all retrieval arms for one query vector and return each as an ORDERED
+ * list (preserving the arm's native ranking) so Reciprocal Rank Fusion can use
+ * positions. Dense arms: single verses, 3-verse windows, pericope cards. When
+ * `lexicalQuery` is provided, a Postgres full-text arm over verses is added —
+ * it carries each hit's cosine similarity too, so lexical-only candidates still
+ * get a real displayed score.
+ */
+async function retrieveArms(vector: number[], limit: number, lexicalQuery?: string): Promise<Arm[]> {
+  const vectorLiteral = `[${vector.join(',')}]`
+  const k = limit * 4 // wider pool than the old limit*2 so fusion has signal to combine
+
+  const dense = Promise.all([
     prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verse: number; text: string; similarity: number }>>(
       Prisma.sql`SELECT v."bookNumber", v.chapter, v.verse, v.text,
                         1 - (v."embedding" <=> ${vectorLiteral}::vector) AS similarity
                  FROM verses v
                  WHERE v."embedding" IS NOT NULL
                  ORDER BY v."embedding" <=> ${vectorLiteral}::vector
-                 LIMIT ${limit * 2}`
+                 LIMIT ${k}`
     ),
     prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; text: string; similarity: number }>>(
       Prisma.sql`SELECT w."bookNumber", w.chapter, w."verseStart", w."verseEnd", w.text,
@@ -200,7 +238,7 @@ async function retrieveCandidates(vector: number[], limit: number): Promise<Map<
                  FROM verse_windows w
                  WHERE w."embedding" IS NOT NULL
                  ORDER BY w."embedding" <=> ${vectorLiteral}::vector
-                 LIMIT ${limit * 2}`
+                 LIMIT ${k}`
     ),
     prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; title: string; summary: string; openingText: string; similarity: number }>>(
       Prisma.sql`SELECT p."bookNumber", p.chapter, p."verseStart", p."verseEnd", p.title, p.summary, p."openingText",
@@ -208,18 +246,114 @@ async function retrieveCandidates(vector: number[], limit: number): Promise<Map<
                  FROM bible_passages p
                  WHERE p."embedding" IS NOT NULL
                  ORDER BY p."embedding" <=> ${vectorLiteral}::vector
-                 LIMIT ${limit * 2}`
+                 LIMIT ${k}`
     ),
   ])
 
-  const candidates = new Map<string, Candidate>()
-  const add = (src: string, c: Candidate) =>
-    candidates.set(`${src}:${c.bookNumber}:${c.chapter}:${c.verseStart}:${c.verseEnd}`, c)
+  // Lexical full-text arm (verses only). `websearch_to_tsquery` handles plain
+  // user input ("david goliath", quoted phrases) safely; ranking by ts_rank_cd
+  // but also returning cosine so the result still shows a meaningful score.
+  const lexical = lexicalQuery
+    ? prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verse: number; text: string; similarity: number }>>(
+        Prisma.sql`SELECT v."bookNumber", v.chapter, v.verse, v.text,
+                          1 - (v."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                   FROM verses v, websearch_to_tsquery('english', ${lexicalQuery}) AS q
+                   WHERE v."searchVector" @@ q
+                   ORDER BY ts_rank_cd(v."searchVector", q) DESC
+                   LIMIT ${k}`
+      )
+    : Promise.resolve([])
 
-  verseRows.forEach((r) => add('verse', { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verse, verseEnd: r.verse, text: r.text, similarity: r.similarity }))
-  windowRows.forEach((r) => add('window', { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.text, similarity: r.similarity }))
-  passageRows.forEach((r) => add('pericope', { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.openingText, similarity: r.similarity, title: r.title, summary: r.summary }))
-  return candidates
+  // doc2query arm: nearest generated questions (passage_queries) → the pericope
+  // they index. This bridges how people ASK to where the answer lives, even
+  // when the passage's own wording shares nothing with the query. Pull extra
+  // and dedupe to the best question per passage (HNSW-friendly: ORDER BY
+  // distance alone). Empty until the embeddings are backfilled; toggleable.
+  const doc2query = DOC2QUERY_ENABLED
+    ? prisma.$queryRaw<Array<{ bookNumber: number; chapter: number; verseStart: number; verseEnd: number; title: string; summary: string; openingText: string; similarity: number }>>(
+        Prisma.sql`SELECT p."bookNumber", p.chapter, p."verseStart", p."verseEnd", p.title, p.summary, p."openingText",
+                          1 - (q."embedding" <=> ${vectorLiteral}::vector) AS similarity
+                   FROM passage_queries q
+                   JOIN bible_passages p ON p.id = q."biblePassageId"
+                   WHERE q."embedding" IS NOT NULL
+                   ORDER BY q."embedding" <=> ${vectorLiteral}::vector
+                   LIMIT ${k * 3}`
+      )
+    : Promise.resolve([])
+
+  const [verseRows, windowRows, passageRows] = await dense
+  const lexRows = await lexical
+  const dqRows = await doc2query
+
+  const arms: Arm[] = [
+    verseRows.map((r) => ({ key: `${r.bookNumber}:${r.chapter}:${r.verse}:${r.verse}`, lexical: false, cand: { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verse, verseEnd: r.verse, text: r.text, similarity: r.similarity } })),
+    windowRows.map((r) => ({ key: `${r.bookNumber}:${r.chapter}:${r.verseStart}:${r.verseEnd}`, lexical: false, cand: { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.text, similarity: r.similarity } })),
+    passageRows.map((r) => ({ key: `${r.bookNumber}:${r.chapter}:${r.verseStart}:${r.verseEnd}`, lexical: false, cand: { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.openingText, similarity: r.similarity, title: r.title, summary: r.summary } })),
+  ]
+  if (lexRows.length > 0) {
+    arms.push(lexRows.map((r) => ({ key: `${r.bookNumber}:${r.chapter}:${r.verse}:${r.verse}`, lexical: true, cand: { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verse, verseEnd: r.verse, text: r.text, similarity: r.similarity } })))
+  }
+  if (dqRows.length > 0) {
+    // Dedupe to best (first = nearest) question per passage span, preserving order.
+    const seen = new Set<string>()
+    const dqArm: Arm = []
+    for (const r of dqRows) {
+      const key = `${r.bookNumber}:${r.chapter}:${r.verseStart}:${r.verseEnd}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      dqArm.push({ key, lexical: false, cand: { bookNumber: r.bookNumber, chapter: r.chapter, verseStart: r.verseStart, verseEnd: r.verseEnd, text: r.openingText, similarity: r.similarity, title: r.title, summary: r.summary } })
+      if (dqArm.length >= limit * 4) break
+    }
+    arms.push(dqArm)
+  }
+  return arms
+}
+
+interface FusedEntry { rrf: number; sim: number; cand: Candidate; lexical: boolean }
+
+/** Reciprocal Rank Fusion over every arm. Accumulates RRF score, tracks the max
+ *  cosine similarity (for display + the dense gate), flags whether any lexical
+ *  arm contributed, and prefers a pericope card as the representative candidate
+ *  when one collides on the same span. */
+function fuseArms(arms: Arm[]): Map<string, FusedEntry> {
+  const fused = new Map<string, FusedEntry>()
+  for (const arm of arms) {
+    arm.forEach(({ key, cand, lexical }, i) => {
+      const contribution = 1 / (RRF_K + i + 1)
+      const prev = fused.get(key)
+      if (!prev) {
+        fused.set(key, { rrf: contribution, sim: cand.similarity, cand, lexical })
+      } else {
+        prev.rrf += contribution
+        if (cand.similarity > prev.sim) prev.sim = cand.similarity
+        if (lexical) prev.lexical = true
+        if (cand.title && !prev.cand.title) prev.cand = cand
+      }
+    })
+  }
+  return fused
+}
+
+/**
+ * Reorder the top `RERANK_POOL` candidates by cross-encoder relevance to the
+ * original query, leaving the long tail in its RRF order. A pericope is
+ * represented to the reranker by its concept card (title + summary); verses and
+ * windows by their text. Returns the input unchanged when reranking is
+ * disabled, times out, or fails.
+ */
+async function rerankCandidates(query: string, candidates: Candidate[]): Promise<Candidate[]> {
+  const pool = candidates.slice(0, RERANK_POOL)
+  if (pool.length <= 1) return candidates
+
+  const docs = pool.map((c) => (c.title ? `${c.title}. ${c.summary ?? ''}`.trim() : c.text))
+  const scores = await rerank(query, docs)
+  if (!scores) return candidates
+
+  const reordered = pool
+    .map((c, i) => ({ c, s: scores[i] ?? -Infinity }))
+    .sort((a, b) => b.s - a.s)
+    .map((x) => x.c)
+  return [...reordered, ...candidates.slice(RERANK_POOL)]
 }
 
 /**

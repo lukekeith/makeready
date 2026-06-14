@@ -40,7 +40,7 @@ interface VerseRow {
 
 /** Embed all NULL-embedding rows of a table in batches, with progress logging.
  *  The text column embedded for bible_passages is the pre-built concept card. */
-async function embedTable(table: 'verses' | 'verse_windows' | 'bible_passages', translationId?: string) {
+async function embedTable(table: 'verses' | 'verse_windows' | 'bible_passages' | 'passage_queries', translationId?: string) {
   const where = translationId
     ? Prisma.sql`"translationId" = ${translationId}::uuid AND "embedding" IS NULL`
     : Prisma.sql`"embedding" IS NULL`
@@ -215,13 +215,18 @@ async function embedBible() {
     const hasPassages = await createPassages(translation.id)
     if (hasPassages) await embedTable('bible_passages')
 
-    const verify = await prisma.$queryRaw<[{ v: bigint; w: bigint; p: bigint }]>(
+    // Pass 4: doc2query — generated questions per pericope (rows created by
+    // generate-passage-queries.ts; here we just embed the question text).
+    await embedTable('passage_queries')
+
+    const verify = await prisma.$queryRaw<[{ v: bigint; w: bigint; p: bigint; q: bigint }]>(
       Prisma.sql`SELECT
         (SELECT count(*) FROM verses WHERE "translationId" = ${translation.id}::uuid AND "embedding" IS NULL) AS v,
         (SELECT count(*) FROM verse_windows WHERE "translationId" = ${translation.id}::uuid AND "embedding" IS NULL) AS w,
-        (SELECT count(*) FROM bible_passages WHERE "embedding" IS NULL) AS p`
+        (SELECT count(*) FROM bible_passages WHERE "embedding" IS NULL) AS p,
+        (SELECT count(*) FROM passage_queries WHERE "embedding" IS NULL) AS q`
     )
-    console.log(`\n🎉 Backfill complete. Remaining without embedding: ${Number(verify[0].v)} verses, ${Number(verify[0].w)} windows, ${Number(verify[0].p)} passages`)
+    console.log(`\n🎉 Backfill complete. Remaining without embedding: ${Number(verify[0].v)} verses, ${Number(verify[0].w)} windows, ${Number(verify[0].p)} passages, ${Number(verify[0].q)} passage-queries`)
   } catch (error) {
     console.error('\n❌ Embedding backfill failed:', error)
     process.exitCode = 1

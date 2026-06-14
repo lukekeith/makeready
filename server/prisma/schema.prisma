@@ -599,6 +599,8 @@ model BiblePassage {
   embedding            Unsupported("vector(384)")? // Embedding of the concept card (title + summary + themes)
   createdAt            DateTime @default(now())
 
+  queries              PassageQuery[]
+
   @@unique([bookNumber, chapter, verseStart, verseEnd])
   @@index([bookNumber, chapter])
   @@map("bible_passages")
@@ -620,6 +622,20 @@ model VerseWindow {
   @@unique([translationId, bookNumber, chapter, verseStart, verseEnd])
   @@index([translationId, bookNumber, chapter])
   @@map("verse_windows")
+}
+
+model PassageQuery {
+  id                   String @id @default(uuid())
+  biblePassageId       String
+  text                 String @db.Text // LLM-generated question the passage answers (doc2query)
+  embedding            Unsupported("vector(384)")? // Embedding of the generated question (bge-small-en-v1.5)
+  createdAt            DateTime @default(now())
+
+  biblePassage         BiblePassage @relation(fields: [biblePassageId], references: [id], onDelete: Cascade)
+
+  @@unique([biblePassageId, text])
+  @@index([biblePassageId])
+  @@map("passage_queries")
 }
 
 model Highlight {
