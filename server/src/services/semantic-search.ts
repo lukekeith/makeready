@@ -148,7 +148,10 @@ async function searchInternal(
 
   const candidates = [...fused.values()]
     .filter((e) => e.sim >= SIMILARITY_THRESHOLD || e.lexical)
-    .sort((a, b) => b.rrf - a.rrf)
+    // RRF score first; break ties by cosine similarity so that when two
+    // candidates are tied on fused rank (e.g. a verse and the window covering
+    // it, each rank-1 in its own arm) the higher-cosine one wins.
+    .sort((a, b) => b.rrf - a.rrf || b.sim - a.sim)
     .map((e) => ({ ...e.cand, similarity: e.sim }))
 
   // Second stage: re-order the top fused candidates by a cross-encoder's true

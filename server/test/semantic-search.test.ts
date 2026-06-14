@@ -34,6 +34,15 @@ vi.mock('../src/services/query-expansion.js', () => ({
   isExpansionEnabled: () => true,
 }))
 
+// Reranker returns null (fail-open) so the first-stage RRF order is preserved —
+// keeps these fusion/resolution tests deterministic and avoids loading the
+// cross-encoder model in CI. Reranking is covered by its own test below.
+const mockRerank = vi.fn()
+vi.mock('../src/services/reranker.js', () => ({
+  rerank: mockRerank,
+  isRerankerEnabled: () => true,
+}))
+
 vi.mock('../src/lib/prisma.js', () => ({
   prisma: {
     $queryRaw: mockQueryRaw,
@@ -69,10 +78,24 @@ type PassageRow = {
   title: string; summary: string; openingText: string; similarity: number
 }
 
-/** Route the three pgvector queries (verses / verse_windows / bible_passages) to their fixtures. */
-function setRows(verseRows: VerseRow[], windowRows: WindowRow[] = [], passageRows: PassageRow[] = []) {
+/**
+ * Route each retrieval arm's pgvector/full-text query to its fixture. Order
+ * matters: doc2query joins bible_passages so it must be matched first, and the
+ * lexical arm selects FROM verses so it must be matched before the dense verse
+ * fallback. Lexical and doc2query default to empty so the dense arms can be
+ * tested in isolation.
+ */
+function setRows(
+  verseRows: VerseRow[],
+  windowRows: WindowRow[] = [],
+  passageRows: PassageRow[] = [],
+  lexicalRows: VerseRow[] = [],
+  doc2queryRows: PassageRow[] = [],
+) {
   mockQueryRaw.mockImplementation(async (q: { strings: readonly string[] }) => {
     const sql = q.strings.join('')
+    if (sql.includes('passage_queries')) return doc2queryRows
+    if (sql.includes('websearch_to_tsquery')) return lexicalRows
     if (sql.includes('bible_passages')) return passageRows
     if (sql.includes('verse_windows')) return windowRows
     return verseRows
@@ -95,6 +118,7 @@ beforeEach(() => {
   mockEmbedQuery.mockResolvedValue(new Array(384).fill(0.05))
   mockEmbedQueries.mockResolvedValue([])
   mockExpandQuery.mockResolvedValue([])
+  mockRerank.mockResolvedValue(null) // fail-open: keep first-stage RRF order
   mockTranslationFindUnique.mockResolvedValue(null)
   mockResolveBibleId.mockResolvedValue(null)
 })
@@ -362,6 +386,45 @@ describe('searchVersesSemantic', () => {
 
     await expect(searchVersesSemantic('a query', 'NASB', 10)).rejects.toThrow('model load failed')
   })
+
+  it('surfaces a lexical-only hit even below the dense threshold (proper-noun recall)', async () => {
+    // Dense finds nothing; the full-text arm finds a verse whose cosine is below
+    // the 0.6 gate — it must still appear because the lexical match is valid.
+    setRows([], [], [], [
+      verseRow({ bookNumber: 1, chapter: 14, verse: 18, similarity: 0.42, text: 'Melchizedek king of Salem' }),
+    ])
+
+    const result = await searchVersesSemantic('Melchizedek', 'WEB', 10)
+
+    expect(result.results.map((r) => r.reference)).toEqual(['Genesis 14:18'])
+  })
+
+  it('surfaces a pericope via the doc2query arm', async () => {
+    setRows([], [], [], [], [{
+      bookNumber: 42, chapter: 15, verseStart: 11, verseEnd: 24,
+      title: 'The Parable of the Prodigal Son', summary: 's', openingText: 'opening …', similarity: 0.7,
+    }])
+
+    const result = await searchVersesSemantic('how do I come home after failing', 'WEB', 10)
+
+    expect(result.results[0]).toMatchObject({
+      reference: 'Luke 15:11-24',
+      title: 'The Parable of the Prodigal Son',
+    })
+  })
+
+  it('reranks the fused candidates by cross-encoder score', async () => {
+    setRows([
+      verseRow({ bookNumber: 43, chapter: 3, verse: 16, similarity: 0.82, text: 'higher RRF rank' }),
+      verseRow({ bookNumber: 45, chapter: 8, verse: 28, similarity: 0.80, text: 'lower RRF rank' }),
+    ])
+    // Cross-encoder prefers the second candidate — it should move to the top.
+    mockRerank.mockResolvedValue([0.1, 0.9])
+
+    const result = await searchVersesSemantic('a query', 'WEB', 10)
+
+    expect(result.results.map((r) => r.reference)).toEqual(['Romans 8:28', 'John 3:16'])
+  })
 })
 
 describe('query expansion fusion', () => {
@@ -374,13 +437,16 @@ describe('query expansion fusion', () => {
       const sql = q.strings.join('')
       const isVariant = String(q.values[0]).startsWith('[0.07')
       const set = (isVariant ? fixtures.variant : fixtures.baseline) ?? {}
+      // Lexical + doc2query arms are out of scope for these fusion fixtures.
+      if (sql.includes('passage_queries')) return []
+      if (sql.includes('websearch_to_tsquery')) return []
       if (sql.includes('bible_passages')) return set.passages ?? []
       if (sql.includes('verse_windows')) return set.windows ?? []
       return set.verses ?? []
     })
   }
 
-  it('keeps the best similarity across original and variant retrievals (max-sim fusion)', async () => {
+  it('keeps the best similarity across original and variant retrievals (RRF fusion, max cosine shown)', async () => {
     mockExpandQuery.mockResolvedValue(['the heavens declare the glory of God'])
     mockEmbedQueries.mockResolvedValue([new Array(384).fill(0.07)])
     setRowsByVector({
@@ -424,7 +490,7 @@ describe('query expansion fusion', () => {
 
     expect(result.total).toBe(1)
     expect(mockEmbedQueries).not.toHaveBeenCalled()
-    // 3 granularity queries for the baseline only
-    expect(mockQueryRaw).toHaveBeenCalledTimes(3)
+    // Baseline only: 3 dense arms (verses/windows/passages) + lexical + doc2query
+    expect(mockQueryRaw).toHaveBeenCalledTimes(5)
   })
 })
