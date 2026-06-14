@@ -18,13 +18,14 @@ export class GentleFade extends ThemeBase {
   readonly name = 'Gentle Fade'
   readonly slug = 'gentle-fade'
   readonly description = 'Centered auto-scaling fade — headings first, then content in sequence'
+  override readonly usesNativeScroll = true
 
   private trackWrap: HTMLElement | null = null
 
   override mount(context: ThemeContext): void {
     super.mount(context)
     const container = context.container
-    container.classList.add('theme-gentle-fade-container')
+    container.classList.add('theme-gentle-fade-container', 'theme-native-scroll')
     const totalChars = context.tokens.reduce((n, t) => n + t.text.length, 0)
     container.classList.add(this.scaleClass(totalChars))
   }
@@ -36,7 +37,7 @@ export class GentleFade extends ThemeBase {
     const container = this.context?.container
     if (!container) return
 
-    // Wrap all phase elements in a track so we can translateY when content overflows
+    // Wrap all phase elements in a track so the container can scroll them
     const wrap = document.createElement('div')
     wrap.className = 'gf-track'
     const phases = Array.from(container.querySelectorAll('.ThemePlayer__phase'))
@@ -46,9 +47,10 @@ export class GentleFade extends ThemeBase {
   }
 
   override unmount(): void {
+    this.teardownNativeScroll()
     const container = this.context?.container
     if (!container) return
-    container.classList.remove('theme-gentle-fade-container')
+    container.classList.remove('theme-gentle-fade-container', 'theme-native-scroll')
     container.className = container.className
       .replace(/\bscale-\S+/g, '')
       .trim()
@@ -71,42 +73,12 @@ export class GentleFade extends ThemeBase {
       }
     }
 
-    // Scroll up if revealed content exceeds the container
-    this.scrollTrack(phaseIndex)
-  }
-
-  /**
-   * Position the track so the first revealed phase is always visible at the
-   * top of the container, never clipped above it by `justify-content: center`.
-   *
-   * Under flex-center with overflow, the track's natural top sits at
-   * `-(totalContentH - containerH) / 2` (above the container). We correct
-   * for that with `overflow_total/2` so the top parks at the container's
-   * padded top. As phases reveal and the revealed height exceeds the
-   * container, we let it teleprompter-scroll up so the latest phase stays
-   * at the bottom — `shiftY = min(0, containerH - revealedH)`.
-   */
-  private scrollTrack(revealedUpTo: number): void {
-    if (!this.trackWrap || !this.context) return
-
-    const container = this.context.container
-    const containerH = container.clientHeight - 96  // subtract padding (48 * 2)
-    const totalContentH = this.trackWrap.scrollHeight
-
-    if (totalContentH <= containerH) {
-      this.trackWrap.style.transform = ''
-      return
-    }
-
-    const phases = this.trackWrap.querySelectorAll('.ThemePlayer__phase')
-    let revealedH = 0
-    for (let i = 0; i <= revealedUpTo && i < phases.length; i++) {
-      revealedH += (phases[i] as HTMLElement).offsetHeight
-    }
-
-    const shiftY = Math.min(0, containerH - revealedH)
-    const centerCorrection = (totalContentH - containerH) / 2
-    this.trackWrap.style.transform = `translateY(${shiftY + centerCorrection}px)`
+    // Teleprompter-follow the current phase via the shared native scroll; it
+    // parks the phase above the footer and releases the surface for read-back
+    // once the clock falls idle.
+    const phaseEls = this.trackWrap?.querySelectorAll<HTMLElement>('.ThemePlayer__phase')
+    const lastEl = phaseEls?.[Math.min(phaseIndex, phaseEls.length - 1)] ?? null
+    this.driveNativeScroll(lastEl)
   }
 
   buildSequence(): Sequence {

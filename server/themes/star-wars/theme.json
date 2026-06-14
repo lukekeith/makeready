@@ -2,6 +2,8 @@
   "name": "Star Wars",
   "slug": "star-wars",
   "description": "Continuous scroll-up crawl — classic perspective-tilt text roll",
+  "fontScale": 0.06,
+  "maxCharacters": 750,
   "definition": {
     "version": 2,
     "readBlockSequencing": "all-at-once",

@@ -1,27 +1,31 @@
 /* Dramatic Reveal — cinematic zoom-out reveal */
 
+/* Scroll surface (overflow / touch-action / scrollbar / idle read-back) is
+ * provided by the shared `.theme-native-scroll` class — see ThemePlayer.scss. */
 .theme-dramatic-reveal-container {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
   width: 100%;
   height: 100%;
   padding: 32px;
   box-sizing: border-box;
   background: #08090d;
   text-align: left;
-  overflow: hidden;
 }
 
-/* Content wrapper — zoom reveal + scroll-up for long content */
+/* Content wrapper — zoom reveal; `margin: auto 0` centers it when content fits
+ * and collapses to 0 when it overflows so the container scrolls it. The zoom
+ * anchors at `center top` so it scales from the visible top edge rather than a
+ * mid-content point the reader can't see once overflowing. */
 .dr-content-wrap {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   width: 100%;
-  transform-origin: center center;
+  margin: auto 0;
+  transform-origin: center top;
   will-change: transform, opacity;
 }
 

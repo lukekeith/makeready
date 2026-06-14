@@ -16,13 +16,14 @@ export class DramaticReveal extends ThemeBase {
   readonly name = 'Dramatic Reveal'
   readonly slug = 'dramatic-reveal'
   readonly description = 'Cinematic zoom-out — text revealed as the camera pulls back'
+  override readonly usesNativeScroll = true
 
   private contentWrap: HTMLElement | null = null
 
   override mount(context: ThemeContext): void {
     super.mount(context)
     const container = context.container
-    container.classList.add('theme-dramatic-reveal-container')
+    container.classList.add('theme-dramatic-reveal-container', 'theme-native-scroll')
     const totalChars = context.tokens.reduce((n, t) => n + t.text.length, 0)
     container.classList.add(this.scaleClass(totalChars))
   }
@@ -49,9 +50,10 @@ export class DramaticReveal extends ThemeBase {
   }
 
   override unmount(): void {
+    this.teardownNativeScroll()
     const container = this.context?.container
     if (!container) return
-    container.classList.remove('theme-dramatic-reveal-container')
+    container.classList.remove('theme-dramatic-reveal-container', 'theme-native-scroll')
     container.className = container.className
       .replace(/\bscale-\S+/g, '')
       .trim()
@@ -67,49 +69,39 @@ export class DramaticReveal extends ThemeBase {
   }
 
   /**
-   * Compute the total translateY needed to scroll from the flex-centered
-   * position to where the last line is just visible above the bottom edge.
+   * Native-scroll version. The zoom (phase 0) stays a transform on the content
+   * wrap; overflow handling moves to the container's native scrollTop so it
+   * shares the teleprompter-follow + idle read-back behaviour of the other
+   * themes (no more flex-center translateY correction).
    *
-   * When flex centers the content, the top of the content is at:
-   *   (containerH - contentH) / 2   from the container's padding edge.
-   * We need to shift up so the bottom of the content aligns with the
-   * container bottom, i.e. translateY = -((containerH - contentH) / 2 + overflow)
-   * which simplifies to -(contentH - containerH / 2 - containerH / 2) = -overflow
-   * but from the centered start: shift = (contentH - containerH) / 2 + (contentH - containerH) / 2
-   * = contentH - containerH = overflow.
+   *   • Phase 0 (zoom): scale the wrap 2 → 1; keep the surface pinned to the
+   *     top (scrollTop 0) while we own it.
+   *   • Phase 1 (scroll, present only when content overflows): ease the native
+   *     scrollTop from 0 → maxScroll. Because scrollHeight already includes the
+   *     reserved footer padding, scrollTop === maxScroll parks the last line
+   *     just above the footer band.
    *
-   * Actually simpler: the content is centered, so the bottom edge extends
-   * overflow/2 past the container bottom. We need to shift up by that
-   * PLUS the other overflow/2 that's above center = full overflow.
+   * Both phases arm the idle release, so once the clock stops the container
+   * flips to `overflow-y: auto` and the reader can scroll freely.
    */
   override seekTo(phaseIndex: number, progress: number): void {
     if (!this.contentWrap || !this.context) return
-
     const container = this.context.container
-    const containerH = container.clientHeight - 96  // padding 48*2
-    const contentH = this.contentWrap.scrollHeight
-    const overflow = Math.max(0, contentH - containerH)
-
-    // Flex centers the content. clampY undoes that centering so the top
-    // sits at the container's top edge (only needed when content overflows).
-    const clampY = overflow > 0 ? overflow / 2 : 0
 
     if (phaseIndex === 0) {
-      // Phase 0: zoom-out reveal
       const scale = 2 - progress          // 2 → 1
       this.contentWrap.style.opacity = String(progress)
-      this.contentWrap.style.transform = clampY > 0
-        ? `translateY(${clampY}px) scale(${scale})`
-        : `scale(${scale})`
+      this.contentWrap.style.transform = `scale(${scale})`
+      this.reclaimScroll(container)
+      container.scrollTop = 0
+      this.armIdleScroll(container)
     } else {
-      // Phase 1: ease up until the last line is visible at the bottom.
-      // Start: top at container top (clampY applied).
-      // End: bottom of content at container bottom.
-      // The top will scroll off by (overflow) — unavoidable for very long content.
-      // Cap so we never scroll more than needed.
       this.contentWrap.style.opacity = '1'
-      const y = clampY - overflow * progress
-      this.contentWrap.style.transform = `translateY(${y}px)`
+      this.contentWrap.style.transform = 'scale(1)'
+      const maxScroll = Math.max(0, container.scrollHeight - container.clientHeight)
+      this.reclaimScroll(container)
+      container.scrollTop = maxScroll * progress
+      this.armIdleScroll(container)
     }
   }
 

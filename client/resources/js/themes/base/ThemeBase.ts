@@ -44,6 +44,16 @@ export abstract class ThemeBase {
    */
   readonly ownsRendering: boolean = false
 
+  /**
+   * When true the theme drives its container's native scrollTop (see the
+   * native-scroll helpers below) instead of letting the player snap a static
+   * final frame. The player keeps calling seekTo() on the final frame instead
+   * of short-circuiting, so the theme stays in programmatic-follow mode until
+   * playback actually stops — only then does it release the surface for
+   * read-back. Default: false.
+   */
+  readonly usesNativeScroll: boolean = false
+
   /** Set by mount(), available to buildSequence() and unmount() */
   protected context!: ThemeContext
 
@@ -122,6 +132,25 @@ export abstract class ThemeBase {
   }
 
   /**
+   * Usable content height of the theme container — the border-box height
+   * minus the actual top and bottom padding.
+   *
+   * Themes reserve chrome space (the lesson header up top, the scrubber /
+   * progress / "continue" controls at the bottom) via container padding that
+   * is driven by the --member-lesson-header and --member-lesson-footer CSS
+   * variables (see ThemePlayer's topInset / bottomInset). Reading the real
+   * resolved padding here — instead of a per-theme hardcoded constant — keeps
+   * every theme's teleprompter parking consistent with that reservation, so
+   * the last line always parks above the bottom controls and they all respond
+   * to safe-area changes the same way.
+   */
+  protected contentHeight(container: HTMLElement | undefined = this.context?.container): number {
+    if (!container) return 0
+    const cs = getComputedStyle(container)
+    return container.clientHeight - parseFloat(cs.paddingTop || '0') - parseFloat(cs.paddingBottom || '0')
+  }
+
+  /**
    * Get DOM elements for an array of tokens.
    * Filters out any null results (unmounted tokens).
    */
@@ -178,5 +207,98 @@ export abstract class ThemeBase {
     persist = true
   ): import('./types').Phase {
     return { tokens, animation: null, autoAdvanceMs, persist }
+  }
+
+  // ─── Native scroll (teleprompter follow + idle read-back) ──────────────────
+  //
+  // Shared replacement for per-theme `scrollTrack()` transform math. Instead of
+  // translating a track with a flex-center correction, we make the container a
+  // native scroll surface and drive `scrollTop` directly:
+  //
+  //   • While the clock drives the sequence, seekTo() fires every frame and we
+  //     keep the container in programmatic-follow mode (overflow hidden, we own
+  //     scrollTop) so the latest revealed line parks above the footer band.
+  //   • When the clock stops (paused / parked) seekTo() stops firing; after
+  //     IDLE_MS of silence we flip the container to `overflow-y: auto` so the
+  //     reader can scroll back through content that auto-advanced off-screen.
+  //   • Any new seekTo() reclaims control instantly.
+  //
+  // A theme opts in by: adding the `theme-native-scroll` class to its container
+  // in mount(), calling driveNativeScroll(lastRevealedEl) at the end of seekTo(),
+  // and calling teardownNativeScroll() in unmount(). The container's overflow,
+  // touch-action and scrollbar styling live in ThemePlayer.scss; the theme only
+  // needs `margin: auto 0` on its track so short content centers and long
+  // content top-aligns and scrolls (never `justify-content: center`, which clips
+  // the top of overflowing content out of reach).
+
+  private _idleScrollTimer: ReturnType<typeof setTimeout> | null = null
+  private static readonly NATIVE_SCROLL_IDLE_MS = 140
+
+  /**
+   * Park `lastEl`'s bottom at the container's padded bottom edge via scrollTop.
+   * `offsetTop` is measured from the container's padding edge, so a line's
+   * distance from the scroll origin is padTop + offsetTop; solving
+   *   padTop + lineBottom - scrollTop = clientHeight - padBottom
+   * gives the target below. Clamped to [0, maxScroll], so when content fits
+   * (maxScroll ≤ 0) it pins at 0 and the track's `margin: auto` centers it.
+   */
+  protected followScroll(
+    lastEl: HTMLElement | null,
+    container: HTMLElement | undefined = this.context?.container,
+  ): void {
+    if (!lastEl || !container) return
+    const cs = getComputedStyle(container)
+    const padTop = parseFloat(cs.paddingTop || '0')
+    const padBottom = parseFloat(cs.paddingBottom || '0')
+    const lineBottom = lastEl.offsetTop + lastEl.offsetHeight
+    const maxScroll = container.scrollHeight - container.clientHeight
+    const target = padTop + lineBottom + padBottom - container.clientHeight
+    container.scrollTop = Math.max(0, Math.min(target, Math.max(0, maxScroll)))
+  }
+
+  /** Reassert programmatic control: cancel any pending idle release and take
+   *  the container out of user-scroll mode. */
+  protected reclaimScroll(
+    container: HTMLElement | undefined = this.context?.container,
+  ): void {
+    if (this._idleScrollTimer !== null) {
+      clearTimeout(this._idleScrollTimer)
+      this._idleScrollTimer = null
+    }
+    container?.classList.remove('theme-native-scrollable')
+  }
+
+  /** After IDLE_MS with no further seekTo(), release the container to the reader
+   *  if (and only if) it actually overflows. */
+  protected armIdleScroll(
+    container: HTMLElement | undefined = this.context?.container,
+  ): void {
+    if (!container) return
+    if (this._idleScrollTimer !== null) clearTimeout(this._idleScrollTimer)
+    this._idleScrollTimer = setTimeout(() => {
+      this._idleScrollTimer = null
+      if (container.scrollHeight - container.clientHeight > 1) {
+        container.classList.add('theme-native-scrollable')
+      }
+    }, ThemeBase.NATIVE_SCROLL_IDLE_MS)
+  }
+
+  /** Convenience for seekTo(): reclaim, follow the last revealed element, then
+   *  arm the idle read-back release. */
+  protected driveNativeScroll(lastEl: HTMLElement | null): void {
+    const container = this.context?.container
+    if (!container) return
+    this.reclaimScroll(container)
+    this.followScroll(lastEl, container)
+    this.armIdleScroll(container)
+  }
+
+  /** Call from unmount(): cancel the idle timer and drop the scrollable class. */
+  protected teardownNativeScroll(): void {
+    if (this._idleScrollTimer !== null) {
+      clearTimeout(this._idleScrollTimer)
+      this._idleScrollTimer = null
+    }
+    this.context?.container?.classList.remove('theme-native-scrollable')
   }
 }

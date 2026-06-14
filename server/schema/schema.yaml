@@ -3277,6 +3277,14 @@ models:
       definition:
         type: json
         description: "Theme definition (colors, animations, styles)"
+      fontScale:
+        type: float
+        nullable: true
+        description: "Font size as a fraction of container width (e.g. 0.06 = 6cqw). Drives width-scaled type so a block wraps identically on every screen."
+      maxCharacters:
+        type: int
+        nullable: true
+        description: "Max content characters a read block may contain to use this theme. Editors mute the theme when block.content length exceeds this. Null = unlimited."
       isSystem:
         type: boolean
         default: false

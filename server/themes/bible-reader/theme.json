@@ -1,0 +1,41 @@
+{
+  "name": "Bible Reader",
+  "slug": "bible-reader",
+  "description": "Natural reading experience — gentle one-time fade-in, fully scrollable within the safe area. Designed for long passages.",
+  "fontScale": 0.05,
+  "maxCharacters": null,
+  "definition": {
+    "version": 2,
+    "readBlockSequencing": "all-at-once",
+    "background": {
+      "color": "#0a0a0f",
+      "image": null,
+      "video": null,
+      "overlay": null
+    },
+    "interaction": {
+      "mode": "scroll",
+      "autoPlayDelay": null,
+      "swipeAdvances": false,
+      "showProgress": false
+    },
+    "typography": {
+      "fontFamily": "-apple-system, BlinkMacSystemFont, sans-serif",
+      "fontSize": 17,
+      "color": "rgba(255,255,255,0.9)",
+      "lineHeight": 1.6
+    },
+    "elements": {
+      "h1": { "style": { "fontSize": 28, "fontWeight": "bold" }, "enter": { "type": "fade", "duration": 350 } },
+      "h2": { "style": { "fontSize": 22, "fontWeight": "bold" }, "enter": { "type": "fade", "duration": 350 } },
+      "h3": { "style": { "fontSize": 18, "fontWeight": "600" }, "enter": { "type": "fade", "duration": 350 } },
+      "p": { "style": {}, "enter": { "type": "fade", "duration": 350 } },
+      "li": { "style": {}, "enter": { "type": "fade", "duration": 350 } },
+      "blockquote": { "style": {}, "enter": { "type": "fade", "duration": 350 } },
+      "verse": { "style": { "fontSize": 17, "lineHeight": 1.8 }, "enter": { "type": "fade", "duration": 350 } },
+      "verse-number": { "style": { "fontSize": 12, "opacity": 0.5, "fontWeight": "bold" } },
+      "verse-reference": { "style": { "fontSize": 13, "textTransform": "uppercase", "letterSpacing": 1.5, "opacity": 0.6 }, "enter": { "type": "fade", "duration": 350 } }
+    },
+    "sequences": []
+  }
+}

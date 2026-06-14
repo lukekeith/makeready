@@ -1,0 +1,60 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "92-long-read-bold-slide.png",
+  "title": "Long READ block (Bold Slide theme) — parked at final phase, footer-clear check",
+  "fullPage": false,
+  "wait": {
+    "selector": ".ActivityPreviewPlayer",
+    "timeoutMs": 8000
+  },
+  "holdMs": 16000,
+  "devices": [
+    "iphone-se",
+    "iphone-14",
+    "iphone-17-pro-max"
+  ],
+  "data": {
+    "groupId": "group-capture-92",
+    "lessonScheduleId": "ls-capture-091",
+    "step": 1,
+    "lessonData": {
+      "lesson": {
+        "id": "long-read-themed-0001",
+        "title": "A themed reading",
+        "dayNumber": 1,
+        "studyEnrollmentId": "enroll-capture-091",
+        "studyProgram": {
+          "name": "Capture Verification"
+        },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "long-read-themed-activity-0001",
+            "type": "READ",
+            "title": "The themed reading",
+            "isHelpEnabled": false,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "long-read-themed-block-0001",
+                "orderNumber": 1,
+                "title": null,
+                "isLocked": false,
+                "contentFormat": "markdown",
+                "theme": {
+                  "id": "theme-bold-slide",
+                  "slug": "bold-slide",
+                  "name": "Bold Slide"
+                },
+                "content": "Jesus recreates the same scenario as when Peter was first called by the shore.\n\nHe tells Peter: even though you denied me three times, I forgive you, and the calling on your life is not forfeit.\n\nThe restoration is complete and personal, asked three times to match the three denials that still weighed on Peter's heart.\n\nFollow me, He says again, exactly as He had said at the very beginning of it all.\n\n★ END — this final themed line must be fully visible ABOVE the bottom navigation. If it is cut off or hidden behind the controls, the theme footer is covering the text. ★"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "step": 1
+}

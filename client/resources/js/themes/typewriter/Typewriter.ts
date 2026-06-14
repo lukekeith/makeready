@@ -17,6 +17,7 @@ export class Typewriter extends ThemeBase {
   readonly name = 'Typewriter'
   readonly slug = 'typewriter'
   readonly description = 'Deliberate character-by-character reveal with monospace font'
+  override readonly usesNativeScroll = true
 
   private trackWrap: HTMLElement | null = null
   /** Per-token cumulative timing curves for natural typing rhythm */
@@ -25,7 +26,7 @@ export class Typewriter extends ThemeBase {
   override mount(context: ThemeContext): void {
     super.mount(context)
     const container = context.container
-    container.classList.add('theme-typewriter-container')
+    container.classList.add('theme-typewriter-container', 'theme-native-scroll')
     const totalChars = context.tokens.reduce((n, t) => n + t.text.length, 0)
     container.classList.add(this.scaleClass(totalChars))
   }
@@ -46,9 +47,10 @@ export class Typewriter extends ThemeBase {
   }
 
   override unmount(): void {
+    this.teardownNativeScroll()
     const container = this.context?.container
     if (!container) return
-    container.classList.remove('theme-typewriter-container')
+    container.classList.remove('theme-typewriter-container', 'theme-native-scroll')
     container.className = container.className
       .replace(/\bscale-\S+/g, '')
       .trim()
@@ -76,7 +78,10 @@ export class Typewriter extends ThemeBase {
       }
     }
 
-    this.scrollTrack(phaseIndex)
+    // Teleprompter-follow the current phase via the shared native scroll.
+    const phaseEls = this.trackWrap?.querySelectorAll<HTMLElement>('.ThemePlayer__phase')
+    const lastEl = phaseEls?.[Math.min(phaseIndex, phaseEls.length - 1)] ?? null
+    this.driveNativeScroll(lastEl)
   }
 
   /**
@@ -198,30 +203,6 @@ export class Typewriter extends ThemeBase {
     }
 
     return { phases }
-  }
-
-  /** See GentleFade.scrollTrack for the math — same problem, same fix. */
-  private scrollTrack(revealedUpTo: number): void {
-    if (!this.trackWrap || !this.context) return
-
-    const container = this.context.container
-    const containerH = container.clientHeight - 96  // subtract padding (48 * 2)
-    const totalContentH = this.trackWrap.scrollHeight
-
-    if (totalContentH <= containerH) {
-      this.trackWrap.style.transform = ''
-      return
-    }
-
-    const phases = this.trackWrap.querySelectorAll('.ThemePlayer__phase')
-    let revealedH = 0
-    for (let i = 0; i <= revealedUpTo && i < phases.length; i++) {
-      revealedH += (phases[i] as HTMLElement).offsetHeight
-    }
-
-    const shiftY = Math.min(0, containerH - revealedH)
-    const centerCorrection = (totalContentH - containerH) / 2
-    this.trackWrap.style.transform = `translateY(${shiftY + centerCorrection}px)`
   }
 
   private durationFor(token: Token): number {

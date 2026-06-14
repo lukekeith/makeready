@@ -363,6 +363,30 @@ function measureScrollOverflow(): number {
 
 const AXIS_DECIDE_THRESHOLD = 8
 
+/** Themes that manage their own native overflow scroll for read-back and so
+ *  must opt OUT of the wrapper's elastic peek-scroll — otherwise the rubber-band
+ *  hijacks the vertical drag and snaps the content back, preventing real
+ *  scrolling. 'none' has always used native scroll; 'bold-slide' now drives its
+ *  container's scrollTop directly and releases it to the reader when idle. */
+const NATIVE_SCROLL_THEMES = new Set(['none', 'bold-slide', 'gentle-fade', 'typewriter', 'dramatic-reveal'])
+function usesNativeScroll(slug?: string): boolean {
+  return !!slug && NATIVE_SCROLL_THEMES.has(slug)
+}
+
+/** When true, the content overlay becomes `pointer-events: none` so touches
+ *  reach the theme's own native scroll container instead of being trapped by
+ *  the overlay's `touchmove.prevent` gesture handler.
+ *
+ *  'none' is always native-scroll (no animation to gesture over). 'bold-slide'
+ *  animates, so it keeps the overlay (hold-to-pause, swipe-to-navigate) while
+ *  playing and only releases it once parked — which is also exactly when its
+ *  container flips to `overflow-y: auto` for read-back. */
+const overlayPassThrough = computed(() => {
+  const slug = blocks.value[activeBlockIndex.value]?.themeSlug
+  if (!usesNativeScroll(slug)) return false
+  return slug === 'none' || !isPlaying.value
+})
+
 function clearHoldTimer() {
   if (holdTimer !== null) { clearTimeout(holdTimer); holdTimer = null }
 }
@@ -462,9 +486,9 @@ function onContentMove(x: number, y: number) {
 
   // Decide axis on the first significant move.
   const decided = Math.abs(dx) > AXIS_DECIDE_THRESHOLD || Math.abs(dy) > AXIS_DECIDE_THRESHOLD
-  // NoTheme opts out of elastic peek-scroll: it uses native overflow scroll.
+  // Native-scroll themes opt out of elastic peek-scroll (see NATIVE_SCROLL_THEMES).
   const activeThemeSlug = blocks.value[activeBlockIndex.value]?.themeSlug
-  if (decided && Math.abs(dy) > Math.abs(dx) && isPausedAtBlockEnd() && activeThemeSlug !== 'none') {
+  if (decided && Math.abs(dy) > Math.abs(dx) && isPausedAtBlockEnd() && !usesNativeScroll(activeThemeSlug)) {
     isScrollDrag = true
     scrollOverflow = measureScrollOverflow()
     scrollSnappingBack.value = false
@@ -663,9 +687,19 @@ function activityToPayload(activity: ServerActivity): PreviewPayload {
 }
 
 onMounted(() => {
-  // Set --member-lesson-footer so other components know the footer height.
-  // Matches the "Swipe to continue" button's bottom offset.
-  document.body.style.setProperty('--member-lesson-footer', 'calc(env(safe-area-inset-bottom) + 40px + 16px)')
+  // Publish --member-lesson-footer = the full height of the bottom control
+  // band, measured from the screen bottom to the TOP of the tallest control
+  // (the "Swipe to continue" pill). Content that reserves this clears the
+  // controls entirely — not just their baseline. Breakdown:
+  //   safe-area-inset-bottom  home indicator
+  //   + 16px                  gap above the safe area
+  //   + 40px                  scrubber hit strip
+  //   + 40px                  the pill sitting above the scrubber (single line,
+  //                           kept from wrapping via white-space:nowrap below)
+  // Both the no-theme container padding and the themed bottomInset reserve
+  // `var(--member-lesson-footer) + 32px`, so every theme clears the pill the
+  // same way and responds to safe-area changes identically.
+  document.body.style.setProperty('--member-lesson-footer', 'calc(env(safe-area-inset-bottom) + 16px + 40px + 40px)')
 
   const injected = (window as any).__PREVIEW_DATA__
   if (props.payload) {
@@ -698,7 +732,7 @@ onBeforeUnmount(() => {
         v-show="index === activeBlockIndex"
         class="ActivityPreviewPlayer__block"
         :class="{ 'ActivityPreviewPlayer__block--snap-back': scrollSnappingBack && index === activeBlockIndex }"
-        :style="index === activeBlockIndex && block.themeSlug !== 'none' ? { '--peek-scroll-y': scrollOffsetY + 'px' } : undefined"
+        :style="index === activeBlockIndex && !usesNativeScroll(block.themeSlug) ? { '--peek-scroll-y': scrollOffsetY + 'px' } : undefined"
         @touchstart.passive="onContentTouchStart"
         @touchmove.passive="onContentTouchMove"
         @touchend.passive="onContentTouchEnd"
@@ -716,6 +750,7 @@ onBeforeUnmount(() => {
           :background-overlay-opacity="block.backgroundOverlayOpacity ?? null"
           :font-size="block.fontSize ?? null"
           :top-inset="topInset ?? null"
+          :bottom-inset="'calc(var(--member-lesson-footer, 32px) + 32px)'"
           :selections="block.selections ?? []"
           :scripture="block.isScripture ?? false"
           content-format="markdown"
@@ -768,7 +803,7 @@ onBeforeUnmount(() => {
     -->
     <div
       class="ActivityPreviewPlayer__content-overlay"
-      :class="{ 'ActivityPreviewPlayer__content-overlay--pass-through': blocks[activeBlockIndex]?.themeSlug === 'none' }"
+      :class="{ 'ActivityPreviewPlayer__content-overlay--pass-through': overlayPassThrough }"
       @touchstart.passive="onContentTouchStart"
       @touchmove.prevent="onContentTouchMove"
       @touchend.passive="onContentTouchEnd"
@@ -927,6 +962,9 @@ onBeforeUnmount(() => {
     font-size: 14px;
     font-weight: 500;
     letter-spacing: 0.01em;
+    // Keep the pill on one line so its height (and the reserved footer band)
+    // stays predictable on narrow devices instead of wrapping to two lines.
+    white-space: nowrap;
     pointer-events: none;
     z-index: 13;
   }

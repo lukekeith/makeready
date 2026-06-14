@@ -23,6 +23,12 @@ interface ThemeFile {
   slug: string
   description: string
   definition: Record<string, unknown>
+  /** Font size as a fraction of container width (e.g. 0.06 → 6cqw). Drives
+   *  width-scaled type so a block wraps identically on every screen. */
+  fontScale?: number | null
+  /** Max content characters a read block may have to use this theme. Editors
+   *  mute the theme when block.content length exceeds it. Null = unlimited. */
+  maxCharacters?: number | null
 }
 
 async function main() {
@@ -113,6 +119,8 @@ async function main() {
         name: theme.name,
         description: theme.description || null,
         definition: theme.definition as any,
+        fontScale: theme.fontScale ?? null,
+        maxCharacters: theme.maxCharacters ?? null,
         isSystem: true,
         isActive: true,
       },
@@ -121,6 +129,8 @@ async function main() {
         slug: theme.slug,
         description: theme.description || null,
         definition: theme.definition as any,
+        fontScale: theme.fontScale ?? null,
+        maxCharacters: theme.maxCharacters ?? null,
         isSystem: true,
         isActive: true,
       },

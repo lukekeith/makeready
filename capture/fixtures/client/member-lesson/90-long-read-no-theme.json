@@ -1,0 +1,47 @@
+{
+  "platform": "client",
+  "view": "pages.lesson",
+  "output": "90-long-read-no-theme.png",
+  "title": "Long READ block (no theme) — scrolled to bottom, footer-clear check",
+  "fullPage": false,
+  "wait": { "selector": ".theme-no-theme-container", "timeoutMs": 8000 },
+  "scroll": { "selector": ".theme-no-theme-container", "to": "bottom" },
+  "scrollSettleMs": 800,
+  "devices": ["iphone-se", "iphone-14", "iphone-17-pro-max"],
+  "data": {
+    "groupId": "group-capture-090",
+    "lessonScheduleId": "ls-capture-090",
+    "step": 1,
+    "lessonData": {
+      "lesson": {
+        "id": "long-read-no-theme-0001",
+        "title": "A very long reading",
+        "dayNumber": 1,
+        "studyEnrollmentId": "enroll-capture-090",
+        "studyProgram": { "name": "Capture Verification" },
+        "requireResponse": false,
+        "activities": [
+          {
+            "id": "long-read-activity-0001",
+            "type": "READ",
+            "title": "The long reading",
+            "isHelpEnabled": false,
+            "helpAlwaysVisible": false,
+            "sourceReferences": [],
+            "readBlocks": [
+              {
+                "id": "long-read-block-0001",
+                "orderNumber": 1,
+                "title": null,
+                "isLocked": false,
+                "contentFormat": "markdown",
+                "content": "Paragraph 1 — Now in Jerusalem, by the Sheep Gate, there is a pool which in Hebrew is called Bethesda, having five porticoes. In these porticoes lay a multitude of those who were sick, blind, limping, or paralyzed.\n\nParagraph 2 — A man was there who had been ill for thirty-eight years. When Jesus saw him lying there, and knew that he had already been a long time in that condition, He said to him, \"Do you want to get well?\"\n\nParagraph 3 — The sick man answered Him, \"Sir, I have no man to put me into the pool when the water is stirred up, but while I am coming, another steps down before me.\"\n\nParagraph 4 — Jesus said to him, \"Get up, pick up your pallet and walk.\" Immediately the man became well, and picked up his pallet and began to walk.\n\nParagraph 5 — Seems like a crazy question for Jesus to ask the man, doesn't it? Let us read it in context, understanding that Jesus fully understands the human condition.\n\nParagraph 6 — There are lots of other people with conditions like his there. This man's condition had become his identity, and his disability had become his excuse.\n\nParagraph 7 — Was it the water that healed any of them? Or was it something else entirely that the crowd had failed to notice over all those years of waiting?\n\nParagraph 8 — Consider how long thirty-eight years really is. An entire generation can be born, grow up, and start families in that span of time, and yet here he remained.\n\nParagraph 9 — The pool promised healing to whoever entered first when the water moved. It was a system that rewarded the strong and the quick, and punished the weak.\n\nParagraph 10 — But the man's deepest problem was not the pool, nor the crowd, nor even his legs. It was that he had stopped expecting anything to change at all.\n\nParagraph 11 — Jesus does not ask the question because He is unsure of the answer. He asks it so the man himself has to confront what he actually wants.\n\nParagraph 12 — Wanting to be healed sounds obvious, but healing means losing every excuse and every comfortable explanation built up over thirty-eight long years.\n\nParagraph 13 — Therefore if anyone is in Christ, this person is a new creation; the old things passed away; behold, new things have come into being in their place.\n\nParagraph 14 — The new creation is not a patched-up version of the old one. It is genuinely new, and that newness can feel uncomfortable and unfamiliar at first.\n\nParagraph 15 — To be made new is to re-learn how to walk, quite literally for this man, and figuratively for everyone who follows the same call out of the old life.\n\nParagraph 16 — Notice that the healing came before the man fully understood who Jesus was. Grace arrived first; comprehension followed later, as it so often does.\n\nParagraph 17 — He picked up the very pallet that had carried him in his sickness, now a sign of the freedom he had received rather than the prison he had endured.\n\nParagraph 18 — What is the pallet in your own life that you keep lying on, the familiar weight you could finally pick up and carry instead of being carried by it?\n\nParagraph 19 — The question echoes down the centuries to every reader: do you want to be healed, or have you grown comfortable explaining why you cannot be?\n\nParagraph 20 — Take a moment now, before moving on, to sit honestly with that question and to let it search the corners you would rather leave undisturbed.\n\n★ END OF READING — this final line must be fully visible ABOVE the bottom navigation. If you cannot read this entire sentence, the footer is covering the text. ★"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "step": 1
+}

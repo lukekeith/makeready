@@ -83,6 +83,32 @@ async function captureOne(browser, { workflow, file }) {
       await page.waitForTimeout(500);
     }
 
+    // Optional hold — wait a fixed time after settle before capturing. Useful
+    // for the themed read player, whose teleprompter auto-plays on mount and
+    // parks at the final phase only once the timeline completes.
+    if (spec.holdMs) {
+      await page.waitForTimeout(spec.holdMs);
+    }
+
+    // Optional scroll directives — scroll an inner element (e.g. the lesson
+    // read-step's native-scroll container) before capturing, so any fixed
+    // footer chrome is shown overlapping the scrolled content. Pair with
+    // "fullPage": false to capture the viewport (not the expanded full page).
+    //   "scroll": { "selector": ".theme-no-theme-container", "to": "bottom" }
+    if (spec.scroll) {
+      const scrolls = Array.isArray(spec.scroll) ? spec.scroll : [spec.scroll];
+      for (const sc of scrolls) {
+        await page
+          .evaluate(({ selector, to }) => {
+            const el = selector ? document.querySelector(selector) : document.scrollingElement;
+            if (!el) return;
+            el.scrollTop = to === 'bottom' ? el.scrollHeight : typeof to === 'number' ? to : 0;
+          }, sc)
+          .catch(() => {});
+      }
+      await page.waitForTimeout(spec.scrollSettleMs ?? 600);
+    }
+
     const outDir = path.join(captureRoot, workflow, 'screenshots', viewportName);
     await fs.mkdir(outDir, { recursive: true });
     const outPath = path.join(outDir, output);

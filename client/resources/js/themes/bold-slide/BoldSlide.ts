@@ -19,6 +19,7 @@ export class BoldSlide extends ThemeBase {
   readonly slug = 'bold-slide'
   readonly description = 'Lines slide in from the right with blur — stacks and scrolls like a teleprompter'
   readonly ownsRendering = true
+  override readonly usesNativeScroll = true
 
   private trackEl: HTMLElement | null = null
   private lineEls: HTMLElement[] = []
@@ -26,7 +27,7 @@ export class BoldSlide extends ThemeBase {
   override mount(context: ThemeContext): void {
     super.mount(context)
     const container = context.container
-    container.classList.add('theme-bold-slide-container')
+    container.classList.add('theme-bold-slide-container', 'theme-native-scroll')
     const totalChars = context.tokens.reduce((n, t) => n + t.text.length, 0)
     container.classList.add(this.scaleClass(totalChars))
 
@@ -70,9 +71,10 @@ export class BoldSlide extends ThemeBase {
   }
 
   override unmount(): void {
+    this.teardownNativeScroll()
     const container = this.context?.container
     if (!container) return
-    container.classList.remove('theme-bold-slide-container')
+    container.classList.remove('theme-bold-slide-container', 'theme-native-scroll')
     container.className = container.className
       .replace(/\bscale-\S+/g, '')
       .trim()
@@ -143,45 +145,11 @@ export class BoldSlide extends ThemeBase {
       }
     }
 
-    // Scroll the track up if revealed content exceeds the container
-    this.scrollTrack(phaseIndex, container)
-  }
-
-  private scrollTrack(revealedUpTo: number, container: HTMLElement): void {
-    if (!this.trackEl) return
-
-    // Effective content area (container minus vertical padding).
-    const containerH = container.clientHeight - 128
-
-    // Full track height — all lines (revealed + pending) take up vertical
-    // space even when pending (they're translated X-offscreen, not removed
-    // from flow), so this is stable across the whole sequence.
-    const trackH = this.trackEl.offsetHeight
-
-    // When the full content fits, let CSS `justify-content: center` handle
-    // vertical centering — no translate needed.
-    if (trackH <= containerH) {
-      this.trackEl.style.transform = ''
-      return
-    }
-
-    // Content overflows: teleprompter-scroll so the most recently revealed
-    // line parks at the bottom of the visible area.
-    //
-    // With `justify-content: center`, the track's natural top sits at
-    //   (containerH - trackH) / 2
-    // (negative, since trackH > containerH — i.e. the track already
-    // overflows equally above and below). To put the bottom of the revealed
-    // portion at y = containerH, we translate by:
-    //   containerH - (naturalTop + revealedH)
-    //   = (containerH + trackH) / 2 - revealedH
-    let revealedH = 0
-    for (let i = 0; i <= revealedUpTo && i < this.lineEls.length; i++) {
-      revealedH += this.lineEls[i].offsetHeight
-    }
-
-    const ty = (containerH + trackH) / 2 - revealedH
-    this.trackEl.style.transform = `translateY(${ty}px)`
+    // All lines occupy vertical space from the start (pending lines are
+    // translated X-offscreen, not removed from flow), so the latest revealed
+    // line is simply lineEls[phaseIndex]. Hand it to the shared native-scroll
+    // follow, which parks it above the footer and releases the surface at idle.
+    this.driveNativeScroll(this.lineEls[Math.min(phaseIndex, this.lineEls.length - 1)] ?? null)
   }
 
   private durationFor(token: Token): number {

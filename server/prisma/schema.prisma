@@ -1289,6 +1289,8 @@ model TextTheme {
   slug                 String @unique
   description          String?
   definition           Json // Theme definition (colors, animations, styles)
+  fontScale            Float? // Font size as a fraction of container width (e.g. 0.06 = 6cqw). Drives width-scaled type so a block wraps identically on every screen.
+  maxCharacters        Int? // Max content characters a read block may contain to use this theme. Editors mute the theme when block.content length exceeds this. Null = unlimited.
   isSystem             Boolean @default(false)
   isActive             Boolean @default(true)
   creatorId            String?

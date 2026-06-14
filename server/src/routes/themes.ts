@@ -30,6 +30,8 @@ router.get('/public/list', async (_req, res) => {
         slug: true,
         description: true,
         definition: true,
+        fontScale: true,
+        maxCharacters: true,
       },
       orderBy: { name: 'asc' },
     })
@@ -77,6 +79,8 @@ router.get('/', requireAuth, async (req, res) => {
         description: true,
         isSystem: true,
         definition: true,
+        fontScale: true,
+        maxCharacters: true,
       },
       orderBy: { name: 'asc' },
     })
@@ -134,6 +138,8 @@ router.get('/:idOrSlug', requireAuth, async (req, res) => {
         description: true,
         isSystem: true,
         definition: true,
+        fontScale: true,
+        maxCharacters: true,
       },
     })
 

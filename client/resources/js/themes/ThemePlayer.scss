@@ -17,6 +17,27 @@
   // System font on Apple devices (San Francisco), Open Sans everywhere else
   font-family: -apple-system, BlinkMacSystemFont, 'Open Sans', sans-serif;
 
+  // ── Shared native-scroll surface (see ThemeBase native-scroll helpers) ──
+  // Opted into by teleprompter themes that drive their container's scrollTop
+  // instead of transforming a track. `overflow: hidden` is the default
+  // (programmatic-follow during playback — still permits scrollTop writes);
+  // `touch-action: pan-y` lets the browser pan once `.theme-native-scrollable`
+  // enables overflow at idle (during hidden it's inert). The doubled
+  // `.ThemePlayer` specificity overrides each theme's own container overflow.
+  &.theme-native-scroll {
+    overflow: hidden;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+    &::-webkit-scrollbar { width: 0; height: 0; }
+
+    &.theme-native-scrollable {
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+  }
+
 
   // Tokens start invisible — theme animations reveal them
   // Exception: when no theme is loaded (plain render)

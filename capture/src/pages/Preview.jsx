@@ -76,54 +76,6 @@ export default function Preview() {
 
   return (
     <div className="preview-page">
-      <div className="preview-page__meta">
-        <span className="preview-page__path">
-          {folder} / {screen}
-        </span>
-        {valid && (
-          <div className="preview-page__switcher" ref={switcherRef}>
-            <button
-              type="button"
-              className="preview-page__dims"
-              onClick={() => setMenuOpen((o) => !o)}
-              aria-haspopup="listbox"
-              aria-expanded={menuOpen}
-              title="Switch viewport"
-            >
-              {viewportName ? `${viewportName} \u00b7 ` : ''}{width}\u00d7{height} \u25be
-            </button>
-            {menuOpen && sortedViewports.length > 0 && (
-              <ul className="preview-page__menu" role="listbox">
-                {sortedViewports.map(([name, d]) => {
-                  const active = name === viewportName;
-                  return (
-                    <li key={name}>
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={active}
-                        className={`preview-page__menu-item${active ? ' preview-page__menu-item--active' : ''}`}
-                        onClick={() => selectViewport(name, d)}
-                      >
-                        <span className="preview-page__menu-name">{name}</span>
-                        <span className="preview-page__menu-dims">{d.width}\u00d7{d.height}</span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </div>
-        )}
-        <a
-          className="preview-page__raw"
-          href={src}
-          target="_blank"
-          rel="noreferrer"
-        >
-          open raw \u2197
-        </a>
-      </div>
       {valid ? (
         <iframe
           className="preview-page__frame"

@@ -1,28 +1,29 @@
 /* Gentle Fade — left-aligned, auto-scaling layout */
 
+/* Scroll surface (overflow / touch-action / scrollbar / idle read-back) is
+ * provided by the shared `.theme-native-scroll` class — see ThemePlayer.scss. */
 .theme-gentle-fade-container {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  justify-content: center;
   width: 100%;
   height: 100%;
   padding: 32px;
   box-sizing: border-box;
   background: #0d1117;
   text-align: left;
-  overflow: hidden;
 }
 
-/* Track wrapper — shifts up when content overflows the container */
+/* Track wrapper — `margin: auto 0` centers it when content fits and collapses
+ * to 0 when it overflows, so the container scrolls it (no `justify-content:
+ * center`, which would clip overflowing content's top out of reach). */
 .gf-track {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   width: 100%;
-  will-change: transform;
-  transition: transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  margin: auto 0;
 }
 
 /* Scale tiers — 50% larger than before across all breakpoints */

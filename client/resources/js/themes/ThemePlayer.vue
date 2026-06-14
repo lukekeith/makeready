@@ -55,6 +55,13 @@ const props = withDefaults(defineProps<{
    *  (text, elements) is pushed down. Used by the member-lesson full-screen
    *  layout to avoid text sitting under the header. */
   topInset?: string | null
+  /** Optional CSS length reserved at the bottom of the container, mirroring
+   *  `topInset`. Used to clear the player's bottom controls (scrubber /
+   *  progress bar / "continue" pill) so the teleprompter never parks the
+   *  final line underneath them. Driven by the --member-lesson-footer
+   *  variable so every theme reserves the same footer band and the parking
+   *  math (ThemeBase.contentHeight) accounts for it automatically. */
+  bottomInset?: string | null
   /** Styled spans over the raw `content` string. Each entry has start/end
    *  character offsets and a style name (e.g. 'bold' | 'highlight') that
    *  becomes a `ThemePlayer__selection--{style}` BEM class on the wrapping
@@ -77,6 +84,7 @@ const props = withDefaults(defineProps<{
   backgroundOverlayOpacity: null,
   fontSize: null,
   topInset: null,
+  bottomInset: null,
   selections: () => [],
   scripture: false,
 })
@@ -122,6 +130,12 @@ const containerStyle = computed(() => {
   // preserving each theme's side + bottom padding.
   if (props.topInset) {
     base.paddingTop = props.topInset
+  }
+  // Mirror of topInset for the bottom: reserve space for the player's bottom
+  // controls so themed content never parks under them. Inline paddingBottom
+  // overrides only the bottom component of each theme's `padding` shorthand.
+  if (props.bottomInset) {
+    base.paddingBottom = props.bottomInset
   }
 
   if (img && col) {
@@ -441,7 +455,13 @@ function seekToPhase(phaseIndex: number, animOffsetMs = 0) {
   // in that case the DOM is in its final state and any recalculation would
   // shift styles. If we got here from a scrub (isComplete still false),
   // fall through and let the theme render the final frame from scratch.
-  if (clampedIndex === seq.phases.length - 1 && progress >= 1 && isComplete.value) {
+  //
+  // Native-scroll themes opt OUT of this short-circuit: they must keep
+  // receiving the final frame every tick so they hold programmatic scroll
+  // control until the clock actually stops, rather than going idle (and
+  // releasing the surface for read-back) mid-playback during the last phase's
+  // trailing pause.
+  if (!theme.usesNativeScroll && clampedIndex === seq.phases.length - 1 && progress >= 1 && isComplete.value) {
     currentPhaseIndex.value = clampedIndex
     isAnimating.value = false
     return
