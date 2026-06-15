@@ -5,11 +5,12 @@ name: Backfill Bible Search (doc2query)
 # Both steps are idempotent and resumable, so re-running is safe and resumes
 # where a previous run left off.
 #
-# Runs entirely in CI against the "production" GitHub Environment's scoped
-# secrets — never locally. That Environment must define:
-#   - DATABASE_URL        public/proxy Postgres URL (runner is outside Railway)
-#   - DIRECT_URL          same, used by Prisma
-#   - ANTHROPIC_API_KEY   for doc2query question generation
+# Runs entirely in CI against production — never locally. Uses these
+# repo-level secrets (the "production" Environment is kept for its protection
+# rules; the DB secrets are PRODUCTION_-prefixed at the repo level):
+#   - PRODUCTION_DATABASE_URL   public/proxy Postgres URL (runner is outside Railway)
+#   - PRODUCTION_DIRECT_URL     same, used by Prisma
+#   - ANTHROPIC_API_KEY         for doc2query question generation
 #
 # Schema (passage_queries table, GIN/HNSW indexes) is applied automatically on
 # deploy — this workflow only fills DATA, so run it AFTER production is deployed.
@@ -49,16 +50,18 @@ jobs:
             exit 1
           fi
 
-      - name: Verify environment secrets are present
+      - name: Verify secrets are present
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
           missing=""
-          [ -z "$DATABASE_URL" ] && missing="$missing DATABASE_URL"
+          [ -z "$DATABASE_URL" ] && missing="$missing PRODUCTION_DATABASE_URL"
+          [ -z "$DIRECT_URL" ] && missing="$missing PRODUCTION_DIRECT_URL"
           [ -z "$ANTHROPIC_API_KEY" ] && missing="$missing ANTHROPIC_API_KEY"
           if [ -n "$missing" ]; then
-            echo "::error::Missing secret(s) for the 'production' GitHub Environment:$missing. Add DATABASE_URL, DIRECT_URL and ANTHROPIC_API_KEY (public/proxy DB URL) to that Environment."
+            echo "::error::Missing repo secret(s):$missing. Add them under Settings → Secrets and variables → Actions."
             exit 1
           fi
 
@@ -71,18 +74,18 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
 
       - name: Generate doc2query questions (resumable)
         run: npx tsx src/scripts/generate-passage-queries.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
 
       - name: Embed all Bible search vectors (fills passage_queries)
         run: npx tsx src/scripts/embed-bible.ts
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.PRODUCTION_DIRECT_URL }}
