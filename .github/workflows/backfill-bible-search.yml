@@ -1,33 +1,28 @@
 name: Backfill Bible Search (doc2query)
 
 # Generates the doc2query questions (Claude Haiku) and embeds every Bible search
-# vector — including the new passage_queries rows — against a chosen environment.
+# vector — including the new passage_queries rows — against production.
 # Both steps are idempotent and resumable, so re-running is safe and resumes
 # where a previous run left off.
 #
-# Runs entirely in CI against the environment's scoped secrets — never locally.
-# Each GitHub Environment ("staging" / "production") must define these secrets:
+# Runs entirely in CI against the "production" GitHub Environment's scoped
+# secrets — never locally. That Environment must define:
 #   - DATABASE_URL        public/proxy Postgres URL (runner is outside Railway)
 #   - DIRECT_URL          same, used by Prisma
 #   - ANTHROPIC_API_KEY   for doc2query question generation
 #
 # Schema (passage_queries table, GIN/HNSW indexes) is applied automatically on
-# deploy — this workflow only fills DATA, so run it AFTER the target is deployed.
+# deploy — this workflow only fills DATA, so run it AFTER production is deployed.
 
 on:
   workflow_dispatch:
     inputs:
-      environment:
-        description: 'Target environment'
-        type: choice
-        options: [staging, production]
-        required: true
       confirm:
-        description: 'Type the environment name to confirm (e.g. "production")'
+        description: 'Type "production" to confirm'
         required: true
 
 concurrency:
-  group: bible-backfill-${{ github.event.inputs.environment }}
+  group: bible-backfill-production
   cancel-in-progress: false
 
 defaults:
@@ -36,21 +31,21 @@ defaults:
 
 jobs:
   backfill:
-    name: doc2query backfill (${{ github.event.inputs.environment }})
+    name: doc2query backfill (production)
     runs-on: ubuntu-latest
-    # Loads that environment's scoped secrets and honours its protection rules
-    # (e.g. required reviewers on production).
-    environment: ${{ github.event.inputs.environment }}
+    # Loads the production-scoped secrets and honours its protection rules
+    # (e.g. required reviewers).
+    environment: production
     timeout-minutes: 90
     steps:
       # Checkout first: the default working-directory (server) only exists once
       # the repo is checked out, and the run steps below rely on it.
       - uses: actions/checkout@v4
 
-      - name: Confirm environment
+      - name: Confirm production
         run: |
-          if [ "${{ github.event.inputs.confirm }}" != "${{ github.event.inputs.environment }}" ]; then
-            echo "::error::Confirmation '${{ github.event.inputs.confirm }}' does not match environment '${{ github.event.inputs.environment }}'."
+          if [ "${{ github.event.inputs.confirm }}" != "production" ]; then
+            echo "::error::Confirmation '${{ github.event.inputs.confirm }}' does not match 'production'."
             exit 1
           fi
 
@@ -63,7 +58,7 @@ jobs:
           [ -z "$DATABASE_URL" ] && missing="$missing DATABASE_URL"
           [ -z "$ANTHROPIC_API_KEY" ] && missing="$missing ANTHROPIC_API_KEY"
           if [ -n "$missing" ]; then
-            echo "::error::Missing secret(s) for the '${{ github.event.inputs.environment }}' GitHub Environment:$missing. Add DATABASE_URL, DIRECT_URL and ANTHROPIC_API_KEY (public/proxy DB URL) to that Environment."
+            echo "::error::Missing secret(s) for the 'production' GitHub Environment:$missing. Add DATABASE_URL, DIRECT_URL and ANTHROPIC_API_KEY (public/proxy DB URL) to that Environment."
             exit 1
           fi
 
