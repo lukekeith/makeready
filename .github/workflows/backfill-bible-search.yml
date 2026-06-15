@@ -1,0 +1,91 @@
+name: Backfill Bible Search (doc2query)
+
+# Generates the doc2query questions (Claude Haiku) and embeds every Bible search
+# vector — including the new passage_queries rows — against a chosen environment.
+# Both steps are idempotent and resumable, so re-running is safe and resumes
+# where a previous run left off.
+#
+# Runs entirely in CI against the environment's scoped secrets — never locally.
+# Each GitHub Environment ("staging" / "production") must define these secrets:
+#   - DATABASE_URL        public/proxy Postgres URL (runner is outside Railway)
+#   - DIRECT_URL          same, used by Prisma
+#   - ANTHROPIC_API_KEY   for doc2query question generation
+#
+# Schema (passage_queries table, GIN/HNSW indexes) is applied automatically on
+# deploy — this workflow only fills DATA, so run it AFTER the target is deployed.
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        type: choice
+        options: [staging, production]
+        required: true
+      confirm:
+        description: 'Type the environment name to confirm (e.g. "production")'
+        required: true
+
+concurrency:
+  group: bible-backfill-${{ github.event.inputs.environment }}
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: server
+
+jobs:
+  backfill:
+    name: doc2query backfill (${{ github.event.inputs.environment }})
+    runs-on: ubuntu-latest
+    # Loads that environment's scoped secrets and honours its protection rules
+    # (e.g. required reviewers on production).
+    environment: ${{ github.event.inputs.environment }}
+    timeout-minutes: 90
+    steps:
+      - name: Confirm environment
+        run: |
+          if [ "${{ github.event.inputs.confirm }}" != "${{ github.event.inputs.environment }}" ]; then
+            echo "::error::Confirmation '${{ github.event.inputs.confirm }}' does not match environment '${{ github.event.inputs.environment }}'."
+            exit 1
+          fi
+
+      - name: Verify environment secrets are present
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          missing=""
+          [ -z "$DATABASE_URL" ] && missing="$missing DATABASE_URL"
+          [ -z "$ANTHROPIC_API_KEY" ] && missing="$missing ANTHROPIC_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secret(s) for the '${{ github.event.inputs.environment }}' GitHub Environment:$missing. Add DATABASE_URL, DIRECT_URL and ANTHROPIC_API_KEY (public/proxy DB URL) to that Environment."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - run: npm install
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Generate doc2query questions (resumable)
+        run: npx tsx src/scripts/generate-passage-queries.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Embed all Bible search vectors (fills passage_queries)
+        run: npx tsx src/scripts/embed-bible.ts
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
