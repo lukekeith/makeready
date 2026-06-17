@@ -215,7 +215,7 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
         searchField.textColor = .white
         searchField.tintColor = .white
         searchField.attributedPlaceholder = NSAttributedString(
-            string: "Enter a reference, e g \u{201C}Romans 1:1\u{201D}",
+            string: "Search reference or topic",
             attributes: [.foregroundColor: UIColor(white: 1, alpha: 0.5)]
         )
         searchField.returnKeyType = .search

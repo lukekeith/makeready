@@ -26,6 +26,27 @@
         </header>
 
         <section class="InfoPage__section">
+            <h2 class="InfoPage__subheading">Verbal &amp; Paper Consent (Step 1)</h2>
+            <p class="InfoPage__text">
+                Before any message is sent, the group leader obtains the recipient's consent in
+                person — either by reading a short <strong>verbal script</strong> or by having the
+                recipient sign a <strong>paper opt-in form</strong>. This is the first step of our
+                double-opt-in model; the on-site confirmation shown below is the second.
+            </p>
+            <p class="InfoPage__text">
+                The word-for-word verbal script, a printable paper consent form (with an unchecked
+                consent box and signature line), and the full message-program details — sender,
+                message types, frequency, and <strong>STOP</strong>/<strong>HELP</strong> keywords —
+                are documented in our SMS opt-in proof document:
+            </p>
+            <p class="InfoPage__text">
+                <a class="InfoPage__link" href="{{ asset('docs/MakeReady-SMS-Optin-Proof.pdf') }}" download>
+                    ⬇&nbsp;Download the MakeReady SMS Opt-In &amp; Consent Proof (PDF)
+                </a>
+            </p>
+        </section>
+
+        <section class="InfoPage__section">
             <h2 class="InfoPage__subheading">Walkthrough — Join Group Flow</h2>
             <p class="InfoPage__text">
                 Below are live screenshots of each step a member sees when joining a group at
@@ -315,6 +336,10 @@
                 <li class="InfoPage__list-item">
                     <a class="InfoPage__link" href="{{ route('terms') }}">Terms of Service</a>
                     — full terms of the MakeReady SMS messaging program
+                </li>
+                <li class="InfoPage__list-item">
+                    <a class="InfoPage__link" href="{{ asset('docs/MakeReady-SMS-Optin-Proof.pdf') }}" download>SMS Opt-In &amp; Consent Proof (PDF)</a>
+                    — verbal script, printable paper opt-in form, and message-program details
                 </li>
             </ul>
         </section>
