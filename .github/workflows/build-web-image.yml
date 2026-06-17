@@ -1,0 +1,103 @@
+name: Build Web Image
+
+# Build-once pipeline for the Web (client) service.
+#
+# On every push to main that touches the client, this builds the client
+# Dockerfile ONCE, pushes it to GHCR tagged by commit SHA, then deploys that
+# exact image to STAGING. Production later runs the SAME image via the
+# "Promote to Production" workflow — no rebuild, identical bits.
+#
+# The Web service Dockerfile takes no build args/secrets (assets compile at
+# build, app config is cached at runtime by entrypoint.sh), so a CI build is
+# bit-equivalent to Railway's own build.
+#
+# Required secrets:
+#   - RAILWAY_API_TOKEN  existing project token (deploys to Railway)
+#   - GHCR_PULL_TOKEN    a GitHub PAT with read:packages, so Railway can pull
+#                        the private GHCR image (push uses the built-in
+#                        GITHUB_TOKEN; Railway needs a long-lived read token)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client/**'
+      - '.github/workflows/build-web-image.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-web-image
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/makeready-web
+  STG_ENV_ID: "2175d60b-5e6e-49e1-bee1-5a4903ae1920"
+  WEB_SERVICE_ID: "6cb4987b-0344-4e4c-85bd-7490eb0e22d1"
+
+jobs:
+  build:
+    name: Build & push Web image, deploy to staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: client
+          file: client/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Point staging at the freshly built image (also keeps Railway's pull
+      # credentials in sync) and deploy it. source.image overrides any GitHub
+      # source, so staging stops building from the repo and runs the CI image.
+      - name: Deploy image to staging
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          IMG="${IMAGE}:${GITHUB_SHA}"
+          echo "Pointing staging Web at ${IMG} and deploying..."
+
+          rw() {
+            curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
+              -H "Authorization: Bearer ${RAILWAY_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data-binary @- | tee /tmp/rw-resp.json
+            echo ""
+            if grep -q '"errors"' /tmp/rw-resp.json; then
+              echo "::error::Railway mutation failed"; cat /tmp/rw-resp.json; exit 1
+            fi
+          }
+
+          # 1. Set image source + registry credentials (idempotent).
+          jq -n --arg env "$STG_ENV_ID" --arg svc "$WEB_SERVICE_ID" \
+                --arg img "$IMG" --arg u "$GHCR_USER" --arg p "$GHCR_PULL_TOKEN" \
+            '{query:"mutation($e:String!,$s:String!,$i:String!,$u:String!,$p:String!){serviceInstanceUpdate(environmentId:$e,serviceId:$s,input:{source:{image:$i},registryCredentials:{username:$u,password:$p}})}",
+              variables:{e:$env,s:$svc,i:$img,u:$u,p:$p}}' | rw
+
+          # 2. Deploy the new image to staging.
+          jq -n --arg env "$STG_ENV_ID" --arg svc "$WEB_SERVICE_ID" \
+            '{query:"mutation($e:String!,$s:String!){serviceInstanceDeployV2(environmentId:$e,serviceId:$s)}",
+              variables:{e:$env,s:$svc}}' | rw
+
+          echo "Staging deploy triggered for ${IMG}."

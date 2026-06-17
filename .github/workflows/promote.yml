@@ -1,5 +1,21 @@
 name: Promote to Production
 
+# Promotion model (Web): build-once / image promotion.
+#   build-web-image.yml builds the client image, pushes it to GHCR, and deploys
+#   it to STAGING. This workflow then promotes the EXACT image staging is
+#   running to PRODUCTION — no rebuild, identical bits. Production has no GitHub
+#   source; it only ever runs a published GHCR image.
+#
+# NOTE: API and Capture are NOT yet migrated to image promotion. Their prod
+# services are disconnected from GitHub, so the repo-based deploy below will
+# re-ship whatever commit Railway last has on record (i.e. it will NOT pick up
+# new code). Migrate them to the same GHCR build-once flow before relying on
+# their promotion.
+#
+# Required secrets:
+#   - RAILWAY_API_TOKEN  Railway project token
+#   - GHCR_PULL_TOKEN    GitHub PAT (read:packages) so prod can pull the image
+
 on:
   workflow_dispatch:
     inputs:
@@ -21,7 +37,8 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  RAILWAY_ENV_ID: "47a94190-6ea6-48fd-b9db-9973f4f5912a"
+  PROD_ENV_ID: "47a94190-6ea6-48fd-b9db-9973f4f5912a"
+  STG_ENV_ID: "2175d60b-5e6e-49e1-bee1-5a4903ae1920"
   WEB_SERVICE_ID: "6cb4987b-0344-4e4c-85bd-7490eb0e22d1"
   API_SERVICE_ID: "f5dc2315-9c49-4c85-b32d-99418eeba49d"
   CAPTURE_SERVICE_ID: "5a0e4ee7-d839-481d-b08b-220d30c29e60"
@@ -33,59 +50,81 @@ jobs:
     if: github.event.inputs.confirm == 'promote'
 
     steps:
-      # serviceInstanceDeployV2 builds the LATEST commit on the connected
-      # branch. (serviceInstanceRedeploy only restarts the existing image —
-      # using it here silently froze production at the June 2 build.)
-      - name: Deploy Web
+      # Promote the image staging is running to production. We read staging's
+      # current source.image (set by build-web-image.yml), point production at
+      # the same image (+ pull credentials), and deploy. Identical artifact.
+      - name: Promote Web (staging image → production)
         if: contains(github.event.inputs.service, 'Web') || github.event.inputs.service == 'All'
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
-          echo "Deploying Web to production..."
-          curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
-            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$WEB_SERVICE_ID\\\") }\"}" \
-            | tee /tmp/web-response.json
-          echo ""
+          set -euo pipefail
+          rw() {
+            curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
+              -H "Authorization: Bearer ${RAILWAY_API_TOKEN}" \
+              -H "Content-Type: application/json" --data-binary @- > /tmp/rw-resp.json
+            if grep -q '"errors"' /tmp/rw-resp.json; then
+              echo "::error::Railway mutation failed"; cat /tmp/rw-resp.json; exit 1
+            fi
+            cat /tmp/rw-resp.json
+          }
 
-          if grep -q '"errors"' /tmp/web-response.json; then
-            echo "::error::Web deploy failed"
-            cat /tmp/web-response.json
+          echo "Reading the image staging is currently running..."
+          IMG=$(jq -n --arg e "$STG_ENV_ID" --arg s "$WEB_SERVICE_ID" \
+            '{query:"query($e:String!,$s:String!){serviceInstance(serviceId:$s,environmentId:$e){source{image}}}",variables:{e:$e,s:$s}}' \
+            | rw | jq -r '.data.serviceInstance.source.image // empty')
+
+          if [ -z "$IMG" ]; then
+            echo "::error::Staging Web has no image source. Run 'Build Web Image' first so staging is on a GHCR image."
             exit 1
           fi
-          echo "Web deploy triggered."
+          echo "Promoting image to production: $IMG"
 
-      - name: Deploy API
+          # 1. Point production at the staging image (+ pull credentials).
+          jq -n --arg e "$PROD_ENV_ID" --arg s "$WEB_SERVICE_ID" \
+                --arg i "$IMG" --arg u "$GHCR_USER" --arg p "$GHCR_PULL_TOKEN" \
+            '{query:"mutation($e:String!,$s:String!,$i:String!,$u:String!,$p:String!){serviceInstanceUpdate(environmentId:$e,serviceId:$s,input:{source:{image:$i},registryCredentials:{username:$u,password:$p}})}",variables:{e:$e,s:$s,i:$i,u:$u,p:$p}}' \
+            | rw > /dev/null
+
+          # 2. Deploy it to production.
+          jq -n --arg e "$PROD_ENV_ID" --arg s "$WEB_SERVICE_ID" \
+            '{query:"mutation($e:String!,$s:String!){serviceInstanceDeployV2(environmentId:$e,serviceId:$s)}",variables:{e:$e,s:$s}}' \
+            | rw > /dev/null
+
+          echo "Production Web promotion triggered for $IMG."
+
+      # ── NOT YET MIGRATED ──────────────────────────────────────────────────
+      # API and Capture still use repo-based deploys. Their prod services are
+      # disconnected from GitHub, so this re-ships the last commit Railway has
+      # on record (stale) until they are moved to the GHCR build-once flow.
+      - name: Deploy API (repo-based — not yet migrated)
         if: contains(github.event.inputs.service, 'API') || github.event.inputs.service == 'All'
         run: |
-          echo "Deploying API to production..."
+          echo "::warning::API promotion is not migrated to image promotion and may re-ship a stale build."
           curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$API_SERVICE_ID\\\") }\"}" \
+            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$PROD_ENV_ID\\\", serviceId: \\\"$API_SERVICE_ID\\\") }\"}" \
             | tee /tmp/api-response.json
           echo ""
-
           if grep -q '"errors"' /tmp/api-response.json; then
-            echo "::error::API deploy failed"
-            cat /tmp/api-response.json
-            exit 1
+            echo "::error::API deploy failed"; cat /tmp/api-response.json; exit 1
           fi
           echo "API deploy triggered."
 
-      - name: Deploy Capture
+      - name: Deploy Capture (repo-based — not yet migrated)
         if: contains(github.event.inputs.service, 'Capture') || github.event.inputs.service == 'All'
         run: |
-          echo "Deploying Capture to production..."
+          echo "::warning::Capture promotion is not migrated to image promotion and may re-ship a stale build."
           curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
             -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$RAILWAY_ENV_ID\\\", serviceId: \\\"$CAPTURE_SERVICE_ID\\\") }\"}" \
+            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$PROD_ENV_ID\\\", serviceId: \\\"$CAPTURE_SERVICE_ID\\\") }\"}" \
             | tee /tmp/capture-response.json
           echo ""
-
           if grep -q '"errors"' /tmp/capture-response.json; then
-            echo "::error::Capture deploy failed"
-            cat /tmp/capture-response.json
-            exit 1
+            echo "::error::Capture deploy failed"; cat /tmp/capture-response.json; exit 1
           fi
           echo "Capture deploy triggered."
