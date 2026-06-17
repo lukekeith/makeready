@@ -6,11 +6,11 @@ name: Promote to Production
 #   running to PRODUCTION — no rebuild, identical bits. Production has no GitHub
 #   source; it only ever runs a published GHCR image.
 #
-# NOTE: API and Capture are NOT yet migrated to image promotion. Their prod
-# services are disconnected from GitHub, so the repo-based deploy below will
-# re-ship whatever commit Railway last has on record (i.e. it will NOT pick up
-# new code). Migrate them to the same GHCR build-once flow before relying on
-# their promotion.
+# NOTE: API is NOT yet migrated to image promotion. Its prod service is
+# disconnected from GitHub, so the repo-based deploy below will re-ship whatever
+# commit Railway last has on record (i.e. it will NOT pick up new code). Migrate
+# it to the same GHCR build-once flow before relying on its promotion.
+# (Capture is intentionally excluded from this workflow.)
 #
 # Required secrets:
 #   - RAILWAY_API_TOKEN  Railway project token
@@ -26,7 +26,6 @@ on:
         options:
           - Web (app.makeready.org)
           - API (api.makeready.org)
-          - Capture
           - All
       confirm:
         description: 'Type "promote" to confirm production deployment'
@@ -41,7 +40,6 @@ env:
   STG_ENV_ID: "2175d60b-5e6e-49e1-bee1-5a4903ae1920"
   WEB_SERVICE_ID: "6cb4987b-0344-4e4c-85bd-7490eb0e22d1"
   API_SERVICE_ID: "f5dc2315-9c49-4c85-b32d-99418eeba49d"
-  CAPTURE_SERVICE_ID: "5a0e4ee7-d839-481d-b08b-220d30c29e60"
 
 jobs:
   promote:
@@ -96,9 +94,9 @@ jobs:
           echo "Production Web promotion triggered for $IMG."
 
       # ── NOT YET MIGRATED ──────────────────────────────────────────────────
-      # API and Capture still use repo-based deploys. Their prod services are
-      # disconnected from GitHub, so this re-ships the last commit Railway has
-      # on record (stale) until they are moved to the GHCR build-once flow.
+      # API still uses a repo-based deploy. Its prod service is disconnected
+      # from GitHub, so this re-ships the last commit Railway has on record
+      # (stale) until it is moved to the GHCR build-once flow.
       - name: Deploy API (repo-based — not yet migrated)
         if: contains(github.event.inputs.service, 'API') || github.event.inputs.service == 'All'
         run: |
@@ -113,18 +111,3 @@ jobs:
             echo "::error::API deploy failed"; cat /tmp/api-response.json; exit 1
           fi
           echo "API deploy triggered."
-
-      - name: Deploy Capture (repo-based — not yet migrated)
-        if: contains(github.event.inputs.service, 'Capture') || github.event.inputs.service == 'All'
-        run: |
-          echo "::warning::Capture promotion is not migrated to image promotion and may re-ship a stale build."
-          curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
-            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$PROD_ENV_ID\\\", serviceId: \\\"$CAPTURE_SERVICE_ID\\\") }\"}" \
-            | tee /tmp/capture-response.json
-          echo ""
-          if grep -q '"errors"' /tmp/capture-response.json; then
-            echo "::error::Capture deploy failed"; cat /tmp/capture-response.json; exit 1
-          fi
-          echo "Capture deploy triggered."
