@@ -99,7 +99,7 @@
                 <x-panel.confirmation
                     color="Purple"
                     title="Stay in touch"
-                    description="Before we send your verification code, please confirm SMS consent."
+                    description="Optionally get text updates about your group. This is not required — you can continue without it."
                 >
                     <x-slot:icon>
                         <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
@@ -135,8 +135,6 @@
                                 type="submit"
                                 variant="White"
                                 mode="Block"
-                                :disabled="true"
-                                data-optin-submit
                             >
                                 Continue
                             </x-primitive.button>
@@ -154,19 +152,6 @@
             </div>
         </div>
     </div>
-
-    <script>
-        (function () {
-            var form = document.querySelector('[data-optin-form]');
-            if (!form) return;
-            var cb = form.querySelector('[data-optin-checkbox]');
-            var btn = form.querySelector('[data-optin-submit]');
-            if (!cb || !btn) return;
-            var sync = function () { btn.disabled = !cb.checked; };
-            cb.addEventListener('change', sync);
-            sync();
-        })();
-    </script>
 
 @elseif($step === 'profile')
 

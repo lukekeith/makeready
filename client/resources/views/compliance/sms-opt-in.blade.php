@@ -18,10 +18,11 @@
                 Below is a demonstration of the consent experience members see when joining a group, study, or event.
             </p>
             <p class="InfoPage__intro">
-                The MakeReady SMS program uses a <strong>double-opt-in</strong> consent model:
-                (1) the group leader obtains the recipient's verbal or written consent out-of-band
-                <em>before</em> adding their phone number, and (2) the recipient confirms consent on-site
-                via the unchecked checkbox shown below before any further messages are sent.
+                The group leader obtains the recipient's verbal or written consent out-of-band
+                <em>before</em> adding their phone number. On-site, the recipient is additionally
+                offered an <strong>optional</strong>, never-pre-checked SMS consent checkbox.
+                Checking it is <strong>not required</strong> to join — members can complete the
+                flow without it; leaving it unchecked simply means they are not enrolled for SMS.
             </p>
         </header>
 
@@ -52,8 +53,8 @@
                 Below are live screenshots of each step a member sees when joining a group at
                 <code>app.makeready.org/join/group/{code}</code>. Swipe or scroll horizontally.
                 The consent checkbox appears on <strong>Step 2 (SMS Consent)</strong> —
-                it is never pre-checked and the Continue button remains disabled until the member
-                checks the box.
+                it is never pre-checked and is <strong>optional</strong>: the member can continue
+                without checking it.
             </p>
 
             @php
@@ -69,8 +70,8 @@
                         'src'     => 'screenshots/join-group/02-optin.png',
                         'step'    => 2,
                         'title'   => 'SMS Consent',
-                        'caption' => 'Unchecked consent checkbox with exact Twilio copy and Privacy/Terms links. Continue is disabled until checked.',
-                        'alt'     => 'Step 2 — SMS consent screen with unchecked checkbox, exact Twilio consent copy, Privacy/Terms links, and a disabled Continue button.',
+                        'caption' => 'Optional, unchecked consent checkbox with exact Twilio copy and Privacy/Terms links. The member can continue whether or not it is checked.',
+                        'alt'     => 'Step 2 — SMS consent screen with an optional, unchecked checkbox, exact Twilio consent copy, and Privacy/Terms links.',
                         'featured' => true,
                     ],
                     [
@@ -189,11 +190,11 @@
         <section class="InfoPage__section">
             <h2 class="InfoPage__subheading">Exact Consent Language</h2>
             <p class="InfoPage__text">
-                The consent checkbox on the SMS Consent step is <strong>never pre-checked</strong>,
-                and the <strong>Continue button stays disabled until the box is checked</strong>.
-                If the member bypasses the JavaScript gate, the server also rejects the submission
-                and returns the member to this step with the error message:
-                <em>"Please agree to receive SMS messages to continue."</em>
+                The consent checkbox on the SMS Consent step is <strong>never pre-checked</strong>
+                and is <strong>optional</strong> — the member can continue and complete joining
+                whether or not it is checked. Checking the box is the member's affirmative opt-in
+                to receive SMS; leaving it unchecked simply means they are not enrolled for SMS
+                (they can still join and use the app).
             </p>
             <div class="InfoPage__demo" aria-label="Exact consent copy shown to members">
                 <div class="InfoPage__demo-frame">
@@ -291,25 +292,25 @@
             <p class="InfoPage__text">
                 The recipient has given the group leader prior verbal or written consent
                 before this message is sent. Tapping the join link delivers them to the
-                on-site opt-in flow shown above, where they confirm consent on the website
-                before any further communication.
+                on-site opt-in flow shown above, where they may additionally opt in to SMS
+                via the optional checkbox (not required to join).
             </p>
         </section>
 
         <section class="InfoPage__section">
             <h2 class="InfoPage__subheading">Consent Recording</h2>
             <p class="InfoPage__text">
-                Consent is validated both client-side and server-side. When a member checks the
-                consent checkbox and submits the form, the server records:
+                When a member submits the join form, the server records their consent choice:
             </p>
             <ul class="InfoPage__list">
-                <li class="InfoPage__list-item">The <code>smsConsent</code> boolean (must be <code>true</code>)</li>
-                <li class="InfoPage__list-item">A <code>smsConsentAt</code> timestamp of when consent was given</li>
-                <li class="InfoPage__list-item">The phone number associated with the consent</li>
+                <li class="InfoPage__list-item">The <code>smsConsent</code> boolean — <code>true</code> only if the member checked the optional box</li>
+                <li class="InfoPage__list-item">A <code>smsConsentAt</code> timestamp of when the choice was recorded</li>
+                <li class="InfoPage__list-item">The phone number associated with the record</li>
             </ul>
             <p class="InfoPage__text">
-                If the <code>smsConsent</code> value is not <code>true</code>, the server rejects
-                the request and returns an error.
+                SMS is sent only to members whose recorded <code>smsConsent</code> is
+                <code>true</code>. Members who leave the box unchecked still join successfully;
+                they are simply not enrolled for SMS.
             </p>
         </section>
 

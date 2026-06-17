@@ -86,7 +86,7 @@ class EventJoinController extends Controller
                 break;
 
             case 'phone':
-                if (! session()->get("event.{$id}.smsConsent")) {
+                if (! session()->get("event.{$id}.optinDone")) {
                     return redirect()->route('join.event', ['id' => $id, 'step' => 'optin']);
                 }
                 $viewData['ajaxSubmitUrl'] = route('join.event.phone.submit', ['id' => $id]);
@@ -124,15 +124,12 @@ class EventJoinController extends Controller
             return redirect()->route('join.event', ['id' => $id]);
         }
 
-        if (! $request->boolean('smsConsent')) {
-            return redirect()
-                ->route('join.event', ['id' => $id, 'step' => 'optin'])
-                ->with('error', 'Please agree to receive SMS messages to continue.');
-        }
-
-        session()->put("event.{$id}.smsConsent", true);
+        // SMS consent is OPTIONAL and must not block joining (Twilio A2P). Record
+        // the member's actual choice and advance either way.
+        session()->put("event.{$id}.smsConsent", $request->boolean('smsConsent'));
+        session()->put("event.{$id}.optinDone", true);
         $this->log->logSuccess(ActivityTypes::JOIN_EVENT_OPTIN_SUBMITTED, $request, [
-            'message' => "SMS consent given for event join: {$id}",
+            'message' => 'SMS consent ' . ($request->boolean('smsConsent') ? 'given' : 'declined') . " for event join: {$id}",
             'eventId' => session("event.{$id}.eventId"),
         ]);
 
@@ -144,8 +141,11 @@ class EventJoinController extends Controller
      */
     public function submitPhone(Request $request, string $id): JsonResponse
     {
-        if (! session()->get("event.{$id}.smsConsent")) {
-            return response()->json(['error' => 'SMS consent is required'], 422);
+        // Twilio Verify OTP is transactional (separate from the A2P campaign), so
+        // it does not require SMS marketing consent — only that the member passed
+        // through the opt-in step.
+        if (! session()->get("event.{$id}.optinDone")) {
+            return response()->json(['error' => 'Please start from the beginning of the join flow.'], 422);
         }
 
         $phone = $request->input('phoneNumber', '');

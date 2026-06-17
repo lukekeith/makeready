@@ -75,12 +75,9 @@ function handleSecondaryClick() {
 async function handleSubmit() {
   if (!isValid.value || isLoading.value) return
 
-  // Validate SMS consent client-side (also enforced server-side)
-  if (props.showSmsConsent && !smsConsent.value) {
-    error.value = 'Please agree to receive SMS messages to continue.'
-    return
-  }
-
+  // SMS consent is OPTIONAL and must never block joining (Twilio A2P: consent
+  // cannot be a prerequisite to proceed). We submit the current consent value;
+  // an unchecked box simply means the member is not enrolled for SMS.
   error.value = ''
   isLoading.value = true
 

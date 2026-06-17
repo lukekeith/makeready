@@ -123,7 +123,7 @@ class JoinController extends Controller
                 if (! session()->has("join.{$id}.groupId")) {
                     return redirect()->route('join.group', ['id' => $id]);
                 }
-                if (! session()->get("join.{$id}.smsConsent")) {
+                if (! session()->get("join.{$id}.optinDone")) {
                     return redirect()->route('join.group', ['id' => $id, 'step' => 'optin']);
                 }
                 $viewData['ajaxSubmitUrl'] = route('join.group.phone.submit', ['id' => $id]);
@@ -188,16 +188,14 @@ class JoinController extends Controller
             return redirect()->route('join.group', ['id' => $id]);
         }
 
-        if (! $request->boolean('smsConsent')) {
-            return redirect()
-                ->route('join.group', ['id' => $id, 'step' => 'optin'])
-                ->with('error', 'Please agree to receive SMS messages to continue.');
-        }
-
-        session()->put("join.{$id}.smsConsent", true);
+        // SMS consent is OPTIONAL and must not block joining (Twilio A2P: consent
+        // cannot be a prerequisite to proceed). Record the member's actual choice
+        // and advance either way.
+        session()->put("join.{$id}.smsConsent", $request->boolean('smsConsent'));
+        session()->put("join.{$id}.optinDone", true);
 
         $this->log->logSuccess(ActivityTypes::JOIN_GROUP_OPTIN_SUBMITTED, $request, [
-            'message' => "SMS consent given for group join: {$id}",
+            'message' => 'SMS consent ' . ($request->boolean('smsConsent') ? 'given' : 'declined') . " for group join: {$id}",
             'groupId' => session("join.{$id}.groupId"),
             'metadata' => ['code' => $id],
         ]);
@@ -233,8 +231,11 @@ class JoinController extends Controller
      */
     public function submitPhone(Request $request, string $id): JsonResponse
     {
-        if (! session()->get("join.{$id}.smsConsent")) {
-            return response()->json(['error' => 'SMS consent is required'], 422);
+        // Phone verification uses Twilio Verify (transactional OTP), which is
+        // separate from the A2P marketing campaign — so it does not require SMS
+        // marketing consent. The member must have passed through the opt-in step.
+        if (! session()->get("join.{$id}.optinDone")) {
+            return response()->json(['error' => 'Please start from the beginning of the join flow.'], 422);
         }
 
         $phone = $request->input('phoneNumber', '');
