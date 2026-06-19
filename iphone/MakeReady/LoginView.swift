@@ -111,12 +111,9 @@ struct LoginView: View {
 
         Task {
             do {
-                if Configuration.isLocalDevelopment {
-                    // Local dev: use dev-login endpoint (no Google OAuth needed)
-                    try await authManager.devLogin(email: "luke@lukekeith.com")
-                } else {
-                    try await authManager.signInWithGoogle()
-                }
+                // Resolves the environment first: Local when reachable,
+                // otherwise falls back to Production (see AuthManager.signIn).
+                try await authManager.signIn()
                 print("✅ Sign in completed successfully")
             } catch {
                 print("❌ Sign in error: \(error.localizedDescription)")

@@ -1,10 +1,12 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
+import { Prisma } from '../generated/prisma/index.js'
 import { requireAuth, requireMemberAuth } from '../middleware/auth.js'
 import { logSuccess, logWarning } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 import { trackActivity } from '../services/activity.js'
+import { recordMembershipEvent } from '../services/membership-event.js'
 
 const router = Router({ mergeParams: true }) // Access :groupId from parent
 
@@ -335,30 +337,40 @@ router.post('/', async (req, _res, next) => {
         })
       }
 
-      // If rejected, allow resubmitting by deleting old request
-      if (existingRequest.status === 'rejected') {
-        await prisma.groupJoinRequest.delete({
-          where: { id: existingRequest.id },
-        })
-      }
     }
 
-    // Create the join request
-    const request = await prisma.groupJoinRequest.create({
-      data: {
-        groupId,
-        memberId,
-        message,
-        status: 'pending',
-      },
-      select: {
-        id: true,
-        groupId: true,
-        status: true,
-        message: true,
-        createdAt: true,
-      },
-    })
+    // Create or revive the join request. We NEVER delete the prior row — the
+    // unique (groupId, memberId) request is reset to pending so the member's
+    // identity and prior decisions are preserved. The full history lives in the
+    // immutable MembershipEvent trail recorded below.
+    const requestSelect = {
+      id: true,
+      groupId: true,
+      status: true,
+      message: true,
+      createdAt: true,
+    } as const
+
+    const request = existingRequest
+      ? await prisma.groupJoinRequest.update({
+          where: { id: existingRequest.id },
+          data: {
+            message,
+            status: 'pending',
+            reviewedById: null,
+            reviewedAt: null,
+          },
+          select: requestSelect,
+        })
+      : await prisma.groupJoinRequest.create({
+          data: {
+            groupId,
+            memberId,
+            message,
+            status: 'pending',
+          },
+          select: requestSelect,
+        })
 
     // Log successful submission
     logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_SUBMITTED, req, {
@@ -383,6 +395,19 @@ router.post('/', async (req, _res, next) => {
       targetUserId: group.creatorId,
       title: 'New Join Request',
       body: `${memberName} wants to join ${group.name}`,
+      metadata: { requestId: request.id },
+    })
+
+    // Immutable audit trail — captures every (re)request against the same
+    // member, including re-requests after a prior rejection.
+    await recordMembershipEvent({
+      memberId,
+      action: 'REQUESTED',
+      groupId,
+      organizationId: group.organizationId,
+      actorId: memberId,
+      actorType: 'member',
+      note: message || null,
       metadata: { requestId: request.id },
     })
 
@@ -847,7 +872,7 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
     // Verify user is group creator
     const group = await prisma.group.findFirst({
       where: { id: groupId, creatorId: userId, isActive: true },
-      select: { id: true },
+      select: { id: true, organizationId: true },
     })
 
     if (!group) {
@@ -882,8 +907,11 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
       })
     }
 
-    // Transaction: Create GroupMember and update request status
-    const [updatedRequest] = await prisma.$transaction([
+    // Transaction: update request status, add member to group, and ensure the
+    // member is recorded in the group's organization (an approved member IS an
+    // org member — without this they can't later be added to other groups in
+    // the org, e.g. via transfer).
+    const ops: Prisma.PrismaPromise<unknown>[] = [
       prisma.groupJoinRequest.update({
         where: { id: requestId },
         data: {
@@ -914,7 +942,40 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
           joinedAt: new Date(),
         },
       }),
-    ])
+    ]
+
+    if (group.organizationId) {
+      ops.push(
+        prisma.memberOrganization.upsert({
+          where: {
+            memberId_organizationId: {
+              memberId: request.memberId,
+              organizationId: group.organizationId,
+            },
+          },
+          create: {
+            memberId: request.memberId,
+            organizationId: group.organizationId,
+          },
+          update: {},
+        })
+      )
+    }
+
+    const [updatedRequest] = await prisma.$transaction(ops)
+
+    // Append to the immutable membership audit trail. The upsert reactivates a
+    // prior (soft-deleted) membership when present, so none of the member's
+    // existing group data is lost.
+    await recordMembershipEvent({
+      memberId: request.memberId,
+      action: 'APPROVED',
+      groupId,
+      organizationId: group.organizationId,
+      actorId: userId,
+      actorType: 'user',
+      metadata: { requestId },
+    })
 
     // Log approval
     logSuccess(ActivityTypes.JOIN.GROUP_REQUEST_APPROVED, req, {
@@ -1034,11 +1095,12 @@ router.post('/:requestId/reject', requireAuth, async (req, res) => {
   try {
     const { groupId, requestId } = req.params
     const userId = (req.user as any)?.id
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : undefined
 
     // Verify user is group creator
     const group = await prisma.group.findFirst({
       where: { id: groupId, creatorId: userId, isActive: true },
-      select: { id: true },
+      select: { id: true, organizationId: true },
     })
 
     if (!group) {
@@ -1064,7 +1126,8 @@ router.post('/:requestId/reject', requireAuth, async (req, res) => {
       })
     }
 
-    // Update request status
+    // Mark rejected. The request row is KEPT (not deleted) so the decision is
+    // preserved; a later re-request resets this same row to pending.
     const updatedRequest = await prisma.groupJoinRequest.update({
       where: { id: requestId },
       data: {
@@ -1077,6 +1140,19 @@ router.post('/:requestId/reject', requireAuth, async (req, res) => {
         status: true,
         reviewedAt: true,
       },
+    })
+
+    // Append to the immutable membership audit trail so the leader can later
+    // find this person (search by name/phone) and reverse the decision.
+    await recordMembershipEvent({
+      memberId: request.memberId,
+      action: 'REJECTED',
+      groupId,
+      organizationId: group.organizationId,
+      actorId: userId,
+      actorType: 'user',
+      note: reason || null,
+      metadata: { requestId },
     })
 
     // Log rejection

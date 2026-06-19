@@ -359,6 +359,9 @@ models:
         type: one_to_many
         target: Activity
         name: ActivityGroup
+      membershipEvents:
+        type: one_to_many
+        target: MembershipEvent
     indexes:
       - fields: [organizationId]
       - fields: [isActive]
@@ -640,6 +643,9 @@ models:
       searchHistory:
         type: one_to_many
         target: SearchHistory
+      membershipEvents:
+        type: one_to_many
+        target: MembershipEvent
     indexes:
       - fields: [isActive]
       - fields: [phoneNumber]
@@ -3998,6 +4004,70 @@ models:
       - fields: [groupId, createdAt]
       - fields: [targetUserId, createdAt]
       - fields: [targetUserId, isRead]
+
+  # ===========================================================================
+  # Membership Events (immutable audit trail of every membership transition)
+  # ===========================================================================
+  MembershipEvent:
+    table_name: membership_events
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      memberId:
+        type: string
+        description: "The member this event concerns (canonical identity)"
+      groupId:
+        type: string
+        nullable: true
+        description: "Group context; null for org-level events"
+      organizationId:
+        type: string
+        nullable: true
+        description: "Org context for org-scoped history queries"
+      action:
+        type: enum
+        enum: MembershipEventAction
+      actorId:
+        type: string
+        nullable: true
+        description: "Who performed it — User id (leader) or Member id (self). Polymorphic, no FK."
+      actorType:
+        type: string
+        nullable: true
+        description: "user, member, or system — disambiguates actorId"
+      note:
+        type: text
+        nullable: true
+        description: "Optional reason/message (e.g. rejection reason, join message)"
+      metadata:
+        type: json
+        nullable: true
+        description: "Extra context (requestId, role, source, etc.)"
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
+    indexes:
+      - fields: [memberId, createdAt]
+      - fields: [groupId, createdAt]
+      - fields: [organizationId, createdAt]
+      - fields: [action]
+      - fields: [createdAt]
 
   # ===========================================================================
   # SMS Campaigns (A2P compliant messaging)

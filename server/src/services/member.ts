@@ -381,7 +381,7 @@ export async function addMemberToGroup(
   memberId: string,
   groupId: string,
   role: string = 'member'
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; reactivated?: boolean }> {
   try {
     // Check if member is already in group
     const existing = await prisma.groupMember.findFirst({
@@ -392,13 +392,14 @@ export async function addMemberToGroup(
     })
 
     if (existing) {
-      // If membership exists but is inactive, reactivate it
+      // If membership exists but is inactive, reactivate it. The same row is
+      // revived, so all of the member's existing group data is preserved.
       if (!existing.isActive) {
         await prisma.groupMember.update({
           where: { id: existing.id },
           data: { isActive: true, role },
         })
-        return { success: true }
+        return { success: true, reactivated: true }
       }
 
       return {
@@ -417,7 +418,7 @@ export async function addMemberToGroup(
       },
     })
 
-    return { success: true }
+    return { success: true, reactivated: false }
   } catch (error) {
     console.error('Error adding member to group:', error)
     return {

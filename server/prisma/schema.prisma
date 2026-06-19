@@ -131,6 +131,17 @@ enum BetaApplicationStatus {
   WITHDRAWN
 }
 
+enum MembershipEventAction {
+  INVITED
+  REQUESTED
+  APPROVED
+  REJECTED
+  ADDED
+  REJOINED
+  REMOVED_GROUP
+  REMOVED_ORG
+}
+
 model User {
   id                   String @id @default(uuid())
   googleId             String? @unique
@@ -233,6 +244,7 @@ model Group {
   posts                Post[]
   joinRequests         GroupJoinRequest[]
   activities           Activity[] @relation("ActivityGroup")
+  membershipEvents     MembershipEvent[]
   @@index([organizationId])
   @@index([isActive])
   @@index([organizationId, isActive])
@@ -330,6 +342,7 @@ model Member {
   linkedUser           User? @relation("UserMemberLink", fields: [userId], references: [id], onDelete: SetNull)
   preferences          UserPreference[]
   searchHistory        SearchHistory[]
+  membershipEvents     MembershipEvent[]
   @@index([isActive])
   @@index([phoneNumber])
   @@index([googleId])
@@ -1548,6 +1561,28 @@ model Activity {
   @@index([targetUserId, createdAt])
   @@index([targetUserId, isRead])
   @@map("activities")
+}
+
+model MembershipEvent {
+  id                   String @id @default(uuid())
+  memberId             String // The member this event concerns (canonical identity)
+  groupId              String? // Group context; null for org-level events
+  organizationId       String? // Org context for org-scoped history queries
+  action               MembershipEventAction
+  actorId              String? // Who performed it — User id (leader) or Member id (self). Polymorphic, no FK.
+  actorType            String? // user, member, or system — disambiguates actorId
+  note                 String? @db.Text // Optional reason/message (e.g. rejection reason, join message)
+  metadata             Json? // Extra context (requestId, role, source, etc.)
+  createdAt            DateTime @default(now())
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  group                Group? @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  @@index([memberId, createdAt])
+  @@index([groupId, createdAt])
+  @@index([organizationId, createdAt])
+  @@index([action])
+  @@index([createdAt])
+  @@map("membership_events")
 }
 
 model SmsCampaign {

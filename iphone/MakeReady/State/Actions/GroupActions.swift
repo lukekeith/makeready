@@ -435,7 +435,109 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to load member profile")
         }
 
+        // Mirror the member's group associations into AppState so the member
+        // profile's group cards render from (and react to) centralized state.
+        state.memberGroupCardsById[profile.id] = profile.groups.map {
+            MemberGroupCard(
+                id: $0.id,
+                name: $0.name,
+                coverImageUrl: $0.coverImageUrl,
+                joinedAt: $0.joinedAt,
+                removedAt: nil
+            )
+        }
+
         return profile
+    }
+
+    // MARK: - Membership Changes
+
+    /// Remove a member from a single group. The server soft-deletes the
+    /// membership (and never the member), so it can be restored via `rejoinGroup`
+    /// without losing any of the member's data.
+    @MainActor
+    func removeMember(groupId: String, memberId: String) async throws {
+        let response: ApproveRequestResponse = try await api.delete(
+            "/api/groups/\(groupId)/members/\(memberId)",
+            responseType: ApproveRequestResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to remove member from group")
+        }
+        // Flip the card to the removed state in centralized state.
+        setMemberGroupRemovedAt(memberId: memberId, groupId: groupId, date: Date())
+    }
+
+    /// Re-add a member to a group they were removed from. The server reactivates
+    /// the existing (soft-deleted) membership, restoring all prior group data.
+    @MainActor
+    func rejoinGroup(groupId: String, memberId: String, role: String = "member") async throws {
+        let response: ApproveRequestResponse = try await api.post(
+            "/api/groups/\(groupId)/members",
+            body: ["memberId": memberId, "role": role],
+            responseType: ApproveRequestResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to rejoin group")
+        }
+        // Clear the removed state so the card returns to "joined".
+        setMemberGroupRemovedAt(memberId: memberId, groupId: groupId, date: nil)
+    }
+
+    /// Move a member from one group to another: remove them from `fromGroupId`
+    /// and add them to `toGroupId` (composed from the existing endpoints, since
+    /// there is no single transfer endpoint). On success, the source card flips
+    /// to removed and the target group is added as a joined card.
+    @MainActor
+    func transferMember(memberId: String, fromGroupId: String, toGroupId: String) async throws {
+        // Add to the target FIRST: while the member is still active in the source
+        // group, the server recognizes them as an org member (and heals a missing
+        // org link). Then remove them from the source group.
+        let addResponse: ApproveRequestResponse = try await api.post(
+            "/api/groups/\(toGroupId)/members",
+            body: ["memberId": memberId, "role": "member"],
+            responseType: ApproveRequestResponse.self
+        )
+        guard addResponse.success else {
+            throw APIError.serverError(addResponse.error ?? "Failed to transfer member")
+        }
+
+        let removeResponse: ApproveRequestResponse = try await api.delete(
+            "/api/groups/\(fromGroupId)/members/\(memberId)",
+            responseType: ApproveRequestResponse.self
+        )
+        guard removeResponse.success else {
+            throw APIError.serverError(removeResponse.error ?? "Failed to transfer member")
+        }
+
+        var cards = state.memberGroupCardsById[memberId] ?? []
+        // Source group → removed state.
+        if let idx = cards.firstIndex(where: { $0.id == fromGroupId }) {
+            cards[idx].removedAt = Date()
+        }
+        // Target group → joined (clear a prior removed state, or append a new card).
+        if let idx = cards.firstIndex(where: { $0.id == toGroupId }) {
+            cards[idx].removedAt = nil
+        } else {
+            let target = state.groups[toGroupId]
+            cards.append(MemberGroupCard(
+                id: toGroupId,
+                name: target?.name ?? "Group",
+                coverImageUrl: target?.coverImageUrl,
+                joinedAt: Date(),
+                removedAt: nil
+            ))
+        }
+        state.memberGroupCardsById[memberId] = cards
+    }
+
+    /// Set (or clear) the removed timestamp on a member's group card in state.
+    @MainActor
+    private func setMemberGroupRemovedAt(memberId: String, groupId: String, date: Date?) {
+        guard var cards = state.memberGroupCardsById[memberId],
+              let idx = cards.firstIndex(where: { $0.id == groupId }) else { return }
+        cards[idx].removedAt = date
+        state.memberGroupCardsById[memberId] = cards
     }
 
     // MARK: - Join Requests
@@ -476,6 +578,26 @@ private let api: APIClientProtocol
         )
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to approve request")
+        }
+        if var requests = state.pendingJoinRequestsByGroupId[groupId] {
+            requests.removeAll { $0.id == requestId }
+            state.pendingJoinRequestsByGroupId[groupId] = requests
+        }
+    }
+
+    /// Reject a pending join request. Like approval, this removes the request
+    /// from `AppState.pendingJoinRequestsByGroupId` so the red-dot indicators
+    /// update instantly. The server preserves the rejection (and the member),
+    /// so the leader can later reverse it from the membership history.
+    @MainActor
+    func rejectJoinRequest(groupId: String, requestId: String) async throws {
+        let response: ApproveRequestResponse = try await api.post(
+            "/api/groups/\(groupId)/join-requests/\(requestId)/reject",
+            body: [:],
+            responseType: ApproveRequestResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to reject request")
         }
         if var requests = state.pendingJoinRequestsByGroupId[groupId] {
             requests.removeAll { $0.id == requestId }

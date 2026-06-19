@@ -228,7 +228,7 @@ private struct MainGroupsPreviewRequestsTab: View {
                                     groups: []
                                 )
                             ) {
-                                ActionButton(label: "Accept", variant: .purple) {}
+                                ActionButton(label: "Respond", variant: .purple) {}
                             }
                         }
                     }

@@ -7,6 +7,14 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm install
 
+# Install Atlas (Linux) — this project manages schema with Atlas migrations,
+# not `prisma migrate`. The committed bin/atlas is a macOS binary, so the
+# container needs its own.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && curl -sSf https://atlasgo.sh | sh \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy prisma schema and generate client
 COPY prisma ./prisma/
 RUN npx prisma generate
@@ -17,5 +25,5 @@ COPY . .
 EXPOSE 3010
 
 # Regenerate client (build-time layer may be cached against an older schema),
-# run migrations, then start dev server
-CMD npx prisma generate --schema=./prisma/schema.prisma && npx prisma migrate deploy --schema=./prisma/schema.prisma && npm run dev
+# apply Atlas migrations (env reads DATABASE_URL), then start dev server.
+CMD npx prisma generate --schema=./prisma/schema.prisma && (cd atlas && atlas migrate apply --env local) && npm run dev

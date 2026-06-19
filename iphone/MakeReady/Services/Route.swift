@@ -65,6 +65,8 @@ enum Route: Equatable, Hashable {
     case memberProfile
     case memberRequestProfile
     case memberRequests
+    case memberRequestRespond
+    case changeMembership
 
     // MARK: Feedback / unenroll
     case confirmationOverlay
@@ -118,6 +120,8 @@ enum Route: Equatable, Hashable {
         case .memberProfile: return "memberProfile"
         case .memberRequestProfile: return "memberRequestProfile"
         case .memberRequests: return "memberRequests"
+        case .memberRequestRespond: return "memberRequestRespond"
+        case .changeMembership: return "changeMembership"
 
         case .confirmationOverlay: return "confirmationOverlay"
         case .unenrollOptions: return "unenrollOptions"
@@ -132,7 +136,7 @@ enum Route: Equatable, Hashable {
     /// presented via `presentMenu` with default `.menu` priority.
     var priority: OverlayPriority {
         switch self {
-        case .addActivityMenu, .confirmationOverlay:
+        case .addActivityMenu, .confirmationOverlay, .memberRequestRespond, .changeMembership:
             return .topLevel
         case .userMenu, .addMenu, .hamburgerMenu, .lessonActionMenu,
              .librarySortMenu, .libraryAddMenu, .groupsAddMenu, .groupsInviteMenu,
@@ -154,7 +158,7 @@ enum Route: Equatable, Hashable {
     enum Chrome { case modal, menu, page, raw }
     var chrome: Chrome {
         switch self {
-        case .addActivityMenu, .confirmationOverlay:
+        case .addActivityMenu, .confirmationOverlay, .memberRequestRespond, .changeMembership:
             return .raw
         case .memberRequests:
             return .page

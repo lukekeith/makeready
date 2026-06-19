@@ -160,6 +160,8 @@ struct GlobalSearchPage: View {
             overlayManager.present(.memberProfile) {
                 MemberProfilePage(
                     memberId: result.entityId,
+                    overlayManager: overlayManager,
+                    seedName: result.title,
                     onDismiss: { overlayManager.dismiss(.memberProfile) }
                 )
             }

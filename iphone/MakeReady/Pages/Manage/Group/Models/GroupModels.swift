@@ -240,6 +240,18 @@ struct MemberProfileGroup: Codable {
     let joinedAt: Date
 }
 
+/// A row in the member-profile groups list. Lives in AppState
+/// (`memberGroupCardsById`) so membership changes (remove / rejoin / transfer)
+/// update the rendered cards reactively. `removedAt != nil` renders the
+/// destructive "removed" state with the removal date.
+struct MemberGroupCard: Identifiable, Equatable {
+    let id: String          // group id
+    let name: String
+    let coverImageUrl: String?
+    let joinedAt: Date
+    var removedAt: Date?
+}
+
 /// Response from GET /api/members/:memberId/profile
 struct MemberProfileResponse: Codable {
     let success: Bool

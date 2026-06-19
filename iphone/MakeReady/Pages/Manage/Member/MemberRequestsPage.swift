@@ -9,14 +9,21 @@ import SwiftUI
 
 struct MemberRequestsPage: View {
     let overlayManager: OverlayManager
-    let allJoinRequests: [GroupJoinRequest]
     let onRequestApproved: () -> Void
 
     private var state: AppState { AppState.shared }
     @Environment(\.pageDismiss) private var pageDismiss
 
-    @State private var showAcceptConfirmation: Bool = false
-    @State private var requestToAccept: GroupJoinRequest?
+    /// Derived from AppState so approving/rejecting (which mutate
+    /// `pendingJoinRequestsByGroupId`) removes the card reactively — no stale
+    /// snapshot. Ordered by the group order for stability.
+    private var allJoinRequests: [GroupJoinRequest] {
+        state.orderedGroups.flatMap { group in
+            (state.pendingJoinRequestsByGroupId[group.id] ?? []).map {
+                GroupJoinRequest(groupId: group.id, request: $0)
+            }
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -51,34 +58,17 @@ struct MemberRequestsPage: View {
                         VStack(spacing: 4) {
                             ForEach(allJoinRequests, id: \.id) { groupRequest in
                                 requestRow(groupRequest)
+                                    .transition(.scale.combined(with: .opacity))
                             }
                         }
+                        // Animate the diff: an approved/rejected card shrinks +
+                        // fades out as it leaves the list.
+                        .animation(Motion.standard, value: allJoinRequests.map(\.id))
                         .padding(.horizontal, 16)
                         .padding(.top, 8)
                         .padding(.bottom, 100)
                     }
                 }
-            }
-        }
-        .alert("Accept Request", isPresented: $showAcceptConfirmation) {
-            Button("Cancel", role: .cancel) {
-                requestToAccept = nil
-            }
-            Button("Accept") {
-                if let groupRequest = requestToAccept {
-                    Task {
-                        await approveRequest(groupRequest)
-                    }
-                }
-                requestToAccept = nil
-            }
-        } message: {
-            if let groupRequest = requestToAccept {
-                let name = [groupRequest.request.member.firstName, groupRequest.request.member.lastName]
-                    .compactMap { $0 }
-                    .joined(separator: " ")
-                let groupName = state.groups[groupRequest.groupId]?.name ?? "the group"
-                Text("Accept \(name) as a member of \(groupName)?")
             }
         }
     }
@@ -97,10 +87,36 @@ struct MemberRequestsPage: View {
                 }
             )
         ) {
-            ActionButton(label: "Accept", variant: .purple) {
-                requestToAccept = groupRequest
-                showAcceptConfirmation = true
+            ActionButton(label: "Respond", variant: .purple) {
+                handleRespond(groupRequest)
             }
+        }
+    }
+
+    private func handleRespond(_ groupRequest: GroupJoinRequest) {
+        let name = [groupRequest.request.member.firstName, groupRequest.request.member.lastName]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        let displayName = name.isEmpty ? "This member" : name
+        let groupName = state.groups[groupRequest.groupId]?.name ?? "the group"
+
+        overlayManager.present(.memberRequestRespond) {
+            MemberRequestRespondModal(
+                memberName: displayName,
+                groupName: groupName,
+                requestDate: groupRequest.request.createdAt,
+                onApprove: {
+                    overlayManager.dismiss(.memberRequestRespond)
+                    Task { await approveRequest(groupRequest) }
+                },
+                onReject: {
+                    overlayManager.dismiss(.memberRequestRespond)
+                    Task { await rejectRequest(groupRequest) }
+                },
+                onCancel: {
+                    overlayManager.dismiss(.memberRequestRespond)
+                }
+            )
         }
     }
 
@@ -150,6 +166,27 @@ struct MemberRequestsPage: View {
                 surface: true,
                 friendlyMessage: "Couldn't approve the request",
                 retry: { Task { await approveRequest(groupRequest) } }
+            )
+        }
+    }
+
+    private func rejectRequest(_ groupRequest: GroupJoinRequest) async {
+        do {
+            try await GroupActions().rejectJoinRequest(
+                groupId: groupRequest.groupId,
+                requestId: groupRequest.request.id
+            )
+            // Reuse the same refresh callback as approval — the request is
+            // resolved and removed from the pending list either way.
+            onRequestApproved()
+        } catch {
+            // User tapped Reject — surface; rejection by id is safe to re-run.
+            state.recordError(
+                error,
+                context: "MemberRequestsPage.rejectRequest",
+                surface: true,
+                friendlyMessage: "Couldn't reject the request",
+                retry: { Task { await rejectRequest(groupRequest) } }
             )
         }
     }

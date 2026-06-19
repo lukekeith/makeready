@@ -68,6 +68,55 @@ class AuthManager: NSObject {
         }
     }
 
+    // MARK: - Login Entry Point
+
+    /// Dev-login identity used for the Local environment (dev builds only).
+    private static let devLoginEmail = "luke@lukekeith.com"
+
+    /// Login button entry point. When the selected environment is **Local**,
+    /// it first confirms the local server is actually reachable — healing the
+    /// dev port if it has moved — and transparently falls back to
+    /// **Production** when Local is down. It then runs the auth flow
+    /// appropriate to the *resolved* environment: dev-login for Local, Google
+    /// OAuth otherwise.
+    @MainActor
+    func signIn() async throws {
+        await resolveLoginEnvironment()
+
+        if Configuration.isLocalDevelopment {
+            try await devLogin(email: Self.devLoginEmail)
+        } else {
+            try await signInWithGoogle()
+        }
+    }
+
+    /// If the user picked Local, verify it's up before we commit the login to
+    /// it. `LocalPortHealer` probes `/health` (and adopts a moved dev port).
+    /// If nothing answers as a MakeReady server, switch the *active*
+    /// environment to Production so the whole app — auth and the data loads
+    /// that follow — targets a reachable backend. No-op for non-dev builds and
+    /// non-Local selections, where there is nothing to fall back from.
+    @MainActor
+    private func resolveLoginEnvironment() async {
+        guard Configuration.devMode, Configuration.selectedEnvironment == .local else {
+            return
+        }
+
+        switch await LocalPortHealer.heal() {
+        case .healthy, .healed:
+            // Local is reachable (port healed if it had moved) — stay on Local.
+            return
+        case .notFound, .skipped:
+            Log.auth.info("Local server unreachable at login — falling back to Production")
+            // Flush Local's snapshot to its environment-scoped file, switch,
+            // then swap caches to Production's snapshot (mirrors the manual
+            // environment switch on the Profile screen).
+            AppState.shared.persistImmediately()
+            Configuration.selectedEnvironment = .production
+            AppState.shared.reloadForEnvironmentSwitch()
+        }
+    }
+
     // MARK: - Sign In with Google OAuth
     @MainActor
     func signInWithGoogle() async throws {

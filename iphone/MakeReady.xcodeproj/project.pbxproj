@@ -213,6 +213,8 @@
 		MOTN0001000000000001 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = MOTN0002000000000001 /* Motion.swift */; };
 		MPRP0001000000000000001 /* MemberProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MPRP0002000000000000001 /* MemberProfilePage.swift */; };
 		MRPP0001000000000000001 /* MemberRequestProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRPP0002000000000000001 /* MemberRequestProfilePage.swift */; };
+		MRRM0001000000000000001 /* MemberRequestRespondModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRRM0002000000000000001 /* MemberRequestRespondModal.swift */; };
+		CMM00001000000000000001 /* ChangeMembershipModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = CMM00002000000000000001 /* ChangeMembershipModal.swift */; };
 		MRQP0001000000000000001 /* MemberRequestsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRQP0002000000000000001 /* MemberRequestsPage.swift */; };
 		NAVC0001000000000000001 /* NavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVC0002000000000000001 /* NavigationCoordinator.swift */; };
 		NOTIF0001000000000001 /* NotificationActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIF0002000000000001 /* NotificationActions.swift */; };
@@ -527,6 +529,8 @@
 		MOTN0002000000000001 /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
 		MPRP0002000000000000001 /* MemberProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberProfilePage.swift; sourceTree = "<group>"; };
 		MRPP0002000000000000001 /* MemberRequestProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestProfilePage.swift; sourceTree = "<group>"; };
+		MRRM0002000000000000001 /* MemberRequestRespondModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestRespondModal.swift; sourceTree = "<group>"; };
+		CMM00002000000000000001 /* ChangeMembershipModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangeMembershipModal.swift; sourceTree = "<group>"; };
 		MRQP0002000000000000001 /* MemberRequestsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestsPage.swift; sourceTree = "<group>"; };
 		NAVC0002000000000000001 /* NavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCoordinator.swift; sourceTree = "<group>"; };
 		NOTIF0002000000000001 /* NotificationActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationActions.swift; sourceTree = "<group>"; };
@@ -1191,6 +1195,8 @@
 				991240BC2C2C794C15923B10 /* MemberHomePage.swift */,
 				MPRP0002000000000000001 /* MemberProfilePage.swift */,
 				MRPP0002000000000000001 /* MemberRequestProfilePage.swift */,
+				MRRM0002000000000000001 /* MemberRequestRespondModal.swift */,
+				CMM00002000000000000001 /* ChangeMembershipModal.swift */,
 				MRQP0002000000000000001 /* MemberRequestsPage.swift */,
 			);
 			path = Member;
@@ -1721,6 +1727,8 @@
 				OHMP0001000000000000001 /* OrgHomePage.swift in Sources */,
 				MPRP0001000000000000001 /* MemberProfilePage.swift in Sources */,
 				MRPP0001000000000000001 /* MemberRequestProfilePage.swift in Sources */,
+				MRRM0001000000000000001 /* MemberRequestRespondModal.swift in Sources */,
+				CMM00001000000000000001 /* ChangeMembershipModal.swift in Sources */,
 				MRQP0001000000000000001 /* MemberRequestsPage.swift in Sources */,
 				A1000027000000000000001 /* NavBar.swift in Sources */,
 				962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */,

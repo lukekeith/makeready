@@ -12,27 +12,64 @@ import ContactsUI
 
 struct MemberProfilePage: View {
     let memberId: String
+    let overlayManager: OverlayManager
+    /// Seed values from the calling list (avatar + name) so the background image
+    /// and name are present from frame 1 and slide up WITH the modal instead of
+    /// popping in after it lands (see SWIFTUI_TRANSITIONS.md § Pre-loading Content).
+    let seedAvatarUrl: String?
+    let seedName: String?
     var onDismiss: (() -> Void)?
 
+    private var state: AppState { AppState.shared }
+
     @State private var profile: MemberProfile?
-    @State private var isLoading = true
+    @State private var isLoading: Bool
     @State private var error: String?
+    @State private var backgroundImage: UIImage?
     @State private var showAddContact = false
     @State private var showCallDialog = false
     @State private var showTextDialog = false
     @State private var showEmailDialog = false
 
+    init(
+        memberId: String,
+        overlayManager: OverlayManager,
+        seedAvatarUrl: String? = nil,
+        seedName: String? = nil,
+        onDismiss: (() -> Void)? = nil
+    ) {
+        self.memberId = memberId
+        self.overlayManager = overlayManager
+        self.seedAvatarUrl = seedAvatarUrl
+        self.seedName = seedName
+        self.onDismiss = onDismiss
+
+        // Cache-first: if the avatar is already in the image cache (it was just
+        // shown in the members list), render it from the very first frame so it
+        // animates in with the modal.
+        if let seed = seedAvatarUrl, let url = URL(string: seed),
+           let cached = ImageCache.shared.cachedImage(for: url) {
+            _backgroundImage = State(initialValue: cached)
+        }
+        // Only show the blocking spinner when there is nothing at all to display.
+        _isLoading = State(initialValue: seedName == nil && seedAvatarUrl == nil)
+    }
+
     // MARK: - Computed Properties
 
+    private var displayAvatarUrl: String? { profile?.avatarUrl ?? seedAvatarUrl }
+    private var displayName: String { profile?.displayName ?? seedName ?? "" }
+
     private var hasPhoto: Bool {
-        guard let url = profile?.avatarUrl, !url.isEmpty else { return false }
+        guard let url = displayAvatarUrl, !url.isEmpty else { return false }
         return true
     }
 
     private var initials: String {
-        let first = profile?.firstName?.prefix(1).uppercased() ?? ""
-        let last = profile?.lastName?.prefix(1).uppercased() ?? ""
-        return first + last
+        let parts = displayName.split(separator: " ")
+        let first = parts.first?.prefix(1) ?? ""
+        let last = parts.count > 1 ? (parts.last?.prefix(1) ?? "") : ""
+        return (first + last).uppercased()
     }
 
     private var keyValueItems: [InfoPanelItem] {
@@ -46,14 +83,6 @@ struct MemberProfilePage: View {
             items.append(InfoPanelItem(label: "Age", value: "\(age)"))
         }
         return items
-    }
-
-    private var groupItems: [InfoPanelItem] {
-        guard let profile = profile else { return [] }
-        let formatter = DateFormatters.monthDayYear
-        return profile.groups.map { group in
-            InfoPanelItem(label: group.name, value: "Joined \(formatter.string(from: group.joinedAt))")
-        }
     }
 
     private var dataItems: [InfoPanelItem] {
@@ -78,20 +107,16 @@ struct MemberProfilePage: View {
                 // Layer 1: Base background (always present from frame 1)
                 Color.appBackground
 
-                // Layer 1b: Photo image (appears when loaded, behind gradient)
-                if hasPhoto, let urlString = profile?.avatarUrl, let url = URL(string: urlString) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fill)
-                        default:
-                            Color.clear
-                        }
-                    }
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
+                // Layer 1b: Photo image. Rendered from a cached UIImage so it is
+                // present on the first frame (when warm) and animates in with the
+                // modal. On a cold cache it fades in once the .task below loads it.
+                if hasPhoto, let backgroundImage {
+                    Image(uiImage: backgroundImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                        .clipped()
+                        .transition(.opacity)
                 }
 
                 // Layer 1c: Gradient overlay (ALWAYS present — never inside a conditional)
@@ -128,12 +153,16 @@ struct MemberProfilePage: View {
                         Color.clear
                             .frame(height: geometry.size.height * 0.45)
 
-                        if let profile = profile {
-                            Text(profile.displayName)
+                        // Name shows from the seed immediately so it animates in
+                        // with the modal (profile fills in the rest afterwards).
+                        if !displayName.isEmpty {
+                            Text(displayName)
                                 .font(Typography.s32Bold)
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
+                        }
 
+                        if profile != nil {
                             HStack(spacing: 16) {
                                 ActionButton(icon: "bubble.left.and.bubble.right", variant: .circleBlur) {
                                     showTextDialog = true
@@ -155,8 +184,15 @@ struct MemberProfilePage: View {
                                 InfoPanel(items: dataItems, mode: .data)
                             }
 
-                            if !groupItems.isEmpty {
-                                InfoPanel(items: groupItems, mode: .data)
+                            // Each group the member belongs to, as a group card,
+                            // read from centralized state so membership changes
+                            // (remove / rejoin / transfer) re-render reactively.
+                            if !memberCards.isEmpty {
+                                VStack(spacing: 8) {
+                                    ForEach(memberCards) { card in
+                                        groupCard(card)
+                                    }
+                                }
                             }
                         }
                     }
@@ -226,6 +262,9 @@ struct MemberProfilePage: View {
         .task {
             await loadProfile()
         }
+        .task(id: displayAvatarUrl) {
+            await loadBackgroundImage()
+        }
         .sheet(isPresented: $showAddContact) {
             if let profile = profile {
                 AddContactView(profile: profile)
@@ -236,15 +275,174 @@ struct MemberProfilePage: View {
     // MARK: - Data Loading
 
     private func loadProfile() async {
-        isLoading = true
+        // Only show the blocking spinner when there's nothing to display yet
+        // (no seed, no prior profile) — a warm refresh must not re-cover content.
+        if profile == nil && seedName == nil && seedAvatarUrl == nil {
+            isLoading = true
+        }
         error = nil
 
         do {
             profile = try await GroupActions().loadMemberProfile(memberId: memberId)
             isLoading = false
         } catch {
-            self.error = error.localizedDescription
+            // Don't replace already-displayed content with the error screen on a
+            // background refresh failure.
+            if profile == nil { self.error = error.localizedDescription }
             isLoading = false
+        }
+    }
+
+    private func loadBackgroundImage() async {
+        guard backgroundImage == nil,
+              let urlString = displayAvatarUrl,
+              let url = URL(string: urlString) else { return }
+        if let image = try? await ImageCache.shared.fetch(url: url) {
+            withAnimation(Motion.standard) { backgroundImage = image }
+        }
+    }
+
+    // MARK: - Groups
+
+    /// The member's group cards, read from centralized state (keyed by the
+    /// canonical member id) so membership changes re-render reactively.
+    private var memberCards: [MemberGroupCard] {
+        guard let id = profile?.id else { return [] }
+        return state.memberGroupCardsById[id] ?? []
+    }
+
+    private func groupCard(_ card: MemberGroupCard) -> some View {
+        let isRemoved = card.removedAt != nil
+        let referenceDate = card.removedAt ?? card.joinedAt
+        let prefix = isRemoved ? "Removed" : "Joined"
+        return CardGroup(data: CardGroupData(
+            id: card.id,
+            title: card.name,
+            imageStyle: groupImageStyle(coverImageUrl: card.coverImageUrl),
+            metadata: [
+                DataItem(
+                    number: relativeDuration(since: referenceDate),
+                    label: "\(prefix) \(DateFormatters.mediumDateShortTime.string(from: referenceDate))"
+                )
+            ],
+            onTap: { handleGroupTap(card) }
+        ))
+        .opacity(isRemoved ? 0.5 : 1)
+        .overlay {
+            // Destructive border makes it obvious the member is no longer in
+            // this group. (CardGroup uses a 4pt corner radius.)
+            if isRemoved {
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.destructive, lineWidth: 1.5)
+            }
+        }
+    }
+
+    private func groupImageStyle(coverImageUrl: String?) -> CardImageStyle {
+        if let url = coverImageUrl, !url.isEmpty {
+            return .photo(imageURL: url)
+        }
+        return .icon(systemName: "person.2.fill")
+    }
+
+    /// Abbreviated elapsed time since `date`, e.g. "3yrs", "2mo", "5d", "today".
+    private func relativeDuration(since date: Date) -> String {
+        let seconds = max(0, Date().timeIntervalSince(date))
+        let day = 86_400.0
+        let year = 365 * day
+        let month = 30 * day
+        if seconds >= year { let y = Int(seconds / year); return "\(y)yr\(y == 1 ? "" : "s")" }
+        if seconds >= month { return "\(Int(seconds / month))mo" }
+        if seconds >= day { return "\(Int(seconds / day))d" }
+        return "today"
+    }
+
+    private func handleGroupTap(_ card: MemberGroupCard) {
+        let isRemoved = card.removedAt != nil
+        let name = displayName.isEmpty ? "this member" : displayName
+        // Group-member operations key off the canonical Member id from the
+        // loaded profile (the `memberId` param may be a user id).
+        let memberRecordId = profile?.id ?? memberId
+        // Transfer candidates: every group in the leader's org the member isn't
+        // currently an active member of.
+        let activeGroupIds = Set(memberCards.filter { $0.removedAt == nil }.map { $0.id })
+        let candidates = state.orderedGroups
+            .filter { !activeGroupIds.contains($0.id) }
+            .map { group in
+                ChangeMembershipModal.TransferGroup(
+                    id: group.id,
+                    name: group.name,
+                    coverImageUrl: group.coverImageUrl,
+                    memberCount: group.memberCount,
+                    activeStudies: state.enrollmentsFor(groupId: group.id).count
+                )
+            }
+        overlayManager.present(.changeMembership) {
+            ChangeMembershipModal(
+                memberName: name,
+                groupName: card.name,
+                mode: isRemoved ? .removed : .joined,
+                transferCandidates: candidates,
+                onRemoveConfirmed: {
+                    overlayManager.dismiss(.changeMembership)
+                    Task { await performRemove(groupId: card.id, memberId: memberRecordId) }
+                },
+                onRejoinConfirmed: {
+                    overlayManager.dismiss(.changeMembership)
+                    Task { await performRejoin(groupId: card.id, memberId: memberRecordId) }
+                },
+                onTransferConfirmed: { targetId in
+                    overlayManager.dismiss(.changeMembership)
+                    Task { await performTransfer(fromGroupId: card.id, toGroupId: targetId, memberId: memberRecordId) }
+                },
+                onCancel: {
+                    overlayManager.dismiss(.changeMembership)
+                }
+            )
+        }
+    }
+
+    private func performRemove(groupId: String, memberId: String) async {
+        do {
+            // The action updates AppState on success, so the card re-renders.
+            try await GroupActions().removeMember(groupId: groupId, memberId: memberId)
+        } catch {
+            AppState.shared.recordError(
+                error,
+                context: "MemberProfilePage.performRemove",
+                surface: true,
+                friendlyMessage: "Couldn't remove from group"
+            )
+        }
+    }
+
+    private func performRejoin(groupId: String, memberId: String) async {
+        do {
+            try await GroupActions().rejoinGroup(groupId: groupId, memberId: memberId)
+        } catch {
+            AppState.shared.recordError(
+                error,
+                context: "MemberProfilePage.performRejoin",
+                surface: true,
+                friendlyMessage: "Couldn't rejoin group"
+            )
+        }
+    }
+
+    private func performTransfer(fromGroupId: String, toGroupId: String, memberId: String) async {
+        do {
+            try await GroupActions().transferMember(
+                memberId: memberId,
+                fromGroupId: fromGroupId,
+                toGroupId: toGroupId
+            )
+        } catch {
+            AppState.shared.recordError(
+                error,
+                context: "MemberProfilePage.performTransfer",
+                surface: true,
+                friendlyMessage: "Couldn't transfer to the selected group"
+            )
         }
     }
 
@@ -372,9 +570,9 @@ struct AddContactView: UIViewControllerRepresentable {
 // MARK: - Previews
 
 #Preview("With Photo") {
-    MemberProfilePage(memberId: "preview-1")
+    MemberProfilePage(memberId: "preview-1", overlayManager: OverlayManager())
 }
 
 #Preview("Without Photo") {
-    MemberProfilePage(memberId: "preview-2")
+    MemberProfilePage(memberId: "preview-2", overlayManager: OverlayManager())
 }

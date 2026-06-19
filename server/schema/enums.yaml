@@ -104,3 +104,17 @@ enums:
       - APPROVED
       - REJECTED
       - WITHDRAWN
+
+  # Immutable membership audit trail. Every transition a member goes through
+  # within a group/org is appended to MembershipEvent so a leader can review
+  # (and reverse) past decisions — nobody is ever lost.
+  MembershipEventAction:
+    values:
+      - INVITED         # Leader sent an invite to the member
+      - REQUESTED       # Member requested to join a group (incl. re-requests)
+      - APPROVED        # Leader approved a join request
+      - REJECTED        # Leader rejected a join request
+      - ADDED           # Leader added the member directly to a group
+      - REJOINED        # Inactive group membership reactivated (re-add)
+      - REMOVED_GROUP   # Member removed from a single group
+      - REMOVED_ORG     # Member removed from the entire organization

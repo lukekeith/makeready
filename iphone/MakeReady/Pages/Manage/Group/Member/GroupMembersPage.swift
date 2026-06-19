@@ -28,10 +28,6 @@ struct GroupMembersPage: View {
     @State private var isSearchActive: Bool = false
     @FocusState private var isSearchFocused: Bool
 
-    // Confirmation dialog state
-    @State private var showAcceptConfirmation: Bool = false
-    @State private var requestToAccept: JoinRequest?
-
     // Initialize from cache so the slide-in animates with content already
     // laid out — async content arriving mid-slide is inserted outside the
     // animation transaction and lands at its final position (see
@@ -98,26 +94,6 @@ struct GroupMembersPage: View {
         }
         .task {
             await loadData()
-        }
-        .alert("Accept Request", isPresented: $showAcceptConfirmation) {
-            Button("Cancel", role: .cancel) {
-                requestToAccept = nil
-            }
-            Button("Accept") {
-                if let request = requestToAccept {
-                    Task {
-                        await approveRequest(request)
-                    }
-                }
-                requestToAccept = nil
-            }
-        } message: {
-            if let request = requestToAccept {
-                let name = [request.member.firstName, request.member.lastName]
-                    .compactMap { $0 }
-                    .joined(separator: " ")
-                Text("Accept \(name) as a member of \(groupName)?")
-            }
         }
     }
 
@@ -303,10 +279,35 @@ struct GroupMembersPage: View {
                 }
             )
         ) {
-            ActionButton(label: "Accept", variant: .purple) {
-                requestToAccept = request
-                showAcceptConfirmation = true
+            ActionButton(label: "Respond", variant: .purple) {
+                handleRespond(request)
             }
+        }
+    }
+
+    private func handleRespond(_ request: JoinRequest) {
+        let name = [request.member.firstName, request.member.lastName]
+            .compactMap { $0 }
+            .joined(separator: " ")
+        let displayName = name.isEmpty ? "This member" : name
+
+        overlayManager.present(.memberRequestRespond) {
+            MemberRequestRespondModal(
+                memberName: displayName,
+                groupName: groupName,
+                requestDate: request.createdAt,
+                onApprove: {
+                    overlayManager.dismiss(.memberRequestRespond)
+                    Task { await approveRequest(request) }
+                },
+                onReject: {
+                    overlayManager.dismiss(.memberRequestRespond)
+                    Task { await rejectRequest(request) }
+                },
+                onCancel: {
+                    overlayManager.dismiss(.memberRequestRespond)
+                }
+            )
         }
     }
 
@@ -438,7 +439,12 @@ struct GroupMembersPage: View {
 
     private func handleMemberTap(_ member: GroupMember) {
         overlayManager.present(.memberProfile) {
-            MemberProfilePage(memberId: member.userId)
+            MemberProfilePage(
+                memberId: member.userId,
+                overlayManager: overlayManager,
+                seedAvatarUrl: member.avatarUrl,
+                seedName: member.name
+            )
         }
     }
 
@@ -457,6 +463,24 @@ struct GroupMembersPage: View {
                 surface: true,
                 friendlyMessage: "Couldn't approve the request",
                 retry: { Task { await approveRequest(request) } }
+            )
+        }
+    }
+
+    private func rejectRequest(_ request: JoinRequest) async {
+        do {
+            // Removes the request from AppState synchronously on success so the
+            // red-dot indicators update instantly; loadData() then reconciles.
+            try await GroupActions().rejectJoinRequest(groupId: groupId, requestId: request.id)
+            await loadData()
+        } catch {
+            // User tapped Reject — surface; rejection by id is safe to re-run.
+            state.recordError(
+                error,
+                context: "GroupMembersPage.rejectRequest",
+                surface: true,
+                friendlyMessage: "Couldn't reject the request",
+                retry: { Task { await rejectRequest(request) } }
             )
         }
     }
@@ -563,9 +587,7 @@ private struct GroupMembersPreviewWithData: View {
                                                 groups: []
                                             )
                                         ) {
-                                            ActionButton(label: "Accept", variant: .purple) {
-                                                print("Accept \(request.member.firstName ?? "")")
-                                            }
+                                            ActionButton(label: "Respond", variant: .purple) {}
                                         }
                                     }
                                 }

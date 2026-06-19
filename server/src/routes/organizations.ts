@@ -7,6 +7,7 @@ import {
   getOrganizationMembers,
 } from '../services/organization.js'
 import { requireAuth, requirePermission } from '../middleware/auth.js'
+import { recordMembershipEvent } from '../services/membership-event.js'
 import { prisma } from '../lib/prisma.js'
 
 const router = Router()
@@ -970,6 +971,7 @@ router.delete(
   async (req, res) => {
     try {
       const { organizationId, memberId } = req.params
+      const userId = (req.user as any)?.id
 
       const record = await prisma.memberOrganization.findFirst({
         where: { memberId, organizationId },
@@ -979,11 +981,159 @@ router.delete(
         return res.status(404).json({ success: false, error: 'Member-organization record not found' })
       }
 
-      await prisma.memberOrganization.delete({ where: { id: record.id } })
+      // Membership-only removal. We deactivate every active group membership the
+      // member holds in THIS org's groups, then drop the org link — but the
+      // Member record and all of their data/history are preserved. Re-adding
+      // them later restores everything. The whole cascade (including the audit
+      // trail) runs in one transaction so it can't half-apply.
+      const activeMemberships = await prisma.groupMember.findMany({
+        where: {
+          memberId,
+          isActive: true,
+          group: { organizationId },
+        },
+        select: { id: true, groupId: true },
+      })
 
-      res.json({ success: true })
+      await prisma.$transaction(async (tx) => {
+        if (activeMemberships.length > 0) {
+          await tx.groupMember.updateMany({
+            where: { id: { in: activeMemberships.map((m) => m.id) } },
+            data: { isActive: false },
+          })
+        }
+
+        await tx.memberOrganization.delete({ where: { id: record.id } })
+
+        // Per-group events keep each group's history continuous...
+        for (const m of activeMemberships) {
+          await recordMembershipEvent(
+            {
+              memberId,
+              action: 'REMOVED_GROUP',
+              groupId: m.groupId,
+              organizationId,
+              actorId: userId ?? null,
+              actorType: 'user',
+              metadata: { via: 'org-removal' },
+            },
+            tx
+          )
+        }
+
+        // ...and a single REMOVED_ORG event summarizes the cascade.
+        await recordMembershipEvent(
+          {
+            memberId,
+            action: 'REMOVED_ORG',
+            organizationId,
+            actorId: userId ?? null,
+            actorType: 'user',
+            metadata: { removedGroupIds: activeMemberships.map((m) => m.groupId) },
+          },
+          tx
+        )
+      })
+
+      res.json({
+        success: true,
+        removedFromGroups: activeMemberships.length,
+      })
     } catch (error) {
       console.error('Error removing member from organization:', error)
+      res.status(500).json({ success: false, error: 'Internal server error' })
+    }
+  }
+)
+
+/**
+ * @openapi
+ * /api/organizations/{organizationId}/non-members:
+ *   get:
+ *     summary: People formerly associated with the org who are not current members
+ *     description: >
+ *       Returns members who have membership history in this org (from the
+ *       immutable MembershipEvent trail) whose most recent action is terminal —
+ *       removed from a group/org, or a rejected join request — and who are NOT
+ *       currently an active member of any group in the org. Each entry includes
+ *       its latest action so the UI can show "Removed from membership",
+ *       "Request rejected", etc. Nobody is lost: a removed/rejected person still
+ *       surfaces here so a leader can re-engage them.
+ *     tags: [Organizations]
+ *     parameters:
+ *       - in: path
+ *         name: organizationId
+ *         required: true
+ *         schema: { type: string }
+ *     responses:
+ *       200:
+ *         description: Non-member entries, most recent action first
+ */
+router.get(
+  '/:organizationId/non-members',
+  requireAuth,
+  requirePermission('member.read', 'organization', (req) => req.params.organizationId),
+  async (req, res) => {
+    try {
+      const { organizationId } = req.params
+
+      // Latest-first history for this org, plus the members currently active in
+      // any of its groups.
+      const [events, activeMemberships] = await Promise.all([
+        prisma.membershipEvent.findMany({
+          where: { organizationId },
+          orderBy: { createdAt: 'desc' },
+          include: {
+            member: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+                profilePicture: true,
+              },
+            },
+            group: { select: { id: true, name: true } },
+          },
+        }),
+        prisma.groupMember.findMany({
+          where: { isActive: true, group: { organizationId } },
+          select: { memberId: true },
+        }),
+      ])
+
+      const activeMemberIds = new Set(
+        activeMemberships.map((m) => m.memberId).filter((id): id is string => !!id)
+      )
+      const TERMINAL = new Set(['REJECTED', 'REMOVED_GROUP', 'REMOVED_ORG'])
+
+      const seen = new Set<string>()
+      const nonMembers: any[] = []
+      for (const ev of events) {
+        // Events are newest-first, so the first one per member is their latest.
+        if (seen.has(ev.memberId)) continue
+        seen.add(ev.memberId)
+
+        if (activeMemberIds.has(ev.memberId)) continue // still a current member
+        if (!TERMINAL.has(ev.action)) continue // pending invite/request, not a former member
+
+        nonMembers.push({
+          id: ev.member.id,
+          firstName: ev.member.firstName,
+          lastName: ev.member.lastName,
+          phoneNumber: ev.member.phoneNumber,
+          avatarUrl: ev.member.profilePicture,
+          lastAction: ev.action,
+          lastActionAt: ev.createdAt,
+          groupId: ev.groupId,
+          groupName: ev.group?.name ?? null,
+          note: ev.note,
+        })
+      }
+
+      res.json({ success: true, members: nonMembers })
+    } catch (error) {
+      console.error('Error loading non-members:', error)
       res.status(500).json({ success: false, error: 'Internal server error' })
     }
   }

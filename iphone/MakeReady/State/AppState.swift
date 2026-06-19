@@ -186,6 +186,18 @@ final class AppState {
     /// on group cards and the `person.2` icon in the group-home header).
     var pendingJoinRequestsByGroupId: [String: [JoinRequest]] = [:]
 
+    /// A member's group cards (joined + locally "removed-but-still-shown"),
+    /// keyed by the member's canonical id. Populated by
+    /// `GroupActions.loadMemberProfile` and mutated by the membership-change
+    /// actions (remove / rejoin / transfer) so the member profile's group cards
+    /// re-render reactively. `removedAt != nil` = the destructive removed state.
+    var memberGroupCardsById: [String: [MemberGroupCard]] = [:]
+
+    /// Former members of an org (removed / rejected) keyed by organization id.
+    /// Populated by `OrgActions.loadNonMembers` and shown under the Members
+    /// tab's "Non-members" filter.
+    var nonMembersByOrgId: [String: [NonMember]] = [:]
+
     /// True when the given group has at least one pending join request in
     /// the cache. The endpoint we hit (`/api/groups/:groupId/join-requests`)
     /// returns only pending requests, so any non-empty array means "show the
@@ -681,6 +693,8 @@ final class AppState {
         templates.clear()
         notifications.clear()
         mediaLibrary.clear()
+        memberGroupCardsById = [:]
+        nonMembersByOrgId = [:]
         organizationId = nil
         userOrganizations = []
         mediaLibraryTotal = 0

@@ -56,7 +56,7 @@ Show the user the running services:
 | Web Client | http://localhost:8000 | Laravel frontend |
 | API Server | http://localhost:3010 | Express backend |
 | PostgreSQL | localhost:5434 | Database |
-| Vite Dev | http://localhost:5173 | Hot-reload assets |
+| Vite Dev | http://localhost:5174 | Hot-reload assets |
 
 **Note:** If the database is empty, tell the user to run `/dev-sync` to pull production data.
 

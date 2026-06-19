@@ -21,6 +21,7 @@ struct CachedCardImage<Placeholder: View, Fallback: View>: View {
 
     @State private var image: UIImage?
     @State private var phase: LoadPhase = .idle
+    @State private var loadedURL: String?
 
     private enum LoadPhase {
         case idle, loading, loaded, failed
@@ -46,6 +47,23 @@ struct CachedCardImage<Placeholder: View, Fallback: View>: View {
         self.clipCircle = clipCircle
         self.placeholder = placeholder
         self.fallback = fallback
+
+        // Cache-first: if the image is already in the memory cache, render it
+        // from the very first frame so it moves WITH its container (e.g. a card
+        // sliding in a modal panel transition) instead of popping in after the
+        // .task load — same technique as CachedAsyncImage.
+        let seeded: UIImage? = {
+            if let s = url, let u = URL(string: s),
+               let cached = ImageCache.shared.cachedImage(for: u) { return cached }
+            if let s = fallbackUrl, let u = URL(string: s),
+               let cached = ImageCache.shared.cachedImage(for: u) { return cached }
+            return nil
+        }()
+        if let seeded {
+            _image = State(initialValue: seeded)
+            _phase = State(initialValue: .loaded)
+            _loadedURL = State(initialValue: url)
+        }
     }
 
     var body: some View {
@@ -75,6 +93,12 @@ struct CachedCardImage<Placeholder: View, Fallback: View>: View {
     }
 
     private func loadImage() async {
+        // Already have the image for this URL (seeded from cache in init, or
+        // loaded earlier). Don't reset to .loading and flash the placeholder —
+        // that would interrupt a container transition (e.g. a sliding modal
+        // panel), making the image look like it isn't moving with the card.
+        if image != nil, loadedURL == url { return }
+
         guard let urlString = url, let primary = URL(string: urlString) else {
             phase = .failed
             return
@@ -85,6 +109,7 @@ struct CachedCardImage<Placeholder: View, Fallback: View>: View {
         // Try primary (variant) URL
         if let img = try? await ImageCache.shared.fetch(url: primary) {
             image = img
+            loadedURL = url
             phase = .loaded
             return
         }
@@ -93,6 +118,7 @@ struct CachedCardImage<Placeholder: View, Fallback: View>: View {
         if let fbString = fallbackUrl, let fbURL = URL(string: fbString) {
             if let img = try? await ImageCache.shared.fetch(url: fbURL) {
                 image = img
+                loadedURL = url
                 phase = .loaded
                 return
             }

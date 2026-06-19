@@ -49,4 +49,20 @@ struct OrgActions {
         )
         return response.data?.count
     }
+
+    /// Load former members of the org (removed / rejected) and write them into
+    /// AppState so the Members tab's "Non-members" filter renders reactively.
+    @MainActor
+    @discardableResult
+    func loadNonMembers(organizationId: String) async throws -> [NonMember] {
+        let response: NonMembersResponse = try await api.get(
+            "/api/organizations/\(organizationId)/non-members",
+            responseType: NonMembersResponse.self
+        )
+        guard response.success, let members = response.members else {
+            throw APIError.serverError(response.error ?? "Failed to load non-members")
+        }
+        state.nonMembersByOrgId[organizationId] = members
+        return members
+    }
 }

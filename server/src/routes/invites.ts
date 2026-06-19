@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { sendGroupInvite, getInviteByToken } from '../services/invite.js';
+import { recordMembershipEvent } from '../services/membership-event.js';
 import { prisma } from '../lib/prisma.js';
 import { isValidPhoneNumber } from '../services/twilio.js';
 import type { User } from '../generated/prisma/index.js';
@@ -447,6 +448,25 @@ router.post('/send', requireAuth, async (req, res) => {
       return res.status(400).json({
         success: false,
         error: result.error || 'Failed to send invite',
+      });
+    }
+
+    // Record an INVITED event when the recipient is already a known member, so
+    // the invite shows up in their membership history (keyed by phone number).
+    // Unknown phones have no Member yet — their history begins when they join.
+    const invitedMember = await prisma.member.findUnique({
+      where: { phoneNumber: recipientPhone },
+      select: { id: true },
+    });
+    if (invitedMember) {
+      await recordMembershipEvent({
+        memberId: invitedMember.id,
+        action: 'INVITED',
+        groupId,
+        organizationId: group.organizationId,
+        actorId: user.id,
+        actorType: 'user',
+        metadata: { inviteId: result.inviteId, recipientPhone },
       });
     }
 

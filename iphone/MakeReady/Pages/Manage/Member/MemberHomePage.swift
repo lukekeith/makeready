@@ -37,6 +37,10 @@ struct MemberHomePage: View {
     @State private var isMemberSearchActive: Bool = false
     @FocusState private var isMemberSearchFocused: Bool
 
+    // Members tab status filter (Members / Non-members)
+    @State private var showNonMembers = false
+    @State private var statusFilterExpanded = false
+
     // Requests state (loaded for card on Members tab)
     @State private var allJoinRequests: [GroupJoinRequest] = []
     @State private var isRequestsLoading = true
@@ -75,6 +79,18 @@ struct MemberHomePage: View {
             return sorted
         }
         return sorted.filter { $0.name.lowercased().contains(memberSearchText.lowercased()) }
+    }
+
+    /// Former members of the org (removed / rejected), from AppState, filtered
+    /// by the search text.
+    private var filteredNonMembers: [NonMember] {
+        let all = state.organizationId.flatMap { state.nonMembersByOrgId[$0] } ?? []
+        let sorted = all.sorted { $0.displayName.lowercased() < $1.displayName.lowercased() }
+        if memberSearchText.isEmpty { return sorted }
+        let q = memberSearchText.lowercased()
+        return sorted.filter {
+            $0.displayName.lowercased().contains(q) || $0.phoneNumber.contains(memberSearchText)
+        }
     }
 
     /// Get all group names a user belongs to (across all loaded members)
@@ -348,7 +364,7 @@ struct MemberHomePage: View {
     // MARK: - Members Tab
 
     // Search overlay: 8pt top + ~44pt field + 8pt gap to first card = 60pt
-    private let membersListTopPadding: CGFloat = 60
+    private let membersListTopPadding: CGFloat = 104
 
     private var membersTabContent: some View {
         Group {
@@ -396,65 +412,176 @@ struct MemberHomePage: View {
 
     private var membersMainContent: some View {
         ZStack(alignment: .top) {
-            if isMembersEmpty && allJoinRequests.isEmpty {
+            if showNonMembers {
+                nonMembersScroll
+            } else if isMembersEmpty && allJoinRequests.isEmpty {
                 VStack {
                     Color.clear.frame(height: membersListTopPadding)
                     membersEmptyContent
                 }
             } else {
-                ScrollView {
-                    VStack(spacing: 0) {
-                        Color.clear.frame(height: membersListTopPadding)
-
-                        // Member requests card (if any pending requests)
-                        if !allJoinRequests.isEmpty && memberSearchText.isEmpty {
-                            memberRequestsCard
-                                .padding(.horizontal, 16)
-                                .padding(.bottom, 12)
-                        }
-
-                        // Members section
-                        if !filteredAllMembers.isEmpty {
-                            membersMembersSection
-                        } else if !memberSearchText.isEmpty {
-                            membersNoSearchResults
-                        }
-
-                        Spacer()
-                            .frame(height: 100)
-                    }
-                }
-                .mask(
-                    VStack(spacing: 0) {
-                        LinearGradient(
-                            colors: [.clear, .black],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 52)
-
-                        Color.black
-                    }
-                )
+                membersScroll
             }
 
-            // Search field (always visible, disabled when no members and no requests)
-            SearchField(
-                isActive: $isMemberSearchActive,
-                searchText: $memberSearchText,
-                isFocused: $isMemberSearchFocused,
-                placeholder: "Search members",
-                onClose: {
-                    memberSearchText = ""
-                },
-                onClear: {
-                    memberSearchText = ""
-                }
-            )
-            .opacity(isMemberSearchDisabled ? 0.5 : 1.0)
-            .allowsHitTesting(!isMemberSearchDisabled)
+            // Search + status filter (always visible)
+            VStack(spacing: 8) {
+                SearchField(
+                    isActive: $isMemberSearchActive,
+                    searchText: $memberSearchText,
+                    isFocused: $isMemberSearchFocused,
+                    placeholder: showNonMembers ? "Search non-members" : "Search members",
+                    onClose: { memberSearchText = "" },
+                    onClear: { memberSearchText = "" }
+                )
+                .opacity((isMemberSearchDisabled && !showNonMembers) ? 0.5 : 1.0)
+                .allowsHitTesting(!(isMemberSearchDisabled && !showNonMembers))
+
+                statusFilterRow
+            }
             .padding(.horizontal, 16)
             .padding(.top, 8)
+
+            statusDropdownOverlay
+        }
+    }
+
+    private var statusFilterRow: some View {
+        HStack(spacing: 8) {
+            FilterChipDropdownTrigger(
+                label: showNonMembers ? "Non-members" : "Members",
+                isActive: showNonMembers
+            ) {
+                statusFilterExpanded.toggle()
+            }
+            Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var statusDropdownOverlay: some View {
+        if statusFilterExpanded {
+            VStack(spacing: 0) {
+                // Clears the search field + filter-row stack above.
+                Color.clear.frame(height: 96)
+                FilterChipDropdownPanel(
+                    items: [
+                        FilterChipDropdownItem(id: "members", label: "Members"),
+                        FilterChipDropdownItem(id: "nonMembers", label: "Non-members"),
+                    ],
+                    selectedIds: [showNonMembers ? "nonMembers" : "members"],
+                    showClearAll: false,
+                    emptyMessage: "No options.",
+                    onToggle: { id in
+                        showNonMembers = (id == "nonMembers")
+                        statusFilterExpanded = false
+                        if showNonMembers {
+                            Task { await loadNonMembersIfNeeded() }
+                        }
+                    },
+                    onClearAll: {}
+                )
+                .padding(.horizontal, 16)
+                Spacer(minLength: 0)
+            }
+            .ignoresSafeArea(.keyboard)
+            .background(
+                Color.black.opacity(0.5)
+                    .contentShape(Rectangle())
+                    .onTapGesture { statusFilterExpanded = false }
+            )
+        }
+    }
+
+    private var membersScroll: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                Color.clear.frame(height: membersListTopPadding)
+
+                // Member requests card (if any pending requests)
+                if !allJoinRequests.isEmpty && memberSearchText.isEmpty {
+                    memberRequestsCard
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 12)
+                }
+
+                // Members section
+                if !filteredAllMembers.isEmpty {
+                    membersMembersSection
+                } else if !memberSearchText.isEmpty {
+                    membersNoSearchResults
+                }
+
+                Spacer().frame(height: 100)
+            }
+        }
+        .mask(membersTopFadeMask)
+    }
+
+    private var nonMembersScroll: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                Color.clear.frame(height: membersListTopPadding)
+
+                if !filteredNonMembers.isEmpty {
+                    VStack(spacing: 4) {
+                        ForEach(filteredNonMembers) { nonMember in
+                            nonMemberRow(nonMember)
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                } else {
+                    nonMembersEmptyContent
+                }
+
+                Spacer().frame(height: 100)
+            }
+        }
+        .mask(membersTopFadeMask)
+    }
+
+    private var membersTopFadeMask: some View {
+        VStack(spacing: 0) {
+            LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom)
+                .frame(height: 96)
+            Color.black
+        }
+    }
+
+    private func nonMemberRow(_ nonMember: NonMember) -> some View {
+        CardMember(
+            data: CardMemberData(
+                id: nonMember.id,
+                firstName: firstName(from: nonMember.displayName),
+                lastName: lastName(from: nonMember.displayName),
+                avatarURL: nonMember.avatarUrl,
+                metadata: [DataItem(label: nonMember.lastActionLabel, value: formatDate(nonMember.lastActionAt))],
+                groups: nonMember.groupName.map { [$0] } ?? [],
+                onTap: {}
+            )
+        )
+    }
+
+    private var nonMembersEmptyContent: some View {
+        VStack {
+            Spacer().frame(height: 40)
+            VStack(spacing: 16) {
+                Image(systemName: "person.crop.circle.badge.xmark")
+                    .font(Typography.s48)
+                    .foregroundColor(.white.opacity(0.3))
+                Text(memberSearchText.isEmpty ? "No former members" : "No matches")
+                    .font(Typography.s17Semibold)
+                    .foregroundColor(.white.opacity(0.2))
+            }
+            Spacer()
+        }
+    }
+
+    private func loadNonMembersIfNeeded() async {
+        guard let orgId = state.organizationId else { return }
+        do {
+            try await OrgActions().loadNonMembers(organizationId: orgId)
+        } catch {
+            state.recordError(error, context: "MemberHomePage.loadNonMembers")
         }
     }
 
@@ -493,7 +620,6 @@ struct MemberHomePage: View {
         overlayManager.present(.memberRequests) {
             MemberRequestsPage(
                 overlayManager: overlayManager,
-                allJoinRequests: allJoinRequests,
                 onRequestApproved: {
                     Task { await loadRequestsOnly() }
                 }
@@ -739,7 +865,12 @@ struct MemberHomePage: View {
 
     private func handleMemberTap(_ member: GroupMember) {
         overlayManager.present(.memberProfile) {
-            MemberProfilePage(memberId: member.userId)
+            MemberProfilePage(
+                memberId: member.userId,
+                overlayManager: overlayManager,
+                seedAvatarUrl: member.avatarUrl,
+                seedName: member.name
+            )
         }
     }
 

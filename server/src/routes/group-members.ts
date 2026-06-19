@@ -10,6 +10,19 @@ import {
   requirePermission,
 } from '../middleware/auth.js'
 import { trackActivity } from '../services/activity.js'
+import {
+  recordMembershipEvent,
+  getMembershipHistory,
+} from '../services/membership-event.js'
+import { MembershipEventAction } from '../generated/prisma/index.js'
+
+/** Narrow a query-string value to a valid MembershipEventAction, else undefined. */
+function parseAction(value: unknown): MembershipEventAction | undefined {
+  return typeof value === 'string' &&
+    (Object.values(MembershipEventAction) as string[]).includes(value)
+    ? (value as MembershipEventAction)
+    : undefined
+}
 
 /**
  * @openapi
@@ -378,10 +391,32 @@ router.post(
       )
 
       if (!memberBelongsToOrg) {
-        return res.status(403).json({
-          success: false,
-          error: 'Member and group must belong to the same organization',
-        })
+        // A member who is an active member of another group in this org belongs
+        // to the org even when their MemberOrganization row is missing (e.g.
+        // approved via a join request before org links were written). Heal the
+        // missing link instead of rejecting; only truly-foreign members (in no
+        // group in this org) are blocked.
+        const inOrgGroup = group.organizationId
+          ? await prisma.groupMember.findFirst({
+              where: {
+                memberId,
+                isActive: true,
+                group: { organizationId: group.organizationId },
+              },
+              select: { id: true },
+            })
+          : null
+
+        if (inOrgGroup && group.organizationId) {
+          await prisma.memberOrganization.create({
+            data: { memberId, organizationId: group.organizationId },
+          })
+        } else {
+          return res.status(403).json({
+            success: false,
+            error: 'Member and group must belong to the same organization',
+          })
+        }
       }
 
       // Add member to group
@@ -407,6 +442,19 @@ router.post(
           groupId,
         })
       }
+
+      // Immutable membership audit trail. Re-adding a member who was previously
+      // removed reactivates their existing membership (REJOINED) — none of
+      // their prior group data is lost.
+      await recordMembershipEvent({
+        memberId,
+        action: result.reactivated ? 'REJOINED' : 'ADDED',
+        groupId,
+        organizationId: group.organizationId,
+        actorId: userId ?? null,
+        actorType: 'user',
+        metadata: { role },
+      })
 
       res.json({
         success: true,
@@ -600,6 +648,18 @@ router.delete(
           organizationId: group?.organizationId,
           groupId,
         })
+
+        // Immutable membership audit trail. This is a soft removal — the
+        // GroupMember row is deactivated, never deleted, so re-adding restores
+        // the member and all their data.
+        await recordMembershipEvent({
+          memberId,
+          action: 'REMOVED_GROUP',
+          groupId,
+          organizationId: group?.organizationId ?? null,
+          actorId: userId,
+          actorType: 'user',
+        })
       }
 
       res.json({
@@ -615,5 +675,57 @@ router.delete(
     }
   }
 )
+
+/**
+ * @openapi
+ * /api/groups/{groupId}/membership-history:
+ *   get:
+ *     summary: Searchable membership audit trail for a group
+ *     description: >
+ *       Returns the immutable history of every membership transition in the
+ *       group (invited, requested, approved, rejected, added, rejoined,
+ *       removed), newest first. A leader can search by member name or phone to
+ *       find someone they previously rejected/removed and reverse the decision —
+ *       no one is ever lost.
+ *     tags: [Group Members]
+ *     parameters:
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: search
+ *         schema: { type: string }
+ *         description: Filter by member first/last name or phone number
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *           enum: [INVITED, REQUESTED, APPROVED, REJECTED, ADDED, REJOINED, REMOVED_GROUP, REMOVED_ORG]
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 100, maximum: 500 }
+ *     responses:
+ *       200:
+ *         description: Membership events, newest first
+ */
+router.get('/:groupId/membership-history', requireAuth, async (req, res) => {
+  try {
+    const { groupId } = req.params
+    const { search, limit } = req.query
+
+    const events = await getMembershipHistory({
+      groupId,
+      search: typeof search === 'string' ? search : undefined,
+      action: parseAction(req.query.action),
+      limit: limit ? Number(limit) : undefined,
+    })
+
+    res.json({ success: true, events })
+  } catch (error) {
+    console.error('Error fetching group membership history:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
 
 export default router

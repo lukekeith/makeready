@@ -19,6 +19,8 @@ import {
   unlinkMemberFromUser,
   getLinkedUser,
 } from '../services/account-linking.js'
+import { getMembershipHistory } from '../services/membership-event.js'
+import { MembershipEventAction } from '../generated/prisma/index.js'
 import {
   requireAuth,
   requireMemberOrOrgOwner,
@@ -1801,6 +1803,59 @@ router.post('/:memberId/sync-google-profile', requireMemberOrOrgOwner, async (re
       success: false,
       error: 'Internal server error',
     })
+  }
+})
+
+/**
+ * @openapi
+ * /api/members/{memberId}/history:
+ *   get:
+ *     summary: A member's complete membership history across all groups
+ *     description: >
+ *       Returns the immutable audit trail for a single member (keyed by their
+ *       canonical identity) — every invite, request, approval, rejection, add,
+ *       rejoin, and removal across all groups and the org, newest first. This is
+ *       the single timeline that proves a member is never lost: removing them
+ *       only changes membership, never their record or data.
+ *     tags: [Members]
+ *     parameters:
+ *       - in: path
+ *         name: memberId
+ *         required: true
+ *         schema: { type: string }
+ *       - in: query
+ *         name: action
+ *         schema:
+ *           type: string
+ *           enum: [INVITED, REQUESTED, APPROVED, REJECTED, ADDED, REJOINED, REMOVED_GROUP, REMOVED_ORG]
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 100, maximum: 500 }
+ *     responses:
+ *       200:
+ *         description: Membership events, newest first
+ */
+router.get('/:memberId/history', requireMemberOrOrgOwner, async (req, res) => {
+  try {
+    const { memberId } = req.params
+    const { action, limit } = req.query
+
+    const parsedAction =
+      typeof action === 'string' &&
+      (Object.values(MembershipEventAction) as string[]).includes(action)
+        ? (action as MembershipEventAction)
+        : undefined
+
+    const events = await getMembershipHistory({
+      memberId,
+      action: parsedAction,
+      limit: limit ? Number(limit) : undefined,
+    })
+
+    res.json({ success: true, events })
+  } catch (error) {
+    console.error('Error fetching member history:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })
 

@@ -28,6 +28,7 @@ services:
     volumes:
       - ./server/src:/app/src
       - ./server/prisma:/app/prisma
+      - ./server/atlas:/app/atlas
       - /app/src/generated/prisma
     env_file:
       - ./server/.env
