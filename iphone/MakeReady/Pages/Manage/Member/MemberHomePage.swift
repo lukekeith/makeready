@@ -555,7 +555,10 @@ struct MemberHomePage: View {
                 lastName: lastName(from: nonMember.displayName),
                 avatarURL: nonMember.avatarUrl,
                 metadata: [DataItem(label: nonMember.lastActionLabel, value: formatDate(nonMember.lastActionAt))],
-                groups: nonMember.groupName.map { [$0] } ?? [],
+                // No group association: the group badge is reserved for actual
+                // members of a group. A non-member is no longer in any group, so
+                // showing their former group as an association is misleading.
+                groups: [],
                 onTap: {}
             )
         )
