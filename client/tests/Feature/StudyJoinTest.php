@@ -105,6 +105,7 @@ class StudyJoinTest extends TestCase
             'study.study-abc.lessonId'       => 'lesson-1',
             'study.study-abc.organizationId' => 'org-1',
             'study.study-abc.smsConsent'     => true,
+            'study.study-abc.optinDone'      => true,
         ])->get('/join/study/study-abc/phone');
 
         $response->assertStatus(200);
@@ -120,6 +121,7 @@ class StudyJoinTest extends TestCase
             'study.study-abc.lessonId'       => 'lesson-1',
             'study.study-abc.organizationId' => 'org-1',
             'study.study-abc.smsConsent'     => true,
+            'study.study-abc.optinDone'      => true,
         ])->postJson('/join/study/study-abc/phone', [
             'phoneNumber' => '+15551234567',
         ]);

@@ -67,6 +67,7 @@ class EventJoinTest extends TestCase
             'event.EVT123.eventId'        => 'event-1',
             'event.EVT123.organizationId' => 'org-1',
             'event.EVT123.smsConsent'     => true,
+            'event.EVT123.optinDone'      => true,
         ])->get('/join/event/EVT123/phone');
 
         $response->assertStatus(200);
@@ -82,6 +83,7 @@ class EventJoinTest extends TestCase
             'event.EVT123.eventId'        => 'event-1',
             'event.EVT123.organizationId' => 'org-1',
             'event.EVT123.smsConsent'     => true,
+            'event.EVT123.optinDone'      => true,
         ])->postJson('/join/event/EVT123/phone', [
             'phoneNumber' => '+15551234567',
         ]);

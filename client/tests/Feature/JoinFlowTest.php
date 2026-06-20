@@ -120,6 +120,7 @@ class JoinFlowTest extends TestCase
             'join.ABC123.firstName'      => 'Jane',
             'join.ABC123.lastName'       => 'Doe',
             'join.ABC123.smsConsent'     => true,
+            'join.ABC123.optinDone'      => true,
         ])->postJson('/join/group/ABC123/phone', [
             'phoneNumber' => '+15551234567',
         ]);
@@ -130,20 +131,43 @@ class JoinFlowTest extends TestCase
     }
 
     /**
-     * JOIN-05: POST /join/group/{code}/phone without smsConsent returns 422.
+     * JOIN-05: SMS consent is OPTIONAL (Twilio A2P) — a member who declined
+     * consent but completed the opt-in step can still submit their phone and
+     * proceed to verification.
      */
-    public function test_phone_submit_requires_sms_consent(): void
+    public function test_phone_submit_proceeds_without_consent(): void
+    {
+        $response = $this->withSession([
+            'join.ABC123.groupId'        => 'group-1',
+            'join.ABC123.organizationId' => 'org-1',
+            'join.ABC123.firstName'      => 'Jane',
+            'join.ABC123.lastName'       => 'Doe',
+            'join.ABC123.smsConsent'     => false,
+            'join.ABC123.optinDone'      => true,
+        ])->postJson('/join/group/ABC123/phone', [
+            'phoneNumber' => '+15551234567',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonStructure(['redirectUrl']);
+        $this->assertStringContainsString('verify', $response->json('redirectUrl'));
+    }
+
+    /**
+     * JOIN-05: POST /join/group/{code}/phone before the opt-in step is rejected
+     * — the member must pass through opt-in first.
+     */
+    public function test_phone_submit_requires_optin_step(): void
     {
         $response = $this->withSession([
             'join.ABC123.groupId'        => 'group-1',
             'join.ABC123.organizationId' => 'org-1',
         ])->postJson('/join/group/ABC123/phone', [
             'phoneNumber' => '+15551234567',
-            'smsConsent'  => false,
         ]);
 
         $response->assertStatus(422);
-        $response->assertJson(['error' => 'SMS consent is required']);
+        $response->assertJson(['error' => 'Please start from the beginning of the join flow.']);
     }
 
     /**
