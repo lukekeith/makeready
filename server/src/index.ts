@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js'
 import usersRoutes from './routes/users.js'
 import verificationRoutes from './routes/verification.js'
 import smsRoutes from './routes/sms.js'
+import twilioRoutes from './routes/twilio.js'
 import invitesRoutes from './routes/invites.js'
 import qrcodeRoutes from './routes/qrcode.js'
 import publicRoutes from './routes/public.js'
@@ -206,8 +207,15 @@ app.use(cookieParser())
 
 // Body parsing middleware
 // Increase limit for image uploads (base64 encoded images can be large)
-app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true, limit: '10mb' }))
+// Twilio JSON webhook signatures require the exact raw body. Capture it only
+// for the generic Twilio callback route so global memory overhead stays bounded.
+const captureTwilioRawBody = (req: express.Request, _res: express.Response, buf: Buffer) => {
+  if (req.originalUrl.startsWith('/api/twilio/callback')) {
+    ;(req as express.Request & { rawBody?: string }).rawBody = buf.toString('utf8')
+  }
+}
+app.use(express.json({ limit: '10mb', verify: captureTwilioRawBody }))
+app.use(express.urlencoded({ extended: true, limit: '10mb', verify: captureTwilioRawBody }))
 
 // Serve static files from public directory
 // Resolve public/ from project root (works in both dev and production)
@@ -326,6 +334,9 @@ app.use('/api/verification', verificationRoutes)
 
 // SMS routes (Twilio Programmable SMS)
 app.use('/api/sms', smsRoutes)
+
+// Twilio account/app callback routes (Trust Hub, business profile, etc.)
+app.use('/api/twilio', twilioRoutes)
 
 // SMS Campaign routes (A2P campaign management)
 app.use('/api/sms-campaigns', smsCampaignsRoutes)

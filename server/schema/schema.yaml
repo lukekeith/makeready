@@ -4219,6 +4219,41 @@ models:
       - fields: [twilioMessageSid]
         description: "Webhook lookup by Twilio SID"
 
+  TwilioCallback:
+    table_name: twilio_callbacks
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      callbackType:
+        type: string
+        nullable: true
+        description: "Best-effort Twilio callback category, e.g. trust_hub, business_profile, app"
+      accountSid:
+        type: string
+        nullable: true
+        description: "Twilio Account SID associated with the callback"
+      resourceSid:
+        type: string
+        nullable: true
+        description: "Best-effort SID for the affected Twilio resource"
+      eventType:
+        type: string
+        nullable: true
+        description: "Best-effort Twilio event or status value"
+      payload:
+        type: json
+        description: "Full Twilio callback payload"
+      receivedAt:
+        type: datetime
+        default: now()
+    indexes:
+      - fields: [receivedAt]
+      - fields: [accountSid]
+      - fields: [resourceSid]
+      - fields: [eventType]
+
 # =============================================================================
 # Special Tables (Not managed by Prisma)
 # =============================================================================

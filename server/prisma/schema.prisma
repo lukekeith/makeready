@@ -1639,3 +1639,18 @@ model SmsLog {
   @@index([twilioMessageSid])
   @@map("sms_logs")
 }
+
+model TwilioCallback {
+  id                   String @id @default(uuid())
+  callbackType         String? // Best-effort Twilio callback category, e.g. trust_hub, business_profile, app
+  accountSid           String? // Twilio Account SID associated with the callback
+  resourceSid          String? // Best-effort SID for the affected Twilio resource
+  eventType            String? // Best-effort Twilio event or status value
+  payload              Json // Full Twilio callback payload
+  receivedAt           DateTime @default(now())
+  @@index([receivedAt])
+  @@index([accountSid])
+  @@index([resourceSid])
+  @@index([eventType])
+  @@map("twilio_callbacks")
+}
