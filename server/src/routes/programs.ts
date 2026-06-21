@@ -15,6 +15,7 @@ import { suggestProgramTags } from '../services/claude.js'
 import { recalculateLessonEstimate } from '../services/lesson-estimate.service.js'
 import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '../services/youtube.js'
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
+import { canManageOrgContent } from '../services/permission.js'
 
 // Configure multer for ZIP upload (memory storage)
 const uploadZip = multer({
@@ -1816,7 +1817,7 @@ router.patch('/activities/:id', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2257,7 +2258,7 @@ router.delete('/activities/:id', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2321,7 +2322,7 @@ router.post('/activities/:id/reset', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
-    if (activity.lesson.studyProgram.creatorId !== userId) {
+    if (!(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(403).json({ success: false, error: 'Not authorized' })
     }
 
@@ -2472,7 +2473,7 @@ router.post('/activities/:id/source-references', requireAuth, async (req, res) =
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2590,7 +2591,7 @@ router.delete('/activities/:id/source-references/:refId', requireAuth, async (re
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2703,7 +2704,7 @@ router.get('/activities/:activityId/exegesis-highlights', requireAuth, async (re
       include: { lesson: { include: { studyProgram: true } } },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2755,7 +2756,7 @@ router.post('/activities/:activityId/exegesis-highlights', requireAuth, async (r
       include: { lesson: { include: { studyProgram: true } } },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2828,7 +2829,7 @@ router.patch('/activities/:activityId/exegesis-highlights/:highlightId', require
       include: { lesson: { include: { studyProgram: true } } },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2874,7 +2875,7 @@ router.delete('/activities/:activityId/exegesis-highlights/:highlightId', requir
       include: { lesson: { include: { studyProgram: true } } },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -2965,7 +2966,7 @@ router.post('/activities/:id/read-blocks', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -3095,7 +3096,7 @@ router.patch('/activities/:activityId/read-blocks/:blockId', requireAuth, async 
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -3189,7 +3190,7 @@ router.delete('/activities/:activityId/read-blocks/:blockId', requireAuth, async
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 
@@ -3289,7 +3290,7 @@ router.patch('/activities/:id/read-blocks/reorder', requireAuth, async (req, res
       },
     })
 
-    if (!activity || activity.lesson.studyProgram.creatorId !== userId) {
+    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
       return res.status(404).json({ success: false, error: 'Activity not found' })
     }
 

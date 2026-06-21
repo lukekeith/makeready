@@ -234,6 +234,53 @@ export async function hasPermission(
   return false
 }
 
+/**
+ * Can this user manage an org-owned content resource (study program, lesson,
+ * activity, read block, etc.)?
+ *
+ * Content routes historically authorized by `creatorId` ONLY — so a group
+ * leader or org owner who didn't personally CREATE the program was locked out
+ * (404/403) of content in their own organization. This recognizes the broader
+ * org relationship instead:
+ *   - the original creator, OR
+ *   - a platform Super Admin, OR
+ *   - the organization's owner (`organizations.ownerId`), OR
+ *   - any role-holder in the organization (Owner / Admin / Group Leader / …, a
+ *     `UserRole` row) — same basis the media library uses.
+ *
+ * Pass the resource's `organizationId` and `creatorId` (either may be null).
+ */
+export async function canManageOrgContent(
+  userId: string | undefined | null,
+  organizationId: string | null | undefined,
+  creatorId: string | null | undefined
+): Promise<boolean> {
+  if (!userId) return false
+
+  // The creator can always manage what they created.
+  if (creatorId && creatorId === userId) return true
+
+  // Platform super admins bypass.
+  if (await isSuperAdmin(userId)) return true
+
+  // Beyond the creator, access is scoped to the resource's organization.
+  if (!organizationId) return false
+
+  // Organization owner.
+  const ownedOrg = await prisma.organization.findFirst({
+    where: { id: organizationId, ownerId: userId },
+    select: { id: true },
+  })
+  if (ownedOrg) return true
+
+  // Any role assignment in that organization (Owner/Admin/Group Leader/…).
+  const role = await prisma.userRole.findFirst({
+    where: { userId, organizationId },
+    select: { id: true },
+  })
+  return role !== null
+}
+
 // ============================================================================
 // Member Content Access Checker
 // ============================================================================

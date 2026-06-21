@@ -13,6 +13,7 @@ import { recalculateScheduledLessonEstimate } from '../services/lesson-estimate.
 import { getUserOrgId } from '../services/media-library.js'
 import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
 import { isStableNumberedScriptureMarkdown, normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
+import { canManageOrgContent } from '../services/permission.js'
 
 const router = Router()
 
@@ -2355,6 +2356,7 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
                 name: true,
                 coverImageUrl: true,
                 creatorId: true,
+                organizationId: true,
               },
             },
           },
@@ -2366,8 +2368,8 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
     }
 
-    // Verify user owns the group
-    if (schedule.enrollment.group.creatorId !== userId) {
+    // Group creator OR an owner/role-holder in the group's org may manage it.
+    if (!(await canManageOrgContent(userId, schedule.enrollment.group.organizationId, schedule.enrollment.group.creatorId))) {
       return res.status(403).json({ success: false, error: 'Not authorized' })
     }
 
@@ -2737,12 +2739,12 @@ router.delete('/events/:id', requireAuth, async (req, res) => {
       where: { id },
       include: {
         group: {
-          select: { creatorId: true },
+          select: { creatorId: true, organizationId: true },
         },
       },
     })
 
-    if (!event || event.group.creatorId !== userId) {
+    if (!event || !(await canManageOrgContent(userId, event.group.organizationId, event.group.creatorId))) {
       return res.status(404).json({ success: false, error: 'Event not found' })
     }
 
