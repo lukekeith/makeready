@@ -870,6 +870,27 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
       }
     }
 
+    // A program cannot be published while any READ activity is incomplete (has
+    // no read blocks). Read activities may be left empty during editing — they
+    // render as not-ready — but publishing requires content.
+    if (body.isPublished === true && !existingProgram.isPublished) {
+      const emptyReadActivity = await prisma.lessonActivity.findFirst({
+        where: {
+          activityType: 'READ',
+          lesson: { studyProgramId: existingProgram.id },
+          readBlocks: { none: {} },
+        },
+        select: { lesson: { select: { dayNumber: true } } },
+      })
+      if (emptyReadActivity) {
+        const day = emptyReadActivity.lesson?.dayNumber
+        return res.status(400).json({
+          success: false,
+          error: `Cannot publish: a read activity${day ? ` on day ${day}` : ''} has no read blocks. Add content or remove the activity before publishing.`,
+        })
+      }
+    }
+
     // Compute publishedAt when transitioning to published
     const publishedAt = (body.isPublished === true && !existingProgram.isPublished)
       ? new Date()
@@ -3199,10 +3220,11 @@ router.delete('/activities/:activityId/read-blocks/:blockId', requireAuth, async
       return res.status(404).json({ success: false, error: 'Read block not found' })
     }
 
-    // Enforce minimum 1 block
-    if (activity.readBlocks.length <= 1) {
-      return res.status(400).json({ success: false, error: 'Cannot delete the last read block' })
-    }
+    // Program (template) read activities MAY have zero read blocks — that's an
+    // intentional "incomplete" state: the activity card shows the not-ready
+    // border and the program cannot be published until it has content (enforced
+    // at publish time). The minimum-one-block rule applies only to ENROLLED
+    // lesson activities (see enrollments.ts).
 
     await prisma.activityReadBlock.delete({ where: { id: blockId } })
 

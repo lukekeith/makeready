@@ -22,6 +22,7 @@ describe('Group-leader content authorization (read blocks)', () => {
   let leader: TestUserWithToken // org role-holder, NOT the creator
   let stranger: TestUserWithToken // no relationship to the org
   let orgId: string
+  let programId: string
   let activityId: string
   const blockIds: string[] = []
   const stamp = Date.now()
@@ -48,6 +49,7 @@ describe('Group-leader content authorization (read blocks)', () => {
     const program = await prisma.studyProgram.create({
       data: { name: `Program ${stamp}`, days: 7, creatorId: owner.userId, organizationId: orgId },
     })
+    programId = program.id
     const lesson = await prisma.lesson.create({
       data: { studyProgramId: program.id, dayNumber: 1 },
     })
@@ -121,8 +123,8 @@ describe('Group-leader content authorization (read blocks)', () => {
     expect(res.status).toBe(401)
   })
 
-  it('still refuses to delete the LAST read block, even for an authorized leader (400)', async () => {
-    // blockIds[2] already deleted; delete blockIds[1] (down to one), then the last.
+  it('allows deleting the LAST read block of a PROGRAM activity (no min-1 rule — incomplete state)', async () => {
+    // blockIds[2] already deleted; delete blockIds[1] then the last (blockIds[0]).
     await request(app)
       .delete(`/api/activities/${activityId}/read-blocks/${blockIds[1]}`)
       .set('Authorization', bearer(leader.token))
@@ -131,7 +133,16 @@ describe('Group-leader content authorization (read blocks)', () => {
     const res = await request(app)
       .delete(`/api/activities/${activityId}/read-blocks/${blockIds[0]}`)
       .set('Authorization', bearer(leader.token))
+    expect(res.status).toBe(200)
+  })
+
+  it('blocks publishing a program that has an incomplete (0-block) read activity (400)', async () => {
+    // The read activity now has zero blocks (from the previous test).
+    const res = await request(app)
+      .patch(`/api/programs/${programId}`)
+      .set('Authorization', bearer(owner.token))
+      .send({ isPublished: true })
     expect(res.status).toBe(400)
-    expect(res.body.error).toMatch(/last read block/i)
+    expect(res.body.error).toMatch(/cannot publish/i)
   })
 })

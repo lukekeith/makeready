@@ -3716,8 +3716,14 @@ router.delete('/scheduled-activities/:activityId/read-blocks/:blockId', requireA
       return res.status(404).json({ success: false, error: 'Read block not found' })
     }
 
+    // Enrolled lessons must stay deliverable, so a read activity here must keep
+    // at least one read block (unlike program templates, which may be left
+    // incomplete). Guide the leader to remove the whole activity instead.
     if (activity.readBlocks.length <= 1) {
-      return res.status(400).json({ success: false, error: 'Cannot delete the last read block' })
+      return res.status(400).json({
+        success: false,
+        error: 'A read activity must keep at least one read block. To remove it from this lesson, delete the entire activity instead.',
+      })
     }
 
     await prisma.activityReadBlock.delete({ where: { id: blockId } })
