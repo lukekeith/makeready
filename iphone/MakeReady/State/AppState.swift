@@ -263,11 +263,12 @@ final class AppState {
         context: String,
         surface: Bool = false,
         friendlyMessage: String? = nil,
+        operation: UserFacingErrorOperation = .generic,
         retry: (() -> Void)? = nil
     ) {
         let appError = AppError(
             context: context,
-            message: friendlyMessage ?? error.localizedDescription,
+            message: friendlyMessage ?? UserFacingErrorFormatter.message(for: error, operation: operation),
             surface: surface,
             retry: retry
         )

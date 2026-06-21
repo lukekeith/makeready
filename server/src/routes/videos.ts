@@ -10,6 +10,21 @@ import {
 import { trackActivity } from '../services/activity.js'
 import { captureToLibrary, getUserOrgId, syncVideoStatus } from '../services/media-library.js'
 import { deriveVideoMetadata } from '../services/media-metadata.js'
+import { canManageOrgContent } from '../services/permission.js'
+
+/**
+ * The organization that owns a video, derived from its media-library entry.
+ * Videos have no `organizationId` of their own — they're scoped to an org only
+ * via the `Media` row created when the video is captured to the library. Returns
+ * null if the video was never captured (e.g. uploaded before the user had an org).
+ */
+async function getVideoOrgId(videoId: string): Promise<string | null> {
+  const entry = await prisma.media.findFirst({
+    where: { videoId },
+    select: { organizationId: true },
+  })
+  return entry?.organizationId ?? null
+}
 
 /**
  * @openapi
@@ -664,12 +679,17 @@ router.get('/:videoId', requireAuth, async (req, res) => {
       })
     }
 
-    // Only the owner can view their videos (for now)
+    // The uploader, or anyone who can manage the owning org's content (org
+    // owner / role-holder / super admin), may view the video. Without this,
+    // a group leader couldn't preview a video used in their org's program.
     if (video.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view this video',
-      })
+      const orgId = await getVideoOrgId(video.id)
+      if (!(await canManageOrgContent(userId, orgId, video.userId))) {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to view this video',
+        })
+      }
     }
 
     res.json({
@@ -828,12 +848,15 @@ router.patch('/:videoId', requireAuth, async (req, res) => {
       })
     }
 
-    // Only the owner can update their videos
+    // The uploader, or anyone who can manage the owning org's content, may edit.
     if (video.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this video',
-      })
+      const orgId = await getVideoOrgId(video.id)
+      if (!(await canManageOrgContent(userId, orgId, video.userId))) {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to update this video',
+        })
+      }
     }
 
     const { title, description } = validation.data
@@ -984,10 +1007,13 @@ router.post('/:videoId/refresh', requireAuth, async (req, res) => {
     }
 
     if (video.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this video',
-      })
+      const orgId = await getVideoOrgId(video.id)
+      if (!(await canManageOrgContent(userId, orgId, video.userId))) {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to access this video',
+        })
+      }
     }
 
     // Get latest status from Cloudflare
@@ -1152,12 +1178,15 @@ router.delete('/:videoId', requireAuth, async (req, res) => {
       })
     }
 
-    // Only the owner can delete their videos
+    // The uploader, or anyone who can manage the owning org's content, may delete.
     if (video.userId !== userId) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to delete this video',
-      })
+      const orgId = await getVideoOrgId(video.id)
+      if (!(await canManageOrgContent(userId, orgId, video.userId))) {
+        return res.status(403).json({
+          success: false,
+          error: 'Not authorized to delete this video',
+        })
+      }
     }
 
     // Delete from Cloudflare first

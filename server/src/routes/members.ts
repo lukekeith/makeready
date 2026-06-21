@@ -26,6 +26,7 @@ import {
   requireMemberOrOrgOwner,
   requireMemberAuth,
 } from '../middleware/auth.js'
+import { groupManageFilter } from '../services/permission.js'
 import { sendVerificationCode, verifyCode } from '../services/twilio.js'
 import { uploadMemberAvatar, deleteMemberAvatar } from '../services/storage.js'
 import { prisma } from '../lib/prisma.js'
@@ -959,19 +960,29 @@ router.get('/:memberId/profile', requireAuth, async (req, res) => {
       })
     }
 
-    // Authorization: user must be the creator of at least one group this member belongs to,
-    // OR the member has a pending join request for a group the user created
-    let hasAccess = member.groupMemberships.some(
-      (gm) => gm.group.creatorId === userId
-    )
+    // Authorization: the user must be able to MANAGE at least one group this
+    // member belongs to (group creator / org owner / role-holder / super admin),
+    // OR the member has a pending join request for such a group. Previously this
+    // was group-creator-only, locking out non-creator org leaders/owners.
+    const manageFilter = await groupManageFilter(userId)
+    const memberGroupIds = member.groupMemberships.map((gm) => gm.group.id)
+
+    let hasAccess = false
+    if (memberGroupIds.length > 0) {
+      const manageableGroup = await prisma.group.findFirst({
+        where: { id: { in: memberGroupIds }, ...manageFilter },
+        select: { id: true },
+      })
+      hasAccess = manageableGroup !== null
+    }
 
     if (!hasAccess) {
-      // Check if member has a pending join request for a group owned by this user
+      // Check if member has a pending join request for a group the user manages.
       const pendingRequest = await prisma.groupJoinRequest.findFirst({
         where: {
           memberId: memberId,
           status: 'pending',
-          group: { creatorId: userId },
+          group: manageFilter,
         },
       })
       if (pendingRequest) {

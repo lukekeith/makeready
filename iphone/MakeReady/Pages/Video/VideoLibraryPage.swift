@@ -94,7 +94,7 @@ struct VideoLibraryPage: View {
         } message: {
             Text("This will permanently delete this video.")
         }
-        .alert("Error", isPresented: $showError) {
+        .alert("Video unavailable", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)
@@ -280,8 +280,13 @@ struct VideoLibraryPage: View {
         do {
             try await VideoActions().loadVideos()
         } catch {
-            errorMessage = error.localizedDescription
-            showError = true
+            state.recordError(
+                error,
+                context: "VideoLibraryPage.loadVideos",
+                surface: true,
+                operation: .loadVideos,
+                retry: { Task { await loadVideos() } }
+            )
         }
     }
 
@@ -319,8 +324,9 @@ struct VideoLibraryPage: View {
     private func handleSelectedVideo(_ item: PhotosPickerItem) async {
         guard let videoData = try? await item.loadTransferable(type: VideoTransferable.self) else {
             await MainActor.run {
-                errorMessage = "Failed to load video"
+                errorMessage = UserFacingErrorFormatter.message(for: .openSelectedFile)
                 showError = true
+                selectedVideoItem = nil
             }
             return
         }
@@ -340,8 +346,12 @@ struct VideoLibraryPage: View {
             selectedVideoItem = nil
         } catch {
             await MainActor.run {
-                errorMessage = error.localizedDescription
-                showError = true
+                state.recordError(
+                    error,
+                    context: "VideoLibraryPage.handleSelectedVideo",
+                    surface: true,
+                    operation: .uploadVideo
+                )
                 selectedVideoItem = nil
             }
         }
@@ -353,8 +363,13 @@ struct VideoLibraryPage: View {
             videoToDelete = nil
         } catch {
             await MainActor.run {
-                errorMessage = error.localizedDescription
-                showError = true
+                state.recordError(
+                    error,
+                    context: "VideoLibraryPage.deleteVideo",
+                    surface: true,
+                    operation: .deleteVideo,
+                    retry: { Task { await deleteVideo(video) } }
+                )
             }
         }
     }

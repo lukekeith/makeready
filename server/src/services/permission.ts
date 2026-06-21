@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma.js'
+import { Prisma } from '../generated/prisma/index.js'
 
 /**
  * Permission Service - Core RBAC Logic
@@ -208,6 +209,21 @@ export async function hasPermission(
     return false
   }
 
+  // 2b. Organization owners implicitly hold every permission in their own org.
+  // hasPermission otherwise only consults UserRole rows, so a non-role-holding
+  // org owner was locked out of permissioned resources (e.g. media) in their own
+  // organization. This mirrors canManageOrgContent's owner branch.
+  const ownsOrg = await prisma.organization.findFirst({
+    where: { id: organizationId, ownerId: subject.userId },
+    select: { id: true },
+  })
+  if (ownsOrg) {
+    console.log(
+      `✅ [Permission] User ${subject.userId} owns organization ${organizationId} - GRANTED`
+    )
+    return true
+  }
+
   // 3. Get user's roles for this organization
   const userRoles = await getUserRolesForOrg(subject.userId, organizationId)
 
@@ -279,6 +295,74 @@ export async function canManageOrgContent(
     select: { id: true },
   })
   return role !== null
+}
+
+/**
+ * Org IDs a user can manage: organizations they own (`organizations.ownerId`)
+ * plus any organization they hold a role in. Shared by the per-model "manage"
+ * filters below (the filter form of canManageOrgContent).
+ */
+export async function getManageableOrgIds(userId: string): Promise<string[]> {
+  const [owned, roles] = await Promise.all([
+    prisma.organization.findMany({ where: { ownerId: userId }, select: { id: true } }),
+    prisma.userRole.findMany({ where: { userId }, select: { organizationId: true } }),
+  ])
+  return Array.from(
+    new Set([...owned.map((o) => o.id), ...roles.map((r) => r.organizationId)])
+  )
+}
+
+/**
+ * Prisma where-fragment selecting the groups a user may MANAGE — the filter
+ * form of `canManageOrgContent` for the Group model: groups they created OR any
+ * group in an org they own / hold a role in. Super admins match every group
+ * (`{}`). Spread into a `group.findFirst/findMany` where alongside
+ * `{ id, isActive: true }`; a non-matching group falls through and reads as 404.
+ */
+export async function groupManageFilter(userId: string): Promise<Prisma.GroupWhereInput> {
+  if (await isSuperAdmin(userId)) return {}
+  const orgIds = await getManageableOrgIds(userId)
+  return orgIds.length > 0
+    ? { OR: [{ creatorId: userId }, { organizationId: { in: orgIds } }] }
+    : { creatorId: userId }
+}
+
+/**
+ * Prisma where-fragment selecting the enrollments a user may MANAGE: ones they
+ * created (`createdById`) OR ones whose group they can manage (group creator /
+ * org owner / role-holder). Super admins match all enrollments (`{}`). Spread
+ * into an `enrollment.findFirst` where alongside `{ id }`; a non-matching
+ * enrollment reads as 404.
+ */
+export async function enrollmentManageFilter(
+  userId: string
+): Promise<Prisma.EnrollmentWhereInput> {
+  if (await isSuperAdmin(userId)) return {}
+  const orgIds = await getManageableOrgIds(userId)
+  const groupCond: Prisma.GroupWhereInput =
+    orgIds.length > 0
+      ? { OR: [{ creatorId: userId }, { organizationId: { in: orgIds } }] }
+      : { creatorId: userId }
+  return { OR: [{ createdById: userId }, { group: groupCond }] }
+}
+
+/**
+ * Can this user manage content scoped to a specific group (by id)? Resolves the
+ * group's org and creator, then defers to `canManageOrgContent`. Useful when the
+ * group id is reachable but the org isn't already loaded (e.g. a scheduled
+ * activity → schedule → enrollment → groupId chain).
+ */
+export async function canManageGroupId(
+  userId: string,
+  groupId: string | null | undefined
+): Promise<boolean> {
+  if (!groupId) return false
+  const group = await prisma.group.findUnique({
+    where: { id: groupId },
+    select: { organizationId: true, creatorId: true },
+  })
+  if (!group) return false
+  return canManageOrgContent(userId, group.organizationId, group.creatorId)
 }
 
 // ============================================================================

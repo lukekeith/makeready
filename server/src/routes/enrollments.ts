@@ -13,7 +13,12 @@ import { recalculateScheduledLessonEstimate } from '../services/lesson-estimate.
 import { getUserOrgId } from '../services/media-library.js'
 import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
 import { isStableNumberedScriptureMarkdown, normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
-import { canManageOrgContent } from '../services/permission.js'
+import {
+  canManageOrgContent,
+  enrollmentManageFilter,
+  groupManageFilter,
+  canManageGroupId,
+} from '../services/permission.js'
 
 const router = Router()
 
@@ -142,7 +147,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
     const group = await prisma.group.findFirst({
       where: {
         id: body.groupId,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
     })
@@ -677,7 +682,7 @@ router.get('/enrollments/:id', requireAuth, async (req, res) => {
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         id,
-        createdById: userId,
+        ...(await enrollmentManageFilter(userId)),
       },
       include: {
         group: {
@@ -1306,7 +1311,7 @@ router.get('/groups/:groupId/enrollments', requireAuth, async (req, res) => {
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
     })
@@ -1407,7 +1412,7 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
     })
@@ -1732,7 +1737,7 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         id,
-        createdById: userId,
+        ...(await enrollmentManageFilter(userId)),
       },
     })
 
@@ -1832,7 +1837,7 @@ router.delete('/enrollments/:id', requireAuth, async (req, res) => {
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         id,
-        createdById: userId,
+        ...(await enrollmentManageFilter(userId)),
       },
     })
 
@@ -2517,7 +2522,7 @@ router.get('/groups/:groupId/events', requireAuth, async (req, res) => {
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
     })
@@ -2662,7 +2667,7 @@ router.post('/groups/:groupId/events', requireAuth, async (req, res) => {
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
     })
@@ -2848,7 +2853,11 @@ router.patch('/scheduled-activities/:id', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -2951,7 +2960,7 @@ router.get(
 
       // Verify enrollment access
       const enrollment = await prisma.enrollment.findFirst({
-        where: { id: enrollmentId, createdById: userId },
+        where: { id: enrollmentId, ...(await enrollmentManageFilter(userId)) },
       })
 
       if (!enrollment) {
@@ -3053,7 +3062,7 @@ router.post(
 
       // Verify enrollment access
       const enrollment = await prisma.enrollment.findFirst({
-        where: { id: enrollmentId, createdById: userId },
+        where: { id: enrollmentId, ...(await enrollmentManageFilter(userId)) },
       })
 
       if (!enrollment) {
@@ -3182,7 +3191,11 @@ router.delete('/scheduled-activities/:id', requireAuth, async (req, res) => {
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3253,7 +3266,11 @@ router.post('/scheduled-activities/:id/reset', requireAuth, async (req, res) => 
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3336,7 +3353,11 @@ router.post('/scheduled-activities/:id/source-references', requireAuth, async (r
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3436,7 +3457,11 @@ router.delete('/scheduled-activities/:id/source-references/:refId', requireAuth,
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3519,7 +3544,11 @@ router.post('/scheduled-activities/:id/read-blocks', requireAuth, async (req, re
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3622,7 +3651,11 @@ router.patch('/scheduled-activities/:activityId/read-blocks/:blockId', requireAu
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3707,7 +3740,11 @@ router.delete('/scheduled-activities/:activityId/read-blocks/:blockId', requireA
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3806,7 +3843,11 @@ router.patch('/scheduled-activities/:id/read-blocks/reorder', requireAuth, async
       },
     })
 
-    if (!activity || activity.lessonSchedule.enrollment.createdById !== userId) {
+    if (
+      !activity ||
+      (activity.lessonSchedule.enrollment.createdById !== userId &&
+        !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+    ) {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
@@ -3905,7 +3946,7 @@ router.post(
       const { activityOrder } = schema.parse(req.body)
 
       const enrollment = await prisma.enrollment.findFirst({
-        where: { id: enrollmentId, createdById: userId },
+        where: { id: enrollmentId, ...(await enrollmentManageFilter(userId)) },
       })
 
       if (!enrollment) {
@@ -4032,7 +4073,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         id: enrollmentId,
-        createdById: userId,
+        ...(await enrollmentManageFilter(userId)),
       },
       include: {
         studyProgram: {
@@ -4440,7 +4481,7 @@ router.patch('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, as
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         id: enrollmentId,
-        createdById: userId,
+        ...(await enrollmentManageFilter(userId)),
       },
     })
 
@@ -4517,7 +4558,7 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
     const enrollment = await prisma.enrollment.findFirst({
       where: {
         id: enrollmentId,
-        createdById: userId,
+        ...(await enrollmentManageFilter(userId)),
       },
     })
 

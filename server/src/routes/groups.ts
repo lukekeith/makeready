@@ -8,6 +8,7 @@ import { uploadImageVariants } from '../services/storage.js'
 import { generateUniqueGroupCode, normalizeGroupCode } from '../lib/group-code.js'
 import { trackActivity } from '../services/activity.js'
 import { captureToLibrary } from '../services/media-library.js'
+import { isSuperAdmin, groupManageFilter } from '../services/permission.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { resolveUserOrganizationId } from '../services/organization.js'
 
@@ -228,11 +229,12 @@ router.post('/', requireAuth, async (req, res) => {
 router.get('/', requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any).id
-    const isApiKey = !!(req as any).apiKeyId
-
+    // Scope by the caller's real role, not by auth method — a self-minted API
+    // key must not list more than the user's session would. Group leaders/owners
+    // see every group in their org; super admins see all; others see their own.
     const groups = await prisma.group.findMany({
       where: {
-        ...(isApiKey ? {} : { creatorId: userId }),
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
       orderBy: { updatedAt: 'desc' },
@@ -554,7 +556,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     const group = await prisma.group.findFirst({
       where: {
         id,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
       include: {
@@ -653,7 +655,7 @@ router.get('/:id/invite', requireAuth, async (req, res) => {
     const group = await prisma.group.findFirst({
       where: {
         id,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
       select: {
@@ -889,7 +891,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const userId = (req.user as any).id
-    const isApiKey = !!(req as any).apiKeyId
+    // Authorization is by the caller's real role, not by auth method: a
+    // self-minted API key must not grant more than the user's session. Only
+    // super admins (incl. the global admin key's owner) bypass org scoping.
+    const isSuperAdminUser = await isSuperAdmin(userId)
 
     const schema = z.object({
       name: z.string().min(1).max(200).optional(),
@@ -911,9 +916,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
     const body = schema.parse(req.body)
 
-    // API key callers can update any group; regular users must be the creator
+    // Creator, the group org's owner/role-holders, or a super admin may update.
     const existingGroup = await prisma.group.findFirst({
-      where: { id, ...(isApiKey ? {} : { creatorId: userId }), isActive: true },
+      where: { id, ...(await groupManageFilter(userId)), isActive: true },
     })
 
     if (!existingGroup) {
@@ -935,8 +940,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (body.maxMembers !== undefined) updateData.maxMembers = body.maxMembers
     // Keep the group's organization association accurate on edit: a group must
     // always belong to a real org, and a (non-admin) user may only move it to an
-    // organization they themselves belong to. API-key/admin callers may set any
-    // existing org. The org can never be cleared.
+    // organization they themselves belong to. Super admins may set any existing
+    // org. The org can never be cleared.
     if (body.organizationId !== undefined) {
       const targetOrg = await prisma.organization.findUnique({
         where: { id: body.organizationId },
@@ -945,7 +950,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
       if (!targetOrg) {
         return res.status(400).json({ success: false, error: 'Organization not found' })
       }
-      if (!isApiKey) {
+      if (!isSuperAdminUser) {
         const belongs =
           targetOrg.ownerId === userId ||
           (await prisma.userRole.findFirst({
@@ -1056,9 +1061,9 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const { id } = req.params
     const userId = (req.user as any).id
 
-    // Verify ownership
+    // Creator, the group org's owner/role-holders, or a super admin may delete.
     const existingGroup = await prisma.group.findFirst({
-      where: { id, creatorId: userId, isActive: true },
+      where: { id, ...(await groupManageFilter(userId)), isActive: true },
     })
 
     if (!existingGroup) {
@@ -1157,9 +1162,9 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
 
     const body = schema.parse(req.body)
 
-    // Verify ownership
+    // Creator, the group org's owner/role-holders, or a super admin may edit.
     const group = await prisma.group.findFirst({
-      where: { id, creatorId: userId, isActive: true },
+      where: { id, ...(await groupManageFilter(userId)), isActive: true },
     })
 
     if (!group) {

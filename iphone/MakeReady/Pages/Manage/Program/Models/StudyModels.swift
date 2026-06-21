@@ -781,7 +781,15 @@ struct StudyActivity: Codable, Identifiable {
         case .youtube:
             return youtubeUrl != nil && !youtubeUrl!.isEmpty
         case .read:
-            if let blocks = readBlocks, !blocks.isEmpty {
+            // When the payload carries the block list (even an empty array),
+            // block content is the only readiness signal: a read activity with
+            // zero blocks is the intentional "incomplete" state the server now
+            // allows (it blocks publishing but renders the not-ready border).
+            // Stale `readContent` is left behind when the last block is deleted,
+            // so it can't be trusted once blocks are present. Fall back to
+            // legacy `readContent` only for older cached data that predates the
+            // `readBlocks` field (decoded as nil, not an empty array).
+            if let blocks = readBlocks {
                 return blocks.contains { ($0.content ?? "").isEmpty == false }
             }
             return readContent != nil && !readContent!.isEmpty

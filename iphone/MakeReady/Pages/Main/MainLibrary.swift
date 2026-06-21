@@ -1302,7 +1302,7 @@ struct MainLibrary: View {
                 error,
                 context: "MainLibrary.handleFileImport",
                 surface: true,
-                friendlyMessage: "Couldn't open the selected file"
+                operation: .openSelectedFile
             )
         }
     }
@@ -1316,7 +1316,7 @@ struct MainLibrary: View {
         var didStartAccess = false
         if requireSecurityScope {
             guard fileURL.startAccessingSecurityScopedResource() else {
-                importErrorMessage = "Unable to access the selected file."
+                importErrorMessage = UserFacingErrorFormatter.message(for: .openSelectedFile)
                 showImportError = true
                 return
             }
@@ -1367,7 +1367,12 @@ struct MainLibrary: View {
             showImportPreview = true
 
         } catch {
-            importErrorMessage = "Failed to read the selected file."
+            state.recordError(
+                error,
+                context: "MainLibrary.processImportURL",
+                operation: .readImportFile
+            )
+            importErrorMessage = UserFacingErrorFormatter.message(for: error, operation: .readImportFile)
             showImportError = true
         }
     }
@@ -1509,7 +1514,7 @@ struct MainLibrary: View {
                         error,
                         context: "MainLibrary.confirmImport",
                         surface: true,
-                        friendlyMessage: "Couldn't import the program"
+                        operation: .importProgram
                     )
                 }
             }

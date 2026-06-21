@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
 import { trackActivity } from '../services/activity.js'
+import { canManageOrgContent, groupManageFilter } from '../services/permission.js'
 
 /**
  * @openapi
@@ -290,7 +291,9 @@ router.get('/groups/:groupId/posts', requireAuth, async (req, res) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 20, 50)
     const cursor = req.query.cursor as string | undefined
 
-    // Verify group access (user is creator or member)
+    // Verify group access: the group creator, an active member, or anyone who
+    // can manage the group's org (owner / role-holder / super admin) may view
+    // the feed. groupManageFilter contributes the org-scoped branch.
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
@@ -298,6 +301,7 @@ router.get('/groups/:groupId/posts', requireAuth, async (req, res) => {
         OR: [
           { creatorId: userId },
           { members: { some: { member: { id: userId }, isActive: true } } },
+          await groupManageFilter(userId),
         ],
       },
     })
@@ -767,11 +771,12 @@ router.post('/groups/:groupId/posts', requireAuth, async (req, res) => {
 
     const body = schema.parse(req.body)
 
-    // Verify group access (user is creator or admin)
+    // Verify group access: creator, org owner/role-holder, or super admin may
+    // post to the group feed (groupManageFilter encodes that rule).
     const group = await prisma.group.findFirst({
       where: {
         id: groupId,
-        creatorId: userId,
+        ...(await groupManageFilter(userId)),
         isActive: true,
       },
     })
@@ -909,14 +914,18 @@ router.patch('/posts/:id', requireAuth, async (req, res) => {
 
     const post = await prisma.post.findFirst({
       where: { id, isActive: true },
-      include: { group: { select: { creatorId: true } } },
+      include: { group: { select: { creatorId: true, organizationId: true } } },
     })
 
     if (!post) {
       return res.status(404).json({ success: false, error: 'Post not found' })
     }
 
-    if (post.authorId !== userId && post.group.creatorId !== userId) {
+    // The author, or anyone who can manage the group's org, may edit the post.
+    if (
+      post.authorId !== userId &&
+      !(await canManageOrgContent(userId, post.group.organizationId, post.group.creatorId))
+    ) {
       return res.status(403).json({ success: false, error: 'Not authorized to update this post' })
     }
 
@@ -1051,7 +1060,7 @@ router.delete('/posts/:id', requireAuth, async (req, res) => {
       where: { id },
       include: {
         group: {
-          select: { creatorId: true },
+          select: { creatorId: true, organizationId: true },
         },
       },
     })
@@ -1060,8 +1069,11 @@ router.delete('/posts/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Post not found' })
     }
 
-    // Only author or group creator can delete
-    if (post.authorId !== userId && post.group.creatorId !== userId) {
+    // The author, or anyone who can manage the group's org, may delete the post.
+    if (
+      post.authorId !== userId &&
+      !(await canManageOrgContent(userId, post.group.organizationId, post.group.creatorId))
+    ) {
       return res.status(403).json({ success: false, error: 'Not authorized to delete this post' })
     }
 

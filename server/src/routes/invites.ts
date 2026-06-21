@@ -4,6 +4,7 @@ import { sendGroupInvite, getInviteByToken } from '../services/invite.js';
 import { recordMembershipEvent } from '../services/membership-event.js';
 import { prisma } from '../lib/prisma.js';
 import { isValidPhoneNumber } from '../services/twilio.js';
+import { canManageOrgContent } from '../services/permission.js';
 import type { User } from '../generated/prisma/index.js';
 
 const router = Router();
@@ -242,11 +243,11 @@ router.post('/', requireAuth, async (req, res) => {
         });
       }
 
-      // Only group creators can send invites
-      if (group.creatorId !== user.id) {
+      // The group creator, or anyone who can manage the group's org, may invite.
+      if (!(await canManageOrgContent(user.id, group.organizationId, group.creatorId))) {
         return res.status(403).json({
           success: false,
-          error: 'Only the group creator can send invites',
+          error: 'Not authorized to send invites for this group',
         });
       }
     }
@@ -423,11 +424,11 @@ router.post('/send', requireAuth, async (req, res) => {
       });
     }
 
-    // Only group creators can send invites
-    if (group.creatorId !== user.id) {
+    // The group creator, or anyone who can manage the group's org, may invite.
+    if (!(await canManageOrgContent(user.id, group.organizationId, group.creatorId))) {
       return res.status(403).json({
         success: false,
-        error: 'Only the group creator can send invites',
+        error: 'Not authorized to send invites for this group',
       });
     }
 
@@ -637,13 +638,21 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const user = req.user as User;
     const { id } = req.params;
 
-    const invite = await prisma.invite.findUnique({ where: { id } });
+    const invite = await prisma.invite.findUnique({
+      where: { id },
+      include: { group: { select: { organizationId: true, creatorId: true } } },
+    });
 
     if (!invite) {
       return res.status(404).json({ success: false, error: 'Invite not found' });
     }
 
-    if (invite.inviterId !== user.id) {
+    // The inviter, or anyone who can manage the invite's group org, may update.
+    const canManage =
+      invite.inviterId === user.id ||
+      (invite.group !== null &&
+        (await canManageOrgContent(user.id, invite.group.organizationId, invite.group.creatorId)));
+    if (!canManage) {
       return res.status(403).json({ success: false, error: 'Not authorized to update this invite' });
     }
 
@@ -712,13 +721,21 @@ router.delete('/:id', requireAuth, async (req, res) => {
     const user = req.user as User;
     const { id } = req.params;
 
-    const invite = await prisma.invite.findUnique({ where: { id } });
+    const invite = await prisma.invite.findUnique({
+      where: { id },
+      include: { group: { select: { organizationId: true, creatorId: true } } },
+    });
 
     if (!invite) {
       return res.status(404).json({ success: false, error: 'Invite not found' });
     }
 
-    if (invite.inviterId !== user.id) {
+    // The inviter, or anyone who can manage the invite's group org, may delete.
+    const canManage =
+      invite.inviterId === user.id ||
+      (invite.group !== null &&
+        (await canManageOrgContent(user.id, invite.group.organizationId, invite.group.creatorId)));
+    if (!canManage) {
       return res.status(403).json({ success: false, error: 'Not authorized to delete this invite' });
     }
 

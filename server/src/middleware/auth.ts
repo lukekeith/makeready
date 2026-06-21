@@ -292,12 +292,20 @@ export const requireMemberOrOrgOwner = async (
     // Check if authenticated member is accessing their own resource
     const isMember = authenticatedMemberId === targetMemberId
 
-    // Check if user owns ANY of the organizations that this member belongs to
-    const isOrgOwner =
-      userId &&
-      member.organizations.some((mo) => mo.organization.ownerId === userId)
+    // Otherwise the user must be able to MANAGE one of the member's orgs:
+    // super admin, org owner, or any role-holder in that org. Previously this
+    // recognized owners only, locking out non-owner group leaders/admins.
+    let isOrgManager = false
+    if (userId && !isMember) {
+      const memberOrgIds = member.organizations.map((mo) => mo.organizationId)
+      if (memberOrgIds.length > 0) {
+        isOrgManager =
+          (await isSuperAdmin(userId)) ||
+          (await getManageableOrgIds(userId)).some((id) => memberOrgIds.includes(id))
+      }
+    }
 
-    if (!isMember && !isOrgOwner) {
+    if (!isMember && !isOrgManager) {
       return res.status(403).json({
         success: false,
         error: 'You do not have permission to access this member',
@@ -459,8 +467,11 @@ export const requireSameOrganization = async (
 
 import {
   hasPermission,
+  canManageOrgContent,
   canMemberAccessContent,
   canModifyContent,
+  getManageableOrgIds,
+  isSuperAdmin,
   ContentType,
 } from '../services/permission.js'
 
@@ -575,7 +586,7 @@ export const requireGroupManage = (
 
       const group = await prisma.group.findUnique({
         where: { id: groupId },
-        select: { creatorId: true },
+        select: { creatorId: true, organizationId: true },
       })
 
       if (!group) {
@@ -585,12 +596,15 @@ export const requireGroupManage = (
         })
       }
 
-      // The group creator can always manage their own group.
-      if (group.creatorId === userId) {
+      // The creator, the group org's owner, any role-holder in that org, or a
+      // super admin may manage the group — same rule as the group's content
+      // (canManageOrgContent). This unblocks non-creator org owners/leaders.
+      if (await canManageOrgContent(userId, group.organizationId, group.creatorId)) {
         return next()
       }
 
-      // Otherwise require the org-scoped permission on the group.
+      // Fall back to a granular org permission (a role that explicitly carries
+      // `permission`), in case a role grants it without broader org management.
       const hasAccess = await hasPermission({ userId }, permission, 'group', groupId)
 
       if (!hasAccess) {

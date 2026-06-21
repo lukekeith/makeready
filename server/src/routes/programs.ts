@@ -15,7 +15,7 @@ import { suggestProgramTags } from '../services/claude.js'
 import { recalculateLessonEstimate } from '../services/lesson-estimate.service.js'
 import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '../services/youtube.js'
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
-import { canManageOrgContent } from '../services/permission.js'
+import { canManageOrgContent, isSuperAdmin, getManageableOrgIds } from '../services/permission.js'
 
 // Configure multer for ZIP upload (memory storage)
 const uploadZip = multer({
@@ -47,11 +47,21 @@ function accessFilter(userOrgId: string | undefined, userId: string) {
 
 /**
  * Build an access filter for MUTATIONS (PATCH/POST/DELETE that change a
- * program or its nested resources). Creator-only — group leaders can VIEW
- * any program in their org but only edit ones they created themselves.
+ * program or its nested resources). Org-scoped, matching `canManageOrgContent`
+ * (the rule already applied to a program's activities and read blocks): the
+ * creator, the program org's owner, any role-holder in that org, or a super
+ * admin may mutate. A program that matches none of these falls through the
+ * filter and reads as 404 — preserving the existing "stranger gets 404"
+ * behavior without a separate ownership branch in every handler.
  */
-function mutationFilter(userId: string) {
-  return { creatorId: userId }
+async function mutationFilter(userId: string): Promise<Prisma.StudyProgramWhereInput> {
+  // Super admins bypass org scoping entirely.
+  if (await isSuperAdmin(userId)) return {}
+
+  const orgIds = await getManageableOrgIds(userId)
+  return orgIds.length > 0
+    ? { OR: [{ creatorId: userId }, { organizationId: { in: orgIds } }] }
+    : { creatorId: userId }
 }
 
 // ─── Preview Tokens ─────────────────────────────────────────────────────────
@@ -390,13 +400,16 @@ router.post('/programs', requireAuth, async (req, res) => {
 router.get('/programs', requireAuth, async (req, res) => {
   try {
     const userId = (req.user as any).id
-    const isApiKey = !!(req as any).apiKeyId
+    // Scope by the caller's real role, not by auth method — a self-minted API
+    // key must not see more than the user's session would. Super admins (incl.
+    // the global admin key's owner) see all orgs; everyone else is org-scoped.
+    const isSuperAdminUser = await isSuperAdmin(userId)
     const userOrgId = await getUserOrgId(userId)
 
-    const includeInactive = isApiKey && req.query.includeInactive === 'true'
+    const includeInactive = isSuperAdminUser && req.query.includeInactive === 'true'
 
     const where: any = {
-      ...(isApiKey ? {} : accessFilter(userOrgId, userId)),
+      ...(isSuperAdminUser ? {} : accessFilter(userOrgId, userId)),
       ...(includeInactive ? {} : { isActive: true }),
     }
 
@@ -826,7 +839,6 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const userId = (req.user as any).id
-    const isApiKey = !!(req as any).apiKeyId
     const userOrgId = await getUserOrgId(userId)
 
     const schema = z.object({
@@ -841,11 +853,12 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
 
     const body = schema.parse(req.body)
 
-    // API key callers can update any program; regular users must be the creator.
-    // Org-wide editing was previously allowed via accessFilter — tightened to
-    // mutationFilter so only the program's creator can mutate it.
+    // Authorization is by the caller's actual permissions, NOT by auth method:
+    // a self-minted API key must not grant more than the user's session would.
+    // mutationFilter returns {} for super admins (incl. the global admin key's
+    // owner), so they retain full access; everyone else is org-scoped.
     const existingProgram = await prisma.studyProgram.findFirst({
-      where: { id, ...(isApiKey ? {} : mutationFilter(userId)), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
     })
 
     if (!existingProgram) {
@@ -1067,7 +1080,7 @@ router.post('/programs/:id/reorder-lessons', requireAuth, async (req, res) => {
 
     // Verify ownership
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...mutationFilter(userId), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
       include: { lessons: true },
     })
 
@@ -1174,7 +1187,7 @@ router.delete('/programs/:id', requireAuth, async (req, res) => {
     const userId = (req.user as any).id
 
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...mutationFilter(userId), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
     })
 
     if (!program) {
@@ -1301,7 +1314,7 @@ router.delete(
       const userId = (req.user as any).id
 
       const program = await prisma.studyProgram.findFirst({
-        where: { id: programId, ...mutationFilter(userId), isActive: true },
+        where: { id: programId, ...(await mutationFilter(userId)), isActive: true },
       })
 
       if (!program) {
@@ -2011,7 +2024,7 @@ router.post(
 
       // Verify ownership
       const program = await prisma.studyProgram.findFirst({
-        where: { id: programId, ...mutationFilter(userId), isActive: true },
+        where: { id: programId, ...(await mutationFilter(userId)), isActive: true },
       })
 
       if (!program) {
@@ -2162,7 +2175,7 @@ router.post(
       const { activityOrder } = schema.parse(req.body)
 
       const program = await prisma.studyProgram.findFirst({
-        where: { id: programId, ...mutationFilter(userId), isActive: true },
+        where: { id: programId, ...(await mutationFilter(userId)), isActive: true },
       })
 
       if (!program) {
@@ -3409,7 +3422,7 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
     const body = schema.parse(req.body)
 
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...mutationFilter(userId), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
     })
 
     if (!program) {
@@ -3539,7 +3552,7 @@ router.post('/programs/:id/lessons', requireAuth, async (req, res) => {
     const program = await prisma.studyProgram.findFirst({
       where: {
         id,
-        ...mutationFilter(userId),
+        ...(await mutationFilter(userId)),
         isActive: true,
       },
       include: {
@@ -3702,7 +3715,7 @@ router.patch('/programs/:id/lessons/:lessonId', requireAuth, async (req, res) =>
     const data = updateSchema.parse(req.body)
 
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...mutationFilter(userId), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
     })
 
     if (!program) {
@@ -4068,7 +4081,7 @@ router.post('/programs/:id/tags', requireAuth, async (req, res) => {
     const { tags } = z.object({ tags: z.array(z.string()).min(1).max(20) }).parse(req.body)
 
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...mutationFilter(userId), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
     })
 
     if (!program) {
@@ -4141,7 +4154,7 @@ router.delete('/programs/:id/tags', requireAuth, async (req, res) => {
     const { tags } = z.object({ tags: z.array(z.string()).min(1) }).parse(req.body)
 
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...mutationFilter(userId), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
     })
 
     if (!program) {
@@ -4283,7 +4296,7 @@ router.post('/programs/:id/suggest-and-apply-tags', requireAuth, async (req, res
     const userId = (req.user as any).id
 
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...mutationFilter(userId), isActive: true },
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
       include: {
         lessons: {
           orderBy: { dayNumber: 'asc' },

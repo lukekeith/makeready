@@ -255,6 +255,8 @@
 		STB76F45E5B18BF4A21BA9 /* EnrollmentActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */; };
 		STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST7CF2EBB5F6944CE48C55 /* AppState.swift */; };
 		STB9253AC4642DD4C0FBB2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEC62002E39284807A347 /* APIClient.swift */; };
+		UFEF000100000000000001 /* UserFacingErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = UFEF000200000000000001 /* UserFacingErrorFormatter.swift */; };
+		UFEFT00100000000000001 /* UserFacingErrorFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */; };
 		STB9ABADE6E9B9D497CBB7 /* EntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF7F960A70FAA4CFB9D79 /* EntityStore.swift */; };
 		STBD17E0834F256426EB81 /* LoadingStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = STAE8698BCEFBA4FADA19C /* LoadingStateManager.swift */; };
 		STBFF9B4526579D4BA8820 /* GroupActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEA7C3A65D00D453EBCC6 /* GroupActions.swift */; };
@@ -572,6 +574,8 @@
 		STCT0002000000000000001 /* StripContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripContent.swift; sourceTree = "<group>"; };
 		STEA7C3A65D00D453EBCC6 /* GroupActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupActions.swift; sourceTree = "<group>"; };
 		STEC62002E39284807A347 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
+		UFEF000200000000000001 /* UserFacingErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFacingErrorFormatter.swift; sourceTree = "<group>"; };
+		UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFacingErrorFormatterTests.swift; sourceTree = "<group>"; };
 		STF7F960A70FAA4CFB9D79 /* EntityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStore.swift; sourceTree = "<group>"; };
 		STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentActions.swift; sourceTree = "<group>"; };
 		STF9898162D0FC410484CC /* ProgramActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramActions.swift; sourceTree = "<group>"; };
@@ -862,6 +866,7 @@
 				RITX000200000000000001 /* RelationshipIndexTests.swift */,
 				SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */,
 				MDLT000200000000000001 /* ModelDecodingTests.swift */,
+				UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -1349,6 +1354,7 @@
 			children = (
 				STMODELSGRP000000000001 /* Models */,
 				ST7CF2EBB5F6944CE48C55 /* AppState.swift */,
+				UFEF000200000000000001 /* UserFacingErrorFormatter.swift */,
 				FLST0002000000000000001 /* FilterState.swift */,
 				STF7F960A70FAA4CFB9D79 /* EntityStore.swift */,
 				ST8205EFDFA2FD4CCFB3DB /* RelationshipIndex.swift */,
@@ -1613,6 +1619,7 @@
 				RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */,
 				SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */,
 				MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */,
+				UFEFT00100000000000001 /* UserFacingErrorFormatterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1636,6 +1643,7 @@
 				STMM0001000000000000007 /* ThemeModels.swift in Sources */,
 				STMM0001000000000000008 /* GroupMembershipModels.swift in Sources */,
 				STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */,
+				UFEF000100000000000001 /* UserFacingErrorFormatter.swift in Sources */,
 				FLST0001000000000000001 /* FilterState.swift in Sources */,
 				STB9ABADE6E9B9D497CBB7 /* EntityStore.swift in Sources */,
 				STB5E53C4FB893A46F7AB1 /* RelationshipIndex.swift in Sources */,

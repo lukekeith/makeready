@@ -7,6 +7,7 @@ import { logSuccess, logWarning } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 import { trackActivity } from '../services/activity.js'
 import { recordMembershipEvent } from '../services/membership-event.js'
+import { groupManageFilter } from '../services/permission.js'
 
 const router = Router({ mergeParams: true }) // Access :groupId from parent
 
@@ -700,16 +701,16 @@ router.get('/', requireAuth, async (req, res) => {
     const { groupId } = req.params
     const userId = (req.user as any)?.id
 
-    // Verify user is group creator
+    // Creator, the group org's owner/role-holders, or a super admin may view.
     const group = await prisma.group.findFirst({
-      where: { id: groupId, creatorId: userId, isActive: true },
+      where: { id: groupId, ...(await groupManageFilter(userId)), isActive: true },
       select: { id: true },
     })
 
     if (!group) {
       return res.status(404).json({
         success: false,
-        error: 'Group not found or you are not the group creator',
+        error: 'Group not found or you cannot manage this group',
       })
     }
 
@@ -869,16 +870,16 @@ router.post('/:requestId/approve', requireAuth, async (req, res) => {
     const { groupId, requestId } = req.params
     const userId = (req.user as any)?.id
 
-    // Verify user is group creator
+    // Creator, the group org's owner/role-holders, or a super admin may decide.
     const group = await prisma.group.findFirst({
-      where: { id: groupId, creatorId: userId, isActive: true },
+      where: { id: groupId, ...(await groupManageFilter(userId)), isActive: true },
       select: { id: true, organizationId: true },
     })
 
     if (!group) {
       return res.status(404).json({
         success: false,
-        error: 'Group not found or you are not the group creator',
+        error: 'Group not found or you cannot manage this group',
       })
     }
 
@@ -1097,16 +1098,16 @@ router.post('/:requestId/reject', requireAuth, async (req, res) => {
     const userId = (req.user as any)?.id
     const reason = typeof req.body?.reason === 'string' ? req.body.reason.trim() : undefined
 
-    // Verify user is group creator
+    // Creator, the group org's owner/role-holders, or a super admin may decide.
     const group = await prisma.group.findFirst({
-      where: { id: groupId, creatorId: userId, isActive: true },
+      where: { id: groupId, ...(await groupManageFilter(userId)), isActive: true },
       select: { id: true, organizationId: true },
     })
 
     if (!group) {
       return res.status(404).json({
         success: false,
-        error: 'Group not found or you are not the group creator',
+        error: 'Group not found or you cannot manage this group',
       })
     }
 

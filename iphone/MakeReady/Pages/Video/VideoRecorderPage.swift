@@ -158,7 +158,7 @@ struct VideoRecordAndUploadPage: View {
                 isPresented = false
             }
         }
-        .alert("Error", isPresented: $showError) {
+        .alert("Upload failed", isPresented: $showError) {
             Button("OK", role: .cancel) {
                 isPresented = false
             }
@@ -218,7 +218,14 @@ struct VideoRecordAndUploadPage: View {
             }
         } catch {
             await MainActor.run {
-                errorMessage = error.localizedDescription
+                let message = UserFacingErrorFormatter.message(for: error, operation: .uploadVideo)
+                state.recordError(
+                    error,
+                    context: "VideoRecordAndUploadPage.uploadVideo",
+                    friendlyMessage: message,
+                    operation: .uploadVideo
+                )
+                errorMessage = message
                 showError = true
             }
         }

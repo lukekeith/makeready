@@ -2278,18 +2278,18 @@ struct SelectEnrollDatePage: View {
         } message: {
             Text(overrideExplanation)
         }
-        .alert("Already enrolled", isPresented: $showOverlapConfirmation) {
-            Button("Cancel", role: .cancel) {
+        .alert("Lesson already scheduled", isPresented: $showOverlapConfirmation) {
+            Button("Choose another date", role: .cancel) {
                 pendingStartDate = nil
             }
-            Button("Confirm") {
+            Button("Schedule anyway") {
                 if let date = pendingStartDate {
                     state.selectStartDate(date)
                 }
                 pendingStartDate = nil
             }
         } message: {
-            Text("We highly recommend no more than one lesson per day per member. Please confirm")
+            Text("This member already has a lesson on the selected date. MakeReady recommends one lesson per day per member. Choose another date or schedule anyway if this overlap is intentional.")
         }
     }
 }

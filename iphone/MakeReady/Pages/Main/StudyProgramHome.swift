@@ -184,7 +184,7 @@ struct MainPrograms: View {
             guard let fileURL = urls.first else { return }
 
             guard fileURL.startAccessingSecurityScopedResource() else {
-                importErrorMessage = "Unable to access the selected file."
+                importErrorMessage = UserFacingErrorFormatter.message(for: .openSelectedFile)
                 showImportError = true
                 return
             }
@@ -229,8 +229,8 @@ struct MainPrograms: View {
             } catch {
                 // Recovered: the existing "Incompatible File" alert tells the
                 // user; record console-only for the error history.
-                state.recordError(error, context: "StudyProgramHome.handleFileImport")
-                importErrorMessage = "Failed to read the selected file."
+                state.recordError(error, context: "StudyProgramHome.handleFileImport", operation: .readImportFile)
+                importErrorMessage = UserFacingErrorFormatter.message(for: error, operation: .readImportFile)
                 showImportError = true
             }
 
@@ -240,7 +240,7 @@ struct MainPrograms: View {
                 error,
                 context: "StudyProgramHome.handleFileImport (picker)",
                 surface: true,
-                friendlyMessage: "Couldn't open the selected file"
+                operation: .openSelectedFile
             )
         }
     }
@@ -375,7 +375,7 @@ struct MainPrograms: View {
                         error,
                         context: "StudyProgramHome.confirmImport",
                         surface: true,
-                        friendlyMessage: "Couldn't import the program"
+                        operation: .importProgram
                     )
                 }
             }
