@@ -1,0 +1,105 @@
+name: Build API Image
+
+# Build-once pipeline for the API (server) service — mirrors build-web-image.yml.
+#
+# On every push to main that touches the server, this builds the server
+# Dockerfile ONCE, pushes it to GHCR tagged by commit SHA, then deploys that
+# exact image to STAGING. Production later runs the SAME image via the
+# "Promote to Production" workflow — no rebuild, identical bits.
+#
+# The server Dockerfile takes no build args/secrets (`prisma generate` does not
+# need DATABASE_URL; the embedding model is fetched from HuggingFace at build;
+# app config + the real DATABASE_URL are injected by Railway at runtime), so a
+# CI build is bit-equivalent to Railway's own build. Pending Atlas migrations
+# are applied by the image's CMD on boot, so deploying the image migrates the DB.
+#
+# Required secrets:
+#   - RAILWAY_API_TOKEN  existing project token (deploys to Railway)
+#   - GHCR_PULL_TOKEN    a GitHub PAT with read:packages, so Railway can pull
+#                        the private GHCR image (push uses the built-in
+#                        GITHUB_TOKEN; Railway needs a long-lived read token)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'server/**'
+      - '.github/workflows/build-api-image.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-api-image
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/${{ github.repository_owner }}/makeready-api
+  STG_ENV_ID: "2175d60b-5e6e-49e1-bee1-5a4903ae1920"
+  API_SERVICE_ID: "f5dc2315-9c49-4c85-b32d-99418eeba49d"
+
+jobs:
+  build:
+    name: Build & push API image, deploy to staging
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: server
+          file: server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:${{ github.sha }}
+            ${{ env.IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Point staging at the freshly built image (also keeps Railway's pull
+      # credentials in sync) and deploy it. source.image overrides any GitHub
+      # source, so staging stops building from the repo and runs the CI image.
+      - name: Deploy image to staging
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          IMG="${IMAGE}:${GITHUB_SHA}"
+          echo "Pointing staging API at ${IMG} and deploying..."
+
+          rw() {
+            curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
+              -H "Authorization: Bearer ${RAILWAY_API_TOKEN}" \
+              -H "Content-Type: application/json" \
+              --data-binary @- | tee /tmp/rw-resp.json
+            echo ""
+            if grep -q '"errors"' /tmp/rw-resp.json; then
+              echo "::error::Railway mutation failed"; cat /tmp/rw-resp.json; exit 1
+            fi
+          }
+
+          # 1. Set image source + registry credentials (idempotent).
+          jq -n --arg env "$STG_ENV_ID" --arg svc "$API_SERVICE_ID" \
+                --arg img "$IMG" --arg u "$GHCR_USER" --arg p "$GHCR_PULL_TOKEN" \
+            '{query:"mutation($e:String!,$s:String!,$i:String!,$u:String!,$p:String!){serviceInstanceUpdate(environmentId:$e,serviceId:$s,input:{source:{image:$i},registryCredentials:{username:$u,password:$p}})}",
+              variables:{e:$env,s:$svc,i:$img,u:$u,p:$p}}' | rw
+
+          # 2. Deploy the new image to staging.
+          jq -n --arg env "$STG_ENV_ID" --arg svc "$API_SERVICE_ID" \
+            '{query:"mutation($e:String!,$s:String!){serviceInstanceDeployV2(environmentId:$e,serviceId:$s)}",
+              variables:{e:$env,s:$svc}}' | rw
+
+          echo "Staging deploy triggered for ${IMG}."

@@ -1,0 +1,12 @@
+# Build context hygiene for `docker build` (CI image build + local).
+# All of these are either reinstalled/regenerated inside the Dockerfile or must
+# never end up in the image. A clean CI checkout has none of these, but this
+# keeps local builds bit-equivalent and prevents secrets/caches leaking in.
+node_modules
+dist
+.hf-cache
+.git
+.env
+.env.*
+*.log
+npm-debug.log*

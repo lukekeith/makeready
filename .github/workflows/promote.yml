@@ -1,15 +1,12 @@
 name: Promote to Production
 
-# Promotion model (Web): build-once / image promotion.
-#   build-web-image.yml builds the client image, pushes it to GHCR, and deploys
-#   it to STAGING. This workflow then promotes the EXACT image staging is
-#   running to PRODUCTION — no rebuild, identical bits. Production has no GitHub
-#   source; it only ever runs a published GHCR image.
-#
-# NOTE: API is NOT yet migrated to image promotion. Its prod service is
-# disconnected from GitHub, so the repo-based deploy below will re-ship whatever
-# commit Railway last has on record (i.e. it will NOT pick up new code). Migrate
-# it to the same GHCR build-once flow before relying on its promotion.
+# Promotion model: build-once / image promotion (Web AND API).
+#   build-web-image.yml / build-api-image.yml build each service's image, push it
+#   to GHCR, and deploy it to STAGING. This workflow then promotes the EXACT
+#   image staging is running to PRODUCTION — no rebuild, identical bits.
+#   Production has no GitHub source; it only ever runs a published GHCR image.
+#   The API image applies pending Atlas migrations on boot, so promoting the API
+#   also migrates the production database.
 # (Capture is intentionally excluded from this workflow.)
 #
 # Required secrets:
@@ -93,21 +90,49 @@ jobs:
 
           echo "Production Web promotion triggered for $IMG."
 
-      # ── NOT YET MIGRATED ──────────────────────────────────────────────────
-      # API still uses a repo-based deploy. Its prod service is disconnected
-      # from GitHub, so this re-ships the last commit Railway has on record
-      # (stale) until it is moved to the GHCR build-once flow.
-      - name: Deploy API (repo-based — not yet migrated)
+      # Promote the EXACT image staging is running to production — identical to
+      # Web. build-api-image.yml builds the server image, pushes it to GHCR, and
+      # deploys it to staging; here we read staging's source.image, point prod at
+      # the same image (+ pull credentials), and deploy. The image's CMD applies
+      # pending Atlas migrations on boot, so promotion also migrates the prod DB.
+      - name: Promote API (staging image → production)
         if: contains(github.event.inputs.service, 'API') || github.event.inputs.service == 'All'
+        env:
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          GHCR_USER: ${{ github.repository_owner }}
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
-          echo "::warning::API promotion is not migrated to image promotion and may re-ship a stale build."
-          curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
-            -H "Authorization: Bearer ${{ secrets.RAILWAY_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"query\": \"mutation { serviceInstanceDeployV2(environmentId: \\\"$PROD_ENV_ID\\\", serviceId: \\\"$API_SERVICE_ID\\\") }\"}" \
-            | tee /tmp/api-response.json
-          echo ""
-          if grep -q '"errors"' /tmp/api-response.json; then
-            echo "::error::API deploy failed"; cat /tmp/api-response.json; exit 1
+          set -euo pipefail
+          rw() {
+            curl -sf -X POST "https://backboard.railway.com/graphql/v2" \
+              -H "Authorization: Bearer ${RAILWAY_API_TOKEN}" \
+              -H "Content-Type: application/json" --data-binary @- > /tmp/rw-resp.json
+            if grep -q '"errors"' /tmp/rw-resp.json; then
+              echo "::error::Railway mutation failed"; cat /tmp/rw-resp.json; exit 1
+            fi
+            cat /tmp/rw-resp.json
+          }
+
+          echo "Reading the image staging is currently running..."
+          IMG=$(jq -n --arg e "$STG_ENV_ID" --arg s "$API_SERVICE_ID" \
+            '{query:"query($e:String!,$s:String!){serviceInstance(serviceId:$s,environmentId:$e){source{image}}}",variables:{e:$e,s:$s}}' \
+            | rw | jq -r '.data.serviceInstance.source.image // empty')
+
+          if [ -z "$IMG" ]; then
+            echo "::error::Staging API has no image source. Run 'Build API Image' first so staging is on a GHCR image."
+            exit 1
           fi
-          echo "API deploy triggered."
+          echo "Promoting image to production: $IMG"
+
+          # 1. Point production at the staging image (+ pull credentials).
+          jq -n --arg e "$PROD_ENV_ID" --arg s "$API_SERVICE_ID" \
+                --arg i "$IMG" --arg u "$GHCR_USER" --arg p "$GHCR_PULL_TOKEN" \
+            '{query:"mutation($e:String!,$s:String!,$i:String!,$u:String!,$p:String!){serviceInstanceUpdate(environmentId:$e,serviceId:$s,input:{source:{image:$i},registryCredentials:{username:$u,password:$p}})}",variables:{e:$e,s:$s,i:$i,u:$u,p:$p}}' \
+            | rw > /dev/null
+
+          # 2. Deploy it to production.
+          jq -n --arg e "$PROD_ENV_ID" --arg s "$API_SERVICE_ID" \
+            '{query:"mutation($e:String!,$s:String!){serviceInstanceDeployV2(environmentId:$e,serviceId:$s)}",variables:{e:$e,s:$s}}' \
+            | rw > /dev/null
+
+          echo "Production API promotion triggered for $IMG."
