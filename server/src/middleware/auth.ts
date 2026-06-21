@@ -536,6 +536,82 @@ export const requirePermission = (
 }
 
 /**
+ * Authorize a group management action (add/remove/transfer/role-change of
+ * members).
+ *
+ * The group's CREATOR can ALWAYS manage their own group — even if that group is
+ * not yet linked to an organization. This mirrors how the join-request handlers
+ * authorize the creator directly, and keeps creators from being locked out of
+ * their own groups by the org-scoped permission system (which denies any
+ * resource with no organization).
+ *
+ * Anyone else falls back to the org-scoped `permission` check (e.g.
+ * `group.update` / `group.invite`), so org owners/admins/leaders with the right
+ * role can still manage groups across their organization — including, for a
+ * transfer, the destination group when it belongs to their org.
+ */
+export const requireGroupManage = (
+  permission: string,
+  getGroupId: (req: Request) => string | undefined
+) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = (req.user as any)?.id
+
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error: 'Authentication required',
+        })
+      }
+
+      const groupId = getGroupId(req)
+      if (!groupId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Group id required',
+        })
+      }
+
+      const group = await prisma.group.findUnique({
+        where: { id: groupId },
+        select: { creatorId: true },
+      })
+
+      if (!group) {
+        return res.status(404).json({
+          success: false,
+          error: 'Group not found',
+        })
+      }
+
+      // The group creator can always manage their own group.
+      if (group.creatorId === userId) {
+        return next()
+      }
+
+      // Otherwise require the org-scoped permission on the group.
+      const hasAccess = await hasPermission({ userId }, permission, 'group', groupId)
+
+      if (!hasAccess) {
+        return res.status(403).json({
+          success: false,
+          error: `Insufficient permissions: ${permission} required`,
+        })
+      }
+
+      next()
+    } catch (error) {
+      console.error('Error in requireGroupManage middleware:', error)
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+      })
+    }
+  }
+}
+
+/**
  * NEW: Member content access middleware factory
  *
  * Creates middleware that checks if authenticated member can access specific content

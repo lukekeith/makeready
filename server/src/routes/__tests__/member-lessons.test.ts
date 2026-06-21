@@ -88,6 +88,7 @@ describe('Member Lesson Progress API', () => {
     testGroup = await prisma.group.create({
       data: {
         name: 'Test Group',
+        organizationId: testOrganization.id,
         creatorId: testUser.id,
         isActive: true,
       },

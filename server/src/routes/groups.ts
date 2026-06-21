@@ -9,6 +9,7 @@ import { generateUniqueGroupCode, normalizeGroupCode } from '../lib/group-code.j
 import { trackActivity } from '../services/activity.js'
 import { captureToLibrary } from '../services/media-library.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
+import { resolveUserOrganizationId } from '../services/organization.js'
 
 const router = Router()
 
@@ -113,16 +114,16 @@ router.post('/', requireAuth, async (req, res) => {
     const body = schema.parse(req.body)
     const userId = (req.user as any).id
 
-    // Get the user's organization (the one they own)
-    const organization = await prisma.organization.findFirst({
-      where: { ownerId: userId },
-      select: { id: true }
-    })
+    // Resolve the organization this group belongs to. A user can create groups
+    // in any org they belong to — one they own OR hold a role in — so a
+    // role-granted Owner/Admin isn't blocked, and the group's organization
+    // association is always set correctly. Every group MUST have an org.
+    const organizationId = await resolveUserOrganizationId(userId)
 
-    if (!organization) {
+    if (!organizationId) {
       return res.status(400).json({
         success: false,
-        error: 'You must create an organization before creating groups'
+        error: 'You must belong to an organization before creating groups'
       })
     }
 
@@ -132,7 +133,7 @@ router.post('/', requireAuth, async (req, res) => {
     const group = await prisma.group.create({
       data: {
         name: body.name,
-        organizationId: organization.id,
+        organizationId,
         code,
         description: body.description,
         coverImageUrl: body.coverImageUrl,
@@ -932,7 +933,34 @@ router.patch('/:id', requireAuth, async (req, res) => {
       updateData.ageRangeMax = body.ageRange?.max ?? null
     }
     if (body.maxMembers !== undefined) updateData.maxMembers = body.maxMembers
-    if (body.organizationId !== undefined) updateData.organizationId = body.organizationId
+    // Keep the group's organization association accurate on edit: a group must
+    // always belong to a real org, and a (non-admin) user may only move it to an
+    // organization they themselves belong to. API-key/admin callers may set any
+    // existing org. The org can never be cleared.
+    if (body.organizationId !== undefined) {
+      const targetOrg = await prisma.organization.findUnique({
+        where: { id: body.organizationId },
+        select: { id: true, ownerId: true },
+      })
+      if (!targetOrg) {
+        return res.status(400).json({ success: false, error: 'Organization not found' })
+      }
+      if (!isApiKey) {
+        const belongs =
+          targetOrg.ownerId === userId ||
+          (await prisma.userRole.findFirst({
+            where: { userId, organizationId: targetOrg.id },
+            select: { id: true },
+          })) !== null
+        if (!belongs) {
+          return res.status(403).json({
+            success: false,
+            error: 'You do not belong to that organization',
+          })
+        }
+      }
+      updateData.organizationId = targetOrg.id
+    }
     updateData.updatedById = userId
 
     const group = await prisma.group.update({

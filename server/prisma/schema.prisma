@@ -229,7 +229,7 @@ model Group {
   creatorId            String
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
-  organizationId       String?
+  organizationId       String
   isActive             Boolean @default(true)
   memberDirectoryEnabled Boolean @default(true) // Allow members to see contact info of other members
   updatedById          String? // User who last updated this group

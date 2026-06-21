@@ -306,7 +306,7 @@ models:
         updatedAt: true
       organizationId:
         type: string
-        nullable: true
+        nullable: false
       isActive:
         type: boolean
         default: true

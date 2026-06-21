@@ -7,7 +7,7 @@ import {
 import { prisma } from '../lib/prisma.js'
 import {
   requireAuth,
-  requirePermission,
+  requireGroupManage,
 } from '../middleware/auth.js'
 import { trackActivity } from '../services/activity.js'
 import {
@@ -347,7 +347,7 @@ const addMemberSchema = z.object({
 router.post(
   '/:groupId/members',
   requireAuth,
-  requirePermission('group.invite', 'group', (req) => req.params.groupId),
+  requireGroupManage('group.invite', (req) => req.params.groupId),
   async (req, res) => {
     try {
       const { groupId } = req.params
@@ -516,7 +516,7 @@ const updateMemberRoleSchema = z.object({
 router.patch(
   '/:groupId/members/:memberId',
   requireAuth,
-  requirePermission('group.update', 'group', (req) => req.params.groupId),
+  requireGroupManage('group.update', (req) => req.params.groupId),
   async (req, res) => {
     try {
       const { groupId, memberId } = req.params
@@ -619,7 +619,7 @@ router.patch(
 router.delete(
   '/:groupId/members/:memberId',
   requireAuth,
-  requirePermission('group.update', 'group', (req) => req.params.groupId),
+  requireGroupManage('group.update', (req) => req.params.groupId),
   async (req, res) => {
     try {
       const { groupId, memberId } = req.params

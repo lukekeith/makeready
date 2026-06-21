@@ -62,11 +62,21 @@ describe('Lesson Lookup API', () => {
       },
     })
 
+    // Create test organization (every group must belong to one)
+    const testOrg = await prisma.organization.create({
+      data: {
+        name: 'Lesson Lookup Test Org',
+        ownerId: testUser.id,
+        isActive: true,
+      },
+    })
+
     // Create test group with code
     testGroup = await prisma.group.create({
       data: {
         name: 'Lesson Lookup Test Group',
         code: TEST_GROUP_CODE,
+        organizationId: testOrg.id,
         creatorId: testUser.id,
         isActive: true,
       },

@@ -95,6 +95,40 @@ export async function getOrganizationByOwner(
 }
 
 /**
+ * Resolve the organization a user belongs to, for scoping group creation.
+ *
+ * A user "belongs to" an organization if they either OWN it
+ * (`organizations.ownerId`) or hold any role in it (a `UserRole` row). This is
+ * broader than {@link getOrganizationByOwner} on purpose: an org Owner/Admin
+ * granted via a role — not just the original creator/owner — must be able to
+ * create groups under that org, so the group's organization association is
+ * always set correctly at creation time.
+ *
+ * Returns the organization id, or null if the user is in no organization.
+ *
+ * @param userId - User ID
+ */
+export async function resolveUserOrganizationId(
+  userId: string
+): Promise<string | null> {
+  // Prefer an organization the user owns.
+  const owned = await prisma.organization.findFirst({
+    where: { ownerId: userId },
+    select: { id: true },
+  })
+  if (owned) {
+    return owned.id
+  }
+
+  // Otherwise, the organization granted via any role (Owner, Admin, Leader…).
+  const role = await prisma.userRole.findFirst({
+    where: { userId },
+    select: { organizationId: true },
+  })
+  return role?.organizationId ?? null
+}
+
+/**
  * Update organization name
  * @param organizationId - Organization ID
  * @param name - New organization name
