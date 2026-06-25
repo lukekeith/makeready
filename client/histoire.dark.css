@@ -1,0 +1,23 @@
+/*
+ * Histoire preview backdrop — dark canvas (#0d101a).
+ *
+ * Loaded by histoire.setup.ts AFTER app.scss, so it overrides app.scss's
+ * #191919 html background and the body gradient inside the story sandbox.
+ * Stories therefore render on the real app canvas token. The device-frame
+ * wrapper (DeviceFrame.vue) sits on top of this for at-size testing.
+ */
+
+html,
+body {
+  background: var(--bg-canvas, #0d101a) !important;
+  color: var(--fg-primary, #ffffff);
+  min-height: 100%;
+}
+
+/* Histoire renders each variant into a sandbox root; keep it transparent so
+   the canvas above shows through (and so grid layouts don't paint white). */
+#app,
+.histoire-sandbox,
+[data-v-app] {
+  background: transparent;
+}

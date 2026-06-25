@@ -1,0 +1,8 @@
+// FieldGroup — form. Vertical wrapper composing a label + control + help/error.
+// Layout-only: spacing and stacking. Visuals come from the composed components
+// (Label, HelpText) and the control in the default slot.
+.FieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}

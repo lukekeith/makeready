@@ -1,0 +1,62 @@
+// WeekdayIndicator — a 7-cell day-of-week selector/display (iOS
+// WeekdayIndicator). Each cell is a circular pill; selected cells fill brand,
+// unselected sit on a subtle white well. Readonly drops the pointer affordance;
+// disabled dims the whole control.
+.WeekdayIndicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+
+  &__cell {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    border: 0;
+    padding: 0;
+    background: var(--color-white-5);
+    color: var(--fg-secondary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    user-select: none;
+    transition: background var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      background: var(--color-white-10);
+    }
+
+    &--selected {
+      background: var(--bg-brand-primary);
+      color: var(--fg-white);
+
+      &:hover {
+        background: var(--bg-brand-primary);
+      }
+    }
+  }
+
+  // Display-only: no pointer, no hover affordance.
+  &--readonly &__cell {
+    cursor: default;
+
+    &:hover {
+      background: var(--color-white-5);
+    }
+
+    &.WeekdayIndicator__cell--selected:hover {
+      background: var(--bg-brand-primary);
+    }
+  }
+
+  &--disabled {
+    opacity: var(--opacity-disabled);
+
+    .WeekdayIndicator__cell {
+      cursor: not-allowed;
+    }
+  }
+}

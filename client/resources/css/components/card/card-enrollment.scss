@@ -1,0 +1,76 @@
+// CardEnrollment — list card for a study-program enrollment: title + status
+// badge, optional schedule line, optional thin progress bar. Interactive
+// (role=button) with a hover well. Skeleton variant shares this block.
+.CardEnrollment {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: background-color var(--motion-micro-fast) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-white-5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 0;
+  }
+
+  &__title {
+    flex: 1 1 auto;
+    margin: 0;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+  }
+
+  &__status {
+    flex: 0 0 auto;
+  }
+
+  &__schedule {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+  }
+
+  // Thin progress bar: brand fill over a translucent white track.
+  &__progress {
+    position: relative;
+    width: 100%;
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: var(--color-white-10);
+    overflow: hidden;
+  }
+
+  &__progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: var(--bg-brand-primary);
+    transition: width var(--motion-standard) var(--ease-standard);
+  }
+
+  // Skeleton: non-interactive placeholder.
+  &--skeleton {
+    cursor: default;
+    &:hover { background: var(--bg-surface); }
+  }
+}

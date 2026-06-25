@@ -1,0 +1,57 @@
+{
+  "id": "group-home",
+  "type": "page",
+  "group": "Group",
+  "title": "Group Home",
+  "adapter": "group-home",
+  "viewports": ["pro-max", "pro", "se"],
+  "shared": {
+    "user": {
+      "id": "user-1",
+      "name": "Alex Rivera",
+      "email": "alex@example.com",
+      "picture": null,
+      "firstName": "Alex",
+      "lastName": "Rivera",
+      "phoneNumber": "+15555550100"
+    },
+    "group": {
+      "id": "g-001",
+      "code": "ABC123",
+      "name": "Sunday Morning Group",
+      "description": "Weekly study group",
+      "memberCount": 27,
+      "isPrivate": true,
+      "coverImageUrl": null,
+      "organizationName": "MakeReady",
+      "creatorName": "Guy Gardner",
+      "creatorPicture": null
+    },
+    "studies": [
+      {
+        "id": "e-001",
+        "programId": "prog-1",
+        "title": "Romans in 30 days",
+        "description": "A comprehensive look at the book of Romans and how it applies in a modern world.",
+        "days": 30,
+        "coverImageUrl": null,
+        "nextLessonId": "l-001",
+        "nextLessonTitle": "The Righteous Will Live by Faith",
+        "nextLessonDay": 5,
+        "nextLessonDate": "2026-06-06"
+      },
+      {
+        "id": "e-002",
+        "programId": "prog-2",
+        "title": "The Gospel of John",
+        "description": "Walking through the life of Jesus as told by his closest friend.",
+        "days": 21,
+        "coverImageUrl": null,
+        "nextLessonId": "l-002",
+        "nextLessonTitle": "In the Beginning Was the Word",
+        "nextLessonDay": 1,
+        "nextLessonDate": "2026-06-06"
+      }
+    ]
+  }
+}

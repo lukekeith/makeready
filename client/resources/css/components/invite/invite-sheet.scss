@@ -1,0 +1,50 @@
+// InviteSheet — invite-sharing payload laid out inside a BottomSheet. The sheet
+// chrome (backdrop, slide-up, grabber, title) is owned by BottomSheet; this
+// file only stacks the invite contents: a large monospace code, the QR panel,
+// a copy-link field, an optional scope row, and the share button. Class names
+// mirror the Vue <InviteSheet>.
+.InviteSheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-lg);
+  text-align: center;
+
+  &__code-label {
+    margin: 0;
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+    color: var(--fg-tertiary);
+  }
+
+  &__code {
+    margin: 0;
+    font-family: ui-monospace, 'SF Mono', 'Menlo', monospace;
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--tracking-wide);
+    color: var(--fg-primary);
+  }
+
+  &__qr {
+    display: flex;
+    justify-content: center;
+  }
+
+  &__link {
+    width: 100%;
+  }
+
+  &__scope {
+    width: 100%;
+  }
+
+  &__share {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+  }
+}

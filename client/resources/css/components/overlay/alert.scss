@@ -1,0 +1,41 @@
+// Alert — single-action acknowledgement overlay. Composes Dialog, so it
+// inherits the dialog surface + transitions. The `.Alert` class rides on the
+// same content node as `.Alert--<tone>`; tone drives the accent color of the
+// leading icon. Tokenized to the dark design system.
+.Alert {
+  // Inherits .Dialog chrome; tone variants color the icon below.
+
+  &__row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-md);
+    height: var(--icon-md);
+    color: var(--fg-accent); // default (Info) accent; overridden per tone
+
+    svg {
+      width: var(--icon-md);
+      height: var(--icon-md);
+    }
+  }
+
+  &__message {
+    margin: 0;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    color: var(--fg-secondary);
+  }
+
+  // ─── Tone accents (CVA modifiers) ──────────────────────────────────────────
+  &--info .Alert__icon { color: var(--fg-accent); }
+  &--error .Alert__icon { color: var(--fg-error); }
+  &--success .Alert__icon { color: var(--fg-success); }
+  &--warning .Alert__icon { color: var(--fg-warning); }
+}

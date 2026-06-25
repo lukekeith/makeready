@@ -1,0 +1,31 @@
+// Panel — layout. A surface container with a rounded, bordered frame and three
+// surface treatments (surface / frosted / section). Tokenized to the dark design
+// system; consumed globally via app.scss.
+.Panel {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-default);
+  color: var(--fg-primary);
+
+  /* Surface treatments */
+  &--surface {
+    background: var(--bg-surface);
+  }
+
+  /* Frosted floating panel — sits over a blurred backdrop */
+  &--frosted {
+    background: var(--surface-overlay);
+    backdrop-filter: blur(var(--surface-overlay-blur));
+    -webkit-backdrop-filter: blur(var(--surface-overlay-blur));
+    box-shadow: var(--shadow-overlay);
+  }
+
+  &--section {
+    background: var(--bg-section);
+  }
+
+  /* Padding variants — Lg is the spec default (--space-lg). */
+  &--padding-none { padding: 0; }
+  &--padding-sm { padding: var(--space-sm); }
+  &--padding-md { padding: var(--space-md); }
+  &--padding-lg { padding: var(--space-lg); }
+}

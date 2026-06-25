@@ -1,0 +1,47 @@
+// Breadcrumb — navigation. A trail of links separated by a chevron glyph; the
+// last crumb is the current (non-link) page. Tokenized to the dark design system.
+.Breadcrumb {
+  &__list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-xs);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+  }
+
+  &__link {
+    color: var(--fg-secondary);
+    text-decoration: none;
+    transition: color var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      color: var(--fg-primary);
+    }
+  }
+
+  &__current {
+    color: var(--fg-primary);
+    font-weight: var(--font-weight-medium);
+  }
+
+  &__separator {
+    color: var(--fg-tertiary);
+    user-select: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Breadcrumb__link {
+    transition: none;
+  }
+}

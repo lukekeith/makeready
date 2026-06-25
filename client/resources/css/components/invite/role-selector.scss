@@ -1,0 +1,67 @@
+// RoleSelector — invite domain. Dark design system. A vertical stack of
+// selectable role cards (Radio + title + description). The selected card gets a
+// brand border + brand tint fill. Modifier names mirror the class logic in
+// role-selector.vue.
+.RoleSelector {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+
+  &__card {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    background: var(--bg-surface);
+    cursor: pointer;
+    transition:
+      border-color var(--motion-micro) var(--ease-standard),
+      background-color var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      border-color: var(--border-strong);
+    }
+
+    &--selected {
+      border-color: var(--border-brand);
+      background: var(--color-brand-tint);
+
+      &:hover {
+        border-color: var(--border-brand);
+      }
+    }
+  }
+
+  &__radio {
+    margin-top: var(--space-2xs);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+  }
+
+  &__title {
+    font-size: var(--text-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+  }
+
+  &__description {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+  }
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+
+    .RoleSelector__card {
+      cursor: not-allowed;
+    }
+  }
+}

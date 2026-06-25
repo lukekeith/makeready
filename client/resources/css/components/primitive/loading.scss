@@ -1,6 +1,6 @@
 .Loading {
   --loading-size: 32px;
-  --loading-color: rgba(255, 255, 255, 1);
+  --loading-color: var(--color-white-100);
   --loading-duration: 1s;
   --loading-thickness: 3px;
 
@@ -55,7 +55,7 @@
   // ==========================================================================
 
   &--white {
-    --loading-color: rgba(255, 255, 255, 1);
+    --loading-color: var(--color-white-100);
   }
 
   &--dark {
@@ -63,11 +63,11 @@
   }
 
   &--primary {
-    --loading-color: #3b82f6;
+    --loading-color: var(--fg-accent);
   }
 
   &--purple {
-    --loading-color: #6C47FF;
+    --loading-color: var(--bg-brand-primary);
   }
 
   // ==========================================================================
@@ -78,7 +78,7 @@
     .Loading__spinner {
       width: 100%;
       height: 100%;
-      border: var(--loading-thickness) solid rgba(255, 255, 255, 0.2);
+      border: var(--loading-thickness) solid var(--color-white-20);
       border-top-color: var(--loading-color);
       border-radius: 50%;
       animation: loading-spin var(--loading-duration) linear infinite;

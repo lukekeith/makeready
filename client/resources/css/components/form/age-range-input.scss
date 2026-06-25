@@ -1,0 +1,42 @@
+// AgeRangeInput — form. A min/max numeric age range (iOS AgeRangeInput). The two
+// number fields reuse the primitive `.Input` look; this file only lays them out
+// inline with an en-dash separator and a trailing "yrs" unit. Tokens only.
+.AgeRangeInput {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+
+  &__field {
+    // Override the primitive `.Input` full width — these are narrow, numeric.
+    width: var(--control-h-xl);
+    text-align: center;
+    padding: 0 var(--space-sm);
+
+    // Hide the native number spinners for a cleaner field.
+    -moz-appearance: textfield;
+    appearance: textfield;
+
+    &::-webkit-outer-spin-button,
+    &::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+  }
+
+  &__separator {
+    color: var(--fg-tertiary);
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+  }
+
+  &__unit {
+    color: var(--fg-tertiary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+  }
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+  }
+}

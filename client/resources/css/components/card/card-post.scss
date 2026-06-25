@@ -1,0 +1,75 @@
+// CardPost — announcement / post card: avatar + author + timestamp header,
+// body text, optional rounded media. Interactive (role=button) with a hover
+// well. Skeleton variant shares this block. iOS post parity.
+.CardPost {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: background-color var(--motion-micro-fast) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-white-5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    min-width: 0;
+  }
+
+  &__avatar {
+    flex: 0 0 auto;
+  }
+
+  &__byline {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+  }
+
+  &__author {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+  }
+
+  &__timestamp {
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    color: var(--fg-tertiary);
+  }
+
+  &__body {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-md);
+    color: var(--fg-secondary);
+    white-space: pre-wrap;
+  }
+
+  &__media {
+    width: 100%;
+  }
+
+  // Skeleton: non-interactive placeholder.
+  &--skeleton {
+    cursor: default;
+    &:hover { background: var(--bg-surface); }
+  }
+}

@@ -60,6 +60,7 @@
   --control-h-sm: 32px;
   --control-h-md: 40px;
   --control-h-lg: 48px;
+  --control-h-xl: 64px;
 
   // ─── Radius ────────────────────────────────────────────────────────────────
   --radius-sm:   4px;
@@ -74,15 +75,139 @@
   --color-white-5:   rgba(255, 255, 255, 0.05);
   --color-white-10:  rgba(255, 255, 255, 0.10);
   --color-white-20:  rgba(255, 255, 255, 0.20);
+  --color-white-30:  rgba(255, 255, 255, 0.30); // matches iOS .white30
   --color-white-50:  rgba(255, 255, 255, 0.50);
   --color-white-70:  rgba(255, 255, 255, 0.70);
   --color-white-100: rgba(255, 255, 255, 1);
+
+  // ─── Font weights ──────────────────────────────────────────────────────────
+  // Mirrors the weights in use across iOS Typography.swift (regular/medium/
+  // semibold/bold). Components reference these instead of literal 400/600.
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  // ─── Letter spacing / tracking ───────────────────────────────────────────────
+  // iOS applies ~0.1px tracking to labels and wider tracking to uppercase
+  // overlines. Body copy stays at the default (normal).
+  --tracking-tight:  -0.2px;
+  --tracking-normal: 0;
+  --tracking-label:  0.1px; // iOS label tracking
+  --tracking-wide:   0.6px; // uppercase overline / month abbreviations
+
+  // ─── Shadows / elevation ─────────────────────────────────────────────────────
+  // Dark-theme elevation reads as deepening black, not a soft grey lift. Steps
+  // mirror iOS card depth (resting → raised → floating → modal).
+  --shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-md:      0 2px 8px rgba(0, 0, 0, 0.35);
+  --shadow-lg:      0 8px 24px rgba(0, 0, 0, 0.45);
+  --shadow-xl:      0 16px 48px rgba(0, 0, 0, 0.55);
+  // Frosted floating panels (lesson nav bar, sheets) sitting over blur.
+  --shadow-overlay: 0 12px 40px rgba(0, 0, 0, 0.55);
+
+  // ─── Blur ────────────────────────────────────────────────────────────────────
+  // Backdrop-filter radii for frosted layers. --blur-lg is the canonical
+  // overlay blur (was the inline 20px on --surface-overlay-blur).
+  --blur-sm: 8px;
+  --blur-md: 16px;
+  --blur-lg: 20px;
+
+  // ─── Z-index ladder ──────────────────────────────────────────────────────────
+  // Single source of truth for stacking. --z-modal is pinned to the modal
+  // store's BASE_Z_INDEX (1000); the store stacks modals at 1000 + depth*10,
+  // so popover/toast/banner sit deliberately above a shallow modal stack.
+  --z-base:     0;
+  --z-dropdown: 100;
+  --z-sticky:   200;
+  --z-overlay:  900;  // backdrop scrim / bottom sheets
+  --z-modal:    1000; // == BASE_Z_INDEX in modal.store.ts
+  --z-popover:  1100;
+  --z-toast:    1200;
+  --z-banner:   1300;
+
+  // ─── Motion — durations ──────────────────────────────────────────────────────
+  // Value-identical to iOS Motion.swift (micro 0.2, fast 0.15, standard 0.3,
+  // brisk 0.25, settle/exit 0.2). Gated by prefers-reduced-motion below.
+  --motion-micro-fast: 150ms;
+  --motion-micro:      200ms;
+  --motion-settle:     200ms;
+  --motion-exit:       200ms;
+  --motion-brisk:      250ms;
+  --motion-standard:   300ms;
+
+  // ─── Motion — easings ────────────────────────────────────────────────────────
+  // CSS bezier equivalents of SwiftUI easeInOut/easeOut/easeIn, plus an
+  // overshoot curve approximating the modal-present spring (response 0.4).
+  --ease-standard: cubic-bezier(0.42, 0, 0.58, 1); // easeInOut
+  --ease-enter:    cubic-bezier(0, 0, 0.58, 1);     // easeOut (page push / enter)
+  --ease-exit:     cubic-bezier(0.42, 0, 1, 1);     // easeIn (dismiss / exit)
+  --ease-spring:   cubic-bezier(0.34, 1.56, 0.64, 1); // overshoot (sheet/modal present)
+
+  // ─── Opacity scale ───────────────────────────────────────────────────────────
+  // Semantic interaction opacities. *-well values are the intensity of the
+  // translucent white overlay laid over a surface on hover/press.
+  --opacity-disabled:     0.4;
+  --opacity-pressed:      0.6;
+  --opacity-muted:        0.5;
+  --opacity-hover-well:   0.08;
+  --opacity-pressed-well: 0.12;
+
+  // ─── Icon sizes ──────────────────────────────────────────────────────────────
+  --icon-xs: 16px;
+  --icon-sm: 20px;
+  --icon-md: 24px;
+  --icon-lg: 32px;
+
+  // ─── Avatar sizes ────────────────────────────────────────────────────────────
+  // Design-system scale (PRD §6.1). Note: iOS Avatar uses a finer ramp
+  // (24/32/40/48/64/96) — reconciled in AUDIT_INTAKE §A.
+  --avatar-sm: 36px;
+  --avatar-md: 48px;
+  --avatar-lg: 72px;
+  --avatar-xl: 96px;
+
+  // ─── Layout ──────────────────────────────────────────────────────────────────
+  --page-max-w:  480px; // max content width on large phones / desktop preview
+  --page-pad-x:  16px;
+  --gutter:      12px;
+  --header-h:    56px;
+  --tabbar-h:    64px;
+  --touch-min:   44px;  // minimum touch target (HIG)
+
+  // ─── Safe-area insets ────────────────────────────────────────────────────────
+  // Surfaced from env() so layouts can pad for notch / home indicator. Requires
+  // viewport-fit=cover (PWA head meta, Phase 6). Fallback 0px keeps non-notch
+  // browsers correct.
+  --safe-top:    env(safe-area-inset-top, 0px);
+  --safe-right:  env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left:   env(safe-area-inset-left, 0px);
 
   // ─── Surfaces ──────────────────────────────────────────────────────────────
   // Frosted overlay surface — #252936 @ 80% over a 20px backdrop blur. Used for
   // the lesson navigation bar, lesson cards, and other floating panels.
   --surface-overlay:      rgba(37, 41, 54, 0.8); // #252936 @ 80%
-  --surface-overlay-blur: 20px;
+  --surface-overlay-blur: var(--blur-lg);
+}
+
+// Reduced-motion: collapse every motion duration so token-driven transitions
+// effectively snap. Easings drop to linear. Honors the user's OS setting for
+// all components that animate via the motion tokens.
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-micro-fast: 0.01ms;
+    --motion-micro:      0.01ms;
+    --motion-settle:     0.01ms;
+    --motion-exit:       0.01ms;
+    --motion-brisk:      0.01ms;
+    --motion-standard:   0.01ms;
+
+    --ease-standard: linear;
+    --ease-enter:    linear;
+    --ease-exit:     linear;
+    --ease-spring:   linear;
+  }
 }
 
 // Small phones (iPhone SE @ 320 and similar). Shrinks every primitive so
@@ -121,5 +246,13 @@
     --control-h-sm: 26px;
     --control-h-md: 32px;
     --control-h-lg: 40px;
+    --control-h-xl: 56px;
+
+    // Layout tightens on small phones; sizing/icon/avatar tokens hold so touch
+    // targets and glyphs stay legible.
+    --page-pad-x: 12px;
+    --gutter:     8px;
+    --header-h:   50px;
+    --tabbar-h:   58px;
   }
 }

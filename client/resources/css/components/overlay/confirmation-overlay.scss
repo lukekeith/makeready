@@ -1,0 +1,7 @@
+// ConfirmationOverlay — composes Dialog, so it inherits all dialog chrome and
+// transitions. The `.ConfirmationOverlay` class is added alongside `.Dialog`
+// on the same content node for targeted overrides; none are needed today, but
+// the hook stays so confirmation prompts can diverge without touching Dialog.
+.ConfirmationOverlay {
+  // Intentionally minimal — reuses .Dialog styling.
+}

@@ -1,0 +1,20 @@
+// List — vertical list container holding ListItems. Modifiers mirror ListCva
+// variant keys in resources/js/components/layout/list/list.vue exactly. Spacing,
+// color, and radius use design tokens only.
+
+.List {
+  display: flex;
+  flex-direction: column;
+
+  // ─── dividers (1px hairline between adjacent items) ─────────────────────────
+  &--dividers > .ListItem + .ListItem {
+    border-top: 1px solid var(--border-default);
+  }
+
+  // ─── inset (rounded card-style group; clips inner rows) ─────────────────────
+  &--inset {
+    background-color: var(--bg-surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+}

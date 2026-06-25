@@ -50,8 +50,28 @@ final class CaptureRunner: XCTestCase {
                     continue
                 }
 
-                // Wrap with device chrome (status bar)
-                let view = AnyView(DeviceChrome(device: device, content: baseView))
+                // Component fixtures (view == "component.*") render in isolation:
+                // no device chrome/status bar, sized to the device width with the
+                // component's intrinsic height — matching the web component harness.
+                let isComponent = fixture.view.hasPrefix("component.")
+                let view: AnyView
+                let snapshotting: Snapshotting<AnyView, UIImage>
+                if isComponent {
+                    let width = device.config.size?.width ?? 393
+                    view = AnyView(
+                        baseView
+                            .frame(width: width)
+                            .background(Color.appBackground)
+                    )
+                    snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
+                } else {
+                    // Wrap with device chrome (status bar)
+                    view = AnyView(DeviceChrome(device: device, content: baseView))
+                    snapshotting = .image(
+                        drawHierarchyInKeyWindow: true,
+                        layout: .device(config: device.config)
+                    )
+                }
 
                 let outputDir = snapshotDirectory(workflow: workflow, device: deviceKey)
                 let outputName = (fixture.output as NSString).deletingPathExtension
@@ -64,10 +84,7 @@ final class CaptureRunner: XCTestCase {
 
                 let failure = verifySnapshot(
                     of: view,
-                    as: .image(
-                        drawHierarchyInKeyWindow: true,
-                        layout: .device(config: device.config)
-                    ),
+                    as: snapshotting,
                     named: outputName,
                     record: .all,
                     snapshotDirectory: outputDir,

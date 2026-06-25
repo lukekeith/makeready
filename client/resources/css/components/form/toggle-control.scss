@@ -1,0 +1,56 @@
+// ToggleControl — form. A labeled switch row (iOS ToggleControl): a horizontal
+// row with a title (+ optional description) on the left and the `.Switch`
+// primitive on the right. Optional bottom hairline lets rows stack into a list.
+// Tokens only.
+.ToggleControl {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  border-bottom: 1px solid var(--border-default);
+
+  // Last row in a stacked group drops the hairline.
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &__label {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    flex: 1 1 auto;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+  }
+
+  &__title {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    color: var(--fg-primary);
+  }
+
+  &__description {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+  }
+
+  &__control {
+    flex: 0 0 auto;
+  }
+
+  &--disabled {
+    .ToggleControl__label {
+      cursor: not-allowed;
+      opacity: var(--opacity-disabled);
+    }
+  }
+}

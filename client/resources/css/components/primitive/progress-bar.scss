@@ -1,0 +1,58 @@
+// ProgressBar — primitive. Dark-theme only. BEM modifiers mirror the
+// ProgressBarCva variant strings in
+// resources/js/components/primitive/progress-bar/progress-bar.vue exactly.
+//
+// Track is a translucent-white pill (--color-white-10); the fill is either the
+// brand fill or solid white. Determinate fills to `value%`; indeterminate runs
+// a sliding segment across the track.
+
+.ProgressBar {
+  position: relative;
+  width: 100%;
+  height: 6px;
+  overflow: hidden;
+  background-color: var(--color-white-10);
+  border-radius: var(--radius-full);
+
+  &__fill {
+    height: 100%;
+    border-radius: var(--radius-full);
+    transition: width var(--motion-standard) var(--ease-standard);
+  }
+
+  // ── Tone ─────────────────────────────────────────────────────────────────
+  &--brand &__fill {
+    background-color: var(--bg-brand-primary);
+  }
+
+  &--white &__fill {
+    background-color: var(--fg-white);
+  }
+
+  // ── Indeterminate ──────────────────────────────────────────────────────────
+  // A short segment sliding across the track on loop.
+  &--indeterminate &__fill {
+    position: absolute;
+    left: 0;
+    width: 40%;
+    transition: none;
+    animation: progress-bar-slide 1.2s var(--ease-standard) infinite;
+  }
+}
+
+@keyframes progress-bar-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+
+// Reduced motion — hold the segment in place rather than sliding.
+@media (prefers-reduced-motion: reduce) {
+  .ProgressBar--indeterminate .ProgressBar__fill {
+    animation: none;
+    transform: translateX(0);
+  }
+}

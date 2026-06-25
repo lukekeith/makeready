@@ -4,7 +4,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 
-export type ModalType = 'menu' | 'fullscreen'
+// Overlay taxonomy (PRD §8). All overlays flow through this one manager:
+//   menu       — bottom sheet of actions (non-draggable)
+//   sheet      — draggable bottom sheet
+//   dialog     — centered, scale + fade
+//   fullscreen — full-screen flow (wizards)
+//   popover    — anchored floating panel
+// Toasts and banners are NOT here — they are an ephemeral channel in
+// toast.store.ts, deliberately separate from this stack.
+export type ModalType = 'menu' | 'fullscreen' | 'dialog' | 'sheet' | 'popover'
 export type ModalPriority = 'low' | 'high'
 
 export interface IModalConfig {
@@ -13,6 +21,11 @@ export interface IModalConfig {
   type: ModalType
   priority: ModalPriority
   hideCloseButton?: boolean
+  /** Tap-on-backdrop dismiss. Defaults true for menu/sheet/dialog/popover,
+   *  false for fullscreen (flows dismiss via their own controls). */
+  dismissOnBackdrop?: boolean
+  /** Optional anchor element id/ref for popover positioning (provider reads it). */
+  anchorId?: string
   onClose?: () => void
 }
 
@@ -73,6 +86,33 @@ export const useModalStore = defineStore('modal', () => {
     return open({ id, contentId, type: 'fullscreen', priority: 'high', ...options })
   }
 
+  // Centered dialog (scale + fade). High priority — closes low menus/sheets.
+  function openDialog(
+    id: string,
+    contentId: string,
+    options?: { onClose?: () => void; hideCloseButton?: boolean; dismissOnBackdrop?: boolean }
+  ): string {
+    return open({ id, contentId, type: 'dialog', priority: 'high', hideCloseButton: true, ...options })
+  }
+
+  // Draggable bottom sheet. Low priority (a high dialog can sit over it).
+  function openSheet(
+    id: string,
+    contentId: string,
+    options?: { onClose?: () => void; hideCloseButton?: boolean; dismissOnBackdrop?: boolean }
+  ): string {
+    return open({ id, contentId, type: 'sheet', priority: 'low', ...options })
+  }
+
+  // Anchored popover. Low priority, dismiss on backdrop/outside.
+  function openPopover(
+    id: string,
+    contentId: string,
+    options?: { onClose?: () => void; anchorId?: string; dismissOnBackdrop?: boolean }
+  ): string {
+    return open({ id, contentId, type: 'popover', priority: 'low', hideCloseButton: true, ...options })
+  }
+
   function close(id: string): void {
     const modal = _modalStack.value.find(m => m.id === id)
     modal?.onClose?.()
@@ -119,6 +159,9 @@ export const useModalStore = defineStore('modal', () => {
     open,
     openMenu,
     openFullscreen,
+    openDialog,
+    openSheet,
+    openPopover,
     close,
     closeTopmost,
     closeAllByPriority,

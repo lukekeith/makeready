@@ -1,0 +1,51 @@
+.LoadingOverlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-md);
+
+  &__label {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+    text-align: center;
+    margin: 0;
+  }
+
+  /* Cover — fills the nearest positioned ancestor with a frosted scrim. */
+  &--cover {
+    position: absolute;
+    inset: 0;
+    z-index: var(--z-overlay);
+    padding: var(--space-xl);
+    background: var(--color-alpha-black-50);
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+  }
+
+  /* Inline — a centered block that participates in normal flow. */
+  &--inline {
+    position: relative;
+    padding: var(--space-2xl) var(--space-xl);
+  }
+
+  /* Fade in/out. Transition timing is token-driven, so reduced-motion (which
+     collapses the motion tokens) snaps it. */
+  &--cover {
+    transition:
+      opacity var(--motion-settle) var(--ease-standard),
+      visibility var(--motion-settle) var(--ease-standard);
+  }
+
+  &--closed {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  &--open {
+    opacity: 1;
+    visibility: visible;
+  }
+}

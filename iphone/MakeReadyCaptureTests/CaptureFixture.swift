@@ -32,9 +32,14 @@ struct CaptureUser: Codable {
 /// Loosely-typed state container. Each field maps to an AppState entity store.
 struct CaptureState: Codable {
     let programs: [[String: AnyCodableValue]]?
-    let groups: [[String: AnyCodableValue]]?
-    let enrollments: [[String: AnyCodableValue]]?
+    let groups: [CaptureGroup]?
+    let enrollments: [CaptureEnrollment]?
     let homeStats: CaptureHomeStats?
+    // Group-home views: which group to render, and which slider screen (0 = overview)
+    let groupId: String?
+    let screenIndex: Int?
+    // Isolated component views (view == "component.*")
+    let component: CaptureComponent?
     // Activity-editor views
     let activity: CaptureActivity?
     let programId: String?
@@ -48,6 +53,60 @@ struct CaptureState: Codable {
     let programDays: Int?
     // Path to a local image file (relative to capture root) to seed as the program cover image
     let programCoverImagePath: String?
+}
+
+// MARK: - Component capture model
+
+/// Props for an isolated component render (view == "component.*"). Superset of
+/// the fields any single comparable component needs; each ViewRegistry case
+/// reads the subset it cares about.
+struct CaptureComponent: Codable {
+    let name: String                  // e.g. "CardStudy"
+    let title: String?
+    let description: String?
+    let type: String?
+    let status: String?               // confirmed | pending | new
+    let coverUrl: String?
+    let iconSystemName: String?
+    let metadata: [CaptureDataItem]?
+    let selected: Bool?               // GroupCard: brand overlay + check
+    let size: String?                 // GroupCard: "Row" | "Mini"
+}
+
+struct CaptureDataItem: Codable {
+    let icon: String?                 // SF Symbol name (iOS)
+    let value: String
+}
+
+// MARK: - Group capture models
+
+/// Group seed for pages.group-home. Scalar/string fields only (dates are
+/// stamped at seed time), so it decodes with the default JSONDecoder.
+struct CaptureGroup: Codable {
+    let id: String
+    let code: String?
+    let name: String?
+    let description: String?
+    let coverImageUrl: String?
+    let isPrivate: Bool?
+    let allowInvites: Bool?
+    let memberDirectory: Bool?
+    let memberCount: Int?
+    let creatorId: String?
+}
+
+struct CaptureEnrollment: Codable {
+    let id: String
+    let groupId: String
+    let studyProgramId: String?
+    let isActive: Bool?
+    let studyProgram: CaptureStudyProgramSummary?
+}
+
+struct CaptureStudyProgramSummary: Codable {
+    let id: String
+    let name: String
+    let days: Int?
 }
 
 // MARK: - Lesson capture model

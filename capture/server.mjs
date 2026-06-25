@@ -20,6 +20,34 @@ import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+  loadComparisons,
+  loadComparison,
+  saveComparisonShared,
+  projectComparison,
+  getVariants,
+  compareRoot,
+  COMPARE_VIEWPORTS,
+} from './runners/compare/lib.mjs';
+import {
+  syncComparison,
+  getComparison,
+  setVersionRating,
+  latestScreenshots,
+  latestVersion,
+  getVersion,
+  versionShots,
+  listVersions,
+  listComments,
+  listCommentsForVersion,
+  addComment,
+  replyComment,
+  setResolved,
+  deleteComment,
+  summarize,
+} from './db/index.mjs';
+
+const shotUrlFromPath = (rel) => (rel ? `/screenshots/compare/${rel}` : null);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -167,7 +195,7 @@ async function loadHydratedManifest(platform) {
   return { sets, viewportDimensions: getDeviceDimensions(platform.id) };
 }
 
-app.get('/api/:platform/manifest', async (req, res) => {
+app.get('/api/:platform(client|iphone)/manifest', async (req, res) => {
   const platform = getPlatform(req.params.platform);
   if (!platform) return res.status(404).json({ error: 'Unknown platform' });
   try {
@@ -179,7 +207,7 @@ app.get('/api/:platform/manifest', async (req, res) => {
 
 // ── Fixture ──
 
-app.get('/api/:platform/fixture/:folder/:file', async (req, res) => {
+app.get('/api/:platform(client|iphone)/fixture/:folder/:file', async (req, res) => {
   const platform = getPlatform(req.params.platform);
   if (!platform) return res.status(404).json({ error: 'Unknown platform' });
   const { folder, file } = req.params;
@@ -307,9 +335,311 @@ if (!isProduction) {
   });
 }
 
+// ── Compare (apples-to-apples iPhone vs Web) ──
+
+function safeId(id) {
+  return typeof id === 'string' && /^[a-z0-9._-]+$/i.test(id);
+}
+
+/** Capture status per viewport, derived from the latest screenshots in the DB. */
+async function captureStatusDB(spec) {
+  const status = {};
+  for (const vp of spec.viewports) {
+    const latest = await latestScreenshots(spec.id, vp);
+    status[vp] = {
+      iphone: { captured: !!latest.iphone, capturedAt: latest.iphone?.createdAt ?? null },
+      client: { captured: !!latest.client, capturedAt: latest.client?.createdAt ?? null },
+    };
+  }
+  return status;
+}
+
+async function buildCompareManifest() {
+  const comparisons = await loadComparisons();
+  // Group by type ("page" | "component"), preserving load order within each.
+  const byType = new Map();
+  for (const c of comparisons) {
+    if (c.error) {
+      // Surface broken specs under a dedicated bucket so they're visible.
+      const bucket = byType.get('error') ?? [];
+      bucket.push({ id: c.id, error: c.error });
+      byType.set('error', bucket);
+      continue;
+    }
+    await syncComparison(c);
+    const status = await captureStatusDB(c);
+    const { unresolved } = await summarize(c.id);
+    const latest = await latestVersion(c.id);
+    const bucket = byType.get(c.type) ?? [];
+    bucket.push({
+      id: c.id,
+      title: c.title,
+      type: c.type,
+      group: c.group,
+      viewports: c.viewports,
+      captures: status,
+      rating: latest?.rating ?? null,
+      unresolvedComments: unresolved,
+    });
+    byType.set(c.type, bucket);
+  }
+  const typeOrder = ['page', 'component', 'error'];
+  const types = [...byType.keys()].sort((a, b) => {
+    const ai = typeOrder.indexOf(a);
+    const bi = typeOrder.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+  return {
+    types: types.map((type) => ({ type, comparisons: byType.get(type) })),
+    viewports: COMPARE_VIEWPORTS,
+    canCapture: !isProduction,
+  };
+}
+
+app.get('/api/compare/manifest', async (_req, res) => {
+  try {
+    res.json(await buildCompareManifest());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/compare/comparison/:id', async (req, res) => {
+  if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const spec = await loadComparison(req.params.id);
+    if (!spec) return res.status(404).json({ error: 'Comparison not found' });
+    if (spec.error) return res.status(422).json({ error: spec.error, id: spec.id });
+    let projected = null;
+    let projectionError = null;
+    try {
+      projected = projectComparison(spec);
+    } catch (err) {
+      projectionError = err.message;
+    }
+    await syncComparison(spec);
+    const latestV = await latestVersion(spec.id);
+    const status = {};
+    const shots = {};
+    for (const vp of spec.viewports) {
+      const latest = await latestScreenshots(spec.id, vp);
+      shots[vp] = {
+        iphone: shotUrlFromPath(latest.iphone?.path),
+        client: shotUrlFromPath(latest.client?.path),
+        iphoneVersion: latest.iphone ? { id: latest.iphone.versionId, capturedAt: latest.iphone.createdAt, gitSha: latest.iphone.version?.gitSha } : null,
+        clientVersion: latest.client ? { id: latest.client.versionId, capturedAt: latest.client.createdAt, gitSha: latest.client.version?.gitSha } : null,
+      };
+      status[vp] = {
+        iphone: { captured: !!latest.iphone, capturedAt: latest.iphone?.createdAt ?? null },
+        client: { captured: !!latest.client, capturedAt: latest.client?.createdAt ?? null },
+      };
+    }
+    res.json({
+      id: spec.id,
+      type: spec.type,
+      group: spec.group,
+      title: spec.title,
+      viewports: spec.viewports,
+      shared: spec.shared ?? {},
+      rating: latestV?.rating ?? null,
+      latestVersionId: latestV?.id ?? null,
+      command: `/compare-adjust ${spec.id}`,
+      projected,
+      projectionError,
+      captures: status,
+      shots,
+      viewportDimensions: COMPARE_VIEWPORTS,
+      canCapture: !isProduction,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Comments (read — always available)
+app.get('/api/compare/comparison/:id/comments', async (req, res) => {
+  if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    res.json({ comments: await listComments(req.params.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Versions of a comparison (newest first) — read, always available.
+app.get('/api/compare/comparison/:id/versions', async (req, res) => {
+  if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const spec = await loadComparison(req.params.id);
+    const variants = spec && !spec.error ? getVariants(spec).map((v) => v.name) : [];
+    res.json({ versions: await listVersions(req.params.id), variants });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Version-locked view: the shots + rating + comments for one specific version.
+app.get('/api/compare/comparison/:id/version/:vid', async (req, res) => {
+  if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const v = await getVersion(req.params.vid);
+    if (!v || v.comparisonId !== req.params.id) return res.status(404).json({ error: 'Version not found' });
+    const shots = await versionShots(v);
+    const comments = await listCommentsForVersion(v.id);
+    res.json({
+      versionId: v.id,
+      viewport: v.viewport,
+      variantName: v.variantName,
+      capturedAt: v.capturedAt,
+      rating: v.rating,
+      gitSha: v.gitSha,
+      gitDirty: v.gitDirty,
+      sourceHash: v.sourceHash,
+      sharedData: v.sharedData,
+      componentName: v.componentName,
+      shots: {
+        iphone: { url: shotUrlFromPath(shots.iphone?.path), screenshotId: shots.iphone?.id ?? null, fromThisVersion: shots.iphone?.versionId === v.id },
+        client: { url: shotUrlFromPath(shots.client?.path), screenshotId: shots.client?.id ?? null, fromThisVersion: shots.client?.versionId === v.id },
+      },
+      comments,
+      viewportDimensions: COMPARE_VIEWPORTS,
+      canCapture: !isProduction,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+if (!isProduction) {
+  app.put('/api/compare/comparison/:id', async (req, res) => {
+    if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const shared = req.body?.shared;
+    if (typeof shared !== 'object' || shared === null) {
+      return res.status(400).json({ error: 'Body must include a "shared" object.' });
+    }
+    try {
+      const updated = await saveComparisonShared(req.params.id, shared);
+      let projected = null;
+      let projectionError = null;
+      try {
+        projected = projectComparison(updated);
+      } catch (err) {
+        projectionError = err.message;
+      }
+      res.json({ ok: true, shared: updated.shared, projected, projectionError });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Rating: 1..5 or null to clear.
+  app.put('/api/compare/comparison/:id/rating', async (req, res) => {
+    if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    const { rating } = req.body ?? {};
+    if (rating != null && (typeof rating !== 'number' || rating < 1 || rating > 5)) {
+      return res.status(400).json({ error: 'rating must be 1..5 or null' });
+    }
+    try {
+      // Rate a specific version (body.versionId) or the latest one.
+      let versionId = req.body?.versionId;
+      if (!versionId) versionId = (await latestVersion(req.params.id))?.id;
+      if (!versionId) return res.status(400).json({ error: 'No version to rate — capture first.' });
+      const saved = await setVersionRating(versionId, rating);
+      res.json({ ok: true, rating: saved, versionId });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Comments: place a pin, reply, resolve/unresolve, delete.
+  app.post('/api/compare/comparison/:id/comments', async (req, res) => {
+    if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    try {
+      const comment = await addComment({ comparisonId: req.params.id, ...(req.body ?? {}) });
+      res.json({ ok: true, comment });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/compare/comparison/:id/comments/:cid/replies', async (req, res) => {
+    if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    try {
+      const { text, source } = req.body ?? {};
+      const comment = await replyComment(req.params.cid, text, source);
+      res.json({ ok: true, comment });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/compare/comparison/:id/comments/:cid/resolved', async (req, res) => {
+    if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    try {
+      await setResolved(req.params.cid, Boolean(req.body?.resolved));
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/compare/comparison/:id/comments/:cid', async (req, res) => {
+    if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+    try {
+      await deleteComment(req.params.cid);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
+
+// Screenshots from the compare store
+app.use('/screenshots/compare', express.static(compareRoot));
+
 // ── Capture Orchestration (local dev only) ──
 
 const jobs = new Map();
+
+/**
+ * Spawns a child process, wires its stdout/stderr into an SSE-streamable job,
+ * and returns the runId. Shared by per-platform and compare captures.
+ */
+function spawnJob(cmd, args, opts) {
+  const runId = randomUUID();
+  const job = { runId, lines: [], subscribers: new Set(), startedAt: Date.now(), exitCode: null, done: false };
+  jobs.set(runId, job);
+
+  const child = spawn(cmd, args, opts);
+  const pushLine = (line) => {
+    if (!line) return;
+    job.lines.push(line);
+    for (const sub of job.subscribers) sub.write(`data: ${JSON.stringify(line)}\n\n`);
+  };
+  let stdoutBuf = '';
+  child.stdout.on('data', (chunk) => {
+    stdoutBuf += chunk.toString();
+    const parts = stdoutBuf.split('\n');
+    stdoutBuf = parts.pop();
+    for (const p of parts) pushLine(p);
+  });
+  child.stderr.on('data', (chunk) => {
+    for (const p of chunk.toString().split('\n')) pushLine(p);
+  });
+  child.on('close', (code) => {
+    if (stdoutBuf) pushLine(stdoutBuf);
+    job.exitCode = code;
+    job.done = true;
+    const payload = JSON.stringify({ code, durationMs: Date.now() - job.startedAt });
+    for (const sub of job.subscribers) {
+      sub.write(`event: done\ndata: ${payload}\n\n`);
+      sub.end();
+    }
+    job.subscribers.clear();
+    setTimeout(() => jobs.delete(runId), 60 * 60 * 1000).unref();
+  });
+  return runId;
+}
 
 if (!isProduction) {
   function buildRunnerArgs({ scope, target }) {
@@ -325,7 +655,7 @@ if (!isProduction) {
     throw new Error(`Unknown scope: ${scope}`);
   }
 
-  app.post('/api/:platform/capture', (req, res) => {
+  app.post('/api/:platform(client|iphone)/capture', (req, res) => {
     const platform = getPlatform(req.params.platform);
     if (!platform) return res.status(404).json({ error: 'Unknown platform' });
     if (!platform.runner) return res.status(400).json({ error: 'Capture not available for this platform in production.' });
@@ -335,43 +665,34 @@ if (!isProduction) {
     } catch (err) {
       return res.status(400).json({ error: err.message });
     }
-    const runId = randomUUID();
-    const job = { runId, lines: [], subscribers: new Set(), startedAt: Date.now(), exitCode: null, done: false };
-    jobs.set(runId, job);
-
     const { cmd, args: buildArgs, cwd, env: extraEnv } = platform.runner;
-    const child = spawn(cmd, buildArgs(scopeArgs), { cwd, env: { ...process.env, ...extraEnv } });
+    const runId = spawnJob(cmd, buildArgs(scopeArgs), { cwd, env: { ...process.env, ...extraEnv } });
+    res.json({ runId });
+  });
 
-    const pushLine = (line) => {
-      if (!line) return;
-      job.lines.push(line);
-      for (const sub of job.subscribers) sub.write(`data: ${JSON.stringify(line)}\n\n`);
-    };
-    let stdoutBuf = '';
-    child.stdout.on('data', (chunk) => {
-      stdoutBuf += chunk.toString();
-      const parts = stdoutBuf.split('\n');
-      stdoutBuf = parts.pop();
-      for (const p of parts) pushLine(p);
-    });
-    child.stderr.on('data', (chunk) => {
-      for (const p of chunk.toString().split('\n')) pushLine(p);
-    });
-    child.on('close', (code) => {
-      if (stdoutBuf) pushLine(stdoutBuf);
-      job.exitCode = code;
-      job.done = true;
-      const payload = JSON.stringify({ code, durationMs: Date.now() - job.startedAt });
-      for (const sub of job.subscribers) { sub.write(`event: done\ndata: ${payload}\n\n`); sub.end(); }
-      job.subscribers.clear();
-      setTimeout(() => jobs.delete(runId), 60 * 60 * 1000).unref();
-    });
-
+  // Compare capture: runs the orchestrator for one comparison + viewport.
+  // Body: { id, viewport, platform? }  — platform omitted captures both.
+  app.post('/api/compare/capture', (req, res) => {
+    const { id, viewport, platform, variant } = req.body ?? {};
+    if (!safeId(id)) return res.status(400).json({ error: 'Invalid id' });
+    if (!safeId(viewport) || !COMPARE_VIEWPORTS[viewport]) {
+      return res.status(400).json({ error: 'Unknown viewport' });
+    }
+    if (platform && platform !== 'iphone' && platform !== 'client') {
+      return res.status(400).json({ error: 'platform must be "iphone" or "client"' });
+    }
+    const args = [path.resolve(__dirname, 'runners/compare/capture.mjs'), id, viewport];
+    if (variant) args.push(variant);
+    if (platform) args.push(platform);
+    const runId = spawnJob('node', args, { cwd: __dirname, env: process.env });
     res.json({ runId });
   });
 } else {
+  app.post('/api/compare/capture', (_req, res) => {
+    res.status(400).json({ error: 'Capture is not available in production. Run captures locally.' });
+  });
   // Production: capture endpoints return 404
-  app.post('/api/:platform/capture', (_req, res) => {
+  app.post('/api/:platform(client|iphone)/capture', (_req, res) => {
     res.status(400).json({ error: 'Capture is not available in production. Run captures locally.' });
   });
 }

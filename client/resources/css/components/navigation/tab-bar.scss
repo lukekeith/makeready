@@ -1,0 +1,126 @@
+// TabBar — navigation. Bottom tab bar, frosted, iOS NavBar parity. Class names
+// mirror the CVA variants in resources/js/components/navigation/tab-bar/tab-bar.vue.
+.TabBar {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: var(--z-sticky);
+  height: calc(var(--tabbar-h) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--surface-overlay);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+  border-top: 1px solid var(--border-default);
+
+  &__inner {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    height: var(--tabbar-h);
+  }
+
+  /* ─── Tab ─────────────────────────────────────────────────────────────── */
+  &__tab {
+    flex: 1 1 0;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xs);
+    min-width: 0;
+    padding: var(--space-xs) var(--space-2xs);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: color var(--motion-micro) var(--ease-standard);
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--border-brand);
+      border-radius: var(--radius-md);
+    }
+
+    &--active {
+      color: var(--fg-brand);
+    }
+
+    &--inactive {
+      color: var(--fg-secondary);
+
+      &:hover {
+        color: var(--fg-primary);
+      }
+    }
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-md);
+    height: var(--icon-md);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__label {
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: var(--tracking-label);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  /* ─── Raised center Add button ────────────────────────────────────────── */
+  &__add {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--control-h-lg);
+    height: var(--control-h-lg);
+    margin: 0 var(--space-sm);
+    align-self: center;
+    transform: translateY(calc(-1 * var(--space-md)));
+    border: none;
+    border-radius: var(--radius-full);
+    background: var(--bg-brand-primary);
+    color: var(--fg-white);
+    cursor: pointer;
+    box-shadow: var(--shadow-lg);
+    -webkit-appearance: none;
+    appearance: none;
+    transition: background var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      background: var(--color-brand-600);
+    }
+
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--border-brand), var(--shadow-lg);
+    }
+  }
+
+  &__addIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-md);
+    height: var(--icon-md);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}

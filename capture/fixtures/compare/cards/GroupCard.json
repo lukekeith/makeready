@@ -1,0 +1,50 @@
+{
+  "id": "GroupCard",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Group",
+  "adapter": "GroupCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Row",
+      "shared": {
+        "name": "Young Professionals",
+        "imageUrl": "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=144&h=144&fit=crop",
+        "memberCount": 27,
+        "selected": false,
+        "size": "Row"
+      }
+    },
+    {
+      "name": "RowSelected",
+      "shared": {
+        "name": "Young Professionals",
+        "imageUrl": "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=144&h=144&fit=crop",
+        "memberCount": 27,
+        "selected": true,
+        "size": "Row"
+      }
+    },
+    {
+      "name": "Mini",
+      "shared": {
+        "name": "Young Professionals",
+        "imageUrl": "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=144&h=144&fit=crop",
+        "memberCount": 27,
+        "selected": false,
+        "size": "Mini"
+      }
+    },
+    {
+      "name": "MiniSelected",
+      "shared": {
+        "name": "Sunday Morning Bible Study",
+        "imageUrl": "https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=144&h=144&fit=crop",
+        "memberCount": 42,
+        "selected": true,
+        "size": "Mini"
+      }
+    }
+  ]
+}

@@ -1,0 +1,93 @@
+// ScopedAppShell — permission-aware AppShell variant for invite-scoped views.
+// Same three-region frame as AppShell (header / scrollable content / tabbar)
+// but the header always carries a ScopeBadge, and the tabbar renders the
+// role-filtered tab set. Class names mirror the Vue <ScopedAppShell>.
+.ScopedAppShell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
+  background: var(--bg-canvas);
+  color: var(--fg-primary);
+  overflow: hidden;
+
+  // State hook — set when role === 'member'. Scoped descendants (editors,
+  // detail screens) read this custom property to render their read-only mode,
+  // so the same components serve full leaders and limited contributors.
+  &--readonly {
+    --scope-readonly: 1;
+  }
+
+  &__header {
+    flex-shrink: 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-sm);
+    min-height: var(--header-h);
+    padding: 0 var(--page-pad-x);
+    padding-top: var(--safe-top);
+    border-bottom: 1px solid var(--border-default);
+    background: var(--bg-canvas);
+  }
+
+  &__header-lead {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 0;
+  }
+
+  &__badge {
+    flex-shrink: 0;
+  }
+
+  &__content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  &__tabbar {
+    flex-shrink: 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: stretch;
+    min-height: var(--tabbar-h);
+    padding-bottom: var(--safe-bottom);
+    border-top: 1px solid var(--border-default);
+    background: var(--bg-canvas);
+  }
+
+  &__tab {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-min);
+    padding: var(--space-sm);
+    border: 0;
+    background: transparent;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--fg-tertiary);
+    cursor: pointer;
+    transition: color var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      color: var(--fg-secondary);
+    }
+
+    &--active {
+      color: var(--fg-brand);
+    }
+  }
+}

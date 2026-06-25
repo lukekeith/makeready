@@ -1,29 +1,51 @@
-@use 'styles/colors';
-
+// Input — primitive (single-line text field). Tokenized to the dark design
+// system. Class names mirror the Vue <TextInput> CVA.
 .Input {
   display: flex;
-  height: 2.5rem;
+  height: var(--control-h-md);
   width: 100%;
-  border-radius: var(--radius);
-  border: 1px solid colors.text(700);
-  background: colors.text(900);
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  color: colors.text(100);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  padding: 0 var(--space-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-sm);
+  color: var(--fg-primary);
   outline: none;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  transition: border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard);
 
   &::placeholder {
-    color: colors.text(500);
+    color: var(--fg-tertiary);
   }
 
-  &:focus {
-    border-color: colors.primary(400);
-    box-shadow: 0 0 0 2px rgba(108, 71, 255, 0.2);
+  &:focus,
+  &:focus-visible {
+    border-color: var(--border-brand);
+    box-shadow: 0 0 0 2px var(--color-brand-tint);
   }
 
-  &:disabled {
+  /* States (mirror CVA: error / success) */
+  &--error {
+    border-color: var(--border-error);
+
+    &:focus { box-shadow: 0 0 0 2px var(--color-error-tint); }
+  }
+
+  &--success {
+    border-color: var(--fg-success);
+
+    &:focus { box-shadow: 0 0 0 2px var(--color-success-tint); }
+  }
+
+  &:disabled,
+  &--disabled {
     cursor: not-allowed;
-    opacity: 0.5;
+    opacity: var(--opacity-disabled);
   }
+
+  /* Sizes */
+  &--size-sm { height: var(--control-h-sm); }
+  &--size-md { height: var(--control-h-md); }
+  &--size-lg { height: var(--control-h-lg); }
 }

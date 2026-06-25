@@ -20,6 +20,59 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
     let authManager = makeMockAuthManager(from: fixture.auth)
 
     switch fixture.view {
+    case "component.card-study":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.card-study: missing state.component")
+        }
+        let status: CardStatus = {
+            switch c.status {
+            case "pending": return .pending
+            case "new": return .new
+            default: return .confirmed
+            }
+        }()
+        let imageStyle: CardImageStyle = {
+            if let cover = c.coverUrl, !cover.isEmpty {
+                return .photo(imageURL: cover)
+            }
+            return .icon(systemName: c.iconSystemName ?? "book.fill", backgroundColor: nil, foregroundColor: nil)
+        }()
+        let metadata = (c.metadata ?? []).map { DataItem(icon: $0.icon ?? "circle", value: $0.value) }
+        let data = CardStudyData(
+            id: "capture-card-study",
+            title: c.title ?? "",
+            description: c.description,
+            type: c.type,
+            imageStyle: imageStyle,
+            metadata: metadata,
+            status: status,
+            onTap: nil
+        )
+        return AnyView(CardStudy(data: data).padding(16))
+
+    case "component.GroupCard":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.GroupCard: missing state.component")
+        }
+        let imageStyle: CardImageStyle = {
+            if let cover = c.coverUrl, !cover.isEmpty {
+                return .photo(imageURL: cover)
+            }
+            return .icon(systemName: "person.2.fill", backgroundColor: nil, foregroundColor: nil)
+        }()
+        let metadata = (c.metadata ?? []).map { DataItem(icon: $0.icon ?? "person.2.fill", value: $0.value) }
+        let data = CardGroupData(
+            id: "capture-group-card",
+            title: c.title ?? "",
+            imageStyle: imageStyle,
+            metadata: metadata,
+            isSelected: c.selected ?? false
+        )
+        if (c.size ?? "Row") == "Mini" {
+            return AnyView(CardGroupMini(data: data).padding(16))
+        }
+        return AnyView(CardGroup(data: data).padding(16))
+
     case "pages.login":
         return AnyView(
             LoginView()
@@ -30,6 +83,21 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
         return AnyView(
             MainView()
                 .environment(authManager)
+        )
+
+    case "pages.group-home":
+        // Group is seeded into AppState by setupCaptureState; GroupHomePage.init
+        // reads AppState.groups[groupId] for an immediate (non-loading) first paint.
+        let groupId = fixture.state?.groupId
+            ?? fixture.state?.groups?.first?.id
+            ?? "group-1"
+        return AnyView(
+            GroupHomePage(
+                overlayManager: OverlayManager(),
+                groupId: groupId,
+                onDismiss: {}
+            )
+            .environment(authManager)
         )
 
     case "pages.create-program":

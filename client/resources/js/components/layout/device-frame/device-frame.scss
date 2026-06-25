@@ -1,0 +1,78 @@
+// DeviceFrame — Histoire at-size wrapper. Token-driven so it tracks the design
+// system (canvas bg, radius, shadow, safe-area). Member surface only.
+.DeviceFrame {
+  // Default screen width; overridden per size variant below.
+  --device-w: 390px;
+  // Simulated safe-area insets (real env() is 0 in a desktop preview). Toggle
+  // visibility/use with --show-safe-areas.
+  --device-safe-top: 0px;
+  --device-safe-bottom: 0px;
+
+  position: relative;
+  width: var(--device-w);
+  max-width: 100%;
+  margin: var(--space-xl) auto;
+  background: var(--bg-canvas);
+  color: var(--fg-primary);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+
+  &--has-chrome {
+    // Phone bezel + deep elevation against the Histoire grid.
+    padding: var(--space-2xs);
+    border-radius: 40px;
+    border: 8px solid #000;
+    box-shadow: var(--shadow-xl);
+
+    --device-safe-top: 44px;    // status bar / notch region
+    --device-safe-bottom: 24px; // home indicator region
+  }
+
+  &--size-se {
+    --device-w: 320px;
+  }
+  &--size-md {
+    --device-w: 390px;
+  }
+  &--size-lg {
+    --device-w: 430px;
+  }
+
+  &__notch {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 38%;
+    height: 26px;
+    background: #000;
+    border-radius: var(--radius-full);
+    z-index: var(--z-sticky);
+  }
+
+  &__screen {
+    position: relative;
+    min-height: 720px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: var(--bg-canvas);
+    border-radius: inherit;
+    // Momentum scroll, contain overscroll — app-like behavior inside the frame.
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  &--has-chrome &__screen {
+    border-radius: 32px;
+    padding-top: var(--device-safe-top);
+    padding-bottom: var(--device-safe-bottom);
+  }
+
+  // Visualize the safe-area regions when debugging layout padding.
+  &--show-safe-areas &__screen {
+    background:
+      linear-gradient(var(--color-brand-tint), var(--color-brand-tint)) top / 100% var(--device-safe-top) no-repeat,
+      linear-gradient(var(--color-brand-tint), var(--color-brand-tint)) bottom / 100% var(--device-safe-bottom) no-repeat,
+      var(--bg-canvas);
+  }
+}

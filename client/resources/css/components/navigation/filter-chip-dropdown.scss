@@ -1,0 +1,109 @@
+// FilterChipDropdown — navigation. A pill chip ("label: value ▾") that opens a
+// small dropdown menu of options (iOS FilterChipDropdown parity). Tokenized to
+// the dark design system.
+.FilterChipDropdown {
+  position: relative;
+  display: inline-block;
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    padding: var(--space-xs) var(--space-md);
+    background: var(--color-white-5);
+    border: none;
+    border-radius: var(--radius-full);
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+    transition: background var(--motion-micro) var(--ease-standard),
+      color var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      background: var(--color-white-10);
+    }
+
+    // Open / active — brand tint + brand foreground.
+    &--open {
+      background: var(--color-brand-tint);
+      color: var(--fg-brand);
+
+      &:hover {
+        background: var(--color-brand-tint);
+      }
+
+      .FilterChipDropdown__caret {
+        transform: rotate(180deg);
+      }
+    }
+  }
+
+  &__label {
+    color: var(--fg-tertiary);
+  }
+
+  &__value {
+    font-weight: var(--font-weight-medium);
+    color: inherit;
+  }
+
+  &__caret {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--motion-micro) var(--ease-standard);
+
+    svg {
+      width: var(--icon-xs);
+      height: var(--icon-xs);
+    }
+  }
+
+  // Dropdown panel
+  &__menu {
+    position: absolute;
+    top: calc(100% + var(--space-xs));
+    left: 0;
+    z-index: var(--z-dropdown);
+    min-width: 100%;
+    margin: 0;
+    padding: var(--space-xs);
+    list-style: none;
+    background: var(--bg-section);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+  }
+
+  &__option {
+    padding: var(--space-sm) var(--space-md);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+    white-space: nowrap;
+    transition: background var(--motion-micro) var(--ease-standard),
+      color var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      background: var(--color-white-5);
+      color: var(--fg-primary);
+    }
+
+    &--selected {
+      color: var(--fg-brand);
+      font-weight: var(--font-weight-medium);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .FilterChipDropdown__chip,
+  .FilterChipDropdown__caret,
+  .FilterChipDropdown__option {
+    transition: none;
+  }
+}

@@ -1,0 +1,221 @@
+// CardGroup — type-specific study-group card (iOS GroupCard parity).
+// BEM modifiers mirror the CardGroupCva variant strings in
+// resources/js/components/card/card-group/card-group.vue exactly.
+//
+// Ships two layouts via the `size` prop:
+//   --size-row   : 104px tall, circular 72×72 image on the LEFT, name + members.
+//   --size-mini  : 120×188 tile, 72×72 circle near the top, name centered below.
+// `--is-selected` adds a brand-tinted border and an animated check badge.
+//
+// The matching skeleton (.CardGroup--skeleton, card-group-skeleton.vue) reuses
+// these layout modifiers, so its styles live here too (no separate scss entry).
+
+.CardGroup {
+  position: relative;
+  display: flex;
+  box-sizing: border-box;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  outline: none;
+  transition:
+    border-color var(--motion-micro) var(--ease-standard),
+    background-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard);
+
+  // Circular group image — fixed structural dimension (72×72 per spec).
+  &__avatar {
+    --avatar-size: 72px;
+    width: 72px;
+    height: 72px;
+  }
+
+  &__media {
+    position: relative;
+    flex-shrink: 0;
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__name {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--fg-secondary);
+  }
+
+  &__metaExtra {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-tertiary);
+
+    &::before {
+      content: '·';
+      margin-right: var(--space-sm);
+      color: var(--fg-tertiary);
+    }
+  }
+
+  // Selected check badge — brand fill, animates in (scale + fade).
+  &__check {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    border-radius: var(--radius-full);
+    background: var(--bg-brand-primary);
+    color: var(--fg-white);
+    box-shadow: var(--shadow-sm);
+    animation: card-group-check-in var(--motion-brisk) var(--ease-spring);
+
+    svg {
+      width: 60%;
+      height: 60%;
+    }
+  }
+
+  // ── Interaction ────────────────────────────────────────────────────────────
+  &:hover {
+    background: linear-gradient(
+      var(--color-white-5),
+      var(--color-white-5)
+    ), var(--bg-surface);
+    border-color: var(--border-strong);
+  }
+
+  &:focus-visible {
+    border-color: var(--border-brand);
+    box-shadow: 0 0 0 3px var(--bg-focus);
+  }
+
+  &:active {
+    opacity: var(--opacity-pressed);
+  }
+
+  // ── Selected ───────────────────────────────────────────────────────────────
+  &--is-selected {
+    border-color: var(--border-brand);
+    background: linear-gradient(
+      var(--color-brand-tint),
+      var(--color-brand-tint)
+    ), var(--bg-surface);
+  }
+
+  // ── Row layout ───────────────────────────────────────────────────────────────
+  &--size-row {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-lg);
+    height: 104px;
+    padding: 0 var(--space-lg);
+
+    .CardGroup__check {
+      right: -2px;
+      bottom: -2px;
+    }
+  }
+
+  // ── Mini layout ────────────────────────────────────────────────────────────────
+  &--size-mini {
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    gap: var(--space-md);
+    width: 120px;
+    height: 188px;
+    padding: var(--space-lg) var(--space-md);
+    text-align: center;
+
+    .CardGroup__media {
+      margin-top: var(--space-xs);
+    }
+
+    .CardGroup__body {
+      align-items: center;
+      gap: var(--space-2xs);
+    }
+
+    .CardGroup__name {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      white-space: normal;
+    }
+
+    .CardGroup__meta {
+      justify-content: center;
+      flex-direction: column;
+      gap: var(--space-2xs);
+    }
+
+    .CardGroup__metaExtra::before {
+      content: none;
+      margin-right: 0;
+    }
+
+    .CardGroup__check {
+      top: -2px;
+      right: calc(50% - 36px - 8px);
+    }
+  }
+
+  // ── Skeleton ─────────────────────────────────────────────────────────────────
+  &--skeleton {
+    cursor: default;
+    pointer-events: none;
+
+    .CardGroup__avatar {
+      --avatar-md: 72px;
+      width: 72px;
+      height: 72px;
+    }
+
+    .CardGroup__skelName {
+      width: 70%;
+      height: var(--text-lead);
+    }
+
+    .CardGroup__skelMeta {
+      width: 45%;
+      height: var(--text-sm);
+    }
+
+    &.CardGroup--size-mini {
+      .CardGroup__skelName { width: 80%; }
+      .CardGroup__skelMeta { width: 60%; }
+    }
+  }
+}
+
+@keyframes card-group-check-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .CardGroup__check {
+    animation: none;
+  }
+}

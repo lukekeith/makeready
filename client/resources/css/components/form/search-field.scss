@@ -1,0 +1,94 @@
+// SearchField — form. Pill search box: leading magnifier, search input, and a
+// trailing clear button shown only when there's text. Tokens only.
+.SearchField {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  width: 100%;
+  height: var(--control-h-md);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-default);
+  background: var(--color-white-5);
+  color: var(--fg-primary);
+  transition: border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard);
+
+  &:focus-within {
+    border-color: var(--border-brand);
+    box-shadow: 0 0 0 2px var(--color-brand-tint);
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    color: var(--fg-tertiary);
+
+    svg {
+      width: var(--icon-sm);
+      height: var(--icon-sm);
+    }
+  }
+
+  &__input {
+    flex: 1 1 auto;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-primary);
+    outline: none;
+
+    &::placeholder {
+      color: var(--fg-tertiary);
+    }
+
+    // Hide the native WebKit search clear/cancel affordance; we render our own.
+    &::-webkit-search-cancel-button,
+    &::-webkit-search-decoration {
+      appearance: none;
+    }
+  }
+
+  &__clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--icon-md);
+    height: var(--icon-md);
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--fg-tertiary);
+    cursor: pointer;
+    transition: color var(--motion-micro) var(--ease-standard),
+      background-color var(--motion-micro) var(--ease-standard);
+
+    svg {
+      width: var(--icon-sm);
+      height: var(--icon-sm);
+    }
+
+    &:hover {
+      color: var(--fg-primary);
+      background: var(--color-white-10);
+    }
+  }
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+
+    .SearchField__input {
+      cursor: not-allowed;
+    }
+  }
+}

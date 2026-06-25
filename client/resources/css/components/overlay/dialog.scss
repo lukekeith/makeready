@@ -1,0 +1,106 @@
+// Dialog — generic centered overlay. Tokenized to the dark design system.
+// Matches the .mp-dialog-* chrome from modal-provider.scss: frosted scrim,
+// elevated surface, scale + fade in/out driven by reka-ui's [data-state].
+.Dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 2 * var(--page-pad-x)));
+  max-height: 85vh;
+  overflow-y: auto;
+  z-index: var(--z-modal);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-default);
+  padding: var(--space-xl);
+  box-shadow: var(--shadow-xl);
+  color: var(--fg-primary);
+
+  &:focus { outline: none; }
+
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay);
+    background: var(--bg-overlay);
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-subheading);
+    line-height: var(--leading-subheading);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+  }
+
+  &__desc {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+  }
+
+  &__body {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    color: var(--fg-secondary);
+  }
+
+  &__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-sm);
+    margin-top: var(--space-sm);
+  }
+
+  // Visually hidden aria title (when no visible title is provided)
+  &__aria-title {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}
+
+// ─── Transitions — scale + fade, driven by reka-ui data-state ─────────────────
+.Dialog__overlay {
+  transition: opacity var(--motion-micro) var(--ease-standard);
+
+  &[data-state='open'] { opacity: 1; }
+  &[data-state='closed'] { opacity: 0; }
+}
+
+.Dialog {
+  transition: opacity var(--motion-brisk) var(--ease-spring),
+    transform var(--motion-brisk) var(--ease-spring);
+
+  &[data-state='open'] {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  &[data-state='closed'] {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.92);
+    transition: opacity var(--motion-exit) var(--ease-exit),
+      transform var(--motion-exit) var(--ease-exit);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Dialog,
+  .Dialog__overlay {
+    transition-duration: 0.01ms !important;
+  }
+}

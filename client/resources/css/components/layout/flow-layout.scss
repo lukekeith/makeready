@@ -1,0 +1,15 @@
+// FlowLayout — wrapping inline row (chips / tags). Modifiers mirror
+// FlowLayoutCva variant keys in
+// resources/js/components/layout/flow-layout/flow-layout.vue exactly. Spacing
+// uses the --space-* tokens only.
+
+.FlowLayout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+
+  // ─── gap ──────────────────────────────────────────────────────────────────
+  &--gap-xs { gap: var(--space-xs); }
+  &--gap-sm { gap: var(--space-sm); }
+  &--gap-md { gap: var(--space-md); }
+}

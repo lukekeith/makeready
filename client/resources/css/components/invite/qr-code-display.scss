@@ -1,0 +1,49 @@
+// QRCodeDisplay — presentational QR panel. Renders a white rounded card holding
+// the generated QR <img> (object-fit: contain), with an optional caption below.
+// The QR image dimensions (160/240/320) are set inline by the component; the
+// panel here only frames it. Class names mirror the Vue <QRCodeDisplay>.
+.QRCodeDisplay {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-sm);
+
+  &__panel {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: content-box;
+    padding: var(--space-md);
+    border-radius: var(--radius-lg);
+    background: var(--fg-white);
+  }
+
+  // QR render sizes (fixed px — the allowed QR exception). CVA size keys map
+  // 1:1 to these modifiers.
+  &--size-sm .QRCodeDisplay__panel { width: 160px; height: 160px; }
+  &--size-md .QRCodeDisplay__panel { width: 240px; height: 240px; }
+  &--size-lg .QRCodeDisplay__panel { width: 320px; height: 320px; }
+
+  &__img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  // Muted box shown when no QR src is supplied yet.
+  &__placeholder {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-md);
+    // Muted grey on the white panel (neutral ramp reads on the light card).
+    background: var(--color-neutral-200);
+  }
+
+  &__caption {
+    margin: 0;
+    text-align: center;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+  }
+}

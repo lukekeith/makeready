@@ -1,0 +1,13 @@
+// DonutChart — sizing wrapper around the ApexCharts donut. ApexCharts paints
+// the SVG inline (colors live in the component's CHART_PALETTE, not here); this
+// rule only owns layout/spacing via design tokens.
+.Chart.DonutChart {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-sm);
+
+  // Let ApexCharts size the SVG to the container width.
+  .apexcharts-canvas {
+    margin: 0 auto;
+  }
+}

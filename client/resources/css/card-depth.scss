@@ -5,9 +5,9 @@
 // .CardChild - Cards nested inside another card (8px border-radius)
 
 .CardParent {
-  border-radius: 16px !important;
+  border-radius: var(--radius-lg) !important;
 }
 
 .CardChild {
-  border-radius: 8px !important;
+  border-radius: var(--radius-md) !important;
 }

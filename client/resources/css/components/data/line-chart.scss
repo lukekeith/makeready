@@ -1,0 +1,12 @@
+// LineChart — sizing wrapper around the ApexCharts line chart. ApexCharts paints
+// the SVG inline (colors live in the component's CHART_PALETTE, not here); this
+// rule only owns layout/spacing via design tokens.
+.Chart.LineChart {
+  width: 100%;
+  min-width: 0;
+  padding: var(--space-sm);
+
+  .apexcharts-canvas {
+    margin: 0 auto;
+  }
+}

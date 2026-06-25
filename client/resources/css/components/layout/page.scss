@@ -1,0 +1,22 @@
+// Page (a.k.a Screen) — layout. Centers page content at the design-system max
+// width with consistent horizontal padding and a full-height canvas. Tokenized
+// to the dark design system; consumed globally via app.scss.
+.Page {
+  display: block;
+  width: 100%;
+  max-width: var(--page-max-w);
+  min-height: 100%;
+  margin-inline: auto;
+
+  // Horizontal page padding (toggleable).
+  &--padded {
+    padding-left: var(--page-pad-x);
+    padding-right: var(--page-pad-x);
+  }
+
+  // Pad for notch / home indicator when running full-bleed.
+  &--safe-area {
+    padding-top: var(--safe-top);
+    padding-bottom: var(--safe-bottom);
+  }
+}

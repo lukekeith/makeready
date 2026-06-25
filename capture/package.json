@@ -12,16 +12,21 @@
     "capture:iphone": "bash runners/iphone/capture.sh"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@prisma/client": "^6.19.3",
     "concurrently": "^9.0.0",
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "playwright": "^1.59.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.27.0"
+    "react-router-dom": "^6.27.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "prisma": "^6.19.3",
+    "tsx": "^4.22.4",
     "vite": "^7.0.7"
   }
 }

@@ -1,0 +1,37 @@
+{
+  "id": "/?source=pwa",
+  "name": "MakeReady",
+  "short_name": "MakeReady",
+  "description": "Lead your group — studies, members, calendar, and lessons, in one app.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/home?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0d101a",
+  "theme_color": "#0d101a",
+  "categories": ["education", "productivity", "lifestyle"],
+  "icons": [
+    { "src": "/icons/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/pwa/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/pwa/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/logo-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Home",
+      "short_name": "Home",
+      "url": "/home?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/pwa/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Groups",
+      "short_name": "Groups",
+      "url": "/groups?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/pwa/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

@@ -1,7 +1,8 @@
-@use 'styles/colors';
-
+// Avatar — primitive. Tokenized to the dark design system. Existing class names
+// and the --avatar-size custom property are preserved (live Blade/island
+// consumers set --avatar-size inline). Size modifiers map to --avatar-* tokens.
 .Avatar {
-  --avatar-size: 40px;
+  --avatar-size: var(--avatar-md);
 
   position: relative;
   display: block;
@@ -11,8 +12,14 @@
   min-height: var(--avatar-size);
   flex-shrink: 0;
   overflow: hidden;
-  border-radius: 50%;
-  background-color: colors.text(300);
+  border-radius: var(--radius-full);
+  background-color: var(--color-white-10);
+
+  /* Size modifiers (callers may still set --avatar-size inline instead) */
+  &--sm { --avatar-size: var(--avatar-sm); }
+  &--md { --avatar-size: var(--avatar-md); }
+  &--lg { --avatar-size: var(--avatar-lg); }
+  &--xl { --avatar-size: var(--avatar-xl); }
 
   // Loaded image sits on top of the initials fallback. If it fails to load,
   // the <img> removes itself (onerror) and the fallback shows through.
@@ -22,7 +29,7 @@
     width: 100%;
     height: 100%;
     object-fit: cover;
-    border-radius: 50%;
+    border-radius: var(--radius-full);
   }
 
   // Retained for older callers that still toggle this class (e.g. Vue islands).
@@ -43,26 +50,26 @@
       content: '';
       width: 50%;
       height: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.3);
-      border-top-color: colors.text(600);
-      border-radius: 50%;
+      border: 2px solid var(--color-white-30);
+      border-top-color: var(--fg-secondary);
+      border-radius: var(--radius-full);
       animation: avatar-spin 0.6s linear infinite;
     }
   }
 
-  // Built-in initials fallback — primary brand purple, white initials that
-  // scale with the avatar size. Sits beneath &__image.
+  // Built-in initials fallback — brand fill, white initials that scale with the
+  // avatar size. Sits beneath &__image.
   &__fallback {
     position: absolute;
     inset: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
-    background-color: colors.primary(400);
-    color: colors.text(100);
+    border-radius: var(--radius-full);
+    background-color: var(--bg-brand-primary);
+    color: var(--fg-white);
     font-size: calc(var(--avatar-size) * 0.4);
-    font-weight: 700;
+    font-weight: var(--font-weight-bold);
     line-height: 1;
     text-transform: uppercase;
   }

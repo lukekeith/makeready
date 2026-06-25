@@ -1,0 +1,95 @@
+// Text — primitive. Tokenized to the dark design system (iOS Typography +
+// PRD §6.2). Class names mirror the CVA variants in
+// resources/js/components/primitive/text.
+.Text {
+  margin: 0;
+  font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  color: var(--fg-primary);
+
+  /* Variants — size / leading / weight / tracking */
+  &--display {
+    font-size: var(--text-display);
+    line-height: var(--leading-display);
+    font-weight: var(--font-weight-bold);
+  }
+
+  &--title {
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+    font-weight: var(--font-weight-bold);
+  }
+
+  &--heading {
+    font-size: var(--text-heading);
+    line-height: var(--leading-heading);
+    font-weight: var(--font-weight-bold);
+  }
+
+  &--subheading {
+    font-size: var(--text-subheading);
+    line-height: var(--leading-subheading);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  &--lead {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-regular);
+  }
+
+  &--body {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-regular);
+  }
+
+  &--body-strong {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  &--caption {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-regular);
+    color: var(--fg-tertiary);
+  }
+
+  &--overline {
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+  }
+
+  /* Tones — color */
+  &--tone-primary {
+    color: var(--fg-primary);
+  }
+
+  &--tone-secondary {
+    color: var(--fg-secondary);
+  }
+
+  &--tone-tertiary {
+    color: var(--fg-tertiary);
+  }
+
+  &--tone-brand {
+    color: var(--fg-brand);
+  }
+
+  &--tone-accent {
+    color: var(--fg-accent);
+  }
+
+  &--tone-error {
+    color: var(--fg-error);
+  }
+
+  &--tone-success {
+    color: var(--fg-success);
+  }
+}

@@ -8,6 +8,7 @@
 //
 
 import Foundation
+import UIKit
 @testable import MakeReady
 
 /// Replaces AppState.shared with a fresh instance and populates from fixture data.
@@ -29,6 +30,56 @@ func setupCaptureState(from fixture: CaptureFixture) {
     guard let fixtureState = fixture.state else { return }
 
     let creatorId = fixture.auth?.currentUser?.id ?? "user-1"
+
+    // Pre-seed a component's remote cover image into the memory cache so the
+    // synchronous snapshot renders it. CachedCardImage is cache-first; without
+    // this its async network .task can't finish within one snapshot render pass,
+    // leaving an empty cover box (whereas Playwright waits for the web image).
+    if let cover = fixtureState.component?.coverUrl,
+       let url = URL(string: cover), url.scheme?.hasPrefix("http") == true,
+       let data = try? Data(contentsOf: url),
+       let image = UIImage(data: data) {
+        ImageCache.shared.seed(image, for: url)
+    }
+
+    // Seed groups (pages.group-home reads AppState.groups[groupId] on init)
+    if let groups = fixtureState.groups {
+        for g in groups {
+            state.groups.upsert(UserGroup(
+                id: g.id,
+                code: g.code ?? "ABC123",
+                name: g.name ?? "Group",
+                description: g.description,
+                coverImageUrl: g.coverImageUrl,
+                isPrivate: g.isPrivate ?? false,
+                allowInvites: g.allowInvites ?? true,
+                memberDirectory: g.memberDirectory ?? true,
+                memberCount: g.memberCount ?? 0,
+                creatorId: g.creatorId ?? creatorId,
+                createdAt: now,
+                updatedAt: now
+            ))
+        }
+    }
+
+    // Seed enrollments + the group→enrollment relationship index
+    if let enrollments = fixtureState.enrollments {
+        for e in enrollments {
+            let summary = e.studyProgram.map {
+                StudyProgramSummary(id: $0.id, name: $0.name, days: $0.days ?? 30)
+            }
+            state.enrollments.upsert(EnrollmentWithProgram(
+                id: e.id,
+                groupId: e.groupId,
+                studyProgramId: e.studyProgramId ?? (summary?.id ?? ""),
+                startDate: now,
+                endDate: Date.distantFuture,
+                studyProgram: summary,
+                isActive: e.isActive ?? true
+            ))
+            state.groupEnrollmentIndex.add(parentId: e.groupId, childId: e.id)
+        }
+    }
 
     // Seed program whenever programId is present (needed by ProgramHomePage and activity editors)
     if let programId = fixtureState.programId {

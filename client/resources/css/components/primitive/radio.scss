@@ -1,0 +1,90 @@
+// Radio — primitive. Dark design system. A visually hidden native
+// <input type="radio"> drives state; the styled .Radio__circle with an inner
+// dot renders the control. Modifier names mirror the CVA keys in radio.vue.
+.Radio {
+  --radio-size: 20px;
+  --radio-dot: 10px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+
+  &--sm {
+    --radio-size: 16px;
+    --radio-dot: 8px;
+  }
+
+  &--md {
+    --radio-size: 20px;
+    --radio-dot: 10px;
+  }
+
+  &__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  &__circle {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--radio-size);
+    height: var(--radio-size);
+    border-radius: var(--radius-full);
+    background: transparent;
+    border: 2px solid var(--border-strong);
+    transition: border-color var(--motion-micro) var(--ease-standard);
+  }
+
+  &__dot {
+    width: var(--radio-dot);
+    height: var(--radio-dot);
+    border-radius: var(--radius-full);
+    background: var(--bg-brand-primary);
+    opacity: 0;
+    transform: scale(0);
+    transition:
+      opacity var(--motion-micro) var(--ease-standard),
+      transform var(--motion-micro) var(--ease-standard);
+  }
+
+  &__label {
+    font-size: var(--text-sm);
+    color: var(--fg-primary);
+  }
+
+  // Checked
+  .Radio__input:checked + .Radio__circle {
+    border-color: var(--border-brand);
+
+    .Radio__dot {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  // Focus-visible ring
+  .Radio__input:focus-visible + .Radio__circle {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+
+  // Disabled
+  &--disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+  }
+}

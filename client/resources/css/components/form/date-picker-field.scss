@@ -1,0 +1,62 @@
+// DatePickerField — form. A wrapper around a styled native <input type="date">
+// (full custom calendar is out of scope — Phase 4). The input reuses the
+// primitive `.Input` field look (border/bg/radius/focus tokens). The native
+// calendar-picker indicator is inverted so it shows on dark surfaces. Tokens
+// only. Class names mirror the Vue <DatePickerField> CVA (`.DatePickerField--*`).
+.DatePickerField {
+  width: 100%;
+
+  &__input {
+    display: flex;
+    height: var(--control-h-md);
+    width: 100%;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-default);
+    background: var(--bg-surface);
+    padding: 0 var(--space-md);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-primary);
+    outline: none;
+    transition: border-color var(--motion-micro) var(--ease-standard),
+      box-shadow var(--motion-micro) var(--ease-standard);
+
+    &:focus,
+    &:focus-visible {
+      border-color: var(--border-brand);
+      box-shadow: 0 0 0 2px var(--color-brand-tint);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+      opacity: var(--opacity-disabled);
+    }
+
+    // Native calendar icon — invert + dim so it reads on dark.
+    &::-webkit-calendar-picker-indicator {
+      filter: invert(1);
+      opacity: var(--opacity-muted);
+      cursor: pointer;
+    }
+  }
+
+  // ─── Range — two inputs with an en-dash between ────────────────────────────
+  &__range {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+  }
+
+  &__separator {
+    flex: none;
+    color: var(--fg-tertiary);
+  }
+
+  // ─── Error state ───────────────────────────────────────────────────────────
+  &--error &__input {
+    border-color: var(--border-error);
+
+    &:focus { box-shadow: 0 0 0 2px var(--color-error-tint); }
+  }
+}

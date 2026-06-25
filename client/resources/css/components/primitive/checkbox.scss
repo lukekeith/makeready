@@ -1,0 +1,89 @@
+// Checkbox — primitive. Dark design system. A visually hidden native
+// <input type="checkbox"> drives state; the styled .Checkbox__box + check svg
+// render the control. Modifier names mirror the CVA keys in checkbox.vue.
+.Checkbox {
+  --checkbox-box: 20px;
+
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-sm);
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+
+  &--sm {
+    --checkbox-box: 16px;
+  }
+
+  &--md {
+    --checkbox-box: 20px;
+  }
+
+  &__input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  &__box {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--checkbox-box);
+    height: var(--checkbox-box);
+    border-radius: var(--radius-sm);
+    background: var(--color-white-5);
+    border: 1px solid var(--border-strong);
+    transition:
+      background var(--motion-micro) var(--ease-standard),
+      border-color var(--motion-micro) var(--ease-standard);
+  }
+
+  &__check {
+    width: 100%;
+    height: 100%;
+    color: var(--fg-white);
+    opacity: 0;
+    transform: scale(0.6);
+    transition:
+      opacity var(--motion-micro) var(--ease-standard),
+      transform var(--motion-micro) var(--ease-standard);
+  }
+
+  &__label {
+    font-size: var(--text-sm);
+    color: var(--fg-primary);
+  }
+
+  // Checked
+  .Checkbox__input:checked + .Checkbox__box {
+    background: var(--bg-brand-primary);
+    border-color: var(--border-brand);
+
+    .Checkbox__check {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  // Focus-visible ring
+  .Checkbox__input:focus-visible + .Checkbox__box {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+
+  // Disabled
+  &--disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+  }
+}

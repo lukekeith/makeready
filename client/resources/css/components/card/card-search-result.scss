@@ -1,0 +1,63 @@
+// CardSearchResult — compact search row: optional thumbnail, title + subtitle,
+// trailing type tag badge. Interactive (role=button) with a hover well.
+.CardSearchResult {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: background-color var(--motion-micro-fast) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-white-5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+
+  &__thumb {
+    flex: 0 0 auto;
+    width: var(--avatar-sm);
+    height: var(--avatar-sm);
+  }
+
+  &__thumb-img {
+    width: 100%;
+    height: 100%;
+  }
+
+  &__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+  }
+
+  &__title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+  }
+
+  &__subtitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    color: var(--fg-tertiary);
+  }
+
+  &__type {
+    flex: 0 0 auto;
+  }
+}

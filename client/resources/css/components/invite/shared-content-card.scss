@@ -1,0 +1,91 @@
+// SharedContentCard — invite domain. CardStudy-like visual for a program/lesson
+// shared with the user (cover + ScopeBadge + title + "shared by …").
+// Interactive: hover/press well + focus ring. Tokenized to the dark system;
+// the 72×96 cover is an intrinsic structural size per the design-system
+// exception, everything else uses tokens.
+.SharedContentCard {
+  position: relative;
+  display: flex;
+  gap: var(--space-md);
+  box-sizing: border-box;
+  padding: var(--space-md);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  outline: none;
+  text-align: left;
+  transition:
+    background var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard);
+
+  &:hover {
+    background: var(--bg-elevated);
+    border-color: var(--border-strong);
+  }
+
+  &:active {
+    filter: brightness(0.97);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  &__cover {
+    position: relative;
+    flex: 0 0 auto;
+    width: 72px;
+    height: 96px;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+  }
+
+  &__image,
+  &__coverPlaceholder {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  &__image {
+    object-fit: cover;
+  }
+
+  &__coverPlaceholder {
+    background: var(--bg-subtle-2);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2xs);
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &__badge {
+    margin-bottom: var(--space-2xs);
+  }
+
+  &__title {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  &__inviter {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-tertiary);
+  }
+}

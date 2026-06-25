@@ -1,0 +1,41 @@
+// TextInput — form. The bare input still uses the primitive `.Input`; this file
+// ONLY styles the optional icon-affordance wrapper. When a leading/trailing icon
+// slot is present, the input is wrapped in `.TextInput` and padded so the icon
+// sits inside the field. Tokens only.
+.TextInput {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+
+  // Pad the input to clear whichever icon affordance is present.
+  &__input--leading {
+    padding-left: var(--space-2xl);
+  }
+
+  &__input--trailing {
+    padding-right: var(--space-2xl);
+  }
+
+  &__icon {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg-tertiary);
+    pointer-events: none;
+
+    svg {
+      width: var(--icon-sm);
+      height: var(--icon-sm);
+    }
+
+    &--leading {
+      left: var(--space-md);
+    }
+
+    &--trailing {
+      right: var(--space-md);
+    }
+  }
+}

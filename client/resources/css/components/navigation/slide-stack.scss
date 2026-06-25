@@ -1,0 +1,80 @@
+// SlideStack — navigation. Hand-rolled push/pop slide navigation (iOS SlideStack
+// parity). A clipping container that renders the current panel plus, during a
+// transition, the outgoing one — each animating its transform. Tokenized to the
+// dark design system.
+//
+// Push: incoming slides in from the right (100% → 0) with --ease-enter; the
+// outgoing panel shifts slightly left. Pop: reverses with --ease-exit.
+.SlideStack {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+
+  &__panel {
+    // The current (settled) panel fills the container in normal flow; animating
+    // panels are taken out of flow so incoming + outgoing overlap during a slide.
+    position: relative;
+    width: 100%;
+
+    &--enter-push,
+    &--enter-pop,
+    &--exit-push,
+    &--exit-pop {
+      position: absolute;
+      inset: 0;
+      will-change: transform;
+    }
+
+    // Incoming panel.
+    &--enter-push {
+      animation: SlideStack-enter-push var(--motion-standard) var(--ease-enter) both;
+    }
+    &--enter-pop {
+      animation: SlideStack-enter-pop var(--motion-standard) var(--ease-exit) both;
+    }
+
+    // Outgoing (previous) panel.
+    &--exit-push {
+      animation: SlideStack-exit-push var(--motion-standard) var(--ease-enter) both;
+    }
+    &--exit-pop {
+      animation: SlideStack-exit-pop var(--motion-standard) var(--ease-exit) both;
+    }
+  }
+}
+
+// Incoming slides in from the right; outgoing shifts a little left (parallax).
+@keyframes SlideStack-enter-push {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes SlideStack-exit-push {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-30%); }
+}
+
+// Pop reverses: incoming (the revealed lower view) slides back from the left;
+// outgoing (the popped top) slides off to the right.
+@keyframes SlideStack-enter-pop {
+  from { transform: translateX(-30%); }
+  to   { transform: translateX(0); }
+}
+@keyframes SlideStack-exit-pop {
+  from { transform: translateX(0); }
+  to   { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .SlideStack__panel--enter-push,
+  .SlideStack__panel--enter-pop,
+  .SlideStack__panel--exit-push,
+  .SlideStack__panel--exit-pop {
+    animation: none;
+  }
+  // With animations disabled the outgoing panel would linger; hide it so the
+  // current view simply snaps in.
+  .SlideStack__panel--exit-push,
+  .SlideStack__panel--exit-pop {
+    display: none;
+  }
+}

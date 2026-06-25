@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "id": "01b1dae2-80b6-4a9e-aba7-d5f6a1b5ebf9",
+      "platform": "client",
+      "viewport": "pro-max",
+      "x": 0.046671767406273906,
+      "y": 0.8740595755092054,
+      "resolved": false,
+      "createdAt": "2026-06-24T23:58:52.951Z",
+      "messages": [
+        {
+          "id": "51a70ffc-53bd-437c-b1f6-636342bb60df",
+          "source": "user",
+          "text": "the border-radius is much greater than the iphone and there is a border that shouldn't be there.",
+          "createdAt": "2026-06-24T23:58:52.951Z"
+        }
+      ]
+    }
+  ]
+}

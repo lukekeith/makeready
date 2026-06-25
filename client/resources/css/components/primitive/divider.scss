@@ -1,0 +1,31 @@
+// Divider — primitive. Tokenized to the dark design system (PRD §6). Class
+// names mirror the CVA variants in resources/js/components/primitive/divider.
+.Divider {
+  border: none;
+  background: var(--border-default);
+  flex-shrink: 0;
+
+  /* Orientations */
+  &--horizontal {
+    width: 100%;
+    height: 1px;
+
+    &.Divider--inset {
+      margin-left: var(--space-lg);
+      margin-right: var(--space-lg);
+      width: auto;
+    }
+  }
+
+  &--vertical {
+    width: 1px;
+    height: 100%;
+    align-self: stretch;
+
+    &.Divider--inset {
+      margin-top: var(--space-lg);
+      margin-bottom: var(--space-lg);
+      height: auto;
+    }
+  }
+}

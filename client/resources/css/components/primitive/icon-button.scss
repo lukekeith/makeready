@@ -1,0 +1,130 @@
+.IconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: background var(--motion-micro) var(--ease-standard),
+    color var(--motion-micro) var(--ease-standard),
+    opacity var(--motion-micro) var(--ease-standard);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+  }
+
+  &--loading {
+    cursor: wait;
+
+    .IconButton__icon {
+      opacity: 0;
+    }
+  }
+
+  /* ─── Sizes ─────────────────────────────────────────────────────────────── */
+  &--size-sm {
+    width: var(--control-h-sm);
+    height: var(--control-h-sm);
+  }
+
+  &--size-md {
+    width: var(--control-h-md);
+    height: var(--control-h-md);
+  }
+
+  &--size-lg {
+    width: var(--control-h-lg);
+    height: var(--control-h-lg);
+  }
+
+  &--size-xl48 {
+    width: var(--control-h-lg);
+    height: var(--control-h-lg);
+  }
+
+  &--size-xl64 {
+    width: var(--control-h-xl);
+    height: var(--control-h-xl);
+  }
+
+  /* ─── Variants ──────────────────────────────────────────────────────────── */
+  &--default {
+    background: var(--color-white-5);
+    color: var(--fg-primary);
+
+    &:hover:not(:disabled) {
+      background: var(--color-white-10);
+    }
+  }
+
+  &--brand {
+    background: var(--bg-brand-primary);
+    color: var(--fg-white);
+
+    &:hover:not(:disabled) {
+      background: var(--color-brand-600);
+    }
+  }
+
+  &--white {
+    background: var(--fg-white);
+    color: var(--fg-inverse);
+  }
+
+  &--blur {
+    background: var(--surface-overlay);
+    backdrop-filter: blur(var(--surface-overlay-blur));
+    -webkit-backdrop-filter: blur(var(--surface-overlay-blur));
+    color: var(--fg-primary);
+  }
+
+  /* ─── Icon wrapper ──────────────────────────────────────────────────────── */
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+    transition: opacity var(--motion-micro-fast) var(--ease-standard);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  /* ─── Spinner ───────────────────────────────────────────────────────────── */
+  &__spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      width: var(--icon-sm);
+      height: var(--icon-sm);
+      animation: icon-button-spin 0.8s linear infinite;
+    }
+  }
+
+  @keyframes icon-button-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+}

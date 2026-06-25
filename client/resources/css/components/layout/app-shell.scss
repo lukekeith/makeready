@@ -1,0 +1,51 @@
+// AppShell — the app-like screen frame: sticky header, scrollable content,
+// bottom tab bar, safe-area aware. The header/tabbar themselves are composed
+// in (PageHeader / TabBar slots); this just lays out the three regions and owns
+// the scroll behavior so content scrolls under the frosted bars.
+.AppShell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100%;
+  background: var(--bg-canvas);
+  color: var(--fg-primary);
+  overflow: hidden;
+
+  &__header {
+    flex-shrink: 0;
+    z-index: var(--z-sticky);
+  }
+
+  &__content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  // When there is no PageHeader, content pads for the top safe area itself.
+  &--no-header &__content {
+    padding-top: var(--safe-top);
+  }
+
+  &__tabbar {
+    flex-shrink: 0;
+    z-index: var(--z-sticky);
+  }
+
+  // Floating action affordance (FAB) is positioned by the Fab component; this
+  // marker just reserves a stacking context above content.
+  &__fab {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: var(--z-sticky);
+
+    > * { pointer-events: auto; }
+  }
+}

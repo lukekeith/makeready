@@ -1,0 +1,81 @@
+// BottomSheet — standalone controlled, draggable bottom sheet. Visual + motion
+// parity with the ModalProvider sheet (.ModalProvider__modal--sheet). Frosted
+// backdrop, rounded top, slide-up via the shared mp-sheet-* transition classes
+// (defined in modal-provider.scss). Tokenized; reduced-motion handled there.
+.BottomSheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-modal);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--bg-section);
+  color: var(--fg-primary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-overlay);
+  padding: var(--space-xl);
+  padding-bottom: calc(var(--space-xl) + var(--safe-bottom));
+  touch-action: none;
+
+  &:focus { outline: none; }
+
+  // ─── Frosted backdrop scrim ─────────────────────────────────────────────────
+  &__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay);
+    background: var(--bg-overlay);
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+  }
+
+  // ─── Drag handle ────────────────────────────────────────────────────────────
+  &__grabber-area {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: center;
+    margin: calc(-1 * var(--space-xl)) calc(-1 * var(--space-xl)) var(--space-md);
+    padding: var(--space-sm) 0 var(--space-md);
+    cursor: grab;
+    background: var(--bg-section);
+    z-index: 2;
+
+    &:active { cursor: grabbing; }
+  }
+
+  &__grabber {
+    width: 36px;
+    height: 5px;
+    border-radius: var(--radius-full);
+    background: var(--color-white-20);
+  }
+
+  &__title {
+    margin: 0 0 var(--space-md);
+    font-size: var(--text-subheading);
+    line-height: var(--leading-subheading);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+  }
+
+  &__content {
+    color: var(--fg-secondary);
+  }
+
+  // Visually-hidden accessible close (ESC + backdrop already close).
+  &__sr-close {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+    background: transparent;
+    color: transparent;
+  }
+}

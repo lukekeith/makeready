@@ -1,0 +1,46 @@
+// Section — layout. A titled content section with an overline-style head and a
+// body, stacked with a consistent vertical gap. Tokenized to the dark design
+// system; consumed globally via app.scss.
+.Section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-sm);
+  }
+
+  // Overline: uppercase, tiny, wide-tracked, tertiary.
+  &__title {
+    text-transform: uppercase;
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    letter-spacing: var(--tracking-wide);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-tertiary);
+  }
+
+  // Right-aligned text action.
+  &__action {
+    appearance: none;
+    border: none;
+    background: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    letter-spacing: var(--tracking-label);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-accent);
+    transition: opacity var(--motion-micro) var(--ease-standard);
+
+    &:hover { opacity: var(--opacity-pressed); }
+  }
+
+  &__body {
+    display: block;
+  }
+}

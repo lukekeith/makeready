@@ -1,0 +1,42 @@
+// Link — primitive. Tokenized to the dark design system (PRD §6). Class names
+// mirror the CVA variants in resources/js/components/primitive/link.
+.Link {
+  font-family: 'SF Pro Text', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: color var(--motion-micro) var(--ease-standard);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  /* Variants */
+  &--default {
+    color: var(--fg-accent);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--fg-brand-secondary);
+    }
+  }
+
+  &--muted {
+    color: var(--fg-tertiary);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--fg-secondary);
+    }
+  }
+
+  &--inline {
+    color: var(--fg-accent);
+    text-decoration-line: underline;
+    text-underline-offset: 2px;
+
+    &:hover {
+      color: var(--fg-brand-secondary);
+    }
+  }
+}

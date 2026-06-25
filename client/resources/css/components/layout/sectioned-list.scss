@@ -1,0 +1,33 @@
+// SectionedList — a list grouped into titled sections with sticky headers.
+// Class names mirror the elements emitted by
+// resources/js/components/layout/sectioned-list/sectioned-list.vue. Spacing,
+// color, and typography use design tokens only.
+
+.SectionedList {
+  display: flex;
+  flex-direction: column;
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__header {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    padding: var(--space-xs) var(--page-pad-x);
+    background-color: var(--bg-canvas);
+    color: var(--fg-tertiary);
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+  }
+
+  &__items {
+    display: flex;
+    flex-direction: column;
+  }
+}

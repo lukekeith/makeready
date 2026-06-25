@@ -31,9 +31,11 @@ import HomeProfileButton from './components/domain/home-profile-button/home-prof
 import GroupHeaderIsland from './components/domain/group-header-island/group-header-island.vue'
 import MemberStudiesIsland from './components/domain/member-studies-island/member-studies-island.vue'
 import SlidesIsland from './islands/slides-island/slides-island.vue'
+import ComponentCapture from './components/domain/component-capture/component-capture.vue'
 
 const componentRegistry = {
   'AdminIsland': AdminIsland,
+  'ComponentCapture': ComponentCapture,
   'PhoneEntry': PhoneEntry,
   'VideoPlayer': VideoPlayer,
   'Digit': Digit,

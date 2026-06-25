@@ -1,0 +1,102 @@
+// Image — primitive. Dark-theme only. BEM modifiers mirror the ImageCva variant
+// strings in resources/js/components/primitive/image/image.vue exactly.
+//
+// While the source loads, the frame shows a shimmer placeholder (same look as
+// Skeleton — base --color-white-5 + a swept --color-white-10 highlight). On
+// load the <img> fades in; on error a muted neutral fallback is shown instead.
+
+.Image {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  background-color: var(--color-white-5);
+
+  // Shimmer placeholder until loaded (suppressed once .Image--loaded).
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      var(--color-white-0) 0%,
+      var(--color-white-10) 50%,
+      var(--color-white-0) 100%
+    );
+    animation: image-shimmer 1.4s var(--ease-standard) infinite;
+  }
+
+  &--loaded::after,
+  &--errored::after {
+    display: none;
+  }
+
+  &__img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity var(--motion-standard) var(--ease-standard);
+  }
+
+  &--loaded &__img {
+    opacity: 1;
+  }
+
+  &__fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--fg-tertiary);
+    background-color: var(--color-white-5);
+  }
+
+  &__fallback svg {
+    width: var(--icon-lg);
+    height: var(--icon-lg);
+  }
+
+  // ── Fit ──────────────────────────────────────────────────────────────────
+  &--cover &__img {
+    object-fit: cover;
+  }
+
+  &--contain &__img {
+    object-fit: contain;
+  }
+
+  // ── Ratio ────────────────────────────────────────────────────────────────
+  &--square {
+    aspect-ratio: 1 / 1;
+  }
+
+  &--three-two {
+    aspect-ratio: 3 / 2;
+  }
+
+  &--portrait {
+    aspect-ratio: 3 / 4;
+  }
+
+  // Auto ⇒ no aspect-ratio; intrinsic image height drives the frame.
+
+  // ── Rounded ──────────────────────────────────────────────────────────────
+  &--rounded {
+    border-radius: var(--radius-lg);
+  }
+}
+
+@keyframes image-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .Image::after {
+    animation: none;
+  }
+}

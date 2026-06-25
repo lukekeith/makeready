@@ -4,6 +4,9 @@
 // @use rules must come first
 @use 'styles/tokens';
 @use 'styles/palette';
+// Layer 2 dark semantic mapping — MUST come after palette so its :root
+// redefinitions override palette's light-biased --bg/--fg/--border/--badge.
+@use 'styles/semantic';
 @use 'layouts/auth' as layout-auth;
 @use 'card-depth';
 
@@ -13,15 +16,25 @@
 @use 'components/primitive/bullet-text-input';
 @use 'components/primitive/button';
 @use 'components/primitive/card';
+@use 'components/primitive/checkbox';
 @use 'components/primitive/date-input';
 @use 'components/primitive/digit';
+@use 'components/primitive/divider';
 @use 'components/primitive/empty-state';
 @use 'components/primitive/gender-select';
 @use 'components/primitive/icon';
+@use 'components/primitive/icon-button';
 @use 'components/primitive/icon-circle';
+@use 'components/primitive/image';
 @use 'components/primitive/input';
 @use 'components/primitive/label';
+@use 'components/primitive/link';
 @use 'components/primitive/loading';
+@use 'components/primitive/loading-overlay';
+@use 'components/primitive/progress-bar';
+@use 'components/primitive/radio';
+@use 'components/primitive/skeleton';
+@use 'components/primitive/text';
 @use 'components/primitive/mobile-date';
 @use 'components/primitive/mobile-input';
 @use 'components/primitive/mobile-select';
@@ -31,6 +44,18 @@
 @use 'components/primitive/step-indicator';
 @use 'components/primitive/toggle';
 @use 'components/primitive/verify-code';
+
+// Form components
+@use 'components/form/age-range-input';
+@use 'components/form/date-picker-field';
+@use 'components/form/field-group';
+@use 'components/form/help-text';
+@use 'components/form/search-field';
+@use 'components/form/select';
+@use 'components/form/tag-input';
+@use 'components/form/text-input';
+@use 'components/form/textarea';
+@use 'components/form/toggle-control';
 
 // Domain components
 @use 'components/domain/account-link';
@@ -66,10 +91,75 @@
 @use 'components/domain/video-player';
 
 // Layout components
+@use 'components/layout/app-shell';
 @use 'components/layout/auth';
+@use 'components/layout/flow-layout';
+@use 'components/layout/grid';
 @use 'components/layout/home';
+@use 'components/layout/list';
+@use 'components/layout/list-item';
 @use 'components/layout/modal-provider';
+@use 'components/layout/page';
+@use 'components/layout/panel';
+@use 'components/layout/scoped-app-shell';
+@use 'components/layout/scroll-area';
+@use 'components/layout/searchable-list';
+@use 'components/layout/section';
+@use 'components/layout/sectioned-list';
 @use 'components/layout/site-navbar';
+@use 'components/layout/spacer';
+@use 'components/layout/stack';
+
+// Card components
+@use 'components/card/card-activity';
+@use 'components/card/card-enrollment';
+@use 'components/card/card-event';
+@use 'components/card/card-group';
+@use 'components/card/card-member';
+@use 'components/card/card-post';
+@use 'components/card/card-search-result';
+@use 'components/card/card-study';
+@use 'components/card/card-video';
+@use 'components/card/swipeable-card';
+
+// Data display components
+@use 'components/data/bar-chart';
+@use 'components/data/calendar';
+@use 'components/data/data-component';
+@use 'components/data/donut-chart';
+@use 'components/data/heatmap-chart';
+@use 'components/data/kpi';
+@use 'components/data/line-chart';
+@use 'components/data/weekday-indicator';
+
+// Overlay components
+@use 'components/overlay/action-menu';
+@use 'components/overlay/alert';
+@use 'components/overlay/bottom-sheet';
+@use 'components/overlay/confirmation-overlay';
+@use 'components/overlay/dialog';
+@use 'components/overlay/popover';
+@use 'components/overlay/tooltip';
+
+// Invite / share / scope components (Feature 2)
+@use 'components/invite/accept-invite-card';
+@use 'components/invite/copy-link-field';
+@use 'components/invite/invite-scope-selector';
+@use 'components/invite/invite-sheet';
+@use 'components/invite/qr-code-display';
+@use 'components/invite/role-selector';
+@use 'components/invite/share-button';
+@use 'components/invite/shared-content-card';
+@use 'components/invite/shared-content-list';
+
+// Navigation components
+@use 'components/navigation/breadcrumb';
+@use 'components/navigation/fab';
+@use 'components/navigation/filter-chip-dropdown';
+@use 'components/navigation/page-header';
+@use 'components/navigation/slide-stack';
+@use 'components/navigation/tab-bar';
+@use 'components/navigation/tab-slider';
 
 // Panel components
 @use 'components/panel/confirmation';
@@ -135,6 +225,19 @@ body {
 body.AdminBody {
     background: #ffffff;
     color: #1f2937;
+}
+
+/* PWA standalone polish — applies only when launched from the home screen, and
+   never to the admin surface. Locks the canvas, prevents rubber-band overscroll
+   that breaks fixed bars, and pads for safe areas. */
+@media (display-mode: standalone), (display-mode: minimal-ui) {
+    html:not(:has(body.AdminBody)) {
+        background-color: var(--bg-canvas, #0d101a);
+    }
+    body:not(.AdminBody) {
+        overscroll-behavior-y: none;
+        -webkit-tap-highlight-color: transparent;
+    }
 }
 
 /* App-like behaviour on preview pages: no pinch-zoom, no body scroll,

@@ -6,6 +6,9 @@ import SetsIndex from './pages/SetsIndex.jsx';
 import SetDetail from './pages/SetDetail.jsx';
 import ScreenDetail from './pages/ScreenDetail.jsx';
 import Preview from './pages/Preview.jsx';
+import CompareLayout from './pages/compare/CompareLayout.jsx';
+import CompareHome from './pages/compare/CompareHome.jsx';
+import CompareDetail from './pages/compare/CompareDetail.jsx';
 import { fetchManifest, fetchPlatforms } from './api.js';
 
 export const CaptureContext = createContext(null);
@@ -75,6 +78,11 @@ export default function App() {
     <CaptureContext.Provider value={ctx}>
       <Routes>
         <Route path="/" element={<PlatformPicker />} />
+        <Route path="/compare" element={<CompareLayout />}>
+          <Route index element={<CompareHome />} />
+          <Route path=":id" element={<CompareDetail />} />
+          <Route path=":id/:version" element={<CompareDetail />} />
+        </Route>
         <Route path="/:platform" element={<Layout />}>
           <Route index element={<SetsIndex />} />
           <Route path="set/:folder" element={<SetDetail />} />

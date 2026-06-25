@@ -1,0 +1,69 @@
+// Skeleton — primitive placeholder for loading content. Dark-theme only.
+// BEM modifiers mirror the SkeletonCva variant strings in
+// resources/js/components/primitive/skeleton/skeleton.vue exactly.
+//
+// Shimmer: a translucent-white base (--color-white-5) with a brighter moving
+// highlight band (--color-white-10) swept across via a translated gradient.
+
+.Skeleton {
+  display: block;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: var(--color-white-5);
+  border-radius: var(--radius-md);
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform: translateX(-100%);
+    background: linear-gradient(
+      90deg,
+      var(--color-white-0) 0%,
+      var(--color-white-10) 50%,
+      var(--color-white-0) 100%
+    );
+    animation: skeleton-shimmer 1.4s var(--ease-standard) infinite;
+  }
+
+  // ── Variants ───────────────────────────────────────────────────────────────
+
+  // Block — generic rectangle (default radius).
+  &--block {
+    border-radius: var(--radius-md);
+  }
+
+  // Text — short rounded bar standing in for a line of copy.
+  &--text {
+    height: var(--text-md);
+    border-radius: var(--radius-sm);
+  }
+
+  // Circle — 1:1 round token (avatar / icon placeholder).
+  &--circle {
+    width: var(--avatar-md);
+    height: var(--avatar-md);
+    aspect-ratio: 1 / 1;
+    border-radius: var(--radius-full);
+  }
+
+  // Card — larger block with the card radius.
+  &--card {
+    height: var(--avatar-xl);
+    border-radius: var(--radius-lg);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+// Respect reduced motion — hold the base fill, drop the sweep.
+@media (prefers-reduced-motion: reduce) {
+  .Skeleton::after {
+    animation: none;
+  }
+}

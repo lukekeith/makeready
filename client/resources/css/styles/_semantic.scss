@@ -1,0 +1,108 @@
+/**
+ * Design System — Layer 2 Semantic Tokens (DARK theme)
+ *
+ * The contract every member/group-leader component consumes: --bg-*, --fg-*,
+ * --border-*, --badge-*. Components reference THESE, never the primitive ramps
+ * or raw hex. Re-theming = swapping this file.
+ *
+ * Load order matters. _palette.scss (generated from Figma) ships a *light*
+ * default for these same semantic names; this file is @use'd AFTER it in
+ * app.scss, so these :root redefinitions win the cascade and flip the system
+ * to dark. The generated primitive ramps in _palette.scss are left untouched.
+ *
+ * The canonical dark surfaces are seeded from the iPhone app (Colors.swift) so
+ * web and iOS render as one product. Where iOS hues differ from the web ramps
+ * (warning/error/success), the iOS hue wins for parity and is aliased below.
+ * Final mapping + rationale captured in docs/ui/AUDIT_INTAKE.md §A.
+ *
+ * NOTE: this is dark-only. The admin SPA (light, PrimeVue) does not consume
+ * these tokens — do not add light overrides here.
+ */
+
+:root {
+  // ─── Dark surface primitives (seeded from iOS Colors.swift) ──────────────────
+  --color-canvas:      #0d101a; // iOS appBackground
+  --color-surface:     #252936; // iOS cardBackground
+  --color-elevated:    #252936; // iOS surfaceElevated
+  --color-section:     #191c25; // iOS sectionBackground (modal/section)
+  --color-pending:     #201b48; // iOS backgroundPurple (pending / new state)
+  --color-accent:      #5680ff; // iOS accentBlue (links, highlights)
+  --color-destructive: #df1439; // iOS destructive (confirm-destroy)
+
+  // iOS semantic hues — brighter than the web ramps, tuned for dark surfaces.
+  --color-ios-warning: #f4ff76; // iOS warning
+  --color-ios-error:   #ff4759; // iOS error
+  --color-ios-success: #57db5d; // iOS success
+
+  // Tinted (@20%) status backgrounds — iOS *Background = hue.opacity(0.2).
+  --color-brand-tint:   rgba(108, 71, 255, 0.20);
+  --color-warning-tint: rgba(244, 255, 118, 0.20);
+  --color-error-tint:   rgba(255, 71, 89, 0.20);
+  --color-success-tint: rgba(87, 219, 93, 0.20);
+
+  // ─── Semantic — Background ───────────────────────────────────────────────────
+  --bg-canvas:          var(--color-canvas);
+  --bg-surface:         var(--color-surface);
+  --bg-elevated:        var(--color-elevated);
+  --bg-section:         var(--color-section);   // new (modal/section surface)
+  --bg-pending:         var(--color-pending);   // new (pending/new card wells)
+  --bg-subtle:          var(--color-white-5);
+  --bg-subtle-2:        var(--color-white-10);
+  --bg-disabled:        var(--color-white-10);
+  --bg-brand-primary:   var(--color-brand-500);
+  --bg-brand-secondary: var(--color-brand-700);
+  --bg-brand-subtle:    var(--color-brand-tint);
+  --bg-brand-subtle-2:  var(--color-brand-tint);
+  --bg-success-subtle:  var(--color-success-tint);
+  --bg-warning-subtle:  var(--color-warning-tint);
+  --bg-error-subtle:    var(--color-error-tint);
+  --bg-focus:           var(--color-brand-tint);
+  --bg-overlay:         var(--color-alpha-black-50); // dialog scrim (+ blur)
+
+  // ─── Semantic — Foreground (white-opacity layering, iOS parity) ──────────────
+  --fg-primary:         var(--color-white-100);
+  --fg-secondary:       var(--color-white-70);
+  --fg-tertiary:        var(--color-white-50);
+  --fg-disabled:        var(--color-white-30);
+  --fg-inverse:         var(--color-neutral-950); // dark text on light/brand fills
+  --fg-white:           var(--color-white-100);
+  --fg-brand:           var(--color-brand-400); // brighter brand reads on dark
+  --fg-brand-primary:   var(--color-brand-400);
+  --fg-brand-secondary: var(--color-brand-300);
+  --fg-accent:          var(--color-accent);
+  --fg-error:           var(--color-ios-error);
+  --fg-warning:         var(--color-ios-warning);
+  --fg-success:         var(--color-ios-success);
+  --fg-destructive:     var(--color-destructive);
+
+  // ─── Semantic — Border (white hairlines on dark) ─────────────────────────────
+  --border-default:        var(--color-white-10);
+  --border-primary:        var(--color-white-10);
+  --border-strong:         var(--color-white-20);
+  --border-brand:          var(--color-brand-500);
+  --border-brand-subtle:   var(--color-brand-tint);
+  --border-brand-primary:  var(--color-brand-500);
+  --border-brand-secondary: var(--color-brand-700);
+  --border-disabled:       var(--color-white-5);
+  --border-error:          var(--color-ios-error);
+
+  // ─── Semantic — Badge (dark: tinted bg + bright fg) ──────────────────────────
+  --badge-bg-neutral:  var(--color-white-10);
+  --badge-fg-neutral:  var(--color-white-70);
+  --badge-dot-neutral: var(--color-white-50);
+  --badge-bg-brand:    var(--color-brand-tint);
+  --badge-fg-brand:    var(--color-brand-300);
+  --badge-dot-brand:   var(--color-brand-400);
+  --badge-bg-error:    var(--color-error-tint);
+  --badge-fg-error:    var(--color-ios-error);
+  --badge-dot-error:   var(--color-ios-error);
+  --badge-bg-warning:  var(--color-warning-tint);
+  --badge-fg-warning:  var(--color-ios-warning);
+  --badge-dot-warning: var(--color-ios-warning);
+  --badge-bg-success:  var(--color-success-tint);
+  --badge-fg-success:  var(--color-ios-success);
+  --badge-dot-success: var(--color-ios-success);
+  --badge-bg-indigo:   rgba(97, 95, 255, 0.20);
+  --badge-fg-indigo:   var(--color-indigo-300);
+  --badge-dot-indigo:  var(--color-indigo-400);
+}

@@ -1,0 +1,28 @@
+// Spacer — flexible or fixed spacer layout primitive. Modifiers mirror
+// SpacerCva variant keys in resources/js/components/layout/spacer/spacer.vue
+// exactly. Sizing uses the --space-* tokens only.
+
+.Spacer {
+  // ─── flexible ───────────────────────────────────────────────────────────────
+  // Grows to absorb free space, pushing siblings apart inside a flex Stack.
+  &--flex {
+    flex: 1 1 auto;
+  }
+
+  // ─── fixed ──────────────────────────────────────────────────────────────────
+  // A fixed block whose main-axis size equals the matching space token. Stays
+  // its size (no grow/shrink) so it reliably separates blocks in either axis.
+  &--xs,
+  &--sm,
+  &--md,
+  &--lg,
+  &--xl {
+    flex: 0 0 auto;
+  }
+
+  &--xs { width: var(--space-xs); height: var(--space-xs); }
+  &--sm { width: var(--space-sm); height: var(--space-sm); }
+  &--md { width: var(--space-md); height: var(--space-md); }
+  &--lg { width: var(--space-lg); height: var(--space-lg); }
+  &--xl { width: var(--space-xl); height: var(--space-xl); }
+}

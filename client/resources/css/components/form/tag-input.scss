@@ -1,0 +1,83 @@
+// TagInput — form. A token-entry field that looks like the primitive `.Input`
+// (same border / bg / radius tokens) but flex-wraps removable tag chips with an
+// inline text input trailing them. Focus ring shows when the inner input is
+// focused. Tokens only.
+.TagInput {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-xs);
+  width: 100%;
+  min-height: var(--control-h-md);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  color: var(--fg-primary);
+  transition: border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard);
+
+  &--focused {
+    border-color: var(--border-brand);
+    box-shadow: 0 0 0 2px var(--color-brand-tint);
+  }
+
+  &--disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+  }
+
+  &__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    border-radius: var(--radius-full);
+    background: var(--color-white-10);
+    padding: var(--space-2xs) var(--space-sm);
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    color: var(--fg-primary);
+  }
+
+  &__remove {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--fg-tertiary);
+    font-size: var(--text-sm);
+    line-height: 1;
+    cursor: pointer;
+    transition: color var(--motion-micro) var(--ease-standard);
+
+    &:hover {
+      color: var(--fg-primary);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+
+  &__input {
+    flex: 1 1 auto;
+    min-width: var(--space-3xl);
+    border: none;
+    background: none;
+    outline: none;
+    color: var(--fg-primary);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+
+    &::placeholder {
+      color: var(--fg-tertiary);
+    }
+
+    &:disabled {
+      cursor: not-allowed;
+    }
+  }
+}

@@ -112,7 +112,14 @@ async function captureOne(browser, { workflow, file }) {
     const outDir = path.join(captureRoot, workflow, 'screenshots', viewportName);
     await fs.mkdir(outDir, { recursive: true });
     const outPath = path.join(outDir, output);
-    await page.screenshot({ path: outPath, fullPage: spec.fullPage !== false });
+    // `clip` (a CSS selector) captures just that element — used by component
+    // comparisons so the web shot is tight-cropped to the component, matching
+    // the iPhone sizeThatFits snapshot instead of the full page.
+    if (spec.clip) {
+      await page.locator(spec.clip).first().screenshot({ path: outPath });
+    } else {
+      await page.screenshot({ path: outPath, fullPage: spec.fullPage !== false });
+    }
 
     await context.close();
     console.log(`   ✓ ${path.relative(process.cwd(), outPath)}`);

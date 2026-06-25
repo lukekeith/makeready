@@ -1,0 +1,7 @@
+// ShareButton — Web Share API button. Appearance is delegated to the composed
+// Button primitive (Secondary), which already sizes the #icon slot; this block
+// only carries the `.ShareButton` marker and a hook for any share-specific
+// overrides. Class names mirror the Vue <ShareButton>.
+.ShareButton {
+  // Inherits all visual treatment from `.Button--secondary`.
+}

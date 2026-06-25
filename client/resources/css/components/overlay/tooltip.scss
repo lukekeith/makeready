@@ -1,0 +1,55 @@
+// Tooltip — small dark bubble rendered through reka-ui's TooltipContent.
+// Dark-theme only. All visual values come from design tokens; the only literal
+// is the 1px hairline border width. Enter/exit motion keys off reka-ui's
+// data-state and is reduced-motion safe (motion tokens collapse to ~0ms).
+
+.Tooltip {
+  &__content {
+    z-index: var(--z-popover);
+    max-width: max-content;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-md);
+    padding: var(--space-2xs) var(--space-sm);
+    color: var(--fg-primary);
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    transform-origin: var(--reka-tooltip-content-transform-origin);
+
+    &[data-state='delayed-open'],
+    &[data-state='instant-open'] {
+      animation: TooltipIn var(--motion-micro-fast) var(--ease-enter);
+    }
+
+    &[data-state='closed'] {
+      animation: TooltipOut var(--motion-exit) var(--ease-exit);
+    }
+  }
+
+  &__arrow {
+    fill: var(--bg-elevated);
+  }
+}
+
+@keyframes TooltipIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-2xs));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes TooltipOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--space-2xs));
+  }
+}

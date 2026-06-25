@@ -1,0 +1,60 @@
+// TabSlider — navigation. Animated segmented control (iOS TabSlider parity).
+// A pill track holding equal-width segments and a sliding thumb that translates
+// to the active segment. Tokenized to the dark design system.
+//
+// Layout math: the track has no horizontal padding, so each of N segments is
+// exactly 100/N % of the track. The thumb's inline width is also 100/N %, and
+// its inline transform is translateX(100% * activeIndex) — i.e. multiples of
+// its own width — so it tiles cleanly onto each segment. A 2px top/bottom inset
+// gives the pill its inner gap without disturbing the horizontal math.
+.TabSlider {
+  position: relative;
+  display: flex;
+  width: 100%;
+  background: var(--color-white-5);
+  border-radius: var(--radius-full);
+
+  &__thumb {
+    position: absolute;
+    top: var(--space-2xs);
+    bottom: var(--space-2xs);
+    left: 0;
+    // width (100/N %) + transform (translateX 100% * index) set inline.
+    background: var(--color-white-10);
+    border-radius: var(--radius-full);
+    transition: transform var(--motion-standard) var(--ease-standard);
+    pointer-events: none;
+  }
+
+  &__segment {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-sm) var(--space-md);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+    white-space: nowrap;
+    transition: color var(--motion-micro) var(--ease-standard);
+
+    &--active {
+      color: var(--fg-primary);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .TabSlider__thumb,
+  .TabSlider__segment {
+    transition: none;
+  }
+}

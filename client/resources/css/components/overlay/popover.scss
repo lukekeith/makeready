@@ -1,0 +1,57 @@
+// Popover — anchored floating panel rendered through reka-ui's PopoverContent.
+// Dark-theme only. All visual values come from design tokens; the only literal
+// is the 1px hairline border width. Enter/exit motion keys off reka-ui's
+// data-state and is reduced-motion safe (motion tokens collapse to ~0ms).
+
+.Popover {
+  &__content {
+    z-index: var(--z-popover);
+    min-width: max-content;
+    background: var(--bg-section);
+    border: 1px solid var(--border-default);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    padding: var(--space-md);
+    color: var(--fg-primary);
+    transform-origin: var(--reka-popover-content-transform-origin);
+
+    &:focus {
+      outline: none;
+    }
+
+    // Fade + rise on open, fade + sink on close. reka-ui drives data-state.
+    &[data-state='open'] {
+      animation: PopoverIn var(--motion-settle) var(--ease-enter);
+    }
+
+    &[data-state='closed'] {
+      animation: PopoverOut var(--motion-exit) var(--ease-exit);
+    }
+  }
+
+  &__arrow {
+    fill: var(--bg-section);
+  }
+}
+
+@keyframes PopoverIn {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-xs));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes PopoverOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--space-xs));
+  }
+}

@@ -1,6 +1,7 @@
 # Start Local Development Environment
 
-Start the full MakeReady stack via Docker Compose (PostgreSQL, API server, web client).
+Start the full MakeReady stack via Docker Compose (PostgreSQL, API server, web client),
+then bring up the Capture Comparison System on top.
 
 ## Instructions
 
@@ -47,7 +48,14 @@ Check that the web client is responding:
 curl -s -o /dev/null -w "%{http_code}" http://localhost:8000
 ```
 
-### 5. Report Status
+### 5. Start the Capture Comparison System
+
+Now run the **`/capture-start`** command (invoke the `capture-start` skill). It brings up the
+capture database (`makeready_capture` + migrations), the capture UI + API (`:5950`/`:5951`),
+and the web-capture dependencies (Laravel `/_capture` on `:8001` + the client Vite dev
+server). It's idempotent and reuses the Postgres container this command already started.
+
+### 6. Report Status
 
 Show the user the running services:
 
@@ -55,10 +63,16 @@ Show the user the running services:
 |---------|-----|---------|
 | Web Client | http://localhost:8000 | Laravel frontend |
 | API Server | http://localhost:3010 | Express backend |
-| PostgreSQL | localhost:5434 | Database |
+| PostgreSQL | localhost:5434 | Database (main + `makeready_capture`) |
 | Vite Dev | http://localhost:5174 | Hot-reload assets |
+| Compare UI | http://localhost:5950/compare | Capture comparison tool |
+| Capture API | http://localhost:5951 | Capture comments/versions/screenshots |
+| Laravel `/_capture` | http://localhost:8001 | Renders web fixtures for capture |
 
-**Note:** If the database is empty, tell the user to run `/dev-sync` to pull production data.
+**Notes:**
+- If the database is empty, tell the user to run `/dev-sync` to pull production data.
+- The **`makeready-capture` MCP** (for `/compare-process`) loads on **Claude restart /
+  `/mcp` reconnect**, not by this command.
 
 ## Troubleshooting
 

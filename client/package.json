@@ -8,6 +8,7 @@
         "story:dev": "histoire dev",
         "story:build": "histoire build",
         "story:preview": "histoire preview",
+        "guard": "node scripts/tokenization-guard.mjs",
         "capture": "node capture/_runner/capture.mjs",
         "capture:ui": "npm --prefix ../capture run dev"
     },

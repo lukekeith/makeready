@@ -1,0 +1,123 @@
+// ActionMenu — bottom action sheet of choices (iOS AddMenu / contextual menu).
+// Reuses the BottomSheet / ModalProvider sheet look + the shared mp-sheet-*
+// slide-up transition (defined in modal-provider.scss). Full-width tappable
+// items with a trailing Cancel. Tokenized; reduced-motion handled in
+// modal-provider.scss.
+.ActionMenu {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-modal);
+  max-height: 92vh;
+  overflow-y: auto;
+  background: var(--bg-section);
+  color: var(--fg-primary);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  box-shadow: var(--shadow-overlay);
+  padding: var(--space-xl);
+  padding-bottom: calc(var(--space-xl) + var(--safe-bottom));
+  touch-action: none;
+
+  &:focus { outline: none; }
+
+  // ─── Frosted backdrop scrim ─────────────────────────────────────────────────
+  &__backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-overlay);
+    background: var(--bg-overlay);
+    backdrop-filter: blur(var(--blur-sm));
+    -webkit-backdrop-filter: blur(var(--blur-sm));
+  }
+
+  // ─── Drag handle ────────────────────────────────────────────────────────────
+  &__grabber-area {
+    position: sticky;
+    top: 0;
+    display: flex;
+    justify-content: center;
+    margin: calc(-1 * var(--space-xl)) calc(-1 * var(--space-xl)) var(--space-md);
+    padding: var(--space-sm) 0 var(--space-md);
+    cursor: grab;
+    background: var(--bg-section);
+    z-index: 2;
+
+    &:active { cursor: grabbing; }
+  }
+
+  &__grabber {
+    width: 36px;
+    height: 5px;
+    border-radius: var(--radius-full);
+    background: var(--color-white-20);
+  }
+
+  &__title {
+    margin: 0 0 var(--space-sm);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-tertiary);
+    text-align: center;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    width: 100%;
+    min-height: var(--touch-min);
+    padding: var(--space-md) var(--space-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--fg-primary);
+    font-size: var(--text-md);
+    font-weight: var(--font-weight-medium);
+    text-align: left;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    transition: background var(--motion-micro-fast) var(--ease-standard);
+
+    &:hover { background: var(--color-white-5); }
+    &:active { background: var(--color-white-10); }
+
+    &--destructive {
+      color: var(--fg-destructive);
+    }
+
+    &--cancel {
+      justify-content: center;
+      margin-top: var(--space-sm);
+      color: var(--fg-secondary);
+      font-weight: var(--font-weight-semibold);
+    }
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--icon-md);
+    height: var(--icon-md);
+    flex-shrink: 0;
+  }
+
+  &__label {
+    flex: 1;
+  }
+
+  &__item--cancel &__label {
+    flex: 0;
+  }
+}

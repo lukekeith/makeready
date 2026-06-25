@@ -1,0 +1,31 @@
+// ScrollArea — layout. A momentum scroll container: contained overscroll, touch
+// momentum, axis-scoped overflow, and an optionally hidden scrollbar. Tokenized
+// to the dark design system; consumed globally via app.scss.
+.ScrollArea {
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+
+  /* Axis overflow rules */
+  &--axis-y {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  &--axis-x {
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  &--axis-both {
+    overflow: auto;
+  }
+
+  /* Hide scrollbar but keep scrollability */
+  &--hide-scrollbar {
+    scrollbar-width: none; // Firefox
+
+    &::-webkit-scrollbar {
+      display: none; // WebKit
+    }
+  }
+}

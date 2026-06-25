@@ -1,0 +1,172 @@
+// CardEvent — type-specific event card (iOS CardEvent). Two sizes:
+//   Row  : 140px tall, calendar date block 80×116 on the LEFT, title + optional
+//          DataComponent row.
+//   Mini : 120×188 tile, date block 120×96 on top, title beneath.
+// Class names mirror the CVA variants in
+// resources/js/components/card/card-event/. The skeleton variant shares this
+// file (CardEvent--skeleton).
+//
+// The fixed date-block dimensions (80×116, 120×96, 120 wide) come straight from
+// the iOS layout spec and are intrinsic structural sizes — raw px is allowed
+// here per the design-system exception. Everything else is tokenized.
+.CardEvent {
+  position: relative;
+  display: flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  transition: background var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  &:hover {
+    background: var(--bg-elevated);
+    border-color: var(--border-strong);
+  }
+  &:active {
+    filter: brightness(0.97);
+  }
+
+  // ─── Date block ──────────────────────────────────────────────────────────────
+  &__date {
+    position: relative;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: var(--bg-section);
+    border-radius: var(--radius-md);
+  }
+
+  &__date-image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  // Scrim over a cover photo so the day/month stay legible. Rendered only when
+  // a cover is present; lives on its own element because the Image primitive
+  // owns its ::after shimmer pseudo.
+  &__date-scrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: var(--bg-overlay);
+  }
+
+  &__date-inner {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xs);
+  }
+
+  &__day {
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+  }
+
+  &__month {
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    color: var(--fg-tertiary);
+  }
+
+  // ─── Body ────────────────────────────────────────────────────────────────────
+  &__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__data {
+    margin-top: auto;
+  }
+
+  // ─── Row ─────────────────────────────────────────────────────────────────────
+  &--size-row {
+    height: 140px;
+    align-items: stretch;
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+
+    .CardEvent__date {
+      width: 80px;
+      height: 116px;
+      align-self: center;
+    }
+
+    .CardEvent__body {
+      padding: var(--space-2xs) 0;
+    }
+  }
+
+  // ─── Mini ────────────────────────────────────────────────────────────────────
+  &--size-mini {
+    flex-direction: column;
+    width: 120px;
+    height: 188px;
+    gap: var(--space-sm);
+    padding: 0 0 var(--space-md);
+
+    .CardEvent__date {
+      width: 120px;
+      height: 96px;
+      border-radius: 0;
+    }
+
+    .CardEvent__body {
+      padding: 0 var(--space-md);
+    }
+
+    .CardEvent__title {
+      font-size: var(--text-xs);
+      line-height: var(--leading-xs);
+    }
+  }
+
+  // ─── Skeleton ────────────────────────────────────────────────────────────────
+  &--skeleton {
+    cursor: default;
+    pointer-events: none;
+
+    .CardEvent__body {
+      gap: var(--space-sm);
+    }
+
+    .CardEvent__date {
+      background: transparent;
+    }
+  }
+}

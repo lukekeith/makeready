@@ -80,6 +80,14 @@ actor ImageCache {
         return memoryCache.object(forKey: key)
     }
 
+    /// Insert an image into the memory cache under the plain-URL key used by
+    /// `cachedImage(for:)`, so a synchronous first render finds it. Used by the
+    /// screenshot-capture harness to pre-seed remote images that can't load
+    /// async within a single snapshot render pass.
+    nonisolated func seed(_ image: UIImage, for url: URL) {
+        memoryCache.setObject(image, forKey: url.absoluteString as NSString)
+    }
+
     /// Synchronous lookup of a downsampled variant.
     nonisolated func cachedImage(for url: URL, maxPixelSize: CGFloat?) -> UIImage? {
         let key = cacheKey(for: url, maxPixelSize: maxPixelSize) as NSString

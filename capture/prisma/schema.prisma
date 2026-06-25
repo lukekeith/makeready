@@ -1,0 +1,107 @@
+// Capture comparison database — comments, versioned screenshots, and the
+// metadata that ties every comment to the exact component/screen + code state
+// that produced the screenshot it was drawn on.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("CAPTURE_DATABASE_URL")
+}
+
+/// A comparison is one apples-to-apples subject (a component or a page).
+/// Its definition (adapter, viewports, shared data) lives in the fixture JSON;
+/// the DB owns its mutable annotations + capture history.
+model Comparison {
+  id        String   @id // e.g. "card-study"
+  type      String // "component" | "page"
+  groupName String
+  title     String
+  adapter   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions Version[]
+  comments Comment[]
+}
+
+/// One capture event for a comparison + viewport. Records the code state
+/// (git sha, source hash) and the data snapshot that produced the screenshots,
+/// so a comment can be traced to exactly what it was made against.
+model Version {
+  id            String   @id @default(cuid())
+  comparisonId  String
+  viewport      String
+  variantName   String   @default("default") // matches the iPhone component variant (e.g. ".lesson")
+  capturedAt    DateTime @default(now())
+  rating        Int? // 1..5 — rated per version
+  gitSha        String?
+  gitDirty      Boolean  @default(false)
+  sourceHash    String? // hash of adapter + projected fixtures
+  sharedData    Json? // snapshot of the shared fixture data
+  componentName String? // "CardStudy" for component comparisons
+  iphoneView    String? // "component.card-study"
+  clientView    String? // "components.component-capture"
+  width         Int?
+  height        Int?
+
+  comparison  Comparison   @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+  screenshots Screenshot[]
+  comments    Comment[]
+
+  @@index([comparisonId, viewport, capturedAt])
+}
+
+/// A captured PNG for one platform within a version. Never overwritten — each
+/// capture creates new rows + files so a component's history is preserved.
+model Screenshot {
+  id        String   @id @default(cuid())
+  versionId String
+  platform  String // "iphone" | "client"
+  device    String? // "iphone-16-pro-max"
+  path      String // relative to capture/, e.g. fixtures/compare/_shots/<id>/<vp>/<platform>/<versionId>.png
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now())
+
+  version  Version   @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  comments Comment[]
+
+  @@index([versionId, platform])
+}
+
+/// A Figma-style pin comment, anchored to a fraction (x,y) of a specific
+/// screenshot (and thus a specific version/code state).
+model Comment {
+  id           String    @id @default(cuid())
+  comparisonId String
+  versionId    String
+  screenshotId String?
+  platform     String // "iphone" | "client"
+  viewport     String
+  x            Float // 0..1
+  y            Float // 0..1
+  resolved     Boolean   @default(false)
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  comparison Comparison  @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+  version    Version     @relation(fields: [versionId], references: [id])
+  screenshot Screenshot? @relation(fields: [screenshotId], references: [id])
+  messages   Message[]
+
+  @@index([comparisonId, resolved])
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  commentId String
+  source    String // "user" | "claude"
+  text      String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@index([commentId])
+}

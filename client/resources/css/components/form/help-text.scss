@@ -1,0 +1,20 @@
+// HelpText — form (helper / error text shown beneath a field). Tokenized to the
+// dark design system. Default tone is muted; error/success swap the foreground.
+.HelpText {
+  font-size: var(--text-xs);
+  line-height: var(--leading-sm);
+  margin-top: var(--space-2xs);
+  color: var(--fg-tertiary);
+
+  &--muted {
+    color: var(--fg-tertiary);
+  }
+
+  &--error {
+    color: var(--fg-error);
+  }
+
+  &--success {
+    color: var(--fg-success);
+  }
+}

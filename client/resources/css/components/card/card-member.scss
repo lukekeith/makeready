@@ -1,0 +1,90 @@
+// CardMember — list row: avatar + name/meta, optional trailing action, optional
+// "PENDING" badge. Interactive (role=button): hover lifts a translucent white
+// well. Skeleton variant shares this block. iOS member-row parity.
+.CardMember {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  background: var(--bg-surface);
+  cursor: pointer;
+  transition: background-color var(--motion-micro-fast) var(--ease-standard);
+
+  &:hover {
+    background: var(--color-white-5);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--border-brand);
+    outline-offset: 2px;
+  }
+
+  &__avatar {
+    flex: 0 0 auto;
+  }
+
+  &__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+  }
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 0;
+  }
+
+  &__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+  }
+
+  &__badge {
+    flex: 0 0 auto;
+  }
+
+  &__meta {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+  }
+
+  &__trailing {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    margin-left: var(--space-sm);
+  }
+
+  // Pending member: purple well to echo the iOS pending/new state.
+  &--is-pending {
+    background: var(--bg-pending);
+
+    // Translucent white well composites over the purple pending surface.
+    &:hover {
+      background-color: var(--bg-pending);
+      background-image: linear-gradient(var(--color-white-5), var(--color-white-5));
+    }
+  }
+
+  // Skeleton: non-interactive placeholder.
+  &--skeleton {
+    cursor: default;
+    &:hover { background: var(--bg-surface); }
+  }
+}

@@ -1,0 +1,63 @@
+// Textarea — form. Auto-sizing multiline field. Visual style mirrors the
+// primitive `.Input` (same border / bg / radius / focus tokens) but with a
+// min-height of ~3 lines and block padding. Tokens only.
+.Textarea {
+  display: block;
+  width: 100%;
+  min-height: calc(var(--leading-md) * 3 + var(--space-md) * 2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface);
+  padding: var(--space-md);
+  font-size: var(--text-sm);
+  line-height: var(--leading-md);
+  color: var(--fg-primary);
+  outline: none;
+  resize: none;
+  transition: border-color var(--motion-micro) var(--ease-standard),
+    box-shadow var(--motion-micro) var(--ease-standard);
+
+  &::placeholder {
+    color: var(--fg-tertiary);
+  }
+
+  &:focus,
+  &:focus-visible {
+    border-color: var(--border-brand);
+    box-shadow: 0 0 0 2px var(--color-brand-tint);
+  }
+
+  // States (mirror CVA: error / success)
+  &--error {
+    border-color: var(--border-error);
+
+    &:focus { box-shadow: 0 0 0 2px var(--color-error-tint); }
+  }
+
+  &--success {
+    border-color: var(--fg-success);
+
+    &:focus { box-shadow: 0 0 0 2px var(--color-success-tint); }
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: var(--opacity-disabled);
+  }
+
+  // Character counter (shown when maxlength is set).
+  &__wrap {
+    position: relative;
+    width: 100%;
+  }
+
+  &__count {
+    position: absolute;
+    right: var(--space-md);
+    bottom: var(--space-sm);
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+    color: var(--fg-tertiary);
+    pointer-events: none;
+  }
+}
