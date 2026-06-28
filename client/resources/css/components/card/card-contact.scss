@@ -1,0 +1,67 @@
+// CardContact — contact row (iOS CardContact.swift parity).
+//
+// A horizontal row: 40×40 circular avatar, full name (17pt bold, single line),
+// flexible spacer, and an optional trailing "Invite" pill. The whole row is the
+// cardBackground well (radius 4, padding 16) and is interactive (role=button).
+//
+// The 40×40 avatar is an intrinsic iOS dimension with no design-system token
+// (the avatar scale jumps 36 → 48), so it is set explicitly here — the same
+// design-system exception card-group makes for its 72×72 image.
+.CardContact {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm); // 8px (iOS HStack spacing)
+  box-sizing: border-box;
+  width: 100%; // fill the card column; name truncates at the spacer/trailing edge
+  padding: var(--space-lg); // iOS .padding(16)
+  background: var(--bg-surface); // iOS Color.cardBackground (#252936)
+  border-radius: var(--radius-sm); // iOS cornerRadius 4
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--motion-micro-fast) var(--ease-standard);
+
+  &__avatar {
+    --avatar-size: 40px; // iOS 40×40 (no token; intrinsic size)
+    width: 40px;
+    height: 40px;
+    flex: 0 0 auto;
+  }
+
+  &__name {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-lead); // iOS Typography.s17Bold
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+  }
+
+  // iOS Spacer(minLength: 0) — pushes the trailing content to the row's edge.
+  &__spacer {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  &__trailing {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  &:hover {
+    background: linear-gradient(
+      var(--color-white-5),
+      var(--color-white-5)
+    ), var(--bg-surface);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  &:active {
+    filter: brightness(0.97);
+  }
+}

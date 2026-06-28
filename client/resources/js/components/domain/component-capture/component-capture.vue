@@ -18,6 +18,7 @@ import BackgroundSourceMenu from '../../card/background-source-menu/background-s
 import CardActivityType from '../../card/card-activity-type/card-activity-type.vue'
 import CardActivity from '../../card/card-activity/card-activity.vue'
 import CardBibleSearchResult from '../../card/card-bible-search-result/card-bible-search-result.vue'
+import CardContact from '../../card/card-contact/card-contact.vue'
 import CalendarBottomBar from '../../card/calendar-bottom-bar/calendar-bottom-bar.vue'
 import CalendarDayCell from '../../card/calendar-day-cell/calendar-day-cell.vue'
 import CalendarEventListContent from '../../card/calendar-event-list-content/calendar-event-list-content.vue'
@@ -43,6 +44,7 @@ const registry: Record<string, unknown> = {
   CardActivityType,
   CardActivity,
   CardBibleSearchResult,
+  CardContact,
   CalendarBottomBar,
   CalendarDayCell,
   CalendarEventListContent,
