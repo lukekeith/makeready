@@ -47,6 +47,7 @@ import SwipeableCard from '../../card/swipeable-card/swipeable-card.vue'
 import DonutChart from '../../card/donut-chart/donut-chart.vue'
 import HeatMapChart from '../../card/heat-map-chart/heat-map-chart.vue'
 import HorizontalBarChart from '../../card/horizontal-bar-chart/horizontal-bar-chart.vue'
+import LineChart from '../../card/line-chart/line-chart.vue'
 
 const props = defineProps<{
   component: string
@@ -105,6 +106,8 @@ const registry: Record<string, unknown> = {
   HeatMapChart,
   // iOS HorizontalBarChart (Swift Charts horizontal BarMark) — bar/axis twin.
   HorizontalBarChart,
+  // iOS LineChart (Swift Charts LineMark / AreaMark) — inline-SVG line/area twin.
+  LineChart,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

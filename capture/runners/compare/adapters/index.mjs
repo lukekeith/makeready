@@ -55,6 +55,7 @@ import upcomingLessonCard from './UpcomingLessonCard.mjs';
 import donutChart from './DonutChart.mjs';
 import heatMapChart from './HeatMapChart.mjs';
 import horizontalBarChart from './HorizontalBarChart.mjs';
+import lineChart from './LineChart.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -107,6 +108,7 @@ export const adapters = {
   DonutChart: donutChart,
   HeatMapChart: heatMapChart,
   HorizontalBarChart: horizontalBarChart,
+  LineChart: lineChart,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
