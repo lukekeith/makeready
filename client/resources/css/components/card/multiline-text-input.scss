@@ -1,0 +1,71 @@
+// MultilineTextInput — twin of iOS Components/Input/MultilineTextInput.swift.
+//
+// Structure (outer → inner):
+//   .MultilineTextInput        → the FieldGroup card the harness wraps it in. iOS:
+//                                VStack(spacing:0).padding(.vertical,4) + white@0.05
+//                                + cornerRadius(10). Full-width (fills the
+//                                .capture-wrap clip box, like the iPhone card).
+//   .MultilineTextInput__field → the MultilineTextInput frame. iOS minHeight 130 +
+//                                TextEditor .padding(.top,8)/.horizontal(12)/
+//                                .bottom(4). position:relative so the absolutely
+//                                positioned floating label can sit over it.
+//   .MultilineTextInput__label → Text(placeholder), absolute, leading 16, offset y.
+//                                --resting (empty): s17 white@0.35, offset y 12.
+//                                --floating (filled): 12px white@0.5, offset y 2.
+//   .MultilineTextInput__text  → the TextEditor body text, s17 white. The leading
+//                                inset (5px) + top inset (8px) reproduce
+//                                UITextView's default textContainerInset so the
+//                                body sits just below/right of the floated label.
+//
+// The 10px card radius and the 130px min-height come straight from the iOS layout
+// spec and have no design-system token (raw px allowed per the intrinsic-size
+// exception); the 12px floated-label size is likewise intrinsic. Everything else
+// is tokenized.
+.MultilineTextInput {
+  width: 100%;
+  padding-top: var(--space-xs); // iOS FieldGroup .padding(.vertical, 4)
+  padding-bottom: var(--space-xs);
+  background: var(--color-white-5);
+  border-radius: 10px;
+
+  &__field {
+    position: relative;
+    min-height: 130px; // iOS .frame(minHeight: 130) — intrinsic layout dimension
+    // iOS TextEditor padding: .top(8) / .horizontal(12) / .bottom(4)
+    padding: var(--space-sm) var(--space-md) var(--space-xs);
+  }
+
+  &__label {
+    position: absolute;
+    // iOS overlay(.topLeading) on the padded frame → measured from the frame
+    // (padding-box) top-left, so this clears the field's own padding.
+    left: var(--space-lg); // iOS .padding(.leading, 16)
+    white-space: nowrap;
+
+    &--resting {
+      // Empty: label inline at the unfloated size/color, offset y 12.
+      top: var(--space-md); // iOS .offset(y: 12)
+      font-size: var(--text-lead); // iOS .system(size: 17)
+      line-height: var(--leading-lead);
+      color: var(--color-white-35);
+    }
+
+    &--floating {
+      // Filled: label floated up to 12pt, offset y 2.
+      top: 2px; // iOS .offset(y: 2)
+      font-size: 12px; // iOS .system(size: 12) — no token at this size
+      line-height: var(--leading-xs);
+      color: var(--color-white-50);
+    }
+  }
+
+  &__text {
+    // iOS UITextView default textContainerInset (top 8, left 5) — sits inside the
+    // field's own 8/12 padding so the body lands ~17px in and ~16px down.
+    padding-top: var(--space-sm);
+    padding-left: 5px;
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: var(--leading-lead);
+    color: var(--color-white-100);
+  }
+}

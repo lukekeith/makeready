@@ -76,6 +76,7 @@ import InlineFontSizePicker from '../../card/inline-font-size-picker/inline-font
 import LargeTextInput from '../../card/large-text-input/large-text-input.vue'
 import MarkdownEditor from '../../card/markdown-editor/markdown-editor.vue'
 import MenuInput from '../../card/menu-input/menu-input.vue'
+import MultilineTextInput from '../../card/multiline-text-input/multiline-text-input.vue'
 
 const props = defineProps<{
   component: string
@@ -272,6 +273,10 @@ const registry: Record<string, unknown> = {
   // segmented is an uppercase label over a white@10% capsule track whose selected
   // segment is bold (its material pill is invisible in the isolated snapshot).
   MenuInput,
+  // iOS MultilineTextInput (Components/Input/MultilineTextInput.swift) — a tall
+  // FieldGroup-wrapped description field with a floating placeholder label that
+  // rests inline when empty and floats up small when filled.
+  MultilineTextInput,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

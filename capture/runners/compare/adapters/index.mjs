@@ -83,6 +83,7 @@ import inlineFontSizePicker from './InlineFontSizePicker.mjs';
 import largeTextInput from './LargeTextInput.mjs';
 import markdownEditor from './MarkdownEditor.mjs';
 import menuInput from './MenuInput.mjs';
+import multilineTextInput from './MultilineTextInput.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -163,6 +164,7 @@ export const adapters = {
   LargeTextInput: largeTextInput,
   MarkdownEditor: markdownEditor,
   MenuInput: menuInput,
+  MultilineTextInput: multilineTextInput,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
@@ -182,7 +184,7 @@ const IPHONE_FIRST_COMPONENTS = [
   'InfoPanel',
   'InviteMenu', 'InviteQRCodeView', 'Kpi', 'LargeTextInput',
   'LessonActionMenu', 'LineChart', 'MarkdownEditor', 'MemberListItem',
-  'MenuInput', 'MultilineTextInput', 'NavBar', 'PageHeader',
+  'MenuInput', 'NavBar', 'PageHeader',
   'PageTitle', 'RichTextInput', 'SearchField', 'SearchableList',
   'SectionedTableView', 'SelectableLockedBlockView', 'ShareInviteSheet', 'ShimmerView',
   'SkeletonCardGroup', 'SkeletonCardLesson', 'SkeletonCardLessonActivity', 'SkeletonCardMediaFull',
