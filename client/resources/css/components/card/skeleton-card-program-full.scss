@@ -1,0 +1,108 @@
+// SkeletonCardProgramFull — loading placeholder twin for iOS
+// SkeletonCardProgramFull. Matches CardProgramFull's full-width browse card:
+// 280px tall (radius 8), a full-bleed white @ 8% image placeholder, and a
+// bottom content overlay (cardBackground @ 80%) holding stacked title /
+// description / tag / metadata placeholder bars.
+//
+// The 280px height + 8px corner radius are intrinsic structural sizes from the
+// iOS layout spec (`.frame(height: 280)` + `cornerRadius: 8`). Bar dimensions
+// and inter-bar gaps mirror the SwiftUI frame()/padding() values exactly (raw
+// structural pixels, matching skeleton-card-group / card-program-full).
+//
+// Placeholder fills mirror the iOS opacities exactly; only white @ 10% has a
+// token, so the rest carry the literal SwiftUI value inline:
+//   full-bleed image  → white 0.08
+//   title             → white 0.10  (--color-white-10)
+//   description line 1 → white 0.07
+//   description line 2 → white 0.05
+//   tags + metadata    → white 0.06
+.SkeletonCardProgramFull {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 280px;
+  border-radius: var(--radius-md); // iOS cornerRadius: 8
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08); // iOS Color.white.opacity(0.08) — no token at 8%
+
+  // ─── Bottom content overlay ──────────────────────────────────────────────
+  &__overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: var(--space-md) var(--space-lg); // iOS .vertical 12 / .horizontal 16
+    background: color-mix(in srgb, var(--bg-surface) 80%, transparent); // iOS cardBackground @ 80%
+  }
+
+  // Title bar (180×17).
+  &__title {
+    width: 180px;
+    height: 17px;
+    border-radius: var(--radius-sm); // iOS cornerRadius: 4
+    background: var(--color-white-10); // iOS white 0.10
+  }
+
+  // Description bars — 260×14 then 200×14.
+  &__desc {
+    height: 14px;
+    border-radius: var(--radius-sm); // iOS cornerRadius: 4
+
+    &--1 {
+      width: 260px;
+      margin-top: 6px; // iOS .padding(.top, 6) — no token
+      background: rgba(255, 255, 255, 0.07); // iOS white 0.07 — no token
+    }
+
+    &--2 {
+      width: 200px;
+      margin-top: var(--space-xs); // iOS .padding(.top, 4)
+      background: rgba(255, 255, 255, 0.05); // iOS white 0.05 — no token
+    }
+  }
+
+  // ─── Tags ─────────────────────────────────────────────────────────────────
+  &__tags {
+    display: flex;
+    gap: 6px; // iOS HStack spacing 6 — no token
+    margin-top: 10px; // iOS .padding(.top, 10) — no token
+  }
+
+  &__tag {
+    height: 20px;
+    border-radius: 10px; // iOS cornerRadius: 10 — no token
+    background: rgba(255, 255, 255, 0.06); // iOS white 0.06 — no token
+
+    &--wide {
+      width: 80px;
+    }
+
+    &--narrow {
+      width: 50px;
+    }
+  }
+
+  // ─── Metadata row ───────────────────────────────────────────────────────────
+  &__meta {
+    display: flex;
+    gap: var(--space-lg); // iOS HStack spacing 16
+    margin-top: var(--space-md); // iOS .padding(.top, 12)
+  }
+
+  &__metaItem {
+    height: 12px;
+    border-radius: var(--radius-sm); // iOS cornerRadius: 4
+    background: rgba(255, 255, 255, 0.06); // iOS white 0.06 — no token
+
+    &--a {
+      width: 40px;
+    }
+
+    &--b {
+      width: 60px;
+    }
+  }
+}
