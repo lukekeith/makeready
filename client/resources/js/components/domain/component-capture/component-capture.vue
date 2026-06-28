@@ -44,6 +44,7 @@ import SkeletonCardProgramFull from '../../card/skeleton-card-program-full/skele
 import SkeletonCardStudy from '../../card/skeleton-card-study/skeleton-card-study.vue'
 import CardSlideButton from '../../card/card-slide-button/card-slide-button.vue'
 import SwipeableCard from '../../card/swipeable-card/swipeable-card.vue'
+import DonutChart from '../../card/donut-chart/donut-chart.vue'
 
 const props = defineProps<{
   component: string
@@ -96,6 +97,8 @@ const registry: Record<string, unknown> = {
   // iOS SwipeableCard at rest — renders only its content card (CardGroupMini);
   // the slide buttons stay hidden behind it until swiped.
   SwipeableCard,
+  // iOS DonutChart (Swift Charts SectorMark) — inline-SVG donut/pie twin.
+  DonutChart,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

@@ -52,6 +52,7 @@ import skeletonCardStudy from './SkeletonCardStudy.mjs';
 import slideButton from './SlideButton.mjs';
 import swipeableCard from './SwipeableCard.mjs';
 import upcomingLessonCard from './UpcomingLessonCard.mjs';
+import donutChart from './DonutChart.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -101,6 +102,7 @@ export const adapters = {
   BoxButton: boxButton,
   AgeRangeInput: ageRangeInput,
   BackgroundSourceMenu: backgroundSourceMenu,
+  DonutChart: donutChart,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
@@ -114,7 +116,7 @@ const IPHONE_FIRST_COMPONENTS = [
   'BackgroundSwatch', 'BibleVerseTextLayout', 'BlockStyleEditor',
   'CalendarBottomBar', 'CalendarDayCell', 'CalendarEventListContent',
   'CalendarWeekdayHeader', 'CardGroupMini', 'CardSpinnerOverlay', 'ConfirmationOverlay',
-  'CoverImagePicker', 'DatePickerField', 'DialogOverlay', 'DonutChart',
+  'CoverImagePicker', 'DatePickerField', 'DialogOverlay',
   'ErrorBanner', 'ExegesisVerseView', 'FieldGroup', 'FilterChipDropdown',
   'FullScreenImageViewer', 'GroupActionButton', 'GroupSelectorSheet', 'HamburgerMenu',
   'HeatMapChart', 'HorizontalBarChart', 'InfoPanel', 'InlineFontSizePicker',

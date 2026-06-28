@@ -1,0 +1,52 @@
+// DonutChartTwin — web twin of the iOS DonutChart (Swift Charts SectorMark).
+//
+// The chart itself is an inline SVG (slice geometry/colors live in the Vue
+// component); this rule owns layout, the center label typography, and the 0.9
+// composite that mirrors the iOS `.opacity(0.9)` on every sector.
+//
+// The 188px square is an intrinsic structural size: the iOS snapshot renders the
+// chart at `.padding(16).frame(height: 220)`, so the chart area is 188pt tall and
+// Swift Charts draws the circle at that limiting dimension. Raw px is allowed here
+// per the design-system intrinsic-size exception (same as card-study's fixed cover
+// dimensions). The 24px / 14px center type mirror iOS Typography.s24Bold / s14,
+// which have no exact web token at the pro-max scale.
+.DonutChartTwin {
+  position: relative;
+  width: 100%;
+  height: 188px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &__svg {
+    display: block;
+    // Composite the whole chart at 0.9 (iOS SectorMark `.opacity(0.9)`) so an
+    // opaque slice lands at 0.9 over the canvas and a white@0.3 slice lands at
+    // the same 0.27 effective alpha as on iPhone — with no per-slice seams.
+    opacity: 0.9;
+  }
+
+  &__center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs); // iOS VStack(spacing: 4)
+    pointer-events: none;
+  }
+
+  &__value {
+    font-size: 24px; // iOS Typography.s24Bold
+    line-height: 1;
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary); // iOS .white
+  }
+
+  &__subtext {
+    font-size: 14px; // iOS Typography.s14
+    line-height: 1;
+    color: var(--fg-tertiary); // iOS .white.opacity(0.5)
+  }
+}
