@@ -1,0 +1,168 @@
+// CardStudySelectable — selectable study-program card for the enrollment flow
+// (iOS CardStudySelectable). 140px-tall row: a vertically-centered body (title +
+// 2-line description + count/badge metadata) on the left, a fixed 72×108 portrait
+// cover on the right. Selecting it tints the surface purple, adds a brand border,
+// and overlays the cover with an 80% brand fill + white checkmark.
+//
+// Class names mirror the component in
+// resources/js/components/card/card-study-selectable/.
+//
+// The fixed cover dimensions (72×108) come straight from the iOS layout spec and
+// are intrinsic structural sizes — raw px is allowed here per the design-system
+// exception. Everything else is tokenized.
+.CardStudySelectable {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-lg);
+  box-sizing: border-box;
+  height: 140px;
+  padding: var(--space-lg);
+  background: var(--bg-surface);
+  border: 2px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  overflow: hidden;
+  transition: background var(--motion-micro) var(--ease-standard),
+    border-color var(--motion-micro) var(--ease-standard);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__description {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    // iOS adds a VStack spacing (4px, the body gap) PLUS .padding(.top, 8) above
+    // the metadata row — the extra 8px lands here.
+    margin-top: var(--space-sm);
+  }
+
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    flex: 0 0 auto;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-tertiary);
+    white-space: nowrap;
+  }
+
+  &__countIcon {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+  }
+
+  &__badge {
+    flex: 0 0 auto;
+    padding: var(--space-2xs) var(--space-sm);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    line-height: 1.2;
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+
+    // iOS uses solid fills with bespoke text hues — no DS token maps to these
+    // (the solid-success badge and the neutral-draft pill are unique to this card).
+    &--published {
+      background: var(--color-ios-success);
+      color: #234d2e;
+    }
+    &--draft {
+      background: #6e7079;
+      color: #d3d4d7;
+    }
+  }
+
+  // ─── Cover (72×108 portrait, right) ──────────────────────────────────────────
+  &__cover {
+    position: relative;
+    flex: 0 0 auto;
+    width: 72px;
+    height: 108px;
+    align-self: center;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+    border-radius: var(--radius-md);
+  }
+
+  &__well {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: var(--bg-icon-container);
+    color: var(--fg-white);
+  }
+
+  &__wellIcon {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    // iOS brandPrimary @ 80% — no token for the brand hue at this alpha.
+    background: rgba(108, 71, 255, 0.8);
+    color: var(--fg-white);
+  }
+
+  &__check {
+    width: var(--icon-md);
+    height: var(--icon-md);
+  }
+
+  // ─── Selected ────────────────────────────────────────────────────────────────
+  &--is-selected {
+    background: var(--bg-pending);
+    border-color: var(--border-brand);
+  }
+}
