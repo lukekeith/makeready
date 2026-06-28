@@ -88,6 +88,7 @@ import ShimmerView from '../../card/shimmer-view/shimmer-view.vue'
 import ActionCardMenu from '../../card/action-card-menu/action-card-menu.vue'
 import AddMenu from '../../card/add-menu/add-menu.vue'
 import FilterChipDropdown from '../../card/filter-chip-dropdown/filter-chip-dropdown.vue'
+import HamburgerMenu from '../../card/hamburger-menu/hamburger-menu.vue'
 
 const props = defineProps<{
   component: string
@@ -367,6 +368,14 @@ const registry: Record<string, unknown> = {
   // wrapped-capsule chip list (selected = white fill / appBackground text). On a
   // cardBackground panel with a white@8% border + soft shadow.
   FilterChipDropdown,
+  // iOS HamburgerMenu (Components/Navigation/HamburgerMenu.swift) — the NavBar
+  // hamburger navigation menu. A white@5% rounded card of action rows (s17Bold
+  // title on the LEFT, a 32px #7c7cff icon column on the RIGHT), with a large
+  // centered close (X) button beneath. Item icons arrive as inline SVG from the
+  // adapter (iOS SF Symbols mapped to web glyphs, drawn currentColor — filled
+  // books/calendar, outlined magnifyingglass). ManagedMenuView's overlay/slide
+  // chrome is out of scope for the isolated snapshot.
+  HamburgerMenu,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
