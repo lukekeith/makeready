@@ -57,6 +57,7 @@ import Avatar from '../../card/avatar/avatar.vue'
 import DialogOverlay from '../../card/dialog-overlay/dialog-overlay.vue'
 import FullScreenImageViewer from '../../card/full-screen-image-viewer/full-screen-image-viewer.vue'
 import GroupSelectorSheet from '../../card/group-selector-sheet/group-selector-sheet.vue'
+import InfoPanel from '../../card/info-panel/info-panel.vue'
 
 const props = defineProps<{
   component: string
@@ -150,6 +151,12 @@ const registry: Record<string, unknown> = {
   // variants render the same hardcoded list with no selection / no close button;
   // the adapter feeds that exact data to match. The twin stays data-driven.
   GroupSelectorSheet,
+  // iOS InfoPanel (Components/Display/InfoPanel.swift) — rounded label/value
+  // panel in keyValue (label left / value right) or data (stacked) mode. NB:
+  // the iOS `.ultraThinMaterial` background renders invisible in the isolated
+  // snapshot, so this twin's panel background is transparent (dividers + text
+  // only) to match.
+  InfoPanel,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

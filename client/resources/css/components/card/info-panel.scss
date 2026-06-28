@@ -1,0 +1,76 @@
+// InfoPanel — info panel twin (iOS Components/Display/InfoPanel.swift).
+//
+// Two modes share one row container; only the row's flex direction/alignment
+// changes:
+//   keyValue : label left + value right on one line (16px padding all sides)
+//   data     : label stacked above value (16px padding, 4px label/value gap)
+//
+// The iOS panel uses a `.ultraThinMaterial` background + 16px corner radius.
+// That material renders INVISIBLE in the isolated /compare snapshot (it blurs
+// over the app background, identical to the crop), so the panel background here
+// stays transparent — only the white@10% dividers and the text render, matching
+// the reference. The 16px row padding + the harness's 16px `.capture-wrap`
+// gutter reproduce the iOS preview's `.padding(16)` + row `.padding(16)`.
+//
+// Text is SF Pro (iOS system font) at 14pt semibold — `--text-sm` is 13px, so
+// the 14px size is intrinsic (the DS scale jumps 13→16); `-apple-system` matches
+// the iOS system-font metrics under the macOS capture runner.
+.InfoPanel {
+  width: 100%;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__row {
+    display: flex;
+    padding: 16px;
+  }
+
+  &__label {
+    font-size: 14px; // iOS Typography.s14Semibold (no token; scale jumps 13→16)
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-white-100);
+  }
+
+  &__value {
+    font-size: 14px; // iOS Typography.s14Semibold (no token; scale jumps 13→16)
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-white-50);
+  }
+
+  &__divider {
+    height: 1px;
+    background: var(--color-white-10);
+  }
+
+  // keyValue: label left (fills), value right-aligned, 16px gap between.
+  &--mode-key-value {
+    .InfoPanel__row {
+      flex-direction: row;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .InfoPanel__label {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    .InfoPanel__value {
+      flex: 0 0 auto;
+      text-align: right;
+    }
+  }
+
+  // data: label stacked above value, 4px gap, left-aligned.
+  &--mode-data {
+    .InfoPanel__row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 4px;
+    }
+  }
+}
