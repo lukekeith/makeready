@@ -2,70 +2,43 @@
 import CardVideo from './card-video.vue'
 import CardVideoSkeleton from './card-video-skeleton.vue'
 
-const thumb = 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=400&q=60'
+const eye =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>'
+const clock =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'
+const share =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M8 8l4-4 4 4"/><path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6"/></svg>'
+const play =
+  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7L8 5Z"/></svg>'
 </script>
 
 <template>
-  <Story title="Cards/CardVideo" :layout="{ type: 'grid', width: 380 }">
-    <Variant title="Row">
+  <Story title="Cards/CardVideo" :layout="{ type: 'grid', width: 420 }">
+    <Variant title="Photo (confirmed)">
       <CardVideo
-        title="The Sermon on the Mount, Part 1"
-        category="Matthew · Week 3"
-        :thumb-url="thumb"
-        duration="12:04"
+        title="Sunday Sermon: Faith in Action"
+        description="Sermons"
+        status="confirmed"
+        :image-style="{ kind: 'photo' }"
+        :metadata="[
+          { icon: eye, value: '1.2K' },
+          { icon: clock, value: '5 mins ago' },
+          { icon: share, value: '45' },
+        ]"
       />
     </Variant>
 
-    <Variant title="Row — no category">
+    <Variant title="New (select video)">
       <CardVideo
-        title="Introduction to the Gospel of John"
-        :thumb-url="thumb"
-        duration="4:20"
+        title="VIDEO"
+        description="Select video"
+        status="new"
+        :image-style="{ kind: 'icon', icon: play }"
       />
     </Variant>
 
-    <Variant title="Row — no duration">
-      <CardVideo
-        title="Walking in the Spirit"
-        category="Galatians"
-        :thumb-url="thumb"
-      />
-    </Variant>
-
-    <Variant title="Row — broken thumbnail (fallback)">
-      <CardVideo
-        title="Faith and Works"
-        category="James"
-        thumb-url="https://example.com/missing.jpg"
-        duration="8:15"
-      />
-    </Variant>
-
-    <Variant title="Mini">
-      <CardVideo
-        size="Mini"
-        title="The Sermon on the Mount, Part 1"
-        category="Matthew"
-        :thumb-url="thumb"
-        duration="12:04"
-      />
-    </Variant>
-
-    <Variant title="Mini — long title">
-      <CardVideo
-        size="Mini"
-        title="Understanding the Parables of the Kingdom of Heaven"
-        category="Matthew 13"
-        :thumb-url="thumb"
-      />
-    </Variant>
-
-    <Variant title="Skeleton — Row">
+    <Variant title="Skeleton">
       <CardVideoSkeleton />
-    </Variant>
-
-    <Variant title="Skeleton — Mini">
-      <CardVideoSkeleton size="Mini" />
     </Variant>
   </Story>
 </template>

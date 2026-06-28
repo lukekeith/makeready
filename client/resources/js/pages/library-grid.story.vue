@@ -81,15 +81,15 @@ const tabIcons: Record<string, string> = {
               />
             </Grid>
 
-            <Grid v-else cols="2" gap="Md">
+            <Grid v-else cols="1" gap="Md">
               <CardVideo
                 v-for="item in media"
                 :key="item.id"
                 :title="item.title"
-                :category="item.category"
-                :duration="item.duration"
-                :thumb-url="item.thumbUrl"
-                size="Mini"
+                :description="item.category"
+                status="confirmed"
+                :image-style="{ kind: 'photo' }"
+                :metadata="item.duration ? [{ value: item.duration }] : []"
               />
             </Grid>
           </div>

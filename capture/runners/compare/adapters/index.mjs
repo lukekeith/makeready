@@ -38,6 +38,7 @@ import cardProgramFull from './CardProgramFull.mjs';
 import cardSearchResult from './CardSearchResult.mjs';
 import cardStudyMini from './CardStudyMini.mjs';
 import cardStudySelectable from './CardStudySelectable.mjs';
+import cardVideo from './CardVideo.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -47,7 +48,7 @@ export const adapters = {
   // matching component.<View> case in ViewRegistry.swift.
   CardEvent: cardEvent,
   CardEventMini: cardEventMini,
-  CardVideo: iphoneCard('component.CardVideo'),
+  CardVideo: cardVideo,
   CardVideoMini: iphoneCard('component.CardVideoMini'),
   CardStudyMini: cardStudyMini,
   CardStudySelectable: cardStudySelectable,
