@@ -82,6 +82,7 @@ import SearchField from '../../card/search-field/search-field.vue'
 import TagInput from '../../card/tag-input/tag-input.vue'
 import TextInput from '../../card/text-input/text-input.vue'
 import ToggleControl from '../../card/toggle-control/toggle-control.vue'
+import SearchableList from '../../card/searchable-list/searchable-list.vue'
 
 const props = defineProps<{
   component: string
@@ -314,6 +315,16 @@ const registry: Record<string, unknown> = {
   // rounded-10 card). Track is white (on) / white@50 (off) with a 33×21
   // appBackground knob that aligns trailing (on) / leading (off).
   ToggleControl,
+  // iOS SearchableList (Components/Layout/SearchableList.swift) — a searchable
+  // list wrapper: a resting search field (shown only when >10 items), a
+  // letter-grouped list of rows (name + optional purple "Invite" pill), a
+  // right-edge alphabet section index, and a centered "No results" empty state.
+  // NB: BOTH iPhone reference variants render the empty state — the ViewRegistry
+  // case reads `state.component.searchItems` while the fixture supplies `items`,
+  // so the Swift side decodes zero rows (same data-key artifact as HeatMapChart).
+  // The twin stays data-driven: Empty matches the iPhone empty ref; Default
+  // renders the designed populated list (the surfaced gap vs the empty iPhone ref).
+  SearchableList,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

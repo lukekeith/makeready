@@ -89,6 +89,7 @@ import searchField from './SearchField.mjs';
 import tagInput from './TagInput.mjs';
 import textInput from './TextInput.mjs';
 import toggleControl from './ToggleControl.mjs';
+import searchableList from './SearchableList.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -175,6 +176,7 @@ export const adapters = {
   TagInput: tagInput,
   TextInput: textInput,
   ToggleControl: toggleControl,
+  SearchableList: searchableList,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

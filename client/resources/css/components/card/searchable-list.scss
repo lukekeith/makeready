@@ -1,0 +1,208 @@
+// SearchableList — web twin of iOS Components/Layout/SearchableList.swift. BEM
+// blocks mirror the markup in
+// resources/js/components/card/searchable-list/searchable-list.vue.
+//
+// The iPhone snapshot is GUTTERLESS and 640pt tall: the ViewRegistry case renders
+// `SearchableList(...).frame(height: 640)` with NO outer padding, so the
+// component fills the full 440pt viewport and applies its own 16px insets
+// internally. The capture harness's `.capture-wrap` always adds a 16px gutter, so
+// — like the exegesis / selectable-locked-block twins — we cancel it with a
+// negative margin and re-apply the real iOS paddings on the inner rows / search
+// field. That reproduces the edge-to-edge layout and the exact 640pt frame the
+// iPhone captured.
+//
+// All text is the iOS system font (SF Pro) — declared as -apple-system so the
+// macOS capture machine resolves SF Pro (not the web Open Sans) and the glyph
+// metrics / wrapping match the iPhone reference.
+.SearchableList {
+  position: relative;
+  box-sizing: border-box;
+  // Cancel the .capture-wrap 16px gutter on all sides and fill the clip box,
+  // matching the iPhone's full-bleed 440×640pt frame.
+  margin: calc(var(--space-lg) * -1);
+  width: calc(100% + var(--space-lg) * 2);
+  height: 640px; // iOS .frame(height: 640)
+  overflow: hidden; // iOS .clipped()
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  text-align: left;
+
+  // ── Empty state ───────────────────────────────────────────────────────────
+  // iOS: VStack { Color.clear(height: listTopPadding=16) ; defaultEmptyState
+  // (.frame(maxHeight: .infinity) → centered) }, the whole empty state at
+  // opacity 0.2.
+  &__top-spacer {
+    height: var(--space-lg); // listTopPadding (no header, no search) = 16
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xl); // iOS VStack(spacing: 20) ≈ 24
+    height: calc(640px - var(--space-lg)); // fills the space below the spacer
+    opacity: 0.2; // iOS .opacity(0.2)
+  }
+
+  &__empty-icon {
+    display: block;
+    width: 60px; // iOS Image("magnifyingglass").font(s60) ≈ 60pt glyph
+    height: 60px;
+    color: var(--color-white-50); // iOS .foregroundColor(.white50)
+  }
+
+  &__empty-text {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm); // iOS VStack(spacing: 8)
+  }
+
+  &__empty-title {
+    margin: 0;
+    font-size: var(--text-subheading); // iOS Typography.s20Bold
+    font-weight: var(--font-weight-bold);
+    line-height: var(--leading-subheading);
+    color: var(--fg-white); // iOS .white
+  }
+
+  &__empty-subtitle {
+    margin: 0;
+    // iOS Typography.s15 — exactly 15px (no token at this size). Capture-parity
+    // geometry: --text-md (16px) is ~7% wider and drifts noticeably across this
+    // long centered line, so the literal 15px is used to match the reference.
+    font-size: 15px;
+    line-height: var(--leading-sm);
+    color: var(--color-white-50); // iOS .white50
+    text-align: center;
+  }
+
+  // ── Search field (resting / inactive) ─────────────────────────────────────
+  // iOS: SearchField(...).padding(.horizontal, 16).padding(.top, 16). Inactive =
+  // borderless field (its .ultraThinMaterial fill is invisible in isolation, so
+  // transparent here), magnifyingglass + placeholder both white@50, no close
+  // button. Overlaid at the top of the list region.
+  &__search {
+    position: absolute;
+    top: var(--space-lg); // .padding(.top, 16)
+    left: 0;
+    right: 0;
+    z-index: 1;
+    padding: 0 var(--space-lg); // .padding(.horizontal, 16)
+  }
+
+  &__search-field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // iOS inner HStack spacing 8
+    padding: var(--space-md) var(--space-lg); // iOS vertical 12 / horizontal 16
+    border-radius: var(--radius-sm); // iOS cornerRadius 4
+    background: transparent; // .ultraThinMaterial → invisible in isolation
+  }
+
+  &__search-icon {
+    flex: none;
+    display: block;
+    width: 18px; // ~16pt magnifyingglass glyph
+    height: 18px;
+    color: var(--color-white-50);
+  }
+
+  &__search-placeholder {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-md); // iOS Typography.s15
+    line-height: var(--leading-sm);
+    color: var(--color-white-50);
+  }
+
+  // ── List ──────────────────────────────────────────────────────────────────
+  // iOS list with listTopPadding=120 (no header, not searching) and a 52pt top
+  // gradient fade mask. The mask reproduces the iOS .mask(LinearGradient(clear→
+  // black, 52pt)) so the first rows fade in under the search field.
+  &__list {
+    height: 100%;
+    overflow: hidden;
+    padding-top: 120px; // iOS listTopPadding (full padding, not searching)
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 52px
+    );
+    mask-image: linear-gradient(to bottom, transparent 0, #000 52px);
+  }
+
+  &__section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  // iOS section header: Text(letter).font(s16Bold).foregroundColor(.white50)
+  // .padding(.horizontal, 16).padding(.vertical, 8).background(appBackground).
+  &__section-header {
+    padding: var(--space-sm) var(--space-lg); // vertical 8 / horizontal 16
+    font-size: var(--text-md); // iOS Typography.s16Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--color-white-50);
+    background: var(--bg-canvas); // iOS Color.appBackground
+  }
+
+  // iOS row: HStack(spacing: 8){ name · Spacer · Invite }.padding(16).
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-lg); // iOS .padding(16) on all sides
+  }
+
+  &__row-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-lead); // iOS Typography.s17Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    color: var(--fg-white); // iOS .white
+  }
+
+  // iOS Invite pill: Text(s12 white).padding(.horizontal,16).padding(.vertical,8)
+  // .background(brandPrimary).clipShape(Capsule()).
+  &__invite {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: var(--space-sm) var(--space-lg); // vertical 8 / horizontal 16
+    font-size: 12px; // iOS Typography.s12 (no token at this size)
+    line-height: 1;
+    color: var(--fg-white);
+    background: var(--color-brand-500); // iOS Color.brandPrimary
+    border-radius: var(--radius-full); // iOS Capsule()
+  }
+
+  // ── Right-edge alphabet section index ─────────────────────────────────────
+  // iOS UITableView sectionIndexTitles, vertically centered on the trailing
+  // edge, tinted with the app's brand color.
+  &__index {
+    position: absolute;
+    top: 50%;
+    right: var(--space-xs); // ~4pt trailing inset
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2xs); // tight 2px row spacing
+    z-index: 1;
+  }
+
+  &__index-letter {
+    font-size: var(--text-xs); // ~11pt section index label
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.1;
+    color: var(--color-brand-500); // iOS section index tint (brandPrimary)
+  }
+}
