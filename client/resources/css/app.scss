@@ -177,6 +177,7 @@
 @use 'components/card/error-banner' as error-banner-twin;
 @use 'components/card/unenroll-confirmation' as unenroll-confirmation-twin;
 @use 'components/card/group-action-button' as group-action-button-twin;
+@use 'components/card/skeleton-post-card' as skeleton-post-card-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

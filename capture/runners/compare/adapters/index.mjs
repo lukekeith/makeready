@@ -74,6 +74,7 @@ import confirmationOverlay from './ConfirmationOverlay.mjs';
 import errorBanner from './ErrorBanner.mjs';
 import unenrollConfirmation from './UnenrollConfirmation.mjs';
 import groupActionButton from './GroupActionButton.mjs';
+import skeletonPostCard from './SkeletonPostCard.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -145,6 +146,7 @@ export const adapters = {
   ErrorBanner: errorBanner,
   UnenrollConfirmation: unenrollConfirmation,
   GroupActionButton: groupActionButton,
+  SkeletonPostCard: skeletonPostCard,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

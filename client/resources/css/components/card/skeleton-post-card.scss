@@ -1,0 +1,186 @@
+// SkeletonPostCard — skeleton/loading post card twin
+// (iOS Components/Group/SkeletonPostCard.swift).
+//
+// iOS: VStack(alignment:.leading, spacing 12), .padding(16), NO card background
+// (renders directly on appBackground). The card is full-width (the feed column
+// stretches it), so the root is width:100%.
+//
+// All shimmer placeholders are iOS Color.white.opacity(0.08), frozen at the
+// snapshot's initial non-animating value. 0.08 has no token, so — like
+// skeleton-card-study — it carries the literal SwiftUI value inline.
+//
+// Text size 15 is the intrinsic iOS system size (the DS text scale jumps 13→16),
+// rendered with -apple-system to match SF Pro metrics under the macOS capture
+// runner (same approach as the SkeletonEnrollmentCard / InfoPanel twins).
+.SkeletonPostCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px; // iOS VStack spacing 12
+  width: 100%;
+  padding: var(--space-lg); // iOS .padding(16)
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  // Shared shimmer fill — iOS Color.white.opacity(0.08), no token.
+  $shimmer: rgba(255, 255, 255, 0.08);
+
+  // 1. Author row — HStack(spacing 12), full width (trailing Spacer).
+  &__author {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+  }
+
+  &__avatar {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: $shimmer;
+  }
+
+  &__authorText {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; // iOS VStack spacing 4
+  }
+
+  &__name {
+    width: 100px;
+    height: 14px;
+    border-radius: var(--radius-sm); // iOS cornerRadius 4
+    background: $shimmer;
+  }
+
+  &__timestamp {
+    width: 60px;
+    height: 10px;
+    border-radius: var(--radius-sm);
+    background: $shimmer;
+  }
+
+  // 2. Content preview — VStack(spacing 8).
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px; // iOS VStack spacing 8
+    width: 100%;
+  }
+
+  &__title {
+    font-size: 15px; // iOS Typography.s15Semibold (intrinsic; DS scale jumps 13→16)
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+  }
+
+  // Generic (no-name) title placeholder bar — 180×16.
+  &__titlePlaceholder {
+    width: 180px;
+    height: 16px;
+    border-radius: var(--radius-sm);
+    background: $shimmer;
+  }
+
+  &__line {
+    height: 14px;
+    border-radius: var(--radius-sm);
+    background: $shimmer;
+
+    &--full {
+      width: 100%; // iOS bar with no fixed width fills the row
+    }
+
+    &--short {
+      width: 200px;
+    }
+  }
+
+  // 3. Cover area — 180 tall (enrollment) / 120 tall (generic), 8px radius.
+  &__cover {
+    position: relative;
+    width: 100%;
+    height: 180px;
+    border-radius: var(--radius-md); // iOS cornerRadius 8
+    overflow: hidden;
+    background: $shimmer;
+
+    &--short {
+      height: 120px;
+    }
+  }
+
+  &__coverImage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  // iOS Color.black.opacity(0.3) wash over a resolved cover image.
+  &__coverWash {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3); // iOS black 0.3 — no token
+  }
+
+  // iOS ProgressView (.tint(.white), scaleEffect 1.2) — frozen static spoke
+  // spinner so the screenshot is deterministic.
+  &__spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 24px;
+    height: 24px;
+    color: var(--color-white-80);
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  // 4. Action bar — HStack(spacing 16), trailing Spacer.
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 16px; // iOS HStack spacing 16
+    width: 100%;
+  }
+
+  &__action {
+    display: flex;
+    align-items: center;
+    gap: 4px; // iOS HStack spacing 4
+  }
+
+  // SF symbol at 14pt renders ~18px (cap-height ref); white@30%.
+  &__actionIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 18px;
+    color: var(--color-white-30); // iOS .white.opacity(0.3)
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__actionBar {
+    width: 20px;
+    height: 12px;
+    border-radius: var(--radius-sm);
+    background: $shimmer;
+  }
+}

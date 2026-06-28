@@ -66,6 +66,7 @@ import ConfirmationOverlay from '../../card/confirmation-overlay/confirmation-ov
 import ErrorBanner from '../../card/error-banner/error-banner.vue'
 import UnenrollConfirmation from '../../card/unenroll-confirmation/unenroll-confirmation.vue'
 import GroupActionButton from '../../card/group-action-button/group-action-button.vue'
+import SkeletonPostCard from '../../card/skeleton-post-card/skeleton-post-card.vue'
 
 const props = defineProps<{
   component: string
@@ -204,6 +205,11 @@ const registry: Record<string, unknown> = {
   // a white label on the left and a brand-purple SF-symbol icon on the right, in
   // a white@10% capsule (Video / Message / Meeting / Gallery).
   GroupActionButton,
+  // iOS SkeletonPostCard (Components/Group/SkeletonPostCard.swift) — loading
+  // post card: shimmer author row, a "<program> starts soon!" title (or shimmer
+  // bar) + two shimmer text lines, a 180-tall cover shimmer with a white spoke
+  // spinner, and an eye/share action bar. Full-width, no card background.
+  SkeletonPostCard,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
