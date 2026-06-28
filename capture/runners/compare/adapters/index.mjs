@@ -34,6 +34,7 @@ import calendarEventListContent from './CalendarEventListContent.mjs';
 import calendarWeekdayHeader from './CalendarWeekdayHeader.mjs';
 import cardGroupMini from './CardGroupMini.mjs';
 import cardMediaFull from './CardMediaFull.mjs';
+import cardProgramFull from './CardProgramFull.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -55,7 +56,7 @@ export const adapters = {
   CardLesson: cardLesson,
   ScheduledLessonCard: iphoneCard('component.ScheduledLessonCard'),
   CardEnrolled: cardEnrolled,
-  CardProgramFull: iphoneCard('component.CardProgramFull'),
+  CardProgramFull: cardProgramFull,
   UpcomingLessonCard: iphoneCard('component.UpcomingLessonCard'),
   EnrollmentCard: iphoneCard('component.EnrollmentCard'),
   CardMediaFull: cardMediaFull,

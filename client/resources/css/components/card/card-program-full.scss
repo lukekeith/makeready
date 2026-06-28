@@ -1,0 +1,156 @@
+// CardProgramFull — full-width program browse card (iOS CardProgramFull).
+// A 280px-tall card with a full-bleed cover (or faint placeholder + book glyph)
+// and a bottom content overlay. BEM modifiers mirror card-program-full.vue.
+//
+// The 280px height and 8px corner radius are intrinsic structural sizes from the
+// iOS layout spec (`.frame(height: 280)` + `cornerRadius: 8`). Where iOS uses an
+// alpha with no matching token, the literal mirrors the exact SwiftUI value
+// (noted inline): the placeholder is white @ 8%, the tag pill is white @ 15%,
+// and the overlay is cardBackground @ 80% (expressed via color-mix on the token).
+.CardProgramFull {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  border-radius: var(--radius-md); // iOS cornerRadius: 8
+  overflow: hidden;
+  cursor: pointer;
+
+  // ─── Full-bleed cover / placeholder ──────────────────────────────────────────
+  &__cover {
+    position: absolute;
+    inset: 0;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &__placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.08); // iOS Color.white.opacity(0.08) — no token at 8%
+  }
+
+  &__placeholderIcon {
+    display: inline-flex;
+    color: var(--color-white-20); // iOS .white.opacity(0.2)
+
+    svg {
+      width: var(--text-display); // iOS Typography.s32 (32pt glyph)
+      height: var(--text-display);
+      display: block;
+    }
+  }
+
+  // ─── Published capsule (top-right) ───────────────────────────────────────────
+  &__badge {
+    position: absolute;
+    top: var(--space-lg);
+    right: var(--space-lg);
+    padding: var(--space-xs) var(--space-sm); // iOS .vertical 4 / .horizontal 8
+    border-radius: var(--radius-full);
+    background: var(--color-ios-success); // iOS Color.success (#57db5d)
+    color: #234d2e; // iOS badge text color — no token
+    font-size: var(--text-xs); // iOS Typography.s10Semibold
+    line-height: 1;
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+  }
+
+  // ─── Bottom content overlay ──────────────────────────────────────────────────
+  &__overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-lg); // iOS VStack spacing 16
+    padding: var(--space-md) var(--space-lg); // iOS .vertical 12 / .horizontal 16
+    background: color-mix(in srgb, var(--bg-surface) 80%, transparent); // iOS cardBackground @ 80%
+  }
+
+  &__head {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs); // iOS VStack spacing 4
+    min-width: 0;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-lead); // iOS s17Bold
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white-100);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__description {
+    margin: 0;
+    font-size: var(--text-sm); // iOS s14 (no 14px token — card description scale)
+    line-height: var(--leading-sm);
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  // ─── Tags ────────────────────────────────────────────────────────────────────
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px; // iOS HStack spacing 6 — no token
+  }
+
+  &__tag {
+    padding: var(--space-xs) var(--space-sm); // iOS .vertical 4 / .horizontal 8
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.15); // iOS Color.white.opacity(0.15) — no token at 15%
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+    font-size: var(--text-xs); // iOS s10Semibold
+    line-height: 1;
+    font-weight: var(--font-weight-semibold);
+    white-space: nowrap;
+  }
+
+  // ─── Metadata row ────────────────────────────────────────────────────────────
+  // iOS draws every DataComponent in this card at full white (not the muted
+  // defaults), so override the shared component's icon/value colors here.
+  &__data {
+    .DataComponent__icon,
+    .DataComponent__value {
+      color: var(--color-white-100);
+    }
+  }
+
+  // ─── Author / date footer ────────────────────────────────────────────────────
+  &__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__author {
+    font-size: var(--text-sm); // iOS s12Medium (no 12px token)
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+  }
+
+  &__date {
+    font-size: var(--text-sm); // iOS s12 (no 12px token)
+    line-height: var(--leading-sm);
+    color: var(--color-white-30); // iOS .white.opacity(0.3)
+  }
+}
