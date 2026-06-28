@@ -1,0 +1,112 @@
+// NavBar (Navigation) — web twin of iOS Components/Navigation/NavBar.swift.
+// BEM block mirrors resources/js/components/card/nav-bar/nav-bar.vue.
+//
+// Geometry is 1:1 with the SwiftUI layout (1 CSS px == 1 iOS pt; the pro-max
+// snapshot is 3×). From the Swift source:
+//   HStack(spacing: 0) of six `.frame(maxWidth:.infinity)` columns
+//     • five icon columns: VStack(spacing:4) → Image(22×22) + Text(s10Medium)
+//     • one avatar column: VStack(spacing:4) → CachedAsyncImage(22) + Text
+//   .padding(.horizontal,16) .padding(.top,20) .padding(.bottom,48)
+//   .background(.ultraThinMaterial).background(appBackground@0.5)
+//
+// Content is inset 32px each side: the iPhone snapshot stacks the ViewRegistry's
+// own `.padding(16)` wrapper ON TOP of NavBar's `.padding(.horizontal,16)`. The
+// harness `.capture-wrap` supplies the outer 16px, so the block keeps its own
+// 16px horizontal padding to reach the matching 32px total (without it the
+// column pitch is too wide and the tabs drift apart toward the edges). The top
+// 20 / bottom 48 stay on the block. The `.ultraThinMaterial` background renders
+// invisible in the isolated snapshot (over appBackground), so the bar is
+// transparent and the canvas shows through — matching the iPhone reference.
+//
+// Active tab = brandPrimary (#6c47ff); inactive = white@70%. SF Pro (the iOS
+// system font) drives the 10pt label metrics, so `-apple-system` is used.
+.NavBar {
+  display: flex;
+  width: 100%;
+  padding: 20px 16px 48px; // iOS .padding(.top,20) .horizontal(16) .bottom(48)
+  background: transparent; // iOS .ultraThinMaterial → invisible in snapshot
+
+  // ── Each tab column ─────────────────────────────────────────────────────────
+  &__col {
+    display: flex;
+    flex: 1 1 0; // iOS .frame(maxWidth: .infinity) — equal widths
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs); // iOS VStack(spacing: 4)
+    color: var(--color-white-70); // iOS inactiveColor = white.opacity(0.7)
+  }
+
+  &__col--active {
+    color: var(--color-brand-500); // iOS selectedColor = brandPrimary
+  }
+
+  // ── Icon glyph (22×22, template-tinted via currentColor) ────────────────────
+  &__icon {
+    width: 22px; // iOS .frame(width: 22, height: 22)
+    height: 22px;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // ── Label (s10Medium) ───────────────────────────────────────────────────────
+  &__label {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 10px; // iOS Typography.s10Medium (no smaller-than-xs token)
+    line-height: 12px;
+    font-weight: var(--font-weight-medium);
+    color: inherit; // tracks the column's active/inactive color
+  }
+
+  // ── Profile avatar (22pt circle) ────────────────────────────────────────────
+  &__avatar {
+    position: relative;
+    width: 22px; // iOS CachedAsyncImage size: 22
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  // No-URL fallback: gray@30% circle + small white@60% person glyph.
+  &__avatarFallback {
+    width: 100%;
+    height: 100%;
+    border-radius: var(--radius-full);
+    background: rgba(142, 142, 147, 0.3); // iOS Color.gray.opacity(0.3)
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__person {
+    width: 11px; // iOS fallback icon font ≈ size·0.4 (≈9px art)
+    height: 11px;
+    color: var(--color-white-60); // iOS .white.opacity(0.6)
+  }
+
+  // Unresolved-URL loading spinner (frozen spoke spinner, no circle behind it).
+  &__spinner {
+    width: 16px; // iOS default ProgressView ≈ 16px visible spokes
+    height: 16px;
+    color: var(--color-white-50); // iOS default spinner gray
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Active-Profile ring: 1.5px brandPrimary stroke on the circle edge.
+  &__avatarRing {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-full);
+    border: 1.5px solid var(--color-brand-500); // iOS Circle().stroke(selectedColor, lineWidth: 1.5)
+    pointer-events: none;
+  }
+}

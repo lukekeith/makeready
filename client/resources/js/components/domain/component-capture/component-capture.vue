@@ -91,6 +91,7 @@ import FilterChipDropdown from '../../card/filter-chip-dropdown/filter-chip-drop
 import HamburgerMenu from '../../card/hamburger-menu/hamburger-menu.vue'
 import InviteMenu from '../../card/invite-menu/invite-menu.vue'
 import LessonActionMenu from '../../card/lesson-action-menu/lesson-action-menu.vue'
+import NavBar from '../../card/nav-bar/nav-bar.vue'
 
 const props = defineProps<{
   component: string
@@ -396,6 +397,15 @@ const registry: Record<string, unknown> = {
   // day, matching the iOS DateFormatter). ManagedMenuView's overlay/slide chrome
   // is out of scope for the isolated snapshot.
   LessonActionMenu,
+  // iOS NavBar (Components/Navigation/NavBar.swift) — the bottom tab bar: six
+  // equal-width tabs (Home / Groups / Library / Calendar / Search / Profile),
+  // icon over a 10pt label, active tab brand-purple. Profile is a 22pt avatar:
+  // no URL → gray circle + person glyph; URL set → frozen spoke spinner (the
+  // photo never resolves in the isolated snapshot), with a brand ring when
+  // Profile is active. The five tab glyphs are the iOS Image assets transcribed
+  // as inline SVG; the `.ultraThinMaterial` bar background is invisible in the
+  // snapshot, so the twin's bar is transparent over the canvas.
+  NavBar,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
