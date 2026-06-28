@@ -1,0 +1,59 @@
+// PageHeader (Navigation) — web twin of iOS Components/Navigation/PageHeader.swift.
+// BEM block mirrors resources/js/components/card/page-header/page-header.vue.
+//
+// NB: the block is `.PageHeaderTabs`, NOT `.PageHeader` — the latter is already
+// taken by the real frosted app header (components/navigation/page-header.scss).
+//
+// Geometry is 1:1 with the SwiftUI layout (1 CSS px == 1 iOS pt; the pro-max
+// snapshot is 3×). From the Swift source:
+//   HStack(spacing:16) of TabButton, .padding(16)
+//   TabButton: Text(.font(s17)).padding(.top,8).padding(.bottom,10)
+//   active indicator: 2px brandPrimary rect, width = tab text width, at the
+//   bottom edge of the tab row (.position y = height - 1).
+//
+// The harness wraps PageHeader in an outer `.padding(16)` (ViewRegistry) on top
+// of PageHeader's own `.padding(16)`; the capture `.capture-wrap` supplies the
+// outer 16px, so this block keeps its own 16px padding → 32px total inset.
+//
+// SF Pro (the iOS system font) drives the 17pt tab metrics: line-height 20.33px
+// matches UIFont(system: 17).lineHeight so the crop height (≈102pt) lines up.
+.PageHeaderTabs {
+  display: flex;
+  width: 100%;
+  padding: 16px; // iOS PageHeader .padding(16)
+  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+
+  &__tabs {
+    display: inline-flex;
+    align-items: flex-start;
+    gap: 16px; // iOS HStack(spacing: 16)
+  }
+
+  // Each tab — text only, no horizontal padding, so the box width == text width
+  // (the underline then spans exactly the text, like the iOS preference frame).
+  &__tab {
+    position: relative;
+    padding-top: 8px; // iOS .padding(.top, 8)
+    padding-bottom: 10px; // iOS .padding(.bottom, 10)
+    font-size: 17px; // iOS Typography.s17
+    line-height: 20.33px; // UIFont(system: 17).lineHeight
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+    white-space: nowrap;
+
+    &--active {
+      color: var(--color-white-100); // iOS .white
+
+      // 2px brandPrimary underline pinned to the bottom edge of the tab row,
+      // spanning the full tab (text) width (iOS active indicator).
+      &::after {
+        content: '';
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 2px;
+        background: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+      }
+    }
+  }
+}

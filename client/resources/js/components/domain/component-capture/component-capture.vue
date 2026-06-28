@@ -92,6 +92,7 @@ import HamburgerMenu from '../../card/hamburger-menu/hamburger-menu.vue'
 import InviteMenu from '../../card/invite-menu/invite-menu.vue'
 import LessonActionMenu from '../../card/lesson-action-menu/lesson-action-menu.vue'
 import NavBar from '../../card/nav-bar/nav-bar.vue'
+import PageHeader from '../../card/page-header/page-header.vue'
 
 const props = defineProps<{
   component: string
@@ -406,6 +407,12 @@ const registry: Record<string, unknown> = {
   // as inline SVG; the `.ultraThinMaterial` bar background is invisible in the
   // snapshot, so the twin's bar is transparent over the canvas.
   NavBar,
+  // iOS PageHeader (Components/Navigation/PageHeader.swift) — a left-hugging row
+  // of text tabs (s17) with a 2px brandPrimary underline beneath the active tab.
+  // Inactive tabs are white@70%, active is white. No trailing content in the
+  // captured variants. The harness's outer .padding(16) + PageHeader's own
+  // .padding(16) give the 32px inset the `.capture-wrap` reproduces.
+  PageHeader,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

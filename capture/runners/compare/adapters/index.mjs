@@ -99,6 +99,7 @@ import hamburgerMenu from './HamburgerMenu.mjs';
 import inviteMenu from './InviteMenu.mjs';
 import lessonActionMenu from './LessonActionMenu.mjs';
 import navBar from './NavBar.mjs';
+import pageHeader from './PageHeader.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -195,6 +196,7 @@ export const adapters = {
   InviteMenu: inviteMenu,
   LessonActionMenu: lessonActionMenu,
   NavBar: navBar,
+  PageHeader: pageHeader,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
