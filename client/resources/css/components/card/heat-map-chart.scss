@@ -1,0 +1,51 @@
+// HeatMapChartTwin — web twin of the iOS HeatMapChart (Swift Charts grid of
+// RectangleMarks). The grid geometry/colors live in the Vue component; this rule
+// owns the rounded container, the day-label column, and the cell base color.
+//
+// The container mirrors iOS exactly: `.padding(16)` of internal space, an 8px
+// rounded rectangle filled with white@0.05, and a chart area whose height is the
+// `chartHeight` prop (120 by default). The capture harness's `.capture-wrap`
+// already supplies the 16px outer gutter that matches the iOS ViewRegistry's
+// outer `.padding(16)`, so this root adds no outer margin.
+//
+// The 10px day label has no exact web token at the pro-max scale (`--text-xs` is
+// 11px), so the raw value is used per the design-system intrinsic-size exception
+// — same as the donut-chart twin's center type. It maps to iOS Typography.s10.
+.HeatMapChartTwin {
+  width: 100%;
+  padding: var(--space-lg); // iOS .padding(16)
+  background: var(--bg-subtle); // iOS white.opacity(0.05)
+  border-radius: var(--radius-md); // iOS RoundedRectangle(cornerRadius: 8)
+
+  &__chart {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-sm); // iOS axis horizontalSpacing 8
+  }
+
+  &__labels {
+    display: grid;
+    grid-template-rows: repeat(7, 1fr);
+    align-items: center;
+    justify-items: end;
+  }
+
+  &__label {
+    font-size: 10px; // iOS Typography.s10 (no exact web token at this scale)
+    line-height: 1;
+    color: var(--fg-tertiary); // iOS white.opacity(0.5)
+  }
+
+  &__grid {
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-rows: repeat(7, 1fr);
+    // grid-template-columns set inline from the week count.
+  }
+
+  &__cell {
+    // iOS brandPrimary; per-cell opacity (the colorForValue ramp) set inline.
+    // Square corners mirror Swift Charts' RectangleMark.
+    background: var(--color-brand-500);
+  }
+}

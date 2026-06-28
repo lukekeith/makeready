@@ -45,6 +45,7 @@ import SkeletonCardStudy from '../../card/skeleton-card-study/skeleton-card-stud
 import CardSlideButton from '../../card/card-slide-button/card-slide-button.vue'
 import SwipeableCard from '../../card/swipeable-card/swipeable-card.vue'
 import DonutChart from '../../card/donut-chart/donut-chart.vue'
+import HeatMapChart from '../../card/heat-map-chart/heat-map-chart.vue'
 
 const props = defineProps<{
   component: string
@@ -99,6 +100,8 @@ const registry: Record<string, unknown> = {
   SwipeableCard,
   // iOS DonutChart (Swift Charts SectorMark) — inline-SVG donut/pie twin.
   DonutChart,
+  // iOS HeatMapChart (Swift Charts RectangleMark grid) — CSS-grid heatmap twin.
+  HeatMapChart,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
