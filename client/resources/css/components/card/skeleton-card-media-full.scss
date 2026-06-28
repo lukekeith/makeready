@@ -1,0 +1,17 @@
+// SkeletonCardMediaFull — loading placeholder twin for iOS SkeletonCardMediaFull.
+// Matches CardMediaFull's grid tile: a 1:1 square filled with white @ 8% — the
+// same faint placeholder fill CardMediaFull shows before its image loads.
+//
+// The 120px tile width is the intrinsic grid-cell size from the iOS layout spec
+// (the skeleton is rendered at `.frame(width: 120)` in a 3-column grid) — a raw
+// structural dimension, allowed per the design-system exception. No corner
+// radius: the iOS Rectangle draws square (CachedCardImage cornerRadius: 0).
+//
+// White @ 8% has no token in the white alpha scale; the literal mirrors the
+// exact SwiftUI value (Color.white.opacity(0.08)), matching card-media-full's
+// placeholder fill.
+.SkeletonCardMediaFull {
+  width: 120px;
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, 0.08); // iOS Color.white.opacity(0.08) — no token at 8%
+}
