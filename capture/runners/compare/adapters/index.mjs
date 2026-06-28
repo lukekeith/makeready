@@ -49,6 +49,7 @@ import skeletonCardLessonActivity from './SkeletonCardLessonActivity.mjs';
 import skeletonCardMediaFull from './SkeletonCardMediaFull.mjs';
 import skeletonCardProgramFull from './SkeletonCardProgramFull.mjs';
 import skeletonCardStudy from './SkeletonCardStudy.mjs';
+import slideButton from './SlideButton.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -93,6 +94,7 @@ export const adapters = {
   UserMenu: userMenu,
   // Two-sided twin (Vue + iPhone).
   ActionButton: actionButton,
+  SlideButton: slideButton,
   BoxButton: boxButton,
   AgeRangeInput: ageRangeInput,
   BackgroundSourceMenu: backgroundSourceMenu,
