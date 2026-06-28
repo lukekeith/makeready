@@ -89,6 +89,12 @@
   --color-brand-30:  rgba(108, 71, 255, 0.30); // matches iOS .brandPrimary.opacity(0.3)
   --color-brand-70:  rgba(108, 71, 255, 0.70); // matches iOS .brandPrimary.opacity(0.7)
 
+  // Lighter accent purple (#7c7cff) — iOS ActionCardMenu hardcodes this hex for
+  // its item icon glyph (full) and icon-tile background (12% opacity). Distinct
+  // from brandPrimary (#6c47ff).
+  --color-accent-purple:     #7c7cff;
+  --color-accent-purple-12:  rgba(124, 124, 255, 0.12);
+
   // ─── Font weights ──────────────────────────────────────────────────────────
   // Mirrors the weights in use across iOS Typography.swift (regular/medium/
   // semibold/bold). Components reference these instead of literal 400/600.

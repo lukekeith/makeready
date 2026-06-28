@@ -85,6 +85,7 @@ import ToggleControl from '../../card/toggle-control/toggle-control.vue'
 import SearchableList from '../../card/searchable-list/searchable-list.vue'
 import CardSpinnerOverlay from '../../card/card-spinner-overlay/card-spinner-overlay.vue'
 import ShimmerView from '../../card/shimmer-view/shimmer-view.vue'
+import ActionCardMenu from '../../card/action-card-menu/action-card-menu.vue'
 
 const props = defineProps<{
   component: string
@@ -340,6 +341,12 @@ const registry: Record<string, unknown> = {
   // twin renders those shapes data-driven: a rounded block, or a leading-aligned
   // column of text-row bars.
   ShimmerView,
+  // iOS ActionCardMenu (Components/Navigation/ActionCardMenu.swift) — slide-up
+  // contextual menu: an uppercase section title over a stack of card rows (36×36
+  // #7c7cff icon tile + s17 title / s13 white@50 description + trailing chevron),
+  // with a large centered xmark close button beneath. Item icons arrive as inline
+  // SVG from the adapter (iOS SF Symbols mapped to web glyphs).
+  ActionCardMenu,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

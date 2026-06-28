@@ -1,0 +1,133 @@
+// ActionCardMenu — twin of iOS Components/Navigation/ActionCardMenu.swift.
+//
+// Structure (outer → inner):
+//   .ActionCardMenu            → VStack(spacing:0). Full-width (fills the
+//                                .capture-wrap clip box). Holds the content stack
+//                                + the centered close button.
+//   .ActionCardMenu__content   → VStack(spacing:12) + .padding(.horizontal,16)
+//                                + .padding(.top,16). The harness's .capture-wrap
+//                                supplies the matching outer 16px gutter, so the
+//                                rows sit 32px from the crop edge like iOS.
+//   .ActionCardMenu__title     → s15Semibold, white@50, uppercase, tracking 0.5,
+//                                leading.
+//   .ActionCardMenu__item      → a card row: HStack(spacing:14) + .padding(14)
+//                                + white@5 background + 12px corner radius.
+//   .ActionCardMenu__icon      → 36×36 tile, #7c7cff@12% background, 8px radius,
+//                                holding the s18 #7c7cff glyph (inline SVG).
+//   .ActionCardMenu__text      → VStack(alignment:.leading, spacing:2):
+//                                title (s17Semibold white) over description
+//                                (s13 white@50). Spacer() then pushes the chevron.
+//   .ActionCardMenu__chevron   → chevron.right, s13Semibold, white@30.
+//   .ActionCardMenu__close     → centered xmark (s20 white), .padding(.vertical,32)
+//                                + .padding(.horizontal,16).
+//
+// 14px row padding / gap, the 12px card radius, the 36px icon tile + 8px radius,
+// and the glyph box sizes come straight from the iOS layout spec and have no
+// design-system token (raw px allowed per the intrinsic-size exception);
+// everything else is tokenized.
+.ActionCardMenu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    padding: var(--space-lg) var(--space-lg) 0;
+  }
+
+  // The three text rows below pin line-height to SF Pro Text's intrinsic single-
+  // line metrics (≈1.19× the point size: 15→18, 17→20, 13→16) rather than the
+  // looser web leading tokens (22/18). iOS sizes each Text to the font's line
+  // box, so matching those exact heights is what keeps the card rows (and the
+  // accumulating vertical offset down the stack) pixel-aligned with the iPhone
+  // snapshot — a genuine cross-platform requirement, not a style choice.
+  &__title {
+    font-size: var(--text-md);
+    line-height: 18px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-50);
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-wide);
+    text-align: left;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    padding: 14px;
+    background: var(--color-white-5);
+    border-radius: 12px;
+    text-align: left;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--color-accent-purple-12);
+    color: var(--color-accent-purple);
+
+    svg {
+      width: 21px;
+      height: 21px;
+      display: block;
+    }
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__item-title {
+    font-size: var(--text-lead);
+    line-height: 20px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-100);
+  }
+
+  &__item-desc {
+    font-size: var(--text-sm);
+    line-height: 16px;
+    color: var(--color-white-50);
+  }
+
+  &__chevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-white-30);
+
+    svg {
+      width: 7px;
+      height: 13px;
+      display: block;
+    }
+  }
+
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white-100);
+    padding: var(--space-2xl) var(--space-lg);
+
+    svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+    }
+  }
+}
