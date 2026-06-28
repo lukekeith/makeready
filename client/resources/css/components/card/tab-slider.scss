@@ -1,0 +1,43 @@
+// TabSlider (Navigation) — web twin of iOS Components/Navigation/TabSlider.swift.
+// BEM block mirrors resources/js/components/card/tab-slider/tab-slider.vue.
+//
+// NB: the block is `.TabSliderControl`, NOT `.TabSlider` — the latter is already
+// taken by the real segmented tab-slider (components/navigation/tab-slider.scss).
+//
+// Geometry is 1:1 with the SwiftUI layout (1 CSS px == 1 iOS pt; the pro-max
+// snapshot is 3×). From the Swift source:
+//   HStack(spacing: 0) of Text tabs, each
+//     .padding(.horizontal, 16).padding(.vertical, 4)
+//     selected → RoundedRectangle(cornerRadius: 4).fill(.brandPrimary) behind it
+//   container .padding(4) over RoundedRectangle(cornerRadius: 4).fill(.white@0.2)
+//
+// The harness wraps TabSlider in an outer `.padding(16)` (ViewRegistry) which the
+// capture `.capture-wrap` supplies, so this block only renders the control. The
+// control hugs its content (inline-flex) and the island centers it, matching the
+// iOS sizeThatFits snapshot.
+//
+// SF Pro (the iOS system font) drives the 17pt tab metrics: line-height 20.33px
+// matches UIFont(system: 17).lineHeight.
+.TabSliderControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0; // iOS HStack(spacing: 0)
+  padding: 4px; // iOS .padding(4)
+  border-radius: 4px; // iOS RoundedRectangle(cornerRadius: 4)
+  background: var(--color-white-20); // iOS .fill(Color.white.opacity(0.2))
+  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+
+  &__tab {
+    padding: 4px 16px; // iOS .padding(.vertical, 4) + .padding(.horizontal, 16)
+    border-radius: 4px; // iOS selected RoundedRectangle(cornerRadius: 4)
+    font-size: 17px; // iOS Typography.s17
+    line-height: 20.33px; // UIFont(system: 17).lineHeight
+    color: var(--color-white-100); // iOS .foregroundColor(.white) — always white
+    white-space: nowrap;
+
+    &--active {
+      // Selected pill: brandPrimary fill behind the (still white) label.
+      background: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+    }
+  }
+}

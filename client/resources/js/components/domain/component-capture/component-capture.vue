@@ -94,6 +94,7 @@ import LessonActionMenu from '../../card/lesson-action-menu/lesson-action-menu.v
 import NavBar from '../../card/nav-bar/nav-bar.vue'
 import PageHeader from '../../card/page-header/page-header.vue'
 import PageTitle from '../../card/page-title/page-title.vue'
+import TabSlider from '../../card/tab-slider/tab-slider.vue'
 
 const props = defineProps<{
   component: string
@@ -422,6 +423,13 @@ const registry: Record<string, unknown> = {
   // Action glyphs arrive as inline SVG from the adapter (SF Symbols → web glyphs,
   // drawn currentColor); the dropdown/back chevrons are inlined in the component.
   PageTitle,
+  // iOS TabSlider (Components/Navigation/TabSlider.swift) — a segmented tab
+  // control: a content-hugging row of s17 white text tabs on a white@20% rounded
+  // track, with a brandPrimary rounded pill behind the selected tab. Both
+  // selected and unselected labels stay white (only the pill background moves);
+  // the resting snapshot shows the pill under the selected index. The harness's
+  // outer .padding(16) is supplied by the `.capture-wrap`.
+  TabSlider,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

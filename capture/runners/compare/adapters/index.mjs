@@ -101,6 +101,7 @@ import lessonActionMenu from './LessonActionMenu.mjs';
 import navBar from './NavBar.mjs';
 import pageHeader from './PageHeader.mjs';
 import pageTitle from './PageTitle.mjs';
+import tabSlider from './TabSlider.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -199,6 +200,7 @@ export const adapters = {
   NavBar: navBar,
   PageHeader: pageHeader,
   PageTitle: pageTitle,
+  TabSlider: tabSlider,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
