@@ -41,6 +41,7 @@ import cardStudyMini from './CardStudyMini.mjs';
 import cardStudySelectable from './CardStudySelectable.mjs';
 import cardVideo from './CardVideo.mjs';
 import cardVideoMini from './CardVideoMini.mjs';
+import groupPostCard from './GroupPostCard.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -73,7 +74,7 @@ export const adapters = {
   CalendarEventListContent: calendarEventListContent,
   CalendarWeekdayHeader: calendarWeekdayHeader,
   CardGroupMini: cardGroupMini,
-  GroupPostCard: iphoneCard('component.GroupPostCard'),
+  GroupPostCard: groupPostCard,
   // Connected components — seed app state rather than a plain prop bag.
   BlockStyleEditor: blockStyleEditor,
   UserMenu: userMenu,

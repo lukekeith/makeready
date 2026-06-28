@@ -1,0 +1,220 @@
+// GroupPostCard — group-feed post card (iOS GroupPostCard parity). Vertical
+// stack: author header, body, optional media / event card, optional action bar.
+//
+// Sizing mirrors the SwiftUI source: 16px outer padding (the capture harness
+// adds the second 16px to match iOS's doubled .padding(16)), 8px stack gap,
+// 200px media height, and the 40px (Avatar md) author avatar. The image/event
+// cover heights (200) come straight from the iOS layout spec — intrinsic
+// structural sizes, raw px allowed per the design-system exception.
+.GroupPostCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  width: 100%;
+  padding: var(--space-lg);
+  text-align: left;
+
+  // ─── Author header ──────────────────────────────────────────────────────────
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    width: 100%;
+    min-width: 0;
+  }
+
+  &__avatar {
+    flex: 0 0 auto;
+    --avatar-size: 40px; // iOS Avatar .md
+
+    // iOS initials gradient: brandPrimary @0.6 → @0.4 over the dark canvas.
+    // Layering the translucent brand gradient over --bg-canvas reproduces the
+    // exact composited color regardless of the avatar's own backdrop.
+    .Avatar__fallback {
+      background:
+        linear-gradient(135deg, rgba(108, 71, 255, 0.6), rgba(108, 71, 255, 0.4)),
+        var(--bg-canvas);
+      font-size: 16px; // iOS .md initials size
+    }
+  }
+
+  &__byline {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2xs);
+  }
+
+  &__author {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+  }
+
+  &__time {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-xs);
+    font-size: var(--text-xs);
+    line-height: var(--leading-xs);
+  }
+
+  &__timeValue {
+    color: var(--fg-secondary);
+  }
+
+  &__timeUnit {
+    color: var(--fg-tertiary);
+  }
+
+  // ─── Body ───────────────────────────────────────────────────────────────────
+  &__body {
+    margin: 0;
+    width: 100%;
+    font-size: var(--text-sm);
+    line-height: var(--leading-md);
+    color: var(--fg-primary);
+  }
+
+  // ─── Non-event media placeholder (iOS AsyncImage placeholder) ────────────────
+  &__media {
+    width: 100%;
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-white-5);
+  }
+
+  &__placeholderGlyph {
+    width: var(--icon-lg);
+    height: var(--icon-lg);
+    color: var(--color-white-30);
+  }
+
+  // ─── Event card ─────────────────────────────────────────────────────────────
+  &__event {
+    width: 100%;
+    background: var(--color-white-10);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+  }
+
+  &__eventCover {
+    height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-white-5);
+  }
+
+  &__eventRow {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  &__eventDate {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-lg);
+  }
+
+  &__eventDay {
+    font-size: var(--text-title);
+    line-height: var(--leading-title);
+    color: var(--fg-primary);
+  }
+
+  &__eventMonth {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand-500); // iOS Color.brandPrimary
+  }
+
+  &__eventDetails {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-lg);
+  }
+
+  &__eventTitle {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+  }
+
+  &__eventDateTime {
+    font-size: var(--text-sm);
+    line-height: var(--leading-md);
+    color: var(--fg-secondary);
+  }
+
+  &__eventAttendees {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-xs);
+    font-size: var(--text-sm);
+    line-height: var(--leading-md);
+  }
+
+  &__attendeeCount {
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+  }
+
+  &__attendeeLabel {
+    color: var(--fg-tertiary);
+  }
+
+  // ─── Action bar ─────────────────────────────────────────────────────────────
+  &__actions {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 18px;
+  }
+
+  &__actionsLeft {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+    flex: 1 1 auto;
+  }
+
+  &__actionsRight {
+    display: flex;
+    align-items: center;
+    gap: var(--space-lg);
+  }
+
+  &__metric {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+
+  &__metricValue {
+    font-size: var(--text-sm);
+    line-height: 1;
+    color: var(--fg-secondary);
+  }
+
+  &__actionIcon {
+    width: 18px;
+    height: 18px;
+    color: var(--fg-primary);
+    flex: 0 0 auto;
+  }
+}
