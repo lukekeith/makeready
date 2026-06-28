@@ -31,6 +31,7 @@ import CalendarWeekdayHeader from '../../card/calendar-weekday-header/calendar-w
 import CardProgramFull from '../../card/card-program-full/card-program-full.vue'
 import CardSearchResult from '../../card/card-search-result/card-search-result.vue'
 import CardVideo from '../../card/card-video/card-video.vue'
+import CardVideoMini from '../../card/card-video-mini/card-video-mini.vue'
 
 const props = defineProps<{
   component: string
@@ -65,6 +66,7 @@ const registry: Record<string, unknown> = {
   CardProgramFull,
   CardSearchResult,
   CardVideo,
+  CardVideoMini,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

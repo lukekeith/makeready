@@ -1,0 +1,172 @@
+// CardVideoMini — fixed 120×188 video tile (iOS CardVideoMini parity).
+// Mirrors CardVideoMini.swift: a full-bleed 120×114 image region (cover photo or
+// slate icon well, 8px radius) on top with a white play badge centered 16px from
+// the bottom, then an 8px-padded body (8px gap) with an optional single-line
+// description, a clamped 2-line title, and a single icon+value metadata row.
+// No border (the iOS card is background + corner radius only).
+//
+// The 120×114 image region, 24×24 play badge, and 14px metadata icon are
+// intrinsic structural sizes from the iOS layout spec — raw px allowed here per
+// the design-system exception. Everything else is tokenized.
+.CardVideoMini {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 120px;
+  height: 188px;
+  background: var(--bg-surface); // iOS cardBackground
+  border-radius: var(--radius-sm); // iOS cornerRadius 4
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  text-align: left;
+  transition: background-color var(--motion-micro) var(--ease-standard);
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  // ── Top: full-bleed 120×114 image region (photo or icon well) ────────────────
+  &__media {
+    position: relative;
+    flex-shrink: 0;
+    width: 120px;
+    height: 114px;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: var(--radius-md); // iOS CachedCardImage default cornerRadius 8
+  }
+
+  // Photo loading placeholder — gray well shown when no image is loaded. Mirrors
+  // the iOS CardLoadingPlaceholder (Color.gray @ 0.3, 8px radius). Isolated
+  // /compare snapshots never resolve the remote photo, so the iPhone reference
+  // is this placeholder and the web twin matches it.
+  &__placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: rgba(142, 142, 147, 0.3); // iOS Color.gray.opacity(0.3) — no token
+    border-radius: var(--radius-md); // iOS .cornerRadius(8)
+  }
+
+  // Slate icon well — iconContainerBackground (8px radius) with a centered 32px
+  // white glyph. iOS falls back to a play.circle.fill when no photo is set.
+  &__iconWell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-icon-container); // iOS iconContainerBackground
+    border-radius: var(--radius-md); // iOS .cornerRadius(8)
+  }
+
+  &__wellGlyph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; // iOS 32×32 glyph — no icon token at this size
+    height: 32px;
+    color: var(--fg-white);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // White play badge (iOS "IconVideoPlay", 24×24) — centered horizontally,
+  // 16px from the bottom of the image region.
+  &__playBadge {
+    position: absolute;
+    left: 50%;
+    bottom: var(--space-lg); // iOS .padding(.bottom, 16)
+    transform: translateX(-50%);
+    width: 24px;
+    height: 24px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  // ── Bottom: 8px-padded body, 8px gap (description / title / metadata) ─────────
+  // The iOS card is a hard 120×188 frame; with the 114px image + description +
+  // metadata, the bottom 8px of the inner VStack padding is consumed by the
+  // frame, so the body content fits 188px exactly (no bottom padding here).
+  &__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    gap: var(--space-sm); // 8px
+    padding: var(--space-sm) var(--space-sm) 0; // 8px (no bottom — eaten by the 188px frame)
+    min-width: 0;
+  }
+
+  // Category/description — 13px, white 70%, single line.
+  &__description {
+    flex-shrink: 0;
+    font-size: var(--text-sm); // 13px (iOS Typography.s13)
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary); // iOS white.opacity(0.7)
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Title — 12px bold, 0.1px tracking. iOS allows up to 2 lines (maxHeight 32),
+  // but with the description + metadata present the 188px frame leaves only one
+  // line of room, so the iPhone reference truncates to a single line. Match that.
+  &__title {
+    font-size: 12px; // iOS Typography.s12Bold — no exact token at 12px
+    line-height: 16px;
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--tracking-label); // iOS 0.1px tracking
+    color: var(--fg-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Metadata row — inline DataItem (.icon): 14px icon + 13px value.
+  &__data {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    gap: var(--space-xs); // 4px between icon and value
+    height: 18px; // iOS DataComponent .frame(height: 18)
+    min-width: 0;
+  }
+
+  &__dataIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 14px; // iOS icon .frame(width: 14, height: 14)
+    height: 14px;
+    color: var(--fg-white);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__dataValue {
+    font-size: var(--text-sm); // 13px (iOS Typography.s13)
+    line-height: var(--leading-sm);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

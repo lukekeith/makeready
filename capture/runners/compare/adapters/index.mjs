@@ -39,6 +39,7 @@ import cardSearchResult from './CardSearchResult.mjs';
 import cardStudyMini from './CardStudyMini.mjs';
 import cardStudySelectable from './CardStudySelectable.mjs';
 import cardVideo from './CardVideo.mjs';
+import cardVideoMini from './CardVideoMini.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -49,7 +50,7 @@ export const adapters = {
   CardEvent: cardEvent,
   CardEventMini: cardEventMini,
   CardVideo: cardVideo,
-  CardVideoMini: iphoneCard('component.CardVideoMini'),
+  CardVideoMini: cardVideoMini,
   CardStudyMini: cardStudyMini,
   CardStudySelectable: cardStudySelectable,
   CardMember: cardMember,
