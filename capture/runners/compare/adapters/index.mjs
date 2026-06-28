@@ -91,6 +91,7 @@ import textInput from './TextInput.mjs';
 import toggleControl from './ToggleControl.mjs';
 import searchableList from './SearchableList.mjs';
 import cardSpinnerOverlay from './CardSpinnerOverlay.mjs';
+import shimmerView from './ShimmerView.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -179,6 +180,7 @@ export const adapters = {
   ToggleControl: toggleControl,
   SearchableList: searchableList,
   CardSpinnerOverlay: cardSpinnerOverlay,
+  ShimmerView: shimmerView,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

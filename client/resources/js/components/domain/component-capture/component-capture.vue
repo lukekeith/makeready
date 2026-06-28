@@ -84,6 +84,7 @@ import TextInput from '../../card/text-input/text-input.vue'
 import ToggleControl from '../../card/toggle-control/toggle-control.vue'
 import SearchableList from '../../card/searchable-list/searchable-list.vue'
 import CardSpinnerOverlay from '../../card/card-spinner-overlay/card-spinner-overlay.vue'
+import ShimmerView from '../../card/shimmer-view/shimmer-view.vue'
 
 const props = defineProps<{
   component: string
@@ -332,6 +333,13 @@ const registry: Record<string, unknown> = {
   // card, so this twin reproduces that host (surface + black@40% wash + a
   // centered white circular spinner), clipped to the iOS .cornerRadius(8).
   CardSpinnerOverlay,
+  // iOS ShimmerView (Components/Loading/ShimmerView.swift) — the `.shimmer()`
+  // skeleton modifier. The harness builds the skeleton shape the fixture
+  // describes and applies the modifier; the frozen snapshot shows just the
+  // static gray@0.3 shapes (the shimmer gradient sweeps in only on appear). The
+  // twin renders those shapes data-driven: a rounded block, or a leading-aligned
+  // column of text-row bars.
+  ShimmerView,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

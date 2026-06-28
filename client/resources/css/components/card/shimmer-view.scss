@@ -1,0 +1,25 @@
+// ShimmerView twin — iOS Components/Loading/ShimmerView.swift (the `.shimmer()`
+// modifier applied to skeleton shapes by the `component.ShimmerView` harness).
+//
+// The frozen snapshot shows only the static gray skeleton shapes (the animated
+// shimmer gradient starts off-screen and sweeps in on appear). The harness's
+// `.capture-wrap` adds the 16px gutter that matches the iOS `.padding(16)`.
+
+.ShimmerView {
+  // textRows: iOS VStack(alignment: .leading, spacing: 12).
+  &--textRows {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px; // iOS VStack spacing: 12
+  }
+
+  // Both the block and each text row are a `RoundedRectangle.fill(Color.gray
+  // .opacity(0.3))`. iOS `.gray` resolves to systemGray (142,142,147); over the
+  // appBackground it composites to the measured (52,54,62). No token — the
+  // codebase hardcodes this exact gray (see card-video / card-study-mini).
+  &__bar {
+    background: rgba(142, 142, 147, 0.3); // iOS Color.gray.opacity(0.3) — no token
+    flex-shrink: 0;
+  }
+}
