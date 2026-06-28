@@ -19,6 +19,7 @@ import CardActivityType from '../../card/card-activity-type/card-activity-type.v
 import CardActivity from '../../card/card-activity/card-activity.vue'
 import CardBibleSearchResult from '../../card/card-bible-search-result/card-bible-search-result.vue'
 import CalendarBottomBar from '../../card/calendar-bottom-bar/calendar-bottom-bar.vue'
+import CalendarDayCell from '../../card/calendar-day-cell/calendar-day-cell.vue'
 
 const props = defineProps<{
   component: string
@@ -41,6 +42,7 @@ const registry: Record<string, unknown> = {
   CardActivity,
   CardBibleSearchResult,
   CalendarBottomBar,
+  CalendarDayCell,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

@@ -1,0 +1,88 @@
+// CalendarDayCell — one day in the split-month calendar grid (iOS
+// CalendarDayCell.swift, a UICollectionViewCell). A fixed 48×56 box with:
+//   - a 48×48 brand-purple disc behind the number when `today`
+//   - a 2px brand-purple ring at the same size when `selected`
+//   - the day number centered (4px above the box center, per the UIKit
+//     centerY −4 constraint), dimmed to 50% white when outside the month
+//   - up to 3 event dots pinned just beneath the number
+//
+// Class names mirror the structure in
+// resources/js/components/card/calendar-day-cell/.
+//
+// Several iOS sizes have no design-system token and are kept as raw px per the
+// design-system exception (same as CalendarBottomBar's 14px label): the 48×56
+// cell + 48×48 disc (intrinsic capture-frame geometry), the 14px day number
+// (Typography.s14 — the type scale jumps 13→16), and the 5px dots + 3px dot
+// gap (iOS UIStackView spacing 3). Everything else is tokenized.
+.CalendarDayCell {
+  position: relative;
+  width: 48px;
+  height: 56px;
+  flex: 0 0 auto;
+  font-family: inherit;
+
+  // ─── Today disc / selection ring ─────────────────────────────────────────────
+  // 48×48 circle centered in the 56-tall cell ((56 − 48) / 2 = 4px from top).
+  &__today,
+  &__ring {
+    position: absolute;
+    top: 4px;
+    left: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-full);
+    pointer-events: none;
+  }
+
+  &__today {
+    background: var(--bg-brand-primary);
+  }
+
+  &__ring {
+    background: transparent;
+    border: 2px solid var(--border-brand-primary);
+  }
+
+  // ─── Day number ──────────────────────────────────────────────────────────────
+  // Centered horizontally; vertically 4px above the cell center (28 − 4 = 24)
+  // to leave room for the dots, matching the iOS centerY −4 constraint. Paints
+  // above the disc by DOM order.
+  &__day {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 24px;
+    transform: translateY(-50%);
+    text-align: center;
+    line-height: 1;
+    font-size: 14px; // no token (scale jumps 13→16); intrinsic, matches Typography.s14
+    font-weight: var(--font-weight-regular);
+    color: var(--fg-primary);
+  }
+
+  &--is-outside &__day {
+    color: var(--fg-tertiary); // 50% white for non-current-month days
+  }
+
+  // ─── Event dots ──────────────────────────────────────────────────────────────
+  // Pinned just beneath the number (iOS: dayLabel.bottom + 2). Colors come from
+  // props (per-event hex, or white when today/selected) via inline style.
+  &__dots {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 34px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 3px; // iOS UIStackView spacing 3 (intrinsic)
+    pointer-events: none;
+  }
+
+  &__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: var(--radius-full);
+    flex: 0 0 auto;
+  }
+}
