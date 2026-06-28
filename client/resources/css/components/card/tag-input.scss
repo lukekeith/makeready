@@ -1,0 +1,76 @@
+// TagInput — twin of iOS Components/Input/TagInput.swift.
+//
+// Structure (outer → inner):
+//   .TagInputField            → the card well: iOS VStack(spacing: 8)
+//                               .padding(.horizontal,12).padding(.vertical,8)
+//                               .background(white@0.05).cornerRadius(10). Fills the
+//                               .capture-wrap clip box (full width) like the iPhone
+//                               snapshot.
+//   .TagInputField__tags      → iOS FlowLayout(horizontalSpacing:6, verticalSpacing:6)
+//                               of tag pills — flex-wrap with a 6px gap. Only present
+//                               when there are tags.
+//   .TagInputField__pill      → TagPill: HStack(spacing:4)
+//                               .padding(.horizontal,8).padding(.vertical,6)
+//                               .background(Capsule().fill(brandPrimary)).
+//   .TagInputField__pillText  → Text(tag), Typography.s12Semibold, solid white.
+//   .TagInputField__pillRemove→ xmark, Typography.s8Bold white@0.7. SF symbols draw
+//                               ~1.3× their point size, so an 8pt glyph renders ~11px.
+//   .TagInputField__input     → the inline TextField row. The captured variants only
+//                               show the placeholder, which SwiftUI draws in the
+//                               tertiary-label gray (≈ white@30). minHeight 28, leading.
+//
+// NB: the BEM root is `.TagInputField`, NOT `.TagInput` — the latter is the existing
+// form token-entry component (components/form/tag-input.scss, a bordered --bg-surface
+// field) and would otherwise paint its border/background behind this twin (same
+// collision pattern as the Alert/Avatar/SearchField twins).
+//
+// s14/s12/s8 use raw px for exact parity (matching member-list-item.scss's s18/s17/s11
+// precedent); 10px radius and 6px flow gap have no token. Everything else is tokenized.
+.TagInputField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm); // iOS VStack spacing 8
+  width: 100%;
+  padding: var(--space-sm) var(--space-md); // iOS vertical 8 / horizontal 12
+  border-radius: 10px; // iOS cornerRadius 10 (no token)
+  background: var(--color-white-5); // iOS Color.white.opacity(0.05)
+
+  &__tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px; // iOS FlowLayout horizontal/vertical spacing 6 (no token)
+  }
+
+  &__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs); // iOS HStack spacing 4
+    padding: 6px var(--space-sm); // iOS vertical 6 (no token) / horizontal 8
+    border-radius: var(--radius-full); // iOS Capsule
+    background: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+  }
+
+  &__pillText {
+    font-size: 12px; // iOS Typography.s12Semibold
+    font-weight: var(--font-weight-semibold);
+    line-height: 1;
+    color: var(--color-white-100);
+  }
+
+  &__pillRemove {
+    flex: none;
+    display: block;
+    width: 11px; // ~8pt xmark glyph (SF symbols draw ~1.3× point size)
+    height: 11px;
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+  }
+
+  &__input {
+    display: flex;
+    align-items: center;
+    min-height: 28px; // iOS .frame(minHeight: 28)
+    font-size: 14px; // iOS Typography.s14
+    line-height: var(--leading-sm);
+    color: var(--color-white-30); // SwiftUI TextField placeholder (tertiary label)
+  }
+}

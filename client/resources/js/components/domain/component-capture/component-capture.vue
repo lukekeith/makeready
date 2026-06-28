@@ -79,6 +79,7 @@ import MenuInput from '../../card/menu-input/menu-input.vue'
 import MultilineTextInput from '../../card/multiline-text-input/multiline-text-input.vue'
 import RichTextInput from '../../card/rich-text-input/rich-text-input.vue'
 import SearchField from '../../card/search-field/search-field.vue'
+import TagInput from '../../card/tag-input/tag-input.vue'
 
 const props = defineProps<{
   component: string
@@ -294,6 +295,11 @@ const registry: Record<string, unknown> = {
   // .ultraThinMaterial fills render invisible in isolation, so the twin draws them
   // transparent (border only). Filled text is solid white; placeholder is white@50.
   SearchField,
+  // iOS TagInput (Components/Input/TagInput.swift) — tag-entry field: a white@5%
+  // rounded well of flow-wrapped removable brand-purple tag pills (s12Semibold
+  // label + white@70 xmark) above an inline text field that, in the captured
+  // variants, only shows its "Add tag..." placeholder in tertiary-label gray.
+  TagInput,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
