@@ -1,0 +1,144 @@
+// BlockStyleEditor — twin of iOS Components/Input/BlockStyleEditor.swift.
+//
+// Rounded card (Color.cardBackground / --bg-surface, radius 12, 16px padding) with a
+// 12px vertical rhythm: optional title, optional theme-picker field group, the
+// image+color well row, and the 5-tile font-size picker. Static colors use tokens;
+// the two iOS white@4% / white@15% wells have no exact token, so they fall back to
+// the literal alpha with a note (visually identical to white-5).
+//
+// The text is rendered in the system font stack so the "Aa" glyphs and theme labels
+// match the iPhone's SF Pro metrics in the capture (the default web body font is
+// Open Sans, which sets wider).
+.BlockStyleEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  // iOS Color.cardBackground (#252936).
+  background: var(--bg-surface);
+  border-radius: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', sans-serif;
+
+  &__title {
+    // iOS Typography.s15 + .white.opacity(0.5).
+    font-size: 15px;
+    font-weight: var(--font-weight-regular);
+    line-height: 1.2;
+    color: var(--color-white-50);
+    text-align: left;
+  }
+
+  // ─── Theme picker (FieldGroup + MenuInput.menu) ────────────────────────────
+  &__theme {
+    // iOS FieldGroup: white@5% fill, radius 10, 4px vertical padding.
+    background: var(--color-white-5);
+    border-radius: 10px;
+    padding: 4px 0;
+  }
+
+  &__theme-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    // iOS MenuInput: padding .horizontal 16 / .vertical 12.
+    padding: 12px 16px;
+  }
+
+  &__theme-label {
+    // iOS Typography.s17 white. Tight line-height to match SF Pro metrics (the
+    // default body line-height would inflate the field-group row height).
+    font-size: 17px;
+    line-height: 1.2;
+    font-weight: var(--font-weight-regular);
+    color: var(--color-white-100);
+  }
+
+  &__theme-value {
+    margin-left: auto;
+    font-size: 17px;
+    line-height: 1.2;
+    font-weight: var(--font-weight-regular);
+    color: var(--color-white-100);
+  }
+
+  &__chevron {
+    // iOS chevron.down, Typography.s12, .white.opacity(0.5).
+    width: 14px;
+    height: 14px;
+    flex: 0 0 auto;
+    color: var(--color-white-50);
+  }
+
+  // ─── Image + Color row ─────────────────────────────────────────────────────
+  &__media {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__well {
+    flex: 1 1 0;
+    height: 56px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    // iOS Color.white.opacity(0.04) — no exact token (≈ --color-white-5).
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  &__photo-icon {
+    width: 44px;
+    height: 44px;
+    // iOS Typography.s22 placeholder glyph, .white.opacity(0.3).
+    color: var(--color-white-30);
+  }
+
+  &__color {
+    // A set color fills the whole well solid (iOS Color(hex:)); applied inline.
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  &__color-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    // iOS Circle: white@15% fill + white@30% 1.5px stroke.
+    background: rgba(255, 255, 255, 0.15);
+    border: 1.5px solid var(--color-white-30);
+    box-sizing: border-box;
+  }
+
+  // ─── Font-size picker (InlineFontSizePicker) ───────────────────────────────
+  &__sizes {
+    display: flex;
+    gap: 4px;
+  }
+
+  &__size {
+    flex: 1 1 0;
+    height: 60px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    // iOS Color.white.opacity(0.05).
+    background: var(--color-white-5);
+    // Reserve the 2px selected border so unselected tiles don't shift.
+    border: 2px solid transparent;
+    box-sizing: border-box;
+
+    &--selected {
+      border-color: var(--color-white-100);
+    }
+  }
+
+  &__size-glyph {
+    // iOS "Aa", .system(size:, weight: .semibold), white. Size set inline per key.
+    font-weight: var(--font-weight-semibold);
+    line-height: 1;
+    color: var(--color-white-100);
+  }
+}

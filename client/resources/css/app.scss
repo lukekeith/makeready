@@ -179,6 +179,8 @@
 @use 'components/card/group-action-button' as group-action-button-twin;
 @use 'components/card/skeleton-post-card' as skeleton-post-card-twin;
 @use 'components/card/background-swatch' as background-swatch-twin;
+@use 'components/card/block-style-editor' as block-style-editor-twin;
+@use 'components/card/cover-image-picker' as cover-image-picker-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

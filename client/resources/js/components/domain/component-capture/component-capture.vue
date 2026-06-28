@@ -68,6 +68,8 @@ import UnenrollConfirmation from '../../card/unenroll-confirmation/unenroll-conf
 import GroupActionButton from '../../card/group-action-button/group-action-button.vue'
 import SkeletonPostCard from '../../card/skeleton-post-card/skeleton-post-card.vue'
 import BackgroundSwatch from '../../card/background-swatch/background-swatch.vue'
+import BlockStyleEditor from '../../card/block-style-editor/block-style-editor.vue'
+import CoverImagePicker from '../../card/cover-image-picker/cover-image-picker.vue'
 
 const props = defineProps<{
   component: string
@@ -216,6 +218,19 @@ const registry: Record<string, unknown> = {
   // isolated snapshot the iOS AsyncImage never resolves, so image variants show
   // the appBackground fallback; the adapter omits the URL and forwards `hasImage`.
   BackgroundSwatch,
+  // iOS BlockStyleEditor (Components/Input/BlockStyleEditor.swift) — inline read-block
+  // style editor card: optional title + optional theme picker (FieldGroup/MenuInput
+  // showing "No Theme"), an image well (photo.on.rectangle placeholder, or empty when
+  // an image is configured since the iOS AsyncImage never resolves in the snapshot)
+  // beside a color well (solid hex, or a toggle-circle placeholder), and a 5-tile
+  // "Aa" font-size picker with a white border on the selected size.
+  BlockStyleEditor,
+  // iOS CoverImagePicker (Components/Input/CoverImagePicker.swift) — 240px cover
+  // well: translucent placeholder (white@0.1 when an image is configured since the
+  // iOS AsyncImage never resolves in the snapshot, white@0.2 empty) + bottom
+  // appBackground gradient + bottom-left program name/description (or an "Add cover
+  // image"/"Add program name" placeholder), plus a top-right pencil in display mode.
+  CoverImagePicker,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
