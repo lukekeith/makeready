@@ -65,6 +65,7 @@ import SkeletonEnrollmentCard from '../../card/skeleton-enrollment-card/skeleton
 import ConfirmationOverlay from '../../card/confirmation-overlay/confirmation-overlay.vue'
 import ErrorBanner from '../../card/error-banner/error-banner.vue'
 import UnenrollConfirmation from '../../card/unenroll-confirmation/unenroll-confirmation.vue'
+import GroupActionButton from '../../card/group-action-button/group-action-button.vue'
 
 const props = defineProps<{
   component: string
@@ -199,6 +200,10 @@ const registry: Record<string, unknown> = {
   // iPhone reference is BLANK (entrance animation gates contentOpacity); this twin
   // renders the overlay at its final visible state.
   UnenrollConfirmation,
+  // iOS GroupActionButton (Components/Group/GroupActionButton.swift) — pill with
+  // a white label on the left and a brand-purple SF-symbol icon on the right, in
+  // a white@10% capsule (Video / Message / Meeting / Gallery).
+  GroupActionButton,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

@@ -1,0 +1,79 @@
+// GroupActionButton — twin of iOS Components/Group/GroupActionButton.swift.
+//
+// Pill with a white label on the left and a brand-purple icon on the right.
+// iOS values reproduced 1:1:
+//   HStack(spacing: 8)                              → gap --space-sm
+//   .padding(.horizontal 16).padding(.vertical 12)  → padding --space-md --space-lg
+//   .background(Color.white.opacity(0.1))           → --color-white-10
+//   .clipShape(Capsule())                           → --radius-full
+//   label Typography.s15Medium (15/500) white       → 15px / --font-weight-medium
+//   icon  Typography.s14 (14pt) Color.brandPrimary  → 14px box / --color-brand-500
+//
+// The 15px label and 14px icon are intrinsic iOS sizes with no exact DS token
+// (the text scale jumps 13 → 16, the icon scale starts at 16), so they are
+// literal here — same precedent as the ActionButton / ErrorBanner twins. Text is
+// SF Pro (iOS system font): `-apple-system` matches the iOS label metrics under
+// the macOS capture runner.
+.GroupActionButton {
+  display: inline-flex;
+  align-items: center;
+  // iOS HStack(spacing: 8).
+  gap: var(--space-sm);
+  // iOS .padding(.horizontal 16).padding(.vertical 12).
+  padding: var(--space-md) var(--space-lg);
+  border: none;
+  // iOS .clipShape(Capsule()).
+  border-radius: var(--radius-full);
+  // iOS .background(Color.white.opacity(0.1)).
+  background: var(--color-white-10);
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: filter var(--motion-micro) var(--ease-standard),
+    background var(--motion-micro) var(--ease-standard);
+
+  &:active {
+    filter: brightness(0.92);
+  }
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  // iOS Text(label).font(Typography.s15Medium).foregroundColor(.white).
+  &__label {
+    font-size: 15px;
+    line-height: 1;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-100);
+    white-space: nowrap;
+  }
+
+  // iOS Image(systemName: icon).font(Typography.s14).foregroundColor(.brandPrimary).
+  // SF Symbol point size refers to a cap-height reference, so a 14pt .fill glyph
+  // actually draws ~18px tall; size the SVG box to that rendered weight (not the
+  // nominal 14pt) so the icon matches the iPhone's visual size.
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    // iOS Color.brandPrimary (#6c47ff).
+    color: var(--color-brand-500);
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .GroupActionButton {
+    transition: none;
+  }
+}

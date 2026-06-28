@@ -73,6 +73,7 @@ import skeletonEnrollmentCard from './SkeletonEnrollmentCard.mjs';
 import confirmationOverlay from './ConfirmationOverlay.mjs';
 import errorBanner from './ErrorBanner.mjs';
 import unenrollConfirmation from './UnenrollConfirmation.mjs';
+import groupActionButton from './GroupActionButton.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -143,6 +144,7 @@ export const adapters = {
   ConfirmationOverlay: confirmationOverlay,
   ErrorBanner: errorBanner,
   UnenrollConfirmation: unenrollConfirmation,
+  GroupActionButton: groupActionButton,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
