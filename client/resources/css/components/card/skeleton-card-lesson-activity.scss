@@ -1,0 +1,57 @@
+// SkeletonCardLessonActivity — loading placeholder twin for iOS SkeletonCardLessonActivity.
+// Matches CardLessonActivity's small layout: a 40×40 image placeholder, then a
+// title + description line pair, on the cardBackground surface (radius 4),
+// padded 12 horizontal / 10 vertical. HStack spacing 12 between image and text.
+//
+// Placeholder fills mirror the iOS opacities exactly:
+//   image / title line       → white 0.10 (--color-white-10)
+//   description line         → white 0.06 (no token; iOS Color.white.opacity(0.06))
+
+.SkeletonCardLessonActivity {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-md); // iOS HStack(spacing: 12)
+  box-sizing: border-box;
+  width: 100%;
+  padding: 10px var(--space-md); // iOS .padding(.vertical, 10) / .horizontal, 12 — 10px has no token
+  overflow: hidden; // iOS .cornerRadius(4)
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+
+  // Left: 40×40 image placeholder (RoundedRectangle cornerRadius 8, white 0.1).
+  &__image {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--radius-md); // iOS cornerRadius 8
+    background: var(--color-white-10);
+  }
+
+  // Right: title + description lines (VStack alignment leading, spacing 4).
+  &__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-xs); // iOS VStack(spacing: 4)
+    min-width: 0;
+  }
+
+  &__line {
+    border-radius: var(--radius-sm); // iOS RoundedRectangle(cornerRadius: 4)
+
+    // Title (120×15, white 0.1).
+    &--title {
+      width: 120px;
+      height: 15px;
+      background: var(--color-white-10);
+    }
+
+    // Description (80×13, white 0.06).
+    &--desc {
+      width: 80px;
+      height: 13px;
+      background: rgba(255, 255, 255, 0.06); // iOS Color.white.opacity(0.06), no token
+    }
+  }
+}
