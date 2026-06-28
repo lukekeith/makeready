@@ -1,0 +1,133 @@
+// EnrollmentCard — type-specific card for a study-program enrollment (iOS
+// EnrollmentCard parity). Horizontal row: 64×64 program cover, then name +
+// days + status indicator, with a trailing chevron. BEM classes mirror the
+// markup in resources/js/components/card/enrollment-card/enrollment-card.vue.
+//
+// NOT the same as .CardEnrollment (card-enrollment.scss) — that is a separate
+// progress-bar list card. This is the cover+chevron row twin.
+.EnrollmentCard {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  gap: var(--space-md);
+  padding: var(--space-md);
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--motion-micro) var(--ease-standard);
+
+  // ── Cover (square 64×64) ─────────────────────────────────────────────────
+  &__cover {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  &__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    // iOS: brandPrimary @ 0.3 over the dark surface.
+    background: color-mix(in srgb, var(--color-brand-500) 30%, transparent);
+
+    svg {
+      width: var(--icon-sm);
+      height: var(--icon-sm);
+      color: var(--color-white-50);
+    }
+  }
+
+  // ── Body ─────────────────────────────────────────────────────────────────
+  &__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+    gap: var(--space-xs);
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-primary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__days {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-tertiary);
+  }
+
+  // ── Status indicator ───────────────────────────────────────────────────────
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-medium);
+
+    &--active {
+      color: var(--color-brand-500); // iOS brandPrimary
+    }
+
+    &--completed {
+      color: var(--fg-success); // iOS success green
+    }
+  }
+
+  &__status-icon {
+    flex-shrink: 0;
+    width: 15px;
+    height: 15px;
+  }
+
+  // ── Trailing chevron ───────────────────────────────────────────────────────
+  &__chevron {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white-30);
+
+    svg {
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  // ── Interaction ────────────────────────────────────────────────────────────
+  &:hover {
+    background: linear-gradient(
+      var(--color-white-5),
+      var(--color-white-5)
+    ), var(--bg-surface);
+  }
+
+  &:focus-visible {
+    box-shadow: 0 0 0 3px var(--bg-focus);
+  }
+
+  &:active {
+    opacity: var(--opacity-pressed);
+  }
+}

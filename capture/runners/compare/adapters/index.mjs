@@ -16,6 +16,7 @@ import cardEventMini from './CardEventMini.mjs';
 import cardLessonActivity from './CardLessonActivity.mjs';
 import cardEvent from './CardEvent.mjs';
 import cardEnrolled from './CardEnrolled.mjs';
+import enrollmentCard from './EnrollmentCard.mjs';
 import { iphoneCard } from './iphone-card.mjs';
 import blockStyleEditor from './BlockStyleEditor.mjs';
 import userMenu from './UserMenu.mjs';
@@ -63,7 +64,7 @@ export const adapters = {
   CardEnrolled: cardEnrolled,
   CardProgramFull: cardProgramFull,
   UpcomingLessonCard: iphoneCard('component.UpcomingLessonCard'),
-  EnrollmentCard: iphoneCard('component.EnrollmentCard'),
+  EnrollmentCard: enrollmentCard,
   CardMediaFull: cardMediaFull,
   CardSearchResult: cardSearchResult,
   CardBibleSearchResult: cardBibleSearchResult,

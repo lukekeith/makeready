@@ -10,6 +10,7 @@ import CardGroupMini from '../../card/card-group-mini/card-group-mini.vue'
 import CardStudyMini from '../../card/card-study-mini/card-study-mini.vue'
 import CardStudySelectable from '../../card/card-study-selectable/card-study-selectable.vue'
 import CardEnrolled from '../../card/card-enrolled/card-enrolled.vue'
+import EnrollmentCard from '../../card/enrollment-card/enrollment-card.vue'
 import CardLesson from '../../card/card-lesson/card-lesson.vue'
 import CardEventMini from '../../card/card-event-mini/card-event-mini.vue'
 import CardLessonActivity from '../../card/card-lesson-activity/card-lesson-activity.vue'
@@ -45,6 +46,7 @@ const registry: Record<string, unknown> = {
   CardStudyMini,
   CardStudySelectable,
   CardEnrolled,
+  EnrollmentCard,
   CardLesson,
   CardEventMini,
   CardLessonActivity,
