@@ -49,6 +49,7 @@ import HeatMapChart from '../../card/heat-map-chart/heat-map-chart.vue'
 import HorizontalBarChart from '../../card/horizontal-bar-chart/horizontal-bar-chart.vue'
 import VerticalBarChart from '../../card/vertical-bar-chart/vertical-bar-chart.vue'
 import LineChart from '../../card/line-chart/line-chart.vue'
+import ExegesisVerseView from '../../card/exegesis-verse-view/exegesis-verse-view.vue'
 
 const props = defineProps<{
   component: string
@@ -111,6 +112,8 @@ const registry: Record<string, unknown> = {
   VerticalBarChart,
   // iOS LineChart (Swift Charts LineMark / AreaMark) — inline-SVG line/area twin.
   LineChart,
+  // iOS ExegesisVerseView (UITextView scripture view) — justified Charter twin.
+  ExegesisVerseView,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

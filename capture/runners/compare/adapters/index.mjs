@@ -57,6 +57,7 @@ import heatMapChart from './HeatMapChart.mjs';
 import horizontalBarChart from './HorizontalBarChart.mjs';
 import verticalBarChart from './VerticalBarChart.mjs';
 import lineChart from './LineChart.mjs';
+import exegesisVerseView from './ExegesisVerseView.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -111,6 +112,7 @@ export const adapters = {
   HorizontalBarChart: horizontalBarChart,
   VerticalBarChart: verticalBarChart,
   LineChart: lineChart,
+  ExegesisVerseView: exegesisVerseView,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
