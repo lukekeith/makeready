@@ -86,6 +86,7 @@ import SearchableList from '../../card/searchable-list/searchable-list.vue'
 import CardSpinnerOverlay from '../../card/card-spinner-overlay/card-spinner-overlay.vue'
 import ShimmerView from '../../card/shimmer-view/shimmer-view.vue'
 import ActionCardMenu from '../../card/action-card-menu/action-card-menu.vue'
+import AddMenu from '../../card/add-menu/add-menu.vue'
 
 const props = defineProps<{
   component: string
@@ -347,6 +348,17 @@ const registry: Record<string, unknown> = {
   // with a large centered xmark close button beneath. Item icons arrive as inline
   // SVG from the adapter (iOS SF Symbols mapped to web glyphs).
   ActionCardMenu,
+  // iOS AddMenu (Components/Navigation/AddMenu.swift) — the NavBar "+" action
+  // menu. Main state: a white@5% card of action rows (32px icon column + s17Bold
+  // title, optional trailing submenu chevron) over a single-row "Record video"
+  // card (red icon), with a large centered close (X) button. Submenu state: a
+  // centered "Invite member" title with a back chevron over a card of rows whose
+  // icon sits on the right. Item icons arrive as inline SVG from the adapter (iOS
+  // Image assets mapped to web glyphs, drawn currentColor). NB: the iPhone
+  // reference renders the MAIN menu for BOTH variants (the SwiftUI submenu sits
+  // offscreen at rest, so the isolated snapshot can't capture it); this twin
+  // renders the submenu design for the InviteSubmenu variant — the surfaced gap.
+  AddMenu,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

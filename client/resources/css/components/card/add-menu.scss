@@ -1,0 +1,173 @@
+// AddMenu — twin of iOS Components/Navigation/AddMenu.swift.
+//
+// Structure (outer → inner):
+//   .AddMenu                 → VStack(spacing:0). Full-width (fills the
+//                              .capture-wrap clip box). Holds the menu state
+//                              (main or submenu) + the centered close button.
+//   .AddMenu__menu           → the sliding content container. iOS stacks the
+//                              ZStack (.padding(.top,8)) over a VStack(spacing:8)
+//                              whose content has .padding(.horizontal,16)
+//                              .padding(.top,16) → 24px above the first card,
+//                              16px gutter, 8px between the two cards. The
+//                              harness .capture-wrap adds the matching outer
+//                              16px gutter so rows sit 32px from the crop edge.
+//   .AddMenu__card           → a section: white@5% background + 8px corner radius
+//                              (VStack(spacing:0) of rows).
+//   .AddMenu__row            → AddMenuItem: HStack(spacing:16) + .padding(16).
+//   .AddMenu__icon           → 32×32 icon column holding a 20×20 glyph (inline
+//                              SVG). Template-rendered on iOS, so tinted #7c7cff
+//                              (--purple) for actions / #ff4444 (--record) for
+//                              "Record video".
+//   .AddMenu__title          → s17Bold white (line-height pinned to SF Pro's
+//                              ~1.19× single-line metric so the row stack aligns).
+//   .AddMenu__arrow          → trailing IconSubmenu chevron, 20×20, white@50.
+//   .AddMenu__close          → centered IconClose (24×24 white),
+//                              .padding(.vertical,32) + .padding(.horizontal,16).
+//   Submenu: .AddMenu__submenu-header (back chevron + centered title + 24px
+//   spacer, .padding(16), height 53), then .AddMenu__row--reversed rows whose
+//   icon sits on the right.
+//
+// The 16px row padding/gap, 32px icon column, 20px glyph, 8px card radius, 8px
+// inter-card gap, and 53px header height are intrinsic iOS layout metrics with no
+// design-system token (raw px allowed per the intrinsic-size exception); colors
+// and typography are tokenized. #ff4444 has no token (cf. confirmation-overlay.scss).
+.AddMenu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  &__menu {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 24px 16px 0;
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-white-5);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 16px;
+    text-align: left;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+
+    &--purple {
+      color: var(--color-accent-purple);
+    }
+
+    // iOS AddMenuItem(iconColor: Color(hex: "#ff4444")) — no token.
+    &--record {
+      color: #ff4444;
+    }
+  }
+
+  &__title {
+    // SF Pro Text 17pt bold, pinned to the font's ~1.19× single-line metric
+    // (17 → 20) so the accumulating row offset stays aligned with iOS. The
+    // page's default font (Open Sans) renders wider than iOS SF Pro, so each
+    // label's later words drift right; `-apple-system` resolves to SF Pro on the
+    // macOS capture machine to match iOS glyph widths (cf. alert.scss).
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-lead);
+    line-height: 20px;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white-100);
+  }
+
+  &__spacer {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    color: var(--color-white-50);
+
+    svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+  }
+
+  // ── Submenu header ─────────────────────────────────────────────────────────
+  &__submenu-header {
+    display: flex;
+    align-items: center;
+    height: 53px;
+    padding: 16px;
+  }
+
+  &__back {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--color-white-50);
+
+    svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+  }
+
+  &__submenu-title {
+    flex: 1;
+    text-align: center;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-lead);
+    line-height: 20px;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white-100);
+  }
+
+  &__back-spacer {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+  }
+
+  // ── Close button ───────────────────────────────────────────────────────────
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white-100);
+    padding: 32px 16px;
+
+    svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+  }
+}

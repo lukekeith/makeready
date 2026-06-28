@@ -93,6 +93,7 @@ import searchableList from './SearchableList.mjs';
 import cardSpinnerOverlay from './CardSpinnerOverlay.mjs';
 import shimmerView from './ShimmerView.mjs';
 import actionCardMenu from './ActionCardMenu.mjs';
+import addMenu from './AddMenu.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -183,6 +184,7 @@ export const adapters = {
   CardSpinnerOverlay: cardSpinnerOverlay,
   ShimmerView: shimmerView,
   ActionCardMenu: actionCardMenu,
+  AddMenu: addMenu,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
