@@ -1,51 +1,69 @@
 <script setup lang="ts">
+// CardMember — member row (iOS CardMember.swift parity).
+//
+// A horizontal row (8px spacing): a 40×40 circular avatar on the left, a content
+// column (name / metadata / group badges), a flexible spacer, and an optional
+// trailing "Invite" pill. The whole row is the cardBackground well (radius 4,
+// padding 16) and is interactive (role=button).
+//
+// Content column mirrors iOS exactly (VStack spacing 0):
+//   • name      17pt bold, white, single line truncate
+//   • metadata  label/value pairs (11px — label 50% white, value 70% white)
+//   • groups    13pt medium, brand purple
+// Both the metadata and groups rows carry iOS's 1px top inset.
+//
+// Data fields (data-driven, no store access):
+//   firstName   string                       — required
+//   lastName    string                       — required
+//   avatarUrl   string?                      — circular avatar; falls back to initials
+//   metadata    Array<{label, value}>        — labelValue metadata chips
+//   groups      string[]                     — group name badges (brand purple)
+//   showInvite  boolean                      — trailing purple "Invite" ActionButton
+//                                              (iOS: the `invite` variant supplies it)
 import { computed } from 'vue'
-import { classnames } from '../../../util/classnames'
 import Avatar from '../../primitive/avatar/avatar.vue'
-import Badge from '../../primitive/badge/badge.vue'
+import ActionButton from '../action-button/action-button.vue'
 
-// CardMember — list row for a single member (iOS member row parity). Avatar +
-// name, with optional role/meta subtext and a trailing slot for an action. When
-// `pending` is set the row shows a "PENDING" Warning badge.
-//
-// No real layout variants → no CVA. Interactive: emits `click`, role=button.
-//
-// Fields (props):
-//   name        string   — member display name (1 line, semibold)
-//   role        string?  — role label shown in the subtext row (e.g. "Group Leader")
-//   meta        string?  — extra subtext (e.g. "Joined Apr 2") — joined to role with a dot
-//   avatarUrl   string?  — avatar image URL
-//   initials    string?  — avatar fallback initials when no image
-//   pending     boolean  — show "PENDING" Warning badge after the name
+export interface CardMemberMetaItem {
+  label: string
+  value: string
+}
+
 interface Props {
-  name: string
-  role?: string
-  meta?: string
+  firstName: string
+  lastName: string
   avatarUrl?: string
-  initials?: string
-  pending?: boolean
+  metadata?: CardMemberMetaItem[]
+  groups?: string[]
+  showInvite?: boolean
   class?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  role: '',
-  meta: '',
   avatarUrl: '',
-  initials: '',
-  pending: false,
+  metadata: () => [],
+  groups: () => [],
+  showInvite: false,
 })
 
-const emit = defineEmits<{ click: [MouseEvent] }>()
+const emit = defineEmits<{ click: [MouseEvent]; invite: [MouseEvent] }>()
 
-const subtext = computed(() =>
-  [props.role, props.meta].filter(Boolean).join(' · ')
-)
+const fullName = computed(() => `${props.firstName} ${props.lastName}`)
 
-const classes = computed(() =>
-  classnames('CardMember', props.pending && 'CardMember--is-pending', props.class)
+// iOS: first letter of first + first letter of last, uppercased.
+const initials = computed(
+  () =>
+    `${props.firstName.slice(0, 1)}${props.lastName.slice(0, 1)}`.toUpperCase()
 )
 
 const onClick = (e: MouseEvent) => emit('click', e)
+
+const onInvite = (e: MouseEvent) => {
+  // Trailing action shouldn't also fire the row tap.
+  e.stopPropagation()
+  emit('invite', e)
+}
+
 const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault()
@@ -56,32 +74,48 @@ const onKeydown = (e: KeyboardEvent) => {
 
 <template>
   <div
-    :class="classes"
+    class="CardMember"
+    :class="props.class"
     role="button"
     tabindex="0"
     @click="onClick"
     @keydown="onKeydown"
   >
     <Avatar
-      size="Md"
+      class="CardMember__avatar"
       :src="avatarUrl || undefined"
       :initials="initials"
-      :alt="name"
-      class="CardMember__avatar"
+      :alt="fullName"
     />
 
     <div class="CardMember__body">
-      <div class="CardMember__heading">
-        <span class="CardMember__name">{{ name }}</span>
-        <Badge v-if="pending" tone="Warning" size="Sm" class="CardMember__badge">
-          PENDING
-        </Badge>
+      <span class="CardMember__name">{{ fullName }}</span>
+
+      <div v-if="metadata.length" class="CardMember__meta">
+        <span
+          v-for="(item, i) in metadata"
+          :key="i"
+          class="CardMember__metaItem"
+        >
+          <span class="CardMember__metaLabel">{{ item.label }}</span>
+          <span class="CardMember__metaValue">{{ item.value }}</span>
+        </span>
       </div>
-      <p v-if="subtext" class="CardMember__meta">{{ subtext }}</p>
+
+      <div v-if="groups.length" class="CardMember__groups">
+        <span
+          v-for="(group, i) in groups"
+          :key="i"
+          class="CardMember__group"
+          >{{ group }}</span
+        >
+      </div>
     </div>
 
-    <div v-if="$slots.trailing" class="CardMember__trailing">
-      <slot name="trailing" />
+    <span class="CardMember__spacer" aria-hidden="true"></span>
+
+    <div v-if="showInvite" class="CardMember__trailing">
+      <ActionButton label="Invite" variant="purple" @click="onInvite" />
     </div>
   </div>
 </template>

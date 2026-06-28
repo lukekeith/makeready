@@ -20,6 +20,7 @@ import CardActivityType from '../../card/card-activity-type/card-activity-type.v
 import CardActivity from '../../card/card-activity/card-activity.vue'
 import CardBibleSearchResult from '../../card/card-bible-search-result/card-bible-search-result.vue'
 import CardContact from '../../card/card-contact/card-contact.vue'
+import CardMember from '../../card/card-member/card-member.vue'
 import CardMediaFull from '../../card/card-media-full/card-media-full.vue'
 import CalendarBottomBar from '../../card/calendar-bottom-bar/calendar-bottom-bar.vue'
 import CalendarDayCell from '../../card/calendar-day-cell/calendar-day-cell.vue'
@@ -48,6 +49,7 @@ const registry: Record<string, unknown> = {
   CardActivity,
   CardBibleSearchResult,
   CardContact,
+  CardMember,
   CardMediaFull,
   CalendarBottomBar,
   CalendarDayCell,

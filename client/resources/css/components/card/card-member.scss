@@ -1,90 +1,132 @@
-// CardMember — list row: avatar + name/meta, optional trailing action, optional
-// "PENDING" badge. Interactive (role=button): hover lifts a translucent white
-// well. Skeleton variant shares this block. iOS member-row parity.
+// CardMember — member row (iOS CardMember.swift parity).
+//
+// A horizontal row: 40×40 circular avatar, a content column (name / labelValue
+// metadata / brand group badges), a flexible spacer, and an optional trailing
+// "Invite" pill. The whole row is the cardBackground well (radius 4, padding 16)
+// and is interactive (role=button). The skeleton variant shares this block.
+//
+// The 40×40 avatar is an intrinsic iOS dimension with no design-system token
+// (the avatar scale jumps 36 → 48), so it is set explicitly here — the same
+// design-system exception card-contact / card-group make for their images.
 .CardMember {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-md) var(--space-lg);
-  border-radius: var(--radius-lg);
-  background: var(--bg-surface);
+  gap: var(--space-sm); // 8px (iOS HStack spacing)
+  box-sizing: border-box;
+  width: 100%; // fill the card column; name truncates at the spacer/trailing edge
+  padding: var(--space-lg); // iOS .padding(16)
+  background: var(--bg-surface); // iOS Color.cardBackground (#252936)
+  border-radius: var(--radius-sm); // iOS cornerRadius 4
   cursor: pointer;
+  outline: none;
   transition: background-color var(--motion-micro-fast) var(--ease-standard);
 
-  &:hover {
-    background: var(--color-white-5);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--border-brand);
-    outline-offset: 2px;
-  }
-
   &__avatar {
+    --avatar-size: 40px; // iOS 40×40 (no token; intrinsic size)
+    width: 40px;
+    height: 40px;
     flex: 0 0 auto;
   }
 
+  // iOS VStack(spacing: 0).frame(maxWidth: .infinity, alignment: .leading)
   &__body {
     flex: 1 1 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2xs);
-  }
-
-  &__heading {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    min-width: 0;
+    align-items: flex-start;
   }
 
   &__name {
-    min-width: 0;
+    max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: var(--text-md);
-    line-height: var(--leading-md);
-    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-lead); // iOS Typography.s17Bold
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
     color: var(--fg-primary);
   }
 
-  &__badge {
-    flex: 0 0 auto;
+  // iOS metadata HStack(spacing: 8).padding(.top, 1)
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // 8px
+    padding-top: 1px; // iOS .padding(.top, 1)
+    max-width: 100%;
   }
 
-  &__meta {
-    margin: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  // iOS DataItem(label:value:) — .labelValue (11px), label 50% / value 70% white,
+  // HStack spacing 4 between the two words.
+  &__metaItem {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs); // 4px (DataComponent HStack spacing)
     white-space: nowrap;
-    font-size: var(--text-sm);
+    font-size: var(--text-xs); // iOS Typography.s11
+    line-height: var(--leading-xs);
+  }
+
+  &__metaLabel {
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+  }
+
+  &__metaValue {
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+  }
+
+  // iOS groups HStack(spacing: 8).padding(.top, 1)
+  &__groups {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // 8px
+    padding-top: 1px; // iOS .padding(.top, 1)
+    max-width: 100%;
+  }
+
+  &__group {
+    white-space: nowrap;
+    font-size: var(--text-sm); // iOS Typography.s13Medium
     line-height: var(--leading-sm);
-    color: var(--fg-secondary);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+  }
+
+  // iOS Spacer(minLength: 0) — pushes the trailing content to the row's edge.
+  &__spacer {
+    flex: 1 1 0;
+    min-width: 0;
   }
 
   &__trailing {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    margin-left: var(--space-sm);
   }
 
-  // Pending member: purple well to echo the iOS pending/new state.
-  &--is-pending {
-    background: var(--bg-pending);
-
-    // Translucent white well composites over the purple pending surface.
-    &:hover {
-      background-color: var(--bg-pending);
-      background-image: linear-gradient(var(--color-white-5), var(--color-white-5));
-    }
+  &:hover {
+    background: linear-gradient(
+      var(--color-white-5),
+      var(--color-white-5)
+    ), var(--bg-surface);
   }
 
-  // Skeleton: non-interactive placeholder.
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  &:active {
+    filter: brightness(0.97);
+  }
+
+  // Skeleton: non-interactive placeholder (shares the avatar + body layout).
   &--skeleton {
     cursor: default;
     &:hover { background: var(--bg-surface); }
+
+    .CardMember__body {
+      gap: var(--space-2xs);
+    }
   }
 }

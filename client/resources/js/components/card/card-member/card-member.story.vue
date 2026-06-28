@@ -5,35 +5,36 @@ import CardMemberSkeleton from './card-member-skeleton.vue'
 
 <template>
   <Story title="Cards/CardMember" :layout="{ type: 'grid', width: 400 }">
-    <Variant title="Default">
-      <CardMember name="Hannah Brooks" role="Member" meta="Joined Apr 2" initials="HB" />
-    </Variant>
-
-    <Variant title="With role only">
-      <CardMember name="Marcus Lee" role="Group Leader" initials="ML" />
-    </Variant>
-
-    <Variant title="With avatar image">
+    <Variant title="Member with invite">
       <CardMember
-        name="Priya Nair"
-        role="Member"
-        meta="Day 4"
-        avatar-url="https://i.pravatar.cc/96?img=47"
+        first-name="John"
+        last-name="Smith"
+        avatar-url="https://picsum.photos/72/72"
+        :metadata="[
+          { label: 'Age', value: '28' },
+          { label: 'Joined', value: 'Jan 2025' },
+        ]"
+        :groups="['Young Professionals']"
+        :show-invite="true"
       />
     </Variant>
 
-    <Variant title="Pending">
-      <CardMember name="Jordan Diaz" role="Member" :pending="true" initials="JD" />
+    <Variant title="Multiple groups">
+      <CardMember
+        first-name="Sarah"
+        last-name="Johnson"
+        :metadata="[{ label: 'Age', value: '32' }]"
+        :groups="['Bible Study', 'Worship Team']"
+      />
     </Variant>
 
-    <Variant title="With trailing action">
-      <CardMember name="Sara Kim" role="Member" meta="Joined today" initials="SK">
-        <template #trailing>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--fg-tertiary)">
-            <path d="m9 18 6-6-6-6" />
-          </svg>
-        </template>
-      </CardMember>
+    <Variant title="Avatar with invite">
+      <CardMember
+        first-name="Michael"
+        last-name="Brown"
+        avatar-url="https://picsum.photos/73/73"
+        :show-invite="true"
+      />
     </Variant>
 
     <Variant title="Skeleton">

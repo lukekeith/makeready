@@ -27,6 +27,7 @@ import cardActivityType from './CardActivityType.mjs';
 import cardActivity from './CardActivity.mjs';
 import cardBibleSearchResult from './CardBibleSearchResult.mjs';
 import cardContact from './CardContact.mjs';
+import cardMember from './CardMember.mjs';
 import calendarBottomBar from './CalendarBottomBar.mjs';
 import calendarDayCell from './CalendarDayCell.mjs';
 import calendarEventListContent from './CalendarEventListContent.mjs';
@@ -46,7 +47,7 @@ export const adapters = {
   CardVideoMini: iphoneCard('component.CardVideoMini'),
   CardStudyMini: iphoneCard('component.CardStudyMini'),
   CardStudySelectable: iphoneCard('component.CardStudySelectable'),
-  CardMember: iphoneCard('component.CardMember'),
+  CardMember: cardMember,
   CardContact: cardContact,
   CardActivityType: cardActivityType,
   CardActivity: cardActivity,
