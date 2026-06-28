@@ -206,6 +206,8 @@
 @use 'components/card/page-header' as page-header-twin;
 @use 'components/card/page-title' as page-title-twin;
 @use 'components/card/tab-slider' as tab-slider-twin;
+@use 'components/card/user-menu' as user-menu-twin;
+@use 'components/card/style-picker-menu' as style-picker-menu-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

@@ -102,6 +102,7 @@ import navBar from './NavBar.mjs';
 import pageHeader from './PageHeader.mjs';
 import pageTitle from './PageTitle.mjs';
 import tabSlider from './TabSlider.mjs';
+import stylePickerMenu from './StylePickerMenu.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -143,8 +144,9 @@ export const adapters = {
   SkeletonCardStudy: skeletonCardStudy,
   // Connected components — seed app state rather than a plain prop bag.
   BlockStyleEditor: blockStyleEditor,
+  // Two-sided twin (Vue + iPhone). UserMenu is connected on iOS (seeds auth +
+  // org list) but has a data-driven Vue twin, so it lives here.
   UserMenu: userMenu,
-  // Two-sided twin (Vue + iPhone).
   ActionButton: actionButton,
   SlideButton: slideButton,
   SwipeableCard: swipeableCard,
@@ -201,6 +203,9 @@ export const adapters = {
   PageHeader: pageHeader,
   PageTitle: pageTitle,
   TabSlider: tabSlider,
+  // Two-sided twin (Vue + iPhone). The iPhone side is the generic component
+  // passthrough; the web side renders the data-driven style-picker-menu.vue.
+  StylePickerMenu: stylePickerMenu,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

@@ -95,6 +95,8 @@ import NavBar from '../../card/nav-bar/nav-bar.vue'
 import PageHeader from '../../card/page-header/page-header.vue'
 import PageTitle from '../../card/page-title/page-title.vue'
 import TabSlider from '../../card/tab-slider/tab-slider.vue'
+import UserMenu from '../../card/user-menu/user-menu.vue'
+import StylePickerMenu from '../../card/style-picker-menu/style-picker-menu.vue'
 
 const props = defineProps<{
   component: string
@@ -430,6 +432,26 @@ const registry: Record<string, unknown> = {
   // the resting snapshot shows the pill under the selected index. The harness's
   // outer .padding(16) is supplied by the `.capture-wrap`.
   TabSlider,
+  // iOS UserMenu (Components/Navigation/UserMenu.swift) — the signed-in user's
+  // profile menu: a centered 80px circular avatar (the photo) over the user's
+  // name (s20Semibold), above a stack of white@10% rounded-12 action rows
+  // (icon-LEFT 20×20 white SF glyph + s17Medium title). Item icons arrive as
+  // inline SVG from the adapter (SF Symbols mapped to web glyphs, drawn
+  // currentColor). ManagedMenuView's overlay/slide chrome is out of scope for
+  // the isolated snapshot.
+  UserMenu,
+  // iOS StylePickerMenu (Components/Overlays/StylePickerMenu.swift) — the read-block
+  // style-picker bottom sheet: a snippet preview over a white@5% rounded card of two
+  // rows (Bold / Highlight), each with a leading 22px circle (brand filled-checkmark
+  // when selected, white@25% outline otherwise), an s17Semibold label (brand when
+  // selected) and a trailing sample chip (Bold → s17Bold; Highlight → s17 on a
+  // brand@35% chip); a white@5% "Remove style" button (#ff5d5d) appears when a style
+  // is applied, then a white@70% "Cancel" button. NB: the iPhone reference renders
+  // the snippet preview as empty quotes (“”) — the ViewRegistry case reads
+  // `state.component.text` while the fixture seeds `snippet` (same data-key artifact
+  // as HeatMapChart / SearchableList); this twin renders the real snippet (a surfaced
+  // gap on that one line), rows/buttons match pixel-tight.
+  StylePickerMenu,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

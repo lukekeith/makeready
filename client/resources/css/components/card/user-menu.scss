@@ -1,0 +1,132 @@
+// UserMenu — twin of iOS Components/Navigation/UserMenu.swift.
+//
+// Structure (outer → inner):
+//   .UserMenu          → VStack(spacing:0). Full-width (fills the .capture-wrap
+//                        clip box). Holds the centered user-info section + the
+//                        action-row stack.
+//   .UserMenu__info    → VStack(spacing:16) centered: avatar over name.
+//                        .padding(.top,24).padding(.bottom,32).
+//   .UserMenu__avatar  → 80×80 circular avatar (CachedAsyncImage size:80). The
+//                        photo resolves in the iPhone snapshot, so the twin shows
+//                        the real <img>; the initial is a fallback only.
+//   .UserMenu__name    → s20Semibold white (SF Pro).
+//   .UserMenu__buttons → VStack(spacing:12).padding(.horizontal,24)
+//                        .padding(.bottom,40).
+//   .UserMenu__row     → Button: HStack(spacing:12).padding(.horizontal,24)
+//                        .padding(.vertical,16), white@10% bg, 12px radius. Icon on
+//                        the LEFT, title, then Spacer.
+//   .UserMenu__icon    → 20×20 white SF-symbol glyph (inline SVG, currentColor).
+//   .UserMenu__title   → s17Medium white (SF Pro, pinned single-line metric).
+//
+// The 80px avatar, 12/16/24/32/40/24 paddings, 12px gap, 20px glyph, and 12px row
+// radius are intrinsic iOS layout metrics with no design-system token (raw px
+// allowed per the intrinsic-size exception); colors and typography are tokenized.
+.UserMenu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+
+  // ── User info ────────────────────────────────────────────────────────────
+  &__info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding-top: 24px;
+    padding-bottom: 32px;
+  }
+
+  &__avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: var(--color-white-10);
+  }
+
+  &__avatarImg {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  &__avatarInitial {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-display);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-100);
+  }
+
+  &__name {
+    // SF Pro Text 20pt semibold. `-apple-system` resolves to SF Pro on the macOS
+    // capture machine so glyph widths match iOS (the page default Open Sans renders
+    // wider).
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-subheading);
+    line-height: 24px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-100);
+  }
+
+  // ── Action rows ──────────────────────────────────────────────────────────
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    // iOS buttons VStack is .padding(.horizontal,24); the capture harness adds a
+    // further outer gutter so the rendered cards sit 48px from the snapshot edges.
+    // The web .capture-wrap supplies only 16px of that, so make up the remaining
+    // 32px here (16 + 32 = 48) to match the iPhone card inset.
+    padding: 0 32px 40px;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 16px 24px;
+    background: var(--color-white-10);
+    border-radius: 12px;
+    text-align: left;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    color: var(--color-white-100);
+
+    svg {
+      display: block;
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  &__title {
+    // SF Pro Text 17pt medium, pinned to the font's ~1.19× single-line metric
+    // (17 → 20) so the row stack aligns.
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-lead);
+    line-height: 20px;
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-100);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__spacer {
+    flex: 1;
+    min-width: 0;
+  }
+}

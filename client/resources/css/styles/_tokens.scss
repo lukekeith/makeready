@@ -75,6 +75,7 @@
   --color-white-5:   rgba(255, 255, 255, 0.05);
   --color-white-10:  rgba(255, 255, 255, 0.10);
   --color-white-20:  rgba(255, 255, 255, 0.20);
+  --color-white-25:  rgba(255, 255, 255, 0.25); // matches iOS .white.opacity(0.25) (StylePickerMenu unselected circle)
   --color-white-30:  rgba(255, 255, 255, 0.30); // matches iOS .white30
   --color-white-35:  rgba(255, 255, 255, 0.35); // matches iOS .white.opacity(0.35) (MultilineTextInput empty placeholder)
   --color-white-40:  rgba(255, 255, 255, 0.40); // matches iOS .white.opacity(0.4)
@@ -88,6 +89,7 @@
   // Translucent brand purple (#6c47ff) — matches iOS Color.brandPrimary.opacity().
   --color-brand-20:  rgba(108, 71, 255, 0.20); // matches iOS .brandPrimary.opacity(0.2)
   --color-brand-30:  rgba(108, 71, 255, 0.30); // matches iOS .brandPrimary.opacity(0.3)
+  --color-brand-35:  rgba(108, 71, 255, 0.35); // matches iOS .brandPrimary.opacity(0.35) (StylePickerMenu highlight sample bg)
   --color-brand-70:  rgba(108, 71, 255, 0.70); // matches iOS .brandPrimary.opacity(0.7)
 
   // Lighter accent purple (#7c7cff) — iOS ActionCardMenu hardcodes this hex for

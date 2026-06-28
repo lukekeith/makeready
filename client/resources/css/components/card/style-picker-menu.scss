@@ -1,0 +1,159 @@
+// StylePickerMenu — twin of iOS Components/Overlays/StylePickerMenu.swift.
+//
+// Structure (outer → inner), mirroring the SwiftUI VStack(spacing:0) .padding(.top,8):
+//   .StylePickerMenu          → column, fills the .capture-wrap clip box (width:100%).
+//                               .padding-top:8 reproduces the iOS `.padding(.top,8)`.
+//   .StylePickerMenu__snippet → “<snippet>” preview, s13 white@50%, single-line
+//                               middle-truncated, left-aligned, padded .bottom 12.
+//   .StylePickerMenu__card    → white@5% rounded-8 container of the two rows.
+//   .StylePickerMenu__row     → HStack(spacing:12) padded 16: circle + label + Spacer
+//                               + trailing sample chip.
+//   .StylePickerMenu__circle  → 22×22 leading glyph (brand filled-checkmark when
+//                               selected, else a white@25% outline circle).
+//   .StylePickerMenu__label   → s17Semibold; brand when selected, else white.
+//   .StylePickerMenu__sample  → trailing chip; --bold = s17Bold no-bg, --highlight =
+//                               s17 on a brand@35% h8/v2 radius-4 chip.
+//   .StylePickerMenu__remove  → white@5% rounded-8 "Remove style" button, s17Semibold
+//                               #ff5d5d, shown only when a style is applied (.top 8).
+//   .StylePickerMenu__cancel  → "Cancel" button, s17Semibold white@70% (.top 4 /
+//                               .bottom 8).
+//
+// The iOS component's per-element `.padding(.horizontal,16)` is supplied on the web
+// by the harness's `.capture-wrap` 16px gutter, so the children sit flush (no own
+// horizontal padding) and align at the same 16pt inset as the iPhone card. The
+// 8/12/16/22/12/8/4/8 paddings, 22px circle box, 12px gap and 8/4px radii are
+// intrinsic iOS layout metrics (raw px allowed per the intrinsic-size exception);
+// colors, type sizes and font weights are tokenized.
+//
+// SF Pro Text (`-apple-system`) resolves to SF Pro on the macOS capture machine so
+// glyph widths match iOS (the page default Open Sans renders wider).
+.StylePickerMenu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-top: 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  // ── Snippet preview ────────────────────────────────────────────────────────
+  &__snippet {
+    width: 100%;
+    padding-bottom: 12px;
+    font-size: var(--text-sm); // s13
+    line-height: 16px;
+    color: var(--color-white-50);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // ── Style rows card ────────────────────────────────────────────────────────
+  &__card {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    background: var(--color-white-5);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    padding: 16px;
+    text-align: left;
+    background: transparent;
+  }
+
+  &__circle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    color: var(--color-white-25); // unselected outline
+
+    &--selected {
+      color: var(--color-brand-500); // filled checkmark circle
+    }
+
+    svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  &__label {
+    font-size: var(--text-lead); // s17
+    line-height: 20px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-100);
+
+    &--selected {
+      color: var(--color-brand-500);
+    }
+  }
+
+  &__spacer {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__sample {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: var(--text-lead); // s17
+    line-height: 20px;
+    color: var(--color-white-100);
+    white-space: nowrap;
+
+    &--bold {
+      font-weight: var(--font-weight-bold);
+      background: transparent;
+    }
+
+    &--highlight {
+      font-weight: var(--font-weight-regular);
+      background: var(--color-brand-35);
+    }
+  }
+
+  // ── Remove style ───────────────────────────────────────────────────────────
+  &__remove {
+    width: 100%;
+    margin-top: 8px;
+    padding: 16px 0;
+    background: var(--color-white-5);
+    border: none;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: var(--text-lead); // s17
+    line-height: 20px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-ios-remove-style);
+    text-align: center;
+    cursor: pointer;
+  }
+
+  // ── Cancel ─────────────────────────────────────────────────────────────────
+  &__cancel {
+    width: 100%;
+    margin-top: 4px;
+    margin-bottom: 8px;
+    padding: 16px 0;
+    background: transparent;
+    border: none;
+    font-family: inherit;
+    font-size: var(--text-lead); // s17
+    line-height: 20px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-70);
+    text-align: center;
+    cursor: pointer;
+  }
+}
