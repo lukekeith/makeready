@@ -28,6 +28,7 @@ import cardActivity from './CardActivity.mjs';
 import cardBibleSearchResult from './CardBibleSearchResult.mjs';
 import calendarBottomBar from './CalendarBottomBar.mjs';
 import calendarDayCell from './CalendarDayCell.mjs';
+import calendarEventListContent from './CalendarEventListContent.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -57,6 +58,7 @@ export const adapters = {
   CardBibleSearchResult: cardBibleSearchResult,
   CalendarBottomBar: calendarBottomBar,
   CalendarDayCell: calendarDayCell,
+  CalendarEventListContent: calendarEventListContent,
   GroupPostCard: iphoneCard('component.GroupPostCard'),
   // Connected components — seed app state rather than a plain prop bag.
   BlockStyleEditor: blockStyleEditor,

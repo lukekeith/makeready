@@ -1,0 +1,191 @@
+// CalendarEventListContent — the day's event list shown in the split-calendar
+// gap (iOS CalendarEventListContent parity). Mirrors CalendarEventListView.swift:
+// a date header, an empty state, and a list of scheduled-lesson cards.
+//
+// Unlike the card twins, the iPhone snapshot of this content view is GUTTERLESS
+// (its content sits flush to the snapshot edge, inset only by the component's own
+// 16px/12px paddings). The capture harness's `.capture-wrap` always adds a 16px
+// gutter, so we cancel it with a negative margin and re-apply the real iOS insets
+// internally — reproducing the iPhone's edge-to-edge layout exactly. (This
+// component exists only for the compare twin, so the capture-oriented offset is
+// intentional and scoped here.)
+//
+// Structural pixel sizes (day indicator 60px, activity box 32px) come from the
+// iOS layout spec and are intrinsic — raw px is allowed per the design-system
+// exception, same as card-lesson.scss.
+.CalendarEventListContent {
+  display: flex;
+  flex-direction: column;
+  // Cancel the .capture-wrap 16px gutter on all sides and fill the clip box.
+  margin: calc(var(--space-lg) * -1);
+  width: calc(100% + var(--space-lg) * 2);
+  background: var(--bg-canvas);
+  color: var(--fg-white);
+  text-align: left;
+
+  // ─── Date header ─────────────────────────────────────────────────────────────
+  &__header {
+    padding: var(--space-md) var(--space-lg) var(--space-sm); // iOS top12 / h16 / bottom8
+    font-size: var(--text-md);       // iOS s14Semibold (14/15/16 → --text-md)
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-secondary);      // iOS .white70
+  }
+
+  // ─── Empty state ─────────────────────────────────────────────────────────────
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-sm);            // iOS VStack spacing 8
+    padding: var(--space-xl) var(--space-lg); // iOS .vertical 24
+  }
+
+  &__emptyIcon {
+    display: block;
+    width: var(--text-display);      // iOS s32
+    height: var(--text-display);
+    color: var(--fg-disabled);       // iOS .white30
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__emptyText {
+    font-size: var(--text-md);       // iOS s14
+    color: var(--fg-tertiary);       // iOS .white50
+  }
+
+  // ─── Event list ──────────────────────────────────────────────────────────────
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);                          // iOS LazyVStack spacing 8
+    padding: 0 var(--space-lg) var(--space-lg);    // iOS .horizontal 16 / .bottom 16
+  }
+
+  // ─── Scheduled-lesson card (CardLesson .lesson parity) ─────────────────────────
+  &__card {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    width: 100%;
+    overflow: hidden;
+    background: var(--bg-surface);
+    border-radius: var(--radius-sm);
+  }
+
+  // Cover image bleeds behind the card at 10% opacity (iOS background overlay).
+  &__cardCover {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    opacity: 0.1;
+    pointer-events: none;
+  }
+
+  &__day {
+    position: relative;
+    flex: 0 0 auto;
+    width: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-lg);
+  }
+
+  &__dayLabel {
+    font-size: var(--text-sm);       // iOS s12
+    line-height: 1;
+    letter-spacing: var(--tracking-label);
+    color: var(--color-brand-500);
+  }
+
+  &__dayNumber {
+    font-size: var(--text-heading);  // iOS s22
+    line-height: var(--leading-heading);
+    letter-spacing: var(--tracking-tight);
+    color: var(--fg-white);
+  }
+
+  &__body {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);            // iOS VStack spacing 4
+    min-width: 0;
+    flex: 1 1 auto;
+    padding: var(--space-lg) var(--space-lg) var(--space-lg) 0;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-md);       // iOS s15Bold
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__date {
+    font-size: var(--text-sm);       // iOS s12
+    line-height: var(--leading-sm);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__iconRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);            // iOS HStack spacing 4
+    margin-top: var(--space-2xs);    // iOS .padding(.top, 2)
+  }
+
+  // Neutral activity box (ActivityStyle .default: white-10 well, white-50 glyph).
+  &__box {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    background: var(--color-white-10);
+    color: var(--fg-tertiary);
+
+    svg {
+      width: 14px;                   // iOS icon = box * 0.4375
+      height: 14px;
+      display: block;
+    }
+  }
+
+  &__overflow {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: var(--text-sm);       // iOS s12Semibold
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-tertiary);
+    background: var(--color-white-10);
+    border-radius: var(--radius-sm);
+  }
+
+  &__estimate {
+    margin-left: auto;
+    font-size: var(--text-sm);       // iOS s12
+    color: var(--fg-tertiary);       // iOS .white50
+    white-space: nowrap;
+  }
+}
