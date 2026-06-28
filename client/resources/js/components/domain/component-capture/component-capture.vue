@@ -59,6 +59,7 @@ import FullScreenImageViewer from '../../card/full-screen-image-viewer/full-scre
 import GroupSelectorSheet from '../../card/group-selector-sheet/group-selector-sheet.vue'
 import InfoPanel from '../../card/info-panel/info-panel.vue'
 import Kpi from '../../card/kpi/kpi.vue'
+import MemberListItem from '../../card/member-list-item/member-list-item.vue'
 
 const props = defineProps<{
   component: string
@@ -164,6 +165,10 @@ const registry: Record<string, unknown> = {
   // symbols map to inline SVG and the iconValue tint colors (.blue/.green) map
   // to the iOS dark-mode system hexes in the adapter.
   Kpi,
+  // iOS MemberListItem (Components/Display/MemberListItem.swift) — full-width
+  // member/contact list row: gray initials avatar + name + demographics/group
+  // chips + optional trailing purple Invite pill (four variants).
+  MemberListItem,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

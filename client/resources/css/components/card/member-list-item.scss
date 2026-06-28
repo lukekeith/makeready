@@ -1,0 +1,109 @@
+// MemberListItem — twin of iOS Components/Display/MemberListItem.swift. BEM
+// modifiers mirror the MemberListItemCva variant strings in
+// resources/js/components/card/member-list-item/member-list-item.vue.
+//
+// iOS layout: HStack(spacing: 8) { avatar(40) · VStack(spacing: 2){ name ·
+// demographics · groups } · Spacer() · ActionButton("Invite") } with
+// .padding(.vertical, 16). The component is full-width (the trailing Spacer
+// pushes the Invite pill to the edge); the .capture-wrap supplies the 16px
+// horizontal gutter, matching the iPhone sizeThatFits snapshot.
+//
+// All text is the iOS system font (SF Pro) — declared as -apple-system so the
+// macOS capture machine resolves SF Pro (not the web Open Sans) and the glyph
+// metrics/wrapping match the iPhone reference.
+.MemberListItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm); // 8px (iOS HStack spacing)
+  width: 100%;
+  padding: var(--space-lg) 0; // iOS .padding(.vertical, 16)
+  text-align: left;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  // ── Avatar: iOS Circle.fill(Color.gray.opacity(0.3)), 40×40 ───────────────
+  // Color.gray (#8E8E93) at 0.3 has no design-system token; compose the
+  // translucent gray over --bg-canvas so the rendered fill is exact regardless
+  // of backdrop (same layering approach as avatar.scss / group-post-card.scss).
+  &__avatar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; // iOS .frame(width: 40, height: 40)
+    height: 40px;
+    border-radius: var(--radius-full);
+    background:
+      linear-gradient(rgba(142, 142, 147, 0.3), rgba(142, 142, 147, 0.3)),
+      var(--bg-canvas);
+  }
+
+  &__initials {
+    font-size: 18px; // iOS Typography.s18Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--fg-white);
+  }
+
+  // ── Details column (iOS VStack(alignment: .leading, spacing: 2)) ──────────
+  &__details {
+    display: flex;
+    flex-direction: column;
+    gap: 2px; // iOS VStack spacing 2 (no token at this size)
+    min-width: 0;
+  }
+
+  &__name {
+    margin: 0;
+    font-size: 17px; // iOS Typography.s17Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    color: var(--fg-white);
+  }
+
+  // ── Demographics: iOS HStack(spacing: 8) of Age / Joined stats ────────────
+  &__demographics {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // 8px
+  }
+
+  // Each stat is an iOS HStack(spacing: 4) { label · value }, 11pt, tracking 0.1
+  &__stat {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--space-xs); // 4px
+    font-size: 11px; // iOS Typography.s11
+    line-height: 1;
+    letter-spacing: var(--tracking-label); // iOS .tracking(0.1)
+    white-space: nowrap;
+  }
+
+  &__stat-label {
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+  }
+
+  &__stat-value {
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+  }
+
+  // ── Group chips: iOS HStack(spacing: 8), brandPrimary, 11pt, tracking 0.1 ──
+  &__groups {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // 8px
+  }
+
+  &__group {
+    font-size: 11px; // iOS Typography.s11
+    line-height: 1;
+    letter-spacing: var(--tracking-label); // iOS .tracking(0.1)
+    color: var(--color-brand-500); // iOS Color.brandPrimary
+    white-space: nowrap;
+  }
+
+  // ── Trailing Invite pill (iOS Spacer() pushes it to the edge) ─────────────
+  &__invite {
+    flex: 0 0 auto;
+    margin-left: auto;
+  }
+}
