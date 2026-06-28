@@ -90,6 +90,7 @@ import AddMenu from '../../card/add-menu/add-menu.vue'
 import FilterChipDropdown from '../../card/filter-chip-dropdown/filter-chip-dropdown.vue'
 import HamburgerMenu from '../../card/hamburger-menu/hamburger-menu.vue'
 import InviteMenu from '../../card/invite-menu/invite-menu.vue'
+import LessonActionMenu from '../../card/lesson-action-menu/lesson-action-menu.vue'
 
 const props = defineProps<{
   component: string
@@ -384,6 +385,17 @@ const registry: Record<string, unknown> = {
   // SVG from the adapter (iOS Image assets mapped to web glyphs, drawn currentColor).
   // ManagedMenuView's overlay/slide chrome is out of scope for the isolated snapshot.
   InviteMenu,
+  // iOS LessonActionMenu (Components/Navigation/LessonActionMenu.swift) — the
+  // lesson-card action menu. A centered header (study name over a "Day N - date"
+  // subtitle) above a white@5% rounded card of action rows (24px leading icon +
+  // s17Semibold title), with a large centered close (X) button beneath. The
+  // destructive row tints its icon + title bright red (#ff4444). Item icons
+  // arrive as inline SVG from the adapter (iOS SF Symbols mapped to web glyphs,
+  // drawn currentColor — brandPrimary normal). The day/date subtitle is
+  // pre-formatted by the adapter in local tz (UTC-midnight scheduledDate shifts a
+  // day, matching the iOS DateFormatter). ManagedMenuView's overlay/slide chrome
+  // is out of scope for the isolated snapshot.
+  LessonActionMenu,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

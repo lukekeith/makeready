@@ -1,0 +1,131 @@
+// LessonActionMenu — twin of iOS Components/Navigation/LessonActionMenu.swift.
+//
+// Structure (outer → inner):
+//   .LessonActionMenu          → VStack(spacing:0) + .padding(.top,8). Full-width
+//                                (fills the .capture-wrap clip box). Holds the
+//                                header, the rows card, and the centered close
+//                                (X) button beneath it.
+//   .LessonActionMenu__header  → VStack(spacing:4) + .padding(.vertical,16),
+//                                centered: study name over the day/date subtitle.
+//   .LessonActionMenu__study   → s17Bold white.
+//   .LessonActionMenu__subtitle→ s13 white@50.
+//   .LessonActionMenu__card    → the rows container: white@5% background + 8px
+//                                corner radius. iOS applies .padding(.horizontal,16)
+//                                to it; the harness .capture-wrap adds the matching
+//                                outer 16px gutter, so the card sits 32px from the
+//                                crop edges.
+//   .LessonActionMenu__row     → LessonActionMenuItem: HStack(spacing:16) +
+//                                .padding(16). Icon on the LEFT, then title.
+//   .LessonActionMenu__icon    → 24×24 icon frame holding the s18 SF-symbol glyph
+//                                (inline SVG). Normal = brandPrimary #6c47ff;
+//                                destructive row = bright red #ff4444.
+//   .LessonActionMenu__title   → s17Semibold white (destructive row = #ff4444).
+//   .LessonActionMenu__close   → centered xmark (s20Medium white),
+//                                .padding(.vertical,32).
+//
+// The 16px row padding/gap, 24px icon frame, 8px card radius, 16px horizontal
+// card inset, and 32px close padding are intrinsic iOS layout metrics with no
+// design-system token (raw px allowed per the intrinsic-size exception); colors
+// and typography are tokenized. Single-line text rows pin line-height to SF Pro
+// Text's intrinsic ~1.19× single-line metric (17→20, 13→16) rather than the
+// looser web leading tokens, a genuine cross-platform alignment requirement.
+.LessonActionMenu {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding-top: var(--space-sm); // iOS .padding(.top, 8)
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs); // iOS VStack(spacing: 4)
+    padding: var(--space-lg) 0;
+    text-align: center;
+  }
+
+  &__study {
+    // SF Pro Text 17pt bold — `-apple-system` resolves to SF Pro on the macOS
+    // capture machine so glyph widths match iOS (the page default Open Sans
+    // renders wider).
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-lead);
+    line-height: 20px;
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white-100);
+  }
+
+  &__subtitle {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-sm);
+    line-height: 16px;
+    color: var(--color-white-50);
+  }
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    margin: 0 16px;
+    background: var(--color-white-5);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    width: 100%;
+    padding: 16px;
+    text-align: left;
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    color: var(--color-brand-500);
+
+    svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+    }
+  }
+
+  &__title {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--text-lead);
+    line-height: 20px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-100);
+  }
+
+  &__row--destructive {
+    .LessonActionMenu__icon {
+      color: var(--color-ios-destructive-bright);
+    }
+
+    .LessonActionMenu__title {
+      color: var(--color-ios-destructive-bright);
+    }
+  }
+
+  // ── Close button ───────────────────────────────────────────────────────────
+  &__close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white-100);
+    padding: 32px 16px;
+
+    svg {
+      display: block;
+      width: 22px;
+      height: 22px;
+    }
+  }
+}

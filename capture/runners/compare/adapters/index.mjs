@@ -97,6 +97,7 @@ import addMenu from './AddMenu.mjs';
 import filterChipDropdown from './FilterChipDropdown.mjs';
 import hamburgerMenu from './HamburgerMenu.mjs';
 import inviteMenu from './InviteMenu.mjs';
+import lessonActionMenu from './LessonActionMenu.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -191,6 +192,7 @@ export const adapters = {
   FilterChipDropdown: filterChipDropdown,
   HamburgerMenu: hamburgerMenu,
   InviteMenu: inviteMenu,
+  LessonActionMenu: lessonActionMenu,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
