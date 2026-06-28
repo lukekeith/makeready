@@ -1,0 +1,34 @@
+// CalendarWeekdayHeader — the fixed "S M T W T F S" header pinned above the
+// split-month calendar grid (iOS CalendarHeaderView.swift → CalendarWeekdayHeader).
+// A horizontal row of seven equal-width columns (iOS HStack spacing 0, each Text
+// frame maxWidth: .infinity) over the app background.
+//
+// Class names mirror the structure in
+// resources/js/components/card/calendar-weekday-header/.
+//
+// Gutter note: iOS bakes .padding(.horizontal, 16) into the view, but the compare
+// harness (.capture-wrap) already supplies a 16px gutter on every side — the same
+// 16px — so this twin carries NO horizontal padding of its own; doubling it would
+// inset the letters past the iPhone reference. The component is full-bleed and the
+// row aligns column-for-column with the iPhone snapshot. (iOS .padding(.vertical, 8)
+// is likewise absorbed by the wrap's vertical gutter.)
+//
+// The 12px letter has no design-system token (the type scale jumps 11→13), so it
+// is kept as a raw px per the design-system exception (same as CalendarDayCell's
+// 14px day number) — it matches iOS Typography.s12. Everything else is tokenized.
+.CalendarWeekdayHeader {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: var(--bg-canvas); // iOS Color.appBackground
+  font-family: inherit;
+
+  &__day {
+    flex: 1 1 0; // iOS frame(maxWidth: .infinity) — equal-width columns
+    text-align: center;
+    line-height: 1;
+    font-size: 12px; // no token (scale jumps 11→13); intrinsic, matches Typography.s12
+    font-weight: var(--font-weight-regular);
+    color: var(--color-white-50); // iOS Color.white50
+  }
+}
