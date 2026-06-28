@@ -42,6 +42,7 @@ import SkeletonCardMediaFull from '../../card/skeleton-card-media-full/skeleton-
 import SkeletonCardProgramFull from '../../card/skeleton-card-program-full/skeleton-card-program-full.vue'
 import SkeletonCardStudy from '../../card/skeleton-card-study/skeleton-card-study.vue'
 import CardSlideButton from '../../card/card-slide-button/card-slide-button.vue'
+import SwipeableCard from '../../card/swipeable-card/swipeable-card.vue'
 
 const props = defineProps<{
   component: string
@@ -90,6 +91,9 @@ const registry: Record<string, unknown> = {
   // `SlideButton` comparison id; the component itself is `CardSlideButton` to
   // avoid colliding with the labeled rectangular `SlideButton` component.
   SlideButton: CardSlideButton,
+  // iOS SwipeableCard at rest — renders only its content card (CardGroupMini);
+  // the slide buttons stay hidden behind it until swiped.
+  SwipeableCard,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

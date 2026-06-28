@@ -50,6 +50,7 @@ import skeletonCardMediaFull from './SkeletonCardMediaFull.mjs';
 import skeletonCardProgramFull from './SkeletonCardProgramFull.mjs';
 import skeletonCardStudy from './SkeletonCardStudy.mjs';
 import slideButton from './SlideButton.mjs';
+import swipeableCard from './SwipeableCard.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -95,6 +96,7 @@ export const adapters = {
   // Two-sided twin (Vue + iPhone).
   ActionButton: actionButton,
   SlideButton: slideButton,
+  SwipeableCard: swipeableCard,
   BoxButton: boxButton,
   AgeRangeInput: ageRangeInput,
   BackgroundSourceMenu: backgroundSourceMenu,

@@ -30,6 +30,27 @@
   &--animating &__content {
     transition: transform var(--motion-brisk) var(--ease-standard);
   }
+
+  // ── Capture (data-driven) mode ───────────────────────────────────────────
+  // The embedded content card (CardGroupMini) brings its own surface + radius,
+  // matching the iOS SwipeableCard which adds no chrome of its own at rest. So
+  // the wrapper and content layer are transparent and unclipped — only the
+  // resting content card is visible (the action lane stays hidden behind it).
+  &--capture {
+    // Shrink-wrap the resting content card and clip the action lane behind it,
+    // so the leading buttons (which overflow the 76px lane) stay hidden — the
+    // iOS card renders no buttons until swiped past abs(offset) > 5.
+    display: inline-block;
+    overflow: hidden;
+    // Clip to the same rounded silhouette as the embedded CardGroupMini so the
+    // hidden action lane can't bleed through the card's rounded corners.
+    border-radius: var(--radius-sm);
+
+    .SwipeableCard__content {
+      background: transparent;
+      border-radius: 0;
+    }
+  }
 }
 
 // SlideButton — a single revealed action.
