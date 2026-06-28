@@ -1,63 +1,141 @@
-// CardSearchResult — compact search row: optional thumbnail, title + subtitle,
-// trailing type tag badge. Interactive (role=button) with a hover well.
+// CardSearchResult — compact search-result row (iOS CardSearchResult.swift parity).
+//
+// Full-width button row: a 40×40 leading graphic, a title (with a brand-tinted
+// match span), and a "timeAgo · subtitle" secondary line, plus an optional
+// trailing chevron. Mirrors the SwiftUI HStack(spacing: 12) with
+// .padding(.horizontal, 16) / .padding(.vertical, 10).
+//
+// Two intrinsic iOS sizes have no design-system token (the scale jumps 13 → 16,
+// and there is no 10/40 spacing step at this breakpoint), so they appear raw with
+// a comment — the same exception card-bible-search-result.scss / card-activity.scss use.
 .CardSearchResult {
   display: flex;
   align-items: center;
-  gap: var(--space-md);
-  padding: var(--space-sm) var(--space-md);
-  border-radius: var(--radius-md);
-  background: var(--bg-surface);
+  box-sizing: border-box;
+  width: 100%; // iOS row fills the device width
+  gap: var(--space-md); // iOS HStack spacing 12
+  padding: 10px var(--space-lg); // iOS .padding(.vertical, 10) / .horizontal, 16 (no 10px token)
+  background: transparent;
   cursor: pointer;
-  transition: background-color var(--motion-micro-fast) var(--ease-standard);
-
-  &:hover {
-    background: var(--color-white-5);
-  }
+  text-align: left;
 
   &:focus-visible {
-    outline: 2px solid var(--border-brand);
-    outline-offset: 2px;
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+  &:active {
+    opacity: var(--opacity-pressed);
   }
 
-  &__thumb {
-    flex: 0 0 auto;
-    width: var(--avatar-sm);
-    height: var(--avatar-sm);
+  // ── Leading graphic (all branches occupy a 40×40 slot) ──────────────────────
+  &__avatar {
+    --avatar-size: 40px; // iOS Avatar(size: .md) == 40 (no 40px avatar token)
+    flex-shrink: 0;
   }
 
-  &__thumb-img {
-    width: 100%;
-    height: 100%;
+  // Brand-tint circle holding the type icon (iOS: brandPrimary.opacity(0.15)).
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px; // iOS .frame(width: 40, height: 40)
+    height: 40px;
+    border-radius: var(--radius-full);
+    background: var(--color-brand-tint); // iOS Color.brandPrimary.opacity(0.15)
+    color: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
   }
 
+  &__icon-glyph {
+    display: inline-flex;
+
+    svg {
+      width: 18px; // iOS Image(systemName:).font(.s16) glyph
+      height: 18px;
+      display: block;
+    }
+  }
+
+  // Loading spinner for the non-member image branch — the iOS CachedAsyncImage
+  // never resolves the placeholder URL in the isolated snapshot, so the reference
+  // shows a bare spoke spinner (no background circle). Rendered as a static
+  // frozen frame so the screenshot is deterministic.
+  &__spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    color: var(--color-white-50);
+
+    svg {
+      width: 22px;
+      height: 22px;
+      display: block;
+    }
+  }
+
+  // ── Text column ─────────────────────────────────────────────────────────────
   &__body {
     flex: 1 1 auto;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2xs);
+    gap: var(--space-2xs); // iOS VStack spacing 2
   }
 
   &__title {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: var(--text-sm);
-    line-height: var(--leading-sm);
+    font-size: 15px; // iOS Typography.s15Semibold (no token; scale jumps 13 → 16)
+    line-height: var(--leading-sm); // 18px box
     font-weight: var(--font-weight-semibold);
-    color: var(--fg-primary);
+    color: var(--fg-primary); // iOS .white
+  }
+
+  // Matched query span (iOS AttributedString.foregroundColor = brandPrimary).
+  &__highlight {
+    color: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+  }
+
+  &__meta {
+    display: flex;
+    align-items: baseline;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: var(--text-sm); // iOS Typography.s13 (13px)
+    line-height: var(--leading-xs); // 15px box
+  }
+
+  &__time {
+    flex-shrink: 0;
+    color: var(--color-white-30); // iOS .white30
+  }
+
+  &__sep {
+    flex-shrink: 0;
+    color: var(--color-white-20); // iOS .white20 (the "  ·  " separator)
   }
 
   &__subtitle {
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--text-xs);
-    line-height: var(--leading-xs);
-    color: var(--fg-tertiary);
+    color: var(--color-white-50); // iOS .white50
   }
 
-  &__type {
-    flex: 0 0 auto;
+  // ── Trailing chevron ────────────────────────────────────────────────────────
+  &__chevron {
+    display: inline-flex;
+    flex-shrink: 0;
+    color: var(--color-white-20); // iOS chevron.right .white20
+
+    svg {
+      width: 16px; // iOS Image("chevron.right").font(.s12Medium)
+      height: 16px;
+      display: block;
+    }
   }
 }
