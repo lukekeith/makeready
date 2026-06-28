@@ -61,6 +61,7 @@ import InfoPanel from '../../card/info-panel/info-panel.vue'
 import Kpi from '../../card/kpi/kpi.vue'
 import MemberListItem from '../../card/member-list-item/member-list-item.vue'
 import WeekdayIndicator from '../../card/weekday-indicator/weekday-indicator.vue'
+import SkeletonEnrollmentCard from '../../card/skeleton-enrollment-card/skeleton-enrollment-card.vue'
 
 const props = defineProps<{
   component: string
@@ -174,6 +175,10 @@ const registry: Record<string, unknown> = {
   // row of 7 weekday letters (S M T W T F S), each with a dot beneath: enabled =
   // white letter + brand-purple dot, disabled = white@30% letter + no dot.
   WeekdayIndicator,
+  // iOS SkeletonEnrollmentCard (Components/Domain/SkeletonEnrollmentCard.swift) —
+  // loading enrollment card: 64×64 book.fill cover placeholder + program name +
+  // "<n> days" + a brand spoke spinner with "Creating…". Full-width row card.
+  SkeletonEnrollmentCard,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

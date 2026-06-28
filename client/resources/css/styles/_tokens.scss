@@ -76,11 +76,17 @@
   --color-white-10:  rgba(255, 255, 255, 0.10);
   --color-white-20:  rgba(255, 255, 255, 0.20);
   --color-white-30:  rgba(255, 255, 255, 0.30); // matches iOS .white30
+  --color-white-40:  rgba(255, 255, 255, 0.40); // matches iOS .white.opacity(0.4)
   --color-white-50:  rgba(255, 255, 255, 0.50);
   --color-white-70:  rgba(255, 255, 255, 0.70);
   --color-white-80:  rgba(255, 255, 255, 0.80); // matches iOS .white.opacity(0.8)
   --color-white-90:  rgba(255, 255, 255, 0.90); // matches iOS .white.opacity(0.9)
   --color-white-100: rgba(255, 255, 255, 1);
+
+  // Translucent brand purple (#6c47ff) — matches iOS Color.brandPrimary.opacity().
+  --color-brand-20:  rgba(108, 71, 255, 0.20); // matches iOS .brandPrimary.opacity(0.2)
+  --color-brand-30:  rgba(108, 71, 255, 0.30); // matches iOS .brandPrimary.opacity(0.3)
+  --color-brand-70:  rgba(108, 71, 255, 0.70); // matches iOS .brandPrimary.opacity(0.7)
 
   // ─── Font weights ──────────────────────────────────────────────────────────
   // Mirrors the weights in use across iOS Typography.swift (regular/medium/

@@ -1,0 +1,130 @@
+// SkeletonEnrollmentCard — skeleton/loading enrollment card twin
+// (iOS Components/Domain/SkeletonEnrollmentCard.swift).
+//
+// iOS structure: HStack(spacing 12), .padding(12), white@5% background, a 1px
+// brandPrimary@30% rounded-rectangle border overlay, 4px corner radius. The
+// card is full-width (the column it sits in stretches it), so the twin's root is
+// width:100%.
+//
+// Left cover: a 64×64, 8px-radius square. In the isolated /compare snapshot the
+// program AsyncImage never resolves, so the placeholder always renders — a
+// brand-tint fill darkened by the iOS black@20% overlay (layered here as a
+// black@20% gradient over --color-brand-20), with a book.fill glyph (20pt,
+// white@50%) centered.
+//
+// Right column (VStack spacing 4): program name (15pt semibold, white@70%, one
+// line), "<n> days" (13pt, white@40%), and a status row (HStack spacing 4) of a
+// small brand spoke spinner (iOS ProgressView, brandPrimary tint) + "Creating…"
+// (12pt medium, brand@70%).
+//
+// Text sizes (15/13/12) are intrinsic iOS system sizes (the DS text scale jumps
+// 13→16), rendered with -apple-system to match SF Pro metrics under the macOS
+// capture runner — same approach as the InfoPanel / Avatar twins.
+.SkeletonEnrollmentCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  background: var(--color-white-5);
+  border: 1px solid var(--color-brand-30);
+  border-radius: var(--radius-sm);
+  box-sizing: border-box;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__cover {
+    flex: 0 0 auto;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-md);
+    overflow: hidden;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  // book.fill placeholder: brand-tint fill + iOS black@20% overlay wash.
+  &__placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background:
+      linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2)),
+      var(--color-brand-20);
+  }
+
+  &__book {
+    display: block;
+    width: 28px;
+    height: 28px;
+    color: var(--color-white-50);
+
+    :deep(svg) {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &__name {
+    font-size: 15px; // iOS Typography.s15Semibold (intrinsic; DS scale jumps 13→16)
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.2;
+    color: var(--color-white-70);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__days {
+    font-size: 13px; // iOS Typography.s13
+    font-weight: var(--font-weight-regular);
+    line-height: 1.2;
+    color: var(--color-white-40);
+  }
+
+  &__status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  // iOS ProgressView circular spinner (brandPrimary tint, scaled 0.7) — frozen
+  // static spoke spinner so the screenshot is deterministic.
+  &__spinner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    color: var(--color-brand-500);
+
+    svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+  }
+
+  &__statusLabel {
+    font-size: 12px; // iOS Typography.s12Medium
+    font-weight: var(--font-weight-medium);
+    line-height: 1.2;
+    color: var(--color-brand-70);
+  }
+}
