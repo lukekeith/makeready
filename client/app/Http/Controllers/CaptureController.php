@@ -91,6 +91,32 @@ class CaptureController extends Controller
     }
 
     /**
+     * GET /_capture/live?component=CardGroup&props=<json>
+     *
+     * Renders ONE design-system component live (no fixture file) so the Compare
+     * tool can embed it in an <iframe> and pan/zoom the real DOM. The component
+     * must be registered in the ComponentCapture island; props is a JSON object.
+     */
+    public function live(Request $request): Response
+    {
+        $component = (string) $request->query('component', '');
+        if ($component === '' || ! preg_match('/^[A-Za-z0-9_]+$/', $component)) {
+            abort(400, 'Invalid or missing component.');
+        }
+        $propsRaw = $request->query('props', '{}');
+        $props = is_string($propsRaw) ? json_decode($propsRaw, true) : null;
+        if (! is_array($props)) {
+            $props = [];
+        }
+
+        return response()->view('components.component-capture', [
+            'component'      => $component,
+            'componentProps' => $props,
+            'live'           => true,
+        ]);
+    }
+
+    /**
      * GET /_capture/{workflow}/assets/{file}
      */
     public function asset(string $workflow, string $file): BinaryFileResponse

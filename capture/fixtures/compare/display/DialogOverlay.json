@@ -1,0 +1,43 @@
+{
+  "id": "DialogOverlay",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Dialog Overlay",
+  "adapter": "DialogOverlay",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "CallDialog",
+      "shared": {
+        "isPresented": true,
+        "buttons": [
+          { "label": "Call: 213.862.3686", "style": "primary" },
+          { "label": "Cancel", "style": "secondary" }
+        ]
+      }
+    },
+    {
+      "name": "MultipleActions",
+      "shared": {
+        "isPresented": true,
+        "buttons": [
+          { "label": "Call: 213.862.3686", "style": "primary" },
+          { "label": "Text: 213.862.3686", "style": "primary" },
+          { "label": "Cancel", "style": "secondary" }
+        ]
+      }
+    },
+    {
+      "name": "WithTitleAndMessage",
+      "shared": {
+        "isPresented": true,
+        "title": "Delete program?",
+        "message": "This action cannot be undone.",
+        "buttons": [
+          { "label": "Delete", "style": "primary" },
+          { "label": "Cancel", "style": "secondary" }
+        ]
+      }
+    }
+  ]
+}

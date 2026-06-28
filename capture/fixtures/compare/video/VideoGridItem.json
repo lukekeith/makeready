@@ -1,0 +1,35 @@
+{
+  "id": "VideoGridItem",
+  "type": "component",
+  "group": "Video",
+  "title": "Video · Video Grid Item",
+  "adapter": "VideoGridItem",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Camera",
+      "shared": {
+        "type": "camera",
+        "isSelected": false,
+        "sizePx": 100
+      }
+    },
+    {
+      "name": "CameraSelected",
+      "shared": {
+        "type": "camera",
+        "isSelected": true,
+        "sizePx": 100
+      }
+    },
+    {
+      "name": "Video",
+      "shared": {
+        "type": "video",
+        "isSelected": false,
+        "sizePx": 100,
+        "thumbnailUrl": "https://picsum.photos/100/100"
+      }
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "id": "AlphabetScrubber",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Alphabet Scrubber",
+  "adapter": "AlphabetScrubber",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "letters": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z"]
+      }
+    }
+  ]
+}

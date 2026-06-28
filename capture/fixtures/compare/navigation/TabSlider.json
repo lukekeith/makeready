@@ -1,0 +1,31 @@
+{
+  "id": "TabSlider",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Tab Slider",
+  "adapter": "TabSlider",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "TwoTabs",
+      "shared": {
+        "tabs": ["Active", "Completed"],
+        "selectedIndex": 0
+      }
+    },
+    {
+      "name": "ThreeTabs",
+      "shared": {
+        "tabs": ["Overview", "Studies", "Enrollments"],
+        "selectedIndex": 1
+      }
+    },
+    {
+      "name": "FourTabs",
+      "shared": {
+        "tabs": ["All", "Groups", "Members", "Settings"],
+        "selectedIndex": 0
+      }
+    }
+  ]
+}

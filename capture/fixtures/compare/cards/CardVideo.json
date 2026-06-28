@@ -1,0 +1,34 @@
+{
+  "id": "CardVideo",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Video",
+  "adapter": "CardVideo",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Photo",
+      "shared": {
+        "title": "Sunday Sermon: Faith in Action",
+        "description": "Sermons",
+        "status": "confirmed",
+        "imageStyle": { "kind": "photo", "url": "https://picsum.photos/116/116" },
+        "metadata": [
+          { "icon": "eye", "value": "1.2K" },
+          { "icon": "clock", "value": "5 mins ago" },
+          { "icon": "square.and.arrow.up", "value": "45" }
+        ]
+      }
+    },
+    {
+      "name": "New",
+      "shared": {
+        "title": "VIDEO",
+        "description": "Select video",
+        "status": "new",
+        "imageStyle": { "kind": "icon", "systemName": "play.fill", "foreground": "purple" },
+        "metadata": []
+      }
+    }
+  ]
+}

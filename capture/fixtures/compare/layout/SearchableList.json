@@ -1,0 +1,39 @@
+{
+  "id": "SearchableList",
+  "type": "component",
+  "group": "Layout",
+  "title": "Layout · Searchable List",
+  "adapter": "SearchableList",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "placeholder": "Search contacts",
+        "showAlphabetScrubber": true,
+        "items": [
+          { "name": "Alice Anderson", "hasPhone": true },
+          { "name": "Adam Avery", "hasPhone": false },
+          { "name": "Bob Brown", "hasPhone": false },
+          { "name": "Beth Banks", "hasPhone": true },
+          { "name": "Charlie Chen", "hasPhone": true },
+          { "name": "Carol Cole", "hasPhone": false },
+          { "name": "Diana Davis", "hasPhone": true },
+          { "name": "Eve Evans", "hasPhone": false },
+          { "name": "Frank Foster", "hasPhone": true },
+          { "name": "Grace Garcia", "hasPhone": true },
+          { "name": "Henry Harris", "hasPhone": false },
+          { "name": "Luke Keith", "hasPhone": true }
+        ]
+      }
+    },
+    {
+      "name": "Empty",
+      "shared": {
+        "placeholder": "Search contacts",
+        "showAlphabetScrubber": false,
+        "items": []
+      }
+    }
+  ]
+}

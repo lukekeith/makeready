@@ -1,0 +1,16 @@
+{
+  "id": "ShareInviteSheet",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Share Invite Sheet",
+  "adapter": "ShareInviteSheet",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "inviteCode": "PREVIEW123"
+      }
+    }
+  ]
+}

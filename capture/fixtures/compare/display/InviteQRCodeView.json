@@ -1,0 +1,26 @@
+{
+  "id": "InviteQRCodeView",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Invite QR Code",
+  "adapter": "InviteQRCodeView",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "WithLogo",
+      "shared": {
+        "inviteCode": "ABC123XYZ",
+        "size": 250,
+        "includeLogo": true
+      }
+    },
+    {
+      "name": "NoLogo",
+      "shared": {
+        "inviteCode": "ABC123XYZ",
+        "size": 250,
+        "includeLogo": false
+      }
+    }
+  ]
+}

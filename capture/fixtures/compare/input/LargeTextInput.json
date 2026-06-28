@@ -1,0 +1,66 @@
+{
+  "id": "LargeTextInput",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Large Text Input",
+  "adapter": "LargeTextInput",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Alphanumeric",
+      "shared": {
+        "label": "Full name",
+        "inputType": "alphanumeric",
+        "text": ""
+      }
+    },
+    {
+      "name": "Phone",
+      "shared": {
+        "label": "Phone",
+        "inputType": "phone",
+        "text": ""
+      }
+    },
+    {
+      "name": "Integer",
+      "shared": {
+        "label": "Age",
+        "inputType": "integer",
+        "text": ""
+      }
+    },
+    {
+      "name": "Float",
+      "shared": {
+        "label": "Weight (lbs)",
+        "inputType": "float",
+        "text": ""
+      }
+    },
+    {
+      "name": "Currency",
+      "shared": {
+        "label": "Amount",
+        "inputType": "currency",
+        "text": ""
+      }
+    },
+    {
+      "name": "Email",
+      "shared": {
+        "label": "Email",
+        "inputType": "email",
+        "text": ""
+      }
+    },
+    {
+      "name": "Percentage",
+      "shared": {
+        "label": "Completion",
+        "inputType": "percentage",
+        "text": ""
+      }
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "UserMenu",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · User Menu",
+  "adapter": "UserMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "userName": "John Smith",
+        "avatarURL": "https://picsum.photos/80/80",
+        "organizations": [
+          { "id": "org1", "name": "Grace Community Church" }
+        ],
+        "items": [
+          { "icon": "person.fill", "title": "My profile" },
+          { "icon": "building.2.fill", "title": "Grace Community Church" },
+          { "icon": "rectangle.portrait.and.arrow.right", "title": "Logout" }
+        ]
+      }
+    }
+  ]
+}

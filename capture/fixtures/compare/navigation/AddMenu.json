@@ -1,0 +1,36 @@
+{
+  "id": "AddMenu",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Add Menu",
+  "adapter": "AddMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "MainMenu",
+      "shared": {
+        "items": [
+          { "icon": "IconChat", "title": "Send message", "showSubmenu": false },
+          { "icon": "IconLink", "title": "Invite member", "showSubmenu": true },
+          { "icon": "IconMeeting", "title": "Create meeting", "showSubmenu": false },
+          { "icon": "IconGroup", "title": "Create group", "showSubmenu": false },
+          { "icon": "IconStudy", "title": "Create study program", "showSubmenu": false }
+        ],
+        "recordItem": { "icon": "IconRecordVideo", "title": "Record video", "showSubmenu": false }
+      }
+    },
+    {
+      "name": "InviteSubmenu",
+      "shared": {
+        "submenuTitle": "Invite member",
+        "submenuItems": [
+          { "icon": "IconChat", "title": "Send message" },
+          { "icon": "IconLink", "title": "Copy link" },
+          { "icon": "IconQR", "title": "QR Code" },
+          { "icon": "IconInvite", "title": "Invite members" },
+          { "icon": "IconUser", "title": "Invite contacts" }
+        ]
+      }
+    }
+  ]
+}

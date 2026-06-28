@@ -1,0 +1,50 @@
+{
+  "id": "HorizontalBarChart",
+  "type": "component",
+  "group": "Chart",
+  "title": "Chart · Horizontal Bar Chart",
+  "adapter": "HorizontalBarChart",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "MemberRankingsWithValues",
+      "shared": {
+        "showValues": true,
+        "barHeight": 32,
+        "dataPoints": [
+          { "label": "Sarah J.", "value": 145, "color": "#6c47ff" },
+          { "label": "Mike T.", "value": 132, "color": "rgba(108,71,255,0.8)" },
+          { "label": "Emma W.", "value": 118, "color": "rgba(108,71,255,0.6)" },
+          { "label": "John D.", "value": 95, "color": "rgba(108,71,255,0.4)" },
+          { "label": "Lisa K.", "value": 87, "color": "rgba(108,71,255,0.3)" }
+        ]
+      }
+    },
+    {
+      "name": "TasksByCategoryTallBars",
+      "shared": {
+        "showValues": true,
+        "barHeight": 36,
+        "dataPoints": [
+          { "label": "Development", "value": 42, "color": "#47d4ff" },
+          { "label": "Design", "value": 28, "color": "#ff6b9d" },
+          { "label": "Marketing", "value": 19, "color": "#ffd93d" },
+          { "label": "Operations", "value": 12, "color": "#4ade80" }
+        ]
+      }
+    },
+    {
+      "name": "RevenueByRegion",
+      "shared": {
+        "showValues": true,
+        "barHeight": 32,
+        "dataPoints": [
+          { "label": "North America", "value": 8500, "color": "#6c47ff" },
+          { "label": "Europe", "value": 6200, "color": "#47d4ff" },
+          { "label": "Asia Pacific", "value": 4800, "color": "#ff6b9d" },
+          { "label": "Latin America", "value": 2100, "color": "#ffd93d" }
+        ]
+      }
+    }
+  ]
+}

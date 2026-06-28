@@ -1,0 +1,24 @@
+{
+  "id": "ErrorBanner",
+  "type": "component",
+  "group": "Feedback",
+  "title": "Feedback · Error Banner",
+  "adapter": "ErrorBanner",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "WithRetry",
+      "shared": {
+        "message": "Couldn't save changes",
+        "hasRetry": true
+      }
+    },
+    {
+      "name": "NoRetry",
+      "shared": {
+        "message": "Upload failed — the file may be too large to process",
+        "hasRetry": false
+      }
+    }
+  ]
+}

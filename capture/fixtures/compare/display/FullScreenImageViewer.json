@@ -1,0 +1,16 @@
+{
+  "id": "FullScreenImageViewer",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Full Screen Image Viewer",
+  "adapter": "FullScreenImageViewer",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "imageURL": "https://picsum.photos/600/800"
+      }
+    }
+  ]
+}

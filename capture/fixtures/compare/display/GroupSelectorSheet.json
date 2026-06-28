@@ -1,0 +1,31 @@
+{
+  "id": "GroupSelectorSheet",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Group Selector Sheet",
+  "adapter": "GroupSelectorSheet",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "groupList": [
+          { "name": "Young Professionals", "memberCount": 27 },
+          { "name": "Bible Study", "memberCount": 14 },
+          { "name": "Worship Team", "memberCount": 8 }
+        ],
+        "selectedGroupName": "Young Professionals"
+      }
+    },
+    {
+      "name": "NoneSelected",
+      "shared": {
+        "groupList": [
+          { "name": "Young Professionals", "memberCount": 27 },
+          { "name": "Bible Study", "memberCount": 14 },
+          { "name": "Worship Team", "memberCount": 8 }
+        ]
+      }
+    }
+  ]
+}

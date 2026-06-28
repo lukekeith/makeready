@@ -1,0 +1,28 @@
+{
+  "id": "CardStudyMini",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Study Mini",
+  "adapter": "CardStudyMini",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Photo",
+      "shared": {
+        "title": "Study title",
+        "status": "confirmed",
+        "imageStyle": { "kind": "photo", "url": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=240&h=228&fit=crop" },
+        "metadata": [{ "icon": "clock", "value": "28" }]
+      }
+    },
+    {
+      "name": "Pending",
+      "shared": {
+        "title": "Study title",
+        "status": "pending",
+        "imageStyle": { "kind": "icon", "systemName": "book.fill", "background": "orange" },
+        "metadata": [{ "icon": "clock", "value": "28" }]
+      }
+    }
+  ]
+}

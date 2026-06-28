@@ -1,0 +1,137 @@
+// BoxButton — flexible 8px-radius button (iOS BoxButton.swift). The size ramp
+// (height / h-padding / font / gap / icon) lives in CSS custom properties on the
+// size modifiers; the base reads those props so the variant + style modifiers
+// only have to deal with color.
+//
+// The per-size heights (56/46/34), the md h-padding (20), md font (15), md gap
+// (10) and sm icon (14) have no design-system token and are kept as raw px per
+// the design-system exception (intrinsic component sizes, like card-study's
+// fixed cover dimensions). Every value that DOES have a token uses it.
+.BoxButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--bb-gap);
+  box-sizing: border-box;
+  height: var(--bb-h);
+  padding: 0 var(--bb-px);
+  border: 0 solid transparent;
+  border-radius: var(--radius-md); // iOS cornerRadius 8
+  background: transparent;
+  color: var(--bb-fg);
+  font-family: inherit;
+  font-size: var(--bb-font);
+  font-weight: var(--font-weight-semibold); // iOS label weight .semibold
+  line-height: 1;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: filter var(--motion-micro) var(--ease-standard);
+
+  &:active {
+    filter: brightness(0.94);
+  }
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+  &:disabled {
+    cursor: not-allowed;
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--bb-icon);
+    height: var(--bb-icon);
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__label {
+    white-space: nowrap;
+  }
+
+  // ─── Size ramp (custom props consumed by the base) ──────────────────────────
+  &--lg {
+    --bb-h: 56px; // intrinsic (no token)
+    --bb-px: var(--space-xl); // 24
+    --bb-font: var(--text-lead); // 17
+    --bb-gap: var(--space-md); // 12
+    --bb-icon: var(--icon-sm); // 20
+  }
+  &--md {
+    --bb-h: 46px; // intrinsic (no token)
+    --bb-px: 20px; // intrinsic (no token)
+    --bb-font: 15px; // intrinsic (no token; text-md is 16)
+    --bb-gap: 10px; // intrinsic (no token)
+    --bb-icon: var(--icon-xs); // 16
+  }
+  &--sm {
+    --bb-h: 34px; // intrinsic (no token)
+    --bb-px: var(--space-lg); // 16
+    --bb-font: var(--text-sm); // 13
+    --bb-gap: var(--space-sm); // 8
+    --bb-icon: 14px; // intrinsic (no token)
+  }
+
+  // ─── Variant colors (fg + fill + stroke; style picks which apply) ───────────
+  &--primary {
+    --bb-fg: var(--color-white-100);
+    --bb-fill: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+    --bb-stroke: var(--color-brand-500);
+  }
+  &--secondary {
+    --bb-fg: var(--color-white-100);
+    --bb-fill: var(--color-white-5); // iOS white.opacity(0.05)
+    --bb-stroke: var(--color-white-100);
+  }
+  &--destructive {
+    --bb-fg: var(--color-ios-error); // iOS Color.error (#ff4759)
+    --bb-fill: var(--color-white-20); // iOS white.opacity(0.20)
+    --bb-stroke: var(--color-ios-error);
+  }
+  &--disabled {
+    --bb-fg: var(--color-white-20); // iOS white.opacity(0.20)
+    --bb-fill: var(--color-white-5);
+    --bb-stroke: var(--color-white-20);
+  }
+
+  // ─── Style (solid fill vs 2px border) ───────────────────────────────────────
+  &--solid {
+    background: var(--bb-fill);
+  }
+  &--border {
+    background: transparent; // iOS bg = .clear for border style
+    border-width: 2px; // iOS stroke lineWidth 2
+    border-color: var(--bb-stroke);
+  }
+
+  // ─── Layout modifiers ───────────────────────────────────────────────────────
+  &--icon-only {
+    width: var(--bb-h); // square: width == height
+    padding: 0;
+  }
+
+  &--full-width {
+    display: flex;
+    width: 100%;
+  }
+
+  // fullWidth + label + right icon → label leading, icon trailing (iOS Spacer()).
+  &--push-right {
+    justify-content: space-between;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .BoxButton {
+    transition: none;
+  }
+}

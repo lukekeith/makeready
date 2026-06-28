@@ -1,0 +1,88 @@
+{
+  "id": "CardLessonActivity",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Lesson Activity",
+  "adapter": "CardLessonActivity",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "DefaultStudyRead",
+      "shared": {
+        "type": "READ",
+        "title": "Romans 1:1-5",
+        "description": "Scripture, Observation, Application, Prayer",
+        "status": "confirmed"
+      }
+    },
+    {
+      "name": "DefaultStudyUserInput",
+      "shared": {
+        "type": "USER_INPUT",
+        "title": "Journal Entry",
+        "description": "Write your reflections",
+        "status": "confirmed"
+      }
+    },
+    {
+      "name": "DefaultStudyExegesis",
+      "shared": {
+        "type": "EXEGESIS",
+        "title": "Ephesians 2:8-9",
+        "description": "Exegetical analysis",
+        "status": "confirmed"
+      }
+    },
+    {
+      "name": "NewStudyRead",
+      "shared": {
+        "type": "READ",
+        "title": "READ",
+        "description": "Select passage",
+        "status": "new"
+      }
+    },
+    {
+      "name": "DefaultVideo",
+      "shared": {
+        "type": "VIDEO",
+        "title": "Sunday Sermon: Faith in Action",
+        "description": "5:30",
+        "status": "confirmed",
+        "imageStyle": { "kind": "photo", "url": "https://picsum.photos/116/116" }
+      }
+    },
+    {
+      "name": "NewVideo",
+      "shared": {
+        "type": "VIDEO",
+        "title": "VIDEO",
+        "description": "Select video",
+        "status": "new"
+      }
+    },
+    {
+      "name": "SmallRead",
+      "shared": {
+        "type": "READ",
+        "title": "Romans 1:1-5",
+        "description": "Scripture, Observation, Application, Prayer",
+        "status": "confirmed",
+        "estimatedMinutes": 15,
+        "size": "small"
+      }
+    },
+    {
+      "name": "SmallVideo",
+      "shared": {
+        "type": "VIDEO",
+        "title": "Sunday Sermon: Faith in Action",
+        "description": "5:30 · Sermons",
+        "status": "confirmed",
+        "estimatedMinutes": 5,
+        "size": "small",
+        "imageStyle": { "kind": "photo", "url": "https://picsum.photos/80/80" }
+      }
+    }
+  ]
+}

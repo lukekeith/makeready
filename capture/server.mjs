@@ -15,8 +15,11 @@
  */
 import express from 'express';
 import cors from 'cors';
-import { spawn } from 'node:child_process';
+import { createServer } from 'node:http';
+import { Server as SocketIOServer } from 'socket.io';
+import { spawn, execSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { watch } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,9 +29,12 @@ import {
   saveComparisonShared,
   projectComparison,
   getVariants,
+  getVariant,
   compareRoot,
   COMPARE_VIEWPORTS,
+  setAdapterResolver,
 } from './runners/compare/lib.mjs';
+import { buildInventory, queryInventory } from './runners/compare/inventory.mjs';
 import {
   syncComparison,
   getComparison,
@@ -36,15 +42,18 @@ import {
   latestScreenshots,
   latestVersion,
   getVersion,
+  getVariantLatest,
   versionShots,
   listVersions,
   listComments,
   listCommentsForVersion,
+  listCommentsForVariant,
   addComment,
   replyComment,
   setResolved,
   deleteComment,
   summarize,
+  capturedVariantNames,
 } from './db/index.mjs';
 
 const shotUrlFromPath = (rel) => (rel ? `/screenshots/compare/${rel}` : null);
@@ -55,6 +64,58 @@ const makereadyRoot = path.resolve(__dirname, '..');
 
 const PORT = Number(process.env.PORT ?? process.env.CAPTURE_UI_PORT ?? 5951);
 const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY === 'true';
+
+// ── Realtime (socket.io) ──
+// Set once the HTTP server is up (see bottom of file). The Compare UI listens for
+// these so it live-refreshes when ANY capture writes a new screenshot — including
+// captures triggered outside the UI (CLI, curl, an agent). Emitting from the
+// server process (which spawns every capture job) means we don't need the child
+// runner processes to know about sockets.
+let io = null;
+
+// A compare shot landed: `✓ <platform>: _shots/<id>/<viewport>/<platform>/<file>.png`
+// (printed by runners/compare/capture.mjs storeShot). Parsing the job's stdout
+// here catches single + batch + iPhone + client captures uniformly.
+const SHOT_LINE_RE = /✓\s+\w+:\s+_shots\/([^/\s]+)\/([^/\s]+)\/(iphone|client)\//;
+function emitShotFromLine(line) {
+  if (!io) return;
+  const m = SHOT_LINE_RE.exec(line);
+  if (m) io.emit('compare:shot', { id: m[1], viewport: m[2], platform: m[3] });
+}
+
+// ── Adapter hot-reload (no server restart needed for a new web twin) ──
+// A new comparison adapter is normally only seen at boot (the registry is
+// imported once). Watching the adapters folder lets us re-read it live: re-import
+// adapters/index.mjs with a cache-busting query (picks up newly-added adapter
+// files + new registry entries) and swap lib.mjs's resolver to the fresh one.
+// projectComparison stays synchronous; the web pane's `webLive` URL then resolves
+// on the next fetch. We emit `compare:adapters` so the UI refetches immediately.
+// NOTE: this picks up ADDED adapters (the build-a-twin case); editing an
+// already-loaded adapter file is still served from the module cache until restart.
+const adaptersDir = path.join(__dirname, 'runners', 'compare', 'adapters');
+async function reloadAdapters(reason = 'change') {
+  try {
+    const mod = await import(`./runners/compare/adapters/index.mjs?t=${Date.now()}`);
+    setAdapterResolver(mod.getAdapter);
+    console.log(`adapters reloaded (${reason})`);
+    io?.emit('compare:adapters', { reason });
+  } catch (err) {
+    console.warn(`adapter reload failed: ${err.message}`);
+  }
+}
+function watchAdapters() {
+  let timer = null;
+  try {
+    watch(adaptersDir, (_event, filename) => {
+      if (filename && !filename.endsWith('.mjs')) return; // ignore editor temp files
+      clearTimeout(timer);
+      timer = setTimeout(() => reloadAdapters(filename || 'change'), 300);
+    });
+    console.log(`watching adapters for hot-reload: ${adaptersDir}`);
+  } catch (err) {
+    console.warn(`could not watch adapters dir: ${err.message}`);
+  }
+}
 
 // ── Platform Configuration ──
 
@@ -354,6 +415,52 @@ async function captureStatusDB(spec) {
   return status;
 }
 
+/**
+ * Per-component completion for the compare nav. Counts two platform "cells" per
+ * variant: the iPhone cell is done when that variant has a captured iPhone shot;
+ * the web cell is done when the variant has a Vue twin (it builds/renders).
+ * Overall pct = done cells / (2 × variants).
+ */
+async function completionFor(spec) {
+  const variants = getVariants(spec);
+  const total = variants.length;
+  if (total === 0) return { pct: 0, iphoneCaptured: 0, webBuilt: 0, total: 0 };
+  const iphoneNames = await capturedVariantNames(spec.id, 'iphone');
+  const iphoneCaptured = variants.filter((v) => iphoneNames.has(v.name)).length;
+  // "Built on web" = the adapter produces a client projection for the variant
+  // (a Vue twin / page exists). Broader than webLiveFor, which only recognizes
+  // the component-capture island and so misses page comparisons like group-home.
+  const webBuilt = variants.filter((v) => {
+    try { return !!projectComparison(spec, v.shared).client; } catch { return false; }
+  }).length;
+  const pct = Math.round(((iphoneCaptured + webBuilt) / (2 * total)) * 100);
+  return { pct, iphoneCaptured, webBuilt, total };
+}
+
+// "Render sites" — how many times a SwiftUI component is actually used in the
+// iOS app. Counts constructor-style usages (`Struct(`) across the app source,
+// excluding the component's own definition file (its declaration + #Preview).
+// Cached per struct for the server's lifetime (source changes need a restart).
+const renderSiteCache = new Map();
+function renderSiteCount(struct) {
+  if (!struct) return null;
+  if (renderSiteCache.has(struct)) return renderSiteCache.get(struct);
+  let count = null;
+  try {
+    const appDir = path.join(makereadyRoot, 'iphone', 'MakeReady');
+    // -F fixed string ("Struct(") so it matches init calls but not the type
+    // declaration (`struct Struct {`) or sibling types (`StructData(`).
+    const out = execSync(`grep -rnF --include=*.swift -- ${JSON.stringify(`${struct}(`)} ${JSON.stringify(appDir)} || true`,
+      { encoding: 'utf-8', maxBuffer: 8 * 1024 * 1024 });
+    const lines = out.split('\n').filter(Boolean).filter((l) => !l.includes(`/${struct}.swift:`));
+    count = lines.length;
+  } catch {
+    count = null;
+  }
+  renderSiteCache.set(struct, count);
+  return count;
+}
+
 async function buildCompareManifest() {
   const comparisons = await loadComparisons();
   // Group by type ("page" | "component"), preserving load order within each.
@@ -370,6 +477,12 @@ async function buildCompareManifest() {
     const status = await captureStatusDB(c);
     const { unresolved } = await summarize(c.id);
     const latest = await latestVersion(c.id);
+    const completion = await completionFor(c);
+    // Representative thumbnail = the latest iPhone shot at the first viewport.
+    const firstVp = c.viewports?.[0];
+    const latestShots = firstVp ? await latestScreenshots(c.id, firstVp) : {};
+    const thumbnail = shotUrlFromPath(latestShots.iphone?.path);
+    const renderSites = c.type === 'component' ? renderSiteCount(c.id) : null;
     const bucket = byType.get(c.type) ?? [];
     bucket.push({
       id: c.id,
@@ -380,6 +493,10 @@ async function buildCompareManifest() {
       captures: status,
       rating: latest?.rating ?? null,
       unresolvedComments: unresolved,
+      completion,
+      thumbnail,
+      variantCount: completion.total,
+      renderSites,
     });
     byType.set(c.type, bucket);
   }
@@ -399,6 +516,26 @@ async function buildCompareManifest() {
 app.get('/api/compare/manifest', async (_req, res) => {
   try {
     res.json(await buildCompareManifest());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Cross-platform inventory: every component/page with per-platform existence,
+// per-variant schema + capture/match status. Filterable for the common asks.
+app.get('/api/compare/inventory', async (req, res) => {
+  const truthy = (v) => v === '1' || v === 'true';
+  try {
+    const inv = await buildInventory({ detail: truthy(req.query.detail) });
+    const components = queryInventory(inv, {
+      missingOnClient: truthy(req.query.missingOnClient),
+      hasClientComments: truthy(req.query.hasClientComments),
+      mismatched: truthy(req.query.mismatched),
+      type: req.query.type || undefined,
+      sort: req.query.sort || undefined,
+      limit: req.query.limit ? parseInt(req.query.limit, 10) : undefined,
+    });
+    res.json({ count: components.length, components });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -440,6 +577,7 @@ app.get('/api/compare/comparison/:id', async (req, res) => {
       group: spec.group,
       title: spec.title,
       viewports: spec.viewports,
+      variantCount: getVariants(spec).length,
       shared: spec.shared ?? {},
       rating: latestV?.rating ?? null,
       latestVersionId: latestV?.id ?? null,
@@ -478,12 +616,149 @@ app.get('/api/compare/comparison/:id/versions', async (req, res) => {
   }
 });
 
+// Base URL where the client (Laravel) serves the live component-capture route.
+const CAPTURE_CLIENT_URL = process.env.CAPTURE_CLIENT_URL || 'http://localhost:8001';
+
+/** Live-iframe descriptor for the web side, or null when there's no Vue twin. */
+function webLiveFor(spec, shared) {
+  let client = null;
+  try { client = projectComparison(spec, shared).client; } catch { /* no adapter / no twin */ }
+  const data = client?.data;
+  if (!data?.component) return null;
+  const props = encodeURIComponent(JSON.stringify(data.componentProps ?? {}));
+  return {
+    component: data.component,
+    url: `${CAPTURE_CLIENT_URL}/_capture/live?component=${data.component}&props=${props}`,
+  };
+}
+
+// Left-nav model: a comparison's variants with per-platform render status + the
+// two header counts (how many variants render on iPhone vs web).
+app.get('/api/compare/comparison/:id/variants', async (req, res) => {
+  if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const spec = await loadComparison(req.params.id);
+    if (!spec || spec.error) return res.status(404).json({ error: 'Comparison not found' });
+    const viewport = (req.query.viewport && COMPARE_VIEWPORTS[req.query.viewport]) ? req.query.viewport : spec.viewports[0];
+    await syncComparison(spec);
+    // Badge/count = whether the variant EXISTS on each platform (computed live
+    // from the fixtures/adapters), not whether it's been captured. iPhone exists
+    // when the comparison has an iphone view; web exists when there's a Vue twin.
+    let projected = {};
+    try { projected = projectComparison(spec); } catch { /* no adapter */ }
+    const iphoneExists = !!projected.iphone;
+    const variants = [];
+    for (const v of getVariants(spec)) {
+      const web = !!webLiveFor(spec, v.shared);
+      variants.push({ name: v.name, iphone: iphoneExists, web });
+    }
+    res.json({
+      id: spec.id,
+      title: spec.title,
+      type: spec.type,
+      viewport,
+      variants,
+      counts: {
+        iphone: variants.filter((v) => v.iphone).length,
+        web: variants.filter((v) => v.web).length,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Build prompt: everything Claude needs to create the web (Vue) twin of an
+// iPhone-only component — its iPhone source, every variant's data/schema, the
+// adapter contract, and the exact files to create. Copied into the Claude CLI.
+app.get('/api/compare/comparison/:id/build-prompt', async (req, res) => {
+  if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const spec = await loadComparison(req.params.id);
+    if (!spec || spec.error) return res.status(404).json({ error: 'Comparison not found' });
+    let projected = {};
+    try { projected = projectComparison(spec); } catch { /* iphone-only */ }
+    const iphoneView = projected.iphone?.view ?? `component.${spec.id}`;
+    const struct = iphoneView.replace(/^component\./, '');
+    const kebab = struct.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/_/g, '-').toLowerCase();
+    const variants = getVariants(spec);
+
+    const variantBlocks = variants.map((v) =>
+      `### ${v.name}\n\`\`\`json\n${JSON.stringify(v.shared ?? {}, null, 2)}\n\`\`\``,
+    ).join('\n\n');
+
+    const prompt = `Build the WEB (Vue) version of the "${spec.title}" component so it matches the iPhone version, for the MakeReady compare tool. The iPhone component already exists; the web twin does NOT yet. Build it to match the iPhone for ALL ${variants.length} variant(s) below.
+
+## Context
+- Comparison id: \`${spec.id}\` (type: ${spec.type}, group: ${spec.group})
+- iPhone component: SwiftUI \`${struct}\` — find it under \`iphone/MakeReady/Components/**/${struct}.swift\` (card data models live in \`iphone/MakeReady/Components/Card/CardData.swift\`). This is the design reference.
+- See the captured iPhone render for each variant in the compare tool: http://localhost:5950/compare/${spec.id}/<variant>
+- Web stack: Laravel + Vue 3 islands + SCSS design tokens. Copy the pattern from existing twins: \`client/resources/js/components/card/card-study/card-study.vue\` and \`client/resources/js/components/card/card-group/card-group.vue\` (+ their \`.scss\` under \`client/resources/css/components/card/\`).
+
+## Variants to support (name → the data that variant renders)
+${variantBlocks}
+
+## Steps
+1. Read the iPhone SwiftUI \`${struct}\` + its data model to understand layout, sizing, typography, colors, and what each variant changes. Cross-check the captured iPhone screenshots in the compare tool.
+2. Create the Vue component at \`client/resources/js/components/card/${kebab}/${kebab}.vue\` (+ a BEM \`.scss\` under \`client/resources/css/components/card/${kebab}.scss\`), fully data-driven via props, using existing design-system tokens (never hardcode a value that has a token). It must render every variant above from props.
+3. Register it in the ComponentCapture island: \`client/resources/js/components/domain/component-capture/component-capture.vue\` — import the component and add it to the \`registry\` map under the name \`${struct}\`.
+4. Replace the iPhone-only adapter for \`${spec.id}\`: create \`capture/runners/compare/adapters/${spec.id}.mjs\` exporting \`{ toClient, toIphone }\`, and in \`capture/runners/compare/adapters/index.mjs\` swap the \`${spec.id}: iphoneCard('${iphoneView}')\` line to import this adapter. Pattern (see card-study.mjs / GroupCard.mjs):
+   - \`toIphone(shared)\` → \`{ platform:'iphone', view:'${iphoneView}', state:{ component: shared } }\` (unchanged from today).
+   - \`toClient(shared)\` → \`{ platform:'client', view:'components.component-capture', clip:'.capture-wrap', data:{ component:'${struct}', componentProps: { /* map shared → your Vue props */ } } }\`. Map any semantic icons to inline SVG for web.
+5. Rebuild the client so the new component lands in the bundle the compare pane renders: \`cd client && npm run build\`. (The compare web pane serves the BUILT client bundle, not HMR. The capture server hot-reloads your new adapter automatically — do NOT restart it.)
+6. Capture the web side and verify against the iPhone reference: POST \`{"id":"${spec.id}","viewport":"pro-max","platform":"client","variant":"*"}\` to \`http://localhost:5951/api/compare/capture\`, then read the resulting PNGs under \`capture/fixtures/compare/_shots/${spec.id}/pro-max/client/\` and the iPhone references under \`.../iphone/\`. Refine the Vue/SCSS and re-capture until they match. Surface genuine parity gaps instead of faking them.
+
+The variant data above is the source of truth — render each variant identically to the iPhone, adjusting only where the web platform genuinely requires it.`;
+
+    res.json({ prompt, struct, variantCount: variants.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Variant-locked view (replaces version-locked): the latest iPhone shot + live
+// web render + comments + rating for one variant. Works even with no capture yet.
+app.get('/api/compare/comparison/:id/variant/:variant', async (req, res) => {
+  if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
+  try {
+    const spec = await loadComparison(req.params.id);
+    if (!spec || spec.error) return res.status(404).json({ error: 'Comparison not found' });
+    const variant = getVariant(spec, req.params.variant);
+    const viewport = (req.query.viewport && COMPARE_VIEWPORTS[req.query.viewport]) ? req.query.viewport : spec.viewports[0];
+    await syncComparison(spec);
+    const ver = await getVariantLatest(spec.id, variant.name, viewport);
+    const iphoneShot = ver?.screenshots?.find((s) => s.platform === 'iphone') ?? null;
+    const comments = await listCommentsForVariant(spec.id, variant.name, viewport);
+    res.json({
+      id: spec.id,
+      variantName: variant.name,
+      viewport,
+      versionId: ver?.id ?? null,
+      sharedData: variant.shared,
+      rating: ver?.rating ?? null,
+      capturedAt: ver?.capturedAt ?? null,
+      gitSha: ver?.gitSha ?? null,
+      shots: {
+        iphone: { url: shotUrlFromPath(iphoneShot?.path), screenshotId: iphoneShot?.id ?? null },
+      },
+      webLive: webLiveFor(spec, variant.shared),
+      comments,
+      viewports: spec.viewports,
+      viewportDimensions: COMPARE_VIEWPORTS,
+      canCapture: !isProduction,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Version-locked view: the shots + rating + comments for one specific version.
 app.get('/api/compare/comparison/:id/version/:vid', async (req, res) => {
   if (!safeId(req.params.id)) return res.status(400).json({ error: 'Invalid id' });
   try {
     const v = await getVersion(req.params.vid);
     if (!v || v.comparisonId !== req.params.id) return res.status(404).json({ error: 'Version not found' });
+    const spec = await loadComparison(req.params.id);
     const shots = await versionShots(v);
     const comments = await listCommentsForVersion(v.id);
     res.json({
@@ -501,6 +776,8 @@ app.get('/api/compare/comparison/:id/version/:vid', async (req, res) => {
         iphone: { url: shotUrlFromPath(shots.iphone?.path), screenshotId: shots.iphone?.id ?? null, fromThisVersion: shots.iphone?.versionId === v.id },
         client: { url: shotUrlFromPath(shots.client?.path), screenshotId: shots.client?.id ?? null, fromThisVersion: shots.client?.versionId === v.id },
       },
+      // Live web render (iframe) — replaces the captured client PNG.
+      webLive: spec && !spec.error ? webLiveFor(spec, v.sharedData) : null,
       comments,
       viewportDimensions: COMPARE_VIEWPORTS,
       canCapture: !isProduction,
@@ -615,6 +892,9 @@ function spawnJob(cmd, args, opts) {
     if (!line) return;
     job.lines.push(line);
     for (const sub of job.subscribers) sub.write(`data: ${JSON.stringify(line)}\n\n`);
+    // Push a realtime event the moment a screenshot is written, so the Compare UI
+    // updates as each shot lands (not just when the whole job finishes).
+    emitShotFromLine(line);
   };
   let stdoutBuf = '';
   child.stdout.on('data', (chunk) => {
@@ -636,6 +916,9 @@ function spawnJob(cmd, args, opts) {
       sub.end();
     }
     job.subscribers.clear();
+    // Coarse "a capture job finished" signal — a backstop refresh in case a shot
+    // line was missed, and lets the UI clear any out-of-band busy state.
+    io?.emit('compare:done', { runId, code });
     setTimeout(() => jobs.delete(runId), 60 * 60 * 1000).unref();
   });
   return runId;
@@ -687,8 +970,24 @@ if (!isProduction) {
     const runId = spawnJob('node', args, { cwd: __dirname, env: process.env });
     res.json({ runId });
   });
+
+  // Compare batch capture: every variant of every given comparison id in ONE
+  // xcodebuild run (iPhone-only). Body: { ids: [...], viewport? }. Used by the
+  // nav's per-category "Capture all".
+  app.post('/api/compare/capture-batch', (req, res) => {
+    const { ids, viewport = 'pro-max' } = req.body ?? {};
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids[] is required' });
+    if (!ids.every((x) => safeId(x))) return res.status(400).json({ error: 'Invalid id in ids[]' });
+    if (!safeId(viewport) || !COMPARE_VIEWPORTS[viewport]) return res.status(400).json({ error: 'Unknown viewport' });
+    const args = [path.resolve(__dirname, 'runners/compare/capture-batch.mjs'), viewport, ...ids];
+    const runId = spawnJob('node', args, { cwd: __dirname, env: process.env });
+    res.json({ runId });
+  });
 } else {
   app.post('/api/compare/capture', (_req, res) => {
+    res.status(400).json({ error: 'Capture is not available in production. Run captures locally.' });
+  });
+  app.post('/api/compare/capture-batch', (_req, res) => {
     res.status(400).json({ error: 'Capture is not available in production. Run captures locally.' });
   });
   // Production: capture endpoints return 404
@@ -728,7 +1027,21 @@ if (isProduction) {
   });
 }
 
-app.listen(PORT, () => {
+const httpServer = createServer(app);
+
+// socket.io shares the HTTP server. In dev the Vite dev server (5950) proxies the
+// /socket.io upgrade to here (5951); in production the UI is same-origin. CORS is
+// permissive because this is a localhost-only dev tool.
+io = new SocketIOServer(httpServer, { cors: { origin: true, credentials: true } });
+io.on('connection', (socket) => {
+  console.log(`socket connected: ${socket.id} (${io.engine.clientsCount} client(s))`);
+  socket.on('disconnect', () => console.log(`socket disconnected: ${socket.id}`));
+});
+
+httpServer.listen(PORT, () => {
   console.log(`Capture UI backend listening on http://localhost:${PORT} (${isProduction ? 'production' : 'development'})`);
   console.log(`Platforms: ${platforms.map((p) => `${p.title} (${p.captureRoot})`).join(', ')}`);
+  // Dev only: hot-reload adapters so a freshly-built Vue twin appears without a
+  // restart. Production never edits adapters and disables capture.
+  if (!isProduction) watchAdapters();
 });

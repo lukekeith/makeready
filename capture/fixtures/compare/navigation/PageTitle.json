@@ -1,0 +1,114 @@
+{
+  "id": "PageTitle",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Page Title",
+  "adapter": "PageTitle",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "IconTitle",
+      "shared": {
+        "factory": "iconTitle",
+        "title": "Invite people",
+        "leftIcon": "chevron.left"
+      }
+    },
+    {
+      "name": "IconTitleLink",
+      "shared": {
+        "factory": "iconTitleLink",
+        "title": "Invite people",
+        "leftIcon": "chevron.left",
+        "rightLink": "Done"
+      }
+    },
+    {
+      "name": "IconTitleIcon",
+      "shared": {
+        "factory": "iconTitleIcon",
+        "title": "Invite people",
+        "leftIcon": "xmark",
+        "rightIcon": "checkmark"
+      }
+    },
+    {
+      "name": "IconTitleIcons",
+      "shared": {
+        "factory": "iconTitleIcons",
+        "title": "Group home",
+        "leftIcon": "xmark",
+        "rightIcons": [
+          { "icon": "paperplane", "showBadge": false },
+          { "icon": "person.2", "showBadge": true },
+          { "icon": "calendar", "showBadge": false },
+          { "icon": "gearshape", "showBadge": false }
+        ]
+      }
+    },
+    {
+      "name": "LinkTitle",
+      "shared": {
+        "factory": "linkTitle",
+        "title": "Invite people",
+        "leftLink": "Done"
+      }
+    },
+    {
+      "name": "LinkTitleLink",
+      "shared": {
+        "factory": "linkTitleLink",
+        "title": "Edit profile",
+        "leftLink": "Cancel",
+        "rightLink": "Save"
+      }
+    },
+    {
+      "name": "IconMenu",
+      "shared": {
+        "factory": "iconMenu",
+        "title": "Invite people",
+        "leftIcon": "xmark",
+        "showDropdown": true
+      }
+    },
+    {
+      "name": "IconLink",
+      "shared": {
+        "factory": "iconLink",
+        "leftIcon": "xmark",
+        "rightLink": "Done"
+      }
+    },
+    {
+      "name": "IconIcon",
+      "shared": {
+        "factory": "iconIcon",
+        "leftIcon": "xmark",
+        "rightIcon": "checkmark"
+      }
+    },
+    {
+      "name": "IconOnly",
+      "shared": {
+        "factory": "icon",
+        "leftIcon": "xmark"
+      }
+    },
+    {
+      "name": "BackLinkTitle",
+      "shared": {
+        "factory": "backLinkTitle",
+        "title": "Dec 2025",
+        "backText": "Dec"
+      }
+    },
+    {
+      "name": "TitleOnly",
+      "shared": {
+        "factory": "titleOnly",
+        "title": "Home"
+      }
+    }
+  ]
+}

@@ -1,0 +1,124 @@
+{
+  "id": "CardLesson",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Lesson",
+  "adapter": "CardLesson",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "PlanningReady",
+      "shared": {
+        "mode": "planning",
+        "day": 5,
+        "activities": [
+          { "icon": "book", "type": "SOAP", "title": "Genesis 1:1-5", "isConfigured": true },
+          { "icon": "play.fill", "type": "VIDEO", "title": "Video", "isConfigured": true }
+        ]
+      }
+    },
+    {
+      "name": "PlanningNotReady",
+      "shared": {
+        "mode": "planning",
+        "day": 3,
+        "activities": [
+          { "icon": "book", "type": "SOAP", "title": "Romans 1:1-2", "isConfigured": true },
+          { "icon": "play.fill", "type": "VIDEO", "title": "Select video", "isConfigured": false }
+        ]
+      }
+    },
+    {
+      "name": "PlanningEmpty",
+      "shared": {
+        "mode": "planning",
+        "day": 1,
+        "activities": []
+      }
+    },
+    {
+      "name": "LessonMixedStatus",
+      "shared": {
+        "mode": "lesson",
+        "day": 1,
+        "title": "Romans Study",
+        "date": "2026-01-30",
+        "estimatedMinutes": 5,
+        "activities": [
+          { "type": "READ", "title": "Read", "status": "complete" },
+          { "type": "USER_INPUT", "title": "Observe", "status": "incomplete" },
+          { "type": "USER_INPUT", "title": "Application", "status": "incomplete" },
+          { "type": "EXEGESIS", "title": "Exegesis", "status": "incomplete" }
+        ]
+      }
+    },
+    {
+      "name": "LessonAllComplete",
+      "shared": {
+        "mode": "lesson",
+        "day": 1,
+        "title": "All Activity Types",
+        "estimatedMinutes": 99,
+        "activities": [
+          { "type": "READ", "title": "Read", "status": "complete" },
+          { "type": "USER_INPUT", "title": "Write", "status": "complete" },
+          { "type": "VIDEO", "title": "Record", "status": "complete" },
+          { "type": "YOUTUBE", "title": "Watch", "status": "complete" },
+          { "type": "EXEGESIS", "title": "Exegesis", "status": "complete" }
+        ]
+      }
+    },
+    {
+      "name": "Progress",
+      "shared": {
+        "mode": "progress",
+        "day": 3,
+        "title": "Jan 22, 2026",
+        "description": "Welcome to day 3 of the 30 day study.",
+        "progress": 0.6
+      }
+    },
+    {
+      "name": "ProgressWithSections",
+      "shared": {
+        "mode": "progress",
+        "day": 3,
+        "title": "Jan 22, 2026",
+        "description": "Welcome to day 3 of the 30 day study.",
+        "progress": 0.66,
+        "sections": [
+          { "name": "Read", "completed": true },
+          { "name": "Watch", "completed": true },
+          { "name": "Discuss", "completed": false }
+        ]
+      }
+    },
+    {
+      "name": "ListComplete",
+      "shared": {
+        "mode": "lessonList",
+        "day": 1,
+        "title": "Romans 1:6-10",
+        "lessonStatus": "complete"
+      }
+    },
+    {
+      "name": "ListNext",
+      "shared": {
+        "mode": "lessonList",
+        "day": 2,
+        "title": "Romans 1:6-10",
+        "lessonStatus": "next"
+      }
+    },
+    {
+      "name": "ListUpcoming",
+      "shared": {
+        "mode": "lessonList",
+        "day": 3,
+        "title": "Romans 1:6-10",
+        "lessonStatus": "upcoming:Thursday"
+      }
+    }
+  ]
+}

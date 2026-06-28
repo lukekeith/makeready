@@ -1,0 +1,19 @@
+{
+  "id": "ThemedContentView",
+  "type": "component",
+  "group": "Content",
+  "title": "Content · Themed Content View",
+  "adapter": "ThemedContentView",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "content": "# Hello World\n\nThis is a test of themed content rendering.",
+        "themeDefinition": null,
+        "contentFormat": "markdown",
+        "isLocked": false
+      }
+    }
+  ]
+}

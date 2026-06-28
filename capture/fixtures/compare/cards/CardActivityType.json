@@ -1,0 +1,45 @@
+{
+  "id": "CardActivityType",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Activity Type",
+  "adapter": "CardActivityType",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "List",
+      "shared": {
+        "mode": "list",
+        "title": "Read",
+        "description": "Add a reading section with rich text content.",
+        "imageStyle": { "kind": "icon", "systemName": "book.fill", "background": "purple" }
+      }
+    },
+    {
+      "name": "ListUnavailable",
+      "shared": {
+        "mode": "list",
+        "title": "SOAP",
+        "description": "Scripture, Observation, Application, Prayer.",
+        "imageStyle": { "kind": "icon", "systemName": "book.fill", "background": "purple" },
+        "available": false
+      }
+    },
+    {
+      "name": "GridIcon",
+      "shared": {
+        "mode": "grid",
+        "title": "Read",
+        "imageStyle": { "kind": "icon", "systemName": "book.fill", "background": "purple" }
+      }
+    },
+    {
+      "name": "GridPhoto",
+      "shared": {
+        "mode": "grid",
+        "title": "SOAP",
+        "coverUrl": "https://picsum.photos/200/200"
+      }
+    }
+  ]
+}

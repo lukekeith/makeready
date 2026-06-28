@@ -1,0 +1,17 @@
+{
+  "id": "DatePickerField",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Date Picker Field",
+  "adapter": "DatePickerField",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "label": "Date",
+        "date": "2026-01-30T09:41:00Z"
+      }
+    }
+  ]
+}

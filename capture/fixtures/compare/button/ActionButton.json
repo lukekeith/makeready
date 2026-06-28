@@ -1,0 +1,68 @@
+{
+  "id": "ActionButton",
+  "type": "component",
+  "group": "Button",
+  "title": "Button · Action Button",
+  "adapter": "ActionButton",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "PurpleLabelIcon",
+      "shared": {
+        "label": "Poll",
+        "icon": "chart.bar.fill",
+        "variant": "purple"
+      }
+    },
+    {
+      "name": "PurpleLabel",
+      "shared": {
+        "label": "Invite",
+        "variant": "purple"
+      }
+    },
+    {
+      "name": "PurpleIcon",
+      "shared": {
+        "icon": "chart.bar.fill",
+        "variant": "purpleIcon"
+      }
+    },
+    {
+      "name": "WhiteLabelIcon",
+      "shared": {
+        "label": "Poll",
+        "icon": "chart.bar.fill",
+        "variant": "white"
+      }
+    },
+    {
+      "name": "WhiteLabel",
+      "shared": {
+        "label": "Settings",
+        "variant": "white"
+      }
+    },
+    {
+      "name": "WhiteIcon",
+      "shared": {
+        "icon": "chart.bar.fill",
+        "variant": "whiteIcon"
+      }
+    },
+    {
+      "name": "WhitePurpleIcon",
+      "shared": {
+        "icon": "arrow.right",
+        "variant": "whitePurple"
+      }
+    },
+    {
+      "name": "CircleBlur",
+      "shared": {
+        "icon": "bubble.left.and.bubble.right",
+        "variant": "circleBlur"
+      }
+    }
+  ]
+}

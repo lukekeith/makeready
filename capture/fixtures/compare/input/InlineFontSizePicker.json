@@ -1,0 +1,28 @@
+{
+  "id": "InlineFontSizePicker",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Inline Font Size Picker",
+  "adapter": "InlineFontSizePicker",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "ExtraSmall",
+      "shared": {
+        "selectedSize": "xs"
+      }
+    },
+    {
+      "name": "Medium",
+      "shared": {
+        "selectedSize": "m"
+      }
+    },
+    {
+      "name": "ExtraLarge",
+      "shared": {
+        "selectedSize": "xl"
+      }
+    }
+  ]
+}

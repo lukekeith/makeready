@@ -1,0 +1,14 @@
+{
+  "id": "CalendarWeekdayHeader",
+  "type": "component",
+  "group": "Calendar",
+  "title": "Calendar · Weekday Header",
+  "adapter": "CalendarWeekdayHeader",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {}
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "id": "SkeletonCardGroup",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Skeleton Group",
+  "adapter": "SkeletonCardGroup",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    { "name": "default", "shared": {} }
+  ]
+}

@@ -1,0 +1,429 @@
+// CardLesson — lesson card with a day indicator and four display modes
+// (iOS CardLesson parity). Data-driven; the `mode` modifier selects the layout:
+//
+//   planning   : DAY indicator (stretched) + activity rows (icon + type +
+//                title, or "Select activities") + chevron. Ready (all activities
+//                configured) → surface well; not-ready/empty → pending well.
+//   lesson     : DAY indicator (60px) + title + date + a row of colored activity
+//                icon boxes (max 5 + "+N") with a time estimate on the right.
+//   progress   : DAY indicator + title + description + progress bar + section list.
+//   lessonList : DAY indicator + status badge (COMPLETE / NEXT / upcoming text)
+//                + title.
+//
+// Class names mirror the BEM structure consumed by card-lesson.vue.
+//
+// Structural pixel sizes (day-indicator 60px, activity box 32px, progress bar
+// 4px, status circle 20px) come straight from the iOS layout spec and are
+// intrinsic sizes — raw px is allowed here per the design-system exception.
+// The activity-type accent colors below mirror ActivityStyle.swift, which is the
+// single source of truth for them; no design-system token exists for these
+// per-type accents, so they live here as scoped custom properties.
+.CardLesson {
+  position: relative;
+  display: flex;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  overflow: hidden;
+  border: 0;
+  padding: 0;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  color: var(--fg-primary);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+  &:active {
+    filter: brightness(0.97);
+  }
+
+  // ─── Shared day indicator ────────────────────────────────────────────────────
+  &__day {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: var(--space-lg);
+  }
+
+  &__dayLabel {
+    font-size: var(--text-sm);
+    line-height: 1;
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--tracking-label);
+    color: var(--color-brand-500);
+  }
+
+  &__dayNumber {
+    font-size: var(--text-heading);
+    line-height: var(--leading-heading);
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--tracking-tight);
+    color: var(--fg-white);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // ─── Planning mode ───────────────────────────────────────────────────────────
+  &--mode-planning {
+    align-items: stretch;
+    gap: var(--space-sm);
+    min-height: 76px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-md);
+
+    &.CardLesson--not-ready {
+      background: var(--bg-pending);
+    }
+
+    .CardLesson__day {
+      flex: 0 0 auto;
+    }
+  }
+
+  &__planningBody {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--space-xs);
+    flex: 1 1 auto;
+    min-width: 0;
+    padding: var(--space-sm) 0;
+  }
+
+  &__planningEmpty {
+    display: flex;
+    flex: 1 1 auto;
+    align-items: center;
+    justify-content: flex-end;
+    font-size: var(--text-sm);
+    letter-spacing: var(--tracking-label);
+    color: var(--color-brand-500);
+  }
+
+  &__activityRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    min-width: 0;
+  }
+
+  &__activityRowIcon {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    color: var(--fg-white);
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__activityRowType {
+    flex: 0 0 auto;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--tracking-label);
+    color: var(--fg-tertiary);
+  }
+
+  &__activityRowTitle {
+    min-width: 0;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--tracking-label);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &.is-select {
+      font-weight: var(--font-weight-regular);
+      color: var(--color-brand-500);
+    }
+  }
+
+  &__chevron {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin: var(--space-sm);
+    color: var(--fg-tertiary);
+
+    svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+  }
+
+  // ─── Lesson mode ─────────────────────────────────────────────────────────────
+  &--mode-lesson {
+    align-items: stretch;
+
+    &.CardLesson--highlight {
+      background: var(--bg-pending);
+    }
+
+    .CardLesson__day {
+      width: 60px;
+    }
+
+    .CardLesson__body {
+      gap: var(--space-xs);
+      padding: var(--space-lg) var(--space-lg) var(--space-lg) 0;
+    }
+  }
+
+  &__date {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__iconRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-top: var(--space-2xs);
+  }
+
+  &__estimate {
+    margin-left: auto;
+    font-size: var(--text-sm);
+    color: var(--fg-tertiary);
+    white-space: nowrap;
+  }
+
+  &__overflow {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--fg-tertiary);
+    background: var(--color-white-10);
+    border-radius: var(--radius-sm);
+  }
+
+  // ─── Activity icon box (lesson mode) ─────────────────────────────────────────
+  &__box {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-sm);
+    box-sizing: border-box;
+
+    svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+
+    // Per-type accent (mirrors ActivityStyle.swift). --box-fill is the icon
+    // color used when the box is filled (complete state).
+    &--type-read     { --box-accent: var(--color-brand-500); --box-fill: #fff; }
+    &--type-userInput { --box-accent: #3b82f6;               --box-fill: #fff; }
+    &--type-video    { --box-accent: #fff;                   --box-fill: #ef4444; }
+    &--type-youtube  { --box-accent: #dc2626;                --box-fill: #fff; }
+    &--type-exegesis { --box-accent: #f59e0b;                --box-fill: #fff; }
+
+    &--status-default {
+      background: var(--color-white-10);
+      color: var(--fg-tertiary);
+    }
+    &--status-incomplete {
+      background: transparent;
+      border: 1.5px solid var(--box-accent);
+      color: var(--box-accent);
+    }
+    &--status-complete {
+      background: var(--box-accent);
+      color: var(--box-fill);
+    }
+  }
+
+  // ─── Progress mode ───────────────────────────────────────────────────────────
+  &--mode-progress {
+    align-items: stretch;
+    background: var(--surface-overlay);
+    backdrop-filter: blur(var(--surface-overlay-blur));
+
+    .CardLesson__day {
+      width: 60px;
+    }
+
+    .CardLesson__body {
+      gap: var(--space-lg);
+      padding: var(--space-lg) var(--space-lg) var(--space-lg) 0;
+    }
+  }
+
+  &__heading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs);
+    min-width: 0;
+  }
+
+  &__description {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__progressTrack {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--color-white-10);
+    overflow: hidden;
+  }
+
+  &__progressFill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--fg-white);
+    transition: width var(--motion-standard) var(--ease-standard);
+  }
+
+  &__sections {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+  }
+
+  &__section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__sectionMark {
+    flex: 0 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-white-20);
+
+    &.is-complete {
+      background: var(--fg-white);
+      border-color: var(--fg-white);
+      color: var(--bg-surface);
+    }
+
+    svg {
+      width: 10px;
+      height: 10px;
+      display: block;
+    }
+  }
+
+  &__sectionName {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // ─── Lesson-list mode ────────────────────────────────────────────────────────
+  &--mode-lessonList {
+    align-items: stretch;
+    background: var(--surface-overlay);
+    backdrop-filter: blur(var(--surface-overlay-blur));
+
+    &.CardLesson--status-complete {
+      background: var(--color-white-10);
+      backdrop-filter: none;
+    }
+
+    .CardLesson__day {
+      width: 60px;
+    }
+
+    .CardLesson__body {
+      gap: var(--space-sm);
+      padding: var(--space-lg) var(--space-lg) var(--space-lg) 0;
+    }
+  }
+
+  &__badge {
+    align-self: flex-start;
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--tracking-wide);
+    text-transform: uppercase;
+
+    &--complete {
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-sm);
+      background: var(--color-white-10);
+      color: var(--fg-tertiary);
+    }
+    &--next {
+      padding: var(--space-xs) var(--space-sm);
+      border-radius: var(--radius-sm);
+      background: var(--color-brand-500);
+      color: var(--fg-white);
+    }
+    &--upcoming {
+      color: var(--fg-tertiary);
+    }
+  }
+
+  // Day-label color follows lesson-list status.
+  &--status-complete .CardLesson__dayLabel {
+    color: var(--fg-tertiary);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .CardLesson__progressFill {
+    transition: none;
+  }
+}

@@ -3,8 +3,8 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { CompareContext } from './CompareContext.js';
 import {
   fetchComparison,
-  fetchVersion,
-  fetchVersions,
+  fetchVariant,
+  fetchBuildPrompt,
   saveComparisonShared,
   saveComparisonRating,
   fetchComments,
@@ -131,8 +131,15 @@ function CommentLayer({
   const here = comments.filter((c) => c.platform === platform && c.viewport === viewport);
   const showDraft = draft && draft.platform === platform && draft.viewport === viewport;
 
+  const selectedBox = here.find((c) => c.id === selectedId && c.targetMeta?.rect)?.targetMeta?.rect;
+  const draftBox = showDraft && draft.target?.rect ? draft.target.rect : null;
+
   return (
     <div className={`cmp-commentlayer${commentMode ? ' cmp-commentlayer--placing' : ''}`} onClick={handleClick}>
+      {(selectedBox || draftBox) && (() => {
+        const r = draftBox || selectedBox;
+        return <div className="cmp-target-box" style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }} aria-hidden="true" />;
+      })()}
       {here.map((c) => {
         const side = c.x > 0.55 ? 'left' : 'right';
         const selected = c.id === selectedId;
@@ -148,6 +155,7 @@ function CommentLayer({
               <div className={`cmp-pop cmp-pop--${side}`} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
                 <div className="cmp-pop__head">
                   <span className="cmp-pop__title">Comment {numberOf.get(c.id)}</span>
+                  {c.targetLabel && <span className="cmp-target-chip" title={c.targetSelector}>◎ {c.targetLabel}</span>}
                   <button className="cmp-pop__close" onClick={() => onSelect(null)} title="Close" aria-label="Close">
                     <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
                       <line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" />
@@ -164,6 +172,9 @@ function CommentLayer({
         <div className="cmp-pin" style={{ left: `${draft.x * 100}%`, top: `${draft.y * 100}%`, transform: `scale(${inv})`, transformOrigin: '0 0' }}>
           <span className="cmp-pin__dot cmp-pin__dot--draft">•</span>
           <div className={`cmp-pop cmp-pop--${draft.x > 0.55 ? 'left' : 'right'}`} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+            <div className="cmp-target-chip cmp-target-chip--draft" title={draft.target?.selector}>
+              {draft.target ? `◎ ${draft.target.label}` : '◎ resolving element…'}
+            </div>
             <textarea className="cmp-thread__input" autoFocus placeholder="Add a comment…" value={draftVal}
               onChange={(e) => setDraftVal(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') onCancelDraft(); if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && draftVal.trim()) onSubmitDraft(draftVal.trim()); }} />
@@ -198,10 +209,12 @@ function useElementSize() {
 // One image pane: shares {scale,cx,cy} with its sibling and computes its own
 // fit. Emits hover as an image fraction; draws a ghost for the sibling's hover.
 function ZoomPane({
-  platform, label, url, viewport, captured, natural, fallbackNatural, onNatural, onReset,
+  platform, label, url, webUrl, missingLabel, missingAction, viewport, captured, natural, fallbackNatural, onNatural, onReset,
   view, setView, hover, setHover, capturing, animating, clearAnim,
+  iframeRef, onHoverInspect, onClearInspect,
   commentMode, ...commentProps
 }) {
+  const isWeb = !!webUrl;
   const [vpRef, size] = useElementSize();
   const drag = useRef(null);
 
@@ -269,6 +282,9 @@ function ZoomPane({
     const fx = (e.clientX - rect.left - tx) / (baseW * view.scale);
     const fy = (e.clientY - rect.top - ty) / (baseH * view.scale);
     setHover({ fx, fy, source: platform });
+    // In comment mode, highlight the web element under the cursor (works while
+    // hovering either pane — the fraction maps onto the aligned web iframe).
+    if (commentMode && fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1) onHoverInspect?.(fx, fy);
   };
 
   // Ghost cursor mirrored from the opposite pane.
@@ -285,7 +301,9 @@ function ZoomPane({
     <div className="cmp-zpane">
       <div className="cmp-zpane__head">
         <span className="cmp-pane__title">{label}</span>
-        <span className={`cmp-pane__status ${captured ? 'is-ok' : 'is-missing'}`}>{captured ? 'captured' : 'not captured'}</span>
+        <span className={`cmp-pane__status ${captured ? 'is-ok' : 'is-missing'}`}>
+          {platform === 'client' ? (captured ? 'live' : 'not built') : (captured ? 'captured' : 'not captured')}
+        </span>
         <span className="cmp-zpane__zoom">{zoomPct}%</span>
         <button className="cmp-zpane__reset" onClick={onReset} title="Fit & center (0)" aria-label="Fit and center">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -299,19 +317,42 @@ function ZoomPane({
         className={`cmp-zpane__viewport${commentMode ? '' : ' cmp-zpane__viewport--grab'}`}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
-        onMouseLeave={() => setHover((h) => (h && h.source === platform ? null : h))}
+        onMouseLeave={() => { setHover((h) => (h && h.source === platform ? null : h)); if (commentMode) onClearInspect?.(); }}
       >
-        {url && geom ? (
-          <div
-            className={`cmp-zpane__canvas${animating ? ' cmp-zpane__canvas--anim' : ''}`}
-            style={{ width: geom.baseW, height: geom.baseH, transform: `translate(${geom.tx}px, ${geom.ty}px) scale(${view.scale})`, transformOrigin: '0 0' }}
-          >
-            <img className="cmp-zpane__img" src={url} alt={`${label} ${viewport}`} draggable={false}
-              onLoad={(e) => onNatural(platform, { w: e.target.naturalWidth, h: e.target.naturalHeight })} />
-            <CommentLayer platform={platform} viewport={viewport} commentMode={commentMode} inv={1 / view.scale} {...commentProps} />
+        {geom && (isWeb ? natural : url) ? (() => {
+          // Web (live iframe): keep the element at its natural CSS width so the
+          // component lays out at the same width as the iPhone, then fold the
+          // fit-to-pane factor into the transform (raster images can just scale,
+          // but live DOM must reflow at a fixed width). inv counter-scales pins.
+          const fit = geom.baseW / (natural?.w || geom.baseW);
+          const effScale = isWeb ? fit * view.scale : view.scale;
+          const canvasW = isWeb ? (natural?.w || geom.baseW) : geom.baseW;
+          const canvasH = isWeb ? (natural?.h || geom.baseH) : geom.baseH;
+          return (
+            <div
+              className={`cmp-zpane__canvas${animating ? ' cmp-zpane__canvas--anim' : ''}`}
+              style={{ width: canvasW, height: canvasH, transform: `translate(${geom.tx}px, ${geom.ty}px) scale(${effScale})`, transformOrigin: '0 0' }}
+            >
+              {isWeb ? (
+                <iframe
+                  ref={iframeRef}
+                  className="cmp-zpane__iframe"
+                  src={webUrl}
+                  title={`${label} ${viewport}`}
+                  style={{ width: '100%', height: '100%', border: 0, background: '#0d101a', pointerEvents: 'none' }}
+                />
+              ) : (
+                <img className="cmp-zpane__img" src={url} alt={`${label} ${viewport}`} draggable={false}
+                  onLoad={(e) => onNatural(platform, { w: e.target.naturalWidth, h: e.target.naturalHeight })} />
+              )}
+              <CommentLayer platform={platform} viewport={viewport} commentMode={commentMode} inv={1 / effScale} {...commentProps} />
+            </div>
+          );
+        })() : (
+          <div className="cmp-shot__missing">
+            <span>{(isWeb || url) ? (missingLabel ?? '…') : (missingLabel ?? 'not captured')}</span>
+            {missingAction}
           </div>
-        ) : (
-          <div className="cmp-shot__missing">{url ? '…' : 'not captured'}</div>
         )}
         {ghost && (
           <div className="cmp-ghost" style={{ left: ghost.gx, top: ghost.gy }} aria-hidden="true">
@@ -325,7 +366,7 @@ function ZoomPane({
 }
 
 export default function CompareDetail() {
-  const { id, version } = useParams();
+  const { id, variant } = useParams();
   const navigate = useNavigate();
   const { shotsVersion, bumpShots, activeRun, setActiveRun, reload } = useContext(CompareContext);
 
@@ -343,6 +384,12 @@ export default function CompareDetail() {
 
   const [rating, setRating] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [promptCopied, setPromptCopied] = useState(false);
+  const [promptBusy, setPromptBusy] = useState(false);
+  const [captureMenuOpen, setCaptureMenuOpen] = useState(false);
+  const captureMenuRef = useRef(null);
+  const [commandMenuOpen, setCommandMenuOpen] = useState(false);
+  const commandMenuRef = useRef(null);
 
   const [comments, setComments] = useState([]);
   const [commentMode, setCommentMode] = useState(false);
@@ -356,13 +403,59 @@ export default function CompareDetail() {
   const [animating, setAnimating] = useState(false);
   const animTimer = useRef(null);
   const [natural, setNatural] = useState({ iphone: null, client: null });
+
+  // ── Live element inspection of the web iframe (precise comment targeting) ──
+  const webIframeRef = useRef(null);
+  const inspectReq = useRef(0);
+  const inspectWaiters = useRef(new Map());
+  useEffect(() => {
+    const onMsg = (e) => {
+      const m = e.data;
+      if (!m || m.type !== 'capture-inspected') return;
+      const w = inspectWaiters.current.get(m.reqId);
+      if (w) { inspectWaiters.current.delete(m.reqId); w(m.target); }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, []);
+  // Map an image fraction → web-iframe CSS coords and ask it what's there.
+  const postInspect = (fx, fy, reqId) => {
+    const iframe = webIframeRef.current;
+    const nat = natural.client;
+    if (!iframe?.contentWindow || !nat) return false;
+    iframe.contentWindow.postMessage({ type: 'capture-inspect', reqId, x: fx * nat.w, y: fy * nat.h }, '*');
+    return true;
+  };
+  const clearInspect = () => {
+    webIframeRef.current?.contentWindow?.postMessage({ type: 'capture-inspect-clear' }, '*');
+  };
+  const inspectWeb = (fx, fy) => new Promise((resolve) => {
+    const reqId = ++inspectReq.current;
+    if (!postInspect(fx, fy, reqId)) { resolve(null); return; }
+    const t = setTimeout(() => { inspectWaiters.current.delete(reqId); resolve(null); }, 600);
+    inspectWaiters.current.set(reqId, (target) => { clearTimeout(t); resolve(target); });
+  });
+  // Hover highlight (fire-and-forget; the iframe outlines the element under the
+  // cursor). Throttled so a fast mousemove doesn't flood the iframe.
+  const lastHoverRef = useRef(0);
+  const hoverInspect = (fx, fy) => {
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - lastHoverRef.current < 30) return;
+    lastHoverRef.current = now;
+    postInspect(fx, fy, 0);
+  };
+  useEffect(() => { if (!commentMode) clearInspect(); }, [commentMode]); // eslint-disable-line react-hooks/exhaustive-deps
   const resetView = useCallback(() => setView({ scale: 1, cx: 0.5, cy: 0.5 }), []);
   const cancelAnim = useCallback(() => { if (animTimer.current) clearTimeout(animTimer.current); setAnimating(false); }, []);
   const onNatural = useCallback((platform, dims) => setNatural((n) => (n[platform] && n[platform].w === dims.w && n[platform].h === dims.h ? n : { ...n, [platform]: dims })), []);
 
   const unsubRef = useRef(null);
   const canEdit = detail?.canCapture;
+  // Live web render (iframe) for the current variant — replaces the web PNG.
+  const webLive = vdetail?.webLive ?? null;
+  const vpWidth = (vp) => detail?.viewportDimensions?.[vp]?.width ?? 440;
 
+  // Comparison-level metadata (title, group, shared/Data tab, projection).
   const refetch = async () => {
     try {
       const data = await fetchComparison(id);
@@ -370,15 +463,13 @@ export default function CompareDetail() {
       setError(null);
       setDraftJson(JSON.stringify(data.shared ?? {}, null, 2));
       setDraftError(null);
-      // No version in the route → jump to the latest version (locks the view).
-      if (!version && data.latestVersionId) navigate(`/compare/${id}/${data.latestVersionId}`, { replace: true });
     } catch (err) { setError(err.message); setDetail(null); }
   };
-  // Reloads the version-locked view (shots + rating + comments for this version).
-  const loadComments = async () => {
-    if (!version) return;
+  // The variant-locked view: latest iPhone shot + live web + comments + rating.
+  const loadVariant = async () => {
+    if (!variant) { setVdetail(null); return; }
     try {
-      const v = await fetchVersion(id, version);
+      const v = await fetchVariant(id, variant, viewport ?? undefined);
       setVdetail(v);
       setViewport(v.viewport);
       setRating(v.rating ?? null);
@@ -395,12 +486,36 @@ export default function CompareDetail() {
 
   useEffect(() => {
     setVdetail(null); setComments([]); setSelectedId(null); setDraftPin(null);
-    if (version) refetch().then(loadComments); else refetch();
+    loadVariant();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, version]);
+  }, [id, variant, shotsVersion]);
 
   // Reset zoom + remeasure natural when the viewport changes.
   useEffect(() => { resetView(); setNatural({ iphone: null, client: null }); }, [viewport, resetView]);
+
+  // Seed the web iframe's natural box to the viewport width so the live
+  // component lays out at the same width as the iPhone snapshot; its posted
+  // height refines the box. No web twin → leave client natural null (shows the
+  // "not built on web" state).
+  useEffect(() => {
+    if (!webLive || !viewport) return;
+    const w = vpWidth(viewport);
+    setNatural((n) => (n.client ? n : { ...n, client: { w, h: Math.round(w * 0.6) } }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [webLive, viewport]);
+
+  // The live iframe posts its rendered height; size the web box to it.
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (e.data?.type !== 'capture-size' || !viewport) return;
+      const w = vpWidth(viewport);
+      const h = Math.max(1, Math.round(e.data.height));
+      setNatural((n) => (n.client && n.client.h === h && n.client.w === w ? n : { ...n, client: { w, h } }));
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewport]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -424,9 +539,10 @@ export default function CompareDetail() {
 
   const isCapturing = activeRun?.id === id;
   const vpDims = detail?.viewportDimensions ?? {};
-  const shots = useMemo(() => (vdetail ? { iphone: vdetail.shots?.iphone?.url ?? null, client: vdetail.shots?.client?.url ?? null } : null), [vdetail]);
-  const shotIds = { iphone: vdetail?.shots?.iphone?.screenshotId ?? null, client: vdetail?.shots?.client?.screenshotId ?? null };
-  const capturedFor = (platform) => !!vdetail?.shots?.[platform]?.url;
+  // Web is a live iframe now — only the iPhone side is a screenshot.
+  const shots = useMemo(() => (vdetail ? { iphone: vdetail.shots?.iphone?.url ?? null } : null), [vdetail]);
+  const shotIds = { iphone: vdetail?.shots?.iphone?.screenshotId ?? null };
+  const capturedFor = (platform) => (platform === 'iphone' ? !!vdetail?.shots?.iphone?.url : !!webLive);
   const numberOf = useMemo(() => {
     const m = new Map();
     [...comments].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)).forEach((c, i) => m.set(c.id, i + 1));
@@ -434,36 +550,43 @@ export default function CompareDetail() {
   }, [comments]);
   const unresolvedCount = comments.filter((c) => !c.resolved).length;
 
-  const runCapture = async (platform) => {
+  const runCapture = async (platform, { allVariants = false } = {}) => {
     if (isCapturing) return;
+    setCaptureMenuOpen(false);
     setLog([]);
-    // Capture the SAME variant as the version currently in view — otherwise the
-    // runner falls back to the spec's first variant and the open version never
-    // gets a fresh shot (which reads as "capture did nothing").
-    const variantName = vdetail?.variantName;
+    // Capture this variant (the runner replaces its single record — no history),
+    // or "*" to capture every variant of the component in one run.
+    const variantName = allVariants ? '*' : (vdetail?.variantName ?? variant);
     try {
       const { runId } = await startCompareCapture({ id, viewport, platform, variant: variantName });
       setActiveRun({ id, viewport, runId });
       unsubRef.current = subscribeCapture(runId, {
         onLine: (line) => setLog((p) => [...p, line]),
-        onDone: async () => {
-          setActiveRun(null);
-          bumpShots();
-          // Each capture creates a NEW version — jump to the one just captured
-          // (newest of this variant+viewport) so its shots are actually shown.
-          try {
-            const { versions } = await fetchVersions(id);
-            const newest = (versions ?? []).find(
-              (v) => v.variantName === variantName && v.viewport === viewport,
-            );
-            if (newest && newest.id !== version) { navigate(`/compare/${id}/${newest.id}`); return; }
-          } catch { /* fall through to a plain refetch */ }
-          refetch();
-        },
+        onDone: () => { setActiveRun(null); bumpShots(); loadVariant(); },
         onError: () => setActiveRun(null),
       });
     } catch (err) { setLog((p) => [...p, `Error: ${err.message}`]); }
   };
+
+  // Close the capture split-button menu on outside click or Escape.
+  useEffect(() => {
+    if (!captureMenuOpen) return;
+    const onDown = (e) => { if (!captureMenuRef.current?.contains(e.target)) setCaptureMenuOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setCaptureMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [captureMenuOpen]);
+
+  // Close the Command menu on outside click or Escape.
+  useEffect(() => {
+    if (!commandMenuOpen) return;
+    const onDown = (e) => { if (!commandMenuRef.current?.contains(e.target)) setCommandMenuOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setCommandMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [commandMenuOpen]);
 
   const handleSave = async () => {
     let parsed;
@@ -478,17 +601,36 @@ export default function CompareDetail() {
 
   const onRate = async (level) => {
     const prev = rating; setRating(level);
-    try { await saveComparisonRating(id, level, version); reload?.(); loadComments(); } catch { setRating(prev); }
+    try { await saveComparisonRating(id, level, vdetail?.versionId); reload?.(); loadVariant(); } catch { setRating(prev); }
   };
 
-  const placeDraft = (platform, vp, x, y) => { setSelectedId(null); setDraftPin({ platform, viewport: vp, x, y }); };
+  const placeDraft = (platform, vp, x, y) => {
+    setSelectedId(null);
+    setDraftPin({ platform, viewport: vp, x, y, target: null });
+    // Resolve which DOM element the pin lands on (hit-test the live web iframe at
+    // the same fraction — works for iPhone pins too since the panes are aligned).
+    inspectWeb(x, y).then((target) => {
+      setDraftPin((d) => (d && d.x === x && d.y === y && d.platform === platform && d.viewport === vp ? { ...d, target } : d));
+    });
+  };
   const submitDraft = async (text) => {
     if (!draftPin) return;
-    try { await addComment(id, { ...draftPin, screenshotId: shotIds[draftPin.platform], versionId: version, text, source: 'user' }); setDraftPin(null); await loadComments(); reload?.(); } catch { /* keep */ }
+    const t = draftPin.target;
+    try {
+      await addComment(id, {
+        variantName: vdetail?.variantName ?? variant,
+        platform: draftPin.platform, viewport: draftPin.viewport, x: draftPin.x, y: draftPin.y,
+        screenshotId: shotIds[draftPin.platform] ?? undefined, text, source: 'user',
+        targetSelector: t?.selector,
+        targetLabel: t?.label,
+        targetMeta: t ? { rect: t.rect, tag: t.tag, text: t.text, styles: t.styles } : undefined,
+      });
+      setDraftPin(null); clearInspect(); await loadVariant(); reload?.();
+    } catch { /* keep */ }
   };
-  const addReply = async (commentId, text) => { await replyComment(id, commentId, text, 'user'); await loadComments(); reload?.(); };
-  const toggleResolve = async (c) => { await resolveComment(id, c.id, !c.resolved); await loadComments(); reload?.(); };
-  const removeComment = async (commentId) => { if (selectedId === commentId) setSelectedId(null); await deleteComment(id, commentId); await loadComments(); reload?.(); };
+  const addReply = async (commentId, text) => { await replyComment(id, commentId, text, 'user'); await loadVariant(); reload?.(); };
+  const toggleResolve = async (c) => { await resolveComment(id, c.id, !c.resolved); await loadVariant(); reload?.(); };
+  const removeComment = async (commentId) => { if (selectedId === commentId) setSelectedId(null); await deleteComment(id, commentId); await loadVariant(); reload?.(); };
   const selectFromColumn = (c) => {
     setTab('preview');
     setSelectedId(c.id);
@@ -501,11 +643,34 @@ export default function CompareDetail() {
     animTimer.current = setTimeout(() => setAnimating(false), 360);
   };
 
-  const copyCommand = async () => {
-    const cmd = detail?.command ?? `/compare-adjust ${id}`;
-    try { await navigator.clipboard.writeText(cmd); }
-    catch { const ta = document.createElement('textarea'); ta.value = cmd; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} document.body.removeChild(ta); }
+  const copyToClipboard = async (text) => {
+    try { await navigator.clipboard.writeText(text); }
+    catch { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch {} document.body.removeChild(ta); }
+  };
+
+  // Command-menu payloads. The comparison id IS the component "struct" name
+  // (e.g. CardEnrolled); kebab-case it for the Vue file path. Globs let Claude
+  // resolve the exact file regardless of which Components/* subfolder it lives in.
+  const kebabId = id.replace(/([a-z0-9])([A-Z])/g, '$1-$2').replace(/_/g, '-').toLowerCase();
+  const resolveCommand = `/compare-resolve ${id}`;
+  const iphoneTarget = `iphone/MakeReady/Components/**/${id}.swift`;
+  const webTarget = `client/resources/js/components/**/${kebabId}/${kebabId}.vue`;
+
+  const copyFromMenu = async (text) => {
+    await copyToClipboard(text);
+    setCommandMenuOpen(false);
     setCopied(true); setTimeout(() => setCopied(false), 1600);
+  };
+
+  // Build a full "create the web twin" prompt and copy it for the Claude CLI.
+  const generateBuildPrompt = async () => {
+    if (promptBusy) return;
+    setPromptBusy(true);
+    try {
+      const { prompt } = await fetchBuildPrompt(id);
+      await copyToClipboard(prompt);
+      setPromptCopied(true); setTimeout(() => setPromptCopied(false), 2500);
+    } catch { /* surface nothing — button stays */ } finally { setPromptBusy(false); }
   };
 
   if (error) {
@@ -532,11 +697,9 @@ export default function CompareDetail() {
         </div>
         <div className="cmp-topbar__tools">
           <div className="cmp-vp-picker">
-            <span className="cmp-vp-picker__label">Version</span>
+            <span className="cmp-vp-picker__label">Variant</span>
             <span className="cmp-version-pill">
-              {vpDims[viewport]?.label ?? viewport ?? '—'}
-              {vdetail?.capturedAt ? ` · ${new Date(vdetail.capturedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : ''}
-              {vdetail?.gitSha ? ` · ${vdetail.gitSha.slice(0, 7)}${vdetail.gitDirty ? '*' : ''}` : ''}
+              {vdetail?.variantName ?? '—'} · {vpDims[viewport]?.label ?? viewport ?? '—'}
             </span>
           </div>
           <button className="btn btn--mini" onClick={resetView} title="Reset zoom (0)">Fit</button>
@@ -557,17 +720,76 @@ export default function CompareDetail() {
               {commentMode ? 'Commenting…' : 'Comment'}{unresolvedCount ? <span className="cmp-count">{unresolvedCount}</span> : null}
             </button>
           )}
-          <button className="btn cmp-icon-btn" onClick={copyCommand} title={`Copy "${detail.command}"`}>
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
-            </svg>
-            {copied ? 'Copied!' : 'Command'}
-          </button>
+          <div className="cmp-capsplit" ref={commandMenuRef}>
+            <button
+              className="btn cmp-icon-btn"
+              onClick={() => setCommandMenuOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={commandMenuOpen}
+              title="Copy a command or component reference"
+            >
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" />
+              </svg>
+              {copied ? 'Copied!' : 'Command'}
+              <svg className={`cmp-btn-caret${commandMenuOpen ? ' cmp-btn-caret--open' : ''}`} viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {commandMenuOpen && (
+              <div className="cmp-capsplit__menu cmp-capsplit__menu--paths" role="menu">
+                <button className="cmp-capsplit__item" role="menuitem" onClick={() => copyFromMenu(resolveCommand)}>
+                  <span className="cmp-capsplit__item-name">Resolve comments</span>
+                  <span className="cmp-capsplit__item-sub">{resolveCommand}</span>
+                </button>
+                <button className="cmp-capsplit__item" role="menuitem" onClick={() => copyFromMenu(iphoneTarget)}>
+                  <span className="cmp-capsplit__item-name">iPhone target</span>
+                  <span className="cmp-capsplit__item-sub">{iphoneTarget}</span>
+                </button>
+                <button className="cmp-capsplit__item" role="menuitem" onClick={() => copyFromMenu(webTarget)}>
+                  <span className="cmp-capsplit__item-name">web target</span>
+                  <span className="cmp-capsplit__item-sub">{webTarget}</span>
+                </button>
+              </div>
+            )}
+          </div>
           {detail.canCapture && (
             <div className="cmp-capture-group">
-              <button className="btn btn--primary" onClick={() => runCapture()} disabled={isCapturing}>{isCapturing ? 'Capturing…' : 'Capture both'}</button>
-              <button className="btn btn--mini" onClick={() => runCapture('client')} disabled={isCapturing} title="Web only (fast)">Web</button>
-              <button className="btn btn--mini" onClick={() => runCapture('iphone')} disabled={isCapturing} title="iPhone only (slow)">iPhone</button>
+              {/* Web is rendered live (iframe) — only the iPhone native snapshot is
+                  captured. Split button: main = this variant, caret = pick scope. */}
+              <div className="cmp-capsplit" ref={captureMenuRef}>
+                <button
+                  className="btn btn--primary cmp-capsplit__main"
+                  onClick={() => runCapture('iphone')}
+                  disabled={isCapturing}
+                >
+                  {isCapturing ? 'Capturing…' : 'Capture iPhone'}
+                </button>
+                <button
+                  className="btn btn--primary cmp-capsplit__caret"
+                  onClick={() => setCaptureMenuOpen((o) => !o)}
+                  disabled={isCapturing}
+                  aria-haspopup="menu"
+                  aria-expanded={captureMenuOpen}
+                  title="Capture options"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </button>
+                {captureMenuOpen && (
+                  <div className="cmp-capsplit__menu" role="menu">
+                    <button className="cmp-capsplit__item" role="menuitem" onClick={() => runCapture('iphone')}>
+                      <span className="cmp-capsplit__item-name">{vdetail?.variantName ?? variant}</span>
+                      <span className="cmp-capsplit__item-sub">this variant</span>
+                    </button>
+                    <button className="cmp-capsplit__item" role="menuitem" onClick={() => runCapture('iphone', { allVariants: true })}>
+                      <span className="cmp-capsplit__item-name">All variants</span>
+                      <span className="cmp-capsplit__item-sub">{detail.variantCount ? `${detail.variantCount} total` : 'whole component'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -577,15 +799,25 @@ export default function CompareDetail() {
 
       {tab === 'preview' ? (
         <div className="cmp-3col">
-          <ZoomPane platform="iphone" label="iPhone" url={shots ? `${shots.iphone}?v=${shotsVersion}` : null}
+          <ZoomPane platform="iphone" label="iPhone" url={shots?.iphone ? `${shots.iphone}?v=${shotsVersion}` : null}
+            missingLabel="not captured"
             viewport={viewport} captured={capturedFor('iphone')} natural={natural.iphone} fallbackNatural={vpDims[viewport]} onNatural={onNatural} onReset={resetView}
             view={view} setView={setView} hover={hover} setHover={setHover} capturing={isCapturing}
             animating={animating} clearAnim={cancelAnim}
+            onHoverInspect={hoverInspect} onClearInspect={clearInspect}
             commentMode={commentMode} {...commentProps} />
-          <ZoomPane platform="client" label="Web" url={shots ? `${shots.client}?v=${shotsVersion}` : null}
-            viewport={viewport} captured={capturedFor('client')} natural={natural.client} fallbackNatural={vpDims[viewport]} onNatural={onNatural} onReset={resetView}
-            view={view} setView={setView} hover={hover} setHover={setHover} capturing={isCapturing}
+          {/* Web is a live iframe — it's never captured, so capturing={false} keeps it from dimming/spinning during an iPhone capture. */}
+          <ZoomPane platform="client" label="Web" webUrl={webLive?.url ?? null}
+            missingLabel="not built on web yet"
+            missingAction={!webLive ? (
+              <button className="btn btn--primary cmp-genprompt" onClick={generateBuildPrompt} disabled={promptBusy}>
+                {promptCopied ? 'Copied to clipboard ✓' : promptBusy ? 'Generating…' : 'Generate prompt'}
+              </button>
+            ) : null}
+            viewport={viewport} captured={!!webLive} natural={natural.client} fallbackNatural={vpDims[viewport]} onNatural={onNatural} onReset={resetView}
+            view={view} setView={setView} hover={hover} setHover={setHover} capturing={false}
             animating={animating} clearAnim={cancelAnim}
+            iframeRef={webIframeRef} onHoverInspect={hoverInspect} onClearInspect={clearInspect}
             commentMode={commentMode} {...commentProps} />
 
           <aside className="cmp-comments">
@@ -608,6 +840,7 @@ export default function CompareDetail() {
                       <span className="cmp-citem__num">{c.resolved ? '✓' : numberOf.get(c.id)}</span>
                       <span className={`cmp-citem__plat cmp-citem__plat--${c.platform}`}>{c.platform === 'iphone' ? 'iPhone' : 'Web'}</span>
                       <span className="cmp-citem__vp">{c.viewport}</span>
+                      {c.targetLabel && <span className="cmp-target-chip cmp-target-chip--sm" title={c.targetSelector}>◎ {c.targetLabel}</span>}
                     </div>
                     <div className="cmp-citem__thread"><Thread comment={c} canEdit={false} /></div>
                   </div>

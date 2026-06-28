@@ -68,8 +68,74 @@ export async function getVersion(versionId) {
   return prisma.version.findUnique({ where: { id: versionId }, include: { comparison: true } });
 }
 
+/**
+ * Distinct variant names that have at least one captured screenshot of the given
+ * platform (across any viewport) for a comparison. Used to compute per-component
+ * completion in the compare nav.
+ */
+export async function capturedVariantNames(comparisonId, platform) {
+  const rows = await prisma.screenshot.findMany({
+    where: { platform, version: { comparisonId } },
+    select: { version: { select: { variantName: true } } },
+  });
+  return new Set(rows.map((r) => r.version.variantName));
+}
+
 export async function latestVersion(comparisonId) {
   return prisma.version.findFirst({ where: { comparisonId }, orderBy: { capturedAt: 'desc' } });
+}
+
+/** The single (latest) capture for one variant + viewport, with its screenshots. */
+export async function getVariantLatest(comparisonId, variantName, viewport) {
+  return prisma.version.findFirst({
+    where: { comparisonId, variantName, viewport },
+    orderBy: { capturedAt: 'desc' },
+    include: { screenshots: true, comparison: true },
+  });
+}
+
+/** Discard a single version (used to roll back an empty version after a capture
+ *  produced nothing — leaves the prior version and its screenshots untouched). */
+export async function deleteVersion(versionId) {
+  await prisma.version.delete({ where: { id: versionId } });
+}
+
+/**
+ * Finalize a freshly-created version after its captures have completed.
+ *
+ * This is the "no history" replace, but done SAFELY: instead of deleting the
+ * prior version up front (which cascade-deletes its screenshots — including the
+ * platform we're NOT recapturing this run), we
+ *   1. carry forward the most-recent screenshot of every platform NOT captured
+ *      this run, by re-parenting it onto the new version, then
+ *   2. delete the now-stale prior versions for this (comparison, variant, viewport).
+ *
+ * So capturing one platform never drops the other's shot, and a screenshot is
+ * only ever removed AFTER its replacement is in place. Re-parenting (vs. delete)
+ * also keeps any comment anchored to the carried-forward shot alive; comments
+ * pinned to a pruned version fall back to SetNull as before.
+ *
+ * `capturedPlatforms` is the set of platforms that actually produced a shot in
+ * this run (a skipped/failed platform is treated as "not captured" and carried
+ * forward, so a failed recapture can't destroy the previous good shot).
+ */
+export async function finalizeVariantVersion({ newVersionId, comparisonId, variantName, viewport, capturedPlatforms }) {
+  const PLATFORMS = ['iphone', 'client'];
+  await prisma.$transaction(async (tx) => {
+    for (const platform of PLATFORMS) {
+      if (capturedPlatforms.includes(platform)) continue;
+      const prior = await tx.screenshot.findFirst({
+        where: { platform, versionId: { not: newVersionId }, version: { comparisonId, variantName, viewport } },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (prior) {
+        await tx.screenshot.update({ where: { id: prior.id }, data: { versionId: newVersionId } });
+      }
+    }
+    await tx.version.deleteMany({
+      where: { comparisonId, variantName, viewport, id: { not: newVersionId } },
+    });
+  });
 }
 
 /**
@@ -154,6 +220,15 @@ export async function listCommentsForVersion(versionId) {
   return prisma.comment.findMany({ where: { versionId }, include: commentInclude, orderBy: { createdAt: 'asc' } });
 }
 
+/** Comments for a variant + viewport (survive recaptures; pin to the variant). */
+export async function listCommentsForVariant(comparisonId, variantName, viewport) {
+  return prisma.comment.findMany({
+    where: { comparisonId, variantName, viewport },
+    include: commentInclude,
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
 export async function listUnresolved(comparisonId) {
   return prisma.comment.findMany({
     where: { resolved: false, ...(comparisonId ? { comparisonId } : {}) },
@@ -167,36 +242,40 @@ export async function getComment(id) {
 }
 
 /**
- * Places a pin. Links it to the EXACT screenshot being viewed when `screenshotId`
- * is given (version-locked); otherwise to the latest screenshot of its platform.
+ * Places a pin on a variant. iPhone pins link to the latest iPhone screenshot
+ * (so they survive recaptures by x/y); web pins have no screenshot (the web side
+ * is a live iframe), they pin to the variant + position directly.
  */
-export async function addComment({ comparisonId, screenshotId, versionId, platform, viewport, x, y, text, source = 'user' }) {
+export async function addComment({ comparisonId, variantName = 'default', screenshotId, platform, viewport, x, y, text, source = 'user', targetSelector = null, targetLabel = null, targetMeta = null }) {
   if (!text || !String(text).trim()) throw new Error('comment text is required');
+  if (platform !== 'iphone' && platform !== 'client') throw new Error('platform must be iphone|client');
+  if (!viewport) throw new Error('viewport is required');
 
-  let shot;
+  // Resolve an anchor screenshot for iPhone pins (web is live → none).
+  let shot = null;
   if (screenshotId) {
     shot = await prisma.screenshot.findUnique({ where: { id: screenshotId }, include: { version: true } });
-    if (!shot) throw new Error(`Screenshot ${screenshotId} not found`);
-  } else {
-    if (platform !== 'iphone' && platform !== 'client') throw new Error('platform must be iphone|client');
-    if (!viewport) throw new Error('viewport is required');
+  } else if (platform === 'iphone') {
     shot = await prisma.screenshot.findFirst({
-      where: { platform, version: { comparisonId, viewport } },
+      where: { platform, version: { comparisonId, variantName, viewport } },
       orderBy: { createdAt: 'desc' },
       include: { version: true },
     });
-    if (!shot) throw new Error(`No ${platform} screenshot for ${comparisonId}/${viewport} yet — capture it first`);
   }
 
   return prisma.comment.create({
     data: {
-      comparisonId: shot.version.comparisonId,
-      versionId: versionId ?? shot.versionId, // tie the pin to the version being viewed
-      screenshotId: shot.id,
-      platform: shot.platform,
-      viewport: shot.version.viewport,
+      comparisonId,
+      variantName,
+      versionId: shot?.versionId ?? null,
+      screenshotId: shot?.id ?? null,
+      platform,
+      viewport,
       x: Math.max(0, Math.min(1, Number(x) || 0)),
       y: Math.max(0, Math.min(1, Number(y) || 0)),
+      targetSelector: targetSelector || null,
+      targetLabel: targetLabel || null,
+      targetMeta: targetMeta ?? undefined,
       messages: { create: { source: source === 'claude' ? 'claude' : 'user', text: String(text).trim() } },
     },
     include: commentInclude,

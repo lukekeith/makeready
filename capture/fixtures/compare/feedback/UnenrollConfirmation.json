@@ -1,0 +1,26 @@
+{
+  "id": "UnenrollConfirmation",
+  "type": "component",
+  "group": "Feedback",
+  "title": "Feedback · Unenroll Confirmation",
+  "adapter": "UnenrollConfirmation",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "FullRemoval",
+      "shared": {
+        "option": "fullRemoval",
+        "programName": "Ephesians",
+        "isProcessing": false
+      }
+    },
+    {
+      "name": "CancelFuture",
+      "shared": {
+        "option": "cancelFuture",
+        "programName": "Ephesians",
+        "isProcessing": false
+      }
+    }
+  ]
+}

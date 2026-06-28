@@ -1,0 +1,22 @@
+{
+  "id": "SwipeableCard",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Swipeable Card",
+  "adapter": "SwipeableCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "isSwipeEnabled": true,
+        "slideButtons": [
+          { "icon": "trash", "style": "delete" },
+          { "icon": "calendar", "style": "reschedule" },
+          { "icon": "forward", "style": "skip" },
+          { "icon": "pencil", "style": "edit" }
+        ]
+      }
+    }
+  ]
+}

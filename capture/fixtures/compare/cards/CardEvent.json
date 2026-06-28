@@ -1,0 +1,28 @@
+{
+  "id": "CardEvent",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Event",
+  "adapter": "CardEvent",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "DateDisplay",
+      "shared": {
+        "title": "Event title",
+        "subtitle": "Weekly bible study",
+        "imageStyle": { "kind": "dateDisplay", "day": 30, "month": "OCT" },
+        "metadata": [{ "icon": "mappin", "value": "Starbucks, Little Elm TX" }]
+      }
+    },
+    {
+      "name": "TimeDisplay",
+      "shared": {
+        "title": "Morning Prayer",
+        "subtitle": "Weekly bible study",
+        "imageStyle": { "kind": "timeDisplay", "time": "6:30", "period": "AM" },
+        "metadata": [{ "icon": "mappin", "value": "Starbucks, Little Elm TX" }]
+      }
+    }
+  ]
+}

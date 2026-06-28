@@ -1,0 +1,32 @@
+{
+  "id": "InfoPanel",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Info Panel",
+  "adapter": "InfoPanel",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "KeyValue",
+      "shared": {
+        "mode": "keyValue",
+        "items": [
+          { "label": "Joined", "value": "Jul 1, 2023" },
+          { "label": "Age", "value": "23" },
+          { "label": "Completed activities", "value": "18" },
+          { "label": "Last active", "value": "Yesterday" }
+        ]
+      }
+    },
+    {
+      "name": "Data",
+      "shared": {
+        "mode": "data",
+        "items": [
+          { "label": "Phone", "value": "213.862.3686" },
+          { "label": "Email", "value": "luke@lukekeith.com" }
+        ]
+      }
+    }
+  ]
+}

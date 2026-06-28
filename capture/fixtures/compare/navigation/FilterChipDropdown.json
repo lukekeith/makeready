@@ -1,0 +1,53 @@
+{
+  "id": "FilterChipDropdown",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Filter Chip Dropdown",
+  "adapter": "FilterChipDropdown",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "SingleItem",
+      "shared": {
+        "label": "1 item",
+        "isActive": true,
+        "showClearAll": true,
+        "items": [
+          { "id": "tag-0", "label": "Faith 1" }
+        ],
+        "selectedIds": []
+      }
+    },
+    {
+      "name": "TwentyItems",
+      "shared": {
+        "label": "20 items",
+        "isActive": true,
+        "showClearAll": true,
+        "items": [
+          { "id": "tag-0", "label": "Faith 1" },
+          { "id": "tag-1", "label": "Leadership 2" },
+          { "id": "tag-2", "label": "Youth 3" },
+          { "id": "tag-3", "label": "Marriage 4" },
+          { "id": "tag-4", "label": "Parenting 5" },
+          { "id": "tag-5", "label": "Bible 6" },
+          { "id": "tag-6", "label": "Discipleship 7" },
+          { "id": "tag-7", "label": "Evangelism 8" },
+          { "id": "tag-8", "label": "Worship 9" },
+          { "id": "tag-9", "label": "Prayer 10" },
+          { "id": "tag-10", "label": "Missions 11" },
+          { "id": "tag-11", "label": "Outreach 12" },
+          { "id": "tag-12", "label": "Family 13" },
+          { "id": "tag-13", "label": "Kids 14" },
+          { "id": "tag-14", "label": "Men 15" },
+          { "id": "tag-15", "label": "Women 16" },
+          { "id": "tag-16", "label": "Theology 17" },
+          { "id": "tag-17", "label": "Grace 18" },
+          { "id": "tag-18", "label": "Community 19" },
+          { "id": "tag-19", "label": "Service 20" }
+        ],
+        "selectedIds": ["tag-0", "tag-5"]
+      }
+    }
+  ]
+}

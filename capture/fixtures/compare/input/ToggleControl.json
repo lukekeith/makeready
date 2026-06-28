@@ -1,0 +1,26 @@
+{
+  "id": "ToggleControl",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Toggle Control",
+  "adapter": "ToggleControl",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Off",
+      "shared": {
+        "title": "Private",
+        "description": "Only members can see members and their activity in the group.",
+        "isOn": false
+      }
+    },
+    {
+      "name": "On",
+      "shared": {
+        "title": "Allow members to send invites",
+        "description": "Enable this option to send invites from their mobile web portal",
+        "isOn": true
+      }
+    }
+  ]
+}

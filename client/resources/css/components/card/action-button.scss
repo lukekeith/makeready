@@ -1,0 +1,104 @@
+// ActionButton — pill / icon button (iOS ActionButton.swift). The base is the
+// 32px-tall auto-width pill; modifiers override the shape (icon-only circle,
+// circleBlur) and the fill/foreground colors per variant.
+//
+// Two intrinsic iOS sizes have no design-system token and are kept as raw px
+// per the design-system exception (same as card-study's 72×108 cover): the
+// 12px label (Typography.s12 — token scale jumps 11→16) and the 14px icon
+// (token scale jumps icon-xs 16). Everything else is tokenized.
+.ActionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm); // 8px (iOS HStack spacing)
+  height: var(--control-h-sm); // 32px
+  padding: 0 var(--space-lg); // 16px horizontal (pill)
+  border: none;
+  border-radius: var(--radius-full); // iOS cornerRadius 30 → pill at 32px tall
+  background: var(--color-white-10);
+  color: var(--color-white-100);
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: filter var(--motion-micro) var(--ease-standard),
+    background var(--motion-micro) var(--ease-standard);
+
+  &:active {
+    filter: brightness(0.92);
+  }
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: 14px; // iOS effectiveIconSize (no token; intrinsic size)
+    height: 14px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__label {
+    font-size: 12px; // iOS Typography.s12 (no token; intrinsic size)
+    line-height: 1;
+    font-weight: var(--font-weight-regular);
+    letter-spacing: var(--tracking-label); // iOS .tracking(0.1)
+    white-space: nowrap;
+  }
+
+  // ─── Shape: icon-only circle (32×32, iOS cornerRadius 16) ───────────────────
+  &--icon-only {
+    width: var(--control-h-sm); // 32px → square
+    padding: 0;
+    border-radius: var(--radius-lg); // 16px on a 32px box = circle
+  }
+
+  // ─── Shape: circleBlur (64×64 frosted circle, 24px icon) ────────────────────
+  &--circle-blur {
+    width: var(--control-h-xl); // 64px
+    height: var(--control-h-xl);
+    padding: 0;
+    border-radius: var(--radius-full);
+    // iOS .ultraThinMaterial over the dark canvas reads as a faint translucent
+    // white well; approximate with a 5% white fill + backdrop blur.
+    background: var(--color-white-5);
+    backdrop-filter: blur(var(--blur-lg));
+    -webkit-backdrop-filter: blur(var(--blur-lg));
+
+    .ActionButton__icon {
+      width: var(--icon-md); // 24px
+      height: var(--icon-md);
+    }
+  }
+
+  // ─── Color variants ─────────────────────────────────────────────────────────
+  &--purple {
+    background: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+    color: var(--color-white-100);
+  }
+
+  &--white {
+    background: var(--color-white-10); // iOS Color.white.opacity(0.1)
+    color: var(--color-white-100);
+  }
+
+  &--white-purple {
+    background: var(--color-white-100); // iOS solid white
+    color: var(--color-brand-500); // iOS purple icon/label
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ActionButton {
+    transition: none;
+  }
+}

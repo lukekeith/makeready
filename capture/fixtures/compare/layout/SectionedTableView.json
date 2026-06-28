@@ -1,0 +1,20 @@
+{
+  "id": "SectionedTableView",
+  "type": "component",
+  "group": "Layout",
+  "title": "Layout · Sectioned Table View",
+  "adapter": "SectionedTableView",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "sections": [
+          { "title": "A", "items": [{ "name": "Alice" }, { "name": "Adam" }] },
+          { "title": "B", "items": [{ "name": "Bob" }, { "name": "Beth" }] },
+          { "title": "C", "items": [{ "name": "Charlie" }, { "name": "Carol" }] }
+        ]
+      }
+    }
+  ]
+}

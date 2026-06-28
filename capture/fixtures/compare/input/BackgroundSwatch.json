@@ -1,0 +1,47 @@
+{
+  "id": "BackgroundSwatch",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Background Swatch",
+  "adapter": "BackgroundSwatch",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Empty",
+      "shared": {
+        "imageUrl": null,
+        "color": null
+      }
+    },
+    {
+      "name": "ColorOnly",
+      "shared": {
+        "imageUrl": null,
+        "color": "#1E3A8A"
+      }
+    },
+    {
+      "name": "ImageOnly",
+      "shared": {
+        "imageUrl": "https://picsum.photos/200",
+        "color": null
+      }
+    },
+    {
+      "name": "ImageWithColorOverlay",
+      "shared": {
+        "imageUrl": "https://picsum.photos/200",
+        "color": "#1E3A8A",
+        "overlayOpacity": 0.8
+      }
+    },
+    {
+      "name": "ImageWithLightOverlay",
+      "shared": {
+        "imageUrl": "https://picsum.photos/200",
+        "color": "#701A75",
+        "overlayOpacity": 0.4
+      }
+    }
+  ]
+}

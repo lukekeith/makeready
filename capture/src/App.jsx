@@ -81,7 +81,7 @@ export default function App() {
         <Route path="/compare" element={<CompareLayout />}>
           <Route index element={<CompareHome />} />
           <Route path=":id" element={<CompareDetail />} />
-          <Route path=":id/:version" element={<CompareDetail />} />
+          <Route path=":id/:variant" element={<CompareDetail />} />
         </Route>
         <Route path="/:platform" element={<Layout />}>
           <Route index element={<SetsIndex />} />

@@ -200,6 +200,8 @@ if (app()->environment('testing')) {
 // ─── Screenshot capture (local-only) ───────────────────────────────────────────
 
 if (app()->environment('local')) {
+    // Live single-component render for the Compare tool's web iframe (no fixture).
+    Route::get('/_capture/live', [CaptureController::class, 'live'])->name('capture.live');
     Route::get('/_capture/{workflow}/assets/{file}', [CaptureController::class, 'asset'])
         ->where('file', '[A-Za-z0-9._-]+')
         ->name('capture.asset');

@@ -1,0 +1,26 @@
+{
+  "id": "CardBibleSearchResult",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Bible Search Result",
+  "adapter": "CardBibleSearchResult",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Verse",
+      "shared": {
+        "passage": "John 3:16",
+        "text": "For God so loved the world that he gave his one and only Son..."
+      }
+    },
+    {
+      "name": "Passage",
+      "shared": {
+        "passage": "Luke 15:11-24",
+        "text": "He said, \"A certain man had two sons. The younger of them said to his father...\" …",
+        "title": "The Parable of the Prodigal Son",
+        "description": "A son squanders his inheritance, returns home in shame, and is welcomed back with celebration by his forgiving father."
+      }
+    }
+  ]
+}

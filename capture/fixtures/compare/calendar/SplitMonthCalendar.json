@@ -1,0 +1,27 @@
+{
+  "id": "SplitMonthCalendar",
+  "type": "component",
+  "group": "Calendar",
+  "title": "Calendar · Split Month Calendar",
+  "adapter": "SplitMonthCalendar",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "MonthGrid",
+      "shared": {
+        "selectedDate": null,
+        "title": "Jan 2026",
+        "isExpanded": false
+      }
+    },
+    {
+      "name": "WithBottomBar",
+      "shared": {
+        "selectedDate": null,
+        "title": "Jan 2026",
+        "isExpanded": false,
+        "showBottomBar": true
+      }
+    }
+  ]
+}

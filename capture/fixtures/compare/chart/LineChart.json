@@ -1,0 +1,101 @@
+{
+  "id": "LineChart",
+  "type": "component",
+  "group": "Chart",
+  "title": "Chart · Line Chart",
+  "adapter": "LineChart",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "GradientWithArea",
+      "shared": {
+        "timeScale": "years",
+        "yAxisScale": "auto",
+        "showArea": true,
+        "interactive": true,
+        "animated": true,
+        "interpolationMethod": "monotone",
+        "trendLines": [
+          {
+            "color": "gradient",
+            "gradientColors": ["#6c47ff", "#47d4ff"],
+            "gradientAngle": 90,
+            "lineWidth": 3,
+            "dataPoints": [
+              { "date": "2023-01-01", "value": 10 },
+              { "date": "2023-05-01", "value": 35 },
+              { "date": "2023-09-01", "value": 80 },
+              { "date": "2024-01-01", "value": 130 },
+              { "date": "2024-05-01", "value": 180 },
+              { "date": "2024-09-01", "value": 200 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "SolidSingleLine",
+      "shared": {
+        "timeScale": "days",
+        "yAxisScale": "auto",
+        "showArea": false,
+        "interactive": true,
+        "animated": true,
+        "interpolationMethod": "monotone",
+        "trendLines": [
+          {
+            "color": "solid",
+            "solidColor": "#6c47ff",
+            "lineWidth": 2,
+            "dataPoints": [
+              { "date": "2026-01-20", "value": 100 },
+              { "date": "2026-01-21", "value": 110 },
+              { "date": "2026-01-22", "value": 95 },
+              { "date": "2026-01-23", "value": 105 },
+              { "date": "2026-01-24", "value": 130 },
+              { "date": "2026-01-25", "value": 125 },
+              { "date": "2026-01-26", "value": 150 }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "MultipleTrends",
+      "shared": {
+        "timeScale": "months",
+        "yAxisScale": "auto",
+        "showArea": false,
+        "interactive": true,
+        "animated": true,
+        "interpolationMethod": "monotone",
+        "trendLines": [
+          {
+            "color": "solid",
+            "solidColor": "#6c47ff",
+            "lineWidth": 2,
+            "dataPoints": [
+              { "date": "2024-01-01", "value": 50 },
+              { "date": "2024-04-01", "value": 70 },
+              { "date": "2024-07-01", "value": 95 },
+              { "date": "2024-10-01", "value": 130 },
+              { "date": "2024-12-01", "value": 150 }
+            ]
+          },
+          {
+            "color": "solid",
+            "solidColor": "#47d4ff",
+            "lineWidth": 2,
+            "dataPoints": [
+              { "date": "2024-01-01", "value": 30 },
+              { "date": "2024-04-01", "value": 45 },
+              { "date": "2024-07-01", "value": 70 },
+              { "date": "2024-10-01", "value": 100 },
+              { "date": "2024-12-01", "value": 120 }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "id": "HamburgerMenu",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Hamburger Menu",
+  "adapter": "HamburgerMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "items": [
+          { "icon": "book.closed.fill", "title": "Bible" },
+          { "icon": "magnifyingglass", "title": "Search" },
+          { "icon": "text.book.closed.fill", "title": "Study Programs" },
+          { "icon": "calendar.badge.clock", "title": "Enrollments" }
+        ]
+      }
+    }
+  ]
+}

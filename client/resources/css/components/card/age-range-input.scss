@@ -1,0 +1,64 @@
+// AgeRangeInput (compare twin) — labelled age-range row inside a FieldGroup card
+// (iOS AgeRangeInput + FieldGroup.swift). Uses the block name `.AgeRangeField`
+// (NOT `.AgeRangeInput`) to avoid clobbering the pre-existing, unrelated
+// components/form/age-range-input.scss, which owns `.AgeRangeInput`.
+//
+// The FieldGroup radius (10) and the chip h-padding (10) have no design-system
+// token and are kept as raw px per the design-system exception (intrinsic iOS
+// sizes). Every value that does have a token uses it.
+.AgeRangeField {
+  width: 100%; // FieldGroup fills the available width (iOS Spacer expands the row)
+  box-sizing: border-box;
+  padding: var(--space-xs) 0; // FieldGroup .padding(.vertical, 4)
+  background: var(--color-white-5); // FieldGroup white.opacity(0.05)
+  border-radius: 10px; // FieldGroup cornerRadius 10 (no token)
+
+  &__row {
+    display: flex;
+    align-items: center;
+    // AgeRangeInput .padding(.horizontal, 16) .padding(.vertical, 8)
+    padding: var(--space-sm) var(--space-lg);
+  }
+
+  &__label {
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: var(--leading-lead);
+    color: var(--color-white-100);
+    margin-right: auto; // iOS Spacer() — push the chips to the trailing edge
+  }
+
+  &__chips {
+    display: flex;
+    gap: var(--space-xs); // iOS HStack spacing 4 between the two chips
+    flex: 0 0 auto;
+  }
+
+  &__chip {
+    font-family: inherit;
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: 1;
+    color: var(--color-white-100);
+    padding: var(--space-sm) 10px; // iOS .padding(.vertical, 8) .padding(.horizontal, 10)
+    background: var(--color-white-10); // iOS white.opacity(0.1)
+    border: none;
+    border-radius: var(--radius-md); // iOS cornerRadius 8
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: filter var(--motion-micro) var(--ease-standard);
+
+    &:active {
+      filter: brightness(0.92);
+    }
+    &:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px var(--border-brand);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .AgeRangeField__chip {
+    transition: none;
+  }
+}

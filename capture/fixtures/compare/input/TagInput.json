@@ -1,0 +1,31 @@
+{
+  "id": "TagInput",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Tag Input",
+  "adapter": "TagInput",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Empty",
+      "shared": {
+        "tags": [],
+        "placeholder": "Add tag..."
+      }
+    },
+    {
+      "name": "WithTags",
+      "shared": {
+        "tags": ["sermon", "worship", "youth"],
+        "placeholder": "Add tag..."
+      }
+    },
+    {
+      "name": "ManyTags",
+      "shared": {
+        "tags": ["sermon", "worship", "youth", "bible-study", "prayer", "missions", "outreach"],
+        "placeholder": "Add tag..."
+      }
+    }
+  ]
+}

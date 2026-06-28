@@ -1,0 +1,46 @@
+{
+  "id": "LessonActionMenu",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Lesson Action Menu",
+  "adapter": "LessonActionMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "FullMenu",
+      "shared": {
+        "studyName": "Foundation Study",
+        "dayNumber": 5,
+        "scheduledDate": "2026-01-30",
+        "enrollmentId": "e1",
+        "showEditEnrollment": true,
+        "showAddLesson": true,
+        "items": [
+          { "icon": "pencil.line", "title": "Edit Activities", "style": "normal" },
+          { "icon": "slider.horizontal.3", "title": "Edit Enrollment", "style": "normal" },
+          { "icon": "safari", "title": "Open Lesson", "style": "normal" },
+          { "icon": "square.and.arrow.up", "title": "Share Lesson", "style": "normal" },
+          { "icon": "plus", "title": "Add Lesson", "style": "normal" },
+          { "icon": "trash", "title": "Delete", "style": "destructive" }
+        ]
+      }
+    },
+    {
+      "name": "Minimal",
+      "shared": {
+        "studyName": "Romans Study",
+        "dayNumber": 1,
+        "scheduledDate": "2026-02-12",
+        "enrollmentId": "e2",
+        "showEditEnrollment": false,
+        "showAddLesson": false,
+        "items": [
+          { "icon": "pencil.line", "title": "Edit Activities", "style": "normal" },
+          { "icon": "safari", "title": "Open Lesson", "style": "normal" },
+          { "icon": "square.and.arrow.up", "title": "Share Lesson", "style": "normal" },
+          { "icon": "trash", "title": "Delete", "style": "destructive" }
+        ]
+      }
+    }
+  ]
+}

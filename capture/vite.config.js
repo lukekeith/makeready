@@ -11,6 +11,9 @@ export default defineConfig({
     proxy: {
       '/api':         { target: backendTarget, changeOrigin: true },
       '/screenshots': { target: backendTarget, changeOrigin: true },
+      // Proxy the socket.io WebSocket upgrade to the backend so the Compare UI can
+      // live-update on captures. ws:true is required for the protocol upgrade.
+      '/socket.io':   { target: backendTarget, changeOrigin: true, ws: true },
     },
   },
 });

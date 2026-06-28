@@ -1,0 +1,23 @@
+{
+  "id": "CalendarBottomBar",
+  "type": "component",
+  "group": "Calendar",
+  "title": "Calendar · Bottom Bar",
+  "adapter": "CalendarBottomBar",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "TodayOnly",
+      "shared": {
+        "showViewModes": false
+      }
+    },
+    {
+      "name": "WithViewModes",
+      "shared": {
+        "showViewModes": true,
+        "selectedMode": "month"
+      }
+    }
+  ]
+}

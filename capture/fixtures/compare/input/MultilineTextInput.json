@@ -1,0 +1,24 @@
+{
+  "id": "MultilineTextInput",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Multiline Text Input",
+  "adapter": "MultilineTextInput",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Empty",
+      "shared": {
+        "placeholder": "Describe the purpose of the group",
+        "text": ""
+      }
+    },
+    {
+      "name": "Filled",
+      "shared": {
+        "placeholder": "Describe the purpose of the group",
+        "text": "This is a group for people who love coding and want to build amazing apps together."
+      }
+    }
+  ]
+}

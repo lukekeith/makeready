@@ -1,0 +1,42 @@
+{
+  "id": "ExegesisVerseView",
+  "type": "component",
+  "group": "Content",
+  "title": "Content · Exegesis Verse View",
+  "adapter": "ExegesisVerseView",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "NoHighlights",
+      "shared": {
+        "plainText": "1 Paul, a servant of Christ Jesus, called to be an apostle and set apart for the gospel of God. 2 the gospel he promised beforehand through his prophets in the Holy Scriptures.",
+        "highlights": [],
+        "isSelectionEnabled": false,
+        "fontSize": 16
+      }
+    },
+    {
+      "name": "WithHighlights",
+      "shared": {
+        "plainText": "1 Paul, a servant of Christ Jesus, called to be an apostle and set apart for the gospel of God. 2 the gospel he promised beforehand through his prophets in the Holy Scriptures.",
+        "highlights": [
+          { "start": 0, "end": 45, "style": "highlight" }
+        ],
+        "isSelectionEnabled": false,
+        "fontSize": 16
+      }
+    },
+    {
+      "name": "PreviewHighlightStyle",
+      "shared": {
+        "plainText": "1 Paul, a servant of Christ Jesus, called to be an apostle and set apart for the gospel of God.",
+        "highlights": [
+          { "start": 11, "end": 30, "style": "highlight" }
+        ],
+        "isSelectionEnabled": false,
+        "usePreviewHighlightStyle": true,
+        "fontSize": 16
+      }
+    }
+  ]
+}

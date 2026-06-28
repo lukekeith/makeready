@@ -1,0 +1,46 @@
+{
+  "id": "Avatar",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Avatar",
+  "adapter": "Avatar",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "PhotoXs",
+      "shared": { "imageURL": "https://i.pravatar.cc/150?img=5", "initials": "SJ", "size": "xs" }
+    },
+    {
+      "name": "PhotoSm",
+      "shared": { "imageURL": "https://i.pravatar.cc/150?img=5", "initials": "SJ", "size": "sm" }
+    },
+    {
+      "name": "PhotoMd",
+      "shared": { "imageURL": "https://i.pravatar.cc/150?img=5", "initials": "SJ", "size": "md" }
+    },
+    {
+      "name": "PhotoLg",
+      "shared": { "imageURL": "https://i.pravatar.cc/150?img=5", "initials": "SJ", "size": "lg" }
+    },
+    {
+      "name": "PhotoXl",
+      "shared": { "imageURL": "https://i.pravatar.cc/150?img=5", "initials": "SJ", "size": "xl" }
+    },
+    {
+      "name": "PhotoXxl",
+      "shared": { "imageURL": "https://i.pravatar.cc/150?img=5", "initials": "SJ", "size": "xxl" }
+    },
+    {
+      "name": "InitialsTwoLetters",
+      "shared": { "initials": "AB", "size": "xl" }
+    },
+    {
+      "name": "InitialsOneLetter",
+      "shared": { "initials": "A", "size": "xl" }
+    },
+    {
+      "name": "IconFallback",
+      "shared": { "size": "xl" }
+    }
+  ]
+}

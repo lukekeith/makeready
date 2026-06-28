@@ -1,0 +1,65 @@
+{
+  "id": "HeatMapChart",
+  "type": "component",
+  "group": "Chart",
+  "title": "Chart · Heat Map Chart",
+  "adapter": "HeatMapChart",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "ActivityWithDayLabels",
+      "shared": {
+        "showDayLabels": true,
+        "chartHeight": 120,
+        "dataPoints": [
+          { "week": 0, "day": 1, "value": 5, "dayLabel": "Mon" },
+          { "week": 0, "day": 3, "value": 8, "dayLabel": "Wed" },
+          { "week": 1, "day": 2, "value": 3, "dayLabel": "Tue" },
+          { "week": 1, "day": 4, "value": 10, "dayLabel": "Thu" },
+          { "week": 2, "day": 0, "value": 2, "dayLabel": "Sun" },
+          { "week": 2, "day": 5, "value": 7, "dayLabel": "Fri" },
+          { "week": 3, "day": 3, "value": 9, "dayLabel": "Wed" }
+        ]
+      }
+    },
+    {
+      "name": "AvailabilityCustomColors",
+      "shared": {
+        "showDayLabels": true,
+        "chartHeight": 120,
+        "colorScale": [
+          "rgba(255,255,255,0.05)",
+          "rgba(74,222,128,0.3)",
+          "rgba(74,222,128,0.6)",
+          "#4ade80"
+        ],
+        "dataPoints": [
+          { "week": 0, "day": 1, "value": 8, "dayLabel": "Mon" },
+          { "week": 0, "day": 2, "value": 6, "dayLabel": "Tue" },
+          { "week": 1, "day": 3, "value": 9, "dayLabel": "Wed" },
+          { "week": 2, "day": 0, "value": 1, "dayLabel": "Sun" },
+          { "week": 3, "day": 4, "value": 7, "dayLabel": "Thu" }
+        ]
+      }
+    },
+    {
+      "name": "CompactNoDayLabels",
+      "shared": {
+        "showDayLabels": false,
+        "chartHeight": 120,
+        "colorScale": [
+          "rgba(255,255,255,0.05)",
+          "rgba(255,107,157,0.3)",
+          "rgba(255,107,157,0.6)",
+          "#ff6b9d"
+        ],
+        "dataPoints": [
+          { "week": 0, "day": 1, "value": 5, "dayLabel": "Mon" },
+          { "week": 1, "day": 2, "value": 8, "dayLabel": "Tue" },
+          { "week": 2, "day": 3, "value": 3, "dayLabel": "Wed" },
+          { "week": 3, "day": 4, "value": 10, "dayLabel": "Thu" }
+        ]
+      }
+    }
+  ]
+}

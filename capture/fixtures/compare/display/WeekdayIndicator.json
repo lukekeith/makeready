@@ -1,0 +1,22 @@
+{
+  "id": "WeekdayIndicator",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Weekday Indicator",
+  "adapter": "WeekdayIndicator",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "WeekdaysOnly",
+      "shared": { "enabledDays": [1, 2, 3, 4, 5] }
+    },
+    {
+      "name": "AllDays",
+      "shared": { "enabledDays": [0, 1, 2, 3, 4, 5, 6] }
+    },
+    {
+      "name": "TueThuOnly",
+      "shared": { "enabledDays": [2, 4] }
+    }
+  ]
+}

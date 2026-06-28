@@ -1,0 +1,53 @@
+{
+  "id": "CardSearchResult",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Search Result",
+  "adapter": "CardSearchResult",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Program",
+      "shared": {
+        "title": "Romans in 30 Days",
+        "subtitle": "30 days, 28 lessons",
+        "timeAgo": "2h ago",
+        "iconSystemName": "text.book.closed.fill",
+        "highlightQuery": "roman"
+      }
+    },
+    {
+      "name": "Group",
+      "shared": {
+        "title": "Young Professionals",
+        "subtitle": "27 members",
+        "timeAgo": "Yesterday",
+        "imageUrl": "https://example.com/photo.jpg",
+        "iconSystemName": "person.3.fill",
+        "highlightQuery": "young"
+      }
+    },
+    {
+      "name": "Member",
+      "shared": {
+        "title": "John Smith",
+        "subtitle": "Young Professionals",
+        "timeAgo": "3d ago",
+        "firstName": "John",
+        "lastName": "Smith",
+        "isMember": true,
+        "highlightQuery": "john"
+      }
+    },
+    {
+      "name": "Lesson",
+      "shared": {
+        "title": "Day 5 - Grace",
+        "subtitle": "Day 5 - Romans in 30 Days",
+        "iconSystemName": "list.bullet.rectangle.fill",
+        "showChevron": false,
+        "highlightQuery": "grace"
+      }
+    }
+  ]
+}

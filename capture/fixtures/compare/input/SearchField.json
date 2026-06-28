@@ -1,0 +1,34 @@
+{
+  "id": "SearchField",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Search Field",
+  "adapter": "SearchField",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Inactive",
+      "shared": {
+        "isActive": false,
+        "searchText": "",
+        "placeholder": "Search"
+      }
+    },
+    {
+      "name": "ActiveEmpty",
+      "shared": {
+        "isActive": true,
+        "searchText": "",
+        "placeholder": "Search members"
+      }
+    },
+    {
+      "name": "ActiveFilled",
+      "shared": {
+        "isActive": true,
+        "searchText": "John",
+        "placeholder": "Search members"
+      }
+    }
+  ]
+}

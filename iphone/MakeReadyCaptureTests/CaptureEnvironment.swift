@@ -31,15 +31,27 @@ func setupCaptureState(from fixture: CaptureFixture) {
 
     let creatorId = fixture.auth?.currentUser?.id ?? "user-1"
 
-    // Pre-seed a component's remote cover image into the memory cache so the
-    // synchronous snapshot renders it. CachedCardImage is cache-first; without
+    // Pre-seed a component's remote images into the memory cache so the
+    // synchronous snapshot renders them. CachedCardImage is cache-first; without
     // this its async network .task can't finish within one snapshot render pass,
-    // leaving an empty cover box (whereas Playwright waits for the web image).
-    if let cover = fixtureState.component?.coverUrl,
-       let url = URL(string: cover), url.scheme?.hasPrefix("http") == true,
-       let data = try? Data(contentsOf: url),
-       let image = UIImage(data: data) {
-        ImageCache.shared.seed(image, for: url)
+    // leaving an empty image box (whereas Playwright waits for the web image).
+    // Seed every image-bearing field a card might use — CachedCardImage fetches a
+    // derived `mediumImageUrl` first and falls back to the original, and its
+    // cache-first init checks BOTH, so seeding the original URL is enough.
+    if let component = fixtureState.component {
+        let imageURLs = [
+            component.coverUrl,
+            component.imageUrl,
+            component.avatarUrl,
+            component.studyImageURL,   // CardEnrolled (top tile)
+            component.groupImageURL,   // CardEnrolled (bottom tile)
+        ].compactMap { $0 } + (component.images ?? [])
+        for urlString in imageURLs {
+            guard let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true,
+                  let data = try? Data(contentsOf: url),
+                  let image = UIImage(data: data) else { continue }
+            ImageCache.shared.seed(image, for: url)
+        }
     }
 
     // Seed groups (pages.group-home reads AppState.groups[groupId] on init)

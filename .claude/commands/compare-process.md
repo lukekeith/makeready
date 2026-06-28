@@ -25,8 +25,11 @@ a. **Look.** Read `latestScreenshots.iphone`, `latestScreenshots.client`, and th
    `pinnedScreenshot` (Read tool on the absolute paths). Use the pin `position` to find the
    exact element the user means. (A blank cover/photo on the iPhone side is a snapshot
    limitation for remote images — never "fix" the web to match a missing image.)
+   When `commentedElement` is present it pins down the exact DOM element: its BEM `selector`
+   (e.g. `.CardEvent__block`) → the SCSS rule to edit, with `computedStyles` giving current
+   values — so a terse comment needs no guesswork about which object it refers to.
 
-b. **Understand** the ask from the `thread` + position.
+b. **Understand** the ask from the `thread` + position (+ `commentedElement`).
 
 c. **Decide — does it need the user?**
    - **Yes** (ambiguous intent, a real visual tradeoff, more than one valid reading, or it

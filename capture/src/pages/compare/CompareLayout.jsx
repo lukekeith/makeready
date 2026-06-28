@@ -1,9 +1,46 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useParams, useNavigate } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import { CompareContext } from './CompareContext.js';
-import { fetchCompareManifest, fetchVersions } from '../../api.js';
+import { fetchCompareManifest, fetchVariants, startCompareBatchCapture, subscribeCapture } from '../../api.js';
 
 const TYPE_LABELS = { page: 'Pages', component: 'Components', error: 'Broken specs' };
+
+// Preferred order for the category sections (mirrors the iOS Components/ folders).
+// Unknown groups fall to the end, alphabetically.
+const CATEGORY_ORDER = [
+  'Button', 'Input', 'Navigation', 'Display', 'Cards', 'Card', 'Chart',
+  'Calendar', 'Content', 'Feedback', 'Group', 'Domain', 'Layout', 'Loading',
+  'Overlays', 'Video',
+];
+function orderGroups(groups) {
+  return [...groups].sort((a, b) => {
+    const ai = CATEGORY_ORDER.indexOf(a);
+    const bi = CATEGORY_ORDER.indexOf(b);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi) || a.localeCompare(b);
+  });
+}
+const sectionKey = (type, group) => `${type}::${group || 'Other'}`;
+
+// Aggregate completion across a category's components: sum of done platform
+// "cells" (iPhone captured + web built) over total cells (2 × variants), as a %.
+function aggregateCompletion(items) {
+  let done = 0;
+  let total = 0;
+  for (const c of items) {
+    if (c.error || !c.completion) continue;
+    done += (c.completion.iphoneCaptured || 0) + (c.completion.webBuilt || 0);
+    total += 2 * (c.completion.total || 0);
+  }
+  return { pct: total ? Math.round((done / total) * 100) : 0, total };
+}
+
+// Completion color on a continuous red(0%) → orange(~50%) → green(100%) scale,
+// so a category's progress is legible at a glance. Hue 0=red … 120=green.
+function pctColor(pct) {
+  const clamped = Math.max(0, Math.min(100, pct));
+  return `hsl(${Math.round(clamped * 1.2)}, 70%, 55%)`;
+}
 
 const RATING_FACES = {
   1: { mouth: 'M8 17 Q12 12 16 17', color: '#f87171' },
@@ -34,7 +71,7 @@ export default function CompareLayout() {
   const [shotsVersion, setShotsVersion] = useState(() => Date.now());
   const [activeRun, setActiveRun] = useState(null);
   const location = useLocation();
-  const { id, version } = useParams();
+  const { id, variant } = useParams();
   const navigate = useNavigate();
   const isDetail = /^\/compare\/.+/.test(location.pathname);
 
@@ -45,6 +82,32 @@ export default function CompareLayout() {
   useEffect(() => { reload(); }, [reload]);
   const bumpShots = useCallback(() => { setShotsVersion(Date.now()); reload(); }, [reload]);
 
+  // ── Live updates over socket.io ──
+  // The server pushes an event whenever ANY capture writes a screenshot — including
+  // captures run outside this UI (CLI, curl, an agent building a new twin). On each
+  // event we bumpShots(), which cache-busts screenshot URLs and refetches the
+  // manifest + the open variant, so the nav %, variant dots, and the detail view
+  // all refresh automatically. Bursts (e.g. a batch capture) are debounced.
+  const [liveConnected, setLiveConnected] = useState(false);
+  useEffect(() => {
+    const socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+    let timer = null;
+    const refresh = () => { clearTimeout(timer); timer = setTimeout(() => bumpShots(), 300); };
+    socket.on('connect', () => {
+      setLiveConnected(true);
+      // Refresh on (re)connect too: after a server restart — e.g. a new adapter was
+      // added for a freshly-built Vue twin — the UI picks up the change immediately.
+      refresh();
+    });
+    socket.on('disconnect', () => setLiveConnected(false));
+    socket.on('compare:shot', refresh);
+    socket.on('compare:done', refresh);
+    // The capture server hot-reloaded its adapter registry (a new web twin) —
+    // refetch so the right-hand live web pane appears without a manual reload.
+    socket.on('compare:adapters', refresh);
+    return () => { clearTimeout(timer); socket.close(); };
+  }, [bumpShots]);
+
   const ctx = useMemo(() => ({ manifest, reload, shotsVersion, bumpShots, activeRun, setActiveRun }),
     [manifest, reload, shotsVersion, bumpShots, activeRun]);
 
@@ -54,40 +117,97 @@ export default function CompareLayout() {
   );
   const activeTitle = allComparisons.find((c) => c.id === id)?.title ?? id;
 
-  // ── Version list for the selected component ──
-  const [versions, setVersions] = useState([]);
-  const [variantNames, setVariantNames] = useState([]);
-  const [selectedVariant, setSelectedVariant] = useState(null);
-  useEffect(() => { setSelectedVariant(null); }, [id]);
+  // ── Group each type's comparisons into category sections (collapsible) ──
+  const grouped = useMemo(() => (manifest?.types ?? []).map((t) => {
+    const byGroup = new Map();
+    for (const c of t.comparisons) {
+      const g = c.group || 'Other';
+      if (!byGroup.has(g)) byGroup.set(g, []);
+      byGroup.get(g).push(c);
+    }
+    return {
+      type: t.type,
+      groups: orderGroups([...byGroup.keys()]).map((g) => {
+        const items = byGroup.get(g);
+        return { group: g, items, completion: aggregateCompletion(items) };
+      }),
+    };
+  }), [manifest]);
+
+  const allSectionKeys = useMemo(
+    () => grouped.flatMap((t) => t.groups.map((g) => sectionKey(t.type, g.group))),
+    [grouped],
+  );
+
+  // Expanded sections (persisted). Default: all collapsed — a clean header list.
+  const [expanded, setExpanded] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('cmp-nav-expanded') || '[]')); }
+    catch { return new Set(); }
+  });
   useEffect(() => {
-    if (!id) { setVersions([]); setVariantNames([]); return; }
+    try { localStorage.setItem('cmp-nav-expanded', JSON.stringify([...expanded])); } catch { /* ignore */ }
+  }, [expanded]);
+  const toggleSection = (key) => setExpanded((prev) => {
+    const next = new Set(prev);
+    next.has(key) ? next.delete(key) : next.add(key);
+    return next;
+  });
+  const expandAll = () => setExpanded(new Set(allSectionKeys));
+  const collapseAll = () => setExpanded(new Set());
+
+  // Keep the active component's section open so the selection is always visible.
+  useEffect(() => {
+    const c = id && allComparisons.find((x) => x.id === id);
+    if (!c) return;
+    const key = sectionKey(c.type, c.group);
+    setExpanded((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }, [id, allComparisons]);
+
+  // ── Per-category action menu ("Capture all") ──
+  const [menuOpen, setMenuOpen] = useState(null); // section key whose menu is open
+  const unsubRef = useRef(null);
+  const canCapture = manifest?.canCapture ?? false;
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const close = () => setMenuOpen(null);
+    document.addEventListener('click', close);
+    return () => document.removeEventListener('click', close);
+  }, [menuOpen]);
+  useEffect(() => () => unsubRef.current?.(), []);
+
+  const captureGroup = async (key, items) => {
+    setMenuOpen(null);
+    if (activeRun) return; // one run at a time (single xcodebuild)
+    const ids = items.filter((c) => !c.error).map((c) => c.id);
+    if (!ids.length) return;
+    const groupName = key.split('::')[1];
+    try {
+      const { runId } = await startCompareBatchCapture({ ids, viewport: 'pro-max' });
+      setActiveRun({ id: groupName, runId, batch: true });
+      unsubRef.current = subscribeCapture(runId, {
+        onDone: () => { setActiveRun(null); bumpShots(); },
+        onError: () => setActiveRun(null),
+      });
+    } catch (err) { setError(err.message); }
+  };
+
+  // ── Variants for the selected component (the version system is gone) ──
+  const [variantInfo, setVariantInfo] = useState({ variants: [], counts: { iphone: 0, web: 0 } });
+  useEffect(() => {
+    if (!id) { setVariantInfo({ variants: [], counts: { iphone: 0, web: 0 } }); return; }
     let cancelled = false;
-    fetchVersions(id).then((d) => {
-      if (cancelled) return;
-      const vs = d.versions ?? [];
-      setVersions(vs);
-      // Union of the component's declared variants + any captured ones.
-      setVariantNames([...new Set([...(d.variants ?? []), ...vs.map((v) => v.variantName)])]);
-    }).catch(() => { if (!cancelled) { setVersions([]); setVariantNames([]); } });
+    fetchVariants(id)
+      .then((d) => { if (!cancelled) setVariantInfo({ variants: d.variants ?? [], counts: d.counts ?? { iphone: 0, web: 0 } }); })
+      .catch(() => { if (!cancelled) setVariantInfo({ variants: [], counts: { iphone: 0, web: 0 } }); });
     return () => { cancelled = true; };
   }, [id, shotsVersion]);
-  // Default the selected variant to the open version's variant (or the first).
-  useEffect(() => {
-    if (selectedVariant || !variantNames.length) return;
-    const cur = versions.find((v) => v.id === version)?.variantName;
-    setSelectedVariant(cur ?? variantNames[0]);
-  }, [variantNames, versions, version, selectedVariant]);
-  const shownVersions = versions.filter((v) => v.variantName === selectedVariant);
 
-  // Clicking a variant selects it AND jumps to its most recent capture (versions
-  // are newest-first), so the detail view always lands on the latest version of
-  // the variant rather than leaving a stale version open. Uncaptured variants
-  // (no versions yet) just get selected so their empty state shows.
-  const selectVariant = (name) => {
-    setSelectedVariant(name);
-    const latest = versions.find((v) => v.variantName === name);
-    if (latest && latest.id !== version) navigate(`/compare/${id}/${latest.id}`);
-  };
+  // Land on the first variant when a component is opened without one selected.
+  useEffect(() => {
+    if (id && !variant && variantInfo.variants.length) {
+      navigate(`/compare/${id}/${encodeURIComponent(variantInfo.variants[0].name)}`, { replace: true });
+    }
+  }, [id, variant, variantInfo, navigate]);
 
   // ── Typeahead search ──
   const [query, setQuery] = useState('');
@@ -125,6 +245,13 @@ export default function CompareLayout() {
               <button className="layout__activity-btn" disabled><span className="layout__activity-spinner" />Capturing {activeRun.id}…</button>
             </div>
           )}
+          <span
+            title={liveConnected ? 'Live — the view auto-updates when captures complete' : 'Live updates offline'}
+            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, letterSpacing: 0.3, textTransform: 'uppercase', color: liveConnected ? '#4ade80' : '#6b7280' }}
+          >
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: liveConnected ? '#4ade80' : '#6b7280', boxShadow: liveConnected ? '0 0 6px #4ade80' : 'none' }} />
+            Live
+          </span>
         </header>
 
         <aside className="layout__sidebar cmp-nav">
@@ -151,57 +278,118 @@ export default function CompareLayout() {
             )}
           </div>
           <div className={`cmp-nav__slider${id ? ' cmp-nav__slider--versions' : ''}`}>
-            {/* Level 1 — components */}
+            {/* Level 1 — components grouped into collapsible category sections */}
             <div className="cmp-nav__pane">
               {!manifest && !error && <div className="component-list__loading">loading…</div>}
-              {manifest?.types?.map((group) => (
-                <div key={group.type} className="nav__section">
-                  <div className="nav__section-title">{TYPE_LABELS[group.type] ?? group.type}</div>
-                  {group.comparisons.map((c) => (
-                    <button key={c.id} className={`nav__item cmp-nav__component${c.id === id ? ' nav__item--active' : ''}`} onClick={() => c.error ? null : goto(c.id)}>
-                      <span className="cmp-nav__component-title">{c.error ? c.id : c.title}</span>
-                      {!c.error && c.rating != null && <RatingDot rating={c.rating} />}
-                      {!c.error && c.unresolvedComments > 0 && <span className="cmp-open-badge">{c.unresolvedComments}</span>}
-                      {!c.error && <ChevronR />}
-                    </button>
-                  ))}
+              {manifest && allSectionKeys.length > 0 && (
+                <div className="cmp-nav__toolbar">
+                  <button className="cmp-nav__toolbtn" onClick={expandAll}>Expand all</button>
+                  <span className="cmp-nav__toolbar-sep" />
+                  <button className="cmp-nav__toolbtn" onClick={collapseAll}>Collapse all</button>
+                </div>
+              )}
+              {grouped.map((t) => (
+                <div key={t.type} className="nav__section">
+                  <div className="nav__section-title">{TYPE_LABELS[t.type] ?? t.type}</div>
+                  {t.groups.map(({ group, items, completion }) => {
+                    const key = sectionKey(t.type, group);
+                    const isOpen = expanded.has(key);
+                    const openComments = items.reduce((a, c) => a + (c.error ? 0 : c.unresolvedComments || 0), 0);
+                    const isCapturing = activeRun?.batch && activeRun.id === group;
+                    return (
+                      <div key={key} className={`cmp-nav__group${isOpen ? ' is-open' : ''}`}>
+                        <div className="cmp-nav__group-header">
+                          <button className="cmp-nav__group-toggle" onClick={() => toggleSection(key)} aria-expanded={isOpen}>
+                            <svg className="cmp-nav__group-chev" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+                            <span className="cmp-nav__group-name">{group}</span>
+                          </button>
+                          {openComments > 0 && <span className="cmp-open-badge cmp-nav__group-badge">{openComments}</span>}
+                          {completion.total > 0 && (
+                            <span className="cmp-nav__group-pct" style={{ color: pctColor(completion.pct) }} title={`Category completion: ${completion.pct}%`}>{completion.pct}%</span>
+                          )}
+                          <span className="cmp-nav__group-count">{items.length}</span>
+                          <div className="cmp-nav__menu-wrap">
+                            <button
+                              className="cmp-nav__group-dots"
+                              title="Category actions"
+                              aria-label={`${group} actions`}
+                              onClick={(e) => { e.stopPropagation(); setMenuOpen((m) => (m === key ? null : key)); }}
+                            >
+                              {isCapturing ? <span className="layout__activity-spinner" /> : (
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
+                              )}
+                            </button>
+                            {menuOpen === key && (
+                              <div className="cmp-nav__menu" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  className="cmp-nav__menu-item"
+                                  disabled={!canCapture || !!activeRun}
+                                  title={!canCapture ? 'Capture is not available in production' : (activeRun ? 'A capture is already running' : `Capture all ${items.length} components (iPhone)`)}
+                                  onClick={() => captureGroup(key, items)}
+                                >
+                                  Capture all
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        {isOpen && (
+                          <div className="cmp-nav__group-items">
+                            {items.map((c) => (
+                              <button key={c.id} className={`nav__item cmp-nav__component${c.id === id ? ' nav__item--active' : ''}`} onClick={() => c.error ? null : goto(c.id)}>
+                                <span className="cmp-nav__component-title">{c.error ? c.id : c.title}</span>
+                                {!c.error && c.rating != null && <RatingDot rating={c.rating} />}
+                                {!c.error && c.unresolvedComments > 0 && <span className="cmp-open-badge">{c.unresolvedComments}</span>}
+                                {!c.error && c.completion && (
+                                  <span
+                                    className={`cmp-nav__pct${c.completion.pct === 100 ? ' cmp-nav__pct--done' : ''}`}
+                                    title={`iPhone ${c.completion.iphoneCaptured}/${c.completion.total} captured · web ${c.completion.webBuilt}/${c.completion.total} built`}
+                                  >
+                                    {c.completion.pct}%
+                                  </span>
+                                )}
+                                {!c.error && <ChevronR />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ))}
             </div>
 
-            {/* Level 2 — versions of the selected component */}
+            {/* Level 2 — variants of the selected component (no versions) */}
             <div className="cmp-nav__pane">
               <button className="cmp-nav__back" onClick={() => navigate('/compare')}>
                 <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
                 Components
               </button>
-              <div className="cmp-nav__versions-title">{activeTitle}<span className="cmp-nav__versions-sub">versions</span></div>
-              {variantNames.length > 0 && (
-                <div className="cmp-variant-menu">
-                  {variantNames.map((name) => (
-                    <button key={name} className={`cmp-variant${name === selectedVariant ? ' cmp-variant--active' : ''}`} onClick={() => selectVariant(name)}>{name}</button>
-                  ))}
-                </div>
-              )}
-              {shownVersions.map((v) => (
-                <NavLink key={v.id} to={`/compare/${id}/${v.id}`}
-                  className={({ isActive }) => `cmp-version${isActive ? ' cmp-version--active' : ''}`}>
-                  <div className="cmp-version__top">
-                    <span className="cmp-version__vp">{v.label ?? v.viewport}</span>
-                    {v.rating != null && <RatingDot rating={v.rating} />}
-                    {v.unresolvedCount > 0 && <span className="cmp-open-badge">{v.unresolvedCount}</span>}
-                  </div>
-                  <div className="cmp-version__meta">
-                    {fmt(v.capturedAt)} · {v.platforms.join('+') || 'no shots'}{v.gitSha ? ` · ${v.gitSha.slice(0, 7)}${v.gitDirty ? '*' : ''}` : ''}
-                  </div>
-                </NavLink>
-              ))}
-              {id && shownVersions.length === 0 && <div className="cmp-comments__empty">No captures of <strong>{selectedVariant}</strong> yet — pick it and hit Capture.</div>}
+              <div className="cmp-nav__versions-title">{activeTitle}<span className="cmp-nav__versions-sub">variants</span></div>
+              {/* Two header metadata: how many variants render on each platform. */}
+              <div className="cmp-nav__counts">
+                <span className="cmp-nav__count"><span className="cmp-nav__count-dot cmp-nav__count-dot--iphone" />iPhone render <strong>{variantInfo.counts.iphone}</strong></span>
+                <span className="cmp-nav__count"><span className="cmp-nav__count-dot cmp-nav__count-dot--web" />web render <strong>{variantInfo.counts.web}</strong></span>
+              </div>
+              <div className="cmp-variant-list">
+                {variantInfo.variants.map((v) => (
+                  <NavLink key={v.name} to={`/compare/${id}/${encodeURIComponent(v.name)}`}
+                    className={({ isActive }) => `cmp-variant-item${isActive ? ' cmp-variant-item--active' : ''}`}>
+                    <span className="cmp-variant-item__name">{v.name}</span>
+                    <span className="cmp-variant-item__platforms">
+                      <span className={`cmp-variant-item__dot${v.iphone ? ' is-on' : ''}`} title={v.iphone ? 'iPhone captured' : 'iPhone not captured'}>iOS</span>
+                      <span className={`cmp-variant-item__dot${v.web ? ' is-on' : ''}`} title={v.web ? 'renders on web' : 'no web twin'}>web</span>
+                    </span>
+                  </NavLink>
+                ))}
+                {id && variantInfo.variants.length === 0 && <div className="cmp-comments__empty">No variants defined for this component.</div>}
+              </div>
             </div>
           </div>
         </aside>
 
-        <main className={`layout__main${isDetail ? ' layout__main--bleed' : ''}`}>
+        <main className={`layout__main${isDetail ? ' layout__main--bleed' : ' layout__main--browse'}`}>
           <Outlet />
         </main>
       </div>

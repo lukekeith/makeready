@@ -1,0 +1,44 @@
+{
+  "id": "CardMember",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Member",
+  "adapter": "CardMember",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "MemberWithInvite",
+      "shared": {
+        "variant": "invite",
+        "firstName": "John",
+        "lastName": "Smith",
+        "avatarUrl": "https://picsum.photos/72/72",
+        "metadata": [
+          { "label": "Age", "value": "28" },
+          { "label": "Joined", "value": "Jan 2025" }
+        ],
+        "groups": ["Young Professionals"]
+      }
+    },
+    {
+      "name": "MultipleGroups",
+      "shared": {
+        "firstName": "Sarah",
+        "lastName": "Johnson",
+        "metadata": [
+          { "label": "Age", "value": "32" }
+        ],
+        "groups": ["Bible Study", "Worship Team"]
+      }
+    },
+    {
+      "name": "AvatarWithInvite",
+      "shared": {
+        "variant": "invite",
+        "firstName": "Michael",
+        "lastName": "Brown",
+        "avatarUrl": "https://picsum.photos/73/73"
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "AgeRangeInput",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Age Range Input",
+  "adapter": "AgeRangeInput",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "label": "Age range",
+        "minAge": "18",
+        "maxAge": "34"
+      }
+    }
+  ]
+}

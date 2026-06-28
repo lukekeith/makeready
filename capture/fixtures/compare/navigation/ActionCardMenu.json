@@ -1,0 +1,21 @@
+{
+  "id": "ActionCardMenu",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Action Card Menu",
+  "adapter": "ActionCardMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "CreateNew",
+      "shared": {
+        "title": "Create New",
+        "items": [
+          { "icon": "book.fill", "title": "Study Program", "description": "Create a new study program" },
+          { "icon": "calendar.badge.plus", "title": "Enrollment", "description": "Enroll a group in a program" },
+          { "icon": "photo.on.rectangle", "title": "Media", "description": "Upload photos or videos" }
+        ]
+      }
+    }
+  ]
+}

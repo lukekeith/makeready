@@ -1,0 +1,25 @@
+{
+  "startedAt": "2026-06-28T07:00:32.228Z",
+  "updatedAt": "2026-06-28T07:07:12.595Z",
+  "model": "cli-default",
+  "permission": "skip",
+  "timeoutMin": 25,
+  "total": 2,
+  "current": "CardActivity",
+  "components": {
+    "CardActivity": {
+      "group": "Cards",
+      "variants": 3,
+      "status": "passed",
+      "startedAt": "2026-06-28T07:00:32.251Z",
+      "log": "capture/scripts/logs/CardActivity.log",
+      "durationMin": 6.7,
+      "exitCode": 0
+    },
+    "CardBibleSearchResult": {
+      "group": "Cards",
+      "variants": 2,
+      "status": "pending"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "PageHeader",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Page Header",
+  "adapter": "PageHeader",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "SingleTab",
+      "shared": {
+        "tabs": ["Home"],
+        "activeTab": 0
+      }
+    },
+    {
+      "name": "TwoTabs",
+      "shared": {
+        "tabs": ["All", "Active"],
+        "activeTab": 1
+      }
+    },
+    {
+      "name": "ThreeTabs",
+      "shared": {
+        "tabs": ["Overview", "Studies", "Members"],
+        "activeTab": 0
+      }
+    }
+  ]
+}

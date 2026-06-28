@@ -1,0 +1,54 @@
+{
+  "id": "VerticalBarChart",
+  "type": "component",
+  "group": "Chart",
+  "title": "Chart · Vertical Bar Chart",
+  "adapter": "VerticalBarChart",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "MonthlyRevenueWithValues",
+      "shared": {
+        "showValues": true,
+        "chartHeight": 180,
+        "dataPoints": [
+          { "label": "Jan", "value": 12500, "color": "#6c47ff" },
+          { "label": "Feb", "value": 14200, "color": "#6c47ff" },
+          { "label": "Mar", "value": 13800, "color": "#6c47ff" },
+          { "label": "Apr", "value": 16100, "color": "#6c47ff" },
+          { "label": "May", "value": 18300, "color": "#6c47ff" },
+          { "label": "Jun", "value": 19500, "color": "#6c47ff" }
+        ]
+      }
+    },
+    {
+      "name": "WeeklySignupsNoValues",
+      "shared": {
+        "showValues": false,
+        "chartHeight": 160,
+        "dataPoints": [
+          { "label": "Mon", "value": 23, "color": "#47d4ff" },
+          { "label": "Tue", "value": 31, "color": "#47d4ff" },
+          { "label": "Wed", "value": 28, "color": "#47d4ff" },
+          { "label": "Thu", "value": 35, "color": "#47d4ff" },
+          { "label": "Fri", "value": 42, "color": "#47d4ff" },
+          { "label": "Sat", "value": 18, "color": "#47d4ff" },
+          { "label": "Sun", "value": 15, "color": "#47d4ff" }
+        ]
+      }
+    },
+    {
+      "name": "ProjectStatusMixedColors",
+      "shared": {
+        "showValues": true,
+        "chartHeight": 180,
+        "dataPoints": [
+          { "label": "Active", "value": 12, "color": "#4ade80" },
+          { "label": "Planning", "value": 5, "color": "#ffd93d" },
+          { "label": "On Hold", "value": 3, "color": "#ff6b9d" },
+          { "label": "Complete", "value": 28, "color": "rgba(255,255,255,0.3)" }
+        ]
+      }
+    }
+  ]
+}

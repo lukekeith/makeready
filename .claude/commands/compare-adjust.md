@@ -17,6 +17,11 @@ comparison:
    - **Read** `latestScreenshots.iphone`, `latestScreenshots.client`, and `pinnedScreenshot`
      (Read tool on the absolute paths); use the pin `position` to find the exact element.
      (A blank cover on the iPhone side = remote-image snapshot limitation; don't chase it.)
+   - **Use `commentedElement` when present** — it's the exact DOM element the pin resolved to:
+     its BEM `selector` (e.g. `.CardEvent__block`) maps straight to the SCSS rule to edit, and
+     `computedStyles` gives the current values. A terse comment like "bottom radius should be 0"
+     plus `selector: .CardEvent__block` / `borderRadius: 8px` is enough to make the fix with no
+     guessing about which object is meant.
    - **Decide:** if it needs a human call (ambiguous, a tradeoff, multiple readings, or it
      would change shared tokens / the iPhone app) → `reply_comment` with the options and
      **ask the user**; leave it unresolved. Otherwise auto-fix.

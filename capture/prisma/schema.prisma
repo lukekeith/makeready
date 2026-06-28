@@ -76,21 +76,28 @@ model Screenshot {
 model Comment {
   id           String    @id @default(cuid())
   comparisonId String
-  versionId    String
+  variantName  String    @default("default") // comments pin to a variant, not a version
+  versionId    String? // optional — survives recaptures (SetNull on version delete)
   screenshotId String?
   platform     String // "iphone" | "client"
   viewport     String
   x            Float // 0..1
   y            Float // 0..1
+  // The DOM element the pin resolved to (live hit-test of the web iframe). Lets a
+  // terse comment ("bottom radius should be 0") target an exact BEM rule.
+  targetSelector String? // e.g. ".CardEvent__block"
+  targetLabel    String? // leaf BEM class, e.g. "CardEvent__block"
+  targetMeta     Json? // { rect:{x,y,w,h}, tag, text, styles:{...} }
   resolved     Boolean   @default(false)
   resolvedAt   DateTime?
   createdAt    DateTime  @default(now())
 
   comparison Comparison  @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
-  version    Version     @relation(fields: [versionId], references: [id])
+  version    Version?    @relation(fields: [versionId], references: [id], onDelete: SetNull)
   screenshot Screenshot? @relation(fields: [screenshotId], references: [id])
   messages   Message[]
 
+  @@index([comparisonId, variantName, viewport])
   @@index([comparisonId, resolved])
 }
 

@@ -1,0 +1,31 @@
+{
+  "id": "NavBar",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Nav Bar",
+  "adapter": "NavBar",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "HomeActive",
+      "shared": {
+        "activeTab": "home",
+        "avatarURL": null
+      }
+    },
+    {
+      "name": "GroupsActive",
+      "shared": {
+        "activeTab": "groups",
+        "avatarURL": "https://picsum.photos/44/44"
+      }
+    },
+    {
+      "name": "ProfileActive",
+      "shared": {
+        "activeTab": "profile",
+        "avatarURL": "https://picsum.photos/45/45"
+      }
+    }
+  ]
+}

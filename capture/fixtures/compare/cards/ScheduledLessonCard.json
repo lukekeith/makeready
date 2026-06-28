@@ -1,0 +1,43 @@
+{
+  "id": "ScheduledLessonCard",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Scheduled Lesson",
+  "adapter": "ScheduledLessonCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "FutureScripture",
+      "shared": {
+        "status": "future",
+        "dayNumber": 1,
+        "activities": [
+          { "type": "SCRIPTURE", "title": "Genesis 1:1-5" }
+        ]
+      }
+    },
+    {
+      "name": "TodayMultiple",
+      "shared": {
+        "status": "today",
+        "dayNumber": 2,
+        "activities": [
+          { "type": "SCRIPTURE", "title": "Genesis 1:6-13" },
+          { "type": "VIDEO", "title": "" }
+        ]
+      }
+    },
+    {
+      "name": "Completed",
+      "shared": {
+        "status": "completed",
+        "dayNumber": 1,
+        "activities": [
+          { "type": "SOAP", "title": "Romans 1:1-2" },
+          { "type": "VIDEO", "title": "" },
+          { "type": "REFLECTION", "title": "" }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "CoverImagePicker",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Cover Image Picker",
+  "adapter": "CoverImagePicker",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "EditableEmpty",
+      "shared": {
+        "mode": "editable",
+        "programName": "",
+        "programDescription": ""
+      }
+    },
+    {
+      "name": "EditableWithImage",
+      "shared": {
+        "mode": "editable",
+        "programName": "Romans",
+        "programDescription": "A comprehensive study of the whole book",
+        "existingImageUrl": "https://picsum.photos/800/480"
+      }
+    },
+    {
+      "name": "DisplayWithImage",
+      "shared": {
+        "mode": "display",
+        "programName": "Romans",
+        "programDescription": "A comprehensive study of the whole book",
+        "existingImageUrl": "https://picsum.photos/800/481"
+      }
+    },
+    {
+      "name": "DisplayEmpty",
+      "shared": {
+        "mode": "display",
+        "programName": "Genesis",
+        "programDescription": "In the beginning..."
+      }
+    }
+  ]
+}

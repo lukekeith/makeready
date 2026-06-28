@@ -1,0 +1,26 @@
+{
+  "id": "SlideButton",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Slide Button",
+  "adapter": "SlideButton",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Reschedule",
+      "shared": { "icon": "calendar", "style": "reschedule" }
+    },
+    {
+      "name": "Delete",
+      "shared": { "icon": "trash", "style": "delete" }
+    },
+    {
+      "name": "Skip",
+      "shared": { "icon": "forward", "style": "skip" }
+    },
+    {
+      "name": "Edit",
+      "shared": { "icon": "pencil", "style": "edit" }
+    }
+  ]
+}

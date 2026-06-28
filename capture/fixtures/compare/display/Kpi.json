@@ -1,0 +1,87 @@
+{
+  "id": "Kpi",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · KPI",
+  "adapter": "Kpi",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "StandardCurrency",
+      "shared": {
+        "variant": "standard",
+        "kpiValue": 12450,
+        "valueType": "currency",
+        "label": "Revenue",
+        "description": "Monthly revenue",
+        "icon": "chart.line.uptrend.xyaxis"
+      }
+    },
+    {
+      "name": "StandardPercent",
+      "shared": {
+        "variant": "standard",
+        "kpiValue": 85.5,
+        "valueType": "percent",
+        "label": "Completion Rate",
+        "description": "Across all programs",
+        "icon": "checkmark.circle"
+      }
+    },
+    {
+      "name": "CompactNumber",
+      "shared": {
+        "variant": "compact",
+        "kpiValue": 1234,
+        "valueType": "number",
+        "label": "Members",
+        "icon": "person.2"
+      }
+    },
+    {
+      "name": "CompactCustom",
+      "shared": {
+        "variant": "compact",
+        "kpiValue": 42,
+        "valueType": "custom",
+        "suffix": " days",
+        "label": "Streak",
+        "icon": "flame"
+      }
+    },
+    {
+      "name": "Sparkline",
+      "shared": {
+        "variant": "sparkline",
+        "kpiValue": 12450,
+        "valueType": "currency",
+        "label": "Revenue",
+        "description": "Monthly revenue",
+        "trend": { "points": [8, 10, 9, 12, 11, 14, 13, 16] }
+      }
+    },
+    {
+      "name": "IconValueNumber",
+      "shared": {
+        "variant": "iconValue",
+        "kpiValue": 27,
+        "valueType": "number",
+        "label": "Members",
+        "icon": "person.2.fill",
+        "iconColor": "blue"
+      }
+    },
+    {
+      "name": "IconValuePercent",
+      "shared": {
+        "variant": "iconValue",
+        "kpiValue": 98.2,
+        "valueType": "percent",
+        "label": "Uptime",
+        "description": "Across all services last 30 days",
+        "icon": "bolt.fill",
+        "iconColor": "green"
+      }
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+{
+  "id": "TextInput",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Text Input",
+  "adapter": "TextInput",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "PlaceholderEmpty",
+      "shared": {
+        "placeholder": "Enter group name",
+        "inputType": "alphanumeric",
+        "text": ""
+      }
+    },
+    {
+      "name": "PlaceholderFilled",
+      "shared": {
+        "placeholder": "Enter group name",
+        "inputType": "alphanumeric",
+        "text": "My Group"
+      }
+    },
+    {
+      "name": "LabeledName",
+      "shared": {
+        "label": "Name",
+        "icon": "person.fill",
+        "inputType": "alphanumeric",
+        "text": ""
+      }
+    },
+    {
+      "name": "LabeledEmail",
+      "shared": {
+        "label": "Email",
+        "icon": "envelope.fill",
+        "inputType": "email",
+        "text": ""
+      }
+    },
+    {
+      "name": "LabeledPhone",
+      "shared": {
+        "label": "Phone",
+        "icon": "phone.fill",
+        "inputType": "phone",
+        "text": ""
+      }
+    },
+    {
+      "name": "LabeledFilled",
+      "shared": {
+        "label": "City",
+        "icon": "location.fill",
+        "inputType": "alphanumeric",
+        "text": "New York"
+      }
+    },
+    {
+      "name": "FloatingEmpty",
+      "shared": {
+        "floatingLabel": "Group Name",
+        "inputType": "alphanumeric",
+        "text": ""
+      }
+    },
+    {
+      "name": "FloatingFilled",
+      "shared": {
+        "floatingLabel": "Group Name",
+        "inputType": "alphanumeric",
+        "text": "Young Professionals"
+      }
+    },
+    {
+      "name": "FloatingEmailFilled",
+      "shared": {
+        "floatingLabel": "Email Address",
+        "inputType": "email",
+        "text": "john@example.com"
+      }
+    }
+  ]
+}

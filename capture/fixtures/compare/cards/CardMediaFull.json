@@ -1,0 +1,36 @@
+{
+  "id": "CardMediaFull",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Media Full",
+  "adapter": "CardMediaFull",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Video",
+      "shared": {
+        "title": "Sunday Worship",
+        "type": "video",
+        "count": 5,
+        "durationSeconds": 1830
+      }
+    },
+    {
+      "name": "Photo",
+      "shared": {
+        "title": "Banner",
+        "type": "photo",
+        "count": 0
+      }
+    },
+    {
+      "name": "Audio",
+      "shared": {
+        "title": "Podcast",
+        "type": "audio",
+        "count": 12,
+        "durationSeconds": 3600
+      }
+    }
+  ]
+}

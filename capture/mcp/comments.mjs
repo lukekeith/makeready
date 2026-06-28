@@ -24,6 +24,7 @@ import {
   summarize,
 } from '../db/index.mjs';
 import { compareRoot } from '../runners/compare/lib.mjs';
+import { buildInventory, queryInventory } from '../runners/compare/inventory.mjs';
 
 const abs = (rel) => (rel ? path.join(compareRoot, rel) : null);
 
@@ -47,6 +48,19 @@ async function describeComment(c) {
       device: c.screenshot?.device ?? null,
     },
     position: { xFraction: c.x, yFraction: c.y, xPx: px.x, yPx: px.y },
+    // The exact DOM element the pin resolved to (live hit-test of the web twin):
+    // its BEM selector → the SCSS rule to edit, plus current computed styles so a
+    // terse comment ("bottom radius should be 0") needs no extra interpretation.
+    commentedElement: c.targetSelector
+      ? {
+          selector: c.targetSelector,
+          label: c.targetLabel,
+          tag: c.targetMeta?.tag ?? null,
+          text: c.targetMeta?.text ?? null,
+          boxFraction: c.targetMeta?.rect ?? null,
+          computedStyles: c.targetMeta?.styles ?? null,
+        }
+      : null,
     pinnedScreenshot: abs(c.screenshot?.path),
     latestScreenshots: { iphone: abs(latest.iphone?.path), client: abs(latest.client?.path) },
     version: { id: c.versionId, capturedAt: v.capturedAt, gitSha: v.gitSha, gitDirty: v.gitDirty, sourceHash: v.sourceHash },
@@ -96,6 +110,37 @@ server.tool(
       out.push({ id: r.id, title: r.title, type: r.type, rating: r.rating, comments: total, unresolved });
     }
     return { content: [{ type: 'text', text: JSON.stringify(out, null, 2) }] };
+  },
+);
+
+server.tool(
+  'inventory',
+  'Cross-platform component/page/layout inventory for replicating the iPhone UI on web. ' +
+    'Each entry reports whether it EXISTS on iphone vs client(web), its per-variant schema ' +
+    '(the prop fields + sample options), capture status per platform, rating, unresolved ' +
+    'comment counts per platform, and a per-variant match status ' +
+    '(no-web-twin | uncaptured | commented | rating-mismatch | matched). ' +
+    'Use the filters to answer the common questions:\n' +
+    '  • "components that do NOT exist on the client app" → missingOnClient:true\n' +
+    '  • "components that exist but have comments on the client implementation" → hasClientComments:true\n' +
+    '  • "components with variants that do not match" → mismatched:true\n' +
+    'Sort defaults to most-variants first; pass limit for "top N". Set detail:true for each variant\'s full data.',
+  {
+    missingOnClient: z.boolean().optional().describe('Only components with no web/client twin yet'),
+    hasClientComments: z.boolean().optional().describe('Only components that have a web twin AND unresolved client comments'),
+    mismatched: z.boolean().optional().describe('Only components with ≥1 variant flagged commented or low-rated'),
+    type: z.enum(['component', 'page', 'layout']).optional().describe('Filter by kind'),
+    sort: z.enum(['variants', 'comments', 'mismatches', 'alpha']).optional().describe('Sort order (default: variants)'),
+    limit: z.number().int().positive().optional().describe('Return only the top N'),
+    detail: z.boolean().optional().describe('Include each variant\'s full prop data (heavier)'),
+  },
+  async ({ missingOnClient, hasClientComments, mismatched, type, sort, limit, detail }) => {
+    const inv = await buildInventory({ detail: !!detail });
+    const rows = queryInventory(inv, { missingOnClient, hasClientComments, mismatched, type, sort, limit });
+    if (rows.length === 0) {
+      return { content: [{ type: 'text', text: 'No components matched that query.' }] };
+    }
+    return { content: [{ type: 'text', text: `${rows.length} component(s):\n\n${JSON.stringify(rows, null, 2)}` }] };
   },
 );
 

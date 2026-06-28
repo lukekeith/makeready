@@ -111,10 +111,21 @@
 @use 'components/layout/stack';
 
 // Card components
+@use 'components/card/action-button';
+// Aliased: shares a basename with components/form/age-range-input (different
+// component — the compare twin uses block `.AgeRangeField`).
+@use 'components/card/age-range-input' as age-range-input-twin;
+@use 'components/card/background-source-menu';
+@use 'components/card/box-button';
 @use 'components/card/card-activity';
+@use 'components/card/card-activity-type';
+@use 'components/card/card-enrolled';
 @use 'components/card/card-enrollment';
 @use 'components/card/card-event';
+@use 'components/card/card-event-mini';
 @use 'components/card/card-group';
+@use 'components/card/card-lesson';
+@use 'components/card/card-lesson-activity';
 @use 'components/card/card-member';
 @use 'components/card/card-post';
 @use 'components/card/card-search-result';

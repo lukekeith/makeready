@@ -1,0 +1,51 @@
+{
+  "id": "MemberListItem",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Member List Item",
+  "adapter": "MemberListItem",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "MemberWithInvite",
+      "shared": {
+        "variant": "memberWithInvite",
+        "firstName": "Bruce",
+        "lastName": "Banner",
+        "age": 28,
+        "joinDate": "2025-01-01",
+        "groups": ["Young adults"]
+      }
+    },
+    {
+      "name": "MemberMultipleGroups",
+      "shared": {
+        "variant": "memberMultipleGroups",
+        "firstName": "Bruce",
+        "lastName": "Banner",
+        "age": 28,
+        "joinDate": "2025-01-01",
+        "groups": ["Group 1", "Group 2"]
+      }
+    },
+    {
+      "name": "Member",
+      "shared": {
+        "variant": "member",
+        "firstName": "Bruce",
+        "lastName": "Banner",
+        "age": 28,
+        "joinDate": "2025-01-01",
+        "groups": ["Young adults"]
+      }
+    },
+    {
+      "name": "Contact",
+      "shared": {
+        "variant": "contact",
+        "firstName": "Bruce",
+        "lastName": "Banner"
+      }
+    }
+  ]
+}

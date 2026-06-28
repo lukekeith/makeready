@@ -1,0 +1,34 @@
+{
+  "id": "CardGroupMini",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Group Mini",
+  "adapter": "CardGroupMini",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "id": "group-1",
+        "title": "Youth Group",
+        "imageStyle": { "kind": "icon" },
+        "metadata": [
+          { "number": "42", "label": "Members" }
+        ],
+        "isSelected": false
+      }
+    },
+    {
+      "name": "Selected",
+      "shared": {
+        "id": "group-2",
+        "title": "Seniors Fellowship Group",
+        "imageStyle": { "kind": "icon" },
+        "metadata": [
+          { "number": "12", "label": "Members" }
+        ],
+        "isSelected": true
+      }
+    }
+  ]
+}

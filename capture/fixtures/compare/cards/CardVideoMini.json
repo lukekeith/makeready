@@ -1,0 +1,33 @@
+{
+  "id": "CardVideoMini",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Video Mini",
+  "adapter": "CardVideoMini",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "TwoMetadata",
+      "shared": {
+        "title": "Worship Night",
+        "description": "Worship",
+        "imageStyle": { "kind": "photo", "url": "https://picsum.photos/120/114" },
+        "metadata": [
+          { "icon": "eye", "value": "856" },
+          { "icon": "clock", "value": "2 hours ago" }
+        ]
+      }
+    },
+    {
+      "name": "OneMetadata",
+      "shared": {
+        "title": "Sunday Service Highlights",
+        "description": "Sermons",
+        "imageStyle": { "kind": "photo", "url": "https://picsum.photos/120/114" },
+        "metadata": [
+          { "icon": "eye", "value": "1.2K" }
+        ]
+      }
+    }
+  ]
+}

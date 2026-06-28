@@ -1,0 +1,11 @@
+{
+  "id": "SkeletonCardStudy",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Skeleton Study",
+  "adapter": "SkeletonCardStudy",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    { "name": "default", "shared": {} }
+  ]
+}

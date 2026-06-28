@@ -1,0 +1,56 @@
+{
+  "id": "ConfirmationOverlay",
+  "type": "component",
+  "group": "Feedback",
+  "title": "Feedback · Confirmation Overlay",
+  "adapter": "ConfirmationOverlay",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Processing",
+      "shared": {
+        "style": "success",
+        "message": "**Young Professionals** has been successfully enrolled in **Ephesians** starting on **January 15, 2025**.",
+        "buttonLabel": "Done",
+        "isProcessing": true,
+        "processingMessage": "Processing enrollment"
+      }
+    },
+    {
+      "name": "Success",
+      "shared": {
+        "style": "success",
+        "message": "**Young Professionals** has been successfully enrolled in **Ephesians** starting on **January 15, 2025**.",
+        "buttonLabel": "Done",
+        "isProcessing": false
+      }
+    },
+    {
+      "name": "Error",
+      "shared": {
+        "style": "error",
+        "message": "Unable to complete enrollment. Please try again.",
+        "buttonLabel": "OK",
+        "isProcessing": false
+      }
+    },
+    {
+      "name": "Warning",
+      "shared": {
+        "style": "warning",
+        "message": "**3 members** have not accepted their invitations yet.",
+        "buttonLabel": "Got it",
+        "isProcessing": false
+      }
+    },
+    {
+      "name": "Info",
+      "shared": {
+        "style": "info",
+        "message": "You can invite more members from the **Members** tab.",
+        "buttonLabel": "Continue",
+        "isProcessing": false
+      }
+    }
+  ]
+}

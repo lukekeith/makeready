@@ -1,0 +1,23 @@
+{
+  "id": "CardProgramFull",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Program (Full)",
+  "adapter": "CardProgramFull",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "PublishedNoCover",
+      "shared": {
+        "title": "Romans in 30 Days",
+        "description": "A 12 week journey through the core beliefs and practices of something that this lesson is about.",
+        "tags": ["Faith & Scripture", "Bible", "Another tag"],
+        "days": 27,
+        "enrollmentCount": 28,
+        "authorName": "Tony Stark",
+        "createdAt": "2026-06-20T00:00:00Z",
+        "isPublished": true
+      }
+    }
+  ]
+}

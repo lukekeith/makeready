@@ -1,0 +1,108 @@
+{
+  "id": "BoxButton",
+  "type": "component",
+  "group": "Button",
+  "title": "Button · Box Button",
+  "adapter": "BoxButton",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "PrimarySolidLg",
+      "shared": {
+        "label": "Primary Button",
+        "variant": "primary",
+        "style": "solid",
+        "size": "lg"
+      }
+    },
+    {
+      "name": "PrimaryWithIconLeft",
+      "shared": {
+        "label": "Primary with Icon",
+        "icon": "plus",
+        "iconPosition": "left",
+        "variant": "primary",
+        "style": "solid",
+        "size": "md"
+      }
+    },
+    {
+      "name": "PrimaryBorderSm",
+      "shared": {
+        "label": "Primary Border",
+        "variant": "primary",
+        "style": "border",
+        "size": "sm"
+      }
+    },
+    {
+      "name": "SecondarySolidLg",
+      "shared": {
+        "label": "Secondary Button",
+        "variant": "secondary",
+        "style": "solid",
+        "size": "lg"
+      }
+    },
+    {
+      "name": "SecondaryWithIconRight",
+      "shared": {
+        "label": "Secondary with Icon",
+        "icon": "arrow.right",
+        "iconPosition": "right",
+        "variant": "secondary",
+        "style": "solid",
+        "size": "md"
+      }
+    },
+    {
+      "name": "Destructive",
+      "shared": {
+        "label": "Delete",
+        "icon": "trash",
+        "iconPosition": "left",
+        "variant": "destructive",
+        "style": "solid",
+        "size": "lg"
+      }
+    },
+    {
+      "name": "DestructiveBorder",
+      "shared": {
+        "label": "Remove",
+        "variant": "destructive",
+        "style": "border",
+        "size": "md"
+      }
+    },
+    {
+      "name": "Disabled",
+      "shared": {
+        "label": "Disabled Button",
+        "variant": "disabled",
+        "style": "solid",
+        "size": "lg"
+      }
+    },
+    {
+      "name": "FullWidthPrimary",
+      "shared": {
+        "label": "Full Width Primary",
+        "variant": "primary",
+        "style": "solid",
+        "size": "lg",
+        "fullWidth": true
+      }
+    },
+    {
+      "name": "IconOnlyPrimary",
+      "shared": {
+        "icon": "plus",
+        "iconPosition": "left",
+        "variant": "primary",
+        "style": "solid",
+        "size": "md"
+      }
+    }
+  ]
+}

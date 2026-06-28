@@ -1,0 +1,31 @@
+{
+  "id": "StylePickerMenu",
+  "type": "component",
+  "group": "Overlays",
+  "title": "Overlays · Style Picker Menu",
+  "adapter": "StylePickerMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "NoStyleApplied",
+      "shared": {
+        "snippet": "In the beginning was the Word",
+        "style": null
+      }
+    },
+    {
+      "name": "HighlightApplied",
+      "shared": {
+        "snippet": "In the beginning was the Word",
+        "style": "highlight"
+      }
+    },
+    {
+      "name": "BoldApplied",
+      "shared": {
+        "snippet": "And the Word was with God",
+        "style": "bold"
+      }
+    }
+  ]
+}

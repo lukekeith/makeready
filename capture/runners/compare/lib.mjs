@@ -23,6 +23,16 @@ import { fileURLToPath } from 'node:url';
 import { COMPARE_VIEWPORTS, DEFAULT_VIEWPORT } from './viewports.mjs';
 import { getAdapter } from './adapters/index.mjs';
 
+// Adapter resolution goes through a swappable reference so the long-running
+// capture server can hot-reload the registry (a freshly-added Vue twin's adapter)
+// without a restart. Defaults to the statically-imported registry; the server
+// calls setAdapterResolver() with a cache-busted re-import when adapters change.
+// Stays synchronous, so projectComparison() and its callers are unaffected.
+let adapterResolver = getAdapter;
+export function setAdapterResolver(fn) {
+  adapterResolver = typeof fn === 'function' ? fn : getAdapter;
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -126,13 +136,16 @@ export function getVariant(spec, variantName) {
   return variants.find((v) => v.name === variantName) ?? variants[0];
 }
 
-/** Projects shared data into per-platform fixtures (variant data, or spec.shared). */
+/** Projects shared data into per-platform fixtures (variant data, or spec.shared).
+ *  The web side is optional: iPhone-first comparisons have no Vue twin yet, so a
+ *  missing or null-returning `toClient` yields `client: null` rather than throwing
+ *  (keeps the comparison navigable + iPhone-capturable on its own). */
 export function projectComparison(spec, shared) {
-  const adapter = getAdapter(spec.adapter ?? spec.id);
+  const adapter = adapterResolver(spec.adapter ?? spec.id);
   const data = shared ?? spec.shared ?? {};
   return {
     iphone: adapter.toIphone(data),
-    client: adapter.toClient(data),
+    client: typeof adapter.toClient === 'function' ? (adapter.toClient(data) ?? null) : null,
   };
 }
 

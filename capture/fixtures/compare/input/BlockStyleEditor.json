@@ -1,0 +1,40 @@
+{
+  "id": "BlockStyleEditor",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Block Style Editor",
+  "adapter": "BlockStyleEditor",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Empty",
+      "shared": {
+        "blockTitle": "Background",
+        "selectedSize": "m"
+      }
+    },
+    {
+      "name": "WithImageAndColor",
+      "shared": {
+        "blockTitle": "Background",
+        "backgroundImageUrl": "https://picsum.photos/400/240",
+        "backgroundColor": "#6c47ff",
+        "backgroundOverlayOpacity": 0.8,
+        "selectedSize": "lg"
+      }
+    },
+    {
+      "name": "WithThemePicker",
+      "shared": {
+        "blockTitle": "Background",
+        "backgroundColor": "#005a55",
+        "backgroundOverlayOpacity": 0.6,
+        "selectedSize": "m",
+        "availableThemes": [
+          { "name": "Fade In", "description": "Gentle fade animation" },
+          { "name": "Typewriter", "description": "Reveals text character by character" }
+        ]
+      }
+    }
+  ]
+}

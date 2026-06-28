@@ -1,0 +1,23 @@
+{
+  "id": "InviteMenu",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Invite Menu",
+  "adapter": "InviteMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Default",
+      "shared": {
+        "menuId": "preview",
+        "items": [
+          { "icon": "IconChat", "title": "Send message" },
+          { "icon": "IconLink", "title": "Copy link" },
+          { "icon": "IconQR", "title": "QR Code" },
+          { "icon": "IconInvite", "title": "Invite members" },
+          { "icon": "IconUser", "title": "Invite contacts" }
+        ]
+      }
+    }
+  ]
+}

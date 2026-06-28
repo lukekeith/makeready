@@ -1,0 +1,26 @@
+{
+  "id": "MarkdownEditor",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Markdown Editor",
+  "adapter": "MarkdownEditor",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Empty",
+      "shared": {
+        "placeholder": "Write in markdown...",
+        "markdown": "",
+        "autoGrow": true
+      }
+    },
+    {
+      "name": "Filled",
+      "shared": {
+        "placeholder": "Write in markdown...",
+        "markdown": "# Hello World\n\nThis is **bold** and *italic* text.\n\n- First item\n- Second item\n\n> A blockquote",
+        "autoGrow": true
+      }
+    }
+  ]
+}

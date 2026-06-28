@@ -1,0 +1,35 @@
+{
+  "id": "CardContact",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Contact",
+  "adapter": "CardContact",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "AvatarWithInvite",
+      "shared": {
+        "variant": "invite",
+        "firstName": "Emily",
+        "lastName": "Davis",
+        "avatarUrl": "https://picsum.photos/72/72"
+      }
+    },
+    {
+      "name": "InitialsWithInvite",
+      "shared": {
+        "variant": "invite",
+        "firstName": "David",
+        "lastName": "Wilson"
+      }
+    },
+    {
+      "name": "NoInvite",
+      "shared": {
+        "firstName": "Jennifer",
+        "lastName": "Martinez",
+        "avatarUrl": "https://picsum.photos/74/74"
+      }
+    }
+  ]
+}

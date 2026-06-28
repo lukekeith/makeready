@@ -1,0 +1,65 @@
+{
+  "id": "GroupPostCard",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Group Post",
+  "adapter": "GroupPostCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Text",
+      "shared": {
+        "type": "announcement",
+        "authorName": "Tony Stark",
+        "imageUrl": "https://i.pravatar.cc/150?img=12",
+        "text": "Being confident of this, that He who began a good work in you will carry it on to completion.\" Even when your week feels unfinished or messy, remember — God's not done. The same faithfulness that got you started will see you through. Keep showing up, even when it's tough. You're growing more than you realize.",
+        "createdSecondsAgo": 900,
+        "count": 25,
+        "value": "1"
+      }
+    },
+    {
+      "name": "TextImage",
+      "shared": {
+        "type": "announcement",
+        "authorName": "Tony Stark",
+        "text": "Last night's burger hangout was exactly what we needed — good food, loud laughter, and real conversation that reminded us how much community matters. It's crazy how something as simple as fries and fellowship can recharge your week. Grateful for this group!",
+        "images": ["https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=600"],
+        "createdSecondsAgo": 50400,
+        "count": 20,
+        "value": "0"
+      }
+    },
+    {
+      "name": "Event",
+      "shared": {
+        "type": "event",
+        "authorName": "Tony Stark",
+        "imageUrl": "https://i.pravatar.cc/150?img=8",
+        "text": "We are throwing a birthday party for Tony on Monday. RSVP today so we make sure to have enough food.",
+        "images": ["https://images.unsplash.com/photo-1517457373958-b7bdd4587205?w=600"],
+        "createdSecondsAgo": 900,
+        "subtitle": "Tony Stark's birthday",
+        "day": 28,
+        "month": "OCT",
+        "dayNumber": 2025,
+        "time": "7:00",
+        "period": "pm",
+        "memberCount": 7
+      }
+    },
+    {
+      "name": "Welcome",
+      "shared": {
+        "type": "welcome",
+        "authorName": "MakeReady",
+        "text": "Young Professionals is beginning the Foundation study program! Your first lesson link will be texted to you on Monday, January 6 at 9:00 AM. Get ready for 30 days of growth together!",
+        "title": "Foundation starts Monday!",
+        "images": ["https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=600"],
+        "createdSecondsAgo": 1800,
+        "count": 15,
+        "value": "2"
+      }
+    }
+  ]
+}

@@ -28,6 +28,7 @@
   --color-pending:     #201b48; // iOS backgroundPurple (pending / new state)
   --color-accent:      #5680ff; // iOS accentBlue (links, highlights)
   --color-destructive: #df1439; // iOS destructive (confirm-destroy)
+  --color-icon-container: rgba(72, 84, 112, 0.5); // iOS iconContainerBackground (#485470 @ 50%)
 
   // iOS semantic hues — brighter than the web ramps, tuned for dark surfaces.
   --color-ios-warning: #f4ff76; // iOS warning
@@ -48,6 +49,7 @@
   --bg-pending:         var(--color-pending);   // new (pending/new card wells)
   --bg-subtle:          var(--color-white-5);
   --bg-subtle-2:        var(--color-white-10);
+  --bg-icon-container:  var(--color-icon-container); // iconography fallback wells (iOS iconContainerBackground)
   --bg-disabled:        var(--color-white-10);
   --bg-brand-primary:   var(--color-brand-500);
   --bg-brand-secondary: var(--color-brand-700);

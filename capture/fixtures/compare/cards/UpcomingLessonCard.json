@@ -1,0 +1,35 @@
+{
+  "id": "UpcomingLessonCard",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Upcoming Lesson",
+  "adapter": "UpcomingLessonCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "WithCover",
+      "shared": {
+        "programName": "Foundation",
+        "dayNumber": 5,
+        "date": "2026-06-27T00:00:00Z",
+        "coverUrl": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=600",
+        "activities": [
+          { "icon": "book.fill", "type": "SCRIPTURE", "title": "Genesis 1:1-5", "isConfigured": true },
+          { "icon": "play.fill", "type": "VIDEO", "title": "Video", "isConfigured": true },
+          { "icon": "hands.sparkles.fill", "type": "PRAYER", "title": "Pray for wisdom", "isConfigured": true }
+        ]
+      }
+    },
+    {
+      "name": "NoCover",
+      "shared": {
+        "programName": "Romans Deep Dive Study",
+        "dayNumber": 12,
+        "date": "2026-07-02T00:00:00Z",
+        "activities": [
+          { "icon": "pencil", "type": "SOAP", "title": "Romans 8:28", "isConfigured": true }
+        ]
+      }
+    }
+  ]
+}

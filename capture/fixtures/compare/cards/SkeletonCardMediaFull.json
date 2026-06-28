@@ -1,0 +1,11 @@
+{
+  "id": "SkeletonCardMediaFull",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Skeleton Media Full",
+  "adapter": "SkeletonCardMediaFull",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    { "name": "default", "shared": {} }
+  ]
+}

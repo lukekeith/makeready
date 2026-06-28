@@ -1,0 +1,41 @@
+{
+  "id": "CardStudySelectable",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Study Selectable",
+  "adapter": "CardStudySelectable",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Unselected",
+      "shared": {
+        "title": "Romans Deep Dive",
+        "description": "A 30-day journey through the book of Romans",
+        "count": 30,
+        "imageUrl": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=144&h=216&fit=crop",
+        "selected": false,
+        "isPublished": true
+      }
+    },
+    {
+      "name": "Selected",
+      "shared": {
+        "title": "Gospel of John",
+        "description": "Explore the life of Jesus through John's eyes",
+        "count": 21,
+        "selected": true,
+        "isPublished": true
+      }
+    },
+    {
+      "name": "Draft",
+      "shared": {
+        "title": "Psalms for Today",
+        "description": "Daily reflections on the Psalms",
+        "count": 14,
+        "selected": false,
+        "isPublished": false
+      }
+    }
+  ]
+}

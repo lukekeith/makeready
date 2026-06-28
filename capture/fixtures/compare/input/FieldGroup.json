@@ -1,0 +1,23 @@
+{
+  "id": "FieldGroup",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Field Group",
+  "adapter": "FieldGroup",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "WithDividers",
+      "shared": {
+        "fieldRows": ["Item 1", "Item 2", "Item 3"]
+      }
+    },
+    {
+      "name": "WithDescription",
+      "shared": {
+        "fieldRows": ["Setting"],
+        "description": "This is a description explaining the setting above."
+      }
+    }
+  ]
+}

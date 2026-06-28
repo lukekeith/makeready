@@ -100,6 +100,37 @@ export async function fetchVersion(id, versionId) {
   return res.json();
 }
 
+// ── Variants (the version system replacement) ──
+
+/** A comparison's variants + per-platform render counts (for the left nav). */
+export async function fetchVariants(id, viewport) {
+  const q = viewport ? `?viewport=${encodeURIComponent(viewport)}` : '';
+  const res = await fetch(`/api/compare/comparison/${id}/variants${q}`);
+  if (!res.ok) throw new Error(`variants fetch failed: ${res.status}`);
+  return res.json();
+}
+
+/** A complete prompt to build the web (Vue) twin of an unbuilt component. */
+export async function fetchBuildPrompt(id) {
+  const res = await fetch(`/api/compare/comparison/${id}/build-prompt`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `build-prompt failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** The variant-locked view: latest iPhone shot + live web + comments + rating. */
+export async function fetchVariant(id, variant, viewport) {
+  const q = viewport ? `?viewport=${encodeURIComponent(viewport)}` : '';
+  const res = await fetch(`/api/compare/comparison/${id}/variant/${encodeURIComponent(variant)}${q}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `variant fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 // ── Comments (Figma-style pins) ──
 
 export async function fetchComments(id) {
@@ -108,11 +139,11 @@ export async function fetchComments(id) {
   return res.json();
 }
 
-export async function addComment(id, { platform, viewport, x, y, text, source = 'user' }) {
+export async function addComment(id, { variantName, platform, viewport, x, y, text, screenshotId, source = 'user', targetSelector, targetLabel, targetMeta }) {
   const res = await fetch(`/api/compare/comparison/${id}/comments`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ platform, viewport, x, y, text, source }),
+    body: JSON.stringify({ variantName, platform, viewport, x, y, text, screenshotId, source, targetSelector, targetLabel, targetMeta }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -161,6 +192,19 @@ export async function startCompareCapture({ id, viewport, platform, variant }) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id, viewport, platform, variant }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `capture start failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function startCompareBatchCapture({ ids, viewport = 'pro-max' }) {
+  const res = await fetch('/api/compare/capture-batch', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids, viewport }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

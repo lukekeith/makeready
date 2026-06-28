@@ -1,0 +1,23 @@
+{
+  "id": "VideoPreview",
+  "type": "component",
+  "group": "Video",
+  "title": "Video · Video Preview",
+  "adapter": "VideoPreview",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Empty",
+      "shared": {
+        "selectedAsset": null,
+        "recordedVideoURL": null
+      }
+    },
+    {
+      "name": "WithThumbnail",
+      "shared": {
+        "thumbnailUrl": "https://picsum.photos/330/440"
+      }
+    }
+  ]
+}

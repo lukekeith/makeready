@@ -1,0 +1,23 @@
+{
+  "id": "AddActivityMenu",
+  "type": "component",
+  "group": "Navigation",
+  "title": "Navigation · Add Activity Menu",
+  "adapter": "AddActivityMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "AllActivityTypes",
+      "shared": {
+        "existingActivityTypes": [],
+        "activityTypes": [
+          { "id": "READ", "title": "Read" },
+          { "id": "USER_INPUT", "title": "Write" },
+          { "id": "VIDEO", "title": "Video" },
+          { "id": "YOUTUBE", "title": "YouTube" },
+          { "id": "EXEGESIS", "title": "Exegesis" }
+        ]
+      }
+    }
+  ]
+}

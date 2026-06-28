@@ -1,0 +1,24 @@
+{
+  "id": "Alert",
+  "type": "component",
+  "group": "Display",
+  "title": "Display · Alert",
+  "adapter": "Alert",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Warning",
+      "shared": {
+        "message": "Enrollment cannot take place on a day that already has a study activity assigned. All scheduled items must be removed before you can enroll on this date.",
+        "variant": "warning"
+      }
+    },
+    {
+      "name": "Critical",
+      "shared": {
+        "message": "This is a critical error that requires immediate action. Please address this issue before proceeding.",
+        "variant": "critical"
+      }
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "id": "CardActivity",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Activity Log",
+  "adapter": "CardActivity",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "AuthSuccess",
+      "shared": {
+        "category": "AUTH",
+        "status": "SUCCESS",
+        "text": "User logged in via Google OAuth",
+        "createdAt": "2026-01-30T11:58:00Z"
+      }
+    },
+    {
+      "name": "JoinSuccess",
+      "shared": {
+        "category": "JOIN",
+        "status": "SUCCESS",
+        "text": "John Doe requested to join Young Professionals",
+        "createdAt": "2026-01-30T10:00:00Z"
+      }
+    },
+    {
+      "name": "AccessWarning",
+      "shared": {
+        "category": "ACCESS",
+        "status": "WARNING",
+        "text": "Failed to access lesson - enrollment expired",
+        "createdAt": "2026-01-29T12:00:00Z"
+      }
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "SkeletonEnrollmentCard",
+  "type": "component",
+  "group": "Domain",
+  "title": "Domain · Skeleton Enrollment Card",
+  "adapter": "SkeletonEnrollmentCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "programName": "Romans",
+        "programImageUrl": null,
+        "programDays": 30
+      }
+    }
+  ]
+}

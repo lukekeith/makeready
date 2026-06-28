@@ -1,0 +1,17 @@
+{
+  "id": "SkeletonPostCard",
+  "type": "component",
+  "group": "Group",
+  "title": "Group · Skeleton Post Card",
+  "adapter": "SkeletonPostCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "programName": "Romans",
+        "programImageUrl": null
+      }
+    }
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "id": "EnrollmentCard",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Enrollment",
+  "adapter": "EnrollmentCard",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "ActiveWithCover",
+      "shared": {
+        "title": "Foundation",
+        "days": 30,
+        "coverUrl": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=200",
+        "startDate": "2026-06-01T00:00:00Z",
+        "endDate": "2026-07-01T00:00:00Z",
+        "isCompleted": false
+      }
+    },
+    {
+      "name": "CompletedNoCover",
+      "shared": {
+        "title": "Advanced Leadership",
+        "days": 21,
+        "startDate": "2026-04-01T00:00:00Z",
+        "endDate": "2026-05-01T00:00:00Z",
+        "isCompleted": true
+      }
+    }
+  ]
+}

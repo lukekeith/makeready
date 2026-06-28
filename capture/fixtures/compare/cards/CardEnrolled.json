@@ -1,0 +1,43 @@
+{
+  "id": "CardEnrolled",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Enrolled",
+  "adapter": "CardEnrolled",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "BothImages",
+      "shared": {
+        "studyTitle": "Romans in 30 Days",
+        "groupName": "Young Professionals",
+        "startDate": "2026-01-01T00:00:00Z",
+        "endDate": "2026-01-31T00:00:00Z",
+        "lessonsLeft": 30,
+        "studyImageURL": "https://images.unsplash.com/photo-1506869640319-fe1a24fd76dc?w=144&h=216&fit=crop",
+        "groupImageURL": "https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=144&h=216&fit=crop"
+      }
+    },
+    {
+      "name": "NoImages",
+      "shared": {
+        "studyTitle": "Psalms Deep Dive",
+        "groupName": "Bible Study",
+        "startDate": "2026-01-01T00:00:00Z",
+        "endDate": "2026-01-31T00:00:00Z",
+        "lessonsLeft": 16
+      }
+    },
+    {
+      "name": "StudyImageOnly",
+      "shared": {
+        "studyTitle": "Ephesians Study",
+        "groupName": "Men's Group",
+        "startDate": "2026-01-08T00:00:00Z",
+        "endDate": "2026-02-07T00:00:00Z",
+        "lessonsLeft": 30,
+        "studyImageURL": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=144&h=216&fit=crop"
+      }
+    }
+  ]
+}

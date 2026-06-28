@@ -1,0 +1,59 @@
+{
+  "id": "MenuInput",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Menu Input",
+  "adapter": "MenuInput",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Menu",
+      "shared": {
+        "label": "Max members",
+        "options": ["Unlimited", "10", "25", "50", "100"],
+        "selectedOption": "Unlimited",
+        "style": "menu"
+      }
+    },
+    {
+      "name": "MenuWithDescriptions",
+      "shared": {
+        "label": "Visibility",
+        "optionsWithDescriptions": [
+          { "value": "Public", "description": "Anyone can find and join this program" },
+          { "value": "Private", "description": "Only invited members can access" },
+          { "value": "Hidden", "description": "Completely invisible to others" }
+        ],
+        "selectedOption": "Public",
+        "style": "menu"
+      }
+    },
+    {
+      "name": "Wheel",
+      "shared": {
+        "label": "Days",
+        "options": ["1", "2", "3", "4", "5", "6", "7"],
+        "selectedOption": "7",
+        "style": "wheel"
+      }
+    },
+    {
+      "name": "Inline",
+      "shared": {
+        "label": "Group",
+        "options": ["Young Professionals", "Bible Study", "Worship Team"],
+        "selectedOption": "Bible Study",
+        "style": "inline"
+      }
+    },
+    {
+      "name": "Segmented",
+      "shared": {
+        "label": "Visibility",
+        "options": ["Public", "Private", "Hidden"],
+        "selectedOption": "Public",
+        "style": "segmented"
+      }
+    }
+  ]
+}

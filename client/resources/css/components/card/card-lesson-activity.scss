@@ -1,0 +1,217 @@
+// CardLessonActivity — unified lesson-activity card (iOS CardLessonActivity).
+// Two sizes:
+//   default : full-width row, ~104px tall, 72px image/icon on the RIGHT, text on
+//             the left. Three text modes — study (title over description), video
+//             (description over title), and new (type label over a brand action
+//             line). New activities get a surface well + a 2px brand border.
+//   small   : compact row, 40px image on the LEFT, title + description, with an
+//             optional "N min" estimate on the right.
+//
+// Class names mirror the BEM structure consumed by card-lesson-activity.vue.
+// Fixed image sizes (72/40px), icon sizes, and the 104px min-height come from
+// the iOS layout spec and are intrinsic structural sizes — raw px is allowed
+// here per the design-system exception. The activity-type accent colors mirror
+// ActivityStyle.swift (the single source of truth); no design-system token maps
+// to those per-type accents, so they live here as scoped custom properties.
+.CardLessonActivity {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: filter var(--motion-micro) var(--ease-standard);
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+  &:active {
+    filter: brightness(0.97);
+  }
+
+  // New / unconfigured: surface well + a 2px brand border (the iOS animated
+  // gradient border, rendered here as a static brand stroke). Inset box-shadow
+  // keeps the border inside the bounds without shifting layout.
+  &--new {
+    box-shadow: inset 0 0 0 2px var(--color-brand-500);
+  }
+
+  // ─── Default size ────────────────────────────────────────────────────────────
+  &--size-default {
+    gap: var(--space-lg);
+    padding: var(--space-lg);
+    min-height: 104px;
+  }
+
+  // ─── Small size ──────────────────────────────────────────────────────────────
+  &--size-small {
+    gap: var(--space-md);
+    padding: var(--space-sm) var(--space-md);
+  }
+
+  // ─── Text column ─────────────────────────────────────────────────────────────
+  &__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  &__title {
+    margin: 0;
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__desc {
+    margin: 0;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  // Video mode: description sits above the title with a small gap.
+  &__desc--lead {
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
+    white-space: nowrap;
+  }
+  &__title--video {
+    margin-top: var(--space-xs);
+  }
+
+  // New mode: type label over a brand-colored action line.
+  &__typeLabel {
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-white);
+  }
+  &__action {
+    margin: var(--space-xs) 0 0;
+    font-size: var(--text-md);
+    line-height: var(--leading-md);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand-500);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  // ─── Right media block (default size) ────────────────────────────────────────
+  &__media {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs);
+  }
+
+  &__estimate {
+    font-size: var(--text-sm);
+    color: var(--fg-tertiary);
+    white-space: nowrap;
+  }
+
+  // ─── Image / icon box (72×72 default) ────────────────────────────────────────
+  &__image {
+    position: relative;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-md);
+
+    svg {
+      width: 24px;
+      height: 24px;
+      display: block;
+    }
+  }
+
+  &__photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: inherit;
+  }
+
+  &__play {
+    position: absolute;
+    left: 50%;
+    bottom: var(--space-lg);
+    transform: translateX(-50%);
+    width: 24px;
+    height: 24px;
+    color: var(--fg-white);
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  // Icon box (study / new). Per-type accent mirrors ActivityStyle.swift.
+  &__image--box {
+    &.CardLessonActivity__image--type-read      { --activity-accent: var(--color-brand-500); }
+    &.CardLessonActivity__image--type-userInput { --activity-accent: #3b82f6; }
+    &.CardLessonActivity__image--type-exegesis  { --activity-accent: #f59e0b; }
+    &.CardLessonActivity__image--type-video     { --activity-accent: #fff; }
+
+    // Confirmed: filled accent box with a white glyph.
+    &.CardLessonActivity__image--confirmed {
+      background: var(--activity-accent);
+      color: var(--fg-white);
+    }
+    // New: transparent box, accent border + accent glyph.
+    &.CardLessonActivity__image--new {
+      background: transparent;
+      border: 1.5px solid var(--activity-accent);
+      color: var(--activity-accent);
+    }
+  }
+
+  // ─── Small-size overrides ────────────────────────────────────────────────────
+  &--size-small {
+    .CardLessonActivity__image {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius-sm);
+    }
+    .CardLessonActivity__box svg {
+      width: 16px;
+      height: 16px;
+    }
+    .CardLessonActivity__title {
+      font-size: var(--text-md);
+      line-height: var(--leading-md);
+      font-weight: var(--font-weight-semibold);
+    }
+    .CardLessonActivity__desc {
+      -webkit-line-clamp: 1;
+      line-clamp: 1;
+      white-space: nowrap;
+      color: var(--fg-tertiary);
+    }
+  }
+}

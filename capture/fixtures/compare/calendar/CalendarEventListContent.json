@@ -1,0 +1,48 @@
+{
+  "id": "CalendarEventListContent",
+  "type": "component",
+  "group": "Calendar",
+  "title": "Calendar · Event List",
+  "adapter": "CalendarEventListContent",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Lessons",
+      "shared": {
+        "selectedDate": "2026-01-30",
+        "events": [
+          {
+            "id": "1",
+            "title": "Romans Study",
+            "subtitle": "Romans Study",
+            "color": "#6c47ff",
+            "dayNumber": 3,
+            "coverImageUrl": "https://images.unsplash.com/photo-1504052434569-70ad5836ab65?w=800&h=400&fit=crop",
+            "activityIcons": [
+              { "icon": "book.fill", "label": "Read" },
+              { "icon": "play.fill", "label": "Watch" },
+              { "icon": "hands.sparkles.fill", "label": "Pray" }
+            ]
+          },
+          {
+            "id": "2",
+            "title": "Genesis Study",
+            "subtitle": "Genesis Study",
+            "color": "#6c47ff",
+            "dayNumber": 7,
+            "activityIcons": [
+              { "icon": "book.fill", "label": "Read" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "Empty",
+      "shared": {
+        "selectedDate": "2026-01-30",
+        "events": []
+      }
+    }
+  ]
+}

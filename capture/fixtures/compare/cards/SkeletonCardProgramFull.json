@@ -1,0 +1,11 @@
+{
+  "id": "SkeletonCardProgramFull",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Skeleton Program Full",
+  "adapter": "SkeletonCardProgramFull",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    { "name": "default", "shared": {} }
+  ]
+}

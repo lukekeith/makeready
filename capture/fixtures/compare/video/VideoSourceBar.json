@@ -1,0 +1,34 @@
+{
+  "id": "VideoSourceBar",
+  "type": "component",
+  "group": "Video",
+  "title": "Video · Video Source Bar",
+  "adapter": "VideoSourceBar",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Videos",
+      "shared": {
+        "currentSource": "videos"
+      }
+    },
+    {
+      "name": "Favorites",
+      "shared": {
+        "currentSource": "favorites"
+      }
+    },
+    {
+      "name": "MakeReady",
+      "shared": {
+        "currentSource": "makeReady"
+      }
+    },
+    {
+      "name": "AllAlbums",
+      "shared": {
+        "currentSource": "allAlbums"
+      }
+    }
+  ]
+}

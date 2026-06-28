@@ -28,15 +28,27 @@ re-records all fixtures per run (env scoping limitation).
 ## Components
 
 ### Cards
-- [x] **card-study** ↔ `CardStudy` — DONE (reference comparison)
-- [x] **card-group** ↔ `GroupCard` — Row / RowSelected / Mini / MiniSelected
-- [ ] **card-member** ↔ `MemberListItem` (4 variants: contact / member / member+invite / multi-group)
-- [ ] **card-event** ↔ `CardEvent` / `CardEventMini`
-- [ ] **card-enrollment** ↔ `UpcomingLessonCard` / `CardProgramFull`
-- [ ] **card-post** ↔ post card (group wall) / `SkeletonPostCard`
-- [ ] **card-video** ↔ iPhone video card
-- [ ] **card-search-result** ↔ `CardSearchResult`
-- [ ] **swipeable-card** ↔ `SwipeableCard` / `SwipeableGroupCard`
+
+All iPhone card components are now wired as **iPhone-first** comparisons (variants
+derived from each Swift `#Preview`; Vue twin to follow). Web side is intentionally
+absent — navigable iPhone-only in `/compare`.
+
+- [x] **card-study** ↔ `CardStudy` — Row / Pending (web DONE)
+- [x] **card-group** ↔ `GroupCard` — Row / RowSelected / Mini / MiniSelected (web DONE)
+- [x] **CardStudyMini** ↔ `CardStudyMini` — Photo / Pending (iPhone)
+- [x] **CardStudySelectable** ↔ `CardStudySelectable` — Unselected / Selected / Draft (iPhone)
+- [x] **CardVideo** / **CardVideoMini** ↔ video cards (iPhone)
+- [x] **CardEvent** / **CardEventMini** ↔ event cards — Date/Time display (iPhone)
+- [x] **CardMember** / **CardContact** ↔ member/contact cards (iPhone)
+- [x] **CardActivity** / **CardActivityType** ↔ activity log + type picker (iPhone)
+- [x] **CardLesson** ↔ lesson card — 10 variants across planning/lesson/progress/lessonList (iPhone)
+- [x] **CardLessonActivity** ↔ activity box — 8 variants (iPhone)
+- [x] **ScheduledLessonCard** / **UpcomingLessonCard** ↔ scheduled lesson cards (iPhone)
+- [x] **CardEnrolled** / **EnrollmentCard** / **CardProgramFull** ↔ enrollment/program cards (iPhone)
+- [x] **CardMediaFull** ↔ media library card (iPhone)
+- [x] **CardSearchResult** / **CardBibleSearchResult** ↔ search result cards (iPhone)
+- [x] **GroupPostCard** ↔ group wall post card — Text / TextImage / Event / Welcome (iPhone)
+- [ ] **swipeable-card** ↔ `SwipeableCard` / `SwipeableGroupCard` (wrapper — deferred)
 
 ### Forms
 - [ ] **text-input** ↔ `TextInput` (types: email/phone/number/url/password)

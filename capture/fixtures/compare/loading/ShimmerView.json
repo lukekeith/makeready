@@ -1,0 +1,29 @@
+{
+  "id": "ShimmerView",
+  "type": "component",
+  "group": "Loading",
+  "title": "Loading · Shimmer View",
+  "adapter": "ShimmerView",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Block",
+      "shared": {
+        "shape": "block",
+        "width": 320,
+        "height": 100,
+        "cornerRadius": 8
+      }
+    },
+    {
+      "name": "TextPlaceholders",
+      "shared": {
+        "shape": "textRows",
+        "rows": [
+          { "width": 120, "height": 20, "cornerRadius": 4 },
+          { "width": 60, "height": 20, "cornerRadius": 4 }
+        ]
+      }
+    }
+  ]
+}

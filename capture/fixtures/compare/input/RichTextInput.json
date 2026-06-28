@@ -1,0 +1,26 @@
+{
+  "id": "RichTextInput",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Rich Text Input",
+  "adapter": "RichTextInput",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Empty",
+      "shared": {
+        "placeholder": "Enter formatted text...",
+        "html": "",
+        "outputFormat": "html"
+      }
+    },
+    {
+      "name": "Filled",
+      "shared": {
+        "placeholder": "Enter formatted text...",
+        "html": "<h1>Hello World</h1><p>This is <b>bold</b> and <i>italic</i> text.</p>",
+        "outputFormat": "html"
+      }
+    }
+  ]
+}

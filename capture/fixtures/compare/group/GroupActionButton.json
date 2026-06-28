@@ -1,0 +1,38 @@
+{
+  "id": "GroupActionButton",
+  "type": "component",
+  "group": "Group",
+  "title": "Group · Action Button",
+  "adapter": "GroupActionButton",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "Video",
+      "shared": {
+        "label": "Video",
+        "icon": "video.fill"
+      }
+    },
+    {
+      "name": "Message",
+      "shared": {
+        "label": "Message",
+        "icon": "message.fill"
+      }
+    },
+    {
+      "name": "Meeting",
+      "shared": {
+        "label": "Meeting",
+        "icon": "person.2.fill"
+      }
+    },
+    {
+      "name": "Gallery",
+      "shared": {
+        "label": "Gallery",
+        "icon": "photo.fill"
+      }
+    }
+  ]
+}

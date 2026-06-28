@@ -1,0 +1,26 @@
+{
+  "id": "CardEventMini",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Event Mini",
+  "adapter": "CardEventMini",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "DateDisplay",
+      "shared": {
+        "title": "Event title",
+        "imageStyle": { "kind": "dateDisplay", "day": 20, "month": "FEB" },
+        "metadata": [{ "icon": "clock", "value": "7:00 PM" }]
+      }
+    },
+    {
+      "name": "DateDisplayAlt",
+      "shared": {
+        "title": "Event title",
+        "imageStyle": { "kind": "dateDisplay", "day": 5, "month": "MAR" },
+        "metadata": [{ "icon": "clock", "value": "6:00 PM" }]
+      }
+    }
+  ]
+}

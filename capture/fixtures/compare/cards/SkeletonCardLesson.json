@@ -1,0 +1,11 @@
+{
+  "id": "SkeletonCardLesson",
+  "type": "component",
+  "group": "Cards",
+  "title": "Card · Skeleton Lesson",
+  "adapter": "SkeletonCardLesson",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    { "name": "default", "shared": {} }
+  ]
+}

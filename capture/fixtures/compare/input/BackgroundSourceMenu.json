@@ -1,0 +1,14 @@
+{
+  "id": "BackgroundSourceMenu",
+  "type": "component",
+  "group": "Input",
+  "title": "Input · Background Source Menu",
+  "adapter": "BackgroundSourceMenu",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {}
+    }
+  ]
+}

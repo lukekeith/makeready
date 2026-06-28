@@ -1,0 +1,52 @@
+{
+  "id": "DonutChart",
+  "type": "component",
+  "group": "Chart",
+  "title": "Chart · Donut Chart",
+  "adapter": "DonutChart",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "BudgetWithCenterLabel",
+      "shared": {
+        "innerRadiusRatio": 0.6,
+        "showCenterLabel": true,
+        "centerLabelText": "$12.5k",
+        "centerLabelSubtext": "Budget",
+        "dataPoints": [
+          { "label": "Marketing", "value": 4500, "color": "#6c47ff" },
+          { "label": "Development", "value": 3500, "color": "#47d4ff" },
+          { "label": "Design", "value": 2000, "color": "#ff6b9d" },
+          { "label": "Operations", "value": 1500, "color": "#ffd93d" },
+          { "label": "Other", "value": 1000, "color": "rgba(255,255,255,0.3)" }
+        ]
+      }
+    },
+    {
+      "name": "TasksDefaultTotal",
+      "shared": {
+        "innerRadiusRatio": 0.65,
+        "showCenterLabel": true,
+        "centerLabelSubtext": "Tasks",
+        "dataPoints": [
+          { "label": "Completed", "value": 145, "color": "#4ade80" },
+          { "label": "In Progress", "value": 32, "color": "#6c47ff" },
+          { "label": "Pending", "value": 18, "color": "rgba(255,255,255,0.3)" }
+        ]
+      }
+    },
+    {
+      "name": "PieNoCenterLabel",
+      "shared": {
+        "innerRadiusRatio": 0.0,
+        "showCenterLabel": false,
+        "dataPoints": [
+          { "label": "Developers", "value": 8, "color": "#6c47ff" },
+          { "label": "Designers", "value": 3, "color": "#ff6b9d" },
+          { "label": "Managers", "value": 2, "color": "#47d4ff" },
+          { "label": "QA", "value": 2, "color": "#ffd93d" }
+        ]
+      }
+    }
+  ]
+}

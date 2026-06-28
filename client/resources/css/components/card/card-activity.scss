@@ -1,25 +1,34 @@
-// CardActivity — feed item: leading icon circle + activity text + timestamp.
-// Non-interactive line in an activity feed. iOS activity-feed parity.
+// CardActivity — single activity-log entry (iOS CardActivity.swift parity).
+// 40×40 category-tinted icon tile + message (2-line clamp) + meta row
+// (status dot · capitalized category · relative time).
+//
+// Per-instance accent comes in as --ca-cat (category) / --ca-status (status),
+// set inline by the component. Raw px below are intrinsic iOS sizes with no
+// design-system token: the 6px status dot, the 15px message + 12px meta font
+// sizes, and the 0.4 category-label opacity (no --color-white-40 token).
 .CardActivity {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-md);
-  padding: var(--space-md) 0;
+  align-items: center; // iOS HStack default vertical centering
+  gap: var(--space-md); // iOS HStack spacing 12
+  padding: var(--space-md); // iOS .padding(12)
+  background: var(--color-white-5); // iOS Color.white.opacity(0.05)
+  border-radius: var(--radius-sm); // iOS cornerRadius 4
 
   &__icon {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: var(--avatar-sm);
-    height: var(--avatar-sm);
-    border-radius: var(--radius-full);
-    background: var(--color-white-10);
-    color: var(--fg-secondary);
+    width: var(--control-h-md); // 40 (iOS .frame 40×40)
+    height: var(--control-h-md);
+    border-radius: var(--radius-md); // iOS cornerRadius 8
+    background: color-mix(in srgb, var(--ca-cat) 15%, transparent); // iOS categoryColor.opacity(0.15)
+    color: var(--ca-cat); // iOS categoryColor
 
     svg {
-      width: var(--icon-sm);
-      height: var(--icon-sm);
+      width: var(--icon-xs); // 16 (iOS Typography.s16)
+      height: var(--icon-xs);
+      display: block;
     }
   }
 
@@ -28,26 +37,51 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-2xs);
+    gap: var(--space-xs); // iOS VStack spacing 4
   }
 
   &__text {
     margin: 0;
-    font-size: var(--text-sm);
-    line-height: var(--leading-sm);
-    color: var(--fg-secondary);
-
-    // Rich slot content: emphasize names/targets without extra markup classes.
-    strong,
-    b {
-      font-weight: var(--font-weight-semibold);
-      color: var(--fg-primary);
-    }
+    font-size: 15px; // iOS Typography.s15 (no token)
+    line-height: var(--leading-md);
+    color: var(--fg-primary); // iOS .white
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
-  &__timestamp {
-    font-size: var(--text-xs);
-    line-height: var(--leading-xs);
-    color: var(--fg-tertiary);
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // iOS HStack spacing 8
+    min-width: 0;
+  }
+
+  &__dot {
+    flex: 0 0 auto;
+    width: 6px; // iOS Circle 6×6 (no token)
+    height: 6px;
+    border-radius: var(--radius-full);
+    background: var(--ca-status); // iOS statusColor
+  }
+
+  &__category {
+    font-size: 12px; // iOS Typography.s12Medium (no token)
+    font-weight: var(--font-weight-medium);
+    color: rgba(255, 255, 255, 0.4); // iOS .white.opacity(0.4) — no token
+    white-space: nowrap;
+  }
+
+  &__sep {
+    color: var(--color-white-30); // iOS .white.opacity(0.3)
+    line-height: 1;
+  }
+
+  &__time {
+    font-size: 12px; // iOS Typography.s12 (no token)
+    color: var(--color-white-30); // iOS .white.opacity(0.3)
+    white-space: nowrap;
   }
 }

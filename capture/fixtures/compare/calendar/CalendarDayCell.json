@@ -1,0 +1,50 @@
+{
+  "id": "CalendarDayCell",
+  "type": "component",
+  "group": "Calendar",
+  "title": "Calendar · Day Cell",
+  "adapter": "CalendarDayCell",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "WithEvents",
+      "shared": {
+        "dayNumber": 15,
+        "isCurrentMonth": true,
+        "isToday": false,
+        "isSelected": false,
+        "eventColors": ["#6C47FF", "#5680ff"]
+      }
+    },
+    {
+      "name": "Today",
+      "shared": {
+        "dayNumber": 15,
+        "isCurrentMonth": true,
+        "isToday": true,
+        "isSelected": false,
+        "eventColors": ["#6C47FF"]
+      }
+    },
+    {
+      "name": "Selected",
+      "shared": {
+        "dayNumber": 22,
+        "isCurrentMonth": true,
+        "isToday": false,
+        "isSelected": true,
+        "eventColors": ["#6C47FF", "#5680ff", "#ff4444"]
+      }
+    },
+    {
+      "name": "OutsideMonth",
+      "shared": {
+        "dayNumber": 3,
+        "isCurrentMonth": false,
+        "isToday": false,
+        "isSelected": false,
+        "eventColors": []
+      }
+    }
+  ]
+}

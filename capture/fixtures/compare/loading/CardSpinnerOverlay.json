@@ -1,0 +1,14 @@
+{
+  "id": "CardSpinnerOverlay",
+  "type": "component",
+  "group": "Loading",
+  "title": "Loading · Card Spinner Overlay",
+  "adapter": "CardSpinnerOverlay",
+  "viewports": ["pro-max", "se"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {}
+    }
+  ]
+}
