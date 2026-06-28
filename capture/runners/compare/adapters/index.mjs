@@ -79,6 +79,7 @@ import backgroundSwatch from './BackgroundSwatch.mjs';
 import coverImagePicker from './CoverImagePicker.mjs';
 import datePickerField from './DatePickerField.mjs';
 import fieldGroup from './FieldGroup.mjs';
+import inlineFontSizePicker from './InlineFontSizePicker.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -155,6 +156,7 @@ export const adapters = {
   CoverImagePicker: coverImagePicker,
   DatePickerField: datePickerField,
   FieldGroup: fieldGroup,
+  InlineFontSizePicker: inlineFontSizePicker,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
@@ -171,7 +173,7 @@ const IPHONE_FIRST_COMPONENTS = [
   'CoverImagePicker', 'DatePickerField', 'DialogOverlay',
   'ErrorBanner', 'ExegesisVerseView', 'FieldGroup', 'FilterChipDropdown',
   'FullScreenImageViewer', 'GroupActionButton', 'GroupSelectorSheet', 'HamburgerMenu',
-  'InfoPanel', 'InlineFontSizePicker',
+  'InfoPanel',
   'InviteMenu', 'InviteQRCodeView', 'Kpi', 'LargeTextInput',
   'LessonActionMenu', 'LineChart', 'MarkdownEditor', 'MemberListItem',
   'MenuInput', 'MultilineTextInput', 'NavBar', 'PageHeader',

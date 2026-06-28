@@ -72,6 +72,7 @@ import BlockStyleEditor from '../../card/block-style-editor/block-style-editor.v
 import CoverImagePicker from '../../card/cover-image-picker/cover-image-picker.vue'
 import DatePickerField from '../../card/date-picker-field/date-picker-field.vue'
 import FieldGroup from '../../card/field-group/field-group.vue'
+import InlineFontSizePicker from '../../card/inline-font-size-picker/inline-font-size-picker.vue'
 
 const props = defineProps<{
   component: string
@@ -243,6 +244,12 @@ const registry: Record<string, unknown> = {
   // trailing white@70% description row. Rows render s17 white with 16px padding;
   // the description renders s13 with 16/12 padding.
   FieldGroup,
+  // iOS InlineFontSizePicker (Components/Input/InlineFontSizePicker.swift) — a
+  // horizontal row of 5 "Aa" tiles (xs/s/m/lg/xl), spacing 4. Each tile fills the
+  // width equally, is 60pt tall, white@5% bg + 4px radius, "Aa" semibold white at
+  // a per-key point size (13/16/19/23/27); the selected key's tile gets a 2px
+  // white border.
+  InlineFontSizePicker,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

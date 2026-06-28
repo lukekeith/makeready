@@ -1,0 +1,47 @@
+// InlineFontSizePicker — twin of iOS Components/Input/InlineFontSizePicker.swift.
+//
+// Structure (outer → inner):
+//   .InlineFontSizePicker        → HStack(spacing: 4). flex row, gap 4, full-width
+//                                  (fills the .capture-wrap clip box, matching the
+//                                  iPhone HStack of maxWidth:.infinity tiles).
+//   .InlineFontSizePicker__tile  → a font-size tile. iOS frame(maxWidth:.infinity)
+//                                  + frame(height: 60) + Color.white.opacity(0.05)
+//                                  + cornerRadius 4. The 2px white selected border
+//                                  is reserved as transparent so unselected tiles
+//                                  don't shift.
+//   .InlineFontSizePicker__glyph → "Aa", .system(size:, weight:.semibold), white.
+//                                  Size set inline per key.
+//
+// The 60px tile height and 4px radius come straight from the iOS layout spec and
+// have no design-system token (raw px allowed per the intrinsic-size exception);
+// everything else is tokenized.
+.InlineFontSizePicker {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+
+  &__tile {
+    flex: 1 1 0;
+    height: 60px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    // iOS Color.white.opacity(0.05).
+    background: var(--color-white-5);
+    // Reserve the 2px selected border so unselected tiles don't shift.
+    border: 2px solid transparent;
+    box-sizing: border-box;
+
+    &--selected {
+      border-color: var(--color-white-100);
+    }
+  }
+
+  &__glyph {
+    // iOS "Aa", .system(size:, weight: .semibold), white. Size set inline per key.
+    font-weight: var(--font-weight-semibold);
+    line-height: 1;
+    color: var(--color-white-100);
+  }
+}
