@@ -56,6 +56,7 @@ import AlphabetScrubber from '../../card/alphabet-scrubber/alphabet-scrubber.vue
 import Avatar from '../../card/avatar/avatar.vue'
 import DialogOverlay from '../../card/dialog-overlay/dialog-overlay.vue'
 import FullScreenImageViewer from '../../card/full-screen-image-viewer/full-screen-image-viewer.vue'
+import GroupSelectorSheet from '../../card/group-selector-sheet/group-selector-sheet.vue'
 
 const props = defineProps<{
   component: string
@@ -142,6 +143,13 @@ const registry: Record<string, unknown> = {
   // reference is a pure-black canvas (its `photo.fill` placeholder renders
   // black-on-black); the adapter omits the imageURL so this twin matches.
   FullScreenImageViewer,
+  // iOS GroupSelectorSheet (Components/Display/GroupSelectorSheet.swift) — sheet
+  // picker (inline nav title + selectable group rows). NB: the iPhone component
+  // is self-contained (internal GroupFixtureManager hardcodes the list) and the
+  // ViewRegistry forces `selectedGroup: .constant(nil)`, so both fixture
+  // variants render the same hardcoded list with no selection / no close button;
+  // the adapter feeds that exact data to match. The twin stays data-driven.
+  GroupSelectorSheet,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
