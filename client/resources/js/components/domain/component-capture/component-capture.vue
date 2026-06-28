@@ -99,6 +99,7 @@ import UserMenu from '../../card/user-menu/user-menu.vue'
 import StylePickerMenu from '../../card/style-picker-menu/style-picker-menu.vue'
 import VideoGridItem from '../../card/video-grid-item/video-grid-item.vue'
 import VideoPreview from '../../card/video-preview/video-preview.vue'
+import VideoSourceBar from '../../card/video-source-bar/video-source-bar.vue'
 
 const props = defineProps<{
   component: string
@@ -469,6 +470,13 @@ const registry: Record<string, unknown> = {
   // This twin stays data-driven: Empty matches the iPhone ref; WithThumbnail
   // renders the real thumbnail design (the surfaced gap vs the empty iPhone ref).
   VideoPreview,
+  // iOS VideoSourceBar (Components/Video/VideoSourceBar.swift) — full-width
+  // sticky source header: a leading dropdown button (the current source label
+  // in s17Bold white + a chevron.down) pushed apart by a Spacer from a trailing
+  // 22×22 MakeReady logo. The source's leading icon (play.rectangle / heart /
+  // …) is declared on the enum but NOT drawn by the body, so the twin shows only
+  // label + chevron + logo. The adapter maps the VideoSource key → the label.
+  VideoSourceBar,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

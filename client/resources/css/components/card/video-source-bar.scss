@@ -1,0 +1,51 @@
+// VideoSourceBar — sticky video-source header (iOS VideoSourceBar parity).
+// BEM mirrors resources/js/components/card/video-source-bar/video-source-bar.vue.
+//
+// iOS layout (1 CSS px == 1 iOS pt; pro-max snapshot is 3×):
+//   HStack {
+//     Button { Text(label).font(s17Bold).white  +  chevron.down.font(s14Semibold).white }  (spacing 4)
+//     Spacer()
+//     Button { Image("MRLogo").frame(22×22) }
+//   }.padding(.horizontal, 16).padding(.vertical, 16)
+//
+// The harness's `.capture-wrap` supplies the 16px gutter on every side. iOS
+// applies a horizontal gutter of 0 (the bar fills the screen width) PLUS the
+// bar's own 16pt horizontal padding → content sits 16pt from the edge. So this
+// block keeps ONLY its own vertical 16px padding and leaves horizontal to the
+// wrap; adding horizontal padding here would double it to 32px.
+.VideoSourceBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between; // iOS Spacer() between source button + logo
+  width: 100%;
+  padding: 16px 0; // iOS .padding(.vertical, 16); horizontal supplied by .capture-wrap
+  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+
+  // ── Source dropdown button ──────────────────────────────────────────────────
+  &__source {
+    display: flex;
+    align-items: center;
+    gap: 4px; // iOS HStack(spacing: 4)
+  }
+
+  &__label {
+    font-size: 17px; // iOS Typography.s17Bold
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-white-100); // iOS .foregroundColor(.white)
+  }
+
+  &__chevron {
+    width: 13px; // SF chevron.down @ s14Semibold draws ~12pt wide / ~7pt tall
+    height: auto;
+    color: var(--color-white-100); // iOS .foregroundColor(.white)
+  }
+
+  // ── MakeReady logo ──────────────────────────────────────────────────────────
+  &__logo {
+    flex-shrink: 0;
+    width: 22px; // iOS .frame(width: 22, height: 22)
+    height: 22px;
+    color: var(--color-white-100); // iOS MRLogo fill: white
+  }
+}
