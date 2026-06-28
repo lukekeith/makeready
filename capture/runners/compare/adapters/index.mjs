@@ -103,6 +103,7 @@ import pageHeader from './PageHeader.mjs';
 import pageTitle from './PageTitle.mjs';
 import tabSlider from './TabSlider.mjs';
 import stylePickerMenu from './StylePickerMenu.mjs';
+import videoGridItem from './VideoGridItem.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -206,6 +207,9 @@ export const adapters = {
   // Two-sided twin (Vue + iPhone). The iPhone side is the generic component
   // passthrough; the web side renders the data-driven style-picker-menu.vue.
   StylePickerMenu: stylePickerMenu,
+  // Two-sided twin (Vue + iPhone). The iPhone side is the generic component
+  // passthrough; the web side renders the data-driven video-grid-item.vue.
+  VideoGridItem: videoGridItem,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

@@ -97,6 +97,7 @@ import PageTitle from '../../card/page-title/page-title.vue'
 import TabSlider from '../../card/tab-slider/tab-slider.vue'
 import UserMenu from '../../card/user-menu/user-menu.vue'
 import StylePickerMenu from '../../card/style-picker-menu/style-picker-menu.vue'
+import VideoGridItem from '../../card/video-grid-item/video-grid-item.vue'
 
 const props = defineProps<{
   component: string
@@ -452,6 +453,12 @@ const registry: Record<string, unknown> = {
   // as HeatMapChart / SearchableList); this twin renders the real snippet (a surfaced
   // gap on that one line), rows/buttons match pixel-tight.
   StylePickerMenu,
+  // iOS VideoGridItem (Components/Video/VideoGridItem.swift) — video-picker grid
+  // cell. A fixed square (no corner radius): camera type is a white@20% well +
+  // centered camera.fill glyph (white@50% wash when selected); video type fills
+  // with a cover thumbnail (sectionBackground fallback) + a bottom-center
+  // play.fill glyph with a black@50% shadow.
+  VideoGridItem,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

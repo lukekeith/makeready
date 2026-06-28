@@ -1,0 +1,66 @@
+// VideoGridItem — video-picker grid cell (iOS VideoGridItem parity).
+// BEM mirrors resources/js/components/card/video-grid-item/video-grid-item.vue.
+//
+// A fixed square (sized inline via the `sizePx` prop) with NO corner radius —
+// the iOS view is a `Rectangle`-clipped ZStack. Two types:
+//   __camera — white@20% well + centered camera.fill glyph.
+//   __video  — sectionBackground fallback + cover thumbnail + bottom play.fill.
+// __selected lays a white@50% wash over the whole tile (iOS Color.white@0.5).
+
+.VideoGridItem {
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  // ── Camera well ────────────────────────────────────────────────────────────
+  &__camera {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-white-20); // iOS Color.white.opacity(0.2)
+  }
+
+  &__cameraIcon {
+    width: 32px; // SF camera.fill @ s24 draws ~30px wide
+    height: auto;
+    color: var(--fg-white);
+    // SF camera.fill puts the flash dot on the top-RIGHT; the base glyph path
+    // places it top-left, so mirror horizontally (body is otherwise symmetric).
+    transform: scaleX(-1);
+  }
+
+  // ── Video thumbnail ──────────────────────────────────────────────────────────
+  &__video {
+    position: absolute;
+    inset: 0;
+    background: var(--bg-section); // iOS Color.sectionBackground placeholder
+  }
+
+  &__thumb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__playIcon {
+    position: absolute;
+    left: 50%;
+    bottom: 12px; // iOS .padding(.bottom, 12)
+    transform: translateX(-50%);
+    width: 18px; // SF play.fill @ s20
+    height: auto;
+    color: var(--fg-white);
+    filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.5)); // iOS .shadow(black@0.5, radius: 2) — no token at 50%
+  }
+
+  // ── Selection wash ───────────────────────────────────────────────────────────
+  &__selected {
+    position: absolute;
+    inset: 0;
+    background: var(--color-white-50); // iOS Color.white.opacity(0.5)
+  }
+}
