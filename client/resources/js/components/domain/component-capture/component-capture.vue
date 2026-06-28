@@ -67,6 +67,7 @@ import ErrorBanner from '../../card/error-banner/error-banner.vue'
 import UnenrollConfirmation from '../../card/unenroll-confirmation/unenroll-confirmation.vue'
 import GroupActionButton from '../../card/group-action-button/group-action-button.vue'
 import SkeletonPostCard from '../../card/skeleton-post-card/skeleton-post-card.vue'
+import BackgroundSwatch from '../../card/background-swatch/background-swatch.vue'
 
 const props = defineProps<{
   component: string
@@ -210,6 +211,11 @@ const registry: Record<string, unknown> = {
   // bar) + two shimmer text lines, a 180-tall cover shimmer with a white spoke
   // spinner, and an eye/share action bar. Full-width, no card background.
   SkeletonPostCard,
+  // iOS BackgroundSwatch (Components/Input/BackgroundSwatch.swift) — 40×40 rounded
+  // swatch: appBackground base + optional translucent color overlay. In the
+  // isolated snapshot the iOS AsyncImage never resolves, so image variants show
+  // the appBackground fallback; the adapter omits the URL and forwards `hasImage`.
+  BackgroundSwatch,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

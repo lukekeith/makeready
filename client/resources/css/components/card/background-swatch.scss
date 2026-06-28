@@ -1,0 +1,34 @@
+// BackgroundSwatch — twin of iOS Components/Input/BackgroundSwatch.swift.
+//
+// 40×40 rounded swatch. The base fill is always Color.appBackground (--bg-canvas):
+// it's the iOS default for the empty/color-only cases AND the AsyncImage `default:`
+// fallback that the isolated compare snapshot always hits (the remote image never
+// resolves). The color overlay sits on top, solid (color-only) or translucent
+// (over an image), driven by inline style from the component.
+//
+// size/cornerRadius/opacity are intrinsic, data-driven values (computed from the
+// `size` prop per the iOS derivation), so they're set inline rather than tokenized;
+// the static colors use design-system tokens.
+.BackgroundSwatch {
+  position: relative;
+  overflow: hidden;
+  // iOS Color.appBackground (#0d101a) — base layer + AsyncImage snapshot fallback.
+  background: var(--bg-canvas);
+  flex: 0 0 auto;
+
+  &__image {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    // iOS .scaledToFill().
+    object-fit: cover;
+    display: block;
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+}

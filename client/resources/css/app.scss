@@ -178,6 +178,7 @@
 @use 'components/card/unenroll-confirmation' as unenroll-confirmation-twin;
 @use 'components/card/group-action-button' as group-action-button-twin;
 @use 'components/card/skeleton-post-card' as skeleton-post-card-twin;
+@use 'components/card/background-swatch' as background-swatch-twin;
 
 // Data display components
 @use 'components/data/bar-chart';
