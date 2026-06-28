@@ -58,6 +58,7 @@ import horizontalBarChart from './HorizontalBarChart.mjs';
 import verticalBarChart from './VerticalBarChart.mjs';
 import lineChart from './LineChart.mjs';
 import exegesisVerseView from './ExegesisVerseView.mjs';
+import selectableLockedBlockView from './SelectableLockedBlockView.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -113,6 +114,7 @@ export const adapters = {
   VerticalBarChart: verticalBarChart,
   LineChart: lineChart,
   ExegesisVerseView: exegesisVerseView,
+  SelectableLockedBlockView: selectableLockedBlockView,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

@@ -1,0 +1,97 @@
+// SelectableLockedBlockView — web twin of the iOS `SelectableLockedBlockView`
+// UITextView wrapper. Class names mirror the BEM blocks in
+// resources/js/components/card/selectable-locked-block-view/.
+//
+// The iPhone snapshot is GUTTERLESS: the UITextView fills the full 440pt
+// viewport and insets its own text column by 32pt on each side
+// (`BibleVerseTextLayout.textInsets`). The capture harness's `.capture-wrap`
+// always adds a 16pt gutter, so — like exegesis-verse-view — we cancel it with a
+// negative margin and re-apply the real iOS insets internally, reproducing the
+// edge-to-edge text layout exactly.
+//
+// The font metrics are reverse-engineered from the iPhone snapshots: Charter is
+// the shared scripture serif (--font-serif). At 16pt its natural line height is
+// ~19.5pt and `lineSpacing` adds 6pt, so the per-line pitch is ~25.5px — used
+// here as the text line-height. Raw px is intentional here (capture-parity
+// geometry), the same exception the chart / exegesis twins use.
+.SelectableLockedBlockView {
+  position: relative;
+  // Cancel the .capture-wrap 16px gutter on all sides and fill the clip box,
+  // then re-apply the iOS textContainerInset (top/bottom 8, left/right 32).
+  margin: calc(var(--space-lg) * -1);
+  width: calc(100% + var(--space-lg) * 2);
+  box-sizing: border-box;
+  // Vertical padding is reverse-engineered from the iPhone snapshot: the
+  // UITextView's sizeThatFits adds ~43pt of overhead beyond the text lines
+  // (textContainerInset 8/8 + paragraphSpacing + ascent positioning + ceil),
+  // biased toward the bottom where the trailing paragraph space sits. The 32pt
+  // horizontal inset is the literal textContainerInset.left/right.
+  padding: 16px 32px 27px;
+  text-align: left;
+  font-family: var(--font-serif);
+
+  &__verse-number {
+    position: absolute;
+    left: 0;
+    top: 16px;
+    // Gutter rail: 24pt wide (textInsets.left − 8), number right-aligned so its
+    // trailing edge sits 8pt from the text column, matching layoutVerseBadges.
+    width: 24px;
+    text-align: right;
+    font-family: var(--font-serif);
+    font-size: 12px;
+    line-height: 25.5px; // share the first text line's box so baselines align
+    color: rgba(255, 255, 255, 0.55); // BibleVerseTextLayout.verseNumberColor (white@0.55)
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  &__text {
+    margin: 0;
+    font-family: var(--font-serif);
+    font-size: var(--slb-font-size, 16px);
+    line-height: 25.5px;
+    color: rgba(255, 255, 255, 0.85); // iOS baseColor (UIColor.white@0.85)
+    text-align: justify;
+    text-justify: inter-word;
+  }
+
+  &__seg {
+    // Inline spans so selection backgrounds wrap the text tightly, like the
+    // iOS attributed-string .backgroundColor runs.
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  // The leading verse number ("1 ") is parsed into the gutter badge; hide it
+  // from the inline flow (iOS sets it to 1pt clear text).
+  &__seg--hidden {
+    display: none;
+  }
+
+  // Default highlight — solid brandPrimary purple marker (iOS editMarker
+  // #6c47ff), text stays white@0.85 (only the bg run is set on iOS).
+  &__seg--highlight {
+    background-color: var(--color-brand-500); // iOS editMarker / Color.brandPrimary (#6c47ff)
+  }
+
+  // Preview highlight — solid white wash with black text.
+  &__seg--preview {
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #000;
+  }
+
+  // Non-scripture locked blocks: system font, natural (left) alignment.
+  &--plain {
+    font-family: var(--font-sans);
+
+    .SelectableLockedBlockView__text {
+      font-family: var(--font-sans);
+      text-align: left;
+    }
+
+    .SelectableLockedBlockView__verse-number {
+      font-family: var(--font-sans);
+    }
+  }
+}

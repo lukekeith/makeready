@@ -50,6 +50,7 @@ import HorizontalBarChart from '../../card/horizontal-bar-chart/horizontal-bar-c
 import VerticalBarChart from '../../card/vertical-bar-chart/vertical-bar-chart.vue'
 import LineChart from '../../card/line-chart/line-chart.vue'
 import ExegesisVerseView from '../../card/exegesis-verse-view/exegesis-verse-view.vue'
+import SelectableLockedBlockView from '../../card/selectable-locked-block-view/selectable-locked-block-view.vue'
 
 const props = defineProps<{
   component: string
@@ -114,6 +115,9 @@ const registry: Record<string, unknown> = {
   LineChart,
   // iOS ExegesisVerseView (UITextView scripture view) — justified Charter twin.
   ExegesisVerseView,
+  // iOS SelectableLockedBlockView (read-only UITextView locked read block) —
+  // justified Charter twin with purple/preview selection runs.
+  SelectableLockedBlockView,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
