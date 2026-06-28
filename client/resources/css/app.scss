@@ -192,6 +192,7 @@
 @use 'components/card/search-field' as search-field-twin;
 @use 'components/card/tag-input' as tag-input-twin;
 @use 'components/card/text-input' as text-input-twin;
+@use 'components/card/toggle-control' as toggle-control-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

@@ -81,6 +81,7 @@ import RichTextInput from '../../card/rich-text-input/rich-text-input.vue'
 import SearchField from '../../card/search-field/search-field.vue'
 import TagInput from '../../card/tag-input/tag-input.vue'
 import TextInput from '../../card/text-input/text-input.vue'
+import ToggleControl from '../../card/toggle-control/toggle-control.vue'
 
 const props = defineProps<{
   component: string
@@ -307,6 +308,12 @@ const registry: Record<string, unknown> = {
   // trailing white@70 value), and floating (a placeholder/label that rests inline
   // when empty and floats up small, offset y -18, when filled).
   TextInput,
+  // iOS ToggleControl (Components/Input/ToggleControl.swift) — a settings row
+  // (title s17 white + description s13 white@50 on the left, a custom 63×28 pill
+  // toggle on the right) wrapped by the harness in a ToggleGroup (white@10%
+  // rounded-10 card). Track is white (on) / white@50 (off) with a 33×21
+  // appBackground knob that aligns trailing (on) / leading (off).
+  ToggleControl,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

@@ -1,0 +1,84 @@
+// ToggleControl — twin of iOS Components/Input/ToggleControl.swift.
+//
+// Structure (outer → inner):
+//   .ToggleControl              → the ToggleGroup card the harness wraps it in.
+//                                 iOS: VStack(spacing:0) + background white@0.1 +
+//                                 cornerRadius(10). Full-width (fills the
+//                                 .capture-wrap clip box, like the iPhone card).
+//   .ToggleControl__row         → the ToggleControl HStack(alignment:.top,spacing:8).
+//                                 iOS .padding(.horizontal,16).padding(.vertical,12).
+//   .ToggleControl__text        → the VStack(alignment:.leading, spacing:4).
+//   .ToggleControl__title       → Text(title), s17 white.
+//   .ToggleControl__description → Text(description), s13 white@0.5, wraps freely
+//                                 (iOS .fixedSize vertical → never truncates).
+//   .ToggleControl__track       → CustomToggle background RoundedRectangle, 63×28,
+//                                 cornerRadius 40 (full capsule). --on white,
+//                                 --off white@0.5. Knob aligns trailing/leading.
+//   .ToggleControl__knob        → CustomToggle knob RoundedRectangle, 33×21,
+//                                 cornerRadius 10, fill appBackground, inset by the
+//                                 track's 4px horizontal / 3.5px vertical padding.
+//
+// The 63×28 track / 33×21 knob, the 10px card & knob radii and the 4 / 3.5px knob
+// insets are intrinsic iOS layout dimensions with no design-system token (raw px
+// allowed per the intrinsic-size exception); colors, type and 8/12/16px gaps are
+// tokenized.
+.ToggleControl {
+  width: 100%;
+  background: var(--color-white-10); // iOS ToggleGroup .background(white@0.1)
+  border-radius: 10px; // iOS .cornerRadius(10)
+
+  &__row {
+    display: flex;
+    align-items: flex-start; // iOS HStack(alignment: .top)
+    gap: var(--space-sm); // iOS HStack(spacing: 8)
+    padding: var(--space-md) var(--space-lg); // iOS .padding(.vertical,12)/.horizontal,16
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-xs); // iOS VStack(spacing: 4)
+    min-width: 0; // allow the description to wrap within the row
+    flex: 1 1 auto;
+  }
+
+  &__title {
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: var(--leading-lead);
+    color: var(--color-white-100); // iOS .foregroundColor(.white)
+  }
+
+  &__description {
+    font-size: var(--text-sm); // iOS Typography.s13
+    line-height: var(--leading-sm);
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+  }
+
+  &__track {
+    flex: 0 0 auto;
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 63px; // iOS .frame(width: 63)
+    height: 28px; // iOS .frame(height: 28)
+    border-radius: 40px; // iOS RoundedRectangle(cornerRadius: 40) — full capsule
+    padding: 3.5px 4px; // iOS knob .padding(.vertical, 3.5)/.horizontal, 4)
+
+    &--on {
+      justify-content: flex-end; // iOS ZStack(alignment: .trailing)
+      background: var(--color-white-100); // iOS .fill(.white)
+    }
+
+    &--off {
+      justify-content: flex-start; // iOS ZStack(alignment: .leading)
+      background: var(--color-white-50); // iOS .fill(.white.opacity(0.5))
+    }
+  }
+
+  &__knob {
+    width: 33px; // iOS .frame(width: 33)
+    height: 21px; // iOS .frame(height: 21)
+    border-radius: 10px; // iOS RoundedRectangle(cornerRadius: 10)
+    background: var(--color-canvas); // iOS .fill(Color.appBackground) (#0d101a)
+  }
+}
