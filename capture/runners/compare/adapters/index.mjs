@@ -87,6 +87,7 @@ import multilineTextInput from './MultilineTextInput.mjs';
 import richTextInput from './RichTextInput.mjs';
 import searchField from './SearchField.mjs';
 import tagInput from './TagInput.mjs';
+import textInput from './TextInput.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -171,6 +172,7 @@ export const adapters = {
   RichTextInput: richTextInput,
   SearchField: searchField,
   TagInput: tagInput,
+  TextInput: textInput,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
@@ -196,7 +198,7 @@ const IPHONE_FIRST_COMPONENTS = [
   'SkeletonCardGroup', 'SkeletonCardLesson', 'SkeletonCardLessonActivity', 'SkeletonCardMediaFull',
   'SkeletonCardProgramFull', 'SkeletonCardStudy', 'SkeletonEnrollmentCard', 'SkeletonPostCard',
   'SlideButton', 'SplitMonthCalendar', 'StylePickerMenu', 'SwipeableCard',
-  'TabSlider', 'TagInput', 'TextInput', 'ThemedContentView',
+  'TabSlider', 'TagInput', 'ThemedContentView',
   'ToggleControl', 'UnenrollConfirmation', 'UserMenu', 'VerticalBarChart',
   'VideoGridItem', 'VideoPreview', 'VideoSourceBar', 'WeekdayIndicator',
 ];

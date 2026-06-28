@@ -1,0 +1,155 @@
+// TextInput — twin of iOS Components/Input/TextInput.swift.
+//
+// Structure (outer → inner):
+//   .TextInput              → the FieldGroup card the harness wraps it in. iOS:
+//                             VStack(spacing:0).padding(.vertical,4) + white@0.05
+//                             + cornerRadius(10). Full-width (fills the
+//                             .capture-wrap clip box, like the iPhone card).
+//   .TextInput__field       → the TextInput HStack(spacing: 12). iOS
+//                             .padding(.horizontal,16).padding(.vertical, …). The
+//                             vertical padding differs per style: placeholder 8,
+//                             labeled 12, floating 14.
+//   .TextInput__icon        → labeled-variant leading SF-symbol-like SVG, s16
+//                             brandPrimary (#6c47ff) in a 24pt-wide frame.
+//   .TextInput__label       → labeled-variant Text(label), s17 white@0.7.
+//   .TextInput__spacer      → the HStack Spacer() — pushes the value to the right.
+//   .TextInput__value       → the TextField content, s17. Placeholder style:
+//                             --placeholder (empty, white@0.5) / --filled (white).
+//                             Labeled style: --trailing (white@0.7, right-aligned).
+//   .TextInput__floatWrap   → floating style: the field line box. position:relative
+//                             so the absolutely-positioned float label sits over it.
+//   .TextInput__floatText   → the value line, s17 white, vertically centered.
+//   .TextInput__floatLabel  → the overlaid label, absolute, leading, vertically
+//                             centered. --resting (empty): s17 white@0.35.
+//                             --floating (filled): 12px white@0.5, shifted up 18px.
+//
+// The 10px card radius, the 24px icon frame and the 12px floated-label size come
+// straight from the iOS layout spec and have no design-system token (raw px
+// allowed per the intrinsic-size exception); everything else is tokenized.
+.TextInputField {
+  width: 100%;
+  padding-top: var(--space-xs); // iOS FieldGroup .padding(.vertical, 4)
+  padding-bottom: var(--space-xs);
+  background: var(--color-white-5);
+  border-radius: 10px;
+
+  &__field {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md); // iOS HStack(spacing: 12)
+    padding-left: var(--space-lg); // iOS .padding(.horizontal, 16)
+    padding-right: var(--space-lg);
+
+    // iOS .padding(.vertical, …) varies by style.
+    &--placeholder {
+      padding-top: var(--space-sm); // 8
+      padding-bottom: var(--space-sm);
+    }
+
+    &--labeled {
+      padding-top: var(--space-md); // 12
+      padding-bottom: var(--space-md);
+    }
+
+    &--floating {
+      padding-top: 14px; // iOS .padding(.vertical, 14) — no token at 14
+      padding-bottom: 14px;
+    }
+  }
+
+  &__icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; // iOS .frame(width: 24) — intrinsic layout dimension
+    color: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+
+    // Global (non-scoped) stylesheet → plain descendant selector, not :deep().
+    // ~19px keeps the SF-symbol-like glyphs at the iOS s16 cap-height size.
+    svg {
+      width: 19px;
+      height: 19px;
+    }
+  }
+
+  &__label {
+    flex: 0 0 auto;
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: var(--leading-lead);
+    color: var(--color-white-70); // iOS unfocused .white.opacity(0.7)
+  }
+
+  &__spacer {
+    flex: 1 1 auto;
+  }
+
+  &__value {
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: var(--leading-lead);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    &--placeholder {
+      flex: 1 1 auto;
+      color: var(--color-white-50); // iOS prompt .white.opacity(0.5)
+    }
+
+    &--filled {
+      flex: 1 1 auto;
+      color: var(--color-white-100); // iOS .foregroundColor(.white)
+    }
+
+    &--trailing {
+      flex: 0 1 auto;
+      text-align: right; // iOS .multilineTextAlignment(.trailing)
+      color: var(--color-white-70); // iOS .foregroundColor(.white.opacity(0.7))
+    }
+  }
+
+  // --- Floating style ---
+
+  &__floatWrap {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    // One line of s17 text holds the row; the label overlays it.
+    min-height: var(--leading-lead); // iOS s17 line height
+    display: flex;
+    align-items: center;
+  }
+
+  &__floatText {
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: var(--leading-lead);
+    color: var(--color-white-100); // iOS .foregroundColor(.white)
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__floatLabel {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    white-space: nowrap;
+    pointer-events: none; // iOS .allowsHitTesting(false)
+
+    &--resting {
+      // iOS .system(size: 17), .white.opacity(0.35), .offset(y: 0)
+      transform: translateY(-50%);
+      font-size: var(--text-lead);
+      line-height: var(--leading-lead);
+      color: var(--color-white-35);
+    }
+
+    &--floating {
+      // iOS .system(size: 12), .white.opacity(0.5), .offset(y: -18)
+      transform: translateY(calc(-50% - 18px));
+      font-size: 12px; // iOS .system(size: 12) — no token at this size
+      line-height: var(--leading-xs);
+      color: var(--color-white-50);
+    }
+  }
+}

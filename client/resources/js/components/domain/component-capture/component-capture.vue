@@ -80,6 +80,7 @@ import MultilineTextInput from '../../card/multiline-text-input/multiline-text-i
 import RichTextInput from '../../card/rich-text-input/rich-text-input.vue'
 import SearchField from '../../card/search-field/search-field.vue'
 import TagInput from '../../card/tag-input/tag-input.vue'
+import TextInput from '../../card/text-input/text-input.vue'
 
 const props = defineProps<{
   component: string
@@ -300,6 +301,12 @@ const registry: Record<string, unknown> = {
   // label + white@70 xmark) above an inline text field that, in the captured
   // variants, only shows its "Add tag..." placeholder in tertiary-label gray.
   TagInput,
+  // iOS TextInput (Components/Input/TextInput.swift) — single-line text input in a
+  // FieldGroup card, three styles: placeholder (prompt white@50 / value white,
+  // left-aligned), labeled (brand-purple leading icon + s17 white@70 label + a
+  // trailing white@70 value), and floating (a placeholder/label that rests inline
+  // when empty and floats up small, offset y -18, when filled).
+  TextInput,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
