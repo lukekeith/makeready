@@ -90,6 +90,7 @@ import tagInput from './TagInput.mjs';
 import textInput from './TextInput.mjs';
 import toggleControl from './ToggleControl.mjs';
 import searchableList from './SearchableList.mjs';
+import cardSpinnerOverlay from './CardSpinnerOverlay.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -177,6 +178,7 @@ export const adapters = {
   TextInput: textInput,
   ToggleControl: toggleControl,
   SearchableList: searchableList,
+  CardSpinnerOverlay: cardSpinnerOverlay,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

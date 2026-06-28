@@ -1,0 +1,41 @@
+// CardSpinnerOverlay twin — iOS Components/Loading/CardSpinnerOverlay.swift.
+// A dimming spinner overlay. The component itself has no intrinsic size; the
+// capture harness (ViewRegistry) hosts it over a 320×140 cardBackground rounded
+// rectangle, so the twin reproduces that exact host: a 320×140 surface, a
+// black@40% wash, and a centered white circular spinner — all clipped to the
+// iOS .cornerRadius(8). The .capture-wrap harness adds the matching 16px gutter,
+// like the iPhone .padding(16).
+
+.CardSpinnerOverlay {
+  position: relative;
+  width: 320px; // iOS .frame(width: 320)
+  height: 140px; // iOS .frame(height: 140)
+  border-radius: var(--radius-md); // iOS .cornerRadius(8)
+  background: var(--color-surface); // iOS Color.cardBackground (#252936)
+  overflow: hidden; // clip the wash + corners
+
+  // iOS Color.black.opacity(0.4) — no token.
+  &__wash {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  // iOS ProgressView(.circular, tint .white).scaleEffect(0.9) — base circular
+  // indicator is ~20pt, so the scaled diameter is ~18px.
+  &__spinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 18px;
+    height: 18px;
+    color: var(--color-white); // iOS .tint(.white)
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+}

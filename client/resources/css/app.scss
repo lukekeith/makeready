@@ -127,6 +127,7 @@
 @use 'components/card/card-contact';
 @use 'components/card/card-enrolled';
 @use 'components/card/card-enrollment';
+@use 'components/card/card-spinner-overlay' as card-spinner-overlay-twin;
 @use 'components/card/enrollment-card';
 @use 'components/card/exegesis-verse-view' as exegesis-verse-view-twin;
 @use 'components/card/selectable-locked-block-view' as selectable-locked-block-view-twin;

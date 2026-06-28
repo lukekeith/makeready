@@ -83,6 +83,7 @@ import TagInput from '../../card/tag-input/tag-input.vue'
 import TextInput from '../../card/text-input/text-input.vue'
 import ToggleControl from '../../card/toggle-control/toggle-control.vue'
 import SearchableList from '../../card/searchable-list/searchable-list.vue'
+import CardSpinnerOverlay from '../../card/card-spinner-overlay/card-spinner-overlay.vue'
 
 const props = defineProps<{
   component: string
@@ -325,6 +326,12 @@ const registry: Record<string, unknown> = {
   // The twin stays data-driven: Empty matches the iPhone empty ref; Default
   // renders the designed populated list (the surfaced gap vs the empty iPhone ref).
   SearchableList,
+  // iOS CardSpinnerOverlay (Components/Loading/CardSpinnerOverlay.swift) — a
+  // dimming spinner overlay shown over a card during save/update. The overlay
+  // has no intrinsic size; the harness hosts it over a 320×140 cardBackground
+  // card, so this twin reproduces that host (surface + black@40% wash + a
+  // centered white circular spinner), clipped to the iOS .cornerRadius(8).
+  CardSpinnerOverlay,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
