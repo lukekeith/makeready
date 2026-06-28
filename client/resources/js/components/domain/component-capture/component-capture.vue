@@ -34,6 +34,7 @@ import CardSearchResult from '../../card/card-search-result/card-search-result.v
 import CardVideo from '../../card/card-video/card-video.vue'
 import CardVideoMini from '../../card/card-video-mini/card-video-mini.vue'
 import GroupPostCard from '../../card/group-post-card/group-post-card.vue'
+import ScheduledLessonCard from '../../card/scheduled-lesson-card/scheduled-lesson-card.vue'
 
 const props = defineProps<{
   component: string
@@ -71,6 +72,7 @@ const registry: Record<string, unknown> = {
   CardVideo,
   CardVideoMini,
   GroupPostCard,
+  ScheduledLessonCard,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

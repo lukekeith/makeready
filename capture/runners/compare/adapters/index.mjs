@@ -42,6 +42,7 @@ import cardStudySelectable from './CardStudySelectable.mjs';
 import cardVideo from './CardVideo.mjs';
 import cardVideoMini from './CardVideoMini.mjs';
 import groupPostCard from './GroupPostCard.mjs';
+import scheduledLessonCard from './ScheduledLessonCard.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -61,7 +62,7 @@ export const adapters = {
   CardActivity: cardActivity,
   CardLessonActivity: cardLessonActivity,
   CardLesson: cardLesson,
-  ScheduledLessonCard: iphoneCard('component.ScheduledLessonCard'),
+  ScheduledLessonCard: scheduledLessonCard,
   CardEnrolled: cardEnrolled,
   CardProgramFull: cardProgramFull,
   UpcomingLessonCard: iphoneCard('component.UpcomingLessonCard'),
