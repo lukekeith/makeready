@@ -17,6 +17,7 @@ import AgeRangeInput from '../../card/age-range-input/age-range-input.vue'
 import BackgroundSourceMenu from '../../card/background-source-menu/background-source-menu.vue'
 import CardActivityType from '../../card/card-activity-type/card-activity-type.vue'
 import CardActivity from '../../card/card-activity/card-activity.vue'
+import CardBibleSearchResult from '../../card/card-bible-search-result/card-bible-search-result.vue'
 
 const props = defineProps<{
   component: string
@@ -37,6 +38,7 @@ const registry: Record<string, unknown> = {
   BackgroundSourceMenu,
   CardActivityType,
   CardActivity,
+  CardBibleSearchResult,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

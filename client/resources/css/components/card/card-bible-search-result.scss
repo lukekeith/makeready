@@ -1,0 +1,75 @@
+// CardBibleSearchResult — Bible search result card (iOS CardBibleSearchResult.swift
+// parity). A white-5% well (radius 4, padding 16) holding either a reference +
+// verse preview (Verse) or a title + reference + summary stack (Passage).
+//
+// iOS uses a fixed 14pt font (Typography.s14 / s14Bold) for every row — there is
+// no 14px design-system token (the scale jumps 13 → 16), so the raw 14px below is
+// an intrinsic iOS size, allowed per the design-system exception (see
+// card-activity.scss).
+//
+// Every row is a single truncating line: the iOS capture sizes each Text at its
+// ideal (single-line) width and then clips to the card width, so lineSpacing(4)
+// and lineLimit(2) never engage in the snapshot. Matching the reference means
+// one line per row at the natural ~1.2em line box (no added leading).
+.CardBibleSearchResult {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 100%; // fill the card column so nowrap rows truncate at the card edge
+  padding: var(--space-lg); // iOS .padding(16)
+  background: var(--color-white-5); // iOS Color.white.opacity(0.05)
+  border-radius: var(--radius-sm); // iOS cornerRadius 4
+  text-align: left;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+  &:active {
+    filter: brightness(0.97);
+  }
+
+  &__title,
+  &__passage,
+  &__reference,
+  &__text,
+  &__summary {
+    margin: 0;
+    min-width: 0;
+    font-size: 14px; // iOS Typography.s14 (no token)
+    line-height: 1.2; // iOS 14pt natural single-line box (~17pt)
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // Bold headings (iOS s14Bold, .white)
+  &__title,
+  &__passage {
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary); // iOS .white
+  }
+
+  // Reference beneath a named-passage title (iOS s14, .white50)
+  &__reference {
+    font-weight: var(--font-weight-regular);
+    color: var(--fg-tertiary); // iOS .white50
+  }
+
+  // Body rows (iOS s14, .white70)
+  &__text,
+  &__summary {
+    font-weight: var(--font-weight-regular);
+    color: var(--fg-secondary); // iOS .white70
+  }
+
+  // ─── Passage ───────────────────────────────────────────────────────────────
+  // VStack(spacing: 2): title · reference · summary, each one truncating line.
+  &--passage {
+    gap: var(--space-2xs); // iOS VStack spacing 2
+  }
+
+  // ─── Verse ───────────────────────────────────────────────────────────────
+  // VStack(spacing: 0): reference (bold) directly above the verse preview.
+}

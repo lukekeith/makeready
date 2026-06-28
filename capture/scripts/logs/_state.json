@@ -1,11 +1,11 @@
 {
   "startedAt": "2026-06-28T07:00:32.228Z",
-  "updatedAt": "2026-06-28T07:07:12.595Z",
+  "updatedAt": "2026-06-28T07:16:25.829Z",
   "model": "cli-default",
   "permission": "skip",
   "timeoutMin": 25,
   "total": 2,
-  "current": "CardActivity",
+  "current": "CardBibleSearchResult",
   "components": {
     "CardActivity": {
       "group": "Cards",
@@ -19,7 +19,11 @@
     "CardBibleSearchResult": {
       "group": "Cards",
       "variants": 2,
-      "status": "pending"
+      "status": "passed",
+      "startedAt": "2026-06-28T07:07:13.895Z",
+      "log": "capture/scripts/logs/CardBibleSearchResult.log",
+      "durationMin": 9.2,
+      "exitCode": 0
     }
   }
 }

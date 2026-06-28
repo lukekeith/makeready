@@ -25,6 +25,7 @@ import ageRangeInput from './AgeRangeInput.mjs';
 import backgroundSourceMenu from './BackgroundSourceMenu.mjs';
 import cardActivityType from './CardActivityType.mjs';
 import cardActivity from './CardActivity.mjs';
+import cardBibleSearchResult from './CardBibleSearchResult.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -51,7 +52,7 @@ export const adapters = {
   EnrollmentCard: iphoneCard('component.EnrollmentCard'),
   CardMediaFull: iphoneCard('component.CardMediaFull'),
   CardSearchResult: iphoneCard('component.CardSearchResult'),
-  CardBibleSearchResult: iphoneCard('component.CardBibleSearchResult'),
+  CardBibleSearchResult: cardBibleSearchResult,
   GroupPostCard: iphoneCard('component.GroupPostCard'),
   // Connected components — seed app state rather than a plain prop bag.
   BlockStyleEditor: blockStyleEditor,
