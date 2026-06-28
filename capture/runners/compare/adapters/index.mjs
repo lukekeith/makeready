@@ -55,6 +55,7 @@ import upcomingLessonCard from './UpcomingLessonCard.mjs';
 import donutChart from './DonutChart.mjs';
 import heatMapChart from './HeatMapChart.mjs';
 import horizontalBarChart from './HorizontalBarChart.mjs';
+import verticalBarChart from './VerticalBarChart.mjs';
 import lineChart from './LineChart.mjs';
 
 export const adapters = {
@@ -108,6 +109,7 @@ export const adapters = {
   DonutChart: donutChart,
   HeatMapChart: heatMapChart,
   HorizontalBarChart: horizontalBarChart,
+  VerticalBarChart: verticalBarChart,
   LineChart: lineChart,
 };
 
