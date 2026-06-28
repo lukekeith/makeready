@@ -171,6 +171,7 @@
 @use 'components/card/info-panel' as info-panel-twin;
 @use 'components/card/kpi' as kpi-twin;
 @use 'components/card/member-list-item' as member-list-item-twin;
+@use 'components/card/weekday-indicator' as weekday-indicator-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

@@ -60,6 +60,7 @@ import GroupSelectorSheet from '../../card/group-selector-sheet/group-selector-s
 import InfoPanel from '../../card/info-panel/info-panel.vue'
 import Kpi from '../../card/kpi/kpi.vue'
 import MemberListItem from '../../card/member-list-item/member-list-item.vue'
+import WeekdayIndicator from '../../card/weekday-indicator/weekday-indicator.vue'
 
 const props = defineProps<{
   component: string
@@ -169,6 +170,10 @@ const registry: Record<string, unknown> = {
   // member/contact list row: gray initials avatar + name + demographics/group
   // chips + optional trailing purple Invite pill (four variants).
   MemberListItem,
+  // iOS WeekdayIndicator (Components/Display/WeekdayIndicator.swift) — Sunday-first
+  // row of 7 weekday letters (S M T W T F S), each with a dot beneath: enabled =
+  // white letter + brand-purple dot, disabled = white@30% letter + no dot.
+  WeekdayIndicator,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

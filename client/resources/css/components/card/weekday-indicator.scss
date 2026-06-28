@@ -1,0 +1,65 @@
+// WeekdayIndicator (Display) — web twin of iOS
+// Components/Display/WeekdayIndicator.swift. BEM block mirrors
+// resources/js/components/card/weekday-indicator/weekday-indicator.vue.
+//
+// Geometry is 1:1 with the SwiftUI layout (1 CSS px == 1 iOS pt; the pro-max
+// snapshot is 3×). From the Swift source:
+//   HStack(spacing: 8) of 7 day columns
+//   each column = VStack(spacing: 4):
+//     • letter  Text  → Typography.s13Semibold, frame 24×24, centered
+//                       white (enabled) / white@30% (disabled)
+//     • dot     Circle → 4×4, brandPrimary (enabled) / clear (disabled)
+//   column height = 24 + 4 + 4 = 32pt
+//
+// The ViewRegistry wraps it in `.padding(16)`, so the iPhone snapshot canvas is
+// 440×64pt — exactly what the capture harness's `.capture-wrap` (16px gutter)
+// produces around this 32px-tall, intrinsic-width, centered block.
+//
+// Named `.WeekdayIndicatorDisplay` to avoid colliding with the existing
+// interactive pill selector at `.WeekdayIndicator` (components/data/...).
+//
+// SF Pro (the iOS system font) drives the single-letter metrics, not the app's
+// brand Open Sans — `-apple-system` resolves to SF Pro on the capture machine.
+.WeekdayIndicatorDisplay {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: var(--space-sm); // 8px (iOS HStack spacing)
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  &__day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-xs); // 4px (iOS VStack spacing)
+  }
+
+  &__label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; // iOS daySize
+    height: 24px;
+    font-size: var(--text-sm); // 13px → iOS Typography.s13Semibold
+    font-weight: var(--font-weight-semibold); // 600
+    line-height: 1;
+    color: var(--color-white-30); // disabled: .white.opacity(0.3)
+  }
+
+  &__dot {
+    width: 4px; // iOS dotSize
+    height: 4px;
+    border-radius: var(--radius-full);
+    background: transparent; // disabled: Color.clear
+  }
+
+  // Enabled day: solid white letter + brand-purple dot.
+  &__day--enabled {
+    .WeekdayIndicatorDisplay__label {
+      color: var(--fg-white); // .white
+    }
+
+    .WeekdayIndicatorDisplay__dot {
+      background: var(--color-brand-500); // Color.brandPrimary (#6c47ff)
+    }
+  }
+}
