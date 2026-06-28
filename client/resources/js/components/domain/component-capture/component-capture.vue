@@ -40,6 +40,7 @@ import SkeletonCardLesson from '../../card/skeleton-card-lesson/skeleton-card-le
 import SkeletonCardLessonActivity from '../../card/skeleton-card-lesson-activity/skeleton-card-lesson-activity.vue'
 import SkeletonCardMediaFull from '../../card/skeleton-card-media-full/skeleton-card-media-full.vue'
 import SkeletonCardProgramFull from '../../card/skeleton-card-program-full/skeleton-card-program-full.vue'
+import SkeletonCardStudy from '../../card/skeleton-card-study/skeleton-card-study.vue'
 
 const props = defineProps<{
   component: string
@@ -83,6 +84,7 @@ const registry: Record<string, unknown> = {
   SkeletonCardLessonActivity,
   SkeletonCardMediaFull,
   SkeletonCardProgramFull,
+  SkeletonCardStudy,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

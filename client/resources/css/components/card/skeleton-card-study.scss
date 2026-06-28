@@ -1,0 +1,77 @@
+// SkeletonCardStudy — loading placeholder twin for iOS SkeletonCardStudy.
+// Matches CardStudy's Row layout: 140px tall, on the cardBackground surface
+// (radius 4), 16px padding. A vertically-centered stack of title / description
+// / metadata placeholder bars sits on the LEFT; a 72×108 portrait image
+// placeholder sits on the RIGHT (iOS HStack + Spacer pushes it flush).
+//
+// The 72×108 image and the bar dimensions/gaps come straight from the iOS
+// frame()/padding() values (raw structural pixels, matching
+// skeleton-card-group / card-study).
+//
+// Placeholder fills mirror the iOS opacities exactly; only white @ 10% has a
+// token, so the rest carry the literal SwiftUI value inline:
+//   image + title  → white 0.10 (--color-white-10)
+//   description    → white 0.08 (no token; iOS Color.white.opacity(0.08))
+//   metadata bar   → white 0.06 (no token; iOS Color.white.opacity(0.06))
+.SkeletonCardStudy {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-lg); // iOS HStack spacing 16
+  box-sizing: border-box;
+  width: 100%;
+  height: 140px;
+  padding: var(--space-lg); // iOS .padding(16)
+  background: var(--bg-surface); // iOS Color.cardBackground
+  border-radius: var(--radius-sm); // iOS cornerRadius: 4
+
+  // Left text block — iOS VStack(spacing: 0) centered within the card height.
+  &__body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  // Title bar (140×17).
+  &__title {
+    width: 140px;
+    height: 17px;
+    border-radius: var(--radius-sm); // iOS cornerRadius: 4
+    background: var(--color-white-10); // iOS white 0.10
+  }
+
+  // Description bar (180×13), 8px below the title (iOS .padding(.top, 8)).
+  &__desc {
+    width: 180px;
+    height: 13px;
+    margin-top: var(--space-sm);
+    border-radius: var(--radius-sm); // iOS cornerRadius: 4
+    background: rgba(255, 255, 255, 0.08); // iOS white 0.08 — no token
+  }
+
+  // Metadata row sits 16px below the description (iOS .padding(.top, 16)).
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // iOS HStack spacing 8
+    margin-top: var(--space-lg);
+  }
+
+  &__metaItem {
+    width: 60px;
+    height: 12px;
+    border-radius: var(--radius-sm); // iOS cornerRadius: 4
+    background: rgba(255, 255, 255, 0.06); // iOS white 0.06 — no token
+  }
+
+  // Right portrait image placeholder (72×108).
+  &__image {
+    flex-shrink: 0;
+    align-self: center;
+    width: 72px;
+    height: 108px;
+    border-radius: var(--radius-md); // iOS cornerRadius: 8
+    background: var(--color-white-10); // iOS white 0.10
+  }
+}

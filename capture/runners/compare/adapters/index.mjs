@@ -48,6 +48,7 @@ import skeletonCardLesson from './SkeletonCardLesson.mjs';
 import skeletonCardLessonActivity from './SkeletonCardLessonActivity.mjs';
 import skeletonCardMediaFull from './SkeletonCardMediaFull.mjs';
 import skeletonCardProgramFull from './SkeletonCardProgramFull.mjs';
+import skeletonCardStudy from './SkeletonCardStudy.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -86,6 +87,7 @@ export const adapters = {
   SkeletonCardLessonActivity: skeletonCardLessonActivity,
   SkeletonCardMediaFull: skeletonCardMediaFull,
   SkeletonCardProgramFull: skeletonCardProgramFull,
+  SkeletonCardStudy: skeletonCardStudy,
   // Connected components — seed app state rather than a plain prop bag.
   BlockStyleEditor: blockStyleEditor,
   UserMenu: userMenu,
