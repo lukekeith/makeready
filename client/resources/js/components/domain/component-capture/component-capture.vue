@@ -93,6 +93,7 @@ import InviteMenu from '../../card/invite-menu/invite-menu.vue'
 import LessonActionMenu from '../../card/lesson-action-menu/lesson-action-menu.vue'
 import NavBar from '../../card/nav-bar/nav-bar.vue'
 import PageHeader from '../../card/page-header/page-header.vue'
+import PageTitle from '../../card/page-title/page-title.vue'
 
 const props = defineProps<{
   component: string
@@ -413,6 +414,14 @@ const registry: Record<string, unknown> = {
   // captured variants. The harness's outer .padding(16) + PageHeader's own
   // .padding(16) give the 32px inset the `.capture-wrap` reproduces.
   PageHeader,
+  // iOS PageTitle (Components/Navigation/PageTitle.swift) — secondary-page nav
+  // header: an HStack of [left, Spacer, right] with an always-centered title
+  // overlay, framed to height 56. Variants fill the left/right/center slots with
+  // icons (44×44 white SF glyph, optional red badge), links (s17 brandPrimary
+  // text), a title (s17Bold) + dropdown chevron, or a "‹ <text>" back link.
+  // Action glyphs arrive as inline SVG from the adapter (SF Symbols → web glyphs,
+  // drawn currentColor); the dropdown/back chevrons are inlined in the component.
+  PageTitle,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

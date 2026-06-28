@@ -1,0 +1,167 @@
+// PageTitle (Navigation) — web twin of iOS Components/Navigation/PageTitle.swift.
+// BEM block mirrors resources/js/components/card/page-title/page-title.vue.
+//
+// NB: the block is `.PageTitleBar`, NOT `.PageTitle` — the latter is already
+// taken by the marketing panel (components/panel/page-title.scss).
+//
+// Geometry is 1:1 with the SwiftUI layout (1 CSS px == 1 iOS pt; the pro-max
+// snapshot is 3×). From the Swift source:
+//   ZStack { HStack(spacing:8){ left · Spacer · right } ; centered title }
+//     .frame(height: 56).padding(.horizontal, 8)
+//   left/right icon button:  Image(systemName:).font(s17).foregroundColor(.white)
+//                            .frame(width:44, height:44)
+//   left/right link text:    Text.font(s17).foregroundColor(.brandPrimary)
+//                            .frame(height:44).padding(.horizontal, 8)
+//   title:                   Text.font(s17Bold).foregroundColor(.white)
+//   badge (per icon):        10×10 red circle, 1.5px appBackground stroke,
+//                            overlay topTrailing offset(x:-8, y:8)
+//
+// The harness wraps PageTitle in an outer .padding(16); the capture
+// `.capture-wrap` supplies that 16px gutter, so this block only adds the
+// component's own 8px horizontal padding.
+.PageTitleBar {
+  width: 100%;
+  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+
+  &__row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px; // iOS .frame(height: 56)
+    padding: 0 8px; // iOS .padding(.horizontal, 8)
+  }
+
+  // Left / right content clusters sit at the row's leading / trailing edges
+  // (the iOS HStack Spacer pushes them apart).
+  &__side {
+    display: flex;
+    align-items: center;
+    z-index: 1;
+
+    &--right {
+      // Multiple right icons pack flush (iOS HStack(spacing: 0)).
+      gap: 0;
+    }
+  }
+
+  // 44×44 tap target with a centered white SF glyph.
+  &__iconBtn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--color-white-100); // iOS .foregroundColor(.white)
+  }
+
+  &__glyph {
+    display: block;
+    width: 22px;
+    height: 22px;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Text link (e.g. Cancel / Save / Done): s17 brandPrimary, 44 tall, 8px sides.
+  &__link {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 8px;
+    border: none;
+    background: none;
+    font-size: 17px; // iOS Typography.s17
+    line-height: 1;
+    color: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+    white-space: nowrap;
+  }
+
+  // Always-centered title overlay (iOS ZStack centered child, on top of icons).
+  &__title {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    gap: 8px; // iOS HStack(spacing: 8)
+    z-index: 2;
+    pointer-events: none;
+  }
+
+  &__titleText {
+    font-size: 17px; // iOS Typography.s17Bold
+    font-weight: 700;
+    line-height: 1;
+    color: var(--color-white-100); // iOS .white
+    white-space: nowrap;
+  }
+
+  // Dropdown chevron next to the title (iOS Typography.s14).
+  &__chevDown {
+    display: block;
+    width: 17px;
+    height: 17px;
+    color: var(--color-white-100);
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Red presence dot at the icon's top-trailing corner: 10×10 circle with a
+  // 1.5px appBackground ring, offset(x:-8, y:8) from the 44×44 frame corner.
+  &__badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #ff3b30; // iOS Color.red (system red) — no palette token
+    border: 1.5px solid var(--color-canvas); // iOS Color.appBackground (#0d101a)
+    box-sizing: border-box;
+  }
+
+  // Back-link variant: chevron.left (s14Semibold) + text (s17), both
+  // brandPrimary, with HStack(spacing: 4) and .padding(.leading, 8).
+  &__backLink {
+    display: flex;
+    align-items: center;
+    gap: 4px; // iOS HStack(spacing: 4)
+    padding: 0;
+    padding-left: 8px; // iOS .padding(.leading, 8)
+    border: none;
+    background: none;
+    color: var(--color-brand-500); // iOS Color.brandPrimary
+  }
+
+  &__backChev {
+    display: block;
+    width: 14px;
+    height: 14px;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__backText {
+    font-size: 17px; // iOS Typography.s17
+    line-height: 1;
+    white-space: nowrap;
+  }
+}
