@@ -62,6 +62,7 @@ import Kpi from '../../card/kpi/kpi.vue'
 import MemberListItem from '../../card/member-list-item/member-list-item.vue'
 import WeekdayIndicator from '../../card/weekday-indicator/weekday-indicator.vue'
 import SkeletonEnrollmentCard from '../../card/skeleton-enrollment-card/skeleton-enrollment-card.vue'
+import ConfirmationOverlay from '../../card/confirmation-overlay/confirmation-overlay.vue'
 
 const props = defineProps<{
   component: string
@@ -179,6 +180,12 @@ const registry: Record<string, unknown> = {
   // loading enrollment card: 64×64 book.fill cover placeholder + program name +
   // "<n> days" + a brand spoke spinner with "Creating…". Full-width row card.
   SkeletonEnrollmentCard,
+  // iOS ConfirmationOverlay (Components/Feedback/ConfirmationOverlay.swift) — a
+  // centered card with an animated completion circle (style icon), a message,
+  // and an action button. NB: the iPhone reference is BLANK (entrance animation
+  // gates contentOpacity); this twin renders the overlay at its final visible
+  // state. Processing variant shows a spinning ring + muted button.
+  ConfirmationOverlay,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

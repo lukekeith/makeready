@@ -70,6 +70,7 @@ import kpi from './Kpi.mjs';
 import memberListItem from './MemberListItem.mjs';
 import weekdayIndicator from './WeekdayIndicator.mjs';
 import skeletonEnrollmentCard from './SkeletonEnrollmentCard.mjs';
+import confirmationOverlay from './ConfirmationOverlay.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -137,6 +138,7 @@ export const adapters = {
   MemberListItem: memberListItem,
   WeekdayIndicator: weekdayIndicator,
   SkeletonEnrollmentCard: skeletonEnrollmentCard,
+  ConfirmationOverlay: confirmationOverlay,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

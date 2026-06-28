@@ -173,6 +173,7 @@
 @use 'components/card/member-list-item' as member-list-item-twin;
 @use 'components/card/weekday-indicator' as weekday-indicator-twin;
 @use 'components/card/skeleton-enrollment-card' as skeleton-enrollment-card-twin;
+@use 'components/card/confirmation-overlay' as confirmation-overlay-twin;
 
 // Data display components
 @use 'components/data/bar-chart';
