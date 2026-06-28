@@ -1,0 +1,140 @@
+// MarkdownEditor — twin of iOS Components/Input/MarkdownEditor.swift.
+//
+// Structure (outer → inner), mirroring the SwiftUI VStack(spacing: 0):
+//   .MarkdownEditor           → the card. iOS: .background(backgroundDark)
+//                               .clipShape(RoundedRectangle(cornerRadius: 12))
+//                               .overlay(stroke white@0.08, 1). Full-width.
+//   .MarkdownEditor__toolbar  → the formatting bar. iOS frame(height: 44),
+//                               .padding(.horizontal, 8), .background(cardBackground),
+//                               HStack(spacing: 2).
+//   .MarkdownEditor__heading  → the H▾ menu label: Text("H") s13Bold + chevron.down
+//                               s8Bold, white@0.5, height 32, padding-horizontal 8,
+//                               radius 6 (inactive — no selection in the snapshot).
+//   .MarkdownEditor__btn      → a 32×32 toolbar button, radius 6, white@0.5 glyph.
+//   .MarkdownEditor__sep      → the 1×20 white@0.1 toolbar divider (padding-h 4).
+//   .MarkdownEditor__divider  → the 1px white@0.08 rule under the toolbar.
+//   .MarkdownEditor__editor   → the editor area, iOS .frame(minHeight: 200) wrapping
+//                               the TextEditor's .padding(8); .background(backgroundDark).
+//   .MarkdownEditor__placeholder → Text(placeholder) s17 white@0.35, inset top/left 12.
+//   .MarkdownEditor__line     → one flattened markdown line (s17 white). Blank source
+//                               lines keep their line box (min-height) so block gaps
+//                               survive — see the component header for why this mirrors
+//                               the iPhone snapshot.
+//
+// The 12px card radius, 6px button radius, 44px toolbar height, 200px editor
+// min-height, and 20.5px body leading are intrinsic to the iOS layout / measured
+// from the references (no design-system token at those values); white@0.08 and
+// white@0.35 likewise have no token (per the established twin precedent of an
+// inline rgba with a note). Everything else is tokenized.
+.MarkdownEditor {
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background-dark); // iOS Color.backgroundDark (#0a0a0f)
+  border-radius: 12px; // iOS cornerRadius 12 — intrinsic layout dimension
+  border: 1px solid rgba(255, 255, 255, 0.08); // iOS white.opacity(0.08) — no token at 8%
+  overflow: hidden; // iOS .clipShape
+
+  &__toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs); // iOS HStack(spacing: 2)
+    height: 44px; // iOS .frame(height: 44) — intrinsic
+    padding: 0 var(--space-sm); // iOS .padding(.horizontal, 8)
+    background: var(--color-surface); // iOS Color.cardBackground (#252936)
+    color: var(--color-white-50); // toolbar glyphs white@0.5 (inactive)
+  }
+
+  &__heading {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    height: var(--control-h-sm); // iOS .frame(height: 32)
+    padding: 0 var(--space-sm); // iOS .padding(.horizontal, 8)
+    border-radius: 6px; // iOS cornerRadius 6 — intrinsic
+  }
+
+  &__hLabel {
+    font-size: var(--text-sm); // iOS Typography.s13Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+  }
+
+  &__chevron {
+    width: 9px; // iOS Typography.s8Bold chevron.down
+    height: 6px;
+  }
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 auto;
+    width: var(--control-h-sm); // iOS .frame(width: 32, height: 32)
+    height: var(--control-h-sm);
+    border-radius: 6px; // iOS cornerRadius 6 — intrinsic
+
+    svg {
+      width: 22px; // iOS SF symbol at s15Medium ≈ 22px glyph
+      height: 22px;
+    }
+  }
+
+  // Letter-glyph buttons (bold "B", italic "I", "Aa"). SF Pro text mirrors the
+  // SF Symbols (bold / italic / textformat.alt) the iPhone draws here.
+  &__bold {
+    font-size: var(--text-subheading); // ~20px to match the SF symbol glyph height
+    font-weight: 800;
+    line-height: 1;
+  }
+
+  &__aa {
+    font-size: var(--text-md); // "Aa" reads a touch smaller than the single glyphs
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+  }
+
+  &__sep {
+    flex: 0 0 auto;
+    width: 1px;
+    height: 20px; // iOS .frame(width: 1, height: 20)
+    margin: 0 var(--space-xs); // iOS .padding(.horizontal, 4)
+    background: var(--color-white-10); // iOS Color.white.opacity(0.1)
+  }
+
+  &__divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.08); // iOS Color.white.opacity(0.08) — no token at 8%
+  }
+
+  &__editor {
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    min-height: 200px; // iOS .frame(minHeight: 200) wrapping the TextEditor's .padding(8)
+    background: var(--color-background-dark); // iOS Color.backgroundDark
+  }
+
+  &__placeholder {
+    padding: var(--space-md) 0 0 var(--space-md); // iOS .padding(.top,12).padding(.leading,12)
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: 20.5px; // iOS SF Pro 17pt natural leading (measured ≈ 20.5)
+    color: rgba(255, 255, 255, 0.35); // iOS .white.opacity(0.35) — no token at 35%
+  }
+
+  // The TextEditor sits ~13px in from the top (.padding(8) + text-container inset)
+  // and ~12px from the left; the bottom inset reproduces the trailing paragraph
+  // space NSAttributedString leaves below the last block, so the filled card grows
+  // to the same height as the iPhone reference (≈261pt vs the empty 246pt).
+  &__content {
+    padding: 13px var(--space-md) 36px var(--space-md);
+  }
+
+  &__line {
+    font-size: var(--text-lead); // iOS Typography.s17
+    line-height: 20.5px; // measured consecutive baseline gap on iPhone ≈ 20.7
+    min-height: 20.5px; // keep blank source lines' line box (block-gap preservation)
+    color: var(--color-white-100);
+    white-space: pre-wrap;
+  }
+}

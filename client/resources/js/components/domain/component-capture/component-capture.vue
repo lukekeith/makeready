@@ -74,6 +74,7 @@ import DatePickerField from '../../card/date-picker-field/date-picker-field.vue'
 import FieldGroup from '../../card/field-group/field-group.vue'
 import InlineFontSizePicker from '../../card/inline-font-size-picker/inline-font-size-picker.vue'
 import LargeTextInput from '../../card/large-text-input/large-text-input.vue'
+import MarkdownEditor from '../../card/markdown-editor/markdown-editor.vue'
 
 const props = defineProps<{
   component: string
@@ -256,6 +257,14 @@ const registry: Record<string, unknown> = {
   // (currency $) or trailing (phone/email/percentage) s20 icon, and a hairline
   // white@20% bottom border. Wrapped by the harness in a FieldGroup card.
   LargeTextInput,
+  // iOS MarkdownEditor (Components/Input/MarkdownEditor.swift) — markdown editor
+  // card: a fixed formatting toolbar (H▾ | list · quote | bold · italic | Aa |
+  // undo · redo) over a backgroundDark editor area. NB: in the isolated snapshot
+  // the iOS HTML→AttributedString conversion strips markdown markers but renders
+  // every block as flat 17pt white body text (no heading/bold/italic/list/quote
+  // styling), preserving blank-line gaps; this twin renders the markdown
+  // line-by-line with markers stripped to mirror that.
+  MarkdownEditor,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

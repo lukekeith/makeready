@@ -22,6 +22,7 @@
 :root {
   // ─── Dark surface primitives (seeded from iOS Colors.swift) ──────────────────
   --color-canvas:      #0d101a; // iOS appBackground
+  --color-background-dark: #0a0a0f; // iOS backgroundDark (near-black editor/well fill)
   --color-surface:     #252936; // iOS cardBackground
   --color-elevated:    #252936; // iOS surfaceElevated
   --color-section:     #191c25; // iOS sectionBackground (modal/section)
