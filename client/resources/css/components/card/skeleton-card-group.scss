@@ -1,0 +1,67 @@
+// SkeletonCardGroup — loading placeholder twin for iOS SkeletonCardGroup.
+// Matches CardGroup's Row layout: 104px tall, circular 72×72 image left,
+// title + metadata bars right, on the cardBackground surface (radius 4).
+//
+// Placeholder fills mirror the iOS opacities exactly:
+//   circle + title  → white 0.10 (--color-white-10)
+//   meta icon bar   → white 0.08   (no token; iOS Color.white.opacity(0.08))
+//   meta label bar  → white 0.06   (no token; iOS Color.white.opacity(0.06))
+
+.SkeletonCardGroup {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-lg);
+  box-sizing: border-box;
+  width: 100%;
+  height: 104px;
+  padding: var(--space-lg);
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+
+  // Circular image placeholder (72×72).
+  &__avatar {
+    flex-shrink: 0;
+    width: 72px;
+    height: 72px;
+    border-radius: var(--radius-full);
+    background: var(--color-white-10);
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    // iOS centers the content block vertically within the 104px card.
+    justify-content: center;
+  }
+
+  // Title bar (140×17).
+  &__title {
+    width: 140px;
+    height: 17px;
+    border-radius: var(--radius-sm);
+    background: var(--color-white-10);
+  }
+
+  // Metadata row sits 16px below the title (iOS .padding(.top, 16)).
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-top: var(--space-lg);
+  }
+
+  &__metaIcon {
+    width: 24px;
+    height: 13px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.08); // iOS Color.white.opacity(0.08), no token
+  }
+
+  &__metaLabel {
+    width: 56px;
+    height: 13px;
+    border-radius: var(--radius-sm);
+    background: rgba(255, 255, 255, 0.06); // iOS Color.white.opacity(0.06), no token
+  }
+}
