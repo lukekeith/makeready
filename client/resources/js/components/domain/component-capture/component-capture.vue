@@ -98,6 +98,7 @@ import TabSlider from '../../card/tab-slider/tab-slider.vue'
 import UserMenu from '../../card/user-menu/user-menu.vue'
 import StylePickerMenu from '../../card/style-picker-menu/style-picker-menu.vue'
 import VideoGridItem from '../../card/video-grid-item/video-grid-item.vue'
+import VideoPreview from '../../card/video-preview/video-preview.vue'
 
 const props = defineProps<{
   component: string
@@ -459,6 +460,15 @@ const registry: Record<string, unknown> = {
   // with a cover thumbnail (sectionBackground fallback) + a bottom-center
   // play.fill glyph with a black@50% shadow.
   VideoGridItem,
+  // iOS VideoPreview (Components/Video/VideoPreview.swift) — large 330×440
+  // sectionBackground video preview well. Empty state centers a video.fill glyph
+  // (white@30%) over a "Select a video" label (white@50%). NB: the iPhone
+  // reference renders the empty placeholder for BOTH variants — the ViewRegistry
+  // forces selectedAsset/recordedVideoURL nil (no hook to inject a thumbnail in
+  // the isolated snapshot), so WithThumbnail can't render its thumbnail on iOS.
+  // This twin stays data-driven: Empty matches the iPhone ref; WithThumbnail
+  // renders the real thumbnail design (the surfaced gap vs the empty iPhone ref).
+  VideoPreview,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

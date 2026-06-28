@@ -104,6 +104,7 @@ import pageTitle from './PageTitle.mjs';
 import tabSlider from './TabSlider.mjs';
 import stylePickerMenu from './StylePickerMenu.mjs';
 import videoGridItem from './VideoGridItem.mjs';
+import videoPreview from './VideoPreview.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -210,6 +211,10 @@ export const adapters = {
   // Two-sided twin (Vue + iPhone). The iPhone side is the generic component
   // passthrough; the web side renders the data-driven video-grid-item.vue.
   VideoGridItem: videoGridItem,
+  // Two-sided twin (Vue + iPhone). The iPhone side renders only the empty
+  // "Select a video" placeholder (the ViewRegistry can't inject a thumbnail);
+  // the web side renders the data-driven video-preview.vue.
+  VideoPreview: videoPreview,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

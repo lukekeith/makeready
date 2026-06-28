@@ -1,0 +1,49 @@
+// VideoPreview — large video preview well (iOS VideoPreview parity).
+// BEM mirrors resources/js/components/card/video-preview/video-preview.vue.
+//
+// A fixed 330×440 box (iOS `.frame(width: 330, height: 440)`) on
+// sectionBackground, clipped. The capture harness's `.capture-wrap` adds the
+// 16px gutter that matches the iOS `.padding(16)`.
+//   __placeholder — centered video.fill glyph (white@30%) over a "Select a
+//                   video" label (white@50%), spaced 12 (iOS VStack spacing 12).
+//   __thumb       — selected/recorded thumbnail filling the box (aspect-fill).
+
+.VideoPreview {
+  position: relative;
+  width: 330px; // iOS .frame(width: 330)
+  height: 440px; // iOS .frame(height: 440)
+  overflow: hidden;
+  background: var(--bg-section); // iOS Color.sectionBackground (#191C25)
+
+  // ── Empty placeholder ────────────────────────────────────────────────────────
+  &__placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px; // iOS VStack(spacing: 12)
+  }
+
+  &__icon {
+    width: 64px; // SF video.fill @ s48 (~3:2 glyph)
+    height: auto;
+    color: var(--color-white-30); // iOS .white.opacity(0.3)
+  }
+
+  &__label {
+    font-size: 15px; // iOS Typography.s15
+    line-height: 1.2;
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+  }
+
+  // ── Selected/recorded thumbnail ──────────────────────────────────────────────
+  &__thumb {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; // iOS .aspectRatio(contentMode: .fill) + .clipped()
+  }
+}

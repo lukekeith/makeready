@@ -209,6 +209,7 @@
 @use 'components/card/user-menu' as user-menu-twin;
 @use 'components/card/style-picker-menu' as style-picker-menu-twin;
 @use 'components/card/video-grid-item' as video-grid-item-twin;
+@use 'components/card/video-preview' as video-preview-twin;
 
 // Data display components
 @use 'components/data/bar-chart';
