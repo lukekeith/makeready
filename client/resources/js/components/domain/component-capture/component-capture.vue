@@ -78,6 +78,7 @@ import MarkdownEditor from '../../card/markdown-editor/markdown-editor.vue'
 import MenuInput from '../../card/menu-input/menu-input.vue'
 import MultilineTextInput from '../../card/multiline-text-input/multiline-text-input.vue'
 import RichTextInput from '../../card/rich-text-input/rich-text-input.vue'
+import SearchField from '../../card/search-field/search-field.vue'
 
 const props = defineProps<{
   component: string
@@ -286,6 +287,13 @@ const registry: Record<string, unknown> = {
   // bold/italic styling); this twin parses block tags into lines and strips the
   // rest to mirror that.
   RichTextInput,
+  // iOS SearchField (Components/Input/SearchField.swift) — animated search input.
+  // The snapshot shows each variant's resting state: Inactive is a borderless field
+  // (magnifyingglass + placeholder, white@50, no close button); active states add a
+  // white@20% 1px border and a trailing 42×42 close button (xmark). The field/button
+  // .ultraThinMaterial fills render invisible in isolation, so the twin draws them
+  // transparent (border only). Filled text is solid white; placeholder is white@50.
+  SearchField,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

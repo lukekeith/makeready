@@ -1,0 +1,105 @@
+// SearchField — twin of iOS Components/Input/SearchField.swift.
+//
+// Structure (outer → inner):
+//   .SearchField              → iOS HStack(spacing:8) { field, closeButton }. Fills
+//                               the .capture-wrap clip box (full width) like the
+//                               iPhone snapshot. The close button only renders when
+//                               active; the field flexes to fill the rest.
+//
+//   .SearchField__field       → the search field: HStack(spacing:8)
+//                               .padding(.horizontal,16).padding(.vertical,12), radius 4.
+//                               Background is iOS .ultraThinMaterial, which renders
+//                               INVISIBLE in the isolated snapshot → transparent here.
+//                               No border when inactive (stroke .clear); white@20%
+//                               1px border when active (--active modifier).
+//   .SearchField__icon        → magnifyingglass, Typography.s16 white@50 (~16pt glyph).
+//   .SearchField__text        → the entered text, Typography.s15 white (solid).
+//   .SearchField__placeholder → the placeholder, Typography.s15 white@50.
+//
+//   .SearchField__close       → trailing close button: 42×42, radius 4, white@20% 1px
+//                               border (its .ultraThinMaterial fill is invisible →
+//                               transparent). Only present when active.
+//   .SearchField__closeIcon   → xmark, Typography.s14Medium white@50 (~14pt glyph).
+//
+// s15/s16/s14 all map to --text-md (the token covers the 14/15/16 hardcodes); the
+// 4px radius is --radius-sm and the 42pt button is the component's intrinsic size
+// (raw px allowed). Everything else is tokenized.
+//
+// NB: the BEM root is `.SearchFieldInput`, NOT `.SearchField` — the latter is the
+// existing form search-box component (components/form/search-field.scss, a white@5%
+// radius-full pill) and would otherwise paint a capsule outline behind this twin
+// (same collision class as the Alert/Avatar/WeekdayIndicator twins).
+.SearchFieldInput {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm); // iOS HStack spacing 8
+  width: 100%;
+
+  &__field {
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // iOS inner HStack spacing 8
+    padding: var(--space-md) var(--space-lg); // iOS vertical 12 / horizontal 16
+    border: 1px solid transparent; // inactive: stroke .clear
+    border-radius: var(--radius-sm); // iOS cornerRadius 4
+    // iOS .ultraThinMaterial fill renders invisible in the isolated snapshot.
+    background: transparent;
+
+    &--active {
+      border-color: var(--color-white-20); // iOS .stroke(Color.white20)
+    }
+  }
+
+  &__icon {
+    flex: none;
+    display: block;
+    width: 18px; // ~16pt magnifyingglass glyph
+    height: 18px;
+    color: var(--color-white-50);
+  }
+
+  &__text {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-md); // Typography.s15
+    line-height: var(--leading-sm);
+    color: var(--color-white-100); // entered text is solid white
+  }
+
+  &__placeholder {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--text-md); // Typography.s15
+    line-height: var(--leading-sm);
+    color: var(--color-white-50);
+  }
+
+  &__close {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 42px; // iOS .frame(width:42, height:42)
+    height: 42px;
+    padding: 0;
+    border: 1px solid var(--color-white-20); // iOS .stroke(Color.white20)
+    border-radius: var(--radius-sm); // iOS cornerRadius 4
+    background: transparent; // iOS .ultraThinMaterial → invisible
+    cursor: pointer;
+  }
+
+  &__closeIcon {
+    display: block;
+    width: 14px; // ~14pt xmark glyph
+    height: 14px;
+    color: var(--color-white-50);
+  }
+}

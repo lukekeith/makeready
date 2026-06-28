@@ -85,6 +85,7 @@ import markdownEditor from './MarkdownEditor.mjs';
 import menuInput from './MenuInput.mjs';
 import multilineTextInput from './MultilineTextInput.mjs';
 import richTextInput from './RichTextInput.mjs';
+import searchField from './SearchField.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -167,6 +168,7 @@ export const adapters = {
   MenuInput: menuInput,
   MultilineTextInput: multilineTextInput,
   RichTextInput: richTextInput,
+  SearchField: searchField,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
