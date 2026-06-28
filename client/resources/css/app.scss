@@ -165,6 +165,7 @@
 @use 'components/card/alert' as alert-twin;
 @use 'components/card/alphabet-scrubber' as alphabet-scrubber-twin;
 @use 'components/card/avatar' as avatar-twin;
+@use 'components/card/dialog-overlay' as dialog-overlay-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

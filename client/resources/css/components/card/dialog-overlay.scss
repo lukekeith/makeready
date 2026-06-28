@@ -1,0 +1,107 @@
+// DialogOverlay — twin of iOS Components/Display/DialogOverlay.swift. A centered
+// dialog (optional title/message header + vertical button stack) over a blurred
+// dark overlay.
+//
+// ⚠️ The iPhone /compare reference is EMPTY: DialogOverlay enters at
+// `visible = false` and fades/scales in only via `.onAppear`, so the SwiftUI
+// snapshot captures the invisible pre-animation frame. This twin renders the
+// dialog at its final visible state — the emptiness on iOS is an accepted
+// platform artifact, not something to reproduce.
+//
+// iOS values reproduced 1:1:
+//   content VStack spacing 20  ·  header VStack spacing 8  ·  button stack 12
+//   content .padding(.horizontal, 40)
+//   title   Typography.s17Bold, white
+//   message Typography.s14, white@0.6, centered
+//   button  height 48, full width, cornerRadius 12, font 15
+//           primary   → brandPrimary fill,  white,        semibold
+//           secondary → white@0.1 fill,     white@0.5,    regular
+
+.DialogOverlay {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  // SF Pro Text (iOS system font), not the app's brand Open Sans — match the
+  // iPhone label metrics. On the macOS capture machine `-apple-system` → SF Pro.
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    // iOS VStack(spacing: 20) — no exact token (space-lg 16 / space-xl 24).
+    gap: 20px;
+    width: 100%;
+    // iOS .padding(.horizontal, 40) — content inset from the screen edges.
+    padding: 0 40px;
+    box-sizing: border-box;
+  }
+
+  &__header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    // iOS VStack(spacing: 8).
+    gap: var(--space-sm);
+  }
+
+  &__title {
+    margin: 0;
+    text-align: center;
+    // iOS Typography.s17Bold — fixed 17pt bold.
+    font-size: 17px;
+    font-weight: var(--font-weight-bold);
+    line-height: 1.2;
+    color: var(--fg-white);
+  }
+
+  &__message {
+    margin: 0;
+    text-align: center;
+    // iOS Typography.s14 — fixed 14pt regular.
+    font-size: 14px;
+    font-weight: var(--font-weight-regular);
+    line-height: 1.3;
+    // iOS .white.opacity(0.6) — no white-60 token on the scale; literal alpha.
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    // iOS VStack(spacing: 12).
+    gap: var(--space-md);
+  }
+
+  &__button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    // iOS .frame(height: 48).
+    height: var(--control-h-lg);
+    padding: 0;
+    border: none;
+    // iOS .clipShape(RoundedRectangle(cornerRadius: 12)) — between radius-md (8)
+    // and radius-lg (16); no exact token.
+    border-radius: 12px;
+    // iOS .font(.system(size: 15, weight: …)).
+    font-size: 15px;
+    font-family: inherit;
+    cursor: default;
+
+    &--primary {
+      // iOS Color.brandPrimary fill, white text, semibold.
+      background: var(--color-brand-500);
+      color: var(--fg-white);
+      font-weight: var(--font-weight-semibold);
+    }
+
+    &--secondary {
+      // iOS Color.white.opacity(0.1) fill, white@0.5 text, regular.
+      background: var(--color-white-10);
+      color: var(--color-white-50);
+      font-weight: var(--font-weight-regular);
+    }
+  }
+}

@@ -54,6 +54,7 @@ import SelectableLockedBlockView from '../../card/selectable-locked-block-view/s
 import Alert from '../../card/alert/alert.vue'
 import AlphabetScrubber from '../../card/alphabet-scrubber/alphabet-scrubber.vue'
 import Avatar from '../../card/avatar/avatar.vue'
+import DialogOverlay from '../../card/dialog-overlay/dialog-overlay.vue'
 
 const props = defineProps<{
   component: string
@@ -130,6 +131,11 @@ const registry: Record<string, unknown> = {
   // sizes; initials-gradient / person-icon fallback (photo never resolves in the
   // isolated snapshot).
   Avatar,
+  // iOS DialogOverlay (Components/Display/DialogOverlay.swift) — centered dialog
+  // with optional title/message + vertical button stack. NB: the iPhone
+  // reference is empty (entrance animation gates `visible`); this twin renders
+  // the dialog at its final visible state.
+  DialogOverlay,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

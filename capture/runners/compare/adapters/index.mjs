@@ -62,6 +62,7 @@ import selectableLockedBlockView from './SelectableLockedBlockView.mjs';
 import alert from './Alert.mjs';
 import alphabetScrubber from './AlphabetScrubber.mjs';
 import avatar from './Avatar.mjs';
+import dialogOverlay from './DialogOverlay.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -121,6 +122,7 @@ export const adapters = {
   Alert: alert,
   AlphabetScrubber: alphabetScrubber,
   Avatar: avatar,
+  DialogOverlay: dialogOverlay,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
