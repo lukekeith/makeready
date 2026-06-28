@@ -61,6 +61,7 @@ import exegesisVerseView from './ExegesisVerseView.mjs';
 import selectableLockedBlockView from './SelectableLockedBlockView.mjs';
 import alert from './Alert.mjs';
 import alphabetScrubber from './AlphabetScrubber.mjs';
+import avatar from './Avatar.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -119,6 +120,7 @@ export const adapters = {
   SelectableLockedBlockView: selectableLockedBlockView,
   Alert: alert,
   AlphabetScrubber: alphabetScrubber,
+  Avatar: avatar,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

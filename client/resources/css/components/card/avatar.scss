@@ -1,0 +1,81 @@
+// Avatar — twin of iOS Components/Display/Avatar.swift. BEM modifiers mirror the
+// AvatarCva size strings in resources/js/components/card/avatar/avatar.vue.
+//
+// Root is `.AvatarDisplay` (not `.Avatar`) to avoid colliding with the existing
+// primitive Avatar component, which already owns the `.Avatar` namespace.
+//
+// iOS AvatarSize maps each size to three pixel values (diameter / initials font /
+// icon glyph). They are reproduced 1:1 below via per-size custom properties:
+//
+//   size  dimension  fontSize  iconSize
+//   xs       24         10        12
+//   sm       32         13        16
+//   md       40         16        20
+//   lg       48         19        24
+//   xl       64         26        32
+//   xxl      96         38        48
+
+.AvatarDisplay {
+  --avatar-size: 40px;
+  --avatar-font: 16px;
+  --avatar-icon: 20px;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+
+  // Initials fallback — iOS LinearGradient(brandPrimary@0.6 → @0.4,
+  // topLeading → bottomTrailing = 135deg). The brand hue has no token at these
+  // alphas, so layer the translucent brand gradient over --bg-canvas to
+  // reproduce the exact composited color regardless of backdrop (same approach
+  // as group-post-card.scss).
+  &__fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background:
+      linear-gradient(135deg, rgba(108, 71, 255, 0.6), rgba(108, 71, 255, 0.4)),
+      var(--bg-canvas);
+    // iOS .system(size: fontSize, weight: .bold) → SF Pro; -apple-system
+    // resolves to SF Pro on the macOS capture machine.
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: var(--avatar-font);
+    font-weight: var(--font-weight-bold);
+    line-height: 1;
+    color: var(--fg-white);
+  }
+
+  // Icon fallback — iOS Circle.fill(white@0.1) + person.fill(white@0.2).
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--color-white-10); // iOS Color.white.opacity(0.1)
+    color: var(--color-white-20); // iOS .white.opacity(0.2)
+
+    :deep(svg),
+    svg {
+      width: var(--avatar-icon);
+      height: var(--avatar-icon);
+      display: block;
+    }
+  }
+
+  // ── Sizes (iOS AvatarSize) ───────────────────────────────────────────────
+  &--xs  { --avatar-size: 24px; --avatar-font: 10px; --avatar-icon: 12px; }
+  &--sm  { --avatar-size: 32px; --avatar-font: 13px; --avatar-icon: 16px; }
+  &--md  { --avatar-size: 40px; --avatar-font: 16px; --avatar-icon: 20px; }
+  &--lg  { --avatar-size: 48px; --avatar-font: 19px; --avatar-icon: 24px; }
+  &--xl  { --avatar-size: 64px; --avatar-font: 26px; --avatar-icon: 32px; }
+  &--xxl { --avatar-size: 96px; --avatar-font: 38px; --avatar-icon: 48px; }
+}

@@ -53,6 +53,7 @@ import ExegesisVerseView from '../../card/exegesis-verse-view/exegesis-verse-vie
 import SelectableLockedBlockView from '../../card/selectable-locked-block-view/selectable-locked-block-view.vue'
 import Alert from '../../card/alert/alert.vue'
 import AlphabetScrubber from '../../card/alphabet-scrubber/alphabet-scrubber.vue'
+import Avatar from '../../card/avatar/avatar.vue'
 
 const props = defineProps<{
   component: string
@@ -125,6 +126,10 @@ const registry: Record<string, unknown> = {
   // iOS AlphabetScrubber (Components/Display/AlphabetScrubber.swift) — vertical
   // A–Z navigation rail; clipped/centered to the harness's 360pt frame.
   AlphabetScrubber,
+  // iOS Avatar (Components/Display/Avatar.swift) — circular avatar with six fixed
+  // sizes; initials-gradient / person-icon fallback (photo never resolves in the
+  // isolated snapshot).
+  Avatar,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
