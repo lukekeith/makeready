@@ -75,6 +75,7 @@ import FieldGroup from '../../card/field-group/field-group.vue'
 import InlineFontSizePicker from '../../card/inline-font-size-picker/inline-font-size-picker.vue'
 import LargeTextInput from '../../card/large-text-input/large-text-input.vue'
 import MarkdownEditor from '../../card/markdown-editor/markdown-editor.vue'
+import MenuInput from '../../card/menu-input/menu-input.vue'
 
 const props = defineProps<{
   component: string
@@ -265,6 +266,12 @@ const registry: Record<string, unknown> = {
   // styling), preserving blank-line gaps; this twin renders the markdown
   // line-by-line with markers stripped to mirror that.
   MarkdownEditor,
+  // iOS MenuInput (Components/Input/MenuInput.swift) — labelled picker input in a
+  // FieldGroup card. The snapshot shows each style's resting render: menu / wheel /
+  // inline are an identical collapsed row (label · selectedOption · chevron.down);
+  // segmented is an uppercase label over a white@10% capsule track whose selected
+  // segment is bold (its material pill is invisible in the isolated snapshot).
+  MenuInput,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

@@ -82,6 +82,7 @@ import fieldGroup from './FieldGroup.mjs';
 import inlineFontSizePicker from './InlineFontSizePicker.mjs';
 import largeTextInput from './LargeTextInput.mjs';
 import markdownEditor from './MarkdownEditor.mjs';
+import menuInput from './MenuInput.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -161,6 +162,7 @@ export const adapters = {
   InlineFontSizePicker: inlineFontSizePicker,
   LargeTextInput: largeTextInput,
   MarkdownEditor: markdownEditor,
+  MenuInput: menuInput,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

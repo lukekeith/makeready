@@ -1,0 +1,118 @@
+// MenuInput — twin of iOS Components/Input/MenuInput.swift.
+//
+// Structure (outer → inner):
+//   .MenuInput               → the FieldGroup card the harness wraps it in. iOS:
+//                              VStack(spacing:0).padding(.vertical,4) + white@0.05
+//                              + cornerRadius(10). Full-width (fills the
+//                              .capture-wrap clip box, like the iPhone card).
+//
+//   menu / wheel / inline (collapsed row):
+//   .MenuInput__row          → the Button HStack. iOS .padding(.horizontal,16)
+//                              .padding(.vertical,12). label left, value+chevron right.
+//   .MenuInput__label        → Text(label), Typography.s17 white.
+//   .MenuInput__trailing     → value + chevron, pushed to the trailing edge
+//                              (iOS Spacer); HStack spacing 8 between value and chevron.
+//   .MenuInput__value        → Text(selectedOption), Typography.s17 white.
+//   .MenuInput__chevron      → Image("chevron.down"), Typography.s12 white@0.5.
+//                              The glyph measures ~10×6pt in the snapshot.
+//
+//   segmented:
+//   .MenuInput__segmented    → VStack(alignment:.leading, spacing:8).padding(.vertical,8).
+//   .MenuInput__segmentedLabel → Text(label), Typography.s13Semibold white@0.7,
+//                              uppercase, .padding(.horizontal,16).
+//   .MenuInput__track        → the UISegmentedControl track: a white@10% capsule
+//                              (32pt tall), inset 16px each side (iOS .padding(.horizontal,16)).
+//                              The selected-segment material pill is invisible in
+//                              the isolated snapshot, so it is not drawn.
+//   .MenuInput__segment      → one segment, equal width, centered text, s13 white.
+//   .MenuInput__segment--selected → the selected segment: semibold (the only thing
+//                              that distinguishes it once the pill drops out).
+//
+// The 10px card radius and the 32px capsule track height come straight from the
+// iOS layout spec and have no design-system token (raw px allowed per the
+// intrinsic-size exception); everything else is tokenized.
+.MenuInput {
+  width: 100%;
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  background: var(--color-white-5);
+  border-radius: 10px;
+
+  // --- menu / wheel / inline collapsed row ---
+  &__row {
+    display: flex;
+    align-items: center;
+    padding: var(--space-md) var(--space-lg); // iOS vertical 12 / horizontal 16
+  }
+
+  &__label {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    color: var(--color-white-100);
+  }
+
+  &__trailing {
+    margin-left: auto; // iOS Spacer
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // iOS HStack spacing 8
+  }
+
+  &__value {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    color: var(--color-white-100);
+  }
+
+  &__chevron {
+    display: block;
+    width: 11px; // ~10pt glyph; box gives a touch of stroke room
+    height: auto;
+    color: var(--color-white-50);
+  }
+
+  // --- segmented ---
+  &__segmented {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm); // iOS VStack spacing 8
+    padding-top: var(--space-sm); // iOS .padding(.vertical, 8)
+    padding-bottom: var(--space-sm);
+  }
+
+  &__segmentedLabel {
+    font-size: var(--text-sm);
+    // SF Pro 13pt's natural single-line box is ~15.5pt (not the 18px leading-sm),
+    // so the iOS label block sits tighter above the track; use leading-xs to match.
+    line-height: var(--leading-xs);
+    font-weight: 600; // Typography.s13Semibold
+    color: var(--color-white-70);
+    text-transform: uppercase;
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  &__track {
+    display: flex;
+    align-items: stretch;
+    height: 32px; // standard UISegmentedControl height
+    margin-left: var(--space-lg); // iOS .padding(.horizontal, 16)
+    margin-right: var(--space-lg);
+    background: var(--color-white-10);
+    border-radius: 999px; // capsule (radius = half height)
+  }
+
+  &__segment {
+    flex: 1 1 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--color-white-100);
+
+    &--selected {
+      font-weight: 600;
+    }
+  }
+}
