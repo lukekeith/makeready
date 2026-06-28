@@ -66,6 +66,7 @@ import dialogOverlay from './DialogOverlay.mjs';
 import fullScreenImageViewer from './FullScreenImageViewer.mjs';
 import groupSelectorSheet from './GroupSelectorSheet.mjs';
 import infoPanel from './InfoPanel.mjs';
+import kpi from './Kpi.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -129,6 +130,7 @@ export const adapters = {
   FullScreenImageViewer: fullScreenImageViewer,
   GroupSelectorSheet: groupSelectorSheet,
   InfoPanel: infoPanel,
+  Kpi: kpi,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

@@ -58,6 +58,7 @@ import DialogOverlay from '../../card/dialog-overlay/dialog-overlay.vue'
 import FullScreenImageViewer from '../../card/full-screen-image-viewer/full-screen-image-viewer.vue'
 import GroupSelectorSheet from '../../card/group-selector-sheet/group-selector-sheet.vue'
 import InfoPanel from '../../card/info-panel/info-panel.vue'
+import Kpi from '../../card/kpi/kpi.vue'
 
 const props = defineProps<{
   component: string
@@ -157,6 +158,12 @@ const registry: Record<string, unknown> = {
   // snapshot, so this twin's panel background is transparent (dividers + text
   // only) to match.
   InfoPanel,
+  // iOS Kpi (Components/Display/Kpi.swift) — KPI card with four layout variants
+  // (standard / compact / sparkline / iconValue) on a white@5% rounded card.
+  // The sparkline reproduces Swift Charts' monotone LineMark + AreaMark; SF
+  // symbols map to inline SVG and the iconValue tint colors (.blue/.green) map
+  // to the iOS dark-mode system hexes in the adapter.
+  Kpi,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

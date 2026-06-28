@@ -1,0 +1,166 @@
+// Kpi — KPI card twin (iOS Components/Display/Kpi.swift).
+//
+// Every variant shares the same card chrome: a white@5% fill, 4pt corner radius
+// (RoundedRectangle(cornerRadius: 4)), and 16pt internal padding. The harness's
+// 16px `.capture-wrap` gutter reproduces the iOS preview's outer 16pt padding,
+// so the card sits inset from the crop edge exactly like the sizeThatFits shot.
+//
+// Type maps 1:1 to iOS Typography tokens → DS tokens:
+//   label / description / standard-icon : 13pt  → --text-sm
+//   compact value                       : 17pt  → --text-lead
+//   standard / sparkline value          : 28pt  → --text-title
+//   iconValue value                     : 24pt  (no token; scale jumps 22→28)
+//   iconValue icon                      : 22pt  → --text-heading
+//   compact icon                        : 15pt  (no token; scale jumps 13→16)
+// Colors: value = white@100%, label/standard-icon = white@50%, description =
+// white@30%. SF Pro (`-apple-system`) matches the iOS system-font metrics under
+// the macOS capture runner.
+.Kpi {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px;
+  border-radius: var(--radius-sm);
+  background: var(--color-white-5);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__value {
+    color: var(--color-white-100);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+  }
+
+  &__label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-white-50);
+    white-space: nowrap;
+  }
+
+  &__description {
+    font-size: var(--text-sm);
+    font-weight: 400;
+    line-height: 1.2;
+    color: var(--color-white-30);
+  }
+
+  // Icon: SVG inherits currentColor; default = white@50% (resolvedIconColor),
+  // overridden inline when the variant supplies an iconColor.
+  &__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-white-50);
+    flex: 0 0 auto;
+
+    svg {
+      display: block;
+      width: auto;
+    }
+  }
+
+  &__spacer {
+    flex: 1 1 auto;
+  }
+
+  // ── standard ─────────────────────────────────────────────────────────────
+  // VStack(spacing: 8) leading: label row / value(28) / description.
+  &--variant-standard {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+
+    .Kpi__labelRow {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .Kpi__icon svg {
+      height: 16px; // 13pt SF symbol renders ~1.2× point size
+    }
+
+    .Kpi__value {
+      font-size: var(--text-title);
+    }
+  }
+
+  // ── compact ──────────────────────────────────────────────────────────────
+  // HStack(spacing: 8): icon(15) + value(17) + Spacer + label.
+  &--variant-compact {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+
+    .Kpi__icon svg {
+      height: 19px; // 15pt SF symbol
+    }
+
+    .Kpi__value {
+      font-size: var(--text-lead);
+    }
+  }
+
+  // ── sparkline ────────────────────────────────────────────────────────────
+  // HStack(spacing: 16): text column + Spacer + 80×48 trend chart, centered.
+  &--variant-sparkline {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+
+    .Kpi__textColumn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+
+    .Kpi__value {
+      font-size: var(--text-title);
+    }
+
+    .Kpi__sparkline {
+      flex: 0 0 auto;
+      width: 80px;
+      height: 48px;
+    }
+  }
+
+  // ── iconValue ────────────────────────────────────────────────────────────
+  // VStack(spacing: 0) leading: [value(24) + Spacer + icon(22)] / 16gap /
+  // label / 8gap / description.
+  &--variant-icon-value {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+
+    .Kpi__valueRow {
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      width: 100%;
+    }
+
+    .Kpi__value {
+      font-size: 24px; // iOS Typography.s24Bold (no token; scale jumps 22→28)
+    }
+
+    .Kpi__icon svg {
+      height: 24px; // 22pt SF symbol
+    }
+
+    .Kpi__label {
+      margin-top: 16px;
+    }
+
+    .Kpi__description {
+      margin-top: 8px;
+    }
+  }
+}

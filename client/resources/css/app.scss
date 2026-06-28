@@ -169,6 +169,7 @@
 @use 'components/card/full-screen-image-viewer' as full-screen-image-viewer-twin;
 @use 'components/card/group-selector-sheet' as group-selector-sheet-twin;
 @use 'components/card/info-panel' as info-panel-twin;
+@use 'components/card/kpi' as kpi-twin;
 
 // Data display components
 @use 'components/data/bar-chart';
