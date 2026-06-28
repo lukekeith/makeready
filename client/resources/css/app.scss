@@ -157,6 +157,7 @@
 @use 'components/card/card-video-mini';
 @use 'components/card/swipeable-card';
 @use 'components/card/donut-chart' as donut-chart-twin;
+@use 'components/card/horizontal-bar-chart' as horizontal-bar-chart-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

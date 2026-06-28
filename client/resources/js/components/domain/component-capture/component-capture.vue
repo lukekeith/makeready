@@ -46,6 +46,7 @@ import CardSlideButton from '../../card/card-slide-button/card-slide-button.vue'
 import SwipeableCard from '../../card/swipeable-card/swipeable-card.vue'
 import DonutChart from '../../card/donut-chart/donut-chart.vue'
 import HeatMapChart from '../../card/heat-map-chart/heat-map-chart.vue'
+import HorizontalBarChart from '../../card/horizontal-bar-chart/horizontal-bar-chart.vue'
 
 const props = defineProps<{
   component: string
@@ -102,6 +103,8 @@ const registry: Record<string, unknown> = {
   DonutChart,
   // iOS HeatMapChart (Swift Charts RectangleMark grid) — CSS-grid heatmap twin.
   HeatMapChart,
+  // iOS HorizontalBarChart (Swift Charts horizontal BarMark) — bar/axis twin.
+  HorizontalBarChart,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

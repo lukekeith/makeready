@@ -54,6 +54,7 @@ import swipeableCard from './SwipeableCard.mjs';
 import upcomingLessonCard from './UpcomingLessonCard.mjs';
 import donutChart from './DonutChart.mjs';
 import heatMapChart from './HeatMapChart.mjs';
+import horizontalBarChart from './HorizontalBarChart.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -105,6 +106,7 @@ export const adapters = {
   BackgroundSourceMenu: backgroundSourceMenu,
   DonutChart: donutChart,
   HeatMapChart: heatMapChart,
+  HorizontalBarChart: horizontalBarChart,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
@@ -121,7 +123,7 @@ const IPHONE_FIRST_COMPONENTS = [
   'CoverImagePicker', 'DatePickerField', 'DialogOverlay',
   'ErrorBanner', 'ExegesisVerseView', 'FieldGroup', 'FilterChipDropdown',
   'FullScreenImageViewer', 'GroupActionButton', 'GroupSelectorSheet', 'HamburgerMenu',
-  'HorizontalBarChart', 'InfoPanel', 'InlineFontSizePicker',
+  'InfoPanel', 'InlineFontSizePicker',
   'InviteMenu', 'InviteQRCodeView', 'Kpi', 'LargeTextInput',
   'LessonActionMenu', 'LineChart', 'MarkdownEditor', 'MemberListItem',
   'MenuInput', 'MultilineTextInput', 'NavBar', 'PageHeader',

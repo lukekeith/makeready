@@ -1,0 +1,86 @@
+// HorizontalBarChartTwin — web twin of the iOS HorizontalBarChart
+// (SwiftUI Swift Charts horizontal BarMark).
+//
+// The data (bar widths, tick positions, colours, height) is computed in the Vue
+// component; this rule owns the structural layout and the axis/label typography.
+//
+// Raw px are intentional here (design-system intrinsic-size exception, same as
+// donut-chart): the iPhone snapshot is laid out in points by Swift Charts, so
+// the band pitch, bar thickness and inset offsets are reproduced as exact pt→px
+// values. Type sizes mirror the iOS Typography tokens used in the chart:
+//   • category label  Typography.s13         (13px, white@0.9)
+//   • value annotation Typography.s12Semibold (12px/600, white@0.7)
+//   • axis tick        Typography.s11         (11px, white@0.5)
+.HBarChartTwin {
+  position: relative;
+  width: 100%;
+  box-sizing: border-box;
+  // padding-top (iOS chart top inset) + height are set inline from props.
+
+  &__rows {
+    width: 100%;
+  }
+
+  &__row {
+    position: relative;
+    width: 100%;
+    // height (band pitch) is set inline from props.
+  }
+
+  // Leading y-axis category label — iOS renders it above the band centre.
+  &__label {
+    position: absolute;
+    top: -5px;
+    left: 0;
+    font-size: 13px; // iOS Typography.s13
+    line-height: 15px;
+    font-weight: var(--font-weight-regular);
+    color: var(--color-white-90); // iOS .white.opacity(0.9)
+    white-space: nowrap;
+  }
+
+  // The bar + its trailing value annotation, vertically centred in the band.
+  &__barline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+  }
+
+  &__bar {
+    flex-shrink: 0;
+    border-radius: 2px; // iOS BarMark default rounded corners
+    // width / height / background set inline from props.
+  }
+
+  &__value {
+    margin-left: 8px; // iOS .annotation .padding(.leading, 8)
+    font-size: 12px; // iOS Typography.s12Semibold
+    line-height: 1;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+    white-space: nowrap;
+  }
+
+  // Bottom x-axis of value ticks.
+  &__axis {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    // height set inline; tick labels overflow upward from the bottom edge.
+  }
+
+  &__tick {
+    position: absolute;
+    bottom: 0;
+    transform: translateX(-50%);
+    font-size: 11px; // iOS Typography.s11
+    line-height: 1;
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+    white-space: nowrap;
+  }
+}
