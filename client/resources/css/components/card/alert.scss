@@ -1,0 +1,61 @@
+// Alert — inline warning/critical banner. Web twin of iOS
+// Components/Display/Alert.swift. A leading filled warning triangle + message
+// on a tinted, rounded surface; `variant` colors the icon and tints the
+// surface. Sized to the iOS layout (HStack top-aligned, spacing 10, padding 16,
+// cornerRadius 8, icon 20×20, message 13pt with 5pt lineSpacing).
+// NB: block is `.AlertBanner`, not `.Alert` — the client already ships an
+// overlay `.Alert` dialog component; sharing the block would let its
+// `.Alert__message` rule override this twin's message size/color.
+.AlertBanner {
+  display: flex;
+  align-items: flex-start;
+  // iOS HStack spacing: 10 — no exact token on the base scale (8 / 12).
+  gap: 10px;
+  width: 100%;
+  padding: var(--space-lg);
+  border-radius: var(--radius-md);
+  box-sizing: border-box;
+
+  &__icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    // iOS Image.frame(width: 20, height: 20) + Typography.s20.
+    width: var(--icon-sm);
+    height: var(--icon-sm);
+
+    svg {
+      width: var(--icon-sm);
+      height: var(--icon-sm);
+      display: block;
+    }
+  }
+
+  &__message {
+    margin: 0;
+    // iOS renders this with SF Pro Text (the system font), not the app's brand
+    // Open Sans — match it so the message wraps at the same width as the iPhone
+    // snapshot. On the macOS capture machine `-apple-system` resolves to SF Pro.
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    // iOS Typography.s13 — fixed 13pt, independent of the responsive text scale.
+    font-size: 13px;
+    // iOS .lineSpacing(5) adds 5pt *between* lines only (no leading on the
+    // first/last). CSS line-height pads every line, so the equivalent is the
+    // 13pt SF Pro line box (~15.5px) plus the inter-line share: ~18.8px matches
+    // the iPhone text-block height for the 2–3 line variants here.
+    line-height: 18.8px;
+    color: var(--fg-primary);
+  }
+
+  // ─── Tone (CVA modifiers) ────────────────────────────────────────────────
+  &--warning {
+    background: var(--color-warning-tint);
+    .AlertBanner__icon { color: var(--fg-warning); }
+  }
+
+  &--critical {
+    background: var(--color-error-tint);
+    .AlertBanner__icon { color: var(--fg-error); }
+  }
+}

@@ -51,6 +51,7 @@ import VerticalBarChart from '../../card/vertical-bar-chart/vertical-bar-chart.v
 import LineChart from '../../card/line-chart/line-chart.vue'
 import ExegesisVerseView from '../../card/exegesis-verse-view/exegesis-verse-view.vue'
 import SelectableLockedBlockView from '../../card/selectable-locked-block-view/selectable-locked-block-view.vue'
+import Alert from '../../card/alert/alert.vue'
 
 const props = defineProps<{
   component: string
@@ -118,6 +119,8 @@ const registry: Record<string, unknown> = {
   // iOS SelectableLockedBlockView (read-only UITextView locked read block) —
   // justified Charter twin with purple/preview selection runs.
   SelectableLockedBlockView,
+  // iOS Alert (Components/Display/Alert.swift) — inline warning/critical banner.
+  Alert,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

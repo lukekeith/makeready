@@ -59,6 +59,7 @@ import verticalBarChart from './VerticalBarChart.mjs';
 import lineChart from './LineChart.mjs';
 import exegesisVerseView from './ExegesisVerseView.mjs';
 import selectableLockedBlockView from './SelectableLockedBlockView.mjs';
+import alert from './Alert.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -115,6 +116,7 @@ export const adapters = {
   LineChart: lineChart,
   ExegesisVerseView: exegesisVerseView,
   SelectableLockedBlockView: selectableLockedBlockView,
+  Alert: alert,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
@@ -124,7 +126,7 @@ export const adapters = {
 // (see card-study.mjs / GroupCard.mjs) — nothing about the fixture changes.
 const IPHONE_FIRST_COMPONENTS = [
   'ActionCardMenu', 'AddActivityMenu', 'AddMenu',
-  'Alert', 'AlphabetScrubber', 'Avatar',
+  'AlphabetScrubber', 'Avatar',
   'BackgroundSwatch', 'BibleVerseTextLayout', 'BlockStyleEditor',
   'CalendarBottomBar', 'CalendarDayCell', 'CalendarEventListContent',
   'CalendarWeekdayHeader', 'CardGroupMini', 'CardSpinnerOverlay', 'ConfirmationOverlay',
