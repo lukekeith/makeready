@@ -182,6 +182,7 @@
 @use 'components/card/block-style-editor' as block-style-editor-twin;
 @use 'components/card/cover-image-picker' as cover-image-picker-twin;
 @use 'components/card/date-picker-field' as date-picker-field-twin;
+@use 'components/card/field-group' as field-group-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

@@ -71,6 +71,7 @@ import BackgroundSwatch from '../../card/background-swatch/background-swatch.vue
 import BlockStyleEditor from '../../card/block-style-editor/block-style-editor.vue'
 import CoverImagePicker from '../../card/cover-image-picker/cover-image-picker.vue'
 import DatePickerField from '../../card/date-picker-field/date-picker-field.vue'
+import FieldGroup from '../../card/field-group/field-group.vue'
 
 const props = defineProps<{
   component: string
@@ -237,6 +238,11 @@ const registry: Record<string, unknown> = {
   // adapter pre-formats the date/time in local tz to match the iOS
   // DateFormatters (monthPaddedDayYear "Jan 30, 2026" + shortTime "03:41").
   DatePickerField,
+  // iOS FieldGroup (Components/Input/FieldGroup.swift) — rounded white@5% container
+  // grouping value rows separated by hairline white@10% dividers, with an optional
+  // trailing white@70% description row. Rows render s17 white with 16px padding;
+  // the description renders s13 with 16/12 padding.
+  FieldGroup,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

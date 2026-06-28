@@ -1,0 +1,45 @@
+// FieldGroup — twin of iOS Components/Input/FieldGroup.swift.
+//
+// Structure (outer → inner):
+//   .FieldGroup             → the FieldGroup card. iOS: VStack(spacing:0)
+//                             .padding(.vertical, 4) + Color.white.opacity(0.05)
+//                             + cornerRadius(10). Full-width (fills the
+//                             .capture-wrap clip box, like the iPhone card).
+//   .FieldGroup__row        → a value row. iOS Text(item), Typography.s17 white,
+//                             frame(maxWidth:.infinity, alignment:.leading),
+//                             .padding() → 16px on all sides.
+//   .FieldGroup__divider    → FieldGroupDivider: Rectangle white.opacity(0.1),
+//                             height 1px, full bleed (default inset 0).
+//   .FieldGroup__description → FieldGroupDescription: Typography.s13 white@70%,
+//                             leading, .padding(.horizontal, 16) +
+//                             .padding(.vertical, 12).
+//
+// The 10px card radius comes straight from the iOS layout spec and has no
+// design-system token (raw px allowed per the intrinsic-size exception);
+// everything else is tokenized.
+.FieldGroup {
+  width: 100%;
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  background: var(--color-white-5);
+  border-radius: 10px;
+
+  &__row {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    color: var(--color-white-100);
+    padding: var(--space-lg);
+  }
+
+  &__divider {
+    height: 1px;
+    background: var(--color-white-10);
+  }
+
+  &__description {
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    color: var(--color-white-70);
+    padding: var(--space-md) var(--space-lg);
+  }
+}
