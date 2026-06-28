@@ -63,6 +63,7 @@ import MemberListItem from '../../card/member-list-item/member-list-item.vue'
 import WeekdayIndicator from '../../card/weekday-indicator/weekday-indicator.vue'
 import SkeletonEnrollmentCard from '../../card/skeleton-enrollment-card/skeleton-enrollment-card.vue'
 import ConfirmationOverlay from '../../card/confirmation-overlay/confirmation-overlay.vue'
+import ErrorBanner from '../../card/error-banner/error-banner.vue'
 
 const props = defineProps<{
   component: string
@@ -186,6 +187,10 @@ const registry: Record<string, unknown> = {
   // gates contentOpacity); this twin renders the overlay at its final visible
   // state. Processing variant shows a spinning ring + muted button.
   ConfirmationOverlay,
+  // iOS ErrorBanner (Components/Feedback/ErrorBanner.swift) — top error banner:
+  // a red rounded bar with a warning triangle, a message (lineLimit 2), and an
+  // optional white@20% Retry pill (arrow.clockwise + "Retry").
+  ErrorBanner,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

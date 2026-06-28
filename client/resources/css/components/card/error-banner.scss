@@ -1,0 +1,123 @@
+// ErrorBanner — twin of iOS Components/Feedback/ErrorBanner.swift (the pure
+// `ErrorBanner` struct). Top error banner: a red rounded bar with a warning
+// triangle, a message, and an optional Retry pill.
+//
+// iOS values reproduced 1:1:
+//   chrome   .padding(.horizontal 16).padding(.top 8) around the red banner
+//   banner   .padding(.horizontal 16).padding(.vertical 12); Color.error fill
+//            (#FF4759); RoundedRectangle(cornerRadius 12)
+//   HStack   spacing 12 (icon ↔ message ↔ retry)
+//   icon     Typography.s14 (14pt), white triangle, bang knocked out in red
+//   message  Typography.s14Semibold (14/600), white, leading, .lineLimit(2)
+//   retry    Capsule, white@0.2 fill; .padding(.horizontal 10).padding(.vertical 6);
+//            inner HStack spacing 4; arrow.clockwise (s12Semibold 12/600) +
+//            "Retry" (s13Semibold 13/600); white
+//
+// Color.error (#FF4759) has no DS token (the only error token at this hue is
+// --color-error-tint at 0.2 opacity), so the solid is hardcoded — same precedent
+// as the ConfirmationOverlay twin's iOS style hexes. Likewise the 12px corner and
+// the 10/6px retry-pill paddings fall between DS steps and are intrinsic iOS
+// values, so they are literal here.
+//
+// Text is SF Pro (iOS system font): `-apple-system` matches the iOS label metrics
+// under the macOS capture runner (same approach as the ConfirmationOverlay /
+// InfoPanel twins). The 14/13/12 sizes are intrinsic iOS sizes (no exact DS token).
+.ErrorBanner {
+  width: 100%;
+  box-sizing: border-box;
+  // iOS wraps the red banner in .padding(.horizontal 16).padding(.top 8). In the
+  // /compare harness that single 16px gutter is already supplied by the Blade
+  // `.capture-wrap` (padding 16) around this island — and the iPhone snapshot is
+  // cropped tight to the component, so it likewise shows just one 16px gutter.
+  // Adding the outer padding here too would double the gutter and shrink the red
+  // banner ~32px narrower than iOS (enough to wrap the NoRetry message to two
+  // lines), so the root is gutter-free and the red banner fills the wrap width.
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__banner {
+    display: flex;
+    align-items: center;
+    // iOS HStack(spacing: 12).
+    gap: var(--space-md);
+    box-sizing: border-box;
+    // iOS .padding(.horizontal 16).padding(.vertical 12).
+    padding: var(--space-md) var(--space-lg);
+    // iOS Color.error — no solid DS token at this hue.
+    background: #ff4759;
+    // iOS RoundedRectangle(cornerRadius: 12) — between --radius-md and --radius-lg.
+    border-radius: 12px;
+  }
+
+  // iOS Image("exclamationmark.triangle.fill").font(Typography.s14) — 14pt glyph.
+  &__icon {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: var(--color-white-100);
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    // The bang is knocked out of the white triangle → shows the banner red.
+    &-knockout {
+      fill: #ff4759;
+    }
+  }
+
+  &__message {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    text-align: left;
+    // iOS Typography.s14Semibold.
+    font-size: 14px;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1.3;
+    color: var(--color-white-100);
+    // iOS .lineLimit(2).
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__retry {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    // iOS inner HStack(spacing: 4).
+    gap: var(--space-xs);
+    // iOS .padding(.horizontal 10).padding(.vertical 6) — between DS steps.
+    padding: 6px 10px;
+    border: none;
+    // iOS .background(Color.white.opacity(0.2)).clipShape(Capsule()).
+    background: var(--color-white-20);
+    border-radius: var(--radius-full);
+    color: var(--color-white-100);
+    font-family: inherit;
+    cursor: default;
+  }
+
+  // iOS Image("arrow.clockwise").font(Typography.s12Semibold) — 12pt glyph.
+  &__retry-icon {
+    display: flex;
+    width: 13px;
+    height: 13px;
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // iOS Text("Retry").font(Typography.s13Semibold).
+  &__retry-label {
+    font-size: 13px;
+    font-weight: var(--font-weight-semibold);
+    line-height: 1;
+  }
+}
