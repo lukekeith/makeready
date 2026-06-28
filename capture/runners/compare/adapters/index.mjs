@@ -31,6 +31,7 @@ import calendarBottomBar from './CalendarBottomBar.mjs';
 import calendarDayCell from './CalendarDayCell.mjs';
 import calendarEventListContent from './CalendarEventListContent.mjs';
 import calendarWeekdayHeader from './CalendarWeekdayHeader.mjs';
+import cardGroupMini from './CardGroupMini.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -62,6 +63,7 @@ export const adapters = {
   CalendarDayCell: calendarDayCell,
   CalendarEventListContent: calendarEventListContent,
   CalendarWeekdayHeader: calendarWeekdayHeader,
+  CardGroupMini: cardGroupMini,
   GroupPostCard: iphoneCard('component.GroupPostCard'),
   // Connected components — seed app state rather than a plain prop bag.
   BlockStyleEditor: blockStyleEditor,
