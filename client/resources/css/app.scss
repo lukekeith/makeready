@@ -188,6 +188,7 @@
 @use 'components/card/markdown-editor' as markdown-editor-twin;
 @use 'components/card/menu-input' as menu-input-twin;
 @use 'components/card/multiline-text-input' as multiline-text-input-twin;
+@use 'components/card/rich-text-input' as rich-text-input-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

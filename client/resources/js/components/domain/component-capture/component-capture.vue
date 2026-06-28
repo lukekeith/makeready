@@ -77,6 +77,7 @@ import LargeTextInput from '../../card/large-text-input/large-text-input.vue'
 import MarkdownEditor from '../../card/markdown-editor/markdown-editor.vue'
 import MenuInput from '../../card/menu-input/menu-input.vue'
 import MultilineTextInput from '../../card/multiline-text-input/multiline-text-input.vue'
+import RichTextInput from '../../card/rich-text-input/rich-text-input.vue'
 
 const props = defineProps<{
   component: string
@@ -277,6 +278,14 @@ const registry: Record<string, unknown> = {
   // FieldGroup-wrapped description field with a floating placeholder label that
   // rests inline when empty and floats up small when filled.
   MultilineTextInput,
+  // iOS RichTextInput (Components/Input/RichTextInput.swift) — a rich-text editor
+  // card: a fixed toolbar (bold · italic · underline | AA▾ heading | undo · redo)
+  // over a backgroundDark editor area. NB: in the isolated snapshot the iOS
+  // TextEditor's `.font(s17)` flattens the HTML→AttributedString — `<h1>`/`<p>`
+  // blocks split into lines but render as flat 17pt white body text (no heading/
+  // bold/italic styling); this twin parses block tags into lines and strips the
+  // rest to mirror that.
+  RichTextInput,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

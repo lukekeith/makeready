@@ -84,6 +84,7 @@ import largeTextInput from './LargeTextInput.mjs';
 import markdownEditor from './MarkdownEditor.mjs';
 import menuInput from './MenuInput.mjs';
 import multilineTextInput from './MultilineTextInput.mjs';
+import richTextInput from './RichTextInput.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -165,6 +166,7 @@ export const adapters = {
   MarkdownEditor: markdownEditor,
   MenuInput: menuInput,
   MultilineTextInput: multilineTextInput,
+  RichTextInput: richTextInput,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
