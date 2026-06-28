@@ -163,6 +163,7 @@
 @use 'components/card/vertical-bar-chart' as vertical-bar-chart-twin;
 @use 'components/card/line-chart' as line-chart-twin;
 @use 'components/card/alert' as alert-twin;
+@use 'components/card/alphabet-scrubber' as alphabet-scrubber-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

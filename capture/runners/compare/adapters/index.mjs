@@ -60,6 +60,7 @@ import lineChart from './LineChart.mjs';
 import exegesisVerseView from './ExegesisVerseView.mjs';
 import selectableLockedBlockView from './SelectableLockedBlockView.mjs';
 import alert from './Alert.mjs';
+import alphabetScrubber from './AlphabetScrubber.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -117,6 +118,7 @@ export const adapters = {
   ExegesisVerseView: exegesisVerseView,
   SelectableLockedBlockView: selectableLockedBlockView,
   Alert: alert,
+  AlphabetScrubber: alphabetScrubber,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

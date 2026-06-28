@@ -52,6 +52,7 @@ import LineChart from '../../card/line-chart/line-chart.vue'
 import ExegesisVerseView from '../../card/exegesis-verse-view/exegesis-verse-view.vue'
 import SelectableLockedBlockView from '../../card/selectable-locked-block-view/selectable-locked-block-view.vue'
 import Alert from '../../card/alert/alert.vue'
+import AlphabetScrubber from '../../card/alphabet-scrubber/alphabet-scrubber.vue'
 
 const props = defineProps<{
   component: string
@@ -121,6 +122,9 @@ const registry: Record<string, unknown> = {
   SelectableLockedBlockView,
   // iOS Alert (Components/Display/Alert.swift) — inline warning/critical banner.
   Alert,
+  // iOS AlphabetScrubber (Components/Display/AlphabetScrubber.swift) — vertical
+  // A–Z navigation rail; clipped/centered to the harness's 360pt frame.
+  AlphabetScrubber,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

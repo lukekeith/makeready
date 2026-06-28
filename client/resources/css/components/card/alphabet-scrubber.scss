@@ -1,0 +1,51 @@
+// AlphabetScrubber — vertical A–Z navigation rail. Web twin of iOS
+// Components/Display/AlphabetScrubber.swift.
+//
+// iOS layout: VStack(spacing: 2) of Text(letter) each
+//   .font(Typography.s11Semibold)        → SF Pro Text, 11pt, semibold
+//   .foregroundColor(.accentBlue)        → #5680ff (--color-accent)
+//   .frame(width: 28, height: 16)        → fixed 28×16 box per letter
+// wrapped Spacer/letters/Spacer in a .frame(width: 28), then the capture
+// harness clamps it with .frame(height: 360) and centers — so the 466pt column
+// overflows and is clipped equally top & bottom. We mirror that with a fixed
+// 360px-tall, overflow-hidden, centered column. The .capture-wrap gutter plays
+// the role of the iOS .padding(16).
+.AlphabetScrubber {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  // iOS VStack(spacing: 2) between letters.
+  gap: 2px;
+  // iOS .frame(width: 28) — fixed rail width.
+  width: 28px;
+  // iOS capture harness .frame(height: 360): sets the layout height and
+  // vertically centers the column. SwiftUI does NOT clip frame overflow (no
+  // .clipped()), so the 466pt column spills past the 360pt frame into the
+  // .padding(16) and is cropped only by the snapshot's outer 392pt bounds —
+  // showing ~2 extra rows each end vs a hard 360px clip. We mirror that with
+  // overflow:visible: the column overflows the 360px box and Playwright crops
+  // it to the 392pt .capture-wrap border box (360 + 16+16 gutter).
+  height: 360px;
+  overflow: visible;
+  box-sizing: border-box;
+
+  &__letter {
+    // iOS Text.frame(width: 28, height: 16).
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 16px;
+    width: 28px;
+    height: 16px;
+    // iOS Typography.s11Semibold — SF Pro Text 11pt semibold (system font on
+    // the macOS capture machine resolves -apple-system to SF Pro), independent
+    // of the responsive brand text scale.
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    // iOS Color.accentBlue (#5680ff).
+    color: var(--color-accent);
+  }
+}
