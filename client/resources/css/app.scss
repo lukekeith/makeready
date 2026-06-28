@@ -181,6 +181,7 @@
 @use 'components/card/background-swatch' as background-swatch-twin;
 @use 'components/card/block-style-editor' as block-style-editor-twin;
 @use 'components/card/cover-image-picker' as cover-image-picker-twin;
+@use 'components/card/date-picker-field' as date-picker-field-twin;
 
 // Data display components
 @use 'components/data/bar-chart';

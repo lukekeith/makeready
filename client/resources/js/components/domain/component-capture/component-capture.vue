@@ -70,6 +70,7 @@ import SkeletonPostCard from '../../card/skeleton-post-card/skeleton-post-card.v
 import BackgroundSwatch from '../../card/background-swatch/background-swatch.vue'
 import BlockStyleEditor from '../../card/block-style-editor/block-style-editor.vue'
 import CoverImagePicker from '../../card/cover-image-picker/cover-image-picker.vue'
+import DatePickerField from '../../card/date-picker-field/date-picker-field.vue'
 
 const props = defineProps<{
   component: string
@@ -231,6 +232,11 @@ const registry: Record<string, unknown> = {
   // appBackground gradient + bottom-left program name/description (or an "Add cover
   // image"/"Add program name" placeholder), plus a top-right pencil in display mode.
   CoverImagePicker,
+  // iOS DatePickerField (Components/Input/DatePickerField.swift) — a field-group
+  // row: label on the left + two trailing white@10% pills (date / time). The
+  // adapter pre-formats the date/time in local tz to match the iOS
+  // DateFormatters (monthPaddedDayYear "Jan 30, 2026" + shortTime "03:41").
+  DatePickerField,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

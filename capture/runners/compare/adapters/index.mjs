@@ -77,6 +77,7 @@ import groupActionButton from './GroupActionButton.mjs';
 import skeletonPostCard from './SkeletonPostCard.mjs';
 import backgroundSwatch from './BackgroundSwatch.mjs';
 import coverImagePicker from './CoverImagePicker.mjs';
+import datePickerField from './DatePickerField.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -151,6 +152,7 @@ export const adapters = {
   SkeletonPostCard: skeletonPostCard,
   BackgroundSwatch: backgroundSwatch,
   CoverImagePicker: coverImagePicker,
+  DatePickerField: datePickerField,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

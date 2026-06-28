@@ -1,0 +1,56 @@
+// DatePickerField — twin of iOS Components/Input/DatePickerField.swift.
+//
+// Structure (outer → inner):
+//   .DatePickerField        → the FieldGroup card. iOS FieldGroup:
+//                             .padding(.vertical, 4) + Color.white.opacity(0.05)
+//                             + cornerRadius(10). Full-width (the row card fills
+//                             the .capture-wrap clip box; the harness centers it).
+//   .DatePickerField__row   → the DatePickerField HStack: spacing 8,
+//                             .padding(.horizontal, 16) + .padding(.vertical, 8).
+//   .DatePickerField__label → iOS Text(label), Typography.s17, white.
+//   .DatePickerField__pill  → the date / time buttons. iOS:
+//                             Typography.s17 white, .padding(.horizontal, 10)
+//                             + .padding(.vertical, 8), Color.white.opacity(0.1),
+//                             cornerRadius(8).
+//
+// 10px values (FieldGroup radius, pill horizontal padding) come straight from the
+// iOS layout spec and have no design-system token (raw px allowed per the
+// design-system intrinsic-size exception); everything else is tokenized.
+.DatePickerField {
+  width: 100%;
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  background: var(--color-white-5);
+  border-radius: 10px;
+
+  &__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+    padding-top: var(--space-sm);
+    padding-bottom: var(--space-sm);
+  }
+
+  &__label {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    color: var(--color-white-100);
+  }
+
+  // Pushes the two pills to the trailing edge (iOS Spacer()).
+  &__spacer {
+    flex: 1 1 auto;
+  }
+
+  &__pill {
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    color: var(--color-white-100);
+    background: var(--color-white-10);
+    border-radius: var(--radius-md);
+    padding: var(--space-sm) 10px;
+    white-space: nowrap;
+  }
+}
