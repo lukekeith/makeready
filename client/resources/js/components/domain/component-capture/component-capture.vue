@@ -87,6 +87,7 @@ import CardSpinnerOverlay from '../../card/card-spinner-overlay/card-spinner-ove
 import ShimmerView from '../../card/shimmer-view/shimmer-view.vue'
 import ActionCardMenu from '../../card/action-card-menu/action-card-menu.vue'
 import AddMenu from '../../card/add-menu/add-menu.vue'
+import FilterChipDropdown from '../../card/filter-chip-dropdown/filter-chip-dropdown.vue'
 
 const props = defineProps<{
   component: string
@@ -359,6 +360,13 @@ const registry: Record<string, unknown> = {
   // offscreen at rest, so the isolated snapshot can't capture it); this twin
   // renders the submenu design for the InviteSubmenu variant — the surfaced gap.
   AddMenu,
+  // iOS FilterChipDropdown (Components/Navigation/FilterChipDropdown.swift) — the
+  // Library filter dropdown PANEL (the trigger isn't part of the snapshot): an
+  // inline search row ("Search" placeholder + magnifyingglass) with an optional
+  // "Show all" button (dimmed when nothing is selected), a hairline divider, and a
+  // wrapped-capsule chip list (selected = white fill / appBackground text). On a
+  // cardBackground panel with a white@8% border + soft shadow.
+  FilterChipDropdown,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

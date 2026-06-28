@@ -1,0 +1,165 @@
+// FilterChipDropdown — twin of iOS Components/Navigation/FilterChipDropdown.swift
+// (the FilterChipDropdownPanel half — the trigger isn't part of the snapshot).
+//
+// Structure (outer → inner):
+//   .FilterChipDropdown          → the panel. VStack(spacing:0). Fills the
+//                                  .capture-wrap clip box (width:100%); the
+//                                  harness 16px gutter matches the iOS .padding(16).
+//                                  cardBackground fill, 12px radius, white@8% 1px
+//                                  border (iOS `.stroke(white.opacity(0.08))`),
+//                                  soft drop shadow (iOS black@45 r24 y12).
+//   .FilterChipDropdown__top-bar → HStack(spacing:8), .padding(.horizontal,14),
+//                                  .frame(height:44). Search left + Show-all right.
+//   .FilterChipDropdown__search  → magnifyingglass (white@40) + "Search" placeholder
+//                                  (s14 white@40); fills the leading space.
+//   .FilterChipDropdown__clear   → xmark.circle.fill (white@50) + "Show all"
+//                                  (s14Semibold white). Dimmed to opacity 0.4 when
+//                                  nothing is selected (iOS disabled state).
+//   .FilterChipDropdown__divider → 1px white@6% hairline.
+//   .FilterChipDropdown__chips   → FlowLayout(8/8) + .padding(14): wrapped chips.
+//   .FilterChipDropdown__chip    → s13Medium, .padding(.horizontal,14).padding(.vertical,8),
+//                                  Capsule. Selected = white fill / appBackground text;
+//                                  unselected = white@10% fill / white@70 text.
+//   .FilterChipDropdown__empty   → muted s13 white@50 message (.padding(14)).
+//
+// The 14px top-bar gutter, 44px bar height, 14px chip padding / chips padding,
+// 8px gaps, 6px icon↔text gaps and 12px panel radius are intrinsic iOS layout
+// metrics (raw px allowed per the intrinsic-size exception). Colors + type are
+// tokenized. s14 has no token (the type scale jumps 13→16), so it's a raw 14px
+// per the calendar-bottom-bar / card-bible-search-result precedent. Text uses
+// `-apple-system` so the capture machine renders SF Pro glyph widths (cf. add-menu).
+//
+// BEM root is `.FilterChipDropdownPanel` (NOT `.FilterChipDropdown`) — the latter
+// is the existing web filter component (resources/css/components/navigation/
+// filter-chip-dropdown.scss) whose `&__chip` rules (white@5 fill) would otherwise
+// clobber this twin in the cascade. Same collision-rename trap as Avatar/SearchField.
+.FilterChipDropdownPanel {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: var(--color-surface); // iOS Color.cardBackground (#252936)
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08); // iOS .stroke(white.opacity(0.08)) — no token
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.45); // iOS .shadow(black@45, r24, y12)
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  // ── Top bar ────────────────────────────────────────────────────────────────
+  &__top-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 44px;
+    padding: 0 14px;
+  }
+
+  &__search {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__search-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    color: var(--color-white-40); // iOS .white.opacity(0.4)
+
+    svg {
+      width: 17px;
+      height: 17px;
+      display: block;
+    }
+  }
+
+  &__search-placeholder {
+    font-size: 14px; // iOS Typography.s14 (no token; scale jumps 13→16)
+    line-height: 1.2;
+    color: var(--color-white-40); // iOS .white.opacity(0.4)
+  }
+
+  &__clear {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+
+    // iOS .opacity(selectedIds.isEmpty ? 0.4 : 1)
+    &--disabled {
+      opacity: 0.4;
+    }
+  }
+
+  &__clear-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+
+    svg {
+      width: 17px;
+      height: 17px;
+      display: block;
+    }
+  }
+
+  &__clear-label {
+    font-size: 14px; // iOS Typography.s14Semibold (no token)
+    line-height: 1.2;
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-100);
+    white-space: nowrap;
+  }
+
+  // ── Divider ────────────────────────────────────────────────────────────────
+  &__divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06); // iOS Divider .background(white.opacity(0.06)) — no token
+  }
+
+  // ── Chips ──────────────────────────────────────────────────────────────────
+  &__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px; // iOS FlowLayout(horizontalSpacing: 8, verticalSpacing: 8)
+    padding: 14px;
+    max-height: 360px; // iOS chipsMaxHeight (content fits these variants; no scroll)
+    overflow: hidden;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 14px; // iOS .padding(.horizontal,14).padding(.vertical,8)
+    border-radius: var(--radius-full); // Capsule
+    font-size: var(--text-sm); // iOS Typography.s13Medium
+    line-height: 1.2;
+    font-weight: var(--font-weight-medium);
+    background: var(--color-white-10); // iOS .white.opacity(0.1)
+    color: var(--color-white-70); // iOS .white.opacity(0.7)
+    white-space: nowrap;
+
+    &--selected {
+      background: var(--color-white-100); // iOS .white
+      color: var(--color-canvas); // iOS Color.appBackground (#0d101a)
+    }
+  }
+
+  // ── Empty state ──────────────────────────────────────────────────────────────
+  &__empty {
+    padding: 14px;
+    font-size: var(--text-sm); // iOS Typography.s13
+    color: var(--color-white-50); // iOS .white.opacity(0.5)
+  }
+}

@@ -94,6 +94,7 @@ import cardSpinnerOverlay from './CardSpinnerOverlay.mjs';
 import shimmerView from './ShimmerView.mjs';
 import actionCardMenu from './ActionCardMenu.mjs';
 import addMenu from './AddMenu.mjs';
+import filterChipDropdown from './FilterChipDropdown.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -185,6 +186,7 @@ export const adapters = {
   ShimmerView: shimmerView,
   ActionCardMenu: actionCardMenu,
   AddMenu: addMenu,
+  FilterChipDropdown: filterChipDropdown,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
