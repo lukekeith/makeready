@@ -1,0 +1,152 @@
+// UpcomingLessonCard — "next upcoming lesson" card (iOS UpcomingLessonCard).
+// Fixed 106px tall, horizontal: a 44px-wide DAY indicator (left), a flexible
+// center column (program name + date + a row of up to four 32px activity wells),
+// and a 72×74 cover image / placeholder (right). iOS HStack spacing 12,
+// padding 16, cardBackground well, cornerRadius 4.
+//
+// Class names mirror resources/js/components/card/upcoming-lesson-card/.
+// The fixed cover (72×74) and activity-well (32×32) sizes come straight from the
+// iOS layout spec and are intrinsic structural sizes — raw px allowed per the
+// design-system exception. Everything else is tokenized.
+.UpcomingLessonCard {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md); // iOS HStack spacing 12
+  width: 100%;
+  height: 106px; // iOS .frame(height: 106)
+  padding: var(--space-lg); // iOS .padding(16)
+  background: var(--bg-surface); // iOS Color.cardBackground (#252936)
+  border-radius: var(--radius-sm); // iOS cornerRadius 4
+  cursor: pointer;
+  overflow: hidden;
+  text-align: left;
+  box-sizing: border-box;
+
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--border-brand);
+  }
+  &:active {
+    filter: brightness(0.97);
+  }
+
+  // ─── Left: DAY indicator ─────────────────────────────────────────────────────
+  &__day {
+    flex: 0 0 auto;
+    width: 44px; // iOS .frame(width: 44)
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xs); // iOS VStack spacing 2
+  }
+
+  &__day-label {
+    font-size: 12px; // iOS Typography.s12 — no 12px token
+    line-height: 1.1;
+    font-weight: var(--font-weight-regular);
+    color: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+    letter-spacing: var(--tracking-label); // iOS tracking 0.1
+  }
+
+  &__day-number {
+    font-size: var(--text-heading); // iOS Typography.s22 (22px)
+    line-height: 1.1;
+    font-weight: var(--font-weight-regular);
+    color: var(--fg-primary); // iOS .white
+    letter-spacing: -0.1px; // iOS tracking -0.1
+  }
+
+  // ─── Center: program name, date, activity icons ──────────────────────────────
+  &__center {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: var(--space-sm); // iOS VStack spacing 8
+  }
+
+  &__title {
+    margin: 0;
+    max-width: 100%;
+    font-size: var(--text-md); // iOS Typography.s15Bold (15 → md token)
+    line-height: 1.1;
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary); // iOS .white
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__date {
+    margin: 0;
+    max-width: 100%;
+    font-size: 12px; // iOS Typography.s12 — no 12px token
+    line-height: 1.1;
+    color: var(--fg-tertiary); // iOS .white.opacity(0.5)
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &__activities {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm); // iOS HStack spacing 8
+  }
+
+  // 32px well with a centered 14px glyph. All capture activities are configured,
+  // so the well is the neutral white@10% fill with a white@50% glyph (iOS isReady
+  // branch). The unconfigured branch (brand-tinted well) isn't exercised here.
+  &__activity {
+    flex: 0 0 auto;
+    width: 32px; // iOS RoundedRectangle .frame(32×32)
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm); // iOS cornerRadius 4
+    background: var(--bg-subtle-2); // iOS .white.opacity(0.1)
+    color: var(--fg-tertiary); // iOS .white.opacity(0.5)
+
+    :deep(svg) {
+      width: 14px; // iOS icon size 14
+      height: 14px;
+      display: block;
+    }
+  }
+
+  // ─── Right: cover image / placeholder ────────────────────────────────────────
+  &__cover {
+    flex: 0 0 auto;
+    width: 72px; // iOS .frame(width: 72)
+    height: 74px; // iOS .frame(height: 74)
+    border-radius: var(--radius-md); // iOS cornerRadius 8
+    overflow: hidden;
+  }
+
+  &__cover-image {
+    width: 100%;
+    height: 100%;
+    display: block;
+    object-fit: cover;
+  }
+
+  &__cover-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-icon-container); // iOS Color.iconContainerBackground
+    color: var(--fg-tertiary); // iOS .white.opacity(0.5)
+
+    :deep(svg) {
+      width: var(--icon-md); // iOS Typography.s24 (24px)
+      height: var(--icon-md);
+      display: block;
+    }
+  }
+}

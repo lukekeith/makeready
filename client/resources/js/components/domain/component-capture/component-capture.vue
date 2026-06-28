@@ -35,6 +35,7 @@ import CardVideo from '../../card/card-video/card-video.vue'
 import CardVideoMini from '../../card/card-video-mini/card-video-mini.vue'
 import GroupPostCard from '../../card/group-post-card/group-post-card.vue'
 import ScheduledLessonCard from '../../card/scheduled-lesson-card/scheduled-lesson-card.vue'
+import UpcomingLessonCard from '../../card/upcoming-lesson-card/upcoming-lesson-card.vue'
 import SkeletonCardGroup from '../../card/skeleton-card-group/skeleton-card-group.vue'
 import SkeletonCardLesson from '../../card/skeleton-card-lesson/skeleton-card-lesson.vue'
 import SkeletonCardLessonActivity from '../../card/skeleton-card-lesson-activity/skeleton-card-lesson-activity.vue'
@@ -81,6 +82,7 @@ const registry: Record<string, unknown> = {
   CardVideoMini,
   GroupPostCard,
   ScheduledLessonCard,
+  UpcomingLessonCard,
   SkeletonCardGroup,
   SkeletonCardLesson,
   SkeletonCardLessonActivity,

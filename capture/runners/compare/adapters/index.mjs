@@ -51,6 +51,7 @@ import skeletonCardProgramFull from './SkeletonCardProgramFull.mjs';
 import skeletonCardStudy from './SkeletonCardStudy.mjs';
 import slideButton from './SlideButton.mjs';
 import swipeableCard from './SwipeableCard.mjs';
+import upcomingLessonCard from './UpcomingLessonCard.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -73,7 +74,7 @@ export const adapters = {
   ScheduledLessonCard: scheduledLessonCard,
   CardEnrolled: cardEnrolled,
   CardProgramFull: cardProgramFull,
-  UpcomingLessonCard: iphoneCard('component.UpcomingLessonCard'),
+  UpcomingLessonCard: upcomingLessonCard,
   EnrollmentCard: enrollmentCard,
   CardMediaFull: cardMediaFull,
   CardSearchResult: cardSearchResult,
