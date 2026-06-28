@@ -89,6 +89,7 @@ import ActionCardMenu from '../../card/action-card-menu/action-card-menu.vue'
 import AddMenu from '../../card/add-menu/add-menu.vue'
 import FilterChipDropdown from '../../card/filter-chip-dropdown/filter-chip-dropdown.vue'
 import HamburgerMenu from '../../card/hamburger-menu/hamburger-menu.vue'
+import InviteMenu from '../../card/invite-menu/invite-menu.vue'
 
 const props = defineProps<{
   component: string
@@ -376,6 +377,13 @@ const registry: Record<string, unknown> = {
   // books/calendar, outlined magnifyingglass). ManagedMenuView's overlay/slide
   // chrome is out of scope for the isolated snapshot.
   HamburgerMenu,
+  // iOS InviteMenu (Components/Navigation/InviteMenu.swift) — the invite action
+  // menu. A white@5% rounded card of SubmenuItem rows (s17Bold title on the LEFT,
+  // a 32px #7c7cff icon column on the RIGHT holding a 20×20 iOS Image-asset glyph),
+  // with a large centered close (X) button beneath. Item icons arrive as inline
+  // SVG from the adapter (iOS Image assets mapped to web glyphs, drawn currentColor).
+  // ManagedMenuView's overlay/slide chrome is out of scope for the isolated snapshot.
+  InviteMenu,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
