@@ -63,6 +63,7 @@ import alert from './Alert.mjs';
 import alphabetScrubber from './AlphabetScrubber.mjs';
 import avatar from './Avatar.mjs';
 import dialogOverlay from './DialogOverlay.mjs';
+import fullScreenImageViewer from './FullScreenImageViewer.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -123,6 +124,7 @@ export const adapters = {
   AlphabetScrubber: alphabetScrubber,
   Avatar: avatar,
   DialogOverlay: dialogOverlay,
+  FullScreenImageViewer: fullScreenImageViewer,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

@@ -1,0 +1,70 @@
+// FullScreenImageViewer — web twin of iOS Components/Display/FullScreenImageViewer.swift.
+// Class names mirror the BEM blocks in
+// resources/js/components/card/full-screen-image-viewer/.
+//
+// The iPhone snapshot is GUTTERLESS and full-bleed: a `Color.black.ignoresSafeArea`
+// ZStack rendered at `.frame(height: 480)` over the 440pt viewport. The capture
+// harness's `.capture-wrap` always adds a 16px gutter, so — like the exegesis /
+// locked-block twins — we cancel it with a negative margin and fill the clip box
+// edge-to-edge with black, reproducing the 440×480pt canvas exactly.
+//
+// Raw px (480 frame height, 32 icon, 16 inset) is intentional here — it is literal
+// iOS capture geometry, the same exception the chart / scripture twins use.
+.FullScreenImageViewer {
+  position: relative;
+  // Cancel the .capture-wrap 16px gutter on all sides and fill the clip box.
+  margin: calc(var(--space-lg) * -1);
+  width: calc(100% + var(--space-lg) * 2);
+  height: 480px; // iOS .frame(height: 480)
+  box-sizing: border-box;
+  background: #000; // Color.black
+  overflow: hidden;
+
+  &__image {
+    // Image(uiImage:).resizable().aspectRatio(contentMode: .fit) — fit the whole
+    // image within the canvas, centered, no crop.
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  &__close {
+    // VStack { HStack { Spacer(); Button{…}.padding(16) }; Spacer() } → top-trailing,
+    // 16pt inset from the top/right screen edges.
+    position: absolute;
+    // .padding(16) positions the icon's line box at 16pt; the SF Symbol glyph
+    // sits ~2.5pt inside that box (the font's line-box leading), which a box-
+    // filling SVG lacks — so add it back to land the circle on the iOS centroid.
+    top: calc(var(--space-lg) + 2.5px);
+    right: calc(var(--space-lg) + 3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; // Typography.s32 glyph box
+    height: 32px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    // .shadow(color: .black.opacity(0.3), radius: 4) — invisible over black but
+    // kept for faithfulness.
+    filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+  }
+
+  &__close-icon {
+    display: block;
+    width: 32px;
+    height: 32px;
+    // xmark.circle.fill foregroundColor(.white.opacity(0.8)) — drives the circle
+    // fill via currentColor; the X is knocked out (transparent) so the black
+    // canvas shows through, matching the SF Symbol exactly.
+    color: var(--color-white-80);
+
+    svg {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  }
+}

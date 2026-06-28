@@ -55,6 +55,7 @@ import Alert from '../../card/alert/alert.vue'
 import AlphabetScrubber from '../../card/alphabet-scrubber/alphabet-scrubber.vue'
 import Avatar from '../../card/avatar/avatar.vue'
 import DialogOverlay from '../../card/dialog-overlay/dialog-overlay.vue'
+import FullScreenImageViewer from '../../card/full-screen-image-viewer/full-screen-image-viewer.vue'
 
 const props = defineProps<{
   component: string
@@ -136,6 +137,11 @@ const registry: Record<string, unknown> = {
   // reference is empty (entrance animation gates `visible`); this twin renders
   // the dialog at its final visible state.
   DialogOverlay,
+  // iOS FullScreenImageViewer (Components/Display/FullScreenImageViewer.swift) —
+  // full-bleed black image canvas + top-right close button. NB: the iPhone
+  // reference is a pure-black canvas (its `photo.fill` placeholder renders
+  // black-on-black); the adapter omits the imageURL so this twin matches.
+  FullScreenImageViewer,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)
