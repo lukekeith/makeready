@@ -73,6 +73,7 @@ import CoverImagePicker from '../../card/cover-image-picker/cover-image-picker.v
 import DatePickerField from '../../card/date-picker-field/date-picker-field.vue'
 import FieldGroup from '../../card/field-group/field-group.vue'
 import InlineFontSizePicker from '../../card/inline-font-size-picker/inline-font-size-picker.vue'
+import LargeTextInput from '../../card/large-text-input/large-text-input.vue'
 
 const props = defineProps<{
   component: string
@@ -250,6 +251,11 @@ const registry: Record<string, unknown> = {
   // a per-key point size (13/16/19/23/27); the selected key's tile gets a 2px
   // white border.
   InlineFontSizePicker,
+  // iOS LargeTextInput (Components/Input/LargeTextInput.swift) — a large single
+  // field: muted s12 label, a tall s28 text row with an optional leading
+  // (currency $) or trailing (phone/email/percentage) s20 icon, and a hairline
+  // white@20% bottom border. Wrapped by the harness in a FieldGroup card.
+  LargeTextInput,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

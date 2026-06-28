@@ -80,6 +80,7 @@ import coverImagePicker from './CoverImagePicker.mjs';
 import datePickerField from './DatePickerField.mjs';
 import fieldGroup from './FieldGroup.mjs';
 import inlineFontSizePicker from './InlineFontSizePicker.mjs';
+import largeTextInput from './LargeTextInput.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -157,6 +158,7 @@ export const adapters = {
   DatePickerField: datePickerField,
   FieldGroup: fieldGroup,
   InlineFontSizePicker: inlineFontSizePicker,
+  LargeTextInput: largeTextInput,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

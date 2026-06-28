@@ -1,0 +1,98 @@
+// LargeTextInput — twin of iOS Components/Input/LargeTextInput.swift.
+//
+// Structure (outer → inner):
+//   .LargeTextInput          → the FieldGroup card the harness wraps it in. iOS:
+//                              VStack(spacing:0).padding(.vertical,4) + white@0.05
+//                              + cornerRadius(10). Full-width (fills the
+//                              .capture-wrap clip box, like the iPhone card).
+//   .LargeTextInput__field   → the LargeTextInput VStack. iOS spacing 8 between
+//                              label / input row / border, with .padding(.horizontal,16).
+//   .LargeTextInput__label   → Text(label), Typography.s12 (12px) white@50%,
+//                              tracking 0.1.
+//   .LargeTextInput__row     → the input HStack. The empty TextField holds the
+//                              row at 34px (frame height 34 / leading-title); icons
+//                              sit in a 60×32 frame (control-h-sm) on one side.
+//   .LargeTextInput__value   → the text field content (s28 / title, white). Empty
+//                              in every variant, but flex-grows to push a trailing
+//                              icon to the right edge.
+//   .LargeTextInput__icon    → s20 white SF-symbol-like SVG; --leading (currency,
+//                              left) / --trailing (phone/email/percentage, right).
+//   .LargeTextInput__line    → the bottom border, Rectangle white@0.2, 1px (the
+//                              default unfocused / no-error state).
+//
+// The 10px card radius matches the iOS layout spec and has no design-system token
+// (raw px allowed per the intrinsic-size exception); the 12px label size and the
+// 60px icon-frame width are likewise intrinsic to the iOS layout. Everything else
+// is tokenized.
+.LargeTextInput {
+  width: 100%;
+  padding-top: var(--space-xs);
+  padding-bottom: var(--space-xs);
+  background: var(--color-white-5);
+  border-radius: 10px;
+
+  &__field {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm); // iOS VStack spacing 8
+    padding-left: var(--space-lg);
+    padding-right: var(--space-lg);
+  }
+
+  &__label {
+    font-size: 12px; // iOS Typography.s12 — no token at this size
+    line-height: var(--leading-xs);
+    color: var(--color-white-50);
+    letter-spacing: var(--tracking-label);
+  }
+
+  &__row {
+    display: flex;
+    align-items: center;
+    // iOS HStack(spacing: 0)
+    gap: 0;
+  }
+
+  &__value {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: var(--leading-title); // iOS TextField frame height 34
+    display: flex;
+    align-items: center;
+    font-size: var(--text-title); // iOS Typography.s28
+    line-height: var(--leading-title);
+    color: var(--color-white-100);
+    letter-spacing: var(--tracking-tight); // iOS tracking(-0.15) ≈ -0.2
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  &__icon {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    width: 60px; // iOS .frame(width: 60) — intrinsic layout dimension
+    height: var(--control-h-sm); // iOS .frame(height: 32)
+    color: var(--color-white-100);
+
+    // Global (non-scoped) stylesheet → plain descendant selector, not :deep().
+    // ~26px keeps the SF-symbol-like glyphs at the iOS s20 (~22–24px) size.
+    svg {
+      width: 26px;
+      height: 26px;
+    }
+
+    &--leading {
+      justify-content: flex-start;
+    }
+
+    &--trailing {
+      justify-content: flex-end;
+    }
+  }
+
+  &__line {
+    height: 1px;
+    background: var(--color-white-20);
+  }
+}
