@@ -1,0 +1,86 @@
+// SkeletonCardLesson — loading placeholder twin for iOS SkeletonCardLesson.
+// Matches CardLesson's Row layout: 76px tall, a left day-indicator column,
+// center activity lines, and a tall chevron bar pinned right — on the
+// cardBackground surface (radius 4). HStack spacing 8 between the three groups.
+//
+// Placeholder fills mirror the iOS opacities exactly:
+//   day bottom bar           → white 0.10 (--color-white-10)
+//   day top bar / line 1     → white 0.08   (no token; iOS Color.white.opacity(0.08))
+//   line 2 / chevron         → white 0.06   (no token; iOS Color.white.opacity(0.06))
+
+.SkeletonCardLesson {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-sm); // iOS HStack(spacing: 8)
+  box-sizing: border-box;
+  width: 100%;
+  height: 76px;
+  overflow: hidden; // iOS .cornerRadius(4) clips the chevron's padded overflow
+  background: var(--bg-surface);
+  border-radius: var(--radius-sm);
+
+  // Left: day indicator column (VStack spacing 4, padded 16, full height centered).
+  &__day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    gap: var(--space-xs);
+    align-self: stretch;
+    padding: var(--space-lg);
+  }
+
+  // Top bar (20×10).
+  &__dayTop {
+    width: 20px;
+    height: 10px;
+    border-radius: 2px; // iOS RoundedRectangle(cornerRadius: 2), no token
+    background: rgba(255, 255, 255, 0.08); // iOS Color.white.opacity(0.08), no token
+  }
+
+  // Bottom bar (20×18).
+  &__dayBottom {
+    width: 20px;
+    height: 18px;
+    border-radius: 2px; // iOS RoundedRectangle(cornerRadius: 2), no token
+    background: var(--color-white-10);
+  }
+
+  // Center: activity lines (VStack alignment leading, spacing 6, fills width).
+  &__activities {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px; // iOS VStack(spacing: 6), no token
+    min-width: 0;
+  }
+
+  &__line {
+    height: 12px;
+    border-radius: 3px; // iOS RoundedRectangle(cornerRadius: 3), no token
+
+    &--1 {
+      width: 120px;
+      background: rgba(255, 255, 255, 0.08); // iOS Color.white.opacity(0.08), no token
+    }
+
+    &--2 {
+      width: 90px;
+      background: rgba(255, 255, 255, 0.06); // iOS Color.white.opacity(0.06), no token
+    }
+  }
+
+  // Right: chevron placeholder (40×50, padded 16 → 16px from the card edge,
+  // vertically centered within the 76px card).
+  &__chevron {
+    flex-shrink: 0;
+    width: 40px;
+    height: 50px;
+    margin-right: var(--space-lg);
+    border-radius: 2px; // iOS RoundedRectangle(cornerRadius: 2), no token
+    background: rgba(255, 255, 255, 0.06); // iOS Color.white.opacity(0.06), no token
+  }
+}

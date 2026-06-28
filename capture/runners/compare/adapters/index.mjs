@@ -44,6 +44,7 @@ import cardVideoMini from './CardVideoMini.mjs';
 import groupPostCard from './GroupPostCard.mjs';
 import scheduledLessonCard from './ScheduledLessonCard.mjs';
 import skeletonCardGroup from './SkeletonCardGroup.mjs';
+import skeletonCardLesson from './SkeletonCardLesson.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -78,6 +79,7 @@ export const adapters = {
   CardGroupMini: cardGroupMini,
   GroupPostCard: groupPostCard,
   SkeletonCardGroup: skeletonCardGroup,
+  SkeletonCardLesson: skeletonCardLesson,
   // Connected components — seed app state rather than a plain prop bag.
   BlockStyleEditor: blockStyleEditor,
   UserMenu: userMenu,
