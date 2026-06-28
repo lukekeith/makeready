@@ -1,0 +1,151 @@
+// UnenrollConfirmation — twin of iOS Components/Feedback/UnenrollConfirmation.swift.
+// UnenrollConfirmation builds a ConfirmationOverlay (style .warning, "Done" button)
+// whose message is derived from the unenroll option, so this twin reproduces the
+// ConfirmationOverlay layout with the warning style fixed.
+//
+// ⚠️ The iPhone /compare reference is BLANK: the overlay enters at contentOpacity 0
+// / blurOpacity 0 and fades/scales in only via `.onAppear`, so the SwiftUI snapshot
+// captures the invisible pre-animation frame. This twin renders the overlay at its
+// final visible state — the emptiness on iOS is an accepted platform artifact (same
+// as ConfirmationOverlay / DialogOverlay).
+//
+// iOS values reproduced 1:1 (the inner card from ConfirmationOverlay.body):
+//   card     .padding(32), background Color.appBackground, cornerRadius 16
+//   circle   .frame(100×100); 40pt medium glyph; iconForeground = appBackground
+//   Spacer   height 64 (circle→message), height 32 (message→button)
+//   message  Typography.s17, white, centered, lineSpacing 4 (markdown bold)
+//   button   height 48, full width, cornerRadius 8, Typography.s12Bold,
+//            tracking 0.1; brandPrimary fill / white text
+//            processing → white@0.1 fill / white@0.3 text
+//   warning  ConfirmationOverlayStyle.warning.iconBackgroundColor = #ffaa00
+//
+// The card background equals the app canvas (both Color.appBackground / #0d101a),
+// so the card edges are invisible against the crop — faithful to iOS, where only
+// the blur (invisible in isolation) sits behind it.
+//
+// Text is SF Pro (iOS system font) — `-apple-system` matches the iOS label metrics
+// under the macOS capture runner (same approach as the ConfirmationOverlay twin).
+.UnenrollConfirmation {
+  width: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    // iOS .padding(32).
+    padding: var(--space-2xl);
+    // iOS .background(Color.appBackground).
+    background: var(--color-canvas);
+    // iOS .cornerRadius(16).
+    border-radius: var(--radius-lg);
+  }
+
+  // iOS AnimatedCompletionCircle .frame(width: 100, height: 100).
+  &__circle {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 100px;
+    height: 100px;
+  }
+
+  // Completed state: filled warning circle.
+  &__fill {
+    position: absolute;
+    inset: 0;
+    border-radius: var(--radius-full);
+    // iOS ConfirmationOverlayStyle.warning.iconBackgroundColor — exact iOS hex
+    // (no DS token equivalent; same as the ConfirmationOverlay twin).
+    background: #ffaa00;
+  }
+
+  // 40pt medium SF Symbol glyph; iconForegroundColor = Color.appBackground.
+  &__icon {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    color: var(--color-canvas);
+
+    :deep(svg) {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  // Processing state: the spinning AngularGradient border (lineWidth 4, white
+  // 0 → 1) frozen as a static conic ring so the screenshot is deterministic.
+  &__ring {
+    width: 100px;
+    height: 100px;
+    border-radius: var(--radius-full);
+    background: conic-gradient(
+      from 90deg,
+      var(--color-white-0),
+      var(--color-white-10) 25%,
+      var(--color-white-30) 50%,
+      rgba(255, 255, 255, 0.6) 75%,
+      var(--color-white-100)
+    );
+    // Punch out the center → a 4px ring (iOS StrokeStyle lineWidth 4).
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+  }
+
+  &__message {
+    // iOS Spacer().frame(height: 64) between the circle and the message.
+    margin: 64px 0 0;
+    text-align: center;
+    // iOS Typography.s17 (intrinsic; no exact DS token).
+    font-size: 17px;
+    font-weight: var(--font-weight-regular);
+    // iOS .lineSpacing(4) on a 17pt line (~22pt line + 4pt gap).
+    line-height: 1.5;
+    color: var(--color-white-100);
+
+    :deep(strong) {
+      font-weight: var(--font-weight-bold);
+    }
+  }
+
+  &__button {
+    // iOS Spacer().frame(height: 32) between the message and the button.
+    margin-top: var(--space-2xl);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    // iOS .frame(height: 48).
+    height: 48px;
+    padding: 0;
+    border: none;
+    // iOS .cornerRadius(8).
+    border-radius: var(--radius-md);
+    // iOS Typography.s12Bold + .tracking(0.1).
+    font-size: 12px;
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 0.1px;
+    font-family: inherit;
+    color: var(--color-white-100);
+    // iOS active: Color.brandPrimary.
+    background: var(--color-brand-500);
+    cursor: default;
+  }
+
+  // Processing: button disabled — white@0.1 fill, white@0.3 label.
+  &--is-processing {
+    .UnenrollConfirmation__button {
+      background: var(--color-white-10);
+      color: var(--color-white-30);
+    }
+  }
+}

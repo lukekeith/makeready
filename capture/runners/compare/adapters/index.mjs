@@ -72,6 +72,7 @@ import weekdayIndicator from './WeekdayIndicator.mjs';
 import skeletonEnrollmentCard from './SkeletonEnrollmentCard.mjs';
 import confirmationOverlay from './ConfirmationOverlay.mjs';
 import errorBanner from './ErrorBanner.mjs';
+import unenrollConfirmation from './UnenrollConfirmation.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -141,6 +142,7 @@ export const adapters = {
   SkeletonEnrollmentCard: skeletonEnrollmentCard,
   ConfirmationOverlay: confirmationOverlay,
   ErrorBanner: errorBanner,
+  UnenrollConfirmation: unenrollConfirmation,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory

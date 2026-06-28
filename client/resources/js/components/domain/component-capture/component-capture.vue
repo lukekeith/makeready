@@ -64,6 +64,7 @@ import WeekdayIndicator from '../../card/weekday-indicator/weekday-indicator.vue
 import SkeletonEnrollmentCard from '../../card/skeleton-enrollment-card/skeleton-enrollment-card.vue'
 import ConfirmationOverlay from '../../card/confirmation-overlay/confirmation-overlay.vue'
 import ErrorBanner from '../../card/error-banner/error-banner.vue'
+import UnenrollConfirmation from '../../card/unenroll-confirmation/unenroll-confirmation.vue'
 
 const props = defineProps<{
   component: string
@@ -191,6 +192,13 @@ const registry: Record<string, unknown> = {
   // a red rounded bar with a warning triangle, a message (lineLimit 2), and an
   // optional white@20% Retry pill (arrow.clockwise + "Retry").
   ErrorBanner,
+  // iOS UnenrollConfirmation (Components/Feedback/UnenrollConfirmation.swift) —
+  // a namespace that presents a ConfirmationOverlay (style .warning, "Done"
+  // button) whose message is derived from the unenroll option. This twin renders
+  // that resulting overlay (warning circle + message + Done button). NB: the
+  // iPhone reference is BLANK (entrance animation gates contentOpacity); this twin
+  // renders the overlay at its final visible state.
+  UnenrollConfirmation,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

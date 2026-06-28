@@ -175,6 +175,7 @@
 @use 'components/card/skeleton-enrollment-card' as skeleton-enrollment-card-twin;
 @use 'components/card/confirmation-overlay' as confirmation-overlay-twin;
 @use 'components/card/error-banner' as error-banner-twin;
+@use 'components/card/unenroll-confirmation' as unenroll-confirmation-twin;
 
 // Data display components
 @use 'components/data/bar-chart';
