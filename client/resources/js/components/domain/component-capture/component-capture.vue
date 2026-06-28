@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import CardStudy from '../../card/card-study/card-study.vue'
 import CardGroup from '../../card/card-group/card-group.vue'
 import CardGroupMini from '../../card/card-group-mini/card-group-mini.vue'
+import CardStudyMini from '../../card/card-study-mini/card-study-mini.vue'
 import CardEnrolled from '../../card/card-enrolled/card-enrolled.vue'
 import CardLesson from '../../card/card-lesson/card-lesson.vue'
 import CardEventMini from '../../card/card-event-mini/card-event-mini.vue'
@@ -38,6 +39,7 @@ const registry: Record<string, unknown> = {
   CardStudy,
   CardGroup,
   CardGroupMini,
+  CardStudyMini,
   CardEnrolled,
   CardLesson,
   CardEventMini,

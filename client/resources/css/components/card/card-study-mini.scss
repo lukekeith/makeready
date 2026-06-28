@@ -1,0 +1,155 @@
+// CardStudyMini — fixed 120×188 study tile (iOS CardStudyMini parity).
+// Mirrors CardStudyMini.swift: a full-bleed 120×114 image region (cover photo or
+// colored icon well) on top, then an 8px-padded body with a clamped 2-line title
+// and a single icon+value metadata row. No border (the iOS card is background +
+// corner radius only). Pending switches the card to the dark-purple well and
+// overlays a full-width brand "PENDING" badge at the top of the image.
+
+.CardStudyMini {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  width: 120px;
+  height: 188px;
+  background: var(--bg-surface); // iOS cardBackground
+  border-radius: var(--radius-sm); // iOS cornerRadius 4
+  cursor: pointer;
+  outline: none;
+  overflow: hidden;
+  text-align: left;
+  transition: background-color var(--motion-micro) var(--ease-standard);
+
+  // ── Top: full-bleed 120×114 image region (photo or icon well) ────────────────
+  &__media {
+    position: relative;
+    flex-shrink: 0;
+    width: 120px;
+    height: 114px;
+  }
+
+  &__image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    border-radius: var(--radius-md); // iOS CachedCardImage default cornerRadius 8
+  }
+
+  // Photo loading placeholder — gray well shown when no image is loaded. Mirrors
+  // the iOS CardLoadingPlaceholder (Color.gray @ 0.3, 8px radius). Isolated
+  // /compare snapshots never resolve the remote photo, so the iPhone reference
+  // is this placeholder and the web twin matches it.
+  &__placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: rgba(142, 142, 147, 0.3); // iOS Color.gray.opacity(0.3) — no token
+    border-radius: var(--radius-md); // iOS .cornerRadius(8)
+  }
+
+  // Icon well — colored background (8px radius) with a centered 32px white glyph.
+  &__iconWell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-icon-container); // iOS iconContainerBackground fallback
+    border-radius: var(--radius-md); // iOS .cornerRadius(8)
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px; // iOS 32×32 glyph — no icon token at this size
+    height: 32px;
+    color: var(--fg-white);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Pending status badge — full-width brand pill at the top of the image region.
+  &__badge {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-xs) 0; // iOS .padding(.vertical, 4)
+    background: var(--bg-brand-primary); // iOS brandPrimary
+    border-radius: var(--radius-md); // iOS .cornerRadius(8)
+    font-size: var(--text-xs); // iOS Typography.s11Bold
+    line-height: var(--leading-xs);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--tracking-label); // iOS 0.1px tracking
+    color: var(--fg-white);
+  }
+
+  // ── Bottom: 8px-padded body, 8px gap (title over metadata) ───────────────────
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm); // 8px
+    padding: var(--space-sm); // 8px
+    min-width: 0;
+  }
+
+  // Title — 12px bold, 0.1px tracking, clamped to a 32px (2-line) box.
+  &__title {
+    height: 32px;
+    font-size: 12px; // iOS Typography.s12Bold — no exact token at 12px
+    line-height: 16px;
+    font-weight: var(--font-weight-bold);
+    letter-spacing: var(--tracking-label); // iOS 0.1px tracking
+    color: var(--fg-primary);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  // Metadata row — inline DataItem (.icon): 14px icon + 13px value.
+  &__data {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs); // 4px between icon and value
+    height: 18px; // iOS DataComponent .frame(height: 18)
+    min-width: 0;
+  }
+
+  &__dataIcon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 14px; // iOS icon .frame(width: 14, height: 14)
+    height: 14px;
+    color: var(--fg-white);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__dataValue {
+    font-size: var(--text-sm); // 13px (iOS Typography.s13)
+    line-height: var(--leading-sm);
+    color: var(--fg-white);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  // ── Pending — dark-purple card well ──────────────────────────────────────────
+  &--is-pending {
+    background: var(--bg-pending); // iOS backgroundPurple
+  }
+}

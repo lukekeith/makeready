@@ -36,6 +36,7 @@ import cardGroupMini from './CardGroupMini.mjs';
 import cardMediaFull from './CardMediaFull.mjs';
 import cardProgramFull from './CardProgramFull.mjs';
 import cardSearchResult from './CardSearchResult.mjs';
+import cardStudyMini from './CardStudyMini.mjs';
 
 export const adapters = {
   'group-home': groupHome,
@@ -47,7 +48,7 @@ export const adapters = {
   CardEventMini: cardEventMini,
   CardVideo: iphoneCard('component.CardVideo'),
   CardVideoMini: iphoneCard('component.CardVideoMini'),
-  CardStudyMini: iphoneCard('component.CardStudyMini'),
+  CardStudyMini: cardStudyMini,
   CardStudySelectable: iphoneCard('component.CardStudySelectable'),
   CardMember: cardMember,
   CardContact: cardContact,
