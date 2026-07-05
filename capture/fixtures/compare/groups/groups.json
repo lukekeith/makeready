@@ -1,0 +1,16 @@
+{
+  "id": "groups",
+  "type": "page",
+  "group": "Groups",
+  "title": "Groups",
+  "adapter": "groups",
+  "viewports": ["pro-max"],
+  "shared": {
+    "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+    "groups": [
+      { "id": "g-001", "name": "Sunday Morning Group", "memberCount": 27, "isPrivate": true },
+      { "id": "g-002", "name": "Young Professionals", "memberCount": 14, "isPrivate": false },
+      { "id": "g-003", "name": "Wednesday Study", "memberCount": 9, "isPrivate": true }
+    ]
+  }
+}

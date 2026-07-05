@@ -1,0 +1,181 @@
+// GroupMembersPage — twin of GroupMembersPage.swift (trailing pane in
+// group-home). Page chrome only; PageTitle/SearchField/CardMember are their
+// own twins. iOS: ZStack(top) — ScrollView with a 60pt clear top pad under
+// the floating search, masked by a 52pt clear→black top fade.
+.GroupMembersPage {
+  position: relative;
+  width: 100%;
+  background: var(--color-canvas);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  &__title {
+    flex: 0 0 auto;
+  }
+
+  &__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-top: 60px; // iOS listTopPadding under the floating search
+    display: flex;
+    flex-direction: column;
+  }
+
+  // iOS mask: 52pt clear→black gradient then black — content fades in under
+  // the search field.
+  &__scroll--masked {
+    mask-image: linear-gradient(to bottom, transparent, #000 52px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 52px);
+  }
+
+  // ── Floating search (overlaid; iOS .padding(.horizontal,16).padding(.top,8)) ──
+  &__search {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 8px 16px 0;
+  }
+
+  &__search--disabled {
+    opacity: 0.5; // iOS isSearchDisabled
+    pointer-events: none;
+  }
+
+  // ── Sections (VStack(12); headers s13Semibold white@0.5 uppercase) ──
+  &__section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__section--requests {
+    padding-top: 12px;
+  }
+
+  &__section--afterRequests {
+    padding-top: 12px; // iOS .padding(.top, joinRequests.isEmpty ? 0 : 12)
+  }
+
+  &__sectionHeader {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-white-50);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 16px;
+  }
+
+  &__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; // iOS VStack(spacing: 4)
+    padding: 0 16px;
+  }
+
+  &__noResults {
+    padding: 40px 0;
+    text-align: center;
+    font-size: 15px;
+    color: var(--color-white-50);
+  }
+
+  &__bottom-spacer {
+    height: 40px;
+    flex: 0 0 auto;
+  }
+
+  // ── Empty state (person.2 s48 white@0.3 + "No members") ──
+  &__empty {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  &__emptyGlyph {
+    display: inline-flex;
+    width: 48px;
+    height: 48px;
+    color: var(--color-white-30);
+
+    svg { width: 100%; height: 100%; display: block; }
+  }
+
+  &__emptyTitle {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--color-white-20); // iOS "No members" white@0.2
+  }
+
+  // ── Loading / error ──
+  &__state {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  &__stateSpinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-white-30);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: GroupMembersPage-spin 0.8s linear infinite;
+  }
+
+  &__errorGlyph {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    color: var(--color-white-30);
+
+    svg { width: 100%; height: 100%; display: block; }
+  }
+
+  &__errorMessage {
+    margin: 0;
+    font-size: 15px;
+    color: var(--color-white-50);
+  }
+
+  &__retry {
+    padding: 0;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 15px;
+    color: var(--color-brand-500);
+    cursor: pointer;
+  }
+}
+
+@keyframes GroupMembersPage-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Capture harnesses freeze the spinner (deterministic screenshots).
+.capture-page .GroupMembersPage__stateSpinner,
+.capture-wrap .GroupMembersPage__stateSpinner {
+  animation: none;
+}

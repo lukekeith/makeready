@@ -1,0 +1,248 @@
+// EditReadActivity — twin of the iPhone READ-activity editor Screen 1
+// (EditReadActivityPage.swift editActivityContent). Page scaffold + the two
+// block renderings; input/editor internals come from the composed twins.
+// iOS values 1:1: ScrollView VStack(spacing 16) .padding(.top, 16); blocks
+// self-pad H16; locked card = cardBackground r12 pad16 stroke white@0.08
+// (highlighting: brandPrimary@0.8 2px); button stack VStack(spacing 4).
+.EditReadActivity {
+  position: relative;
+  width: 100%; // the capture island centers children — page twins must fill
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-canvas);
+  color: var(--fg-white);
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar
+  // (capture only — gated by the statusBar prop).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  // iOS: header dims to 0.3 + hit-testing off while a block highlights.
+  // The dim itself animates (iOS wraps highlightingBlockId changes in
+  // Motion.micro) — the transition lives on the base elements below so both
+  // directions tween.
+  &__header--dim {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  &__dim {
+    opacity: 0.3;
+    pointer-events: none;
+  }
+
+  // Dim WITHOUT disabling hit-testing — iOS keeps other locked blocks
+  // tappable during highlight mode (tapping one exits the mode).
+  &__dimSoft {
+    opacity: 0.3;
+  }
+
+  &__header,
+  &__section,
+  &__lockedWrap,
+  &__editableWrap,
+  &__buttons {
+    transition: opacity 200ms ease-in-out; // Motion.micro
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px; // iOS VStack(spacing: 16)
+    overflow-y: auto;
+    padding-top: 16px; // iOS .padding(.top, 16)
+  }
+
+  &__section {
+    padding: 0 16px;
+  }
+
+  // ── Locked (verse) block ──
+  &__lockedWrap {
+    position: relative;
+    padding: 0 16px; // iOS blocks self-pad .padding(.horizontal, 16)
+  }
+
+  &__lockedCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; // iOS VStack(spacing: isCollapsed ? 0 : 8)
+    padding: 16px;
+    background: var(--color-card, #252936);
+    border-radius: 12px;
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08); // iOS stroke overlay
+    cursor: pointer;
+    transition: box-shadow 200ms ease-in-out; // Motion.micro (highlight border)
+  }
+
+  &__lockedCard--highlighting {
+    box-shadow: 0 0 0 2px rgba(108, 71, 255, 0.8); // brandPrimary@0.8, 2px
+  }
+
+  &__lockedHead {
+    display: flex;
+    align-items: center;
+  }
+
+  &__lockedTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 600; // iOS s14Semibold
+    color: var(--color-white-70);
+  }
+
+  // iOS reserves a clear 24×24 box where the external highlighter overlays.
+  &__lockedReserve {
+    width: 24px;
+    height: 24px;
+    flex: none;
+  }
+
+  &__lockedChevron {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    flex: none;
+    color: var(--color-white-30); // iOS s12Semibold white@0.3
+
+    svg {
+      width: 12px;
+      height: 7px;
+      display: block;
+    }
+  }
+
+  // Highlighter toggle — overlaid OUTSIDE the card (iOS .padding(.top, 13)
+  // .padding(.trailing, 44); our wrap already carries the 16px gutter).
+  &__highlighter {
+    position: absolute;
+    top: 13px;
+    right: 44px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    padding: 0;
+    color: var(--color-white-50); // iOS white@0.5, brand when active
+    cursor: pointer;
+
+    &--active {
+      color: var(--color-brand, #6c47ff);
+    }
+
+    svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+  }
+
+  &__lockedBody {
+    // SelectableLockedBlockView supplies its own text metrics.
+  }
+
+  // Expand/collapse animation (iOS Motion.micro toggle): the PANE wraps the
+  // body in a grid-rows clip so height tweens both ways; the -8px margin
+  // cancels the card's flex gap while collapsed (iOS spacing 0 ↔ 8). The
+  // twin keeps its static v-if body — captures render end states only.
+  &__lockedBodyClip {
+    display: grid;
+    grid-template-rows: 0fr;
+    margin-top: -8px;
+    transition:
+      grid-template-rows 200ms ease-in-out,
+      margin-top 200ms ease-in-out;
+  }
+
+  &__lockedBodyClip--open {
+    grid-template-rows: 1fr;
+    margin-top: 0;
+  }
+
+  &__lockedBodyClip > .EditReadActivity__lockedBody {
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  // Inside the editor card the block view keeps its own text insets but
+  // DROPS the capture-gutter cancellation (negative margins) — those pulled
+  // its hit box up over the title row (breaking tap-to-collapse) and would
+  // clip under the animation wrapper.
+  &__lockedBody .SelectableLockedBlockView {
+    margin: 0;
+    width: 100%;
+  }
+
+  // ── Editable block ── borderless inline markdown + corner trash.
+  &__editableWrap {
+    position: relative;
+    padding: 0 16px;
+
+    // iOS MarkdownEditor(minHeight: 100) applies to the WHOLE editor (toolbar
+    // + content hugging its lines); the standalone twin bakes a 200px content
+    // area for its own harness.
+    .MarkdownEditor {
+      min-height: 100px;
+    }
+    .MarkdownEditor__editor {
+      min-height: 0;
+    }
+  }
+
+  &__trash {
+    position: absolute;
+    top: 8px;
+    right: 24px; // 16 gutter + 8 iOS .padding(8)
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.06);
+    color: #fff;
+    padding: 0;
+    cursor: pointer;
+
+    svg {
+      width: 13px;
+      height: 13px;
+      display: block;
+    }
+  }
+
+  // ── Button stack (iOS VStack spacing 4) ──
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 16px 16px;
+  }
+}

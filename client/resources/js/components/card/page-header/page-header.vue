@@ -29,6 +29,10 @@ const props = withDefaults(defineProps<Props>(), {
   tabs: () => [],
   activeTab: 0,
 })
+
+// Production tab switching. The compare snapshots never wire this up, so it has
+// no visual effect there (the tab row renders identically).
+const emit = defineEmits<{ select: [index: number] }>()
 </script>
 
 <template>
@@ -39,6 +43,7 @@ const props = withDefaults(defineProps<Props>(), {
         :key="index"
         class="PageHeaderTabs__tab"
         :class="{ 'PageHeaderTabs__tab--active': index === props.activeTab }"
+        @click="emit('select', index)"
       >
         {{ tab }}
       </span>

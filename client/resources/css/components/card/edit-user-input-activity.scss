@@ -1,0 +1,57 @@
+// EditUserInputActivity — twin of the iPhone Write-activity editor
+// (EditUserInputActivityPage.swift). Composes existing input twins; only the
+// page scaffold lives here. iOS values 1:1: ScrollView VStack(spacing 20)
+// .padding(.top, 16), sections H16, ScrollView clipped radius 16, trailing
+// 16px spacer.
+.EditUserInputActivity {
+  position: relative;
+  width: 100%; // the capture island centers children — page twins must fill
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-canvas);
+  color: var(--fg-white);
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar
+  // (capture only — gated by the statusBar prop; same as CreateProgram's).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; // iOS VStack(spacing: 20)
+    overflow-y: auto;
+    padding-top: 16px; // iOS .padding(.top, 16)
+    // iOS clips the ScrollView with RoundedRectangle(cornerRadius: 16).
+    border-radius: 16px;
+  }
+
+  &__section {
+    padding: 0 16px;
+  }
+
+  &__bottomSpacer {
+    flex: 0 0 16px; // iOS Spacer().frame(height: 16)
+  }
+}

@@ -14,6 +14,7 @@ use App\Http\Controllers\GroupsController;
 use App\Http\Controllers\GroupHomeController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\AdminController;
+use App\Http\Controllers\LeaderController;
 use App\Http\Controllers\StudyCodeController;
 use App\Http\Controllers\StudyHomeController;
 use App\Http\Controllers\LessonController;
@@ -140,32 +141,45 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 // Leader admin — protected (requires Google auth)
-Route::middleware('admin.auth')->prefix('admin')->name('admin.')->group(function () {
-    // Local Laravel-side logs viewer. Must come before the API proxy catch-all
-    // so /admin/api/logs is served from disk instead of forwarded to the Node API.
-    Route::get('/api/logs', [AdminLogsController::class, 'index'])->name('api.logs');
+Route::middleware('admin.auth')->group(function () {
+    // Shared backend used by BOTH the new mobile leader app and the parked legacy
+    // SPA: the /admin/api proxy, the local logs viewer, and the canonical previews.
+    // These stay under /admin (route names admin.*) — the API contract is unchanged.
+    Route::prefix('admin')->name('admin.')->group(function () {
+        // Local Laravel-side logs viewer. Must come before the API proxy catch-all
+        // so /admin/api/logs is served from disk instead of forwarded to the Node API.
+        Route::get('/api/logs', [AdminLogsController::class, 'index'])->name('api.logs');
 
-    // API proxy — must come before the catch-all Blade route
-    Route::match(['GET', 'POST', 'PATCH', 'PUT', 'DELETE'], '/api/{path}', [AdminApiProxyController::class, 'handle'])
-        ->where('path', '.*')
-        ->name('api.proxy');
+        // API proxy — must come before the catch-all Blade routes
+        Route::match(['GET', 'POST', 'PATCH', 'PUT', 'DELETE'], '/api/{path}', [AdminApiProxyController::class, 'handle'])
+            ->where('path', '.*')
+            ->name('api.proxy');
 
-    // Canonical activity preview — uses the admin's API session automatically.
-    // Must come before the catch-all Blade route.
-    Route::get('/preview/activity/{activityId}', [PreviewController::class, 'authenticatedActivityPreview'])
-        ->name('preview.activity.authed');
+        // Canonical activity preview — uses the admin's API session automatically.
+        Route::get('/preview/activity/{activityId}', [PreviewController::class, 'authenticatedActivityPreview'])
+            ->name('preview.activity.authed');
 
-    // Canonical lesson preview — same pattern.
-    Route::get('/preview/lesson/{lessonId}/{step?}', [PreviewController::class, 'authenticatedLessonPreview'])
-        ->name('preview.lesson.authed');
+        // Canonical lesson preview — same pattern.
+        Route::get('/preview/lesson/{lessonId}/{step?}', [PreviewController::class, 'authenticatedLessonPreview'])
+            ->name('preview.lesson.authed');
 
-    // Canonical study preview — full program overview.
-    Route::get('/preview/study/{programId}', [PreviewController::class, 'authenticatedStudyPreview'])
-        ->name('preview.study.authed');
+        // Canonical study preview — full program overview.
+        Route::get('/preview/study/{programId}', [PreviewController::class, 'authenticatedStudyPreview'])
+            ->name('preview.study.authed');
+    });
 
-    Route::get('/{any?}', [AdminController::class, 'show'])
+    // Legacy desktop admin SPA (AdminIsland) — parked at /admin-legacy. No longer
+    // served on /admin, but kept reachable for reference. Its Pinia stores still
+    // call the shared /admin/api/* proxy above (unchanged).
+    Route::get('/admin-legacy/{any?}', [AdminController::class, 'show'])
         ->where('any', '.*')
-        ->name('shell');
+        ->name('admin-legacy.shell');
+
+    // New mobile-web leader app (LeaderApp). The catch-all MUST be registered after
+    // /admin/api/*, /admin/preview/*, and /admin-legacy so those win.
+    Route::get('/admin/{any?}', [LeaderController::class, 'show'])
+        ->where('any', '.*')
+        ->name('admin.shell');
 });
 
 // ─── Public content routes ─────────────────────────────────────────────────────
@@ -185,6 +199,7 @@ Route::get('/privacy', [ComplianceController::class, 'privacy'])->name('privacy'
 Route::get('/terms', [ComplianceController::class, 'terms'])->name('terms');
 Route::get('/sms-terms', [ComplianceController::class, 'smsOptIn'])->name('sms-opt-in');
 Route::get('/contact', fn () => view('pages.contact'))->name('contact');
+Route::get('/investor', fn () => view('pages.investor'))->name('investor');
 
 Route::get('/pages/privacy', [ComplianceController::class, 'privacy'])->name('legacy.privacy');
 Route::get('/pages/terms', [ComplianceController::class, 'terms'])->name('legacy.terms');

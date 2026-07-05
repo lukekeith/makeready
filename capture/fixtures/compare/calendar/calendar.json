@@ -1,0 +1,15 @@
+{
+  "id": "calendar",
+  "type": "page",
+  "group": "Calendar",
+  "title": "Calendar",
+  "adapter": "calendar",
+  "viewports": ["pro-max"],
+  "shared": {
+    "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+    "calendarEvents": [
+      { "id": "ev-1", "date": "2026-06-29", "title": "Day 5 — The Righteous Will Live by Faith", "studyName": "Romans in 30 days" },
+      { "id": "ev-2", "date": "2026-07-01", "title": "Day 1 — In the Beginning Was the Word", "studyName": "The Gospel of John" }
+    ]
+  }
+}

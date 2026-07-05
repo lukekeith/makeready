@@ -27,13 +27,31 @@ interface Props {
   isActive?: boolean
   searchText?: string
   placeholder?: string
+  // Production use: render a real <input> bound via v-model:searchText. The
+  // compare snapshots leave this false and keep the static text/placeholder span
+  // (they only ever capture the resting state).
+  interactive?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   isActive: false,
   searchText: '',
   placeholder: 'Search',
+  interactive: false,
 })
+
+const emit = defineEmits<{
+  'update:searchText': [value: string]
+  clear: []
+}>()
+
+function onInput(e: Event): void {
+  emit('update:searchText', (e.target as HTMLInputElement).value)
+}
+function onClear(): void {
+  emit('update:searchText', '')
+  emit('clear')
+}
 </script>
 
 <template>
@@ -44,11 +62,21 @@ withDefaults(defineProps<Props>(), {
         <path d="M11.6 11.6 L16.4 16.4" stroke="currentColor" stroke-width="1.6"
               stroke-linecap="round" />
       </svg>
-      <span v-if="searchText" class="SearchFieldInput__text">{{ searchText }}</span>
-      <span v-else class="SearchFieldInput__placeholder">{{ placeholder }}</span>
+      <input
+        v-if="interactive"
+        class="SearchFieldInput__input"
+        type="text"
+        :value="searchText"
+        :placeholder="placeholder"
+        @input="onInput"
+      />
+      <template v-else>
+        <span v-if="searchText" class="SearchFieldInput__text">{{ searchText }}</span>
+        <span v-else class="SearchFieldInput__placeholder">{{ placeholder }}</span>
+      </template>
     </div>
 
-    <button v-if="isActive" class="SearchFieldInput__close" type="button" aria-label="Clear">
+    <button v-if="isActive" class="SearchFieldInput__close" type="button" aria-label="Clear" @click="onClear">
       <svg class="SearchFieldInput__closeIcon" viewBox="0 0 14 14" fill="none" aria-hidden="true">
         <path d="M2 2 L12 12 M12 2 L2 12" stroke="currentColor" stroke-width="1.7"
               stroke-linecap="round" />

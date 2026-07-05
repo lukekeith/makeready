@@ -82,6 +82,26 @@
     color: var(--color-white-50);
   }
 
+  // Interactive (production) input — reset native chrome to match __text, with a
+  // white@50 placeholder like the static placeholder span.
+  &__input {
+    flex: 1 1 0;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-size: var(--text-md); // Typography.s15
+    line-height: var(--leading-sm);
+    color: var(--color-white-100);
+
+    &::placeholder {
+      color: var(--color-white-50);
+      opacity: 1;
+    }
+  }
+
   &__close {
     flex: none;
     display: flex;

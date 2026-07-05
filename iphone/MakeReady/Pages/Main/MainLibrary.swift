@@ -74,6 +74,10 @@ enum MediaSortOption: String, CaseIterable {
 
 struct MainLibrary: View {
     let overlayManager: OverlayManager
+    // Optional initial tab (0 = Programs, 1 = Media). Defaults to nil so normal
+    // app callsites are unchanged; the capture harness passes it to snapshot the
+    // Media tab in isolation.
+    var initialTab: Int? = nil
     @State private var activeTab = 0
 
     @Environment(AuthManager.self) var authManager
@@ -384,6 +388,7 @@ struct MainLibrary: View {
         // Watch for `.makeready` file open requests routed through the deep-link
         // pipeline (system file association from Files/Mail/Messages/etc.).
         .onAppear {
+            if let initialTab { activeTab = initialTab }
             handlePendingImportDeepLink()
         }
         .onChange(of: PushNotificationManager.shared.pendingDeepLink) { _, _ in

@@ -1,0 +1,165 @@
+// ProgramHome — web twin of the iPhone ProgramHomePage main content (the
+// .programHome modal). Page chrome only; PageTitle / CoverImagePicker /
+// TabSlider / CardLesson / BoxButton carry their own styling. Sections stack
+// with the iOS VStack(spacing: 20); lessons list is VStack(spacing: 4) padded
+// H16; trailing 40px spacer.
+.ProgramHome {
+  position: relative;
+  width: 100%;
+  min-height: 100%;
+  background: var(--color-canvas); // iOS Color.appBackground
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar
+  // (capture only — gated by the statusBar prop).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  // The PageTitle twin carries its own 8px horizontal padding — iOS adds no
+  // extra gutter around the header (glyphs sit ~8pt+icon-inset from the edge).
+  > .PageTitleBar {
+    flex: 0 0 auto;
+  }
+
+  // iOS clips the ScrollView with RoundedRectangle(cornerRadius: 16) — the
+  // cover's top corners read rounded through that clip.
+  &__scroll {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; // iOS VStack(spacing: 20)
+    overflow-y: auto;
+    border-radius: 16px;
+  }
+
+  &__cover {
+    position: relative;
+  }
+
+  // PublishBadge (ProgramHomePage.swift PublishBadge): capsule, s12Semibold,
+  // padding H10/V5, overlaid top-leading at 12/12.
+  &__publishBadge {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    padding: 5px 10px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: #242a3e;
+    font-family: inherit;
+    font-size: var(--text-xs); // iOS Typography.s12Semibold
+    line-height: var(--leading-xs);
+    font-weight: var(--font-weight-semibold);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  &__publishBadge--published {
+    background: #57db5d;
+    color: var(--color-canvas); // iOS .appBackground text on the green fill
+  }
+
+  // iOS VStack centers the content-hugging TabSlider.
+  &__tabs {
+    display: flex;
+    justify-content: center;
+    padding: 0 16px;
+  }
+
+  // Lessons list — iOS VStack(spacing: 4), .padding(.horizontal, 16).
+  &__lessons {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 0 16px;
+  }
+
+  &__addDay {
+    margin-top: 4px;
+  }
+
+  // Empty state (iOS: 40px top spacer, book.closed s32 white@30, s17Medium
+  // white@50 title, s14 white@30 sub).
+  // Enrollments tab (iOS VStack(spacing: 8), pad-h 16).
+  &__enrollments {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 0 16px;
+  }
+
+  &__emptyAdd {
+    margin-top: 12px; // iOS empty VStack(spacing: 12)
+    align-self: stretch;
+  }
+
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 40px 24px 0;
+    text-align: center;
+  }
+
+  &__emptyIcon {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__emptyTitle {
+    font-size: var(--text-lead); // iOS s17Medium
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-50);
+  }
+
+  &__emptySub {
+    font-size: var(--text-md); // iOS s14
+    line-height: var(--leading-md);
+    color: var(--color-white-30);
+    max-width: 260px;
+  }
+
+  // Analytics tab — iOS: 80px top spacer, "Coming soon" s17 white@50.
+  &__analytics {
+    padding-top: 80px;
+    text-align: center;
+    font-size: var(--text-lead);
+    line-height: var(--leading-lead);
+    color: var(--color-white-50);
+  }
+
+  &__bottomSpacer {
+    flex: 0 0 40px;
+  }
+}

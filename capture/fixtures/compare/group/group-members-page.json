@@ -1,0 +1,44 @@
+{
+  "id": "group-members-page",
+  "type": "page",
+  "group": "Group",
+  "title": "Group · Members (pane)",
+  "adapter": "group-members-page",
+  "viewports": ["pro-max"],
+  "note": "WEB-ONLY comparison: GroupMembersPage is a trailing SlideStack pane behind the rightScreen @State inside pages.group-home — unreachable by the iPhone harness (edit-group / group-invite precedent). NOT the `group-members` comparison (that's the Groups TAB from MemberHomePage). Avatars omitted (initials fallback); dates are pre-formatted literals; members pre-sorted by name (iOS sorts client-side).",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "members": [
+          { "id": "m-1", "firstName": "Alex", "lastName": "Rivera", "dateLabel": "Jan 12, 2026" },
+          { "id": "m-2", "firstName": "Dana", "lastName": "Whitfield", "dateLabel": "Feb 3, 2026" },
+          { "id": "m-3", "firstName": "Guy", "lastName": "Gardner", "dateLabel": "Jan 5, 2026" },
+          { "id": "m-4", "firstName": "Sam", "lastName": "Chen", "dateLabel": "Mar 21, 2026" }
+        ],
+        "requests": []
+      }
+    },
+    {
+      "name": "requests",
+      "shared": {
+        "members": [
+          { "id": "m-1", "firstName": "Alex", "lastName": "Rivera", "dateLabel": "Jan 12, 2026" },
+          { "id": "m-2", "firstName": "Dana", "lastName": "Whitfield", "dateLabel": "Feb 3, 2026" },
+          { "id": "m-3", "firstName": "Guy", "lastName": "Gardner", "dateLabel": "Jan 5, 2026" }
+        ],
+        "requests": [
+          { "id": "r-1", "firstName": "Jordan", "lastName": "Blake", "dateLabel": "Jun 28, 2026" },
+          { "id": "r-2", "firstName": "Riley", "lastName": "Nakamura", "dateLabel": "Jul 1, 2026" }
+        ]
+      }
+    },
+    {
+      "name": "empty",
+      "shared": {
+        "members": [],
+        "requests": []
+      }
+    }
+  ]
+}

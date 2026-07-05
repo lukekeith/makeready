@@ -1,0 +1,78 @@
+{
+  "id": "edit-day",
+  "type": "page",
+  "group": "Library",
+  "title": "Edit Day (Lesson Editor)",
+  "adapter": "edit-day",
+  "viewports": ["pro-max"],
+  "variants": [
+    {
+      "name": "mixed",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "programId": "capture-prog-0",
+        "programName": "Who Is God?",
+        "lesson": {
+          "id": "capture-lesson-0",
+          "dayNumber": 3,
+          "title": "The Righteousness of God",
+          "activities": [
+            {
+              "id": "act-read-1",
+              "type": "READ",
+              "orderNumber": 1,
+              "passageReference": "Romans 1:1-7",
+              "estimatedSeconds": 300,
+              "readBlocks": [
+                {
+                  "id": "block-1",
+                  "orderNumber": 1,
+                  "title": "Romans 1",
+                  "content": "Paul, a servant of Christ Jesus, called to be an apostle and set apart for the gospel of God.",
+                  "isLocked": true
+                }
+              ]
+            },
+            {
+              "id": "act-write-1",
+              "type": "USER_INPUT",
+              "orderNumber": 2,
+              "title": "Observation",
+              "placeholder": "Write down what stands out to you.",
+              "estimatedSeconds": 120
+            },
+            {
+              "id": "act-youtube-1",
+              "type": "YOUTUBE",
+              "orderNumber": 3
+            },
+            {
+              "id": "act-exegesis-1",
+              "type": "EXEGESIS",
+              "orderNumber": 4
+            },
+            {
+              "id": "act-video-1",
+              "type": "VIDEO",
+              "orderNumber": 5
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "empty",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "programId": "capture-prog-0",
+        "programName": "Who Is God?",
+        "lesson": {
+          "id": "capture-lesson-0",
+          "dayNumber": 1,
+          "title": "",
+          "activities": []
+        }
+      }
+    }
+  ]
+}

@@ -82,6 +82,28 @@
     color: var(--color-white-40); // iOS .white.opacity(0.4)
   }
 
+  // Interactive-mode real input (iOS TextField: s14 white text, s14 white@40
+  // placeholder, no autocorrect chrome).
+  &__search-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    background: none;
+    padding: 0;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.2;
+    color: var(--color-white-100);
+
+    &::placeholder {
+      color: var(--color-white-40);
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
+
   &__clear {
     display: flex;
     align-items: center;

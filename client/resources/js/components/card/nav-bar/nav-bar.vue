@@ -25,15 +25,36 @@
 // Only the variant-varying data travels via props (activeTab, avatarMode); the
 // six-tab structure + glyphs are intrinsic to the bar.
 
+import { computed } from 'vue'
+import Avatar from '../../primitive/avatar/avatar.vue'
+
 interface Props {
   activeTab?: 'home' | 'groups' | 'library' | 'calendar' | 'search' | 'profile' | ''
+  // Production: the signed-in user's avatar — rendered via the Avatar component
+  // (photo → initials). When neither is supplied (the isolated compare snapshot,
+  // where iOS CachedAsyncImage never resolves), the bespoke `avatarMode` states
+  // below stand in: a person-glyph fallback or a frozen ProgressView spinner —
+  // which the live Avatar can't reproduce (it would load the image / animate).
+  avatarUrl?: string | null
+  avatarInitials?: string
   avatarMode?: 'fallback' | 'loading'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   activeTab: '',
+  avatarUrl: null,
+  avatarInitials: '',
   avatarMode: 'fallback',
 })
+
+// Real identity → use the Avatar component; otherwise fall back to the
+// snapshot-only states driven by avatarMode.
+const hasAvatar = computed(() => Boolean(props.avatarUrl || props.avatarInitials))
+
+// Additive: lets a host (e.g. the leader app shell) route on tab taps. Display-
+// only / compare usages simply omit the listener and the bar stays static.
+type NavTab = 'home' | 'groups' | 'library' | 'calendar' | 'search' | 'profile'
+const emit = defineEmits<{ (e: 'select', tab: NavTab): void }>()
 
 // 12 spoke angles for the frozen iOS ProgressView spinner (brightest leading,
 // tapering clockwise) — same construction as CardSpinnerOverlay's twin.
@@ -56,7 +77,7 @@ const spokes = [
 <template>
   <nav class="NavBar" aria-label="Primary">
     <!-- Home -->
-    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'home' }">
+    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'home' }" @click="emit('select', 'home')">
       <span class="NavBar__icon">
         <svg viewBox="0 0 24 24" fill="none">
           <path
@@ -68,7 +89,7 @@ const spokes = [
     </span>
 
     <!-- Groups -->
-    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'groups' }">
+    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'groups' }" @click="emit('select', 'groups')">
       <span class="NavBar__icon">
         <svg viewBox="0 0 24 24" fill="none">
           <g opacity="0.12">
@@ -84,7 +105,7 @@ const spokes = [
     </span>
 
     <!-- Library -->
-    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'library' }">
+    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'library' }" @click="emit('select', 'library')">
       <span class="NavBar__icon">
         <svg viewBox="0 0 24 24" fill="none">
           <path
@@ -96,7 +117,7 @@ const spokes = [
     </span>
 
     <!-- Calendar -->
-    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'calendar' }">
+    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'calendar' }" @click="emit('select', 'calendar')">
       <span class="NavBar__icon">
         <svg viewBox="0 0 24 24" fill="none">
           <path opacity="0.12" d="M3 8.8C3 7.11984 3 6.27976 3.32698 5.63803C3.6146 5.07354 4.07354 4.6146 4.63803 4.32698C5.27976 4 6.11984 4 7.8 4H16.2C17.8802 4 18.7202 4 19.362 4.32698C19.9265 4.6146 20.3854 5.07354 20.673 5.63803C21 6.27976 21 7.11984 21 8.8V10H3V8.8Z" fill="currentColor" />
@@ -109,7 +130,7 @@ const spokes = [
     </span>
 
     <!-- Search -->
-    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'search' }">
+    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'search' }" @click="emit('select', 'search')">
       <span class="NavBar__icon">
         <svg viewBox="0 0 24 24" fill="none">
           <path
@@ -121,10 +142,18 @@ const spokes = [
     </span>
 
     <!-- Profile (avatar) -->
-    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'profile' }">
+    <span class="NavBar__col" :class="{ 'NavBar__col--active': props.activeTab === 'profile' }" @click="emit('select', 'profile')">
       <span class="NavBar__avatar">
-        <!-- No URL → gray circle + person glyph fallback. -->
-        <span v-if="props.avatarMode === 'fallback'" class="NavBar__avatarFallback">
+        <!-- Production: the real signed-in avatar via the Avatar component. -->
+        <Avatar
+          v-if="hasAvatar"
+          class="NavBar__avatarImg"
+          :src="props.avatarUrl || undefined"
+          :initials="props.avatarInitials || undefined"
+          alt="Profile"
+        />
+        <!-- No identity (isolated compare snapshot): gray circle + person glyph. -->
+        <span v-else-if="props.avatarMode === 'fallback'" class="NavBar__avatarFallback">
           <svg class="NavBar__person" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="8.2" r="3.7" />
             <path d="M12 13.4c-3.5 0-6.4 2-6.4 4.8 0 .6.4 1 1 1h10.8c.6 0 1-.4 1-1 0-2.8-2.9-4.8-6.4-4.8Z" />

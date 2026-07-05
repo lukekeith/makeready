@@ -102,6 +102,9 @@ router.post('/', requireAuth, async (req, res) => {
       coverImageUrl: z.string().url().optional(),
       isPrivate: z.boolean().default(false),
       allowInvites: z.boolean().default(true),
+      // Maps to memberDirectoryEnabled (column default true). iOS has always
+      // sent this on create; before 2026-07-04 it was silently stripped.
+      memberDirectory: z.boolean().default(true),
       welcomeMessage: z.string().max(1000).optional(),
       ageRange: z
         .object({
@@ -140,6 +143,7 @@ router.post('/', requireAuth, async (req, res) => {
         coverImageUrl: body.coverImageUrl,
         isPrivate: body.isPrivate,
         allowInvites: body.allowInvites,
+        memberDirectoryEnabled: body.memberDirectory,
         welcomeMessage: body.welcomeMessage,
         ageRangeMin: body.ageRange?.min,
         ageRangeMax: body.ageRange?.max,
@@ -163,6 +167,7 @@ router.post('/', requireAuth, async (req, res) => {
       coverImageUrl: group.coverImageUrl,
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
+      memberDirectory: group.memberDirectoryEnabled,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null
@@ -254,6 +259,7 @@ router.get('/', requireAuth, async (req, res) => {
       coverImageUrl: group.coverImageUrl,
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
+      memberDirectory: group.memberDirectoryEnabled,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null
@@ -579,6 +585,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       coverImageUrl: group.coverImageUrl,
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
+      memberDirectory: group.memberDirectoryEnabled,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null
@@ -669,7 +676,15 @@ router.get('/:id/invite', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Group not found' })
     }
 
-    const inviteUrl = `https://app.makeready.org/join/group/${group.code}`
+    // Legacy groups predate join codes — mint one on demand so the invite is
+    // never blank (and the QR never encodes ".../join/group/null").
+    let code = group.code
+    if (!code) {
+      code = await generateUniqueGroupCode()
+      await prisma.group.update({ where: { id: group.id }, data: { code } })
+    }
+
+    const inviteUrl = `https://app.makeready.org/join/group/${code}`
 
     // Generate QR code as base64 data URL
     const qrCodeDataUrl = await QRCode.toDataURL(inviteUrl, {
@@ -686,7 +701,7 @@ router.get('/:id/invite', requireAuth, async (req, res) => {
       invite: {
         groupId: group.id,
         groupName: group.name,
-        code: group.code,
+        code,
         inviteUrl,
         qrCode: qrCodeDataUrl,
       },
@@ -902,6 +917,9 @@ router.patch('/:id', requireAuth, async (req, res) => {
       coverImageUrl: z.string().url().optional().nullable(),
       isPrivate: z.boolean().optional(),
       allowInvites: z.boolean().optional(),
+      // Maps to the memberDirectoryEnabled column. Both apps have always sent
+      // this key; before 2026-07-04 it was silently stripped by this schema.
+      memberDirectory: z.boolean().optional(),
       welcomeMessage: z.string().max(1000).optional().nullable(),
       ageRange: z
         .object({
@@ -932,6 +950,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (body.coverImageUrl !== undefined) updateData.coverImageUrl = body.coverImageUrl
     if (body.isPrivate !== undefined) updateData.isPrivate = body.isPrivate
     if (body.allowInvites !== undefined) updateData.allowInvites = body.allowInvites
+    if (body.memberDirectory !== undefined) updateData.memberDirectoryEnabled = body.memberDirectory
     if (body.welcomeMessage !== undefined) updateData.welcomeMessage = body.welcomeMessage
     if (body.ageRange !== undefined) {
       updateData.ageRangeMin = body.ageRange?.min ?? null
@@ -987,6 +1006,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
       coverImageUrl: group.coverImageUrl,
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
+      memberDirectory: group.memberDirectoryEnabled,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null

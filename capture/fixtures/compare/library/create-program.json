@@ -1,0 +1,11 @@
+{
+  "id": "create-program",
+  "type": "page",
+  "group": "Library",
+  "title": "Create Program",
+  "adapter": "create-program",
+  "viewports": ["pro-max"],
+  "shared": {
+    "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null }
+  }
+}

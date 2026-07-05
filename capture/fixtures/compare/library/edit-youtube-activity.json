@@ -1,0 +1,33 @@
+{
+  "id": "edit-youtube-activity",
+  "type": "page",
+  "group": "Library",
+  "title": "Edit YouTube Activity",
+  "adapter": "edit-youtube-activity",
+  "viewports": ["pro-max"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "act-youtube-1",
+          "type": "YOUTUBE"
+        }
+      }
+    },
+    {
+      "name": "configured",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "act-youtube-1",
+          "type": "YOUTUBE",
+          "title": "The Story of Romans",
+          "youtubeUrl": "https://www.youtube.com/watch?v=M7lc1UVf-VE",
+          "youtubeVideoId": "M7lc1UVf-VE"
+        }
+      }
+    }
+  ]
+}

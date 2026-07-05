@@ -74,3 +74,22 @@
     color: var(--color-white-30); // SwiftUI TextField placeholder (tertiary label)
   }
 }
+
+// Interactive mode (production only): the real add-tag <input> shares the
+// static __input class; this resets browser chrome.
+.TagInputField__control {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-family: inherit;
+  color: #fff;
+  caret-color: var(--color-brand-500);
+
+  &::placeholder {
+    color: var(--color-white-30);
+    opacity: 1;
+  }
+}

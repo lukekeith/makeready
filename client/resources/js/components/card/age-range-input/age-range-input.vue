@@ -15,12 +15,17 @@
 //   label   string — left-aligned field label
 //   minAge  string — value shown in the first chip
 //   maxAge  string — value shown in the second chip
+import { computed } from 'vue'
 import { classnames } from '../../../util/classnames'
 
 interface Props {
   label?: string
   minAge?: string
   maxAge?: string
+  // Additive: invisible native selects over the chips (the MenuInput idiom) —
+  // iOS presents "Age from" (0…max) / "Age to" (min…99) wheel sheets. The
+  // compare harness never sets this, so the captured rendering is unchanged.
+  interactive?: boolean
   class?: string
 }
 
@@ -28,9 +33,25 @@ const props = withDefaults(defineProps<Props>(), {
   label: 'Age range',
   minAge: '0',
   maxAge: '99',
+  interactive: false,
 })
 
-const emit = defineEmits<{ min: [MouseEvent]; max: [MouseEvent] }>()
+const emit = defineEmits<{
+  min: [MouseEvent]
+  max: [MouseEvent]
+  'update:minAge': [value: string]
+  'update:maxAge': [value: string]
+}>()
+
+// iOS wheel option ranges: min = 0…maxAge, max = minAge…99.
+const minOptions = computed(() => {
+  const hi = Number(props.maxAge) || 99
+  return Array.from({ length: hi + 1 }, (_, i) => String(i))
+})
+const maxOptions = computed(() => {
+  const lo = Number(props.minAge) || 0
+  return Array.from({ length: 99 - lo + 1 }, (_, i) => String(lo + i))
+})
 </script>
 
 <template>
@@ -40,9 +61,27 @@ const emit = defineEmits<{ min: [MouseEvent]; max: [MouseEvent] }>()
       <div class="AgeRangeField__chips">
         <button type="button" class="AgeRangeField__chip" @click="emit('min', $event)">
           {{ minAge }}
+          <select
+            v-if="interactive"
+            class="AgeRangeField__select"
+            :value="minAge"
+            aria-label="Age from"
+            @change="emit('update:minAge', ($event.target as HTMLSelectElement).value)"
+          >
+            <option v-for="opt in minOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
         </button>
         <button type="button" class="AgeRangeField__chip" @click="emit('max', $event)">
           {{ maxAge }}
+          <select
+            v-if="interactive"
+            class="AgeRangeField__select"
+            :value="maxAge"
+            aria-label="Age to"
+            @change="emit('update:maxAge', ($event.target as HTMLSelectElement).value)"
+          >
+            <option v-for="opt in maxOptions" :key="opt" :value="opt">{{ opt }}</option>
+          </select>
         </button>
       </div>
     </div>

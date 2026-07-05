@@ -1,0 +1,61 @@
+{
+  "id": "video-activity-picker",
+  "type": "page",
+  "group": "Library",
+  "title": "Video Activity Picker",
+  "adapter": "video-activity-picker",
+  "viewports": [
+    "pro-max"
+  ],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        }
+      }
+    },
+    {
+      "name": "library",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "videos": [
+          {
+            "id": "vid-1",
+            "duration": 62
+          },
+          {
+            "id": "vid-2",
+            "duration": 185
+          },
+          {
+            "id": "vid-3",
+            "duration": 34
+          },
+          {
+            "id": "vid-4",
+            "duration": 421
+          },
+          {
+            "id": "vid-5",
+            "duration": 95
+          },
+          {
+            "id": "vid-6",
+            "duration": 12
+          }
+        ]
+      }
+    }
+  ],
+  "note": "iPhone ref renders the RECORDER panel (hardware, excluded) \u2014 showingLibrary is internal @State the harness cannot seed, so the panes will not match. The web side shows the ported library-panel picker; 'library' variant is web-only value (seeded uploaded videos)."
+}

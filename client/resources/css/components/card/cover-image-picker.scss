@@ -25,6 +25,15 @@
     inset: 0;
   }
 
+  // Real cover photo (production `coverUrl` prop; never set in capture).
+  &__photo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
   // Empty well — iOS Color.white.opacity(0.2).
   &__well {
     background: var(--color-white-20);

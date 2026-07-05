@@ -1,0 +1,538 @@
+<script setup lang="ts">
+// ProgramHomeModal — production content of the .programHome overlay (web twin
+// of iPhone ProgramHomeModalContent in StudyProgramHome.swift). Loads the
+// program via the leader-program store and renders the shared ProgramHome twin
+// inside a SlideStack whose detail pane hosts the Edit Program settings
+// (iOS detailScreen = .editProgram; EditDay lands here in stage 3).
+import { computed, inject, onMounted, reactive, ref, watch } from 'vue'
+import ProgramHome from '../../../components/card/program-home/program-home.vue'
+import ExportConfirmOverlay from '../../../components/card/export-confirm-overlay/export-confirm-overlay.vue'
+import SlideStack from '../overlay/slide-stack.vue'
+import EditProgramPane from './edit-program-pane.vue'
+import EditDayPane from './edit-day-pane.vue'
+import ConfirmationOverlayModal from './confirmation-overlay-modal.vue'
+import { ROUTES } from '../overlay/overlay-routes'
+import {
+  OVERLAY_CONTEXT,
+  useOverlayManager,
+  type OverlayContext,
+} from '../overlay/overlay.store'
+import { useConfirmDialog } from '../overlay/confirm-dialog.store'
+import { useLeaderProgram, type ExportPreview } from '../stores/leader-program.store'
+
+// `preloaded`: skip the initial fetch when the store already holds this program
+// (the create flow seeds it from the POST response — iOS renders Program Home
+// straight from createProgram's payload with no re-fetch).
+const props = defineProps<{ programId: string; preloaded?: boolean }>()
+
+const store = useLeaderProgram()
+const overlay = inject<OverlayContext | null>(OVERLAY_CONTEXT, null)
+
+// iOS canEdit = program.isEditable(by: currentUser.id) — creator only. The
+// leader's server user id is bootstrapped as an island prop (LeaderController).
+const memberId = inject<string | null>('memberId', null)
+const canEdit = computed(() =>
+  Boolean(memberId && store.program?.creatorId && store.program.creatorId === memberId),
+)
+
+onMounted(() => {
+  if (props.preloaded && store.program?.id === props.programId) return
+  store.loadProgram(props.programId)
+})
+
+const selectedTab = ref(0)
+
+// ── Enrollments tab (iOS enrollmentsContent .task → getProgramEnrollments) ──
+// Cache-first: loaded once when the tab is first selected.
+const enrollments = ref<
+  Array<{ id: string; name: string; subtitle?: string; imageUrl?: string; dateRange: string }>
+>([])
+const enrollmentsLoading = ref(false)
+let enrollmentsLoaded = false
+
+watch(selectedTab, async (tab) => {
+  if (tab !== 1 || enrollmentsLoaded) return
+  enrollmentsLoading.value = true
+  try {
+    enrollments.value = await store.loadProgramEnrollments(props.programId)
+    enrollmentsLoaded = true
+  } catch {
+    // Silent: iOS records console-only; the empty state stands (no cache).
+  } finally {
+    enrollmentsLoading.value = false
+  }
+})
+
+// SlideStack detail state — 'editProgram' or 'day:<lessonId>' (iOS
+// detailScreen enum: .editProgram / .editDay(lessonId)).
+const detailScreen = ref<string | null>(null)
+
+const detailLessonId = computed(() =>
+  detailScreen.value?.startsWith('day:') ? detailScreen.value.slice(4) : null,
+)
+
+// Edit form state — seeded when the gear is tapped (iOS keeps these as
+// separate @State so the back chevron discards cleanly).
+const editName = ref('')
+const editDescription = ref('')
+const editPublished = ref(false)
+const editTags = ref<string[]>([])
+const saving = ref(false)
+const uploadingCover = ref(false)
+
+const lessons = computed(() => store.program?.lessons ?? [])
+
+function close(): void {
+  overlay?.dismiss()
+}
+
+// Gear: seed the edit fields from the loaded program, then slide (iOS
+// ProgramHomePage gearshape handler).
+function openSettings(): void {
+  const p = store.program
+  if (!p) return
+  editName.value = p.name
+  editDescription.value = p.description
+  editPublished.value = p.isPublished
+  editTags.value = [...p.tags]
+  detailScreen.value = 'editProgram'
+}
+
+async function saveSettings(): Promise<void> {
+  const p = store.program
+  if (!p || saving.value) return
+  saving.value = true
+  try {
+    await store.saveProgram(p.id, {
+      name: editName.value.trim() || p.name,
+      description: editDescription.value.trim(),
+      isPublished: editPublished.value,
+      tags: editTags.value,
+    })
+    detailScreen.value = null
+  } catch {
+    // Save failed and the store reverted — stay on the pane so nothing is lost.
+  } finally {
+    saving.value = false
+  }
+}
+
+// All confirms/alerts present through the shared confirm-dialog service
+// (ConfirmDialogHost renders them full-screen at the app root).
+const confirmDialog = useConfirmDialog()
+
+function showError(message: string): void {
+  void confirmDialog.confirm({
+    title: 'Something went wrong',
+    message,
+    buttons: [{ label: 'OK', style: 'secondary' }],
+  })
+}
+
+// Add-day confirm (iOS DialogOverlay "Add a new day?") — sticky: the tapped
+// button flips to "Adding..." while the request runs, then the dialog closes.
+const addingDay = ref(false)
+
+async function requestAddDay(): Promise<void> {
+  const p = store.program
+  if (!p || addingDay.value) return
+  const dialog = confirmDialog.present({
+    title: 'Add a new day?',
+    message: 'This will add a new day to the end of your study program.',
+    buttons: [
+      { label: 'Add day', style: 'primary' },
+      { label: 'Cancel', style: 'secondary' },
+    ],
+    sticky: true,
+  })
+  const choice = await dialog.choice
+  if (choice !== 0) {
+    dialog.close()
+    return
+  }
+  addingDay.value = true
+  dialog.update({
+    buttons: [
+      { label: 'Adding...', style: 'primary' },
+      { label: 'Cancel', style: 'secondary' },
+    ],
+  })
+  try {
+    await store.addLesson(p.id)
+  } catch (err) {
+    showError(err instanceof Error ? err.message : "Couldn't add the day")
+  } finally {
+    addingDay.value = false
+    dialog.close()
+  }
+}
+
+// ── Swipe-to-delete + drag-reorder (iOS lessonCard SwipeableCard + Dragula) ──
+
+// iOS native .alert "Permanently delete day {n}?" — exact strings.
+const deletingLesson = ref(false)
+
+async function onDeleteLesson(id: string): Promise<void> {
+  const lesson = store.program?.lessons.find((l) => l.id === id)
+  if (!lesson || deletingLesson.value) return
+  const choice = await confirmDialog.confirm({
+    title: `Permanently delete day ${lesson.day}?`,
+    message: 'This will permanently delete this day and all associated data from the program.',
+    buttons: [
+      { label: 'Delete', style: 'destructive' },
+      { label: 'Cancel', style: 'secondary' },
+    ],
+  })
+  if (choice !== 0 || !store.program || deletingLesson.value) return
+  deletingLesson.value = true
+  try {
+    await store.deleteLesson(store.program.id, lesson.id)
+  } catch (err) {
+    showError(err instanceof Error ? err.message : 'Failed to delete lesson')
+  } finally {
+    deletingLesson.value = false
+  }
+}
+
+async function onReorderLessons(ids: string[]): Promise<void> {
+  if (!store.program) return
+  try {
+    await store.reorderLessons(store.program.id, ids)
+  } catch (err) {
+    showError(err instanceof Error ? err.message : 'Failed to reorder lessons')
+  }
+}
+
+// ── Publish badge (iOS togglePublishStatus + gating) ──
+
+// iOS lessonsWithoutActivities: every lesson with an empty activities array.
+const lessonsWithoutActivities = computed(
+  () => (store.program?.lessons ?? []).filter((l) => !l.activities.length),
+)
+
+// iOS publishBlockedMessage — dynamically pluralized, exact strings.
+const publishBlockedMessage = computed(() => {
+  const n = lessonsWithoutActivities.value.length
+  return n === 1
+    ? 'There is 1 lesson without an activity. Every lesson must have at least one activity before this study can be published.'
+    : `There are ${n} lessons without an activity. Every lesson must have at least one activity before this study can be published.`
+})
+
+const togglingPublish = ref(false)
+
+function showPublishBlockedDialog(): void {
+  // iOS native .alert "Cannot Publish".
+  void confirmDialog.confirm({
+    title: 'Cannot Publish',
+    message: publishBlockedMessage.value,
+    buttons: [{ label: 'OK', style: 'secondary' }],
+  })
+}
+
+async function onTogglePublish(): Promise<void> {
+  const p = store.program
+  if (!p) return
+  // iOS badge tap: publishing a draft is blocked while any lesson is empty;
+  // unpublishing is never blocked.
+  if (!p.isPublished && lessonsWithoutActivities.value.length) {
+    showPublishBlockedDialog()
+    return
+  }
+  const publish = !p.isPublished
+  const choice = await confirmDialog.confirm({
+    title: p.isPublished ? 'Unpublish this study?' : 'Publish this study?',
+    message: p.isPublished
+      ? 'This will unpublish the study. It will no longer be available for group enrollment.'
+      : 'Publishing the study will make it available for group enrollment.',
+    buttons: [
+      { label: p.isPublished ? 'Switch to Draft' : 'Publish', style: 'primary' },
+      { label: 'Cancel', style: 'secondary' },
+    ],
+  })
+  if (choice !== 0 || togglingPublish.value) return
+  // iOS re-checks the gate inside togglePublishStatus.
+  if (publish && lessonsWithoutActivities.value.length) {
+    showPublishBlockedDialog()
+    return
+  }
+  togglingPublish.value = true
+  try {
+    await store.setPublished(p.id, publish)
+  } catch (err) {
+    showError(err instanceof Error ? err.message : "Couldn't update the study")
+  } finally {
+    togglingPublish.value = false
+  }
+}
+
+// ── Export flow (iOS loadExportPreview → ExportConfirmOverlay →
+//    exportProgram → ConfirmationOverlay Save/Discard) ──
+
+const overlayManager = useOverlayManager()
+
+const exportPreview = ref<ExportPreview | null>(null)
+const showExportConfirm = ref(false)
+const loadingExportPreview = ref(false)
+const exporting = ref(false)
+let exportedFile: { blob: Blob; filename: string } | null = null
+
+// SF "checkmark" — the success circle glyph (40pt medium on iOS).
+const CHECKMARK =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>'
+
+// Reactive so isProcessing/message flip live inside the presented overlay.
+const exportConfirmation = reactive({
+  isProcessing: true,
+  message: '',
+})
+
+async function onExport(): Promise<void> {
+  const p = store.program
+  if (!p || loadingExportPreview.value) return
+  loadingExportPreview.value = true
+  try {
+    exportPreview.value = await store.loadExportPreview(p.id)
+    showExportConfirm.value = true
+  } catch {
+    showError("Couldn't load the export preview")
+  } finally {
+    loadingExportPreview.value = false
+  }
+}
+
+function dismissExportConfirmation(): void {
+  overlayManager.dismiss(ROUTES.confirmationOverlay.id)
+}
+
+// iOS "Save" → share sheet; web equivalent: download the .makeready file.
+function saveExportedFile(): void {
+  dismissExportConfirmation()
+  const file = exportedFile
+  exportedFile = null
+  if (!file) return
+  const url = URL.createObjectURL(file.blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = file.filename
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
+function discardExportedFile(): void {
+  dismissExportConfirmation()
+  exportedFile = null
+}
+
+async function runExport(): Promise<void> {
+  const p = store.program
+  if (!p || exporting.value) return
+  exporting.value = true
+  exportedFile = null
+  // iOS: dismiss the confirm card, then present the processing confirmation.
+  showExportConfirm.value = false
+  exportConfirmation.isProcessing = true
+  exportConfirmation.message = `**${p.name}** has been exported successfully.`
+  overlayManager.present(ROUTES.confirmationOverlay, ConfirmationOverlayModal, {
+    tone: 'success',
+    icon: CHECKMARK,
+    buttonLabel: 'Save',
+    secondaryButtonLabel: 'Discard',
+    processingMessage: 'Exporting study program',
+    // Reactive getters — overlay-host re-reads these as the export progresses.
+    get isProcessing() {
+      return exportConfirmation.isProcessing
+    },
+    get message() {
+      return exportConfirmation.message
+    },
+    onSelect: saveExportedFile,
+    onSecondary: discardExportedFile,
+  })
+  try {
+    exportedFile = await store.exportProgram(p.id)
+    exportConfirmation.isProcessing = false
+  } catch {
+    dismissExportConfirmation()
+    showError("Couldn't export the study program")
+  } finally {
+    exporting.value = false
+  }
+}
+
+// Cover picks auto-upload (iOS .onChange(of: coverImage)).
+function onCoverPicked(file: File): void {
+  const p = store.program
+  if (!p) return
+  const reader = new FileReader()
+  reader.onload = async () => {
+    uploadingCover.value = true
+    try {
+      await store.uploadCover(p.id, String(reader.result), file.type || 'image/jpeg')
+    } catch {
+      // Upload failed — the cover simply stays unchanged.
+    } finally {
+      uploadingCover.value = false
+    }
+  }
+  reader.readAsDataURL(file)
+}
+</script>
+
+<template>
+  <div class="ProgramHomeModal">
+    <!-- Loading / error states mirror iOS (PageTitle + centered state). -->
+    <div v-if="store.error" class="ProgramHomeModal__state">
+      {{ store.error }}
+    </div>
+    <SlideStack v-else :item="detailScreen">
+      <ProgramHome
+        :program-name="store.program?.name ?? ''"
+        :program-description="store.program?.description ?? ''"
+        :cover-url="store.program?.coverImageUrl ?? ''"
+        :has-cover-image="!!store.program?.coverImageUrl"
+        :published="store.program?.isPublished ?? false"
+        :selected-tab="selectedTab"
+        :lessons="lessons"
+        :loading="store.loading"
+        :enrollments="enrollments"
+        :enrollments-loading="enrollmentsLoading"
+        :can-edit="canEdit"
+        :editable="canEdit"
+        @close="close"
+        @select-tab="selectedTab = $event"
+        @settings="openSettings"
+        @select-lesson="detailScreen = `day:${$event}`"
+        @add-day="requestAddDay()"
+        @delete-lesson="onDeleteLesson"
+        @reorder-lessons="onReorderLessons"
+        @toggle-publish="onTogglePublish"
+        @export="onExport"
+      />
+      <template #detail="{ item }">
+        <EditDayPane
+          v-if="String(item).startsWith('day:') && store.program"
+          :key="String(item)"
+          :program-id="store.program.id"
+          :lesson-id="String(item).slice(4)"
+          @back="detailScreen = null"
+        />
+        <EditProgramPane
+          v-else
+          v-model:name="editName"
+          v-model:description="editDescription"
+          v-model:published="editPublished"
+          v-model:tags="editTags"
+          :cover-url="store.program?.coverImageUrl ?? ''"
+          :saving="saving"
+          :uploading-cover="uploadingCover"
+          @back="detailScreen = null"
+          @save="saveSettings"
+          @cover-picked="onCoverPicked"
+        />
+      </template>
+    </SlideStack>
+
+
+
+
+    <!-- Export preview card (iOS ExportConfirmOverlay: ultraThinMaterial +
+         black@0.5 scrim, 250ms ease-out in / 200ms ease-in out, tap-outside
+         dismisses). -->
+    <Transition name="ProgramHomeModal-export">
+      <div
+        v-if="showExportConfirm"
+        class="ProgramHomeModal__exportScrim"
+        @click.self="showExportConfirm = false"
+      >
+        <ExportConfirmOverlay
+          v-if="exportPreview"
+          class="ProgramHomeModal__exportCard"
+          :program-name="exportPreview.name"
+          :days="exportPreview.days"
+          :activities="exportPreview.activities"
+          :reads="exportPreview.reads"
+          :videos="exportPreview.videos"
+          :user-inputs="exportPreview.userInputs"
+          :read-blocks="exportPreview.readBlocks"
+          :scripture-refs="exportPreview.scriptureRefs"
+          :template-name="exportPreview.templateName"
+          :exporting="exporting"
+          @export="runExport"
+          @cancel="showExportConfirm = false"
+        />
+      </div>
+    </Transition>
+
+
+  </div>
+</template>
+
+<style scoped>
+.ProgramHomeModal {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ProgramHomeModal :deep(.SlideStack) {
+  flex: 1 1 auto;
+}
+
+/* The modal sheet owns the scroll; the panes fill it. */
+.ProgramHomeModal :deep(.ProgramHome) {
+  height: 100%;
+}
+
+.ProgramHomeModal__state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: var(--color-white-50);
+}
+
+/* Export preview chrome — iOS ExportConfirmOverlay: ultraThinMaterial(dark) +
+   black@0.5 scrim; card scales 0.9→1; enter 250ms ease-out (pagePushBrisk),
+   exit 200ms ease-in (Motion.exit). Card carries 32px screen margins. */
+.ProgramHomeModal__exportScrim {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 32px;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
+}
+
+.ProgramHomeModal__exportCard {
+  transition: transform 250ms ease-out, opacity 250ms ease-out;
+}
+
+.ProgramHomeModal-export-enter-active {
+  transition: opacity 250ms ease-out;
+}
+
+.ProgramHomeModal-export-leave-active {
+  transition: opacity 200ms ease-in;
+}
+
+.ProgramHomeModal-export-leave-active .ProgramHomeModal__exportCard {
+  transition: transform 200ms ease-in, opacity 200ms ease-in;
+}
+
+.ProgramHomeModal-export-enter-from,
+.ProgramHomeModal-export-leave-to {
+  opacity: 0;
+}
+
+.ProgramHomeModal-export-enter-from .ProgramHomeModal__exportCard,
+.ProgramHomeModal-export-leave-to .ProgramHomeModal__exportCard {
+  transform: scale(0.9);
+}
+</style>

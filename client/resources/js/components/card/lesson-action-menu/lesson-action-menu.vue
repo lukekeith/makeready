@@ -32,6 +32,9 @@ const props = withDefaults(defineProps<Props>(), {
   items: () => [],
 })
 
+// Additive (production wiring; the compare harness binds neither).
+const emit = defineEmits<{ select: [index: number]; close: [] }>()
+
 // xmark (s20Medium, white) — centered close button glyph. The path fills ~0.8 of
 // the viewBox so an 18px box yields the iOS glyph's ~15pt visible X.
 const XMARK =
@@ -53,12 +56,13 @@ const XMARK =
         :class="{ 'LessonActionMenu__row--destructive': item.style === 'destructive' }"
         role="button"
         tabindex="0"
+        @click="emit('select', i)"
       >
         <span class="LessonActionMenu__icon" aria-hidden="true" v-html="item.icon" />
         <div class="LessonActionMenu__title">{{ item.title }}</div>
       </div>
     </div>
 
-    <div class="LessonActionMenu__close" aria-hidden="true" v-html="XMARK" />
+    <div class="LessonActionMenu__close" aria-hidden="true" v-html="XMARK" @click="emit('close')" />
   </div>
 </template>

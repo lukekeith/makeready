@@ -29,9 +29,11 @@ class AdminAuthController extends Controller
             return redirect('/admin');
         }
 
-        return view('pages.admin-login', [
-            'error' => session('error'),
-        ]);
+        // Never let the browser cache the auth-gated admin HTML (prevents a stale
+        // shell from sticking around after a deploy/edit).
+        return response()
+            ->view('pages.leader-login', ['error' => session('error')])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     /**
@@ -92,6 +94,24 @@ class AdminAuthController extends Controller
         }
 
         $body = $result->json();
+
+        // The new /admin is exclusively for group leaders. Gate on the server's
+        // canAccessIosApp check (Super Admin / org owner / Owner-Admin-Group Leader
+        // role) using the freshly-minted session, BEFORE admitting the user.
+        $access = Http::withHeaders([
+            'Cookie' => 'connect.sid=' . $body['sessionId'],
+        ])->get("{$apiUrl}/auth/leader-access");
+
+        if ($access->status() !== 200 || $access->json('canAccess') !== true) {
+            $this->log->logFailure(ActivityTypes::AUTH_ADMIN_OAUTH_FAILED, $request, [
+                'message' => 'Admin OAuth blocked — not a group leader: ' . ($body['user']['email'] ?? 'unknown'),
+                'metadata' => ['userEmail' => $body['user']['email'] ?? null],
+            ]);
+            return redirect('/admin/login')->with(
+                'error',
+                'This area is for group leaders. Your Google account isn\'t a leader on any group yet.'
+            );
+        }
 
         // Store the API session in Laravel's server-side session
         session()->put('admin_user_session', $body['sessionId']);

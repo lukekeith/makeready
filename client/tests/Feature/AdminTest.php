@@ -39,7 +39,18 @@ class AdminTest extends TestCase
         $response = $this->withSession($this->adminSession())->get('/admin');
 
         $response->assertStatus(200);
-        $response->assertSee('AdminIsland');
+        $response->assertSee('LeaderApp');
+    }
+
+    /**
+     * ADMN-01: The parked legacy SPA is still reachable at /admin-legacy.
+     */
+    public function test_admin_legacy_page_renders_admin_island(): void
+    {
+        $response = $this->withSession($this->adminSession())->get('/admin-legacy');
+
+        $response->assertStatus(200);
+        $response->assertSee('data-vue="AdminIsland"', false);
     }
 
     /**
@@ -54,14 +65,14 @@ class AdminTest extends TestCase
     }
 
     /**
-     * ADMN-01: Admin page renders successfully with AdminIsland data-vue attribute.
+     * ADMN-01: /admin renders the LeaderApp data-vue mount point.
      */
     public function test_admin_page_has_logout_button(): void
     {
         $response = $this->withSession($this->adminSession())->get('/admin');
 
         $response->assertStatus(200);
-        $response->assertSee('data-vue="AdminIsland"', false);
+        $response->assertSee('data-vue="LeaderApp"', false);
     }
 
     /**

@@ -1,0 +1,161 @@
+{
+  "id": "study-programs",
+  "type": "page",
+  "group": "Library",
+  "title": "Study Programs",
+  "adapter": "study-programs",
+  "viewports": [
+    "pro-max"
+  ],
+  "note": "'filters-active' and 'tags-panel-open' are web-forward variants (compare-visibility policy): the iPhone harness cannot seed filter state, so its pane shows the default Programs tab.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "programs": [
+          {
+            "id": "prog-1",
+            "name": "Romans in 30 days",
+            "days": 30,
+            "description": "A comprehensive look at the book of Romans."
+          },
+          {
+            "id": "prog-2",
+            "name": "The Gospel of John",
+            "days": 21,
+            "description": "Walking through the life of Jesus."
+          },
+          {
+            "id": "prog-3",
+            "name": "Psalms of Ascent",
+            "days": 15,
+            "description": "Songs for the journey up to Jerusalem."
+          }
+        ]
+      }
+    },
+    {
+      "name": "filters-active",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "programs": [
+          {
+            "id": "prog-1",
+            "name": "Romans in 30 days",
+            "days": 30,
+            "description": "A comprehensive look at the book of Romans."
+          },
+          {
+            "id": "prog-2",
+            "name": "The Gospel of John",
+            "days": 21,
+            "description": "Walking through the life of Jesus."
+          },
+          {
+            "id": "prog-3",
+            "name": "Psalms of Ascent",
+            "days": 15,
+            "description": "Songs for the journey up to Jerusalem."
+          }
+        ],
+        "filters": {
+          "chips": [
+            {
+              "label": "faith",
+              "active": true
+            },
+            {
+              "label": "My content",
+              "active": true
+            }
+          ],
+          "sortLabel": "A - Z"
+        }
+      }
+    },
+    {
+      "name": "tags-panel-open",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "programs": [
+          {
+            "id": "prog-1",
+            "name": "Romans in 30 days",
+            "days": 30,
+            "description": "A comprehensive look at the book of Romans."
+          },
+          {
+            "id": "prog-2",
+            "name": "The Gospel of John",
+            "days": 21,
+            "description": "Walking through the life of Jesus."
+          },
+          {
+            "id": "prog-3",
+            "name": "Psalms of Ascent",
+            "days": 15,
+            "description": "Songs for the journey up to Jerusalem."
+          }
+        ],
+        "filters": {
+          "chips": [
+            {
+              "label": "All tags"
+            },
+            {
+              "label": "All leaders"
+            }
+          ],
+          "openPanel": {
+            "items": [
+              {
+                "id": "faith",
+                "label": "faith"
+              },
+              {
+                "id": "gospels",
+                "label": "gospels"
+              },
+              {
+                "id": "prayer",
+                "label": "prayer"
+              },
+              {
+                "id": "discipleship",
+                "label": "discipleship"
+              },
+              {
+                "id": "old-testament",
+                "label": "old testament"
+              },
+              {
+                "id": "psalms",
+                "label": "psalms"
+              }
+            ],
+            "selectedIds": [
+              "faith",
+              "psalms"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+// Animated brand border — web twin of the iOS "not ready" card treatment
+// (CardLesson / CardLessonActivity): a 2px stroke ring filled with
+// AngularGradient([brandPrimary, brandPrimary@0.2, brandPrimary]) rotating 360°
+// every 3s (linear, forever). iOS randomizes each card's start rotation;
+// staggered negative animation-delays approximate that de-sync on the web.
+//
+// Inside the capture harnesses (.capture-page / .capture-wrap) the animation is
+// frozen at 0° so screenshots stay deterministic — the iPhone reference freezes
+// its own ring at a random angle, an accepted snapshot artifact.
+
+// Registered so the conic angle itself can be animated.
+@property --mr-border-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes mr-animated-border-spin {
+  to {
+    --mr-border-angle: 360deg;
+  }
+}
+
+@mixin animated-brand-border($width: 2px) {
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: $width;
+    background: conic-gradient(
+      from var(--mr-border-angle),
+      var(--color-brand-500),
+      var(--color-brand-20),
+      var(--color-brand-500)
+    );
+    // Double-mask ring: keep only the padding band (the stroke).
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask-composite: exclude;
+    animation: mr-animated-border-spin 3s linear infinite;
+    pointer-events: none;
+  }
+
+  // Approximate iOS's random per-card start rotation.
+  &:nth-child(2n)::after {
+    animation-delay: -1.1s;
+  }
+  &:nth-child(3n)::after {
+    animation-delay: -2.2s;
+  }
+  &:nth-child(5n + 2)::after {
+    animation-delay: -0.7s;
+  }
+
+  // Deterministic capture snapshots: freeze the ring at 0°.
+  .capture-page &::after,
+  .capture-wrap &::after {
+    animation: none;
+  }
+}

@@ -1,0 +1,415 @@
+{
+  "id": "program-home",
+  "type": "page",
+  "group": "Library",
+  "title": "Program Home",
+  "adapter": "program-home",
+  "viewports": [
+    "pro-max"
+  ],
+  "note": "'enrollments' variant is web-forward: the iPhone harness cannot seed selectedTab (private @State), so its pane shows the Studies tab.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "programId": "prog-capture-1",
+        "programName": "Who Is God?",
+        "programDays": 30,
+        "lessons": [
+          {
+            "id": "lesson-1",
+            "dayNumber": 1,
+            "title": "Creator and Sustainer",
+            "estimatedMinutes": 25,
+            "activities": [
+              {
+                "id": "act-1-1",
+                "type": "READ",
+                "title": "Genesis 1:1-3",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-2",
+                "type": "EXEGESIS",
+                "title": "In the Beginning",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-3",
+                "type": "YOUTUBE",
+                "title": "The God Who Creates",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-4",
+                "type": "USER_INPUT",
+                "title": "What does it mean that God created everything?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-2",
+            "dayNumber": 2,
+            "title": "Eternal and Self-Existent",
+            "estimatedMinutes": 30,
+            "activities": [
+              {
+                "id": "act-2-1",
+                "type": "READ",
+                "title": "Psalm 90:1-4",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-2",
+                "type": "VIDEO",
+                "title": "The I AM \u2014 Introduction",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-3",
+                "type": "EXEGESIS",
+                "title": "From Everlasting to Everlasting",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-4",
+                "type": "USER_INPUT",
+                "title": "How does God's eternal nature change your perspective on time?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-5",
+                "type": "USER_INPUT",
+                "title": "Where do you struggle most with trusting God's timing?",
+                "orderNumber": 5,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-3",
+            "dayNumber": 3,
+            "title": "Holy and Just",
+            "estimatedMinutes": 20,
+            "activities": [
+              {
+                "id": "act-3-1",
+                "type": "READ",
+                "title": "Isaiah 6:1-8",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-2",
+                "type": "EXEGESIS",
+                "title": "Holy, Holy, Holy",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-3",
+                "type": "USER_INPUT",
+                "title": "How does God's holiness affect how you live?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-4",
+            "dayNumber": 4,
+            "title": "Omniscient and All-Knowing",
+            "estimatedMinutes": 22,
+            "activities": [
+              {
+                "id": "act-4-1",
+                "type": "READ",
+                "title": "Psalm 139:1-6",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-2",
+                "type": "YOUTUBE",
+                "title": "Does God Know the Future?",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-3",
+                "type": "USER_INPUT",
+                "title": "How does it feel to know that God fully knows you?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-5",
+            "dayNumber": 5,
+            "title": "Love and Mercy",
+            "estimatedMinutes": 28,
+            "activities": [
+              {
+                "id": "act-5-1",
+                "type": "READ",
+                "title": "1 John 4:7-12",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-2",
+                "type": "VIDEO",
+                "title": "The Love of God",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-3",
+                "type": "EXEGESIS",
+                "title": "God Is Love",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-4",
+                "type": "USER_INPUT",
+                "title": "How has God's love changed you?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "enrollments",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "programId": "prog-capture-1",
+        "programName": "Who Is God?",
+        "programDays": 30,
+        "lessons": [
+          {
+            "id": "lesson-1",
+            "dayNumber": 1,
+            "title": "Creator and Sustainer",
+            "estimatedMinutes": 25,
+            "activities": [
+              {
+                "id": "act-1-1",
+                "type": "READ",
+                "title": "Genesis 1:1-3",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-2",
+                "type": "EXEGESIS",
+                "title": "In the Beginning",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-3",
+                "type": "YOUTUBE",
+                "title": "The God Who Creates",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-4",
+                "type": "USER_INPUT",
+                "title": "What does it mean that God created everything?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-2",
+            "dayNumber": 2,
+            "title": "Eternal and Self-Existent",
+            "estimatedMinutes": 30,
+            "activities": [
+              {
+                "id": "act-2-1",
+                "type": "READ",
+                "title": "Psalm 90:1-4",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-2",
+                "type": "VIDEO",
+                "title": "The I AM \u2014 Introduction",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-3",
+                "type": "EXEGESIS",
+                "title": "From Everlasting to Everlasting",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-4",
+                "type": "USER_INPUT",
+                "title": "How does God's eternal nature change your perspective on time?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-5",
+                "type": "USER_INPUT",
+                "title": "Where do you struggle most with trusting God's timing?",
+                "orderNumber": 5,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-3",
+            "dayNumber": 3,
+            "title": "Holy and Just",
+            "estimatedMinutes": 20,
+            "activities": [
+              {
+                "id": "act-3-1",
+                "type": "READ",
+                "title": "Isaiah 6:1-8",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-2",
+                "type": "EXEGESIS",
+                "title": "Holy, Holy, Holy",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-3",
+                "type": "USER_INPUT",
+                "title": "How does God's holiness affect how you live?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-4",
+            "dayNumber": 4,
+            "title": "Omniscient and All-Knowing",
+            "estimatedMinutes": 22,
+            "activities": [
+              {
+                "id": "act-4-1",
+                "type": "READ",
+                "title": "Psalm 139:1-6",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-2",
+                "type": "YOUTUBE",
+                "title": "Does God Know the Future?",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-3",
+                "type": "USER_INPUT",
+                "title": "How does it feel to know that God fully knows you?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-5",
+            "dayNumber": 5,
+            "title": "Love and Mercy",
+            "estimatedMinutes": 28,
+            "activities": [
+              {
+                "id": "act-5-1",
+                "type": "READ",
+                "title": "1 John 4:7-12",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-2",
+                "type": "VIDEO",
+                "title": "The Love of God",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-3",
+                "type": "EXEGESIS",
+                "title": "God Is Love",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-4",
+                "type": "USER_INPUT",
+                "title": "How has God's love changed you?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          }
+        ],
+        "selectedTab": 1,
+        "enrollments": [
+          {
+            "id": "enr-1",
+            "group": {
+              "name": "Young Professionals",
+              "creator": {
+                "name": "Alex Rivera"
+              }
+            },
+            "startDate": "2026-06-01T12:00:00.000Z",
+            "endDate": "2026-06-30T12:00:00.000Z"
+          },
+          {
+            "id": "enr-2",
+            "group": {
+              "name": "Morning Study Group",
+              "creator": {
+                "name": "Jordan Lee"
+              }
+            },
+            "startDate": "2026-05-15T12:00:00.000Z"
+          }
+        ]
+      }
+    }
+  ]
+}

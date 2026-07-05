@@ -33,6 +33,13 @@ interface Props {
   description?: string
   icon?: string // inline SVG markup (icon variant); rendered white on the bg tile
   background?: string // named icon background (e.g. "purple") → design token
+  // Additive (production): raw CSS colors for the icon tile / glyph, matching
+  // iOS ActivityStyle per-type colors (the AddActivityMenu passes these). The
+  // capture harness never sets them, so snapshots are unchanged.
+  backgroundColor?: string
+  iconColor?: string
+  // iOS ActivityStyle.labelColor — black on the white VIDEO tile, white elsewhere.
+  labelColor?: string
   coverUrl?: string // photo variant (takes precedence over icon)
   available?: boolean
   class?: string
@@ -43,6 +50,9 @@ const props = withDefaults(defineProps<Props>(), {
   description: '',
   icon: '',
   background: 'purple',
+  backgroundColor: '',
+  iconColor: '',
+  labelColor: '',
   coverUrl: '',
   available: true,
 })
@@ -81,8 +91,14 @@ const onClick = (e: MouseEvent) => { if (props.available) emit('click', e) }
       v-else
       class="CardActivityType__image"
       :class="`CardActivityType__image--bg-${background}`"
+      :style="backgroundColor ? { background: backgroundColor } : undefined"
     >
-      <span class="CardActivityType__icon" aria-hidden="true" v-html="icon" />
+      <span
+        class="CardActivityType__icon"
+        aria-hidden="true"
+        :style="iconColor ? { color: iconColor } : undefined"
+        v-html="icon"
+      />
     </div>
 
     <!-- List: title + 1-line description beside the tile -->
@@ -91,6 +107,10 @@ const onClick = (e: MouseEvent) => { if (props.available) emit('click', e) }
       <p v-if="description" class="CardActivityType__desc">{{ description }}</p>
     </div>
     <!-- Grid: bold label centered over the bottom of the image -->
-    <span v-else class="CardActivityType__title CardActivityType__title--grid">{{ title }}</span>
+    <span
+      v-else
+      class="CardActivityType__title CardActivityType__title--grid"
+      :style="labelColor ? { color: labelColor } : undefined"
+    >{{ title }}</span>
   </div>
 </template>

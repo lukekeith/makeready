@@ -23,6 +23,8 @@
 // `-apple-system` stack so the capture machine renders SF Pro glyph widths (the
 // page default Open Sans is wider and would drift the chip wrap vs iOS).
 
+import { computed, ref } from 'vue'
+
 export interface FilterChipItem {
   id: string
   label: string
@@ -38,6 +40,10 @@ interface Props {
   items?: FilterChipItem[]
   selectedIds?: string[]
   class?: string
+  // ADDITIVE interactive mode (production only; compare harnesses never pass
+  // it): reactive selection, a live in-panel search input (iOS client-side
+  // localizedCaseInsensitiveContains), and toggle/clearAll emits.
+  interactive?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -45,11 +51,33 @@ const props = withDefaults(defineProps<Props>(), {
   emptyMessage: 'Nothing to show yet.',
   items: () => [],
   selectedIds: () => [],
+  interactive: false,
 })
 
-const selected = new Set(props.selectedIds ?? [])
-const hasSelection = selected.size > 0
-const isSelected = (id: string) => selected.has(id)
+const emit = defineEmits<{ toggle: [id: string]; clearAll: [] }>()
+
+const selected = computed(() => new Set(props.selectedIds ?? []))
+const hasSelection = computed(() => selected.value.size > 0)
+const isSelected = (id: string) => selected.value.has(id)
+
+// In-panel search (interactive only; iOS resets it per open since the panel
+// is re-created — the parent v-if achieves the same).
+const searchText = ref('')
+const visibleItems = computed(() => {
+  const q = searchText.value.trim().toLowerCase()
+  if (!props.interactive || !q) return props.items
+  return props.items.filter((i) => i.label.toLowerCase().includes(q))
+})
+const emptyText = computed(() =>
+  props.interactive && searchText.value.trim() ? 'No matches' : props.emptyMessage,
+)
+
+function onChipClick(id: string): void {
+  if (props.interactive) emit('toggle', id)
+}
+function onClearAll(): void {
+  if (props.interactive && hasSelection.value) emit('clearAll')
+}
 
 // SF Symbol "magnifyingglass" — thin circle + diagonal handle, drawn at the
 // glyph's optical weight for s14.
@@ -70,7 +98,17 @@ const XMARK_CIRCLE =
     <div class="FilterChipDropdownPanel__top-bar">
       <div class="FilterChipDropdownPanel__search">
         <span class="FilterChipDropdownPanel__search-icon" aria-hidden="true" v-html="MAGNIFIER" />
-        <span class="FilterChipDropdownPanel__search-placeholder">Search</span>
+        <input
+          v-if="props.interactive"
+          v-model="searchText"
+          class="FilterChipDropdownPanel__search-input"
+          type="text"
+          placeholder="Search"
+          autocapitalize="none"
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <span v-else class="FilterChipDropdownPanel__search-placeholder">Search</span>
       </div>
 
       <button
@@ -78,6 +116,7 @@ const XMARK_CIRCLE =
         type="button"
         class="FilterChipDropdownPanel__clear"
         :class="{ 'FilterChipDropdownPanel__clear--disabled': !hasSelection }"
+        @click="onClearAll"
       >
         <span class="FilterChipDropdownPanel__clear-icon" aria-hidden="true" v-html="XMARK_CIRCLE" />
         <span class="FilterChipDropdownPanel__clear-label">Show all</span>
@@ -87,14 +126,15 @@ const XMARK_CIRCLE =
     <div class="FilterChipDropdownPanel__divider" />
 
     <!-- Chips area, or the muted empty message. -->
-    <div v-if="props.items.length" class="FilterChipDropdownPanel__chips">
+    <div v-if="visibleItems.length" class="FilterChipDropdownPanel__chips">
       <span
-        v-for="item in props.items"
+        v-for="item in visibleItems"
         :key="item.id"
         class="FilterChipDropdownPanel__chip"
         :class="{ 'FilterChipDropdownPanel__chip--selected': isSelected(item.id) }"
+        @click="onChipClick(item.id)"
       >{{ item.label }}</span>
     </div>
-    <div v-else class="FilterChipDropdownPanel__empty">{{ props.emptyMessage }}</div>
+    <div v-else class="FilterChipDropdownPanel__empty">{{ emptyText }}</div>
   </div>
 </template>

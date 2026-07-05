@@ -1,0 +1,56 @@
+{
+  "id": "edit-exegesis-activity",
+  "type": "page",
+  "group": "Library",
+  "title": "Edit Exegesis Activity",
+  "adapter": "edit-exegesis-activity",
+  "viewports": ["pro-max"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "act-exegesis-1",
+          "type": "EXEGESIS"
+        }
+      }
+    },
+    {
+      "name": "configured",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "act-exegesis-1",
+          "type": "EXEGESIS",
+          "title": "Romans 1 Exegesis",
+          "passageReference": "Romans 1:1-7",
+          "sourceReferences": [
+            {
+              "id": "ref-1",
+              "passageReference": "Romans 1:1-7",
+              "bookNumber": 45,
+              "bookName": "Romans",
+              "chapterStart": 1,
+              "verseStart": 1,
+              "verseEnd": 7
+            }
+          ],
+          "readBlocks": [
+            {
+              "id": "block-1",
+              "orderNumber": 1,
+              "title": "Romans 1:1-7",
+              "content": "Paul, a servant of Christ Jesus, called to be an apostle and set apart for the gospel of God.",
+              "isLocked": true,
+              "sourceReferenceId": "ref-1",
+              "selections": [
+                { "start": 0, "end": 33, "style": "yellow" }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

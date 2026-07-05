@@ -1,0 +1,40 @@
+{
+  "id": "home-dashboard",
+  "type": "page",
+  "group": "Main",
+  "title": "Home Dashboard",
+  "adapter": "home-dashboard",
+  "viewports": ["pro-max"],
+  "shared": {
+    "user": {
+      "id": "user-1",
+      "name": "Alex Rivera",
+      "email": "alex@example.com",
+      "picture": null
+    },
+    "stats": {
+      "totalMembers": 142,
+      "totalGroups": 8,
+      "totalStudies": 12,
+      "totalEnrolledLessons": 30
+    },
+    "weeklyActivity": [
+      { "date": "2026-06-22", "count": 12 },
+      { "date": "2026-06-23", "count": 19 },
+      { "date": "2026-06-24", "count": 8 },
+      { "date": "2026-06-25", "count": 23 },
+      { "date": "2026-06-26", "count": 15 },
+      { "date": "2026-06-27", "count": 5 },
+      { "date": "2026-06-28", "count": 9 }
+    ],
+    "heatmap": [
+      { "day": 0, "hour": 9, "count": 3 },
+      { "day": 1, "hour": 18, "count": 7 },
+      { "day": 2, "hour": 12, "count": 4 },
+      { "day": 3, "hour": 20, "count": 9 },
+      { "day": 4, "hour": 8, "count": 2 },
+      { "day": 5, "hour": 15, "count": 6 },
+      { "day": 6, "hour": 11, "count": 5 }
+    ]
+  }
+}

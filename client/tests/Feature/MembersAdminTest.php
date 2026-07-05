@@ -29,9 +29,11 @@ class MembersAdminTest extends TestCase
 
     public function test_admin_members_route_returns_200(): void
     {
+        // /admin/members is now served by the new LeaderApp catch-all (the legacy
+        // Members section lives at /admin-legacy/members).
         $response = $this->withSession($this->adminSession())->get('/admin/members');
 
         $response->assertStatus(200);
-        $response->assertSee('admin-island'); // Vue island mount point
+        $response->assertSee('data-vue="LeaderApp"', false); // Vue island mount point
     }
 }

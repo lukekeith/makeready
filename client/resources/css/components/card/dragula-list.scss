@@ -1,0 +1,52 @@
+// DragulaList — web twin of the iPhone drag-to-reorder list
+// (Components/Layout/Dragula.swift + ReorderHelpers.swift). Rows lift on
+// long-press into a floating full-size ghost; the vacated slot keeps its frame
+// and shows the ReorderDropIndicator; siblings spring out of the way.
+//
+// Raw px values are intrinsic structural sizes from the iOS source per the
+// design-system exception: indicator 48pt tall / 12pt radius / white@6%
+// (ReorderHelpers.swift), drag preview 12pt radius (Dragula.swift
+// dragPreviewCornerRadius default).
+.DragulaList {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  &__row {
+    position: relative;
+    // Vertical pans scroll normally; the lift only engages after a still hold
+    // (the component blocks the touch once lifted).
+    touch-action: pan-y;
+  }
+
+  // Lifted row: the card is hidden but keeps its frame (SwiftUI .hidden()),
+  // and the drop indicator overlays it centered.
+  &__row--dragging &__rowContent {
+    visibility: hidden;
+  }
+
+  &__indicator {
+    position: absolute;
+    inset: 0;
+    margin: auto 0;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  // Sibling make-way move (iOS items.move on the default .spring).
+  &-move {
+    transition: transform 350ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  // Floating drag preview: full-size (prefersFullSizePreviews), 12px-radius
+  // clip, system-style lift shadow. Follows the pointer via inline transform.
+  &__ghost {
+    position: fixed;
+    z-index: 1000;
+    pointer-events: none;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+  }
+}

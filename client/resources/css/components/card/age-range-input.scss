@@ -54,6 +54,20 @@
       outline: none;
       box-shadow: 0 0 0 2px var(--border-brand);
     }
+
+    // Anchor for the additive interactive select overlay (no visual change).
+    position: relative;
+  }
+
+  // Additive interactive overlay: native picker, invisible at rest (the
+  // MenuInput idiom) — iOS presents the "Age from"/"Age to" wheel sheets.
+  &__select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+    appearance: none;
   }
 }
 

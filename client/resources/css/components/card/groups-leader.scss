@@ -1,0 +1,97 @@
+// GroupsLeader — capture-only web leader twin of the iPhone "Groups" tab of
+// MemberHomePage. Page chrome only; PageHeader and CardGroup carry their own
+// styling. Mirrors MemberHomePage's groupsTabContent (status bar + tab header
+// with trailing actions + a 4px-gap scrolling list), full-bleed like the
+// iPhone screen.
+.GroupsLeader {
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-canvas); // iOS Color.appBackground
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar.
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+    color: #fff;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__statusIcon { display: block; }
+
+  &__headerRow {
+    flex: 0 0 auto;
+    position: relative;
+  }
+
+  &__header { flex: 0 0 auto; }
+
+  // Trailing actions — iOS HStack(spacing: 8) of two 32pt white@10% circles,
+  // vertically centered on the PageHeader tab row.
+  &__actions {
+    position: absolute;
+    top: 19px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px; // iOS HStack(spacing: 8)
+  }
+
+  &__actionBtn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-white-10); // iOS Color.white.opacity(0.1)
+    color: #fff;
+
+    svg {
+      width: 15px; // iOS paperplane .font(s14Semibold)
+      height: 15px;
+      display: block;
+    }
+
+    // plus is .font(s16Semibold) — a touch larger than the paperplane.
+    &--plus svg {
+      width: 17px;
+      height: 17px;
+    }
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    overflow: hidden;
+    // iOS ScrollView: cards carry .padding(.horizontal, 16); .padding(.bottom, 100).
+    padding: 0 16px 100px;
+  }
+
+  // iOS VStack(spacing: 4) of CardGroup rows.
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+}

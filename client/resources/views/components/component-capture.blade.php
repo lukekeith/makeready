@@ -7,6 +7,7 @@
     $component       = $component       ?? 'CardStudy';
     $componentProps  = $componentProps  ?? [];
     $live            = $live            ?? false;
+    $bleed           = $bleed           ?? false;
 @endphp
 <!DOCTYPE html>
 <html lang="en" class="dark">
@@ -21,6 +22,11 @@
            component renders at the same intrinsic width (viewport − 32) on both. */
         .capture-wrap { display: flex; justify-content: center; padding: 16px; }
         .capture-wrap > * { width: 100%; }
+        @if($bleed)
+        /* Page/layout twin: full-bleed (it follows the device frame edge-to-edge,
+           carrying its own insets), so drop the component gutter. */
+        .capture-wrap { padding: 0; }
+        @endif
     </style>
 </head>
 <body>
@@ -104,7 +110,6 @@
                 while (node && node !== document.body && !meaningful(node)) node = node.parentElement;
                 const target = (node && node !== document.body) ? node : el;
                 const r = target.getBoundingClientRect();
-                const wrapRect = wrap.getBoundingClientRect();
                 const cs = getComputedStyle(target);
                 const styles = {};
                 for (const k of STYLE_KEYS) styles[k] = cs[k];
@@ -116,11 +121,15 @@
                         label: leaf || target.tagName.toLowerCase(),
                         tag: target.tagName.toLowerCase(),
                         text: (target.textContent || '').trim().slice(0, 60),
+                        {{-- Fractions of the IFRAME VIEWPORT, not the wrap: the Compare
+                             parent draws the target box on a canvas sized to the iframe
+                             (a page twin's wrap outgrows the device frame, so wrap-relative
+                             fractions land the box above the clicked element). --}}
                         rect: {
-                            x: (r.left - wrapRect.left) / wrapRect.width,
-                            y: (r.top - wrapRect.top) / wrapRect.height,
-                            w: r.width / wrapRect.width,
-                            h: r.height / wrapRect.height,
+                            x: r.left / window.innerWidth,
+                            y: r.top / window.innerHeight,
+                            w: r.width / window.innerWidth,
+                            h: r.height / window.innerHeight,
                         },
                         styles,
                     },

@@ -137,4 +137,28 @@
     color: var(--color-white-100);
     white-space: pre-wrap;
   }
+
+  // Interactive-mode textarea — same metrics as __content/__line so the field
+  // is pixel-identical to the captured rendering while gaining real editing.
+  &__input {
+    display: block;
+    width: 100%;
+    padding: 13px var(--space-md) 36px var(--space-md);
+    border: none;
+    background: none;
+    resize: none;
+    font-family: inherit;
+    font-size: var(--text-lead);
+    line-height: 20.5px;
+    color: var(--color-white-100);
+    overflow: hidden; // auto-grow (JS sets height to scrollHeight)
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    &:focus {
+      outline: none;
+    }
+  }
 }

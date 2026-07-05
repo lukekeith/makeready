@@ -1,0 +1,26 @@
+{
+  "id": "edit-group",
+  "type": "page",
+  "group": "Group",
+  "title": "Group · Edit Group",
+  "adapter": "edit-group",
+  "viewports": ["pro-max"],
+  "note": "WEB-ONLY comparison: the iOS form is the INLINE editGroupContent inside GroupHomePage.swift (private, gated by the showSettings @State the capture harness can't reach), so no iPhone side can be seeded — the twin was built from the spec's exact strings/metrics (parity-edit-group memory). Cover omitted (remote AsyncImage never resolves; the hasImage branch renders the placeholder well).",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "group": {
+          "name": "Sunday Morning Group",
+          "description": "Weekly study group",
+          "isPrivate": true,
+          "allowInvites": true,
+          "memberDirectory": true,
+          "ageMin": "18",
+          "ageMax": "34",
+          "maxMembers": "Unlimited"
+        }
+      }
+    }
+  ]
+}

@@ -81,12 +81,21 @@ absent — navigable iPhone-only in `/compare`.
 ## Pages
 
 - [~] **group-home** ↔ `pages.group-home` — web DONE; iPhone bridged (re-capture to verify; member-vs-leader differs by design)
-- [ ] **home-dashboard** ↔ `pages.home` (`MainView`)
+- [~] **home-dashboard** ↔ `pages.home` (`MainHome`, the default post-login tab) — iPhone scaffolded (fixture `main/home-dashboard.json` + adapter; seeds `homeStats` KPIs/weekly-activity/heatmap). **Needs an iPhone capture run** (xcodebuild) for its reference shot. Web twin deferred: the analog is the admin-SPA dashboard (`admin-island/sections/dashboard-section.vue`), NOT the member `/home` landing.
+### Leader main screens — one comparison per tab (scaffolded iPhone-first 2026-06-28; need a capture build + web leader twins)
+Tab isolation: MemberHomePage `pendingSubTab` (groups/members/enrolled) + MainPrograms `initialTab` exist; MainHome & MainLibrary need the same `@Binding initialTab` (Activity/Media). Several need new `CaptureState` seeding (activityLogs/members/mediaItems/calendarEvents). Web twins = capture-only leader pages composing existing twins (like group-home-leader); production member pages untouched.
+- [~] **activity** ↔ `pages.activity` (MainHome Activity tab) — **WIRED** (ViewRegistry + `MainHome.initialTab`, defaulted app-source); renders chrome+tabs, activity-log CONTENT seeding TODO
+- [~] **groups** ↔ `pages.groups` (MemberHomePage tab 0) — **ViewRegistry WIRED** (pendingSubTab:.constant(0)); ready to capture (pending build)
+- [~] **group-members** ↔ `pages.group-members` (MemberHomePage tab 1) — **WIRED** (pendingSubTab:.constant(1)); renders chrome+tabs, member CONTENT seeding TODO
+- [~] **groups-enrolled** ↔ `pages.groups-enrolled` (MemberHomePage tab 2) — **ViewRegistry WIRED** (pendingSubTab:.constant(2)) + programs/enrollments seeded; ready to capture
+- [x] **study-programs** ↔ `pages.study-programs` (MainLibrary tab 0) — iPhone captured + **web twin built** (`LibraryPrograms.vue`: PageHeader + SearchField + filter pills + Browse/sort + CardProgramFull). MAE ~12 (dominated by the inherited CardProgramFull title/book-glyph font rendering — its own component compare is ~7.9).
+- [x] **media** ↔ `pages.media` (MainLibrary tab 1) — iPhone captured + **web twin built** (`LibraryMedia.vue`: PageHeader + SearchField + 4 filter pills + 3-col placeholder grid). MAE ~3.3. (iPhone media-item CONTENT seeding still placeholder-only.)
+- [~] **program-home** ↔ `pages.program-home` (ProgramHomePage, the .programHome modal) — **web twin built + captured** (`ProgramHome.vue`: PageTitle + CoverImagePicker/PublishBadge + TabSlider + CardLesson list + add-day BoxButton; SHARED with the production leader app). iPhone reference capture pending (needs an xcodebuild run).
+- [~] **calendar** ↔ `pages.calendar` (`MainCalendar`) — **WIRED**; renders month grid, calendarEvents CONTENT seeding TODO
+- [~] **search** ↔ `pages.search` (`GlobalSearchPage`) — **ViewRegistry WIRED** (indexes seeded programs/groups); ready to capture
 - [ ] **member-home** ↔ member home (iPhone)
 - [ ] **lesson** ↔ member lesson player (read / SOAP / video)
 - [ ] **login** ↔ `pages.login` (`LoginView`)
-- [ ] **calendar-screen** ↔ calendar tab
-- [ ] **library-grid** ↔ media library tab
 - [ ] **list-screen** / **detail-screen** ↔ generic list/detail
 - [ ] **join-group** / **join-code** / **accept-invite** / **invite-flow** ↔ (mostly member-facing web; confirm iPhone analogs)
 - [ ] **group-announcements** / **shared-with-me** / **public-home** / **privacy** / **not-found** ↔ (web-only? mark N/A if no iPhone analog)

@@ -113,6 +113,8 @@ class CaptureController extends Controller
             'component'      => $component,
             'componentProps' => $props,
             'live'           => true,
+            // Page/layout twins render full-bleed (no 16px component gutter).
+            'bleed'          => $request->boolean('bleed'),
         ]);
     }
 

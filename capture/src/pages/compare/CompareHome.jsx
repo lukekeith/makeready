@@ -36,9 +36,11 @@ export default function CompareHome() {
   }, [all]);
 
   const searched = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    // Separator-insensitive title/id match (same rule as the sidebar search).
+    const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const q = norm(query.trim());
     if (!q) return all;
-    return all.filter((c) => c.title.toLowerCase().includes(q) || c.id.toLowerCase().includes(q));
+    return all.filter((c) => norm(c.title).includes(q) || norm(c.id).includes(q));
   }, [all, query]);
 
   const visible = useMemo(

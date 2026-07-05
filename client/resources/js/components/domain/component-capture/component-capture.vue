@@ -44,6 +44,25 @@ import SkeletonCardProgramFull from '../../card/skeleton-card-program-full/skele
 import SkeletonCardStudy from '../../card/skeleton-card-study/skeleton-card-study.vue'
 import CardSlideButton from '../../card/card-slide-button/card-slide-button.vue'
 import SwipeableCard from '../../card/swipeable-card/swipeable-card.vue'
+import DragulaList from '../../card/dragula-list/dragula-list.vue'
+import ExportConfirmOverlay from '../../card/export-confirm-overlay/export-confirm-overlay.vue'
+import CreateProgram from '../../card/create-program/create-program.vue'
+import EditDay from '../../card/edit-day/edit-day.vue'
+// Inline editGroupContent form (GroupHomePage.swift:381-529) — web-only compare.
+import EditGroup from '../../card/edit-group/edit-group.vue'
+// GroupInvitePage.swift (trailing pane in group-home) — web-only compare.
+import GroupInvite from '../../card/group-invite/group-invite.vue'
+// GroupMembersPage.swift (trailing pane in group-home) — web-only compare.
+import GroupMembersPage from '../../card/group-members-page/group-members-page.vue'
+import EditReadActivity from '../../card/edit-read-activity/edit-read-activity.vue'
+import EditExegesisActivity from '../../card/edit-exegesis-activity/edit-exegesis-activity.vue'
+import ExegesisHighlightMenu from '../../card/exegesis-highlight-menu/exegesis-highlight-menu.vue'
+import VideoActivityPicker from '../../card/video-activity-picker/video-activity-picker.vue'
+// Production island component doubling as its own twin (raw-chrome full-screen
+// overlay; capture passes only the capture-only statusBar prop).
+import AddActivityMenu from '../../../islands/leader-app/components/add-activity-menu.vue'
+import EditUserInputActivity from '../../card/edit-user-input-activity/edit-user-input-activity.vue'
+import EditYouTubeActivity from '../../card/edit-youtube-activity/edit-youtube-activity.vue'
 import DonutChart from '../../card/donut-chart/donut-chart.vue'
 import HeatMapChart from '../../card/heat-map-chart/heat-map-chart.vue'
 import HorizontalBarChart from '../../card/horizontal-bar-chart/horizontal-bar-chart.vue'
@@ -51,6 +70,7 @@ import VerticalBarChart from '../../card/vertical-bar-chart/vertical-bar-chart.v
 import LineChart from '../../card/line-chart/line-chart.vue'
 import ExegesisVerseView from '../../card/exegesis-verse-view/exegesis-verse-view.vue'
 import SelectableLockedBlockView from '../../card/selectable-locked-block-view/selectable-locked-block-view.vue'
+import BiblePassagePicker from '../../card/bible-passage-picker/bible-passage-picker.vue'
 import Alert from '../../card/alert/alert.vue'
 import AlphabetScrubber from '../../card/alphabet-scrubber/alphabet-scrubber.vue'
 import Avatar from '../../card/avatar/avatar.vue'
@@ -100,6 +120,12 @@ import StylePickerMenu from '../../card/style-picker-menu/style-picker-menu.vue'
 import VideoGridItem from '../../card/video-grid-item/video-grid-item.vue'
 import VideoPreview from '../../card/video-preview/video-preview.vue'
 import VideoSourceBar from '../../card/video-source-bar/video-source-bar.vue'
+import GroupHomeLeader from '../../card/group-home-leader/group-home-leader.vue'
+import HomeDashboard from '../../card/home-dashboard/home-dashboard.vue'
+import GroupsLeader from '../../card/groups-leader/groups-leader.vue'
+import LibraryPrograms from '../../card/library-programs/library-programs.vue'
+import LibraryMedia from '../../card/library-media/library-media.vue'
+import ProgramHome from '../../card/program-home/program-home.vue'
 
 const props = defineProps<{
   component: string
@@ -152,6 +178,30 @@ const registry: Record<string, unknown> = {
   // iOS SwipeableCard at rest — renders only its content card (CardGroupMini);
   // the slide buttons stay hidden behind it until swiped.
   SwipeableCard,
+  // iOS Dragula drag-to-reorder list — at rest a plain row stack (drag state
+  // isn't snapshot-able on iPhone, so no compare fixture exists).
+  DragulaList,
+  // iOS export-preview card (private ExportConfirmOverlay in ProgramHomePage —
+  // no ViewRegistry case, so no compare fixture).
+  ExportConfirmOverlay,
+  // iOS Create Program form (pages.create-program) — defaults render the empty
+  // form exactly as the iPhone ViewRegistry case does (it seeds nothing).
+  CreateProgram,
+  EditDay,
+  EditGroup,
+  GroupInvite,
+  GroupMembersPage,
+  EditReadActivity,
+  // iOS EditExegesisActivityPage — single-page EXEGESIS editor twin.
+  EditExegesisActivity,
+  // iOS HighlightActionMenuContent (private) — exegesis highlight bottom menu.
+  ExegesisHighlightMenu,
+  VideoActivityPicker,
+  // iOS AddActivityMenu.swift ("Select activity" full-screen overlay) — the
+  // production island component IS the twin.
+  AddActivityMenu,
+  EditUserInputActivity,
+  EditYouTubeActivity,
   // iOS DonutChart (Swift Charts SectorMark) — inline-SVG donut/pie twin.
   DonutChart,
   // iOS HeatMapChart (Swift Charts RectangleMark grid) — CSS-grid heatmap twin.
@@ -167,6 +217,10 @@ const registry: Record<string, unknown> = {
   // iOS SelectableLockedBlockView (read-only UITextView locked read block) —
   // justified Charter twin with purple/preview selection runs.
   SelectableLockedBlockView,
+  // iOS BibleReaderOverlay (UIKit window sheet) — the passage-picker sheet
+  // content (books/chapters/verses grids, reader, search). Web-only compare:
+  // the iPhone overlay is not in the capture ViewRegistry.
+  BiblePassagePicker,
   // iOS Alert (Components/Display/Alert.swift) — inline warning/critical banner.
   Alert,
   // iOS AlphabetScrubber (Components/Display/AlphabetScrubber.swift) — vertical
@@ -477,6 +531,24 @@ const registry: Record<string, unknown> = {
   // …) is declared on the enum but NOT drawn by the body, so the twin shows only
   // label + chevron + logo. The adapter maps the VideoSource key → the label.
   VideoSourceBar,
+  // Capture-only twin of the iPhone LEADER page Pages/Manage/Group/
+  // GroupHomePage.swift (default empty-posts state). NOT the production member
+  // group-home page; it composes the PageTitle / BoxButton / GroupActionButton
+  // twins so the `group-home` comparison pairs leader-vs-leader, not leader-vs-
+  // member. Full-bleed page, hosted by views/pages/group-home-leader.blade.php.
+  GroupHomeLeader,
+  // Capture-only web leader twin of the iPhone MainHome dashboard (Home tab);
+  // composes PageHeader / Kpi / VerticalBarChart / HeatMapChart / NavBar twins.
+  HomeDashboard,
+  // Capture-only web leader twin of the iPhone MemberHomePage "Groups" tab;
+  // composes the PageHeader + CardGroup twins.
+  GroupsLeader,
+  // Capture-only web twins of the iPhone MainLibrary tabs (Programs / Media);
+  // compose PageHeader + SearchField + CardProgramFull / media grid.
+  LibraryPrograms,
+  LibraryMedia,
+  // Capture-only web twin of the iPhone ProgramHomePage (.programHome modal).
+  ProgramHome,
 }
 
 const Resolved = computed(() => registry[props.component] ?? null)

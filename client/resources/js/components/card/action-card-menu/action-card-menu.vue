@@ -26,6 +26,10 @@ const props = withDefaults(defineProps<Props>(), {
   items: () => [],
 })
 
+// Additive interaction (like PageHeader's `select`): the compare harness binds
+// no listeners, so the twin's captured rendering is unchanged.
+const emit = defineEmits<{ select: [index: number]; close: [] }>()
+
 // chevron.right (s13Semibold, white@30) — tight viewBox so the glyph fills its
 // 7×13 box, matching the small iOS chevron.
 const CHEVRON_RIGHT =
@@ -48,6 +52,8 @@ const XMARK =
         class="ActionCardMenu__item"
         role="button"
         tabindex="0"
+        @click="emit('select', i)"
+        @keydown.enter.prevent="emit('select', i)"
       >
         <span class="ActionCardMenu__icon" aria-hidden="true" v-html="item.icon" />
 
@@ -64,6 +70,14 @@ const XMARK =
       </div>
     </div>
 
-    <div class="ActionCardMenu__close" aria-hidden="true" v-html="XMARK" />
+    <div
+      class="ActionCardMenu__close"
+      role="button"
+      tabindex="0"
+      aria-label="Close"
+      v-html="XMARK"
+      @click="emit('close')"
+      @keydown.enter.prevent="emit('close')"
+    />
   </div>
 </template>

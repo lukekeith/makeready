@@ -24,6 +24,8 @@
 // data-driven and renders the real snippet from props — a surfaced parity gap on
 // that one preview line; the rows / buttons match the iPhone pixel-tight.
 
+import { computed } from 'vue'
+
 interface Props {
   snippet?: string
   // null | 'bold' | 'highlight'.  NB: NOT named `style` — that's a reserved Vue/HTML
@@ -38,9 +40,22 @@ const props = withDefaults(defineProps<Props>(), {
   appliedStyle: null,
 })
 
-const isBold = props.appliedStyle === 'bold'
-const isHighlight = props.appliedStyle === 'highlight'
-const hasStyle = isBold || isHighlight
+// ADDITIVE emits (production .stylePicker route; captures bind nothing).
+// iOS StylePickerMenu fires onSelect ONLY when the picked style differs from
+// the current one; "Remove style" fires onSelect(nil); Cancel just dismisses.
+const emit = defineEmits<{
+  select: [style: 'bold' | 'highlight' | null]
+  cancel: []
+}>()
+
+const isBold = computed(() => props.appliedStyle === 'bold')
+const isHighlight = computed(() => props.appliedStyle === 'highlight')
+const hasStyle = computed(() => isBold.value || isHighlight.value)
+
+function pick(style: 'bold' | 'highlight'): void {
+  if (props.appliedStyle === style) return
+  emit('select', style)
+}
 </script>
 
 <template>
@@ -51,7 +66,7 @@ const hasStyle = isBold || isHighlight
     <!-- Style rows card -->
     <div class="StylePickerMenu__card">
       <!-- Bold -->
-      <div class="StylePickerMenu__row" role="button" tabindex="0">
+      <div class="StylePickerMenu__row" role="button" tabindex="0" @click="pick('bold')">
         <span
           class="StylePickerMenu__circle"
           :class="{ 'StylePickerMenu__circle--selected': isBold }"
@@ -81,7 +96,7 @@ const hasStyle = isBold || isHighlight
       </div>
 
       <!-- Highlight -->
-      <div class="StylePickerMenu__row" role="button" tabindex="0">
+      <div class="StylePickerMenu__row" role="button" tabindex="0" @click="pick('highlight')">
         <span
           class="StylePickerMenu__circle"
           :class="{ 'StylePickerMenu__circle--selected': isHighlight }"
@@ -112,9 +127,9 @@ const hasStyle = isBold || isHighlight
     </div>
 
     <!-- Remove style (only when a style is applied) -->
-    <button v-if="hasStyle" type="button" class="StylePickerMenu__remove">Remove style</button>
+    <button v-if="hasStyle" type="button" class="StylePickerMenu__remove" @click="emit('select', null)">Remove style</button>
 
     <!-- Cancel -->
-    <button type="button" class="StylePickerMenu__cancel">Cancel</button>
+    <button type="button" class="StylePickerMenu__cancel" @click="emit('cancel')">Cancel</button>
   </div>
 </template>

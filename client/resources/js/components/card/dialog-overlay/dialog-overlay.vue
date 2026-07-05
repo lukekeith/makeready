@@ -17,6 +17,9 @@
 //   message  string?                         — optional muted subtext (centered)
 //   buttons  { label, style }[]              — vertical button stack
 //              style: 'primary' (brand fill, white) | 'secondary' (white@10, muted)
+//              | 'destructive' (additive — destructive-red fill for the web
+//                ports of iOS native .alert destructive actions; no iOS
+//                DialogOverlay counterpart, captures never pass it)
 //
 // Layout mirrors the SwiftUI body 1:1: content VStack spacing 20 between the
 // header block (VStack spacing 8) and the button column (VStack spacing 12);
@@ -26,7 +29,7 @@
 
 interface DialogButton {
   label: string
-  style?: 'primary' | 'secondary'
+  style?: 'primary' | 'secondary' | 'destructive'
 }
 </script>
 
@@ -43,6 +46,10 @@ const props = withDefaults(defineProps<Props>(), {
   message: '',
   buttons: () => [],
 })
+
+// Additive interaction (like PageHeader's `select`): the compare harness binds
+// no listeners, so the twin's captured rendering is unchanged.
+const emit = defineEmits<{ select: [index: number] }>()
 </script>
 
 <template>
@@ -63,6 +70,7 @@ const props = withDefaults(defineProps<Props>(), {
           type="button"
           class="DialogOverlay__button"
           :class="`DialogOverlay__button--${button.style ?? 'primary'}`"
+          @click="emit('select', i)"
         >
           {{ button.label }}
         </button>

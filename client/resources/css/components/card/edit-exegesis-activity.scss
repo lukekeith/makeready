@@ -1,0 +1,133 @@
+// EditExegesisActivity — twin of the iPhone EXEGESIS-activity editor
+// (EditExegesisActivityPage.swift). Page scaffold + passage row + preview
+// container; the style panel and verse rendering come from the composed
+// BlockStyleEditor / ExegesisVerseView twins. iOS values 1:1: ScrollView
+// VStack(spacing 16) .padding(.top 16), children pad-h 16; passage row =
+// cardBackground r12 pad16; preview = #1A1D28 base, r12 clip, white@0.06
+// 1px stroke; tail spacer 32.
+.EditExegesisActivity {
+  position: relative;
+  width: 100%; // the capture island centers children — page twins must fill
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-canvas);
+  color: var(--fg-white);
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar
+  // (capture only — gated by the statusBar prop).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px; // iOS VStack(spacing: 16)
+    overflow-y: auto;
+    padding-top: 16px; // iOS .padding(.top, 16)
+  }
+
+  &__section {
+    padding: 0 16px;
+  }
+
+  // ── Passage row ──
+  &__passageRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px;
+    background: var(--color-card, #252936);
+    border-radius: 12px;
+  }
+
+  &__passageLabel {
+    font-size: 16px;
+    font-weight: 700; // iOS s16Bold
+    color: var(--fg-white);
+  }
+
+  &__passageChip {
+    flex: none;
+    max-width: 60%;
+    padding: 8px 14px; // iOS pad h14/v8
+    border: none;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.1); // set passage: white@0.1 fill
+    color: var(--fg-white);
+    font-size: 14px;
+    font-weight: 600; // iOS s14Semibold
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+
+    // Empty: "select passage" white@0.5 with a brandPrimary 1.5px stroke.
+    &--empty {
+      background: none;
+      box-shadow: inset 0 0 0 1.5px var(--color-brand, #6c47ff);
+      color: var(--color-white-50);
+    }
+  }
+
+  // ── Preview container ──
+  &__preview {
+    position: relative;
+    min-height: 12px; // empty state = the bare #1A1D28 strip in the iPhone ref
+    border-radius: 12px;
+    overflow: hidden;
+    background: #1a1d28; // iOS Color(hex:"#1A1D28") base layer
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06); // iOS stroke overlay
+  }
+
+  &__previewImage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; // iOS AsyncImage scaledToFill + clipped
+  }
+
+  &__previewTint {
+    position: absolute;
+    inset: 0;
+  }
+
+  &__previewContent {
+    position: relative;
+    padding: 16px; // iOS ExegesisVerseView .padding(16)
+  }
+
+  // The verse view's capture-gutter cancellation doesn't apply inside the
+  // preview card — its own 8/32 text insets stand on top of the 16px pad.
+  &__previewContent .ExegesisVerseView {
+    margin: 0;
+    width: 100%;
+  }
+
+  // ── Preview button (+ iOS 32px tail spacer) ──
+  &__buttons {
+    padding-bottom: 32px;
+  }
+}

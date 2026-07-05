@@ -70,6 +70,10 @@ interface Props {
   status?: 'complete' | 'next' | 'upcoming'
   upcomingText?: string
   released?: boolean
+  // iOS showAnimatedBorder: with it, a not-ready lesson keeps cardBackground and
+  // draws the rotating brand ring; without it (the default — and what the
+  // component compare captures), highlight falls back to the purple pending well.
+  showAnimatedBorder?: boolean
   class?: string
 }
 
@@ -78,6 +82,7 @@ const props = withDefaults(defineProps<Props>(), {
   activities: () => [],
   sections: () => [],
   released: false,
+  showAnimatedBorder: false,
 })
 
 const emit = defineEmits<{ click: [MouseEvent] }>()
@@ -87,12 +92,16 @@ const READ_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>'
 const WRITE_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>'
+// IconRecordVideo — concentric record circle (outer ring + solid center dot),
+// matching the iOS asset used for VIDEO activities.
 const RECORD_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 7l-7 5 7 5z"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>'
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none"/></svg>'
+// IconActivityVideo — play-in-circle (ring + filled triangle), the iOS YOUTUBE glyph.
 const PLAY_ICON =
-  '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>'
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.8v6.4l5.4-3.2z" fill="currentColor" stroke="none"/></svg>'
+// IconActivityExegesis — stacked "A + text lines" text-analysis glyph.
 const EXEGESIS_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/><path d="M8 11h6M11 8v6"/></svg>'
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l2.2-5 2.2 5"/><path d="M3.7 8.2h3"/><path d="M11 6h10"/><path d="M11 9h6"/><path d="M3 21l2.2-5 2.2 5"/><path d="M3.7 19.2h3"/><path d="M11 17h10"/><path d="M11 20h6"/></svg>'
 
 const ACTIVITY_META: Record<string, { type: string; icon: string }> = {
   READ: { type: 'read', icon: READ_ICON },
@@ -111,8 +120,10 @@ function activityMeta(t?: string) {
   return ACTIVITY_META[t ?? ''] ?? ACTIVITY_META.READ
 }
 
+// Tight viewBox so the glyph fills its box like iOS SF chevron.right at s14
+// (≈8×14pt visible) instead of drowning in a 24-unit viewBox.
 const CHEVRON_ICON =
-  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>'
+  '<svg viewBox="0 0 9 15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 1.5l6 6-6 6"/></svg>'
 const CHECK_ICON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12l5 5L20 7"/></svg>'
 
@@ -133,6 +144,11 @@ const hasIncomplete = computed(() =>
 )
 const lessonHighlight = computed(() => props.released || hasIncomplete.value)
 
+// Not-ready (drives the animated border): any unconfigured activity, or a
+// lesson with NO activities yet — an empty day can't be published, so it
+// carries the same not-ready treatment.
+const notReady = computed(() => hasIncomplete.value || props.activities.length === 0)
+
 const estimateLabel = computed(() => {
   const m = props.estimatedMinutes ?? 0
   if (m > 99) return '>99 min'
@@ -150,7 +166,16 @@ const rootClasses = computed(() =>
   classnames(
     CardLessonCva.variants({ mode: props.mode }),
     props.mode === 'planning' && !isReady.value && 'CardLesson--not-ready',
-    props.mode === 'lesson' && lessonHighlight.value && 'CardLesson--highlight',
+    // iOS: background = (showAnimatedBorder || !highlight) ? cardBackground
+    // : backgroundPurple; ring = showAnimatedBorder && hasIncomplete.
+    props.mode === 'lesson' &&
+      lessonHighlight.value &&
+      !props.showAnimatedBorder &&
+      'CardLesson--highlight',
+    props.mode === 'lesson' &&
+      notReady.value &&
+      props.showAnimatedBorder &&
+      'CardLesson--animated-border',
     props.mode === 'lessonList' && props.status && `CardLesson--status-${props.status}`,
     props.class
   )

@@ -18,6 +18,8 @@
 // The activity-type accent colors below mirror ActivityStyle.swift, which is the
 // single source of truth for them; no design-system token exists for these
 // per-type accents, so they live here as scoped custom properties.
+@use '../../styles/animated-border' as animated-border;
+
 .CardLesson {
   position: relative;
   display: flex;
@@ -168,6 +170,9 @@
   &__chevron {
     flex: 0 0 auto;
     display: flex;
+    // The planning row is align-items: stretch; iOS HStack centers the 20×20
+    // chevron frame vertically — center this fixed-height box explicitly.
+    align-self: center;
     align-items: center;
     justify-content: center;
     width: 20px;
@@ -175,9 +180,10 @@
     margin: var(--space-sm);
     color: var(--fg-tertiary);
 
+    // iOS SF chevron.right at s14 ≈ 8×14pt visible glyph.
     svg {
-      width: 14px;
-      height: 14px;
+      width: 9px;
+      height: 15px;
       display: block;
     }
   }
@@ -186,8 +192,16 @@
   &--mode-lesson {
     align-items: stretch;
 
+    // Highlight WITHOUT the animated border (iOS released/legacy state): the
+    // purple pending well, no ring.
     &.CardLesson--highlight {
       background: var(--bg-pending);
+    }
+
+    // Not-ready WITH the animated border (iOS showAnimatedBorder, e.g. Program
+    // Home): cardBackground stays, only the rotating brand ring is added.
+    &.CardLesson--animated-border {
+      @include animated-border.animated-brand-border(2px);
     }
 
     .CardLesson__day {

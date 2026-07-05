@@ -15,8 +15,11 @@
   display: flex;
   box-sizing: border-box;
   background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  // iOS CardGroup: `.background(Color.cardBackground).cornerRadius(4)` — no
+  // resting border (the transparent border preserves the box model so the
+  // hover/selected states below can colour it in without a layout shift).
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm); // iOS cornerRadius: 4
   cursor: pointer;
   outline: none;
   transition:
@@ -29,6 +32,22 @@
     --avatar-size: 72px;
     width: 72px;
     height: 72px;
+  }
+
+  // Group icon fallback well (iOS .icon CardImageStyle) — a 24px people glyph
+  // centered on the icon-container well, mirroring CardGroupMini's fallback.
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-full);
+    background: var(--bg-icon-container); // iOS iconContainerBackground (#485470 @ 50%)
+    color: var(--fg-white);
+
+    svg {
+      width: var(--icon-md); // 24px (iOS Image 24×24)
+      height: var(--icon-md);
+    }
   }
 
   &__media {
@@ -51,6 +70,18 @@
     text-overflow: ellipsis;
   }
 
+  // iOS subtitle: s14 white@0.5, spacing 2 under the title.
+  &__subtitle {
+    display: block;
+    margin-top: 2px;
+    font-size: 14px;
+    font-weight: 400;
+    color: var(--color-white-50);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
   &__meta {
     display: flex;
     align-items: center;
@@ -68,6 +99,43 @@
       margin-right: var(--space-sm);
       color: var(--fg-tertiary);
     }
+  }
+
+  // Inline metadata chip (iOS DataComponent — .number / .icon). value (13px,
+  // white) + optional label (13px, white@70%), or an SF-symbol icon + value.
+  // iOS HStack(spacing: 4), 18px row height.
+  &__dataItem {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs); // iOS HStack(spacing: 4)
+    height: 18px; // iOS DataComponent .frame(height: 18)
+  }
+
+  &__dataIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px; // iOS Image.frame(width: 14, height: 14)
+    height: 14px;
+    color: var(--fg-primary);
+
+    svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+  }
+
+  &__dataValue {
+    font-size: var(--text-sm); // iOS Typography.s13
+    line-height: var(--leading-sm);
+    color: var(--fg-primary); // iOS .white
+  }
+
+  &__dataLabel {
+    font-size: var(--text-sm); // iOS Typography.s13
+    line-height: var(--leading-sm);
+    color: var(--fg-secondary); // iOS .white.opacity(0.7)
   }
 
   // Selected check badge — brand fill, animates in (scale + fade).
@@ -124,6 +192,13 @@
     gap: var(--space-lg);
     height: 104px;
     padding: 0 var(--space-lg);
+
+    // iOS metadata HStack sits 16px below the title (.padding(.top, 16)). The
+    // built-in member-count chip keeps its original flush layout; only the
+    // explicit `metadata` row (used by page twins) adopts the iOS gap.
+    .CardGroup__meta:has(.CardGroup__dataItem) {
+      margin-top: var(--space-lg);
+    }
 
     .CardGroup__check {
       right: -2px;

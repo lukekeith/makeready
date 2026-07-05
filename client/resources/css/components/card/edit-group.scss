@@ -1,0 +1,82 @@
+// EditGroup — twin of the inline editGroupContent form (GroupHomePage.swift:
+// 381-529): page chrome only; every field is its own twin styled by its own
+// SCSS. iOS: ScrollView VStack(spacing:20), rows pad-h16, cover full-bleed.
+//
+// SF Pro drives the iOS metrics (same pinning rationale as GroupHomeLeader).
+.EditGroup {
+  width: 100%;
+  background: var(--color-canvas);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  &__title {
+    flex: 0 0 auto;
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 20px; // iOS VStack(spacing: 20)
+  }
+
+  // Full-bleed cover; anchor for the busy overlay + hidden file input.
+  &__cover {
+    position: relative;
+  }
+
+  &__coverBusy {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
+  }
+
+  &__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-white-30);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: EditGroup-spin 0.8s linear infinite;
+  }
+
+  &__file {
+    display: none;
+  }
+
+  &__section {
+    padding: 0 16px; // iOS .padding(.horizontal, 16)
+  }
+
+  // iOS bare ToggleGroup: white@0.1, r10, VStack(spacing:0), NO dividers.
+  &__toggles {
+    background: var(--color-white-10);
+    border-radius: 10px;
+  }
+
+  &__bottom-spacer {
+    height: 20px; // + the VStack's own 20px gap = iOS Spacer(40)
+    flex: 0 0 auto;
+  }
+}
+
+@keyframes EditGroup-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Capture harnesses freeze the busy spinner (deterministic screenshots).
+.capture-page .EditGroup__spinner,
+.capture-wrap .EditGroup__spinner {
+  animation: none;
+}

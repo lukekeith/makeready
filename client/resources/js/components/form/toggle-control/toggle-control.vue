@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// ToggleControl — form. A labeled switch row (iOS ToggleControl): title +
+// ToggleRow — form. A labeled switch row (iOS ToggleControl): title +
 // optional description on the left, the `.Switch` primitive on the right.
 // Clicking the label region toggles too. Styled in
-// resources/css/components/form/toggle-control.scss (block `.ToggleControl`).
+// resources/css/components/form/toggle-control.scss (block `.ToggleRow`).
 import Switch from '../../primitive/switch/switch.vue'
 
 interface Props {
@@ -26,17 +26,17 @@ const toggle = () => {
 </script>
 
 <template>
-  <div class="ToggleControl" :class="{ 'ToggleControl--disabled': disabled }">
+  <div class="ToggleRow" :class="{ 'ToggleRow--disabled': disabled }">
     <button
       type="button"
-      class="ToggleControl__label"
+      class="ToggleRow__label"
       :disabled="disabled"
       @click="toggle"
     >
-      <span class="ToggleControl__title">{{ title }}</span>
-      <span v-if="description" class="ToggleControl__description">{{ description }}</span>
+      <span class="ToggleRow__title">{{ title }}</span>
+      <span v-if="description" class="ToggleRow__description">{{ description }}</span>
     </button>
-    <div class="ToggleControl__control">
+    <div class="ToggleRow__control">
       <Switch
         :model-value="modelValue"
         :disabled="disabled"

@@ -19,6 +19,7 @@
   border-radius: var(--radius-sm); // iOS cornerRadius 4
   cursor: pointer;
   outline: none;
+  overflow: hidden; // clip long names / group badges to the card bounds
   transition: background-color var(--motion-micro-fast) var(--ease-standard);
 
   &__avatar {
@@ -80,17 +81,31 @@
   &__groups {
     display: flex;
     align-items: center;
-    gap: var(--space-sm); // 8px
+    gap: var(--space-sm); // 8px (iOS HStack spacing)
     padding-top: 1px; // iOS .padding(.top, 1)
     max-width: 100%;
+    overflow: hidden; // single line; the first badge truncates before the overflow label
   }
 
   &__group {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     font-size: var(--text-sm); // iOS Typography.s13Medium
     line-height: var(--leading-sm);
     font-weight: var(--font-weight-medium);
     color: var(--color-brand-500); // iOS Color.brandPrimary (#6c47ff)
+  }
+
+  // Muted "+ N groups" overflow tag after the condensed group name.
+  &__groupOverflow {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: var(--text-sm); // 13px
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-50); // muted vs the brand-purple group name
   }
 
   // iOS Spacer(minLength: 0) — pushes the trailing content to the row's edge.
@@ -113,7 +128,8 @@
   }
 
   &:focus-visible {
-    box-shadow: 0 0 0 2px var(--border-brand);
+    // Inset so the ring stays visible under the card's `overflow: hidden`.
+    box-shadow: inset 0 0 0 2px var(--border-brand);
   }
 
   &:active {

@@ -27,15 +27,41 @@
 //
 // Fully data-driven via props; BEM mirrors
 // resources/css/components/card/tag-input.scss.
+import { ref } from 'vue'
+
 interface Props {
   tags?: string[]
   placeholder?: string
+  // Additive (production): render a real add-tag <input> (Enter/comma commits)
+  // and make pill removes clickable. The capture harness never sets this, so
+  // snapshots are unchanged.
+  interactive?: boolean
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   tags: () => [],
   placeholder: 'Add tag...',
+  interactive: false,
 })
+
+const emit = defineEmits<{ addTag: [tag: string]; removeTag: [tag: string] }>()
+
+const draft = ref('')
+
+function commitDraft(): void {
+  const tag = draft.value.trim().replace(/,+$/, '')
+  if (tag && !props.tags.includes(tag)) emit('addTag', tag)
+  draft.value = ''
+}
+
+function onKeydown(e: KeyboardEvent): void {
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault()
+    commitDraft()
+  } else if (e.key === 'Backspace' && !draft.value && props.tags.length) {
+    emit('removeTag', props.tags[props.tags.length - 1])
+  }
+}
 </script>
 
 <template>
@@ -43,13 +69,29 @@ withDefaults(defineProps<Props>(), {
     <div v-if="tags.length" class="TagInputField__tags">
       <span v-for="tag in tags" :key="tag" class="TagInputField__pill">
         <span class="TagInputField__pillText">{{ tag }}</span>
-        <svg class="TagInputField__pillRemove" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+        <svg
+          class="TagInputField__pillRemove"
+          viewBox="0 0 12 12"
+          fill="none"
+          :aria-hidden="!interactive"
+          :role="interactive ? 'button' : undefined"
+          @click="interactive && emit('removeTag', tag)"
+        >
           <path d="M2.5 2.5 L9.5 9.5 M9.5 2.5 L2.5 9.5" stroke="currentColor"
                 stroke-width="1.6" stroke-linecap="round" />
         </svg>
       </span>
     </div>
 
-    <div class="TagInputField__input">{{ placeholder }}</div>
+    <input
+      v-if="interactive"
+      v-model="draft"
+      class="TagInputField__input TagInputField__control"
+      type="text"
+      :placeholder="placeholder"
+      @keydown="onKeydown"
+      @blur="commitDraft"
+    />
+    <div v-else class="TagInputField__input">{{ placeholder }}</div>
   </div>
 </template>

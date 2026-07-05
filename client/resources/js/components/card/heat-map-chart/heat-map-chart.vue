@@ -30,6 +30,12 @@ interface Props {
   chartHeight?: number
   // Accepted for fixture parity; intentionally unused (see header note).
   colorScale?: string[]
+  // Optional explicit axis labels (iOS xLabels / yLabels). When `yLabels` is
+  // supplied the grid uses one row per y-label (e.g. the home dashboard's 24
+  // hour-of-day rows) instead of the default 7 weekday rows; `week` maps to the
+  // x-column and `day` maps to the y-row, exactly like the Swift RectangleMark.
+  xLabels?: string[]
+  yLabels?: string[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -41,10 +47,25 @@ const props = withDefaults(defineProps<Props>(), {
 // iOS y-axis lists Sun(0)…Sat(6) bottom→top; rendered top→bottom it reverses.
 const DAY_LABELS_TOP_TO_BOTTOM = ['Sat', 'Fri', 'Thu', 'Wed', 'Tue', 'Mon', 'Sun']
 
-// Columns span the continuous x-domain [0, maxWeek+1] (Swift Charts auto-domain).
+// Row count = explicit yLabels (hour-of-day mode) else the 7 weekday rows.
+const rowCount = computed(() => props.yLabels?.length || 7)
+
+// Columns span the continuous x-domain [0, maxWeek+1] (Swift Charts auto-domain),
+// or the explicit xLabels count when provided.
 const weekCount = computed(
-  () => props.dataPoints.reduce((m, p) => Math.max(m, p.week + 1), 0) || 1
+  () =>
+    props.xLabels?.length ||
+    props.dataPoints.reduce((m, p) => Math.max(m, p.week + 1), 0) ||
+    1
 )
+
+// Y-axis labels rendered top→bottom. Swift Charts puts value 0 at the bottom, so
+// an explicit yLabels list reverses (last label on top); otherwise the default
+// weekday column is used when day labels are shown.
+const yAxisLabels = computed<string[]>(() => {
+  if (props.yLabels?.length) return [...props.yLabels].reverse()
+  return props.showDayLabels ? DAY_LABELS_TOP_TO_BOTTOM : []
+})
 
 const maxValue = computed(
   () => props.dataPoints.reduce((m, p) => Math.max(m, p.value || 0), 0) || 1
@@ -57,7 +78,8 @@ const cells = computed(() =>
       const t = (p.value || 0) / maxValue.value
       return {
         col: p.week + 1, // grid-column, 1-based
-        row: 7 - p.day, // day 6 (Sat) → row 1 (top); day 0 (Sun) → row 7 (bottom)
+        // value 0 sits at the bottom row; the top day/hour gets row 1.
+        row: rowCount.value - p.day,
         opacity: 0.1 + t * 0.9, // iOS colorForValue continuous ramp
       }
     })
@@ -67,10 +89,15 @@ const cells = computed(() =>
 <template>
   <div class="HeatMapChartTwin">
     <div class="HeatMapChartTwin__chart" :style="{ height: chartHeight + 'px' }">
-      <div v-if="showDayLabels" class="HeatMapChartTwin__labels" aria-hidden="true">
+      <div
+        v-if="yAxisLabels.length"
+        class="HeatMapChartTwin__labels"
+        :style="{ gridTemplateRows: `repeat(${rowCount}, 1fr)` }"
+        aria-hidden="true"
+      >
         <span
-          v-for="label in DAY_LABELS_TOP_TO_BOTTOM"
-          :key="label"
+          v-for="(label, i) in yAxisLabels"
+          :key="i"
           class="HeatMapChartTwin__label"
           >{{ label }}</span
         >
@@ -78,7 +105,10 @@ const cells = computed(() =>
 
       <div
         class="HeatMapChartTwin__grid"
-        :style="{ gridTemplateColumns: `repeat(${weekCount}, 1fr)` }"
+        :style="{
+          gridTemplateColumns: `repeat(${weekCount}, 1fr)`,
+          gridTemplateRows: `repeat(${rowCount}, 1fr)`,
+        }"
       >
         <div
           v-for="(cell, i) in cells"

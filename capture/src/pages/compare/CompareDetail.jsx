@@ -128,7 +128,12 @@ function CommentLayer({
     const rect = e.currentTarget.getBoundingClientRect();
     onPlace(platform, viewport, (e.clientX - rect.left) / rect.width, (e.clientY - rect.top) / rect.height);
   };
-  const here = comments.filter((c) => c.platform === platform && c.viewport === viewport);
+  // Resolved comments stay in the right column but drop their preview pins —
+  // except while selected from the column, so the thread can still be viewed
+  // (and reopened) in place.
+  const here = comments.filter(
+    (c) => c.platform === platform && c.viewport === viewport && (!c.resolved || c.id === selectedId),
+  );
   const showDraft = draft && draft.platform === platform && draft.viewport === viewport;
 
   const selectedBox = here.find((c) => c.id === selectedId && c.targetMeta?.rect)?.targetMeta?.rect;
@@ -395,7 +400,6 @@ export default function CompareDetail() {
   const [commentMode, setCommentMode] = useState(false);
   const [draftPin, setDraftPin] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
-  const [showResolved, setShowResolved] = useState(true);
 
   // Synced zoom/pan view + mirrored cursor + per-platform natural image size
   const [view, setView] = useState({ scale: 1, cx: 0.5, cy: 0.5 });
@@ -436,15 +440,22 @@ export default function CompareDetail() {
     inspectWaiters.current.set(reqId, (target) => { clearTimeout(t); resolve(target); });
   });
   // Hover highlight (fire-and-forget; the iframe outlines the element under the
-  // cursor). Throttled so a fast mousemove doesn't flood the iframe.
+  // cursor). Throttled so a fast mousemove doesn't flood the iframe. Suspended
+  // while a draft composer or a comment thread is open — the highlight stays
+  // pinned to that comment's target (the cmp-target-box) instead of chasing
+  // the cursor.
   const lastHoverRef = useRef(0);
   const hoverInspect = (fx, fy) => {
+    if (draftPin || selectedId) return;
     const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
     if (now - lastHoverRef.current < 30) return;
     lastHoverRef.current = now;
     postInspect(fx, fy, 0);
   };
   useEffect(() => { if (!commentMode) clearInspect(); }, [commentMode]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Opening a draft/thread drops the last cursor outline from the iframe so
+  // only the commented element stays highlighted.
+  useEffect(() => { if (draftPin || selectedId) clearInspect(); }, [draftPin, selectedId]); // eslint-disable-line react-hooks/exhaustive-deps
   const resetView = useCallback(() => setView({ scale: 1, cx: 0.5, cy: 0.5 }), []);
   const cancelAnim = useCallback(() => { if (animTimer.current) clearTimeout(animTimer.current); setAnimating(false); }, []);
   const onNatural = useCallback((platform, dims) => setNatural((n) => (n[platform] && n[platform].w === dims.w && n[platform].h === dims.h ? n : { ...n, [platform]: dims })), []);
@@ -454,6 +465,12 @@ export default function CompareDetail() {
   // Live web render (iframe) for the current variant — replaces the web PNG.
   const webLive = vdetail?.webLive ?? null;
   const vpWidth = (vp) => detail?.viewportDimensions?.[vp]?.width ?? 440;
+  const vpHeight = (vp) => detail?.viewportDimensions?.[vp]?.height ?? 956;
+  // A `page` twin is a full-screen layout that follows the device frame (width
+  // AND height), exactly like the iPhone shot — so its web box is locked to the
+  // viewport dimensions. A `component` twin has intrinsic height, so its box
+  // width is locked but its height comes from the live iframe's posted size.
+  const isPageTwin = detail?.type === 'page';
 
   // Comparison-level metadata (title, group, shared/Data tab, projection).
   const refetch = async () => {
@@ -500,14 +517,26 @@ export default function CompareDetail() {
   useEffect(() => {
     if (!webLive || !viewport) return;
     const w = vpWidth(viewport);
-    setNatural((n) => (n.client ? n : { ...n, client: { w, h: Math.round(w * 0.6) } }));
+    if (isPageTwin) {
+      // Page twin: always lock to the full device frame. This must OVERWRITE any
+      // earlier box — `webLive` (variant fetch) can arrive before `detail` (which
+      // supplies `type`), so an approximate box may already be seeded by the time
+      // isPageTwin flips true; force it back to the device dimensions here.
+      const h = vpHeight(viewport);
+      setNatural((n) => (n.client && n.client.w === w && n.client.h === h ? n : { ...n, client: { w, h } }));
+    } else {
+      // Component twin: seed an approximate box the posted capture-size refines.
+      setNatural((n) => (n.client ? n : { ...n, client: { w, h: Math.round(w * 0.6) } }));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [webLive, viewport]);
+  }, [webLive, viewport, isPageTwin]);
 
-  // The live iframe posts its rendered height; size the web box to it.
+  // The live iframe posts its rendered height; size the web box to it — but only
+  // for component twins. A page twin follows the device height (above), so its
+  // intrinsic content height (a clipped 100vh layout) must not resize the box.
   useEffect(() => {
     const onMsg = (e) => {
-      if (e.data?.type !== 'capture-size' || !viewport) return;
+      if (e.data?.type !== 'capture-size' || !viewport || isPageTwin) return;
       const w = vpWidth(viewport);
       const h = Math.max(1, Math.round(e.data.height));
       setNatural((n) => (n.client && n.client.h === h && n.client.w === w ? n : { ...n, client: { w, h } }));
@@ -515,7 +544,7 @@ export default function CompareDetail() {
     window.addEventListener('message', onMsg);
     return () => window.removeEventListener('message', onMsg);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewport]);
+  }, [viewport, isPageTwin]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -625,7 +654,7 @@ export default function CompareDetail() {
         targetLabel: t?.label,
         targetMeta: t ? { rect: t.rect, tag: t.tag, text: t.text, styles: t.styles } : undefined,
       });
-      setDraftPin(null); clearInspect(); await loadVariant(); reload?.();
+      setDraftPin(null); setCommentMode(false); clearInspect(); await loadVariant(); reload?.();
     } catch { /* keep */ }
   };
   const addReply = async (commentId, text) => { await replyComment(id, commentId, text, 'user'); await loadVariant(); reload?.(); };
@@ -678,7 +707,9 @@ export default function CompareDetail() {
   }
   if (!detail) return <div className="empty-state">Loading…</div>;
 
-  const columnComments = [...comments].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1)).filter((c) => showResolved || !c.resolved);
+  // The column always lists every comment (resolved ones render dimmed with a
+  // ✓); only the preview pins hide on resolve.
+  const columnComments = [...comments].sort((a, b) => (a.createdAt < b.createdAt ? -1 : 1));
   const commentProps = {
     comments, numberOf, draft: draftPin, onPlace: placeDraft, onSubmitDraft: submitDraft, onCancelDraft: () => setDraftPin(null),
     selectedId, onSelect: setSelectedId, canEdit, onReply: addReply, onResolve: toggleResolve, onDelete: removeComment,
@@ -823,7 +854,7 @@ export default function CompareDetail() {
           <aside className="cmp-comments">
             <div className="cmp-comments__head">
               <span className="cmp-comments__title">Comments</span>
-              <label className="cmp-comments__filter"><input type="checkbox" checked={showResolved} onChange={(e) => setShowResolved(e.target.checked)} /> resolved</label>
+              {unresolvedCount > 0 && <span className="cmp-comments__open">{unresolvedCount} open</span>}
             </div>
             {commentMode && <div className="cmp-comments__hint">Click on either image to drop a pin · Esc to exit</div>}
             <div className="cmp-comments__list">

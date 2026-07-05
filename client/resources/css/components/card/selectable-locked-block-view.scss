@@ -81,6 +81,37 @@
     color: #000;
   }
 
+  // ── Interactive highlight mode (production only; captures never see these) ──
+
+  // Live tap-selection tint — iOS UITextView selection tint #F4FF76@0.5
+  // (Colors.highlightYellow). Wins over a styled span's purple while active.
+  &__seg--tint {
+    background-color: rgba(244, 255, 118, 0.5);
+  }
+
+  &__seg--tappable {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  // Multi-verse content: one paragraph per verse (iOS paragraphSpacing 8)
+  // with the verse number hung in the left gutter at the first line.
+  &__text--verse {
+    position: relative;
+    margin-bottom: 8px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__verse-number--hung {
+    position: absolute;
+    left: -32px;
+    top: 0;
+  }
+
   // Non-scripture locked blocks: system font, natural (left) alignment.
   &--plain {
     font-family: var(--font-sans);

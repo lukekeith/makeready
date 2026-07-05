@@ -1,0 +1,424 @@
+﻿MakeReady
+Scope of Work for Application Design & Development
+
+
+
+
+MakeReady        1
+Scope of Work for Application Design & Development        1
+Key Personas        2
+Member        2
+Organization        2
+Group Leader        2
+User Stories        2
+1. ACCOUNT        2
+2. ACCOUNTABILITY & DISCIPLESHIP        5
+3. EVENTS        5
+4. QUESTIONS & ANSWERS        7
+5. VIDEO CONTENT        7
+6. NOTES        9
+7. CHALLENGES        12
+8. GOALS        13
+9. PRAYER REQUESTS        14
+10. PERSONAL NEEDS        15
+11. GROUPS        17
+12. ADMIN        19
+13. CHAT        21
+14. ANALYTICS        23
+
+
+Key Personas
+Member
+A member is any user who creates an account and continues to use that account to access the app so any information created by the member or linked to the member can persist. To access any feature related to groups, the member must be part of a group.
+Organization
+An Organization serves as a foundational element that encompasses various groups and sub-organizations, allowing for intricate and hierarchical relationship management among users. Each organization can create multiple sub-organizations, such as departments or special interest groups, to reflect its internal structure, such as a church with sub-organizations for "Men's Bible Study," "Youth Ministry," and "Missions Trip to Mexico." Users within these organizations are assigned specific roles—such as admin, group leader, or member—with distinct permissions that dictate their access and capabilities within the app, ensuring a flexible yet secure environment that adapts to the unique administrative and operational needs of each organization.
+Group Leader
+A group leader is defined as a user who leads one or more sub-orgs within another organization, a role that must be granted by the organization. All features and abilities available to members are also available to group leaders. The abilities below are entirely unique to group leaders.
+User Stories
+1. ACCOUNT
+   1. As a new user, I want the ability to sign up using my email address, phone number, or an OIDC compatible account so that I can become a member of a group and access features of the app.
+      1. Demonstrate that during sign up, I can provide basic information about myself. (Name, Email, Phone, Zip code)
+      2. Demonstrate that after I verify my email address or phone number I can access the application
+      3. Demonstrate that I can use my email or phone number for MFA (Multi Factor Authentication)
+   2. As a returning user, I want the ability to log in using my existing credentials to access my account and resume my activities within the app.
+      1. Demonstrate using my email or phone number and a password, I can log into MakeReady
+      2. Demonstrate that I can login using FaceID, touchID, or equivalent biometrics on my mobile device to authenticate
+      3. Demonstrate that if I am on a new device or unknown device, I am prompted for an MFA code
+      4. Demonstrate that if I forgot my password, I can request to reset it
+   3. As an existing user (member), I want the ability to make changes to my profile and login information at any time.
+      1. Demonstrate that I can change my first and last name
+      2. Demonstrate that I can change my email address or phone number
+      3. Demonstrate that I can update my location information (zip code, address, city, state)
+      4. Demonstrate that I can change my password
+      5. Demonstrate that authentication changes require 2FA
+      6. Demonstrate I can upload an image of myself to be used as my avatar
+   4. As an organization, I want the ability to create an account for my organization using my email address, phone number, or an OIDC compatible account so that I can have access to organization level features of the application.
+   5. As an organization, I want the ability to import users from third-party applications using a standardized format so that I do not have to manually create every user if I have a large organization and all the user data already exists.
+   6. As an organization, I want the ability to manage users and define user roles so that they can administer the organization or groups within the organization.
+      1. Demonstrate that I can invite people to join the organization in any role I choose using their email address or phone number
+      2. Demonstrate that I can view each member’s profile and contact information
+      3. Demonstrate that I can filter members by age, gender, location, interest, parents (if applicable), non-parents (if applicable), and association with specific groups within my organization
+      4. Demonstrate that I can reset member login information
+      5. Demonstrate that I can remove members from my organization
+   7. As an organization, I want the ability to view a visual map of the groups within my organization that includes information about their leaders and members so that I can easily understand at a high-level what is happening within the organization.
+      1. Demonstrate I can see the total usage in time, data and user so I can estimate costs and usage breakdowns
+      2. Demonstrate that I can identify and select the type of activity or group I am interested in leading
+      3. Demonstrate that I can submit a form that includes information about the opportunity, my reasons, and my availability
+      4. Demonstrate that I will be notified when there is a response to my submission
+      5. Demonstrate that I can withdraw my submission at any time
+   8. As a group leader, I want the ability to respond to an invitation to lead one or more additional groups
+      1. Demonstrate that I can view invitation notifications that require a response
+      2. Demonstrate that I can view information about the invitation including who sent it and what it’s for
+      3. Demonstrate that I can accept or reject an invitation
+2. ACCOUNTABILITY & DISCIPLESHIP
+   1. As a member, I want the ability to get connected with a mentor who is more spiritually mature than me and willing to become a mentor so that I can have guidance on my path of spiritual growth
+   2. As a member, I want the ability to share my spiritual health with other people so that we can keep each other accountable during our spiritual journey, a challenge, prayer requests, and more
+   3. As a member, I want the ability to understand my spiritual health similar to the way Apple Health communicates my physical health so that I can better understand my strengths, weaknesses, and discover new ways to improve in every area
+3. EVENTS
+   1. As a member, I want the ability to see upcoming events on the calendar so I can plan ahead and set up reminders for events I plan to attend.
+   2. As a member, I want the ability to RSVP to an event so that the person planning the event knows if I am coming.
+   3. As a member, I want the ability to communicate with everyone who is attending an event so we can more easily coordinate.
+   4. As a group leader, I want the ability to create and manage events for my group
+      1. Demonstrate that I can create an event that has all the information necessary to be compatible with standard calendar formats such as ICS
+      2. Demonstrate that I can easily invite members of my organization or group
+      3. Demonstrate that every event will have a unique URL to access an event information page
+      4. Demonstrate that I can make an event public or private
+      5. Demonstrate that events will have their own dedicated channel for communication between all attendees of the event
+      6. Demonstrate that events will have their own dedicated channel for everyone running the event
+      7. Demonstrate that I will be alerted when attempting to create an event that conflicts with another event
+   5. As a group leader, I want the ability to have a todo list associated with my event
+      1. Demonstrate that I can add todo list items to my event
+      2. Demonstrate that I can assign todos to group leaders or members of the group
+      3. Demonstrate that I can mark todo list items as complete
+      4. Demonstrate that I can remove todo list items that are no longer applicable
+      5. Demonstrate that I can save a todo list to be used later in other events
+   6. As a group leader, I want the ability to easily share information about upcoming meetings or events with my group.
+      1. Demonstrate that I can share information with everyone at once
+      2. Demonstrate that I can share information with a specific subset of members based on a search or filtered criteria.
+   7. As a group leader, I want the the ability to create new events using old events as a template so that I can quickly create new events that are similar to old events without having to redo everything
+      1. Demonstrate that I can easily find events filtered by text or event data
+      2. Demonstrate that I can invite the same people from the original event if I choose
+      3. Demonstrate that I can reuse the same content from the original event if I choose
+      4. Demonstrate that I can reuse the same schedule beginning at a different date and time
+4. VIDEO CONTENT
+   1. As a member, I want the ability to browse and view video content
+   2. As a member, I want the ability to save and organize my favorite video content into static and smart lists so that I can easily find it in the future.
+      1. Demonstrate that I can create and manage custom lists to contain content
+      2. Demonstrate that I can save content into one or more lists
+      3. Demonstrate that I can make lists public or private
+      4. Demonstrate that I can search my lists by keyword, title, person, topic, or Bible verse
+      5. Demonstrate that I can make smart lists based on search criteria that automatically add new content to my list that matches my search
+      6. Demonstrate that I can be notified when new content is added to my smart list
+   3. As a member, I want the ability to share meaningful content and multimedia with anyone
+      1. Demonstrate that I can share content to an email address or phone number
+      2. Demonstrate that I can see if the shared content was viewed
+   4. As a member, I want the ability to find video content that can help me overcome specific struggles
+      1. Demonstrate that content can be suggested to me based on my search and viewing history
+      2. Demonstrate that I can view struggles that are common for men and women like me
+   5. As an organization, I want the ability to view and manage video content created by people within my organization so that I can ensure all content aligns with the goals and mission of the organization
+   6. As an organization, I want the ability to control settings associated with automated moderation to prevent inappropriate or extremely negative content from being generated by users within the organization
+   7. As an organization, I want to be alerted to content and discussions within the organization that contain inappropriate content or extremely negative sentiment so that I can evaluate how to deal with the situation or make adjustments to moderation policies
+   8. As an organization, I want the ability to share any video content in our content library with any user or group within my organization
+      1. Demonstrate that I can share any video content within the content library in any communication channel for any group
+      2. Demonstrate that I can share any video content within the content library with any individual member or members of the organization
+      3. Demonstrate that I can share any video content within the content library with non-members using an email address or phone number
+      4. Demonstrate that I can share any video content within the content library on social media platforms
+      5. Demonstrate that shared video content on social media platforms includes a link back to the organization
+      6. Demonstrate that I can restrict certain types of video content, groups of content, authors or series from being shared on social media
+      7. Demonstrate that I can view all video content that has been shared
+      8. Demonstrate that I can unshare video content that has been shared
+      9. Demonstrate I can share video content with from the content library by copying a unique URL
+   9. As a group leader, I want the ability to easily share content I’ve created with other content creators and group leaders
+      1. Demonstrate that I can share content directly from the content itself
+      2. Demonstrate that I can choose content to share from anywhere in the app that allows me to send messages
+      3. Demonstrate that I can find a user based on filters or text search and share content directly with that user
+5. NOTES
+   1. As a member, I want the ability to write personal notes at any time so that I don’t lose an important thought or inspirational idea when it comes to mind
+   2. As a member, I want the ability to write private notes for my own reference so that I can review them in the future
+      1. Demonstrate that I can create a new note that has a title and description
+      2. Demonstrate that I can easily edit and remove any notes I have created in the past
+      3. Demonstrate that I can view my notes on a visual timeline that is based on when the note was created
+      4. Demonstrate that my notes are automatically tagged based on the contents
+      5. Demonstrate that I can easily copy and paste text from a presentation into my notes
+      6. Demonstrate that I can easily paste images into my notes
+      7. Demonstrate that my location is associated with the note if that information is available
+   3. As a member I want the ability to review old notes and portions of old notes and mark them as important
+      1. Demonstrate that I can find any note based on date
+      2. Demonstrate that I can search my notes with freeform text input
+      3. Demonstrate that I can toggle to see only notes marked as important
+      4. Demonstrate that I can re-mark important notes to elevate their level of importance up to 3 levels 
+   4. As a member I want the ability to identify notes as “lessons learned” so that I can understand my growth over a period of time
+      1. Demonstrate I can export the design to my local device
+      2. Demonstrate I can share the image on social media
+      3. Demonstrate the organization’s logo will be embedded in the image
+   5. As a member I want the ability to quickly make a note about my day and have it added to that day’s page
+      1. Demonstrate that I can easily navigate to the note to edit previously input text
+      2. Demonstrate that notes are never lost
+      3. Demonstrate notes can reference other notes for easy reference
+      4. Demonstrate the ability to add hashtags to notes to link notes and portions of notes to other places
+   6. As a member, I want the ability to explore a visualization of my journal entries so that I can visually understand the content and find old notes
+      1. Demonstrate that I can see a volumetric visualization of content that can be grouped by concept, people, Bible verse, book of the Bible, and any other content metadata available
+      2. Demonstrate that I can use a text search to highlight matching content within the view
+      3. Demonstrate that I can preview content from the view
+      4. Demonstrate that I can navigate to the full content from the view
+      5. Demonstrate that I can view my notes by topic
+      6. Demonstrate that I can view my notes by sentiment
+      7. Demonstrate that I can view my notes by content I referenced
+      8. Demonstrate that I can view my notes by Bible verse
+      9. Demonstrate that I can search and filter my notes for any information contained in the note
+   7. As a member I want the ability to see patterns in the important notes I have made over time
+   8. As a group leader I want the ability to see the “lessons learned” of the members in my group
+6. TODOS
+   1. As a group leader, I want the ability to create a list of todos
+      1. Demonstrate that a todo can contain text content from the organization library
+      2. Demonstrate that a todo can contain text content that I wrote 
+      3. Demonstrate that a todo can contain a video from the organization library
+      4. Demonstrate that a todo can contain a video I created
+      5. Demonstrate that a todo can contain an audio file
+   2. As a group leader, I want the ability to set the criteria for completing a todo
+      1. Demonstrate that I can require a note to be written about the todo in order to be complete
+      2. Demonstrate that I can require the answer to a question about the todo in order to be complete
+      3. Demonstrate that I can require the member to upload a photo or video in order to complete a todo
+   3. As a member, I want the ability to mark the status of todo items in a curriculum
+      1. Demonstrate that I can mark a todo as completed
+      2. Demonstrate that I can mark a todo as procrastinated if I am unable to complete the todo within the designated timeframe for the todo
+      3. Demonstrate that I can mark a todo as delegated if I am unable to complete the todo within the designated timeframe for the todo
+      4. Demonstrate that I can make a todo as alleviate, which deletes the todo
+   4. As a member, I want the ability to be reminded of upcoming todos
+7. CHALLENGES
+   1. As a member, I want the ability to participate in challenges that remind me of things I should be doing on a regular basis between meetings and church services so that I can make spiritual progress on a daily basis during times when I am easily distracted by other things in life.
+   2. As a member, I want the ability to join the same challenges other members of my group are doing so that we can hold each other accountable as we progress.
+   3. As a member, I want the ability to write a public or private note on my challenges so that they can serve as a reminder of my growth and possibly an encouragement to others who share my struggles.
+   4. As a member, I want the ability for other members of the group to see the progress I am making on my challenges without being able to view specific information about the challenges or my progress so that I can avoid sharing sensitive, personal, or compromising information.
+   5. As a member, I want the ability to control the frequency and timing of my challenges so that I can make adjustments for my schedule
+   6. As a member, I want the ability to create my own challenge or choose from a list of recommended challenges so that I can quickly and easily get to work on spiritual growth
+   7. As a member, I want the ability to be reminded of my challenges without having to open the app
+   8. As a member, I want the ability to monitor the progress of challenges that other members of the group have accepted so that I can be an encouragement to them as they work through each challenge
+   9. As a member, I want the ability to  view challenge progress over time so that I can understand how far I’ve come
+      1. Demonstrate that I can view my overall progress in a visual way that’s easy to digest at a glance
+      2. Demonstrate that I can see every challenge I have ever taken
+      3. Demonstrate that I can see which ones I have complete and failed to complete
+   10. As a member  I want the ability to get help with requested tasks
+      1. Demonstrate the ability to see the organization’s or group leader’s help list for a specific task
+   11. As a group leader, I want the ability to solicit members of my group to participate in a challenge
+      1. Demonstrate that I can select one or more members of my group based on filtered criteria to be solicited
+      2. Demonstrate that each solicited member is notified of the solicitation
+      3. Demonstrate that I can withdraw one or more members from the solicitation with or without notifying them of the withdrawal
+      4. Demonstrate I can create a group where the members of the group are required to participate in the challenge
+   12. As a group leader, I want the ability to create and manage challenges for my group
+      1. Demonstrate that I can create a challenge that includes a title, description, frequency, start date, optional end date, and objective details for each period of frequency
+      2. Demonstrate that I can makes changes to a challenge at any point before, during, or after the challenge
+      3. Demonstrate that I can start new challenges using past challenges as a template
+      4. Demonstrate that I can attach multimedia content such as images and video to a challenge objective
+   13. As a group leader, I want the ability to associate a question with a challenge so that I can better understand participation and engagement within my group
+      1. Demonstrate that I can create a custom question to be asked at each period of frequency
+      2. Demonstrate that I can set the notification timing of the question to “at the start” or “at the end” of each period of frequency
+      3. Demonstrate that I can create a multiple choice answer that can be used to gather member feedback after each period of frequency
+      4. Demonstrate that I can allow freeform responses to each question
+      5. Demonstrate that each challenge participant will be notified at the time I specify for each period of frequency
+   14. As a group leader, I want the ability to include challenges in curriculum
+8. GOALS
+   1. As a member, I want the ability to create personal goals and track progress against my goals so that I can have a better way to measure success in my spiritual journey
+   2. As a member I want the ability to set a TODO status as “delegate” or “procrastinate” should it not be finished by the end of the day
+   3. As a member, I want the ability to create goal reminders so that I can stay on track when life gets busy or I am distracted
+   4. As a member, I want the ability to share my goals with other members of the group so that they can hold me accountable for my progress
+   5. As a member, I want the ability to link a goal to a challenge so that I can track my progress against the objective of a challenge
+   6. As a group leader, I want the ability to solicit members of my group to participate in a goal
+      1. Demonstrate that I can select one or more members of my group based on filtered criteria to be solicited
+      2. Demonstrate that each solicited member is notified of the solicitation
+      3. Demonstrate that I can withdraw one or more members from the solicitation with or without notifying them of the withdrawal
+9. CURRICULUM
+   1. As a group leader, I want the ability to create a curriculum using video content, todo lists, challenges, and goals that are released to members in a specified order so that I can hold members accountable for progress
+      1. Demonstrate that I can select one or more videos from the organization library to add to my curriculum
+      2. Demonstrate I can record and upload my own videos to the curriculum
+      3. Demonstrate that I can add a list of todos to the curriculum
+      4. Demonstrate that I can add challenges to the curriculum
+      5. Demonstrate that I can add goals to the curriculum
+      6. Demonstrate that I can group curriculum into chapters
+      7. Demonstrate that I can group curriculum into seasons that are available within a predefined window of time
+      8. Demonstrate that I can provide a list of helpful steps to accompany any piece of content within the curriculum to assist members with successful completion
+      9. Demonstrate that I can include a personal note within the content that is visible to members viewing the content
+   2. As a group leader, I want the ability to control the sequence and timing content in the curriculum can be completed by members
+      1. Demonstrate that I can set the complete status based on whether or not a note was written about the content
+      2. Demonstrate that I can set the complete status based on the score of a quiz
+      3. Demonstrate that I can require content to be completed in a sequence so that the second piece of content cannot be viewed until the first is complete
+      4. Demonstrate that I can allow all members to view any content in the curriculum at any time
+   3. As a group leader, I want the ability to invite members to optionally participate in a curriculum
+   4. As a group leader, I want the ability to track curriculum progress of members all members within my group
+   5. As an organization, I want the ability to require group leaders or members to complete a specific curriculum before they are allowed the full privileges of their membership
+   6. As a member, I want the ability to view content in a curriculum
+   7. As a member, I want the ability to write a notes about content in a curriculum
+   8. As a member, I want the ability to view the next piece of content after I have completed the previous piece of content
+   9. As a member, I want the ability to be notified when content in the curriculum becomes available for viewing
+   10. As a member I want the ability to view all the lessons I have learned in a “Trophy Room”
+      1. Demonstrate that I can see all Lessons Learned in a graphical representation with a date and on a timeline
+      2. Demonstrate that I can see lessons learned in a list format
+      3. Demonstrate that I can view an AI summary of lessons learned
+10. PERSONAL NEEDS
+   1. As a member, I want the ability to submit a need on my behalf
+      1. Demonstrate that I can create a need that includes a title, description, and an optional video message
+      2. Demonstrate that the group leader is notified when my need is created
+      3. Demonstrate that I am notified once the need has been approved by the group leader
+      4. Demonstrate that I can mention other members in the group so they are notified of the need and prompted to help
+      5. Demonstrate that I can exclude one or more members of the group from seeing my need
+      6. Demonstrate that I can mark a need as closed so everyone following the need will be notified that it is no longer a need
+      7. Demonstrate that I can still receive posts on the need after it has been closed
+   2. As a member, I want the ability to work with other members of the group to meet the needs of members in the group with a stated need that is too big to be solved by any one individual so that I can participate in ministering to the member in need.
+      1. Demonstrate that I can privately communicate with specific members of the group in regards to  providing a solution to the need
+   3. As a member, I want the ability to submit a need on somebody else’s behalf
+      1. Demonstrate that I can create a need that includes a title, description, and an optional video message
+      2. Demonstrate that the group leader is notified when the need is created
+      3. Demonstrate that I am notified once the need has been approved by the group leader
+      4. Demonstrate that I can keep the need private from the person it is intended to help
+      5. Demonstrate that I can mention other members in the group so they are notified of the need and prompted to help
+   4. As a member, I want the ability to see the needs of members in the group so that I can help meet their needs if there is something I am able to do.
+      1. Demonstrate that I can be notified when new needs are posted to the group
+      2. Demonstrate that I can view information about the need
+      3. Demonstrate that I can post a message on the need that everyone following the need can see
+      4. Demonstrate that I can privately submit a solution to the person in need or the group leader
+      5. Demonstrate that I am notified any time I am mentioned in a need
+   5. As a member, I want the ability to coordinate with other members of the group to do good deeds for people who may or may not have stated their need so that we can be a blessing to people experiencing hardships or problems that feel insurmountable.
+      1. Demonstrate that every need has a dedicated channel for communication
+      2. Demonstrate that everyone mentioned in a need is automatically joined to the conversation
+11. GROUPS
+   1. As an organization, I want the ability to manage groups within my organization and assign leaders so that they can manage and lead these groups and the members within them.
+      1. Demonstrate that I can create a group with basic information (title, description, avatar image, cover photo)
+      2. Demonstrate that I can control which features can be accessed by the group and its members (eg: group chat, direct messages, and any supported group features)
+      3. Demonstrate that I can block specific people from viewing a group or any content related to a group
+      4. Demonstrate that I can require new mentors to go through a training process before approval
+      5. Demonstrate that I can override new mentors manually from needing to take the training
+   2. As an organization, I want the ability to assign users to lead one or more groups within the organization so that they can lead groups, create content, and manage members within their organization.
+      1. Demonstrate that I can invite non-members by email or phone number
+      2. Demonstrate that I can invite people who are already members of the organization by locating them within the app
+      3. Demonstrate that I can view the status of every invitation I have sent
+      4. Demonstrate that I can withdraw invitations any time after I have sent them
+      5. Demonstrate that I can include information in the invitation that provides detail on the purpose of the invitation
+      6. Demonstrate that there is a way for the person I am inviting to easily contact me with any questions or concerns they may have
+      7. Demonstrate that I can optionally specify that a survey must be completed before the invitation can be accepted
+   3. As a group leader, I want the ability to manage the members within the groups that I am currently leading.
+      1. Demonstrate that I can communicate with people who request membership so that I can learn more about them before deciding how to respond to their request.
+      2. Demonstrate that I can accept or reject new member requests
+      3. Demonstrate that I can invite new members to the group using a person’s name, email address or phone number.
+      4. Demonstrate that I can remove members from the group
+      5. Demonstrate that I can promote members within my group to a leadership role to help with assigned tasks
+
+
+   4. As a group leader, I want the ability to view users who are looking for a group in my area so that I can reach out to them if they are a good fit.
+      1. Demonstrate that I can set the location and search radius of my group so that the system can understand proximity to people searching for a group.
+      2. Demonstrate that I can view everyone in the search radius that is looking for a group
+      3. Demonstrate that I can view profile information about people who are looking for a group including their name and any personal information they decide to share.
+   5. As a group leader, I want the ability to create groups within my organization.
+      1. Demonstrate that I can create a group that lasts indefinitely
+      2. Demonstrate that I can create a group that only exists for a specified amount of time
+      3. Demonstrate that I can invite members and guests to join any group I create
+      4. Demonstrate that members and non-members will be notified when they have been invited to join a group I created
+   6. As a group leader, I want the ability to associate a challenge with my group that is automatically solicited to everyone who joins my group
+      1. Demonstrate that I can associate one or more challenges with my group
+      2. Demonstrate that I can control the timing of each challenge associated with my group so that I can run them in sequence or at the same time
+      3. Demonstrate that I can add challenges to my group at any time and members of the group will be automatically solicited to participate
+   7. As a group leader, I want the ability to join one or more of my groups into a single group
+      1. Demonstrate that I can create a new group using one or more existing groups
+      2. Demonstrate that I can merge one group into another group
+   8. As a group leader, I want the ability to submit a request for my group to merge with another group that is led by another group leader so that I can stop leading one group or stop being a group leader entirely
+      1. Demonstrate that I can submit a reason with my request
+      2. Demonstrate that I can view the status of my request
+      3. Demonstrate that I can be notified when there is a response to my request
+      4. Demonstrate that I can be notified when my request is accepted or rejected
+   9. As a group leader, I want the ability to create and manage goals for my group.
+      1. Demonstrate that I can create a goal that includes a title, description, start date, optional end date, and details about the objective
+      2. Demonstrate that I can makes changes to a goal at any point before, during, or after the challenge
+      3. Demonstrate that I can start new goal using past goals as a template
+      4. Demonstrate that I can attach multimedia content such as images and video to a goal objective
+12. CHAT
+   1. As a member, I want the ability to participate in group chats so that I can communicate and collaborate with all members of the group simultaneously.
+   2. As a member, I want the ability to communicate directly with individual members of the group so that I can have private conversations.
+   3. As a member, I want the ability to anonymously communicate with the group or a member of the group so that I can share sensitive or private information in a safe environment.
+   4. As a member, I want the ability to block communication with anyone in the group so that I can protect myself from unwanted or inappropriate communication.
+   5. As a member, I want the ability to mention a specific member of the group in chat so they receive a notification of the mention.
+   6. As a member, I want the ability to easily start or join a group video chat with other members of the group.
+   7. As a member, I want the ability to view and start a conversation with anyone in the organization
+   8. As a member, I want the ability to share multimedia content in communication that I have access
+   9. As a member, I want the ability to change notification settings for any conversation so I can control how many notifications I receive depending on the nature of the conversation and the device I am using
+      1. Demonstrate that I can mute any conversation
+      2. Demonstrate that I can be notified for all new messages
+      3. Demonstrate that I can be notified when I am mentioned
+      4. Demonstrate that I can have different notification settings for each device
+   10. As a member, I want the ability to set a reminder in a communication channel so that I can be reminded to post a message or follow up with something
+      1. Demonstrate that I can set a one-time reminder
+      2. Demonstrate that I can set a recurring reminder
+      3. Demonstrate that if the communication channel is removed or I no longer have access, that my reminder is also removed.
+   11. As an organization, I want the ability to have a dedicated place to communicate with any user or segment of users within my organization
+      1. Demonstrate that I can go to a single place to communicate with every leader in my organization
+      2. Demonstrate that I can go to a single place to communicate with every member in my organization
+   12. As an organization, I want the ability to mention multiple users using a single mention in any channel so that I don’t have to individually mention every user if there are more than one I need to mention
+      1. Demonstrate that I can use a single mention (eg: @leaders) to notify every leader in in a channel
+      2. Demonstrate that I can use a single mention (eg: @members) to notify every member in a channel
+   13. As an organization, I want the ability to schedule messages to be posted in any channel at a future date and time
+   14. As an organization, I want the ability to send an emergency message to everyone in the organization
+      1. Demonstrate that I can attach content to the message
+      2. Demonstrate that I can schedule the message to be sent at a specified date and time
+      3. Demonstrate that I can limit the recipients to specific people or groups
+      4. Demonstrate that all members of the organization will be notified of the message
+   15. As a group leader, I want the ability to moderate communication within my group
+      1. Demonstrate that I can be notified when inappropriate content is posted
+      2. Demonstrate that I can set automated moderation controls that include things like language, sexually explicit content, inappropriate images, and more
+      3. Demonstrate that I can replace moderated content with a post of my own
+      4. Demonstrate that I can remove members from communication channels if they fail to comply with moderation guidelines
+   16. As a group leader I want the ability to send a message to my organization when I need help
+   17. As a group leader, I want the ability to send messages to a filtered subset of members from within my group or groups
+      1. Demonstrate that I can filter group members by gender, age, or location
+      2. Demonstrate that I can send a new message to the filtered members that will begin a conversation between them and myself.
+   18. As a group leader, I want the ability to coordinate with other people in the organization about a specific task so that we can work together, communicate, and share information
+      1. Demonstrate that I can find people in the organization and include them in the communication
+      2. Demonstrate that I can remove people from the communication if it is a task I created
+      3. Demonstrate that I can exit communication if I am no longer involved in the task.
+      4. Demonstrate that I can archive communication once the task is completed
+   19. As a group leader, I want the ability to send personalized video in any communication channels or threads for my organization or group
+      1. Demonstrate that I can take video from my phone and upload it to the chat
+      2. Demonstrate that I can schedule video posts to be posted at a specific date and time
+      3. Demonstrate that I can edit a post after it is posted
+      4. Demonstrate that I can unschedule or remove any post
+      5. Demonstrate that I can have an transcription included with my video post
+13. ANALYTICS
+   1. As an organization, I want the ability to view content analytics so I can understand what content is working well and what content is not working well.
+      1. Demonstrate that I can see content by views
+      2. Demonstrate that I can see content by filters
+      3. Demonstrate that I can see content watch time
+      4. Demonstrate that I can see where users dropped off content
+      5. Demonstrate that I can see what the average watch time is per video
+   2. As an organization, I want the ability to understand member engagement across the organization so that I can make more informed operational decisions.
+      1. Demonstrate that I can see engagement by time (event, group, messages, etc.)
+      2. Demonstrate that I can see activity by messages (direct and public)
+      3. Demonstrate that I can see engagement by topic
+      4. Demonstrate that I can see the most active users
+14. ADMIN
+   1. As an organization, I want to have full rights and privileges to create and edit any data in the system
+   2. As an organization, I want the ability to white label the application to reflect my organization's brand appropriately
+      1. Demonstrate that I upload the organization’s log
+      2. Demonstrate that I can select up to 5 brand colors using a color picker with a manual HEX code 
+      3. Demonstrate I can mark colors in a hierarchy (primary, secondary, tertiary, accent and background) and those colors will be reflected on the public UI and Admin backend
+      4. Demonstrate that I can update contact information like email addresses and phone numbers
+      5. Demonstrate that I can update social media links and those graphical links will be shown publicly
+      6. Demonstrate that I can display or hide visibility of any or all organization department phone numbers or email addresses to the public
+      7. Demonstrate I can choose Google Fonts to use for H1, H2, H3, H4, and body
+      8. Demonstrate the selected for H1 is set to a predetermined size and all other headings will be a specific amount smaller than H1 and can be manually overwritten 
+   3. As an organization I want the ability to create an about page that includes rich media and links.
+      1. Demonstrate that the about page can be embedded on other websites
+   4. As an organization I want the ability to create a custom branded loading screen 
+      1. Demonstrate that I can require the member to interact with the loading screen to hide it
+      2. Demonstrate the ability to toggle on/off the viewing of the loading screen
+      3. Demonstrate the ability to generate a random loading screen from a series of content in the organization’s content library
+   5. As an organization, I want the ability to manage payment methods and select a default payment method so that any costs associated with the platform can be automatically billed on a monthly, quarterly, or annual basis depending on the needs of my organization.
+   6. As an organization, I want the ability to manage the public visibility of all information and events within the organization so that I can prevent the public from accessing private information and events.
+      1. Demonstrate that groups can be designated as private, which makes them unable to be discovered by anyone who has not been invited to the group or assigned a leadership role within the group
+      2. Demonstrate that I can individually control visibility for specific pieces of information about a group like who is in the group, demographics of the group, and any other attributes of the group or its members
+   7. As an organization, I want the ability to create and manage surveys and assessments that every member of the organization must complete before they can become members so that we can better understand our membership.
+      1. Demonstrate that I can create a new survey that consists of one or more questions
+      2. Demonstrate that I can specify the type of responses allowed for each question on the survey (text, multiple choice, single choice)
+      3. Demonstrate that I can see who has taken each survey and when they took it
+      4. Demonstrate that I can view everyone’s responses to the survey
+   8. As an organization, I want the ability to manage notifications to myself and other administrators within the org based on key event-based triggers so that I can be more informed about what is happening within the organization.
+      1. Demonstrate that I can control how notifications are delivered (text, email, in app)
+      2. Demonstrate that I can control notifications per trigger (eg: Meeting scheduled, New member, etc.)
+      3. Demonstrate that I can mute notifications
+Addendum -

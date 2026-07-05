@@ -77,6 +77,28 @@
     gap: 8px;
   }
 
+  // Interactive theme-row native select (invisible overlay — MenuInput
+  // precedent) + the production photo fill.
+  &__theme-row {
+    position: relative;
+  }
+
+  &__theme-select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+    appearance: none;
+  }
+
+  &__photo {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
   &__well {
     flex: 1 1 0;
     height: 56px;
@@ -90,10 +112,42 @@
   }
 
   &__photo-icon {
-    width: 44px;
-    height: 44px;
+    // iOS photo.on.rectangle at Typography.s22 ≈ 24×18pt visible glyph —
+    // the old 44px box measured ~1.55× too large against the iPhone snapshot.
+    width: 28px;
+    height: 28px;
     // iOS Typography.s22 placeholder glyph, .white.opacity(0.3).
     color: var(--color-white-30);
+  }
+
+  // Upload-in-flight overlay (production only) — iOS isUploading scrim
+  // black@0.45 + white ProgressView over the image thumbnail.
+  &__image {
+    position: relative;
+  }
+
+  &__uploading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  &__spinner {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-top-color: #fff;
+    animation: BlockStyleEditor-spin 0.8s linear infinite;
+  }
+
+  @keyframes BlockStyleEditor-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   &__color {

@@ -1,0 +1,21 @@
+{
+  "id": "group-members",
+  "type": "page",
+  "group": "Groups",
+  "title": "Group Members",
+  "adapter": "group-members",
+  "viewports": ["pro-max"],
+  "shared": {
+    "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+    "groups": [
+      { "id": "g-001", "name": "Sunday Morning Group", "memberCount": 27, "isPrivate": true },
+      { "id": "g-002", "name": "Young Professionals", "memberCount": 14, "isPrivate": false },
+      { "id": "g-003", "name": "Wednesday Study", "memberCount": 9, "isPrivate": true }
+    ],
+    "members": [
+      { "id": "m-1", "firstName": "Maria", "lastName": "Lopez", "joinedAt": "2026-01-12", "groups": ["Sunday Morning Group"] },
+      { "id": "m-2", "firstName": "James", "lastName": "Okafor", "joinedAt": "2026-03-04", "groups": ["Sunday Morning Group", "Young Professionals"] },
+      { "id": "m-3", "firstName": "Priya", "lastName": "Nair", "joinedAt": "2026-05-20", "groups": ["Wednesday Study"] }
+    ]
+  }
+}

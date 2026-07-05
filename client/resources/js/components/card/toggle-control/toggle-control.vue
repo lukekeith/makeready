@@ -33,17 +33,26 @@ interface Props {
   title?: string
   description?: string
   isOn?: boolean
+  // Additive: render the bare row WITHOUT the ToggleGroup card chrome, for
+  // call sites that stack several controls inside ONE group card (iOS
+  // GroupHomePage editGroupContent). Default keeps the captured rendering.
+  bare?: boolean
 }
 
 withDefaults(defineProps<Props>(), {
   title: '',
   description: '',
   isOn: false,
+  bare: false,
 })
+
+// Additive interaction (like PageHeader's `select`): the compare harness binds
+// no listeners, so the twin's captured rendering is unchanged.
+const emit = defineEmits<{ toggle: [] }>()
 </script>
 
 <template>
-  <div class="ToggleControl">
+  <div class="ToggleControl" :class="{ 'ToggleControl--bare': bare }">
     <div class="ToggleControl__row">
       <div class="ToggleControl__text">
         <span class="ToggleControl__title">{{ title }}</span>
@@ -53,6 +62,12 @@ withDefaults(defineProps<Props>(), {
       <div
         class="ToggleControl__track"
         :class="isOn ? 'ToggleControl__track--on' : 'ToggleControl__track--off'"
+        role="switch"
+        :aria-checked="isOn"
+        tabindex="0"
+        @click="emit('toggle')"
+        @keydown.enter.prevent="emit('toggle')"
+        @keydown.space.prevent="emit('toggle')"
       >
         <span class="ToggleControl__knob"></span>
       </div>

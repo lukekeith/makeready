@@ -46,6 +46,16 @@ const props = withDefaults(defineProps<Props>(), {
 
 const isSubmenu = (props.submenuItems?.length ?? 0) > 0
 
+// Additive interaction (like PageHeader's `select`): the compare harness binds
+// no listeners, so the twin's captured rendering is unchanged.
+const emit = defineEmits<{
+  select: [index: number]
+  selectSubmenu: [index: number]
+  record: []
+  back: []
+  close: []
+}>()
+
 // IconSubmenu (chevron right, white@50) — trailing arrow on submenu-capable rows.
 const SUBMENU_ARROW =
   '<svg viewBox="0 0 20 20" fill="currentColor"><path d="M13.75 10L7.5 16.25L6.625 15.375L12 10L6.625 4.625L7.5 3.75L13.75 10Z"/></svg>'
@@ -66,8 +76,12 @@ const CLOSE =
       <div class="AddMenu__submenu-header">
         <span
           class="AddMenu__back"
-          aria-hidden="true"
+          role="button"
+          tabindex="0"
+          aria-label="Back"
           v-html="CHEVRON_LEFT"
+          @click="emit('back')"
+          @keydown.enter.prevent="emit('back')"
         />
         <div class="AddMenu__submenu-title">{{ submenuTitle }}</div>
         <span class="AddMenu__back-spacer" aria-hidden="true" />
@@ -80,6 +94,8 @@ const CLOSE =
           class="AddMenu__row AddMenu__row--reversed"
           role="button"
           tabindex="0"
+          @click="emit('selectSubmenu', i)"
+          @keydown.enter.prevent="emit('selectSubmenu', i)"
         >
           <div class="AddMenu__title">{{ item.title }}</div>
           <span class="AddMenu__spacer" />
@@ -101,6 +117,8 @@ const CLOSE =
           class="AddMenu__row"
           role="button"
           tabindex="0"
+          @click="emit('select', i)"
+          @keydown.enter.prevent="emit('select', i)"
         >
           <span
             class="AddMenu__icon AddMenu__icon--purple"
@@ -119,7 +137,13 @@ const CLOSE =
       </div>
 
       <div v-if="recordItem" class="AddMenu__card AddMenu__card--record">
-        <div class="AddMenu__row" role="button" tabindex="0">
+        <div
+          class="AddMenu__row"
+          role="button"
+          tabindex="0"
+          @click="emit('record')"
+          @keydown.enter.prevent="emit('record')"
+        >
           <span
             class="AddMenu__icon AddMenu__icon--record"
             aria-hidden="true"
@@ -131,6 +155,14 @@ const CLOSE =
       </div>
     </div>
 
-    <div class="AddMenu__close" aria-hidden="true" v-html="CLOSE" />
+    <div
+      class="AddMenu__close"
+      role="button"
+      tabindex="0"
+      aria-label="Close"
+      v-html="CLOSE"
+      @click="emit('close')"
+      @keydown.enter.prevent="emit('close')"
+    />
   </div>
 </template>

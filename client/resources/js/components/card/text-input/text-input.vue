@@ -32,7 +32,7 @@
 // The iPhone takes an SF symbol name; the web twin renders inline SVG, so the
 // adapter maps each labeled variant's symbol → an SF-symbol-like SVG. Fully
 // data-driven via props; BEM mirrors resources/css/components/card/text-input.scss.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 interface Props {
   // One of these three picks the style. The adapter sets exactly one.
@@ -41,6 +41,9 @@ interface Props {
   floatingLabel?: string
   icon?: string // inline SVG markup (labeled variants), or '' for none
   text?: string
+  // Additive (production): render a real <input> with v-model:text. The
+  // capture harness never sets this, so snapshots are unchanged.
+  interactive?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -49,7 +52,10 @@ const props = withDefaults(defineProps<Props>(), {
   floatingLabel: '',
   icon: '',
   text: '',
+  interactive: false,
 })
+
+const emit = defineEmits<{ 'update:text': [value: string] }>()
 
 const mode = computed<'placeholder' | 'labeled' | 'floating'>(() => {
   if (props.floatingLabel) return 'floating'
@@ -57,8 +63,15 @@ const mode = computed<'placeholder' | 'labeled' | 'floating'>(() => {
   return 'placeholder'
 })
 
-// isFloatingUp in the unfocused snapshot == has text.
-const isFloatingUp = computed(() => props.text.length > 0)
+const focused = ref(false)
+
+// isFloatingUp: unfocused snapshot == has text; interactive adds focus (iOS
+// isFocused || !text.isEmpty).
+const isFloatingUp = computed(() => props.text.length > 0 || (props.interactive && focused.value))
+
+function onInput(e: Event): void {
+  emit('update:text', (e.target as HTMLInputElement).value)
+}
 </script>
 
 <template>
@@ -68,7 +81,18 @@ const isFloatingUp = computed(() => props.text.length > 0)
       v-if="mode === 'placeholder'"
       class="TextInputField__field TextInputField__field--placeholder"
     >
+      <input
+        v-if="interactive"
+        class="TextInputField__value TextInputField__value--filled TextInputField__control"
+        type="text"
+        :value="text"
+        :placeholder="placeholder"
+        @input="onInput"
+        @focus="focused = true"
+        @blur="focused = false"
+      />
       <span
+        v-else
         class="TextInputField__value"
         :class="text ? 'TextInputField__value--filled' : 'TextInputField__value--placeholder'"
       >{{ text || placeholder }}</span>
@@ -102,10 +126,22 @@ const isFloatingUp = computed(() => props.text.length > 0)
         v-html="icon"
       ></span>
       <div class="TextInputField__floatWrap">
-        <span v-if="text" class="TextInputField__floatText">{{ text }}</span>
+        <input
+          v-if="interactive"
+          class="TextInputField__floatText TextInputField__control"
+          type="text"
+          :value="text"
+          @input="onInput"
+          @focus="focused = true"
+          @blur="focused = false"
+        />
+        <span v-else-if="text" class="TextInputField__floatText">{{ text }}</span>
         <span
           class="TextInputField__floatLabel"
-          :class="isFloatingUp ? 'TextInputField__floatLabel--floating' : 'TextInputField__floatLabel--resting'"
+          :class="[
+            isFloatingUp ? 'TextInputField__floatLabel--floating' : 'TextInputField__floatLabel--resting',
+            interactive && focused && 'TextInputField__floatLabel--focused',
+          ]"
         >{{ floatingLabel }}</span>
       </div>
     </div>

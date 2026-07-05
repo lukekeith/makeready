@@ -1,0 +1,40 @@
+{
+  "id": "search",
+  "type": "page",
+  "group": "Search",
+  "title": "Search",
+  "adapter": "search",
+  "viewports": ["pro-max"],
+  "variants": [
+    {
+      "name": "recent-results",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "programs": [
+          { "id": "prog-1", "name": "Romans in 30 days", "days": 30 },
+          { "id": "prog-2", "name": "The Gospel of John", "days": 21 },
+          { "id": "prog-3", "name": "Psalms of Ascent", "days": 15 }
+        ],
+        "groups": [
+          { "id": "g-001", "name": "Sunday Morning Group", "memberCount": 27, "isPrivate": true },
+          { "id": "g-002", "name": "Young Professionals", "memberCount": 14, "isPrivate": false }
+        ],
+        "searchRecents": true
+      }
+    },
+    {
+      "name": "with-results",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "programs": [
+          { "id": "prog-1", "name": "Romans in 30 days", "days": 30 },
+          { "id": "prog-2", "name": "The Gospel of John", "days": 21 }
+        ],
+        "groups": [
+          { "id": "g-001", "name": "Sunday Morning Group", "memberCount": 27, "isPrivate": true }
+        ],
+        "searchQuery": "study"
+      }
+    }
+  ]
+}

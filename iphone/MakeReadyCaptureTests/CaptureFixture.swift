@@ -53,6 +53,33 @@ struct CaptureState: Codable {
     let programDays: Int?
     // Path to a local image file (relative to capture root) to seed as the program cover image
     let programCoverImagePath: String?
+    // Calendar screen: lesson/event entries to seed into AppState.calendarEvents
+    let calendarEvents: [CaptureCalendarEntry]?
+    // Media library screen: items to seed into AppState.mediaLibrary
+    let media: [CaptureMediaItem]?
+    // Search screen: mock the network so recents/results render (test-target
+    // MockURLProtocol). `searchRecents` mocks GET /api/activities from seeded
+    // programs/groups; `searchQuery` mocks GET /api/search + drives the query.
+    let searchRecents: Bool?
+    let searchQuery: String?
+}
+
+/// A calendar entry for the Calendar SCREEN capture (seeded into
+/// AppState.calendarEvents, keyed by `date` "yyyy-MM-dd"). Distinct from
+/// CaptureCalendarEvent, which is the calendar COMPONENT fixture shape.
+struct CaptureCalendarEntry: Codable {
+    let id: String
+    let date: String        // "yyyy-MM-dd"
+    let title: String
+    let studyName: String?
+}
+
+/// A media-library item for the Media screen capture (seeded into
+/// AppState.mediaLibrary). `type` is a raw MediaType-ish string.
+struct CaptureMediaItem: Codable {
+    let id: String
+    let title: String
+    let type: String?
 }
 
 // MARK: - Component capture model
@@ -366,12 +393,16 @@ struct CaptureActivity: Codable {
     let title: String?
     let orderNumber: Int?
     let status: String?
+    let placeholder: String?
     let isHelpEnabled: Bool?
     let helpTitle: String?
     let helpDescription: String?
     let helpIcon: String?
     let readBlocks: [CaptureReadBlock]?
     let sourceReferences: [CaptureSourceRef]?
+    // EditDay cards: passage label + "N min" estimate
+    let passageReference: String?
+    let estimatedSeconds: Int?
     // YouTube-specific fields
     let youtubeUrl: String?
     let youtubeVideoId: String?

@@ -1,1 +1,4 @@
 node_modules/
+
+# derived pixel-diff artifacts (regenerate with runners/compare/diff.mjs)
+fixtures/compare/_shots/*/*/_diff/

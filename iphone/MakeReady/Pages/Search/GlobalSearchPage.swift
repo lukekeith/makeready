@@ -11,6 +11,9 @@ import SwiftUI
 
 struct GlobalSearchPage: View {
     let overlayManager: OverlayManager
+    // Optional initial query. Defaults to nil so normal app callsites are
+    // unchanged; the capture harness passes it to render the results state.
+    var initialQuery: String? = nil
     @State private var selectedProgramId: String?
     @State private var searchText = ""
     @State private var isSearchActive = false
@@ -53,6 +56,7 @@ struct GlobalSearchPage: View {
             triggerSearch()
         }
         .onAppear {
+            if let initialQuery { searchText = initialQuery }
             Task {
                 recentResults = await GlobalSearchEngine.fetchRecentItems(in: state)
             }

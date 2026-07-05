@@ -13,8 +13,10 @@
   position: relative;
   display: flex;
   background: var(--bg-surface);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-lg);
+  // iOS CardStudy: cornerRadius 4, NO border (its strokeBorder overlay is the
+  // animated not-ready ring only, off by default).
+  border: none;
+  border-radius: 4px;
   cursor: pointer;
   overflow: hidden;
   text-align: left;
@@ -30,7 +32,6 @@
   // Hover / press well.
   &:hover {
     background: var(--bg-elevated);
-    border-color: var(--border-strong);
   }
   &:active {
     filter: brightness(0.97);

@@ -33,6 +33,17 @@
   background: var(--color-white-5);
   border-radius: 10px;
 
+  // Composed inside a real FieldGroup, the card chrome (bg / radius / 4px
+  // V-pad) comes from the GROUP — the root card above exists only because the
+  // standalone capture harness is FieldGroup{TextInput}. Prevents the double
+  // background + 8px height inflation (same context rule as .MenuInput's).
+  .FieldGroup & {
+    padding-top: 0;
+    padding-bottom: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
   &__field {
     display: flex;
     align-items: center;
@@ -135,6 +146,11 @@
     top: 50%;
     white-space: nowrap;
     pointer-events: none; // iOS .allowsHitTesting(false)
+    // iOS .animation(Motion.settle) — easeOut 0.2s on the float up/down.
+    transition:
+      transform 0.2s ease-out,
+      font-size 0.2s ease-out,
+      color 0.2s ease-out;
 
     &--resting {
       // iOS .system(size: 17), .white.opacity(0.35), .offset(y: 0)
@@ -152,4 +168,30 @@
       color: var(--color-white-50);
     }
   }
+}
+
+// Interactive mode (production only — the capture harness never sets it):
+// the real <input> shares the static value classes; this only resets browser
+// chrome so it renders identically.
+.TextInputField__control {
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-family: inherit;
+  color: inherit;
+  caret-color: var(--color-brand-500);
+
+  &::placeholder {
+    color: var(--color-white-50);
+    opacity: 1;
+  }
+}
+
+// Focused floating label — iOS tints the label brandPrimary while editing.
+.TextInputField__floatLabel--focused {
+  color: var(--color-brand-500);
 }

@@ -9,6 +9,28 @@
  * register it here, then drop a `fixtures/compare/<group>/<id>.json` spec.
  */
 import groupHome from './group-home.mjs';
+import homeDashboard from './home-dashboard.mjs';
+import activity from './activity.mjs';
+import groups from './groups.mjs';
+import groupMembers from './group-members.mjs';
+import groupsEnrolled from './groups-enrolled.mjs';
+import studyPrograms from './study-programs.mjs';
+import programHome from './program-home.mjs';
+import createProgram from './create-program.mjs';
+import editDay from './edit-day.mjs';
+import editGroup from './edit-group.mjs';
+import groupInvite from './group-invite.mjs';
+import groupMembersPage from './group-members-page.mjs';
+import biblePassagePicker from './bible-passage-picker.mjs';
+import editExegesisActivity from './edit-exegesis-activity.mjs';
+import exegesisHighlightMenu from './exegesis-highlight-menu.mjs';
+import editReadActivity from './edit-read-activity.mjs';
+import editUserInputActivity from './edit-user-input-activity.mjs';
+import editYoutubeActivity from './edit-youtube-activity.mjs';
+import videoActivityPicker from './video-activity-picker.mjs';
+import media from './media.mjs';
+import calendar from './calendar.mjs';
+import search from './search.mjs';
 import cardStudy from './card-study.mjs';
 import groupCard from './GroupCard.mjs';
 import cardLesson from './CardLesson.mjs';
@@ -24,6 +46,7 @@ import actionButton from './ActionButton.mjs';
 import boxButton from './BoxButton.mjs';
 import ageRangeInput from './AgeRangeInput.mjs';
 import backgroundSourceMenu from './BackgroundSourceMenu.mjs';
+import addActivityMenu from './AddActivityMenu.mjs';
 import cardActivityType from './CardActivityType.mjs';
 import cardActivity from './CardActivity.mjs';
 import cardBibleSearchResult from './CardBibleSearchResult.mjs';
@@ -109,6 +132,31 @@ import videoSourceBar from './VideoSourceBar.mjs';
 
 export const adapters = {
   'group-home': groupHome,
+  'home-dashboard': homeDashboard,
+  activity,
+  groups,
+  'group-members': groupMembers,
+  'groups-enrolled': groupsEnrolled,
+  'study-programs': studyPrograms,
+  'program-home': programHome,
+  'create-program': createProgram,
+  'edit-day': editDay,
+  // WEB-ONLY: the iOS form is private @State-gated inside pages.group-home.
+  'edit-group': editGroup,
+  // WEB-ONLY: trailing pane behind the same private @State.
+  'group-invite': groupInvite,
+  // WEB-ONLY: same pane family. NOT `group-members` (the Groups TAB comparison).
+  'group-members-page': groupMembersPage,
+  'bible-passage-picker': biblePassagePicker,
+  'edit-exegesis-activity': editExegesisActivity,
+  'exegesis-highlight-menu': exegesisHighlightMenu,
+  'edit-read-activity': editReadActivity,
+  'edit-user-input-activity': editUserInputActivity,
+  'edit-youtube-activity': editYoutubeActivity,
+  'video-activity-picker': videoActivityPicker,
+  media,
+  calendar,
+  search,
   'card-study': cardStudy,
   GroupCard: groupCard,
   // iPhone-first card comparisons (no Vue twin yet) — generic passthrough to the
@@ -219,6 +267,10 @@ export const adapters = {
   // Two-sided twin (Vue + iPhone). The iPhone side is the generic component
   // passthrough; the web side renders the data-driven video-source-bar.vue.
   VideoSourceBar: videoSourceBar,
+  // Two-sided full-screen overlay: the production island add-activity-menu.vue
+  // IS the twin (via pages.leader-twin); iPhone = pages.add-activity-menu
+  // (device layout — the old component.* sizeThatFits capture was skipped).
+  AddActivityMenu: addActivityMenu,
 };
 
 // iPhone-first component comparisons scaffolded from the full Components/ inventory
@@ -227,7 +279,7 @@ export const adapters = {
 // captured. As a Vue twin lands, promote the entry to a real two-sided adapter above
 // (see card-study.mjs / GroupCard.mjs) — nothing about the fixture changes.
 const IPHONE_FIRST_COMPONENTS = [
-  'ActionCardMenu', 'AddActivityMenu', 'AddMenu',
+  'ActionCardMenu', 'AddMenu',
   'AlphabetScrubber', 'Avatar',
   'BackgroundSwatch', 'BibleVerseTextLayout', 'BlockStyleEditor',
   'CalendarBottomBar', 'CalendarDayCell', 'CalendarEventListContent',

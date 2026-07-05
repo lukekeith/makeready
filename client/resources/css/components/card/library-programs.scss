@@ -1,0 +1,188 @@
+// LibraryPrograms — capture-only web twin of the iPhone MainLibrary "Programs"
+// tab. Page chrome only; PageHeader / SearchField / CardProgramFull carry their
+// own styling. Full-bleed like the iPhone screen.
+.LibraryPrograms {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--color-canvas); // iOS Color.appBackground
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar.
+  &__statusbar {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__headerRow {
+    position: relative;
+    z-index: 2;
+    flex: 0 0 auto;
+    position: relative;
+  }
+
+  // Trailing export + plus — 32pt white@10% circles, centered on the tab row.
+  &__actions {
+    position: absolute;
+    top: 19px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__actionBtn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-white-10); // iOS Color.white.opacity(0.1)
+    color: #fff;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+  }
+
+  // Search (iOS .padding(.horizontal,16).padding(.top,12)).
+  &__search {
+    position: relative;
+    z-index: 2;
+    padding: 12px 16px 0;
+  }
+
+  // Filter pills row (iOS programsFilterRow — FilterChipDropdownTrigger pills).
+  &__filters {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    gap: 8px; // iOS HStack(spacing: 8)
+    padding: 12px 16px 8px; // .padding(.top,12) + overlay .padding(.bottom,8)
+  }
+
+  // One pill — iOS FilterChipDropdownTrigger (inactive): label s13Medium white@70
+  // + chevron.down s10 white@50, padding 14h/8v, ultraThinMaterial capsule (which
+  // reads as a faint light fill over the dark canvas in the full-page capture).
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px; // iOS HStack(spacing: 6)
+    padding: 8px 14px; // iOS .padding(.horizontal,14).padding(.vertical,8)
+    border-radius: var(--radius-full);
+    background: var(--color-white-10); // iOS .ultraThinMaterial over canvas
+    font-size: var(--text-sm); // iOS Typography.s13Medium
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-70);
+    white-space: nowrap;
+  }
+
+  // Active trigger: iOS white capsule + appBackground label/chevron.
+  &__chip--active {
+    background: #fff;
+    color: var(--color-canvas);
+
+    .LibraryPrograms__chipChevron {
+      color: var(--color-canvas);
+    }
+  }
+
+  // Open-panel state (compare-visibility): panel floats below the chips over
+  // a black@0.5 dim layer, mirroring the wired library-view overlay.
+  &__panelWrap {
+    position: relative;
+    z-index: 2;
+    padding: 8px 16px 0;
+  }
+
+  &__panelScrim {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  &__chipChevron {
+    display: inline-flex;
+    width: 10px;
+    height: 10px;
+    color: var(--color-white-50); // iOS chevron white@50
+
+    svg {
+      width: 10px;
+      height: 10px;
+      display: block;
+    }
+  }
+
+  // "Browse all" + sort row (iOS browseAllSection header HStack).
+  &__browse {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 7px 16px 0; // tightened to land the first card on the iPhone's y
+  }
+
+  &__browseTitle {
+    font-size: var(--text-lead); // iOS Typography.s17Bold
+    line-height: var(--leading-lead);
+    font-weight: var(--font-weight-bold);
+    color: #fff;
+  }
+
+  &__sort {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px; // iOS HStack(spacing: 4)
+    font-size: var(--text-md); // iOS Typography.s14Medium
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-70);
+  }
+
+  &__sortIcon {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    color: var(--color-white-70);
+
+    svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+  }
+
+  // Program cards (iOS VStack(spacing: 12), .padding(.horizontal,16)).
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px 100px; // bottom clears the iOS NavBar zone
+  }
+}

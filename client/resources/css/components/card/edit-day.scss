@@ -1,0 +1,60 @@
+// EditDay — CAPTURE-ONLY twin of the iPhone lesson editor (EditDay.swift
+// `dayContent`). Production layout lives in edit-day-pane.vue (scoped styles);
+// keep the two in sync. iOS values 1:1: title FieldGroup H16 top 8, scroll
+// VStack(spacing 4) padded H16 top 16, 12px pre-add spacer, 32px bottom pad.
+.EditDay {
+  position: relative;
+  width: 100%; // the capture island centers children — page twins must fill
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--color-canvas);
+  color: var(--fg-white);
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar
+  // (capture only — gated by the statusBar prop; same as CreateProgram's).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__titleField {
+    padding: 8px 16px 0; // iOS .padding(.horizontal, 16).padding(.top, 8)
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px; // iOS VStack(spacing: 4)
+    overflow-y: auto;
+    padding: 16px 16px 32px; // iOS top 16 / H16 / Preview .padding(.bottom, 32)
+  }
+
+  &__activities {
+    display: flex;
+    flex-direction: column;
+    gap: 4px; // iOS DragulaView inherits VStack(spacing: 4)
+  }
+
+  &__addSpacer {
+    flex: 0 0 12px; // iOS Spacer().frame(height: 12)
+  }
+}

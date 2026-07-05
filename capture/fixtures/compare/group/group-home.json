@@ -4,54 +4,176 @@
   "group": "Group",
   "title": "Group Home",
   "adapter": "group-home",
-  "viewports": ["pro-max", "pro", "se"],
-  "shared": {
-    "user": {
-      "id": "user-1",
-      "name": "Alex Rivera",
-      "email": "alex@example.com",
-      "picture": null,
-      "firstName": "Alex",
-      "lastName": "Rivera",
-      "phoneNumber": "+15555550100"
-    },
-    "group": {
-      "id": "g-001",
-      "code": "ABC123",
-      "name": "Sunday Morning Group",
-      "description": "Weekly study group",
-      "memberCount": 27,
-      "isPrivate": true,
-      "coverImageUrl": null,
-      "organizationName": "MakeReady",
-      "creatorName": "Guy Gardner",
-      "creatorPicture": null
-    },
-    "studies": [
-      {
-        "id": "e-001",
-        "programId": "prog-1",
-        "title": "Romans in 30 days",
-        "description": "A comprehensive look at the book of Romans and how it applies in a modern world.",
-        "days": 30,
-        "coverImageUrl": null,
-        "nextLessonId": "l-001",
-        "nextLessonTitle": "The Righteous Will Live by Faith",
-        "nextLessonDay": 5,
-        "nextLessonDate": "2026-06-06"
-      },
-      {
-        "id": "e-002",
-        "programId": "prog-2",
-        "title": "The Gospel of John",
-        "description": "Walking through the life of Jesus as told by his closest friend.",
-        "days": 21,
-        "coverImageUrl": null,
-        "nextLessonId": "l-002",
-        "nextLessonTitle": "In the Beginning Was the Word",
-        "nextLessonDay": 1,
-        "nextLessonDate": "2026-06-06"
+  "viewports": [
+    "pro-max",
+    "pro",
+    "se"
+  ],
+  "note": "posts variant is WEB-FORWARD: the iPhone harness can't seed posts (loadPosts always hits the live API) or nextLesson (enrollment details are a live fetch), so the iPhone pane renders the default empty-posts state — same policy as library filters-active. Cover-image state exists in the twin (coverUrl prop) but has no variant: remote images never resolve in iPhone snapshots and the web side would show a broken img; verify covers live.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null,
+          "firstName": "Alex",
+          "lastName": "Rivera",
+          "phoneNumber": "+15555550100"
+        },
+        "group": {
+          "id": "g-001",
+          "code": "ABC123",
+          "name": "Sunday Morning Group",
+          "description": "Weekly study group",
+          "memberCount": 27,
+          "isPrivate": true,
+          "coverImageUrl": null,
+          "organizationName": "MakeReady",
+          "creatorName": "Guy Gardner",
+          "creatorPicture": null
+        },
+        "studies": [
+          {
+            "id": "e-001",
+            "programId": "prog-1",
+            "title": "Romans in 30 days",
+            "description": "A comprehensive look at the book of Romans and how it applies in a modern world.",
+            "days": 30,
+            "coverImageUrl": null,
+            "nextLessonId": "l-001",
+            "nextLessonTitle": "The Righteous Will Live by Faith",
+            "nextLessonDay": 5,
+            "nextLessonDate": "2026-06-06"
+          },
+          {
+            "id": "e-002",
+            "programId": "prog-2",
+            "title": "The Gospel of John",
+            "description": "Walking through the life of Jesus as told by his closest friend.",
+            "days": 21,
+            "coverImageUrl": null,
+            "nextLessonId": "l-002",
+            "nextLessonTitle": "In the Beginning Was the Word",
+            "nextLessonDay": 1,
+            "nextLessonDate": "2026-06-06"
+          }
+        ]
       }
-    ]
-  }
+    },
+    {
+      "name": "posts",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null,
+          "firstName": "Alex",
+          "lastName": "Rivera",
+          "phoneNumber": "+15555550100"
+        },
+        "group": {
+          "id": "g-001",
+          "code": "ABC123",
+          "name": "Sunday Morning Group",
+          "description": "Weekly study group",
+          "memberCount": 27,
+          "isPrivate": true,
+          "coverImageUrl": null,
+          "organizationName": "MakeReady",
+          "creatorName": "Guy Gardner",
+          "creatorPicture": null
+        },
+        "studies": [
+          {
+            "id": "e-001",
+            "programId": "prog-1",
+            "title": "Romans in 30 days",
+            "description": "A comprehensive look at the book of Romans and how it applies in a modern world.",
+            "days": 30,
+            "coverImageUrl": null,
+            "nextLessonId": "l-001",
+            "nextLessonTitle": "The Righteous Will Live by Faith",
+            "nextLessonDay": 5,
+            "nextLessonDate": "2026-06-06"
+          },
+          {
+            "id": "e-002",
+            "programId": "prog-2",
+            "title": "The Gospel of John",
+            "description": "Walking through the life of Jesus as told by his closest friend.",
+            "days": 21,
+            "coverImageUrl": null,
+            "nextLessonId": "l-002",
+            "nextLessonTitle": "In the Beginning Was the Word",
+            "nextLessonDay": 1,
+            "nextLessonDate": "2026-06-06"
+          }
+        ],
+        "requestBadge": true,
+        "nextLesson": {
+          "mode": "lesson",
+          "day": 5,
+          "title": "The Righteous Will Live by Faith",
+          "date": "2026-06-06",
+          "estimatedMinutes": 25,
+          "activities": [
+            {
+              "type": "READ",
+              "status": "default"
+            },
+            {
+              "type": "USER_INPUT",
+              "status": "default"
+            },
+            {
+              "type": "VIDEO",
+              "status": "default"
+            }
+          ]
+        },
+        "posts": [
+          {
+            "id": "post-1",
+            "type": "announcement",
+            "authorName": "Guy Gardner",
+            "initials": "GG",
+            "timeValue": "2",
+            "timeUnit": "hours ago",
+            "text": "Great discussion this morning everyone — remember to finish day 5 before Sunday!",
+            "viewCount": 12,
+            "shareCount": 3
+          },
+          {
+            "id": "post-2",
+            "type": "event",
+            "authorName": "Alex Rivera",
+            "initials": "AR",
+            "timeValue": "1",
+            "timeUnit": "day ago",
+            "text": "Join us for a special evening of worship and testimony.",
+            "eventTitle": "Evening of Worship",
+            "eventDateTime": "Tuesday June 10 - 7:00pm",
+            "eventDay": "10",
+            "eventMonth": "JUN",
+            "attendeeCount": 14
+          },
+          {
+            "id": "post-3",
+            "type": "welcome",
+            "authorName": "Sam Chen",
+            "initials": "SC",
+            "timeValue": "3",
+            "timeUnit": "days ago",
+            "text": "Excited to be part of this group! Looking forward to studying together.",
+            "viewCount": 8,
+            "shareCount": 0
+          }
+        ]
+      }
+    }
+  ]
 }

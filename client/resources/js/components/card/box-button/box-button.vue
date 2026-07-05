@@ -61,6 +61,8 @@ interface Props {
   buttonStyle?: keyof typeof BoxButtonCva.buttonStyle
   size?: keyof typeof BoxButtonCva.size
   fullWidth?: boolean
+  /** iOS BoxButton iconOpacity (e.g. Preview buttons pass 0.5). */
+  iconOpacity?: number
   class?: string
 }
 
@@ -72,6 +74,7 @@ const props = withDefaults(defineProps<Props>(), {
   buttonStyle: () => BoxButtonCva.defaults?.buttonStyle as keyof typeof BoxButtonCva.buttonStyle,
   size: () => BoxButtonCva.defaults?.size as keyof typeof BoxButtonCva.size,
   fullWidth: false,
+  iconOpacity: 1,
 })
 
 const emit = defineEmits<{ click: [MouseEvent] }>()
@@ -115,11 +118,11 @@ const onClick = (e: MouseEvent) => emit('click', e)
     :disabled="variant === 'disabled'"
     @click="onClick"
   >
-    <span v-if="isIconOnly && icon" class="BoxButton__icon" aria-hidden="true" v-html="icon" />
+    <span v-if="isIconOnly && icon" class="BoxButton__icon" :style="{ opacity: iconOpacity }" aria-hidden="true" v-html="icon" />
     <template v-else>
-      <span v-if="showLeftIcon" class="BoxButton__icon" aria-hidden="true" v-html="icon" />
+      <span v-if="showLeftIcon" class="BoxButton__icon" :style="{ opacity: iconOpacity }" aria-hidden="true" v-html="icon" />
       <span v-if="label" class="BoxButton__label">{{ label }}</span>
-      <span v-if="showRightIcon" class="BoxButton__icon" aria-hidden="true" v-html="icon" />
+      <span v-if="showRightIcon" class="BoxButton__icon" :style="{ opacity: iconOpacity }" aria-hidden="true" v-html="icon" />
     </template>
   </button>
 </template>

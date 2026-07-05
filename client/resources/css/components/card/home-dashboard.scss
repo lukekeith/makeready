@@ -1,0 +1,120 @@
+// HomeDashboard — capture-only web leader twin of iPhone MainHome (Home tab).
+// Page chrome only; PageHeader / Kpi / VerticalBarChart / HeatMapChart / NavBar
+// carry their own styling. Mirrors MainHome's layout (KPI 2-col grid + section
+// labels + charts), full-bleed like the iPhone screen.
+.HomeDashboard {
+  // iOS `pages.home` is the live MainView: the ScrollView content (KPIs, charts)
+  // sits under a NavBar that floats at the bottom of the device screen, so the
+  // tall 576pt heatmap is cut off. Clip the twin to the device viewport height
+  // and float the NavBar so the capture reproduces that cut-off exactly.
+  position: relative;
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--color-canvas);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar.
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+    color: #fff;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__statusIcon { display: block; }
+
+  &__headerRow {
+    flex: 0 0 auto;
+    position: relative;
+  }
+
+  &__header { flex: 0 0 auto; }
+
+  // Trailing add button — iOS plus in a 32pt white@10% circle, vertically
+  // centered on the tab row (PageHeader's 16px top pad + tab text center).
+  &__addBtn {
+    position: absolute;
+    top: 19px;
+    right: 16px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-white-10);
+    color: #fff;
+
+    svg {
+      width: 17px;
+      height: 17px;
+      display: block;
+    }
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    overflow: hidden;
+    padding: 8px 16px 100px; // iOS ScrollView .padding(.bottom, 100) clears NavBar
+  }
+
+  // 2×2 KPI grid (iOS LazyVGrid, 2 columns, 4pt spacing).
+  &__kpis {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  &__kpi { width: 100%; }
+
+  // Section labels (s13 uppercase white@50%, tracked) above each chart. iOS
+  // wraps each in a VStack(spacing:16), so 16pt sits above and below the label.
+  &__section-label {
+    margin: 16px 0;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: var(--color-white-50);
+  }
+
+  &__chart {
+    width: 100%;
+  }
+
+  // NavBar floats over the scroll content at the bottom (iOS MainView ZStack).
+  // Its own background is transparent (ultraThinMaterial → invisible in
+  // snapshots), so the wrapper carries the appBackground fill that masks the
+  // cut-off heatmap behind it — matching the iPhone capture's solid dark bar.
+  &__nav {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    // iOS NavBar .ultraThinMaterial over appBackground — in the full MainView
+    // capture it renders as a lighter, opaque-looking band (≈white@10% over
+    // canvas). The opaque canvas base masks the cut-off heatmap behind it.
+    background: linear-gradient(rgba(255, 255, 255, 0.105), rgba(255, 255, 255, 0.105)),
+      var(--color-canvas);
+  }
+}

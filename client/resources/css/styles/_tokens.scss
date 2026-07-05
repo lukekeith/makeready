@@ -87,6 +87,7 @@
   --color-white-100: rgba(255, 255, 255, 1);
 
   // Translucent brand purple (#6c47ff) — matches iOS Color.brandPrimary.opacity().
+  --color-brand-10:  rgba(108, 71, 255, 0.10); // matches iOS .brandPrimary.opacity(0.1) (GroupInvite code row)
   --color-brand-20:  rgba(108, 71, 255, 0.20); // matches iOS .brandPrimary.opacity(0.2)
   --color-brand-30:  rgba(108, 71, 255, 0.30); // matches iOS .brandPrimary.opacity(0.3)
   --color-brand-35:  rgba(108, 71, 255, 0.35); // matches iOS .brandPrimary.opacity(0.35) (StylePickerMenu highlight sample bg)
@@ -207,6 +208,10 @@
   // the lesson navigation bar, lesson cards, and other floating panels.
   --surface-overlay:      rgba(37, 41, 54, 0.8); // #252936 @ 80%
   --surface-overlay-blur: var(--blur-lg);
+
+  // Frosted navigation surface — appBackground (#0d101a) @ 50% over a 20px blur.
+  // Used by the mobile leader app's fixed top tab header + bottom nav bar.
+  --surface-nav:          rgba(13, 16, 26, 0.5); // --color-canvas @ 50%
 }
 
 // Reduced-motion: collapse every motion duration so token-driven transitions

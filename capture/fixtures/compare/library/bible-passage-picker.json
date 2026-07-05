@@ -1,0 +1,77 @@
+{
+  "id": "bible-passage-picker",
+  "type": "page",
+  "group": "Library",
+  "title": "Bible Passage Picker",
+  "adapter": "bible-passage-picker",
+  "viewports": ["pro-max"],
+  "variants": [
+    {
+      "name": "books",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "picker": {
+          "screen": "books",
+          "usedBooks": [43, 45]
+        }
+      }
+    },
+    {
+      "name": "reader",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "picker": {
+          "screen": "reader",
+          "bookNumber": 43,
+          "chapter": 3,
+          "scrollToVerse": 14,
+          "selectionStart": 16,
+          "selectionEnd": 17,
+          "usedVerses": [19, 20],
+          "verses": [
+            { "v": 14, "t": "As Moses lifted up the serpent in the wilderness, even so must the Son of Man be lifted up," },
+            { "v": 15, "t": "that whoever believes in him should not perish, but have eternal life." },
+            { "v": 16, "t": "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life." },
+            { "v": 17, "t": "For God didn't send his Son into the world to judge the world, but that the world should be saved through him." },
+            { "v": 18, "t": "He who believes in him is not judged. He who doesn't believe has been judged already, because he has not believed in the name of the only born Son of God." },
+            { "v": 19, "t": "This is the judgment, that the light has come into the world, and men loved the darkness rather than the light, for their works were evil." },
+            { "v": 20, "t": "For everyone who does evil hates the light and doesn't come to the light, lest his works would be exposed." },
+            { "v": 21, "t": "But he who does the truth comes to the light, that his works may be revealed, that they have been done in God." }
+          ]
+        }
+      }
+    },
+    {
+      "name": "search",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "picker": {
+          "screen": "search",
+          "searchQuery": "love",
+          "matchedBooks": [
+            { "bookNumber": 62, "bookName": "1 John", "chapters": 5, "testament": "NT" }
+          ],
+          "searchResults": [
+            {
+              "reference": "John 3:16",
+              "text": "For God so loved the world, that he gave his only born Son, that whoever believes in him should not perish, but have eternal life.",
+              "bookNumber": 43,
+              "chapter": 3,
+              "verse": 16
+            },
+            {
+              "reference": "1 Corinthians 13:4-8",
+              "text": "Love is patient and is kind. Love doesn't envy. Love doesn't brag, is not proud,",
+              "bookNumber": 46,
+              "chapter": 13,
+              "verse": 4,
+              "title": "The Way of Love",
+              "summary": "Paul describes the character of love as the greatest of the gifts."
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "note": "WEB-ONLY comparison: the iPhone picker (BibleReaderOverlayView) is a pure-UIKit window overlay with no ViewRegistry capture case, so the iPhone side cannot be seeded — the web twin was built 1:1 from the Swift source spec (parity-bible-passage-picker memory). Verse texts are static WEB wording for determinism (live data comes from /api/bible)."
+}

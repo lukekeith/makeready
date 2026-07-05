@@ -40,7 +40,9 @@
     text-align: right;
     font-family: var(--font-serif);
     font-size: 12px;
-    line-height: 25.5px; // share the first text line's box so baselines align
+    // Share the first text line's box so baselines align (25.5px at the 16px
+    // capture size; scales with the editor font sizes 16/19/22/27/32).
+    line-height: calc(var(--exegesis-font-size, 16px) * 1.21875 + 6px);
     color: rgba(255, 255, 255, 0.55);
     user-select: none;
     -webkit-user-select: none;
@@ -50,7 +52,9 @@
     margin: 0;
     font-family: var(--font-serif);
     font-size: var(--exegesis-font-size, 16px);
-    line-height: 25.5px;
+    // 25.5px at 16px (capture-verified) — Charter ascent ≈ 1.22× + 6px
+    // lineSpacing, so larger editor sizes scale the pitch like UIKit does.
+    line-height: calc(var(--exegesis-font-size, 16px) * 1.21875 + 6px);
     color: var(--fg-white);
     text-align: justify;
     text-justify: inter-word;
@@ -82,5 +86,42 @@
 
   &__seg--bold {
     font-weight: 700;
+  }
+
+  // ── Interactive editor mode (production only; captures never see these) ──
+
+  // The highlight whose action menu is open — iOS renders it white bg + black
+  // text (buildAttributedText "selected" branch).
+  &__seg--selected {
+    background-color: #fff;
+    color: #000;
+  }
+
+  // Native selection styling — iOS ExegesisTextView tint #F4FF76 (drag
+  // preview @0.55 over the verse text).
+  &__seg--interactive {
+    cursor: text;
+
+    &::selection {
+      background-color: rgba(244, 255, 118, 0.55);
+      color: #fff;
+    }
+  }
+
+  // Multi-verse content: one paragraph per verse (iOS paragraphSpacing 8)
+  // with the verse number hung in the left gutter at the first line.
+  &__text--verse {
+    position: relative;
+    margin-bottom: 8px;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__verse-number--hung {
+    position: absolute;
+    left: -32px;
+    top: 0;
   }
 }

@@ -29,20 +29,33 @@
 //
 // Fully data-driven via props. BEM mirrors
 // resources/css/components/card/multiline-text-input.scss.
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 
 interface Props {
   placeholder?: string
   text?: string
+  // Additive (production): render a real <textarea> with v-model:text. The
+  // capture harness never sets this, so snapshots are unchanged.
+  interactive?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   text: '',
+  interactive: false,
 })
 
-// isFloatingUp in the unfocused snapshot == has text.
-const isFloatingUp = computed(() => props.text.length > 0)
+const emit = defineEmits<{ 'update:text': [value: string] }>()
+
+const focused = ref(false)
+
+// isFloatingUp: unfocused snapshot == has text; interactive adds focus (iOS
+// isFocused || !text.isEmpty).
+const isFloatingUp = computed(() => props.text.length > 0 || (props.interactive && focused.value))
+
+function onInput(e: Event): void {
+  emit('update:text', (e.target as HTMLTextAreaElement).value)
+}
 </script>
 
 <template>
@@ -50,11 +63,22 @@ const isFloatingUp = computed(() => props.text.length > 0)
     <div class="MultilineTextInput__field">
       <div
         class="MultilineTextInput__label"
-        :class="isFloatingUp ? 'MultilineTextInput__label--floating' : 'MultilineTextInput__label--resting'"
+        :class="[
+          isFloatingUp ? 'MultilineTextInput__label--floating' : 'MultilineTextInput__label--resting',
+          interactive && focused && 'MultilineTextInput__label--focused',
+        ]"
       >
         {{ placeholder }}
       </div>
-      <div v-if="text" class="MultilineTextInput__text">{{ text }}</div>
+      <textarea
+        v-if="interactive"
+        class="MultilineTextInput__text MultilineTextInput__control"
+        :value="text"
+        @input="onInput"
+        @focus="focused = true"
+        @blur="focused = false"
+      ></textarea>
+      <div v-else-if="text" class="MultilineTextInput__text">{{ text }}</div>
     </div>
   </div>
 </template>

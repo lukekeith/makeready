@@ -19,6 +19,10 @@ struct MainHome: View {
     let avatarURL: String?
     var onAddTap: (() -> Void)? = nil
     var onKPITap: ((HomeKPIDestination) -> Void)? = nil
+    // Optional initial tab (0 = Home, 1 = Activity). Defaults to nil so normal
+    // app callsites are unchanged; the capture harness passes it to snapshot the
+    // Activity tab in isolation.
+    var initialTab: Int? = nil
     @State private var activeTab = 0
 
     @Environment(AuthManager.self) var authManager
@@ -102,6 +106,7 @@ struct MainHome: View {
             }
         }
         .task {
+            if let initialTab { activeTab = initialTab }
             async let homeTask: () = HomeActions().loadHomeData(forceRefresh: false)
             async let calendarTask: () = HomeActions().loadCalendarEvents(forceRefresh: false)
             _ = await (homeTask, calendarTask)

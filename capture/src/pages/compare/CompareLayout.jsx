@@ -210,13 +210,16 @@ export default function CompareLayout() {
   }, [id, variant, variantInfo, navigate]);
 
   // ── Typeahead search ──
+  // Matches title OR id, separator-insensitive ("managed menu", "managed-menu"
+  // and "ManagedMenu" all hit the same entries).
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
   const searchRef = useRef(null);
+  const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   const matches = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = norm(query.trim());
     if (!q) return [];
-    return allComparisons.filter((c) => c.title.toLowerCase().includes(q) || c.id.toLowerCase().includes(q)).slice(0, 8);
+    return allComparisons.filter((c) => norm(c.title).includes(q) || norm(c.id).includes(q)).slice(0, 8);
   }, [query, allComparisons]);
   useEffect(() => setHighlight(0), [query]);
 
@@ -271,7 +274,7 @@ export default function CompareLayout() {
                 {matches.map((c, i) => (
                   <button key={c.id} className={`cmp-search__opt${i === highlight ? ' is-active' : ''}`}
                     onMouseEnter={() => setHighlight(i)} onMouseDown={(e) => { e.preventDefault(); goto(c.id); }}>
-                    <span>{c.title}</span><span className="cmp-search__type">{c.type}</span>
+                    <span>{c.title}</span><span className="cmp-search__id">{c.id}</span><span className="cmp-search__type">{c.type}</span>
                   </button>
                 ))}
               </div>

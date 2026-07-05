@@ -24,12 +24,12 @@ const navItems = computed(() => [
   {
     label: 'Navigation',
     items: [
-      { label: 'Dashboard', icon: 'pi pi-objects-column', command: () => router.push('/admin'), class: route.path === '/admin' ? 'p-menuitem-active' : '' },
-      { label: 'Groups', icon: 'pi pi-users', command: () => router.push('/admin/groups'), class: route.path.startsWith('/admin/groups') ? 'p-menuitem-active' : '' },
-      { label: 'Members', icon: 'pi pi-id-card', command: () => router.push('/admin/members'), class: route.path.startsWith('/admin/members') ? 'p-menuitem-active' : '' },
-      { label: 'Programs', icon: 'pi pi-book', command: () => router.push('/admin/programs'), class: route.path.startsWith('/admin/programs') ? 'p-menuitem-active' : '' },
-      { label: 'Logs', icon: 'pi pi-list', command: () => router.push('/admin/logs'), class: route.path.startsWith('/admin/logs') ? 'p-menuitem-active' : '' },
-      { label: 'Profile', icon: 'pi pi-user', command: () => router.push('/admin/profile'), class: route.path.startsWith('/admin/profile') ? 'p-menuitem-active' : '' },
+      { label: 'Dashboard', icon: 'pi pi-objects-column', command: () => router.push('/admin-legacy'), class: route.path === '/admin-legacy' ? 'p-menuitem-active' : '' },
+      { label: 'Groups', icon: 'pi pi-users', command: () => router.push('/admin-legacy/groups'), class: route.path.startsWith('/admin-legacy/groups') ? 'p-menuitem-active' : '' },
+      { label: 'Members', icon: 'pi pi-id-card', command: () => router.push('/admin-legacy/members'), class: route.path.startsWith('/admin-legacy/members') ? 'p-menuitem-active' : '' },
+      { label: 'Programs', icon: 'pi pi-book', command: () => router.push('/admin-legacy/programs'), class: route.path.startsWith('/admin-legacy/programs') ? 'p-menuitem-active' : '' },
+      { label: 'Logs', icon: 'pi pi-list', command: () => router.push('/admin-legacy/logs'), class: route.path.startsWith('/admin-legacy/logs') ? 'p-menuitem-active' : '' },
+      { label: 'Profile', icon: 'pi pi-user', command: () => router.push('/admin-legacy/profile'), class: route.path.startsWith('/admin-legacy/profile') ? 'p-menuitem-active' : '' },
     ],
   },
 ])
@@ -62,7 +62,7 @@ function handleLogout() {
 <template>
   <aside style="width: 16rem; display: flex; flex-direction: column; border-right: 1px solid var(--p-content-border-color); background: var(--p-surface-0);">
     <!-- Logo -->
-    <a href="/admin" style="display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; text-decoration: none; color: var(--p-text-color); font-weight: 600;">
+    <a href="/admin-legacy" style="display: flex; align-items: center; gap: 0.75rem; padding: 1rem 1.25rem; text-decoration: none; color: var(--p-text-color); font-weight: 600;">
       <img src="/logo-mark.svg" alt="MakeReady" style="width: 2rem; height: 2rem;" />
       <span>MakeReady</span>
     </a>

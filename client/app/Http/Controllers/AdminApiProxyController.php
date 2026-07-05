@@ -55,7 +55,7 @@ class AdminApiProxyController extends Controller
             'post'   => $this->apiPost($request, $endpoint, $headers),
             'patch',
             'put'    => $this->apiPatch($request, $endpoint, $headers),
-            'delete' => $this->apiDelete($endpoint, $headers),
+            'delete' => $this->apiDelete($request, $endpoint, $headers),
             default  => ['status' => 405, 'body' => ['error' => 'Method Not Allowed']],
         };
 
@@ -132,9 +132,14 @@ class AdminApiProxyController extends Controller
         return ['status' => $response->status(), 'body' => $response->json()];
     }
 
-    private function apiDelete(string $url, array $headers): array
+    private function apiDelete(Request $request, string $url, array $headers): array
     {
-        $response = Http::withHeaders($headers)->delete($url);
+        // Forward any JSON body — some API DELETEs take one (e.g. removing
+        // program tags sends { tags: [...] }).
+        $response = Http::withHeaders(array_merge($headers, [
+            'Content-Type' => 'application/json',
+        ]))->delete($url, $request->json()->all() ?? []);
+
         return ['status' => $response->status(), 'body' => $response->json()];
     }
 }

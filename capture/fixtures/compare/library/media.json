@@ -1,0 +1,88 @@
+{
+  "id": "media",
+  "type": "page",
+  "group": "Library",
+  "title": "Media",
+  "adapter": "media",
+  "viewports": [
+    "pro-max"
+  ],
+  "note": "'filters-active' is a web-forward variant (compare-visibility policy): the iPhone harness cannot seed filter state.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "media": [
+          {
+            "id": "med-1",
+            "title": "Welcome video",
+            "type": "VIDEO"
+          },
+          {
+            "id": "med-2",
+            "title": "Group photo",
+            "type": "IMAGE"
+          },
+          {
+            "id": "med-3",
+            "title": "Lesson 5 intro",
+            "type": "VIDEO"
+          }
+        ]
+      }
+    },
+    {
+      "name": "filters-active",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "media": [
+          {
+            "id": "med-1",
+            "title": "Welcome video",
+            "type": "VIDEO"
+          },
+          {
+            "id": "med-2",
+            "title": "Group photo",
+            "type": "IMAGE"
+          },
+          {
+            "id": "med-3",
+            "title": "Lesson 5 intro",
+            "type": "VIDEO"
+          }
+        ],
+        "filters": {
+          "chips": [
+            {
+              "label": "All tags"
+            },
+            {
+              "label": "My content",
+              "active": true
+            },
+            {
+              "label": "Video",
+              "active": true
+            },
+            {
+              "label": "Last 7 days",
+              "active": true
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

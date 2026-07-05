@@ -116,6 +116,7 @@
 // component — the compare twin uses block `.AgeRangeField`).
 @use 'components/card/age-range-input' as age-range-input-twin;
 @use 'components/card/background-source-menu';
+@use 'components/card/bible-passage-picker';
 @use 'components/card/box-button';
 @use 'components/card/calendar-bottom-bar';
 @use 'components/card/calendar-day-cell';
@@ -160,6 +161,16 @@
 @use 'components/card/card-video';
 @use 'components/card/card-video-mini';
 @use 'components/card/swipeable-card';
+@use 'components/card/dragula-list';
+@use 'components/card/export-confirm-overlay';
+@use 'components/card/create-program' as create-program-twin;
+@use 'components/card/edit-day' as edit-day-twin;
+@use 'components/card/edit-exegesis-activity' as edit-exegesis-activity-twin;
+@use 'components/card/exegesis-highlight-menu' as exegesis-highlight-menu-twin;
+@use 'components/card/edit-read-activity' as edit-read-activity-twin;
+@use 'components/card/video-activity-picker' as video-activity-picker-twin;
+@use 'components/card/edit-user-input-activity' as edit-user-input-activity-twin;
+@use 'components/card/edit-youtube-activity' as edit-youtube-activity-twin;
 @use 'components/card/donut-chart' as donut-chart-twin;
 @use 'components/card/horizontal-bar-chart' as horizontal-bar-chart-twin;
 @use 'components/card/vertical-bar-chart' as vertical-bar-chart-twin;
@@ -179,6 +190,15 @@
 @use 'components/card/error-banner' as error-banner-twin;
 @use 'components/card/unenroll-confirmation' as unenroll-confirmation-twin;
 @use 'components/card/group-action-button' as group-action-button-twin;
+@use 'components/card/edit-group' as edit-group-twin;
+@use 'components/card/group-home-leader' as group-home-leader-twin;
+@use 'components/card/group-invite' as group-invite-twin;
+@use 'components/card/group-members-page' as group-members-page-twin;
+@use 'components/card/home-dashboard' as home-dashboard-twin;
+@use 'components/card/groups-leader' as groups-leader-twin;
+@use 'components/card/library-programs' as library-programs-twin;
+@use 'components/card/library-media' as library-media-twin;
+@use 'components/card/program-home' as program-home-twin;
 @use 'components/card/skeleton-post-card' as skeleton-post-card-twin;
 @use 'components/card/background-swatch' as background-swatch-twin;
 @use 'components/card/block-style-editor' as block-style-editor-twin;
@@ -315,6 +335,26 @@ body {
 body.AdminBody {
     background: #ffffff;
     color: #1f2937;
+}
+
+/* New mobile leader app (the /admin surface). Full-bleed dark canvas, NO body
+   padding, and never any horizontal scroll — the LeaderApp column owns all of
+   its own spacing and internal scrolling. */
+html:has(body.LeaderBody) {
+    background-color: var(--color-canvas, #0d101a);
+    overflow-x: hidden;
+}
+body.LeaderBody {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    max-width: 100%;
+    height: 100dvh;
+    min-height: 100dvh;
+    background: var(--color-canvas, #0d101a);
+    color: #fff;
+    overflow-x: hidden;
+    overscroll-behavior: none;
 }
 
 /* PWA standalone polish — applies only when launched from the home screen, and

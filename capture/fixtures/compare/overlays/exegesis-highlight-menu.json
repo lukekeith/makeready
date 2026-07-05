@@ -1,0 +1,35 @@
+{
+  "id": "exegesis-highlight-menu",
+  "type": "component",
+  "group": "Overlays",
+  "title": "Exegesis Highlight Menu",
+  "adapter": "exegesis-highlight-menu",
+  "viewports": ["pro-max"],
+  "variants": [
+    {
+      "name": "actions",
+      "shared": {
+        "menu": {
+          "index": 1,
+          "count": 3,
+          "hasNote": true,
+          "mode": "actions"
+        }
+      }
+    },
+    {
+      "name": "note-editor",
+      "shared": {
+        "menu": {
+          "index": 1,
+          "count": 3,
+          "hasNote": false,
+          "mode": "noteEditor",
+          "excerpt": "Paul, a servant of Christ Jesus, called to be an apostle and set apart for the gospel of God.",
+          "noteDraft": "Paul opens with his credentials as a servant and apostle."
+        }
+      }
+    }
+  ],
+  "note": "WEB-ONLY comparison: the iOS HighlightActionMenuContent is a private SwiftUI view inside EditExegesisActivityPage with no ViewRegistry capture case. The web twin was built 1:1 from the Swift source spec (parity-edit-exegesis-activity memory)."
+}

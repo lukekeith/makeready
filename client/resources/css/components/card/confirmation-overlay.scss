@@ -138,6 +138,14 @@
     cursor: default;
   }
 
+  // Additive optional secondary button (iOS: 12px below the primary, white@0.5
+  // label on white@0.1 — e.g. the export flow's Discard under Save).
+  &__button--secondary {
+    margin-top: var(--space-md);
+    color: var(--color-white-50);
+    background: var(--color-white-10);
+  }
+
   // iOS ConfirmationOverlayStyle.iconBackgroundColor — exact iOS hexes; none have
   // a DS token equivalent (the success token is a different green).
   &--style-success .ConfirmationOverlay__fill { background: #57db5d; }
@@ -150,6 +158,12 @@
     .ConfirmationOverlay__button {
       background: var(--color-white-10);
       color: var(--color-white-30);
+    }
+
+    // iOS: secondary goes near-invisible while processing (clear bg, white@0.15).
+    .ConfirmationOverlay__button--secondary {
+      background: transparent;
+      color: rgba(255, 255, 255, 0.15);
     }
   }
 }

@@ -626,9 +626,13 @@ function webLiveFor(spec, shared) {
   const data = client?.data;
   if (!data?.component) return null;
   const props = encodeURIComponent(JSON.stringify(data.componentProps ?? {}));
+  // A page/layout twin renders full-bleed (it follows the device frame), so the
+  // live harness drops its 16px component gutter. Component twins keep the gutter
+  // (it mirrors the iPhone sizeThatFits snapshot's 16px margins).
+  const bleed = spec?.type === 'page' ? '&bleed=1' : '';
   return {
     component: data.component,
-    url: `${CAPTURE_CLIENT_URL}/_capture/live?component=${data.component}&props=${props}`,
+    url: `${CAPTURE_CLIENT_URL}/_capture/live?component=${data.component}&props=${props}${bleed}`,
   };
 }
 
@@ -668,6 +672,64 @@ app.get('/api/compare/comparison/:id/variants', async (req, res) => {
   }
 });
 
+// Parses the ComponentCapture island's registry → a Map of registry-key →
+// client-relative Vue path, so we can point at the exact twin file to reuse.
+// The registry key is what an adapter passes as `data.component`; it may alias a
+// differently-named class (e.g. `SlideButton: CardSlideButton`), so we resolve
+// key → class → import path. Memoized for the server's lifetime.
+let captureRegistryPromise = null;
+function loadCaptureComponentRegistry() {
+  if (captureRegistryPromise) return captureRegistryPromise;
+  captureRegistryPromise = (async () => {
+    const rel = 'resources/js/components/domain/component-capture/component-capture.vue';
+    const file = path.join(makereadyRoot, 'client', rel);
+    const map = new Map();
+    let src;
+    try { src = await fs.readFile(file, 'utf-8'); } catch { return map; }
+    const dir = path.posix.dirname(rel);
+    const classToPath = new Map();
+    const importRe = /import\s+([A-Z][A-Za-z0-9_]*)\s+from\s+['"]([^'"]+\.vue)['"]/g;
+    for (const m of src.matchAll(importRe)) {
+      classToPath.set(m[1], path.posix.normalize(path.posix.join(dir, m[2])));
+    }
+    // Scan only the registry object literal (skip the import block above it).
+    const regAt = src.indexOf('const registry');
+    const block = regAt >= 0 ? src.slice(regAt) : src;
+    const entryRe = /^\s*([A-Z][A-Za-z0-9_]*)\s*(?::\s*([A-Z][A-Za-z0-9_]*))?\s*,/gm;
+    for (const m of block.matchAll(entryRe)) {
+      const key = m[1];
+      const vue = classToPath.get(m[2] ?? m[1]);
+      if (vue) map.set(key, vue);
+    }
+    return map;
+  })();
+  return captureRegistryPromise;
+}
+
+// Catalog of every comparison that ALREADY has a web (Vue) twin built, so a
+// page/layout build prompt can tell the model to REUSE existing components
+// instead of rebuilding them. Only `component`-type comparisons are listed (the
+// reusable leaves); the composing page/layout itself is excluded.
+async function existingComponentTwins(excludeId) {
+  const specs = await loadComparisons();
+  const reg = await loadCaptureComponentRegistry();
+  const out = [];
+  for (const s of specs) {
+    if (s.error || s.id === excludeId || s.type !== 'component') continue;
+    let proj;
+    try { proj = projectComparison(s); } catch { continue; }
+    if (!proj.client) continue; // no web twin yet → nothing to reuse
+    const struct = (proj.iphone?.view ?? '').replace(/^component\./, '');
+    const regKey = proj.client?.data?.component ?? struct;
+    // Prefer a clean PascalCase name for the SwiftUI-struct column; a few legacy
+    // comparisons use a kebab id as their iphone view, so fall back to regKey.
+    const name = /^[A-Z][A-Za-z0-9]*$/.test(struct) ? struct : (regKey || struct);
+    out.push({ struct: name, regKey, title: s.title, group: s.group ?? '', vue: reg.get(regKey) ?? null });
+  }
+  out.sort((a, b) => a.group.localeCompare(b.group) || a.struct.localeCompare(b.struct));
+  return out;
+}
+
 // Build prompt: everything Claude needs to create the web (Vue) twin of an
 // iPhone-only component — its iPhone source, every variant's data/schema, the
 // adapter contract, and the exact files to create. Copied into the Claude CLI.
@@ -687,30 +749,78 @@ app.get('/api/compare/comparison/:id/build-prompt', async (req, res) => {
       `### ${v.name}\n\`\`\`json\n${JSON.stringify(v.shared ?? {}, null, 2)}\n\`\`\``,
     ).join('\n\n');
 
-    const prompt = `Build the WEB (Vue) version of the "${spec.title}" component so it matches the iPhone version, for the MakeReady compare tool. The iPhone component already exists; the web twin does NOT yet. Build it to match the iPhone for ALL ${variants.length} variant(s) below.
+    // A page/layout is a COMPOSITION of child components. List the ones that
+    // already have a web twin so the model reuses them instead of recreating
+    // buttons/cards/rows that already exist. Never blocks prompt generation.
+    const composes = spec.type === 'page' || spec.type === 'layout';
+    let reuseSection = '';
+    let twinCount = 0;
+    if (composes) {
+      try {
+        const twins = await existingComponentTwins(spec.id);
+        twinCount = twins.length;
+        if (twins.length) {
+          const rows = twins.map((t) =>
+            `| ${t.group} | ${t.struct} | ${t.vue ? `client/${t.vue}` : `registered as \`${t.regKey}\` in the ComponentCapture island`} |`,
+          ).join('\n');
+          reuseSection = `
 
-## Context
-- Comparison id: \`${spec.id}\` (type: ${spec.type}, group: ${spec.group})
-- iPhone component: SwiftUI \`${struct}\` — find it under \`iphone/MakeReady/Components/**/${struct}.swift\` (card data models live in \`iphone/MakeReady/Components/Card/CardData.swift\`). This is the design reference.
-- See the captured iPhone render for each variant in the compare tool: http://localhost:5950/compare/${spec.id}/<variant>
-- Web stack: Laravel + Vue 3 islands + SCSS design tokens. Copy the pattern from existing twins: \`client/resources/js/components/card/card-study/card-study.vue\` and \`client/resources/js/components/card/card-group/card-group.vue\` (+ their \`.scss\` under \`client/resources/css/components/card/\`).
+## Existing components — REUSE these, do NOT recreate
+This comparison is a ${spec.type}: a COMPOSITION of child components, not a leaf. The ${twins.length} component(s) below ALREADY have a web (Vue) twin. As you read the iPhone source for this ${spec.type} and see one of these used, import and reuse its existing Vue twin — never rebuild a button, card, row, chart, or menu that already exists. Build only the parts with no twin yet, and surface a genuinely missing twin rather than inlining a one-off copy of it.
 
-## Variants to support (name → the data that variant renders)
-${variantBlocks}
+| Group | iPhone component | Web twin (Vue) |
+|---|---|---|
+${rows}`;
+        }
+      } catch { /* catalog is best-effort — never block the prompt */ }
+    }
 
-## Steps
-1. Read the iPhone SwiftUI \`${struct}\` + its data model to understand layout, sizing, typography, colors, and what each variant changes. Cross-check the captured iPhone screenshots in the compare tool.
+    // The build steps differ fundamentally between a leaf component (a single
+    // Vue card rendered through the ComponentCapture island) and a composing
+    // page/layout (a Blade page that lays out the screen and mounts islands,
+    // reusing the existing card twins). Branch the source/stack/steps on type.
+    const sourceBullet = composes
+      ? `- iPhone ${spec.type}: the SwiftUI view registered as \`${iphoneView}\` — find its page file under \`iphone/MakeReady/Pages/**\` (e.g. \`iphone/MakeReady/Pages/Manage/Group/GroupHomePage.swift\`). Read it AND every child component it composes; the child components are your reuse map (see the table below).`
+      : `- iPhone component: SwiftUI \`${struct}\` — find it under \`iphone/MakeReady/Components/**/${struct}.swift\` (card data models live in \`iphone/MakeReady/Components/Card/CardData.swift\`). This is the design reference.`;
+
+    const stackBullet = composes
+      ? `- Web stack: Laravel + Vue 3 islands + SCSS design tokens. A ${spec.type} twin is a Blade page that reproduces the screen layout and mounts Vue islands (\`data-vue="…Island" data-props="…"\`) — it is NOT a ComponentCapture entry. Copy the pattern from the existing page twin: the Blade view \`client/resources/views/pages/group-home.blade.php\` + its adapter \`capture/runners/compare/adapters/group-home.mjs\`. Reuse the card \`.vue\` twins from the table below for the composed pieces.`
+      : `- Web stack: Laravel + Vue 3 islands + SCSS design tokens. Copy the pattern from existing twins: \`client/resources/js/components/card/card-study/card-study.vue\` and \`client/resources/js/components/card/card-group/card-group.vue\` (+ their \`.scss\` under \`client/resources/css/components/card/\`).`;
+
+    const steps = composes
+      ? `1. Read the iPhone SwiftUI ${spec.type} (\`${iphoneView}\`) + its data model to understand the layout, sizing, typography, colors, and section order. Cross-check the captured iPhone screenshot in the compare tool. List every child component it composes and match each against the "Existing components" table above — those are reuse, not rebuild; only the remainder is new work.
+2. Build the web twin as a Blade page \`client/resources/views/pages/${spec.id}.blade.php\` that reproduces the iPhone layout. For each composed piece, REUSE its existing Vue twin from the table (import the card \`.vue\` into a page-level island, or mount an existing island) — never re-implement a component that already has a twin. Only create a new Vue component for a piece with no twin, and register any new page-level island in \`client/resources/js/app.js\`. Use existing design-system tokens (never hardcode a value that has a token).
+3. Wire the adapter \`capture/runners/compare/adapters/${spec.id}.mjs\` (model: \`group-home.mjs\`). If \`adapters/index.mjs\` still maps \`${spec.id}\` to the iPhone-only stub (\`iphoneCard('${iphoneView}')\`), replace that line with an import of this adapter; otherwise extend the existing one.
+   - \`toIphone(shared)\` → the AppState \`auth\`/\`state\` shape the iPhone page reads (see group-home.mjs) — unchanged from today.
+   - \`toClient(shared)\` → \`{ platform:'client', view:'${iphoneView}', data:{ /* the Laravel view variables your Blade page expects */ } }\`. NO \`components.component-capture\`, NO \`clip:'.capture-wrap'\`, NO \`componentProps\` — a page renders full-bleed through its own Blade route.
+4. Rebuild the client so the page + islands land in the bundle the compare pane renders: \`cd client && npm run build\`. (The compare web pane serves the BUILT client bundle, not HMR. The capture server hot-reloads your new adapter automatically — do NOT restart it.)
+5. Capture the web side and verify against the iPhone reference: POST \`{"id":"${spec.id}","viewport":"pro-max","platform":"client","variant":"*"}\` to \`http://localhost:5951/api/compare/capture\`, then read the resulting PNGs under \`capture/fixtures/compare/_shots/${spec.id}/pro-max/client/\` and the iPhone references under \`.../iphone/\`. Refine and re-capture until they match. Surface genuine parity gaps instead of faking them.`
+      : `1. Read the iPhone SwiftUI \`${struct}\` + its data model to understand layout, sizing, typography, colors, and what each variant changes. Cross-check the captured iPhone screenshots in the compare tool.
 2. Create the Vue component at \`client/resources/js/components/card/${kebab}/${kebab}.vue\` (+ a BEM \`.scss\` under \`client/resources/css/components/card/${kebab}.scss\`), fully data-driven via props, using existing design-system tokens (never hardcode a value that has a token). It must render every variant above from props.
 3. Register it in the ComponentCapture island: \`client/resources/js/components/domain/component-capture/component-capture.vue\` — import the component and add it to the \`registry\` map under the name \`${struct}\`.
 4. Replace the iPhone-only adapter for \`${spec.id}\`: create \`capture/runners/compare/adapters/${spec.id}.mjs\` exporting \`{ toClient, toIphone }\`, and in \`capture/runners/compare/adapters/index.mjs\` swap the \`${spec.id}: iphoneCard('${iphoneView}')\` line to import this adapter. Pattern (see card-study.mjs / GroupCard.mjs):
    - \`toIphone(shared)\` → \`{ platform:'iphone', view:'${iphoneView}', state:{ component: shared } }\` (unchanged from today).
    - \`toClient(shared)\` → \`{ platform:'client', view:'components.component-capture', clip:'.capture-wrap', data:{ component:'${struct}', componentProps: { /* map shared → your Vue props */ } } }\`. Map any semantic icons to inline SVG for web.
 5. Rebuild the client so the new component lands in the bundle the compare pane renders: \`cd client && npm run build\`. (The compare web pane serves the BUILT client bundle, not HMR. The capture server hot-reloads your new adapter automatically — do NOT restart it.)
-6. Capture the web side and verify against the iPhone reference: POST \`{"id":"${spec.id}","viewport":"pro-max","platform":"client","variant":"*"}\` to \`http://localhost:5951/api/compare/capture\`, then read the resulting PNGs under \`capture/fixtures/compare/_shots/${spec.id}/pro-max/client/\` and the iPhone references under \`.../iphone/\`. Refine the Vue/SCSS and re-capture until they match. Surface genuine parity gaps instead of faking them.
+6. Capture the web side and verify against the iPhone reference: POST \`{"id":"${spec.id}","viewport":"pro-max","platform":"client","variant":"*"}\` to \`http://localhost:5951/api/compare/capture\`, then read the resulting PNGs under \`capture/fixtures/compare/_shots/${spec.id}/pro-max/client/\` and the iPhone references under \`.../iphone/\`. Refine the Vue/SCSS and re-capture until they match. Surface genuine parity gaps instead of faking them.`;
+
+    const prompt = `Build the WEB (Vue) version of the "${spec.title}" ${composes ? spec.type : 'component'} so it matches the iPhone version, for the MakeReady compare tool. The iPhone ${composes ? spec.type : 'component'} already exists; the web twin does NOT yet. Build it to match the iPhone for ALL ${variants.length} variant(s) below.
+
+## Context
+- Comparison id: \`${spec.id}\` (type: ${spec.type}, group: ${spec.group})
+${sourceBullet}
+- See the captured iPhone render for each variant in the compare tool: http://localhost:5950/compare/${spec.id}/<variant>
+${stackBullet}
+
+## Variants to support (name → the data that variant renders)
+${variantBlocks}${reuseSection}
+
+## Steps
+${steps}
 
 The variant data above is the source of truth — render each variant identically to the iPhone, adjusting only where the web platform genuinely requires it.`;
 
-    res.json({ prompt, struct, variantCount: variants.length });
+    res.json({ prompt, struct, variantCount: variants.length, reusableTwins: twinCount });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

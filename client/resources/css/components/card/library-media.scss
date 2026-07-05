@@ -1,0 +1,137 @@
+// LibraryMedia — capture-only web twin of the iPhone MainLibrary "Media" tab.
+// Page chrome only; PageHeader / SearchField carry their own styling. The media
+// grid is full-bleed (iOS LazyVGrid, 3 columns, 2px spacing) with placeholder
+// glyphs (thumbnails never resolve in the isolated snapshot).
+.LibraryMedia {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--color-canvas);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  &__headerRow {
+    flex: 0 0 auto;
+    position: relative;
+  }
+
+  &__actions {
+    position: absolute;
+    top: 19px;
+    right: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__actionBtn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-white-10);
+    color: #fff;
+
+    svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+  }
+
+  &__search {
+    padding: 12px 16px 0;
+  }
+
+  &__filters {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px 8px;
+  }
+
+  &__chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: var(--radius-full);
+    background: var(--color-white-10);
+    font-size: var(--text-sm);
+    line-height: var(--leading-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-70);
+    white-space: nowrap;
+  }
+
+  &__chip--active {
+    background: #fff;
+    color: var(--color-canvas);
+
+    .LibraryMedia__chipChevron {
+      color: var(--color-canvas);
+    }
+  }
+
+  &__chipChevron {
+    display: inline-flex;
+    width: 10px;
+    height: 10px;
+    color: var(--color-white-50);
+
+    svg {
+      width: 10px;
+      height: 10px;
+      display: block;
+    }
+  }
+
+  // iOS LazyVGrid(columns: 3, spacing: 2), full-bleed (no horizontal gutter).
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    margin-top: 8px;
+  }
+
+  // One media cell — faint surface + a centered placeholder glyph (the iOS
+  // CachedCardImage placeholder for an unresolved thumbnail).
+  &__cell {
+    aspect-ratio: 4 / 3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-white-5, rgba(255, 255, 255, 0.05));
+  }
+
+  &__glyph {
+    width: 34px;
+    height: 34px;
+    color: var(--color-white-20);
+  }
+}

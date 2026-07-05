@@ -47,6 +47,14 @@ const props = withDefaults(defineProps<Props>(), {
   backText: '',
 })
 
+// Additive interaction (like PageHeader's `select`): the compare harness binds
+// no listeners, so the twin's captured rendering is unchanged.
+const emit = defineEmits<{
+  left: []
+  right: []
+  selectRightIcon: [index: number]
+}>()
+
 // SF "chevron.down" — Typography.s14 (dropdown affordance next to the title).
 const CHEVRON_DOWN =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>'
@@ -63,7 +71,7 @@ const isBackLink = props.factory === 'backLinkTitle'
     <!-- Back-link layout (chevron + text as one leading action, centered title) -->
     <div v-if="isBackLink" class="PageTitleBar__row">
       <div class="PageTitleBar__side PageTitleBar__side--left">
-        <button type="button" class="PageTitleBar__backLink">
+        <button type="button" class="PageTitleBar__backLink" @click="emit('left')">
           <span class="PageTitleBar__backChev" v-html="BACK_CHEVRON" />
           <span class="PageTitleBar__backText">{{ props.backText }}</span>
         </button>
@@ -80,6 +88,7 @@ const isBackLink = props.factory === 'backLinkTitle'
           v-if="props.leftIcon"
           type="button"
           class="PageTitleBar__iconBtn"
+          @click="emit('left')"
         >
           <span class="PageTitleBar__glyph" v-html="props.leftIcon" />
         </button>
@@ -87,6 +96,7 @@ const isBackLink = props.factory === 'backLinkTitle'
           v-else-if="props.leftLink"
           type="button"
           class="PageTitleBar__link"
+          @click="emit('left')"
         >
           {{ props.leftLink }}
         </button>
@@ -99,6 +109,7 @@ const isBackLink = props.factory === 'backLinkTitle'
             :key="i"
             type="button"
             class="PageTitleBar__iconBtn"
+            @click="emit('selectRightIcon', i)"
           >
             <span class="PageTitleBar__glyph" v-html="action.icon" />
             <span v-if="action.showBadge" class="PageTitleBar__badge" />
@@ -108,6 +119,7 @@ const isBackLink = props.factory === 'backLinkTitle'
           v-else-if="props.rightLink"
           type="button"
           class="PageTitleBar__link"
+          @click="emit('right')"
         >
           {{ props.rightLink }}
         </button>
@@ -115,6 +127,7 @@ const isBackLink = props.factory === 'backLinkTitle'
           v-else-if="props.rightIcon"
           type="button"
           class="PageTitleBar__iconBtn"
+          @click="emit('right')"
         >
           <span class="PageTitleBar__glyph" v-html="props.rightIcon" />
         </button>

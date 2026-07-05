@@ -41,6 +41,9 @@ interface Props {
   // rendered (the iOS AsyncImage never resolves in the snapshot); this only
   // selects the placeholder well opacity (white@0.1 vs white@0.2).
   hasImage?: boolean
+  // Additive (production): render the real cover photo in the well. Capture
+  // adapters never pass this, so compare snapshots are unchanged.
+  coverUrl?: string
   class?: string
 }
 
@@ -49,12 +52,13 @@ const props = withDefaults(defineProps<Props>(), {
   programName: '',
   programDescription: '',
   hasImage: false,
+  coverUrl: '',
 })
 
 const classes = computed(() =>
   classnames(
     CoverImagePickerCva.variants({ mode: props.mode }),
-    props.hasImage && 'CoverImagePicker--has-image',
+    (props.hasImage || !!props.coverUrl) && 'CoverImagePicker--has-image',
     props.class
   )
 )
@@ -69,6 +73,14 @@ const hasDescription = computed(() => trimmedDescription.value.length > 0)
   <div :class="classes">
     <!-- Translucent image well (placeholder; photo never resolves in snapshot). -->
     <div class="CoverImagePicker__well" aria-hidden="true"></div>
+
+    <!-- Real cover photo (production only — see coverUrl prop). -->
+    <img
+      v-if="props.coverUrl"
+      class="CoverImagePicker__photo"
+      :src="props.coverUrl"
+      :alt="trimmedName"
+    />
 
     <!-- Bottom appBackground gradient overlay (always present). -->
     <div class="CoverImagePicker__gradient" aria-hidden="true"></div>

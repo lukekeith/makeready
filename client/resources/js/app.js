@@ -7,9 +7,13 @@ import ConfirmationService from 'primevue/confirmationservice'
 import ToastService from 'primevue/toastservice'
 import Aura from '@primevue/themes/aura'
 
-// Admin island and router
+// Admin island and router (parked legacy SPA, served at /admin-legacy)
 import AdminIsland from './islands/admin-island/admin-island.vue'
 import { router as adminRouter } from './islands/admin-island/router'
+
+// Mobile leader app and router (new /admin experience)
+import LeaderApp from './islands/leader-app/leader-app.vue'
+import { router as leaderRouter } from './islands/leader-app/router'
 
 // Interactive Vue components (require client-side JS)
 import PhoneEntry from './components/domain/phone-entry/phone-entry.vue'
@@ -31,10 +35,12 @@ import HomeProfileButton from './components/domain/home-profile-button/home-prof
 import GroupHeaderIsland from './components/domain/group-header-island/group-header-island.vue'
 import MemberStudiesIsland from './components/domain/member-studies-island/member-studies-island.vue'
 import SlidesIsland from './islands/slides-island/slides-island.vue'
+import InvestorTimeline from './islands/investor-timeline/investor-timeline.vue'
 import ComponentCapture from './components/domain/component-capture/component-capture.vue'
 
 const componentRegistry = {
   'AdminIsland': AdminIsland,
+  'LeaderApp': LeaderApp,
   'ComponentCapture': ComponentCapture,
   'PhoneEntry': PhoneEntry,
   'VideoPlayer': VideoPlayer,
@@ -55,6 +61,7 @@ const componentRegistry = {
   'GroupHeaderIsland': GroupHeaderIsland,
   'MemberStudiesIsland': MemberStudiesIsland,
   'SlidesIsland': SlidesIsland,
+  'InvestorTimeline': InvestorTimeline,
 }
 
 // Vue island auto-mounter
@@ -81,6 +88,8 @@ document.querySelectorAll('[data-vue]').forEach((el) => {
     })
     app.use(ConfirmationService)
     app.use(ToastService)
+  } else if (name === 'LeaderApp') {
+    app.use(leaderRouter)
   }
   app.mount(el)
 })

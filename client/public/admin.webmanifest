@@ -1,0 +1,31 @@
+{
+  "id": "/admin?source=pwa",
+  "name": "MakeReady Leader",
+  "short_name": "MakeReady",
+  "description": "Lead your group — manage groups, studies, members, and lessons.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "/admin?source=pwa",
+  "scope": "/admin",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0d101a",
+  "theme_color": "#0d101a",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "/icons/pwa/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/pwa/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/pwa/icon-maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/pwa/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/logo-mark.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "/admin?source=pwa-shortcut",
+      "icons": [{ "src": "/icons/pwa/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

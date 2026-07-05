@@ -17,6 +17,11 @@ final class CaptureRunner: XCTestCase {
         super.setUp()
         // Always generate screenshots (never compare against references)
         isRecording = true
+        // Test-only: intercept URLSession.shared so fixtures can mock specific
+        // network endpoints (e.g. the search screen's recents/results). Only
+        // endpoints configured per-fixture are intercepted; everything else
+        // falls through to the (offline) real path. See MockURLProtocol.
+        URLProtocol.registerClass(MockURLProtocol.self)
     }
 
     @MainActor

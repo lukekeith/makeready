@@ -40,6 +40,9 @@ interface Props {
   size?: keyof typeof CardLessonActivityCva.size
   estimatedMinutes?: number
   imageUrl?: string
+  /** Icon override (iOS passes the glyph as data — e.g. EditDay's VIDEO card
+   *  uses 'play'); defaults to the type-derived glyph. */
+  iconKey?: string
   class?: string
 }
 
@@ -63,11 +66,18 @@ const ICONS: Record<string, string> = {
   // new-video state): an outer ring with a solid center dot.
   video:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3.5" fill="currentColor" stroke="none"/></svg>',
+  // IconActivityVideo — play-in-circle (ring + filled triangle), the iOS
+  // YOUTUBE glyph.
   youtube:
-    '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>',
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M10 8.8v6.4l5.4-3.2z" fill="currentColor" stroke="none"/></svg>',
 }
 const PLAY_ICON =
   '<svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#fff"/><path d="M10 8.5v7l5.5-3.5z" fill="#0d101a"/></svg>'
+// SF "play.fill" — iOS passes the icon as DATA (EditDay's unconfigured VIDEO
+// card uses play.fill, not the type-derived record glyph); reachable via the
+// additive `iconKey` override.
+ICONS.play =
+  '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7.5 4.9v14.2c0 .9 1 1.5 1.8 1L20.4 13c.8-.5.8-1.6 0-2.1L9.3 3.9c-.8-.5-1.8.1-1.8 1z"/></svg>'
 
 const TYPE_KEY: Record<string, string> = {
   READ: 'read',
@@ -83,7 +93,7 @@ const typeKey = computed(() => TYPE_KEY[props.type ?? ''] ?? 'read')
 const isNew = computed(() => props.status === 'new' || props.status === 'pending')
 const isVideo = computed(() => props.type === 'VIDEO' || props.type === 'YOUTUBE')
 const hasPhoto = computed(() => isVideo.value && !isNew.value && !!props.imageUrl)
-const iconSvg = computed(() => ICONS[typeKey.value] ?? ICONS.read)
+const iconSvg = computed(() => ICONS[props.iconKey ?? typeKey.value] ?? ICONS.read)
 
 const estimateLabel = computed(() => {
   const m = props.estimatedMinutes ?? 0

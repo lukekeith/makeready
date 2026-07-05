@@ -1,8 +1,8 @@
-// ToggleControl — form. A labeled switch row (iOS ToggleControl): a horizontal
+// ToggleRow — form. A labeled switch row (iOS ToggleControl): a horizontal
 // row with a title (+ optional description) on the left and the `.Switch`
 // primitive on the right. Optional bottom hairline lets rows stack into a list.
 // Tokens only.
-.ToggleControl {
+.ToggleRow {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -48,7 +48,7 @@
   }
 
   &--disabled {
-    .ToggleControl__label {
+    .ToggleRow__label {
       cursor: not-allowed;
       opacity: var(--opacity-disabled);
     }

@@ -71,6 +71,11 @@
     justify-content: center;
   }
 
+  // Production avatar (Avatar component) sized to the iOS 22pt circle.
+  &__avatarImg {
+    --avatar-size: 22px;
+  }
+
   // No-URL fallback: gray@30% circle + small white@60% person glyph.
   &__avatarFallback {
     width: 100%;

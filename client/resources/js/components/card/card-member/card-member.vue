@@ -36,6 +36,13 @@ interface Props {
   metadata?: CardMemberMetaItem[]
   groups?: string[]
   showInvite?: boolean
+  // Additive: label for the trailing purple ActionButton (default "Invite" —
+  // the captured rendering). GroupMembersPage request rows pass "Respond".
+  inviteLabel?: string
+  // Condense the group badges to the first `maxGroups` name(s) plus a muted
+  // "+ N groups" overflow label (e.g. maxGroups=1 → "Young Professionals + 2
+  // groups"). Undefined = list every group (iOS parity; the compare twin).
+  maxGroups?: number
   class?: string
 }
 
@@ -44,7 +51,21 @@ const props = withDefaults(defineProps<Props>(), {
   metadata: () => [],
   groups: () => [],
   showInvite: false,
+  inviteLabel: 'Invite',
 })
+
+// Group badges shown in full; the rest collapse into the overflow label.
+const visibleGroups = computed(() =>
+  props.maxGroups == null ? props.groups : props.groups.slice(0, props.maxGroups)
+)
+const overflowCount = computed(() =>
+  props.maxGroups == null ? 0 : Math.max(0, props.groups.length - props.maxGroups)
+)
+const overflowLabel = computed(() =>
+  overflowCount.value > 0
+    ? `+ ${overflowCount.value} ${overflowCount.value === 1 ? 'group' : 'groups'}`
+    : ''
+)
 
 const emit = defineEmits<{ click: [MouseEvent]; invite: [MouseEvent] }>()
 
@@ -104,18 +125,19 @@ const onKeydown = (e: KeyboardEvent) => {
 
       <div v-if="groups.length" class="CardMember__groups">
         <span
-          v-for="(group, i) in groups"
+          v-for="(group, i) in visibleGroups"
           :key="i"
           class="CardMember__group"
           >{{ group }}</span
         >
+        <span v-if="overflowLabel" class="CardMember__groupOverflow">{{ overflowLabel }}</span>
       </div>
     </div>
 
     <span class="CardMember__spacer" aria-hidden="true"></span>
 
     <div v-if="showInvite" class="CardMember__trailing">
-      <ActionButton label="Invite" variant="purple" @click="onInvite" />
+      <ActionButton :label="inviteLabel" variant="purple" @click="onInvite" />
     </div>
   </div>
 </template>

@@ -196,6 +196,85 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .environment(authManager)
         )
 
+    // Leader main screens (compare tool, iPhone-first). MemberHomePage applies
+    // `pendingSubTab` in .onAppear, so a constant binding selects the tab for the
+    // static capture (0 = Groups, 1 = Members, 2 = Enrolled). Data is seeded into
+    // AppState by setupCaptureState from the fixture (groups / enrollments).
+    case "pages.groups":
+        return AnyView(
+            MemberHomePage(
+                overlayManager: OverlayManager(),
+                avatarURL: nil,
+                pendingSubTab: .constant(0)
+            )
+            .environment(authManager)
+        )
+
+    case "pages.groups-enrolled":
+        return AnyView(
+            MemberHomePage(
+                overlayManager: OverlayManager(),
+                avatarURL: nil,
+                pendingSubTab: .constant(2)
+            )
+            .environment(authManager)
+        )
+
+    // MainLibrary defaults to the Programs tab (activeTab 0); programs are read
+    // from AppState (seeded from the fixture).
+    case "pages.study-programs":
+        return AnyView(
+            MainLibrary(overlayManager: OverlayManager())
+                .environment(authManager)
+        )
+
+    // GlobalSearchPage indexes the seeded programs/groups in AppState; the
+    // capture shows its resting (recents/empty) state.
+    case "pages.search":
+        return AnyView(
+            GlobalSearchPage(
+                overlayManager: OverlayManager(),
+                initialQuery: fixture.state?.searchQuery
+            )
+            .environment(authManager)
+        )
+
+    // MainHome Activity tab (initialTab: 1). Activity-log content needs its own
+    // seeding (follow-up); the capture shows the tab + its empty/resting state.
+    case "pages.activity":
+        return AnyView(
+            MainHome(overlayManager: OverlayManager(), avatarURL: nil, initialTab: 1)
+                .environment(authManager)
+        )
+
+    // MainLibrary Media tab (initialTab: 1). Media items need their own seeding
+    // (follow-up); the capture shows the Media tab + its empty/resting state.
+    case "pages.media":
+        return AnyView(
+            MainLibrary(overlayManager: OverlayManager(), initialTab: 1)
+                .environment(authManager)
+        )
+
+    // MainCalendar (no tabs). Calendar events need their own seeding (follow-up);
+    // the capture shows the month grid + resting state.
+    case "pages.calendar":
+        return AnyView(
+            MainCalendar(overlayManager: OverlayManager(), avatarURL: nil)
+                .environment(authManager)
+        )
+
+    // MemberHomePage Members tab (pendingSubTab: 1). Org-member content needs its
+    // own seeding (follow-up); the capture shows the Members tab + resting state.
+    case "pages.group-members":
+        return AnyView(
+            MemberHomePage(
+                overlayManager: OverlayManager(),
+                avatarURL: nil,
+                pendingSubTab: .constant(1)
+            )
+            .environment(authManager)
+        )
+
     case "pages.create-program":
         return AnyView(
             CreateProgramPage(overlayManager: OverlayManager())
@@ -251,6 +330,23 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 programId: programId,
                 onShowAddActivityMenu: nil,
                 initialCoverImage: coverImage
+            )
+            .environment(authManager)
+        )
+
+    case "pages.edit-day":
+        let lessonId = fixture.state?.lessonId ?? "capture-lesson-0"
+        let programId = fixture.state?.programId ?? "capture-prog-0"
+        guard let lesson = AppState.shared.lessons[lessonId] else {
+            throw ViewRegistryError.unknownView("pages.edit-day: lesson '\(lessonId)' not in AppState")
+        }
+        return AnyView(
+            EditDay(
+                isPresented: .constant(true),
+                programId: programId,
+                lesson: lesson,
+                onLessonUpdated: { _ in },
+                onShowAddActivityMenu: nil
             )
             .environment(authManager)
         )
@@ -1381,9 +1477,19 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
         }
         return AnyView(ActionCardMenu(title: c.title ?? "", items: actionItems).padding(16))
 
-    // SKIPPED component.AddActivityMenu: fades in from opacity 0 on .onAppear and fills the
-    // whole screen (.frame(maxWidth/maxHeight: .infinity)); not suitable for a .sizeThatFits
-    // component capture.
+    // AddActivityMenu fills the screen (.frame(maxWidth/maxHeight: .infinity)) and fades in
+    // from opacity 0 on .onAppear, so it can't be a .sizeThatFits component capture — render
+    // it as a page (device layout) with animations disabled so the entrance fade resolves
+    // instantly when onAppear flips `appeared`.
+    case "pages.add-activity-menu":
+        return AnyView(
+            AddActivityMenu(
+                overlayManager: OverlayManager(),
+                existingActivityTypes: [],
+                onActivitySelected: { _ in }
+            )
+            .transaction { $0.disablesAnimations = true }
+        )
 
     case "component.AddMenu":
         guard fixture.state?.component != nil else { throw ViewRegistryError.unknownView("component.AddMenu: missing state.component") }

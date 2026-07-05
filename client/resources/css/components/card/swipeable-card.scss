@@ -8,13 +8,18 @@
   border-radius: var(--radius-lg);
   touch-action: pan-y; // let vertical scroll through; we own horizontal
 
+  // iOS buttonRow: HStack(spacing 8) with 8 leading / 16 trailing padding,
+  // circles vertically centered. Raw px are intrinsic structural sizes from
+  // SwipeableCard.swift (:51, :147-148) per the design-system exception.
   &__actions {
     position: absolute;
     inset: 0 0 0 auto;
     display: flex;
-    align-items: stretch;
-    gap: var(--space-2xs);
-    padding-left: var(--space-2xs);
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 0 16px 0 8px;
+    box-sizing: border-box;
   }
 
   &__content {
@@ -26,9 +31,26 @@
   }
 
   // Smooth snap when not actively dragging (the component clears the inline
-  // transition while a pointer drag is in progress).
+  // transition while a pointer drag is in progress). iOS Motion.springSnappy =
+  // spring(response 0.3, damping 0.8) ≈ 300ms with a fast-out settle.
   &--animating &__content {
-    transition: transform var(--motion-brisk) var(--ease-standard);
+    transition: transform 300ms cubic-bezier(0.32, 0.72, 0, 1);
+  }
+
+  // The buttons' progressive size/opacity is inline-driven from drag progress;
+  // on snap the progress jumps, so animate the interpolated properties along
+  // the same curve as the content (iOS derives both from one animated offset).
+  &--animating &__actions .CardSlideButton {
+    transition:
+      width 300ms cubic-bezier(0.32, 0.72, 0, 1),
+      height 300ms cubic-bezier(0.32, 0.72, 0, 1),
+      opacity 300ms cubic-bezier(0.32, 0.72, 0, 1);
+
+    .CardSlideButton__icon {
+      transition:
+        width 300ms cubic-bezier(0.32, 0.72, 0, 1),
+        height 300ms cubic-bezier(0.32, 0.72, 0, 1);
+    }
   }
 
   // ── Capture (data-driven) mode ───────────────────────────────────────────
@@ -45,6 +67,21 @@
     // Clip to the same rounded silhouette as the embedded CardGroupMini so the
     // hidden action lane can't bleed through the card's rounded corners.
     border-radius: var(--radius-sm);
+
+    .SwipeableCard__content {
+      background: transparent;
+      border-radius: 0;
+    }
+  }
+
+  // ── Bare (production wrap) mode ──────────────────────────────────────────
+  // Wrapping a card twin that brings its own surface/radius (CardLesson,
+  // CardLessonActivity, CardProgramFull…). iOS SwipeableCard adds no chrome
+  // and doesn't clip — the content slides over the page gutter; the action
+  // buttons are invisible at rest anyway (progressive reveal opacity 0).
+  &--bare {
+    overflow: visible;
+    border-radius: 0;
 
     .SwipeableCard__content {
       background: transparent;

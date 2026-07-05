@@ -544,6 +544,40 @@ router.get('/me', (req, res) => {
 
 /**
  * @openapi
+ * /auth/leader-access:
+ *   get:
+ *     tags: [Authentication]
+ *     summary: Whether the current user may access the leader (admin) experience
+ *     description: |
+ *       Returns `canAccess: true` for Super Admins, organization owners, and users
+ *       holding an Owner/Admin/Group Leader role — the same gate the iPhone app uses
+ *       (`canAccessIosApp`). The web client calls this after establishing a session to
+ *       decide whether to admit the user to `/admin`.
+ *     security:
+ *       - userSession: []
+ *     responses:
+ *       200:
+ *         description: Access decision
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 canAccess:
+ *                   type: boolean
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/leader-access', async (req, res) => {
+  if (!req.isAuthenticated() || !req.user) {
+    return res.status(401).json({ error: 'Not authenticated' })
+  }
+  const canAccess = await canAccessIosApp((req.user as { id: string }).id)
+  res.json({ canAccess })
+})
+
+/**
+ * @openapi
  * /auth/logout:
  *   post:
  *     tags: [Authentication]

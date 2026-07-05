@@ -26,6 +26,12 @@ import { cva } from '../../../util/cva'
 //                            message shows `processingMessage`, button is muted
 //   processingMessage string — text shown while processing
 //   icon         string   — inline SVG for the style glyph (mapped in the adapter)
+//   secondaryButtonLabel string — additive (iOS optional secondary button, 12px
+//                below the primary; e.g. export's Save/Discard). Default '' →
+//                not rendered, so captures are unchanged.
+//
+// Additive emits (`select` = primary, `secondary`): the compare harness binds
+// nothing, so the captured rendering is unchanged.
 //
 // CVA keys mirror the SCSS modifiers in
 // resources/css/components/card/confirmation-overlay.scss exactly.
@@ -55,6 +61,7 @@ interface Props {
   isProcessing?: boolean
   processingMessage?: string
   icon?: string
+  secondaryButtonLabel?: string
   class?: string
 }
 
@@ -65,7 +72,10 @@ const props = withDefaults(defineProps<Props>(), {
   isProcessing: false,
   processingMessage: 'Processing...',
   icon: '',
+  secondaryButtonLabel: '',
 })
+
+const emit = defineEmits<{ select: []; secondary: [] }>()
 
 const classes = computed(() =>
   classnames(
@@ -109,8 +119,16 @@ const messageHtml = computed(() => {
       </p>
       <p v-else class="ConfirmationOverlay__message" v-html="messageHtml"></p>
 
-      <button type="button" class="ConfirmationOverlay__button">
+      <button type="button" class="ConfirmationOverlay__button" @click="!isProcessing && emit('select')">
         {{ buttonLabel }}
+      </button>
+      <button
+        v-if="secondaryButtonLabel"
+        type="button"
+        class="ConfirmationOverlay__button ConfirmationOverlay__button--secondary"
+        @click="!isProcessing && emit('secondary')"
+      >
+        {{ secondaryButtonLabel }}
       </button>
     </div>
   </div>

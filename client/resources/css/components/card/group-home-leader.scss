@@ -1,0 +1,232 @@
+// GroupHomeLeader — capture-only twin of the iPhone leader GroupHomePage
+// (default empty-posts state). Page chrome only; the toolbar, buttons, and
+// chips are the PageTitle / BoxButton / GroupActionButton twins styled by their
+// own SCSS. Geometry mirrors GroupHomePage.swift's `mainContent`.
+//
+// SF Pro drives the iOS metrics, so the system font stack is pinned here (Open
+// Sans would wrap/space the title and labels differently).
+.GroupHomeLeader {
+  width: 100%;
+  background: var(--color-canvas);
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  // Capture-only status bar (matches the iPhone DeviceChrome inset).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  // The toolbar (PageTitle) carries its own 8px horizontal padding internally,
+  // matching the real iPhone page (which mounts PageTitle with no extra inset).
+  &__toolbar {
+    flex: 0 0 auto;
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+  }
+
+  // ── Title section (.padding(.horizontal, 16).padding(.top, 8)) ──
+  &__title-section {
+    padding: 8px 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__name {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 26px; // iOS s22 SwiftUI line box ≈ 26.3pt (pinned — web normal drifts)
+    letter-spacing: -0.1px;
+    color: #fff;
+  }
+
+  &__info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  &__privacy,
+  &__count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__privacy-glyph {
+    display: inline-flex;
+    width: 14px;
+    height: 14px;
+    color: #fff;
+
+    svg { width: 100%; height: 100%; display: block; }
+  }
+
+  &__privacy-label,
+  &__count-label {
+    font-size: 13px;
+    line-height: 16px; // iOS s13 line box ≈ 15.6pt (pinned — web normal added ~3pt)
+    color: var(--color-white-70);
+  }
+
+  &__count-value {
+    font-size: 13px;
+    line-height: 16px;
+    color: #fff;
+  }
+
+  // ── Cover header (AsyncImage h240 scaledToFill + clear→canvas gradient,
+  //    title overlaid bottomLeading pad16) ──
+  &__cover {
+    position: relative;
+    height: 240px;
+    overflow: hidden;
+  }
+
+  &__cover-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  &__cover-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, transparent, var(--color-canvas));
+  }
+
+  &__title-section--overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 16px;
+  }
+
+  // ── Action buttons row (HStack spacing 8, .padding(.horizontal,16).padding(.top,16)) ──
+  &__actions {
+    display: flex;
+    gap: 8px;
+    padding: 16px 16px 0;
+  }
+
+  // ── Action chips (.padding(.top,20).padding(.bottom,16); row inset .horizontal,16) ──
+  &__chips {
+    display: flex;
+    gap: 8px;
+    padding: 20px 16px 16px;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+
+    // GroupActionButton pills must not squish in the scroller.
+    > * { flex: 0 0 auto; }
+  }
+
+  // ── Divider above posts (full-bleed, white@0.1, 1px) ──
+  &__divider {
+    height: 1px;
+    background: var(--color-white-10);
+  }
+
+  // ── NEXT LESSON section (VStack spacing 12, pad-h16 pad-top16; label
+  //    s15Bold white@0.5 uppercase tracking 0.5; trailing divider) ──
+  &__next-lesson {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 16px 0;
+  }
+
+  &__next-lesson-label {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-white-50);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  // The trailing divider sits inside the padded section on iOS (it follows the
+  // card within the same VStack), so it spans the padded width — full-bleed is
+  // only the top posts divider.
+  &__next-lesson-divider {
+    margin-top: 4px;
+  }
+
+  // ── Pagination spinner (iOS ProgressView tint white, .padding(.vertical, 20)) ──
+  &__load-more {
+    display: flex;
+    justify-content: center;
+    padding: 20px 0;
+  }
+
+  &__load-more-spinner {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    color: #fff;
+
+    svg { width: 100%; height: 100%; display: block; }
+  }
+
+  // ── iOS bottom Spacer(40) ──
+  &__bottom-spacer {
+    height: 40px;
+    flex: 0 0 auto;
+  }
+
+  // ── Empty posts state (.padding(.horizontal, 32); 40px top/bottom spacers) ──
+  &__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    // iOS: the 40pt spacers are VStack CHILDREN, so the 16pt spacing applies
+    // between spacer and icon/text too → effective inset 56pt each side.
+    padding: 56px 32px;
+    text-align: center;
+  }
+
+  &__empty-glyph {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    color: var(--color-white-30);
+
+    svg { width: 100%; height: 100%; display: block; }
+  }
+
+  &__empty-title {
+    margin: 0;
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  &__empty-subtitle {
+    margin: 0;
+    font-size: 15px;
+    color: var(--color-white-50);
+    // iOS renders this on a single line at the 440pt width (.padding 32 each
+    // side leaves ample room); don't over-constrain it into a wrap.
+    max-width: 360px;
+  }
+}

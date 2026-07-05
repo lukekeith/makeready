@@ -25,13 +25,29 @@ interface Props {
   placeholder?: string
   markdown?: string
   autoGrow?: boolean
+  // ADDITIVE interactive mode (production only; captures never pass it): the
+  // editor area becomes a real auto-growing textarea over the raw markdown
+  // source and emits update:markdown. Toolbar stays inert chrome for now —
+  // a web-platform simplification of the iOS AttributedString editor.
+  interactive?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   placeholder: '',
   markdown: '',
   autoGrow: true,
+  interactive: false,
 })
+
+const emit = defineEmits<{ 'update:markdown': [value: string] }>()
+
+function onInput(e: Event): void {
+  const el = e.target as HTMLTextAreaElement
+  // Auto-grow: hug content (iOS autoGrow TextEditor).
+  el.style.height = 'auto'
+  el.style.height = `${el.scrollHeight}px`
+  emit('update:markdown', el.value)
+}
 
 const isEmpty = computed(() => (props.markdown ?? '').length === 0)
 
@@ -141,10 +157,21 @@ const lines = computed(() =>
 
     <!-- Editor area: placeholder (empty) or the flattened markdown lines. -->
     <div class="MarkdownEditor__editor">
-      <div v-if="isEmpty" class="MarkdownEditor__placeholder">{{ placeholder }}</div>
-      <div v-else class="MarkdownEditor__content">
-        <div v-for="(line, i) in lines" :key="i" class="MarkdownEditor__line">{{ line || ' ' }}</div>
-      </div>
+      <!-- Interactive mode: a real auto-growing textarea over the raw source. -->
+      <textarea
+        v-if="props.interactive"
+        class="MarkdownEditor__input"
+        :placeholder="placeholder"
+        :value="props.markdown"
+        rows="1"
+        @input="onInput"
+      ></textarea>
+      <template v-else>
+        <div v-if="isEmpty" class="MarkdownEditor__placeholder">{{ placeholder }}</div>
+        <div v-else class="MarkdownEditor__content">
+          <div v-for="(line, i) in lines" :key="i" class="MarkdownEditor__line">{{ line || ' ' }}</div>
+        </div>
+      </template>
     </div>
   </div>
 </template>

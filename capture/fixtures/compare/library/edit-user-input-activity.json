@@ -1,0 +1,47 @@
+{
+  "id": "edit-user-input-activity",
+  "type": "page",
+  "group": "Library",
+  "title": "Edit Write Activity",
+  "adapter": "edit-user-input-activity",
+  "viewports": ["pro-max"],
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "act-write-1",
+          "type": "USER_INPUT"
+        }
+      }
+    },
+    {
+      "name": "configured",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "act-write-1",
+          "type": "USER_INPUT",
+          "title": "Observation",
+          "placeholder": "Write down what stands out to you."
+        }
+      }
+    },
+    {
+      "name": "help-enabled",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "act-write-1",
+          "type": "USER_INPUT",
+          "title": "Observation",
+          "placeholder": "Write down what stands out to you.",
+          "isHelpEnabled": true,
+          "helpTitle": "What do you see?",
+          "helpDescription": "Write down what stands out to you in the passage."
+        }
+      }
+    }
+  ]
+}

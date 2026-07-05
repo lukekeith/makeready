@@ -1,0 +1,149 @@
+// ExegesisHighlightMenu — twin of iOS HighlightActionMenuContent (private in
+// EditExegesisActivityPage.swift). Menu CONTENT only (managed-menu supplies
+// the card/grabber/scrim). iOS values 1:1: outer pad h16 top8 bottom16;
+// nav pills brand@0.2 (disabled 0.1) r8 pad lead8/trail16/v8; count s10Bold;
+// note editor: excerpt s15Medium white@0.78 h64, buttons h54 r12.
+.ExegesisHighlightMenu {
+  display: flex;
+  flex-direction: column;
+  padding: 8px 16px 16px;
+
+  &__nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  &__navBtn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(108, 71, 255, 0.2); // brandPrimary@0.2
+    color: var(--color-brand, #6c47ff);
+    cursor: pointer;
+    padding: 8px 16px 8px 8px; // iOS leading 8 / trailing 16 / vertical 8
+
+    &--next {
+      padding: 8px 8px 8px 16px; // mirrored
+    }
+
+    &:disabled {
+      background: rgba(108, 71, 255, 0.1);
+      color: rgba(108, 71, 255, 0.35);
+      cursor: default;
+    }
+  }
+
+  &__navChev {
+    display: flex;
+    align-items: center;
+
+    svg {
+      width: 6px;
+      height: 9px; // iOS s9Bold chevron
+      display: block;
+    }
+  }
+
+  &__navLabel {
+    font-size: 10px;
+    font-weight: 700; // iOS s10Bold
+    letter-spacing: 1px; // iOS tracking(1)
+  }
+
+  &__count {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+  }
+
+  &__countIndex {
+    font-size: 10px;
+    font-weight: 700;
+    color: #fff;
+  }
+
+  &__countSlash {
+    font-size: 10px;
+    color: var(--color-white-50);
+  }
+
+  &__countTotal {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--color-brand, #6c47ff);
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  // ── Note editor mode ──
+  &__excerpt {
+    height: 64px;
+    font-size: 15px;
+    font-weight: 500; // iOS s15Medium
+    color: rgba(255, 255, 255, 0.78);
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+
+  &__editor {
+    margin-bottom: 12px;
+
+    .MarkdownEditor {
+      min-height: 220px; // iOS noteEditorHeight floor
+    }
+  }
+
+  &__noteButtons {
+    display: flex;
+    gap: 12px;
+  }
+
+  &__noteCancel,
+  &__noteDone {
+    flex: 1 1 0;
+    height: 54px;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 600; // iOS s17Semibold
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__noteCancel {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  &__noteDone {
+    background: var(--color-brand, #6c47ff);
+  }
+
+  &__noteSpinner {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.35);
+    border-top-color: #fff;
+    animation: ExegesisHighlightMenu-spin 0.8s linear infinite;
+  }
+
+  @keyframes ExegesisHighlightMenu-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}

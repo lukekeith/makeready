@@ -31,22 +31,33 @@ class AdminShellTest extends TestCase
     }
 
     /**
-     * SHELL-01: GET /admin mounts the AdminIsland Vue component.
+     * SHELL-01: GET /admin mounts the LeaderApp Vue component (new mobile app).
      */
-    public function test_admin_page_mounts_admin_island(): void
+    public function test_admin_page_mounts_leader_app(): void
     {
         $response = $this->withSession($this->adminSession())->get('/admin');
 
         $response->assertStatus(200);
-        $response->assertSee('data-vue="AdminIsland"', false);
+        $response->assertSee('data-vue="LeaderApp"', false);
     }
 
     /**
-     * SHELL-05: GET /admin/groups is served by the same Blade shell (catch-all works).
+     * SHELL-05: GET /admin/groups is served by the same LeaderApp shell (catch-all works).
      */
     public function test_admin_subpaths_served_by_same_blade_template(): void
     {
         $response = $this->withSession($this->adminSession())->get('/admin/groups');
+
+        $response->assertStatus(200);
+        $response->assertSee('data-vue="LeaderApp"', false);
+    }
+
+    /**
+     * SHELL-05: The parked legacy SPA is served by its own catch-all at /admin-legacy/*.
+     */
+    public function test_admin_legacy_subpaths_mount_admin_island(): void
+    {
+        $response = $this->withSession($this->adminSession())->get('/admin-legacy/groups');
 
         $response->assertStatus(200);
         $response->assertSee('data-vue="AdminIsland"', false);
@@ -64,7 +75,7 @@ class AdminShellTest extends TestCase
     }
 
     /**
-     * SHELL-06: Island props contain member data so AdminIsland can bootstrap without an extra API call.
+     * SHELL-06: Island props contain member data so LeaderApp can bootstrap without an extra API call.
      */
     public function test_admin_island_props_contain_member_data(): void
     {

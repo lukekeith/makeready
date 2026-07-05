@@ -20,6 +20,7 @@
     <meta name="twitter:title" content="@yield('og_title', 'MakeReady')">
     <meta name="twitter:description" content="@yield('og_description', 'Personal growth through human connection, accountability, and study.')">
     <meta name="twitter:image" content="@yield('og_image', url('/social-share.png'))">
+    @yield('head')
     @vite(['resources/css/app.scss', 'resources/js/app.js'])
 </head>
 <body>

@@ -1,0 +1,19 @@
+{
+  "id": "groups-enrolled",
+  "type": "page",
+  "group": "Groups",
+  "title": "Groups Enrolled",
+  "adapter": "groups-enrolled",
+  "viewports": ["pro-max"],
+  "shared": {
+    "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+    "programs": [
+      { "id": "prog-1", "name": "Romans in 30 days", "days": 30 },
+      { "id": "prog-2", "name": "The Gospel of John", "days": 21 }
+    ],
+    "enrollments": [
+      { "id": "e-001", "groupId": "g-001", "studyProgramId": "prog-1", "isActive": true, "studyProgram": { "id": "prog-1", "name": "Romans in 30 days", "days": 30 } },
+      { "id": "e-002", "groupId": "g-002", "studyProgramId": "prog-2", "isActive": true, "studyProgram": { "id": "prog-2", "name": "The Gospel of John", "days": 21 } }
+    ]
+  }
+}

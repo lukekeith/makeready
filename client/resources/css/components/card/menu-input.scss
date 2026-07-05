@@ -38,11 +38,35 @@
   background: var(--color-white-5);
   border-radius: 10px;
 
+  // Inside a real FieldGroup card the row carries NO chrome of its own — on
+  // iOS the FieldGroup provides the card and MenuInput is a bare row (the
+  // root's card above exists only because the standalone capture harness is
+  // FieldGroup{MenuInput}). Prevents double background/padding when composed
+  // (e.g. the create-program "Days" group).
+  .FieldGroup & {
+    padding-top: 0;
+    padding-bottom: 0;
+    background: transparent;
+    border-radius: 0;
+  }
+
   // --- menu / wheel / inline collapsed row ---
   &__row {
     display: flex;
     align-items: center;
     padding: var(--space-md) var(--space-lg); // iOS vertical 12 / horizontal 16
+    position: relative; // anchors the additive interactive <select> overlay
+  }
+
+  // Additive interactive mode: an invisible native <select> covering the row
+  // (iOS .menu/.wheel present system chrome; the web platform equivalent).
+  &__select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+    appearance: none;
   }
 
   &__label {

@@ -55,6 +55,16 @@ interface Props {
   // Theme picker label / current value (iOS MenuInput label + "No Theme" default).
   themeLabel?: string
   themeValue?: string
+  // ADDITIVE (production only; captures never pass these):
+  // real background photo for the image well (snapshots keep the empty well),
+  interactiveImageUrl?: string | null
+  // theme options for the invisible native <select> (MenuInput precedent),
+  themeOptions?: Array<{ id: string | null; name: string }>
+  // and interactivity — wells/tiles emit, native select overlays the theme row.
+  interactive?: boolean
+  // upload-in-flight scrim + spinner over the image well (iOS isUploading:
+  // black@0.45 scrim + white ProgressView while the picked photo uploads).
+  uploading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -65,7 +75,23 @@ const props = withDefaults(defineProps<Props>(), {
   showThemePicker: false,
   themeLabel: 'Theme',
   themeValue: 'No Theme',
+  interactiveImageUrl: null,
+  themeOptions: () => [],
+  interactive: false,
+  uploading: false,
 })
+
+const emit = defineEmits<{
+  selectSize: [key: SizeKey]
+  tapImage: []
+  tapColor: []
+  selectTheme: [id: string | null]
+}>()
+
+function onThemeChange(e: Event): void {
+  const v = (e.target as HTMLSelectElement).value
+  emit('selectTheme', v === '' ? null : v)
+}
 
 const hasColor = computed(() => !!props.backgroundColor && props.backgroundColor.trim() !== '')
 
@@ -106,15 +132,40 @@ const tiles = computed(() =>
             stroke-linejoin="round"
           />
         </svg>
+        <!-- Interactive: invisible native select over the row (iOS .menu is
+             system chrome; the native select is the web platform equivalent —
+             same pattern as MenuInput). -->
+        <select
+          v-if="props.interactive"
+          class="BlockStyleEditor__theme-select"
+          :value="props.themeOptions.find((t) => t.name === props.themeValue)?.id ?? ''"
+          aria-label="Theme"
+          @change="onThemeChange"
+        >
+          <option value="">No Theme</option>
+          <option v-for="t in props.themeOptions.filter((t) => t.id)" :key="t.id!" :value="t.id!">
+            {{ t.name }}
+          </option>
+        </select>
       </div>
     </div>
 
     <!-- Image + Color row -->
     <div class="BlockStyleEditor__media">
-      <div class="BlockStyleEditor__well BlockStyleEditor__image">
+      <div
+        class="BlockStyleEditor__well BlockStyleEditor__image"
+        @click="props.interactive && emit('tapImage')"
+      >
+        <!-- Real background photo (production only). -->
+        <img
+          v-if="props.interactiveImageUrl"
+          class="BlockStyleEditor__photo"
+          :src="props.interactiveImageUrl"
+          alt=""
+        />
         <!-- photo.on.rectangle placeholder — shown only when no image is configured -->
         <svg
-          v-if="!hasImage"
+          v-else-if="!hasImage"
           class="BlockStyleEditor__photo-icon"
           viewBox="0 0 28 28"
           fill="none"
@@ -140,9 +191,17 @@ const tiles = computed(() =>
             stroke-linejoin="round"
           />
         </svg>
+        <!-- Upload-in-flight scrim + spinner (production only). -->
+        <span v-if="props.uploading" class="BlockStyleEditor__uploading" aria-hidden="true">
+          <span class="BlockStyleEditor__spinner" />
+        </span>
       </div>
 
-      <div class="BlockStyleEditor__well BlockStyleEditor__color" :style="colorBoxStyle">
+      <div
+        class="BlockStyleEditor__well BlockStyleEditor__color"
+        :style="colorBoxStyle"
+        @click="props.interactive && emit('tapColor')"
+      >
         <!-- Toggle circle placeholder — shown only when no color is set -->
         <span v-if="!hasColor" class="BlockStyleEditor__color-toggle" aria-hidden="true" />
       </div>
@@ -155,6 +214,7 @@ const tiles = computed(() =>
         :key="tile.key"
         class="BlockStyleEditor__size"
         :class="{ 'BlockStyleEditor__size--selected': tile.selected }"
+        @click="props.interactive && emit('selectSize', tile.key)"
       >
         <span class="BlockStyleEditor__size-glyph" :style="{ fontSize: tile.fontSize }">Aa</span>
       </div>

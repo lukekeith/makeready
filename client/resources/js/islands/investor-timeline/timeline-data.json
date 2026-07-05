@@ -1,0 +1,1010 @@
+{
+  "meta": {
+    "generated": "2026-07-05",
+    "historyStart": "2025-10-31",
+    "planStart": "2026-07-06",
+    "planEnd": "2027-06-30",
+    "velocity": {
+      "totalCommits": 1550,
+      "monthsOfHistory": 8.2,
+      "commitsPerMonth": 190,
+      "completedEpics": 40,
+      "epicsPerMonth": 4.9,
+      "avgCommitsPerEpic": 39,
+      "method": "Commit histories of makeready-iphone (277), makeready-server (366), makeready-web (658), makeready-capture (8) and the consolidated monorepo (241) were clustered into delivery epics. The 12-month plan assumes ~1.5 feature-epic-equivalents per month \u2014 conservative vs. the demonstrated 4.9 \u2014 to absorb verification, production hardening and unknowns."
+    },
+    "budget": {
+      "planUsdPerMonth": 200,
+      "planCovers": "Claude Max plan \u2014 Opus 4.8 tokens for routine implementation work",
+      "extraTokensModel": "Fable 5 billed as extra tokens from 2026-07-07: $10/M input, $50/M output, ~$1/M cache reads, $12.50/M cache writes",
+      "measurement": {
+        "source": "Local Claude Code session transcripts (233 files, 13,501 assistant messages)",
+        "window": "2026-06-11 to 2026-07-05 (25 days; older transcripts not retained)",
+        "totals": {
+          "processedInputM": 2914.6,
+          "freshInputM": 9.8,
+          "cacheWriteM": 65.2,
+          "cacheReadM": 2839.6,
+          "outputM": 11.0
+        },
+        "cacheReadShare": 0.974,
+        "measuredFableShareOfTokens": 0.31
+      },
+      "weeklyTokens": {
+        "processedInputM": 800,
+        "freshInputM": 2.75,
+        "cacheWriteM": 18.3,
+        "cacheReadM": 795,
+        "outputM": 3.1
+      },
+      "extraCostPerWorkWeekUsd": 340,
+      "totalPlanWorkWeeks": 53,
+      "totalExtraCostUsd": 18020,
+      "recommendedMonthlyBudgetUsd": 1500
+    }
+  },
+  "lanes": [
+    {
+      "id": "server",
+      "name": "API",
+      "color": "#6c47ff"
+    },
+    {
+      "id": "iphone",
+      "name": "iPhone App",
+      "color": "#0ea5e9"
+    },
+    {
+      "id": "web",
+      "name": "Web Client",
+      "color": "#10b981"
+    },
+    {
+      "id": "platform",
+      "name": "Tooling & Infrastructure",
+      "color": "#f59e0b"
+    },
+    {
+      "id": "roadmap",
+      "name": "12-Month Roadmap",
+      "color": "#ef4444"
+    }
+  ],
+  "epics": [
+    {
+      "id": "s-platform",
+      "name": "Server Bootstrap, CI/CD & Deployment",
+      "lane": "server",
+      "start": "2025-10-31",
+      "end": "2026-05-20",
+      "status": "done",
+      "commits": 99,
+      "description": "Express + Prisma + PostgreSQL API stood up from zero and hardened for production on Railway.",
+      "deliverables": [
+        "Express/Prisma server with 55-model schema",
+        "Railway deploys, Docker, Atlas migration pipeline",
+        "CI stabilization and test infrastructure",
+        "Promote-to-production workflow"
+      ]
+    },
+    {
+      "id": "s-auth",
+      "name": "Authentication, Orgs & RBAC",
+      "lane": "server",
+      "start": "2025-11-04",
+      "end": "2026-05-17",
+      "status": "done",
+      "commits": 50,
+      "description": "Full identity layer: phone (Twilio) verification for members, Google OAuth for leaders, org-scoped roles and permissions.",
+      "deliverables": [
+        "Twilio SMS verification + STOP webhook + consent",
+        "Google OAuth with account linking",
+        "Member/organization many-to-many model with RBAC roles",
+        "API-key auth, sliding sessions, bot protection, beta access codes"
+      ]
+    },
+    {
+      "id": "s-groups",
+      "name": "Groups, Invites, Posts & Events APIs",
+      "lane": "server",
+      "start": "2025-11-04",
+      "end": "2026-05-09",
+      "status": "done",
+      "commits": 38,
+      "description": "Core community model: groups with join codes, invitation and approval workflows, posts and recurring events.",
+      "deliverables": [
+        "Group CRUD + 6-char public join codes",
+        "Join-request approval workflow",
+        "QR/OG invite links",
+        "Posts and Events APIs (recurrence, attendees)"
+      ]
+    },
+    {
+      "id": "s-bible",
+      "name": "Bible API & Search",
+      "lane": "server",
+      "start": "2025-12-06",
+      "end": "2026-05-03",
+      "status": "done",
+      "commits": 15,
+      "description": "Scripture backbone via API.Bible with caching, multi-version support and keyword search.",
+      "deliverables": [
+        "API.Bible integration with server-side caching",
+        "Multi-version support and popularity ranking",
+        "Grouped keyword search + search history"
+      ]
+    },
+    {
+      "id": "s-programs",
+      "name": "Study Programs & Enrollment Engine",
+      "lane": "server",
+      "start": "2025-12-09",
+      "end": "2026-05-09",
+      "status": "done",
+      "commits": 54,
+      "description": "The curriculum engine: programs, lessons, schedules and the member enrollment lifecycle.",
+      "deliverables": [
+        "YAML template-based lesson system",
+        "Program/lesson/schedule CRUD",
+        "Enrollment engine with progress + completion tracking",
+        "Program import/export"
+      ]
+    },
+    {
+      "id": "s-activities",
+      "name": "Lesson Activities, Read Blocks & Themes",
+      "lane": "server",
+      "start": "2026-02-16",
+      "end": "2026-05-17",
+      "status": "done",
+      "commits": 55,
+      "description": "Rich lesson content model: multi-block reading activities, YouTube/Exegesis types and a file-based theme system.",
+      "deliverables": [
+        "ActivityReadBlock multi-block architecture",
+        "YouTube + Exegesis activity types",
+        "Text theme system with backgrounds and fonts",
+        "Authenticated preview endpoints"
+      ]
+    },
+    {
+      "id": "s-media",
+      "name": "Media Pipeline & AI Enrichment",
+      "lane": "server",
+      "start": "2025-12-09",
+      "end": "2026-05-09",
+      "status": "done",
+      "commits": 20,
+      "description": "Cloudflare-backed media platform with Claude AI enrichment of every asset.",
+      "deliverables": [
+        "Cloudflare Stream video upload + R2 storage",
+        "Responsive image variants",
+        "Claude AI alt-text and tag enrichment",
+        "Media library with usage tracking + full-text search"
+      ]
+    },
+    {
+      "id": "s-notifications",
+      "name": "Notifications & Activity Logging",
+      "lane": "server",
+      "start": "2026-01-15",
+      "end": "2026-05-02",
+      "status": "done",
+      "commits": 20,
+      "description": "Unified activity model powering the in-app notification feed and push delivery.",
+      "deliverables": [
+        "Unified Activity model",
+        "In-app notification feed with APNs push",
+        "Request logging + activity log viewer",
+        "Internal activity dashboard/heatmap"
+      ]
+    },
+    {
+      "id": "s-docs",
+      "name": "API Documentation & Developer Tooling",
+      "lane": "server",
+      "start": "2025-11-18",
+      "end": "2026-01-31",
+      "status": "done",
+      "commits": 15,
+      "description": "Complete OpenAPI documentation and developer tooling across all 43 route modules.",
+      "deliverables": [
+        "OpenAPI/Redoc docs for all routes",
+        "Postman collections",
+        "MCP reference servers for AI-assisted development"
+      ]
+    },
+    {
+      "id": "s-semantic-bible",
+      "name": "Semantic Bible Search (AI)",
+      "lane": "server",
+      "start": "2026-06-10",
+      "end": "2026-06-14",
+      "status": "done",
+      "commits": 20,
+      "description": "Concept-level Bible search: ask a question in plain language, get relevant passages.",
+      "deliverables": [
+        "pgvector embeddings with HNSW indexes",
+        "Doc2query expansion + hybrid lexical/vector fusion",
+        "Cross-encoder reranker"
+      ]
+    },
+    {
+      "id": "s-a2p",
+      "name": "SMS A2P Compliance System",
+      "lane": "server",
+      "start": "2026-05-30",
+      "end": "2026-06-19",
+      "status": "done",
+      "commits": 9,
+      "description": "Carrier-compliant SMS campaign system required for production texting at scale.",
+      "deliverables": [
+        "A2P campaign templating, rate limiting, audit logging",
+        "Optional-consent join flow + opt-in proof PDF",
+        "Twilio status/inbound callbacks"
+      ]
+    },
+    {
+      "id": "s-org-auth",
+      "name": "Org Roles & Content Authorization",
+      "lane": "server",
+      "start": "2026-06-09",
+      "end": "2026-06-21",
+      "status": "done",
+      "commits": 7,
+      "description": "Org-role-based authorization across content endpoints \u2014 the foundation the future ACL system builds on.",
+      "deliverables": [
+        "Org-role content authorization",
+        "Group-creator member management",
+        "Membership change/request flows"
+      ]
+    },
+    {
+      "id": "i-foundation",
+      "name": "iOS App Foundation & Release Infra",
+      "lane": "iphone",
+      "start": "2025-10-31",
+      "end": "2026-05-13",
+      "status": "done",
+      "commits": 45,
+      "description": "SwiftUI app scaffold through TestFlight/production release automation.",
+      "deliverables": [
+        "Multi-environment build configs",
+        "Semantic versioning + build-bump automation",
+        "Centralized @Observable state architecture"
+      ]
+    },
+    {
+      "id": "i-design",
+      "name": "iOS Design System & Component Library",
+      "lane": "iphone",
+      "start": "2025-11-09",
+      "end": "2026-03-24",
+      "status": "done",
+      "commits": 71,
+      "description": "The 122-component SwiftUI design system every screen is built from.",
+      "deliverables": [
+        "Unified Card system + SwipeableCard",
+        "Modal/overlay service and typed navigation",
+        "Drag-to-reorder, skeletons, image caching",
+        "Animation/transition framework"
+      ]
+    },
+    {
+      "id": "i-bible",
+      "name": "iOS Bible Reader & Highlighting",
+      "lane": "iphone",
+      "start": "2025-12-03",
+      "end": "2026-05-15",
+      "status": "done",
+      "commits": 26,
+      "description": "Full native Bible reader with search, translation switching and persistent highlighting.",
+      "deliverables": [
+        "Book/chapter/verse navigation grid",
+        "Word/verse/chapter selection modes",
+        "Persistent verse highlighting",
+        "Search with history"
+      ]
+    },
+    {
+      "id": "i-programs",
+      "name": "iOS Study Program Authoring",
+      "lane": "iphone",
+      "start": "2025-11-23",
+      "end": "2026-05-09",
+      "status": "done",
+      "commits": 34,
+      "description": "Leaders create and manage complete study programs from their phone.",
+      "deliverables": [
+        "Create/edit programs + lesson authoring",
+        "Calendar scheduling",
+        "AI tag suggestions, covers, publish/draft states",
+        "ZIP export/import"
+      ]
+    },
+    {
+      "id": "i-enrollment",
+      "name": "iOS Enrollment Flow",
+      "lane": "iphone",
+      "start": "2025-12-22",
+      "end": "2026-04-05",
+      "status": "done",
+      "commits": 16,
+      "description": "Bidirectional member enrollment with smart scheduling.",
+      "deliverables": [
+        "Enrollment with date/override scheduling",
+        "Overlap guardrails + smart unenrollment",
+        "Per-enrollment lesson customization"
+      ]
+    },
+    {
+      "id": "i-editors",
+      "name": "iOS Lesson Activity Editors",
+      "lane": "iphone",
+      "start": "2026-02-13",
+      "end": "2026-05-13",
+      "status": "done",
+      "commits": 52,
+      "description": "Rich slide-in editors for all five activity types with live preview.",
+      "deliverables": [
+        "READ/VIDEO/YOUTUBE/USER_INPUT/EXEGESIS editors",
+        "Native rich-text editing",
+        "Theme + background pickers with live preview"
+      ]
+    },
+    {
+      "id": "i-video",
+      "name": "iOS Video Recording & Media Library",
+      "lane": "iphone",
+      "start": "2025-12-14",
+      "end": "2026-03-31",
+      "status": "done",
+      "commits": 6,
+      "description": "In-app video recorder (with teleprompter) and virtualized media library.",
+      "deliverables": [
+        "Custom video recorder + camera management",
+        "Photos library picker",
+        "Virtualized media grid with zoom detail"
+      ]
+    },
+    {
+      "id": "i-dashboard",
+      "name": "iOS Dashboard, Search & Notifications",
+      "lane": "iphone",
+      "start": "2025-12-21",
+      "end": "2026-04-07",
+      "status": "done",
+      "commits": 15,
+      "description": "Leader home dashboard, global search and push-linked notification feed.",
+      "deliverables": [
+        "Tappable KPI dashboard",
+        "Global search + recent activity",
+        "Notification feed with deep-link navigation",
+        "Member/request profile pages"
+      ]
+    },
+    {
+      "id": "i-invites",
+      "name": "iOS Member Invitations & QR Codes",
+      "lane": "iphone",
+      "start": "2025-11-02",
+      "end": "2026-01-06",
+      "status": "done",
+      "commits": 12,
+      "description": "Invite members via contacts, share sheets and server-generated QR codes.",
+      "deliverables": [
+        "Contact-picker invites",
+        "Server-backed QR generation with logo",
+        "ShareInviteSheet + GroupInvitePage"
+      ]
+    },
+    {
+      "id": "i-audit",
+      "name": "iOS Architecture Audit & Hardening",
+      "lane": "iphone",
+      "start": "2026-06-09",
+      "end": "2026-06-12",
+      "status": "done",
+      "commits": 66,
+      "description": "Systematic post-audit remediation: navigation, state safety, error surfacing, tests and lint gates.",
+      "deliverables": [
+        "Typed route/navigation consolidation",
+        "@MainActor state layer + error-channel plumbing",
+        "~100 silent failures rerouted to visible errors",
+        "65 tests + SwiftLint gate"
+      ]
+    },
+    {
+      "id": "w-member",
+      "name": "Member Web Experience",
+      "lane": "web",
+      "start": "2026-01-01",
+      "end": "2026-02-28",
+      "status": "done",
+      "commits": 70,
+      "description": "Member-facing web: group home, study home, profile \u2014 with native-app feel.",
+      "deliverables": [
+        "Group home + study home",
+        "Profile/account management",
+        "iOS-parity cards and modal system"
+      ]
+    },
+    {
+      "id": "w-join",
+      "name": "Public Join & Phone Verification",
+      "lane": "web",
+      "start": "2026-01-01",
+      "end": "2026-05-01",
+      "status": "done",
+      "commits": 85,
+      "description": "The public front door: join a group/study/event by code with SMS verification.",
+      "deliverables": [
+        "Keypad phone entry + SMS verify flow",
+        "Group/study/event join workflows",
+        "Deep links + already-member handling"
+      ]
+    },
+    {
+      "id": "w-laravel",
+      "name": "Laravel Migration & Component System",
+      "lane": "web",
+      "start": "2026-03-17",
+      "end": "2026-03-20",
+      "status": "done",
+      "commits": 108,
+      "description": "Replatformed the web client from a React SPA to Laravel + Vue islands with a 52-component library \u2014 in four days.",
+      "deliverables": [
+        "Laravel 12 + Blade/Vue hybrid architecture",
+        "52-component library with SCSS pipeline",
+        "Pixel-accurate visual fidelity pass"
+      ]
+    },
+    {
+      "id": "w-admin",
+      "name": "Admin Panel & Analytics Dashboard",
+      "lane": "web",
+      "start": "2026-03-20",
+      "end": "2026-03-27",
+      "status": "done",
+      "commits": 136,
+      "description": "Full leader/admin console: CRUD for every domain object plus a KPI analytics dashboard \u2014 in one week.",
+      "deliverables": [
+        "Admin shell with Pinia stores + API proxy",
+        "CRUD for groups, programs, lessons, enrollments, posts",
+        "KPI/ApexCharts analytics dashboard",
+        "Virtualized member management"
+      ]
+    },
+    {
+      "id": "w-primevue",
+      "name": "Design System Migration (PrimeVue)",
+      "lane": "web",
+      "start": "2026-03-21",
+      "end": "2026-03-22",
+      "status": "done",
+      "commits": 23,
+      "description": "Consolidated the admin UI onto PrimeVue, retiring 16 hand-written SCSS files.",
+      "deliverables": [
+        "Tailwind v4 + PrimeVue styled mode migration"
+      ]
+    },
+    {
+      "id": "w-player",
+      "name": "Lesson Player: Themes & Activities",
+      "lane": "web",
+      "start": "2026-01-19",
+      "end": "2026-05-15",
+      "status": "done",
+      "commits": 95,
+      "description": "The member lesson experience: themed slides, video, reading and interactive input.",
+      "deliverables": [
+        "Code-based theme engine (Star Wars crawl, Typewriter, ...)",
+        "All activity types incl. exegesis highlighting",
+        "Public preview player + /slides test bench"
+      ]
+    },
+    {
+      "id": "w-compliance",
+      "name": "SMS Compliance & Legal Pages",
+      "lane": "web",
+      "start": "2026-02-05",
+      "end": "2026-05-09",
+      "status": "done",
+      "commits": 30,
+      "description": "Privacy/terms/SMS opt-in surfaces required for carrier approval.",
+      "deliverables": [
+        "Consent carousel + checkbox-gated opt-in",
+        "Privacy, terms, SMS opt-in pages",
+        "Twilio A2P campaign remediation"
+      ]
+    },
+    {
+      "id": "w-marketing",
+      "name": "Marketing Site & Beta Program",
+      "lane": "web",
+      "start": "2026-05-17",
+      "end": "2026-05-20",
+      "status": "done",
+      "commits": 12,
+      "description": "YAML-driven marketing website and Google-OAuth beta join page.",
+      "deliverables": [
+        "Marketing site with timeline components",
+        "Beta-test join flow"
+      ]
+    },
+    {
+      "id": "w-platform",
+      "name": "Web Platform & Infrastructure",
+      "lane": "web",
+      "start": "2025-10-31",
+      "end": "2026-05-20",
+      "status": "done",
+      "commits": 95,
+      "description": "Everything that keeps the web client shippable: CI/CD, containers, tests, logging.",
+      "deliverables": [
+        "Docker/Nginx/Supervisor + Railway deploys",
+        "Vitest/Playwright harness",
+        "API-call logging viewer, Postgres sessions"
+      ]
+    },
+    {
+      "id": "w-member-redesign",
+      "name": "Member Group Home & Analytics Redesign",
+      "lane": "web",
+      "start": "2026-06-01",
+      "end": "2026-06-13",
+      "status": "done",
+      "commits": 19,
+      "description": "Redesigned member group home and study-engagement analytics.",
+      "deliverables": [
+        "Group switcher + leader contact card",
+        "Study pager with progress bars",
+        "Enrollment-completion analytics"
+      ]
+    },
+    {
+      "id": "w-preview",
+      "name": "Interactive Lesson Preview & Reading Themes",
+      "lane": "web",
+      "start": "2026-05-29",
+      "end": "2026-06-13",
+      "status": "done",
+      "commits": 13,
+      "description": "Auto-saving interactive preview and native-scroll reading themes shared across platforms.",
+      "deliverables": [
+        "Interactive preview island with auto-save",
+        "Shared lesson renderer",
+        "Native-scroll reading themes"
+      ]
+    },
+    {
+      "id": "p-capture",
+      "name": "Capture Tool (Visual Regression)",
+      "lane": "platform",
+      "start": "2026-04-19",
+      "end": "2026-05-18",
+      "status": "done",
+      "commits": 15,
+      "description": "Internal manifest-driven screenshot tool capturing both web and iPhone simulator.",
+      "deliverables": [
+        "React + Playwright capture app",
+        "Platform picker + fixture workflows"
+      ]
+    },
+    {
+      "id": "p-monorepo",
+      "name": "Monorepo Consolidation & CI/CD",
+      "lane": "platform",
+      "start": "2026-05-20",
+      "end": "2026-06-20",
+      "status": "done",
+      "commits": 23,
+      "description": "Merged four repos into one with unified CI and build-once image promotion.",
+      "deliverables": [
+        "Single-repo consolidation (380k LOC)",
+        "Unified GitHub Actions",
+        "Build-once GHCR image promotion"
+      ]
+    },
+    {
+      "id": "p-twins",
+      "name": "iPhone-Web Pixel-Parity Compare System",
+      "lane": "platform",
+      "start": "2026-06-25",
+      "end": "2026-06-28",
+      "status": "done",
+      "commits": 84,
+      "description": "Built Vue twins of 80+ iPhone components with automated pixel-diff comparison \u2014 the engine that makes web parity fast and provable.",
+      "deliverables": [
+        "80+ web twin components",
+        "Side-by-side capture + programmatic pixel diff",
+        "Comment/resolve review workflow"
+      ]
+    },
+    {
+      "id": "w-parity-port",
+      "name": "LeaderApp Parity Port: Study Mgmt & Groups",
+      "lane": "web",
+      "start": "2026-06-28",
+      "end": "2026-07-06",
+      "status": "in-progress",
+      "commits": 0,
+      "description": "Porting iPhone leader screens to the web with pixel parity: 7 screens verified, 7 more wired and awaiting live verification.",
+      "deliverables": [
+        "Program home + all lesson editors verified",
+        "Publish/export, create-program, library filters verified",
+        "Group home/edit/invite/members wired",
+        "Bible passage picker + overlay system built"
+      ]
+    },
+    {
+      "id": "f-parity",
+      "name": "Web Client: 100% iPhone Parity",
+      "lane": "roadmap",
+      "start": "2026-07-06",
+      "end": "2026-08-28",
+      "status": "planned",
+      "weeks": 8,
+      "dependsOn": [],
+      "userStories": [
+        "11. GROUPS",
+        "9. CURRICULUM",
+        "12. ADMIN"
+      ],
+      "description": "Finish the remaining 20 of 27 tracked screens (13 not started, 7 awaiting verification) plus the Bible reader page, so every leader workflow on iPhone works identically on the web.",
+      "deliverables": [
+        "Verify the 7 wired screens (groups chain, exegesis editor, video picker)",
+        "Member profile, requests, enrollment flow + scheduling",
+        "Calendar month grid, global search, notification feed",
+        "Org home, invite contacts, Bible reader page",
+        "Overlay migration cleanup"
+      ],
+      "tokens": {
+        "processedM": 6400,
+        "outputM": 24,
+        "extraCostUsd": 2720
+      }
+    },
+    {
+      "id": "f-invites",
+      "name": "Content Collaborator Invitations",
+      "lane": "roadmap",
+      "start": "2026-08-24",
+      "end": "2026-09-25",
+      "status": "planned",
+      "weeks": 5,
+      "dependsOn": [
+        "f-parity"
+      ],
+      "userStories": [
+        "1.6 ACCOUNT (invite any role)",
+        "11.2 GROUPS (invite non-members)"
+      ],
+      "description": "Group leaders invite anyone \u2014 including people who are not members or leaders \u2014 to create and edit study programs, lessons, enrolled-lesson content and related material.",
+      "deliverables": [
+        "Collaborator invite model (email/SMS, status tracking, withdrawal)",
+        "Invitation accept flow with account bootstrap",
+        "Collaborator access to program/lesson editors on web",
+        "Invitation management UI for leaders"
+      ],
+      "tokens": {
+        "processedM": 4000,
+        "outputM": 15,
+        "extraCostUsd": 1700
+      }
+    },
+    {
+      "id": "f-acl",
+      "name": "ACL Permissions for Invited Users",
+      "lane": "roadmap",
+      "start": "2026-09-28",
+      "end": "2026-11-06",
+      "status": "planned",
+      "weeks": 6,
+      "dependsOn": [
+        "f-invites"
+      ],
+      "userStories": [
+        "1.6 ACCOUNT (roles)",
+        "14.1 ADMIN (full rights)"
+      ],
+      "description": "Fine-grained access control so a leader specifies exactly what each invited person can do \u2014 per-resource CRUD grants on study programs, lessons, enrolled lessons and content.",
+      "deliverables": [
+        "Grant model: per-resource, per-action (create/read/update/delete)",
+        "Permission middleware across ~115 content endpoints",
+        "Permission editor UI (per collaborator, per program)",
+        "Audit log of collaborator actions"
+      ],
+      "tokens": {
+        "processedM": 4800,
+        "outputM": 18,
+        "extraCostUsd": 2040
+      }
+    },
+    {
+      "id": "f-community",
+      "name": "Group Leader Community (Content Marketplace)",
+      "lane": "roadmap",
+      "start": "2026-11-09",
+      "end": "2027-02-12",
+      "status": "planned",
+      "weeks": 12,
+      "dependsOn": [
+        "f-acl"
+      ],
+      "userStories": [
+        "4.9 VIDEO (share with creators)",
+        "9. CURRICULUM"
+      ],
+      "description": "An app-store-like community where leaders publish study programs for other leaders to discover, use for enrollment, discuss and build upon \u2014 with versioning and creator-to-creator engagement.",
+      "deliverables": [
+        "Publish-to-community flow with review states",
+        "Discovery: browse, search, categories, ratings",
+        "One-click 'use for my group' enrollment cloning",
+        "Comments + leader-to-leader messaging on published content",
+        "Content versioning with update notifications to adopters"
+      ],
+      "tokens": {
+        "processedM": 9600,
+        "outputM": 36,
+        "extraCostUsd": 4080
+      }
+    },
+    {
+      "id": "f-sso",
+      "name": "Org SSO & Domain-Controlled Access",
+      "lane": "roadmap",
+      "start": "2027-01-25",
+      "end": "2027-02-26",
+      "status": "planned",
+      "weeks": 5,
+      "dependsOn": [],
+      "userStories": [
+        "1.1 ACCOUNT (OIDC)",
+        "1.4 ACCOUNT (org accounts)"
+      ],
+      "description": "Organizations toggle between invite-only and open domain access: anyone with an email at the org's domain (Google, Microsoft, generic OIDC) can join automatically.",
+      "deliverables": [
+        "OIDC provider integration (Google, Microsoft)",
+        "Domain verification + org toggle (invite-only vs domain-open)",
+        "Auto-provisioning with default role assignment",
+        "Org admin controls and member deprovisioning"
+      ],
+      "tokens": {
+        "processedM": 4000,
+        "outputM": 15,
+        "extraCostUsd": 1700
+      }
+    },
+    {
+      "id": "f-analytics",
+      "name": "Member Analytics & Behavior Tracking",
+      "lane": "roadmap",
+      "start": "2027-03-01",
+      "end": "2027-04-16",
+      "status": "planned",
+      "weeks": 7,
+      "dependsOn": [],
+      "userStories": [
+        "13. ANALYTICS",
+        "9.4 CURRICULUM (track progress)"
+      ],
+      "description": "Instrument every lesson interaction to learn where members spend time, where they get stuck, and where they accelerate \u2014 so the experience improves with data instead of guesses.",
+      "deliverables": [
+        "Client event pipeline (web + iPhone) with batching",
+        "Per-activity dwell time, drop-off and completion funnels",
+        "Video watch-time and abandonment points",
+        "Leader dashboard: cohort progress, struggle points",
+        "Org-level engagement reporting"
+      ],
+      "tokens": {
+        "processedM": 5600,
+        "outputM": 21,
+        "extraCostUsd": 2380
+      }
+    },
+    {
+      "id": "f-ai",
+      "name": "AI Growth Insights & Summarization",
+      "lane": "roadmap",
+      "start": "2027-04-19",
+      "end": "2027-06-11",
+      "status": "planned",
+      "weeks": 8,
+      "dependsOn": [
+        "f-analytics"
+      ],
+      "userStories": [
+        "9.10 CURRICULUM (Trophy Room + AI summary)",
+        "2. ACCOUNTABILITY (spiritual health)",
+        "5.4 NOTES (lessons learned)"
+      ],
+      "description": "Route all user input (SOAP entries, notes, answers, reflections) through AI analysis so members can see how they are growing and what they have learned from completed content.",
+      "deliverables": [
+        "Unified user-input capture across all activity types",
+        "AI analysis pipeline (themes, sentiment, growth signals)",
+        "Personal growth timeline + 'lessons learned' summaries",
+        "Trophy Room: AI-summarized completed-content view",
+        "Privacy controls: opt-in, member-owned data"
+      ],
+      "tokens": {
+        "processedM": 6400,
+        "outputM": 24,
+        "extraCostUsd": 2720
+      }
+    },
+    {
+      "id": "f-hardening",
+      "name": "Hardening, Perf & Release Buffer",
+      "lane": "roadmap",
+      "start": "2027-06-14",
+      "end": "2027-06-30",
+      "status": "planned",
+      "weeks": 2,
+      "dependsOn": [],
+      "userStories": [],
+      "description": "Deliberate schedule buffer for verification debt, performance and polish before the 12-month mark.",
+      "deliverables": [
+        "Cross-feature regression pass",
+        "Performance and load testing",
+        "Security review"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 680
+      }
+    },
+    {
+      "id": "x-events",
+      "name": "Events & Calendar Completion",
+      "lane": "roadmap",
+      "start": "2027-07-01",
+      "end": "2027-07-31",
+      "status": "proposed",
+      "weeks": 4,
+      "dependsOn": [],
+      "userStories": [
+        "3. EVENTS"
+      ],
+      "description": "Recommended: finish the original events vision \u2014 RSVP, ICS compatibility, event channels and reminders (APIs partially exist).",
+      "deliverables": [
+        "RSVP + attendee communication",
+        "ICS/calendar export",
+        "Event templates"
+      ],
+      "tokens": {
+        "processedM": 3200,
+        "outputM": 12,
+        "extraCostUsd": 1360
+      }
+    },
+    {
+      "id": "x-challenges",
+      "name": "Challenges (Habit & Accountability Engine)",
+      "lane": "roadmap",
+      "start": "2027-08-01",
+      "end": "2027-10-09",
+      "status": "proposed",
+      "weeks": 10,
+      "dependsOn": [],
+      "userStories": [
+        "7. CHALLENGES"
+      ],
+      "description": "Recommended: the recurring-cadence challenge system from the original vision \u2014 the densest unbuilt domain (14 stories) and a major retention driver. Needs new infrastructure: a per-period frequency engine and scheduled push reminders.",
+      "deliverables": [
+        "Recurring frequency engine (per-period objectives, member-adjustable timing)",
+        "Per-period questions: multiple-choice + freeform, timed notifications",
+        "Leader solicitation workflow (filtered member selection, notify, withdraw)",
+        "Privacy-preserving progress sharing + progress-over-time visualization",
+        "Templates, multimedia attachments, challenge history",
+        "Scheduled push reminders without opening the app",
+        "Curriculum integration (challenges inside programs), iPhone + web"
+      ],
+      "tokens": {
+        "processedM": 8000,
+        "outputM": 30,
+        "extraCostUsd": 3400
+      }
+    },
+    {
+      "id": "x-goals",
+      "name": "Goals & Accountability",
+      "lane": "roadmap",
+      "start": "2027-10-12",
+      "end": "2027-11-13",
+      "status": "proposed",
+      "weeks": 5,
+      "dependsOn": [
+        "x-challenges"
+      ],
+      "userStories": [
+        "8. GOALS"
+      ],
+      "description": "Recommended: personal goals with reminders, group accountability sharing, and linking goal progress to challenge objectives \u2014 builds directly on the challenge engine.",
+      "deliverables": [
+        "Goal creation, tracking and reminders",
+        "Share goals with group for accountability",
+        "Link goals to challenges (progress tracked against objectives)",
+        "Leader solicitation of goals, templates from past goals"
+      ],
+      "tokens": {
+        "processedM": 4000,
+        "outputM": 15,
+        "extraCostUsd": 1700
+      }
+    },
+    {
+      "id": "x-chat",
+      "name": "Group Communication (Chat)",
+      "lane": "roadmap",
+      "start": "2027-11-16",
+      "end": "2028-01-31",
+      "status": "proposed",
+      "weeks": 10,
+      "dependsOn": [],
+      "userStories": [
+        "12. CHAT"
+      ],
+      "description": "Recommended: group chat, direct messages, mentions and moderation \u2014 the largest unbuilt domain from the original stories.",
+      "deliverables": [
+        "Group channels + DMs with mentions",
+        "Notification preferences per conversation",
+        "Moderation controls"
+      ],
+      "tokens": {
+        "processedM": 8000,
+        "outputM": 30,
+        "extraCostUsd": 3400
+      }
+    },
+    {
+      "id": "x-billing",
+      "name": "Org Billing & Payments",
+      "lane": "roadmap",
+      "start": "2027-07-01",
+      "end": "2027-08-15",
+      "status": "proposed",
+      "weeks": 6,
+      "dependsOn": [],
+      "userStories": [
+        "14.5 ADMIN (payments)"
+      ],
+      "description": "Recommended: subscription billing for organizations \u2014 prerequisite for monetizing the leader community marketplace.",
+      "deliverables": [
+        "Stripe subscription billing",
+        "Usage-based tiers",
+        "Marketplace payout rails (future)"
+      ],
+      "tokens": {
+        "processedM": 4800,
+        "outputM": 18,
+        "extraCostUsd": 2040
+      }
+    },
+    {
+      "id": "x-moderation",
+      "name": "Moderation & Safety Controls",
+      "lane": "roadmap",
+      "start": "2027-09-01",
+      "end": "2027-09-30",
+      "status": "proposed",
+      "weeks": 4,
+      "dependsOn": [],
+      "userStories": [
+        "4.6-4.7 VIDEO (moderation)",
+        "12.15 CHAT (moderation)"
+      ],
+      "description": "Recommended: AI-assisted content moderation and org-level safety policies \u2014 required before community content and chat scale.",
+      "deliverables": [
+        "Automated content screening (AI)",
+        "Org moderation policies + alerts",
+        "Report/review workflows"
+      ],
+      "tokens": {
+        "processedM": 3200,
+        "outputM": 12,
+        "extraCostUsd": 1360
+      }
+    }
+  ]
+}

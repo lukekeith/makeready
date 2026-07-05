@@ -30,6 +30,10 @@ const props = withDefaults(defineProps<Props>(), {
   tabs: () => [],
   selectedIndex: 0,
 })
+
+// Additive interaction (like PageHeader's `select`): the compare harness binds
+// no listeners, so the twin's captured rendering is unchanged.
+const emit = defineEmits<{ select: [index: number] }>()
 </script>
 
 <template>
@@ -39,6 +43,10 @@ const props = withDefaults(defineProps<Props>(), {
       :key="index"
       class="TabSliderControl__tab"
       :class="{ 'TabSliderControl__tab--active': index === props.selectedIndex }"
+      role="button"
+      tabindex="0"
+      @click="emit('select', index)"
+      @keydown.enter.prevent="emit('select', index)"
     >
       {{ tab }}
     </span>

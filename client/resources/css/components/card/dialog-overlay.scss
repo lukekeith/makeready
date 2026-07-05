@@ -103,5 +103,13 @@
       color: var(--color-white-50);
       font-weight: var(--font-weight-regular);
     }
+
+    &--destructive {
+      // Additive web style for iOS native-.alert destructive actions
+      // (delete/reset/clear confirms) — destructive red fill, white, semibold.
+      background: var(--color-destructive);
+      color: var(--fg-white);
+      font-weight: var(--font-weight-semibold);
+    }
   }
 }

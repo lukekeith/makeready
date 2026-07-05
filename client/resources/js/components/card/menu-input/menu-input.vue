@@ -25,6 +25,12 @@
 //
 // Fully data-driven via props; BEM mirrors
 // resources/css/components/card/menu-input.scss.
+//
+// ADDITIVE `interactive` mode (production only; captures never pass it): the
+// collapsed row gains an invisible native <select> overlay bound to `options`,
+// emitting `update:selectedValue`. iOS .menu/.wheel present SYSTEM chrome
+// (context menu / wheel), so the web-native <select> is the platform-chrome
+// equivalent — the resting row stays pixel-identical.
 interface Props {
   label?: string
   selectedValue?: string
@@ -33,15 +39,27 @@ interface Props {
   // ConfirmationOverlay twin). 'menu' | 'wheel' | 'inline' all render the same
   // collapsed row; 'segmented' renders the segmented control.
   pickerStyle?: 'menu' | 'wheel' | 'inline' | 'segmented'
-  options?: string[] // segments, in order (segmented style only)
+  options?: string[] // segments (segmented style) / choices (interactive rows)
+  interactive?: boolean
+  /** Shown as the disabled placeholder option while selectedValue isn't a real
+   *  choice (e.g. "Select a template"). */
+  placeholderValue?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   label: '',
   selectedValue: '',
   pickerStyle: 'menu',
   options: () => [],
+  interactive: false,
+  placeholderValue: '',
 })
+
+const emit = defineEmits<{ 'update:selectedValue': [value: string] }>()
+
+function onSelectChange(e: Event): void {
+  emit('update:selectedValue', (e.target as HTMLSelectElement).value)
+}
 </script>
 
 <template>
@@ -56,6 +74,19 @@ withDefaults(defineProps<Props>(), {
                 stroke-linecap="round" stroke-linejoin="round" />
         </svg>
       </span>
+      <!-- Additive interactive overlay: native picker, invisible at rest. -->
+      <select
+        v-if="props.interactive"
+        class="MenuInput__select"
+        :value="options.includes(selectedValue) ? selectedValue : ''"
+        :aria-label="label"
+        @change="onSelectChange"
+      >
+        <option v-if="placeholderValue || !options.includes(selectedValue)" value="" disabled>
+          {{ placeholderValue || selectedValue }}
+        </option>
+        <option v-for="opt in options" :key="opt" :value="opt">{{ opt }}</option>
+      </select>
     </div>
 
     <!-- segmented -->

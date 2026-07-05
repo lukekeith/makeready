@@ -223,9 +223,9 @@ class GroupsAdminTest extends TestCase
     }
 
     /**
-     * GRP-07: GET /admin/groups/grp-1 returns 200 with AdminIsland mount point.
+     * GRP-07: GET /admin/groups/grp-1 returns 200 with the LeaderApp mount point.
      *
-     * The admin catch-all serves the Blade shell for all /admin/* paths
+     * The /admin catch-all serves the new LeaderApp shell for all /admin/* paths
      * that are not API proxy requests, including detail route sub-paths.
      */
     public function test_group_detail_renders(): void
@@ -233,6 +233,6 @@ class GroupsAdminTest extends TestCase
         $response = $this->withSession($this->adminSession())->get('/admin/groups/grp-1');
 
         $response->assertStatus(200);
-        $response->assertSee('AdminIsland');
+        $response->assertSee('data-vue="LeaderApp"', false);
     }
 }

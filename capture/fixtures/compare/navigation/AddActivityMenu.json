@@ -1,10 +1,11 @@
 {
   "id": "AddActivityMenu",
-  "type": "component",
+  "type": "page",
   "group": "Navigation",
-  "title": "Navigation · Add Activity Menu",
+  "title": "Navigation · Add Activity Menu (\"Select activity\")",
   "adapter": "AddActivityMenu",
-  "viewports": ["pro-max", "se"],
+  "viewports": ["pro-max"],
+  "note": "Full-screen 'Select activity' overlay. Both sides hardcode the 5 activity types exactly like their sources (AddActivityMenu.swift / add-activity-menu.vue) — the shared block below is documentation, not bound data. iPhone side captures via the pages.add-activity-menu ViewRegistry case (the old component.* sizeThatFits capture was skipped: the view fades in from opacity 0 and fills the screen); the case disables animations so the entrance fade resolves instantly.",
   "variants": [
     {
       "name": "AllActivityTypes",

@@ -221,9 +221,9 @@ class ProgramsAdminTest extends TestCase
     }
 
     /**
-     * PROG-07: GET /admin/programs/prog-1 returns 200 with AdminIsland mount point.
+     * PROG-07: GET /admin/programs/prog-1 returns 200 with the LeaderApp mount point.
      *
-     * The admin catch-all serves the Blade shell for all /admin/* paths
+     * The /admin catch-all serves the new LeaderApp shell for all /admin/* paths
      * that are not API proxy requests, including detail route sub-paths.
      */
     public function test_program_detail_renders(): void
@@ -231,7 +231,7 @@ class ProgramsAdminTest extends TestCase
         $response = $this->withSession($this->adminSession())->get('/admin/programs/prog-1');
 
         $response->assertStatus(200);
-        $response->assertSee('AdminIsland');
+        $response->assertSee('data-vue="LeaderApp"', false);
     }
 
     /**

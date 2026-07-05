@@ -1,0 +1,526 @@
+// BiblePassagePicker — twin of the iPhone Bible reader overlay sheet content
+// (Pages/Bible/BibleReaderOverlay.swift). Geometry 1:1 from layoutSubviews:
+// drag indicator 36×5@0.3 y10 · search bar y27 h40 #0D101A@0.8 r4 · subtitle
+// row +16 (13pt centered) · grid +30: 5 columns / 2px gaps / 44px cells,
+// inset L/R 16 bottom 40 · reader bg black@0.5 with Charter serif + a 48px
+// left gutter for hung verse numbers. Raw px throughout (capture-parity
+// geometry, same exception the chart / exegesis twins use).
+.BiblePassagePicker {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: #252936; // iOS modalBg
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  color: #fff;
+
+  &__grabberStrip {
+    flex: none;
+    height: 25px; // indicator center at y ≈ 12.5 (iOS y10 + 5h)
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__grabber {
+    width: 36px;
+    height: 5px;
+    border-radius: 2.5px;
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+  // ── Search bar (y27 → 2px below the 25px strip; h40; inset 16) ──
+  &__searchBar {
+    flex: none;
+    display: flex;
+    align-items: center;
+    height: 40px;
+    margin: 2px 16px 0;
+    padding: 0 8px;
+    background: rgba(13, 16, 26, 0.8); // #0D101A@0.8
+    border-radius: 4px;
+  }
+
+  &__version {
+    flex: none;
+    width: 48px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    background: #6c47ff;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    cursor: pointer;
+    padding: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  &__bookList {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #d9d9d9;
+    cursor: pointer;
+    padding: 0;
+
+    svg {
+      width: 14px;
+      height: 12px;
+      display: block;
+    }
+  }
+
+  &__field {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: 8px;
+    height: 100%;
+    border: none;
+    background: none;
+    color: #fff;
+    font-size: 15px;
+    outline: none;
+
+    &::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+  }
+
+  &__readerLabel {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-left: 8px;
+    font-size: 15px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  &__searchIcon {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    padding: 0;
+
+    svg {
+      width: 14px;
+      height: 14px;
+      display: block;
+    }
+  }
+
+  // ── Subtitle row (searchBar.maxY + 16; label 13pt centered full-width) ──
+  &__subtitleRow {
+    flex: none;
+    position: relative;
+    height: 18px;
+    margin-top: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__subtitle {
+    font-size: 13px;
+    color: #fff;
+    text-align: center;
+
+    &--dim {
+      color: rgba(255, 255, 255, 0.4);
+    }
+  }
+
+  &__back {
+    position: absolute;
+    left: 16px;
+    top: -2px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    padding: 0;
+
+    svg {
+      width: 12px;
+      height: 14px;
+      display: block;
+    }
+  }
+
+  &__select {
+    position: absolute;
+    right: 16px;
+    top: -2px;
+    height: 24px;
+    border: none;
+    background: none;
+    color: #6c47ff;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+
+    &:disabled {
+      color: rgba(108, 71, 255, 0.3);
+      cursor: default;
+    }
+  }
+
+  // ── Grids (top = subtitle + 30; 5 columns, 2px gaps, 44px cells) ──
+  &__gridScroll {
+    flex: 1 1 auto;
+    margin-top: 30px;
+    overflow-y: auto;
+    padding: 0 16px 40px;
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 2px;
+  }
+
+  &__sectionSpacer {
+    height: 2px;
+    margin-top: 2px;
+  }
+
+  &__bookCell {
+    height: 44px;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+
+  &__numberCell {
+    height: 44px;
+    border: none;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05); // iOS cellBg
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+
+    &--used {
+      background: #6c47ff;
+    }
+  }
+
+  // ── Reader (container bg black@0.5; text inset top24/left48/bottom60/right20) ──
+  &__reader {
+    flex: 1 1 auto;
+    margin-top: 26px; // iOS readerContainer sits at gridY − 4
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 24px 20px 60px 48px;
+    font-family: var(--font-serif);
+  }
+
+  &__chapterHeading {
+    font-family: var(--font-serif);
+    font-size: 24px;
+    font-weight: 700;
+    color: #fff;
+    text-align: center;
+    padding-top: 8px;
+    padding-bottom: 24px;
+  }
+
+  &__verse {
+    position: relative;
+    margin-bottom: 8px; // iOS paragraphSpacing 8
+    cursor: default;
+  }
+
+  &__verseNum {
+    position: absolute;
+    left: -48px; // hang in the gutter (textInsets.left 48)
+    top: 0;
+    width: 40px; // rail width = inset − 8 gap
+    text-align: right;
+    font-family: var(--font-serif);
+    font-size: 12px;
+    line-height: 25.5px; // share the first text line's box
+    color: rgba(255, 255, 255, 0.55);
+    user-select: none;
+    -webkit-user-select: none;
+
+    &--used {
+      color: rgba(108, 71, 255, 0.8);
+    }
+
+    &--selected {
+      color: #6c47ff;
+      font-weight: 700;
+    }
+  }
+
+  &__verseText {
+    font-family: var(--font-serif);
+    font-size: 17px;
+    line-height: 25.5px; // Charter 17 + lineSpacing 6
+    color: #fff;
+    text-align: justify;
+    text-justify: inter-word;
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    display: block;
+
+    &--used {
+      background: rgba(108, 71, 255, 0.2);
+    }
+
+    &--selected {
+      background: rgba(244, 255, 118, 0.5); // iOS selection tint #F4FF76@0.5
+    }
+  }
+
+  // ── Search results (same frame as the grid) ──
+  &__results {
+    flex: 1 1 auto;
+    margin-top: 30px;
+    overflow-y: auto;
+    padding: 0 16px 40px;
+  }
+
+  &__loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 0;
+  }
+
+  &__spinner {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    border-top-color: rgba(255, 255, 255, 0.5);
+    animation: BiblePassagePicker-spin 0.8s linear infinite;
+  }
+
+  &__message {
+    padding: 40px 0;
+    text-align: center;
+    font-size: 15px;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &__recent {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 44px;
+    border: none;
+    background: none;
+    color: #fff;
+    padding: 0 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  &__recentIcon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255, 255, 255, 0.5);
+
+    svg {
+      width: 15px;
+      height: 15px;
+      display: block;
+    }
+  }
+
+  &__recentQuery {
+    margin-left: 12px;
+    font-size: 15px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__sectionHeader {
+    padding: 12px 0 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.4);
+  }
+
+  &__matchedBook {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 44px;
+    margin-bottom: 2px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.05);
+    color: #fff;
+    padding: 0 8px;
+    cursor: pointer;
+    text-align: left;
+  }
+
+  &__matchedIcon {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+
+    svg {
+      width: 14px;
+      height: 16px;
+      display: block;
+    }
+  }
+
+  &__matchedText {
+    margin-left: 8px;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  &__matchedName {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+  }
+
+  &__matchedDetail {
+    font-size: 12px;
+    line-height: 16px;
+    color: rgba(255, 255, 255, 0.7);
+  }
+
+  &__result {
+    margin-bottom: 2px;
+  }
+
+  // ── Version dropdown (anchored under the search bar; iOS BibleVersionDropdown) ──
+  &__versionScrim {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 5;
+  }
+
+  &__versionMenu {
+    position: absolute;
+    top: 73px; // search bar bottom (27 + 40) + 6
+    left: 16px;
+    right: 16px;
+    max-height: calc(100% - 89px);
+    overflow-y: auto;
+    background: #1e212d; // iOS menuBg
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
+  }
+
+  &__versionRow {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    height: 48px;
+    border: none;
+    background: none;
+    color: #fff;
+    padding: 0 16px;
+    cursor: pointer;
+    text-align: left;
+
+    & + & {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  &__versionRadio {
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+
+    svg {
+      width: 11px;
+      height: 9px;
+      display: block;
+    }
+
+    &--selected {
+      border: none;
+      background: #6c47ff;
+    }
+  }
+
+  &__versionName {
+    margin-left: 16px;
+    font-size: 12px;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  @keyframes BiblePassagePicker-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+}
+
+// Capture harness: the leader-twin page has no height chain, so the sheet
+// fills the viewport there (production sizes it via the host's flex column).
+.capture-page .BiblePassagePicker {
+  min-height: 100vh;
+}

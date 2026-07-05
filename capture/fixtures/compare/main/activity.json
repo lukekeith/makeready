@@ -1,0 +1,16 @@
+{
+  "id": "activity",
+  "type": "page",
+  "group": "Main",
+  "title": "Activity",
+  "adapter": "activity",
+  "viewports": ["pro-max"],
+  "shared": {
+    "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+    "activity": [
+      { "category": "LESSON", "status": "completed", "text": "Maria completed Day 5 — The Righteous Will Live by Faith", "createdAt": "2026-06-28T14:10:00Z" },
+      { "category": "MEMBER", "status": "active", "text": "James joined Sunday Morning Group", "createdAt": "2026-06-28T12:30:00Z" },
+      { "category": "POST", "status": "active", "text": "You shared a meeting in Sunday Morning Group", "createdAt": "2026-06-27T18:05:00Z" }
+    ]
+  }
+}
