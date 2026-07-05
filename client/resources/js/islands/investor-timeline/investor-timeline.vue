@@ -10,6 +10,7 @@ interface Epic {
   start: string
   end: string
   status: 'done' | 'in-progress' | 'planned' | 'proposed'
+  feature?: string
   commits?: number
   weeks?: number
   description: string
@@ -117,6 +118,16 @@ function epicName(id: string): string {
   return epics.find((e) => e.id === id)?.name ?? id
 }
 
+const siblingParts = computed(() => {
+  const sel = selected.value
+  if (!sel?.feature) return []
+  return epics.filter((e) => e.feature === sel.feature && e.id !== sel.id)
+})
+
+function laneName(id: string): string {
+  return lanes.find((l) => l.id === id)?.name ?? id
+}
+
 function fmtDate(s: string): string {
   return toDate(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
@@ -147,9 +158,9 @@ const plannedEpics = computed(() => epics.filter((e) => e.status === 'planned'))
 const plannedCost = computed(() => plannedEpics.value.reduce((s, e) => s + (e.tokens?.extraCostUsd ?? 0), 0))
 
 const budgetScenarios = [
-  { name: 'Conservative', share: '10% Fable 5', month: 520 },
-  { name: 'Measured mix', share: '31% Fable 5 — as observed', month: 1465, recommended: true },
-  { name: 'Aggressive', share: '50% Fable 5', month: 2610 },
+  { name: 'Measured burn', value: '$5,220', suffix: '/mo', sub: '100% Fable 5, measured Jun 11 – Jul 5' },
+  { name: 'Recommended budget', value: '$5,500', suffix: '/mo', sub: 'measured burn + headroom', recommended: true },
+  { name: '12-month plan', value: '$63.6k', suffix: ' total', sub: '53 work-weeks × $1,200/wk' },
 ]
 </script>
 
@@ -255,6 +266,7 @@ const budgetScenarios = [
           {{ statusLabels[selected.status] }}
         </span>
         <h2 class="InvestorTimeline__detailTitle">{{ selected.name }}</h2>
+        <p v-if="selected.feature" class="InvestorTimeline__detailFeature">Part of: {{ selected.feature }}</p>
         <p class="InvestorTimeline__detailDates">
           {{ fmtDate(selected.start) }} &rarr; {{ fmtDate(selected.end) }}
           <template v-if="selected.commits"> &middot; {{ selected.commits }} commits</template>
@@ -266,6 +278,15 @@ const budgetScenarios = [
           <h3 class="InvestorTimeline__detailHeading">{{ selected.status === 'done' ? 'Delivered' : 'Scope' }}</h3>
           <ul class="InvestorTimeline__detailList">
             <li v-for="d in selected.deliverables" :key="d">{{ d }}</li>
+          </ul>
+        </template>
+
+        <template v-if="siblingParts.length">
+          <h3 class="InvestorTimeline__detailHeading">Other parts of this feature</h3>
+          <ul class="InvestorTimeline__detailList">
+            <li v-for="p in siblingParts" :key="p.id">
+              {{ laneName(p.lane) }} — {{ p.weeks }} wks
+            </li>
           </ul>
         </template>
 
@@ -304,9 +325,9 @@ const budgetScenarios = [
     <section class="InvestorTimeline__budget">
       <h2 class="InvestorTimeline__sectionTitle">AI Token Budget</h2>
       <p class="InvestorTimeline__sectionSub">
-        Development runs on Claude Code. The $200/mo Max plan covers Opus 4.8 for routine implementation;
-        Claude Fable 5 (architecture, hardest debugging, long autonomous runs) bills as extra tokens from July 7, 2026.
-        The 12-month plan needs <strong>{{ fmtMoney(plannedCost) }}</strong> of extra tokens at the recommended mix.
+        Development runs on Claude Code using <strong>Claude Fable 5 exclusively</strong>, billed as extra tokens
+        from July 7, 2026 (no Opus offset assumed). At measured usage intensity, the committed 12-month plan needs
+        <strong>{{ fmtMoney(plannedCost) }}</strong> of tokens.
       </p>
       <div class="InvestorTimeline__scenarios">
         <div
@@ -316,9 +337,8 @@ const budgetScenarios = [
           :class="{ 'InvestorTimeline__scenario--recommended': s.recommended }"
         >
           <span class="InvestorTimeline__scenarioName">{{ s.name }}</span>
-          <span class="InvestorTimeline__scenarioValue">{{ fmtMoney(s.month) }}<em>/mo</em></span>
-          <span class="InvestorTimeline__scenarioShare">{{ s.share }}</span>
-          <span v-if="s.recommended" class="InvestorTimeline__scenarioBadge">Recommended budget: $1,500/mo</span>
+          <span class="InvestorTimeline__scenarioValue">{{ s.value }}<em>{{ s.suffix }}</em></span>
+          <span class="InvestorTimeline__scenarioShare">{{ s.sub }}</span>
         </div>
       </div>
       <p class="InvestorTimeline__footnote">

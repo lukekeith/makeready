@@ -15,8 +15,8 @@
     },
     "budget": {
       "planUsdPerMonth": 200,
-      "planCovers": "Claude Max plan \u2014 Opus 4.8 tokens for routine implementation work",
-      "extraTokensModel": "Fable 5 billed as extra tokens from 2026-07-07: $10/M input, $50/M output, ~$1/M cache reads, $12.50/M cache writes",
+      "planCovers": "Claude Max plan retained for tooling access only \u2014 development tokens are NOT offset (no Opus usage assumed)",
+      "extraTokensModel": "All development on Claude Fable 5, billed as extra tokens from 2026-07-07: $10/M input, $50/M output, ~$1/M cache reads, $12.50/M cache writes",
       "measurement": {
         "source": "Local Claude Code session transcripts (233 files, 13,501 assistant messages)",
         "window": "2026-06-11 to 2026-07-05 (25 days; older transcripts not retained)",
@@ -28,7 +28,12 @@
           "outputM": 11.0
         },
         "cacheReadShare": 0.974,
-        "measuredFableShareOfTokens": 0.31
+        "measuredFableShareOfTokens": 0.31,
+        "measuredCostAtFableRates": {
+          "windowUsd": 4304,
+          "perWeekUsd": 1206,
+          "perMonthUsd": 5220
+        }
       },
       "weeklyTokens": {
         "processedInputM": 800,
@@ -37,10 +42,11 @@
         "cacheReadM": 795,
         "outputM": 3.1
       },
-      "extraCostPerWorkWeekUsd": 340,
+      "extraCostPerWorkWeekUsd": 1200,
       "totalPlanWorkWeeks": 53,
-      "totalExtraCostUsd": 18020,
-      "recommendedMonthlyBudgetUsd": 1500
+      "totalExtraCostUsd": 63600,
+      "recommendedMonthlyBudgetUsd": 5500,
+      "assumedFableShare": 1.0
     }
   },
   "lanes": [
@@ -63,11 +69,6 @@
       "id": "platform",
       "name": "Tooling & Infrastructure",
       "color": "#f59e0b"
-    },
-    {
-      "id": "roadmap",
-      "name": "12-Month Roadmap",
-      "color": "#ef4444"
     }
   ],
   "epics": [
@@ -638,12 +639,13 @@
     },
     {
       "id": "f-parity",
-      "name": "Web Client: 100% iPhone Parity",
-      "lane": "roadmap",
+      "name": "100% iPhone Parity (remaining 20 screens)",
+      "lane": "web",
       "start": "2026-07-06",
       "end": "2026-08-28",
       "status": "planned",
       "weeks": 8,
+      "feature": "Web Client: 100% iPhone Parity",
       "dependsOn": [],
       "userStories": [
         "11. GROUPS",
@@ -661,185 +663,502 @@
       "tokens": {
         "processedM": 6400,
         "outputM": 24,
-        "extraCostUsd": 2720
+        "extraCostUsd": 9600
       }
     },
     {
-      "id": "f-invites",
-      "name": "Content Collaborator Invitations",
-      "lane": "roadmap",
+      "id": "f-invites-api",
+      "name": "Collaborator Invitations \u2014 API",
+      "lane": "server",
       "start": "2026-08-24",
-      "end": "2026-09-25",
+      "end": "2026-09-04",
       "status": "planned",
-      "weeks": 5,
-      "dependsOn": [
-        "f-parity"
-      ],
+      "weeks": 2,
+      "feature": "Content Collaborator Invitations",
+      "dependsOn": [],
       "userStories": [
         "1.6 ACCOUNT (invite any role)",
         "11.2 GROUPS (invite non-members)"
       ],
-      "description": "Group leaders invite anyone \u2014 including people who are not members or leaders \u2014 to create and edit study programs, lessons, enrolled-lesson content and related material.",
+      "description": "Invitation model and endpoints so leaders can invite anyone \u2014 including non-members \u2014 to create and edit program/lesson content.",
       "deliverables": [
         "Collaborator invite model (email/SMS, status tracking, withdrawal)",
         "Invitation accept flow with account bootstrap",
-        "Collaborator access to program/lesson editors on web",
-        "Invitation management UI for leaders"
+        "Collaborator-scoped access tokens on content endpoints"
       ],
       "tokens": {
-        "processedM": 4000,
-        "outputM": 15,
-        "extraCostUsd": 1700
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
       }
     },
     {
-      "id": "f-acl",
-      "name": "ACL Permissions for Invited Users",
-      "lane": "roadmap",
-      "start": "2026-09-28",
-      "end": "2026-11-06",
+      "id": "f-invites-web",
+      "name": "Collaborator Invitations \u2014 Web",
+      "lane": "web",
+      "start": "2026-09-07",
+      "end": "2026-09-18",
       "status": "planned",
-      "weeks": 6,
+      "weeks": 2,
+      "feature": "Content Collaborator Invitations",
       "dependsOn": [
-        "f-invites"
+        "f-invites-api"
+      ],
+      "userStories": [],
+      "description": "Invitation management UI for leaders and collaborator access to the program/lesson editors on the web.",
+      "deliverables": [
+        "Invitation management UI (send, track, withdraw)",
+        "Collaborator accept + onboarding flow",
+        "Collaborator access to program/lesson editors"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
+      }
+    },
+    {
+      "id": "f-invites-ios",
+      "name": "Collaborator Invitations \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2026-09-21",
+      "end": "2026-09-25",
+      "status": "planned",
+      "weeks": 1,
+      "feature": "Content Collaborator Invitations",
+      "dependsOn": [
+        "f-invites-api"
+      ],
+      "userStories": [],
+      "description": "Invite management surfaces in the iPhone leader app.",
+      "deliverables": [
+        "Send/track/withdraw collaborator invites from the app",
+        "Collaborator status on program screens"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "f-acl-api",
+      "name": "ACL Permissions \u2014 API",
+      "lane": "server",
+      "start": "2026-09-28",
+      "end": "2026-10-16",
+      "status": "planned",
+      "weeks": 3,
+      "feature": "ACL Permissions for Invited Users",
+      "dependsOn": [
+        "f-invites-api"
       ],
       "userStories": [
         "1.6 ACCOUNT (roles)",
         "14.1 ADMIN (full rights)"
       ],
-      "description": "Fine-grained access control so a leader specifies exactly what each invited person can do \u2014 per-resource CRUD grants on study programs, lessons, enrolled lessons and content.",
+      "description": "Per-resource, per-action grant model enforced across all content endpoints, with a full audit trail.",
       "deliverables": [
         "Grant model: per-resource, per-action (create/read/update/delete)",
         "Permission middleware across ~115 content endpoints",
-        "Permission editor UI (per collaborator, per program)",
         "Audit log of collaborator actions"
       ],
       "tokens": {
-        "processedM": 4800,
-        "outputM": 18,
-        "extraCostUsd": 2040
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
       }
     },
     {
-      "id": "f-community",
-      "name": "Group Leader Community (Content Marketplace)",
-      "lane": "roadmap",
-      "start": "2026-11-09",
-      "end": "2027-02-12",
+      "id": "f-acl-web",
+      "name": "ACL Permissions \u2014 Web",
+      "lane": "web",
+      "start": "2026-10-19",
+      "end": "2026-10-30",
       "status": "planned",
-      "weeks": 12,
+      "weeks": 2,
+      "feature": "ACL Permissions for Invited Users",
       "dependsOn": [
-        "f-acl"
+        "f-acl-api"
+      ],
+      "userStories": [],
+      "description": "Permission editor UI so a leader can specify exactly what each invited person can do, and editors that respect the grants.",
+      "deliverables": [
+        "Permission editor (per collaborator, per program)",
+        "Grant-aware editor UI states",
+        "Audit log viewer"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
+      }
+    },
+    {
+      "id": "f-acl-ios",
+      "name": "ACL Permissions \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2026-11-02",
+      "end": "2026-11-06",
+      "status": "planned",
+      "weeks": 1,
+      "feature": "ACL Permissions for Invited Users",
+      "dependsOn": [
+        "f-acl-api"
+      ],
+      "userStories": [],
+      "description": "Permission editing and grant-aware UI in the iPhone leader app.",
+      "deliverables": [
+        "Permission editor on member/collaborator profiles",
+        "Grant-aware editor gating"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "f-community-api",
+      "name": "Leader Community \u2014 API",
+      "lane": "server",
+      "start": "2026-11-09",
+      "end": "2026-12-11",
+      "status": "planned",
+      "weeks": 5,
+      "feature": "Group Leader Community (Content Marketplace)",
+      "dependsOn": [
+        "f-acl-api"
       ],
       "userStories": [
         "4.9 VIDEO (share with creators)",
         "9. CURRICULUM"
       ],
-      "description": "An app-store-like community where leaders publish study programs for other leaders to discover, use for enrollment, discuss and build upon \u2014 with versioning and creator-to-creator engagement.",
+      "description": "Backend for the app-store-like community: publishing with review states, discovery, adoption cloning, versioning, comments and messaging.",
       "deliverables": [
         "Publish-to-community flow with review states",
-        "Discovery: browse, search, categories, ratings",
-        "One-click 'use for my group' enrollment cloning",
-        "Comments + leader-to-leader messaging on published content",
-        "Content versioning with update notifications to adopters"
+        "Discovery: search, categories, ratings APIs",
+        "'Use for my group' enrollment cloning (reuses program export/import)",
+        "Content versioning with update notifications to adopters",
+        "Comments + leader-to-leader messaging backend"
       ],
       "tokens": {
-        "processedM": 9600,
-        "outputM": 36,
-        "extraCostUsd": 4080
+        "processedM": 4000,
+        "outputM": 15,
+        "extraCostUsd": 6000
       }
     },
     {
-      "id": "f-sso",
-      "name": "Org SSO & Domain-Controlled Access",
-      "lane": "roadmap",
-      "start": "2027-01-25",
-      "end": "2027-02-26",
+      "id": "f-community-web",
+      "name": "Leader Community \u2014 Web",
+      "lane": "web",
+      "start": "2026-12-14",
+      "end": "2027-01-22",
       "status": "planned",
-      "weeks": 5,
+      "weeks": 4,
+      "feature": "Group Leader Community (Content Marketplace)",
+      "dependsOn": [
+        "f-community-api"
+      ],
+      "userStories": [],
+      "description": "The community storefront on the web: browse, search, adopt, discuss, publish and manage versions.",
+      "deliverables": [
+        "Browse/search/category storefront with ratings",
+        "Publish + version management UI",
+        "One-click adopt-for-my-group flow",
+        "Comments and creator messaging UI"
+      ],
+      "tokens": {
+        "processedM": 3200,
+        "outputM": 12,
+        "extraCostUsd": 4800
+      }
+    },
+    {
+      "id": "f-community-ios",
+      "name": "Leader Community \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-01-25",
+      "end": "2027-02-12",
+      "status": "planned",
+      "weeks": 3,
+      "feature": "Group Leader Community (Content Marketplace)",
+      "dependsOn": [
+        "f-community-api"
+      ],
+      "userStories": [],
+      "description": "Community browsing, adoption and engagement in the iPhone leader app.",
+      "deliverables": [
+        "Community browse + search",
+        "Adopt-for-my-group flow",
+        "Comments + messaging"
+      ],
+      "tokens": {
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
+      }
+    },
+    {
+      "id": "f-sso-api",
+      "name": "Org SSO & Domain Access \u2014 API",
+      "lane": "server",
+      "start": "2027-01-25",
+      "end": "2027-02-12",
+      "status": "planned",
+      "weeks": 3,
+      "feature": "Org SSO & Domain-Controlled Access",
       "dependsOn": [],
       "userStories": [
         "1.1 ACCOUNT (OIDC)",
         "1.4 ACCOUNT (org accounts)"
       ],
-      "description": "Organizations toggle between invite-only and open domain access: anyone with an email at the org's domain (Google, Microsoft, generic OIDC) can join automatically.",
+      "description": "Generalize auth to OIDC (Google, Microsoft) with domain verification and an org toggle between invite-only and domain-open access.",
       "deliverables": [
         "OIDC provider integration (Google, Microsoft)",
         "Domain verification + org toggle (invite-only vs domain-open)",
-        "Auto-provisioning with default role assignment",
-        "Org admin controls and member deprovisioning"
+        "Auto-provisioning with default roles; deprovisioning"
       ],
       "tokens": {
-        "processedM": 4000,
-        "outputM": 15,
-        "extraCostUsd": 1700
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
       }
     },
     {
-      "id": "f-analytics",
-      "name": "Member Analytics & Behavior Tracking",
-      "lane": "roadmap",
-      "start": "2027-03-01",
-      "end": "2027-04-16",
+      "id": "f-sso-web",
+      "name": "Org SSO & Domain Access \u2014 Web",
+      "lane": "web",
+      "start": "2027-02-15",
+      "end": "2027-02-19",
       "status": "planned",
-      "weeks": 7,
+      "weeks": 1,
+      "feature": "Org SSO & Domain-Controlled Access",
+      "dependsOn": [
+        "f-sso-api"
+      ],
+      "userStories": [],
+      "description": "Org admin controls and SSO login flows on the web.",
+      "deliverables": [
+        "Org admin settings UI (domain, toggle, default roles)",
+        "SSO login entry points"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "f-sso-ios",
+      "name": "Org SSO & Domain Access \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-02-22",
+      "end": "2027-02-26",
+      "status": "planned",
+      "weeks": 1,
+      "feature": "Org SSO & Domain-Controlled Access",
+      "dependsOn": [
+        "f-sso-api"
+      ],
+      "userStories": [],
+      "description": "OIDC sign-in support in the iPhone app.",
+      "deliverables": [
+        "Microsoft/generic OIDC via ASWebAuthenticationSession",
+        "Domain-open onboarding path"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "f-analytics-api",
+      "name": "Member Analytics \u2014 API",
+      "lane": "server",
+      "start": "2027-03-01",
+      "end": "2027-03-19",
+      "status": "planned",
+      "weeks": 3,
+      "feature": "Member Analytics & Behavior Tracking",
       "dependsOn": [],
       "userStories": [
         "13. ANALYTICS",
         "9.4 CURRICULUM (track progress)"
       ],
-      "description": "Instrument every lesson interaction to learn where members spend time, where they get stuck, and where they accelerate \u2014 so the experience improves with data instead of guesses.",
+      "description": "Event ingestion and aggregation so we know where members spend time, get stuck, or accelerate.",
       "deliverables": [
-        "Client event pipeline (web + iPhone) with batching",
-        "Per-activity dwell time, drop-off and completion funnels",
-        "Video watch-time and abandonment points",
+        "Batched event ingestion endpoints",
+        "Dwell-time / drop-off / completion funnel aggregation",
+        "Leader + org reporting endpoints"
+      ],
+      "tokens": {
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
+      }
+    },
+    {
+      "id": "f-analytics-web",
+      "name": "Member Analytics \u2014 Web",
+      "lane": "web",
+      "start": "2027-03-22",
+      "end": "2027-04-02",
+      "status": "planned",
+      "weeks": 2,
+      "feature": "Member Analytics & Behavior Tracking",
+      "dependsOn": [
+        "f-analytics-api"
+      ],
+      "userStories": [],
+      "description": "Lesson-player instrumentation plus the leader dashboards that surface member behavior.",
+      "deliverables": [
+        "Web lesson-player event instrumentation",
         "Leader dashboard: cohort progress, struggle points",
         "Org-level engagement reporting"
       ],
       "tokens": {
-        "processedM": 5600,
-        "outputM": 21,
-        "extraCostUsd": 2380
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
       }
     },
     {
-      "id": "f-ai",
-      "name": "AI Growth Insights & Summarization",
-      "lane": "roadmap",
-      "start": "2027-04-19",
-      "end": "2027-06-11",
+      "id": "f-analytics-ios",
+      "name": "Member Analytics \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-04-05",
+      "end": "2027-04-09",
       "status": "planned",
-      "weeks": 8,
+      "weeks": 1,
+      "feature": "Member Analytics & Behavior Tracking",
       "dependsOn": [
-        "f-analytics"
+        "f-analytics-api"
+      ],
+      "userStories": [],
+      "description": "iPhone lesson instrumentation feeding the same event pipeline.",
+      "deliverables": [
+        "iOS lesson event instrumentation with offline batching"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "f-analytics-infra",
+      "name": "Member Analytics \u2014 Pipeline Infra",
+      "lane": "platform",
+      "start": "2027-04-12",
+      "end": "2027-04-16",
+      "status": "planned",
+      "weeks": 1,
+      "feature": "Member Analytics & Behavior Tracking",
+      "dependsOn": [
+        "f-analytics-api"
+      ],
+      "userStories": [],
+      "description": "Aggregation jobs, retention policy and monitoring for the event pipeline.",
+      "deliverables": [
+        "Scheduled aggregation jobs + storage/retention policy",
+        "Pipeline monitoring and QA fixtures"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "f-ai-api",
+      "name": "AI Growth Insights \u2014 API & Pipeline",
+      "lane": "server",
+      "start": "2027-04-19",
+      "end": "2027-05-14",
+      "status": "planned",
+      "weeks": 4,
+      "feature": "AI Growth Insights & Summarization",
+      "dependsOn": [
+        "f-analytics-api"
       ],
       "userStories": [
         "9.10 CURRICULUM (Trophy Room + AI summary)",
         "2. ACCOUNTABILITY (spiritual health)",
         "5.4 NOTES (lessons learned)"
       ],
-      "description": "Route all user input (SOAP entries, notes, answers, reflections) through AI analysis so members can see how they are growing and what they have learned from completed content.",
+      "description": "Route all user input (SOAP entries, notes, answers, reflections) through an AI analysis pipeline with member-owned privacy controls.",
       "deliverables": [
         "Unified user-input capture across all activity types",
         "AI analysis pipeline (themes, sentiment, growth signals)",
-        "Personal growth timeline + 'lessons learned' summaries",
-        "Trophy Room: AI-summarized completed-content view",
+        "Summary + Trophy Room endpoints",
         "Privacy controls: opt-in, member-owned data"
       ],
       "tokens": {
-        "processedM": 6400,
-        "outputM": 24,
-        "extraCostUsd": 2720
+        "processedM": 3200,
+        "outputM": 12,
+        "extraCostUsd": 4800
+      }
+    },
+    {
+      "id": "f-ai-web",
+      "name": "AI Growth Insights \u2014 Web",
+      "lane": "web",
+      "start": "2027-05-17",
+      "end": "2027-05-28",
+      "status": "planned",
+      "weeks": 2,
+      "feature": "AI Growth Insights & Summarization",
+      "dependsOn": [
+        "f-ai-api"
+      ],
+      "userStories": [],
+      "description": "Personal growth timeline and Trophy Room on the web.",
+      "deliverables": [
+        "Growth timeline + lessons-learned summaries",
+        "Trophy Room view",
+        "Privacy opt-in UX"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
+      }
+    },
+    {
+      "id": "f-ai-ios",
+      "name": "AI Growth Insights \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-05-31",
+      "end": "2027-06-11",
+      "status": "planned",
+      "weeks": 2,
+      "feature": "AI Growth Insights & Summarization",
+      "dependsOn": [
+        "f-ai-api"
+      ],
+      "userStories": [],
+      "description": "Growth timeline and Trophy Room in the iPhone app.",
+      "deliverables": [
+        "Growth timeline + Trophy Room",
+        "Privacy opt-in UX"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
       }
     },
     {
       "id": "f-hardening",
       "name": "Hardening, Perf & Release Buffer",
-      "lane": "roadmap",
+      "lane": "platform",
       "start": "2027-06-14",
       "end": "2027-06-30",
       "status": "planned",
       "weeks": 2,
+      "feature": "Hardening & Release Buffer",
       "dependsOn": [],
       "userStories": [],
       "description": "Deliberate schedule buffer for verification debt, performance and polish before the 12-month mark.",
@@ -851,144 +1170,292 @@
       "tokens": {
         "processedM": 1600,
         "outputM": 6,
-        "extraCostUsd": 680
+        "extraCostUsd": 2400
       }
     },
     {
-      "id": "x-events",
-      "name": "Events & Calendar Completion",
-      "lane": "roadmap",
+      "id": "x-events-api",
+      "name": "Events & Calendar \u2014 API",
+      "lane": "server",
       "start": "2027-07-01",
-      "end": "2027-07-31",
+      "end": "2027-07-14",
       "status": "proposed",
-      "weeks": 4,
+      "weeks": 2,
+      "feature": "Events & Calendar Completion",
       "dependsOn": [],
       "userStories": [
         "3. EVENTS"
       ],
-      "description": "Recommended: finish the original events vision \u2014 RSVP, ICS compatibility, event channels and reminders (APIs partially exist).",
+      "description": "Recommended: finish the original events vision \u2014 the APIs partially exist.",
       "deliverables": [
         "RSVP + attendee communication",
         "ICS/calendar export",
-        "Event templates"
+        "Event templates + reminders"
       ],
       "tokens": {
-        "processedM": 3200,
-        "outputM": 12,
-        "extraCostUsd": 1360
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
       }
     },
     {
-      "id": "x-challenges",
-      "name": "Challenges (Habit & Accountability Engine)",
-      "lane": "roadmap",
-      "start": "2027-08-01",
-      "end": "2027-10-09",
+      "id": "x-events-web",
+      "name": "Events & Calendar \u2014 Web",
+      "lane": "web",
+      "start": "2027-07-15",
+      "end": "2027-07-23",
       "status": "proposed",
-      "weeks": 10,
-      "dependsOn": [],
-      "userStories": [
-        "7. CHALLENGES"
-      ],
-      "description": "Recommended: the recurring-cadence challenge system from the original vision \u2014 the densest unbuilt domain (14 stories) and a major retention driver. Needs new infrastructure: a per-period frequency engine and scheduled push reminders.",
-      "deliverables": [
-        "Recurring frequency engine (per-period objectives, member-adjustable timing)",
-        "Per-period questions: multiple-choice + freeform, timed notifications",
-        "Leader solicitation workflow (filtered member selection, notify, withdraw)",
-        "Privacy-preserving progress sharing + progress-over-time visualization",
-        "Templates, multimedia attachments, challenge history",
-        "Scheduled push reminders without opening the app",
-        "Curriculum integration (challenges inside programs), iPhone + web"
-      ],
-      "tokens": {
-        "processedM": 8000,
-        "outputM": 30,
-        "extraCostUsd": 3400
-      }
-    },
-    {
-      "id": "x-goals",
-      "name": "Goals & Accountability",
-      "lane": "roadmap",
-      "start": "2027-10-12",
-      "end": "2027-11-13",
-      "status": "proposed",
-      "weeks": 5,
+      "weeks": 1,
+      "feature": "Events & Calendar Completion",
       "dependsOn": [
-        "x-challenges"
+        "x-events-api"
       ],
-      "userStories": [
-        "8. GOALS"
-      ],
-      "description": "Recommended: personal goals with reminders, group accountability sharing, and linking goal progress to challenge objectives \u2014 builds directly on the challenge engine.",
+      "userStories": [],
+      "description": "Event pages, RSVP and calendar UX on the web.",
       "deliverables": [
-        "Goal creation, tracking and reminders",
-        "Share goals with group for accountability",
-        "Link goals to challenges (progress tracked against objectives)",
-        "Leader solicitation of goals, templates from past goals"
+        "Event pages with RSVP",
+        "Calendar integration UX"
       ],
       "tokens": {
-        "processedM": 4000,
-        "outputM": 15,
-        "extraCostUsd": 1700
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
       }
     },
     {
-      "id": "x-chat",
-      "name": "Group Communication (Chat)",
-      "lane": "roadmap",
-      "start": "2027-11-16",
-      "end": "2028-01-31",
+      "id": "x-events-ios",
+      "name": "Events & Calendar \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-07-26",
+      "end": "2027-07-31",
       "status": "proposed",
-      "weeks": 10,
-      "dependsOn": [],
-      "userStories": [
-        "12. CHAT"
+      "weeks": 1,
+      "feature": "Events & Calendar Completion",
+      "dependsOn": [
+        "x-events-api"
       ],
-      "description": "Recommended: group chat, direct messages, mentions and moderation \u2014 the largest unbuilt domain from the original stories.",
+      "userStories": [],
+      "description": "Event pages, RSVP and calendar UX on iPhone.",
       "deliverables": [
-        "Group channels + DMs with mentions",
-        "Notification preferences per conversation",
-        "Moderation controls"
+        "Event pages with RSVP",
+        "Native calendar integration"
       ],
       "tokens": {
-        "processedM": 8000,
-        "outputM": 30,
-        "extraCostUsd": 3400
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
       }
     },
     {
-      "id": "x-billing",
-      "name": "Org Billing & Payments",
-      "lane": "roadmap",
+      "id": "x-billing-api",
+      "name": "Org Billing & Payments \u2014 API",
+      "lane": "server",
       "start": "2027-07-01",
-      "end": "2027-08-15",
+      "end": "2027-07-30",
       "status": "proposed",
-      "weeks": 6,
+      "weeks": 4,
+      "feature": "Org Billing & Payments",
       "dependsOn": [],
       "userStories": [
         "14.5 ADMIN (payments)"
       ],
-      "description": "Recommended: subscription billing for organizations \u2014 prerequisite for monetizing the leader community marketplace.",
+      "description": "Recommended: Stripe subscription billing for organizations \u2014 prerequisite for monetizing the marketplace.",
       "deliverables": [
         "Stripe subscription billing",
         "Usage-based tiers",
         "Marketplace payout rails (future)"
       ],
       "tokens": {
-        "processedM": 4800,
-        "outputM": 18,
-        "extraCostUsd": 2040
+        "processedM": 3200,
+        "outputM": 12,
+        "extraCostUsd": 4800
       }
     },
     {
-      "id": "x-moderation",
-      "name": "Moderation & Safety Controls",
-      "lane": "roadmap",
-      "start": "2027-09-01",
-      "end": "2027-09-30",
+      "id": "x-billing-web",
+      "name": "Org Billing & Payments \u2014 Web",
+      "lane": "web",
+      "start": "2027-08-02",
+      "end": "2027-08-15",
+      "status": "proposed",
+      "weeks": 2,
+      "feature": "Org Billing & Payments",
+      "dependsOn": [
+        "x-billing-api"
+      ],
+      "userStories": [],
+      "description": "Billing management UI for org admins.",
+      "deliverables": [
+        "Plan selection + payment method management",
+        "Invoices and usage views"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
+      }
+    },
+    {
+      "id": "x-challenges-api",
+      "name": "Challenges \u2014 API & Reminder Engine",
+      "lane": "server",
+      "start": "2027-08-01",
+      "end": "2027-08-28",
       "status": "proposed",
       "weeks": 4,
+      "feature": "Challenges (Habit & Accountability Engine)",
+      "dependsOn": [],
+      "userStories": [
+        "7. CHALLENGES"
+      ],
+      "description": "Recommended: the recurring-cadence challenge system \u2014 the densest unbuilt domain (14 stories). Needs a per-period frequency engine and scheduled push.",
+      "deliverables": [
+        "Recurring frequency engine (per-period objectives, member-adjustable timing)",
+        "Per-period questions: multiple-choice + freeform, timed notifications",
+        "Leader solicitation workflow (filtered selection, notify, withdraw)",
+        "Scheduled push reminders without opening the app",
+        "Templates, multimedia attachments, curriculum integration"
+      ],
+      "tokens": {
+        "processedM": 3200,
+        "outputM": 12,
+        "extraCostUsd": 4800
+      }
+    },
+    {
+      "id": "x-challenges-ios",
+      "name": "Challenges \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-08-31",
+      "end": "2027-09-18",
+      "status": "proposed",
+      "weeks": 3,
+      "feature": "Challenges (Habit & Accountability Engine)",
+      "dependsOn": [
+        "x-challenges-api"
+      ],
+      "userStories": [],
+      "description": "Member + leader challenge experience on iPhone.",
+      "deliverables": [
+        "Challenge creation and management (leader)",
+        "Member participation with per-period check-ins",
+        "Privacy-preserving progress sharing + progress-over-time visualization"
+      ],
+      "tokens": {
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
+      }
+    },
+    {
+      "id": "x-challenges-web",
+      "name": "Challenges \u2014 Web",
+      "lane": "web",
+      "start": "2027-09-21",
+      "end": "2027-10-09",
+      "status": "proposed",
+      "weeks": 3,
+      "feature": "Challenges (Habit & Accountability Engine)",
+      "dependsOn": [
+        "x-challenges-api"
+      ],
+      "userStories": [],
+      "description": "Member + leader challenge experience on the web.",
+      "deliverables": [
+        "Challenge creation and management (leader)",
+        "Member participation with per-period check-ins",
+        "Progress sharing + visualization"
+      ],
+      "tokens": {
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
+      }
+    },
+    {
+      "id": "x-goals-api",
+      "name": "Goals & Accountability \u2014 API",
+      "lane": "server",
+      "start": "2027-10-12",
+      "end": "2027-10-23",
+      "status": "proposed",
+      "weeks": 2,
+      "feature": "Goals & Accountability",
+      "dependsOn": [
+        "x-challenges-api"
+      ],
+      "userStories": [
+        "8. GOALS"
+      ],
+      "description": "Recommended: personal goals with reminders and group accountability, linked to challenge progress.",
+      "deliverables": [
+        "Goal CRUD + reminders",
+        "Accountability sharing model",
+        "Goal-to-challenge progress linking"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
+      }
+    },
+    {
+      "id": "x-goals-ios",
+      "name": "Goals & Accountability \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-10-26",
+      "end": "2027-11-06",
+      "status": "proposed",
+      "weeks": 2,
+      "feature": "Goals & Accountability",
+      "dependsOn": [
+        "x-goals-api"
+      ],
+      "userStories": [],
+      "description": "Goals experience on iPhone.",
+      "deliverables": [
+        "Goal creation, tracking, reminders",
+        "Share with group for accountability"
+      ],
+      "tokens": {
+        "processedM": 1600,
+        "outputM": 6,
+        "extraCostUsd": 2400
+      }
+    },
+    {
+      "id": "x-goals-web",
+      "name": "Goals & Accountability \u2014 Web",
+      "lane": "web",
+      "start": "2027-11-09",
+      "end": "2027-11-13",
+      "status": "proposed",
+      "weeks": 1,
+      "feature": "Goals & Accountability",
+      "dependsOn": [
+        "x-goals-api"
+      ],
+      "userStories": [],
+      "description": "Goals experience on the web.",
+      "deliverables": [
+        "Goal creation, tracking, reminders",
+        "Accountability views"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "x-moderation-api",
+      "name": "Moderation & Safety \u2014 API",
+      "lane": "server",
+      "start": "2027-09-01",
+      "end": "2027-09-21",
+      "status": "proposed",
+      "weeks": 3,
+      "feature": "Moderation & Safety Controls",
       "dependsOn": [],
       "userStories": [
         "4.6-4.7 VIDEO (moderation)",
@@ -998,12 +1465,110 @@
       "deliverables": [
         "Automated content screening (AI)",
         "Org moderation policies + alerts",
-        "Report/review workflows"
+        "Report/review workflow backend"
+      ],
+      "tokens": {
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
+      }
+    },
+    {
+      "id": "x-moderation-web",
+      "name": "Moderation & Safety \u2014 Web",
+      "lane": "web",
+      "start": "2027-09-22",
+      "end": "2027-09-30",
+      "status": "proposed",
+      "weeks": 1,
+      "feature": "Moderation & Safety Controls",
+      "dependsOn": [
+        "x-moderation-api"
+      ],
+      "userStories": [],
+      "description": "Moderation review and policy UI for org admins.",
+      "deliverables": [
+        "Report/review queues",
+        "Policy configuration UI"
+      ],
+      "tokens": {
+        "processedM": 800,
+        "outputM": 3,
+        "extraCostUsd": 1200
+      }
+    },
+    {
+      "id": "x-chat-api",
+      "name": "Group Communication \u2014 API",
+      "lane": "server",
+      "start": "2027-11-16",
+      "end": "2027-12-11",
+      "status": "proposed",
+      "weeks": 4,
+      "feature": "Group Communication (Chat)",
+      "dependsOn": [],
+      "userStories": [
+        "12. CHAT"
+      ],
+      "description": "Recommended: the largest unbuilt domain \u2014 group channels, DMs, mentions and notification preferences.",
+      "deliverables": [
+        "Group channels + DMs with mentions",
+        "Per-conversation notification preferences",
+        "Moderation hooks"
       ],
       "tokens": {
         "processedM": 3200,
         "outputM": 12,
-        "extraCostUsd": 1360
+        "extraCostUsd": 4800
+      }
+    },
+    {
+      "id": "x-chat-ios",
+      "name": "Group Communication \u2014 iPhone",
+      "lane": "iphone",
+      "start": "2027-12-14",
+      "end": "2028-01-15",
+      "status": "proposed",
+      "weeks": 3,
+      "feature": "Group Communication (Chat)",
+      "dependsOn": [
+        "x-chat-api"
+      ],
+      "userStories": [],
+      "description": "Chat experience on iPhone with push.",
+      "deliverables": [
+        "Channel + DM UI",
+        "Mentions and notification settings",
+        "Push deep links"
+      ],
+      "tokens": {
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
+      }
+    },
+    {
+      "id": "x-chat-web",
+      "name": "Group Communication \u2014 Web",
+      "lane": "web",
+      "start": "2028-01-11",
+      "end": "2028-01-31",
+      "status": "proposed",
+      "weeks": 3,
+      "feature": "Group Communication (Chat)",
+      "dependsOn": [
+        "x-chat-api"
+      ],
+      "userStories": [],
+      "description": "Chat experience on the web.",
+      "deliverables": [
+        "Channel + DM UI",
+        "Mentions and notification settings"
+      ],
+      "tokens": {
+        "processedM": 2400,
+        "outputM": 9,
+        "extraCostUsd": 3600
       }
     }
   ]

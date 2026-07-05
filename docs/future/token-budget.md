@@ -1,13 +1,12 @@
-# Claude Token Budget Model (Fable 5 "Extra Tokens")
+# Claude Token Budget (100% Fable 5)
 
-As of **July 7, 2026**, Claude Fable 5 usage in Claude Code bills as **extra tokens** rather than drawing from the $200/mo Max subscription. Opus 4.8 remains covered by the subscription. This model estimates the monthly extra-token budget needed to execute the 12-month roadmap — **based on measured historical usage, not assumptions**.
+As of **July 7, 2026**, Claude Fable 5 usage in Claude Code bills as **extra tokens** outside the Max subscription. **This budget assumes all development runs on Fable 5 — no Opus usage at all**, so no development tokens are offset by the $200/mo plan. Figures are based on measured historical usage, not assumptions.
 
 ## Pricing (published, per million tokens)
 
 | Model | Input | Output | Cache read | Cache write (5m) |
 |---|---|---|---|---|
-| **Fable 5** | $10 | $50 | ~$1 | $12.50 |
-| Opus 4.8 (plan-covered) | $5 | $25 | ~$0.50 | $6.25 |
+| **Fable 5** (all development) | $10 | $50 | ~$1 | $12.50 |
 
 ## Measured usage (actual, not modeled)
 
@@ -23,48 +22,49 @@ Parsed from local Claude Code session transcripts for the MakeReady projects —
 | — fresh input (0.3%) | 9.8M | ~2.75M |
 | Output tokens | **11.0M** | ~3.1M |
 
-Two structural facts that keep costs manageable:
-1. **97.4% of input is served from prompt cache** at ~$1/M (Fable 5) — the dominant cost line, but 10× cheaper than fresh input.
+Two structural facts that keep costs manageable even at 100% Fable 5:
+1. **97.4% of input is served from prompt cache** at ~$1/M — the dominant cost line, but 10× cheaper than fresh input.
 2. Fresh input is nearly negligible (0.3%), so the $10/M sticker price barely matters.
 
-**Measured model split:** 31% of processed tokens already ran on Fable 5 (1.9B on Opus 4.8, 0.9B on Fable 5, small Haiku remainder). The budget below uses this *measured* mix, not a guess.
+## What the measured usage costs at Fable 5 rates
 
-## What the measured usage costs
+Billing the entire measured window at Fable 5 rates:
 
-- The measured **Fable 5 slice alone** would have billed **$1,210 over 25 days ≈ $338/week ≈ $1,465/month** as extra tokens.
-- If **everything** had billed at Fable 5 rates: ~$1,206/week ≈ $5,220/month (the ceiling).
-- Rounded planning rate: **$340 per work-week** of extra tokens at the measured mix.
+| Line | Tokens | Rate | Cost (25 days) |
+|---|---|---|---|
+| Fresh input | 9.8M | $10/M | $98 |
+| Cache reads | 2,839.6M | $1/M | $2,840 |
+| Cache writes | 65.2M | $12.50/M | $815 |
+| Output | 11.0M | $50/M | $551 |
+| **Total** | | | **$4,304** |
 
-## Scenarios (monthly extra-token cost, at measured usage intensity)
-
-| Scenario | Fable 5 share | $/week | $/month | 12-month total |
-|---|---|---|---|---|
-| Conservative | 10% | ~$121 | ~$520 | ~$6,300 |
-| **Measured mix (recommended)** | **~31% (observed)** | **~$338** | **~$1,465** | **~$17,600** |
-| Aggressive | 50% | ~$603 | ~$2,610 | ~$31,300 |
-| Ceiling (all-Fable) | 100% | ~$1,206 | ~$5,220 | ~$62,700 |
+That is **~$1,206 per week ≈ $5,220 per month** at measured intensity. Planning rate used below: **$1,200 per work-week**.
 
 ## Recommended budget
 
-> **$1,500/month for extra tokens** (measured mix, rounded up), on top of the existing **$200/mo Max plan**.
+> **$5,500/month for Fable 5 tokens** (measured burn + ~5% headroom).
 >
-> Total AI tooling cost: **~$1,700/mo ≈ $20,400/yr** — the leverage that sustains ~190 commits/month from a single developer.
+> ~**$66,000/yr** of AI development tokens — the leverage that sustains ~190 commits/month from a single developer. The $200/mo Max plan, if retained, is tooling access only and offsets none of this.
 
-Note: the measurement window was a peak month (13.5k assistant messages). Calmer months scale below budget; the number above is a safe ceiling for planning.
+Note: the measurement window was a peak month (13.5k assistant messages). Calmer months land below budget; $5,500 is a planning ceiling.
 
-## Per-feature allocation (measured rates: 800M processed + 3.1M output per work-week, $340/wk extra)
+**Cost-reduction lever (not assumed):** routing routine implementation to plan-covered Opus 4.8 historically covered ~69% of tokens, which would cut the extra-token bill to roughly $1,500/mo. This budget deliberately does not count on it.
 
-| Feature | Work weeks | Input processed | Output | Extra cost |
+## Per-feature allocation (measured rates: 800M processed + 3.1M output per work-week, $1,200/wk)
+
+Features decompose into per-app epics in `timeline.json` (API / Web / iPhone / Tooling); weeks below are the feature totals across all parts.
+
+| Feature | Work weeks | Input processed | Output | Fable 5 cost |
 |---|---|---|---|---|
-| Web parity completion | 8 | 6.4B | 24M | $2,720 |
-| Collaborator invitations | 5 | 4.0B | 15M | $1,700 |
-| ACL permissions | 6 | 4.8B | 18M | $2,040 |
-| Leader community marketplace | 12 | 9.6B | 36M | $4,080 |
-| Org SSO & domain access | 5 | 4.0B | 15M | $1,700 |
-| Member analytics | 7 | 5.6B | 21M | $2,380 |
-| AI growth insights | 8 | 6.4B | 24M | $2,720 |
-| Hardening buffer | 2 | 1.6B | 6M | $680 |
-| **Total** | **53** | **~42.4B** | **~159M** | **~$18,020** |
+| Web parity completion | 8 | 6.4B | 24M | $9,600 |
+| Collaborator invitations | 5 | 4.0B | 15M | $6,000 |
+| ACL permissions | 6 | 4.8B | 18M | $7,200 |
+| Leader community marketplace | 12 | 9.6B | 36M | $14,400 |
+| Org SSO & domain access | 5 | 4.0B | 15M | $6,000 |
+| Member analytics | 7 | 5.6B | 21M | $8,400 |
+| AI growth insights | 8 | 6.4B | 24M | $9,600 |
+| Hardening buffer | 2 | 1.6B | 6M | $2,400 |
+| **Total (committed 12 months)** | **53** | **~42.4B** | **~159M** | **$63,600** |
 
 ## Ongoing AI runtime costs (separate from development)
 
@@ -74,4 +74,4 @@ The AI Growth Insights feature (and existing Claude-powered media tagging) creat
 
 The analysis script sums `message.usage` fields (input, output, cache read/write) from every `*.jsonl` under `~/.claude-home/projects/-Users-lukekeith-www-makeready*`, deduplicated by message id and bucketed by month and model. Re-run it after a few more months of history to tighten the weekly averages.
 
-All levers live in `timeline.json → meta.budget`; per-feature figures are `weeks × weekly measured rates` and reprice automatically with schedule changes.
+All levers live in `timeline.json → meta.budget`; per-epic figures are `weeks × $1,200` and reprice automatically with schedule changes.

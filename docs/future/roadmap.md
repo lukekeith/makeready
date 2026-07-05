@@ -2,6 +2,8 @@
 
 Seven committed features, sequenced by dependency, sized against measured velocity (see `velocity.md`). Dates and estimates live in `timeline.json`; this file is the rationale.
 
+Every feature is decomposed in `timeline.json` into **per-app epics** (API / Web Client / iPhone App / Tooling & Infrastructure) — each with its own dates, weeks and token budget, grouped by a shared `feature` field — so the timeline shows what needs to be built and where it goes. API work leads each feature; the clients follow. The committed 12 months total 53 work-weeks: Web 21, API 20, iPhone 9, Tooling 3.
+
 ## Committed features
 
 ### 1. Web Client: 100% iPhone Parity — Jul 6 → Aug 28 (8 wks)
