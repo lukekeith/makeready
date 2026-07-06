@@ -27,5 +27,4 @@ cd client && npm run build
 
 - `done` — shipped, dated from actual commit history (with commit counts)
 - `in-progress` — currently being built
-- `planned` — committed 12-month roadmap (Jul 2026 → Jun 2027)
-- `proposed` — recommended additions beyond the 12-month window, drawn from the original user stories
+- `planned` — the roadmap (Jul 2026 → Feb 2028), one continuous set; the first 12 months run through Jun 2027

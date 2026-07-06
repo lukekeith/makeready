@@ -42,29 +42,43 @@ That is **~$1,206 per week ≈ $5,220 per month** at measured intensity. Plannin
 
 ## Recommended budget
 
-> **$5,500/month for Fable 5 tokens** (measured burn + ~5% headroom).
+> **$7,800/month for Fable 5 tokens.**
 >
-> ~**$66,000/yr** of AI development tokens — the leverage that sustains ~190 commits/month from a single developer. The $200/mo Max plan, if retained, is tooling access only and offsets none of this.
+> The first 12 months carry ~77 work-weeks of the roadmap (overlapping workstreams plus the Live Events background stream), so budget = 77 × $1,200 ÷ 12 = $7,700/mo, rounded to $7,800. ~**$93,600/yr** of AI development tokens — the leverage that sustains ~190 commits/month from a single developer. The $200/mo Max plan, if retained, is tooling access only and offsets none of this.
 
-Note: the measurement window was a peak month (13.5k assistant messages). Calmer months land below budget; $5,500 is a planning ceiling.
+Note: the measured single-stream burn was $5,220/mo during a peak month; the uplift covers the overlap weeks and the continuous Live Events stream.
 
 **Cost-reduction lever (not assumed):** routing routine implementation to plan-covered Opus 4.8 historically covered ~69% of tokens, which would cut the extra-token bill to roughly $1,500/mo. This budget deliberately does not count on it.
 
-## Per-feature allocation (measured rates: 800M processed + 3.1M output per work-week, $1,200/wk)
+## Hybrid scenario (Fable + Opus via the $200/mo Max plan)
 
-Features decompose into per-app epics in `timeline.json` (API / Web / iPhone / Tooling); weeks below are the feature totals across all parts.
+The `/investor` page has a toggle between this Fable-only budget and a **hybrid** scenario matching measured history: routine implementation on Max-plan-covered Opus 4.8 (~69% of tokens), Fable 5 reserved for the hardest work (measured Fable share: 31%). Extra-token spend scales by the Fable share; the Max subscription is counted in.
 
-| Feature | Work weeks | Input processed | Output | Fable 5 cost |
+| Line | Fable 5 only | Hybrid |
+|---|---|---|
+| Extra tokens per work-week | $1,200 | $372 (31%) |
+| First 12 months, 77 wks | $92,400 | $28,644 + $2,400 subscription (12 mo) = **$31,044** |
+| Recommended monthly budget | $7,800/mo | **$2,600/mo** (incl. the $200 plan) |
+| Full roadmap, 126 wks | $151,200 | $46,872 + $4,000 subscription (20 mo) = **$50,872** |
+
+Numbers live in `timeline.json → meta.budget.hybrid`. The hybrid scenario assumes Opus 4.8 stays available under the Max plan at current limits and that the 69/31 routing split holds for future work.
+
+## Per-epic allocation (measured rates: 800M processed + 3.1M output per work-week, $1,200/wk)
+
+The roadmap is seven consolidated epics (each with internal phases — see `roadmap.md`); per-app parts live in `timeline.json` (API / Web / iPhone / Tooling). Weeks below are epic totals across all parts.
+
+| Epic | Work weeks | Input processed | Output | Fable 5 cost |
 |---|---|---|---|---|
-| Web parity completion | 8 | 6.4B | 24M | $9,600 |
-| Collaborator invitations | 5 | 4.0B | 15M | $6,000 |
-| ACL permissions | 6 | 4.8B | 18M | $7,200 |
-| Leader community marketplace | 12 | 9.6B | 36M | $14,400 |
-| Org SSO & domain access | 5 | 4.0B | 15M | $6,000 |
-| Member analytics | 7 | 5.6B | 21M | $8,400 |
-| AI growth insights | 8 | 6.4B | 24M | $9,600 |
-| Hardening buffer | 2 | 1.6B | 6M | $2,400 |
-| **Total (committed 12 months)** | **53** | **~42.4B** | **~159M** | **$63,600** |
+| Web Platform Parity & Offline | 12 | 9.6B | 36M | $14,400 |
+| Communication Platform | 16 | 12.8B | 48M | $19,200 |
+| Live Events | 16 | 12.8B | 48M | $19,200 |
+| Creator Platform & Marketplace | 29 | 23.2B | 87M | $34,800 |
+| Enterprise Trust & Compliance | 20 | 16.0B | 60M | $24,000 |
+| Analytics & AI Insights | 18 | 14.4B | 54M | $21,600 |
+| Habits & Accountability | 15 | 12.0B | 45M | $18,000 |
+| **Full roadmap (through Feb 2028)** | **126** | **~100.8B** | **~378M** | **$151,200** |
+
+Of this, **~77 work-weeks land in the first 12 months** (epics 1–4 complete plus the start of Enterprise Trust, through Jun 27, 2027) ≈ **$92,400** — the basis for the $7,800/mo recommendation above.
 
 ## Ongoing AI runtime costs (separate from development)
 
