@@ -1,7 +1,7 @@
 # Study Program → Enrollment Sync (Versioning) — Design Spec
 
 **Date:** 2026-07-06
-**Status:** Phases 1–3 implemented on `feature/study-sync`; phases 4–6 pending
+**Status:** Phases 1–4 implemented on `feature/study-sync`; phases 5–6 pending
 **Scope:** Server (schema + APIs) first; client/iPhone consume later. Dashboard notification banner + modal is in scope; the enrollment sync-settings view launched *from* a notification is a later build (the notification payload must support it now).
 
 ## Problem
@@ -109,9 +109,37 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
 1. ✅ Schema: versions, sync fields, lineage-key fix, backfill (v1 per schedule, baseline enrollments at OFF). **Done 2026-07-06.**
 2. ✅ Publish endpoint: hashing, diffing, snapshot, Claude summary. **Done 2026-07-06.**
 3. ✅ Sync engine: idempotent per-enrollment apply + fan-out job + `EnrollmentSyncRun`. **Done 2026-07-06.**
-4. Member resolution: pinned-version rendering + lazy carry-forward in lesson-fetch paths.
+4. ✅ Member resolution: pinned-version rendering + lazy carry-forward in lesson-fetch paths. **Done 2026-07-06.**
 5. Notifications: dedupe + actions, summary endpoint.
 6. Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal.
+
+## Phase 4 implementation notes (2026-07-06)
+
+- Shared helpers in `src/services/lesson-version-resolution.ts`:
+  `resolveVersionId` (pin ?? current), `filterActivitiesToVersion`,
+  lineage-aware `findProgressForActivity`, and `carryForwardMemberProgress`
+  (copies — never moves — activity/video progress onto the resolved version's
+  rows by lineageKey; idempotent via uniques + skipDuplicates).
+- `checkAndUpdateLessonCompletion` judges completion against the member's
+  resolved version and PINS on completion (`pinnedVersionId = pin ?? resolved`);
+  un-completing clears the pin so the member floats to current again.
+- `getMemberLessonDetail` resolves per member, runs lazy carry-forward for
+  unpinned members, and returns only the resolved version's activities.
+  List/summary paths (getMemberLessons, getMemberEnrollments,
+  getEnrollmentProgress, getGroupStudies) filter + count lineage-aware;
+  removed (removedAt) schedules hidden unless the member has history.
+- Leader enrollment views, next-study, lessons/code|view|today, and the
+  share-invite passage ref render the CURRENT version (no member context).
+- `recalculateScheduledLessonEstimate` and the enrollment-analytics SQL count
+  only current-version activities (and skip removed schedules).
+- Known cosmetic gap: OG meta's first-activity passage ref may read a stale
+  version's row (take:1 across versions); harmless, fix later.
+- Perf note: multi-version schedules load all versions' activity rows and
+  filter in JS; fine at current version counts, revisit if programs reach
+  very high version counts.
+- Tests: `member-version-resolution.test.ts` (3) — pin on complete, pinned
+  rendering after sync, lineage carry-forward (copy not move), re-pin on new
+  version.
 
 ## Phase 3 implementation notes (2026-07-06)
 

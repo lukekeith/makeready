@@ -142,8 +142,19 @@ export async function recalculateLessonEstimate(lessonId: string): Promise<numbe
 export async function recalculateScheduledLessonEstimate(
   lessonScheduleId: string
 ): Promise<number | null> {
+  // Only the current version's activities count toward the estimate —
+  // synced schedules also carry prior versions' rows for pinned members
+  const schedule = await prisma.lessonSchedule.findUnique({
+    where: { id: lessonScheduleId },
+    select: { currentVersionId: true },
+  })
   const activities = await prisma.scheduledLessonActivity.findMany({
-    where: { lessonScheduleId },
+    where: {
+      lessonScheduleId,
+      ...(schedule?.currentVersionId
+        ? { OR: [{ versionId: schedule.currentVersionId }, { versionId: null }] }
+        : {}),
+    },
     select: {
       id: true,
       type: true,

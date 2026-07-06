@@ -1,4 +1,11 @@
 import { prisma } from '../lib/prisma.js'
+import {
+  resolveVersionId,
+  filterActivitiesToVersion,
+  findProgressForActivity,
+  buildLineageMap,
+  carryForwardMemberProgress,
+} from './lesson-version-resolution.js'
 import type {
   MemberActivityProgress,
   MemberVideoProgress,
@@ -338,6 +345,9 @@ export async function checkAndUpdateLessonCompletion(
         videoProgress: {
           where: { memberId },
         },
+        lessonProgress: {
+          where: { memberId },
+        },
       },
     })
 
@@ -345,7 +355,11 @@ export async function checkAndUpdateLessonCompletion(
       return { success: false, error: 'Lesson schedule not found' }
     }
 
-    const activities = schedule.scheduledActivities
+    // Completion is judged against the version this member actually sees
+    const existingPin = schedule.lessonProgress[0]?.pinnedVersionId ?? null
+    const resolvedVersionId = resolveVersionId(schedule, existingPin)
+    const activities = filterActivitiesToVersion(schedule.scheduledActivities, resolvedVersionId)
+    const lineageById = buildLineageMap(schedule.scheduledActivities)
     const activitiesTotal = activities.length
 
     if (activitiesTotal === 0) {
@@ -353,15 +367,12 @@ export async function checkAndUpdateLessonCompletion(
       return { success: true, lessonCompleted: false }
     }
 
-    // Count completed activities
+    // Count completed activities (lineage-aware: progress may still point at
+    // a prior version's copy of the same activity)
     let activitiesCompleted = 0
     for (const activity of activities) {
-      const activityProgress = schedule.memberProgress.find(
-        (p) => p.scheduledActivityId === activity.id
-      )
-      const videoProgress = schedule.videoProgress.find(
-        (p) => p.scheduledActivityId === activity.id
-      )
+      const activityProgress = findProgressForActivity(activity, schedule.memberProgress, lineageById)
+      const videoProgress = findProgressForActivity(activity, schedule.videoProgress, lineageById)
 
       if (isActivityComplete(activity.type, activityProgress || null, videoProgress || null)) {
         activitiesCompleted++
@@ -370,7 +381,9 @@ export async function checkAndUpdateLessonCompletion(
 
     const isLessonComplete = activitiesCompleted === activitiesTotal
 
-    // Upsert the MemberLessonProgress record
+    // Upsert the MemberLessonProgress record. Completing pins the member to
+    // the version they finished (so later syncs never change their record);
+    // un-completing releases the pin so they float to the current version.
     const lessonProgress = await prisma.memberLessonProgress.upsert({
       where: {
         memberId_lessonScheduleId: {
@@ -380,12 +393,14 @@ export async function checkAndUpdateLessonCompletion(
       },
       update: {
         completedAt: isLessonComplete ? new Date() : null,
+        pinnedVersionId: isLessonComplete ? (existingPin ?? resolvedVersionId) : null,
         lastUpdatedAt: new Date(),
       },
       create: {
         memberId,
         lessonScheduleId,
         completedAt: isLessonComplete ? new Date() : null,
+        pinnedVersionId: isLessonComplete ? resolvedVersionId : null,
       },
     })
 
@@ -532,18 +547,28 @@ export async function getMemberLessons(
     today.setHours(0, 0, 0, 0)
 
     for (const schedule of lessonSchedules) {
-      const activities = schedule.scheduledActivities
+      const hasAnyProgress =
+        schedule.memberProgress.length > 0 ||
+        schedule.videoProgress.length > 0 ||
+        schedule.lessonProgress.length > 0
+
+      // Lessons removed by sync stay visible only where this member has history
+      if (schedule.removedAt !== null && !hasAnyProgress) continue
+
+      // Render the version this member sees (pinned at completion ?? current)
+      const resolvedVersionId = resolveVersionId(
+        schedule,
+        schedule.lessonProgress[0]?.pinnedVersionId ?? null
+      )
+      const activities = filterActivitiesToVersion(schedule.scheduledActivities, resolvedVersionId)
+      const lineageById = buildLineageMap(schedule.scheduledActivities)
       const activitiesTotal = activities.length
 
-      // Count completed activities
+      // Count completed activities (lineage-aware pre-carry-forward)
       let activitiesCompleted = 0
       for (const activity of activities) {
-        const activityProgress = schedule.memberProgress.find(
-          (p) => p.scheduledActivityId === activity.id
-        )
-        const videoProgress = schedule.videoProgress.find(
-          (p) => p.scheduledActivityId === activity.id
-        )
+        const activityProgress = findProgressForActivity(activity, schedule.memberProgress, lineageById)
+        const videoProgress = findProgressForActivity(activity, schedule.videoProgress, lineageById)
 
         if (isActivityComplete(activity.type, activityProgress || null, videoProgress || null)) {
           activitiesCompleted++
@@ -691,6 +716,36 @@ export async function getMemberLessonDetail(
       return { success: false, error: 'Member is not part of this group' }
     }
 
+    // Resolve the version this member sees (pinned at completion ?? current)
+    const pinnedVersionId = schedule.lessonProgress[0]?.pinnedVersionId ?? null
+    const resolvedVersionId = resolveVersionId(schedule, pinnedVersionId)
+    const resolvedActivities = filterActivitiesToVersion(
+      schedule.scheduledActivities,
+      resolvedVersionId
+    )
+
+    // Unpinned member on a synced schedule: lazily carry partial progress
+    // forward from prior-version copies (matched by lineage), then work with
+    // fresh progress rows
+    if (pinnedVersionId === null) {
+      const carried = await carryForwardMemberProgress({
+        memberId,
+        lessonScheduleId,
+        resolvedActivities,
+        allActivities: schedule.scheduledActivities,
+        memberProgress: schedule.memberProgress,
+        videoProgress: schedule.videoProgress,
+      })
+      if (carried) {
+        schedule.memberProgress = await prisma.memberActivityProgress.findMany({
+          where: { memberId, lessonScheduleId },
+        })
+        schedule.videoProgress = await prisma.memberVideoProgress.findMany({
+          where: { memberId, lessonScheduleId },
+        })
+      }
+    }
+
     // Check and update lesson completion status
     await checkAndUpdateLessonCompletion(memberId, lessonScheduleId)
 
@@ -723,11 +778,11 @@ export async function getMemberLessonDetail(
       orderBy: { createdAt: 'desc' },
     })
 
-    // Build activity details from scheduled activities (flat, no joins)
+    // Build activity details from the resolved version's activities
     const activities: ActivityProgressDetail[] = []
     let activitiesCompleted = 0
 
-    for (const activity of schedule.scheduledActivities) {
+    for (const activity of resolvedActivities) {
       const activityProgress = schedule.memberProgress.find(
         (p) => p.scheduledActivityId === activity.id
       )
@@ -834,7 +889,7 @@ export async function getMemberLessonDetail(
       })
     }
 
-    const activitiesTotal = schedule.scheduledActivities.length
+    const activitiesTotal = resolvedActivities.length
     const completionPercentage =
       activitiesTotal > 0 ? Math.round((activitiesCompleted / activitiesTotal) * 100) : 0
 
@@ -920,6 +975,7 @@ export async function getMemberEnrollments(
           },
         },
         lessonSchedules: {
+          where: { removedAt: null },
           include: {
             scheduledActivities: {
               orderBy: { orderNumber: 'asc' },
@@ -928,6 +984,9 @@ export async function getMemberEnrollments(
               where: { memberId },
             },
             videoProgress: {
+              where: { memberId },
+            },
+            lessonProgress: {
               where: { memberId },
             },
           },
@@ -955,17 +1014,18 @@ export async function getMemberEnrollments(
           currentDay = i + 1
         }
 
-        // Count completed days (all activities complete)
-        const activities = schedule.scheduledActivities
+        // Count completed days (all activities of the member's resolved version complete)
+        const resolvedVersionId = resolveVersionId(
+          schedule,
+          schedule.lessonProgress[0]?.pinnedVersionId ?? null
+        )
+        const activities = filterActivitiesToVersion(schedule.scheduledActivities, resolvedVersionId)
+        const lineageById = buildLineageMap(schedule.scheduledActivities)
         let allComplete = activities.length > 0
 
         for (const activity of activities) {
-          const activityProgress = schedule.memberProgress.find(
-            (p) => p.scheduledActivityId === activity.id
-          )
-          const videoProgress = schedule.videoProgress.find(
-            (p) => p.scheduledActivityId === activity.id
-          )
+          const activityProgress = findProgressForActivity(activity, schedule.memberProgress, lineageById)
+          const videoProgress = findProgressForActivity(activity, schedule.videoProgress, lineageById)
 
           if (!isActivityComplete(activity.type, activityProgress || null, videoProgress || null)) {
             allComplete = false
@@ -1092,17 +1152,15 @@ export async function getEnrollmentProgress(
         currentDay = i + 1
       }
 
-      const activities = schedule.scheduledActivities
+      const resolvedVersionId = resolveVersionId(schedule, null)
+      const activities = filterActivitiesToVersion(schedule.scheduledActivities, resolvedVersionId)
+      const lineageById = buildLineageMap(schedule.scheduledActivities)
       const activitiesTotal = activities.length
       let activitiesCompleted = 0
 
       for (const activity of activities) {
-        const activityProgress = schedule.memberProgress.find(
-          (p) => p.scheduledActivityId === activity.id
-        )
-        const videoProgress = schedule.videoProgress.find(
-          (p) => p.scheduledActivityId === activity.id
-        )
+        const activityProgress = findProgressForActivity(activity, schedule.memberProgress, lineageById)
+        const videoProgress = findProgressForActivity(activity, schedule.videoProgress, lineageById)
 
         if (isActivityComplete(activity.type, activityProgress || null, videoProgress || null)) {
           activitiesCompleted++
@@ -1300,17 +1358,15 @@ export async function getGroupStudies(
 
         // Only include lessons scheduled for today or earlier (group leaders see all)
         if (isGroupLeader || scheduleDate <= today) {
-          const activities = schedule.scheduledActivities
+          const resolvedVersionId = resolveVersionId(schedule, null)
+          const activities = filterActivitiesToVersion(schedule.scheduledActivities, resolvedVersionId)
+          const lineageById = buildLineageMap(schedule.scheduledActivities)
           const activityCount = activities.length
           let completedActivityCount = 0
 
           for (const activity of activities) {
-            const activityProgress = schedule.memberProgress.find(
-              (p) => p.scheduledActivityId === activity.id
-            )
-            const videoProgress = schedule.videoProgress.find(
-              (p) => p.scheduledActivityId === activity.id
-            )
+            const activityProgress = findProgressForActivity(activity, schedule.memberProgress, lineageById)
+            const videoProgress = findProgressForActivity(activity, schedule.videoProgress, lineageById)
 
             if (isActivityComplete(activity.type, activityProgress || null, videoProgress || null)) {
               completedActivityCount++

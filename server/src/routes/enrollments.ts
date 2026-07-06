@@ -16,6 +16,7 @@ import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/s
 import { hashLessonContent } from '../services/lesson-content-hash.js'
 import { buildLessonCopyRows, type LessonCopyRows } from '../services/lesson-copy.js'
 import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
+import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
 import {
   canManageOrgContent,
   enrollmentManageFilter,
@@ -812,13 +813,14 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
       lastDate: enrollment.endDate.toISOString(),
       activeDays,
       lessons: enrollment.lessonSchedules.map(ls => {
-        const firstActivity = ls.scheduledActivities[0]
+        const versionActivities = filterActivitiesToVersion(ls.scheduledActivities, ls.currentVersionId)
+        const firstActivity = versionActivities[0]
         const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
-        const activities = ls.scheduledActivities.map(a => ({
+        const activities = versionActivities.map(a => ({
           type: a.type,
           completed: completedActivityIds.has(a.id),
         }))
-        const totalSeconds = ls.scheduledActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
+        const totalSeconds = versionActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
         const estimatedMinutes = ls.estimatedMinutes
           ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
@@ -1093,13 +1095,14 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
       lastDate: enrollment.endDate.toISOString(),
       activeDays,
       lessons: enrollment.lessonSchedules.map(ls => {
-        const firstActivity = ls.scheduledActivities[0]
+        const versionActivities = filterActivitiesToVersion(ls.scheduledActivities, ls.currentVersionId)
+        const firstActivity = versionActivities[0]
         const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
-        const activities = ls.scheduledActivities.map(a => ({
+        const activities = versionActivities.map(a => ({
           type: a.type,
           completed: completedActivityIds.has(a.id),
         }))
-        const totalSeconds = ls.scheduledActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
+        const totalSeconds = versionActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
         const estimatedMinutes = ls.estimatedMinutes
           ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
@@ -1348,7 +1351,7 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
       scheduledDate: nextLesson.scheduledDate,
       enrollment: nextLesson.enrollment,
       studyProgram: nextLesson.lesson?.studyProgram ?? null,
-      activities: nextLesson.scheduledActivities,
+      activities: filterActivitiesToVersion(nextLesson.scheduledActivities, nextLesson.currentVersionId),
     }
 
     res.json({ success: true, study })
@@ -2021,7 +2024,7 @@ router.get('/lessons/code/:code', async (req, res) => {
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
         studyProgram: schedule.lesson?.studyProgram ?? null,
-        activities: schedule.scheduledActivities,
+        activities: filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId),
         group: schedule.enrollment.group,
       },
     })
@@ -2149,7 +2152,7 @@ router.get('/lessons/view/:scheduleId', async (req, res) => {
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
         studyProgram: schedule.lesson?.studyProgram ?? null,
-        activities: schedule.scheduledActivities,
+        activities: filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId),
         group: schedule.enrollment.group,
       },
     })
@@ -2266,7 +2269,7 @@ router.get('/lessons/today/:enrollmentId', async (req, res) => {
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
         studyProgram: schedule.lesson?.studyProgram ?? null,
-        activities: schedule.scheduledActivities,
+        activities: filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId),
       },
     })
   } catch (error) {
@@ -2419,7 +2422,7 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
     })
 
     // Get passage reference from first scheduled activity
-    const firstActivity = schedule.scheduledActivities[0]
+    const firstActivity = filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId)[0]
     const passageReference = firstActivity?.sourceReferences?.[0]?.passageReference || null
 
     res.json({
