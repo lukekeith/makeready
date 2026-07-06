@@ -19,6 +19,7 @@ import { app } from '../../index'
 import { prisma } from '../../lib/prisma'
 import { generateApiKey, hashApiKey, getKeyPrefix } from '../../lib/api-key'
 import { hashLessonContent, LESSON_CONTENT_INCLUDE } from '../../services/lesson-content-hash'
+import { drainStudySyncFanOuts } from '../../services/enrollment-sync'
 
 vi.mock('../../services/claude', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../services/claude')>()
@@ -102,6 +103,9 @@ describe('Study program publish (study-sync)', () => {
   })
 
   afterAll(async () => {
+    // Publishes fire background fan-outs; drain them before rows disappear
+    // so nothing outlives this file into the next one (shared test DB)
+    await drainStudySyncFanOuts()
     await prisma.studyProgram.deleteMany({ where: { id: programId } })
     await prisma.organization.deleteMany({ where: { id: organizationId } })
     await prisma.user.deleteMany({ where: { id: userId } })

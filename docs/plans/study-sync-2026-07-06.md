@@ -1,7 +1,7 @@
 # Study Program → Enrollment Sync (Versioning) — Design Spec
 
 **Date:** 2026-07-06
-**Status:** Phases 1–2 implemented on `feature/study-sync`; phases 3–6 pending
+**Status:** Phases 1–3 implemented on `feature/study-sync`; phases 4–6 pending
 **Scope:** Server (schema + APIs) first; client/iPhone consume later. Dashboard notification banner + modal is in scope; the enrollment sync-settings view launched *from* a notification is a later build (the notification payload must support it now).
 
 ## Problem
@@ -108,10 +108,61 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
 
 1. ✅ Schema: versions, sync fields, lineage-key fix, backfill (v1 per schedule, baseline enrollments at OFF). **Done 2026-07-06.**
 2. ✅ Publish endpoint: hashing, diffing, snapshot, Claude summary. **Done 2026-07-06.**
-3. Sync engine: idempotent per-enrollment apply + fan-out job + `EnrollmentSyncRun`.
+3. ✅ Sync engine: idempotent per-enrollment apply + fan-out job + `EnrollmentSyncRun`. **Done 2026-07-06.**
 4. Member resolution: pinned-version rendering + lazy carry-forward in lesson-fetch paths.
 5. Notifications: dedupe + actions, summary endpoint.
 6. Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal.
+
+## Phase 3 implementation notes (2026-07-06)
+
+- Engine: `src/services/enrollment-sync.ts` — `syncEnrollmentToLatest` brings
+  an enrollment to the program's latest published version. Content comes from
+  the **version snapshot**, never live curriculum (unpublished edits must not
+  leak; derived fields like videoUrl/thumbnails are recovered from live
+  curriculum only when their source fields still match the snapshot).
+- Snapshot lessons now carry `activityIds` (aligned with canonical activity
+  order, outside the hashed content) so materialized copies get lineageKey.
+  `buildLessonRowsFromSnapshot` in lesson-copy.ts adapts snapshot shape into
+  the shared copier (positional "ref:N" block↔ref linkage, scripture
+  transform, dangling sourceLessonActivityId FKs nulled).
+- Per-lesson idempotency: hash comparison (schedule.currentVersion.
+  sourceContentHash vs snapshot hash) — a crashed run resumes and skips
+  already-applied lessons. `EnrollmentSyncRun` upserted RUNNING→COMPLETED/
+  FAILED per (enrollment, targetVersion).
+- Completed members are pinned (pinnedVersionId = outgoing currentVersionId)
+  in the same transaction that switches the schedule to the new version.
+- Scheduling (decision 3): locked = smsSentAt set OR scheduledDate <= now.
+  Remaining curriculum lessons are laid over surviving future slot dates in
+  curriculum order; removed lessons free their slots; overflow walks the
+  enrollment's enabledDays. Events follow (date/title/dayNumber); endDate
+  extends when needed. New `LessonSchedule.removedAt` column: removed lessons
+  hard-delete when no member progress exists, soft-hide otherwise (their
+  future events are deleted either way).
+- Fan-out: `launchProgramVersionFanOut` fires in the background from
+  publishProgramVersion; sequential per-enrollment with error isolation.
+  `drainStudySyncFanOuts()` exists for test teardown (a background fan-out
+  outliving its test file races the next file's writes on the shared test DB).
+- Endpoints: `GET /api/enrollments/:id/sync` (mode, drift, pending version
+  summaries, recent runs) and `POST /api/enrollments/:id/sync/apply`
+  (approval-mode acceptance / manual catch-up).
+- Tests: `enrollment-sync-engine.test.ts` (7). Also fixed a pre-existing
+  intra-file flake in invite-member-integration.test.ts (same-millisecond
+  Date.now() phone collision between beforeEach and a test).
+
+### ⚠️ Open landmine (needs its own decision): curriculum lesson deletion
+
+`LessonSchedule.lesson` is `onDelete: Cascade` — deleting a curriculum
+`Lesson` row (the program editor's delete-lesson endpoint, or shrinking
+`days` in PATCH /programs/:id) **instantly cascades into every enrollment**:
+schedules, activities, versions, and member progress for that lesson are
+destroyed at edit time, before any publish, regardless of sync mode. This
+predates study-sync but contradicts its "history is never lost" guarantee —
+the sync engine's removal handling (soft-hide with progress) only sees
+lessons that are missing from the snapshot while their row still exists.
+Proper fix (follow-up): make `LessonSchedule.lessonId` nullable with
+`onDelete: SetNull` (audit the read paths that assume `lesson` is present),
+or soft-delete curriculum lessons. Until then, deleting a published lesson
+from the curriculum bypasses versioning entirely.
 
 ## Phase 2 implementation notes (2026-07-06)
 

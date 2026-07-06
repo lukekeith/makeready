@@ -94,7 +94,7 @@ export interface LessonCopyRows {
     id: string
     lessonScheduleId: string
     versionId: string
-    lineageKey: string
+    lineageKey: string | null
     type: any
     orderNumber: number
     title: string
@@ -113,7 +113,7 @@ export interface LessonCopyRows {
     youtubeEndSeconds: number | null
     youtubeThumbnailUrl: string | null
     estimatedSeconds: number | null
-    sourceLessonActivityId: string
+    sourceLessonActivityId: string | null
   }>
   sourceRefData: Array<{
     id: string
@@ -269,6 +269,147 @@ export function buildLessonCopyRows(params: {
         }
       }
     }
+  }
+
+  return rows
+}
+
+// ============================================================================
+// Snapshot materialization (study-sync)
+// ============================================================================
+
+import { extractYouTubeVideoId } from './youtube.js'
+
+/**
+ * Derived fields that canonical lesson content deliberately excludes (they
+ * can't cause drift). When a synced version is materialized we recover them
+ * from the live curriculum activity — but only when the content-bearing field
+ * they derive from still matches the snapshot, so unpublished edits never leak.
+ */
+export interface LiveActivityDerivedFields {
+  videoId: string | null
+  videoUrl: string | null
+  youtubeUrl: string | null
+  youtubeVideoId: string | null
+  youtubeThumbnailUrl: string | null
+  estimatedSeconds: number | null
+}
+
+interface SnapshotActivityContent {
+  type: string
+  orderNumber: number
+  title: string
+  helpTitle: string | null
+  helpDescription: string | null
+  helpAlwaysVisible: boolean
+  helpIcon: string | null
+  placeholder: string | null
+  isHelpEnabled: boolean
+  referenceTitle: string | null
+  readContent: string | null
+  videoId: string | null
+  themeId: string | null
+  youtubeUrl: string | null
+  youtubeStartSeconds: number | null
+  youtubeEndSeconds: number | null
+  sourceReferences: Array<{
+    sourceType: string
+    passageReference: string | null
+    bookNumber: number | null
+    bookName: string | null
+    chapterStart: number | null
+    chapterEnd: number | null
+    verseStart: number | null
+    verseEnd: number | null
+  }>
+  readBlocks: Array<{
+    orderNumber: number
+    title: string | null
+    content: string | null
+    isLocked: boolean
+    contentFormat: string
+    themeId: string | null
+    backgroundImageUrl: string | null
+    backgroundColor: string | null
+    backgroundOverlayOpacity: number | null
+    fontSize: string | null
+    selections: unknown
+    sourceReferenceId: string | null // positional: "ref:N" into sourceReferences
+    exegesisHighlights: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
+  }>
+}
+
+/**
+ * Build insert rows for one enrolled-lesson version from a published
+ * StudyProgramVersion snapshot (NOT from live curriculum — the live lessons
+ * may carry unpublished edits that must not reach members until published).
+ *
+ * @param existingSourceActivityIds curriculum LessonActivity ids that still
+ *   exist — sourceLessonActivityId is a real FK and must be nulled when the
+ *   source was deleted; lineageKey (plain column) is always stamped.
+ * @param liveActivities live curriculum activities by id, used to recover
+ *   derived fields (videoUrl, youtube metadata, estimates) when their source
+ *   fields still match the snapshot.
+ */
+export function buildLessonRowsFromSnapshot(params: {
+  lessonScheduleId: string
+  versionId: string
+  content: { activities: SnapshotActivityContent[] }
+  activityIds?: string[]
+  existingSourceActivityIds: Set<string>
+  liveActivities: Map<string, LiveActivityDerivedFields>
+}): LessonCopyRows {
+  const { lessonScheduleId, versionId, content, activityIds, existingSourceActivityIds, liveActivities } = params
+
+  const adapted: CurriculumActivityRow[] = content.activities.map((activity, index) => {
+    const lineageId = activityIds?.[index] ?? null
+    const live = lineageId ? liveActivities.get(lineageId) : undefined
+
+    // Derived fields transfer only when their content-bearing source matches
+    const videoMatches = live !== undefined && live.videoId === activity.videoId
+    const youtubeMatches = live !== undefined && live.youtubeUrl === activity.youtubeUrl
+
+    return {
+      id: lineageId ?? `snapshot:${index}`, // placeholder never matches existingSourceActivityIds
+      activityType: activity.type,
+      orderNumber: activity.orderNumber,
+      title: activity.title,
+      referenceTitle: activity.referenceTitle,
+      helpTitle: activity.helpTitle,
+      helpDescription: activity.helpDescription,
+      helpAlwaysVisible: activity.helpAlwaysVisible,
+      helpIcon: activity.helpIcon,
+      readContent: activity.readContent,
+      videoId: activity.videoId,
+      videoUrl: videoMatches ? live.videoUrl : null,
+      youtubeUrl: activity.youtubeUrl,
+      youtubeVideoId: youtubeMatches
+        ? live.youtubeVideoId
+        : activity.youtubeUrl
+          ? extractYouTubeVideoId(activity.youtubeUrl)
+          : null,
+      youtubeStartSeconds: activity.youtubeStartSeconds,
+      youtubeEndSeconds: activity.youtubeEndSeconds,
+      youtubeThumbnailUrl: youtubeMatches ? live.youtubeThumbnailUrl : null,
+      estimatedSeconds: live?.estimatedSeconds ?? null,
+      sourceReferences: activity.sourceReferences.map((ref, refIndex) => ({
+        id: `ref:${refIndex}`, // canonical block linkage is positional ("ref:N")
+        ...ref,
+      })),
+      readBlocks: activity.readBlocks,
+    }
+  })
+
+  const rows = buildLessonCopyRows({ lessonScheduleId, versionId, activities: adapted })
+
+  // Fix lineage: placeholders carry no lineage; deleted curriculum activities
+  // keep lineageKey (carry-forward key) but lose the FK.
+  for (let index = 0; index < rows.scheduledActivityData.length; index++) {
+    const row = rows.scheduledActivityData[index]
+    const lineageId = activityIds?.[index] ?? null
+    row.lineageKey = lineageId
+    row.sourceLessonActivityId =
+      lineageId !== null && existingSourceActivityIds.has(lineageId) ? lineageId : null
   }
 
   return rows

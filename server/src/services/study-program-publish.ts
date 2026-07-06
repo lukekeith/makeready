@@ -22,6 +22,7 @@ import {
   LESSON_CONTENT_INCLUDE,
 } from './lesson-content-hash.js'
 import { summarizeProgramChanges } from './claude.js'
+import { launchProgramVersionFanOut } from './enrollment-sync.js'
 
 export class PublishConflictError extends Error {
   constructor() {
@@ -30,12 +31,19 @@ export class PublishConflictError extends Error {
   }
 }
 
-interface SnapshotLesson {
+export interface SnapshotLesson {
   id: string
   dayNumber: number
   title: string | null
   contentHash: string
   content: unknown
+  /**
+   * Curriculum LessonActivity ids aligned index-for-index with
+   * content.activities (both sorted by orderNumber). Ids live outside the
+   * hashed content — they are lineage metadata the sync engine stamps onto
+   * materialized copies, not part of "what the lesson says".
+   */
+  activityIds?: string[]
 }
 
 export interface ChangedLessonIds {
@@ -102,6 +110,9 @@ export async function publishProgramVersion(params: {
     title: lesson.title,
     contentHash: hashLessonContent(lesson as any),
     content: canonicalLessonContent(lesson as any),
+    activityIds: [...lesson.activities]
+      .sort((a, b) => a.orderNumber - b.orderNumber)
+      .map((a) => a.id),
   }))
 
   const latest = await prisma.studyProgramVersion.findFirst({
@@ -175,6 +186,11 @@ export async function publishProgramVersion(params: {
         data: { currentVersionNumber: versionNumber, updatedById: userId },
       }),
     ])
+
+    // Fan the new version out to AUTO-sync enrollments in the background —
+    // publish returns immediately; EnrollmentSyncRun rows record per-enrollment
+    // progress and make failures retryable.
+    launchProgramVersionFanOut(programId, versionNumber)
 
     return {
       alreadyUpToDate: false,

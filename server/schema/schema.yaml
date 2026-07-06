@@ -2473,6 +2473,10 @@ models:
         type: string
         nullable: true
         description: "LessonScheduleVersion members without a pin see; null only for pre-backfill legacy rows"
+      removedAt:
+        type: datetime
+        nullable: true
+        description: "Set when sync removes this lesson from the curriculum but member progress exists (soft-hide: kept for history, excluded from upcoming lists). Schedules with no progress are hard-deleted instead."
     relations:
       enrollment:
         type: many_to_one

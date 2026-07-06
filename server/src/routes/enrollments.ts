@@ -15,6 +15,7 @@ import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.s
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
 import { hashLessonContent } from '../services/lesson-content-hash.js'
 import { buildLessonCopyRows, type LessonCopyRows } from '../services/lesson-copy.js'
+import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
 import {
   canManageOrgContent,
   enrollmentManageFilter,
@@ -1650,6 +1651,173 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
     }
     console.error('Error updating enrollment:', error)
     res.status(500).json({ success: false, error: 'Failed to update enrollment' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/enrollments/{id}/sync:
+ *   get:
+ *     tags: [Enrollments]
+ *     summary: Get study-sync status for an enrollment
+ *     description: |
+ *       Reports the enrollment's sync mode, the program version its lessons
+ *       reflect, whether the program has published newer versions (drift),
+ *       and the pending versions' AI change summaries so a leader can decide
+ *       whether to apply them. Also returns recent sync runs.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Sync status
+ *       404:
+ *         description: Enrollment not found
+ */
+router.get('/enrollments/:id/sync', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id, ...(await enrollmentManageFilter(userId)) },
+      select: {
+        id: true,
+        syncMode: true,
+        syncedProgramVersionNumber: true,
+        studyProgram: { select: { id: true, name: true, currentVersionNumber: true } },
+      },
+    })
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const syncedVersion = enrollment.syncedProgramVersionNumber ?? 0
+    const currentVersion = enrollment.studyProgram.currentVersionNumber ?? null
+    const hasDrift = currentVersion !== null && currentVersion > syncedVersion
+
+    const [pendingVersions, recentRuns] = await Promise.all([
+      hasDrift
+        ? prisma.studyProgramVersion.findMany({
+            where: {
+              studyProgramId: enrollment.studyProgram.id,
+              versionNumber: { gt: syncedVersion },
+            },
+            orderBy: { versionNumber: 'desc' },
+            select: {
+              versionNumber: true,
+              publishedAt: true,
+              changeSummary: true,
+              changedLessonIds: true,
+            },
+          })
+        : Promise.resolve([]),
+      prisma.enrollmentSyncRun.findMany({
+        where: { enrollmentId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          targetProgramVersionNumber: true,
+          status: true,
+          error: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      }),
+    ])
+
+    res.json({
+      success: true,
+      sync: {
+        syncMode: enrollment.syncMode,
+        syncedProgramVersionNumber: enrollment.syncedProgramVersionNumber,
+        currentVersionNumber: currentVersion,
+        hasDrift,
+        pendingVersions,
+        recentRuns,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching enrollment sync status:', error)
+    res.status(500).json({ success: false, error: 'Failed to fetch sync status' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/enrollments/{id}/sync/apply:
+ *   post:
+ *     tags: [Enrollments]
+ *     summary: Apply the latest published program version to this enrollment
+ *     description: |
+ *       Brings the enrollment's lessons up to the program's latest published
+ *       version (all-or-nothing). Used by APPROVAL-mode acceptance and manual
+ *       catch-up for OFF-mode enrollments with drift. Members who completed a
+ *       lesson stay pinned to the version they completed; everyone else sees
+ *       the new content. Idempotent — reapplying is a no-op.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Sync applied (or already up to date)
+ *       400:
+ *         description: Program has no published version
+ *       404:
+ *         description: Enrollment not found
+ */
+router.post('/enrollments/:id/sync/apply', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id, ...(await enrollmentManageFilter(userId)) },
+      select: {
+        id: true,
+        groupId: true,
+        studyProgram: { select: { name: true } },
+        group: { select: { name: true, organizationId: true } },
+      },
+    })
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const outcome = await syncEnrollmentToLatest({ enrollmentId: id, triggeredById: userId })
+
+    if (!outcome.alreadySynced) {
+      trackActivity({
+        actorId: userId,
+        action: 'UPDATED',
+        resourceType: 'ENROLLMENT',
+        resourceId: id,
+        resourceName: `${enrollment.studyProgram.name} in ${enrollment.group.name}`,
+        organizationId: enrollment.group.organizationId,
+        groupId: enrollment.groupId,
+        metadata: { studySync: outcome },
+      })
+    }
+
+    res.json({ success: true, ...outcome })
+  } catch (error) {
+    if (error instanceof SyncNotPossibleError) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    console.error('Error applying enrollment sync:', error)
+    res.status(500).json({ success: false, error: 'Failed to apply sync' })
   }
 })
 

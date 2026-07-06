@@ -1035,6 +1035,7 @@ model LessonSchedule {
   title                String? // Display title for lesson card (copied from Lesson)
   estimatedMinutes     Int? // Snapshot of time estimate at enrollment time
   currentVersionId     String? // LessonScheduleVersion members without a pin see; null only for pre-backfill legacy rows
+  removedAt            DateTime? // Set when sync removes this lesson from the curriculum but member progress exists (soft-hide: kept for history, excluded from upcoming lists). Schedules with no progress are hard-deleted instead.
 
   enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
