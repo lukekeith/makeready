@@ -205,13 +205,66 @@ onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('resize', onResize)
   document.addEventListener('click', onDocClick)
+  // Registered manually so they can be non-passive (preventDefault must work)
+  const wrap = wrapEl.value
+  if (wrap) {
+    wrap.addEventListener('touchstart', onTouchStart, { passive: false })
+    wrap.addEventListener('touchmove', onTouchMove, { passive: false })
+    wrap.addEventListener('touchend', onTouchEnd)
+    wrap.addEventListener('touchcancel', onTouchEnd)
+  }
   onResize()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('resize', onResize)
   document.removeEventListener('click', onDocClick)
+  const wrap = wrapEl.value
+  if (wrap) {
+    wrap.removeEventListener('touchstart', onTouchStart)
+    wrap.removeEventListener('touchmove', onTouchMove)
+    wrap.removeEventListener('touchend', onTouchEnd)
+    wrap.removeEventListener('touchcancel', onTouchEnd)
+  }
 })
+
+// ── Pinch-to-zoom (touch) ─────────────────────────────────
+// The page disables browser zoom (user-scalable=no), so two-finger pinch on
+// the canvas drives the same visibleDays zoom, anchored at the pinch center.
+const pinch = { active: false, startDist: 0, startVisible: 0, anchorFrac: 0, anchorX: 0 }
+
+function touchDist(e: TouchEvent): number {
+  const [a, b] = [e.touches[0], e.touches[1]]
+  return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY)
+}
+
+function onTouchStart(e: TouchEvent) {
+  const wrap = wrapEl.value
+  if (e.touches.length !== 2 || !wrap) return
+  e.preventDefault()
+  const rect = wrap.getBoundingClientRect()
+  const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left
+  pinch.active = true
+  pinch.startDist = touchDist(e)
+  pinch.startVisible = visibleDays.value
+  pinch.anchorX = midX
+  pinch.anchorFrac = (wrap.scrollLeft + midX) / wrap.scrollWidth
+  hover.value = null
+}
+
+function onTouchMove(e: TouchEvent) {
+  if (!pinch.active || e.touches.length !== 2) return
+  e.preventDefault()
+  const dist = touchDist(e)
+  if (!dist || !pinch.startDist) return
+  // Fingers spreading → dist grows → fewer visible days (zoom in)
+  const next = clampDays(pinch.startVisible * (pinch.startDist / dist))
+  if (next !== visibleDays.value) applyZoom(next, pinch.anchorFrac, pinch.anchorX)
+}
+
+function onTouchEnd(e: TouchEvent) {
+  if (e.touches.length < 2) pinch.active = false
+}
 
 function onPointerDown(e: PointerEvent) {
   if (e.pointerType !== 'mouse' || e.button !== 0 || !wrapEl.value) return

@@ -362,6 +362,8 @@
     cursor: grab;
     user-select: none;
     scrollbar-width: none;
+    // Single-finger pan stays native; two-finger pinch reaches our zoom handlers
+    touch-action: pan-x pan-y;
 
     &::-webkit-scrollbar {
       display: none;
