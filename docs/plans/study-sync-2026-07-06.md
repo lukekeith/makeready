@@ -1,7 +1,7 @@
 # Study Program → Enrollment Sync (Versioning) — Design Spec
 
 **Date:** 2026-07-06
-**Status:** Phase 1 (schema + versioned copy + backfill) implemented on `feature/study-sync`; phases 2–6 pending
+**Status:** Phases 1–2 implemented on `feature/study-sync`; phases 3–6 pending
 **Scope:** Server (schema + APIs) first; client/iPhone consume later. Dashboard notification banner + modal is in scope; the enrollment sync-settings view launched *from* a notification is a later build (the notification payload must support it now).
 
 ## Problem
@@ -107,11 +107,34 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
 ## Suggested implementation phases
 
 1. ✅ Schema: versions, sync fields, lineage-key fix, backfill (v1 per schedule, baseline enrollments at OFF). **Done 2026-07-06.**
-2. Publish endpoint: hashing, diffing, snapshot, Claude summary.
+2. ✅ Publish endpoint: hashing, diffing, snapshot, Claude summary. **Done 2026-07-06.**
 3. Sync engine: idempotent per-enrollment apply + fan-out job + `EnrollmentSyncRun`.
 4. Member resolution: pinned-version rendering + lazy carry-forward in lesson-fetch paths.
 5. Notifications: dedupe + actions, summary endpoint.
 6. Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal.
+
+## Phase 2 implementation notes (2026-07-06)
+
+- Service: `src/services/study-program-publish.ts` (`publishProgramVersion`).
+  No-op publish detection (identical lesson set + hashes + day order) returns
+  `alreadyUpToDate` without cutting a version. Concurrent publishes race on the
+  `(studyProgramId, versionNumber)` unique → `PublishConflictError` → 409.
+- Diff categories: `added` / `changed` (hash differs) / `removed` / `moved`
+  (same hash, different dayNumber). Baseline version has `changedLessonIds =
+  null` and no summary.
+- Endpoints: `POST /api/programs/:id/publish-updates` (mutationFilter; requires
+  isPublished; same empty-READ-activity guard as first publish) and
+  `GET /api/programs/:id/versions` (accessFilter).
+- Baseline hook: PATCH `/programs/:id` transitioning `isPublished false→true`
+  cuts v1 (`generateSummary: false`); failure there logs but never undoes the
+  publish toggle.
+- Claude summary: `summarizeProgramChanges` in `services/claude.ts`, model
+  `claude-opus-4-8` (`CLAUDE_MODELS.opus48` — the older `sonnet`/`opus` map
+  entries are deprecated model IDs; left untouched for existing callers).
+  Best-effort: null on missing key/API failure; per-lesson before/after JSON
+  truncated at 4k chars. Verified live 2026-07-06.
+- Tests: `src/routes/__tests__/program-publish.test.ts` (6 tests, Claude
+  mocked via `vi.mock` + `importOriginal`).
 
 ## Phase 1 implementation notes (2026-07-06)
 
