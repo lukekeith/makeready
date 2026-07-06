@@ -554,4 +554,55 @@ describe('Enrollment sync engine (study-sync)', () => {
 
     await prisma.group.deleteMany({ where: { id: autoGroup.id } })
   })
+
+  it('notifies the leader of pending updates, coalesced across publishes', async () => {
+    // The publishes above already fanned out — the OFF enrollment's leader
+    // has exactly one unread pending-updates notification
+    await drainStudySyncFanOuts()
+    const key = `study-sync-updates:${enrollmentId}`
+    const before = await prisma.notification.findMany({
+      where: { userId, dedupeKey: key, isRead: false },
+    })
+    expect(before).toHaveLength(1)
+    expect(before[0].type).toBe('STUDY_SYNC_UPDATES_AVAILABLE')
+    const actions = before[0].actions as Array<{ label: string; view: string; params: any }>
+    expect(actions[0].view).toBe('enrollment-sync')
+    expect(actions[0].params.enrollmentId).toBe(enrollmentId)
+
+    // Another publish coalesces instead of stacking
+    await prisma.lessonActivity.updateMany({
+      where: { lessonId: lesson1Id, orderNumber: 1 },
+      data: { placeholder: 'Write your thoughts…' },
+    })
+    const publish = await publishUpdates()
+    await drainStudySyncFanOuts()
+
+    const after = await prisma.notification.findMany({
+      where: { userId, dedupeKey: key, isRead: false },
+    })
+    expect(after).toHaveLength(1)
+    expect(after[0].id).toBe(before[0].id) // updated in place
+    expect(after[0].body).toContain(`version ${publish.version.versionNumber}`)
+
+    // Summary endpoint feeds the dashboard banner
+    const summary = await request(app)
+      .get('/api/notifications/summary')
+      .set(authed())
+    expect(summary.status).toBe(200)
+    expect(summary.body.summary.unreadCount).toBeGreaterThanOrEqual(1)
+    expect(summary.body.summary.latestAt).not.toBeNull()
+
+    // Applying the sync resolves the pending notification
+    await applySync()
+    const resolved = await prisma.notification.findMany({
+      where: { userId, dedupeKey: key, isRead: false },
+    })
+    expect(resolved).toHaveLength(0)
+
+    // The AUTO enrollment's leader also got an "applied" notification
+    const applied = await prisma.notification.findFirst({
+      where: { userId, type: 'STUDY_SYNC_APPLIED' },
+    })
+    expect(applied).not.toBeNull()
+  })
 })

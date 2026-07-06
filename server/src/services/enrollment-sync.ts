@@ -30,6 +30,10 @@ import { generateStudyCode } from '../lib/study-code.js'
 import { buildLessonRowsFromSnapshot, type LiveActivityDerivedFields } from './lesson-copy.js'
 import { recalculateScheduledLessonEstimate } from './lesson-estimate.service.js'
 import type { SnapshotLesson } from './study-program-publish.js'
+import {
+  upsertNotificationByDedupeKey,
+  resolveNotificationsByDedupeKey,
+} from './notification.js'
 
 const DAY_NAME_TO_NUMBER: Record<string, number> = {
   Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6,
@@ -109,6 +113,15 @@ export async function syncEnrollmentToLatest(params: {
         data: { syncedProgramVersionNumber: targetVersionNumber },
       }),
     ])
+
+    // The pending-updates notification (if any) is now resolved
+    if (enrollment.createdById) {
+      await resolveNotificationsByDedupeKey(
+        enrollment.createdById,
+        `study-sync-updates:${enrollmentId}`
+      ).catch(() => undefined)
+    }
+
     return outcome
   } catch (error) {
     await prisma.enrollmentSyncRun
@@ -500,26 +513,95 @@ export async function fanOutProgramVersionSync(
   programId: string,
   versionNumber: number
 ): Promise<{ synced: number; skipped: number; failed: number }> {
+  const [program, version] = await Promise.all([
+    prisma.studyProgram.findUniqueOrThrow({
+      where: { id: programId },
+      select: { name: true },
+    }),
+    prisma.studyProgramVersion.findUnique({
+      where: { studyProgramId_versionNumber: { studyProgramId: programId, versionNumber } },
+      select: { changeSummary: true },
+    }),
+  ])
+
   const enrollments = await prisma.enrollment.findMany({
     where: {
       studyProgramId: programId,
-      syncMode: 'AUTO',
       OR: [
         { syncedProgramVersionNumber: null },
         { syncedProgramVersionNumber: { lt: versionNumber } },
       ],
     },
-    select: { id: true },
+    select: {
+      id: true,
+      syncMode: true,
+      createdById: true,
+      syncedProgramVersionNumber: true,
+      group: { select: { name: true } },
+    },
   })
+
+  const summaryLine = version?.changeSummary ? ` ${version.changeSummary}` : ''
 
   let synced = 0
   let skipped = 0
   let failed = 0
   for (const enrollment of enrollments) {
     try {
-      const outcome = await syncEnrollmentToLatest({ enrollmentId: enrollment.id })
-      if (outcome.alreadySynced) skipped++
-      else synced++
+      if (enrollment.syncMode === 'AUTO') {
+        const outcome = await syncEnrollmentToLatest({ enrollmentId: enrollment.id })
+        if (outcome.alreadySynced) {
+          skipped++
+        } else {
+          synced++
+          if (enrollment.createdById) {
+            await upsertNotificationByDedupeKey({
+              userId: enrollment.createdById,
+              type: 'STUDY_SYNC_APPLIED',
+              title: `${program.name} updated`,
+              body: `Updates to "${program.name}" were applied to ${enrollment.group.name}'s enrollment (now version ${versionNumber}).${summaryLine}`,
+              dedupeKey: `study-sync-applied:${enrollment.id}`,
+              data: {
+                enrollmentId: enrollment.id,
+                programId,
+                toVersion: String(versionNumber),
+              },
+              actions: [
+                {
+                  label: 'View enrollment',
+                  view: 'enrollment-sync',
+                  params: { enrollmentId: enrollment.id },
+                },
+              ],
+            })
+          }
+        }
+      } else if (enrollment.createdById) {
+        // APPROVAL and OFF: the leader decides — tell them what's waiting.
+        // (OFF leaders are notified too so an accidental toggle-off is
+        // recoverable; the notification carries the sync-settings action.)
+        await upsertNotificationByDedupeKey({
+          userId: enrollment.createdById,
+          type: 'STUDY_SYNC_UPDATES_AVAILABLE',
+          title: `Updates available for ${program.name}`,
+          body: `"${program.name}" has published updates (version ${versionNumber}) that ${enrollment.group.name}'s enrollment hasn't received.${summaryLine}`,
+          dedupeKey: `study-sync-updates:${enrollment.id}`,
+          data: {
+            enrollmentId: enrollment.id,
+            programId,
+            fromVersion: String(enrollment.syncedProgramVersionNumber ?? 0),
+            toVersion: String(versionNumber),
+            syncMode: enrollment.syncMode,
+          },
+          actions: [
+            {
+              label: enrollment.syncMode === 'APPROVAL' ? 'Review updates' : 'Update sync settings',
+              view: 'enrollment-sync',
+              params: { enrollmentId: enrollment.id },
+            },
+          ],
+        })
+      }
     } catch (error) {
       failed++
       console.error(`Study-sync fan-out failed for enrollment ${enrollment.id}:`, error)

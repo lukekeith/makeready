@@ -1,7 +1,7 @@
 # Study Program → Enrollment Sync (Versioning) — Design Spec
 
 **Date:** 2026-07-06
-**Status:** Phases 1–4 implemented on `feature/study-sync`; phases 5–6 pending
+**Status:** Phases 1–5 implemented on `feature/study-sync`; phase 6 (client UI) pending
 **Scope:** Server (schema + APIs) first; client/iPhone consume later. Dashboard notification banner + modal is in scope; the enrollment sync-settings view launched *from* a notification is a later build (the notification payload must support it now).
 
 ## Problem
@@ -110,8 +110,26 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
 2. ✅ Publish endpoint: hashing, diffing, snapshot, Claude summary. **Done 2026-07-06.**
 3. ✅ Sync engine: idempotent per-enrollment apply + fan-out job + `EnrollmentSyncRun`. **Done 2026-07-06.**
 4. ✅ Member resolution: pinned-version rendering + lazy carry-forward in lesson-fetch paths. **Done 2026-07-06.**
-5. Notifications: dedupe + actions, summary endpoint.
+5. ✅ Notifications: dedupe + actions, summary endpoint. **Done 2026-07-06.**
 6. Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal.
+
+## Phase 5 implementation notes (2026-07-06)
+
+- `upsertNotificationByDedupeKey` / `resolveNotificationsByDedupeKey` in
+  notification.ts. Coalescing: unread same-key → updated in place (title/
+  body/data/actions/createdAt); push fires only on first create of a cycle.
+- Fan-out now notifies EVERY drifted enrollment's `createdById`:
+  AUTO → `STUDY_SYNC_APPLIED` (dedupeKey `study-sync-applied:{enrollmentId}`);
+  APPROVAL/OFF → `STUDY_SYNC_UPDATES_AVAILABLE`
+  (`study-sync-updates:{enrollmentId}`, action label "Review updates" vs
+  "Update sync settings", view `enrollment-sync`, params {enrollmentId},
+  data carries from/to version + syncMode + AI summary in body).
+- Successful sync (any trigger) marks the pending-updates notification read.
+- Routes: the feed previously served ONLY Activity rows — list, unread-count,
+  and mark-read now merge/cover the Notification table too (Notification
+  entries carry `actions` + `dedupeKey`, `actor: null`). New
+  `GET /api/notifications/summary` → { unreadCount, latestAt } for the
+  dashboard banner.
 
 ## Phase 4 implementation notes (2026-07-06)
 
