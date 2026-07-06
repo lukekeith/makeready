@@ -166,7 +166,7 @@ on OFF enrollments): title falls back to `schedule.title`, dayNumber to 0,
 member-facing program branding falls back to `enrollment.studyProgram`
 (selects extended in member-progress.service), OG meta returns the generic
 fallback, note links skip LESSON/PROGRAM refs, availableLessons skips
-orphans. Migration `20260706185894…` (see atlas/migrations).
+orphans. Migration `20260706185753.sql`.
 
 ## Phase 2 implementation notes (2026-07-06)
 
