@@ -117,7 +117,8 @@
           "meta": "165 commits \u00b7 Apr \u2013 Jun 2026",
           "summary": "The quality system that makes cross-platform parity provable: a pixel-diff compare tool with 80+ web twins of iPhone components, plus a systematic iOS architecture audit and remediation \u2014 typed navigation, error surfacing, 65 tests, and a lint gate."
         }
-      ]
+      ],
+      "row": "platform"
     },
     {
       "id": "b-design",
@@ -154,7 +155,8 @@
           "meta": "131 commits \u00b7 Nov 2025 \u2013 Mar 2026",
           "summary": "Replatformed the entire web client onto Laravel in four days (108 commits), then built the 52-component Blade/Vue library and migrated the admin to the PrimeVue design system."
         }
-      ]
+      ],
+      "row": "design"
     },
     {
       "id": "b-identity",
@@ -396,7 +398,8 @@
           "meta": "4 wks \u00b7 Aug \u2013 Sep 2026",
           "summary": "The web client becomes installable: PWA with an offline shell, offline lesson caching with input sync on reconnect, and media prefetch for scheduled lessons \u2014 for members in low-connectivity group settings."
         }
-      ]
+      ],
+      "row": "design"
     },
     {
       "id": "e-comms",
@@ -810,7 +813,8 @@
           "meta": "~3 wks \u00b7 Jan \u2013 Feb 2028",
           "summary": "Personal goals with accountability sharing, linked to challenge progress \u2014 completing original domains 7 and 8."
         }
-      ]
+      ],
+      "row": "gtm"
     },
     {
       "id": "e-events",

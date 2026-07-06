@@ -83,11 +83,121 @@
   }
 
   &__headRight {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: 8px;
     flex: none;
+  }
+
+  &__kpi--tap {
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    border-color: rgba(94, 106, 210, 0.5);
+  }
+
+  // Mobile budget sheet (opens from the consolidated AI-tokens KPI)
+  &__budgetSheet {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    z-index: 80;
+    width: min(300px, calc(100vw - 28px));
+    background: #1c1d21;
+    border: 1px solid var(--lt-border);
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+
+    p {
+      font-size: 11px;
+      line-height: 1.5;
+      color: var(--lt-text-3);
+      margin: 10px 0 0;
+    }
+  }
+
+  &__budgetSheetRow {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+
+    strong {
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    span {
+      font-size: 11px;
+      color: var(--lt-text-3);
+    }
+
+    & + & {
+      margin-top: 4px;
+    }
+  }
+
+  &__budgetSheetModes {
+    display: flex;
+    gap: 6px;
+    margin-top: 12px;
+
+    button {
+      flex: 1;
+      background: transparent;
+      border: 1px solid var(--lt-border);
+      color: var(--lt-text-2);
+      border-radius: 6px;
+      padding: 7px 8px;
+      font-size: 11.5px;
+      font-weight: 500;
+      cursor: pointer;
+
+      &.is-active {
+        background: var(--lt-indigo);
+        border-color: var(--lt-indigo);
+        color: #fff;
+      }
+    }
+  }
+
+  // Mobile filter dropdown (replaces the chip row)
+  &__filterWrap {
+    position: relative;
+  }
+
+  &__filterMenu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 80;
+    min-width: 160px;
+    display: flex;
+    flex-direction: column;
+    background: #1c1d21;
+    border: 1px solid var(--lt-border);
+    border-radius: 8px;
+    padding: 4px;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.55);
+
+    button {
+      background: transparent;
+      border: none;
+      color: var(--lt-text-2);
+      text-align: left;
+      padding: 9px 12px;
+      font-size: 13px;
+      border-radius: 6px;
+      cursor: pointer;
+
+      &.is-active {
+        color: #fff;
+        background: rgba(94, 106, 210, 0.25);
+      }
+    }
   }
 
   &__kpis {
@@ -798,6 +908,88 @@
 
     &__tokenGrid {
       grid-template-columns: 1fr;
+    }
+  }
+
+  // ── Phone (native-app feel; fixed header ≤ 240px) ───────
+  @media (max-width: 640px) {
+    &__header {
+      padding: calc(10px + env(safe-area-inset-top)) 14px 0;
+      gap: 10px;
+    }
+
+    &__eyebrow,
+    &__subtitle {
+      display: none;
+    }
+
+    &__title {
+      font-size: 18px;
+      margin: 0;
+    }
+
+    &__headRight {
+      width: 100%;
+    }
+
+    &__kpis {
+      width: 100%;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+    }
+
+    &__kpi {
+      padding: 6px 10px;
+    }
+
+    &__kpiValue {
+      font-size: 13px;
+    }
+
+    &__kpiLabel {
+      font-size: 9.5px;
+      white-space: normal;
+    }
+
+    &__budgetSheet {
+      right: auto;
+      left: 0;
+    }
+
+    &__controls {
+      padding: 8px 14px;
+      gap: 8px;
+    }
+
+    &__hint,
+    &__legend {
+      display: none;
+    }
+
+    &__rowLabel {
+      max-width: 82vw;
+    }
+
+    // Tapping a bar opens the epic full screen, like a native modal
+    &__detail {
+      position: fixed;
+      inset: 0;
+      width: auto;
+      border-radius: 0;
+      border: none;
+      z-index: 100;
+      padding: calc(20px + env(safe-area-inset-top)) 18px calc(24px + env(safe-area-inset-bottom));
+    }
+
+    &__detailClose {
+      position: sticky;
+      top: 0;
+      float: right;
+      width: 32px;
+      height: 32px;
+      font-size: 18px;
+      background: #1c1d21;
     }
   }
 }

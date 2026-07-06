@@ -41,19 +41,19 @@ function toDate(s: string): Date {
   return new Date(`${s}T00:00:00`)
 }
 
-// Range extends past the data (2 months before, 4 after) so the canvas can
-// over-scroll — content near the edges can always be panned clear of the
-// floating detail panel.
+// Range extends past the data so the canvas can over-scroll — on desktop
+// content near the edges must pan clear of the floating detail panel; on
+// mobile the modal is full screen, so one month of padding is enough.
 const rangeStart = computed(() => {
   const min = epics.reduce((m, e) => (e.start < m ? e.start : m), epics[0].start)
   const d = toDate(min)
-  return new Date(d.getFullYear(), d.getMonth() - 3, 1)
+  return new Date(d.getFullYear(), d.getMonth() - (isMobile.value ? 1 : 3), 1)
 })
 
 const rangeEnd = computed(() => {
   const max = epics.reduce((m, e) => (e.end > m ? e.end : m), epics[0].end)
   const d = toDate(max)
-  return new Date(d.getFullYear(), d.getMonth() + 10, 1)
+  return new Date(d.getFullYear(), d.getMonth() + (isMobile.value ? 2 : 10), 1)
 })
 
 const totalDays = computed(() => (rangeEnd.value.getTime() - rangeStart.value.getTime()) / DAY)
@@ -67,14 +67,18 @@ const dragging = ref(false)
 let suppressClick = false
 const dragState = { active: false, pointerId: 0, startX: 0, startY: 0, startLeft: 0, startTop: 0 }
 
+const isMobile = ref(typeof window !== 'undefined' && window.innerWidth <= 640)
+
 const contentWidthPct = computed(() => (totalDays.value / visibleDays.value) * 100)
-const showWeeks = computed(() => visibleDays.value <= 190)
+// Fewer axis labels on small screens: hide week ticks earlier on phones.
+const showWeeks = computed(() => visibleDays.value <= (isMobile.value ? 60 : 190))
 
 function clampDays(d: number): number {
   // Cap zoom-out so the canvas always keeps at least a detail-panel's width of
   // pannable overflow — content can be dragged clear of the panel at any zoom.
+  // On mobile the modal is full screen, so the whole range may be shown.
   const wrap = wrapEl.value
-  const overflowFactor = 1 + 440 / (wrap?.clientWidth || 1200)
+  const overflowFactor = isMobile.value ? 1 : 1 + 440 / (wrap?.clientWidth || 1200)
   const maxDays = totalDays.value / overflowFactor
   return Math.min(Math.max(d, MIN_VISIBLE_DAYS), maxDays)
 }
@@ -144,24 +148,69 @@ function onKeydown(e: KeyboardEvent) {
     case '-': animateZoomTo(visibleDays.value * 1.3, 120); break
     case '=':
     case '+': animateZoomTo(visibleDays.value / 1.3, 120); break
-    case 'escape': selected.value = null; break
+    case 'escape':
+      if (budgetSheet.value || filterMenu.value) {
+        budgetSheet.value = false
+        filterMenu.value = false
+      } else {
+        selected.value = null
+      }
+      break
   }
+}
+
+// Click-off dismissal for the header/controls popups (budget sheet, filter menu)
+function onDocClick(e: MouseEvent) {
+  const t = e.target as HTMLElement | null
+  if (!t) return
+  if (budgetSheet.value && !t.closest('.InvestorTimeline__budgetSheet') && !t.closest('.InvestorTimeline__kpi--tap')) {
+    budgetSheet.value = false
+  }
+  if (filterMenu.value && !t.closest('.InvestorTimeline__filterWrap')) {
+    filterMenu.value = false
+  }
+}
+
+function toggleBudgetSheet() {
+  budgetSheet.value = !budgetSheet.value
+  filterMenu.value = false
+}
+
+function toggleFilterMenu() {
+  filterMenu.value = !filterMenu.value
+  budgetSheet.value = false
+}
+
+// Clicking empty canvas dismisses the detail panel (bar/label clicks select instead)
+function onCanvasClick(e: MouseEvent) {
+  if (suppressClick) return
+  const t = e.target as HTMLElement | null
+  if (
+    t &&
+    (t.closest('.InvestorTimeline__bar') ||
+      t.closest('.InvestorTimeline__rowLabel') ||
+      t.closest('.InvestorTimeline__milestone'))
+  ) return
+  selected.value = null
 }
 
 const canvasW = ref(1200)
 
 function onResize() {
   if (wrapEl.value) canvasW.value = wrapEl.value.clientWidth
+  isMobile.value = window.innerWidth <= 640
 }
 
 onMounted(() => {
   window.addEventListener('keydown', onKeydown)
   window.addEventListener('resize', onResize)
+  document.addEventListener('click', onDocClick)
   onResize()
 })
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   window.removeEventListener('resize', onResize)
+  document.removeEventListener('click', onDocClick)
 })
 
 function onPointerDown(e: PointerEvent) {
@@ -215,7 +264,7 @@ onMounted(async () => {
 
 // ── Time geometry ─────────────────────────────────────────
 const months = computed(() => {
-  const out: { key: string; label: string; year: string; widthPct: number; showYear: boolean }[] = []
+  const out: { key: string; label: string; year: string; widthPct: number; showYear: boolean; mIdx: number }[] = []
   const cur = new Date(rangeStart.value)
   let first = true
   while (cur < rangeEnd.value) {
@@ -227,11 +276,21 @@ const months = computed(() => {
       year: String(cur.getFullYear()),
       widthPct: (days / totalDays.value) * 100,
       showYear: first || cur.getMonth() === 0,
+      mIdx: cur.getMonth(),
     })
     first = false
     cur.setMonth(cur.getMonth() + 1)
   }
   return out
+})
+
+// Thin out month labels when months get narrow (small screens / zoomed out):
+// every month → quarter starts → January only.
+const monthLabelStep = computed(() => {
+  const monthPx = 30.4 * (canvasW.value / visibleDays.value)
+  if (monthPx >= 48) return 1
+  if (monthPx * 3 >= 48) return 3
+  return 12
 })
 
 const weeks = computed(() => {
@@ -412,7 +471,7 @@ function select(epic: Epic) {
 const hover = ref<{ epic: Epic; x: number; y: number } | null>(null)
 
 function onBarMove(e: MouseEvent, epic: Epic) {
-  if (dragging.value) return
+  if (dragging.value || isMobile.value) return
   hover.value = { epic, x: e.clientX, y: e.clientY }
 }
 
@@ -473,24 +532,38 @@ function epicCostUsd(epic: Epic): number {
     : epic.tokens.extraCostUsd
 }
 
-const kpis = computed(() => {
-  const monthly =
-    budgetMode.value === 'hybrid' ? hybrid.recommendedMonthlyBudgetUsd : meta.budget.recommendedMonthlyBudgetUsd
-  const roadmap = budgetMode.value === 'hybrid' ? hybrid.fullRoadmapCostUsd : meta.budget.fullRoadmapCostUsd
-  return [
-    { value: meta.velocity.totalCommits.toLocaleString('en-US'), label: 'commits in 8 months' },
-    { value: String((meta.velocity as any).productEpics ?? meta.velocity.completedEpics), label: 'product pillars shipped' },
-    { value: '1 dev + AI', label: 'entire team' },
-    {
-      value: `$${monthly.toLocaleString('en-US')}/mo`,
-      label: budgetMode.value === 'hybrid' ? 'AI token budget (Fable + Opus)' : 'AI token budget (100% Fable 5)',
-    },
-    {
-      value: `$${(roadmap / 1000).toFixed(1)}k`,
-      label: `full-roadmap token budget, ${meta.budget.fullRoadmapWorkWeeks} wks`,
-    },
-  ]
+const monthlyBudgetStr = computed(() => {
+  const v = budgetMode.value === 'hybrid' ? hybrid.recommendedMonthlyBudgetUsd : meta.budget.recommendedMonthlyBudgetUsd
+  return `$${v.toLocaleString('en-US')}/mo`
 })
+
+const roadmapBudgetStr = computed(() => {
+  const v = budgetMode.value === 'hybrid' ? hybrid.fullRoadmapCostUsd : meta.budget.fullRoadmapCostUsd
+  return `$${(v / 1000).toFixed(1)}k`
+})
+
+// Mobile: the two budget tiles collapse into one tappable KPI that opens
+// this sheet (detail + mode switch); the filter chips collapse into a menu.
+const budgetSheet = ref(false)
+const filterMenu = ref(false)
+
+const kpis = computed(() => [
+  { value: meta.velocity.totalCommits.toLocaleString('en-US'), label: 'commits in 8 months', budget: false },
+  { value: String((meta.velocity as any).productEpics ?? meta.velocity.completedEpics), label: 'product pillars shipped', budget: false },
+  { value: '1 dev + AI', label: 'entire team', budget: false },
+  {
+    value: monthlyBudgetStr.value,
+    label: budgetMode.value === 'hybrid' ? 'AI token budget (Fable + Opus)' : 'AI token budget (100% Fable 5)',
+    budget: true,
+  },
+  {
+    value: roadmapBudgetStr.value,
+    label: `full-roadmap token budget, ${meta.budget.fullRoadmapWorkWeeks} wks`,
+    budget: true,
+  },
+])
+
+const filterLabel = computed(() => filters.find((f) => f.key === filter.value)?.label ?? 'Everything')
 
 watch([selected, visibleDays, filter], () => nextTick(updateDepLines))
 </script>
@@ -509,12 +582,24 @@ watch([selected, visibleDays, filter], () => nextTick(updateDepLines))
       </div>
       <div class="InvestorTimeline__headRight">
         <div class="InvestorTimeline__kpis">
-          <div v-for="kpi in kpis" :key="kpi.label" class="InvestorTimeline__kpi">
-            <span class="InvestorTimeline__kpiValue">{{ kpi.value }}</span>
-            <span class="InvestorTimeline__kpiLabel">{{ kpi.label }}</span>
-          </div>
+          <template v-for="kpi in kpis" :key="kpi.label">
+            <div v-if="!kpi.budget || !isMobile" class="InvestorTimeline__kpi">
+              <span class="InvestorTimeline__kpiValue">{{ kpi.value }}</span>
+              <span class="InvestorTimeline__kpiLabel">{{ kpi.label }}</span>
+            </div>
+          </template>
+          <button
+            v-if="isMobile"
+            class="InvestorTimeline__kpi InvestorTimeline__kpi--tap"
+            type="button"
+            @click="toggleBudgetSheet"
+          >
+            <span class="InvestorTimeline__kpiValue">{{ monthlyBudgetStr }}</span>
+            <span class="InvestorTimeline__kpiLabel">AI tokens · {{ budgetMode === 'hybrid' ? 'hybrid' : 'Fable 5' }} ▾</span>
+          </button>
         </div>
         <button
+          v-if="!isMobile"
           class="InvestorTimeline__budgetToggle"
           type="button"
           role="switch"
@@ -533,20 +618,61 @@ watch([selected, visibleDays, filter], () => nextTick(updateDepLines))
             :class="{ 'InvestorTimeline__budgetOption--active': budgetMode === 'hybrid' }"
           >Hybrid Fable &amp; Opus</span>
         </button>
+        <div v-if="budgetSheet && isMobile" class="InvestorTimeline__budgetSheet">
+          <div class="InvestorTimeline__budgetSheetRow">
+            <strong>{{ monthlyBudgetStr }}</strong>
+            <span>monthly AI token budget</span>
+          </div>
+          <div class="InvestorTimeline__budgetSheetRow">
+            <strong>{{ roadmapBudgetStr }}</strong>
+            <span>full roadmap, {{ meta.budget.fullRoadmapWorkWeeks }} wks</span>
+          </div>
+          <div class="InvestorTimeline__budgetSheetModes">
+            <button
+              type="button"
+              :class="{ 'is-active': budgetMode === 'fable' }"
+              @click="budgetMode = 'fable'"
+            >Fable 5 only</button>
+            <button
+              type="button"
+              :class="{ 'is-active': budgetMode === 'hybrid' }"
+              @click="budgetMode = 'hybrid'"
+            >Hybrid Fable &amp; Opus</button>
+          </div>
+          <p>Hybrid routes routine work to Max-plan-covered Opus (~69% of tokens); Fable 5 covers the rest plus the $200/mo plan.</p>
+        </div>
       </div>
     </header>
 
     <div class="InvestorTimeline__controls">
-      <button
-        v-for="f in filters"
-        :key="f.key"
-        class="InvestorTimeline__chip"
-        :class="{ 'InvestorTimeline__chip--active': filter === f.key }"
-        type="button"
-        @click="filter = f.key"
-      >
-        {{ f.label }}
-      </button>
+      <template v-if="!isMobile">
+        <button
+          v-for="f in filters"
+          :key="f.key"
+          class="InvestorTimeline__chip"
+          :class="{ 'InvestorTimeline__chip--active': filter === f.key }"
+          type="button"
+          @click="filter = f.key"
+        >
+          {{ f.label }}
+        </button>
+      </template>
+      <div v-else class="InvestorTimeline__filterWrap">
+        <button class="InvestorTimeline__chip InvestorTimeline__chip--active" type="button" @click="toggleFilterMenu">
+          {{ filterLabel }} ▾
+        </button>
+        <div v-if="filterMenu" class="InvestorTimeline__filterMenu">
+          <button
+            v-for="f in filters"
+            :key="f.key"
+            type="button"
+            :class="{ 'is-active': filter === f.key }"
+            @click="filter = f.key; filterMenu = false"
+          >
+            {{ f.label }}
+          </button>
+        </div>
+      </div>
       <button class="InvestorTimeline__chip InvestorTimeline__chip--today" type="button" @click="scrollToToday">Today</button>
       <span class="InvestorTimeline__hint">Scroll to zoom &middot; drag to pan &middot; T today &middot; M/Q/Y zoom &middot; 0 reset</span>
       <div class="InvestorTimeline__legend">
@@ -568,6 +694,7 @@ watch([selected, visibleDays, filter], () => nextTick(updateDepLines))
         @pointercancel="onPointerUp"
         @mousemove="onCanvasMove"
         @mouseleave="onCanvasLeave"
+        @click="onCanvasClick"
       >
         <div class="InvestorTimeline__gantt" :style="{ width: `${contentWidthPct}%` }">
           <div class="InvestorTimeline__axis">
@@ -577,7 +704,7 @@ watch([selected, visibleDays, filter], () => nextTick(updateDepLines))
               class="InvestorTimeline__month"
               :style="{ width: `${m.widthPct}%` }"
             >
-              <span class="InvestorTimeline__monthLabel">
+              <span v-if="m.mIdx % monthLabelStep === 0" class="InvestorTimeline__monthLabel">
                 {{ m.label }}<em v-if="m.showYear">&nbsp;{{ m.year }}</em>
               </span>
             </div>
