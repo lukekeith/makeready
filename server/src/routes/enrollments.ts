@@ -12,7 +12,9 @@ import { trackActivity } from '../services/activity.js'
 import { recalculateScheduledLessonEstimate } from '../services/lesson-estimate.service.js'
 import { getUserOrgId } from '../services/media-library.js'
 import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
-import { isStableNumberedScriptureMarkdown, normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
+import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
+import { hashLessonContent } from '../services/lesson-content-hash.js'
+import { buildLessonCopyRows, type LessonCopyRows } from '../services/lesson-copy.js'
 import {
   canManageOrgContent,
   enrollmentManageFilter,
@@ -21,30 +23,6 @@ import {
 } from '../services/permission.js'
 
 const router = Router()
-
-type ReadBlockOffsetAnnotation =
-  | Array<{ start?: unknown; end?: unknown }>
-  | null
-  | undefined
-
-function hasReadBlockOffsetAnnotations(
-  selections: ReadBlockOffsetAnnotation,
-  exegesisHighlights: ReadBlockOffsetAnnotation
-): boolean {
-  return Boolean((Array.isArray(selections) && selections.length > 0) || (Array.isArray(exegesisHighlights) && exegesisHighlights.length > 0))
-}
-
-function scriptureContentForCopy(
-  content: string | null | undefined,
-  isScriptureLinked: boolean,
-  hasOffsetAnnotations: boolean
-): string | null {
-  if (!isScriptureLinked) return content ?? null
-  if (hasOffsetAnnotations && !isStableNumberedScriptureMarkdown(content)) {
-    return content ?? null
-  }
-  return normalizeScriptureMarkdown(content)
-}
 
 // ============================================================================
 // Enrollment CRUD
@@ -136,6 +114,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       smsTime: z.string().regex(/^\d{2}:\d{2}$/).optional(), // "HH:MM" format
       timezone: z.string().optional(),
       requireResponse: z.boolean().optional(), // Override program default (inherits from program if not specified)
+      syncMode: z.enum(['OFF', 'AUTO', 'APPROVAL']).optional(), // "Sync to study": how this enrollment tracks published curriculum updates
     })
 
     const body = schema.parse(req.body)
@@ -272,6 +251,10 @@ router.post('/enrollments', requireAuth, async (req, res) => {
           smsTime: body.smsTime,
           timezone: body.timezone,
           requireResponse: body.requireResponse ?? program.requireResponse, // Inherit from program if not specified
+          syncMode: body.syncMode ?? 'OFF',
+          // The copy is made from live curriculum, which reflects at least the
+          // latest published version — so the enrollment starts drift-free.
+          syncedProgramVersionNumber: program.currentVersionNumber ?? null,
           createdById: userId,
         },
       })
@@ -294,174 +277,48 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       })
       console.log('   Step 2: Complete')
 
-      // Step 2b: Copy lesson activities into scheduled lesson activities (flat copy for zero-join reads)
-      console.log('   Step 2b: Creating scheduled lesson activities...')
+      // Step 2b: Create the v1 LessonScheduleVersion for each schedule, then copy
+      // lesson activities into scheduled lesson activities (flat copy for zero-join
+      // reads) stamped with versionId + lineageKey for study-sync.
+      console.log('   Step 2b: Creating lesson versions and scheduled activities...')
 
-      const scheduledActivityData: Array<{
-        id: string
-        lessonScheduleId: string
-        type: any
-        orderNumber: number
-        title: string
-        referenceTitle: string | null
-        helpTitle: string | null
-        helpDescription: string | null
-        helpAlwaysVisible: boolean
-        helpIcon: string | null
-        isHelpEnabled: boolean
-        readContent: string | null
-        videoId: string | null
-        videoUrl: string | null
-        youtubeUrl: string | null
-        youtubeVideoId: string | null
-        youtubeStartSeconds: number | null
-        youtubeEndSeconds: number | null
-        youtubeThumbnailUrl: string | null
-        estimatedSeconds: number | null
-        sourceLessonActivityId: string
-      }> = []
+      const versionIdBySchedule = new Map<string, string>(scheduleData.map((sd) => [sd.id, randomUUID()]))
+      await prisma.lessonScheduleVersion.createMany({
+        data: scheduleData.map((sd) => ({
+          id: versionIdBySchedule.get(sd.id)!,
+          lessonScheduleId: sd.id,
+          versionNumber: 1,
+          programVersionNumber: program.currentVersionNumber ?? null,
+          sourceContentHash: hashLessonContent(sd.lesson as any),
+        })),
+      })
 
-      const sourceRefData: Array<{
-        id: string
-        scheduledActivityId: string
-        sourceType: string
-        passageReference: string | null
-        bookNumber: number | null
-        bookName: string | null
-        chapterStart: number | null
-        chapterEnd: number | null
-        verseStart: number | null
-        verseEnd: number | null
-      }> = []
+      // Point each schedule at its v1 (post-insert update because the FKs are circular)
+      await Promise.all(
+        scheduleData.map((sd) =>
+          prisma.lessonSchedule.update({
+            where: { id: sd.id },
+            data: { currentVersionId: versionIdBySchedule.get(sd.id)! },
+          })
+        )
+      )
 
-      const readBlockData: Array<{
-        id: string
-        scheduledActivityId: string
-        orderNumber: number
-        title: string | null
-        content: string | null
-        isLocked: boolean
-        sourceReferenceId: string | null
-        themeId: string | null
-        contentFormat: string
-        backgroundImageUrl: string | null
-        backgroundColor: string | null
-        backgroundOverlayOpacity: number | null
-        fontSize: string | null
-        selections: any
-      }> = []
+      const scheduledActivityData: LessonCopyRows['scheduledActivityData'] = []
+      const sourceRefData: LessonCopyRows['sourceRefData'] = []
+      const readBlockData: LessonCopyRows['readBlockData'] = []
+      const exegesisHighlightData: LessonCopyRows['exegesisHighlightData'] = []
 
-      const exegesisHighlightData: Array<{
-        id: string
-        readBlockId: string
-        orderNumber: number
-        start: number
-        end: number
-        noteMarkdown: string
-      }> = []
-
-      // Pre-generate IDs for scheduled activities, source references, and read blocks
-      // so we can preserve internal links (block.sourceReferenceId) and copy exegesis highlights.
       for (const sd of scheduleData) {
         const lesson = sd.lesson as typeof program.lessons[0]
-        for (const activity of lesson.activities) {
-          const saId = randomUUID()
-          scheduledActivityData.push({
-            id: saId,
-            lessonScheduleId: sd.id,
-            type: activity.activityType,
-            orderNumber: activity.orderNumber,
-            title: activity.title,
-            referenceTitle: activity.referenceTitle,
-            helpTitle: activity.helpTitle,
-            helpDescription: activity.helpDescription,
-            helpAlwaysVisible: activity.helpAlwaysVisible,
-            helpIcon: activity.helpIcon,
-            isHelpEnabled: true,
-            readContent: activity.readContent,
-            videoId: activity.videoId,
-            videoUrl: activity.videoUrl,
-            youtubeUrl: (activity as any).youtubeUrl ?? null,
-            youtubeVideoId: (activity as any).youtubeVideoId ?? null,
-            youtubeStartSeconds: (activity as any).youtubeStartSeconds ?? null,
-            youtubeEndSeconds: (activity as any).youtubeEndSeconds ?? null,
-            youtubeThumbnailUrl: (activity as any).youtubeThumbnailUrl ?? null,
-            estimatedSeconds: (activity as any).estimatedSeconds ?? null,
-            sourceLessonActivityId: activity.id,
-          })
-
-          // Copy source references with link to scheduled activity (preserve mapping)
-          const sourceRefIdMap = new Map<string, string>()
-          for (const ref of activity.sourceReferences) {
-            const newId = randomUUID()
-            sourceRefIdMap.set(ref.id, newId)
-            sourceRefData.push({
-              id: newId,
-              scheduledActivityId: saId,
-              sourceType: ref.sourceType,
-              passageReference: ref.passageReference,
-              bookNumber: ref.bookNumber,
-              bookName: ref.bookName,
-              chapterStart: ref.chapterStart,
-              chapterEnd: ref.chapterEnd,
-              verseStart: ref.verseStart,
-              verseEnd: ref.verseEnd,
-            })
-          }
-
-          // Copy read blocks with link to scheduled activity (preserve mapping + copy presentation fields)
-          for (const block of activity.readBlocks) {
-            const newBlockId = randomUUID()
-
-            const exegesisHighlights = (block as any).exegesisHighlights as
-              | Array<{ id: string; orderNumber: number; start: number; end: number; noteMarkdown: string }>
-              | undefined
-
-            const derivedSelections = exegesisHighlights && exegesisHighlights.length > 0
-              ? exegesisHighlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
-              : ((block as any).selections ?? null)
-
-            const sourceReferenceId = block.sourceReferenceId
-              ? (sourceRefIdMap.get(block.sourceReferenceId) ?? null)
-              : null
-            const content = scriptureContentForCopy(
-              block.content,
-              sourceReferenceId != null,
-              hasReadBlockOffsetAnnotations((block as any).selections, exegesisHighlights)
-            )
-
-            readBlockData.push({
-              id: newBlockId,
-              scheduledActivityId: saId,
-              orderNumber: block.orderNumber,
-              title: block.title,
-              content,
-              isLocked: block.isLocked,
-              sourceReferenceId,
-              themeId: (block as any).themeId ?? null,
-              contentFormat: (block as any).contentFormat ?? 'markdown',
-              backgroundImageUrl: (block as any).backgroundImageUrl ?? null,
-              backgroundColor: (block as any).backgroundColor ?? null,
-              backgroundOverlayOpacity: (block as any).backgroundOverlayOpacity ?? null,
-              fontSize: (block as any).fontSize ?? null,
-              selections: derivedSelections,
-            })
-
-            // Copy exegesis highlights (table) — IDs will differ between program vs scheduled copies
-            if (exegesisHighlights && exegesisHighlights.length > 0) {
-              for (const h of exegesisHighlights) {
-                exegesisHighlightData.push({
-                  id: randomUUID(),
-                  readBlockId: newBlockId,
-                  orderNumber: h.orderNumber,
-                  start: h.start,
-                  end: h.end,
-                  noteMarkdown: h.noteMarkdown,
-                })
-              }
-            }
-          }
-        }
+        const rows = buildLessonCopyRows({
+          lessonScheduleId: sd.id,
+          versionId: versionIdBySchedule.get(sd.id)!,
+          activities: lesson.activities as any,
+        })
+        scheduledActivityData.push(...rows.scheduledActivityData)
+        sourceRefData.push(...rows.sourceRefData)
+        readBlockData.push(...rows.readBlockData)
+        exegesisHighlightData.push(...rows.exegesisHighlightData)
       }
 
       if (scheduledActivityData.length > 0) {
@@ -1729,6 +1586,7 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
       requireResponse: z.boolean().optional(),
       smsTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
       timezone: z.string().optional(),
+      syncMode: z.enum(['OFF', 'AUTO', 'APPROVAL']).optional(), // "Sync to study" setting
     })
 
     const body = schema.parse(req.body)
@@ -1752,6 +1610,7 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
         ...(body.requireResponse !== undefined && { requireResponse: body.requireResponse }),
         ...(body.smsTime !== undefined && { smsTime: body.smsTime }),
         ...(body.timezone !== undefined && { timezone: body.timezone }),
+        ...(body.syncMode !== undefined && { syncMode: body.syncMode }),
         updatedById: userId,
       },
       include: {
@@ -3069,20 +2928,20 @@ router.post(
         return res.status(404).json({ success: false, error: 'Enrollment not found' })
       }
 
-      // Get schedule with max order number
+      // Get schedule, then the max order number within its current version
+      // (rows from pinned historical versions don't participate in ordering)
       const schedule = await prisma.lessonSchedule.findFirst({
         where: { id: scheduleId, enrollmentId },
-        include: {
-          scheduledActivities: {
-            orderBy: { orderNumber: 'desc' },
-            take: 1,
-          },
-        },
       })
 
       if (!schedule) {
         return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
       }
+
+      const lastActivity = await prisma.scheduledLessonActivity.findFirst({
+        where: { lessonScheduleId: scheduleId, versionId: schedule.currentVersionId },
+        orderBy: { orderNumber: 'desc' },
+      })
 
       // Validate video reference
       if (body.type === 'VIDEO' && body.videoId) {
@@ -3094,13 +2953,14 @@ router.post(
         }
       }
 
-      const nextOrder = schedule.scheduledActivities[0]?.orderNumber
-        ? schedule.scheduledActivities[0].orderNumber + 1
+      const nextOrder = lastActivity?.orderNumber
+        ? lastActivity.orderNumber + 1
         : 1
 
       const activity = await prisma.scheduledLessonActivity.create({
         data: {
           lessonScheduleId: scheduleId,
+          versionId: schedule.currentVersionId, // Leader-added custom activity joins the current version (no lineageKey — it has no curriculum source)
           type: body.type,
           orderNumber: nextOrder,
           title: body.title,
@@ -3199,7 +3059,12 @@ router.delete('/scheduled-activities/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
-    if (activity.lessonSchedule.scheduledActivities.length <= 1) {
+    // Only activities in the same version count as siblings — rows from other
+    // (pinned historical) versions must never be counted or renumbered.
+    const versionSiblings = activity.lessonSchedule.scheduledActivities.filter(
+      (a) => a.versionId === activity.versionId
+    )
+    if (versionSiblings.length <= 1) {
       return res.status(400).json({
         success: false,
         error: 'Cannot delete the last activity in a scheduled lesson',
@@ -3212,6 +3077,7 @@ router.delete('/scheduled-activities/:id', requireAuth, async (req, res) => {
       await tx.scheduledLessonActivity.updateMany({
         where: {
           lessonScheduleId: activity.lessonScheduleId,
+          versionId: activity.versionId,
           orderNumber: { gt: activity.orderNumber },
         },
         data: {
@@ -3962,7 +3828,12 @@ router.post(
         return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
       }
 
-      const scheduleActivityIds = new Set(schedule.scheduledActivities.map(a => a.id))
+      // Reordering applies to the current version's activity set only —
+      // pinned historical versions must stay untouched.
+      const currentActivities = schedule.scheduledActivities.filter(
+        (a) => a.versionId === schedule.currentVersionId
+      )
+      const scheduleActivityIds = new Set(currentActivities.map(a => a.id))
       for (const activityId of activityOrder) {
         if (!scheduleActivityIds.has(activityId)) {
           return res.status(400).json({
@@ -3972,16 +3843,16 @@ router.post(
         }
       }
 
-      if (activityOrder.length !== schedule.scheduledActivities.length) {
+      if (activityOrder.length !== currentActivities.length) {
         return res.status(400).json({
           success: false,
-          error: `Expected ${schedule.scheduledActivities.length} activities, got ${activityOrder.length}`,
+          error: `Expected ${currentActivities.length} activities, got ${activityOrder.length}`,
         })
       }
 
       // Use transaction with temporary high values to avoid unique constraint conflicts
       await prisma.$transaction(async (tx) => {
-        // First, set all to high numbers to avoid unique constraint on [lessonScheduleId, orderNumber]
+        // First, set all to high numbers to avoid unique constraint on [versionId, orderNumber]
         for (let i = 0; i < activityOrder.length; i++) {
           await tx.scheduledLessonActivity.update({
             where: { id: activityOrder[i] },
@@ -3998,7 +3869,7 @@ router.post(
       })
 
       const updatedActivities = await prisma.scheduledLessonActivity.findMany({
-        where: { lessonScheduleId: scheduleId },
+        where: { lessonScheduleId: scheduleId, versionId: schedule.currentVersionId },
         orderBy: { orderNumber: 'asc' },
         include: { video: true, sourceReferences: true, readBlocks: { orderBy: { orderNumber: 'asc' }, include: { theme: { select: { id: true, slug: true, name: true } } } } },
       })
@@ -4081,6 +3952,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
             id: true,
             name: true,
             description: true,
+            currentVersionNumber: true,
             template: { select: { id: true, name: true } },
           },
         },
@@ -4187,165 +4059,28 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
         },
       })
 
-      // Step 2: Copy lesson activities → scheduled lesson activities
-      const scheduledActivityData: Array<{
-        id: string
-        lessonScheduleId: string
-        type: any
-        orderNumber: number
-        title: string
-        referenceTitle: string | null
-        helpTitle: string | null
-        helpDescription: string | null
-        helpAlwaysVisible: boolean
-        helpIcon: string | null
-        isHelpEnabled: boolean
-        readContent: string | null
-        videoId: string | null
-        videoUrl: string | null
-        youtubeUrl: string | null
-        youtubeVideoId: string | null
-        youtubeStartSeconds: number | null
-        youtubeEndSeconds: number | null
-        youtubeThumbnailUrl: string | null
-        estimatedSeconds: number | null
-        sourceLessonActivityId: string
-      }> = []
-
-      const sourceRefData: Array<{
-        id: string
-        scheduledActivityId: string
-        sourceType: string
-        passageReference: string | null
-        bookNumber: number | null
-        bookName: string | null
-        chapterStart: number | null
-        chapterEnd: number | null
-        verseStart: number | null
-        verseEnd: number | null
-      }> = []
-
-      const readBlockData: Array<{
-        id: string
-        scheduledActivityId: string
-        orderNumber: number
-        title: string | null
-        content: string | null
-        isLocked: boolean
-        sourceReferenceId: string | null
-        themeId: string | null
-        contentFormat: string
-        backgroundImageUrl: string | null
-        backgroundColor: string | null
-        backgroundOverlayOpacity: number | null
-        fontSize: string | null
-        selections: any
-      }> = []
-
-      const exegesisHighlightData: Array<{
-        id: string
-        readBlockId: string
-        orderNumber: number
-        start: number
-        end: number
-        noteMarkdown: string
-      }> = []
-
-      for (const activity of lesson.activities) {
-        const saId = randomUUID()
-        scheduledActivityData.push({
-          id: saId,
+      // Step 2: Create the v1 version for this schedule, then copy lesson
+      // activities → scheduled lesson activities (stamped for study-sync)
+      const versionId = randomUUID()
+      await prisma.lessonScheduleVersion.create({
+        data: {
+          id: versionId,
           lessonScheduleId: scheduleId,
-          type: activity.activityType,
-          orderNumber: activity.orderNumber,
-          title: activity.title,
-          referenceTitle: activity.referenceTitle,
-          helpTitle: activity.helpTitle,
-          helpDescription: activity.helpDescription,
-          helpAlwaysVisible: activity.helpAlwaysVisible,
-          helpIcon: activity.helpIcon,
-          isHelpEnabled: true,
-          readContent: activity.readContent,
-          videoId: activity.videoId,
-          videoUrl: activity.videoUrl,
-          youtubeUrl: (activity as any).youtubeUrl ?? null,
-          youtubeVideoId: (activity as any).youtubeVideoId ?? null,
-          youtubeStartSeconds: (activity as any).youtubeStartSeconds ?? null,
-          youtubeEndSeconds: (activity as any).youtubeEndSeconds ?? null,
-          youtubeThumbnailUrl: (activity as any).youtubeThumbnailUrl ?? null,
-          estimatedSeconds: (activity as any).estimatedSeconds ?? null,
-          sourceLessonActivityId: activity.id,
-        })
+          versionNumber: 1,
+          programVersionNumber: enrollment.studyProgram.currentVersionNumber ?? null,
+          sourceContentHash: hashLessonContent(lesson as any),
+        },
+      })
+      await prisma.lessonSchedule.update({
+        where: { id: scheduleId },
+        data: { currentVersionId: versionId },
+      })
 
-        const sourceRefIdMap = new Map<string, string>()
-        for (const ref of activity.sourceReferences) {
-          const newId = randomUUID()
-          sourceRefIdMap.set(ref.id, newId)
-          sourceRefData.push({
-            id: newId,
-            scheduledActivityId: saId,
-            sourceType: ref.sourceType,
-            passageReference: ref.passageReference,
-            bookNumber: ref.bookNumber,
-            bookName: ref.bookName,
-            chapterStart: ref.chapterStart,
-            chapterEnd: ref.chapterEnd,
-            verseStart: ref.verseStart,
-            verseEnd: ref.verseEnd,
-          })
-        }
-
-        for (const block of activity.readBlocks) {
-          const newBlockId = randomUUID()
-
-          const exegesisHighlights = (block as any).exegesisHighlights as
-            | Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
-            | undefined
-
-          const derivedSelections = exegesisHighlights && exegesisHighlights.length > 0
-            ? exegesisHighlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
-            : ((block as any).selections ?? null)
-
-          const sourceReferenceId = block.sourceReferenceId
-            ? (sourceRefIdMap.get(block.sourceReferenceId) ?? null)
-            : null
-          const content = scriptureContentForCopy(
-            block.content,
-            sourceReferenceId != null,
-            hasReadBlockOffsetAnnotations((block as any).selections, exegesisHighlights)
-          )
-
-          readBlockData.push({
-            id: newBlockId,
-            scheduledActivityId: saId,
-            orderNumber: block.orderNumber,
-            title: block.title,
-            content,
-            isLocked: block.isLocked,
-            sourceReferenceId,
-            themeId: (block as any).themeId ?? null,
-            contentFormat: (block as any).contentFormat ?? 'markdown',
-            backgroundImageUrl: (block as any).backgroundImageUrl ?? null,
-            backgroundColor: (block as any).backgroundColor ?? null,
-            backgroundOverlayOpacity: (block as any).backgroundOverlayOpacity ?? null,
-            fontSize: (block as any).fontSize ?? null,
-            selections: derivedSelections,
-          })
-
-          if (exegesisHighlights && exegesisHighlights.length > 0) {
-            for (const h of exegesisHighlights) {
-              exegesisHighlightData.push({
-                id: randomUUID(),
-                readBlockId: newBlockId,
-                orderNumber: h.orderNumber,
-                start: h.start,
-                end: h.end,
-                noteMarkdown: h.noteMarkdown,
-              })
-            }
-          }
-        }
-      }
+      const { scheduledActivityData, sourceRefData, readBlockData, exegesisHighlightData } = buildLessonCopyRows({
+        lessonScheduleId: scheduleId,
+        versionId,
+        activities: lesson.activities as any,
+      })
 
       if (scheduledActivityData.length > 0) {
         await prisma.scheduledLessonActivity.createMany({ data: scheduledActivityData })
