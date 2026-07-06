@@ -454,6 +454,50 @@ describe('Enrollment sync engine (study-sync)', () => {
     await prisma.studyProgram.deleteMany({ where: { id: foreignProgram.id } })
   })
 
+  it('deleting a curriculum lesson orphans the enrolled copy instead of destroying it', async () => {
+    // Add a lesson, publish, and sync it into the enrollment
+    const doomed = await prisma.lesson.create({
+      data: { studyProgramId: programId, dayNumber: 5, title: 'Doomed Day' },
+    })
+    await prisma.lessonActivity.create({
+      data: {
+        lessonId: doomed.id,
+        activityType: 'USER_INPUT',
+        orderNumber: 1,
+        title: 'Soon Gone',
+      },
+    })
+    await publishUpdates()
+    await applySync()
+
+    const schedule = await prisma.lessonSchedule.findUniqueOrThrow({
+      where: { enrollmentId_lessonId: { enrollmentId, lessonId: doomed.id } },
+    })
+
+    // Creator deletes the lesson from the curriculum (editor delete / days shrink)
+    await prisma.lesson.delete({ where: { id: doomed.id } })
+
+    // The enrolled copy SURVIVES, orphaned — content and history intact
+    const orphaned = await prisma.lessonSchedule.findUniqueOrThrow({
+      where: { id: schedule.id },
+    })
+    expect(orphaned.lessonId).toBeNull()
+    expect(orphaned.removedAt).toBeNull()
+    const activityCount = await prisma.scheduledLessonActivity.count({
+      where: { lessonScheduleId: schedule.id },
+    })
+    expect(activityCount).toBeGreaterThan(0)
+
+    // The removal reaches the enrollment only via publish + sync
+    await publishUpdates()
+    const outcome = await applySync()
+    expect(outcome.lessonsRemoved).toBe(1)
+
+    // No member progress → hard-deleted by the sync
+    const afterSync = await prisma.lessonSchedule.findUnique({ where: { id: schedule.id } })
+    expect(afterSync).toBeNull()
+  })
+
   it('fans out automatically to AUTO enrollments on publish', async () => {
     const autoGroup = await prisma.group.create({
       data: { name: 'Auto Sync Group', creatorId: userId, organizationId },

@@ -823,8 +823,8 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
           ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
           id: ls.id,
-          dayNumber: ls.lesson.dayNumber,
-          title: ls.lesson.title || passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
+          dayNumber: ls.lesson?.dayNumber ?? 0,
+          title: ls.lesson?.title || ls.title || passageRef || firstActivity?.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
           templateName: ls.templateName,
           scheduledDate: ls.scheduledDate.toISOString(),
           estimatedMinutes,
@@ -936,8 +936,8 @@ router.get('/groups/:groupId/study-enrollments', async (req, res) => {
           completedLessons: completionMap.size,
           lessons: enrollment.lessonSchedules.map(ls => ({
             id: ls.id,
-            dayNumber: ls.lesson.dayNumber,
-            title: ls.lesson.title || `Day ${ls.lesson.dayNumber}`,
+            dayNumber: ls.lesson?.dayNumber ?? 0,
+            title: ls.lesson?.title || ls.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
             scheduledDate: ls.scheduledDate.toISOString(),
             completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
           })),
@@ -1104,8 +1104,8 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
           ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
           id: ls.id,
-          dayNumber: ls.lesson.dayNumber,
-          title: ls.lesson.title || passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
+          dayNumber: ls.lesson?.dayNumber ?? 0,
+          title: ls.lesson?.title || ls.title || passageRef || firstActivity?.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
           templateName: ls.templateName,
           scheduledDate: ls.scheduledDate.toISOString(),
           estimatedMinutes,
@@ -1344,10 +1344,10 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
     const study = {
       id: nextLesson.id,
       code: nextLesson.code,
-      dayNumber: nextLesson.lesson.dayNumber,
+      dayNumber: nextLesson.lesson?.dayNumber ?? 0,
       scheduledDate: nextLesson.scheduledDate,
       enrollment: nextLesson.enrollment,
-      studyProgram: nextLesson.lesson.studyProgram,
+      studyProgram: nextLesson.lesson?.studyProgram ?? null,
       activities: nextLesson.scheduledActivities,
     }
 
@@ -2015,12 +2015,12 @@ router.get('/lessons/code/:code', async (req, res) => {
     res.json({
       success: true,
       lesson: {
-        id: schedule.lesson.id,
+        id: schedule.lesson?.id ?? null,
         code: schedule.code,
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
-        studyProgram: schedule.lesson.studyProgram,
+        studyProgram: schedule.lesson?.studyProgram ?? null,
         activities: schedule.scheduledActivities,
         group: schedule.enrollment.group,
       },
@@ -2143,12 +2143,12 @@ router.get('/lessons/view/:scheduleId', async (req, res) => {
     res.json({
       success: true,
       lesson: {
-        id: schedule.lesson.id,
+        id: schedule.lesson?.id ?? null,
         code: schedule.code, // 6-char alphanumeric for deep linking
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
-        studyProgram: schedule.lesson.studyProgram,
+        studyProgram: schedule.lesson?.studyProgram ?? null,
         activities: schedule.scheduledActivities,
         group: schedule.enrollment.group,
       },
@@ -2260,12 +2260,12 @@ router.get('/lessons/today/:enrollmentId', async (req, res) => {
     res.json({
       success: true,
       lesson: {
-        id: schedule.lesson.id,
+        id: schedule.lesson?.id ?? null,
         code: schedule.code, // 6-char alphanumeric for deep linking
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
-        studyProgram: schedule.lesson.studyProgram,
+        studyProgram: schedule.lesson?.studyProgram ?? null,
         activities: schedule.scheduledActivities,
       },
     })
@@ -2428,16 +2428,18 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
         id: schedule.id,
         lessonScheduleId: schedule.id, // Deprecated: use 'id' instead
         code: schedule.code,
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
         passageReference,
-        studyProgram: {
-          id: schedule.lesson.studyProgram.id,
-          name: schedule.lesson.studyProgram.name,
-          days: schedule.lesson.studyProgram.days,
-          coverImageUrl: schedule.lesson.studyProgram.coverImageUrl,
-        },
+        studyProgram: schedule.lesson
+          ? {
+              id: schedule.lesson.studyProgram.id,
+              name: schedule.lesson.studyProgram.name,
+              days: schedule.lesson.studyProgram.days,
+              coverImageUrl: schedule.lesson.studyProgram.coverImageUrl,
+            }
+          : null,
         group: {
           id: schedule.enrollment.group.id,
           code: schedule.enrollment.group.code,
@@ -4491,11 +4493,12 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
       where: { id: scheduleId },
     })
 
-    // Delete the lesson from the program and sync days count
+    // Delete the lesson from the program and sync days count (skip when the
+    // curriculum lesson is already gone — orphaned schedule)
     await prisma.$transaction(async (tx) => {
-      const lesson = await tx.lesson.findUnique({
-        where: { id: schedule.lessonId },
-      })
+      const lesson = schedule.lessonId
+        ? await tx.lesson.findUnique({ where: { id: schedule.lessonId } })
+        : null
 
       if (lesson) {
         const programId = lesson.studyProgramId

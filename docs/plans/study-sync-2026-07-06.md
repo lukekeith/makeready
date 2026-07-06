@@ -149,20 +149,24 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
   intra-file flake in invite-member-integration.test.ts (same-millisecond
   Date.now() phone collision between beforeEach and a test).
 
-### ⚠️ Open landmine (needs its own decision): curriculum lesson deletion
+### ✅ Resolved (2026-07-06): curriculum lesson deletion decoupled
 
-`LessonSchedule.lesson` is `onDelete: Cascade` — deleting a curriculum
-`Lesson` row (the program editor's delete-lesson endpoint, or shrinking
-`days` in PATCH /programs/:id) **instantly cascades into every enrollment**:
-schedules, activities, versions, and member progress for that lesson are
-destroyed at edit time, before any publish, regardless of sync mode. This
-predates study-sync but contradicts its "history is never lost" guarantee —
-the sync engine's removal handling (soft-hide with progress) only sees
-lessons that are missing from the snapshot while their row still exists.
-Proper fix (follow-up): make `LessonSchedule.lessonId` nullable with
-`onDelete: SetNull` (audit the read paths that assume `lesson` is present),
-or soft-delete curriculum lessons. Until then, deleting a published lesson
-from the curriculum bypasses versioning entirely.
+`LessonSchedule.lessonId` is now **nullable with `onDelete: SetNull`**
+(was Cascade). Deleting a curriculum `Lesson` row (editor delete-lesson,
+days-shrink in PATCH /programs/:id) no longer touches enrollments — the
+enrolled schedule survives orphaned (it owns its content) and the removal
+reaches enrollments only via publish + sync, where the standard removal
+rules apply (hard-delete without progress, soft-hide with progress, future
+slots refill per the updated curriculum). User-approved semantics: day-count
+changes only affect future enrolled lessons, which shift to fill the
+schedule based on the updated program.
+
+Read-path fallbacks for orphaned schedules (transient until sync, persistent
+on OFF enrollments): title falls back to `schedule.title`, dayNumber to 0,
+member-facing program branding falls back to `enrollment.studyProgram`
+(selects extended in member-progress.service), OG meta returns the generic
+fallback, note links skip LESSON/PROGRAM refs, availableLessons skips
+orphans. Migration `20260706185894…` (see atlas/migrations).
 
 ## Phase 2 implementation notes (2026-07-06)
 

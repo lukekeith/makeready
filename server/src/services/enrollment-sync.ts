@@ -193,7 +193,10 @@ async function applyVersion(
   let lessonsRemoved = 0
   const freedSlotDates: Date[] = []
   for (const schedule of schedules) {
-    if (snapshotByLessonId.has(schedule.lessonId)) continue
+    // A null lessonId means the curriculum lesson was deleted outright — the
+    // schedule is orphaned and follows the same removal rules as a lesson
+    // missing from the published snapshot
+    if (schedule.lessonId !== null && snapshotByLessonId.has(schedule.lessonId)) continue
     if (schedule.removedAt !== null) continue // removed by an earlier sync
 
     if (!isLocked(schedule)) freedSlotDates.push(schedule.scheduledDate)

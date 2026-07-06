@@ -42,8 +42,11 @@ async function main() {
   console.log(`   Step 2: ${schedules.length} schedules need a v1 version`)
 
   if (schedules.length > 0) {
-    // Step 3: hash each distinct curriculum lesson once
-    const lessonIds = [...new Set(schedules.map((s) => s.lessonId))]
+    // Step 3: hash each distinct curriculum lesson once (orphaned schedules
+    // whose curriculum lesson was deleted get a null hash)
+    const lessonIds = [
+      ...new Set(schedules.map((s) => s.lessonId).filter((id): id is string => id !== null)),
+    ]
     const hashByLessonId = new Map<string, string>()
     for (let i = 0; i < lessonIds.length; i += CHUNK) {
       const lessons = await prisma.lesson.findMany({
@@ -65,7 +68,7 @@ async function main() {
           lessonScheduleId: s.id,
           versionNumber: 1,
           programVersionNumber: null,
-          sourceContentHash: hashByLessonId.get(s.lessonId) ?? null,
+          sourceContentHash: (s.lessonId ? hashByLessonId.get(s.lessonId) : null) ?? null,
         })),
         skipDuplicates: true,
       })

@@ -184,7 +184,7 @@ describe('Enrollment versioning (study-sync)', () => {
 
       // The stored hash matches an independent re-hash of the curriculum lesson
       const curriculumLesson = await prisma.lesson.findUniqueOrThrow({
-        where: { id: schedule.lessonId },
+        where: { id: schedule.lessonId! },
         include: LESSON_CONTENT_INCLUDE,
       })
       expect(version.sourceContentHash).toBe(hashLessonContent(curriculumLesson as any))

@@ -502,6 +502,15 @@ export async function getMemberLessons(
                 name: true,
               },
             },
+            // Fallback program branding for schedules whose curriculum lesson
+            // was deleted (lesson is null until sync applies the removal)
+            studyProgram: {
+              select: {
+                id: true,
+                name: true,
+                coverImageUrl: true,
+              },
+            },
           },
         },
         memberProgress: {
@@ -562,7 +571,7 @@ export async function getMemberLessons(
       lessons.push({
         lessonScheduleId: schedule.id,
         code: schedule.code,
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         estimatedMinutes: schedule.estimatedMinutes,
         status: lessonStatus,
@@ -570,7 +579,7 @@ export async function getMemberLessons(
         activitiesCompleted,
         activitiesTotal,
         completedAt: schedule.lessonProgress[0]?.completedAt || null,
-        studyProgram: schedule.lesson.studyProgram,
+        studyProgram: schedule.lesson?.studyProgram ?? schedule.enrollment.studyProgram,
         group: schedule.enrollment.group,
       })
     }
@@ -648,6 +657,16 @@ export async function getMemberLessonDetail(
                 members: {
                   where: { memberId, isActive: true },
                 },
+              },
+            },
+            // Fallback program branding for schedules whose curriculum lesson
+            // was deleted (lesson is null until sync applies the removal)
+            studyProgram: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                coverImageUrl: true,
               },
             },
           },
@@ -831,7 +850,7 @@ export async function getMemberLessonDetail(
       data: {
         lessonScheduleId: schedule.id,
         code: schedule.code,
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
         estimatedMinutes: schedule.estimatedMinutes,
@@ -839,7 +858,7 @@ export async function getMemberLessonDetail(
         completionPercentage,
         completedAt: updatedLessonProgress?.completedAt || null,
         requireResponse: schedule.enrollment.requireResponse,
-        studyProgram: schedule.lesson.studyProgram,
+        studyProgram: schedule.lesson?.studyProgram ?? schedule.enrollment.studyProgram,
         group: {
           id: schedule.enrollment.group.id,
           name: schedule.enrollment.group.name,
@@ -1308,6 +1327,8 @@ export async function getGroupStudies(
           } else {
             status = 'available'
           }
+
+          if (!schedule.lesson) continue // orphaned schedule: curriculum lesson deleted, sync pending
 
           availableLessons.push({
             lessonScheduleId: schedule.id,

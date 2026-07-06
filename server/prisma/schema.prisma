@@ -1027,7 +1027,7 @@ model LessonSchedule {
   id                   String @id @default(uuid())
   code                 String? @unique // 6-char alphanumeric for deep linking
   enrollmentId         String
-  lessonId             String
+  lessonId             String? // Source curriculum lesson; null after that lesson is deleted from the curriculum (the schedule owns its content — deletion reaches enrollments only via publish+sync, never by cascade)
   scheduledDate        DateTime
   smsSentAt            DateTime?
   templateId           String? // FK to LessonTemplate for display
@@ -1038,7 +1038,7 @@ model LessonSchedule {
   removedAt            DateTime? // Set when sync removes this lesson from the curriculum but member progress exists (soft-hide: kept for history, excluded from upcoming lists). Schedules with no progress are hard-deleted instead.
 
   enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lesson               Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   currentVersion       LessonScheduleVersion? @relation("LessonScheduleCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
   versions             LessonScheduleVersion[] @relation("LessonScheduleVersions")

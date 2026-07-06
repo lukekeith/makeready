@@ -2448,6 +2448,8 @@ models:
         type: string
       lessonId:
         type: string
+        nullable: true
+        description: "Source curriculum lesson; null after that lesson is deleted from the curriculum (the schedule owns its content — deletion reaches enrollments only via publish+sync, never by cascade)"
       scheduledDate:
         type: datetime
       smsSentAt:
@@ -2489,7 +2491,8 @@ models:
         target: Lesson
         fields: [lessonId]
         references: [id]
-        onDelete: Cascade
+        onDelete: SetNull
+        nullable: true
       template:
         type: many_to_one
         target: LessonTemplate
