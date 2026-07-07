@@ -16,6 +16,8 @@ import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/s
 import { hashLessonContent } from '../services/lesson-content-hash.js'
 import { buildLessonCopyRows, type LessonCopyRows } from '../services/lesson-copy.js'
 import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
+import { computePendingChanges } from '../services/enrollment-sync-changes.js'
+import { resolveNotificationsByDedupeKey } from '../services/notification.js'
 import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
 import {
   canManageOrgContent,
@@ -1645,6 +1647,13 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
       groupId: updated.group.id,
     })
 
+    // Changing the sync mode IS the decision the "updates available"
+    // notification asks for — resolve it (applying resolves it in the sync
+    // engine; this covers the "leave it off / switch modes" choice).
+    if (body.syncMode !== undefined && updated.createdById) {
+      await resolveNotificationsByDedupeKey(updated.createdById, `study-sync-updates:${id}`)
+    }
+
     console.log(`✏️ Updated enrollment ${id}`)
 
     res.json({ success: true, enrollment: updated })
@@ -1754,6 +1763,53 @@ router.get('/enrollments/:id/sync', requireAuth, async (req, res) => {
 
 /**
  * @openapi
+ * /api/enrollments/{id}/sync/changes:
+ *   get:
+ *     tags: [Enrollments]
+ *     summary: Per-lesson pending changes for the Review Changes screen
+ *     description: |
+ *       Quantified diff between the enrollment's lessons and the program's
+ *       latest published version — one row per changed lesson (new / updated /
+ *       removed) with activity-level counts, plus totals. Rows carry the
+ *       selection `key` accepted by POST /sync/apply for per-lesson approval.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Pending changes
+ *       404:
+ *         description: Enrollment not found
+ */
+router.get('/enrollments/:id/sync/changes', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id, ...(await enrollmentManageFilter(userId)) },
+      select: { id: true, syncMode: true },
+    })
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const pending = await computePendingChanges(id)
+    res.json({ success: true, ...pending })
+  } catch (error) {
+    console.error('Error computing enrollment sync changes:', error)
+    res.status(500).json({ success: false, error: 'Failed to compute pending changes' })
+  }
+})
+
+/**
+ * @openapi
  * /api/enrollments/{id}/sync/apply:
  *   post:
  *     tags: [Enrollments]
@@ -1785,6 +1841,14 @@ router.post('/enrollments/:id/sync/apply', requireAuth, async (req, res) => {
     const { id } = req.params
     const userId = (req.user as any).id
 
+    const body = z
+      .object({
+        // Selective approval (Review Changes): only these lesson changes
+        // apply. Omitted → full catch-up (original all-or-nothing behavior).
+        lessonKeys: z.array(z.string()).optional(),
+      })
+      .parse(req.body ?? {})
+
     const enrollment = await prisma.enrollment.findFirst({
       where: { id, ...(await enrollmentManageFilter(userId)) },
       select: {
@@ -1799,7 +1863,11 @@ router.post('/enrollments/:id/sync/apply', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
     }
 
-    const outcome = await syncEnrollmentToLatest({ enrollmentId: id, triggeredById: userId })
+    const outcome = await syncEnrollmentToLatest({
+      enrollmentId: id,
+      triggeredById: userId,
+      lessonKeys: body.lessonKeys ?? null,
+    })
 
     if (!outcome.alreadySynced) {
       trackActivity({

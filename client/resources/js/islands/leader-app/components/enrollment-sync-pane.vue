@@ -3,18 +3,19 @@
 // enrollment (study-sync phase 6). Reached as a SlideStack detail from the
 // Program Home Enrollments tab and from notification actions with
 // view: 'enrollment-sync'. Shows the sync toggle (OFF ↔ AUTO/APPROVAL), the
-// mode chooser, drift status with the pending versions' AI change summaries,
-// and the "Apply updates" action (approval acceptance / manual catch-up).
-import { computed, onMounted } from 'vue'
+// mode chooser, and — when the enrollment is behind — a quantified summary
+// card (lesson + activity counts) that slides to the Review Changes pane for
+// per-lesson approval.
+import { computed, onMounted, ref } from 'vue'
 import PageTitle from '../../../components/card/page-title/page-title.vue'
 import ToggleControl from '../../../components/card/toggle-control/toggle-control.vue'
-import BoxButton from '../../../components/card/box-button/box-button.vue'
+import SlideStack from '../overlay/slide-stack.vue'
+import ReviewChangesPane from './review-changes-pane.vue'
 import { useConfirmDialog } from '../overlay/confirm-dialog.store'
 import {
   useLeaderEnrollmentSync,
   type SyncMode,
 } from '../stores/leader-enrollment-sync.store'
-import { relativeTime } from '../stores/leader-notifications.store'
 
 const props = defineProps<{
   enrollmentId: string
@@ -27,16 +28,48 @@ const emit = defineEmits<{ back: [] }>()
 const store = useLeaderEnrollmentSync()
 const confirmDialog = useConfirmDialog()
 
+// Inner SlideStack: the Review Changes pane.
+const showReview = ref(false)
+
 onMounted(() => {
   void store.load(props.enrollmentId)
+  void store.loadChanges(props.enrollmentId)
 })
 
 const BACK_CHEVRON =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4l-7 8 7 8"/></svg>'
 const CHECK =
   '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>'
+const CHEVRON_RIGHT =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4l7 8-7 8"/></svg>'
 
 const syncOn = computed(() => (store.status?.syncMode ?? 'OFF') !== 'OFF')
+
+// One matrix row: "2 updated · 1 new · 1 removed" (empty rows hidden).
+function countLine(updated: number, added: number, removed: number): string {
+  return [
+    updated > 0 ? `${updated} updated` : null,
+    added > 0 ? `${added} new` : null,
+    removed > 0 ? `${removed} removed` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+const lessonCounts = computed(() =>
+  store.counts
+    ? countLine(store.counts.lessonsUpdated, store.counts.lessonsNew, store.counts.lessonsRemoved)
+    : '',
+)
+const activityCounts = computed(() =>
+  store.counts
+    ? countLine(
+        store.counts.activitiesUpdated,
+        store.counts.activitiesNew,
+        store.counts.activitiesRemoved,
+      )
+    : '',
+)
 
 function showError(message: string): void {
   void confirmDialog.confirm({
@@ -60,30 +93,6 @@ function onToggle(): void {
   void setMode(syncOn.value ? 'OFF' : 'AUTO')
 }
 
-async function onApply(): Promise<void> {
-  if (store.applying) return
-  const choice = await confirmDialog.confirm({
-    title: 'Apply updates?',
-    message:
-      "This brings the group's future lessons up to the latest published version. Lessons members already completed are never changed.",
-    buttons: [
-      { label: 'Apply updates', style: 'primary' },
-      { label: 'Cancel', style: 'secondary' },
-    ],
-  })
-  if (choice !== 0) return
-  try {
-    await store.apply(props.enrollmentId)
-    void confirmDialog.confirm({
-      title: 'Updates applied',
-      message: 'This enrollment now has the latest version of the study.',
-      buttons: [{ label: 'OK', style: 'secondary' }],
-    })
-  } catch (err) {
-    showError(err instanceof Error ? err.message : "Couldn't apply the updates")
-  }
-}
-
 const MODES: Array<{ mode: SyncMode; title: string; description: string }> = [
   {
     mode: 'AUTO',
@@ -100,14 +109,16 @@ const MODES: Array<{ mode: SyncMode; title: string; description: string }> = [
 
 <template>
   <div class="EnrollmentSyncPane">
-    <PageTitle
-      class="EnrollmentSyncPane__title"
-      title="Study Sync"
-      :left-icon="BACK_CHEVRON"
-      @left="emit('back')"
-    />
+    <SlideStack :item="showReview || null">
+      <div class="EnrollmentSyncPane__main">
+        <PageTitle
+          class="EnrollmentSyncPane__title"
+          title="Study Sync"
+          :left-icon="BACK_CHEVRON"
+          @left="emit('back')"
+        />
 
-    <div class="EnrollmentSyncPane__scroll">
+        <div class="EnrollmentSyncPane__scroll">
       <div v-if="store.loading" class="EnrollmentSyncPane__state">Loading…</div>
       <div v-else-if="store.error" class="EnrollmentSyncPane__state">{{ store.error }}</div>
 
@@ -147,32 +158,25 @@ const MODES: Array<{ mode: SyncMode; title: string; description: string }> = [
           </div>
         </div>
 
-        <!-- Drift: pending versions + apply -->
+        <!-- Drift: quantified summary card → Review Changes -->
         <div v-if="store.status.hasDrift" class="EnrollmentSyncPane__section">
           <p class="EnrollmentSyncPane__label">Updates available</p>
-          <div class="EnrollmentSyncPane__versions">
-            <div
-              v-for="v in store.status.pendingVersions"
-              :key="v.versionNumber"
-              class="EnrollmentSyncPane__version"
-            >
-              <span class="EnrollmentSyncPane__versionHead">
-                Version {{ v.versionNumber }}
-                <span class="EnrollmentSyncPane__versionTime">{{ relativeTime(v.publishedAt) }}</span>
-              </span>
-              <span v-if="v.changeSummary" class="EnrollmentSyncPane__versionSummary">
-                {{ v.changeSummary }}
-              </span>
-            </div>
-          </div>
-          <BoxButton
-            class="EnrollmentSyncPane__apply"
-            :label="store.applying ? 'Applying...' : 'Apply updates'"
-            variant="primary"
-            size="lg"
-            full-width
-            @click="onApply"
-          />
+          <button class="EnrollmentSyncPane__summaryCard" type="button" @click="showReview = true">
+            <span class="EnrollmentSyncPane__summaryCounts">
+              <template v-if="store.counts">
+                <span v-if="lessonCounts" class="EnrollmentSyncPane__countRow">
+                  <span class="EnrollmentSyncPane__countLabel">Lessons</span>
+                  <span class="EnrollmentSyncPane__countValue">{{ lessonCounts }}</span>
+                </span>
+                <span v-if="activityCounts" class="EnrollmentSyncPane__countRow">
+                  <span class="EnrollmentSyncPane__countLabel">Activities</span>
+                  <span class="EnrollmentSyncPane__countValue">{{ activityCounts }}</span>
+                </span>
+              </template>
+              <span v-else class="EnrollmentSyncPane__countValue">Review pending changes</span>
+            </span>
+            <span class="EnrollmentSyncPane__summaryChevron" v-html="CHEVRON_RIGHT"></span>
+          </button>
         </div>
 
         <!-- Up to date -->
@@ -187,8 +191,14 @@ const MODES: Array<{ mode: SyncMode; title: string; description: string }> = [
         </div>
       </template>
 
-      <div class="EnrollmentSyncPane__bottomSpacer"></div>
-    </div>
+          <div class="EnrollmentSyncPane__bottomSpacer"></div>
+        </div>
+      </div>
+
+      <template #detail>
+        <ReviewChangesPane :enrollment-id="props.enrollmentId" @back="showReview = false" />
+      </template>
+    </SlideStack>
   </div>
 </template>
 
@@ -199,6 +209,23 @@ const MODES: Array<{ mode: SyncMode; title: string; description: string }> = [
   flex-direction: column;
   background: var(--color-canvas);
   color: #fff;
+}
+
+.EnrollmentSyncPane :deep(.SlideStack) {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.EnrollmentSyncPane__main {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.EnrollmentSyncPane :deep(.ReviewChangesPane) {
+  height: 100%;
+  min-height: 0;
 }
 
 .EnrollmentSyncPane__title {
@@ -304,41 +331,55 @@ const MODES: Array<{ mode: SyncMode; title: string; description: string }> = [
   color: var(--color-white-50);
 }
 
-.EnrollmentSyncPane__versions {
+/* Quantified summary card — counts matrix + right chevron, tap to review. */
+.EnrollmentSyncPane__summaryCard {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.EnrollmentSyncPane__version {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 16px;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border: none;
   border-radius: 10px;
   background: var(--color-white-10);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 }
 
-.EnrollmentSyncPane__versionHead {
+.EnrollmentSyncPane__summaryCounts {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.EnrollmentSyncPane__countRow {
   display: flex;
   align-items: baseline;
-  justify-content: space-between;
   gap: 8px;
-  font-size: 15px;
+}
+
+.EnrollmentSyncPane__countLabel {
+  flex: 0 0 72px;
+  font-size: 13px;
   font-weight: 600;
-}
-
-.EnrollmentSyncPane__versionTime {
-  font-size: 13px;
-  font-weight: 400;
   color: var(--color-white-50);
 }
 
-.EnrollmentSyncPane__versionSummary {
-  font-size: 13px;
-  line-height: 1.4;
+.EnrollmentSyncPane__countValue {
+  font-size: 15px;
+}
+
+.EnrollmentSyncPane__summaryChevron {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
   color: var(--color-white-50);
-  white-space: pre-line;
+}
+
+.EnrollmentSyncPane__summaryChevron :deep(svg) {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .EnrollmentSyncPane__upToDate {

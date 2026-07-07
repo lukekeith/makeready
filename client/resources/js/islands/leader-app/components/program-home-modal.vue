@@ -306,9 +306,11 @@ async function onPublishedBadgeTap(): Promise<void> {
   // straight into THIS dialog (last published + what changed since). `settled`
   // stops a late response from patching whatever dialog replaced this one.
   let settled = false
+  latestPublishPreview = null
   void store
     .loadPublishPreview(p.id)
     .then((preview) => {
+      latestPublishPreview = preview
       if (!settled) dialog.update({ message: publishPreviewMessage(preview) })
     })
     .catch(() => {
@@ -392,41 +394,84 @@ function publishPreviewMessage(preview: PublishPreview): string {
   return paragraphs.join('\n\n')
 }
 
-// Sticky-dialog publish (the add-day pattern): the tapped button flips to
-// "Publishing..." while the version is cut, then a result dialog reports the
-// new version's AI change summary (or that everything was already current).
+// Latest loaded preview — composes the publish success message (version +
+// count matrix). Plain var: only read at publish time, never rendered raw.
+let latestPublishPreview: PublishPreview | null = null
+
+// Publishing hands off to a processing ConfirmationOverlay — the circle spins
+// while the version is cut, then fills green with the checkmark and the
+// success message (mirrors iOS and the export flow; reactive getters flip
+// isProcessing/message live inside the presented overlay).
+const publishConfirmation = reactive({
+  isProcessing: true,
+  message: '',
+})
+
 async function runPublishUpdates(dialog: ReturnType<typeof confirmDialog.present>): Promise<void> {
   const p = store.program
-  if (!p) {
+  if (!p || publishingUpdates.value) {
     dialog.close()
     return
   }
   publishingUpdates.value = true
-  dialog.update({ buttons: [{ label: 'Publishing...', style: 'primary' }] })
+  dialog.close()
+
+  publishConfirmation.isProcessing = true
+  publishConfirmation.message = publishSuccessMessage(p.name)
+  overlayManager.present(ROUTES.confirmationOverlay, ConfirmationOverlayModal, {
+    tone: 'success',
+    icon: CHECKMARK,
+    buttonLabel: 'Done',
+    processingMessage: 'Publishing updates',
+    get isProcessing() {
+      return publishConfirmation.isProcessing
+    },
+    get message() {
+      return publishConfirmation.message
+    },
+    onSelect: () => overlayManager.dismiss(ROUTES.confirmationOverlay.id),
+  })
+
   try {
     const result = await store.publishUpdates(p.id)
-    dialog.close()
     if (result.alreadyUpToDate) {
+      // Raced with another publish — nothing was cut.
+      overlayManager.dismiss(ROUTES.confirmationOverlay.id)
       void confirmDialog.confirm({
         title: 'Already up to date',
         message: 'Enrolled groups already have the latest version of this study.',
         buttons: [{ label: 'OK', style: 'secondary' }],
       })
     } else {
-      void confirmDialog.confirm({
-        title: `Version ${result.version?.versionNumber ?? ''} published`.trim(),
-        message:
-          result.version?.changeSummary ??
-          'Groups with sync turned on will receive the updates; other leaders will be notified.',
-        buttons: [{ label: 'OK', style: 'secondary' }],
-      })
+      if (result.version) {
+        publishConfirmation.message = publishSuccessMessage(p.name, result.version.versionNumber)
+      }
+      // Circle fills green + checkmark; message swaps in.
+      publishConfirmation.isProcessing = false
     }
   } catch (err) {
-    dialog.close()
+    overlayManager.dismiss(ROUTES.confirmationOverlay.id)
     showError(err instanceof Error ? err.message : "Couldn't publish updates")
   } finally {
     publishingUpdates.value = false
   }
+}
+
+// "**{name}** version N published." + count matrix from the loaded preview.
+function publishSuccessMessage(programName: string, versionNumber?: number): string {
+  const version = versionNumber ?? (latestPublishPreview?.lastPublished?.versionNumber ?? 0) + 1
+  const lines = [`**${programName}** version ${version} published.`]
+  const changes = latestPublishPreview?.changes
+  if (changes) {
+    const matrix: string[] = []
+    if (changes.changed.length) matrix.push(`${changes.changed.length} changed`)
+    if (changes.added.length) matrix.push(`${changes.added.length} added`)
+    if (changes.removed.length) matrix.push(`${changes.removed.length} removed`)
+    if (changes.moved.length) matrix.push(`${changes.moved.length} moved`)
+    if (matrix.length) lines.push(matrix.join(' · '))
+  }
+  lines.push('Syncing groups are receiving these updates.')
+  return lines.join('\n')
 }
 
 // ── Export flow (iOS loadExportPreview → ExportConfirmOverlay →

@@ -258,25 +258,48 @@ router.post('/mark-read', requireAuth, async (req: Request, res: Response) => {
 
     const { ids, all } = validation.data
 
+    // Action-required notifications (data.requiresAction, e.g. study-sync
+    // "updates available") can NOT be cleared by viewing/mark-read — they
+    // resolve only when the underlying decision happens (sync applied or
+    // sync mode changed), via resolveNotificationsByDedupeKey. Filtered in
+    // app code: a Prisma JSON `NOT { path: equals }` silently drops rows
+    // MISSING the key (SQL NULL semantics), which would exempt every normal
+    // notification from mark-read.
+    const dismissableIds = async (scope: { ids?: string[] }) => {
+      const rows = await prisma.notification.findMany({
+        where: {
+          userId,
+          isRead: false,
+          ...(scope.ids ? { id: { in: scope.ids } } : {}),
+        },
+        select: { id: true, data: true },
+      })
+      return rows
+        .filter((n) => (n.data as { requiresAction?: boolean } | null)?.requiresAction !== true)
+        .map((n) => n.id)
+    }
+
     if (all) {
+      const notificationIds = await dismissableIds({})
       await Promise.all([
         prisma.activity.updateMany({
           where: { targetUserId: userId, isRead: false },
           data: { isRead: true },
         }),
         prisma.notification.updateMany({
-          where: { userId, isRead: false },
+          where: { id: { in: notificationIds } },
           data: { isRead: true },
         }),
       ])
     } else if (ids && ids.length > 0) {
+      const notificationIds = await dismissableIds({ ids })
       await Promise.all([
         prisma.activity.updateMany({
           where: { id: { in: ids }, targetUserId: userId },
           data: { isRead: true },
         }),
         prisma.notification.updateMany({
-          where: { id: { in: ids }, userId },
+          where: { id: { in: notificationIds } },
           data: { isRead: true },
         }),
       ])

@@ -545,6 +545,50 @@ struct ProgramPendingVersion: Codable, Equatable {
     let changeSummary: String?
 }
 
+/// One pending lesson change from `GET /api/enrollments/:id/sync/changes` —
+/// a row on the Review Changes screen. `key` is the selection token for
+/// POST /sync/apply { lessonKeys }.
+struct PendingLessonChange: Codable, Equatable, Identifiable {
+    let key: String
+    let type: ChangeType
+    let dayNumber: Int?
+    let title: String?
+    let scheduledDate: Date?
+    let titleChanged: Bool
+    let activities: ActivityCounts?
+
+    var id: String { key }
+
+    enum ChangeType: String, Codable {
+        case new
+        case updated
+        case removed
+    }
+
+    struct ActivityCounts: Codable, Equatable {
+        let added: Int
+        let updated: Int
+        let removed: Int
+    }
+}
+
+/// Quantified totals + per-lesson rows for one enrollment's pending changes.
+struct EnrollmentPendingChanges: Codable, Equatable {
+    let targetVersionNumber: Int?
+    let hasPending: Bool
+    let changes: [PendingLessonChange]
+    let counts: Counts
+
+    struct Counts: Codable, Equatable {
+        let lessonsNew: Int
+        let lessonsUpdated: Int
+        let lessonsRemoved: Int
+        let activitiesNew: Int
+        let activitiesUpdated: Int
+        let activitiesRemoved: Int
+    }
+}
+
 // MARK: - Unenroll Info
 
 /// Information about an enrollment's status for the unenroll flow

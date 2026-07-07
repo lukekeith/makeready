@@ -469,22 +469,54 @@ private let api: APIClientProtocol
         }
     }
 
-    /// Bring the enrollment's lessons up to the program's latest published
-    /// version (all-or-nothing; idempotent). Members who completed a lesson
-    /// stay pinned to the version they finished.
+    /// Per-lesson pending changes for the Review Changes screen.
     @MainActor
-    func applySyncUpdates(enrollmentId: String) async throws {
+    func getPendingChanges(enrollmentId: String) async throws -> EnrollmentPendingChanges {
+        struct Response: Decodable {
+            let success: Bool
+            let targetVersionNumber: Int?
+            let hasPending: Bool?
+            let changes: [PendingLessonChange]?
+            let counts: EnrollmentPendingChanges.Counts?
+            let error: String?
+        }
+        let response: Response = try await api.get(
+            "/api/enrollments/\(enrollmentId)/sync/changes",
+            responseType: Response.self
+        )
+        guard response.success, let changes = response.changes, let counts = response.counts else {
+            throw APIError.serverError(response.error ?? "Failed to load pending changes")
+        }
+        let pending = EnrollmentPendingChanges(
+            targetVersionNumber: response.targetVersionNumber,
+            hasPending: response.hasPending ?? !changes.isEmpty,
+            changes: changes,
+            counts: counts
+        )
+        state.enrollmentPendingChangesById[enrollmentId] = pending
+        return pending
+    }
+
+    /// Apply pending curriculum updates to the enrollment. `lessonKeys`
+    /// restricts to the approved lessons (Review Changes toggles); nil applies
+    /// everything. Partial approvals leave the enrollment drifted so the
+    /// leader can approve more later. Members who completed a lesson stay
+    /// pinned to the version they finished.
+    @MainActor
+    func applySyncUpdates(enrollmentId: String, lessonKeys: [String]? = nil) async throws {
+        let body: [String: Any] = lessonKeys.map { ["lessonKeys": $0] } ?? [:]
         let response: APISuccessResponse = try await api.post(
             "/api/enrollments/\(enrollmentId)/sync/apply",
-            body: [:],
+            body: body,
             responseType: APISuccessResponse.self
         )
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to apply updates")
         }
-        // The schedule content may have changed — drop the cached details so
-        // the next EnrollmentSchedulePage visit refetches.
+        // The schedule content may have changed — drop the cached details and
+        // pending changes so the next visits refetch.
         state.enrollmentDetailsById[enrollmentId] = nil
+        state.enrollmentPendingChangesById[enrollmentId] = nil
     }
 
     // MARK: - Scheduled Activity Operations

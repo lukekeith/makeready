@@ -13,7 +13,7 @@ interface CreateNotificationParams {
   type: string
   title: string
   body: string
-  data?: Record<string, string>
+  data?: Record<string, string | boolean>
 }
 
 /**
@@ -71,7 +71,7 @@ export async function upsertNotificationByDedupeKey(params: {
   title: string
   body: string
   dedupeKey: string
-  data?: Record<string, string>
+  data?: Record<string, string | boolean>
   actions?: NotificationAction[]
 }) {
   const { userId, type, title, body, dedupeKey, data, actions } = params

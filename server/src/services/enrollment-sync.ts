@@ -46,20 +46,34 @@ export interface SyncOutcome {
   lessonsAdded: number
   lessonsRemoved: number
   datesShifted: number
+  /** True when the enrollment fully matches the target version after this
+   *  run. False after a partial (selective) approval — the enrollment stays
+   *  drifted and the leader can approve more later. */
+  fullySynced: boolean
 }
 
 export class SyncNotPossibleError extends Error {}
 
 /**
- * Bring one enrollment to the latest published version of its program.
+ * Bring one enrollment to the latest published version of its program —
+ * fully, or restricted to the leader-approved lessons.
+ *
+ * @param lessonKeys selective approval (Review Changes screen): only these
+ *   pending changes apply (curriculum lessonId, or `schedule:{id}` for
+ *   orphans). The enrollment's syncedProgramVersionNumber bumps ONLY when
+ *   nothing pending remains afterwards, so partial approvals keep the
+ *   enrollment drifted (and its action-required notification alive).
+ *
  * Safe to call repeatedly; concurrent calls are serialized by the
  * (enrollmentId, targetProgramVersionNumber) unique on EnrollmentSyncRun.
  */
 export async function syncEnrollmentToLatest(params: {
   enrollmentId: string
   triggeredById?: string | null
+  lessonKeys?: string[] | null
 }): Promise<SyncOutcome> {
-  const { enrollmentId, triggeredById = null } = params
+  const { enrollmentId, triggeredById = null, lessonKeys = null } = params
+  const selection = lessonKeys ? new Set(lessonKeys) : null
 
   const enrollment = await loadEnrollment(enrollmentId)
 
@@ -75,9 +89,13 @@ export async function syncEnrollmentToLatest(params: {
     lessonsAdded: 0,
     lessonsRemoved: 0,
     datesShifted: 0,
+    fullySynced: true,
   }
 
   if (enrollment.syncedProgramVersionNumber === targetVersionNumber) return noOp
+  if (selection && selection.size === 0) {
+    return { ...noOp, alreadySynced: false, fullySynced: false }
+  }
 
   const run = await prisma.enrollmentSyncRun.upsert({
     where: {
@@ -102,27 +120,37 @@ export async function syncEnrollmentToLatest(params: {
   })
 
   try {
-    const outcome = await applyVersion(enrollment, targetVersionNumber)
+    const outcome = await applyVersion(enrollment, targetVersionNumber, selection)
+
+    // Selective approvals only "complete" the sync when nothing pending
+    // remains — otherwise the enrollment stays drifted for a later visit.
+    const fullySynced = selection === null || !(await hasPendingLessons(enrollmentId, targetVersionNumber))
+
     await prisma.$transaction([
       prisma.enrollmentSyncRun.update({
         where: { id: run.id },
         data: { status: 'COMPLETED', completedAt: new Date() },
       }),
-      prisma.enrollment.update({
-        where: { id: enrollmentId },
-        data: { syncedProgramVersionNumber: targetVersionNumber },
-      }),
+      ...(fullySynced
+        ? [
+            prisma.enrollment.update({
+              where: { id: enrollmentId },
+              data: { syncedProgramVersionNumber: targetVersionNumber },
+            }),
+          ]
+        : []),
     ])
 
-    // The pending-updates notification (if any) is now resolved
-    if (enrollment.createdById) {
+    // The pending-updates notification resolves only when everything is dealt
+    // with (action-required contract).
+    if (fullySynced && enrollment.createdById) {
       await resolveNotificationsByDedupeKey(
         enrollment.createdById,
         `study-sync-updates:${enrollmentId}`
       ).catch(() => undefined)
     }
 
-    return outcome
+    return { ...outcome, fullySynced }
   } catch (error) {
     await prisma.enrollmentSyncRun
       .update({
@@ -136,6 +164,43 @@ export async function syncEnrollmentToLatest(params: {
       .catch(() => undefined) // never mask the original failure
     throw error
   }
+}
+
+/** Cheap post-apply check: does anything still differ from the target
+ *  version? (Hash mismatches, missing lessons, or stale schedules.) */
+async function hasPendingLessons(
+  enrollmentId: string,
+  targetVersionNumber: number
+): Promise<boolean> {
+  const enrollment = await prisma.enrollment.findUniqueOrThrow({
+    where: { id: enrollmentId },
+    select: { studyProgramId: true },
+  })
+  const version = await prisma.studyProgramVersion.findUniqueOrThrow({
+    where: {
+      studyProgramId_versionNumber: {
+        studyProgramId: enrollment.studyProgramId,
+        versionNumber: targetVersionNumber,
+      },
+    },
+    select: { lessonHashes: true },
+  })
+  const hashes = (version.lessonHashes ?? {}) as Record<string, string>
+
+  const schedules = await prisma.lessonSchedule.findMany({
+    where: { enrollmentId, removedAt: null },
+    select: {
+      lessonId: true,
+      currentVersion: { select: { sourceContentHash: true } },
+    },
+  })
+  const byLessonId = new Map(schedules.map((s) => [s.lessonId, s]))
+
+  for (const [lessonId, hash] of Object.entries(hashes)) {
+    const schedule = byLessonId.get(lessonId)
+    if (!schedule || schedule.currentVersion?.sourceContentHash !== hash) return true
+  }
+  return schedules.some((s) => s.lessonId === null || hashes[s.lessonId] === undefined)
 }
 
 type LoadedEnrollment = Awaited<ReturnType<typeof loadEnrollment>>
@@ -158,7 +223,8 @@ async function loadEnrollment(enrollmentId: string) {
 
 async function applyVersion(
   enrollment: LoadedEnrollment,
-  targetVersionNumber: number
+  targetVersionNumber: number,
+  selection: Set<string> | null = null
 ): Promise<SyncOutcome> {
   const programVersion = await prisma.studyProgramVersion.findUniqueOrThrow({
     where: {
@@ -211,6 +277,8 @@ async function applyVersion(
     // missing from the published snapshot
     if (schedule.lessonId !== null && snapshotByLessonId.has(schedule.lessonId)) continue
     if (schedule.removedAt !== null) continue // removed by an earlier sync
+    // Selective approval: unapproved removals stay untouched (and keep their slot)
+    if (selection && !selection.has(schedule.lessonId ?? `schedule:${schedule.id}`)) continue
 
     if (!isLocked(schedule)) freedSlotDates.push(schedule.scheduledDate)
 
@@ -247,6 +315,8 @@ async function applyVersion(
   for (const lesson of snapshotLessons) {
     const schedule = scheduleByLessonId.get(lesson.id)
     if (!schedule) continue
+    // Selective approval: unapproved content updates stay on their version
+    if (selection && !selection.has(lesson.id)) continue
 
     const upToDate =
       schedule.currentVersion?.sourceContentHash === lesson.contentHash &&
@@ -327,19 +397,31 @@ async function applyVersion(
   const survivorByLessonId = new Map(survivors.map((s) => [s.lessonId, s]))
 
   const lockedLessonIds = new Set(survivors.filter(isLocked).map((s) => s.lessonId))
-  const remainingLessons = snapshotLessons.filter((l) => !lockedLessonIds.has(l.id))
+
+  // Selective approval: existing schedules NEVER move (a partial approval
+  // must not reshuffle lessons the leader didn't approve) — every surviving
+  // schedule is treated as locked, only approved additions are placed, and
+  // the slot pool is just the dates freed by approved removals. Curriculum
+  // reorders take effect when the enrollment fully catches up.
+  const remainingLessons = selection
+    ? snapshotLessons.filter((l) => !survivorByLessonId.has(l.id) && selection.has(l.id))
+    : snapshotLessons.filter((l) => !lockedLessonIds.has(l.id))
 
   // Slot pool: dates already held by future unsent schedules + slots freed by
   // removed lessons, in date order
-  const slotDates = [
-    ...survivors.filter((s) => !isLocked(s)).map((s) => s.scheduledDate),
-    ...freedSlotDates,
-  ].sort((a, b) => a.getTime() - b.getTime())
+  const slotDates = (
+    selection
+      ? [...freedSlotDates]
+      : [...survivors.filter((s) => !isLocked(s)).map((s) => s.scheduledDate), ...freedSlotDates]
+  ).sort((a, b) => a.getTime() - b.getTime())
 
   const enabledDayNumbers = parseEnabledDays(enrollment.enabledDays)
+  // Overflow starts after every immovable date — in selective mode ALL
+  // surviving schedules hold their dates, so additions append after them.
+  const immovable = selection ? survivors : survivors.filter(isLocked)
   const lastLockedTime = Math.max(
     now.getTime(),
-    ...survivors.filter(isLocked).map((s) => s.scheduledDate.getTime())
+    ...immovable.map((s) => s.scheduledDate.getTime())
   )
 
   let cursor = new Date(Math.max(lastLockedTime, slotDates.at(-1)?.getTime() ?? 0))
@@ -465,6 +547,8 @@ async function applyVersion(
     lessonsAdded,
     lessonsRemoved,
     datesShifted,
+    // Provisional; the caller overwrites after the post-apply pending check.
+    fullySynced: selection === null,
   }
 }
 
@@ -592,6 +676,9 @@ export async function fanOutProgramVersionSync(
             fromVersion: String(enrollment.syncedProgramVersionNumber ?? 0),
             toVersion: String(versionNumber),
             syncMode: enrollment.syncMode,
+            // Not view-dismissable: stays unread until the leader applies the
+            // updates or changes the sync mode (mark-read skips it).
+            requiresAction: true,
           },
           actions: [
             {

@@ -27,6 +27,9 @@ export interface NotificationItem {
   actorName: string | null
   actorPicture: string | null
   actions: NotificationAction[]
+  /** Action-required items can't be cleared by viewing — they resolve only
+   *  when the underlying decision happens (server-enforced too). */
+  requiresAction: boolean
 }
 
 // iPhone-style relative timestamps ("2 hours ago") — same ramp as the library
@@ -54,6 +57,7 @@ interface ApiNotification {
   createdAt?: string
   actor?: { name?: string | null; picture?: string | null } | null
   actions?: unknown
+  data?: { requiresAction?: boolean } | null
 }
 
 function mapActions(raw: unknown): NotificationAction[] {
@@ -95,6 +99,7 @@ export const useLeaderNotifications = defineStore('leader-notifications', () => 
         actorName: n.actor?.name ?? null,
         actorPicture: n.actor?.picture ?? null,
         actions: mapActions(n.actions),
+        requiresAction: Boolean(n.data?.requiresAction),
       }))
     } catch (err) {
       const e = err as { response?: { data?: { error?: string; message?: string } } }
@@ -105,8 +110,13 @@ export const useLeaderNotifications = defineStore('leader-notifications', () => 
     }
   }
 
+  // Viewing never clears action-required items (server enforces this too) —
+  // they resolve when the decision happens; loadSummary/loadNotifications
+  // pick that up afterwards.
   async function markRead(ids: string[]): Promise<void> {
-    const unreadIds = ids.filter((id) => items.value.some((n) => n.id === id && !n.isRead))
+    const unreadIds = ids.filter((id) =>
+      items.value.some((n) => n.id === id && !n.isRead && !n.requiresAction),
+    )
     if (!unreadIds.length) return
     items.value = items.value.map((n) => (unreadIds.includes(n.id) ? { ...n, isRead: true } : n))
     unreadCount.value = Math.max(0, unreadCount.value - unreadIds.length)
@@ -119,8 +129,10 @@ export const useLeaderNotifications = defineStore('leader-notifications', () => 
 
   async function markAllRead(): Promise<void> {
     if (!unreadCount.value && !items.value.some((n) => !n.isRead)) return
-    items.value = items.value.map((n) => (n.isRead ? n : { ...n, isRead: true }))
-    unreadCount.value = 0
+    items.value = items.value.map((n) =>
+      n.isRead || n.requiresAction ? n : { ...n, isRead: true },
+    )
+    unreadCount.value = items.value.filter((n) => !n.isRead).length
     try {
       await axios.post('/admin/api/notifications/mark-read', { all: true })
     } catch {

@@ -139,8 +139,9 @@ struct ProgramHomePage: View {
     // Publish updates (study sync). Tapping the Published badge kicks off a
     // read-only preview fetch; the "Published study" dialog opens immediately
     // with "Checking for changes…" and the summary (last published + what
-    // changed since) fills in IN PLACE when the preview lands. Publish itself
-    // shows the cover spinner; a no-op publish alerts.
+    // changed since) fills in IN PLACE when the preview lands. Publishing
+    // hands off to a processing ConfirmationOverlay (spinner circle → green
+    // checkmark); a raced no-op publish alerts.
     @State private var isPublishingUpdates = false
     @State private var publishPreview: ProgramActions.PublishPreview?
     @State private var publishPreviewFailed = false
@@ -472,7 +473,7 @@ struct ProgramHomePage: View {
                                     mode: .display
                                 )
 
-                                if isUploadingImage || isPublishingUpdates {
+                                if isUploadingImage {
                                     CardSpinnerOverlay()
                                 }
                             }
@@ -901,37 +902,41 @@ struct ProgramHomePage: View {
     }
 
     /// Publish curriculum updates as a new program version (study sync).
-    /// The cover spinner shows while the version is cut (the Claude change
-    /// summary takes a few seconds); the result presents a success
-    /// ConfirmationOverlay composed from the returned version — or the
-    /// "Already up to date" alert on a no-op publish.
+    /// The badge dialog hands off to a ConfirmationOverlay presented in
+    /// processing mode — the circle spins while the version is cut (the
+    /// Claude summary takes a few seconds), then fills green with the
+    /// checkmark and the success message (export-flow pattern). The success
+    /// message is composed upfront from the already-loaded preview
+    /// (ConfirmationOverlay captures `message` at present time).
     private func publishUpdates(programId: String) {
         guard !isPublishingUpdates else { return }
         isPublishingUpdates = true
+
+        overlayManager.present(.confirmationOverlay) {
+            ConfirmationOverlay(
+                style: .success,
+                message: publishSuccessMessage(),
+                buttonLabel: "Done",
+                isProcessing: $isPublishingUpdates,
+                processingMessage: "Publishing updates",
+                onDismiss: {
+                    overlayManager.dismiss(.confirmationOverlay)
+                }
+            )
+        }
 
         Task {
             do {
                 let result = try await ProgramActions().publishUpdates(programId: programId)
                 await MainActor.run {
-                    isPublishingUpdates = false
                     if result.alreadyUpToDate {
+                        // Raced with another publish — nothing was cut.
+                        overlayManager.dismiss(.confirmationOverlay)
+                        isPublishingUpdates = false
                         showAlreadyUpToDateAlert = true
-                        return
-                    }
-                    let heading = result.versionNumber.map { "**Version \($0) published.**" }
-                        ?? "**Updates published.**"
-                    let detail = result.changeSummary
-                        ?? "Groups with sync turned on will receive the updates; other leaders will be notified."
-                    let message = AttributedString.safeMarkdown("\(heading)\n\n\(detail)")
-                    overlayManager.present(.confirmationOverlay) {
-                        ConfirmationOverlay(
-                            style: .success,
-                            message: message,
-                            buttonLabel: "Done",
-                            onDismiss: {
-                                overlayManager.dismiss(.confirmationOverlay)
-                            }
-                        )
+                    } else {
+                        // Circle fills green + checkmark; message swaps in.
+                        isPublishingUpdates = false
                     }
                 }
             } catch {
@@ -939,6 +944,7 @@ struct ProgramHomePage: View {
                     // Cleanup first, then record — the user just tapped
                     // "Publish updates". Safe to re-run as-is (idempotent).
                     isPublishingUpdates = false
+                    overlayManager.dismiss(.confirmationOverlay)
                     state.recordError(
                         error,
                         context: "ProgramHomePage.publishUpdates",
@@ -949,6 +955,24 @@ struct ProgramHomePage: View {
                 }
             }
         }
+    }
+
+    /// Success message for the publish confirmation — version + count matrix
+    /// from the preview loaded when the badge dialog opened.
+    private func publishSuccessMessage() -> AttributedString {
+        let programName = program?.name ?? "Study"
+        let nextVersion = (publishPreview?.lastPublished?.versionNumber ?? 0) + 1
+        var lines = ["**\(programName)** version \(nextVersion) published."]
+        if let changes = publishPreview?.changes {
+            var matrix: [String] = []
+            if !changes.changed.isEmpty { matrix.append("\(changes.changed.count) changed") }
+            if !changes.added.isEmpty { matrix.append("\(changes.added.count) added") }
+            if !changes.removed.isEmpty { matrix.append("\(changes.removed.count) removed") }
+            if !changes.moved.isEmpty { matrix.append("\(changes.moved.count) moved") }
+            if !matrix.isEmpty { lines.append(matrix.joined(separator: " · ")) }
+        }
+        lines.append("Syncing groups are receiving these updates.")
+        return AttributedString.safeMarkdown(lines.joined(separator: "\n"))
     }
 
     /// Open the full-study preview in the in-app `LessonPreviewModal`

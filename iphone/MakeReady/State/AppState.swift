@@ -232,6 +232,10 @@ final class AppState {
     /// (cache-first detail page contract). In-memory only.
     var enrollmentSyncStatusById: [String: EnrollmentSyncStatus] = [:]
 
+    /// Per-lesson pending changes keyed by enrollment ID (Review Changes
+    /// screen). Same cache-first contract as sync status. In-memory only.
+    var enrollmentPendingChangesById: [String: EnrollmentPendingChanges] = [:]
+
     // MARK: - Loading States
 
     /// Per-entity and per-list loading states

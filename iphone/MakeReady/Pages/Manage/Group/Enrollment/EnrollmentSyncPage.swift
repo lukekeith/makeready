@@ -24,8 +24,13 @@ struct EnrollmentSyncPage: View {
     @State private var status: EnrollmentSyncStatus?
     @State private var isLoading: Bool
     @State private var error: String?
-    @State private var isApplying = false
-    @State private var showApplyDialog = false
+
+    /// Quantified pending-change counts for the summary card (loaded with
+    /// status; the Review Changes pane loads the per-lesson rows itself).
+    @State private var pendingCounts: EnrollmentPendingChanges.Counts?
+
+    /// SlideStack detail: the Review Changes screen.
+    @State private var showReviewChanges = false
 
     /// Gates the spinner→content swap on a COLD open: a response landing
     /// mid-slide is a structural change outside the animation transaction and
@@ -53,6 +58,9 @@ struct EnrollmentSyncPage: View {
         _status = State(initialValue: cached)
         _isLoading = State(initialValue: cached == nil)
         _readyToShowContent = State(initialValue: cached != nil)
+        _pendingCounts = State(
+            initialValue: AppState.shared.enrollmentPendingChangesById[enrollmentId]?.counts
+        )
     }
 
     // MenuInput(.segmented) works on strings — map to/from EnrollmentSyncMode.
@@ -64,6 +72,36 @@ struct EnrollmentSyncPage: View {
     }
 
     var body: some View {
+        SlideStack(isPresented: $showReviewChanges) {
+            syncContent
+        } detail: {
+            ReviewChangesPage(
+                enrollmentId: enrollmentId,
+                onDismiss: { showReviewChanges = false },
+                onApplied: {
+                    Task {
+                        await loadStatus()
+                        await loadPendingCounts()
+                    }
+                }
+            )
+            .environment(\.isModalRoot, false)
+        }
+        .background(Color.appBackground)
+        .task {
+            // Cold open: hold the structure stable until the slide/modal
+            // settles (SlideStack is 0.3s, modal appear 0.4s) so the loaded
+            // content doesn't swap in mid-animation and pop (Class 3).
+            if !readyToShowContent {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                readyToShowContent = true
+            }
+        }
+        .task { await loadStatus() }
+        .task { await loadPendingCounts() }
+    }
+
+    private var syncContent: some View {
         VStack(spacing: 0) {
             PageTitle.iconTitle(
                 title: "Study Sync",
@@ -146,7 +184,7 @@ struct EnrollmentSyncPage: View {
                         }
 
                         if status.hasDrift {
-                            driftSection(status)
+                            driftSummaryCard
                         } else {
                             upToDateRow(status)
                         }
@@ -157,77 +195,69 @@ struct EnrollmentSyncPage: View {
                 }
             }
         }
-        .background(Color.appBackground)
-        .task {
-            // Cold open: hold the structure stable until the slide/modal
-            // settles (SlideStack is 0.3s, modal appear 0.4s) so the loaded
-            // content doesn't swap in mid-animation and pop (Class 3).
-            if !readyToShowContent {
-                try? await Task.sleep(nanoseconds: 500_000_000)
-                readyToShowContent = true
-            }
-        }
-        .task { await loadStatus() }
-        .overlay {
-            DialogOverlay(
-                isPresented: $showApplyDialog,
-                title: "Apply updates?",
-                message: "This brings the group's future lessons up to the latest published version. Lessons members already completed are never changed.",
-                buttons: [
-                    DialogButtonConfig("Apply updates", style: .primary) {
-                        applyUpdates()
-                    },
-                    DialogButtonConfig("Cancel", style: .secondary) {}
-                ]
-            )
-        }
     }
 
     // MARK: - Drift / up-to-date sections
 
-    @ViewBuilder
-    private func driftSection(_ status: EnrollmentSyncStatus) -> some View {
+    /// Quantified summary card — counts only, tap to Review Changes.
+    private var driftSummaryCard: some View {
         VStack(spacing: 8) {
             Text("UPDATES AVAILABLE")
                 .font(Typography.s13Semibold)
                 .foregroundColor(.white.opacity(0.5))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            ForEach(status.pendingVersions, id: \.versionNumber) { version in
-                VStack(spacing: 6) {
-                    HStack(alignment: .firstTextBaseline) {
-                        Text("Version \(version.versionNumber)")
-                            .font(Typography.s15Semibold)
-                            .foregroundColor(.white)
-
-                        Spacer()
-
-                        Text(ModelFormatters.monthDay.string(from: version.publishedAt))
-                            .font(Typography.s13)
-                            .foregroundColor(.white.opacity(0.5))
+            Button {
+                showReviewChanges = true
+            } label: {
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        if let counts = pendingCounts {
+                            countRow(label: "Lessons", updated: counts.lessonsUpdated,
+                                     added: counts.lessonsNew, removed: counts.lessonsRemoved)
+                            countRow(label: "Activities", updated: counts.activitiesUpdated,
+                                     added: counts.activitiesNew, removed: counts.activitiesRemoved)
+                        } else {
+                            Text("Review pending changes")
+                                .font(Typography.s15Semibold)
+                                .foregroundColor(.white)
+                        }
                     }
 
-                    if let summary = version.changeSummary, !summary.isEmpty {
-                        Text(summary)
-                            .font(Typography.s13)
-                            .foregroundColor(.white.opacity(0.5))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
+                    Spacer()
+
+                    Image(systemName: "chevron.right")
+                        .font(Typography.s15)
+                        .foregroundColor(.white.opacity(0.5))
                 }
-                .padding(12)
+                .padding(16)
                 .background(Color.white.opacity(0.1))
                 .cornerRadius(10)
             }
+            .buttonStyle(.plain)
+        }
+    }
 
-            BoxButton(
-                action: { showApplyDialog = true },
-                label: isApplying ? "Applying..." : "Apply updates",
-                variant: .primary,
-                size: .lg,
-                fullWidth: true
-            )
-            .opacity(isApplying ? 0.5 : 1.0)
-            .disabled(isApplying)
+    /// One matrix row: "Lessons   2 updated · 1 new · 1 removed".
+    @ViewBuilder
+    private func countRow(label: String, updated: Int, added: Int, removed: Int) -> some View {
+        let parts = [
+            updated > 0 ? "\(updated) updated" : nil,
+            added > 0 ? "\(added) new" : nil,
+            removed > 0 ? "\(removed) removed" : nil,
+        ].compactMap { $0 }
+
+        if !parts.isEmpty {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(label)
+                    .font(Typography.s13Semibold)
+                    .foregroundColor(.white.opacity(0.5))
+                    .frame(width: 72, alignment: .leading)
+
+                Text(parts.joined(separator: " · "))
+                    .font(Typography.s15)
+                    .foregroundColor(.white)
+            }
         }
     }
 
@@ -290,6 +320,10 @@ struct EnrollmentSyncPage: View {
                         state.enrollmentSyncStatusById[enrollmentId] = saved
                     }
                 }
+                // Silent: the mode change resolved the "updates available"
+                // notification server-side — refresh the banner/feed count.
+                try? await NotificationActions().loadNotifications()
+                try? await NotificationActions().loadUnreadCount()
             } catch {
                 await MainActor.run {
                     status = current
@@ -305,26 +339,15 @@ struct EnrollmentSyncPage: View {
         }
     }
 
-    private func applyUpdates() {
-        guard !isApplying else { return }
-        isApplying = true
-        Task {
-            do {
-                try await EnrollmentActions().applySyncUpdates(enrollmentId: enrollmentId)
-                await loadStatus()
-                await MainActor.run { isApplying = false }
-            } catch {
-                await MainActor.run {
-                    isApplying = false
-                    state.recordError(
-                        error,
-                        context: "EnrollmentSyncPage.applyUpdates",
-                        surface: true,
-                        friendlyMessage: "Couldn't apply the updates",
-                        retry: { applyUpdates() }
-                    )
-                }
-            }
+    /// Counts for the summary card (and warms the Review pane's cache).
+    private func loadPendingCounts() async {
+        guard status?.hasDrift != false else { return }
+        do {
+            let pending = try await EnrollmentActions().getPendingChanges(enrollmentId: enrollmentId)
+            pendingCounts = pending.counts
+        } catch {
+            // Console-only: the card falls back to "Review pending changes".
+            state.recordError(error, context: "EnrollmentSyncPage.loadPendingCounts")
         }
     }
 }

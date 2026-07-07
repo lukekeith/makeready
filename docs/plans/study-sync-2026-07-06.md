@@ -13,7 +13,7 @@ Enrolled lessons (`LessonSchedule` + `ScheduledLessonActivity`) are a one-time c
 1. **Propagation trigger:** explicit **"Publish updates"** action on the study program (not auto-on-save). The publish, not the edit, is the unit of sync — 25 edits then one publish = one version = one notification.
 2. **Partial work on edited activities:** **carry forward** via lineage key. A member mid-lesson keeps completion state and input even if an activity they did was edited.
 3. **Lessons added/removed mid-enrollment:** **future dates only.** Past-dated/delivered schedules never move; new/reordered lessons slot into the remaining future schedule; removed lessons are soft-hidden (kept in history if any member has progress).
-4. **Approval-required mode:** **all-or-nothing** — approving brings the enrollment fully to the latest published version. Every enrollment is always at one well-defined program version.
+4. **Approval-required mode:** ~~all-or-nothing~~ **SUPERSEDED 2026-07-07 (user decision): per-lesson selective approval.** The Review Changes screen shows each pending lesson change (new/updated/removed, with activity counts) with a per-lesson toggle; "Approve" applies the toggled-on subset. `syncedProgramVersionNumber` bumps only when nothing pending remains, so partial approvals leave the enrollment drifted — leaders can return later and approve more (the action-required notification stays alive). Selective applies never move existing schedules (curriculum reorders take effect only on full catch-up); approved additions fill slots freed by approved removals, overflowing past all existing dates.
 
 ## Architecture
 
@@ -97,6 +97,8 @@ Extend existing `Notification` model + `notification.ts` service (already pairs 
 - `POST /study-programs/:id/publish` — cut version, enqueue fan-out
 - `GET  /study-programs/:id/versions` — version history + summaries
 - `GET  /enrollments/:id/sync` — sync mode, synced version, drift + pending change summary
+- `GET  /enrollments/:id/sync/changes` — per-lesson pending changes (new/updated/removed + activity counts + totals) for Review Changes; rows carry selection keys
+- `POST /enrollments/:id/sync/apply` accepts optional `{ lessonKeys }` for selective approval
 - `PATCH /enrollments/:id/sync` — change `syncMode`
 - `POST /enrollments/:id/sync/apply` — approve/apply to latest (approval mode or manual catch-up from drift)
 - `GET  /notifications/summary`, existing list/read endpoints gain `dedupeKey`/`actions`
@@ -113,6 +115,41 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
 4. ✅ Member resolution: pinned-version rendering + lazy carry-forward in lesson-fetch paths. **Done 2026-07-06.**
 5. ✅ Notifications: dedupe + actions, summary endpoint. **Done 2026-07-06.**
 6. ✅ Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal. **Done 2026-07-06.**
+
+## Review Changes redesign (2026-07-07)
+
+User-requested rework of the sync page + approval model:
+
+- **Server:** `enrollment-sync-changes.ts` (`computePendingChanges`) diffs the
+  enrollment against the latest snapshot per lesson, with activity-level
+  counts computed by diffing the TARGET snapshot vs the snapshot the schedule
+  currently reflects (located by matching sourceContentHash in older
+  versions' lessonHashes — canonical curriculum forms only; enrolled copies
+  are never compared, avoiding the scripture-transform false-drift trap).
+  Falls back to `activities: null` ("Content updated") when no prior snapshot
+  matches. Engine: `syncEnrollmentToLatest`/`applyVersion` take `lessonKeys`;
+  in selective mode unapproved removals/updates are skipped, existing
+  schedules NEVER move, approved additions fill freed slots then overflow
+  past all existing dates; `fullySynced` computed post-apply via hash check;
+  synced version + notification resolution only on full catch-up. Verified
+  live: 2-lesson drift → approve one (still drifted, one pending) → approve
+  the other (fullySynced, notification resolved). All 23 study-sync server
+  tests pass.
+- **Study Sync page (both apps):** AI summary + per-version list + bottom
+  "Apply updates" button REMOVED. Drift now renders one summary card —
+  "Lessons: 2 updated · 1 new" / "Activities: 3 updated · 1 removed" — with
+  a right chevron that slides to Review Changes.
+- **Review Changes screen (both apps):** grid rows — left column the lesson
+  date (or DAY n for unscheduled additions) with a colored tag (NEW green /
+  UPDATED yellow / DELETED red); right column the quantified per-lesson
+  summary (activity counts, title changes) and a lesson-level design-system
+  toggle (default ON). "Approve" lives in the PageTitle right slot (hidden
+  while nothing is toggled on), applies the toggled-on keys, and stays
+  re-visitable — rejected changes remain pending indefinitely.
+- iPhone: new `ReviewChangesPage.swift` (pbxproj-registered), pending-changes
+  cache `enrollmentPendingChangesById` (cache-first + cold-open gate).
+  Web: new `review-changes-pane.vue` inside the sync pane's nested SlideStack;
+  store gains `loadChanges`/`apply(lessonKeys)`.
 
 ## Phase 6 — iPhone implementation notes (2026-07-06)
 
@@ -239,6 +276,17 @@ admin-island (parked at `/admin-legacy`). Everything goes through the shared
   "Update sync settings", view `enrollment-sync`, params {enrollmentId},
   data carries from/to version + syncMode + AI summary in body).
 - Successful sync (any trigger) marks the pending-updates notification read.
+- **Action-required semantics (user-requested 2026-07-06):**
+  STUDY_SYNC_UPDATES_AVAILABLE carries `data.requiresAction: true` — viewing
+  and mark-read (single or all) never clear it, server-enforced in the
+  mark-read route (app-side filter, NOT a Prisma JSON `NOT path equals` —
+  that drops rows missing the key via SQL NULL semantics). It resolves only
+  when the decision happens: sync applied (engine) or syncMode changed
+  (PATCH /enrollments/:id resolves the dedupeKey). Clients mirror this
+  (banner persists; row taps don't mark actionable rows read; sync pane
+  refreshes the feed/summary after apply/mode change). Verified live:
+  publish → mark-all leaves it unread; mode change resolves it;
+  informational rows still clear.
 - Routes: the feed previously served ONLY Activity rows — list, unread-count,
   and mark-read now merge/cover the Notification table too (Notification
   entries carry `actions` + `dedupeKey`, `actor: null`). New

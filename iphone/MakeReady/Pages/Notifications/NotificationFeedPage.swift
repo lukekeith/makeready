@@ -82,8 +82,9 @@ struct NotificationFeedPage: View {
     }
 
     private func handleTap(_ notification: AppNotification) {
-        // Mark as read
-        if !notification.isRead {
+        // Mark as read — action-required rows stay unread until the leader
+        // actually deals with them (apply / change sync mode).
+        if !notification.isRead, notification.data?.requiresAction != true {
             // Silent: best-effort read receipt — the unread state self-corrects
             // on the next feed load, and the user is mid-navigation.
             Task { try? await NotificationActions().markAsRead(ids: [notification.id]) }
@@ -117,7 +118,7 @@ struct NotificationFeedPage: View {
     /// A tapped action button. `view` names a client surface — only
     /// "enrollment-sync" is wired; unknown views mark read and stay put.
     private func handleAction(_ notification: AppNotification, action: NotificationAction) {
-        if !notification.isRead {
+        if !notification.isRead, notification.data?.requiresAction != true {
             // Silent: best-effort read receipt — same contract as handleTap.
             Task { try? await NotificationActions().markAsRead(ids: [notification.id]) }
         }

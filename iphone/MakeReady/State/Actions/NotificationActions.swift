@@ -81,9 +81,11 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to mark notifications as read")
         }
 
-        // Update local state
+        // Update local state — action-required rows stay unread (the server
+        // skips them; they resolve when the underlying decision happens).
         for id in ids {
-            if var notification = state.notifications[id] {
+            if var notification = state.notifications[id],
+               notification.data?.requiresAction != true {
                 notification.isRead = true
                 state.notifications.upsert(notification)
             }
@@ -105,9 +107,9 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to mark all as read")
         }
 
-        // Update local state
+        // Update local state — action-required rows stay unread (see markAsRead).
         for notification in state.notifications.all {
-            if !notification.isRead {
+            if !notification.isRead, notification.data?.requiresAction != true {
                 var updated = notification
                 updated.isRead = true
                 state.notifications.upsert(updated)

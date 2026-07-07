@@ -39,12 +39,15 @@ const BELL =
 // SlideStack detail: 'sync:<enrollmentId>' opens the enrollment sync pane.
 const detail = ref<string | null>(null)
 
+// Action-required rows are never cleared by viewing — they resolve when the
+// leader applies the updates or changes the sync mode (the store's markRead
+// skips them anyway; the checks here just keep intent obvious).
 function onRowTap(n: NotificationItem): void {
-  if (!n.isRead) void store.markRead([n.id])
+  if (!n.isRead && !n.requiresAction) void store.markRead([n.id])
 }
 
 function onAction(n: NotificationItem, action: NotificationAction): void {
-  if (!n.isRead) void store.markRead([n.id])
+  if (!n.isRead && !n.requiresAction) void store.markRead([n.id])
   if (action.view === 'enrollment-sync' && action.params?.enrollmentId) {
     detail.value = `sync:${action.params.enrollmentId}`
   }

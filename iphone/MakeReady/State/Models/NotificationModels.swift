@@ -40,6 +40,10 @@ struct NotificationData: Codable {
     let groupId: String?
     let requestId: String?
     let enrollmentId: String?
+    /// Action-required (study-sync "updates available"): can't be cleared by
+    /// viewing — resolves when the leader applies updates or changes the
+    /// sync mode (the server's mark-read skips these too).
+    let requiresAction: Bool?
 }
 
 /// One tappable action on a notification: `view` names a client surface
