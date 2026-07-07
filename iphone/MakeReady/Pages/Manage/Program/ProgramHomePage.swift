@@ -136,6 +136,12 @@ struct ProgramHomePage: View {
     @State private var showDraftAlert = false
     @State private var showPublishBlockedAlert = false
 
+    // Publish updates (study sync) — cover spinner while the version is cut,
+    // then an alert for the no-op case (the success case presents a
+    // ConfirmationOverlay composed from the API result).
+    @State private var isPublishingUpdates = false
+    @State private var showAlreadyUpToDateAlert = false
+
     // Preview modal — uses IdentifiableURL so fullScreenCover(item:) triggers
     // only after the URL is set, avoiding the nil-URL race with isPresented.
     @State private var previewItem: IdentifiableURL? = nil
@@ -461,7 +467,7 @@ struct ProgramHomePage: View {
                                     mode: .display
                                 )
 
-                                if isUploadingImage {
+                                if isUploadingImage || isPublishingUpdates {
                                     CardSpinnerOverlay()
                                 }
                             }
@@ -534,21 +540,32 @@ struct ProgramHomePage: View {
             }
         }
         .overlay {
+            // Published: the badge is the home of the explicit "Publish
+            // updates" action (study sync — the publish, not the edit, is the
+            // unit of enrollment sync), alongside switching back to draft.
+            // Draft: the original publish confirm.
             DialogOverlay(
                 isPresented: $showPublishDialog,
-                title: program.isPublished == true ? "Unpublish this study?" : "Publish this study?",
+                title: program.isPublished == true ? "Published study" : "Publish this study?",
                 message: program.isPublished == true
-                    ? "This will unpublish the study. It will no longer be available for group enrollment."
+                    ? "Publish your latest edits to enrolled groups as a new version, or switch this study back to draft (no longer available for enrollment)."
                     : "Publishing the study will make it available for group enrollment.",
-                buttons: [
-                    DialogButtonConfig(
-                        program.isPublished == true ? "Switch to Draft" : "Publish",
-                        style: .primary
-                    ) {
-                        togglePublishStatus(programId: program.id, publish: !(program.isPublished == true))
-                    },
-                    DialogButtonConfig("Cancel", style: .secondary) {}
-                ]
+                buttons: program.isPublished == true
+                    ? [
+                        DialogButtonConfig("Publish updates", style: .primary) {
+                            publishUpdates(programId: program.id)
+                        },
+                        DialogButtonConfig("Switch to Draft", style: .secondary) {
+                            togglePublishStatus(programId: program.id, publish: false)
+                        },
+                        DialogButtonConfig("Cancel", style: .secondary) {}
+                    ]
+                    : [
+                        DialogButtonConfig("Publish", style: .primary) {
+                            togglePublishStatus(programId: program.id, publish: true)
+                        },
+                        DialogButtonConfig("Cancel", style: .secondary) {}
+                    ]
             )
         }
         .fullScreenCover(item: $previewItem) { item in
@@ -582,6 +599,11 @@ struct ProgramHomePage: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(publishBlockedMessage)
+        }
+        .alert("Already up to date", isPresented: $showAlreadyUpToDateAlert) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Enrolled groups already have the latest version of this study.")
         }
         .overlay {
             if showExportConfirm {
@@ -782,6 +804,57 @@ struct ProgramHomePage: View {
                     friendlyMessage: publish ? "Couldn't publish the study" : "Couldn't unpublish the study",
                     retry: { togglePublishStatus(programId: programId, publish: publish) }
                 )
+            }
+        }
+    }
+
+    /// Publish curriculum updates as a new program version (study sync).
+    /// The cover spinner shows while the version is cut (the Claude change
+    /// summary takes a few seconds); the result presents a success
+    /// ConfirmationOverlay composed from the returned version — or the
+    /// "Already up to date" alert on a no-op publish.
+    private func publishUpdates(programId: String) {
+        guard !isPublishingUpdates else { return }
+        isPublishingUpdates = true
+
+        Task {
+            do {
+                let result = try await ProgramActions().publishUpdates(programId: programId)
+                await MainActor.run {
+                    isPublishingUpdates = false
+                    if result.alreadyUpToDate {
+                        showAlreadyUpToDateAlert = true
+                        return
+                    }
+                    let heading = result.versionNumber.map { "**Version \($0) published.**" }
+                        ?? "**Updates published.**"
+                    let detail = result.changeSummary
+                        ?? "Groups with sync turned on will receive the updates; other leaders will be notified."
+                    let message = AttributedString.safeMarkdown("\(heading)\n\n\(detail)")
+                    overlayManager.present(.confirmationOverlay) {
+                        ConfirmationOverlay(
+                            style: .success,
+                            message: message,
+                            buttonLabel: "Done",
+                            onDismiss: {
+                                overlayManager.dismiss(.confirmationOverlay)
+                            }
+                        )
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    // Cleanup first, then record — the user just tapped
+                    // "Publish updates". Safe to re-run as-is (idempotent).
+                    isPublishingUpdates = false
+                    state.recordError(
+                        error,
+                        context: "ProgramHomePage.publishUpdates",
+                        surface: true,
+                        friendlyMessage: "Couldn't publish updates",
+                        retry: { publishUpdates(programId: programId) }
+                    )
+                }
             }
         }
     }

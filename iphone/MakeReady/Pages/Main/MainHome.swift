@@ -110,6 +110,9 @@ struct MainHome: View {
             async let homeTask: () = HomeActions().loadHomeData(forceRefresh: false)
             async let calendarTask: () = HomeActions().loadCalendarEvents(forceRefresh: false)
             _ = await (homeTask, calendarTask)
+            // Silent: best-effort badge refresh for the unread banner — the
+            // banner simply stays hidden if the count can't load.
+            try? await NotificationActions().loadUnreadCount()
         }
     }
 
@@ -118,6 +121,9 @@ struct MainHome: View {
     private var homeTabContent: some View {
         ScrollView {
             VStack(spacing: 16) {
+                if state.unreadNotificationCount > 0 {
+                    notificationBanner
+                }
                 kpiGrid
                 upcomingLessonsSection
                 chartsSection
@@ -138,6 +144,49 @@ struct MainHome: View {
 
             try? await Task.sleep(for: .milliseconds(500))
         }
+    }
+
+    // MARK: - Notification Banner (study sync)
+
+    /// Unread-notifications banner above the KPI grid — tap opens the feed.
+    private var notificationBanner: some View {
+        Button {
+            overlayManager.present(.notificationFeed) {
+                NotificationFeedPage()
+            }
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bell.fill")
+                    .font(Typography.s16)
+                    .foregroundColor(Color.brandPrimary)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(
+                        state.unreadNotificationCount == 1
+                            ? "You have 1 unread notification"
+                            : "You have \(state.unreadNotificationCount) unread notifications"
+                    )
+                    .font(Typography.s15Semibold)
+                    .foregroundColor(.white)
+
+                    if let latest = state.orderedNotifications.first(where: { !$0.isRead }) {
+                        Text("Last one \(latest.relativeTime)")
+                            .font(Typography.s13)
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                }
+
+                Spacer()
+
+                Image(systemName: "chevron.right")
+                    .font(Typography.s13)
+                    .foregroundColor(.white.opacity(0.5))
+            }
+            .padding(12)
+            .background(Color.brandPrimary.opacity(0.18))
+            .cornerRadius(10)
+        }
+        .buttonStyle(.plain)
     }
 
     // MARK: - Activity Tab

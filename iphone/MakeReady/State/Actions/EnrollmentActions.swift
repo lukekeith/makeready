@@ -430,6 +430,61 @@ private let api: APIClientProtocol
         NSLog("📅 EnrollmentActions: Updated schedule title for \(scheduleId)")
     }
 
+    // MARK: - Study Sync
+
+    /// Get the study-sync status for an enrollment: its sync mode, the program
+    /// version its lessons reflect, whether newer versions exist (drift), and
+    /// the pending versions' AI change summaries.
+    @MainActor
+    func getSyncStatus(enrollmentId: String) async throws -> EnrollmentSyncStatus {
+        struct Response: Decodable {
+            let success: Bool
+            let sync: EnrollmentSyncStatus?
+            let error: String?
+        }
+        let response: Response = try await api.get(
+            "/api/enrollments/\(enrollmentId)/sync",
+            responseType: Response.self
+        )
+        guard response.success, let sync = response.sync else {
+            throw APIError.serverError(response.error ?? "Failed to load sync status")
+        }
+        // Write-through cache so the page renders synchronously next visit.
+        state.enrollmentSyncStatusById[enrollmentId] = sync
+        return sync
+    }
+
+    /// Change an enrollment's sync mode (OFF / AUTO / APPROVAL).
+    @MainActor
+    func updateSyncMode(enrollmentId: String, mode: EnrollmentSyncMode) async throws {
+        let response: APISuccessResponse = try await api.patch(
+            "/api/enrollments/\(enrollmentId)",
+            body: ["syncMode": mode.rawValue],
+            responseType: APISuccessResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to update sync mode")
+        }
+    }
+
+    /// Bring the enrollment's lessons up to the program's latest published
+    /// version (all-or-nothing; idempotent). Members who completed a lesson
+    /// stay pinned to the version they finished.
+    @MainActor
+    func applySyncUpdates(enrollmentId: String) async throws {
+        let response: APISuccessResponse = try await api.post(
+            "/api/enrollments/\(enrollmentId)/sync/apply",
+            body: [:],
+            responseType: APISuccessResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to apply updates")
+        }
+        // The schedule content may have changed — drop the cached details so
+        // the next EnrollmentSchedulePage visit refetches.
+        state.enrollmentDetailsById[enrollmentId] = nil
+    }
+
     // MARK: - Scheduled Activity Operations
 
     /// Toggle help visibility on a scheduled activity

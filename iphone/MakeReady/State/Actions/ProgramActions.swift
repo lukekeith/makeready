@@ -273,6 +273,46 @@ let api: APIClientProtocol
         return program
     }
 
+    // MARK: - Publish Updates (study sync)
+
+    /// Result of publishing curriculum updates as a new program version.
+    struct PublishUpdatesResult {
+        let alreadyUpToDate: Bool
+        let versionNumber: Int?
+        let changeSummary: String?
+    }
+
+    /// Cut an immutable program version from the current curriculum
+    /// (study-sync). AUTO enrollments receive it via the server fan-out;
+    /// APPROVAL/OFF enrollments are notified. Publishing an unchanged
+    /// program is a no-op (`alreadyUpToDate`).
+    @MainActor
+    func publishUpdates(programId: String) async throws -> PublishUpdatesResult {
+        struct VersionInfo: Decodable {
+            let versionNumber: Int
+            let changeSummary: String?
+        }
+        struct Response: Decodable {
+            let success: Bool
+            let alreadyUpToDate: Bool?
+            let version: VersionInfo?
+            let error: String?
+        }
+        let response: Response = try await api.post(
+            "/api/programs/\(programId)/publish-updates",
+            body: [:],
+            responseType: Response.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to publish updates")
+        }
+        return PublishUpdatesResult(
+            alreadyUpToDate: response.alreadyUpToDate ?? false,
+            versionNumber: response.version?.versionNumber,
+            changeSummary: response.version?.changeSummary
+        )
+    }
+
     // MARK: - Delete Program
 
     /// Delete a program

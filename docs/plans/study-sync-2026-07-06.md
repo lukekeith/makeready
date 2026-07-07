@@ -1,7 +1,7 @@
 # Study Program → Enrollment Sync (Versioning) — Design Spec
 
 **Date:** 2026-07-06
-**Status:** Phases 1–6 implemented on `feature/study-sync` — feature complete for web; iPhone consumption is future work
+**Status:** Phases 1–6 implemented on `feature/study-sync`, web + iPhone (iPhone is the primary management surface; iPhone build verification pending)
 **Scope:** Server (schema + APIs) first; client/iPhone consume later. Dashboard notification banner + modal is in scope; the enrollment sync-settings view launched *from* a notification is a later build (the notification payload must support it now).
 
 ## Problem
@@ -113,7 +113,40 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
 5. ✅ Notifications: dedupe + actions, summary endpoint. **Done 2026-07-06.**
 6. ✅ Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal. **Done 2026-07-06.**
 
-## Phase 6 implementation notes (2026-07-06)
+## Phase 6 — iPhone implementation notes (2026-07-06)
+
+The iPhone app is the primary curriculum-management surface, so all three
+phase-6 features exist natively in `/iphone` (Actions + @Observable pattern):
+
+- **Models/Actions.** `EnrollmentSyncMode`/`EnrollmentSyncStatus`/
+  `ProgramPendingVersion` in EnrollmentModels.swift; `getSyncStatus` /
+  `updateSyncMode` / `applySyncUpdates` in EnrollmentActions (apply also
+  invalidates `enrollmentDetailsById` so schedules refetch);
+  `ProgramActions.publishUpdates`. `AppNotification` gains
+  `actions`/`dedupeKey`; `NotificationData` gains `enrollmentId`.
+- **EnrollmentSyncPage** (new file, registered in pbxproj): sync toggle,
+  Automatic/Approval segmented chooser, pending versions with AI summaries,
+  Apply updates (DialogOverlay confirm). Cache-first via new
+  `AppState.enrollmentSyncStatusById` (transition-review B2 contract).
+  Entry points: (a) EnrollmentSchedulePage title gains a sync icon → outer
+  Bool SlideStack pushes the pane; (b) overlay Route
+  `.enrollmentSync(enrollmentId:)` for notification taps.
+- **Publish updates.** ProgramHomePage published-badge dialog now offers
+  Publish updates / Switch to Draft / Cancel; publish shows the cover
+  CardSpinnerOverlay while the version cuts (Claude summary takes seconds),
+  then a success ConfirmationOverlay with version + change summary, or an
+  "Already up to date" alert on a no-op.
+- **Notifications.** Feed rows render action buttons (BoxButton .sm);
+  study-sync rows/actions route via new `DeepLink.enrollmentSync` →
+  `NavDestination.enrollmentSync` → modal EnrollmentSyncPage (exhaustive
+  switches preserved, /nav-route pattern). APNs taps with type
+  `STUDY_SYNC_*` read `enrollmentId` from the payload. MainHome "Home" tab
+  gains an unread-notifications banner (opens `.notificationFeed`); unread
+  count loads with home data.
+- **Verification:** transition-review PASS; simulator build/run pending
+  (requires explicit user go-ahead per project rules).
+
+## Phase 6 — web implementation notes (2026-07-06)
 
 All UI landed in the **leader app** (the live `/admin` SPA at
 `client/resources/js/islands/leader-app/`), NOT the legacy PrimeVue

@@ -517,6 +517,34 @@ struct ActivityCompletionStat: Codable, Equatable {
     let completedCount: Int
 }
 
+// MARK: - Study Sync (enrollment ↔ program version tracking)
+
+/// How an enrollment tracks curriculum updates published to its study program.
+/// Raw values match the server's `EnrollmentSyncMode` enum.
+enum EnrollmentSyncMode: String, Codable, Equatable {
+    case off = "OFF"            // frozen copy (legacy behavior)
+    case auto = "AUTO"          // published updates apply immediately
+    case approval = "APPROVAL"  // leader approves before updates apply
+}
+
+/// Sync status for one enrollment, from `GET /api/enrollments/:id/sync`.
+/// `hasDrift` = the program has published versions this enrollment hasn't
+/// received; `pendingVersions` carry the AI change summaries (newest first).
+struct EnrollmentSyncStatus: Codable, Equatable {
+    let syncMode: EnrollmentSyncMode
+    let syncedProgramVersionNumber: Int?
+    let currentVersionNumber: Int?
+    let hasDrift: Bool
+    let pendingVersions: [ProgramPendingVersion]
+}
+
+/// One published program version an enrollment hasn't received yet.
+struct ProgramPendingVersion: Codable, Equatable {
+    let versionNumber: Int
+    let publishedAt: Date
+    let changeSummary: String?
+}
+
 // MARK: - Unenroll Info
 
 /// Information about an enrollment's status for the unenroll flow

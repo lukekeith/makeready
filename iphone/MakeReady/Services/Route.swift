@@ -62,6 +62,9 @@ enum Route: Equatable, Hashable {
     case programEnrollmentFlow
     case enrollmentSchedule
     case editEnrollmentDay
+    /// Study Sync settings for one enrollment (study-sync notification
+    /// actions / deep links). Per-entity so two enrollments never collide.
+    case enrollmentSync(enrollmentId: String)
     case memberProfile
     case memberRequestProfile
     case memberRequests
@@ -117,6 +120,7 @@ enum Route: Equatable, Hashable {
         case .programEnrollmentFlow: return "programEnrollmentFlow"
         case .enrollmentSchedule: return "enrollmentSchedule"
         case .editEnrollmentDay: return "editEnrollmentDay"
+        case .enrollmentSync(let enrollmentId): return "enrollmentSync_\(enrollmentId)"
         case .memberProfile: return "memberProfile"
         case .memberRequestProfile: return "memberRequestProfile"
         case .memberRequests: return "memberRequests"

@@ -35,6 +35,9 @@ enum NavDestination: Equatable {
     /// Library tab; the `.makeready` file-import flow consumes the pending
     /// deep link itself (MainLibrary observes and clears it).
     case libraryImport
+    /// Study Sync settings for one enrollment, presented as a modal
+    /// (study-sync notification actions).
+    case enrollmentSync(enrollmentId: String)
 }
 
 @Observable
@@ -77,6 +80,10 @@ final class NavigationCoordinator {
 
         case .libraryImport:
             tab = .library
+
+        case .enrollmentSync(let enrollmentId):
+            tab = .groups
+            presentEnrollmentSync(enrollmentId: enrollmentId)
         }
     }
 
@@ -95,6 +102,11 @@ final class NavigationCoordinator {
             navigate(to: .groupHome(groupId: groupId))
             PushNotificationManager.shared.clearPendingDeepLink()
 
+        case .enrollmentSync(let enrollmentId):
+            Log.nav.info("enrollment sync deep link")
+            navigate(to: .enrollmentSync(enrollmentId: enrollmentId))
+            PushNotificationManager.shared.clearPendingDeepLink()
+
         case .importFile:
             NSLog("🔗 NavigationCoordinator: .makeready import deep link")
             // MainLibrary observes pendingDeepLink and runs the import
@@ -104,6 +116,24 @@ final class NavigationCoordinator {
 
         case .none:
             break
+        }
+    }
+
+    /// Present the Study Sync settings page as a modal overlay (the
+    /// `.enrollmentSync` deep-link destination).
+    private func presentEnrollmentSync(enrollmentId: String) {
+        guard let overlayManager else {
+            Log.nav.error("overlayManager not wired; dropping enrollmentSync navigation")
+            return
+        }
+        overlayManager.present(.enrollmentSync(enrollmentId: enrollmentId)) {
+            EnrollmentSyncPage(
+                enrollmentId: enrollmentId,
+                onDismiss: { [weak overlayManager] in
+                    overlayManager?.dismiss(.enrollmentSync(enrollmentId: enrollmentId))
+                },
+                leftIcon: "xmark"
+            )
         }
     }
 
