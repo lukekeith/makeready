@@ -14,6 +14,7 @@ import { extractImageMetadata } from '../services/media-metadata.js'
 import { suggestProgramTags } from '../services/claude.js'
 import {
   publishProgramVersion,
+  previewProgramPublish,
   findIncompleteReadActivityDay,
   PublishConflictError,
 } from '../services/study-program-publish.js'
@@ -1044,6 +1045,62 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
     }
     console.error('Error updating program:', error)
     res.status(500).json({ success: false, error: 'Failed to update program' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/programs/{id}/publish-preview:
+ *   get:
+ *     tags: [Programs]
+ *     summary: Preview what "Publish updates" would publish
+ *     description: |
+ *       Read-only diff of the current curriculum vs the latest published
+ *       version — which lessons were added/changed/removed/moved — plus when
+ *       the program was last published. Shown to the leader before they
+ *       confirm a publish. Cuts nothing and calls no AI.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Publish preview
+ *       400:
+ *         description: Program is not published
+ *       404:
+ *         description: Program not found
+ */
+router.get('/programs/:id/publish-preview', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const program = await prisma.studyProgram.findFirst({
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
+      select: { id: true, isPublished: true },
+    })
+
+    if (!program) {
+      return res.status(404).json({ success: false, error: 'Program not found' })
+    }
+
+    if (!program.isPublished) {
+      return res.status(400).json({
+        success: false,
+        error: 'Publish the program first — updates can only be published for a published program.',
+      })
+    }
+
+    const preview = await previewProgramPublish(id)
+    res.json({ success: true, preview })
+  } catch (error) {
+    console.error('Error previewing program publish:', error)
+    res.status(500).json({ success: false, error: 'Failed to preview publish' })
   }
 })
 

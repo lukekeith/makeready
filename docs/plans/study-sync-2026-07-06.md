@@ -93,6 +93,7 @@ Extend existing `Notification` model + `notification.ts` service (already pairs 
 
 ### API surface (server)
 
+- `GET  /programs/:id/publish-preview` — read-only diff vs latest version + last-published info (pre-publish confirmation)
 - `POST /study-programs/:id/publish` — cut version, enqueue fan-out
 - `GET  /study-programs/:id/versions` — version history + summaries
 - `GET  /enrollments/:id/sync` — sync mode, synced version, drift + pending change summary
@@ -143,6 +144,42 @@ phase-6 features exist natively in `/iphone` (Actions + @Observable pattern):
   `STUDY_SYNC_*` read `enrollmentId` from the payload. MainHome "Home" tab
   gains an unread-notifications banner (opens `.notificationFeed`); unread
   count loads with home data.
+- **Enrollment-time toggle (user-requested 2026-07-06):** the Confirm
+  Enrollment step (`ConfirmEnrollmentPage`) now carries a "Sync to study"
+  ToggleControl below "Require response", with the Automatic/Approval
+  segmented chooser when on. `EnrollmentData.syncMode` travels through both
+  create paths (GroupHomePage + ProgramHomePage) into
+  `EnrollmentActions.createEnrollment` → `POST /api/enrollments { syncMode }`
+  (the server already accepted it, defaulting OFF). The web leader-app has
+  no enrollment-creation flow yet, so enrollment-time sync is iPhone-only.
+- **Pre-publish preview (user-requested 2026-07-06):** "Publish updates" now
+  loads `GET /programs/:id/publish-preview` (new endpoint;
+  `previewProgramPublish` in study-program-publish.ts — same snapshot+diff as
+  publish, read-only, no Claude call) and shows a confirmation with when the
+  program was last published (version + date) and what changed since: counts
+  plus per-day detail capped at 6 lines. Up-to-date programs short-circuit to
+  the "Already up to date" alert without publishing. Same flow on web
+  (`runPublishFlow` in program-home-modal; DialogOverlay message got
+  `white-space: pre-line`) and iPhone (`loadPublishPreview` +
+  preview DialogOverlay in ProgramHomePage). Endpoint verified live: detects
+  a title edit as `changed`, cuts nothing, reverts clean.
+- **Baseline backfill (2026-07-06, after device testing):** programs published
+  BEFORE versioning shipped had no StudyProgramVersion at all — the publish
+  modal said "never been published as a version" and had nothing to diff, so
+  curriculum edits showed no counts. `backfill:study-sync` gained Step 7
+  (cut a v1 baseline from current curriculum for every published program with
+  no versions; changeSummary/changedLessonIds/publishedById null) and Step 8
+  (stamp those programs' enrollments `syncedProgramVersionNumber=1` ONLY when
+  their schedule-hash content matches v1 — enrollments whose curriculum was
+  edited post-enrollment stay drifted so applying v1 delivers those edits; no
+  notifications either way). Ran locally (4 programs baselined; King Saul's
+  enrollment correctly left drifted). **Must run on staging/prod after
+  deploy** (idempotent). Caveat: edits made before the baseline are inside
+  v1 — they reach groups via the drift/apply path, but the publish modal
+  can't count them (no pre-edit snapshot exists); only post-baseline edits
+  show in the diff. Modal copy for the no-version case softened, and the
+  summary condensed to a count matrix ("2 changed · 1 added") + capped
+  per-day lines with truncated titles.
 - **Verification:** transition-review PASS; simulator build/run pending
   (requires explicit user go-ahead per project rules).
 

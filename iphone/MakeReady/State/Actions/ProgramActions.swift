@@ -282,6 +282,52 @@ let api: APIClientProtocol
         let changeSummary: String?
     }
 
+    /// What "Publish updates" would publish — read-only diff vs the latest
+    /// version plus when the program was last published. Shown to the leader
+    /// before confirming.
+    struct PublishPreview: Decodable {
+        struct LastPublished: Decodable {
+            let versionNumber: Int
+            let publishedAt: Date
+        }
+        struct Lesson: Decodable {
+            let dayNumber: Int
+            let title: String?
+        }
+        struct Moved: Decodable {
+            let title: String?
+            let fromDay: Int
+            let toDay: Int
+        }
+        struct Changes: Decodable {
+            let added: [Lesson]
+            let changed: [Lesson]
+            let removed: [Lesson]
+            let moved: [Moved]
+        }
+        let upToDate: Bool
+        let lastPublished: LastPublished?
+        /// nil on a baseline (no previous version to diff against).
+        let changes: Changes?
+    }
+
+    @MainActor
+    func getPublishPreview(programId: String) async throws -> PublishPreview {
+        struct Response: Decodable {
+            let success: Bool
+            let preview: PublishPreview?
+            let error: String?
+        }
+        let response: Response = try await api.get(
+            "/api/programs/\(programId)/publish-preview",
+            responseType: Response.self
+        )
+        guard response.success, let preview = response.preview else {
+            throw APIError.serverError(response.error ?? "Failed to load publish preview")
+        }
+        return preview
+    }
+
     /// Cut an immutable program version from the current curriculum
     /// (study-sync). AUTO enrollments receive it via the server fan-out;
     /// APPROVAL/OFF enrollments are notified. Publishing an unchanged

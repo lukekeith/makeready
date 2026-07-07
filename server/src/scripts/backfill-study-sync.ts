@@ -18,8 +18,10 @@
  */
 
 import { randomUUID } from 'crypto'
+import { Prisma } from '../generated/prisma/index.js'
 import { prisma } from '../lib/prisma.js'
 import { hashLessonContent, LESSON_CONTENT_INCLUDE } from '../services/lesson-content-hash.js'
+import { buildSnapshotLessons } from '../services/study-program-publish.js'
 
 const CHUNK = 500
 
@@ -97,6 +99,104 @@ async function main() {
       AND sa."versionId" IS NULL
   `
   console.log(`   Step 6: versionId stamped on ${stampedCount} activities`)
+
+  // Step 7: baseline StudyProgramVersion (v1) for every published program that
+  // has none — programs published before versioning shipped. The baseline is
+  // the CURRENT curriculum (no historical snapshot exists), changeSummary and
+  // changedLessonIds null, publishedById null (system cut). Without this,
+  // "Publish updates" has nothing to diff against and the publish modal can't
+  // summarize pending changes.
+  const unversionedPrograms = await prisma.studyProgram.findMany({
+    where: { isPublished: true, versions: { none: {} } },
+    include: {
+      lessons: { orderBy: { dayNumber: 'asc' }, include: LESSON_CONTENT_INCLUDE },
+    },
+  })
+  console.log(`   Step 7: ${unversionedPrograms.length} published programs need a baseline version`)
+
+  const baselinedProgramIds: string[] = []
+  for (const program of unversionedPrograms) {
+    const snapshotLessons = buildSnapshotLessons(program.lessons as any[])
+    const lessonHashes = Object.fromEntries(snapshotLessons.map((l) => [l.id, l.contentHash]))
+    try {
+      await prisma.$transaction([
+        prisma.studyProgramVersion.create({
+          data: {
+            studyProgramId: program.id,
+            versionNumber: 1,
+            publishedById: null,
+            changeSummary: null,
+            snapshot: { lessons: snapshotLessons } as unknown as Prisma.InputJsonValue,
+            lessonHashes: lessonHashes as unknown as Prisma.InputJsonValue,
+            changedLessonIds: Prisma.JsonNull,
+          },
+        }),
+        prisma.studyProgram.update({
+          where: { id: program.id },
+          data: { currentVersionNumber: 1 },
+        }),
+      ])
+      baselinedProgramIds.push(program.id)
+      console.log(`      baselined '${program.name}' at v1 (${snapshotLessons.length} lessons)`)
+    } catch (error) {
+      // Unique (studyProgramId, versionNumber) — a concurrent run won; fine.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') continue
+      throw error
+    }
+  }
+
+  // Step 8: stamp enrollments of freshly-baselined programs as in-sync at v1
+  // — but ONLY where their enrolled content actually matches v1's hashes.
+  // Curriculum edited after enrollment but before this backfill IS detectable
+  // (schedule v1 hashes were cut earlier from the then-current curriculum), so
+  // enrollments with real content drift stay unstamped: they show
+  // "Updates available — version 1" and applying delivers the edits. No
+  // notifications are sent either way (this is a backfill, not a publish).
+  if (baselinedProgramIds.length > 0) {
+    let inSync = 0
+    let drifted = 0
+    for (const programId of baselinedProgramIds) {
+      const version = await prisma.studyProgramVersion.findFirst({
+        where: { studyProgramId: programId, versionNumber: 1 },
+        select: { lessonHashes: true },
+      })
+      const hashes = (version?.lessonHashes ?? {}) as Record<string, string>
+
+      const enrollments = await prisma.enrollment.findMany({
+        where: { studyProgramId: programId, syncedProgramVersionNumber: null },
+        select: {
+          id: true,
+          lessonSchedules: {
+            where: { removedAt: null },
+            select: {
+              lessonId: true,
+              currentVersion: { select: { sourceContentHash: true } },
+            },
+          },
+        },
+      })
+
+      for (const enrollment of enrollments) {
+        const hasContentDrift = enrollment.lessonSchedules.some(
+          (s) =>
+            s.lessonId !== null &&
+            hashes[s.lessonId] !== undefined &&
+            s.currentVersion?.sourceContentHash != null &&
+            s.currentVersion.sourceContentHash !== hashes[s.lessonId]
+        )
+        if (hasContentDrift) {
+          drifted++
+          continue
+        }
+        await prisma.enrollment.update({
+          where: { id: enrollment.id },
+          data: { syncedProgramVersionNumber: 1 },
+        })
+        inSync++
+      }
+    }
+    console.log(`   Step 8: ${inSync} enrollments baselined at v1, ${drifted} left drifted (content differs from v1)`)
+  }
 
   // Verify invariants
   const [schedulesMissing, activitiesMissing] = await Promise.all([

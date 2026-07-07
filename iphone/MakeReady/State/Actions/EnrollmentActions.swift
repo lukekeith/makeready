@@ -204,7 +204,8 @@ private let api: APIClientProtocol
         enabledDays: [String],
         smsTime: String?,
         timezone: String?,
-        requireResponse: Bool = false
+        requireResponse: Bool = false,
+        syncMode: EnrollmentSyncMode = .off
     ) async throws -> Enrollment {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -214,7 +215,8 @@ private let api: APIClientProtocol
             "studyProgramId": studyProgramId,
             "startDate": dateFormatter.string(from: startDate),
             "enabledDays": enabledDays,
-            "requireResponse": requireResponse
+            "requireResponse": requireResponse,
+            "syncMode": syncMode.rawValue
         ]
 
         if let smsTime = smsTime {

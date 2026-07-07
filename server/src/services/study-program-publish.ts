@@ -81,6 +81,85 @@ export async function findIncompleteReadActivityDay(programId: string): Promise<
   return emptyReadActivity?.lesson?.dayNumber ?? null
 }
 
+/** One lesson entry in a publish preview, identified for the leader. */
+export interface PreviewLesson {
+  dayNumber: number
+  title: string | null
+}
+
+export interface PublishPreview {
+  /** Nothing to publish — curriculum matches the latest version. */
+  upToDate: boolean
+  /** Latest published version, or null when no version exists yet (baseline pending). */
+  lastPublished: { versionNumber: number; publishedAt: Date } | null
+  /** Pending diff vs the latest version; null on a baseline (nothing to diff). */
+  changes: {
+    added: PreviewLesson[]
+    changed: PreviewLesson[]
+    removed: PreviewLesson[]
+    moved: Array<{ title: string | null; fromDay: number; toDay: number }>
+  } | null
+}
+
+/**
+ * Preview what "Publish updates" would do — the same snapshot + diff the
+ * publish performs, computed read-only (no version cut, no Claude call).
+ * Shown to the leader before confirming, alongside when the program was
+ * last published.
+ */
+export async function previewProgramPublish(programId: string): Promise<PublishPreview> {
+  const program = await prisma.studyProgram.findUniqueOrThrow({
+    where: { id: programId },
+    include: {
+      lessons: {
+        orderBy: { dayNumber: 'asc' },
+        include: LESSON_CONTENT_INCLUDE,
+      },
+    },
+  })
+
+  const snapshotLessons = buildSnapshotLessons(program.lessons as any[])
+
+  const latest = await prisma.studyProgramVersion.findFirst({
+    where: { studyProgramId: programId },
+    orderBy: { versionNumber: 'desc' },
+    select: { versionNumber: true, publishedAt: true, snapshot: true },
+  })
+
+  if (!latest) {
+    return { upToDate: false, lastPublished: null, changes: null }
+  }
+
+  const lastPublished = {
+    versionNumber: latest.versionNumber,
+    publishedAt: latest.publishedAt,
+  }
+  const previousLessons: SnapshotLesson[] = (latest.snapshot as any)?.lessons ?? []
+
+  if (isSameContent(previousLessons, snapshotLessons)) {
+    return { upToDate: true, lastPublished, changes: null }
+  }
+
+  const diff = diffLessons(previousLessons, snapshotLessons)
+  const prevById = new Map(previousLessons.map((l) => [l.id, l]))
+  const nextById = new Map(snapshotLessons.map((l) => [l.id, l]))
+
+  return {
+    upToDate: false,
+    lastPublished,
+    changes: {
+      added: diff.added.map((id) => pickDayTitle(nextById.get(id)!)),
+      changed: diff.changed.map((id) => pickDayTitle(nextById.get(id)!)),
+      removed: diff.removed.map((id) => pickDayTitle(prevById.get(id)!)),
+      moved: diff.moved.map((id) => ({
+        title: nextById.get(id)!.title,
+        fromDay: prevById.get(id)!.dayNumber,
+        toDay: nextById.get(id)!.dayNumber,
+      })),
+    },
+  }
+}
+
 /**
  * Cut a new StudyProgramVersion for the program (or report alreadyUpToDate).
  *
@@ -104,16 +183,7 @@ export async function publishProgramVersion(params: {
     },
   })
 
-  const snapshotLessons: SnapshotLesson[] = program.lessons.map((lesson) => ({
-    id: lesson.id,
-    dayNumber: lesson.dayNumber,
-    title: lesson.title,
-    contentHash: hashLessonContent(lesson as any),
-    content: canonicalLessonContent(lesson as any),
-    activityIds: [...lesson.activities]
-      .sort((a, b) => a.orderNumber - b.orderNumber)
-      .map((a) => a.id),
-  }))
+  const snapshotLessons = buildSnapshotLessons(program.lessons as any[])
 
   const latest = await prisma.studyProgramVersion.findFirst({
     where: { studyProgramId: programId },
@@ -209,6 +279,20 @@ export async function publishProgramVersion(params: {
     }
     throw error
   }
+}
+
+/** Exported for the study-sync backfill (baseline version cuts). */
+export function buildSnapshotLessons(lessons: any[]): SnapshotLesson[] {
+  return lessons.map((lesson) => ({
+    id: lesson.id,
+    dayNumber: lesson.dayNumber,
+    title: lesson.title,
+    contentHash: hashLessonContent(lesson),
+    content: canonicalLessonContent(lesson),
+    activityIds: [...lesson.activities]
+      .sort((a: any, b: any) => a.orderNumber - b.orderNumber)
+      .map((a: any) => a.id),
+  }))
 }
 
 function isSameContent(prev: SnapshotLesson[], next: SnapshotLesson[]): boolean {

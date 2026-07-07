@@ -16,6 +16,8 @@ struct EnrollmentData {
     let enabledDays: Set<Int>
     var smsTime: Date?
     var requireResponse: Bool = false
+    /// "Sync to study" — set on the Confirm step, travels with the data.
+    var syncMode: EnrollmentSyncMode = .off
 }
 
 struct ConfirmEnrollmentPage: View {
@@ -24,6 +26,11 @@ struct ConfirmEnrollmentPage: View {
     let onConfirm: (EnrollmentData, String, Bool) -> Void  // Pass enrollment data, smsTime, and requireResponse for parent to create
 
     @State private var requireResponse: Bool = true
+
+    // "Sync to study" (study sync): off = frozen copy; on defaults to
+    // Automatic, with an Approval-required alternative.
+    @State private var syncToStudy: Bool = false
+    @State private var syncModeOption: String = "Automatic"
 
     @State private var smsTime: Date = {
         // Default to 7:30 AM
@@ -80,6 +87,35 @@ struct ConfirmEnrollmentPage: View {
                                 description: "Members must submit a response for each activity before continuing.",
                                 isOn: $requireResponse
                             )
+                        }
+
+                        // Sync to Study Section (study sync)
+                        FieldGroup {
+                            ToggleControl(
+                                title: "Sync to study",
+                                description: "Keep this group's lessons up to date when the study publishes changes. Completed lessons are never changed.",
+                                isOn: $syncToStudy
+                            )
+                        }
+
+                        if syncToStudy {
+                            VStack(spacing: 8) {
+                                MenuInput(
+                                    label: "Updates",
+                                    options: ["Automatic", "Approval"],
+                                    selectedOption: $syncModeOption,
+                                    style: .segmented
+                                )
+
+                                Text(
+                                    syncModeOption == "Approval"
+                                        ? "You review updates and choose when to apply them."
+                                        : "Published updates apply to future lessons right away."
+                                )
+                                .font(Typography.s13)
+                                .foregroundColor(.white.opacity(0.5))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -364,8 +400,13 @@ struct ConfirmEnrollmentPage: View {
         // Format time as HH:mm
         let smsTimeString = DateFormatters.time24Hour.string(from: smsTime)
 
-        // Pass data to parent - parent will handle API call and show skeleton
-        onConfirm(enrollmentData, smsTimeString, requireResponse)
+        // Pass data to parent - parent will handle API call and show skeleton.
+        // syncMode travels inside the data (the closure signature predates it).
+        var data = enrollmentData
+        data.syncMode = syncToStudy
+            ? (syncModeOption == "Approval" ? .approval : .auto)
+            : .off
+        onConfirm(data, smsTimeString, requireResponse)
     }
 }
 

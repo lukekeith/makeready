@@ -153,10 +153,13 @@ struct EnrollmentSchedulePage: View {
                 return
             }
             // Load schedule and completion analytics concurrently so fills are
-            // ready when content appears.
+            // ready when content appears. Sync status prefetches alongside so
+            // the Study Sync pane's slide-in renders content from frame 1
+            // (cache-first contract — parent prefetch).
             async let details: Void = loadEnrollmentDetails()
             async let stats: Void = loadCompletionStats()
-            _ = await (details, stats)
+            async let sync: Void = prefetchSyncStatus()
+            _ = await (details, stats, sync)
         }
         .alert("Delete Lesson?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -376,6 +379,14 @@ struct EnrollmentSchedulePage: View {
                 isLoading = false
             }
         }
+    }
+
+    /// Warm the Study Sync pane's cache (enrollmentSyncStatusById) so its
+    /// slide-in renders synchronously instead of popping mid-animation.
+    private func prefetchSyncStatus() async {
+        guard previewDetails == nil else { return }
+        // Silent: prefetch only — the pane loads for itself when opened.
+        _ = try? await EnrollmentActions().getSyncStatus(enrollmentId: enrollment.id)
     }
 
     /// Load group-completion analytics. Failures are non-fatal — the cards just

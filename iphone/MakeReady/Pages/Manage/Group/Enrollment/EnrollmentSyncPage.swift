@@ -27,9 +27,17 @@ struct EnrollmentSyncPage: View {
     @State private var isApplying = false
     @State private var showApplyDialog = false
 
+    /// Gates the spinner→content swap on a COLD open: a response landing
+    /// mid-slide is a structural change outside the animation transaction and
+    /// pops to its final position (Class 3). The spinner renders from frame 1
+    /// and rides the slide; content swaps in once the animation has settled.
+    /// A warm cache skips the gate — content itself rides from frame 1.
+    @State private var readyToShowContent: Bool
+
     // Cache-first (SWIFTUI_TRANSITIONS.md § Pre-loading Content): render the
     // cached status synchronously so content rides the slide/modal animation;
-    // the .task refresh replaces it silently.
+    // the .task refresh replaces it silently. EnrollmentSchedulePage warms
+    // this cache when it loads, so the sync icon's first tap is usually warm.
     init(
         enrollmentId: String,
         onDismiss: @escaping () -> Void,
@@ -44,6 +52,7 @@ struct EnrollmentSyncPage: View {
         let cached = AppState.shared.enrollmentSyncStatusById[enrollmentId]
         _status = State(initialValue: cached)
         _isLoading = State(initialValue: cached == nil)
+        _readyToShowContent = State(initialValue: cached != nil)
     }
 
     // MenuInput(.segmented) works on strings — map to/from EnrollmentSyncMode.
@@ -62,7 +71,7 @@ struct EnrollmentSyncPage: View {
                 onIconTap: { onDismiss() }
             )
 
-            if isLoading {
+            if isLoading || !readyToShowContent {
                 Spacer()
                 ProgressView()
                     .tint(.white.opacity(0.5))
@@ -149,6 +158,15 @@ struct EnrollmentSyncPage: View {
             }
         }
         .background(Color.appBackground)
+        .task {
+            // Cold open: hold the structure stable until the slide/modal
+            // settles (SlideStack is 0.3s, modal appear 0.4s) so the loaded
+            // content doesn't swap in mid-animation and pop (Class 3).
+            if !readyToShowContent {
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                readyToShowContent = true
+            }
+        }
         .task { await loadStatus() }
         .overlay {
             DialogOverlay(

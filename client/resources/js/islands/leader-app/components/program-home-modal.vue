@@ -19,7 +19,12 @@ import {
   type OverlayContext,
 } from '../overlay/overlay.store'
 import { useConfirmDialog } from '../overlay/confirm-dialog.store'
-import { useLeaderProgram, type ExportPreview } from '../stores/leader-program.store'
+import {
+  useLeaderProgram,
+  type ExportPreview,
+  type PublishPreview,
+  type PublishPreviewLesson,
+} from '../stores/leader-program.store'
 
 // `preloaded`: skip the initial fetch when the store already holds this program
 // (the create flow seeds it from the POST response — iOS renders Program Home
@@ -288,8 +293,7 @@ async function onPublishedBadgeTap(): Promise<void> {
   if (!p || publishingUpdates.value || togglingPublish.value) return
   const dialog = confirmDialog.present({
     title: 'Published study',
-    message:
-      'Publish your latest edits to enrolled groups as a new version, or switch this study back to draft (no longer available for enrollment).',
+    message: 'Checking for changes since the last publish…',
     buttons: [
       { label: 'Publish updates', style: 'primary' },
       { label: 'Switch to Draft', style: 'secondary' },
@@ -297,7 +301,29 @@ async function onPublishedBadgeTap(): Promise<void> {
     ],
     sticky: true,
   })
+
+  // The badge tap is the decision moment — the pending-changes summary loads
+  // straight into THIS dialog (last published + what changed since). `settled`
+  // stops a late response from patching whatever dialog replaced this one.
+  let settled = false
+  void store
+    .loadPublishPreview(p.id)
+    .then((preview) => {
+      if (!settled) dialog.update({ message: publishPreviewMessage(preview) })
+    })
+    .catch(() => {
+      // Silent: preview is advisory — fall back to the generic message; the
+      // publish itself is still no-op-guarded server-side.
+      if (!settled) {
+        dialog.update({
+          message:
+            'Publish your latest edits to enrolled groups as a new version, or switch this study back to draft.',
+        })
+      }
+    })
+
   const choice = await dialog.choice
+  settled = true
   if (choice === 0) {
     await runPublishUpdates(dialog)
     return
@@ -312,6 +338,58 @@ async function onPublishedBadgeTap(): Promise<void> {
   } finally {
     togglingPublish.value = false
   }
+}
+
+// Condensed preview: last-published line, a count matrix ("2 changed ·
+// 1 added"), then capped per-day lines. \n renders via pre-line message CSS.
+function publishPreviewMessage(preview: PublishPreview): string {
+  const paragraphs: string[] = []
+
+  if (preview.lastPublished) {
+    const date = new Date(preview.lastPublished.publishedAt).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+    paragraphs.push(`Last published ${date} (version ${preview.lastPublished.versionNumber})`)
+  } else {
+    paragraphs.push(
+      "Changes aren't tracked for this study yet — publishing creates version 1, the baseline enrolled groups sync to.",
+    )
+  }
+
+  if (preview.upToDate) {
+    paragraphs.push('No changes since — enrolled groups have the latest version.')
+    return paragraphs.join('\n\n')
+  }
+
+  const changes = preview.changes
+  if (changes) {
+    const matrix: string[] = []
+    if (changes.changed.length) matrix.push(`${changes.changed.length} changed`)
+    if (changes.added.length) matrix.push(`${changes.added.length} added`)
+    if (changes.removed.length) matrix.push(`${changes.removed.length} removed`)
+    if (changes.moved.length) matrix.push(`${changes.moved.length} moved`)
+    if (matrix.length) paragraphs.push(matrix.join(' · '))
+
+    const shortTitle = (title: string | null) =>
+      !title ? '' : title.length > 24 ? ` — ${title.slice(0, 24)}…` : ` — ${title}`
+    const line = (l: PublishPreviewLesson, verb: string) =>
+      `Day ${l.dayNumber} ${verb}${shortTitle(l.title)}`
+    let detail = [
+      ...changes.changed.map((l) => line(l, 'changed')),
+      ...changes.added.map((l) => line(l, 'added')),
+      ...changes.removed.map((l) => line(l, 'removed')),
+      ...changes.moved.map((m) => `Day ${m.fromDay} → ${m.toDay} moved${shortTitle(m.title)}`),
+    ]
+    const cap = 5
+    if (detail.length > cap) {
+      detail = [...detail.slice(0, cap), `+ ${detail.length - cap} more`]
+    }
+    paragraphs.push(detail.join('\n'))
+  }
+
+  paragraphs.push('Syncing groups receive these on publish.')
+  return paragraphs.join('\n\n')
 }
 
 // Sticky-dialog publish (the add-day pattern): the tapped button flips to

@@ -21,6 +21,24 @@ export interface PublishUpdatesResult {
   version: { versionNumber: number; changeSummary: string | null } | null
 }
 
+// GET /api/programs/:id/publish-preview — read-only diff vs the latest
+// version + when it was last published, shown before confirming a publish.
+export interface PublishPreviewLesson {
+  dayNumber: number
+  title: string | null
+}
+
+export interface PublishPreview {
+  upToDate: boolean
+  lastPublished: { versionNumber: number; publishedAt: string } | null
+  changes: {
+    added: PublishPreviewLesson[]
+    changed: PublishPreviewLesson[]
+    removed: PublishPreviewLesson[]
+    moved: Array<{ title: string | null; fromDay: number; toDay: number }>
+  } | null
+}
+
 // iOS ExportPreviewData (ProgramHomePage.swift) — parsed from
 // GET /api/programs/:id/export-preview → preview.counts / activityTypes.
 export interface ExportPreview {
@@ -789,6 +807,18 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     }
   }
 
+  // Read-only preview of what "Publish updates" would publish.
+  async function loadPublishPreview(id: string): Promise<PublishPreview> {
+    try {
+      const res = await axios.get(`/admin/api/programs/${id}/publish-preview`)
+      const preview = res.data?.preview
+      if (!preview) throw new Error(res.data?.error ?? 'Failed to load publish preview')
+      return preview as PublishPreview
+    } catch (err) {
+      throw new Error(message(err, "Couldn't load the pending changes"))
+    }
+  }
+
   // ── Publish updates (study-sync phase 6) — cut a new StudyProgramVersion
   //    from the current curriculum. AUTO enrollments apply it via the server
   //    fan-out; APPROVAL/OFF enrollments get a notification. A no-change
@@ -965,6 +995,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     createProgram,
     addTags,
     setPublished,
+    loadPublishPreview,
     publishUpdates,
     loadExportPreview,
     exportProgram,

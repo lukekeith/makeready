@@ -136,10 +136,14 @@ struct ProgramHomePage: View {
     @State private var showDraftAlert = false
     @State private var showPublishBlockedAlert = false
 
-    // Publish updates (study sync) — cover spinner while the version is cut,
-    // then an alert for the no-op case (the success case presents a
-    // ConfirmationOverlay composed from the API result).
+    // Publish updates (study sync). Tapping the Published badge kicks off a
+    // read-only preview fetch; the "Published study" dialog opens immediately
+    // with "Checking for changes…" and the summary (last published + what
+    // changed since) fills in IN PLACE when the preview lands. Publish itself
+    // shows the cover spinner; a no-op publish alerts.
     @State private var isPublishingUpdates = false
+    @State private var publishPreview: ProgramActions.PublishPreview?
+    @State private var publishPreviewFailed = false
     @State private var showAlreadyUpToDateAlert = false
 
     // Preview modal — uses IdentifiableURL so fullScreenCover(item:) triggers
@@ -273,7 +277,8 @@ struct ProgramHomePage: View {
                     enabledDays: enabledDayStrings,
                     smsTime: smsTime,
                     timezone: TimeZone.current.identifier,
-                    requireResponse: requireResponse
+                    requireResponse: requireResponse,
+                    syncMode: enrollmentData.syncMode
                 )
                 Log.state.info("Created enrollment: \(enrollment.id, privacy: .private)")
 
@@ -477,6 +482,11 @@ struct ProgramHomePage: View {
                                     if !(program.isPublished ?? false) && !lessonsWithoutActivities.isEmpty {
                                         showPublishBlockedAlert = true
                                     } else {
+                                        // Published: the dialog shows the pending-changes
+                                        // summary — start loading it as the dialog opens.
+                                        if program.isPublished == true {
+                                            fetchPublishPreview(programId: program.id)
+                                        }
                                         showPublishDialog = true
                                     }
                                 } label: {
@@ -548,7 +558,7 @@ struct ProgramHomePage: View {
                 isPresented: $showPublishDialog,
                 title: program.isPublished == true ? "Published study" : "Publish this study?",
                 message: program.isPublished == true
-                    ? "Publish your latest edits to enrolled groups as a new version, or switch this study back to draft (no longer available for enrollment)."
+                    ? publishedDialogMessage
                     : "Publishing the study will make it available for group enrollment.",
                 buttons: program.isPublished == true
                     ? [
@@ -806,6 +816,88 @@ struct ProgramHomePage: View {
                 )
             }
         }
+    }
+
+    /// The "Published study" dialog message — "Checking…" until the preview
+    /// lands, then the composed summary (the DialogOverlay re-renders live
+    /// from this state). Falls back to the generic text if the preview fails.
+    private var publishedDialogMessage: String {
+        if let preview = publishPreview {
+            return publishPreviewMessage(preview)
+        }
+        if publishPreviewFailed {
+            return "Publish your latest edits to enrolled groups as a new version, or switch this study back to draft."
+        }
+        return "Checking for changes since the last publish…"
+    }
+
+    /// Kicked off as the badge dialog opens — loads the read-only diff that
+    /// fills the dialog's message in place.
+    private func fetchPublishPreview(programId: String) {
+        publishPreview = nil
+        publishPreviewFailed = false
+
+        Task {
+            do {
+                let preview = try await ProgramActions().getPublishPreview(programId: programId)
+                await MainActor.run { publishPreview = preview }
+            } catch {
+                await MainActor.run {
+                    // Console-only: the preview is advisory — the dialog falls
+                    // back to its generic message and publish stays no-op-guarded.
+                    publishPreviewFailed = true
+                    state.recordError(error, context: "ProgramHomePage.fetchPublishPreview")
+                }
+            }
+        }
+    }
+
+    /// Condensed preview: last-published line, a count matrix
+    /// ("2 changed · 1 added"), then capped per-day lines.
+    private func publishPreviewMessage(_ preview: ProgramActions.PublishPreview) -> String {
+        var paragraphs: [String] = []
+
+        if let last = preview.lastPublished {
+            let date = ModelFormatters.monthDay.string(from: last.publishedAt)
+            paragraphs.append("Last published \(date) (version \(last.versionNumber))")
+        } else {
+            paragraphs.append("Changes aren't tracked for this study yet — publishing creates version 1, the baseline enrolled groups sync to.")
+        }
+
+        if preview.upToDate {
+            paragraphs.append("No changes since — enrolled groups have the latest version.")
+            return paragraphs.joined(separator: "\n\n")
+        }
+
+        if let changes = preview.changes {
+            var matrix: [String] = []
+            if !changes.changed.isEmpty { matrix.append("\(changes.changed.count) changed") }
+            if !changes.added.isEmpty { matrix.append("\(changes.added.count) added") }
+            if !changes.removed.isEmpty { matrix.append("\(changes.removed.count) removed") }
+            if !changes.moved.isEmpty { matrix.append("\(changes.moved.count) moved") }
+            if !matrix.isEmpty {
+                paragraphs.append(matrix.joined(separator: " · "))
+            }
+
+            func shortTitle(_ title: String?) -> String {
+                guard let title, !title.isEmpty else { return "" }
+                return title.count > 24 ? " — \(title.prefix(24))…" : " — \(title)"
+            }
+            var detail: [String] = []
+            detail += changes.changed.map { "Day \($0.dayNumber) changed\(shortTitle($0.title))" }
+            detail += changes.added.map { "Day \($0.dayNumber) added\(shortTitle($0.title))" }
+            detail += changes.removed.map { "Day \($0.dayNumber) removed\(shortTitle($0.title))" }
+            detail += changes.moved.map { "Day \($0.fromDay) → \($0.toDay) moved\(shortTitle($0.title))" }
+            let cap = 5
+            if detail.count > cap {
+                let extra = detail.count - cap
+                detail = Array(detail.prefix(cap)) + ["+ \(extra) more"]
+            }
+            paragraphs.append(detail.joined(separator: "\n"))
+        }
+
+        paragraphs.append("Syncing groups receive these on publish.")
+        return paragraphs.joined(separator: "\n\n")
     }
 
     /// Publish curriculum updates as a new program version (study sync).
