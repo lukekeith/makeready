@@ -51,7 +51,7 @@ const props = withDefaults(defineProps<Props>(), {
   exporting: false,
 })
 
-const emit = defineEmits<{ export: []; cancel: [] }>()
+const emit = defineEmits<{ export: []; publish: []; cancel: [] }>()
 
 // SF Symbol silhouettes for the Kpi cells (iOS icon names in comments).
 const CALENDAR = // "calendar"
@@ -96,7 +96,7 @@ const kpis = computed<KpiSpec[]>(() => {
 
 <template>
   <div :class="['ExportConfirmOverlay', props.class]" role="dialog" aria-modal="true">
-    <p class="ExportConfirmOverlay__title">Export Program</p>
+    <p class="ExportConfirmOverlay__title">Export &amp; Publish</p>
     <p v-if="programName" class="ExportConfirmOverlay__name">{{ programName }}</p>
 
     <div class="ExportConfirmOverlay__grid">
@@ -124,6 +124,14 @@ const kpis = computed<KpiSpec[]>(() => {
         @click="emit('export')"
       >
         {{ exporting ? 'Exporting...' : 'Export' }}
+      </button>
+      <button
+        type="button"
+        class="ExportConfirmOverlay__export"
+        :disabled="exporting"
+        @click="emit('publish')"
+      >
+        Publish
       </button>
       <button type="button" class="ExportConfirmOverlay__cancel" @click="emit('cancel')">
         Cancel

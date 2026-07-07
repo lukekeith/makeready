@@ -479,17 +479,7 @@ struct ProgramHomePage: View {
                             }
                             .overlay(alignment: .topLeading) {
                                 Button {
-                                    // Block publishing a draft that still has lessons without activities.
-                                    if !(program.isPublished ?? false) && !lessonsWithoutActivities.isEmpty {
-                                        showPublishBlockedAlert = true
-                                    } else {
-                                        // Published: the dialog shows the pending-changes
-                                        // summary — start loading it as the dialog opens.
-                                        if program.isPublished == true {
-                                            fetchPublishPreview(programId: program.id)
-                                        }
-                                        showPublishDialog = true
-                                    }
+                                    handlePublishTap(program: program)
                                 } label: {
                                     PublishBadge(isPublished: program.isPublished ?? false)
                                 }
@@ -622,7 +612,13 @@ struct ProgramHomePage: View {
                     isPresented: $showExportConfirm,
                     previewData: exportPreviewData,
                     isExporting: isExporting,
-                    onExport: { exportProgram() }
+                    onExport: { exportProgram() },
+                    onPublish: {
+                        // Instant dismiss, then present the publish dialog
+                        // (MODAL_GUIDE: never dismiss + present simultaneously).
+                        showExportConfirm = false
+                        handlePublishTap(program: program)
+                    }
                 )
             }
         }
@@ -817,6 +813,21 @@ struct ProgramHomePage: View {
                 )
             }
         }
+    }
+
+    /// Open the publish dialog — shared by the Published/Draft badge and the
+    /// Export & Publish overlay's Publish button. Drafts are gated on every
+    /// lesson having at least one activity; published programs start the
+    /// pending-changes preview load as the dialog opens.
+    private func handlePublishTap(program: StudyProgram) {
+        if !(program.isPublished ?? false) && !lessonsWithoutActivities.isEmpty {
+            showPublishBlockedAlert = true
+            return
+        }
+        if program.isPublished == true {
+            fetchPublishPreview(programId: program.id)
+        }
+        showPublishDialog = true
     }
 
     /// The "Published study" dialog message — "Checking…" until the preview
@@ -1590,6 +1601,7 @@ private struct ExportConfirmOverlay: View {
     let previewData: ExportPreviewData?
     let isExporting: Bool
     let onExport: () -> Void
+    let onPublish: () -> Void
 
     @State private var visible = false
 
@@ -1607,7 +1619,7 @@ private struct ExportConfirmOverlay: View {
 
             // Content
             VStack(spacing: 20) {
-                Text("Export Program")
+                Text("Export & Publish")
                     .font(Typography.s17Bold)
                     .foregroundColor(.white)
 
@@ -1657,6 +1669,21 @@ private struct ExportConfirmOverlay: View {
                         onExport()
                     } label: {
                         Text(isExporting ? "Exporting..." : "Export")
+                            .font(Typography.s17Semibold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(Color.brandPrimary)
+                            )
+                    }
+                    .disabled(isExporting)
+
+                    Button {
+                        onPublish()
+                    } label: {
+                        Text("Publish")
                             .font(Typography.s17Semibold)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)

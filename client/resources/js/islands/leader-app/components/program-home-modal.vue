@@ -495,6 +495,14 @@ const exportConfirmation = reactive({
   message: '',
 })
 
+// Publish from the Export & Publish card — close the card, then run the
+// same flow as the Published/Draft badge (draft confirm or pending-changes
+// dialog).
+function onExportOverlayPublish(): void {
+  showExportConfirm.value = false
+  void onTogglePublish()
+}
+
 async function onExport(): Promise<void> {
   const p = store.program
   if (!p || loadingExportPreview.value) return
@@ -677,6 +685,7 @@ function onCoverPicked(file: File): void {
           :template-name="exportPreview.templateName"
           :exporting="exporting"
           @export="runExport"
+          @publish="onExportOverlayPublish"
           @cancel="showExportConfirm = false"
         />
       </div>
