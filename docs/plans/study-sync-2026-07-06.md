@@ -1,7 +1,7 @@
 # Study Program → Enrollment Sync (Versioning) — Design Spec
 
 **Date:** 2026-07-06
-**Status:** Phases 1–5 implemented on `feature/study-sync`; phase 6 (client UI) pending
+**Status:** Phases 1–6 implemented on `feature/study-sync` — feature complete for web; iPhone consumption is future work
 **Scope:** Server (schema + APIs) first; client/iPhone consume later. Dashboard notification banner + modal is in scope; the enrollment sync-settings view launched *from* a notification is a later build (the notification payload must support it now).
 
 ## Problem
@@ -111,7 +111,51 @@ Cross-org program sharing works unchanged: an enrollment in any org tracks `sync
 3. ✅ Sync engine: idempotent per-enrollment apply + fan-out job + `EnrollmentSyncRun`. **Done 2026-07-06.**
 4. ✅ Member resolution: pinned-version rendering + lazy carry-forward in lesson-fetch paths. **Done 2026-07-06.**
 5. ✅ Notifications: dedupe + actions, summary endpoint. **Done 2026-07-06.**
-6. Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal.
+6. ✅ Client: enrollment "Sync to study" toggle, program "Publish updates" button, dashboard banner + modal. **Done 2026-07-06.**
+
+## Phase 6 implementation notes (2026-07-06)
+
+All UI landed in the **leader app** (the live `/admin` SPA at
+`client/resources/js/islands/leader-app/`), NOT the legacy PrimeVue
+admin-island (parked at `/admin-legacy`). Everything goes through the shared
+`/admin/api/*` Laravel proxy — no proxy changes were needed.
+
+- **Dashboard banner + notifications modal.** `leader-notifications.store.ts`
+  (summary, list, optimistic mark-read/mark-all-read, exported `relativeTime`).
+  `dashboard-view.vue` shows a brand-tinted banner ("You have N unread
+  notifications · Last one {rel time}") when `GET /notifications/summary`
+  reports unread; tapping presents the new `notifications` overlay route →
+  `notifications-modal.vue` (merged activity + Notification feed, unread dots,
+  action buttons from the `actions` payload, "Mark all read"). Rows without
+  actions are informational; `actions: null` on activity rows is handled.
+- **Enrollment sync view.** `enrollment-sync-pane.vue` +
+  `leader-enrollment-sync.store.ts`. Sync toggle (OFF ↔ AUTO; toggling on
+  defaults to Automatic), Automatic/Approval chooser rows, drift section
+  listing pending versions with their AI change summaries, "Apply updates"
+  (confirm → `POST /enrollments/:id/sync/apply` → reload). Two entry points:
+  (a) Program Home → Enrollments tab → tap an enrollment (SlideStack detail
+  `sync:<enrollmentId>`); (b) a notification action with
+  `view: 'enrollment-sync'` slides the pane open INSIDE the notifications
+  modal. The spec deferred (b), but the phase-6 toggle needed a home and one
+  pane serves both — the action payload is fully wired, not just round-tripped.
+  Unknown action views remain inert.
+- **Publish updates.** Tapping the "Published" badge on Program Home now
+  presents Publish updates / Switch to Draft / Cancel (single dialog IS the
+  confirmation for both actions; draft-side behavior unchanged). Publish uses
+  the sticky-dialog pattern ("Publishing..."), calls
+  `POST /programs/:id/publish-updates` via `publishUpdates` in
+  leader-program.store, then reports "Version N published" + the Claude
+  change summary, or "Already up to date" on a no-op.
+- **Not built (intentionally):** no web UI consumes
+  `GET /programs/:id/versions` yet (version history page is future work);
+  the legacy admin-island got nothing.
+- **Verified live 2026-07-06** against the local stack (API-key auth,
+  Daily Inspiration program): baseline v1 publish → title edit → v2 publish
+  with live Claude summary → APPROVAL drift + coalesced notification with
+  action payload → apply (drift cleared, run COMPLETED, notification
+  auto-read) → AUTO fan-out auto-applied v3 → no-op publish returned
+  `alreadyUpToDate`. Client `npm run build` passes (no TS checker in client;
+  esbuild is the gate).
 
 ## Phase 5 implementation notes (2026-07-06)
 

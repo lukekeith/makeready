@@ -11,10 +11,32 @@ import VerticalBarChart from '../../../components/card/vertical-bar-chart/vertic
 import HeatMapChart from '../../../components/card/heat-map-chart/heat-map-chart.vue'
 import AddMenuSheet from '../components/add-menu-sheet.vue'
 import ShareInviteSheet from '../components/share-invite-sheet.vue'
+import NotificationsModal from '../components/notifications-modal.vue'
+import { ROUTES } from '../overlay/overlay-routes'
+import { useOverlayManager } from '../overlay/overlay.store'
 import { useLeaderDashboard } from '../stores/leader-dashboard.store'
+import { relativeTime, useLeaderNotifications } from '../stores/leader-notifications.store'
 
 const store = useLeaderDashboard()
-onMounted(() => store.load())
+const notifications = useLeaderNotifications()
+const overlayManager = useOverlayManager()
+
+onMounted(() => {
+  void store.load()
+  void notifications.loadSummary()
+})
+
+// Banner tap → notifications modal; the summary refreshes when the modal's
+// mark-reads mutate the shared store, so the banner count stays live.
+function openNotifications(): void {
+  overlayManager.present(ROUTES.notifications, NotificationsModal, {})
+}
+
+// SF "bell" + chevron.right — banner glyphs.
+const BELL =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8.5a6 6 0 1 0-12 0c0 6-2.5 7.5-2.5 7.5h17S18 14.5 18 8.5z"/><path d="M10.2 20a2 2 0 0 0 3.6 0"/></svg>'
+const CHEVRON_RIGHT =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4l7 8-7 8"/></svg>'
 
 // iOS MainHome header "+" → global AddMenu; its Invite member → QR Code path
 // opens the ShareInviteSheet (which creates the invite + fetches the QR).
@@ -65,8 +87,29 @@ const HEATMAP_Y_LABELS = [
     </div>
 
     <div class="LeaderDash__scroll">
-      <!-- KPI grid (2×2) -->
-      <div class="LeaderDash__kpis">
+      <div class="LeaderDash__top">
+        <!-- Notification banner (study-sync phase 6) -->
+        <button
+          v-if="notifications.unreadCount > 0"
+          class="LeaderDash__notifBanner"
+          type="button"
+          @click="openNotifications"
+        >
+          <span class="LeaderDash__notifIcon" v-html="BELL"></span>
+          <span class="LeaderDash__notifText">
+            <span class="LeaderDash__notifTitle">
+              You have {{ notifications.unreadCount }} unread
+              {{ notifications.unreadCount === 1 ? 'notification' : 'notifications' }}
+            </span>
+            <span v-if="notifications.latestAt" class="LeaderDash__notifSub">
+              Last one {{ relativeTime(notifications.latestAt) }}
+            </span>
+          </span>
+          <span class="LeaderDash__notifChevron" v-html="CHEVRON_RIGHT"></span>
+        </button>
+
+        <!-- KPI grid (2×2) -->
+        <div class="LeaderDash__kpis">
         <Kpi
           variant="iconValue"
           :kpi-value="store.totalMembers"
@@ -99,6 +142,7 @@ const HEATMAP_Y_LABELS = [
           :icon="BOOK_CLOSED"
           :icon-color="KPI_ACCENT"
         />
+        </div>
       </div>
 
       <!-- Last 7 days -->
@@ -178,6 +222,66 @@ const HEATMAP_Y_LABELS = [
 
 .LeaderDash__scroll {
   padding: 8px 16px 16px;
+}
+
+/* Banner + KPI grid stack (gap-spaced; the banner collapses away when read). */
+.LeaderDash__top {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Notification banner — brand-tinted card above the KPI grid. */
+.LeaderDash__notifBanner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(108, 71, 255, 0.18);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.LeaderDash__notifIcon {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  color: #6c47ff;
+}
+
+.LeaderDash__notifIcon :deep(svg),
+.LeaderDash__notifChevron :deep(svg) {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.LeaderDash__notifText {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.LeaderDash__notifTitle {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.LeaderDash__notifSub {
+  font-size: 13px;
+  color: var(--color-white-50);
+}
+
+.LeaderDash__notifChevron {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  color: var(--color-white-50);
 }
 
 .LeaderDash__kpis {

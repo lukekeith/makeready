@@ -62,4 +62,7 @@ export const ROUTES = {
   groupHome: route('groupHome'),
   // iOS Route.lessonActionMenu — .menu priority, menu chrome (ManagedMenuView).
   lessonActionMenu: route('lessonActionMenu', { priority: OverlayPriority.menu }),
+  // Notifications feed (study-sync phase 6) — default modal chrome; opened
+  // from the dashboard banner. Web-first: no iOS Route twin yet.
+  notifications: route('notifications'),
 } as const

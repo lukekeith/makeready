@@ -10,6 +10,7 @@ import ExportConfirmOverlay from '../../../components/card/export-confirm-overla
 import SlideStack from '../overlay/slide-stack.vue'
 import EditProgramPane from './edit-program-pane.vue'
 import EditDayPane from './edit-day-pane.vue'
+import EnrollmentSyncPane from './enrollment-sync-pane.vue'
 import ConfirmationOverlayModal from './confirmation-overlay-modal.vue'
 import { ROUTES } from '../overlay/overlay-routes'
 import {
@@ -63,13 +64,22 @@ watch(selectedTab, async (tab) => {
   }
 })
 
-// SlideStack detail state — 'editProgram' or 'day:<lessonId>' (iOS
-// detailScreen enum: .editProgram / .editDay(lessonId)).
+// SlideStack detail state — 'editProgram', 'day:<lessonId>', or
+// 'sync:<enrollmentId>' (study-sync settings for an enrolled group).
 const detailScreen = ref<string | null>(null)
 
 const detailLessonId = computed(() =>
   detailScreen.value?.startsWith('day:') ? detailScreen.value.slice(4) : null,
 )
+
+// Enrollments-tab row tap → the enrollment's Study Sync settings pane.
+function openEnrollmentSync(enrollmentId: string): void {
+  detailScreen.value = `sync:${enrollmentId}`
+}
+
+function enrollmentName(enrollmentId: string): string | undefined {
+  return enrollments.value.find((e) => e.id === enrollmentId)?.name
+}
 
 // Edit form state — seeded when the gear is tapped (iOS keeps these as
 // separate @State so the back chevron discards cleanly).
@@ -238,30 +248,106 @@ async function onTogglePublish(): Promise<void> {
     showPublishBlockedDialog()
     return
   }
-  const publish = !p.isPublished
+  if (p.isPublished) {
+    await onPublishedBadgeTap()
+    return
+  }
   const choice = await confirmDialog.confirm({
-    title: p.isPublished ? 'Unpublish this study?' : 'Publish this study?',
-    message: p.isPublished
-      ? 'This will unpublish the study. It will no longer be available for group enrollment.'
-      : 'Publishing the study will make it available for group enrollment.',
+    title: 'Publish this study?',
+    message: 'Publishing the study will make it available for group enrollment.',
     buttons: [
-      { label: p.isPublished ? 'Switch to Draft' : 'Publish', style: 'primary' },
+      { label: 'Publish', style: 'primary' },
       { label: 'Cancel', style: 'secondary' },
     ],
   })
   if (choice !== 0 || togglingPublish.value) return
   // iOS re-checks the gate inside togglePublishStatus.
-  if (publish && lessonsWithoutActivities.value.length) {
+  if (lessonsWithoutActivities.value.length) {
     showPublishBlockedDialog()
     return
   }
   togglingPublish.value = true
   try {
-    await store.setPublished(p.id, publish)
+    await store.setPublished(p.id, true)
   } catch (err) {
     showError(err instanceof Error ? err.message : "Couldn't update the study")
   } finally {
     togglingPublish.value = false
+  }
+}
+
+// ── Published badge (study-sync phase 6): the badge is now the home of the
+//    explicit "Publish updates" action — the publish, not the edit, is the
+//    unit of enrollment sync. The dialog offers both actions and IS the
+//    confirmation for each (no second dialog for unpublish). ──
+
+const publishingUpdates = ref(false)
+
+async function onPublishedBadgeTap(): Promise<void> {
+  const p = store.program
+  if (!p || publishingUpdates.value || togglingPublish.value) return
+  const dialog = confirmDialog.present({
+    title: 'Published study',
+    message:
+      'Publish your latest edits to enrolled groups as a new version, or switch this study back to draft (no longer available for enrollment).',
+    buttons: [
+      { label: 'Publish updates', style: 'primary' },
+      { label: 'Switch to Draft', style: 'secondary' },
+      { label: 'Cancel', style: 'secondary' },
+    ],
+    sticky: true,
+  })
+  const choice = await dialog.choice
+  if (choice === 0) {
+    await runPublishUpdates(dialog)
+    return
+  }
+  dialog.close()
+  if (choice !== 1) return
+  togglingPublish.value = true
+  try {
+    await store.setPublished(p.id, false)
+  } catch (err) {
+    showError(err instanceof Error ? err.message : "Couldn't update the study")
+  } finally {
+    togglingPublish.value = false
+  }
+}
+
+// Sticky-dialog publish (the add-day pattern): the tapped button flips to
+// "Publishing..." while the version is cut, then a result dialog reports the
+// new version's AI change summary (or that everything was already current).
+async function runPublishUpdates(dialog: ReturnType<typeof confirmDialog.present>): Promise<void> {
+  const p = store.program
+  if (!p) {
+    dialog.close()
+    return
+  }
+  publishingUpdates.value = true
+  dialog.update({ buttons: [{ label: 'Publishing...', style: 'primary' }] })
+  try {
+    const result = await store.publishUpdates(p.id)
+    dialog.close()
+    if (result.alreadyUpToDate) {
+      void confirmDialog.confirm({
+        title: 'Already up to date',
+        message: 'Enrolled groups already have the latest version of this study.',
+        buttons: [{ label: 'OK', style: 'secondary' }],
+      })
+    } else {
+      void confirmDialog.confirm({
+        title: `Version ${result.version?.versionNumber ?? ''} published`.trim(),
+        message:
+          result.version?.changeSummary ??
+          'Groups with sync turned on will receive the updates; other leaders will be notified.',
+        buttons: [{ label: 'OK', style: 'secondary' }],
+      })
+    }
+  } catch (err) {
+    dialog.close()
+    showError(err instanceof Error ? err.message : "Couldn't publish updates")
+  } finally {
+    publishingUpdates.value = false
   }
 }
 
@@ -404,6 +490,7 @@ function onCoverPicked(file: File): void {
         @select-tab="selectedTab = $event"
         @settings="openSettings"
         @select-lesson="detailScreen = `day:${$event}`"
+        @select-enrollment="openEnrollmentSync"
         @add-day="requestAddDay()"
         @delete-lesson="onDeleteLesson"
         @reorder-lessons="onReorderLessons"
@@ -416,6 +503,13 @@ function onCoverPicked(file: File): void {
           :key="String(item)"
           :program-id="store.program.id"
           :lesson-id="String(item).slice(4)"
+          @back="detailScreen = null"
+        />
+        <EnrollmentSyncPane
+          v-else-if="String(item).startsWith('sync:')"
+          :key="String(item)"
+          :enrollment-id="String(item).slice(5)"
+          :group-name="enrollmentName(String(item).slice(5))"
           @back="detailScreen = null"
         />
         <EditProgramPane

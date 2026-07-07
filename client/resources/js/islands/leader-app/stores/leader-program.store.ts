@@ -14,6 +14,13 @@ export interface SaveProgramFields {
   tags: string[]
 }
 
+// POST /api/programs/:id/publish-updates → { alreadyUpToDate, version }
+// (study-sync: version carries the Claude-generated change summary).
+export interface PublishUpdatesResult {
+  alreadyUpToDate: boolean
+  version: { versionNumber: number; changeSummary: string | null } | null
+}
+
 // iOS ExportPreviewData (ProgramHomePage.swift) — parsed from
 // GET /api/programs/:id/export-preview → preview.counts / activityTypes.
 export interface ExportPreview {
@@ -782,6 +789,22 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     }
   }
 
+  // ── Publish updates (study-sync phase 6) — cut a new StudyProgramVersion
+  //    from the current curriculum. AUTO enrollments apply it via the server
+  //    fan-out; APPROVAL/OFF enrollments get a notification. A no-change
+  //    publish returns alreadyUpToDate without cutting a version. ──
+  async function publishUpdates(id: string): Promise<PublishUpdatesResult> {
+    try {
+      const res = await axios.post(`/admin/api/programs/${id}/publish-updates`)
+      return {
+        alreadyUpToDate: Boolean(res.data?.alreadyUpToDate),
+        version: res.data?.version ?? null,
+      }
+    } catch (err) {
+      throw new Error(message(err, "Couldn't publish updates"))
+    }
+  }
+
   // ── Export (iOS loadExportPreview + exportProgramData) ──
 
   async function loadExportPreview(id: string): Promise<ExportPreview> {
@@ -942,6 +965,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     createProgram,
     addTags,
     setPublished,
+    publishUpdates,
     loadExportPreview,
     exportProgram,
     addLesson,
