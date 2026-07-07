@@ -77,6 +77,8 @@ export async function getEnrollmentCompletionStats(
          ON comp."scheduledActivityId" = sla.id
         AND comp."lessonScheduleId" = sla."lessonScheduleId"
       WHERE ls."enrollmentId" = $1::uuid
+        AND ls."removedAt" IS NULL
+        AND (sla."versionId" = ls."currentVersionId" OR sla."versionId" IS NULL)
       GROUP BY sla."lessonScheduleId", sla.id`,
     enrollmentId
   )
@@ -91,6 +93,7 @@ export async function getEnrollmentCompletionStats(
        LEFT JOIN member_lesson_progress mlp
          ON mlp."lessonScheduleId" = ls.id AND mlp."completedAt" IS NOT NULL
       WHERE ls."enrollmentId" = $1::uuid
+        AND ls."removedAt" IS NULL
       GROUP BY ls.id`,
     enrollmentId
   )

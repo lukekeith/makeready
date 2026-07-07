@@ -102,6 +102,8 @@
     // iOS Spacer().frame(height: 64) between the circle and the message.
     margin: 64px 0 0;
     text-align: center;
+    // Honor \n in composed messages (publish success matrix) — iOS Text does.
+    white-space: pre-line;
     // iOS Typography.s17 (intrinsic; no exact DS token).
     font-size: 17px;
     font-weight: var(--font-weight-regular);

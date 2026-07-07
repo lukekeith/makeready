@@ -226,6 +226,16 @@ final class AppState {
     /// In-memory only — refreshed on every visit.
     var enrollmentDetailsById: [String: EnrollmentDetails] = [:]
 
+    /// Study-sync status keyed by enrollment ID. Populated by
+    /// `EnrollmentActions.getSyncStatus(enrollmentId:)` so EnrollmentSyncPage
+    /// renders synchronously from cache and rides slide/modal animations
+    /// (cache-first detail page contract). In-memory only.
+    var enrollmentSyncStatusById: [String: EnrollmentSyncStatus] = [:]
+
+    /// Per-lesson pending changes keyed by enrollment ID (Review Changes
+    /// screen). Same cache-first contract as sync status. In-memory only.
+    var enrollmentPendingChangesById: [String: EnrollmentPendingChanges] = [:]
+
     // MARK: - Loading States
 
     /// Per-entity and per-list loading states

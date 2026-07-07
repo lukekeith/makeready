@@ -517,6 +517,78 @@ struct ActivityCompletionStat: Codable, Equatable {
     let completedCount: Int
 }
 
+// MARK: - Study Sync (enrollment ↔ program version tracking)
+
+/// How an enrollment tracks curriculum updates published to its study program.
+/// Raw values match the server's `EnrollmentSyncMode` enum.
+enum EnrollmentSyncMode: String, Codable, Equatable {
+    case off = "OFF"            // frozen copy (legacy behavior)
+    case auto = "AUTO"          // published updates apply immediately
+    case approval = "APPROVAL"  // leader approves before updates apply
+}
+
+/// Sync status for one enrollment, from `GET /api/enrollments/:id/sync`.
+/// `hasDrift` = the program has published versions this enrollment hasn't
+/// received; `pendingVersions` carry the AI change summaries (newest first).
+struct EnrollmentSyncStatus: Codable, Equatable {
+    let syncMode: EnrollmentSyncMode
+    let syncedProgramVersionNumber: Int?
+    let currentVersionNumber: Int?
+    let hasDrift: Bool
+    let pendingVersions: [ProgramPendingVersion]
+}
+
+/// One published program version an enrollment hasn't received yet.
+struct ProgramPendingVersion: Codable, Equatable {
+    let versionNumber: Int
+    let publishedAt: Date
+    let changeSummary: String?
+}
+
+/// One pending lesson change from `GET /api/enrollments/:id/sync/changes` —
+/// a row on the Review Changes screen. `key` is the selection token for
+/// POST /sync/apply { lessonKeys }.
+struct PendingLessonChange: Codable, Equatable, Identifiable {
+    let key: String
+    let type: ChangeType
+    let dayNumber: Int?
+    let title: String?
+    let scheduledDate: Date?
+    let titleChanged: Bool
+    let activities: ActivityCounts?
+
+    var id: String { key }
+
+    enum ChangeType: String, Codable {
+        case new
+        case updated
+        case removed
+    }
+
+    struct ActivityCounts: Codable, Equatable {
+        let added: Int
+        let updated: Int
+        let removed: Int
+    }
+}
+
+/// Quantified totals + per-lesson rows for one enrollment's pending changes.
+struct EnrollmentPendingChanges: Codable, Equatable {
+    let targetVersionNumber: Int?
+    let hasPending: Bool
+    let changes: [PendingLessonChange]
+    let counts: Counts
+
+    struct Counts: Codable, Equatable {
+        let lessonsNew: Int
+        let lessonsUpdated: Int
+        let lessonsRemoved: Int
+        let activitiesNew: Int
+        let activitiesUpdated: Int
+        let activitiesRemoved: Int
+    }
+}
+
 // MARK: - Unenroll Info
 
 /// Information about an enrollment's status for the unenroll flow

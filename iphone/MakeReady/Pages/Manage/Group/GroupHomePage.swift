@@ -1200,7 +1200,8 @@ struct GroupHomePage: View {
                     enabledDays: enabledDayStrings,
                     smsTime: smsTime,
                     timezone: TimeZone.current.identifier,
-                    requireResponse: requireResponse
+                    requireResponse: requireResponse,
+                    syncMode: enrollmentData.syncMode
                 )
                 NSLog("✅ Created enrollment: \(enrollment.id)")
 

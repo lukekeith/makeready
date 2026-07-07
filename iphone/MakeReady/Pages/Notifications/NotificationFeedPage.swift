@@ -48,10 +48,15 @@ struct NotificationFeedPage: View {
                 ScrollView {
                     LazyVStack(spacing: 0) {
                         ForEach(state.orderedNotifications) { notification in
-                            NotificationRow(notification: notification)
-                                .onTapGesture {
-                                    handleTap(notification)
+                            NotificationRow(
+                                notification: notification,
+                                onAction: { action in
+                                    handleAction(notification, action: action)
                                 }
+                            )
+                            .onTapGesture {
+                                handleTap(notification)
+                            }
                         }
                     }
                     .padding(.top, 8)
@@ -77,11 +82,21 @@ struct NotificationFeedPage: View {
     }
 
     private func handleTap(_ notification: AppNotification) {
-        // Mark as read
-        if !notification.isRead {
+        // Mark as read — action-required rows stay unread until the leader
+        // actually deals with them (apply / change sync mode).
+        if !notification.isRead, notification.data?.requiresAction != true {
             // Silent: best-effort read receipt — the unread state self-corrects
             // on the next feed load, and the user is mid-navigation.
             Task { try? await NotificationActions().markAsRead(ids: [notification.id]) }
+        }
+
+        // Study-sync rows route to the enrollment's Study Sync settings
+        // (their data carries enrollmentId, not groupId).
+        if let enrollmentId = notification.data?.enrollmentId,
+           notification.type.hasPrefix("STUDY_SYNC") {
+            overlayManager.dismiss(.notificationFeed)
+            PushNotificationManager.shared.pendingDeepLink = .enrollmentSync(enrollmentId: enrollmentId)
+            return
         }
 
         // Navigate to relevant content
@@ -99,15 +114,31 @@ struct NotificationFeedPage: View {
             }
         }
     }
+
+    /// A tapped action button. `view` names a client surface — only
+    /// "enrollment-sync" is wired; unknown views mark read and stay put.
+    private func handleAction(_ notification: AppNotification, action: NotificationAction) {
+        if !notification.isRead, notification.data?.requiresAction != true {
+            // Silent: best-effort read receipt — same contract as handleTap.
+            Task { try? await NotificationActions().markAsRead(ids: [notification.id]) }
+        }
+
+        if action.view == "enrollment-sync",
+           let enrollmentId = action.params?["enrollmentId"] {
+            overlayManager.dismiss(.notificationFeed)
+            PushNotificationManager.shared.pendingDeepLink = .enrollmentSync(enrollmentId: enrollmentId)
+        }
+    }
 }
 
 // MARK: - Notification Row
 
 private struct NotificationRow: View {
     let notification: AppNotification
+    var onAction: ((NotificationAction) -> Void)? = nil
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(alignment: .top, spacing: 12) {
             // Icon
             ZStack {
                 Circle()
@@ -130,6 +161,21 @@ private struct NotificationRow: View {
                     .font(Typography.s13)
                     .foregroundColor(.white.opacity(0.6))
                     .lineLimit(2)
+
+                // Action buttons (study-sync rows: "Review updates" etc.)
+                if let actions = notification.actions, !actions.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(actions, id: \.label) { action in
+                            BoxButton(
+                                action: { onAction?(action) },
+                                label: action.label,
+                                variant: .secondary,
+                                size: .sm
+                            )
+                        }
+                    }
+                    .padding(.top, 6)
+                }
             }
 
             Spacer()

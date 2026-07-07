@@ -58,6 +58,8 @@
   &__message {
     margin: 0;
     text-align: center;
+    // Honor \n in composed messages (publish preview) — iOS Text does.
+    white-space: pre-line;
     // iOS Typography.s14 — fixed 14pt regular.
     font-size: 14px;
     font-weight: var(--font-weight-regular);

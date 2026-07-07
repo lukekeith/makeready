@@ -10,6 +10,7 @@ import ExportConfirmOverlay from '../../../components/card/export-confirm-overla
 import SlideStack from '../overlay/slide-stack.vue'
 import EditProgramPane from './edit-program-pane.vue'
 import EditDayPane from './edit-day-pane.vue'
+import EnrollmentSyncPane from './enrollment-sync-pane.vue'
 import ConfirmationOverlayModal from './confirmation-overlay-modal.vue'
 import { ROUTES } from '../overlay/overlay-routes'
 import {
@@ -18,7 +19,12 @@ import {
   type OverlayContext,
 } from '../overlay/overlay.store'
 import { useConfirmDialog } from '../overlay/confirm-dialog.store'
-import { useLeaderProgram, type ExportPreview } from '../stores/leader-program.store'
+import {
+  useLeaderProgram,
+  type ExportPreview,
+  type PublishPreview,
+  type PublishPreviewLesson,
+} from '../stores/leader-program.store'
 
 // `preloaded`: skip the initial fetch when the store already holds this program
 // (the create flow seeds it from the POST response — iOS renders Program Home
@@ -63,13 +69,22 @@ watch(selectedTab, async (tab) => {
   }
 })
 
-// SlideStack detail state — 'editProgram' or 'day:<lessonId>' (iOS
-// detailScreen enum: .editProgram / .editDay(lessonId)).
+// SlideStack detail state — 'editProgram', 'day:<lessonId>', or
+// 'sync:<enrollmentId>' (study-sync settings for an enrolled group).
 const detailScreen = ref<string | null>(null)
 
 const detailLessonId = computed(() =>
   detailScreen.value?.startsWith('day:') ? detailScreen.value.slice(4) : null,
 )
+
+// Enrollments-tab row tap → the enrollment's Study Sync settings pane.
+function openEnrollmentSync(enrollmentId: string): void {
+  detailScreen.value = `sync:${enrollmentId}`
+}
+
+function enrollmentName(enrollmentId: string): string | undefined {
+  return enrollments.value.find((e) => e.id === enrollmentId)?.name
+}
 
 // Edit form state — seeded when the gear is tapped (iOS keeps these as
 // separate @State so the back chevron discards cleanly).
@@ -238,31 +253,225 @@ async function onTogglePublish(): Promise<void> {
     showPublishBlockedDialog()
     return
   }
-  const publish = !p.isPublished
+  if (p.isPublished) {
+    await onPublishedBadgeTap()
+    return
+  }
   const choice = await confirmDialog.confirm({
-    title: p.isPublished ? 'Unpublish this study?' : 'Publish this study?',
-    message: p.isPublished
-      ? 'This will unpublish the study. It will no longer be available for group enrollment.'
-      : 'Publishing the study will make it available for group enrollment.',
+    title: 'Publish this study?',
+    message: 'Publishing the study will make it available for group enrollment.',
     buttons: [
-      { label: p.isPublished ? 'Switch to Draft' : 'Publish', style: 'primary' },
+      { label: 'Publish', style: 'primary' },
       { label: 'Cancel', style: 'secondary' },
     ],
   })
   if (choice !== 0 || togglingPublish.value) return
   // iOS re-checks the gate inside togglePublishStatus.
-  if (publish && lessonsWithoutActivities.value.length) {
+  if (lessonsWithoutActivities.value.length) {
     showPublishBlockedDialog()
     return
   }
   togglingPublish.value = true
   try {
-    await store.setPublished(p.id, publish)
+    await store.setPublished(p.id, true)
   } catch (err) {
     showError(err instanceof Error ? err.message : "Couldn't update the study")
   } finally {
     togglingPublish.value = false
   }
+}
+
+// ── Published badge (study-sync phase 6): the badge is now the home of the
+//    explicit "Publish updates" action — the publish, not the edit, is the
+//    unit of enrollment sync. The dialog offers both actions and IS the
+//    confirmation for each (no second dialog for unpublish). ──
+
+const publishingUpdates = ref(false)
+
+async function onPublishedBadgeTap(): Promise<void> {
+  const p = store.program
+  if (!p || publishingUpdates.value || togglingPublish.value) return
+  const dialog = confirmDialog.present({
+    title: 'Published study',
+    message: 'Checking for changes since the last publish…',
+    buttons: [
+      { label: 'Publish updates', style: 'primary' },
+      { label: 'Switch to Draft', style: 'secondary' },
+      { label: 'Cancel', style: 'secondary' },
+    ],
+    sticky: true,
+  })
+
+  // The badge tap is the decision moment — the pending-changes summary loads
+  // straight into THIS dialog (last published + what changed since). `settled`
+  // stops a late response from patching whatever dialog replaced this one.
+  let settled = false
+  latestPublishPreview = null
+  void store
+    .loadPublishPreview(p.id)
+    .then((preview) => {
+      latestPublishPreview = preview
+      if (!settled) dialog.update({ message: publishPreviewMessage(preview) })
+    })
+    .catch(() => {
+      // Silent: preview is advisory — fall back to the generic message; the
+      // publish itself is still no-op-guarded server-side.
+      if (!settled) {
+        dialog.update({
+          message:
+            'Publish your latest edits to enrolled groups as a new version, or switch this study back to draft.',
+        })
+      }
+    })
+
+  const choice = await dialog.choice
+  settled = true
+  if (choice === 0) {
+    await runPublishUpdates(dialog)
+    return
+  }
+  dialog.close()
+  if (choice !== 1) return
+  togglingPublish.value = true
+  try {
+    await store.setPublished(p.id, false)
+  } catch (err) {
+    showError(err instanceof Error ? err.message : "Couldn't update the study")
+  } finally {
+    togglingPublish.value = false
+  }
+}
+
+// Condensed preview: last-published line, a count matrix ("2 changed ·
+// 1 added"), then capped per-day lines. \n renders via pre-line message CSS.
+function publishPreviewMessage(preview: PublishPreview): string {
+  const paragraphs: string[] = []
+
+  if (preview.lastPublished) {
+    const date = new Date(preview.lastPublished.publishedAt).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+    })
+    paragraphs.push(`Last published ${date} (version ${preview.lastPublished.versionNumber})`)
+  } else {
+    paragraphs.push(
+      "Changes aren't tracked for this study yet — publishing creates version 1, the baseline enrolled groups sync to.",
+    )
+  }
+
+  if (preview.upToDate) {
+    paragraphs.push('No changes since — enrolled groups have the latest version.')
+    return paragraphs.join('\n\n')
+  }
+
+  const changes = preview.changes
+  if (changes) {
+    const matrix: string[] = []
+    if (changes.changed.length) matrix.push(`${changes.changed.length} changed`)
+    if (changes.added.length) matrix.push(`${changes.added.length} added`)
+    if (changes.removed.length) matrix.push(`${changes.removed.length} removed`)
+    if (changes.moved.length) matrix.push(`${changes.moved.length} moved`)
+    if (matrix.length) paragraphs.push(matrix.join(' · '))
+
+    const shortTitle = (title: string | null) =>
+      !title ? '' : title.length > 24 ? ` — ${title.slice(0, 24)}…` : ` — ${title}`
+    const line = (l: PublishPreviewLesson, verb: string) =>
+      `Day ${l.dayNumber} ${verb}${shortTitle(l.title)}`
+    let detail = [
+      ...changes.changed.map((l) => line(l, 'changed')),
+      ...changes.added.map((l) => line(l, 'added')),
+      ...changes.removed.map((l) => line(l, 'removed')),
+      ...changes.moved.map((m) => `Day ${m.fromDay} → ${m.toDay} moved${shortTitle(m.title)}`),
+    ]
+    const cap = 5
+    if (detail.length > cap) {
+      detail = [...detail.slice(0, cap), `+ ${detail.length - cap} more`]
+    }
+    paragraphs.push(detail.join('\n'))
+  }
+
+  paragraphs.push('Syncing groups receive these on publish.')
+  return paragraphs.join('\n\n')
+}
+
+// Latest loaded preview — composes the publish success message (version +
+// count matrix). Plain var: only read at publish time, never rendered raw.
+let latestPublishPreview: PublishPreview | null = null
+
+// Publishing hands off to a processing ConfirmationOverlay — the circle spins
+// while the version is cut, then fills green with the checkmark and the
+// success message (mirrors iOS and the export flow; reactive getters flip
+// isProcessing/message live inside the presented overlay).
+const publishConfirmation = reactive({
+  isProcessing: true,
+  message: '',
+})
+
+async function runPublishUpdates(dialog: ReturnType<typeof confirmDialog.present>): Promise<void> {
+  const p = store.program
+  if (!p || publishingUpdates.value) {
+    dialog.close()
+    return
+  }
+  publishingUpdates.value = true
+  dialog.close()
+
+  publishConfirmation.isProcessing = true
+  publishConfirmation.message = publishSuccessMessage(p.name)
+  overlayManager.present(ROUTES.confirmationOverlay, ConfirmationOverlayModal, {
+    tone: 'success',
+    icon: CHECKMARK,
+    buttonLabel: 'Done',
+    processingMessage: 'Publishing updates',
+    get isProcessing() {
+      return publishConfirmation.isProcessing
+    },
+    get message() {
+      return publishConfirmation.message
+    },
+    onSelect: () => overlayManager.dismiss(ROUTES.confirmationOverlay.id),
+  })
+
+  try {
+    const result = await store.publishUpdates(p.id)
+    if (result.alreadyUpToDate) {
+      // Raced with another publish — nothing was cut.
+      overlayManager.dismiss(ROUTES.confirmationOverlay.id)
+      void confirmDialog.confirm({
+        title: 'Already up to date',
+        message: 'Enrolled groups already have the latest version of this study.',
+        buttons: [{ label: 'OK', style: 'secondary' }],
+      })
+    } else {
+      if (result.version) {
+        publishConfirmation.message = publishSuccessMessage(p.name, result.version.versionNumber)
+      }
+      // Circle fills green + checkmark; message swaps in.
+      publishConfirmation.isProcessing = false
+    }
+  } catch (err) {
+    overlayManager.dismiss(ROUTES.confirmationOverlay.id)
+    showError(err instanceof Error ? err.message : "Couldn't publish updates")
+  } finally {
+    publishingUpdates.value = false
+  }
+}
+
+// "**{name}** version N published." + count matrix from the loaded preview.
+function publishSuccessMessage(programName: string, versionNumber?: number): string {
+  const version = versionNumber ?? (latestPublishPreview?.lastPublished?.versionNumber ?? 0) + 1
+  const lines = [`**${programName}** version ${version} published.`]
+  const changes = latestPublishPreview?.changes
+  if (changes) {
+    const matrix: string[] = []
+    if (changes.changed.length) matrix.push(`${changes.changed.length} changed`)
+    if (changes.added.length) matrix.push(`${changes.added.length} added`)
+    if (changes.removed.length) matrix.push(`${changes.removed.length} removed`)
+    if (changes.moved.length) matrix.push(`${changes.moved.length} moved`)
+    if (matrix.length) lines.push(matrix.join(' · '))
+  }
+  lines.push('Syncing groups are receiving these updates.')
+  return lines.join('\n')
 }
 
 // ── Export flow (iOS loadExportPreview → ExportConfirmOverlay →
@@ -404,6 +613,7 @@ function onCoverPicked(file: File): void {
         @select-tab="selectedTab = $event"
         @settings="openSettings"
         @select-lesson="detailScreen = `day:${$event}`"
+        @select-enrollment="openEnrollmentSync"
         @add-day="requestAddDay()"
         @delete-lesson="onDeleteLesson"
         @reorder-lessons="onReorderLessons"
@@ -416,6 +626,13 @@ function onCoverPicked(file: File): void {
           :key="String(item)"
           :program-id="store.program.id"
           :lesson-id="String(item).slice(4)"
+          @back="detailScreen = null"
+        />
+        <EnrollmentSyncPane
+          v-else-if="String(item).startsWith('sync:')"
+          :key="String(item)"
+          :enrollment-id="String(item).slice(5)"
+          :group-name="enrollmentName(String(item).slice(5))"
           @back="detailScreen = null"
         />
         <EditProgramPane

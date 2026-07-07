@@ -12,6 +12,12 @@ import { exportProgram, importProgram } from '../services/program-export.js'
 import { captureToLibrary, getUserOrgId } from '../services/media-library.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { suggestProgramTags } from '../services/claude.js'
+import {
+  publishProgramVersion,
+  previewProgramPublish,
+  findIncompleteReadActivityDay,
+  PublishConflictError,
+} from '../services/study-program-publish.js'
 import { recalculateLessonEstimate } from '../services/lesson-estimate.service.js'
 import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '../services/youtube.js'
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
@@ -887,16 +893,8 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
     // no read blocks). Read activities may be left empty during editing — they
     // render as not-ready — but publishing requires content.
     if (body.isPublished === true && !existingProgram.isPublished) {
-      const emptyReadActivity = await prisma.lessonActivity.findFirst({
-        where: {
-          activityType: 'READ',
-          lesson: { studyProgramId: existingProgram.id },
-          readBlocks: { none: {} },
-        },
-        select: { lesson: { select: { dayNumber: true } } },
-      })
-      if (emptyReadActivity) {
-        const day = emptyReadActivity.lesson?.dayNumber
+      const day = await findIncompleteReadActivityDay(existingProgram.id)
+      if (day !== null) {
         return res.status(400).json({
           success: false,
           error: `Cannot publish: a read activity${day ? ` on day ${day}` : ''} has no read blocks. Add content or remove the activity before publishing.`,
@@ -1016,6 +1014,19 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
       },
     })
 
+    // Transitioning to published cuts the baseline StudyProgramVersion so
+    // enrollments created from here on have a version to sync against.
+    // No summary — there is no previous version to diff (and republishing an
+    // unchanged program is a no-op inside publishProgramVersion).
+    if (body.isPublished === true && !existingProgram.isPublished) {
+      try {
+        await publishProgramVersion({ programId: id, userId, generateSummary: false })
+      } catch (versionError) {
+        // The publish toggle itself succeeded; version cutting must not undo it
+        console.error('Failed to cut baseline program version:', versionError)
+      }
+    }
+
     // Track activity: PUBLISHED if toggling to published, otherwise UPDATED
     const action = body.isPublished && !existingProgram.isPublished ? 'PUBLISHED' : 'UPDATED'
     trackActivity({
@@ -1034,6 +1045,213 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
     }
     console.error('Error updating program:', error)
     res.status(500).json({ success: false, error: 'Failed to update program' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/programs/{id}/publish-preview:
+ *   get:
+ *     tags: [Programs]
+ *     summary: Preview what "Publish updates" would publish
+ *     description: |
+ *       Read-only diff of the current curriculum vs the latest published
+ *       version — which lessons were added/changed/removed/moved — plus when
+ *       the program was last published. Shown to the leader before they
+ *       confirm a publish. Cuts nothing and calls no AI.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Publish preview
+ *       400:
+ *         description: Program is not published
+ *       404:
+ *         description: Program not found
+ */
+router.get('/programs/:id/publish-preview', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const program = await prisma.studyProgram.findFirst({
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
+      select: { id: true, isPublished: true },
+    })
+
+    if (!program) {
+      return res.status(404).json({ success: false, error: 'Program not found' })
+    }
+
+    if (!program.isPublished) {
+      return res.status(400).json({
+        success: false,
+        error: 'Publish the program first — updates can only be published for a published program.',
+      })
+    }
+
+    const preview = await previewProgramPublish(id)
+    res.json({ success: true, preview })
+  } catch (error) {
+    console.error('Error previewing program publish:', error)
+    res.status(500).json({ success: false, error: 'Failed to preview publish' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/programs/{id}/publish-updates:
+ *   post:
+ *     tags: [Programs]
+ *     summary: Publish curriculum updates as a new program version
+ *     description: |
+ *       Cuts an immutable StudyProgramVersion (per-lesson content hashes, full
+ *       snapshot, AI change summary). Versions are the unit of enrollment sync:
+ *       AUTO enrollments apply them, APPROVAL/OFF enrollments are notified.
+ *       Republishing an unchanged program is a no-op (alreadyUpToDate=true).
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Version published (or already up to date)
+ *       400:
+ *         description: Program is not published or has incomplete content
+ *       404:
+ *         description: Program not found
+ *       409:
+ *         description: A concurrent publish is in progress
+ */
+router.post('/programs/:id/publish-updates', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const program = await prisma.studyProgram.findFirst({
+      where: { id, ...(await mutationFilter(userId)), isActive: true },
+      select: { id: true, name: true, isPublished: true, organizationId: true },
+    })
+
+    if (!program) {
+      return res.status(404).json({ success: false, error: 'Program not found' })
+    }
+
+    if (!program.isPublished) {
+      return res.status(400).json({
+        success: false,
+        error: 'Publish the program first — updates can only be published for a published program.',
+      })
+    }
+
+    // Same content guard as first publish: broken READ activities must never
+    // propagate to enrolled groups.
+    const incompleteDay = await findIncompleteReadActivityDay(id)
+    if (incompleteDay !== null) {
+      return res.status(400).json({
+        success: false,
+        error: `Cannot publish updates: a read activity on day ${incompleteDay} has no read blocks. Add content or remove the activity first.`,
+      })
+    }
+
+    const result = await publishProgramVersion({ programId: id, userId })
+
+    if (!result.alreadyUpToDate) {
+      trackActivity({
+        actorId: userId,
+        action: 'PUBLISHED',
+        resourceType: 'PROGRAM',
+        resourceId: id,
+        resourceName: program.name,
+        organizationId: program.organizationId,
+        metadata: { versionNumber: result.version.versionNumber },
+      })
+    }
+
+    res.json({
+      success: true,
+      alreadyUpToDate: result.alreadyUpToDate,
+      version: result.version,
+    })
+  } catch (error) {
+    if (error instanceof PublishConflictError) {
+      return res.status(409).json({ success: false, error: error.message })
+    }
+    console.error('Error publishing program updates:', error)
+    res.status(500).json({ success: false, error: 'Failed to publish updates' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/programs/{id}/versions:
+ *   get:
+ *     tags: [Programs]
+ *     summary: List published versions of a program
+ *     description: |
+ *       Version history for the study program, newest first. Each entry carries
+ *       the AI change summary and which lessons were added/changed/removed/moved
+ *       vs the previous version (null on the baseline version).
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Version list
+ *       404:
+ *         description: Program not found
+ */
+router.get('/programs/:id/versions', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+    const userOrgId = await getUserOrgId(userId)
+
+    const program = await prisma.studyProgram.findFirst({
+      where: { id, ...accessFilter(userOrgId, userId), isActive: true },
+      select: { id: true, currentVersionNumber: true },
+    })
+
+    if (!program) {
+      return res.status(404).json({ success: false, error: 'Program not found' })
+    }
+
+    const versions = await prisma.studyProgramVersion.findMany({
+      where: { studyProgramId: id },
+      orderBy: { versionNumber: 'desc' },
+      select: {
+        id: true,
+        versionNumber: true,
+        publishedAt: true,
+        changeSummary: true,
+        changedLessonIds: true,
+        publishedBy: { select: { id: true, name: true } },
+      },
+    })
+
+    res.json({
+      success: true,
+      currentVersionNumber: program.currentVersionNumber,
+      versions,
+    })
+  } catch (error) {
+    console.error('Error listing program versions:', error)
+    res.status(500).json({ success: false, error: 'Failed to list versions' })
   }
 })
 

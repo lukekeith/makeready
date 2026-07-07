@@ -48,17 +48,26 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     const limit = Math.min(parseInt(req.query.limit as string) || 50, 100)
     const offset = parseInt(req.query.offset as string) || 0
 
-    const activities = await prisma.activity.findMany({
-      where: { targetUserId: userId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset,
-      include: {
-        actor: {
-          select: { id: true, name: true, picture: true },
+    const [activities, storedNotifications] = await Promise.all([
+      prisma.activity.findMany({
+        where: { targetUserId: userId },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+        include: {
+          actor: {
+            select: { id: true, name: true, picture: true },
+          },
         },
-      },
-    })
+      }),
+      // Notification-table rows (study-sync updates etc.) merge into the feed
+      prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+    ])
 
     // Map to notification-compatible shape
     const notifications = activities.map((a) => ({
@@ -86,9 +95,29 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       groupId: a.groupId,
     }))
 
+    // Merge, newest first (Notification rows carry dedupeKey + actions the
+    // clients use to render inline views, e.g. enrollment sync settings)
+    const merged = [
+      ...notifications,
+      ...storedNotifications.map((n) => ({
+        id: n.id,
+        userId: n.userId,
+        type: n.type,
+        title: n.title,
+        body: n.body,
+        isRead: n.isRead,
+        data: n.data,
+        actions: n.actions,
+        dedupeKey: n.dedupeKey,
+        createdAt: n.createdAt,
+        actor: null,
+      })),
+    ].sort((x: any, y: any) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())
+      .slice(0, limit)
+
     res.json({
       success: true,
-      notifications,
+      notifications: merged,
     })
   } catch (error) {
     console.error('Failed to list notifications:', error)
@@ -115,9 +144,11 @@ router.get('/unread-count', requireAuth, async (req: Request, res: Response) => 
   try {
     const userId = (req.user as any)?.id
 
-    const count = await prisma.activity.count({
-      where: { targetUserId: userId, isRead: false },
-    })
+    const [activityCount, notificationCount] = await Promise.all([
+      prisma.activity.count({ where: { targetUserId: userId, isRead: false } }),
+      prisma.notification.count({ where: { userId, isRead: false } }),
+    ])
+    const count = activityCount + notificationCount
 
     res.json({
       success: true,
@@ -129,6 +160,56 @@ router.get('/unread-count', requireAuth, async (req: Request, res: Response) => 
       success: false,
       error: 'Failed to get unread count',
     })
+  }
+})
+
+/**
+ * @openapi
+ * /api/notifications/summary:
+ *   get:
+ *     tags: [Notifications]
+ *     summary: Unread notification summary for the dashboard banner
+ *     description: Unread count plus the newest unread notification's timestamp.
+ *     security:
+ *       - userSession: []
+ *     responses:
+ *       200:
+ *         description: Summary
+ */
+router.get('/summary', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id
+
+    const [activityCount, notificationCount, latestActivity, latestNotification] =
+      await Promise.all([
+        prisma.activity.count({ where: { targetUserId: userId, isRead: false } }),
+        prisma.notification.count({ where: { userId, isRead: false } }),
+        prisma.activity.findFirst({
+          where: { targetUserId: userId, isRead: false },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+        prisma.notification.findFirst({
+          where: { userId, isRead: false },
+          orderBy: { createdAt: 'desc' },
+          select: { createdAt: true },
+        }),
+      ])
+
+    const timestamps = [latestActivity?.createdAt, latestNotification?.createdAt]
+      .filter((t): t is Date => t != null)
+      .sort((a, b) => b.getTime() - a.getTime())
+
+    res.json({
+      success: true,
+      summary: {
+        unreadCount: activityCount + notificationCount,
+        latestAt: timestamps[0]?.toISOString() ?? null,
+      },
+    })
+  } catch (error) {
+    console.error('Failed to get notification summary:', error)
+    res.status(500).json({ success: false, error: 'Failed to get notification summary' })
   }
 })
 
@@ -177,16 +258,51 @@ router.post('/mark-read', requireAuth, async (req: Request, res: Response) => {
 
     const { ids, all } = validation.data
 
+    // Action-required notifications (data.requiresAction, e.g. study-sync
+    // "updates available") can NOT be cleared by viewing/mark-read — they
+    // resolve only when the underlying decision happens (sync applied or
+    // sync mode changed), via resolveNotificationsByDedupeKey. Filtered in
+    // app code: a Prisma JSON `NOT { path: equals }` silently drops rows
+    // MISSING the key (SQL NULL semantics), which would exempt every normal
+    // notification from mark-read.
+    const dismissableIds = async (scope: { ids?: string[] }) => {
+      const rows = await prisma.notification.findMany({
+        where: {
+          userId,
+          isRead: false,
+          ...(scope.ids ? { id: { in: scope.ids } } : {}),
+        },
+        select: { id: true, data: true },
+      })
+      return rows
+        .filter((n) => (n.data as { requiresAction?: boolean } | null)?.requiresAction !== true)
+        .map((n) => n.id)
+    }
+
     if (all) {
-      await prisma.activity.updateMany({
-        where: { targetUserId: userId, isRead: false },
-        data: { isRead: true },
-      })
+      const notificationIds = await dismissableIds({})
+      await Promise.all([
+        prisma.activity.updateMany({
+          where: { targetUserId: userId, isRead: false },
+          data: { isRead: true },
+        }),
+        prisma.notification.updateMany({
+          where: { id: { in: notificationIds } },
+          data: { isRead: true },
+        }),
+      ])
     } else if (ids && ids.length > 0) {
-      await prisma.activity.updateMany({
-        where: { id: { in: ids }, targetUserId: userId },
-        data: { isRead: true },
-      })
+      const notificationIds = await dismissableIds({ ids })
+      await Promise.all([
+        prisma.activity.updateMany({
+          where: { id: { in: ids }, targetUserId: userId },
+          data: { isRead: true },
+        }),
+        prisma.notification.updateMany({
+          where: { id: { in: notificationIds } },
+          data: { isRead: true },
+        }),
+      ])
     } else {
       return res.status(400).json({
         success: false,

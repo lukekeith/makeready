@@ -204,7 +204,8 @@ private let api: APIClientProtocol
         enabledDays: [String],
         smsTime: String?,
         timezone: String?,
-        requireResponse: Bool = false
+        requireResponse: Bool = false,
+        syncMode: EnrollmentSyncMode = .off
     ) async throws -> Enrollment {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -214,7 +215,8 @@ private let api: APIClientProtocol
             "studyProgramId": studyProgramId,
             "startDate": dateFormatter.string(from: startDate),
             "enabledDays": enabledDays,
-            "requireResponse": requireResponse
+            "requireResponse": requireResponse,
+            "syncMode": syncMode.rawValue
         ]
 
         if let smsTime = smsTime {
@@ -428,6 +430,93 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to update schedule title")
         }
         NSLog("📅 EnrollmentActions: Updated schedule title for \(scheduleId)")
+    }
+
+    // MARK: - Study Sync
+
+    /// Get the study-sync status for an enrollment: its sync mode, the program
+    /// version its lessons reflect, whether newer versions exist (drift), and
+    /// the pending versions' AI change summaries.
+    @MainActor
+    func getSyncStatus(enrollmentId: String) async throws -> EnrollmentSyncStatus {
+        struct Response: Decodable {
+            let success: Bool
+            let sync: EnrollmentSyncStatus?
+            let error: String?
+        }
+        let response: Response = try await api.get(
+            "/api/enrollments/\(enrollmentId)/sync",
+            responseType: Response.self
+        )
+        guard response.success, let sync = response.sync else {
+            throw APIError.serverError(response.error ?? "Failed to load sync status")
+        }
+        // Write-through cache so the page renders synchronously next visit.
+        state.enrollmentSyncStatusById[enrollmentId] = sync
+        return sync
+    }
+
+    /// Change an enrollment's sync mode (OFF / AUTO / APPROVAL).
+    @MainActor
+    func updateSyncMode(enrollmentId: String, mode: EnrollmentSyncMode) async throws {
+        let response: APISuccessResponse = try await api.patch(
+            "/api/enrollments/\(enrollmentId)",
+            body: ["syncMode": mode.rawValue],
+            responseType: APISuccessResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to update sync mode")
+        }
+    }
+
+    /// Per-lesson pending changes for the Review Changes screen.
+    @MainActor
+    func getPendingChanges(enrollmentId: String) async throws -> EnrollmentPendingChanges {
+        struct Response: Decodable {
+            let success: Bool
+            let targetVersionNumber: Int?
+            let hasPending: Bool?
+            let changes: [PendingLessonChange]?
+            let counts: EnrollmentPendingChanges.Counts?
+            let error: String?
+        }
+        let response: Response = try await api.get(
+            "/api/enrollments/\(enrollmentId)/sync/changes",
+            responseType: Response.self
+        )
+        guard response.success, let changes = response.changes, let counts = response.counts else {
+            throw APIError.serverError(response.error ?? "Failed to load pending changes")
+        }
+        let pending = EnrollmentPendingChanges(
+            targetVersionNumber: response.targetVersionNumber,
+            hasPending: response.hasPending ?? !changes.isEmpty,
+            changes: changes,
+            counts: counts
+        )
+        state.enrollmentPendingChangesById[enrollmentId] = pending
+        return pending
+    }
+
+    /// Apply pending curriculum updates to the enrollment. `lessonKeys`
+    /// restricts to the approved lessons (Review Changes toggles); nil applies
+    /// everything. Partial approvals leave the enrollment drifted so the
+    /// leader can approve more later. Members who completed a lesson stay
+    /// pinned to the version they finished.
+    @MainActor
+    func applySyncUpdates(enrollmentId: String, lessonKeys: [String]? = nil) async throws {
+        let body: [String: Any] = lessonKeys.map { ["lessonKeys": $0] } ?? [:]
+        let response: APISuccessResponse = try await api.post(
+            "/api/enrollments/\(enrollmentId)/sync/apply",
+            body: body,
+            responseType: APISuccessResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to apply updates")
+        }
+        // The schedule content may have changed — drop the cached details and
+        // pending changes so the next visits refetch.
+        state.enrollmentDetailsById[enrollmentId] = nil
+        state.enrollmentPendingChangesById[enrollmentId] = nil
     }
 
     // MARK: - Scheduled Activity Operations

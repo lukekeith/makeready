@@ -118,3 +118,20 @@ enums:
       - REJOINED        # Inactive group membership reactivated (re-add)
       - REMOVED_GROUP   # Member removed from a single group
       - REMOVED_ORG     # Member removed from the entire organization
+
+  # How an enrollment tracks curriculum changes published to its study program.
+  # OFF = frozen copy (legacy behavior); AUTO = published updates apply
+  # immediately; APPROVAL = leader must approve before updates apply.
+  EnrollmentSyncMode:
+    values:
+      - "OFF"
+      - AUTO
+      - APPROVAL
+
+  # Lifecycle of one idempotent "bring enrollment to program version N" run.
+  SyncRunStatus:
+    values:
+      - PENDING
+      - RUNNING
+      - COMPLETED
+      - FAILED

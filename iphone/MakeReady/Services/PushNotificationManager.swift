@@ -13,6 +13,8 @@ import UIKit
 enum DeepLink: Equatable {
     case joinRequests(groupId: String)
     case group(groupId: String)
+    /// Study Sync settings for one enrollment (study-sync notifications).
+    case enrollmentSync(enrollmentId: String)
     case importFile(URL)
     case none
 }
@@ -223,6 +225,13 @@ final class PushNotificationManager {
                 DispatchQueue.main.async {
                     self.pendingDeepLink = .group(groupId: groupId)
                     NSLog("📱 PushNotificationManager: Set deep link to group %@", groupId)
+                }
+            }
+        case "STUDY_SYNC_UPDATES_AVAILABLE", "STUDY_SYNC_APPLIED":
+            if let enrollmentId = userInfo["enrollmentId"] as? String {
+                DispatchQueue.main.async {
+                    self.pendingDeepLink = .enrollmentSync(enrollmentId: enrollmentId)
+                    Log.push.info("deep link to enrollment sync")
                 }
             }
         default:

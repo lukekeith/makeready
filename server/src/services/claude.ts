@@ -15,6 +15,7 @@ export const CLAUDE_MODELS = {
   haiku: 'claude-haiku-4-5-20251001',
   sonnet: 'claude-sonnet-4-20250514',
   opus: 'claude-opus-4-20250514',
+  opus48: 'claude-opus-4-8',
 } as const
 
 export type ClaudeModel = keyof typeof CLAUDE_MODELS
@@ -196,4 +197,80 @@ function buildProgramSummary(program: Parameters<typeof suggestProgramTags>[0]):
   }
 
   return lines.filter(Boolean).join('\n')
+}
+
+// ============================================================================
+// Study Program Change Summaries (study-sync)
+// ============================================================================
+
+export interface ProgramChangeDiff {
+  programName: string
+  addedLessons: Array<{ dayNumber: number; title: string | null }>
+  removedLessons: Array<{ dayNumber: number; title: string | null }>
+  movedLessons: Array<{ title: string | null; fromDay: number; toDay: number }>
+  changedLessons: Array<{
+    dayNumber: number
+    title: string | null
+    before: unknown // canonical lesson content at the previous version
+    after: unknown // canonical lesson content now
+  }>
+}
+
+/** Trim a canonical lesson JSON so a large lesson can't blow up the prompt. */
+function trimmedLessonJson(content: unknown, maxChars = 4000): string {
+  const json = JSON.stringify(content)
+  return json.length > maxChars ? json.slice(0, maxChars) + '…(truncated)' : json
+}
+
+/**
+ * Summarize the changes between two published versions of a study program.
+ * The summary is shown to group leaders deciding whether to accept the
+ * updates into their enrollment, so it must be plain-language and factual.
+ *
+ * Best-effort: returns null when the API key is missing or the call fails —
+ * a version publish must never be blocked by summary generation.
+ */
+export async function summarizeProgramChanges(diff: ProgramChangeDiff): Promise<string | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null
+
+  const sections: string[] = []
+  if (diff.addedLessons.length > 0) {
+    sections.push(`Added lessons:\n${diff.addedLessons.map((l) => `- Day ${l.dayNumber}: ${l.title ?? 'Untitled'}`).join('\n')}`)
+  }
+  if (diff.removedLessons.length > 0) {
+    sections.push(`Removed lessons:\n${diff.removedLessons.map((l) => `- Day ${l.dayNumber}: ${l.title ?? 'Untitled'}`).join('\n')}`)
+  }
+  if (diff.movedLessons.length > 0) {
+    sections.push(`Reordered lessons:\n${diff.movedLessons.map((l) => `- "${l.title ?? 'Untitled'}" moved from day ${l.fromDay} to day ${l.toDay}`).join('\n')}`)
+  }
+  for (const lesson of diff.changedLessons) {
+    sections.push(
+      `Edited lesson (Day ${lesson.dayNumber}: ${lesson.title ?? 'Untitled'}):\nBEFORE: ${trimmedLessonJson(lesson.before)}\nAFTER: ${trimmedLessonJson(lesson.after)}`
+    )
+  }
+  if (sections.length === 0) return null
+
+  try {
+    const message = await client.messages.create({
+      model: CLAUDE_MODELS.opus48,
+      max_tokens: 500,
+      messages: [
+        {
+          role: 'user',
+          content: `You are summarizing curriculum changes for a Bible study app called MakeReady. The study program "${diff.programName}" was just republished with changes. Group leaders who enrolled their groups will read your summary to decide whether to accept these updates into their in-progress study.
+
+Write a short plain-language summary (2-4 sentences, no markdown, no preamble) of what changed. Focus on what members will experience differently: new or removed lessons, reworded prompts, new activities, changed scripture passages. Ignore internal identifiers and formatting-only changes.
+
+Changes:
+${sections.join('\n\n')}`,
+        },
+      ],
+    })
+
+    const text = message.content[0]?.type === 'text' ? message.content[0].text.trim() : ''
+    return text.length > 0 ? text : null
+  } catch (error) {
+    console.error('Failed to generate program change summary:', error)
+    return null
+  }
 }

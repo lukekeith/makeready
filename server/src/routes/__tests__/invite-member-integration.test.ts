@@ -336,7 +336,9 @@ describe('Invite + Member Integration', () => {
 
   describe('Member Service Integration', () => {
     it('should create member and accept invite in sequence', async () => {
-      const newPhone = `+1555${Date.now().toString().slice(-7)}`
+      // +1666 prefix: beforeEach creates a member from +1555 + the same
+      // Date.now() slice — same-millisecond runs collided and flaked
+      const newPhone = `+1666${Date.now().toString().slice(-7)}`
 
       // Create invite first (before member exists)
       const invite = await prisma.invite.create({

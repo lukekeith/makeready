@@ -214,6 +214,14 @@ models:
         type: one_to_many
         target: SmsLog
         name: SmsSender
+      publishedProgramVersions:
+        type: one_to_many
+        target: StudyProgramVersion
+        name: StudyProgramVersionPublisher
+      triggeredSyncRuns:
+        type: one_to_many
+        target: EnrollmentSyncRun
+        name: SyncRunTrigger
     indexes:
       - fields: [organizationId]
       - fields: [isSuperAdmin]
@@ -1933,6 +1941,10 @@ models:
         type: datetime
         nullable: true
         description: "When the program was first published"
+      currentVersionNumber:
+        type: int
+        nullable: true
+        description: "Latest published StudyProgramVersion number; null until first 'Publish updates'. Denormalized for cheap enrollment drift checks."
       creatorId:
         type: string
       updatedById:
@@ -1984,11 +1996,72 @@ models:
       tags:
         type: one_to_many
         target: StudyProgramTag
+      versions:
+        type: one_to_many
+        target: StudyProgramVersion
     indexes:
       - fields: [creatorId]
       - fields: [isActive]
       - fields: [templateId]
       - fields: [organizationId]
+
+  # ---------------------------------------------------------------------------
+  # Study Program Versions (immutable snapshots cut by "Publish updates")
+  # The version — not the edit — is the unit of downstream enrollment sync.
+  # Rows are never mutated or deleted after creation.
+  # ---------------------------------------------------------------------------
+  StudyProgramVersion:
+    table_name: study_program_versions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      studyProgramId:
+        type: string
+      versionNumber:
+        type: int
+        description: "1-based, monotonically increasing per program"
+      publishedAt:
+        type: datetime
+        default: now()
+      publishedById:
+        type: string
+        nullable: true
+      changeSummary:
+        type: text
+        nullable: true
+        description: "Claude-generated summary of changes vs previous version; shown in leader notifications"
+      snapshot:
+        type: json
+        description: "Full canonical JSON of the program's lessons/activities at publish time (audit + diff source)"
+      lessonHashes:
+        type: json
+        description: "Map of lessonId -> canonical content hash at publish time; drives per-lesson sync"
+      changedLessonIds:
+        type: json
+        nullable: true
+        description: "Lesson IDs added/changed/removed vs previous version; null on baseline (first) publish"
+    relations:
+      studyProgram:
+        type: many_to_one
+        target: StudyProgram
+        fields: [studyProgramId]
+        references: [id]
+        onDelete: Cascade
+      publishedBy:
+        type: many_to_one
+        target: User
+        fields: [publishedById]
+        references: [id]
+        name: StudyProgramVersionPublisher
+        onDelete: SetNull
+        nullable: true
+    indexes:
+      - fields: [studyProgramId]
+      - fields: [publishedById]
+    unique:
+      - fields: [studyProgramId, versionNumber]
 
   # ---------------------------------------------------------------------------
   # Study Program Tags (free-form taxonomy)
@@ -2229,6 +2302,15 @@ models:
         type: boolean
         default: true
         description: "Require user input before step completion"
+      syncMode:
+        type: enum
+        enum: EnrollmentSyncMode
+        default: "OFF"
+        description: "How this enrollment tracks curriculum updates published to its study program"
+      syncedProgramVersionNumber:
+        type: int
+        nullable: true
+        description: "StudyProgramVersion.versionNumber this enrollment's lessons reflect; null = pre-versioning baseline. Drift = program.currentVersionNumber > this."
       createdAt:
         type: datetime
         default: now()
@@ -2280,11 +2362,75 @@ models:
       welcomePost:
         type: one_to_one
         target: Post
+      syncRuns:
+        type: one_to_many
+        target: EnrollmentSyncRun
     indexes:
       - fields: [groupId]
       - fields: [studyProgramId]
       - fields: [createdById]
       - fields: [startDate]
+      - fields: [studyProgramId, syncMode]
+
+  # ---------------------------------------------------------------------------
+  # Enrollment Sync Runs (idempotency + resume state for sync fan-out)
+  # One row per (enrollment, target program version) attempt: "bring enrollment
+  # E to version N". Safe to retry; a crashed fan-out job resumes from these.
+  # ---------------------------------------------------------------------------
+  EnrollmentSyncRun:
+    table_name: enrollment_sync_runs
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      enrollmentId:
+        type: string
+      targetProgramVersionNumber:
+        type: int
+        description: "StudyProgramVersion.versionNumber this run applies"
+      status:
+        type: enum
+        enum: SyncRunStatus
+        default: PENDING
+      error:
+        type: text
+        nullable: true
+        description: "Last failure message when status = FAILED"
+      triggeredById:
+        type: string
+        nullable: true
+        description: "User who triggered the run (approval-mode apply / manual catch-up); null for automatic fan-out"
+      startedAt:
+        type: datetime
+        nullable: true
+      completedAt:
+        type: datetime
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+    relations:
+      enrollment:
+        type: many_to_one
+        target: Enrollment
+        fields: [enrollmentId]
+        references: [id]
+        onDelete: Cascade
+      triggeredBy:
+        type: many_to_one
+        target: User
+        fields: [triggeredById]
+        references: [id]
+        name: SyncRunTrigger
+        onDelete: SetNull
+        nullable: true
+    indexes:
+      - fields: [enrollmentId]
+      - fields: [status]
+      - fields: [triggeredById]
+    unique:
+      - fields: [enrollmentId, targetProgramVersionNumber]
 
   LessonSchedule:
     table_name: lesson_schedules
@@ -2302,6 +2448,8 @@ models:
         type: string
       lessonId:
         type: string
+        nullable: true
+        description: "Source curriculum lesson; null after that lesson is deleted from the curriculum (the schedule owns its content — deletion reaches enrollments only via publish+sync, never by cascade)"
       scheduledDate:
         type: datetime
       smsSentAt:
@@ -2323,6 +2471,14 @@ models:
         type: int
         nullable: true
         description: "Snapshot of time estimate at enrollment time"
+      currentVersionId:
+        type: string
+        nullable: true
+        description: "LessonScheduleVersion members without a pin see; null only for pre-backfill legacy rows"
+      removedAt:
+        type: datetime
+        nullable: true
+        description: "Set when sync removes this lesson from the curriculum but member progress exists (soft-hide: kept for history, excluded from upcoming lists). Schedules with no progress are hard-deleted instead."
     relations:
       enrollment:
         type: many_to_one
@@ -2335,7 +2491,8 @@ models:
         target: Lesson
         fields: [lessonId]
         references: [id]
-        onDelete: Cascade
+        onDelete: SetNull
+        nullable: true
       template:
         type: many_to_one
         target: LessonTemplate
@@ -2343,6 +2500,18 @@ models:
         references: [id]
         onDelete: SetNull
         nullable: true
+      currentVersion:
+        type: many_to_one
+        target: LessonScheduleVersion
+        fields: [currentVersionId]
+        references: [id]
+        name: LessonScheduleCurrentVersion
+        onDelete: SetNull
+        nullable: true
+      versions:
+        type: one_to_many
+        target: LessonScheduleVersion
+        name: LessonScheduleVersions
       scheduledActivities:
         type: one_to_many
         target: ScheduledLessonActivity
@@ -2364,8 +2533,61 @@ models:
       - fields: [scheduledDate]
       - fields: [smsSentAt]
       - fields: [code]
+      - fields: [currentVersionId]
     unique:
       - fields: [enrollmentId, lessonId]
+
+  # ---------------------------------------------------------------------------
+  # Lesson Schedule Versions (immutable activity-set snapshots per enrolled
+  # lesson). Sync creates a new version instead of mutating activities, so
+  # members pinned to an old version keep exactly what they completed.
+  # Rows are never mutated or deleted after creation (only schedule cascade).
+  # ---------------------------------------------------------------------------
+  LessonScheduleVersion:
+    table_name: lesson_schedule_versions
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      lessonScheduleId:
+        type: string
+      versionNumber:
+        type: int
+        description: "1-based, monotonically increasing per lesson schedule"
+      programVersionNumber:
+        type: int
+        nullable: true
+        description: "StudyProgramVersion.versionNumber this version was synced from; null for enrollment-time copies and backfilled baselines"
+      sourceContentHash:
+        type: string
+        nullable: true
+        description: "Canonical content hash of the curriculum lesson this version was copied from; compared against StudyProgramVersion.lessonHashes for per-lesson drift"
+      publishedAt:
+        type: datetime
+        default: now()
+    relations:
+      lessonSchedule:
+        type: many_to_one
+        target: LessonSchedule
+        fields: [lessonScheduleId]
+        references: [id]
+        name: LessonScheduleVersions
+        onDelete: Cascade
+      currentFor:
+        type: one_to_many
+        target: LessonSchedule
+        name: LessonScheduleCurrentVersion
+      activities:
+        type: one_to_many
+        target: ScheduledLessonActivity
+      pinnedProgress:
+        type: one_to_many
+        target: MemberLessonProgress
+    indexes:
+      - fields: [lessonScheduleId]
+    unique:
+      - fields: [lessonScheduleId, versionNumber]
 
   # ===========================================================================
   # Event Models
@@ -3084,6 +3306,10 @@ models:
         type: datetime
         nullable: true
         description: "Set when all activities in the lesson are complete"
+      pinnedVersionId:
+        type: string
+        nullable: true
+        description: "LessonScheduleVersion stamped at completion; pinned members render this version forever. Null = member floats to the schedule's currentVersion."
       lastUpdatedAt:
         type: datetime
         updatedAt: true
@@ -3100,10 +3326,18 @@ models:
         fields: [lessonScheduleId]
         references: [id]
         onDelete: Cascade
+      pinnedVersion:
+        type: many_to_one
+        target: LessonScheduleVersion
+        fields: [pinnedVersionId]
+        references: [id]
+        onDelete: SetNull
+        nullable: true
     indexes:
       - fields: [memberId]
       - fields: [lessonScheduleId]
       - fields: [memberId, completedAt]
+      - fields: [pinnedVersionId]
     unique:
       - fields: [memberId, lessonScheduleId]
 
@@ -3188,6 +3422,14 @@ models:
         type: string
         nullable: true
         description: "Link back to source LessonActivity for reload"
+      versionId:
+        type: string
+        nullable: true
+        description: "LessonScheduleVersion this activity belongs to; null only for pre-backfill legacy rows"
+      lineageKey:
+        type: string
+        nullable: true
+        description: "Stable identity across versions = source LessonActivity.id at copy time (plain value, no FK, so curriculum deletes can't sever it). Drives member progress carry-forward. Null for leader-added custom activities."
       createdAt:
         type: datetime
         default: now()
@@ -3201,6 +3443,13 @@ models:
         fields: [lessonScheduleId]
         references: [id]
         onDelete: Cascade
+      version:
+        type: many_to_one
+        target: LessonScheduleVersion
+        fields: [versionId]
+        references: [id]
+        onDelete: Cascade
+        nullable: true
       video:
         type: many_to_one
         target: Video
@@ -3230,8 +3479,10 @@ models:
     indexes:
       - fields: [lessonScheduleId]
       - fields: [sourceLessonActivityId]
+      - fields: [versionId]
+      - fields: [lessonScheduleId, lineageKey]
     unique:
-      - fields: [lessonScheduleId, orderNumber]
+      - fields: [versionId, orderNumber]
 
   # ===========================================================================
   # Activity Source Reference (Bible verse metadata for READ activities)
@@ -3902,6 +4153,14 @@ models:
       data:
         type: json
         nullable: true
+      dedupeKey:
+        type: string
+        nullable: true
+        description: "Coalescing key (e.g. 'program-updates:{enrollmentId}'): while an unread notification with this key exists, new events update it in place instead of inserting"
+      actions:
+        type: json
+        nullable: true
+        description: "Array of {label, view, params} action descriptors; clients resolve 'view' to a compact in-modal view (e.g. enrollment sync settings)"
       createdAt:
         type: datetime
         default: now()
@@ -3915,6 +4174,7 @@ models:
     indexes:
       - fields: [userId, isRead]
       - fields: [userId, createdAt]
+      - fields: [userId, dedupeKey]
 
   # ===========================================================================
   # Activity Ledger (User-Facing Activity Feed)

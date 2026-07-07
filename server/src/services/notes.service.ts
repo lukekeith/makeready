@@ -892,17 +892,21 @@ export async function saveActivityProgress(
             },
           })
 
-          // Create links for context
-          const lessonId = scheduledActivity.lessonSchedule.lesson.id
-          const programId = scheduledActivity.lessonSchedule.lesson.studyProgram.id
+          // Create links for context (lesson/program links only while the
+          // curriculum lesson still exists — orphaned schedules keep the rest)
+          const sourceLesson = scheduledActivity.lessonSchedule.lesson
 
           const links: Prisma.NoteLinkCreateManyInput[] = [
             { noteId: note.id, refType: 'SCHEDULED_ACTIVITY', refId: lessonActivityId },
             { noteId: note.id, refType: LINK_TYPES.LESSON_SCHEDULE, refId: lessonScheduleId },
             { noteId: note.id, refType: LINK_TYPES.ENROLLMENT, refId: schedule.enrollment.id },
             { noteId: note.id, refType: LINK_TYPES.GROUP, refId: schedule.enrollment.groupId },
-            { noteId: note.id, refType: LINK_TYPES.LESSON, refId: lessonId },
-            { noteId: note.id, refType: LINK_TYPES.PROGRAM, refId: programId },
+            ...(sourceLesson
+              ? [
+                  { noteId: note.id, refType: LINK_TYPES.LESSON, refId: sourceLesson.id },
+                  { noteId: note.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram.id },
+                ]
+              : []),
           ]
 
           // Add verse link with metadata if available
@@ -1087,8 +1091,9 @@ export async function submitActivityResponse(
 
     // 5. Process note if provided
     if (note && note.content.trim()) {
-      const lessonId = scheduledActivity.lessonSchedule.lesson.id
-      const programId = scheduledActivity.lessonSchedule.lesson.studyProgram.id
+      // Lesson/program links only while the curriculum lesson still exists —
+      // notes on orphaned schedules keep their activity/schedule links
+      const sourceLesson = scheduledActivity.lessonSchedule.lesson
 
       await prisma.$transaction(async (tx) => {
         const createdStudyNote = await tx.studyNote.create({
@@ -1108,8 +1113,12 @@ export async function submitActivityResponse(
           { noteId: createdStudyNote.id, refType: LINK_TYPES.LESSON_SCHEDULE, refId: lessonScheduleId },
           { noteId: createdStudyNote.id, refType: LINK_TYPES.ENROLLMENT, refId: schedule.enrollment.id },
           { noteId: createdStudyNote.id, refType: LINK_TYPES.GROUP, refId: schedule.enrollment.groupId },
-          { noteId: createdStudyNote.id, refType: LINK_TYPES.LESSON, refId: lessonId },
-          { noteId: createdStudyNote.id, refType: LINK_TYPES.PROGRAM, refId: programId },
+          ...(sourceLesson
+            ? [
+                { noteId: createdStudyNote.id, refType: LINK_TYPES.LESSON, refId: sourceLesson.id },
+                { noteId: createdStudyNote.id, refType: LINK_TYPES.PROGRAM, refId: sourceLesson.studyProgram.id },
+              ]
+            : []),
         ]
 
         // Add verse link with metadata if available

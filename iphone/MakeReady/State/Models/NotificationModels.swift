@@ -14,12 +14,16 @@ import Foundation
 struct AppNotification: Codable, Identifiable {
     let id: String
     let userId: String
-    let type: String        // "JOIN_REQUEST", "MEMBER_JOINED"
+    let type: String        // "JOIN_REQUEST", "MEMBER_JOINED", "STUDY_SYNC_*"
     let title: String
     let body: String
     var isRead: Bool
     let data: NotificationData?
     let createdAt: Date
+    /// Tappable actions (study-sync rows carry these; absent elsewhere).
+    let actions: [NotificationAction]?
+    /// Server coalescing key (informational — the server dedupes by it).
+    let dedupeKey: String?
 
     /// Relative time string (e.g., "2m ago", "1h ago", "3d ago")
     var relativeTime: String {
@@ -35,6 +39,19 @@ struct AppNotification: Codable, Identifiable {
 struct NotificationData: Codable {
     let groupId: String?
     let requestId: String?
+    let enrollmentId: String?
+    /// Action-required (study-sync "updates available"): can't be cleared by
+    /// viewing — resolves when the leader applies updates or changes the
+    /// sync mode (the server's mark-read skips these too).
+    let requiresAction: Bool?
+}
+
+/// One tappable action on a notification: `view` names a client surface
+/// ("enrollment-sync" is the only one wired), `params` carries its identity.
+struct NotificationAction: Codable, Equatable {
+    let label: String
+    let view: String
+    let params: [String: String]?
 }
 
 /// API response for notification list

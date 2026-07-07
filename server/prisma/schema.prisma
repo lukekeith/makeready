@@ -142,6 +142,19 @@ enum MembershipEventAction {
   REMOVED_ORG
 }
 
+enum EnrollmentSyncMode {
+  OFF
+  AUTO
+  APPROVAL
+}
+
+enum SyncRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                   String @id @default(uuid())
   googleId             String? @unique
@@ -194,6 +207,8 @@ model User {
   createdThemes        TextTheme[] @relation("ThemeCreator")
   betaApplications     BetaApplication[]
   sentSmsLogs          SmsLog[] @relation("SmsSender")
+  publishedProgramVersions StudyProgramVersion[] @relation("StudyProgramVersionPublisher")
+  triggeredSyncRuns    EnrollmentSyncRun[] @relation("SyncRunTrigger")
   @@index([organizationId])
   @@index([isSuperAdmin])
   @@index([isActive])
@@ -838,6 +853,7 @@ model StudyProgram {
   requireResponse      Boolean @default(true) // Frontend flag: require user input before step completion
   isPublished          Boolean @default(false) // Only published programs can be enrolled
   publishedAt          DateTime? // When the program was first published
+  currentVersionNumber Int? // Latest published StudyProgramVersion number; null until first 'Publish updates'. Denormalized for cheap enrollment drift checks.
   creatorId            String
   updatedById          String? // User who last updated this program
   organizationId       String? // Direct org association for efficient filtering
@@ -851,11 +867,32 @@ model StudyProgram {
   lessons              Lesson[]
   enrollments          Enrollment[]
   tags                 StudyProgramTag[]
+  versions             StudyProgramVersion[]
   @@index([creatorId])
   @@index([isActive])
   @@index([templateId])
   @@index([organizationId])
   @@map("study_programs")
+}
+
+model StudyProgramVersion {
+  id                   String @id @default(uuid())
+  studyProgramId       String
+  versionNumber        Int // 1-based, monotonically increasing per program
+  publishedAt          DateTime @default(now())
+  publishedById        String?
+  changeSummary        String? @db.Text // Claude-generated summary of changes vs previous version; shown in leader notifications
+  snapshot             Json // Full canonical JSON of the program's lessons/activities at publish time (audit + diff source)
+  lessonHashes         Json // Map of lessonId -> canonical content hash at publish time; drives per-lesson sync
+  changedLessonIds     Json? // Lesson IDs added/changed/removed vs previous version; null on baseline (first) publish
+
+  studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
+  publishedBy          User? @relation("StudyProgramVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([studyProgramId, versionNumber])
+  @@index([studyProgramId])
+  @@index([publishedById])
+  @@map("study_program_versions")
 }
 
 model StudyProgramTag {
@@ -942,6 +979,8 @@ model Enrollment {
   smsTime              String? // Time to send SMS, e.g. '08:00'
   timezone             String? // e.g. 'America/Chicago'
   requireResponse      Boolean @default(true) // Require user input before step completion
+  syncMode             EnrollmentSyncMode @default(OFF) // How this enrollment tracks curriculum updates published to its study program
+  syncedProgramVersionNumber Int? // StudyProgramVersion.versionNumber this enrollment's lessons reflect; null = pre-versioning baseline. Drift = program.currentVersionNumber > this.
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
   createdById          String?
@@ -954,28 +993,55 @@ model Enrollment {
   lessonSchedules      LessonSchedule[]
   events               Event[]
   welcomePost          Post?
+  syncRuns             EnrollmentSyncRun[]
   @@index([groupId])
   @@index([studyProgramId])
   @@index([createdById])
   @@index([startDate])
+  @@index([studyProgramId, syncMode])
   @@map("enrollments")
+}
+
+model EnrollmentSyncRun {
+  id                   String @id @default(uuid())
+  enrollmentId         String
+  targetProgramVersionNumber Int // StudyProgramVersion.versionNumber this run applies
+  status               SyncRunStatus @default(PENDING)
+  error                String? @db.Text // Last failure message when status = FAILED
+  triggeredById        String? // User who triggered the run (approval-mode apply / manual catch-up); null for automatic fan-out
+  startedAt            DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime @default(now())
+
+  enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  triggeredBy          User? @relation("SyncRunTrigger", fields: [triggeredById], references: [id], onDelete: SetNull)
+
+  @@unique([enrollmentId, targetProgramVersionNumber])
+  @@index([enrollmentId])
+  @@index([status])
+  @@index([triggeredById])
+  @@map("enrollment_sync_runs")
 }
 
 model LessonSchedule {
   id                   String @id @default(uuid())
   code                 String? @unique // 6-char alphanumeric for deep linking
   enrollmentId         String
-  lessonId             String
+  lessonId             String? // Source curriculum lesson; null after that lesson is deleted from the curriculum (the schedule owns its content — deletion reaches enrollments only via publish+sync, never by cascade)
   scheduledDate        DateTime
   smsSentAt            DateTime?
   templateId           String? // FK to LessonTemplate for display
   templateName         String? // Denormalized for fast card rendering
   title                String? // Display title for lesson card (copied from Lesson)
   estimatedMinutes     Int? // Snapshot of time estimate at enrollment time
+  currentVersionId     String? // LessonScheduleVersion members without a pin see; null only for pre-backfill legacy rows
+  removedAt            DateTime? // Set when sync removes this lesson from the curriculum but member progress exists (soft-hide: kept for history, excluded from upcoming lists). Schedules with no progress are hard-deleted instead.
 
   enrollment           Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
-  lesson               Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lesson               Lesson? @relation(fields: [lessonId], references: [id], onDelete: SetNull)
   template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  currentVersion       LessonScheduleVersion? @relation("LessonScheduleCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions             LessonScheduleVersion[] @relation("LessonScheduleVersions")
   scheduledActivities  ScheduledLessonActivity[]
   event                Event?
   memberProgress       MemberActivityProgress[]
@@ -988,7 +1054,26 @@ model LessonSchedule {
   @@index([scheduledDate])
   @@index([smsSentAt])
   @@index([code])
+  @@index([currentVersionId])
   @@map("lesson_schedules")
+}
+
+model LessonScheduleVersion {
+  id                   String @id @default(uuid())
+  lessonScheduleId     String
+  versionNumber        Int // 1-based, monotonically increasing per lesson schedule
+  programVersionNumber Int? // StudyProgramVersion.versionNumber this version was synced from; null for enrollment-time copies and backfilled baselines
+  sourceContentHash    String? // Canonical content hash of the curriculum lesson this version was copied from; compared against StudyProgramVersion.lessonHashes for per-lesson drift
+  publishedAt          DateTime @default(now())
+
+  lessonSchedule       LessonSchedule @relation("LessonScheduleVersions", fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  currentFor           LessonSchedule[] @relation("LessonScheduleCurrentVersion")
+  activities           ScheduledLessonActivity[]
+  pinnedProgress       MemberLessonProgress[]
+
+  @@unique([lessonScheduleId, versionNumber])
+  @@index([lessonScheduleId])
+  @@map("lesson_schedule_versions")
 }
 
 model Event {
@@ -1237,15 +1322,18 @@ model MemberLessonProgress {
   lessonScheduleId     String
   startedAt            DateTime @default(now())
   completedAt          DateTime? // Set when all activities in the lesson are complete
+  pinnedVersionId      String? // LessonScheduleVersion stamped at completion; pinned members render this version forever. Null = member floats to the schedule's currentVersion.
   lastUpdatedAt        DateTime @updatedAt
 
   member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
   lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  pinnedVersion        LessonScheduleVersion? @relation(fields: [pinnedVersionId], references: [id], onDelete: SetNull)
 
   @@unique([memberId, lessonScheduleId])
   @@index([memberId])
   @@index([lessonScheduleId])
   @@index([memberId, completedAt])
+  @@index([pinnedVersionId])
   @@map("member_lesson_progress")
 }
 
@@ -1272,10 +1360,13 @@ model ScheduledLessonActivity {
   youtubeThumbnailUrl  String? // YouTube video thumbnail URL from oEmbed
   estimatedSeconds     Int? // Calculated time estimate in seconds for this activity
   sourceLessonActivityId String? // Link back to source LessonActivity for reload
+  versionId            String? // LessonScheduleVersion this activity belongs to; null only for pre-backfill legacy rows
+  lineageKey           String? // Stable identity across versions = source LessonActivity.id at copy time (plain value, no FK, so curriculum deletes can't sever it). Drives member progress carry-forward. Null for leader-added custom activities.
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
   lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+  version              LessonScheduleVersion? @relation(fields: [versionId], references: [id], onDelete: Cascade)
   video                Video? @relation(fields: [videoId], references: [id], onDelete: SetNull)
   sourceLessonActivity LessonActivity? @relation(fields: [sourceLessonActivityId], references: [id], onDelete: SetNull)
   sourceReferences     ActivitySourceReference[]
@@ -1283,9 +1374,11 @@ model ScheduledLessonActivity {
   activityProgress     MemberActivityProgress[]
   videoProgress        MemberVideoProgress[]
 
-  @@unique([lessonScheduleId, orderNumber])
+  @@unique([versionId, orderNumber])
   @@index([lessonScheduleId])
   @@index([sourceLessonActivityId])
+  @@index([versionId])
+  @@index([lessonScheduleId, lineageKey])
   @@map("scheduled_lesson_activities")
 }
 
@@ -1526,11 +1619,14 @@ model Notification {
   body                 String
   isRead               Boolean @default(false)
   data                 Json?
+  dedupeKey            String? // Coalescing key (e.g. 'program-updates:{enrollmentId}'): while an unread notification with this key exists, new events update it in place instead of inserting
+  actions              Json? // Array of {label, view, params} action descriptors; clients resolve 'view' to a compact in-modal view (e.g. enrollment sync settings)
   createdAt            DateTime @default(now())
 
   user                 User @relation(fields: [userId], references: [id], onDelete: Cascade)
   @@index([userId, isRead])
   @@index([userId, createdAt])
+  @@index([userId, dedupeKey])
   @@map("notifications")
 }
 

@@ -135,7 +135,7 @@ async function fetchLessonContent(
     },
   });
 
-  if (!schedule) {
+  if (!schedule || !schedule.lesson) {
     return {
       title: `${group.name} Study`,
       description: 'Join a Bible study on MakeReady.',
@@ -217,7 +217,7 @@ async function fetchLessonContentByIdOrCode(
     });
   }
 
-  if (!schedule) {
+  if (!schedule || !schedule.lesson) {
     return {
       title: 'Study on MakeReady',
       description: 'Join a Bible study on MakeReady.',

@@ -12,7 +12,13 @@ import { trackActivity } from '../services/activity.js'
 import { recalculateScheduledLessonEstimate } from '../services/lesson-estimate.service.js'
 import { getUserOrgId } from '../services/media-library.js'
 import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
-import { isStableNumberedScriptureMarkdown, normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
+import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
+import { hashLessonContent } from '../services/lesson-content-hash.js'
+import { buildLessonCopyRows, type LessonCopyRows } from '../services/lesson-copy.js'
+import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
+import { computePendingChanges } from '../services/enrollment-sync-changes.js'
+import { resolveNotificationsByDedupeKey } from '../services/notification.js'
+import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
 import {
   canManageOrgContent,
   enrollmentManageFilter,
@@ -21,30 +27,6 @@ import {
 } from '../services/permission.js'
 
 const router = Router()
-
-type ReadBlockOffsetAnnotation =
-  | Array<{ start?: unknown; end?: unknown }>
-  | null
-  | undefined
-
-function hasReadBlockOffsetAnnotations(
-  selections: ReadBlockOffsetAnnotation,
-  exegesisHighlights: ReadBlockOffsetAnnotation
-): boolean {
-  return Boolean((Array.isArray(selections) && selections.length > 0) || (Array.isArray(exegesisHighlights) && exegesisHighlights.length > 0))
-}
-
-function scriptureContentForCopy(
-  content: string | null | undefined,
-  isScriptureLinked: boolean,
-  hasOffsetAnnotations: boolean
-): string | null {
-  if (!isScriptureLinked) return content ?? null
-  if (hasOffsetAnnotations && !isStableNumberedScriptureMarkdown(content)) {
-    return content ?? null
-  }
-  return normalizeScriptureMarkdown(content)
-}
 
 // ============================================================================
 // Enrollment CRUD
@@ -136,6 +118,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       smsTime: z.string().regex(/^\d{2}:\d{2}$/).optional(), // "HH:MM" format
       timezone: z.string().optional(),
       requireResponse: z.boolean().optional(), // Override program default (inherits from program if not specified)
+      syncMode: z.enum(['OFF', 'AUTO', 'APPROVAL']).optional(), // "Sync to study": how this enrollment tracks published curriculum updates
     })
 
     const body = schema.parse(req.body)
@@ -272,6 +255,10 @@ router.post('/enrollments', requireAuth, async (req, res) => {
           smsTime: body.smsTime,
           timezone: body.timezone,
           requireResponse: body.requireResponse ?? program.requireResponse, // Inherit from program if not specified
+          syncMode: body.syncMode ?? 'OFF',
+          // The copy is made from live curriculum, which reflects at least the
+          // latest published version — so the enrollment starts drift-free.
+          syncedProgramVersionNumber: program.currentVersionNumber ?? null,
           createdById: userId,
         },
       })
@@ -294,174 +281,48 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       })
       console.log('   Step 2: Complete')
 
-      // Step 2b: Copy lesson activities into scheduled lesson activities (flat copy for zero-join reads)
-      console.log('   Step 2b: Creating scheduled lesson activities...')
+      // Step 2b: Create the v1 LessonScheduleVersion for each schedule, then copy
+      // lesson activities into scheduled lesson activities (flat copy for zero-join
+      // reads) stamped with versionId + lineageKey for study-sync.
+      console.log('   Step 2b: Creating lesson versions and scheduled activities...')
 
-      const scheduledActivityData: Array<{
-        id: string
-        lessonScheduleId: string
-        type: any
-        orderNumber: number
-        title: string
-        referenceTitle: string | null
-        helpTitle: string | null
-        helpDescription: string | null
-        helpAlwaysVisible: boolean
-        helpIcon: string | null
-        isHelpEnabled: boolean
-        readContent: string | null
-        videoId: string | null
-        videoUrl: string | null
-        youtubeUrl: string | null
-        youtubeVideoId: string | null
-        youtubeStartSeconds: number | null
-        youtubeEndSeconds: number | null
-        youtubeThumbnailUrl: string | null
-        estimatedSeconds: number | null
-        sourceLessonActivityId: string
-      }> = []
+      const versionIdBySchedule = new Map<string, string>(scheduleData.map((sd) => [sd.id, randomUUID()]))
+      await prisma.lessonScheduleVersion.createMany({
+        data: scheduleData.map((sd) => ({
+          id: versionIdBySchedule.get(sd.id)!,
+          lessonScheduleId: sd.id,
+          versionNumber: 1,
+          programVersionNumber: program.currentVersionNumber ?? null,
+          sourceContentHash: hashLessonContent(sd.lesson as any),
+        })),
+      })
 
-      const sourceRefData: Array<{
-        id: string
-        scheduledActivityId: string
-        sourceType: string
-        passageReference: string | null
-        bookNumber: number | null
-        bookName: string | null
-        chapterStart: number | null
-        chapterEnd: number | null
-        verseStart: number | null
-        verseEnd: number | null
-      }> = []
+      // Point each schedule at its v1 (post-insert update because the FKs are circular)
+      await Promise.all(
+        scheduleData.map((sd) =>
+          prisma.lessonSchedule.update({
+            where: { id: sd.id },
+            data: { currentVersionId: versionIdBySchedule.get(sd.id)! },
+          })
+        )
+      )
 
-      const readBlockData: Array<{
-        id: string
-        scheduledActivityId: string
-        orderNumber: number
-        title: string | null
-        content: string | null
-        isLocked: boolean
-        sourceReferenceId: string | null
-        themeId: string | null
-        contentFormat: string
-        backgroundImageUrl: string | null
-        backgroundColor: string | null
-        backgroundOverlayOpacity: number | null
-        fontSize: string | null
-        selections: any
-      }> = []
+      const scheduledActivityData: LessonCopyRows['scheduledActivityData'] = []
+      const sourceRefData: LessonCopyRows['sourceRefData'] = []
+      const readBlockData: LessonCopyRows['readBlockData'] = []
+      const exegesisHighlightData: LessonCopyRows['exegesisHighlightData'] = []
 
-      const exegesisHighlightData: Array<{
-        id: string
-        readBlockId: string
-        orderNumber: number
-        start: number
-        end: number
-        noteMarkdown: string
-      }> = []
-
-      // Pre-generate IDs for scheduled activities, source references, and read blocks
-      // so we can preserve internal links (block.sourceReferenceId) and copy exegesis highlights.
       for (const sd of scheduleData) {
         const lesson = sd.lesson as typeof program.lessons[0]
-        for (const activity of lesson.activities) {
-          const saId = randomUUID()
-          scheduledActivityData.push({
-            id: saId,
-            lessonScheduleId: sd.id,
-            type: activity.activityType,
-            orderNumber: activity.orderNumber,
-            title: activity.title,
-            referenceTitle: activity.referenceTitle,
-            helpTitle: activity.helpTitle,
-            helpDescription: activity.helpDescription,
-            helpAlwaysVisible: activity.helpAlwaysVisible,
-            helpIcon: activity.helpIcon,
-            isHelpEnabled: true,
-            readContent: activity.readContent,
-            videoId: activity.videoId,
-            videoUrl: activity.videoUrl,
-            youtubeUrl: (activity as any).youtubeUrl ?? null,
-            youtubeVideoId: (activity as any).youtubeVideoId ?? null,
-            youtubeStartSeconds: (activity as any).youtubeStartSeconds ?? null,
-            youtubeEndSeconds: (activity as any).youtubeEndSeconds ?? null,
-            youtubeThumbnailUrl: (activity as any).youtubeThumbnailUrl ?? null,
-            estimatedSeconds: (activity as any).estimatedSeconds ?? null,
-            sourceLessonActivityId: activity.id,
-          })
-
-          // Copy source references with link to scheduled activity (preserve mapping)
-          const sourceRefIdMap = new Map<string, string>()
-          for (const ref of activity.sourceReferences) {
-            const newId = randomUUID()
-            sourceRefIdMap.set(ref.id, newId)
-            sourceRefData.push({
-              id: newId,
-              scheduledActivityId: saId,
-              sourceType: ref.sourceType,
-              passageReference: ref.passageReference,
-              bookNumber: ref.bookNumber,
-              bookName: ref.bookName,
-              chapterStart: ref.chapterStart,
-              chapterEnd: ref.chapterEnd,
-              verseStart: ref.verseStart,
-              verseEnd: ref.verseEnd,
-            })
-          }
-
-          // Copy read blocks with link to scheduled activity (preserve mapping + copy presentation fields)
-          for (const block of activity.readBlocks) {
-            const newBlockId = randomUUID()
-
-            const exegesisHighlights = (block as any).exegesisHighlights as
-              | Array<{ id: string; orderNumber: number; start: number; end: number; noteMarkdown: string }>
-              | undefined
-
-            const derivedSelections = exegesisHighlights && exegesisHighlights.length > 0
-              ? exegesisHighlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
-              : ((block as any).selections ?? null)
-
-            const sourceReferenceId = block.sourceReferenceId
-              ? (sourceRefIdMap.get(block.sourceReferenceId) ?? null)
-              : null
-            const content = scriptureContentForCopy(
-              block.content,
-              sourceReferenceId != null,
-              hasReadBlockOffsetAnnotations((block as any).selections, exegesisHighlights)
-            )
-
-            readBlockData.push({
-              id: newBlockId,
-              scheduledActivityId: saId,
-              orderNumber: block.orderNumber,
-              title: block.title,
-              content,
-              isLocked: block.isLocked,
-              sourceReferenceId,
-              themeId: (block as any).themeId ?? null,
-              contentFormat: (block as any).contentFormat ?? 'markdown',
-              backgroundImageUrl: (block as any).backgroundImageUrl ?? null,
-              backgroundColor: (block as any).backgroundColor ?? null,
-              backgroundOverlayOpacity: (block as any).backgroundOverlayOpacity ?? null,
-              fontSize: (block as any).fontSize ?? null,
-              selections: derivedSelections,
-            })
-
-            // Copy exegesis highlights (table) — IDs will differ between program vs scheduled copies
-            if (exegesisHighlights && exegesisHighlights.length > 0) {
-              for (const h of exegesisHighlights) {
-                exegesisHighlightData.push({
-                  id: randomUUID(),
-                  readBlockId: newBlockId,
-                  orderNumber: h.orderNumber,
-                  start: h.start,
-                  end: h.end,
-                  noteMarkdown: h.noteMarkdown,
-                })
-              }
-            }
-          }
-        }
+        const rows = buildLessonCopyRows({
+          lessonScheduleId: sd.id,
+          versionId: versionIdBySchedule.get(sd.id)!,
+          activities: lesson.activities as any,
+        })
+        scheduledActivityData.push(...rows.scheduledActivityData)
+        sourceRefData.push(...rows.sourceRefData)
+        readBlockData.push(...rows.readBlockData)
+        exegesisHighlightData.push(...rows.exegesisHighlightData)
       }
 
       if (scheduledActivityData.length > 0) {
@@ -954,19 +815,20 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
       lastDate: enrollment.endDate.toISOString(),
       activeDays,
       lessons: enrollment.lessonSchedules.map(ls => {
-        const firstActivity = ls.scheduledActivities[0]
+        const versionActivities = filterActivitiesToVersion(ls.scheduledActivities, ls.currentVersionId)
+        const firstActivity = versionActivities[0]
         const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
-        const activities = ls.scheduledActivities.map(a => ({
+        const activities = versionActivities.map(a => ({
           type: a.type,
           completed: completedActivityIds.has(a.id),
         }))
-        const totalSeconds = ls.scheduledActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
+        const totalSeconds = versionActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
         const estimatedMinutes = ls.estimatedMinutes
           ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
           id: ls.id,
-          dayNumber: ls.lesson.dayNumber,
-          title: ls.lesson.title || passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
+          dayNumber: ls.lesson?.dayNumber ?? 0,
+          title: ls.lesson?.title || ls.title || passageRef || firstActivity?.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
           templateName: ls.templateName,
           scheduledDate: ls.scheduledDate.toISOString(),
           estimatedMinutes,
@@ -1078,8 +940,8 @@ router.get('/groups/:groupId/study-enrollments', async (req, res) => {
           completedLessons: completionMap.size,
           lessons: enrollment.lessonSchedules.map(ls => ({
             id: ls.id,
-            dayNumber: ls.lesson.dayNumber,
-            title: ls.lesson.title || `Day ${ls.lesson.dayNumber}`,
+            dayNumber: ls.lesson?.dayNumber ?? 0,
+            title: ls.lesson?.title || ls.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
             scheduledDate: ls.scheduledDate.toISOString(),
             completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
           })),
@@ -1235,19 +1097,20 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
       lastDate: enrollment.endDate.toISOString(),
       activeDays,
       lessons: enrollment.lessonSchedules.map(ls => {
-        const firstActivity = ls.scheduledActivities[0]
+        const versionActivities = filterActivitiesToVersion(ls.scheduledActivities, ls.currentVersionId)
+        const firstActivity = versionActivities[0]
         const passageRef = firstActivity?.sourceReferences?.[0]?.passageReference
-        const activities = ls.scheduledActivities.map(a => ({
+        const activities = versionActivities.map(a => ({
           type: a.type,
           completed: completedActivityIds.has(a.id),
         }))
-        const totalSeconds = ls.scheduledActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
+        const totalSeconds = versionActivities.reduce((sum, a) => sum + (a.estimatedSeconds || 0), 0)
         const estimatedMinutes = ls.estimatedMinutes
           ?? (totalSeconds > 0 ? Math.max(1, Math.round(totalSeconds / 60)) : null)
         return {
           id: ls.id,
-          dayNumber: ls.lesson.dayNumber,
-          title: ls.lesson.title || passageRef || firstActivity?.title || `Day ${ls.lesson.dayNumber}`,
+          dayNumber: ls.lesson?.dayNumber ?? 0,
+          title: ls.lesson?.title || ls.title || passageRef || firstActivity?.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
           templateName: ls.templateName,
           scheduledDate: ls.scheduledDate.toISOString(),
           estimatedMinutes,
@@ -1486,11 +1349,11 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
     const study = {
       id: nextLesson.id,
       code: nextLesson.code,
-      dayNumber: nextLesson.lesson.dayNumber,
+      dayNumber: nextLesson.lesson?.dayNumber ?? 0,
       scheduledDate: nextLesson.scheduledDate,
       enrollment: nextLesson.enrollment,
-      studyProgram: nextLesson.lesson.studyProgram,
-      activities: nextLesson.scheduledActivities,
+      studyProgram: nextLesson.lesson?.studyProgram ?? null,
+      activities: filterActivitiesToVersion(nextLesson.scheduledActivities, nextLesson.currentVersionId),
     }
 
     res.json({ success: true, study })
@@ -1729,6 +1592,7 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
       requireResponse: z.boolean().optional(),
       smsTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
       timezone: z.string().optional(),
+      syncMode: z.enum(['OFF', 'AUTO', 'APPROVAL']).optional(), // "Sync to study" setting
     })
 
     const body = schema.parse(req.body)
@@ -1752,6 +1616,7 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
         ...(body.requireResponse !== undefined && { requireResponse: body.requireResponse }),
         ...(body.smsTime !== undefined && { smsTime: body.smsTime }),
         ...(body.timezone !== undefined && { timezone: body.timezone }),
+        ...(body.syncMode !== undefined && { syncMode: body.syncMode }),
         updatedById: userId,
       },
       include: {
@@ -1782,6 +1647,13 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
       groupId: updated.group.id,
     })
 
+    // Changing the sync mode IS the decision the "updates available"
+    // notification asks for — resolve it (applying resolves it in the sync
+    // engine; this covers the "leave it off / switch modes" choice).
+    if (body.syncMode !== undefined && updated.createdById) {
+      await resolveNotificationsByDedupeKey(updated.createdById, `study-sync-updates:${id}`)
+    }
+
     console.log(`✏️ Updated enrollment ${id}`)
 
     res.json({ success: true, enrollment: updated })
@@ -1791,6 +1663,232 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
     }
     console.error('Error updating enrollment:', error)
     res.status(500).json({ success: false, error: 'Failed to update enrollment' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/enrollments/{id}/sync:
+ *   get:
+ *     tags: [Enrollments]
+ *     summary: Get study-sync status for an enrollment
+ *     description: |
+ *       Reports the enrollment's sync mode, the program version its lessons
+ *       reflect, whether the program has published newer versions (drift),
+ *       and the pending versions' AI change summaries so a leader can decide
+ *       whether to apply them. Also returns recent sync runs.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Sync status
+ *       404:
+ *         description: Enrollment not found
+ */
+router.get('/enrollments/:id/sync', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id, ...(await enrollmentManageFilter(userId)) },
+      select: {
+        id: true,
+        syncMode: true,
+        syncedProgramVersionNumber: true,
+        studyProgram: { select: { id: true, name: true, currentVersionNumber: true } },
+      },
+    })
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const syncedVersion = enrollment.syncedProgramVersionNumber ?? 0
+    const currentVersion = enrollment.studyProgram.currentVersionNumber ?? null
+    const hasDrift = currentVersion !== null && currentVersion > syncedVersion
+
+    const [pendingVersions, recentRuns] = await Promise.all([
+      hasDrift
+        ? prisma.studyProgramVersion.findMany({
+            where: {
+              studyProgramId: enrollment.studyProgram.id,
+              versionNumber: { gt: syncedVersion },
+            },
+            orderBy: { versionNumber: 'desc' },
+            select: {
+              versionNumber: true,
+              publishedAt: true,
+              changeSummary: true,
+              changedLessonIds: true,
+            },
+          })
+        : Promise.resolve([]),
+      prisma.enrollmentSyncRun.findMany({
+        where: { enrollmentId: id },
+        orderBy: { createdAt: 'desc' },
+        take: 5,
+        select: {
+          targetProgramVersionNumber: true,
+          status: true,
+          error: true,
+          startedAt: true,
+          completedAt: true,
+        },
+      }),
+    ])
+
+    res.json({
+      success: true,
+      sync: {
+        syncMode: enrollment.syncMode,
+        syncedProgramVersionNumber: enrollment.syncedProgramVersionNumber,
+        currentVersionNumber: currentVersion,
+        hasDrift,
+        pendingVersions,
+        recentRuns,
+      },
+    })
+  } catch (error) {
+    console.error('Error fetching enrollment sync status:', error)
+    res.status(500).json({ success: false, error: 'Failed to fetch sync status' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/enrollments/{id}/sync/changes:
+ *   get:
+ *     tags: [Enrollments]
+ *     summary: Per-lesson pending changes for the Review Changes screen
+ *     description: |
+ *       Quantified diff between the enrollment's lessons and the program's
+ *       latest published version — one row per changed lesson (new / updated /
+ *       removed) with activity-level counts, plus totals. Rows carry the
+ *       selection `key` accepted by POST /sync/apply for per-lesson approval.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Pending changes
+ *       404:
+ *         description: Enrollment not found
+ */
+router.get('/enrollments/:id/sync/changes', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id, ...(await enrollmentManageFilter(userId)) },
+      select: { id: true, syncMode: true },
+    })
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const pending = await computePendingChanges(id)
+    res.json({ success: true, ...pending })
+  } catch (error) {
+    console.error('Error computing enrollment sync changes:', error)
+    res.status(500).json({ success: false, error: 'Failed to compute pending changes' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/enrollments/{id}/sync/apply:
+ *   post:
+ *     tags: [Enrollments]
+ *     summary: Apply the latest published program version to this enrollment
+ *     description: |
+ *       Brings the enrollment's lessons up to the program's latest published
+ *       version (all-or-nothing). Used by APPROVAL-mode acceptance and manual
+ *       catch-up for OFF-mode enrollments with drift. Members who completed a
+ *       lesson stay pinned to the version they completed; everyone else sees
+ *       the new content. Idempotent — reapplying is a no-op.
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Sync applied (or already up to date)
+ *       400:
+ *         description: Program has no published version
+ *       404:
+ *         description: Enrollment not found
+ */
+router.post('/enrollments/:id/sync/apply', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const body = z
+      .object({
+        // Selective approval (Review Changes): only these lesson changes
+        // apply. Omitted → full catch-up (original all-or-nothing behavior).
+        lessonKeys: z.array(z.string()).optional(),
+      })
+      .parse(req.body ?? {})
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id, ...(await enrollmentManageFilter(userId)) },
+      select: {
+        id: true,
+        groupId: true,
+        studyProgram: { select: { name: true } },
+        group: { select: { name: true, organizationId: true } },
+      },
+    })
+
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const outcome = await syncEnrollmentToLatest({
+      enrollmentId: id,
+      triggeredById: userId,
+      lessonKeys: body.lessonKeys ?? null,
+    })
+
+    if (!outcome.alreadySynced) {
+      trackActivity({
+        actorId: userId,
+        action: 'UPDATED',
+        resourceType: 'ENROLLMENT',
+        resourceId: id,
+        resourceName: `${enrollment.studyProgram.name} in ${enrollment.group.name}`,
+        organizationId: enrollment.group.organizationId,
+        groupId: enrollment.groupId,
+        metadata: { studySync: outcome },
+      })
+    }
+
+    res.json({ success: true, ...outcome })
+  } catch (error) {
+    if (error instanceof SyncNotPossibleError) {
+      return res.status(400).json({ success: false, error: error.message })
+    }
+    console.error('Error applying enrollment sync:', error)
+    res.status(500).json({ success: false, error: 'Failed to apply sync' })
   }
 })
 
@@ -1988,13 +2086,13 @@ router.get('/lessons/code/:code', async (req, res) => {
     res.json({
       success: true,
       lesson: {
-        id: schedule.lesson.id,
+        id: schedule.lesson?.id ?? null,
         code: schedule.code,
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
-        studyProgram: schedule.lesson.studyProgram,
-        activities: schedule.scheduledActivities,
+        studyProgram: schedule.lesson?.studyProgram ?? null,
+        activities: filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId),
         group: schedule.enrollment.group,
       },
     })
@@ -2116,13 +2214,13 @@ router.get('/lessons/view/:scheduleId', async (req, res) => {
     res.json({
       success: true,
       lesson: {
-        id: schedule.lesson.id,
+        id: schedule.lesson?.id ?? null,
         code: schedule.code, // 6-char alphanumeric for deep linking
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
-        studyProgram: schedule.lesson.studyProgram,
-        activities: schedule.scheduledActivities,
+        studyProgram: schedule.lesson?.studyProgram ?? null,
+        activities: filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId),
         group: schedule.enrollment.group,
       },
     })
@@ -2233,13 +2331,13 @@ router.get('/lessons/today/:enrollmentId', async (req, res) => {
     res.json({
       success: true,
       lesson: {
-        id: schedule.lesson.id,
+        id: schedule.lesson?.id ?? null,
         code: schedule.code, // 6-char alphanumeric for deep linking
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
-        studyProgram: schedule.lesson.studyProgram,
-        activities: schedule.scheduledActivities,
+        studyProgram: schedule.lesson?.studyProgram ?? null,
+        activities: filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId),
       },
     })
   } catch (error) {
@@ -2392,7 +2490,7 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
     })
 
     // Get passage reference from first scheduled activity
-    const firstActivity = schedule.scheduledActivities[0]
+    const firstActivity = filterActivitiesToVersion(schedule.scheduledActivities, schedule.currentVersionId)[0]
     const passageReference = firstActivity?.sourceReferences?.[0]?.passageReference || null
 
     res.json({
@@ -2401,16 +2499,18 @@ router.get('/lesson-schedules/:id/invite', requireAuth, async (req, res) => {
         id: schedule.id,
         lessonScheduleId: schedule.id, // Deprecated: use 'id' instead
         code: schedule.code,
-        dayNumber: schedule.lesson.dayNumber,
+        dayNumber: schedule.lesson?.dayNumber ?? 0,
         scheduledDate: schedule.scheduledDate,
         templateName: schedule.templateName,
         passageReference,
-        studyProgram: {
-          id: schedule.lesson.studyProgram.id,
-          name: schedule.lesson.studyProgram.name,
-          days: schedule.lesson.studyProgram.days,
-          coverImageUrl: schedule.lesson.studyProgram.coverImageUrl,
-        },
+        studyProgram: schedule.lesson
+          ? {
+              id: schedule.lesson.studyProgram.id,
+              name: schedule.lesson.studyProgram.name,
+              days: schedule.lesson.studyProgram.days,
+              coverImageUrl: schedule.lesson.studyProgram.coverImageUrl,
+            }
+          : null,
         group: {
           id: schedule.enrollment.group.id,
           code: schedule.enrollment.group.code,
@@ -3069,20 +3169,20 @@ router.post(
         return res.status(404).json({ success: false, error: 'Enrollment not found' })
       }
 
-      // Get schedule with max order number
+      // Get schedule, then the max order number within its current version
+      // (rows from pinned historical versions don't participate in ordering)
       const schedule = await prisma.lessonSchedule.findFirst({
         where: { id: scheduleId, enrollmentId },
-        include: {
-          scheduledActivities: {
-            orderBy: { orderNumber: 'desc' },
-            take: 1,
-          },
-        },
       })
 
       if (!schedule) {
         return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
       }
+
+      const lastActivity = await prisma.scheduledLessonActivity.findFirst({
+        where: { lessonScheduleId: scheduleId, versionId: schedule.currentVersionId },
+        orderBy: { orderNumber: 'desc' },
+      })
 
       // Validate video reference
       if (body.type === 'VIDEO' && body.videoId) {
@@ -3094,13 +3194,14 @@ router.post(
         }
       }
 
-      const nextOrder = schedule.scheduledActivities[0]?.orderNumber
-        ? schedule.scheduledActivities[0].orderNumber + 1
+      const nextOrder = lastActivity?.orderNumber
+        ? lastActivity.orderNumber + 1
         : 1
 
       const activity = await prisma.scheduledLessonActivity.create({
         data: {
           lessonScheduleId: scheduleId,
+          versionId: schedule.currentVersionId, // Leader-added custom activity joins the current version (no lineageKey — it has no curriculum source)
           type: body.type,
           orderNumber: nextOrder,
           title: body.title,
@@ -3199,7 +3300,12 @@ router.delete('/scheduled-activities/:id', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
-    if (activity.lessonSchedule.scheduledActivities.length <= 1) {
+    // Only activities in the same version count as siblings — rows from other
+    // (pinned historical) versions must never be counted or renumbered.
+    const versionSiblings = activity.lessonSchedule.scheduledActivities.filter(
+      (a) => a.versionId === activity.versionId
+    )
+    if (versionSiblings.length <= 1) {
       return res.status(400).json({
         success: false,
         error: 'Cannot delete the last activity in a scheduled lesson',
@@ -3212,6 +3318,7 @@ router.delete('/scheduled-activities/:id', requireAuth, async (req, res) => {
       await tx.scheduledLessonActivity.updateMany({
         where: {
           lessonScheduleId: activity.lessonScheduleId,
+          versionId: activity.versionId,
           orderNumber: { gt: activity.orderNumber },
         },
         data: {
@@ -3962,7 +4069,12 @@ router.post(
         return res.status(404).json({ success: false, error: 'Lesson schedule not found' })
       }
 
-      const scheduleActivityIds = new Set(schedule.scheduledActivities.map(a => a.id))
+      // Reordering applies to the current version's activity set only —
+      // pinned historical versions must stay untouched.
+      const currentActivities = schedule.scheduledActivities.filter(
+        (a) => a.versionId === schedule.currentVersionId
+      )
+      const scheduleActivityIds = new Set(currentActivities.map(a => a.id))
       for (const activityId of activityOrder) {
         if (!scheduleActivityIds.has(activityId)) {
           return res.status(400).json({
@@ -3972,16 +4084,16 @@ router.post(
         }
       }
 
-      if (activityOrder.length !== schedule.scheduledActivities.length) {
+      if (activityOrder.length !== currentActivities.length) {
         return res.status(400).json({
           success: false,
-          error: `Expected ${schedule.scheduledActivities.length} activities, got ${activityOrder.length}`,
+          error: `Expected ${currentActivities.length} activities, got ${activityOrder.length}`,
         })
       }
 
       // Use transaction with temporary high values to avoid unique constraint conflicts
       await prisma.$transaction(async (tx) => {
-        // First, set all to high numbers to avoid unique constraint on [lessonScheduleId, orderNumber]
+        // First, set all to high numbers to avoid unique constraint on [versionId, orderNumber]
         for (let i = 0; i < activityOrder.length; i++) {
           await tx.scheduledLessonActivity.update({
             where: { id: activityOrder[i] },
@@ -3998,7 +4110,7 @@ router.post(
       })
 
       const updatedActivities = await prisma.scheduledLessonActivity.findMany({
-        where: { lessonScheduleId: scheduleId },
+        where: { lessonScheduleId: scheduleId, versionId: schedule.currentVersionId },
         orderBy: { orderNumber: 'asc' },
         include: { video: true, sourceReferences: true, readBlocks: { orderBy: { orderNumber: 'asc' }, include: { theme: { select: { id: true, slug: true, name: true } } } } },
       })
@@ -4081,6 +4193,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
             id: true,
             name: true,
             description: true,
+            currentVersionNumber: true,
             template: { select: { id: true, name: true } },
           },
         },
@@ -4187,165 +4300,28 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
         },
       })
 
-      // Step 2: Copy lesson activities → scheduled lesson activities
-      const scheduledActivityData: Array<{
-        id: string
-        lessonScheduleId: string
-        type: any
-        orderNumber: number
-        title: string
-        referenceTitle: string | null
-        helpTitle: string | null
-        helpDescription: string | null
-        helpAlwaysVisible: boolean
-        helpIcon: string | null
-        isHelpEnabled: boolean
-        readContent: string | null
-        videoId: string | null
-        videoUrl: string | null
-        youtubeUrl: string | null
-        youtubeVideoId: string | null
-        youtubeStartSeconds: number | null
-        youtubeEndSeconds: number | null
-        youtubeThumbnailUrl: string | null
-        estimatedSeconds: number | null
-        sourceLessonActivityId: string
-      }> = []
-
-      const sourceRefData: Array<{
-        id: string
-        scheduledActivityId: string
-        sourceType: string
-        passageReference: string | null
-        bookNumber: number | null
-        bookName: string | null
-        chapterStart: number | null
-        chapterEnd: number | null
-        verseStart: number | null
-        verseEnd: number | null
-      }> = []
-
-      const readBlockData: Array<{
-        id: string
-        scheduledActivityId: string
-        orderNumber: number
-        title: string | null
-        content: string | null
-        isLocked: boolean
-        sourceReferenceId: string | null
-        themeId: string | null
-        contentFormat: string
-        backgroundImageUrl: string | null
-        backgroundColor: string | null
-        backgroundOverlayOpacity: number | null
-        fontSize: string | null
-        selections: any
-      }> = []
-
-      const exegesisHighlightData: Array<{
-        id: string
-        readBlockId: string
-        orderNumber: number
-        start: number
-        end: number
-        noteMarkdown: string
-      }> = []
-
-      for (const activity of lesson.activities) {
-        const saId = randomUUID()
-        scheduledActivityData.push({
-          id: saId,
+      // Step 2: Create the v1 version for this schedule, then copy lesson
+      // activities → scheduled lesson activities (stamped for study-sync)
+      const versionId = randomUUID()
+      await prisma.lessonScheduleVersion.create({
+        data: {
+          id: versionId,
           lessonScheduleId: scheduleId,
-          type: activity.activityType,
-          orderNumber: activity.orderNumber,
-          title: activity.title,
-          referenceTitle: activity.referenceTitle,
-          helpTitle: activity.helpTitle,
-          helpDescription: activity.helpDescription,
-          helpAlwaysVisible: activity.helpAlwaysVisible,
-          helpIcon: activity.helpIcon,
-          isHelpEnabled: true,
-          readContent: activity.readContent,
-          videoId: activity.videoId,
-          videoUrl: activity.videoUrl,
-          youtubeUrl: (activity as any).youtubeUrl ?? null,
-          youtubeVideoId: (activity as any).youtubeVideoId ?? null,
-          youtubeStartSeconds: (activity as any).youtubeStartSeconds ?? null,
-          youtubeEndSeconds: (activity as any).youtubeEndSeconds ?? null,
-          youtubeThumbnailUrl: (activity as any).youtubeThumbnailUrl ?? null,
-          estimatedSeconds: (activity as any).estimatedSeconds ?? null,
-          sourceLessonActivityId: activity.id,
-        })
+          versionNumber: 1,
+          programVersionNumber: enrollment.studyProgram.currentVersionNumber ?? null,
+          sourceContentHash: hashLessonContent(lesson as any),
+        },
+      })
+      await prisma.lessonSchedule.update({
+        where: { id: scheduleId },
+        data: { currentVersionId: versionId },
+      })
 
-        const sourceRefIdMap = new Map<string, string>()
-        for (const ref of activity.sourceReferences) {
-          const newId = randomUUID()
-          sourceRefIdMap.set(ref.id, newId)
-          sourceRefData.push({
-            id: newId,
-            scheduledActivityId: saId,
-            sourceType: ref.sourceType,
-            passageReference: ref.passageReference,
-            bookNumber: ref.bookNumber,
-            bookName: ref.bookName,
-            chapterStart: ref.chapterStart,
-            chapterEnd: ref.chapterEnd,
-            verseStart: ref.verseStart,
-            verseEnd: ref.verseEnd,
-          })
-        }
-
-        for (const block of activity.readBlocks) {
-          const newBlockId = randomUUID()
-
-          const exegesisHighlights = (block as any).exegesisHighlights as
-            | Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
-            | undefined
-
-          const derivedSelections = exegesisHighlights && exegesisHighlights.length > 0
-            ? exegesisHighlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
-            : ((block as any).selections ?? null)
-
-          const sourceReferenceId = block.sourceReferenceId
-            ? (sourceRefIdMap.get(block.sourceReferenceId) ?? null)
-            : null
-          const content = scriptureContentForCopy(
-            block.content,
-            sourceReferenceId != null,
-            hasReadBlockOffsetAnnotations((block as any).selections, exegesisHighlights)
-          )
-
-          readBlockData.push({
-            id: newBlockId,
-            scheduledActivityId: saId,
-            orderNumber: block.orderNumber,
-            title: block.title,
-            content,
-            isLocked: block.isLocked,
-            sourceReferenceId,
-            themeId: (block as any).themeId ?? null,
-            contentFormat: (block as any).contentFormat ?? 'markdown',
-            backgroundImageUrl: (block as any).backgroundImageUrl ?? null,
-            backgroundColor: (block as any).backgroundColor ?? null,
-            backgroundOverlayOpacity: (block as any).backgroundOverlayOpacity ?? null,
-            fontSize: (block as any).fontSize ?? null,
-            selections: derivedSelections,
-          })
-
-          if (exegesisHighlights && exegesisHighlights.length > 0) {
-            for (const h of exegesisHighlights) {
-              exegesisHighlightData.push({
-                id: randomUUID(),
-                readBlockId: newBlockId,
-                orderNumber: h.orderNumber,
-                start: h.start,
-                end: h.end,
-                noteMarkdown: h.noteMarkdown,
-              })
-            }
-          }
-        }
-      }
+      const { scheduledActivityData, sourceRefData, readBlockData, exegesisHighlightData } = buildLessonCopyRows({
+        lessonScheduleId: scheduleId,
+        versionId,
+        activities: lesson.activities as any,
+      })
 
       if (scheduledActivityData.length > 0) {
         await prisma.scheduledLessonActivity.createMany({ data: scheduledActivityData })
@@ -4588,11 +4564,12 @@ router.delete('/enrollments/:enrollmentId/schedules/:scheduleId', requireAuth, a
       where: { id: scheduleId },
     })
 
-    // Delete the lesson from the program and sync days count
+    // Delete the lesson from the program and sync days count (skip when the
+    // curriculum lesson is already gone — orphaned schedule)
     await prisma.$transaction(async (tx) => {
-      const lesson = await tx.lesson.findUnique({
-        where: { id: schedule.lessonId },
-      })
+      const lesson = schedule.lessonId
+        ? await tx.lesson.findUnique({ where: { id: schedule.lessonId } })
+        : null
 
       if (lesson) {
         const programId = lesson.studyProgramId

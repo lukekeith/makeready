@@ -32,6 +32,9 @@ struct EnrollmentSchedulePage: View {
     // pane reads live data from enrollmentDetails.
     @State private var editingScheduleId: String? = nil
 
+    // Study Sync settings pane (study-sync phase 6) — outer SlideStack detail.
+    @State private var showSyncSettings = false
+
     /// True once the modal's open animation has finished. Gates swapping loaded
     /// content in: the network/local-server response can land mid-slide, and
     /// inserting the content branch then is a structural change that doesn't
@@ -79,10 +82,21 @@ struct EnrollmentSchedulePage: View {
         // Canonical slider (Phase 3.4): SlideStack owns the two-step insertion,
         // the single animation driver, and the completion-tied unmount this page
         // previously hand-rolled with showEditActivities + a deferred flag flip.
-        SlideStack(item: $editingScheduleId) {
-            scheduleContent
-        } detail: { scheduleId in
-            editEnrollmentDayPane(scheduleId: scheduleId)
+        // Outer Bool-driven SlideStack pushes the Study Sync settings pane;
+        // the inner item-driven one keeps the existing edit-day flow.
+        SlideStack(isPresented: $showSyncSettings) {
+            SlideStack(item: $editingScheduleId) {
+                scheduleContent
+            } detail: { scheduleId in
+                editEnrollmentDayPane(scheduleId: scheduleId)
+            }
+        } detail: {
+            EnrollmentSyncPage(
+                enrollmentId: enrollment.id,
+                onDismiss: { showSyncSettings = false },
+                programName: enrollment.studyProgram?.name
+            )
+            .environment(\.isModalRoot, false)
         }
         .onAppear {
             // Hold the structure stable until the modal finishes opening so
@@ -139,10 +153,13 @@ struct EnrollmentSchedulePage: View {
                 return
             }
             // Load schedule and completion analytics concurrently so fills are
-            // ready when content appears.
+            // ready when content appears. Sync status prefetches alongside so
+            // the Study Sync pane's slide-in renders content from frame 1
+            // (cache-first contract — parent prefetch).
             async let details: Void = loadEnrollmentDetails()
             async let stats: Void = loadCompletionStats()
-            _ = await (details, stats)
+            async let sync: Void = prefetchSyncStatus()
+            _ = await (details, stats, sync)
         }
         .alert("Delete Lesson?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
@@ -211,11 +228,13 @@ struct EnrollmentSchedulePage: View {
 
     private var scheduleContent: some View {
         VStack(spacing: 0) {
-            // Header
-            PageTitle.iconTitle(
+            // Header — the trailing sync icon opens the Study Sync settings pane.
+            PageTitle.iconTitleIcon(
                 title: titleOverride ?? enrollment.studyProgram?.name ?? "Schedule",
-                icon: leftIcon,
-                onIconTap: { onDismiss() }
+                leftIcon: leftIcon,
+                rightIcon: "arrow.triangle.2.circlepath",
+                onLeftIconTap: { onDismiss() },
+                onRightIconTap: { showSyncSettings = true }
             )
 
             if isLoading || !readyToShowContent {
@@ -360,6 +379,14 @@ struct EnrollmentSchedulePage: View {
                 isLoading = false
             }
         }
+    }
+
+    /// Warm the Study Sync pane's cache (enrollmentSyncStatusById) so its
+    /// slide-in renders synchronously instead of popping mid-animation.
+    private func prefetchSyncStatus() async {
+        guard previewDetails == nil else { return }
+        // Silent: prefetch only — the pane loads for itself when opened.
+        _ = try? await EnrollmentActions().getSyncStatus(enrollmentId: enrollment.id)
     }
 
     /// Load group-completion analytics. Failures are non-fatal — the cards just

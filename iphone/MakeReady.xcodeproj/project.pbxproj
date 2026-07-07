@@ -167,6 +167,8 @@
 		ERAD0001000000000000001 /* EditReadActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERAD0002000000000000001 /* EditReadActivityPage.swift */; };
 		ERRB0001000000000000001 /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERRB0002000000000000001 /* ErrorBanner.swift */; };
 		ESPH0001000000000000001 /* EnrollmentSchedulePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESPH0002000000000000001 /* EnrollmentSchedulePage.swift */; };
+		ESYN0001000000000000001 /* EnrollmentSyncPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESYN0002000000000000001 /* EnrollmentSyncPage.swift */; };
+		RVCH0001000000000000001 /* ReviewChangesPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = RVCH0002000000000000001 /* ReviewChangesPage.swift */; };
 		ESTT000100000000000001 /* EntityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESTT000200000000000001 /* EntityStoreTests.swift */; };
 		EUAP0001000000000000001 /* EditUserInputActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EUAP0002000000000000001 /* EditUserInputActivityPage.swift */; };
 		EXHM0001000000000000001 /* ExegesisHighlightModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXHM0002000000000000001 /* ExegesisHighlightModal.swift */; };
@@ -482,6 +484,8 @@
 		ERAD0002000000000000001 /* EditReadActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditReadActivityPage.swift; sourceTree = "<group>"; };
 		ERRB0002000000000000001 /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
 		ESPH0002000000000000001 /* EnrollmentSchedulePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentSchedulePage.swift; sourceTree = "<group>"; };
+		ESYN0002000000000000001 /* EnrollmentSyncPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentSyncPage.swift; sourceTree = "<group>"; };
+		RVCH0002000000000000001 /* ReviewChangesPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewChangesPage.swift; sourceTree = "<group>"; };
 		ESTT000200000000000001 /* EntityStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStoreTests.swift; sourceTree = "<group>"; };
 		EUAP0002000000000000001 /* EditUserInputActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditUserInputActivityPage.swift; sourceTree = "<group>"; };
 		EXHM0002000000000000001 /* ExegesisHighlightModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisHighlightModal.swift; sourceTree = "<group>"; };
@@ -1023,6 +1027,8 @@
 				ENLP0002000000000000001 /* EnrollmentsListPage.swift */,
 				UNOM0002000000000000001 /* UnenrollOptionsModal.swift */,
 				ESPH0002000000000000001 /* EnrollmentSchedulePage.swift */,
+				ESYN0002000000000000001 /* EnrollmentSyncPage.swift */,
+				RVCH0002000000000000001 /* ReviewChangesPage.swift */,
 				ENED0002000000000000001 /* EditEnrollmentDay.swift */,
 				SINV0002000000000000001 /* StudyInvitePage.swift */,
 			);
@@ -1850,6 +1856,8 @@
 				SLCD0001000000000000001 /* ScheduledLessonCard.swift in Sources */,
 				UPCD0001000000000000001 /* UpcomingLessonCard.swift in Sources */,
 				ESPH0001000000000000001 /* EnrollmentSchedulePage.swift in Sources */,
+				ESYN0001000000000000001 /* EnrollmentSyncPage.swift in Sources */,
+				RVCH0001000000000000001 /* ReviewChangesPage.swift in Sources */,
 				ENED0001000000000000001 /* EditEnrollmentDay.swift in Sources */,
 				SINV0001000000000000001 /* StudyInvitePage.swift in Sources */,
 				CFOV0001000000000000001 /* ConfirmationOverlay.swift in Sources */,

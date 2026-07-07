@@ -76,7 +76,7 @@ export interface PushNotificationPayload {
   body: string
   badge?: number
   sound?: string
-  data?: Record<string, string>
+  data?: Record<string, string | boolean>
 }
 
 /**
