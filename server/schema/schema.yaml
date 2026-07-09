@@ -637,6 +637,9 @@ models:
       lessonProgress:
         type: one_to_many
         target: MemberLessonProgress
+      aiLessonSummaries:
+        type: one_to_many
+        target: AiLessonSummary
       linkedUser:
         type: many_to_one
         target: User
@@ -2527,6 +2530,9 @@ models:
       lessonProgress:
         type: one_to_many
         target: MemberLessonProgress
+      aiLessonSummaries:
+        type: one_to_many
+        target: AiLessonSummary
     indexes:
       - fields: [enrollmentId]
       - fields: [lessonId]
@@ -3338,6 +3344,53 @@ models:
       - fields: [lessonScheduleId]
       - fields: [memberId, completedAt]
       - fields: [pinnedVersionId]
+    unique:
+      - fields: [memberId, lessonScheduleId]
+
+  AiLessonSummary:
+    table_name: ai_lesson_summaries
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      memberId:
+        type: string
+      lessonScheduleId:
+        type: string
+      lessonSummary:
+        type: text
+        description: "AI-generated summary of the lesson and its contents"
+      memberSummary:
+        type: text
+        nullable: true
+        description: "AI-generated summary of what the member learned from their input; null when the member entered nothing substantive (kept null for analytics)"
+      model:
+        type: string
+        description: "Claude model ID that generated the summaries"
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      member:
+        type: many_to_one
+        target: Member
+        fields: [memberId]
+        references: [id]
+        onDelete: Cascade
+      lessonSchedule:
+        type: many_to_one
+        target: LessonSchedule
+        fields: [lessonScheduleId]
+        references: [id]
+        onDelete: Cascade
+    indexes:
+      - fields: [memberId]
+      - fields: [lessonScheduleId]
+      - fields: [createdAt]
     unique:
       - fields: [memberId, lessonScheduleId]
 

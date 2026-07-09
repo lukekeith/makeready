@@ -148,6 +148,27 @@ class LessonController extends Controller
     }
 
     /**
+     * AJAX proxy: fetch the AI-generated completion summary for a lesson.
+     * Proxies GET to /api/member/lessons/{lessonScheduleId}/summary — the API
+     * generates and stores the summary on first request.
+     */
+    public function lessonSummary(Request $request, string $groupId, string $lessonScheduleId)
+    {
+        $result = $this->api->get(
+            "/api/member/lessons/{$lessonScheduleId}/summary",
+            $request
+        );
+
+        $response = response()->json($result['body'], $result['status']);
+
+        foreach ($result['setCookies'] as $cookie) {
+            $response->header('Set-Cookie', $cookie, false);
+        }
+
+        return $response;
+    }
+
+    /**
      * AJAX proxy: fetch scripture text from the Bible API.
      * Public route — no auth required.
      * Proxies GET to /api/bible/{translation}/{book}/{chapter}.

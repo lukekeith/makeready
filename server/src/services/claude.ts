@@ -200,6 +200,141 @@ function buildProgramSummary(program: Parameters<typeof suggestProgramTags>[0]):
 }
 
 // ============================================================================
+// Lesson Completion Summaries
+// ============================================================================
+
+export interface LessonCompletionInput {
+  studyProgramName: string
+  dayNumber: number
+  lessonTitle: string | null
+  // Full lesson content, in the order the member experienced it
+  activities: Array<{
+    type: string
+    title: string
+    helpTitle: string | null
+    helpDescription: string | null
+    readContent: string | null
+    videoTitle: string | null
+    sourceReferences: Array<{ passageReference: string | null }>
+    readBlocks: Array<{ title: string | null; content: string | null }>
+    // The member's own responses for this activity
+    memberNotes: Array<{ type: string; content: string }>
+  }>
+}
+
+export interface LessonCompletionSummary {
+  lessonSummary: string
+  memberSummary: string | null
+}
+
+/** Cap a content string so one giant read block can't blow up the prompt. */
+function trimmedText(text: string, maxChars = 3000): string {
+  return text.length > maxChars ? text.slice(0, maxChars) + '…(truncated)' : text
+}
+
+function buildLessonCompletionPrompt(input: LessonCompletionInput): string {
+  const lines: string[] = [
+    `Study program: ${input.studyProgramName}`,
+    `Lesson: Day ${input.dayNumber}${input.lessonTitle ? ` — ${input.lessonTitle}` : ''}`,
+    '',
+    '=== LESSON CONTENT (in order) ===',
+  ]
+
+  const memberInputLines: string[] = []
+
+  for (const activity of input.activities) {
+    lines.push(`--- [${activity.type}] ${activity.title} ---`)
+    for (const ref of activity.sourceReferences) {
+      if (ref.passageReference) lines.push(`Scripture: ${ref.passageReference}`)
+    }
+    if (activity.videoTitle) lines.push(`Video: ${activity.videoTitle}`)
+    if (activity.readContent) lines.push(trimmedText(activity.readContent))
+    for (const block of activity.readBlocks) {
+      if (block.title) lines.push(`# ${block.title}`)
+      if (block.content) lines.push(trimmedText(block.content))
+    }
+    if (activity.helpTitle || activity.helpDescription) {
+      lines.push(`Prompt: ${[activity.helpTitle, activity.helpDescription].filter(Boolean).join(' — ')}`)
+    }
+
+    for (const note of activity.memberNotes) {
+      memberInputLines.push(`[${activity.title} / ${note.type}] ${trimmedText(note.content, 2000)}`)
+    }
+  }
+
+  lines.push('')
+  lines.push('=== MEMBER INPUT ===')
+  lines.push(memberInputLines.length > 0 ? memberInputLines.join('\n') : '(the member entered nothing)')
+
+  return lines.join('\n')
+}
+
+/**
+ * Summarize a completed lesson for the member's completion page.
+ *
+ * Produces two summaries:
+ *  - lessonSummary: what the lesson itself taught (always present)
+ *  - memberSummary: what THIS member learned, judged from their input against
+ *    the lesson content. Null when the member's input carries no substance
+ *    (blank, single words/letters, or contentless filler) so analytics can
+ *    count empty responses.
+ *
+ * Best-effort: returns null when the API key is missing or the call fails —
+ * lesson completion must never be blocked by summary generation.
+ */
+export async function summarizeLessonCompletion(
+  input: LessonCompletionInput
+): Promise<LessonCompletionSummary | null> {
+  if (!process.env.ANTHROPIC_API_KEY) return null
+
+  try {
+    const message = await client.messages.create({
+      model: CLAUDE_MODELS.opus48,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: 'user',
+          content: `You are writing a completion summary for a Bible study app called MakeReady. A member just finished a lesson. Below is the full lesson content in the order the member experienced it, followed by everything the member wrote during the lesson.
+
+Write two summaries and return ONLY a JSON object — no other text:
+
+{
+  "lessonSummary": "...",
+  "memberSummary": "..." or null
+}
+
+1. "lessonSummary": one or two paragraphs summarizing the lesson and its contents — the passages, teaching, and themes. Neutral third-person voice.
+
+2. "memberSummary": one or two paragraphs describing what this member learned through the experience, written directly to the member ("You explored..."). Evaluate their input against the lesson content: reference what they observed, how they planned to apply it, and what they prayed or reflected on. STRICT RULE: if the member's input contains nothing substantive — it is empty, a single word or letter, random characters, or otherwise contentless — set "memberSummary" to null. Do not invent learnings the member did not express.
+
+Plain text only inside the strings (no markdown). Use paragraph breaks (\\n\\n) between paragraphs.
+
+${buildLessonCompletionPrompt(input)}`,
+        },
+      ],
+    })
+
+    const text = message.content[0]?.type === 'text' ? message.content[0].text : ''
+    const jsonMatch = text.match(/\{[\s\S]*\}/)
+    if (!jsonMatch) throw new Error('No JSON found in response')
+    const parsed = JSON.parse(jsonMatch[0])
+
+    const lessonSummary = typeof parsed.lessonSummary === 'string' ? parsed.lessonSummary.trim() : ''
+    if (!lessonSummary) throw new Error('Missing lessonSummary in response')
+
+    const memberSummary =
+      typeof parsed.memberSummary === 'string' && parsed.memberSummary.trim().length > 0
+        ? parsed.memberSummary.trim()
+        : null
+
+    return { lessonSummary, memberSummary }
+  } catch (error) {
+    console.error('Failed to generate lesson completion summary:', error)
+    return null
+  }
+}
+
+// ============================================================================
 // Study Program Change Summaries (study-sync)
 // ============================================================================
 

@@ -8,6 +8,7 @@ import {
   getEnrollmentProgress,
   getGroupStudies,
 } from '../services/member-progress.service.js'
+import { getOrCreateAiLessonSummary } from '../services/lesson-summary.service.js'
 import { prisma } from '../lib/prisma.js'
 
 const router = Router()
@@ -615,6 +616,93 @@ router.get(
         success: false,
         error: 'Failed to fetch lesson detail',
       })
+    }
+  }
+)
+
+/**
+ * @openapi
+ * /api/member/lessons/{lessonScheduleId}/summary:
+ *   get:
+ *     tags: [Member Lessons]
+ *     summary: AI-generated completion summary for a finished lesson
+ *     description: |
+ *       Returns the stored AI summary for the authenticated member's completed
+ *       lesson, generating and persisting it on first request. Two values are
+ *       produced: `lessonSummary` (what the lesson taught — always present) and
+ *       `memberSummary` (what this member learned, evaluated from their input —
+ *       null when the member entered nothing substantive, so empty responses
+ *       can be measured in analytics).
+ *     security:
+ *       - memberSession: []
+ *     parameters:
+ *       - in: path
+ *         name: lessonScheduleId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: The AI summary
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     lessonSummary:
+ *                       type: string
+ *                     memberSummary:
+ *                       type: string
+ *                       nullable: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Invalid lesson schedule ID
+ *       401:
+ *         description: Member not authenticated
+ *       403:
+ *         description: Member does not have access to this lesson
+ *       404:
+ *         description: Lesson not found
+ *       409:
+ *         description: Lesson is not complete yet
+ *       503:
+ *         description: Summary generation unavailable
+ */
+router.get(
+  '/member/lessons/:lessonScheduleId/summary',
+  requireMemberAuth,
+  async (req: Request, res: Response) => {
+    try {
+      const memberId = req.member?.id
+      const { lessonScheduleId } = req.params
+
+      if (!memberId) {
+        return res.status(401).json({ success: false, error: 'Member not authenticated' })
+      }
+
+      const uuidResult = z.string().uuid().safeParse(lessonScheduleId)
+      if (!uuidResult.success) {
+        return res.status(400).json({ success: false, error: 'Invalid lesson schedule ID' })
+      }
+
+      const result = await getOrCreateAiLessonSummary(memberId, lessonScheduleId)
+      if (!result.success) {
+        return res.status(result.status ?? 500).json({ success: false, error: result.error })
+      }
+
+      res.json({ success: true, summary: result.summary })
+    } catch (error) {
+      console.error('Error fetching AI lesson summary:', error)
+      res.status(500).json({ success: false, error: 'Failed to fetch lesson summary' })
     }
   }
 )

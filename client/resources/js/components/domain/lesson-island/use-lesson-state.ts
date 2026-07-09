@@ -56,6 +56,9 @@ export interface Lesson {
   studyProgram?: { id?: string; name?: string }
   requireResponse?: boolean
   requireResponses?: boolean
+  // Preloaded AI completion summary — only provided by capture/preview
+  // fixtures; real members fetch it from the summary endpoint on completion
+  aiSummary?: { lessonSummary?: string | null; memberSummary?: string | null }
 }
 
 export interface LessonData {

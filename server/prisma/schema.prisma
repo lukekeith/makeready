@@ -354,6 +354,7 @@ model Member {
   activityProgress     MemberActivityProgress[]
   videoProgress        MemberVideoProgress[]
   lessonProgress       MemberLessonProgress[]
+  aiLessonSummaries    AiLessonSummary[]
   linkedUser           User? @relation("UserMemberLink", fields: [userId], references: [id], onDelete: SetNull)
   preferences          UserPreference[]
   searchHistory        SearchHistory[]
@@ -1047,6 +1048,7 @@ model LessonSchedule {
   memberProgress       MemberActivityProgress[]
   videoProgress        MemberVideoProgress[]
   lessonProgress       MemberLessonProgress[]
+  aiLessonSummaries    AiLessonSummary[]
 
   @@unique([enrollmentId, lessonId])
   @@index([enrollmentId])
@@ -1335,6 +1337,26 @@ model MemberLessonProgress {
   @@index([memberId, completedAt])
   @@index([pinnedVersionId])
   @@map("member_lesson_progress")
+}
+
+model AiLessonSummary {
+  id                   String @id @default(uuid())
+  memberId             String
+  lessonScheduleId     String
+  lessonSummary        String @db.Text // AI-generated summary of the lesson and its contents
+  memberSummary        String? @db.Text // AI-generated summary of what the member learned from their input; null when the member entered nothing substantive (kept null for analytics)
+  model                String // Claude model ID that generated the summaries
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  member               Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  lessonSchedule       LessonSchedule @relation(fields: [lessonScheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, lessonScheduleId])
+  @@index([memberId])
+  @@index([lessonScheduleId])
+  @@index([createdAt])
+  @@map("ai_lesson_summaries")
 }
 
 model ScheduledLessonActivity {

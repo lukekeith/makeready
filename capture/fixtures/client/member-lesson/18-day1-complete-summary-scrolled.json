@@ -1,19 +1,12 @@
 {
   "platform": "client",
   "view": "pages.lesson",
-  "output": "05-day1-complete.png",
-  "title": "Day 1: Complete step",
+  "output": "18-day1-complete-summary-scrolled.png",
+  "title": "Day 1: Complete step — AI summary scrolled into view",
   "devices": [
     "iphone-se",
     "iphone-13-mini",
-    "iphone-14",
-    "iphone-14-plus",
-    "iphone-14-pro",
-    "iphone-14-pro-max",
-    "iphone-15",
-    "iphone-15-plus",
-    "iphone-16-pro",
-    "iphone-17-pro-max"
+    "iphone-14"
   ],
   "data": {
     "groupId": "group-capture-001",
@@ -98,5 +91,10 @@
       }
     }
   },
-  "step": 5
+  "step": 5,
+  "fullPage": false,
+  "scroll": {
+    "selector": ".LessonActivity__complete-step",
+    "to": "bottom"
+  }
 }

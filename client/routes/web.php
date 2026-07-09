@@ -126,6 +126,8 @@ Route::middleware('member.auth')->prefix('member')->group(function () {
     Route::post('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::post('/profile/avatar', [ProfileController::class, 'uploadAvatar'])->name('profile.avatar');
     Route::get('/groups/{groupId}/study/{studyEnrollmentId}', [StudyHomeController::class, 'show'])->name('study.home');
+    // Must precede lesson.show — its {step?} segment would otherwise capture "summary"
+    Route::get('/groups/{groupId}/lessons/{lessonScheduleId}/summary', [LessonController::class, 'lessonSummary'])->name('lesson.summary');
     Route::get('/groups/{groupId}/lessons/{lessonScheduleId}/{step?}', [LessonController::class, 'show'])->name('lesson.show');
     Route::post('/groups/{groupId}/lessons/{lessonScheduleId}/activity/{activityId}/submit', [LessonController::class, 'submitNote'])->name('lesson.activity.submit');
     Route::post('/groups/{groupId}/lessons/{lessonScheduleId}/activity/{activityId}/video-progress', [LessonController::class, 'saveVideoProgress'])->name('lesson.video.progress');

@@ -28,6 +28,10 @@
         "studyProgram": {
           "name": "Daily Inspiration"
         },
+        "aiSummary": {
+          "lessonSummary": "This lesson traced Peter's journey from his calling beside the Sea of Galilee to his restoration on the beach after the resurrection. It began with Jesus calling Peter from his nets to become a fisher of men, moved through Peter's threefold denial in the courtyard, and closed with Jesus' threefold question — \"Do you love me?\" — mirroring and undoing each denial.\n\nThe teaching emphasized that failure is not the end of calling: Jesus sought Peter out, restored him publicly, and recommissioned him to feed His sheep. The lesson invited members to consider the places where their own failures feel disqualifying, and to hear the same restoring question addressed to them.",
+          "memberSummary": null
+        },
         "requireResponse": false,
         "activities": [
           {
