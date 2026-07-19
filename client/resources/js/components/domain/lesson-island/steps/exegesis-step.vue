@@ -604,7 +604,10 @@ onMounted(() => {
 .ExegesisStep__verse-container {
     height: 100%;
     overflow-y: auto;
-    padding: 120px 16px 24px;
+    /* Reserve the lesson header's live height (title + nav pill + expanded
+       message row + env(safe-area-inset-top)) instead of a static 120px, so
+       the first verse never clips under the header. Mirrors read-step.vue:113. */
+    padding: calc(var(--member-lesson-header, 200px) + 16px) 16px 24px;
     line-height: 1.55;
     white-space: pre-wrap;
     -webkit-overflow-scrolling: touch;
@@ -612,14 +615,14 @@ onMounted(() => {
         to bottom,
         transparent 0,
         transparent 32px,
-        black 120px,
+        black calc(var(--member-lesson-header, 200px) + 16px),
         black 100%
     );
     -webkit-mask-image: linear-gradient(
         to bottom,
         transparent 0,
         transparent 32px,
-        black 120px,
+        black calc(var(--member-lesson-header, 200px) + 16px),
         black 100%
     );
 }
