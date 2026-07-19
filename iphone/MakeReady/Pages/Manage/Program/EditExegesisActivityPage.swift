@@ -405,6 +405,16 @@ struct EditExegesisActivityPage: View {
         }
     }
 
+    /// An existing highlight whose span overlaps `range` (same overlap test the
+    /// server enforces). Used to merge an overlapping note into the existing
+    /// highlight instead of creating a new one — the server rejects overlapping
+    /// creates, which otherwise fails the whole save ("Couldn't save changes").
+    private func overlappingExegesisHighlight(for range: NSRange) -> ExegesisHighlight? {
+        let start = range.location
+        let end = range.location + range.length
+        return exegesisHighlights.first { !(end <= $0.start || start >= $0.end) }
+    }
+
     @MainActor
     private func loadExegesisHighlights() async {
         do {
@@ -449,7 +459,10 @@ struct EditExegesisActivityPage: View {
                   let range = rangeFromHighlightNoteKey(key) else { continue }
 
             let saved: ExegesisHighlight
-            if let existing = matchingExegesisHighlight(for: range) {
+            // Update an exact OR overlapping existing highlight (merge into it);
+            // only create when the selection is clear of every existing highlight,
+            // since the server rejects overlapping creates.
+            if let existing = matchingExegesisHighlight(for: range) ?? overlappingExegesisHighlight(for: range) {
                 saved = try await ProgramActions().updateExegesisHighlight(
                     activityId: activity.id,
                     highlightId: existing.id,
