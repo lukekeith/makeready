@@ -4,6 +4,9 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 
 | Doc | Contents |
 |---|---|
+| [PIPELINE.md](PIPELINE.md) | **The resolution pipeline** — /monday-review → /monday-ticket → /monday-resolve, dossier schema, affected-areas gate |
+| [tickets/](tickets/) | **Per-ticket dossiers** — one file per open ticket with verbatim reports, verdict, affected areas, root cause, resolution log |
+| [triage-2026-07-19.md](triage-2026-07-19.md) | **Latest status refresh** — per-ticket verdicts (fixed / outstanding / needs clarification) against main @ ec028ba, post study-sync |
 | [code-fixes.md](code-fixes.md) | **Priority 1** — 19 code-only fixes (no new UI/UX needed), ordered by severity, with file:line evidence |
 | [ui-ux.md](ui-ux.md) | **Priority 2** — 11 items needing interaction design before build |
 | [feature-requests.md](feature-requests.md) | **Priority 3** — 12 feature tickets deduped to 9, grouped into roadmap themes |
@@ -31,7 +34,7 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 
 - **CF-6:** should unpublishing an enrolled study be *blocked* or *kick groups out*? (He stated kick-out; blocking is safer.)
 - **UX-1:** is "Open Lesson" meant as leader preview, member share-link, or both?
-- **CF-13:** which screen was the "should say lessons" screenshot — member group home or leader dashboard?
+- ~~**CF-13:** which screen was the "should say lessons" screenshot — member group home or leader dashboard?~~ RESOLVED: it was neither — the Program Home tab slider (iPhone + web twin). Renamed to "Lessons" in `fdb1b31`.
 - **UX-4:** the highlight-overlap data loss is already guarded on web; needs a repro to confirm whether the iPhone path can still destroy a note.
 
 ## Ticket → work-item map
@@ -51,7 +54,7 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 | 12297336134 stuck | CF-11, CF-19, UX-2, UX-5 |
 | 12344966853 UI update please | CF-11, UX-11 |
 | 12268578241 covering text | CF-12 |
-| 12268465402 should say lessons | CF-13 |
+| ~~12268465402 should say lessons~~ | CF-13 ✅ CLOSED (fdb1b31) — Program Home tab renamed to "Lessons" |
 | 12271625826 image optimize | CF-18 (answer & close) |
 | 12415667946 member - video | UX-3 |
 | 12268478769 add bible verse unclear | UX-7 |

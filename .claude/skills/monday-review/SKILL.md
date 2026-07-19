@@ -7,6 +7,8 @@ description: Review open monday.com tickets against the MakeReady codebase to de
 
 You are reviewing open monday.com tickets for the MakeReady project (web client + iPhone app) and determining, with evidence, which are already fixed in the codebase. The bar for "fixed" is high: a verdict of VERIFIED FIXED requires identifying the concrete commit(s) that address the ticket AND confirming the change is present on current `main`. Never close a ticket on vibes.
 
+This is stage 1 of the pipeline in `docs/monday/PIPELINE.md` (review → `/monday-ticket` deep dive → `/monday-resolve`). Read that contract, and read the per-ticket dossiers in `docs/monday/tickets/` before investigating — prior verdicts, root causes, and affected-area mappings are already recorded there; refresh them rather than rediscovering from scratch.
+
 ## 1 — Authentication
 
 Prefer monday MCP tools if they're available in the session. Otherwise use the GraphQL API directly. The token lives in the monday MCP server config:
@@ -49,9 +51,15 @@ For each open ticket, gather evidence from BOTH apps (tickets rarely say which p
 | **OUTSTANDING** | No fix found; reported behavior still possible in current code | ❌ Report; optionally note where the fix would go |
 | **NEEDS CLARIFICATION** | Ticket too vague to map to code (UX opinions, "I don't know what to do next"-type feedback) | ❌ Report; suggest a clarifying question to post on the ticket |
 
-## 5 — Report
+## 5 — Report and persist to the local store
 
 Output a table: Ticket | Platform | Verdict | Evidence (commit hash + file:line or doc ref) | Recommended action. Lead with counts (X verified fixed, Y outstanding, ...). Be honest about uncertainty — a wrong "Done" erodes trust in the whole board.
+
+Then persist (per `docs/monday/PIPELINE.md`):
+
+1. **Dated triage file** — write the full per-ticket verdict report to `docs/monday/triage-<today>.md` and add/refresh its line in `docs/monday/README.md`'s doc table.
+2. **Dossier sync** — for every reviewed ticket with a dossier in `docs/monday/tickets/`, update frontmatter `verdict` + `last_review` and append a Triage history line (`<date> /monday-review: <verdict> — <one-line evidence>`). Do NOT touch `affected_areas` on existing dossiers (only `/monday-ticket` may set `confirmed`; downgrading is a deep-dive decision).
+3. **New-ticket stubs** — for open tickets with no dossier, create one from `docs/monday/tickets/TEMPLATE.md`: frontmatter + verbatim reports + your verdict; `affected_areas: none` (or `provisional` if your investigation credibly pinned files — cite them in Affected areas with the provisional banner), `deep_dive: none`. The stub must be honest about what review did NOT do: screenshots not viewed.
 
 ## 6 — Move verified tickets to Done (confirmation-gated)
 
@@ -74,5 +82,6 @@ curl -s -X POST https://api.monday.com/v2 -H "Authorization: $TOKEN" -H "Content
 ```
 4. Sweep for strays: query all items' status + group, and move ANY item with status Done into the completed group (the user may have marked items Done manually).
 5. Confirm each mutation succeeded (response contains the id) and report the final tally.
+6. For each closed ticket, update its dossier in `docs/monday/tickets/`: frontmatter `status: closed` and a Triage history line recording the closure + evidence commit.
 
 Never mutate tickets classified below VERIFIED FIXED (group moves of already-Done items are exempt — they're housekeeping, not closures), and never delete or archive anything.
