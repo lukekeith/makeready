@@ -155,7 +155,9 @@ Confirm each response contains the id, and keep frontmatter `type:`/`app:`/`natu
 - Related tickets: <other board items touching the same surface, if noticed>
 
 Dossier: docs/monday/tickets/<id>.md (affected_areas: <value>)
-Next: /monday-resolve <id> "<your solution>"   — or /monday-review to close if ALREADY FIXED
+Next: /monday-resolve <id> "<the Proposed approach above, restated as a concrete one-line resolution spec — inline it verbatim; never emit the literal placeholder>"   — or /monday-review to close if ALREADY FIXED
 ```
+
+The `Next:` line MUST contain the actual proposed solution (a copy-pasteable `/monday-resolve` invocation), not a `<...>` placeholder — take the Fix summary's "Proposed approach" and compress it to a single-sentence resolution spec so the user can run it as-is. Only omit the concrete solution when the verdict is not STILL RELEVANT (then point at `/monday-review`).
 
 This skill's ONLY monday writes are the Type and App classification columns (step 8) — it never changes Status, group, or posts comments (that's `/monday-resolve` and `/monday-review`). If the verdict is ALREADY FIXED, suggest running `/monday-review` (or offer to close it with evidence via that skill's mutation flow). If the user asks to proceed with the fix, `/monday-resolve` picks up from the dossier.
