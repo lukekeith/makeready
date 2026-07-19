@@ -49,7 +49,7 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 | 12344966891 UI not updating | CF-4, CF-7 |
 | 12297338039 error log | CF-8, CF-14, CF-15, CF-16, CF-17, UX-6 |
 | 12268645785 validation error (→ SMS verification fails to send) | CF-9 (disproved), UX-1; deep-dived + split → 12572733385; diagnostic fix applied, Twilio ops diagnosis pending |
-| 12572733385 iPhone exegesis "Couldn't save changes" | NEW — split from 12268645785; needs server error |
+| 12572733385 iPhone exegesis "Couldn't save changes" | Split from 12268645785; root-caused (overlap semantics) + fixed `e8e9718` (merge into existing); resolved-pending-verify |
 | 12415662995 member - reading issue | CF-10 |
 | 12386101354 error member experience | CF-10, CF-19 |
 | 12297336134 stuck | CF-11, CF-19, UX-2, UX-5 |
@@ -58,7 +58,7 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 | ~~12268465402 should say lessons~~ | CF-13 ✅ CLOSED (fdb1b31) — Program Home tab renamed to "Lessons" |
 | ~~12271625826 image optimize~~ | CF-18 ✅ CLOSED (Done) 2026-07-19 — answered (optimized, not ideal); follow-up Feature **12572712291** opened for WebP/AVIF + right-sized delivery |
 | 12572712291 Image optimization (WebP/AVIF + right-sized delivery) | NEW Feature — Media · Multiple; provisional pending Option A (static variants) vs. B (transform layer) decision |
-| 12415667946 member - video | UX-3 |
+| 12415667946 member - video | UX-3 — ⏳ RESOLVED-PENDING-VERIFY (03e1367) — header safe-area inset + friendly empty-video state w/ Continue; monday → Verify |
 | 12268478769 add bible verse unclear | UX-7 |
 | 12297345805 suggestion | UX-7 |
 | 12268648378 no way to change enrollment calendar | UX-10 |
