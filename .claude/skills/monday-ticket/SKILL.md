@@ -85,12 +85,49 @@ Create or update `docs/monday/tickets/<id>.md` per `docs/monday/tickets/TEMPLATE
 
 - Fill Problem, Reports (verbatim, complete), Screenshots (your descriptions from step 3), Affected areas (In scope with verified paths / Explicitly out of scope siblings / Cross-app impact), Root cause, Verification.
 - Frontmatter: `deep_dive: <today>`; `affected_areas: confirmed` **only if** you viewed the attachments (or the ticket verifiably has none and the text alone pins the screen) AND every in-scope path was verified to exist. Otherwise leave `provisional`/`none` and say why.
+- Frontmatter `type:`, `app:`, `nature:` — set from your classification (see step 8). Mirror the monday labels exactly (`type:` one of UI/UX / Data & Lifecycle / Authorization / Media / Infrastructure / Unknown; `app:` one of Web / iPhone / Server / Multiple / Unknown; `nature:` one of Bug / Feature / Chore/Refactor / Unknown).
 - Append a Triage history line: `<date> /monday-ticket: <verdict> — <one-liner>`.
 - Preserve existing Triage history and Resolution log entries.
 
 This skill is the ONLY stage allowed to set `affected_areas: confirmed` (see PIPELINE.md).
 
-## 8 — Report to the user
+## 8 — Classify on monday (Type + App + Nature)
+
+After the dossier is written, set the three classification columns on the monday item (board `18413909869`; column IDs in `docs/monday/PIPELINE.md`). These are the ONLY monday writes this skill makes — it never touches Status, group, or comments (that's `/monday-resolve` and `/monday-review`).
+
+Derive all three from the deep dive you just did — do NOT guess from the title. **Type and App are separate axes: Type = which part of the app the work is primarily about; App = which platform's code changes. A UI/UX ticket that also needs a server tweak is still `Type: UI/UX` if the UI was the goal — classify Type by the GOAL of the work, not by which files get touched (that's what App / affected-areas already capture).**
+
+**Type** (`color_mm5da9sj`) ← the primary impacted **area** of the app:
+- `UI/UX` — the goal is how it looks/feels/reads: layout, copy/label, discoverability, styling, navigation, keyboard/scroll/safe-area.
+- `Data & Lifecycle` — the goal is backend/data behavior: data model, enrollment/publish/sync, versioning, calculations, persistence/state correctness.
+- `Authorization` — the goal is **access & identity**: authentication/onboarding (phone/SMS verification, login, OAuth) AND access control (permissions, roles, ownership/org scoping). Includes the third-party auth integrations that power them (e.g. Twilio Verify) when the flow's *purpose* is letting a user prove identity / gain access.
+- `Media` — the goal is images/video/storage/optimization.
+- `Infrastructure` — build/deploy, performance, tech-debt/refactor with no intended user-facing behavior change.
+- `Unknown` — too vague to place (usually verdict NEEDS CLARIFICATION / CANNOT MAP).
+
+**App** (`color_mm5dgrcn`) ← the dossier's Affected areas **Platform** (which codebase changes):
+- iPhone-only → `iPhone` · web (member or leader) → `Web` · server-only → `Server` · spans two or more → `Multiple` · genuinely undeterminable → `Unknown`.
+
+**Nature** (`color_mm5d8n4c`) ← is it broken or new work:
+- `Bug` — a defect: errors, crashes, data loss, wrong/stale/misleading output, a flow that doesn't work.
+- `Feature` — new capability or an enhancement to existing behavior (nothing is broken; the ask is "make it do more / better").
+- `Chore/Refactor` — cleanup, copy tweaks, internal restructuring with no new capability.
+- `Unknown` — too vague.
+
+For a multi-sub-issue ticket, classify by the **dominant/most-severe** sub-issue and note in the report which sub-issues would land differently. All three are `status` columns — set them with the label text (use `create_labels_if_missing: true` so a label added later still applies):
+
+```bash
+TOKEN=$(jq -r '.. | objects | select(has("MONDAY_TOKEN")) | .MONDAY_TOKEN' ~/.claude.json | head -1)
+set_col() { curl -s -X POST https://api.monday.com/v2 -H "Authorization: $TOKEN" -H "Content-Type: application/json" \
+  -d "{\"query\":\"mutation { change_simple_column_value(board_id: 18413909869, item_id: $1, column_id: \\\"$2\\\", value: \\\"$3\\\", create_labels_if_missing: true) { id } }\"}"; }
+set_col ITEM_ID color_mm5da9sj "UI/UX"      # Type
+set_col ITEM_ID color_mm5dgrcn "iPhone"     # App
+set_col ITEM_ID color_mm5d8n4c "Feature"    # Nature
+```
+
+Confirm each response contains the id, and keep frontmatter `type:`/`app:`/`nature:` in sync with what you set.
+
+## 9 — Report to the user
 
 ```
 ## Ticket: <title> (<id>, <board>/<group>, status, priority)
@@ -101,6 +138,9 @@ This skill is the ONLY stage allowed to set `affected_areas: confirmed` (see PIP
 
 ### Verdict: STILL RELEVANT | ALREADY FIXED | OBSOLETE | CANNOT MAP
 <evidence: commit hashes, file:line, screenshot↔code matches>
+
+### Classification: Type=<area> · App=<platform> · Nature=<bug/feature/chore>
+<the three monday labels you set, one line; note any sub-issue that would classify differently>
 
 ### Affected areas: confirmed | provisional | none
 <the In scope / Out of scope summary — what /monday-resolve may and may not touch>
@@ -118,4 +158,4 @@ Dossier: docs/monday/tickets/<id>.md (affected_areas: <value>)
 Next: /monday-resolve <id> "<your solution>"   — or /monday-review to close if ALREADY FIXED
 ```
 
-This skill is read-only on monday — it never changes status, group, or posts comments. If the verdict is ALREADY FIXED, suggest running `/monday-review` (or offer to close it with evidence via that skill's mutation flow). If the user asks to proceed with the fix, `/monday-resolve` picks up from the dossier.
+This skill's ONLY monday writes are the Type and App classification columns (step 8) — it never changes Status, group, or posts comments (that's `/monday-resolve` and `/monday-review`). If the verdict is ALREADY FIXED, suggest running `/monday-review` (or offer to close it with evidence via that skill's mutation flow). If the user asks to proceed with the fix, `/monday-resolve` picks up from the dossier.

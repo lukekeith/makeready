@@ -56,7 +56,27 @@ verdict: LIKELY FIXED          # latest verdict + its date lives in Triage histo
 last_review: 2026-07-19        # last /monday-review that touched this ticket
 deep_dive: none                # none | YYYY-MM-DD of last /monday-ticket run
 affected_areas: provisional    # none | provisional | confirmed
+type: none                     # none | UI/UX | Data & Lifecycle | Authorization | Media | Infrastructure | Unknown — PRIMARY AREA (set by /monday-ticket; mirrors monday Type column)
+app: none                      # none | Web | iPhone | Server | Multiple | Unknown — PLATFORM (set by /monday-ticket; mirrors monday App column)
+nature: none                   # none | Bug | Feature | Chore/Refactor | Unknown — IS-IT-BROKEN (set by /monday-ticket; mirrors monday Nature column)
 ```
+
+### Board columns (monday board 18413909869)
+
+| Column | ID | Type | Labels | Who writes |
+|---|---|---|---|---|
+| Status | `color_mm3gbyzr` | status | Not Started · In Progress · Blocked · Done | /monday-resolve, /monday-review |
+| Type | `color_mm5da9sj` | status | UI/UX · Data & Lifecycle · Authorization · Media · Infrastructure · Unknown | **/monday-ticket** (on deep dive) |
+| App | `color_mm5dgrcn` | status | Web · iPhone · Server · Multiple · Unknown | **/monday-ticket** (on deep dive) |
+| Nature | `color_mm5d8n4c` | status | Bug · Feature · Chore/Refactor · Unknown | **/monday-ticket** (on deep dive) |
+| Priority | `color_mm3gtx6x` | status | Critical · High · Medium · Low | (human-set) |
+
+Completed group: `group_mm3g94qf`. All status columns are set with `change_simple_column_value` (label text). `/monday-ticket` classifies three orthogonal axes on each deep dive — the only monday writes that skill makes:
+- **Type** = the primary impacted *area* of the app, chosen by the GOAL of the work, not the files touched (a UI/UX feature that needs a server tweak is still `UI/UX`). Areas: **UI/UX**, **Data & Lifecycle** (backend/data behavior, sync, persistence), **Authorization** (access **&** identity — authentication/onboarding like phone/SMS verification & login, plus RBAC/ownership, incl. the auth integrations behind them), **Media** (images/video/storage), **Infrastructure** (build/deploy/perf/tech-debt), **Unknown**.
+- **App** = which *platform's* code changes (from the Affected-areas Platform).
+- **Nature** = is it a *Bug*, a *Feature*/enhancement, or a *Chore/Refactor*.
+
+(Type ID changed 2026-07-19 when the column was rebuilt from a mixed Bug/UI/UX/… set to the area-only axis; old ID `color_mm5db2ct` is retired.)
 
 ### `affected_areas` semantics — the gate
 

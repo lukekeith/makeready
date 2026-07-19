@@ -10,6 +10,9 @@ verdict: UNREVIEWED
 last_review: none
 deep_dive: none
 affected_areas: none
+type: none
+app: none
+nature: none
 ---
 
 # <ticket title>

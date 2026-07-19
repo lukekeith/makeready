@@ -25,7 +25,7 @@ Open = status ≠ "Done". Note each item's most-recent update timestamp — it d
 
 ## 2 — Load dossier state
 
-Read frontmatter from every `docs/monday/tickets/<id>.md` (skip TEMPLATE.md): `status`, `verdict`, `last_review`, `deep_dive`, `affected_areas`. For tickets with `deep_dive` set, also pull from the body: the Problem statement, the In scope lines of Affected areas, the Root cause line, and the latest Resolution log entry if any.
+Read frontmatter from every `docs/monday/tickets/<id>.md` (skip TEMPLATE.md): `status`, `verdict`, `last_review`, `deep_dive`, `affected_areas`, `type`, `app`, `nature`. For tickets with `deep_dive` set, also pull from the body: the Problem statement, the In scope lines of Affected areas, the Root cause line, and the latest Resolution log entry if any.
 
 Cross-check for drift both ways:
 - **Stale dossier**: monday has updates newer than `deep_dive` (or newer than `last_review` for non-dived tickets) → the evaluation predates new information.
@@ -41,6 +41,7 @@ These have had screenshots + comments fully evaluated, so show the rich context.
 
 ```
 **<title>** (<id>) — <verdict> · dossier status: <status> · dived <deep_dive>
+  Type/App/Nature: <type> · <app> · <nature>
   Problem: <one-line problem statement>
   Areas: <platform> — <in-scope screens/files, compressed to one line>
   Root cause: <one-liner, or "n/a">
