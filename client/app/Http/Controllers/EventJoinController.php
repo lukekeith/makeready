@@ -159,7 +159,7 @@ class EventJoinController extends Controller
         ], $request);
 
         if ($result['status'] !== 200) {
-            $error = $result['body']['message'] ?? 'Failed to send verification code. Please try again.';
+            $error = $result['body']['error'] ?? $result['body']['message'] ?? 'Failed to send verification code. Please try again.';
             $this->log->logFailure(ActivityTypes::JOIN_EVENT_PHONE_FAILED, $request, [
                 'message' => "SMS send failed for event join: {$id}", 'eventId' => session("event.{$id}.eventId"),
                 'errorMessage' => $error, 'metadata' => ['phoneLast4' => EventLogger::maskPhone($phone)],

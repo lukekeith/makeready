@@ -249,7 +249,7 @@ class JoinController extends Controller
         ], $request);
 
         if ($result['status'] !== 200) {
-            $error = $result['body']['message'] ?? 'Failed to send verification code. Please try again.';
+            $error = $result['body']['error'] ?? $result['body']['message'] ?? 'Failed to send verification code. Please try again.';
             $this->log->logFailure(ActivityTypes::JOIN_GROUP_PHONE_FAILED, $request, [
                 'message'      => "SMS send failed for group join: {$id}",
                 'groupId'      => session("join.{$id}.groupId"),
