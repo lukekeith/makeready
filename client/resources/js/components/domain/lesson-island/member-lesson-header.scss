@@ -3,6 +3,11 @@
   flex-direction: column;
   align-items: flex-end;
   padding: 8px;
+  // The host layout sets `viewport-fit=cover`, so the player's top edge sits
+  // under the status bar / notch. Inset the header past the top safe area so
+  // the study title never renders behind browser chrome. (Affects every step —
+  // this header is shared across the whole lesson player.)
+  padding-top: calc(8px + env(safe-area-inset-top, 0px));
 
   // ─── Container card ───────────────────────────────────────────────────────
 

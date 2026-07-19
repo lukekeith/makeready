@@ -63,8 +63,11 @@ const embedUrl = computed(() => {
         allowfullscreen
       />
     </div>
-    <div v-else class="YoutubeStep__error">
-      No video URL configured
+    <div v-else class="YoutubeStep__empty">
+      <p class="YoutubeStep__empty-text">This video isn’t available yet.</p>
+      <button type="button" class="YoutubeStep__empty-continue" @click="emit('next')">
+        Continue
+      </button>
     </div>
   </div>
 </template>
@@ -81,10 +84,33 @@ const embedUrl = computed(() => {
   height: 100%;
   border: none;
 }
-.YoutubeStep__error {
-  color: rgba(255, 255, 255, 0.5);
-  font-size: 14px;
-  text-align: center;
+.YoutubeStep__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
   padding: 24px;
+  text-align: center;
+}
+.YoutubeStep__empty-text {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  line-height: 1.5;
+}
+.YoutubeStep__empty-continue {
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px 28px;
+  border-radius: 24px;
+  background: #6c47ff;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+  transition: opacity 200ms ease;
+}
+.YoutubeStep__empty-continue:hover {
+  opacity: 0.9;
 }
 </style>
