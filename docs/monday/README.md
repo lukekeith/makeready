@@ -58,7 +58,7 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 | ~~12268465402 should say lessons~~ | CF-13 ✅ CLOSED (fdb1b31) — Program Home tab renamed to "Lessons" |
 | ~~12271625826 image optimize~~ | CF-18 ✅ CLOSED (Done) 2026-07-19 — answered (optimized, not ideal); follow-up Feature **12572712291** opened for WebP/AVIF + right-sized delivery |
 | 12572712291 Image optimization (WebP/AVIF + right-sized delivery) | NEW Feature — Media · Multiple; provisional pending Option A (static variants) vs. B (transform layer) decision |
-| 12415667946 member - video | UX-3 — ⏳ RESOLVED-PENDING-VERIFY (03e1367) — header safe-area inset + friendly empty-video state w/ Continue; monday → Verify |
+| ~~12415667946 member - video~~ | UX-3 — ✅ CLOSED/Done (03e1367 + 1e3f035) — header safe-area inset + warning empty-video state; user-verified in-browser |
 | 12268478769 add bible verse unclear | UX-7 |
 | 12297345805 suggestion | UX-7 |
 | 12268648378 no way to change enrollment calendar | UX-10 |
