@@ -64,10 +64,16 @@ const embedUrl = computed(() => {
       />
     </div>
     <div v-else class="YoutubeStep__empty">
-      <p class="YoutubeStep__empty-text">This video isn’t available yet.</p>
-      <button type="button" class="YoutubeStep__empty-continue" @click="emit('next')">
-        Continue
-      </button>
+      <svg class="YoutubeStep__empty-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 3.5 2.5 20.5h19L12 3.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M12 10v4.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="12" cy="17.5" r="0.9" fill="currentColor"/>
+      </svg>
+      <p class="YoutubeStep__empty-title">Video never specified.</p>
+      <p class="YoutubeStep__empty-text">
+        This is an edge case that will not happen in production, because studies
+        cannot be published or enrolled with incomplete activities.
+      </p>
     </div>
   </div>
 </template>
@@ -88,29 +94,26 @@ const embedUrl = computed(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 10px;
   padding: 24px;
   text-align: center;
 }
+.YoutubeStep__empty-icon {
+  width: 40px;
+  height: 40px;
+  color: #e0a43b;
+}
+.YoutubeStep__empty-title {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  font-weight: 600;
+}
 .YoutubeStep__empty-text {
   margin: 0;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 15px;
+  max-width: 320px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
   line-height: 1.5;
-}
-.YoutubeStep__empty-continue {
-  appearance: none;
-  border: none;
-  cursor: pointer;
-  padding: 10px 28px;
-  border-radius: 24px;
-  background: #6c47ff;
-  color: #fff;
-  font-size: 15px;
-  font-weight: 600;
-  transition: opacity 200ms ease;
-}
-.YoutubeStep__empty-continue:hover {
-  opacity: 0.9;
 }
 </style>
