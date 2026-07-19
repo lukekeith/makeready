@@ -144,9 +144,6 @@ struct EditReadActivityPage: View {
     /// highlighter icon next to the chevron to toggle. While set, the rest of
     /// the activity dims and drag-to-sort is suppressed for that block.
     @State private var highlightingBlockId: String?
-    @State private var showSourceMenu = false
-    @State private var sourceMenuOffset: CGFloat = Screen.bounds.height
-    @State private var sourceMenuOverlayOpacity: Double = 0
     @State private var showPassageSelection = false
     @State private var pendingTitleReference: String? = nil
 
@@ -447,8 +444,28 @@ struct EditReadActivityPage: View {
                         VStack(spacing: 4) {
                             if canEdit {
                                 BoxButton(
-                                    action: { openSourceMenu() },
-                                    icon: "plus",
+                                    action: {
+                                        dismissKeyboard()
+                                        showPassageSelection = true
+                                    },
+                                    label: "Add Bible verse",
+                                    icon: "book.fill",
+                                    iconPosition: .right,
+                                    variant: .secondary,
+                                    style: .solid,
+                                    size: .lg,
+                                    fullWidth: true,
+                                    iconOpacity: 0.5
+                                )
+
+                                BoxButton(
+                                    action: {
+                                        dismissKeyboard()
+                                        addCustomTextBlock()
+                                    },
+                                    label: "Add custom text",
+                                    icon: "text.alignleft",
+                                    iconPosition: .right,
                                     variant: .secondary,
                                     style: .solid,
                                     size: .lg,
@@ -491,66 +508,6 @@ struct EditReadActivityPage: View {
                 }
                 .environment(\.swipeState, swipeState)
                 .scrollDisabled(swipeState.isSwiping)
-            }
-
-            // Source menu overlay
-            if showSourceMenu {
-                Color.black.opacity(sourceMenuOverlayOpacity)
-                    .ignoresSafeArea()
-                    .onTapGesture { dismissSourceMenu() }
-
-                VStack(spacing: 0) {
-                    Rectangle()
-                        .fill(Color.clear)
-                        .frame(height: 24)
-                        .overlay {
-                            Capsule()
-                                .fill(Color(UIColor.tertiaryLabel))
-                                .frame(width: 34, height: 5)
-                        }
-
-                    VStack(spacing: 8) {
-                        CardActivityType(
-                            title: "Bible verse",
-                            description: "Add a passage from the Bible.",
-                            image: .icon(systemName: "book.fill", backgroundColor: Color.brandPrimary),
-                            mode: .list,
-                            onTap: {
-                                dismissSourceMenu {
-                                    showPassageSelection = true
-                                }
-                            }
-                        )
-                        CardActivityType(
-                            title: "Custom text",
-                            description: "Add a rich text block you can write in.",
-                            image: .icon(systemName: "text.alignleft", backgroundColor: Color.brandPrimary),
-                            mode: .list,
-                            onTap: {
-                                dismissSourceMenu {
-                                    addCustomTextBlock()
-                                }
-                            }
-                        )
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-
-                    Button {
-                        dismissSourceMenu()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(Typography.s15Medium)
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 32)
-                    }
-                    .padding(.horizontal, 16)
-                }
-                .frame(maxWidth: .infinity)
-                .background(Color.cardBackground)
-                .clipShape(RoundedCornersShape(corners: [.topLeft, .topRight], radius: 16))
-                .offset(y: sourceMenuOffset)
             }
 
             // Set-titles modal
@@ -823,32 +780,15 @@ struct EditReadActivityPage: View {
         }
     }
 
-    // MARK: - Source Menu
+    // MARK: - Add Block
 
-    private func openSourceMenu() {
-        // Dismiss keyboard so menu isn't hidden behind it
+    /// Dismiss the keyboard before adding a block so the passage picker
+    /// or the newly appended editor isn't hidden behind it.
+    private func dismissKeyboard() {
         UIApplication.shared.sendAction(
             #selector(UIResponder.resignFirstResponder),
             to: nil, from: nil, for: nil
         )
-        showSourceMenu = true
-        ModalAnimations.animateAppear(
-            offset: $sourceMenuOffset,
-            overlayOpacity: $sourceMenuOverlayOpacity
-        )
-    }
-
-    /// Optional completion runs when the exit animation finishes
-    /// (Phase 3.2 — replaces wall-clock asyncAfter waits).
-    private func dismissSourceMenu(then completion: (() -> Void)? = nil) {
-        ModalAnimations.animateDismiss(
-            offset: $sourceMenuOffset,
-            overlayOpacity: $sourceMenuOverlayOpacity,
-            screenHeight: Screen.bounds.height
-        ) {
-            showSourceMenu = false
-            completion?()
-        }
     }
 
     // MARK: - Preview Lesson (local slide preview)
