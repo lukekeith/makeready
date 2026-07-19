@@ -351,7 +351,7 @@ struct ProgramHomePage: View {
     private func refreshCurrentTab() async {
         do {
             switch selectedTab {
-            case 0: // Studies
+            case 0: // Lessons
                 _ = try await ProgramActions().getProgram(id: programId)
                 NSLog("🔄 ProgramHomePage: Refreshed studies for \(programId)")
             case 1: // Enrollments
@@ -490,7 +490,7 @@ struct ProgramHomePage: View {
 
                             // Tab slider
                             TabSlider(
-                                tabs: ["Studies", "Enrollments", "Analytics"],
+                                tabs: ["Lessons", "Enrollments", "Analytics"],
                                 selectedIndex: $selectedTab
                             )
                             .padding(.horizontal, 16)
@@ -498,7 +498,7 @@ struct ProgramHomePage: View {
                             // Tab content
                             Group {
                                 switch selectedTab {
-                                case 0:
+                                case 0: // Lessons
                                     studiesContent(program: program)
                                         .environment(\.swipeState, swipeState)
                                 case 1:
@@ -1030,7 +1030,7 @@ struct ProgramHomePage: View {
         }
     }
 
-    // MARK: - Studies Tab
+    // MARK: - Lessons Tab
 
     @ViewBuilder
     private func studiesContent(program: StudyProgram) -> some View {

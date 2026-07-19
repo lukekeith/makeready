@@ -7,7 +7,7 @@
   "viewports": [
     "pro-max"
   ],
-  "note": "'enrollments' variant is web-forward: the iPhone harness cannot seed selectedTab (private @State), so its pane shows the Studies tab.",
+  "note": "'enrollments' variant is web-forward: the iPhone harness cannot seed selectedTab (private @State), so its pane shows the Lessons tab.",
   "variants": [
     {
       "name": "default",

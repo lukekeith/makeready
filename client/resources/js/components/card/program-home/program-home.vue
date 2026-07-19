@@ -9,8 +9,8 @@
 //   • CoverImagePicker (display mode) with the PublishBadge overlaid top-left
 //     (capsule s12Semibold: Published = appBackground on #57DB5D, Draft =
 //     white on #242A3E)
-//   • TabSlider ["Studies", "Enrollments", "Analytics"]
-//   • Studies tab: VStack(spacing 4) of CardLesson(mode "lesson") rows +
+//   • TabSlider ["Lessons", "Enrollments", "Analytics"]
+//   • Lessons tab: VStack(spacing 4) of CardLesson(mode "lesson") rows +
 //     add-day BoxButton (creator only); skeletons while loading; book.closed
 //     empty state
 //   • Enrollments: empty state ("No enrollments yet", person.3)
@@ -196,16 +196,16 @@ function onRightIcon(index: number): void {
         </button>
       </div>
 
-      <!-- Studies / Enrollments / Analytics -->
+      <!-- Lessons / Enrollments / Analytics -->
       <div class="ProgramHome__tabs">
         <TabSlider
-          :tabs="['Studies', 'Enrollments', 'Analytics']"
+          :tabs="['Lessons', 'Enrollments', 'Analytics']"
           :selected-index="props.selectedTab"
           @select="emit('selectTab', $event)"
         />
       </div>
 
-      <!-- Studies tab: lessons list -->
+      <!-- Lessons tab: lessons list -->
       <div v-if="props.selectedTab === 0" class="ProgramHome__lessons">
         <template v-if="props.loading && !props.lessons.length">
           <SkeletonCardLesson />
