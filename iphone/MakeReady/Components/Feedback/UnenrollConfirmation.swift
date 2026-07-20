@@ -33,7 +33,7 @@ enum UnenrollConfirmation {
 
         overlayManager.present(.confirmationOverlay) {
             ConfirmationOverlay(
-                style: .warning,
+                style: .success,
                 message: message,
                 buttonLabel: "Done",
                 isProcessing: isProcessing,
