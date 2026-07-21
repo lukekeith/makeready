@@ -274,6 +274,12 @@ private let api: APIClientProtocol
         state.groupEnrollmentIndex.remove(parentId: groupId, childId: id)
         state.programEnrollmentIndex.remove(parentId: programId, childId: id)
 
+        // Also prune the program-enrollment store that the Groups → Enrolled tab
+        // renders from (AppState.programEnrollmentsFor). Without this the card
+        // lingers until a manual pull-to-refresh (monday#12344966891).
+        state.programEnrollments.remove(id)
+        state.programProgramEnrollmentIndex.remove(parentId: programId, childId: id)
+
         // Update program enrollment count
         state.updateProgramEnrollmentCount(programId: programId, delta: -1)
 
@@ -297,9 +303,13 @@ private let api: APIClientProtocol
                 throw APIError.serverError(response.error ?? "Failed to delete enrollment")
             }
 
-            // Clean up indexes by removing this enrollment ID from all parents
+            // Clean up indexes by removing this enrollment ID from all parents.
+            // No programId in scope here, so mirror the sibling indices with
+            // removeChild — including the Enrolled-tab store (monday#12344966891).
             state.groupEnrollmentIndex.removeChild(id)
             state.programEnrollmentIndex.removeChild(id)
+            state.programEnrollments.remove(id)
+            state.programProgramEnrollmentIndex.removeChild(id)
 
             state.persist()
             return
