@@ -714,7 +714,9 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
 
     // Get the active enrollment for this group (most recent)
     const enrollment = await prisma.enrollment.findFirst({
-      where: { groupId },
+      // Exclude enrollments whose study program was soft-deleted (isActive:false)
+      // so a deleted study stops rendering in the member/leader lists (monday#12415690223).
+      where: { groupId, studyProgram: { isActive: true } },
       orderBy: { createdAt: 'desc' },
       include: {
         studyProgram: {
@@ -890,7 +892,9 @@ router.get('/groups/:groupId/study-enrollments', async (req, res) => {
     }
 
     const enrollments = await prisma.enrollment.findMany({
-      where: { groupId },
+      // Exclude enrollments whose study program was soft-deleted (isActive:false)
+      // so a deleted study stops rendering in the member/leader lists (monday#12415690223).
+      where: { groupId, studyProgram: { isActive: true } },
       orderBy: { createdAt: 'desc' },
       include: {
         studyProgram: {
@@ -1184,7 +1188,9 @@ router.get('/groups/:groupId/enrollments', requireAuth, async (req, res) => {
     }
 
     const enrollments = await prisma.enrollment.findMany({
-      where: { groupId },
+      // Exclude enrollments whose study program was soft-deleted (isActive:false)
+      // so a deleted study stops rendering in the member/leader lists (monday#12415690223).
+      where: { groupId, studyProgram: { isActive: true } },
       orderBy: { createdAt: 'desc' },
       include: {
         studyProgram: {
