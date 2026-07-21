@@ -59,8 +59,9 @@ One commit for the fix, message referencing the ticket: `<summary> (monday#<id>)
 Board `18413909869`, status column `color_mm3gbyzr`, completed group `group_mm3g94qf` (other boards: discover per `/monday-review`).
 
 - **Always** post an evidence comment: what was changed, commit hash, how it was verified, and — for multi-issue tickets — which sub-issue this resolves and which remain.
-- **If verification passed at runtime** (flow actually driven, or code-level proof is airtight): set status Done and move to the completed group.
-- **If verification is pending** (needs device/TestFlight/deploy): set status In Progress; the comment states exactly what check remains. Do NOT mark Done — a wrong Done erodes trust in the board (see PIPELINE.md invariants).
+- To reference a person, write plain `@Name` text only — no mention markup, no `create_notification` (see "Tagging people in comments" in PIPELINE.md). The board owner converts it to a real tag by hand.
+- **If verification passed at runtime** (flow actually driven, or code-level proof is airtight): set status **Done** and move to the completed group.
+- **If verification is pending** (needs device/TestFlight/deploy — i.e. dossier `status: resolved-pending-verify`): set status **Verify** (label on `color_mm3gbyzr`); the comment states exactly what check remains. Do NOT mark Done — a wrong Done erodes trust in the board (see PIPELINE.md invariants). ("Verify" is the board's dedicated fixed-but-unverified state — use it, not "In Progress", so pending-verify fixes are distinguishable from work still in progress.)
 - Multi-issue tickets with sub-issues remaining open: comment only; leave status.
 
 ## 7 — Update the local store

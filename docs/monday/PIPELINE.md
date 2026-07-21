@@ -65,7 +65,7 @@ nature: none                   # none | Bug | Feature | Chore/Refactor | Unknown
 
 | Column | ID | Type | Labels | Who writes |
 |---|---|---|---|---|
-| Status | `color_mm3gbyzr` | status | Not Started · In Progress · Blocked · Done | /monday-resolve, /monday-review |
+| Status | `color_mm3gbyzr` | status | Not Started · In Progress · Verify · Near complete · Blocked · Done | /monday-resolve, /monday-review |
 | Type | `color_mm5da9sj` | status | UI/UX · Data & Lifecycle · Authorization · Media · Infrastructure · Unknown | **/monday-ticket** (on deep dive) |
 | App | `color_mm5dgrcn` | status | Web · iPhone · Server · Multiple · Unknown | **/monday-ticket** (on deep dive) |
 | Nature | `color_mm5d8n4c` | status | Bug · Feature · Chore/Refactor · Unknown | **/monday-ticket** (on deep dive) |
@@ -127,7 +127,11 @@ open → in-progress (resolve started) → resolved-pending-verify (fix landed, 
      → closed (verified + monday Done + moved to Completed group)
 ```
 
-Monday mirror: `open/in-progress` ↔ board status Not Started / In Progress; `closed` ↔ Done + Completed group. `resolved-pending-verify` = monday In Progress with an evidence comment saying what landed and what check remains.
+Monday mirror: `open` ↔ Not Started; `in-progress` ↔ In Progress; **`resolved-pending-verify` ↔ board status "Verify"** (the dedicated fixed-but-unverified state) with an evidence comment saying what landed and what check remains; `closed` ↔ Done + Completed group. Use "Verify", not "In Progress", for a landed-but-unverified fix so it's distinguishable from work still underway.
+
+## Tagging people in comments
+
+To reference a person in an update, write **plain text `@Name`** (e.g. `@Scott Stickane`). Do NOT try to build a real mention — Monday's `create_update` API strips mention markup (`data-mention-*` attributes), and `create_notification` fires an unconfirmable ping with no in-thread chip. The plain `@Name` reads clearly; the board owner converts it to a real tag manually in the Monday UI. So: no mention HTML, no `create_notification` — just the `@Name` text.
 
 ## Invariants
 
