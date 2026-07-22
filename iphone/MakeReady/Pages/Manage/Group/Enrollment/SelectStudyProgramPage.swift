@@ -41,12 +41,18 @@ struct SelectStudyProgramPage: View {
         return map
     }
 
+    /// Left nav icon — "xmark" (close) in the create wizard, "chevron.left"
+    /// (back) when it's a drilldown of the edit flow (monday#12270302158).
+    let leftIcon: String
+
     init(
         existingEnrollments: [EnrollmentWithProgram]? = nil,
+        leftIcon: String = "xmark",
         onClose: @escaping () -> Void,
         onNext: @escaping (StudyProgram) -> Void
     ) {
         self.existingEnrollments = existingEnrollments
+        self.leftIcon = leftIcon
         self.onClose = onClose
         self.onNext = onNext
 
@@ -96,7 +102,7 @@ struct SelectStudyProgramPage: View {
             VStack(spacing: 0) {
                 PageTitle.iconTitleLink(
                     title: "Select Program",
-                    leftIcon: "xmark",
+                    leftIcon: leftIcon,
                     rightLink: "Next",
                     rightLinkDisabled: selectedProgramId == nil,
                     onLeftIconTap: onClose,

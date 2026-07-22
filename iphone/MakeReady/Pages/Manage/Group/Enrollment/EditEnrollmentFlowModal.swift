@@ -2,12 +2,14 @@
 //  EditEnrollmentFlowModal.swift
 //  MakeReady
 //
-//  Edit-enrollment flow (monday#12270302158). Unlike the create wizard, the
-//  Confirm screen ("Edit enrollment") is the ROOT panel — the group / study /
-//  schedule pickers are drilldowns to its RIGHT, so they slide in from the
-//  right and back out to the left (the reverse of create). Nothing persists
-//  until Save; Cancel just dismisses. All the change logic lives in the
-//  view-free EnrollmentEditModel; this view renders it and wires navigation.
+//  Edit-enrollment flow (monday#12270302158). "Edit enrollment" is the ROOT
+//  screen; tapping the group / study / schedule rows pushes a drilldown that
+//  slides in from the RIGHT and back out — a classic primary→detail push, so
+//  it uses SlideStack (which mounts ONLY the root + the one active detail).
+//  A hand-rolled multi-panel offset would slide *through* the intermediate
+//  panels when jumping from the root to a non-adjacent one; SlideStack never
+//  does. Nothing persists until Save; Cancel just dismisses. All change logic
+//  lives in the view-free EnrollmentEditModel.
 //
 
 import SwiftUI
@@ -17,11 +19,11 @@ struct EditEnrollmentFlowModal: View {
     let onDismiss: () -> Void
     let onSaved: () -> Void
 
-    // Panels laid side-by-side; Confirm is the root at index 0.
-    private enum Panel: Int { case confirm = 0, dates = 1, group = 2, study = 3 }
+    /// Which drilldown is currently pushed over the root (nil = on the root).
+    private enum Drilldown: Equatable, Hashable { case dates, group, study }
 
     @State private var model: EnrollmentEditModel
-    @State private var panel: Panel = .confirm
+    @State private var drilldown: Drilldown?
     @State private var preview: EnrollmentEditPreview?
     @State private var isSaving = false
     @State private var showConfirm = false
@@ -64,30 +66,26 @@ struct EditEnrollmentFlowModal: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                Color.appBackground.ignoresSafeArea()
+        ZStack {
+            Color.appBackground.ignoresSafeArea()
 
-                HStack(spacing: 0) {
-                    confirmPanel.frame(width: geometry.size.width)
-                    datesPanel.frame(width: geometry.size.width)
-                    groupPanel.frame(width: geometry.size.width)
-                    studyPanel.frame(width: geometry.size.width)
-                }
-                .offset(x: -CGFloat(panel.rawValue) * geometry.size.width)
+            SlideStack(item: $drilldown, edgeSwipeBack: true) {
+                confirmPanel
+            } detail: { target in
+                detail(for: target)
+            }
 
-                if showConfirm {
-                    DialogOverlay(
-                        isPresented: $showConfirm,
-                        title: preview?.destructive == true ? "Confirm changes" : "Save changes",
-                        message: preview?.confirmationMessage
-                            ?? "This will update the existing enrollment to match your changes.",
-                        buttons: [
-                            DialogButtonConfig("Save", style: .primary) { performSave() },
-                            DialogButtonConfig("Cancel", style: .secondary) {}
-                        ]
-                    )
-                }
+            if showConfirm {
+                DialogOverlay(
+                    isPresented: $showConfirm,
+                    title: preview?.destructive == true ? "Confirm changes" : "Save changes",
+                    message: preview?.confirmationMessage
+                        ?? "This will update the existing enrollment to match your changes.",
+                    buttons: [
+                        DialogButtonConfig("Save", style: .primary) { performSave() },
+                        DialogButtonConfig("Cancel", style: .secondary) {}
+                    ]
+                )
             }
         }
         .task {
@@ -96,7 +94,7 @@ struct EditEnrollmentFlowModal: View {
         }
     }
 
-    // MARK: - Panels
+    // MARK: - Root
 
     @ViewBuilder
     private var confirmPanel: some View {
@@ -110,80 +108,76 @@ struct EditEnrollmentFlowModal: View {
                 onSave: { _, smsTime, requireResponse in
                     handleSave(smsTime: smsTime, requireResponse: requireResponse)
                 },
-                onEditGroup: { navigate(.group) },
-                onEditStudy: { navigate(.study) },
-                onEditSchedule: { prepareAndOpenDates() },
+                onEditGroup: { drilldown = .group },
+                onEditStudy: { drilldown = .study },
+                onEditSchedule: { openDates() },
                 seedRequireResponse: model.requireResponse,
                 seedSmsTime: Self.parseSmsTime(model.smsTime)
             )
         } else {
-            loadingPanel
+            ZStack {
+                Color.appBackground.ignoresSafeArea()
+                ProgressView().tint(.white)
+            }
         }
     }
 
-    private var datesPanel: some View {
-        SelectEnrollDatePage(
-            state: dateState,
-            config: .editEnrollmentFlow,
-            existingLessonDates: [],
-            onDismiss: { navigate(.confirm) },
-            onSelect: { start, _, enabledDays in
-                model.startDate = start
-                model.enabledDays = enabledDays
-                refreshPreview()
-                navigate(.confirm)
-            }
-        )
-        .id(dateStateVersion)
-    }
+    // MARK: - Drilldowns (each slides in from the right, returns to the root)
 
-    private var groupPanel: some View {
-        SelectGroupPage(
-            enrolledGroupIds: [],
-            onClose: { navigate(.confirm) },
-            onNext: { group in
-                model.groupId = group.id
-                refreshPreview()
-                navigate(.confirm)
-            }
-        )
-    }
+    @ViewBuilder
+    private func detail(for target: Drilldown) -> some View {
+        switch target {
+        case .dates:
+            SelectEnrollDatePage(
+                state: dateState,
+                config: .editEnrollmentFlow,
+                existingLessonDates: [],
+                onDismiss: { drilldown = nil },
+                onSelect: { start, _, enabledDays in
+                    model.startDate = start
+                    model.enabledDays = enabledDays
+                    refreshPreview()
+                    drilldown = nil
+                }
+            )
+            .id(dateStateVersion)
 
-    private var studyPanel: some View {
-        SelectStudyProgramPage(
-            existingEnrollments: nil,
-            onClose: { navigate(.confirm) },
-            onNext: { program in
-                model.studyProgramId = program.id
-                refreshPreview()
-                navigate(.confirm)
-            }
-        )
-    }
+        case .group:
+            SelectGroupPage(
+                enrolledGroupIds: [],
+                leftIcon: "chevron.left",
+                onClose: { drilldown = nil },
+                onNext: { group in
+                    model.groupId = group.id
+                    refreshPreview()
+                    drilldown = nil
+                }
+            )
 
-    private var loadingPanel: some View {
-        ZStack {
-            Color.appBackground.ignoresSafeArea()
-            ProgressView().tint(.white)
+        case .study:
+            SelectStudyProgramPage(
+                existingEnrollments: nil,
+                leftIcon: "chevron.left",
+                onClose: { drilldown = nil },
+                onNext: { program in
+                    model.studyProgramId = program.id
+                    refreshPreview()
+                    drilldown = nil
+                }
+            )
         }
-    }
-
-    // MARK: - Navigation
-
-    private func navigate(_ target: Panel) {
-        withAnimation(Motion.standard) { panel = target }
     }
 
     /// Seed the calendar from the current pending values (and the possibly-
-    /// swapped program's lesson count) before sliding to it.
-    private func prepareAndOpenDates() {
+    /// swapped program's lesson count) before pushing it.
+    private func openDates() {
         let count = max(resolvedProgram?.days ?? enrollment.studyProgram?.days ?? 1, 1)
         let ds = EnrollmentDateState(lessonCount: count)
         ds.startDate = model.startDate
         ds.enabledDays = model.enabledDays
         dateState = ds
         dateStateVersion += 1
-        navigate(.dates)
+        drilldown = .dates
     }
 
     // MARK: - Preview + Save

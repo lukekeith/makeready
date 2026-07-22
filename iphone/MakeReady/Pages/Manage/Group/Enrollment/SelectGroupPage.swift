@@ -23,12 +23,19 @@ struct SelectGroupPage: View {
     // Use centralized state for fine-grained reactivity
     private var state: AppState { AppState.shared }
 
+    /// Left nav icon — "xmark" (close) when this page opens the enroll wizard,
+    /// "chevron.left" (back) when it's a drilldown of the edit flow
+    /// (monday#12270302158).
+    let leftIcon: String
+
     init(
         enrolledGroupIds: Set<String> = [],
+        leftIcon: String = "xmark",
         onClose: @escaping () -> Void,
         onNext: @escaping (UserGroup) -> Void
     ) {
         self.enrolledGroupIds = enrolledGroupIds
+        self.leftIcon = leftIcon
         self.onClose = onClose
         self.onNext = onNext
 
@@ -74,7 +81,7 @@ struct SelectGroupPage: View {
             VStack(spacing: 0) {
                 PageTitle.iconTitleLink(
                     title: "Select Group",
-                    leftIcon: "xmark",
+                    leftIcon: leftIcon,
                     rightLink: "Next",
                     rightLinkDisabled: selectedGroupId == nil,
                     onLeftIconTap: onClose,
