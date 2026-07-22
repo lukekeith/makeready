@@ -29,6 +29,7 @@ struct EditEnrollmentFlowModal: View {
     @State private var showConfirm = false
     @State private var dateState: EnrollmentDateState
     @State private var dateStateVersion = 0
+    @State private var loadFailed = false
 
     private var state: AppState { AppState.shared }
 
@@ -88,9 +89,18 @@ struct EditEnrollmentFlowModal: View {
                 )
             }
         }
-        .task {
-            if resolvedGroup == nil { try? await GroupActions().loadGroups() }
-            if resolvedProgram == nil { try? await ProgramActions().loadPrograms() }
+        .task { await ensureLoaded() }
+    }
+
+    /// Resolve the enrollment's group + study so the Confirm card can render.
+    /// Fetches each by id (bypassing the /api/groups list, which one bad group
+    /// can poison) and, if either is still unresolved, surfaces an error rather
+    /// than spinning forever (monday#12270302158).
+    private func ensureLoaded() async {
+        if resolvedGroup == nil { _ = try? await GroupActions().getGroup(id: model.groupId) }
+        if resolvedProgram == nil { _ = try? await ProgramActions().getProgram(id: model.studyProgramId) }
+        if resolvedGroup == nil || resolvedProgram == nil {
+            await MainActor.run { loadFailed = true }
         }
     }
 
@@ -114,10 +124,32 @@ struct EditEnrollmentFlowModal: View {
                 seedRequireResponse: model.requireResponse,
                 seedSmsTime: Self.parseSmsTime(model.smsTime)
             )
+        } else if loadFailed {
+            errorPanel
         } else {
             ZStack {
                 Color.appBackground.ignoresSafeArea()
                 ProgressView().tint(.white)
+            }
+        }
+    }
+
+    private var errorPanel: some View {
+        ZStack {
+            Color.appBackground.ignoresSafeArea()
+            VStack(spacing: 0) {
+                PageTitle(
+                    title: "Edit enrollment",
+                    leftLink: "Cancel",
+                    onLeftLinkTap: onDismiss
+                )
+                Spacer()
+                Text("Couldn't load this enrollment. Check your connection and try again.")
+                    .font(Typography.s15)
+                    .foregroundColor(.white.opacity(0.6))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                Spacer()
             }
         }
     }

@@ -34,7 +34,11 @@ struct UserGroup: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
-        code = try container.decode(String.self, forKey: .code)
+        // Tolerate a null/absent join code: the server can return one (e.g. a
+        // group whose code was cleared), and a non-optional decode here would
+        // poison the WHOLE /api/groups list — one bad group blanked every
+        // group, which stalled the edit-enrollment modal (monday#12270302158).
+        code = try container.decodeIfPresent(String.self, forKey: .code) ?? ""
         name = try container.decode(String.self, forKey: .name)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         coverImageUrl = try container.decodeIfPresent(String.self, forKey: .coverImageUrl)
