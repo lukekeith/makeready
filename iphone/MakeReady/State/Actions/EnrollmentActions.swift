@@ -466,6 +466,44 @@ private let api: APIClientProtocol
         return sync
     }
 
+    /// Dry-run an enrollment edit (group / study / schedule change) so the UI
+    /// can warn about destructive/lesson-impacting changes before Save
+    /// (monday#12270302158). `body` comes from `EnrollmentEditModel.previewBody()`.
+    @MainActor
+    func previewEnrollmentEdit(enrollmentId: String, body: [String: Any]) async throws -> EnrollmentEditPreview {
+        struct Response: Decodable {
+            let success: Bool
+            let preview: EnrollmentEditPreview?
+            let error: String?
+        }
+        let response: Response = try await api.post(
+            "/api/enrollments/\(enrollmentId)/edit/preview",
+            body: body,
+            responseType: Response.self
+        )
+        guard response.success, let preview = response.preview else {
+            throw APIError.serverError(response.error ?? "Failed to preview changes")
+        }
+        return preview
+    }
+
+    /// Commit an enrollment edit. `body` comes from `EnrollmentEditModel.patchBody()`
+    /// (only-changed-fields). A structural edit (group/study/schedule) can move
+    /// the enrollment between groups and rebuild its schedule server-side, so the
+    /// caller should reload the affected group(s) afterward rather than trust a
+    /// local patch (monday#12270302158).
+    @MainActor
+    func updateEnrollment(enrollmentId: String, body: [String: Any]) async throws {
+        let response: APISuccessResponse = try await api.patch(
+            "/api/enrollments/\(enrollmentId)",
+            body: body,
+            responseType: APISuccessResponse.self
+        )
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to update enrollment")
+        }
+    }
+
     /// Change an enrollment's sync mode (OFF / AUTO / APPROVAL).
     @MainActor
     func updateSyncMode(enrollmentId: String, mode: EnrollmentSyncMode) async throws {
