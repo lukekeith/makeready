@@ -2082,6 +2082,15 @@ struct SelectEnrollDateConfig {
         leftIcon: "chevron.left",
         rightButtonText: "Next"
     )
+
+    /// Edit-enrollment drilldown (monday#12270302158): the calendar is a
+    /// sub-screen of "Edit enrollment", so it applies-and-returns ("Done")
+    /// rather than advancing a wizard ("Next").
+    static let editEnrollmentFlow = SelectEnrollDateConfig(
+        title: "Select dates",
+        leftIcon: "chevron.left",
+        rightButtonText: "Done"
+    )
 }
 
 struct SelectEnrollDatePage: View {
