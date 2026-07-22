@@ -353,6 +353,7 @@ struct ProgramHomePage: View {
                         )
                     }
                 },
+                editEnrollmentEnabled: enrollment.canManage ?? true,
                 onEditEnrollment: {
                     overlayManager.present(.editEnrollmentFlow) {
                         EditEnrollmentFlowModal(

@@ -303,6 +303,7 @@ struct EnrollmentsListPage: View {
             EnrollmentActionMenu(
                 studyName: studyName,
                 onEditLessons: { selectedEnrollmentId = enrollment.id },
+                editEnrollmentEnabled: enrollment.canManage ?? true,
                 onEditEnrollment: {
                     overlayManager.present(.editEnrollmentFlow) {
                         EditEnrollmentFlowModal(

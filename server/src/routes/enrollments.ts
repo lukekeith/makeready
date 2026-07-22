@@ -26,6 +26,7 @@ import {
   enrollmentManageFilter,
   groupManageFilter,
   canManageGroupId,
+  buildEnrollmentManageChecker,
 } from '../services/permission.js'
 
 const router = Router()
@@ -1196,7 +1197,16 @@ router.get('/groups/:groupId/enrollments', requireAuth, async (req, res) => {
       },
     })
 
-    res.json({ success: true, enrollments })
+    // Stamp canManage so the client can disable "Edit enrollment" for
+    // enrollments this user can't edit (monday#12270302158). All enrollments
+    // here share the one group fetched above.
+    const canManage = await buildEnrollmentManageChecker(userId)
+    const enrollmentsWithPerm = enrollments.map((e) => ({
+      ...e,
+      canManage: canManage({ createdById: e.createdById, group }),
+    }))
+
+    res.json({ success: true, enrollments: enrollmentsWithPerm })
   } catch (error) {
     console.error('Error fetching group enrollments:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch enrollments' })
@@ -1426,6 +1436,9 @@ router.get('/programs/:programId/enrollments', requireAuth, async (req, res) => 
             id: true,
             name: true,
             coverImageUrl: true,
+            // For the canManage check (monday#12270302158):
+            creatorId: true,
+            organizationId: true,
             _count: {
               select: { members: true },
             },
@@ -1437,7 +1450,16 @@ router.get('/programs/:programId/enrollments', requireAuth, async (req, res) => 
       },
     })
 
-    res.json({ success: true, enrollments })
+    // Stamp canManage so the client can disable "Edit enrollment" for
+    // enrollments this user can't edit (monday#12270302158). These span
+    // multiple groups, so the check reads each enrollment's own group.
+    const canManage = await buildEnrollmentManageChecker(userId)
+    const enrollmentsWithPerm = enrollments.map((e) => ({
+      ...e,
+      canManage: canManage({ createdById: e.createdById, group: e.group }),
+    }))
+
+    res.json({ success: true, enrollments: enrollmentsWithPerm })
   } catch (error) {
     console.error('Error fetching program enrollments:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch enrollments' })

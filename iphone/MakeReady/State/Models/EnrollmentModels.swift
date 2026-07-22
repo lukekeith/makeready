@@ -30,6 +30,11 @@ struct EnrollmentWithProgram: Codable, Identifiable {
     let studyProgram: StudyProgramSummary?
     private var _isActive: Bool?
 
+    /// Whether the current user may edit this enrollment — server-computed,
+    /// mirrors enrollmentManageFilter. Drives the disabled "Edit enrollment"
+    /// action (monday#12270302158). Absent on cached/older data ⇒ nil ⇒ allowed.
+    var canManage: Bool?
+
     // MARK: - CodingKeys
 
     enum CodingKeys: String, CodingKey {
@@ -42,6 +47,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         case createdAt, updatedAt
         case studyProgram
         case isActive
+        case canManage
     }
 
     // MARK: - Custom Decoder
@@ -84,6 +90,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
         studyProgram = try container.decodeIfPresent(StudyProgramSummary.self, forKey: .studyProgram)
         _isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
+        canManage = try container.decodeIfPresent(Bool.self, forKey: .canManage)
     }
 
     // MARK: - Custom Encoder
@@ -110,6 +117,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(studyProgram, forKey: .studyProgram)
         try container.encodeIfPresent(_isActive, forKey: .isActive)
+        try container.encodeIfPresent(canManage, forKey: .canManage)
     }
 
     // MARK: - Memberwise Init
@@ -128,7 +136,8 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         createdAt: Date? = nil,
         updatedAt: Date? = nil,
         studyProgram: StudyProgramSummary? = nil,
-        isActive: Bool? = nil
+        isActive: Bool? = nil,
+        canManage: Bool? = nil
     ) {
         self.id = id
         self.groupId = groupId
@@ -144,6 +153,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         self.updatedAt = updatedAt
         self.studyProgram = studyProgram
         self._isActive = isActive
+        self.canManage = canManage
     }
 
     /// Whether the enrollment is active
@@ -387,6 +397,11 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
     let group: ProgramEnrollmentGroup?
     private var _isActive: Bool?
 
+    /// Whether the current user may edit this enrollment (server-computed;
+    /// mirrors enrollmentManageFilter). Drives the disabled "Edit enrollment"
+    /// action (monday#12270302158). nil ⇒ allowed (older/cached data).
+    var canManage: Bool?
+
     enum CodingKeys: String, CodingKey {
         case id, groupId
         case studyProgramId, programId
@@ -397,6 +412,7 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
         case createdAt, updatedAt
         case group
         case isActive
+        case canManage
     }
 
     init(from decoder: Decoder) throws {
@@ -434,6 +450,7 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
         updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
         group = try container.decodeIfPresent(ProgramEnrollmentGroup.self, forKey: .group)
         _isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
+        canManage = try container.decodeIfPresent(Bool.self, forKey: .canManage)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -457,6 +474,7 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
         try container.encodeIfPresent(updatedAt, forKey: .updatedAt)
         try container.encodeIfPresent(group, forKey: .group)
         try container.encodeIfPresent(_isActive, forKey: .isActive)
+        try container.encodeIfPresent(canManage, forKey: .canManage)
     }
 
     /// Whether the enrollment is active

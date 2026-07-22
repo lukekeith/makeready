@@ -16,6 +16,9 @@ import SwiftUI
 struct EnrollmentActionMenu: View {
     let studyName: String
     let onEditLessons: () -> Void
+    /// Disabled (dimmed, non-tappable) when the current user can't edit this
+    /// enrollment — e.g. it was created by another leader (monday#12270302158).
+    var editEnrollmentEnabled: Bool = true
     let onEditEnrollment: () -> Void
 
     @Environment(\.dismissOverlay) private var dismissOverlay
@@ -48,9 +51,12 @@ struct EnrollmentActionMenu: View {
                     title: "Edit enrollment",
                     style: .normal
                 ) {
+                    guard editEnrollmentEnabled else { return }
                     overlayManager.dismiss(.enrollmentActionMenu)
                     onEditEnrollment()
                 }
+                .disabled(!editEnrollmentEnabled)
+                .opacity(editEnrollmentEnabled ? 1 : 0.4)
             }
             .background(Color.white.opacity(0.05))
             .cornerRadius(8)

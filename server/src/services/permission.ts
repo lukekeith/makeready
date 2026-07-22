@@ -347,6 +347,29 @@ export async function enrollmentManageFilter(
 }
 
 /**
+ * Build an in-memory predicate that answers "can this user manage this
+ * enrollment?" for a whole list without a query per row — the boolean form of
+ * `enrollmentManageFilter` (same rule: super admin, the enrollment's creator,
+ * the group's creator, or a manager of the group's org). The caller must supply
+ * each enrollment's `createdById` and its group's `creatorId` + `organizationId`.
+ * Used to stamp `canManage` on enrollment lists so the client can disable
+ * "Edit enrollment" when the user isn't allowed (monday#12270302158).
+ */
+export async function buildEnrollmentManageChecker(
+  userId: string
+): Promise<(e: {
+  createdById?: string | null
+  group?: { creatorId?: string | null; organizationId?: string | null } | null
+}) => boolean> {
+  if (await isSuperAdmin(userId)) return () => true
+  const orgIds = new Set(await getManageableOrgIds(userId))
+  return (e) =>
+    e.createdById === userId ||
+    e.group?.creatorId === userId ||
+    (!!e.group?.organizationId && orgIds.has(e.group.organizationId))
+}
+
+/**
  * Can this user manage content scoped to a specific group (by id)? Resolves the
  * group's org and creator, then defers to `canManageOrgContent`. Useful when the
  * group id is reachable but the org isn't already loaded (e.g. a scheduled

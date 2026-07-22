@@ -13,6 +13,7 @@ import { app } from '../../index'
 import { prisma } from '../../lib/prisma'
 import { generateApiKey, hashApiKey, getKeyPrefix } from '../../lib/api-key'
 import { applyEnrollmentEdit, applyStudySwap, EnrollmentEditError } from '../../services/enrollment-edit'
+import { buildEnrollmentManageChecker } from '../../services/permission'
 
 // A Monday well into the future — enabledDays: all week ⇒ schedules land on
 // consecutive days starting here.
@@ -631,6 +632,32 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     expect(res.status).toBe(400)
     expect(res.body.error).toMatch(/day of the week/i)
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  // ── canManage flag (drives the client's disabled "Edit enrollment") ────────
+
+  it('stamps canManage=true on the group enrollments list for the owner', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app).get(`/api/groups/${groupId}/enrollments`).set(authed())
+    expect(res.status).toBe(200)
+    const found = res.body.enrollments.find((e: any) => e.id === enrollmentId)
+    expect(found?.canManage).toBe(true)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('buildEnrollmentManageChecker mirrors enrollmentManageFilter', async () => {
+    // Org owner: manages anything in their org, even others' enrollments.
+    const ownerCheck = await buildEnrollmentManageChecker(userId)
+    expect(ownerCheck({ createdById: 'someone-else', group: { creatorId: 'x', organizationId } })).toBe(true)
+
+    // Outsider with no roles/orgs: only what they created.
+    const outsider = await prisma.user.create({
+      data: { googleId: `outsider-${Date.now()}`, email: `outsider-${Date.now()}@makeready.test`, name: 'Outsider' },
+    })
+    const outsiderCheck = await buildEnrollmentManageChecker(outsider.id)
+    expect(outsiderCheck({ createdById: outsider.id, group: null })).toBe(true) // creator
+    expect(outsiderCheck({ createdById: 'x', group: { creatorId: 'y', organizationId } })).toBe(false)
+    await prisma.user.deleteMany({ where: { id: outsider.id } })
   })
 
   it('applyStudySwap rejects a bundled nonexistent group before mutating', async () => {
