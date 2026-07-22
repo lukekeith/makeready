@@ -38,11 +38,11 @@ Background that drives four tickets: **enrollment snapshots lessons at enroll ti
 - Study delete is a soft delete (`programs.ts:1197-1200`, sets `isActive: false`) that touches nothing else, and **none** of the enrollment-list endpoints filter on the program's active state (member: `enrollments.ts:855`, `:1030`, `:1147`; leader: `:1323-1340`). The dead giveaway: the web store filters `e.isActive !== false` (`leader-group-home.store.ts:357-359`) but `Enrollment` has no such field — a no-op guard for behavior that was never implemented server-side.
 - **Fix:** add `studyProgram: { isActive: true }` to the four list endpoints' `where`, and/or cascade enrollment removal when a program is soft-deleted.
 
-### CF-5. Added days never reach enrolled members
+### CF-5. Added days never reach enrolled members — ✅ RESOLVED-PENDING-VERIFY (2026-07-21, commit `0f711e8`)
 **Tickets:** 12268576962 ("calendar breaks when unpublishing")
 
-- `PATCH /api/programs/:id` day-increase creates new `Lesson` rows (`programs.ts:935-960`) but never back-fills `LessonSchedule`/`ScheduledLessonActivity` for existing enrollments. The only propagation path is a manual, per-lesson `POST /enrollments/:id/schedules` (`enrollments.ts:4062`).
-- **Fix:** on days-increase, insert snapshot rows for every active enrollment of the program (reuse the copy logic at `enrollments.ts:365-503` and the calendar walk at `:4141-4169`).
+- ~~`PATCH /api/programs/:id` day-increase creates new `Lesson` rows but never back-fills `LessonSchedule`/`ScheduledLessonActivity` for existing enrollments.~~ **Superseded by the study-sync rework:** the member calendar renders from per-enrollment `LessonSchedule` snapshots (`enrollments.ts:731`); added days propagate when a leader "Publish updates" cuts a `StudyProgramVersion` and the enrollment syncs (`enrollment-sync.ts:440-507`, `:611-668`). The structural "no path at all" defect is gone.
+- **Residual gap (fixed):** new enrollments defaulted to `syncMode: OFF`, so published updates didn't auto-apply. Now default to **AUTO** (`enrollments.ts:258`), so once a leader publishes updates, added days flow to the group's calendar automatically. New enrollments only; existing unchanged. Runtime device check still pending (monday status: Verify).
 
 ### CF-6. Unpublish is a silent no-op for enrollments
 **Tickets:** 12268464531 ("I can unpublish without an error or warning; it should kick all enrolled groups out")
