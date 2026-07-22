@@ -353,7 +353,7 @@ struct ProgramHomePage: View {
                         )
                     }
                 },
-                editEnrollmentEnabled: enrollment.canManage ?? true,
+                editEnrollmentEnabled: enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil),
                 onEditEnrollment: {
                     overlayManager.present(.editEnrollmentFlow) {
                         EditEnrollmentFlowModal(

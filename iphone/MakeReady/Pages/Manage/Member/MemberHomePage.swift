@@ -917,7 +917,7 @@ struct MemberHomePage: View {
             EnrollmentActionMenu(
                 studyName: studyName,
                 onEditLessons: { openEnrollmentLessons(enrollment, program: program) },
-                editEnrollmentEnabled: enrollment.canManage ?? true,
+                editEnrollmentEnabled: enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil),
                 onEditEnrollment: {
                     let enrollmentWithProgram = makeEnrollmentWithProgram(enrollment, program: program)
                     overlayManager.present(.editEnrollmentFlow) {
