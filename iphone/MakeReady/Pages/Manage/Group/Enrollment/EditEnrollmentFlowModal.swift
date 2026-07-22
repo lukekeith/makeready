@@ -146,6 +146,7 @@ struct EditEnrollmentFlowModal: View {
             SelectGroupPage(
                 enrolledGroupIds: [],
                 leftIcon: "chevron.left",
+                initialSelectedGroupId: model.groupId,
                 onClose: { drilldown = nil },
                 onNext: { group in
                     model.groupId = group.id
@@ -158,6 +159,7 @@ struct EditEnrollmentFlowModal: View {
             SelectStudyProgramPage(
                 existingEnrollments: nil,
                 leftIcon: "chevron.left",
+                initialSelectedProgramId: model.studyProgramId,
                 onClose: { drilldown = nil },
                 onNext: { program in
                     model.studyProgramId = program.id

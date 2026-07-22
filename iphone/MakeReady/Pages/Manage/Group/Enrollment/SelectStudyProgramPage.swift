@@ -48,6 +48,7 @@ struct SelectStudyProgramPage: View {
     init(
         existingEnrollments: [EnrollmentWithProgram]? = nil,
         leftIcon: String = "xmark",
+        initialSelectedProgramId: String? = nil,
         onClose: @escaping () -> Void,
         onNext: @escaping (StudyProgram) -> Void
     ) {
@@ -60,6 +61,8 @@ struct SelectStudyProgramPage: View {
         let cachedPrograms = AppState.shared.orderedPrograms
         _programs = State(initialValue: cachedPrograms)
         _isLoading = State(initialValue: cachedPrograms.isEmpty)
+        // Pre-select the enrollment's current study when editing.
+        _selectedProgramId = State(initialValue: initialSelectedProgramId)
     }
 
     private var filteredPrograms: [StudyProgram] {

@@ -31,6 +31,7 @@ struct SelectGroupPage: View {
     init(
         enrolledGroupIds: Set<String> = [],
         leftIcon: String = "xmark",
+        initialSelectedGroupId: String? = nil,
         onClose: @escaping () -> Void,
         onNext: @escaping (UserGroup) -> Void
     ) {
@@ -43,6 +44,8 @@ struct SelectGroupPage: View {
         let cachedGroups = AppState.shared.orderedGroups
         _groups = State(initialValue: cachedGroups)
         _isLoading = State(initialValue: cachedGroups.isEmpty)
+        // Pre-select the enrollment's current group when editing.
+        _selectedGroupId = State(initialValue: initialSelectedGroupId)
     }
 
     private var filteredGroups: [UserGroup] {
