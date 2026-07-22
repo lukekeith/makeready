@@ -402,6 +402,9 @@ struct EditReadActivityPage: View {
                             TextInput(
                                 floatingLabel: "Activity title",
                                 autocorrect: true,
+                                // Server caps activity titles at 200 chars; enforce at
+                                // entry so a long title can't fail the save (monday#12297338039).
+                                maxLength: 200,
                                 text: $title
                             )
                         }

@@ -15,6 +15,9 @@ struct TextInput: View {
     let inputType: InputType
     let autocorrect: Bool
     let floatingLabel: Bool
+    /// Optional hard cap on the number of characters. When set, input beyond this
+    /// length is truncated at entry (nil = no limit; existing call sites unchanged).
+    let maxLength: Int?
     @Binding var text: String
     @Binding var validationError: String?
     @FocusState private var isFocused: Bool
@@ -27,6 +30,7 @@ struct TextInput: View {
         placeholder: String,
         inputType: InputType = .alphanumeric,
         autocorrect: Bool = false,
+        maxLength: Int? = nil,
         text: Binding<String>,
         validationError: Binding<String?> = .constant(nil),
         keyboardType: UIKeyboardType = .default
@@ -38,6 +42,7 @@ struct TextInput: View {
         self.inputType = inputType
         self.autocorrect = autocorrect
         self.floatingLabel = false
+        self.maxLength = maxLength
         self._text = text
         self._validationError = validationError
         self._displayText = State(initialValue: text.wrappedValue)
@@ -50,6 +55,7 @@ struct TextInput: View {
         iconColor: Color = Color.brandPrimary,
         inputType: InputType = .alphanumeric,
         autocorrect: Bool = false,
+        maxLength: Int? = nil,
         text: Binding<String>,
         validationError: Binding<String?> = .constant(nil),
         keyboardType: UIKeyboardType = .default
@@ -61,6 +67,7 @@ struct TextInput: View {
         self.inputType = inputType
         self.autocorrect = autocorrect
         self.floatingLabel = false
+        self.maxLength = maxLength
         self._text = text
         self._validationError = validationError
         self._displayText = State(initialValue: text.wrappedValue)
@@ -73,6 +80,7 @@ struct TextInput: View {
         iconColor: Color = Color.brandPrimary,
         inputType: InputType = .alphanumeric,
         autocorrect: Bool = false,
+        maxLength: Int? = nil,
         text: Binding<String>,
         validationError: Binding<String?> = .constant(nil),
         keyboardType: UIKeyboardType = .default
@@ -84,6 +92,7 @@ struct TextInput: View {
         self.inputType = inputType
         self.autocorrect = autocorrect
         self.floatingLabel = true
+        self.maxLength = maxLength
         self._text = text
         self._validationError = validationError
         self._displayText = State(initialValue: text.wrappedValue)
@@ -223,8 +232,15 @@ struct TextInput: View {
 
     // Handle text changes with formatting
     private func handleTextChange(_ newValue: String) {
+        // Enforce an optional hard character cap at entry so an over-long value can't
+        // reach the field (or a save that would reject it). nil = no limit.
+        var capped = newValue
+        if let maxLength, capped.count > maxLength {
+            capped = String(capped.prefix(maxLength))
+        }
+
         // Format the input
-        let formatted = InputFormatter.format(newValue, for: inputType)
+        let formatted = InputFormatter.format(capped, for: inputType)
 
         // Update display text if different
         if formatted != displayText {
