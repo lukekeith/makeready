@@ -20,6 +20,7 @@ import { computePendingChanges } from '../services/enrollment-sync-changes.js'
 import { resolveNotificationsByDedupeKey } from '../services/notification.js'
 import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
 import { generateScheduleDates } from '../services/enrollment-schedule.js'
+import { applyEnrollmentEdit, previewEnrollmentEdit, EnrollmentEditError } from '../services/enrollment-edit.js'
 import {
   canManageOrgContent,
   enrollmentManageFilter,
@@ -1521,6 +1522,56 @@ router.get('/enrollments/:id/completion-stats', requireAuth, async (req, res) =>
 
 /**
  * @openapi
+ * /api/enrollments/{id}/edit/preview:
+ *   post:
+ *     tags: [Enrollments]
+ *     summary: Preview the impact of an enrollment edit
+ *     description: >
+ *       Dry-run for the edit-enrollment flow (monday#12270302158). Reports which
+ *       lessons a group change / reschedule / study-swap would remove, archive,
+ *       add, or shift — without mutating anything — so the client can warn the
+ *       leader before Save.
+ *     security:
+ *       - userSession: []
+ */
+router.post('/enrollments/:id/edit/preview', requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params
+    const userId = (req.user as any).id
+
+    const schema = z.object({
+      groupId: z.string().uuid().optional(),
+      studyProgramId: z.string().uuid().optional(),
+      startDate: z.string().datetime().optional(),
+      enabledDays: z.array(z.enum(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])).min(1).optional(),
+    })
+    const body = schema.parse(req.body)
+
+    // Ownership gate (same as PATCH).
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { id, ...(await enrollmentManageFilter(userId)) },
+      select: { id: true },
+    })
+    if (!enrollment) {
+      return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    const preview = await previewEnrollmentEdit(id, body)
+    res.json({ success: true, preview })
+  } catch (error) {
+    if (error instanceof EnrollmentEditError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: 'Invalid request', details: error.errors })
+    }
+    console.error('Error previewing enrollment edit:', error)
+    res.status(500).json({ success: false, error: 'Failed to preview enrollment edit' })
+  }
+})
+
+/**
+ * @openapi
  * /api/enrollments/{id}:
  *   patch:
  *     tags: [Enrollments]
@@ -1586,6 +1637,11 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
       smsTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
       timezone: z.string().optional(),
       syncMode: z.enum(['OFF', 'AUTO', 'APPROVAL']).optional(), // "Sync to study" setting
+      // Structural edits (monday#12270302158) — routed through enrollment-edit service.
+      groupId: z.string().uuid().optional(),
+      studyProgramId: z.string().uuid().optional(),
+      startDate: z.string().datetime().optional(),
+      enabledDays: z.array(z.enum(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])).min(1).optional(),
     })
 
     const body = schema.parse(req.body)
@@ -1600,6 +1656,33 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
 
     if (!enrollment) {
       return res.status(404).json({ success: false, error: 'Enrollment not found' })
+    }
+
+    // Structural edit (group change / reschedule) — commit atomically first,
+    // then fall through to patch any scalar fields sent alongside.
+    const hasStructural =
+      body.groupId !== undefined ||
+      body.studyProgramId !== undefined ||
+      body.startDate !== undefined ||
+      body.enabledDays !== undefined
+    if (hasStructural) {
+      try {
+        await applyEnrollmentEdit(
+          id,
+          {
+            groupId: body.groupId,
+            studyProgramId: body.studyProgramId,
+            startDate: body.startDate,
+            enabledDays: body.enabledDays,
+          },
+          userId
+        )
+      } catch (err) {
+        if (err instanceof EnrollmentEditError) {
+          return res.status(err.status).json({ success: false, error: err.message })
+        }
+        throw err
+      }
     }
 
     // Update enrollment
