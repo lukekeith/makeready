@@ -20,7 +20,7 @@ import { computePendingChanges } from '../services/enrollment-sync-changes.js'
 import { resolveNotificationsByDedupeKey } from '../services/notification.js'
 import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
 import { generateScheduleDates } from '../services/enrollment-schedule.js'
-import { applyEnrollmentEdit, previewEnrollmentEdit, EnrollmentEditError } from '../services/enrollment-edit.js'
+import { applyEnrollmentEdit, applyStudySwap, previewEnrollmentEdit, EnrollmentEditError } from '../services/enrollment-edit.js'
 import {
   canManageOrgContent,
   enrollmentManageFilter,
@@ -1666,17 +1666,19 @@ router.patch('/enrollments/:id', requireAuth, async (req, res) => {
       body.startDate !== undefined ||
       body.enabledDays !== undefined
     if (hasStructural) {
+      const editChanges = {
+        groupId: body.groupId,
+        studyProgramId: body.studyProgramId,
+        startDate: body.startDate,
+        enabledDays: body.enabledDays,
+      }
+      const swappingStudy = body.studyProgramId !== undefined && body.studyProgramId !== enrollment.studyProgramId
       try {
-        await applyEnrollmentEdit(
-          id,
-          {
-            groupId: body.groupId,
-            studyProgramId: body.studyProgramId,
-            startDate: body.startDate,
-            enabledDays: body.enabledDays,
-          },
-          userId
-        )
+        if (swappingStudy) {
+          await applyStudySwap(id, editChanges, userId)
+        } else {
+          await applyEnrollmentEdit(id, editChanges, userId)
+        }
       } catch (err) {
         if (err instanceof EnrollmentEditError) {
           return res.status(err.status).json({ success: false, error: err.message })

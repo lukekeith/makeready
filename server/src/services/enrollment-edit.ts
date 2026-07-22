@@ -18,7 +18,11 @@
  *    history) and rebuilds from the new program — mirrors enrollment-sync.
  */
 
+import { randomUUID } from 'crypto'
 import { prisma } from '../lib/prisma.js'
+import { generateStudyCode } from '../lib/study-code.js'
+import { hashLessonContent } from './lesson-content-hash.js'
+import { buildLessonCopyRows, type LessonCopyRows } from './lesson-copy.js'
 import { generateScheduleDates, type EnabledDayName } from './enrollment-schedule.js'
 
 const DAY_NAMES: EnabledDayName[] = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -342,4 +346,211 @@ export async function applyEnrollmentEdit(
   )
 
   return result
+}
+
+/** Full curriculum include needed to copy a program's lessons into schedules. */
+const PROGRAM_COPY_INCLUDE = {
+  template: { select: { id: true, name: true } },
+  lessons: {
+    orderBy: { dayNumber: 'asc' as const },
+    include: {
+      activities: {
+        orderBy: { orderNumber: 'asc' as const },
+        include: {
+          sourceReferences: true,
+          readBlocks: {
+            orderBy: { orderNumber: 'asc' as const },
+            include: {
+              theme: { select: { id: true, slug: true, name: true } },
+              exegesisHighlights: { orderBy: { orderNumber: 'asc' as const } },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const
+
+/**
+ * Swap an enrollment's study program (monday#12270302158). Old schedules are
+ * removed (hard-delete if no member progress, soft-remove `removedAt` if
+ * progress — keeping history per the product decision), and fresh schedules
+ * are built from the new program starting at the edited-or-original start date,
+ * reusing the CREATE copy pipeline. A group change bundled into the same edit
+ * is applied atomically here too. All in one transaction.
+ */
+export async function applyStudySwap(
+  enrollmentId: string,
+  changes: EnrollmentEditChanges,
+  userId: string
+): Promise<EnrollmentEditResult> {
+  const enrollment = await loadEnrollment(enrollmentId)
+  const now = new Date()
+
+  if (!changes.studyProgramId || changes.studyProgramId === enrollment.studyProgramId) {
+    throw new EnrollmentEditError('applyStudySwap requires a different studyProgramId', 400)
+  }
+
+  const target = await prisma.studyProgram.findFirst({
+    where: { id: changes.studyProgramId, isActive: true },
+    include: PROGRAM_COPY_INCLUDE,
+  })
+  if (!target) throw new EnrollmentEditError('Target study program not found', 404)
+  if (!target.isPublished) throw new EnrollmentEditError('Cannot switch to a draft study program', 400)
+  if (target.lessons.length === 0) {
+    throw new EnrollmentEditError('Cannot switch to a study program with no lessons', 400)
+  }
+
+  const changingGroup = !!changes.groupId && changes.groupId !== enrollment.groupId
+  const finalGroupId = changingGroup ? changes.groupId! : enrollment.groupId
+  if (changingGroup) {
+    const grp = await prisma.group.findFirst({
+      where: { id: finalGroupId, isActive: true },
+      select: { id: true },
+    })
+    if (!grp) throw new EnrollmentEditError('Target group not found', 404)
+  }
+
+  const targetStartDate = changes.startDate ? new Date(changes.startDate) : enrollment.startDate
+  const targetEnabledDays = changes.enabledDays ?? parseEnabledDays(enrollment.enabledDays)
+  if (targetEnabledDays.length === 0) {
+    throw new EnrollmentEditError('At least one day of the week must be enabled', 400)
+  }
+
+  // Decide hard-delete vs soft-remove for every existing (non-removed) schedule
+  // BEFORE opening the transaction (read-only progress checks).
+  const existing = await loadActiveSchedules(enrollmentId)
+  const removalPlan = await Promise.all(
+    existing.map(async (s) => ({ id: s.id, keep: await scheduleHasProgress(s.id) }))
+  )
+  const toSoftRemove = removalPlan.filter((r) => r.keep).map((r) => r.id)
+  const toHardDelete = removalPlan.filter((r) => !r.keep).map((r) => r.id)
+
+  // Build the new schedule set (dates + unique codes) from the target program.
+  const newDates = generateScheduleDates(targetStartDate, targetEnabledDays, target.lessons.length)
+  const usedCodes = new Set<string>()
+  const nextCode = (): string => {
+    let code = generateStudyCode()
+    while (usedCodes.has(code)) code = generateStudyCode()
+    usedCodes.add(code)
+    return code
+  }
+  const newSchedules = target.lessons.map((lesson, i) => ({
+    id: randomUUID(),
+    versionId: randomUUID(),
+    code: nextCode(),
+    lesson,
+    scheduledDate: newDates[i],
+  }))
+  const endDate = newDates[newDates.length - 1]
+
+  await prisma.$transaction(
+    async (tx) => {
+      // ── Remove old schedules ────────────────────────────────────────────
+      if (toHardDelete.length > 0) {
+        await tx.event.deleteMany({ where: { lessonScheduleId: { in: toHardDelete } } })
+        await tx.lessonSchedule.deleteMany({ where: { id: { in: toHardDelete } } })
+      }
+      if (toSoftRemove.length > 0) {
+        // Keep the row (history) but drop future calendar events.
+        await tx.event.deleteMany({
+          where: { lessonScheduleId: { in: toSoftRemove }, date: { gt: now } },
+        })
+        await tx.lessonSchedule.updateMany({
+          where: { id: { in: toSoftRemove } },
+          data: { removedAt: now },
+        })
+      }
+
+      // ── Build new schedules from the target program ─────────────────────
+      await tx.lessonSchedule.createMany({
+        data: newSchedules.map((s) => ({
+          id: s.id,
+          code: s.code,
+          enrollmentId,
+          lessonId: s.lesson.id,
+          scheduledDate: s.scheduledDate,
+          templateId: target.template?.id ?? null,
+          templateName: target.template?.name ?? null,
+          title: s.lesson.title ?? null,
+        })),
+      })
+
+      await tx.lessonScheduleVersion.createMany({
+        data: newSchedules.map((s) => ({
+          id: s.versionId,
+          lessonScheduleId: s.id,
+          versionNumber: 1,
+          programVersionNumber: target.currentVersionNumber ?? null,
+          sourceContentHash: hashLessonContent(s.lesson as any),
+        })),
+      })
+      for (const s of newSchedules) {
+        await tx.lessonSchedule.update({
+          where: { id: s.id },
+          data: { currentVersionId: s.versionId },
+        })
+      }
+
+      const scheduledActivityData: LessonCopyRows['scheduledActivityData'] = []
+      const sourceRefData: LessonCopyRows['sourceRefData'] = []
+      const readBlockData: LessonCopyRows['readBlockData'] = []
+      const exegesisHighlightData: LessonCopyRows['exegesisHighlightData'] = []
+      for (const s of newSchedules) {
+        const rows = buildLessonCopyRows({
+          lessonScheduleId: s.id,
+          versionId: s.versionId,
+          activities: s.lesson.activities as any,
+        })
+        scheduledActivityData.push(...rows.scheduledActivityData)
+        sourceRefData.push(...rows.sourceRefData)
+        readBlockData.push(...rows.readBlockData)
+        exegesisHighlightData.push(...rows.exegesisHighlightData)
+      }
+      if (scheduledActivityData.length > 0) await tx.scheduledLessonActivity.createMany({ data: scheduledActivityData })
+      if (sourceRefData.length > 0) await tx.activitySourceReference.createMany({ data: sourceRefData })
+      if (readBlockData.length > 0) await tx.activityReadBlock.createMany({ data: readBlockData })
+      if (exegesisHighlightData.length > 0) await tx.exegesisHighlight.createMany({ data: exegesisHighlightData })
+
+      // ── New calendar events for the new schedules ───────────────────────
+      await tx.event.createMany({
+        data: newSchedules.map((s) => ({
+          groupId: finalGroupId,
+          type: 'LESSON' as const,
+          title: `Day ${s.lesson.dayNumber}: ${target.name}`,
+          description: target.description,
+          date: s.scheduledDate,
+          startTime: enrollment.smsTime,
+          lessonScheduleId: s.id,
+          enrollmentId,
+          dayNumber: s.lesson.dayNumber,
+        })),
+      })
+
+      // ── Group re-home for any surviving (soft-removed) events + welcome post
+      if (changingGroup) {
+        await tx.event.updateMany({ where: { enrollmentId }, data: { groupId: finalGroupId } })
+        await tx.post.updateMany({ where: { enrollmentId }, data: { groupId: finalGroupId } })
+      }
+
+      // ── Point the enrollment at the new program/schedule ────────────────
+      await tx.enrollment.update({
+        where: { id: enrollmentId },
+        data: {
+          studyProgramId: target.id,
+          groupId: finalGroupId,
+          startDate: targetStartDate,
+          endDate,
+          enabledDays: JSON.stringify(targetEnabledDays),
+          // Fresh copy from the target's live curriculum ⇒ drift-free at its
+          // current published version.
+          syncedProgramVersionNumber: target.currentVersionNumber ?? null,
+          updatedById: userId,
+        },
+      })
+    },
+    { timeout: 60_000 }
+  )
+
+  return { rescheduled: newSchedules.length, groupChanged: changingGroup, studySwapped: true }
 }

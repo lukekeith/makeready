@@ -24,6 +24,8 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
   let groupId: string
   let otherGroupId: string
   let programId: string
+  let programBId: string
+  let memberId: string
   let apiKey: string
 
   const authed = () => ({ Authorization: `Bearer ${apiKey}` })
@@ -77,11 +79,31 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
         data: { lessonId: lesson.id, activityType: 'USER_INPUT', orderNumber: 1, title: `Activity ${day}` },
       })
     }
+
+    // Program B: a DIFFERENT curriculum (2 lessons) to swap to.
+    const programB = await prisma.studyProgram.create({
+      data: { name: 'Edit Test Program B', days: 2, creatorId: userId, isPublished: true },
+    })
+    programBId = programB.id
+    for (let day = 1; day <= 2; day++) {
+      const lesson = await prisma.lesson.create({
+        data: { studyProgramId: programBId, dayNumber: day, title: `B Day ${day}` },
+      })
+      await prisma.lessonActivity.create({
+        data: { lessonId: lesson.id, activityType: 'USER_INPUT', orderNumber: 1, title: `B Activity ${day}` },
+      })
+    }
+
+    const member = await prisma.member.create({
+      data: { phoneNumber: `+1555${String(stamp).slice(-7)}`, firstName: 'Prog', lastName: 'Member' },
+    })
+    memberId = member.id
   })
 
   afterAll(async () => {
+    await prisma.member.deleteMany({ where: { id: memberId } })
     await prisma.group.deleteMany({ where: { id: { in: [groupId, otherGroupId] } } })
-    await prisma.studyProgram.deleteMany({ where: { id: programId } })
+    await prisma.studyProgram.deleteMany({ where: { id: { in: [programId, programBId] } } })
     await prisma.organization.deleteMany({ where: { id: organizationId } })
     await prisma.user.deleteMany({ where: { id: userId } })
   })
@@ -218,6 +240,99 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
       .send({ groupId: otherGroupId })
     expect(res.status).toBe(200)
     expect(res.body.preview.groupChange).toEqual({ fromName: 'Edit Test Group', toName: 'Edit Test Group 2' })
+
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('swaps the study program — removes old lessons, builds new from the target', async () => {
+    const enrollmentId = await enroll() // program A: 3 lessons
+    const beforeA = await schedulesFor(enrollmentId)
+    expect(beforeA).toHaveLength(3)
+    const oldScheduleIds = beforeA.map((s) => s.id)
+
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: programBId })
+    expect(res.status).toBe(200)
+
+    const enrollment = await prisma.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })
+    expect(enrollment.studyProgramId).toBe(programBId)
+
+    // Old (no-progress) schedules hard-deleted
+    const survivingOld = await prisma.lessonSchedule.findMany({ where: { id: { in: oldScheduleIds } } })
+    expect(survivingOld).toHaveLength(0)
+
+    // New schedules from program B (2 lessons), titled "B Day N", dates from start
+    const after = await schedulesFor(enrollmentId)
+    expect(after).toHaveLength(2)
+    expect(after.map((s) => s.title)).toEqual(['B Day 1', 'B Day 2'])
+    expect(after.map((s) => s.scheduledDate.toISOString().slice(0, 10))).toEqual(['2035-01-01', '2035-01-02'])
+    // Each new schedule has its v1 version + copied activity + calendar event
+    for (const s of after) {
+      expect(s.event).not.toBeNull()
+      expect(s.currentVersionId).not.toBeNull()
+    }
+    const activities = await prisma.scheduledLessonActivity.count({
+      where: { lessonScheduleId: { in: after.map((s) => s.id) } },
+    })
+    expect(activities).toBe(2)
+
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('soft-removes an old lesson that has member progress (keeps history)', async () => {
+    const enrollmentId = await enroll() // program A: 3 lessons
+    const beforeA = await schedulesFor(enrollmentId)
+    // Give lesson 1 member progress so it must be preserved.
+    const progressedId = beforeA[0].id
+    await prisma.memberLessonProgress.create({
+      data: { memberId, lessonScheduleId: progressedId, completedAt: new Date() },
+    })
+
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: programBId })
+    expect(res.status).toBe(200)
+
+    // Progressed schedule kept but soft-removed (removedAt set)
+    const progressed = await prisma.lessonSchedule.findUnique({ where: { id: progressedId } })
+    expect(progressed).not.toBeNull()
+    expect(progressed!.removedAt).not.toBeNull()
+    // The other two (no progress) were hard-deleted
+    const otherOld = await prisma.lessonSchedule.findMany({
+      where: { id: { in: [beforeA[1].id, beforeA[2].id] } },
+    })
+    expect(otherOld).toHaveLength(0)
+    // New B schedules present (active)
+    const active = await schedulesFor(enrollmentId)
+    expect(active.map((s) => s.title)).toEqual(['B Day 1', 'B Day 2'])
+
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('previews a study swap as destructive with removed/archived/added counts', async () => {
+    const enrollmentId = await enroll()
+    const beforeA = await schedulesFor(enrollmentId)
+    // One progressed lesson ⇒ 1 archived, 2 removed, 2 added.
+    await prisma.memberLessonProgress.create({
+      data: { memberId, lessonScheduleId: beforeA[1].id, completedAt: new Date() },
+    })
+
+    const res = await request(app)
+      .post(`/api/enrollments/${enrollmentId}/edit/preview`)
+      .set(authed())
+      .send({ studyProgramId: programBId })
+    expect(res.status).toBe(200)
+    expect(res.body.preview.destructive).toBe(true)
+    expect(res.body.preview.studySwap).toMatchObject({
+      lessonsRemoved: 2,
+      lessonsArchived: 1,
+      lessonsAdded: 2,
+    })
+    // Preview did not mutate
+    expect(await schedulesFor(enrollmentId)).toHaveLength(3)
 
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
