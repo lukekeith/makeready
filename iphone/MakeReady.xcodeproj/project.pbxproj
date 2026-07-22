@@ -19,6 +19,7 @@
 		1B36CD5350BF43F99AB288CE /* CardStudyMini.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = E625E430B12A4F37BA6EFE91 /* CardStudyMini.swift */; };
 		1B6C33D7BDC64C0C88844A88 /* EditExegesisActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF10EEACA707407AAB3CFB86 /* EditExegesisActivityPage.swift */; };
 		1D5107C5DF589417AD69FEA9 /* CardActivityType.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0FF0B250AF20FEA47BB6BD1 /* CardActivityType.swift */; };
+		242EF38C8B5CF560901BBA0C /* EnrollmentActionMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A167CF5B636F9BCD6F20AE /* EnrollmentActionMenu.swift */; };
 		25EAA99F978B4A43AED97C5C /* CardGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D7D008A13340DB946D6835 /* CardGroup.swift */; };
 		29E5C282670C4EEDA9C49DE3 /* CardStudy.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 01E5292C43794AC7AF974ADB /* CardStudy.swift */; };
 		339086D0ABED4B4D9FB4E5A0 /* LessonActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CF43B720F294A749CB91A24 /* LessonActivity.swift */; };
@@ -351,6 +352,7 @@
 		63E711311E1F46678776FA7D /* CardEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEvent.swift; sourceTree = "<group>"; };
 		67BC5F4643C94415A015EBC9 /* CardGroupMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGroupMini.swift; sourceTree = "<group>"; };
 		6821D6AC4FD6411793E6237E /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
+		68A167CF5B636F9BCD6F20AE /* EnrollmentActionMenu.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentActionMenu.swift; sourceTree = "<group>"; };
 		6AB523F9CAF69D044FDD3EA8 /* SkeletonCardLesson.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonCardLesson.swift; sourceTree = "<group>"; };
 		6B7F7E4F9A624180A16DFA42 /* CardEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEvent.swift; sourceTree = "<group>"; };
 		6BF0CD30E6F543A8A55B1E5F /* CardVideoMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideoMini.swift; sourceTree = "<group>"; };
@@ -1058,6 +1060,7 @@
 				IVMN0002000000000000001 /* InviteMenu.swift */,
 				LSAM0002000000000000001 /* LessonActionMenu.swift */,
 				FCDD0002000000000000001 /* FilterChipDropdown.swift */,
+				68A167CF5B636F9BCD6F20AE /* EnrollmentActionMenu.swift */,
 			);
 			path = Navigation;
 			sourceTree = "<group>";
@@ -1908,6 +1911,7 @@
 				ACST000200000000000001 /* ActivityStyle.swift in Sources */,
 				1538E01A74676D21CF54D80C /* EnrollmentEditModels.swift in Sources */,
 				7884096BBF84248AC8C3BA8B /* EditEnrollmentFlowModal.swift in Sources */,
+				242EF38C8B5CF560901BBA0C /* EnrollmentActionMenu.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

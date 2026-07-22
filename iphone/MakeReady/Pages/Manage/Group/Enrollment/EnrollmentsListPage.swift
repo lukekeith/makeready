@@ -292,8 +292,31 @@ struct EnrollmentsListPage: View {
     // MARK: - Actions
 
     private func handleEnrollmentTap(_ enrollment: EnrollmentWithProgram) {
-        NSLog("Tapped enrollment: \(enrollment.id)")
-        selectedEnrollmentId = enrollment.id
+        // Tapping an enrollment now offers a choice (monday#12270302158):
+        // Edit lessons (the schedule editor) or Edit enrollment (the edit flow).
+        guard let overlayManager else {
+            selectedEnrollmentId = enrollment.id
+            return
+        }
+        let studyName = enrollment.studyProgram?.name ?? "Study"
+        overlayManager.present(.enrollmentActionMenu) {
+            EnrollmentActionMenu(
+                studyName: studyName,
+                onEditLessons: { selectedEnrollmentId = enrollment.id },
+                onEditEnrollment: {
+                    overlayManager.present(.editEnrollmentFlow) {
+                        EditEnrollmentFlowModal(
+                            enrollment: enrollment,
+                            onDismiss: { overlayManager.dismiss(.editEnrollmentFlow) },
+                            onSaved: {
+                                overlayManager.dismiss(.editEnrollmentFlow)
+                                Task { await loadEnrollments() }
+                            }
+                        )
+                    }
+                }
+            )
+        }
     }
 
     private func presentUnenrollModal(enrollment: EnrollmentWithProgram) {

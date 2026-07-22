@@ -335,14 +335,36 @@ struct ProgramHomePage: View {
             isActive: enrollment.isActive
         )
 
-        overlayManager.present(.enrollmentSchedule) {
-            EnrollmentSchedulePage(
-                enrollment: enrollmentWithProgram,
-                onDismiss: {
-                    overlayManager.dismiss(.enrollmentSchedule)
+        // Tapping an enrollment offers Edit lessons / Edit enrollment
+        // (monday#12270302158) rather than jumping straight to the schedule.
+        let studyName = program?.name ?? "Study"
+        overlayManager.present(.enrollmentActionMenu) {
+            EnrollmentActionMenu(
+                studyName: studyName,
+                onEditLessons: {
+                    overlayManager.present(.enrollmentSchedule) {
+                        EnrollmentSchedulePage(
+                            enrollment: enrollmentWithProgram,
+                            onDismiss: {
+                                overlayManager.dismiss(.enrollmentSchedule)
+                            },
+                            leftIcon: "xmark",
+                            overlayManager: overlayManager
+                        )
+                    }
                 },
-                leftIcon: "xmark",
-                overlayManager: overlayManager
+                onEditEnrollment: {
+                    overlayManager.present(.editEnrollmentFlow) {
+                        EditEnrollmentFlowModal(
+                            enrollment: enrollmentWithProgram,
+                            onDismiss: { overlayManager.dismiss(.editEnrollmentFlow) },
+                            onSaved: {
+                                overlayManager.dismiss(.editEnrollmentFlow)
+                                Task { await refreshCurrentTab() }
+                            }
+                        )
+                    }
+                }
             )
         }
     }

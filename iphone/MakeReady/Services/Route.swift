@@ -28,6 +28,7 @@ enum Route: Equatable, Hashable {
     case hamburgerMenu
     case addActivityMenu
     case lessonActionMenu
+    case enrollmentActionMenu
     case librarySortMenu
     case libraryAddMenu
     case groupsAddMenu
@@ -89,6 +90,7 @@ enum Route: Equatable, Hashable {
         case .hamburgerMenu: return "hamburgerMenu"
         case .addActivityMenu: return "addActivityMenu"
         case .lessonActionMenu: return "lessonActionMenu"
+        case .enrollmentActionMenu: return "enrollmentActionMenu"
         case .librarySortMenu: return "librarySortMenu"
         case .libraryAddMenu: return "libraryAddMenu"
         case .groupsAddMenu: return "groupsAddMenu"
@@ -144,7 +146,7 @@ enum Route: Equatable, Hashable {
         switch self {
         case .addActivityMenu, .confirmationOverlay, .memberRequestRespond, .changeMembership:
             return .topLevel
-        case .userMenu, .addMenu, .hamburgerMenu, .lessonActionMenu,
+        case .userMenu, .addMenu, .hamburgerMenu, .lessonActionMenu, .enrollmentActionMenu,
              .librarySortMenu, .libraryAddMenu, .groupsAddMenu, .groupsInviteMenu,
              .bibleVersionMenu, .exegesisHighlightActionMenu, .backgroundSourceMenu,
              .stylePicker:
