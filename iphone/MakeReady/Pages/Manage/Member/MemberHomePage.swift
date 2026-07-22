@@ -676,7 +676,7 @@ struct MemberHomePage: View {
                                 }
                             ],
                             onTap: {
-                                openEnrollmentLessons(enrollment, program: program)
+                                handleEnrolledTap(enrollment, program: program)
                             }
                         ) {
                             CardEnrolled(
@@ -879,7 +879,9 @@ struct MemberHomePage: View {
 
     // MARK: - Enrollment Actions
 
-    private func openEnrollmentLessons(_ enrollment: ProgramEnrollment, program: StudyProgram?) {
+    /// Convert a ProgramEnrollment (Enrolled-tab shape) into the
+    /// EnrollmentWithProgram the schedule/edit screens expect.
+    private func makeEnrollmentWithProgram(_ enrollment: ProgramEnrollment, program: StudyProgram?) -> EnrollmentWithProgram {
         let programSummary: StudyProgramSummary? = program.map {
             StudyProgramSummary(
                 id: $0.id,
@@ -889,8 +891,7 @@ struct MemberHomePage: View {
                 coverImageUrl: $0.coverImageUrl
             )
         }
-
-        let enrollmentWithProgram = EnrollmentWithProgram(
+        return EnrollmentWithProgram(
             id: enrollment.id,
             groupId: enrollment.groupId,
             studyProgramId: enrollment.studyProgramId,
@@ -906,7 +907,35 @@ struct MemberHomePage: View {
             studyProgram: programSummary,
             isActive: enrollment.isActive
         )
+    }
 
+    /// Tapping an enrolled study offers Edit lessons / Edit enrollment
+    /// (monday#12270302158) — same menu as the other enrollment entry points.
+    private func handleEnrolledTap(_ enrollment: ProgramEnrollment, program: StudyProgram?) {
+        let studyName = program?.name ?? "Study"
+        overlayManager.present(.enrollmentActionMenu) {
+            EnrollmentActionMenu(
+                studyName: studyName,
+                onEditLessons: { openEnrollmentLessons(enrollment, program: program) },
+                onEditEnrollment: {
+                    let enrollmentWithProgram = makeEnrollmentWithProgram(enrollment, program: program)
+                    overlayManager.present(.editEnrollmentFlow) {
+                        EditEnrollmentFlowModal(
+                            enrollment: enrollmentWithProgram,
+                            onDismiss: { overlayManager.dismiss(.editEnrollmentFlow) },
+                            onSaved: {
+                                overlayManager.dismiss(.editEnrollmentFlow)
+                                Task { await loadAllEnrollments(forceRefresh: true) }
+                            }
+                        )
+                    }
+                }
+            )
+        }
+    }
+
+    private func openEnrollmentLessons(_ enrollment: ProgramEnrollment, program: StudyProgram?) {
+        let enrollmentWithProgram = makeEnrollmentWithProgram(enrollment, program: program)
         overlayManager.present(.enrollmentSchedule) {
             EnrollmentSchedulePage(
                 enrollment: enrollmentWithProgram,
