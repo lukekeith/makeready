@@ -12,6 +12,7 @@ import request from 'supertest'
 import { app } from '../../index'
 import { prisma } from '../../lib/prisma'
 import { generateApiKey, hashApiKey, getKeyPrefix } from '../../lib/api-key'
+import { applyEnrollmentEdit, applyStudySwap, EnrollmentEditError } from '../../services/enrollment-edit'
 
 // A Monday well into the future — enabledDays: all week ⇒ schedules land on
 // consecutive days starting here.
@@ -25,8 +26,12 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
   let otherGroupId: string
   let programId: string
   let programBId: string
+  let richProgramId: string
+  let draftProgramId: string
+  let emptyProgramId: string
   let memberId: string
   let apiKey: string
+  const RANDOM_UUID = '00000000-0000-4000-8000-000000000000'
 
   const authed = () => ({ Authorization: `Bearer ${apiKey}` })
 
@@ -94,6 +99,65 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
       })
     }
 
+    // A "rich" swap target: has a template + a READ activity carrying a source
+    // reference, a read block, and an exegesis highlight — exercises the full
+    // copy pipeline on study swap.
+    const template = await prisma.lessonTemplate.create({
+      data: { name: 'Rich Template', creatorId: userId },
+    })
+    const rich = await prisma.studyProgram.create({
+      data: { name: 'Edit Test Rich', days: 1, creatorId: userId, isPublished: true, templateId: template.id },
+    })
+    richProgramId = rich.id
+    const richLesson = await prisma.lesson.create({
+      data: { studyProgramId: richProgramId, dayNumber: 1, title: 'Rich Day 1' },
+    })
+    const readActivity = await prisma.lessonActivity.create({
+      data: { lessonId: richLesson.id, activityType: 'READ', orderNumber: 1, title: 'Scripture', referenceTitle: 'John 1:1-3' },
+    })
+    const sourceRef = await prisma.activitySourceReference.create({
+      data: {
+        lessonActivityId: readActivity.id,
+        sourceType: 'SCRIPTURE',
+        passageReference: 'John 1:1-3',
+        bookNumber: 43,
+        bookName: 'John',
+        chapterStart: 1,
+        chapterEnd: 1,
+        verseStart: 1,
+        verseEnd: 3,
+      },
+    })
+    const readBlock = await prisma.activityReadBlock.create({
+      data: {
+        lessonActivityId: readActivity.id,
+        orderNumber: 1,
+        title: 'John 1:1-3',
+        content: '1 In the beginning was the Word...',
+        isLocked: true,
+        sourceReferenceId: sourceRef.id,
+      },
+    })
+    await prisma.exegesisHighlight.create({
+      data: { readBlockId: readBlock.id, orderNumber: 1, start: 0, end: 5, noteMarkdown: 'Note on the opening.' },
+    })
+
+    // A DRAFT program (unpublished) and a published-but-empty program — swap targets that must be rejected.
+    const draft = await prisma.studyProgram.create({
+      data: { name: 'Edit Test Draft', days: 1, creatorId: userId, isPublished: false },
+    })
+    draftProgramId = draft.id
+    const draftLesson = await prisma.lesson.create({
+      data: { studyProgramId: draftProgramId, dayNumber: 1, title: 'Draft Day 1' },
+    })
+    await prisma.lessonActivity.create({
+      data: { lessonId: draftLesson.id, activityType: 'USER_INPUT', orderNumber: 1, title: 'Draft Activity' },
+    })
+    const empty = await prisma.studyProgram.create({
+      data: { name: 'Edit Test Empty', days: 0, creatorId: userId, isPublished: true },
+    })
+    emptyProgramId = empty.id
+
     const member = await prisma.member.create({
       data: { phoneNumber: `+1555${String(stamp).slice(-7)}`, firstName: 'Prog', lastName: 'Member' },
     })
@@ -103,7 +167,10 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
   afterAll(async () => {
     await prisma.member.deleteMany({ where: { id: memberId } })
     await prisma.group.deleteMany({ where: { id: { in: [groupId, otherGroupId] } } })
-    await prisma.studyProgram.deleteMany({ where: { id: { in: [programId, programBId] } } })
+    await prisma.studyProgram.deleteMany({
+      where: { id: { in: [programId, programBId, richProgramId, draftProgramId, emptyProgramId] } },
+    })
+    await prisma.lessonTemplate.deleteMany({ where: { creatorId: userId } })
     await prisma.organization.deleteMany({ where: { id: organizationId } })
     await prisma.user.deleteMany({ where: { id: userId } })
   })
@@ -232,6 +299,22 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
 
+  it('previews a partial-lock reschedule noting sent lessons will not move', async () => {
+    const enrollmentId = await enroll()
+    const before = await schedulesFor(enrollmentId)
+    // Lock only the first lesson; the other two can still shift.
+    await prisma.lessonSchedule.update({ where: { id: before[0].id }, data: { smsSentAt: new Date() } })
+
+    const res = await request(app)
+      .post(`/api/enrollments/${enrollmentId}/edit/preview`)
+      .set(authed())
+      .send({ startDate: '2035-08-08T12:00:00.000Z' })
+    expect(res.status).toBe(200)
+    expect(res.body.preview.reschedule).toEqual({ lessonsShifted: 2, lockedUnchanged: 1 })
+    expect(res.body.preview.summary.join(' ')).toMatch(/1 already sent will not move/i)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
   it('previews a group change with from/to names', async () => {
     const enrollmentId = await enroll()
     const res = await request(app)
@@ -334,6 +417,230 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
     // Preview did not mutate
     expect(await schedulesFor(enrollmentId)).toHaveLength(3)
 
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  // ── Validation / error branches ───────────────────────────────────────────
+
+  it('rejects a study swap to a DRAFT program (400) via patch and preview', async () => {
+    const enrollmentId = await enroll()
+    for (const path of [`/api/enrollments/${enrollmentId}`, `/api/enrollments/${enrollmentId}/edit/preview`]) {
+      const method = path.endsWith('preview') ? 'post' : 'patch'
+      const res = await (request(app) as any)[method](path).set(authed()).send({ studyProgramId: draftProgramId })
+      expect(res.status).toBe(400)
+      expect(res.body.error).toMatch(/draft/i)
+    }
+    // Unchanged
+    const enrollment = await prisma.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })
+    expect(enrollment.studyProgramId).toBe(programId)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('rejects a study swap to a program with no lessons (400)', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: emptyProgramId })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/no lessons/i)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('rejects a study swap to a nonexistent program (404)', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: RANDOM_UUID })
+    expect(res.status).toBe(404)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('rejects a group change to a nonexistent group (404)', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ groupId: RANDOM_UUID })
+    expect(res.status).toBe(404)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('rejects a study swap bundled with a nonexistent group (404)', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: programBId, groupId: RANDOM_UUID })
+    expect(res.status).toBe(404)
+    // Study must NOT have swapped (validation happens before mutation)
+    const enrollment = await prisma.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })
+    expect(enrollment.studyProgramId).toBe(programId)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('rejects a reschedule when stored enabledDays is malformed and none provided (400)', async () => {
+    const enrollmentId = await enroll()
+    // Corrupt the stored value so parseEnabledDays yields [].
+    await prisma.enrollment.update({ where: { id: enrollmentId }, data: { enabledDays: 'not-json' } })
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ startDate: '2035-05-05T12:00:00.000Z' })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/day of the week/i)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('previews an empty edit with the default (non-destructive) summary', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .post(`/api/enrollments/${enrollmentId}/edit/preview`)
+      .set(authed())
+      .send({})
+    expect(res.status).toBe(200)
+    expect(res.body.preview.destructive).toBe(false)
+    expect(res.body.preview.summary).toEqual(['This will update the existing enrollment to match your changes.'])
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('previews a study swap with NO progress as all-removed (0 archived)', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .post(`/api/enrollments/${enrollmentId}/edit/preview`)
+      .set(authed())
+      .send({ studyProgramId: programBId })
+    expect(res.status).toBe(200)
+    expect(res.body.preview.studySwap).toMatchObject({ lessonsRemoved: 3, lessonsArchived: 0, lessonsAdded: 2 })
+    expect(res.body.preview.summary.join(' ')).not.toMatch(/archived/i)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('swaps study AND changes group in one edit (events re-homed to new group)', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: programBId, groupId: otherGroupId, startDate: '2035-07-07T12:00:00.000Z' })
+    expect(res.status).toBe(200)
+
+    const enrollment = await prisma.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })
+    expect(enrollment.studyProgramId).toBe(programBId)
+    expect(enrollment.groupId).toBe(otherGroupId)
+    // New B lessons start at the EDITED start date, not the original.
+    const after = await schedulesFor(enrollmentId)
+    expect(after.map((s) => s.scheduledDate.toISOString().slice(0, 10))).toEqual(['2035-07-07', '2035-07-08'])
+    const events = await prisma.event.findMany({ where: { enrollmentId } })
+    expect(events.every((e) => e.groupId === otherGroupId)).toBe(true)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('treats an all-locked reschedule as a no-op', async () => {
+    const enrollmentId = await enroll()
+    const before = await schedulesFor(enrollmentId)
+    await prisma.lessonSchedule.updateMany({
+      where: { id: { in: before.map((s) => s.id) } },
+      data: { smsSentAt: new Date() },
+    })
+    const res = await request(app)
+      .post(`/api/enrollments/${enrollmentId}/edit/preview`)
+      .set(authed())
+      .send({ startDate: '2035-09-09T12:00:00.000Z' })
+    expect(res.status).toBe(200)
+    expect(res.body.preview.reschedule).toBeNull() // nothing can move
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('returns 404 for a nonexistent enrollment', async () => {
+    const res = await request(app)
+      .patch(`/api/enrollments/${RANDOM_UUID}`)
+      .set(authed())
+      .send({ startDate: '2035-01-01T12:00:00.000Z' })
+    expect(res.status).toBe(404)
+  })
+
+  // ── Defensive service guards (reached only by direct call) ─────────────────
+
+  it('applyEnrollmentEdit refuses a study swap (delegated to applyStudySwap)', async () => {
+    const enrollmentId = await enroll()
+    await expect(
+      applyEnrollmentEdit(enrollmentId, { studyProgramId: programBId }, userId)
+    ).rejects.toBeInstanceOf(EnrollmentEditError)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('applyStudySwap requires a different study program', async () => {
+    const enrollmentId = await enroll()
+    await expect(
+      applyStudySwap(enrollmentId, { studyProgramId: programId }, userId)
+    ).rejects.toBeInstanceOf(EnrollmentEditError)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('previews a swap to an empty program as an error (400)', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .post(`/api/enrollments/${enrollmentId}/edit/preview`)
+      .set(authed())
+      .send({ studyProgramId: emptyProgramId })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/no lessons/i)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('copies source refs, read blocks, and exegesis highlights on a rich-content swap', async () => {
+    const enrollmentId = await enroll()
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: richProgramId })
+    expect(res.status).toBe(200)
+
+    const after = await schedulesFor(enrollmentId)
+    expect(after).toHaveLength(1)
+    // Template denormalized onto the new schedule
+    expect(after[0].templateName).toBe('Rich Template')
+    const scheduleIds = after.map((s) => s.id)
+    // Copied rows link via scheduledActivityId → readBlockId (not lessonScheduleId).
+    const acts = await prisma.scheduledLessonActivity.findMany({
+      where: { lessonScheduleId: { in: scheduleIds } },
+      select: { id: true },
+    })
+    const actIds = acts.map((a) => a.id)
+    const refs = await prisma.activitySourceReference.count({ where: { scheduledActivityId: { in: actIds } } })
+    const blocks = await prisma.activityReadBlock.findMany({
+      where: { scheduledActivityId: { in: actIds } },
+      select: { id: true },
+    })
+    const highlights = await prisma.exegesisHighlight.count({ where: { readBlockId: { in: blocks.map((b) => b.id) } } })
+    expect(acts).toHaveLength(1)
+    expect(refs).toBe(1)
+    expect(blocks).toHaveLength(1)
+    expect(highlights).toBe(1)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('rejects a study swap when resolved enabledDays is empty (400)', async () => {
+    const enrollmentId = await enroll()
+    await prisma.enrollment.update({ where: { id: enrollmentId }, data: { enabledDays: 'not-json' } })
+    const res = await request(app)
+      .patch(`/api/enrollments/${enrollmentId}`)
+      .set(authed())
+      .send({ studyProgramId: programBId }) // no enabledDays ⇒ parse stored ⇒ []
+    expect(res.status).toBe(400)
+    expect(res.body.error).toMatch(/day of the week/i)
+    await prisma.enrollment.delete({ where: { id: enrollmentId } })
+  })
+
+  it('applyStudySwap rejects a bundled nonexistent group before mutating', async () => {
+    const enrollmentId = await enroll()
+    await expect(
+      applyStudySwap(enrollmentId, { studyProgramId: programBId, groupId: RANDOM_UUID }, userId)
+    ).rejects.toMatchObject({ status: 404 })
+    // Nothing changed
+    const enrollment = await prisma.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } })
+    expect(enrollment.studyProgramId).toBe(programId)
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
 })

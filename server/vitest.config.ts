@@ -26,6 +26,11 @@ export default defineConfig({
         functions: 64,
         branches: 70,
         statements: 55,
+        // Enrollment-edit feature (monday#12270302158): keep it fully covered.
+        // Branch < 100 only because of two plural-"s" ternaries, a random
+        // code-collision retry loop, and one `?? null` default — all trivial.
+        'src/services/enrollment-edit.ts': { lines: 100, functions: 100, statements: 100, branches: 88 },
+        'src/services/enrollment-schedule.ts': { lines: 100, functions: 100, statements: 100, branches: 100 },
       },
     },
     setupFiles: ['./test/setup.ts'],
