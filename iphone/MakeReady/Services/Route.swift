@@ -60,6 +60,7 @@ enum Route: Equatable, Hashable {
     case orgHome
     case enrollmentFlow
     case programEnrollmentFlow
+    case editEnrollmentFlow
     case enrollmentSchedule
     case editEnrollmentDay
     /// Study Sync settings for one enrollment (study-sync notification
@@ -118,6 +119,7 @@ enum Route: Equatable, Hashable {
         case .orgHome: return "orgHome"
         case .enrollmentFlow: return "enrollmentFlow"
         case .programEnrollmentFlow: return "programEnrollmentFlow"
+        case .editEnrollmentFlow: return "editEnrollmentFlow"
         case .enrollmentSchedule: return "enrollmentSchedule"
         case .editEnrollmentDay: return "editEnrollmentDay"
         case .enrollmentSync(let enrollmentId): return "enrollmentSync_\(enrollmentId)"
@@ -180,7 +182,7 @@ enum Route: Equatable, Hashable {
     var dismissOnTapOutside: Bool {
         switch self {
         case .enrollmentSchedule, .editEnrollmentDay,
-             .enrollmentFlow, .programEnrollmentFlow:
+             .enrollmentFlow, .programEnrollmentFlow, .editEnrollmentFlow:
             return false
         default:
             return true
