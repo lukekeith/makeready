@@ -255,7 +255,11 @@ router.post('/enrollments', requireAuth, async (req, res) => {
           smsTime: body.smsTime,
           timezone: body.timezone,
           requireResponse: body.requireResponse ?? program.requireResponse, // Inherit from program if not specified
-          syncMode: body.syncMode ?? 'OFF',
+          // Default new enrollments to AUTO so curriculum updates a leader
+          // publishes flow to the group automatically — without this, added
+          // days never reached members unless the leader also toggled sync on
+          // per enrollment (monday#12268576962).
+          syncMode: body.syncMode ?? 'AUTO',
           // The copy is made from live curriculum, which reflects at least the
           // latest published version — so the enrollment starts drift-free.
           syncedProgramVersionNumber: program.currentVersionNumber ?? null,

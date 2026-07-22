@@ -204,7 +204,7 @@ describe('Enrollment versioning (study-sync)', () => {
     )
   })
 
-  it('defaults syncMode to OFF when not provided', async () => {
+  it('defaults syncMode to AUTO when not provided', async () => {
     // Re-enroll in a fresh group to avoid unique/enrollment overlap concerns
     const group2 = await prisma.group.create({
       data: { name: 'Sync Test Group 2', creatorId: userId, organizationId },
@@ -224,7 +224,9 @@ describe('Enrollment versioning (study-sync)', () => {
     const enrollment = await prisma.enrollment.findUniqueOrThrow({
       where: { id: response.body.enrollment.id },
     })
-    expect(enrollment.syncMode).toBe('OFF')
+    // New enrollments track published curriculum updates automatically
+    // (monday#12268576962).
+    expect(enrollment.syncMode).toBe('AUTO')
 
     await prisma.group.deleteMany({ where: { id: group2.id } })
   })
