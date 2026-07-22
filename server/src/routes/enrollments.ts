@@ -19,6 +19,7 @@ import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enroll
 import { computePendingChanges } from '../services/enrollment-sync-changes.js'
 import { resolveNotificationsByDedupeKey } from '../services/notification.js'
 import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
+import { generateScheduleDates } from '../services/enrollment-schedule.js'
 import {
   canManageOrgContent,
   enrollmentManageFilter,
@@ -188,28 +189,10 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       })
     }
 
-    // Calculate lesson schedule dates
+    // Calculate lesson schedule dates — one per lesson on the enabled weekdays,
+    // walking forward from the start date (shared with the edit/reschedule path).
     const startDate = new Date(body.startDate)
-    const enabledDayNumbers = body.enabledDays.map(day => {
-      const dayMap: { [key: string]: number } = {
-        'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6
-      }
-      return dayMap[day]
-    })
-
-    // Generate schedule dates
-    const scheduleDates: Date[] = []
-    let currentDate = new Date(startDate)
-    let lessonsNeeded = program.lessons.length
-
-    while (scheduleDates.length < lessonsNeeded) {
-      const dayOfWeek = currentDate.getDay()
-      if (enabledDayNumbers.includes(dayOfWeek)) {
-        scheduleDates.push(new Date(currentDate))
-      }
-      currentDate.setDate(currentDate.getDate() + 1)
-    }
-
+    const scheduleDates = generateScheduleDates(startDate, body.enabledDays, program.lessons.length)
     const endDate = scheduleDates[scheduleDates.length - 1]
 
     // Pre-generate IDs and codes to use batch operations (avoids PgBouncer transaction timeout)
