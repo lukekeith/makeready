@@ -10,6 +10,7 @@
 		036FEDB46F28C3E6C5C68F71 /* SwipeableScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 973CC89CA447FE52CDCF45E0 /* SwipeableScrollView.swift */; };
 		0CF6C22AA21A555469B09E49 /* AddActivityMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E385B05771AF0FF8FBAF795B /* AddActivityMenu.swift */; };
 		0D2C1AC8A5FE49FB8EFC0755 /* CardVideoMini.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */; };
+		1538E01A74676D21CF54D80C /* EnrollmentEditModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54242419B56019FDB7F83F5 /* EnrollmentEditModels.swift */; };
 		15CCA265E1BA226BE3153A90 /* DirectionalPanGesture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D4D8F64660C1B2450DC5EE5 /* DirectionalPanGesture.swift */; };
 		161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */; };
 		16CA3FB3363243D2AF6E2ADF /* CreateProgramPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37209AE4986545679D1F5B6C /* CreateProgramPage.swift */; };
@@ -46,6 +47,7 @@
 		88DDFCABE91A48FDB606F65B /* GroupSelectorSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71E1686D1E384111A988315E /* GroupSelectorSheet.swift */; };
 		89D17AEB4C4037360C22157F /* ShimmerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 173CED3454416327E4C67B17 /* ShimmerView.swift */; };
 		8D2A4B7E9F5C46D3A8E1B2C3 /* SlideButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E5F6A8B1C7D42A9B4D2E3F4 /* SlideButton.swift */; };
+		9466692B2919B3B175C2EBA6 /* EnrollmentEditModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58185043130519BCAA3EBF7A /* EnrollmentEditModelTests.swift */; };
 		962517132EADF96D0098FAB0 /* AuthManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517142EADF96D0098FAB0 /* AuthManager.swift */; };
 		962517152EADF96D0098FAB0 /* UserMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = 962517162EADF96D0098FAB0 /* UserMenu.swift */; };
 		9689B63A2ED2855400C5327F /* MODAL_GUIDE.md in Resources */ = {isa = PBXBuildFile; fileRef = 9689B6392ED2855400C5327F /* MODAL_GUIDE.md */; };
@@ -140,6 +142,7 @@
 		CGRP0001000000000000001 /* CreateGroupPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CGRP0002000000000000001 /* CreateGroupPage.swift */; };
 		CLA_BLD_0002000000000001 /* CardLessonActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = CLA_REF_0001000000000001 /* CardLessonActivity.swift */; };
 		CMF00001000000000000001 /* CardMediaFull.swift in Sources */ = {isa = PBXBuildFile; fileRef = CMF00002000000000000001 /* CardMediaFull.swift */; };
+		CMM00001000000000000001 /* ChangeMembershipModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = CMM00002000000000000001 /* ChangeMembershipModal.swift */; };
 		CNFR0001000000000000001 /* ConfirmEnrollmentPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNFR0002000000000000001 /* ConfirmEnrollmentPage.swift */; };
 		CNTC0001000000000000001 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNTC0002000000000000001 /* Contact.swift */; };
 		CONF17022EADF96D0098FAB0 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CONF17012EADF96D0098FAB0 /* Configuration.swift */; };
@@ -167,9 +170,8 @@
 		ERAD0001000000000000001 /* EditReadActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERAD0002000000000000001 /* EditReadActivityPage.swift */; };
 		ERRB0001000000000000001 /* ErrorBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = ERRB0002000000000000001 /* ErrorBanner.swift */; };
 		ESPH0001000000000000001 /* EnrollmentSchedulePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESPH0002000000000000001 /* EnrollmentSchedulePage.swift */; };
-		ESYN0001000000000000001 /* EnrollmentSyncPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESYN0002000000000000001 /* EnrollmentSyncPage.swift */; };
-		RVCH0001000000000000001 /* ReviewChangesPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = RVCH0002000000000000001 /* ReviewChangesPage.swift */; };
 		ESTT000100000000000001 /* EntityStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESTT000200000000000001 /* EntityStoreTests.swift */; };
+		ESYN0001000000000000001 /* EnrollmentSyncPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESYN0002000000000000001 /* EnrollmentSyncPage.swift */; };
 		EUAP0001000000000000001 /* EditUserInputActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EUAP0002000000000000001 /* EditUserInputActivityPage.swift */; };
 		EXHM0001000000000000001 /* ExegesisHighlightModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXHM0002000000000000001 /* ExegesisHighlightModal.swift */; };
 		EXVV000200000000000001 /* ExegesisVerseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXVV000100000000000001 /* ExegesisVerseView.swift */; };
@@ -215,9 +217,8 @@
 		MOTN0001000000000001 /* Motion.swift in Sources */ = {isa = PBXBuildFile; fileRef = MOTN0002000000000001 /* Motion.swift */; };
 		MPRP0001000000000000001 /* MemberProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MPRP0002000000000000001 /* MemberProfilePage.swift */; };
 		MRPP0001000000000000001 /* MemberRequestProfilePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRPP0002000000000000001 /* MemberRequestProfilePage.swift */; };
-		MRRM0001000000000000001 /* MemberRequestRespondModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRRM0002000000000000001 /* MemberRequestRespondModal.swift */; };
-		CMM00001000000000000001 /* ChangeMembershipModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = CMM00002000000000000001 /* ChangeMembershipModal.swift */; };
 		MRQP0001000000000000001 /* MemberRequestsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRQP0002000000000000001 /* MemberRequestsPage.swift */; };
+		MRRM0001000000000000001 /* MemberRequestRespondModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = MRRM0002000000000000001 /* MemberRequestRespondModal.swift */; };
 		NAVC0001000000000000001 /* NavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = NAVC0002000000000000001 /* NavigationCoordinator.swift */; };
 		NOTIF0001000000000001 /* NotificationActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIF0002000000000001 /* NotificationActions.swift */; };
 		NTFPG0001000000000001 /* NotificationFeedPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = NTFPG0002000000000001 /* NotificationFeedPage.swift */; };
@@ -233,6 +234,7 @@
 		RITX000100000000000001 /* RelationshipIndexTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = RITX000200000000000001 /* RelationshipIndexTests.swift */; };
 		ROUT0001000000000000001 /* Route.swift in Sources */ = {isa = PBXBuildFile; fileRef = ROUT0002000000000000001 /* Route.swift */; };
 		RTXI0001000000000000001 /* RichTextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = RTXI0002000000000000001 /* RichTextInput.swift */; };
+		RVCH0001000000000000001 /* ReviewChangesPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = RVCH0002000000000000001 /* ReviewChangesPage.swift */; };
 		SAFEMKD0001000000000001 /* AttributedString+SafeMarkdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */; };
 		SEDP0001000000000000001 /* SelectEnrollDatePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEDP0002000000000000001 /* SelectEnrollDatePage.swift */; };
 		SESSCRD0001000000000001 /* SessionCredentialStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = SESSCRD0002000000000001 /* SessionCredentialStore.swift */; };
@@ -257,8 +259,6 @@
 		STB76F45E5B18BF4A21BA9 /* EnrollmentActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */; };
 		STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST7CF2EBB5F6944CE48C55 /* AppState.swift */; };
 		STB9253AC4642DD4C0FBB2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEC62002E39284807A347 /* APIClient.swift */; };
-		UFEF000100000000000001 /* UserFacingErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = UFEF000200000000000001 /* UserFacingErrorFormatter.swift */; };
-		UFEFT00100000000000001 /* UserFacingErrorFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */; };
 		STB9ABADE6E9B9D497CBB7 /* EntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF7F960A70FAA4CFB9D79 /* EntityStore.swift */; };
 		STBD17E0834F256426EB81 /* LoadingStateManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = STAE8698BCEFBA4FADA19C /* LoadingStateManager.swift */; };
 		STBFF9B4526579D4BA8820 /* GroupActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEA7C3A65D00D453EBCC6 /* GroupActions.swift */; };
@@ -280,6 +280,8 @@
 		TCVW0001000000000000001 /* ThemedContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = TCVW0002000000000000001 /* ThemedContentView.swift */; };
 		THMA0001000000000001 /* ThemeActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = THMA0002000000000001 /* ThemeActions.swift */; };
 		TYPO0001000000000000001 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = TYPO0002000000000000001 /* Typography.swift */; };
+		UFEF000100000000000001 /* UserFacingErrorFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = UFEF000200000000000001 /* UserFacingErrorFormatter.swift */; };
+		UFEFT00100000000000001 /* UserFacingErrorFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */; };
 		UKIN0001000000000000001 /* UIKitInputs.swift in Sources */ = {isa = PBXBuildFile; fileRef = UKIN0002000000000000001 /* UIKitInputs.swift */; };
 		UNENRLC0001000000000001 /* UnenrollConfirmation.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNENRLC0002000000000001 /* UnenrollConfirmation.swift */; };
 		UNOM0001000000000000001 /* UnenrollOptionsModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = UNOM0002000000000000001 /* UnenrollOptionsModal.swift */; };
@@ -339,6 +341,7 @@
 		521B4F457E4F2F2A18A75F4D /* AddMenu.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddMenu.swift; sourceTree = "<group>"; };
 		564CCE44CA013CC1364A13B0 /* CaptureDevices.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CaptureDevices.swift; sourceTree = "<group>"; };
 		57D2709EEAFFB2138BE822C8 /* SkeletonCardStudy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonCardStudy.swift; sourceTree = "<group>"; };
+		58185043130519BCAA3EBF7A /* EnrollmentEditModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentEditModelTests.swift; sourceTree = "<group>"; };
 		58DC32C1218C90578DE0ECEE /* CardSpinnerOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSpinnerOverlay.swift; sourceTree = "<group>"; };
 		5A71DB0FB8D244088B8FFAFE /* CardStudy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudy.swift; sourceTree = "<group>"; };
 		5D4D8F64660C1B2450DC5EE5 /* DirectionalPanGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectionalPanGesture.swift; sourceTree = "<group>"; };
@@ -452,6 +455,7 @@
 		CGRP0002000000000000001 /* CreateGroupPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateGroupPage.swift; sourceTree = "<group>"; };
 		CLA_REF_0001000000000001 /* CardLessonActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardLessonActivity.swift; sourceTree = "<group>"; };
 		CMF00002000000000000001 /* CardMediaFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardMediaFull.swift; sourceTree = "<group>"; };
+		CMM00002000000000000001 /* ChangeMembershipModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangeMembershipModal.swift; sourceTree = "<group>"; };
 		CNFR0002000000000000001 /* ConfirmEnrollmentPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConfirmEnrollmentPage.swift; sourceTree = "<group>"; };
 		CNTC0002000000000000001 /* Contact.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Contact.swift; sourceTree = "<group>"; };
 		CONF17012EADF96D0098FAB0 /* Configuration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Configuration.swift; sourceTree = "<group>"; };
@@ -484,15 +488,15 @@
 		ERAD0002000000000000001 /* EditReadActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditReadActivityPage.swift; sourceTree = "<group>"; };
 		ERRB0002000000000000001 /* ErrorBanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorBanner.swift; sourceTree = "<group>"; };
 		ESPH0002000000000000001 /* EnrollmentSchedulePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentSchedulePage.swift; sourceTree = "<group>"; };
-		ESYN0002000000000000001 /* EnrollmentSyncPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentSyncPage.swift; sourceTree = "<group>"; };
-		RVCH0002000000000000001 /* ReviewChangesPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewChangesPage.swift; sourceTree = "<group>"; };
 		ESTT000200000000000001 /* EntityStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStoreTests.swift; sourceTree = "<group>"; };
+		ESYN0002000000000000001 /* EnrollmentSyncPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentSyncPage.swift; sourceTree = "<group>"; };
 		EUAP0002000000000000001 /* EditUserInputActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditUserInputActivityPage.swift; sourceTree = "<group>"; };
 		EXHM0002000000000000001 /* ExegesisHighlightModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisHighlightModal.swift; sourceTree = "<group>"; };
 		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
 		EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditYouTubeActivityPage.swift; sourceTree = "<group>"; };
 		F0FF0B250AF20FEA47BB6BD1 /* CardActivityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardActivityType.swift; sourceTree = "<group>"; };
 		F288E33EC18546D2BC571B03 /* CardEnrolled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEnrolled.swift; sourceTree = "<group>"; };
+		F54242419B56019FDB7F83F5 /* EnrollmentEditModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentEditModels.swift; sourceTree = "<group>"; };
 		F8B5C32E5E9B47D1A6F2E4B3 /* QRCodeScreenPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScreenPage.swift; sourceTree = "<group>"; };
 		FCDD0002000000000000001 /* FilterChipDropdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilterChipDropdown.swift; sourceTree = "<group>"; };
 		FF676E78A8861B4738753BFC /* DeviceChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceChrome.swift; sourceTree = "<group>"; };
@@ -535,9 +539,8 @@
 		MOTN0002000000000001 /* Motion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Motion.swift; sourceTree = "<group>"; };
 		MPRP0002000000000000001 /* MemberProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberProfilePage.swift; sourceTree = "<group>"; };
 		MRPP0002000000000000001 /* MemberRequestProfilePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestProfilePage.swift; sourceTree = "<group>"; };
-		MRRM0002000000000000001 /* MemberRequestRespondModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestRespondModal.swift; sourceTree = "<group>"; };
-		CMM00002000000000000001 /* ChangeMembershipModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangeMembershipModal.swift; sourceTree = "<group>"; };
 		MRQP0002000000000000001 /* MemberRequestsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestsPage.swift; sourceTree = "<group>"; };
+		MRRM0002000000000000001 /* MemberRequestRespondModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberRequestRespondModal.swift; sourceTree = "<group>"; };
 		NAVC0002000000000000001 /* NavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCoordinator.swift; sourceTree = "<group>"; };
 		NOTIF0002000000000001 /* NotificationActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationActions.swift; sourceTree = "<group>"; };
 		NTFPG0002000000000001 /* NotificationFeedPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationFeedPage.swift; sourceTree = "<group>"; };
@@ -553,6 +556,7 @@
 		RITX000200000000000001 /* RelationshipIndexTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RelationshipIndexTests.swift; sourceTree = "<group>"; };
 		ROUT0002000000000000001 /* Route.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Route.swift; sourceTree = "<group>"; };
 		RTXI0002000000000000001 /* RichTextInput.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextInput.swift; sourceTree = "<group>"; };
+		RVCH0002000000000000001 /* ReviewChangesPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReviewChangesPage.swift; sourceTree = "<group>"; };
 		SAFEMKD0002000000000001 /* AttributedString+SafeMarkdown.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AttributedString+SafeMarkdown.swift"; sourceTree = "<group>"; };
 		SEDP0002000000000000001 /* SelectEnrollDatePage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectEnrollDatePage.swift; sourceTree = "<group>"; };
 		SESSCRD0002000000000001 /* SessionCredentialStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionCredentialStore.swift; sourceTree = "<group>"; };
@@ -578,8 +582,6 @@
 		STCT0002000000000000001 /* StripContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StripContent.swift; sourceTree = "<group>"; };
 		STEA7C3A65D00D453EBCC6 /* GroupActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroupActions.swift; sourceTree = "<group>"; };
 		STEC62002E39284807A347 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
-		UFEF000200000000000001 /* UserFacingErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFacingErrorFormatter.swift; sourceTree = "<group>"; };
-		UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFacingErrorFormatterTests.swift; sourceTree = "<group>"; };
 		STF7F960A70FAA4CFB9D79 /* EntityStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntityStore.swift; sourceTree = "<group>"; };
 		STF817FB49E2134E3E9B95 /* EnrollmentActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentActions.swift; sourceTree = "<group>"; };
 		STF9898162D0FC410484CC /* ProgramActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgramActions.swift; sourceTree = "<group>"; };
@@ -600,6 +602,8 @@
 		TCVW0002000000000000001 /* ThemedContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemedContentView.swift; sourceTree = "<group>"; };
 		THMA0002000000000001 /* ThemeActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeActions.swift; sourceTree = "<group>"; };
 		TYPO0002000000000000001 /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Typography.swift; sourceTree = "<group>"; };
+		UFEF000200000000000001 /* UserFacingErrorFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFacingErrorFormatter.swift; sourceTree = "<group>"; };
+		UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserFacingErrorFormatterTests.swift; sourceTree = "<group>"; };
 		UKIN0002000000000000001 /* UIKitInputs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UIKitInputs.swift; sourceTree = "<group>"; };
 		UNENRLC0002000000000001 /* UnenrollConfirmation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnenrollConfirmation.swift; sourceTree = "<group>"; };
 		UNOM0002000000000000001 /* UnenrollOptionsModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnenrollOptionsModal.swift; sourceTree = "<group>"; };
@@ -871,6 +875,7 @@
 				SPRT000200000000000001 /* StatePersistenceRoundTripTests.swift */,
 				MDLT000200000000000001 /* ModelDecodingTests.swift */,
 				UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */,
+				58185043130519BCAA3EBF7A /* EnrollmentEditModelTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -1393,6 +1398,7 @@
 				STMM0002000000000000006 /* LessonModels.swift */,
 				STMM0002000000000000007 /* ThemeModels.swift */,
 				STMM0002000000000000008 /* GroupMembershipModels.swift */,
+				F54242419B56019FDB7F83F5 /* EnrollmentEditModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -1626,6 +1632,7 @@
 				SPRT000100000000000001 /* StatePersistenceRoundTripTests.swift in Sources */,
 				MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */,
 				UFEFT00100000000000001 /* UserFacingErrorFormatterTests.swift in Sources */,
+				9466692B2919B3B175C2EBA6 /* EnrollmentEditModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1896,6 +1903,7 @@
 				STCT0001000000000000001 /* StripContent.swift in Sources */,
 				VSLG000200000000000001 /* VerseSelectionLogic.swift in Sources */,
 				ACST000200000000000001 /* ActivityStyle.swift in Sources */,
+				1538E01A74676D21CF54D80C /* EnrollmentEditModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
