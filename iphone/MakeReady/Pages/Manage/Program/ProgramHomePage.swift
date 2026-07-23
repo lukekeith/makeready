@@ -338,9 +338,12 @@ struct ProgramHomePage: View {
         // Tapping an enrollment offers Edit lessons / Edit enrollment
         // (monday#12270302158) rather than jumping straight to the schedule.
         let studyName = program?.name ?? "Study"
+        let canManage = enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil)
         overlayManager.present(.enrollmentActionMenu) {
             EnrollmentActionMenu(
                 studyName: studyName,
+                canManage: canManage,
+                creatorName: enrollment.studyProgramCreatorName,
                 onEditLessons: {
                     overlayManager.present(.enrollmentSchedule) {
                         EnrollmentSchedulePage(
@@ -353,7 +356,6 @@ struct ProgramHomePage: View {
                         )
                     }
                 },
-                editEnrollmentEnabled: enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil),
                 onEditEnrollment: {
                     overlayManager.present(.editEnrollmentFlow) {
                         EditEnrollmentFlowModal(
@@ -365,7 +367,10 @@ struct ProgramHomePage: View {
                             }
                         )
                     }
-                }
+                },
+                // All enrollments here are for THIS program, so the existing
+                // program-scoped study preview is the right target.
+                onPreviewStudy: { openStudyPreview() }
             )
         }
     }

@@ -52,6 +52,10 @@ struct MemberHomePage: View {
     @State private var isProcessingUnenrollment = false
     @State private var unenrolledProgramName = ""
 
+    /// Non-nil while the read-only web study preview is presented (for
+    /// enrollments the leader can't manage — monday#12270302158).
+    @State private var studyPreviewItem: IdentifiableURL? = nil
+
     // Computed properties for state access
     private var groups: [UserGroup] {
         state.orderedGroups
@@ -224,6 +228,7 @@ struct MemberHomePage: View {
                 pendingSubTab = nil
             }
         }
+        .studyPreviewCover(item: $studyPreviewItem)
         .alert("Delete Group?", isPresented: $showDeleteConfirmation) {
             Button("Cancel", role: .cancel) {
                 groupToDelete = nil
@@ -913,11 +918,13 @@ struct MemberHomePage: View {
     /// (monday#12270302158) — same menu as the other enrollment entry points.
     private func handleEnrolledTap(_ enrollment: ProgramEnrollment, program: StudyProgram?) {
         let studyName = program?.name ?? "Study"
+        let canManage = enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil)
         overlayManager.present(.enrollmentActionMenu) {
             EnrollmentActionMenu(
                 studyName: studyName,
+                canManage: canManage,
+                creatorName: enrollment.studyProgramCreatorName,
                 onEditLessons: { openEnrollmentLessons(enrollment, program: program) },
-                editEnrollmentEnabled: enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil),
                 onEditEnrollment: {
                     let enrollmentWithProgram = makeEnrollmentWithProgram(enrollment, program: program)
                     overlayManager.present(.editEnrollmentFlow) {
@@ -929,6 +936,11 @@ struct MemberHomePage: View {
                                 Task { await loadAllEnrollments(forceRefresh: true) }
                             }
                         )
+                    }
+                },
+                onPreviewStudy: {
+                    if let url = StudyPreview.url(programId: enrollment.studyProgramId) {
+                        studyPreviewItem = IdentifiableURL(url: url)
                     }
                 }
             )

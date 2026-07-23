@@ -35,6 +35,10 @@ struct EnrollmentsListPage: View {
     // pane reads live data from the loaded list.
     @State private var selectedEnrollmentId: String? = nil
 
+    /// Non-nil while the read-only web study preview is presented (for
+    /// enrollments the leader can't manage — monday#12270302158).
+    @State private var studyPreviewItem: IdentifiableURL? = nil
+
     // Swipe state to prevent scrolling during card swipes
     @StateObject private var swipeState = SwipeState()
 
@@ -100,6 +104,7 @@ struct EnrollmentsListPage: View {
                 }
             }
         }
+        .studyPreviewCover(item: $studyPreviewItem)
     }
 
     // MARK: - Schedule Detail (Screen 2)
@@ -299,11 +304,13 @@ struct EnrollmentsListPage: View {
             return
         }
         let studyName = enrollment.studyProgram?.name ?? "Study"
+        let canManage = enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil)
         overlayManager.present(.enrollmentActionMenu) {
             EnrollmentActionMenu(
                 studyName: studyName,
+                canManage: canManage,
+                creatorName: enrollment.studyProgramCreatorName,
                 onEditLessons: { selectedEnrollmentId = enrollment.id },
-                editEnrollmentEnabled: enrollment.canManage ?? (AppState.shared.groups[enrollment.groupId] != nil),
                 onEditEnrollment: {
                     overlayManager.present(.editEnrollmentFlow) {
                         EditEnrollmentFlowModal(
@@ -314,6 +321,11 @@ struct EnrollmentsListPage: View {
                                 Task { await loadEnrollments() }
                             }
                         )
+                    }
+                },
+                onPreviewStudy: {
+                    if let url = StudyPreview.url(programId: enrollment.studyProgramId) {
+                        studyPreviewItem = IdentifiableURL(url: url)
                     }
                 }
             )

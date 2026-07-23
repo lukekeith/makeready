@@ -35,6 +35,12 @@ struct EnrollmentWithProgram: Codable, Identifiable {
     /// action (monday#12270302158). Absent on cached/older data ⇒ nil ⇒ allowed.
     var canManage: Bool?
 
+    /// Name of the study program's creator (server-computed). When the user
+    /// can't manage this enrollment, the action menu names them so the leader
+    /// knows who made the study and who to contact (monday#12270302158). nil on
+    /// cached/older data.
+    var studyProgramCreatorName: String?
+
     // MARK: - CodingKeys
 
     enum CodingKeys: String, CodingKey {
@@ -48,6 +54,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         case studyProgram
         case isActive
         case canManage
+        case studyProgramCreatorName
     }
 
     // MARK: - Custom Decoder
@@ -91,6 +98,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         studyProgram = try container.decodeIfPresent(StudyProgramSummary.self, forKey: .studyProgram)
         _isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
         canManage = try container.decodeIfPresent(Bool.self, forKey: .canManage)
+        studyProgramCreatorName = try container.decodeIfPresent(String.self, forKey: .studyProgramCreatorName)
     }
 
     // MARK: - Custom Encoder
@@ -118,6 +126,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         try container.encodeIfPresent(studyProgram, forKey: .studyProgram)
         try container.encodeIfPresent(_isActive, forKey: .isActive)
         try container.encodeIfPresent(canManage, forKey: .canManage)
+        try container.encodeIfPresent(studyProgramCreatorName, forKey: .studyProgramCreatorName)
     }
 
     // MARK: - Memberwise Init
@@ -137,7 +146,8 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         updatedAt: Date? = nil,
         studyProgram: StudyProgramSummary? = nil,
         isActive: Bool? = nil,
-        canManage: Bool? = nil
+        canManage: Bool? = nil,
+        studyProgramCreatorName: String? = nil
     ) {
         self.id = id
         self.groupId = groupId
@@ -154,6 +164,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         self.studyProgram = studyProgram
         self._isActive = isActive
         self.canManage = canManage
+        self.studyProgramCreatorName = studyProgramCreatorName
     }
 
     /// Whether the enrollment is active
@@ -402,6 +413,11 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
     /// action (monday#12270302158). nil ⇒ allowed (older/cached data).
     var canManage: Bool?
 
+    /// Name of the study program's creator (server-computed). Names who made
+    /// the study in the action menu when the user can't manage it
+    /// (monday#12270302158). nil on cached/older data.
+    var studyProgramCreatorName: String?
+
     enum CodingKeys: String, CodingKey {
         case id, groupId
         case studyProgramId, programId
@@ -413,6 +429,7 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
         case group
         case isActive
         case canManage
+        case studyProgramCreatorName
     }
 
     init(from decoder: Decoder) throws {
@@ -451,6 +468,7 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
         group = try container.decodeIfPresent(ProgramEnrollmentGroup.self, forKey: .group)
         _isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
         canManage = try container.decodeIfPresent(Bool.self, forKey: .canManage)
+        studyProgramCreatorName = try container.decodeIfPresent(String.self, forKey: .studyProgramCreatorName)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -475,6 +493,7 @@ struct ProgramEnrollment: Codable, Identifiable, Equatable {
         try container.encodeIfPresent(group, forKey: .group)
         try container.encodeIfPresent(_isActive, forKey: .isActive)
         try container.encodeIfPresent(canManage, forKey: .canManage)
+        try container.encodeIfPresent(studyProgramCreatorName, forKey: .studyProgramCreatorName)
     }
 
     /// Whether the enrollment is active

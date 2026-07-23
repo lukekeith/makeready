@@ -1189,6 +1189,10 @@ router.get('/groups/:groupId/enrollments', requireAuth, async (req, res) => {
             description: true,
             days: true,
             coverImageUrl: true,
+            // Program creator's name — so the client can tell a leader who
+            // can't edit this study "created by <name>, contact them for
+            // changes" (monday#12270302158 follow-up).
+            creator: { select: { name: true } },
           },
         },
         _count: {
@@ -1204,6 +1208,7 @@ router.get('/groups/:groupId/enrollments', requireAuth, async (req, res) => {
     const enrollmentsWithPerm = enrollments.map((e) => ({
       ...e,
       canManage: canManage({ createdById: e.createdById, group }),
+      studyProgramCreatorName: e.studyProgram?.creator?.name ?? null,
     }))
 
     res.json({ success: true, enrollments: enrollmentsWithPerm })
@@ -1447,6 +1452,13 @@ router.get('/programs/:programId/enrollments', requireAuth, async (req, res) => 
             },
           },
         },
+        // Program creator's name — so a leader who can't edit this study sees
+        // "created by <name>, contact them for changes" (monday#12270302158).
+        studyProgram: {
+          select: {
+            creator: { select: { name: true } },
+          },
+        },
       },
     })
 
@@ -1457,6 +1469,7 @@ router.get('/programs/:programId/enrollments', requireAuth, async (req, res) => 
     const enrollmentsWithPerm = enrollments.map((e) => ({
       ...e,
       canManage: canManage({ createdById: e.createdById, group: e.group }),
+      studyProgramCreatorName: e.studyProgram?.creator?.name ?? null,
     }))
 
     res.json({ success: true, enrollments: enrollmentsWithPerm })
