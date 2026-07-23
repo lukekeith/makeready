@@ -45,15 +45,27 @@ struct SelectStudyProgramPage: View {
     /// (back) when it's a drilldown of the edit flow (monday#12270302158).
     let leftIcon: String
 
+    /// Right-nav label — "Next" in the create wizard, "Save" when editing an
+    /// existing enrollment's study program.
+    let rightLabel: String
+
+    /// The pre-selected program id (edit flow), so the right button can stay
+    /// disabled until the user actually changes the program. nil in the create
+    /// wizard, where any selection enables the button.
+    let originalSelectedProgramId: String?
+
     init(
         existingEnrollments: [EnrollmentWithProgram]? = nil,
         leftIcon: String = "xmark",
+        rightLabel: String = "Next",
         initialSelectedProgramId: String? = nil,
         onClose: @escaping () -> Void,
         onNext: @escaping (StudyProgram) -> Void
     ) {
         self.existingEnrollments = existingEnrollments
         self.leftIcon = leftIcon
+        self.rightLabel = rightLabel
+        self.originalSelectedProgramId = initialSelectedProgramId
         self.onClose = onClose
         self.onNext = onNext
 
@@ -106,8 +118,10 @@ struct SelectStudyProgramPage: View {
                 PageTitle.iconTitleLink(
                     title: "Select Program",
                     leftIcon: leftIcon,
-                    rightLink: "Next",
-                    rightLinkDisabled: selectedProgramId == nil,
+                    rightLink: rightLabel,
+                    // Disabled until a program is chosen AND (when editing) it
+                    // actually differs from the enrollment's current program.
+                    rightLinkDisabled: selectedProgramId == nil || selectedProgramId == originalSelectedProgramId,
                     onLeftIconTap: onClose,
                     onRightLinkTap: {
                         if let program = selectedProgram {

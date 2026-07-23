@@ -267,6 +267,16 @@ enum BlackoutDragMode {
     case removing  // Removing blackout dates
 }
 
+/// Ghost fill drawn behind a day to show the enrollment's *current* schedule
+/// while picking a new one, so the leader can see what's there today.
+enum ScheduleGhostKind {
+    case none
+    /// Today or later: this lesson WILL be moved by the reschedule → soft white.
+    case future
+    /// Before today: already delivered, will NOT be moved → distinct yellow.
+    case past
+}
+
 // MARK: - Week Highlight Structures
 
 /// Direction of highlight travel animation
@@ -634,10 +644,21 @@ class EnrollDayCell: UICollectionViewCell {
 
     private let circleSize: CGFloat = 45
     private let overrideCircleSize: CGFloat = 36
+    private let ghostSize: CGFloat = 40
     private let maxDots: Int = 3
     private let dotSize: CGFloat = 5
 
     // MARK: - UI Elements
+
+    /// Ghost fill behind the day showing the enrollment's CURRENT schedule while
+    /// a new one is being picked (persists regardless of the new selection).
+    private let scheduleGhostView: UIView = {
+        let view = UIView()
+        view.backgroundColor = .clear
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.isHidden = true
+        return view
+    }()
 
     private let circleView: UIView = {
         let view = UIView()
@@ -710,6 +731,8 @@ class EnrollDayCell: UICollectionViewCell {
     private func setupViews() {
         contentView.backgroundColor = .clear
 
+        // Added first → sits behind the circles, label, and dots.
+        contentView.addSubview(scheduleGhostView)
         contentView.addSubview(circleView)
         contentView.addSubview(overrideAddedCircle)
         contentView.addSubview(overrideRemovedCircle)
@@ -729,6 +752,12 @@ class EnrollDayCell: UICollectionViewCell {
         }
 
         NSLayoutConstraint.activate([
+            // Schedule ghost - centered rounded square behind everything
+            scheduleGhostView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
+            scheduleGhostView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
+            scheduleGhostView.widthAnchor.constraint(equalToConstant: ghostSize),
+            scheduleGhostView.heightAnchor.constraint(equalToConstant: ghostSize),
+
             // Circle for start/end - centered
             circleView.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             circleView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
@@ -760,10 +789,29 @@ class EnrollDayCell: UICollectionViewCell {
 
     // MARK: - Configuration
 
-    func configure(with day: SplitCalendarDay, state: EnrollDayCellState, hasExistingLessons: Bool = false) {
+    func configure(
+        with day: SplitCalendarDay,
+        state: EnrollDayCellState,
+        hasExistingLessons: Bool = false,
+        scheduleGhost: ScheduleGhostKind = .none
+    ) {
         self.day = day
         self.cellState = state
         self.hasExistingLessons = hasExistingLessons
+
+        // Current-schedule ghost (behind everything). Stays put regardless of
+        // the new selection so the leader can see the existing schedule; past
+        // lessons get a distinct color since they won't be moved.
+        switch scheduleGhost {
+        case .none:
+            scheduleGhostView.isHidden = true
+        case .future:
+            scheduleGhostView.isHidden = false
+            scheduleGhostView.backgroundColor = UIColor.white.withAlphaComponent(0.10)
+        case .past:
+            scheduleGhostView.isHidden = false
+            scheduleGhostView.backgroundColor = UIColor.systemYellow.withAlphaComponent(0.22)
+        }
 
         // Day number
         dayLabel.text = "\(day.dayNumber)"
@@ -845,6 +893,7 @@ class EnrollDayCell: UICollectionViewCell {
         circleView.layer.cornerRadius = circleSize / 2
         overrideAddedCircle.layer.cornerRadius = overrideCircleSize / 2
         overrideRemovedCircle.layer.cornerRadius = overrideCircleSize / 2
+        scheduleGhostView.layer.cornerRadius = ghostSize / 2
     }
 
     // MARK: - Reuse
@@ -855,6 +904,7 @@ class EnrollDayCell: UICollectionViewCell {
         cellState = .normal
         hasExistingLessons = false
         dayLabel.text = nil
+        scheduleGhostView.isHidden = true
         circleView.isHidden = true
         overrideAddedCircle.isHidden = true
         overrideRemovedCircle.isHidden = true
@@ -1281,6 +1331,9 @@ class EnrollCalendarController: UIViewController {
     weak var enrollmentState: EnrollmentDateState?
     var enabledDays: Set<Int> = [1, 2, 3, 4, 5]
     var existingLessonDates: Set<Date> = []  // Dates with existing lessons from active enrollments
+    /// This enrollment's CURRENT scheduled lesson dates, rendered as a ghost so
+    /// the leader can see the existing schedule while picking a new one.
+    var currentScheduleDates: Set<Date> = []
 
     /// Track the previous start date to detect changes and trigger animation
     private var previousStartDate: Date?
@@ -1380,7 +1433,14 @@ class EnrollCalendarController: UIViewController {
             let calendar = Calendar.current
             let dayStart = calendar.startOfDay(for: day.date)
             let hasExistingLessons = self.existingLessonDates.contains(dayStart)
-            cell.configure(with: day, state: state, hasExistingLessons: hasExistingLessons)
+            // Classify the current-schedule ghost: past lessons won't be moved.
+            let ghost: ScheduleGhostKind
+            if self.currentScheduleDates.contains(dayStart) {
+                ghost = dayStart < calendar.startOfDay(for: Date()) ? .past : .future
+            } else {
+                ghost = .none
+            }
+            cell.configure(with: day, state: state, hasExistingLessons: hasExistingLessons, scheduleGhost: ghost)
 
             return cell
         }
@@ -2029,6 +2089,7 @@ extension EnrollCalendarController: UICollectionViewDelegate {
 struct EnrollCalendarRepresentable: UIViewControllerRepresentable {
     @ObservedObject var state: EnrollmentDateState
     var existingLessonDates: Set<Date> = []
+    var currentScheduleDates: Set<Date> = []
     var onOverrideDayTapped: ((Date) -> Void)?
     var onRegularDayTapped: ((Date) -> Void)?
 
@@ -2037,6 +2098,7 @@ struct EnrollCalendarRepresentable: UIViewControllerRepresentable {
         controller.enrollmentState = state
         controller.enabledDays = state.enabledDays
         controller.existingLessonDates = existingLessonDates
+        controller.currentScheduleDates = currentScheduleDates
 
         controller.onDayTapped = { day in
             // Check if this day has an override
@@ -2060,6 +2122,7 @@ struct EnrollCalendarRepresentable: UIViewControllerRepresentable {
         controller.enrollmentState = state
         controller.enabledDays = state.enabledDays
         controller.existingLessonDates = existingLessonDates
+        controller.currentScheduleDates = currentScheduleDates
         controller.reloadData()
         // Check if start date changed and trigger highlight flash
         controller.checkForStartDateChange()
@@ -2097,6 +2160,7 @@ struct SelectEnrollDatePage: View {
     let lessonCount: Int
     let config: SelectEnrollDateConfig
     let existingLessonDates: Set<Date>  // Dates with existing lessons from active enrollments
+    let currentScheduleDates: Set<Date>  // This enrollment's CURRENT schedule (ghosted while editing)
     let onDismiss: () -> Void
     let onSelect: ((Date, Date, Set<Int>) -> Void)?
 
@@ -2198,12 +2262,14 @@ struct SelectEnrollDatePage: View {
         lessonCount: Int = 30,
         config: SelectEnrollDateConfig = .default,
         existingLessonDates: Set<Date> = [],
+        currentScheduleDates: Set<Date> = [],
         onDismiss: @escaping () -> Void = {},
         onSelect: ((Date, Date, Set<Int>) -> Void)? = nil
     ) {
         self.lessonCount = lessonCount
         self.config = config
         self.existingLessonDates = existingLessonDates
+        self.currentScheduleDates = currentScheduleDates
         self.onDismiss = onDismiss
         self.onSelect = onSelect
         self.useExternalState = false
@@ -2217,12 +2283,14 @@ struct SelectEnrollDatePage: View {
         state: EnrollmentDateState,
         config: SelectEnrollDateConfig = .enrollmentFlow,
         existingLessonDates: Set<Date> = [],
+        currentScheduleDates: Set<Date> = [],
         onDismiss: @escaping () -> Void = {},
         onSelect: ((Date, Date, Set<Int>) -> Void)? = nil
     ) {
         self.lessonCount = state.lessonCount
         self.config = config
         self.existingLessonDates = existingLessonDates
+        self.currentScheduleDates = currentScheduleDates
         self.onDismiss = onDismiss
         self.onSelect = onSelect
         self.useExternalState = true
@@ -2255,6 +2323,7 @@ struct SelectEnrollDatePage: View {
                 EnrollCalendarRepresentable(
                     state: state,
                     existingLessonDates: existingLessonDates,
+                    currentScheduleDates: currentScheduleDates,
                     onOverrideDayTapped: { date in
                         tappedOverrideDate = date
                         showOverrideConfirmation = true

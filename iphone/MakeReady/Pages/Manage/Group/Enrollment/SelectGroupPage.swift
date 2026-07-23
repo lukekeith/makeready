@@ -28,15 +28,27 @@ struct SelectGroupPage: View {
     /// (monday#12270302158).
     let leftIcon: String
 
+    /// Right-nav label — "Next" in the create wizard, "Save" when editing an
+    /// existing enrollment's group.
+    let rightLabel: String
+
+    /// The pre-selected group id (edit flow), so the right button can stay
+    /// disabled until the user actually changes the group. nil in the create
+    /// wizard, where any selection enables the button.
+    let originalSelectedGroupId: String?
+
     init(
         enrolledGroupIds: Set<String> = [],
         leftIcon: String = "xmark",
+        rightLabel: String = "Next",
         initialSelectedGroupId: String? = nil,
         onClose: @escaping () -> Void,
         onNext: @escaping (UserGroup) -> Void
     ) {
         self.enrolledGroupIds = enrolledGroupIds
         self.leftIcon = leftIcon
+        self.rightLabel = rightLabel
+        self.originalSelectedGroupId = initialSelectedGroupId
         self.onClose = onClose
         self.onNext = onNext
 
@@ -85,8 +97,10 @@ struct SelectGroupPage: View {
                 PageTitle.iconTitleLink(
                     title: "Select Group",
                     leftIcon: leftIcon,
-                    rightLink: "Next",
-                    rightLinkDisabled: selectedGroupId == nil,
+                    rightLink: rightLabel,
+                    // Disabled until a group is chosen AND (when editing) it
+                    // actually differs from the enrollment's current group.
+                    rightLinkDisabled: selectedGroupId == nil || selectedGroupId == originalSelectedGroupId,
                     onLeftIconTap: onClose,
                     onRightLinkTap: {
                         if let group = selectedGroup {

@@ -33,6 +33,21 @@ struct EditEnrollmentFlowModal: View {
 
     private var state: AppState { AppState.shared }
 
+    /// This enrollment's CURRENT scheduled lesson dates, ghosted on the date
+    /// picker. **Computed from AppState so it's reactive**: it reads the real
+    /// per-lesson dates from the local store (the enrollment list payload omits
+    /// `enabledDays`/schedules, so these arrive asynchronously via
+    /// `getEnrollmentDetails`) and re-renders the moment they land; until then
+    /// it falls back to a schedule computed from the enrollment's own start
+    /// date + enabled weekdays. Past dates render distinctly (they won't move).
+    private var currentScheduleDates: Set<Date> {
+        let calendar = Calendar.current
+        if let details = state.enrollmentDetailsById[model.enrollmentId], !details.lessonSchedules.isEmpty {
+            return Set(details.lessonSchedules.map { calendar.startOfDay(for: $0.scheduledDate) })
+        }
+        return computeCurrentScheduleDates()
+    }
+
     init(enrollment: EnrollmentWithProgram, onDismiss: @escaping () -> Void, onSaved: @escaping () -> Void) {
         self.enrollment = enrollment
         self.onDismiss = onDismiss
@@ -40,7 +55,9 @@ struct EditEnrollmentFlowModal: View {
         let m = EnrollmentEditModel(enrollment: enrollment)
         _model = State(initialValue: m)
         let ds = EnrollmentDateState(lessonCount: max(enrollment.studyProgram?.days ?? 1, 1))
-        ds.startDate = m.startDate
+        // Intentionally NOT seeding ds.startDate: the current schedule is shown
+        // as a faint ghost, so the bold purple selection stays empty until the
+        // user actually picks a new start (see openDates()).
         ds.enabledDays = m.enabledDays
         _dateState = State(initialValue: ds)
     }
@@ -102,6 +119,42 @@ struct EditEnrollmentFlowModal: View {
         if resolvedGroup == nil || resolvedProgram == nil {
             await MainActor.run { loadFailed = true }
         }
+        // Pull the full schedule into the local store so the date-picker ghost
+        // shows the real per-lesson dates. `currentScheduleDates` reads this
+        // reactively, so the ghost appears the moment it lands — no reopen.
+        // Console-only on failure — the ghost falls back to the computed schedule.
+        if state.enrollmentDetailsById[model.enrollmentId] == nil {
+            do {
+                _ = try await EnrollmentActions().getEnrollmentDetails(id: model.enrollmentId)
+            } catch {
+                AppState.shared.recordError(error, context: "EditEnrollmentFlowModal.loadDetails")
+            }
+        }
+    }
+
+    /// Walk the enrollment's own start date forward over its enabled weekdays,
+    /// one date per lesson, mirroring the server's schedule walk. Approximate:
+    /// it doesn't reflect manual per-day overrides, but it's a reliable ghost
+    /// when the authoritative lesson schedule can't be fetched.
+    private func computeCurrentScheduleDates() -> Set<Date> {
+        // Use the ORIGINAL schedule (not the mutable current values) so the ghost
+        // always represents what's scheduled today, even after the user edits.
+        let enabled = model.originalEnabledDays
+        let count = max(resolvedProgram?.days ?? enrollment.studyProgram?.days ?? 1, 1)
+        guard !enabled.isEmpty, count > 0 else { return [] }
+        let calendar = Calendar.current
+        var cursor = calendar.startOfDay(for: model.originalStartDate)
+        var dates: Set<Date> = []
+        var iterations = 0
+        while dates.count < count, iterations < count * 10 {
+            if enabled.contains(calendar.component(.weekday, from: cursor) - 1) {
+                dates.insert(cursor)
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            cursor = next
+            iterations += 1
+        }
+        return dates
     }
 
     // MARK: - Root
@@ -164,6 +217,7 @@ struct EditEnrollmentFlowModal: View {
                 state: dateState,
                 config: .editEnrollmentFlow,
                 existingLessonDates: [],
+                currentScheduleDates: currentScheduleDates,
                 onDismiss: { drilldown = nil },
                 onSelect: { start, _, enabledDays in
                     model.startDate = start
@@ -178,6 +232,7 @@ struct EditEnrollmentFlowModal: View {
             SelectGroupPage(
                 enrolledGroupIds: [],
                 leftIcon: "chevron.left",
+                rightLabel: "Save",
                 initialSelectedGroupId: model.groupId,
                 onClose: { drilldown = nil },
                 onNext: { group in
@@ -188,9 +243,13 @@ struct EditEnrollmentFlowModal: View {
             )
 
         case .study:
+            // `[]` (not nil) = "enrollment data loaded, nothing blocking" — so
+            // programs are selectable. nil means "not loaded yet" and disables
+            // every card, which muted the whole list here.
             SelectStudyProgramPage(
-                existingEnrollments: nil,
+                existingEnrollments: [],
                 leftIcon: "chevron.left",
+                rightLabel: "Save",
                 initialSelectedProgramId: model.studyProgramId,
                 onClose: { drilldown = nil },
                 onNext: { program in
@@ -207,7 +266,12 @@ struct EditEnrollmentFlowModal: View {
     private func openDates() {
         let count = max(resolvedProgram?.days ?? enrollment.studyProgram?.days ?? 1, 1)
         let ds = EnrollmentDateState(lessonCount: count)
-        ds.startDate = model.startDate
+        // Only pre-select (bold purple) once the user has actually changed the
+        // schedule — on first open, leave it empty so the faint current-schedule
+        // ghost is visible instead of being buried under the purple selection.
+        if model.scheduleChanged {
+            ds.startDate = model.startDate
+        }
         ds.enabledDays = model.enabledDays
         dateState = ds
         dateStateVersion += 1
