@@ -118,7 +118,11 @@ struct LoginView: View {
             } catch {
                 print("❌ Sign in error: \(error.localizedDescription)")
                 await MainActor.run {
-                    errorMessage = "Sign in failed. Please try again."
+                    // Surface the specific reason when we have one (e.g. the
+                    // Local dev server is unreachable) instead of a generic
+                    // "try again" that hides a wrong Server IP.
+                    errorMessage = (error as? AuthError)?.errorDescription
+                        ?? "Sign in failed. Please try again."
                     isLoading = false
                 }
             }

@@ -204,17 +204,7 @@ struct Configuration {
 
         switch selectedEnvironment {
         case .local:
-            #if targetEnvironment(simulator)
-            if let base = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
-               !base.isEmpty {
-                return base
-            }
-            return "http://127.0.0.1:\(localAPIPort)"
-            #else
-            // Physical device — use the IP/port configured on the Profile screen
-            // (falls back to defaultLocalIP when unset).
-            return "http://\(localServerIP ?? defaultLocalIP):\(localAPIPort)"
-            #endif
+            return localAPIBaseURL
 
         case .staging:
             return "https://staging.api.makeready.org"
@@ -222,6 +212,22 @@ struct Configuration {
         case .production:
             return "https://api.makeready.org"
         }
+    }
+
+    /// The Local API base URL resolved from the entered IP/port, **independent
+    /// of the currently-selected environment**. Simulator → loopback; device →
+    /// the Profile-screen IP. Lets the Profile screen preview + "Test
+    /// connection" validate Local before actually switching to it.
+    static var localAPIBaseURL: String {
+        #if targetEnvironment(simulator)
+        if let base = Bundle.main.object(forInfoDictionaryKey: "API_BASE_URL") as? String,
+           !base.isEmpty {
+            return base
+        }
+        return "http://127.0.0.1:\(localAPIPort)"
+        #else
+        return "http://\(localServerIP ?? defaultLocalIP):\(localAPIPort)"
+        #endif
     }
 
     /// Base URL for the web client (Laravel), used for preview URLs, deep links, etc.
@@ -232,13 +238,7 @@ struct Configuration {
 
         switch selectedEnvironment {
         case .local:
-            #if targetEnvironment(simulator)
-            return "http://localhost:\(localClientPort)"
-            #else
-            // Physical device — use the IP/port configured on the Profile screen
-            // (falls back to defaultLocalIP when unset).
-            return "http://\(localServerIP ?? defaultLocalIP):\(localClientPort)"
-            #endif
+            return localClientBaseURL
 
         case .staging:
             return "https://staging.app.makeready.org"
@@ -246,6 +246,17 @@ struct Configuration {
         case .production:
             return "https://app.makeready.org"
         }
+    }
+
+    /// The Local web-client base URL resolved from the entered IP/port,
+    /// **independent of the currently-selected environment** (see
+    /// `localAPIBaseURL`). Simulator → loopback; device → the Profile-screen IP.
+    static var localClientBaseURL: String {
+        #if targetEnvironment(simulator)
+        return "http://localhost:\(localClientPort)"
+        #else
+        return "http://\(localServerIP ?? defaultLocalIP):\(localClientPort)"
+        #endif
     }
 
     /// Whether the app is using local development server

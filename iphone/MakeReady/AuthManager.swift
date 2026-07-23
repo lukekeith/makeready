@@ -24,6 +24,19 @@ struct User: Codable {
     var avatarURL: String? { picture }
 }
 
+/// Authentication-flow errors surfaced to the user.
+enum AuthError: LocalizedError {
+    /// The selected Local dev server didn't answer at the configured host/port.
+    case localServerUnreachable(host: String, port: String)
+
+    var errorDescription: String? {
+        switch self {
+        case let .localServerUnreachable(host, port):
+            return "Can't reach the local server at \(host):\(port). Check the Server IP in your profile."
+        }
+    }
+}
+
 // Authentication state manager
 @Observable
 class AuthManager: NSObject {
@@ -81,7 +94,7 @@ class AuthManager: NSObject {
     /// OAuth otherwise.
     @MainActor
     func signIn() async throws {
-        await resolveLoginEnvironment()
+        try await resolveLoginEnvironment()
 
         if Configuration.isLocalDevelopment {
             try await devLogin(email: Self.devLoginEmail)
@@ -90,14 +103,15 @@ class AuthManager: NSObject {
         }
     }
 
-    /// If the user picked Local, verify it's up before we commit the login to
-    /// it. `LocalPortHealer` probes `/health` (and adopts a moved dev port).
-    /// If nothing answers as a MakeReady server, switch the *active*
-    /// environment to Production so the whole app — auth and the data loads
-    /// that follow — targets a reachable backend. No-op for non-dev builds and
-    /// non-Local selections, where there is nothing to fall back from.
+    /// If the user picked Local, verify it's reachable before committing the
+    /// login to it. `LocalPortHealer` probes `/health` (and adopts a moved dev
+    /// port). If nothing answers, we **no longer silently switch to Production**
+    /// — that hid the real problem (usually a wrong Server IP) and bounced the
+    /// user between environments. Instead we throw so the login screen surfaces
+    /// a clear, actionable error and the user's Local selection is preserved.
+    /// No-op for non-dev builds and non-Local selections.
     @MainActor
-    private func resolveLoginEnvironment() async {
+    private func resolveLoginEnvironment() async throws {
         guard Configuration.devMode, Configuration.selectedEnvironment == .local else {
             return
         }
@@ -107,13 +121,9 @@ class AuthManager: NSObject {
             // Local is reachable (port healed if it had moved) — stay on Local.
             return
         case .notFound, .skipped:
-            Log.auth.info("Local server unreachable at login — falling back to Production")
-            // Flush Local's snapshot to its environment-scoped file, switch,
-            // then swap caches to Production's snapshot (mirrors the manual
-            // environment switch on the Profile screen).
-            AppState.shared.persistImmediately()
-            Configuration.selectedEnvironment = .production
-            AppState.shared.reloadForEnvironmentSwitch()
+            let host = Configuration.localServerIP ?? Configuration.defaultLocalIP
+            Log.auth.info("Local server unreachable at login")
+            throw AuthError.localServerUnreachable(host: host, port: Configuration.localAPIPort)
         }
     }
 
@@ -431,6 +441,34 @@ class AuthManager: NSObject {
         self.currentUser = user
         self.isAuthenticated = true
         print("✅ Dev login: authenticated as \(user.name)")
+    }
+
+    // MARK: - Environment Switch (Local)
+
+    /// Silent, non-interactive sign-in for a **reachable** Local server. Local
+    /// uses passwordless dev-login, so this brings the user into the app
+    /// without the login screen: it reuses a still-valid Local session, or
+    /// dev-logs-in fresh. Returns whether the user ended up authenticated.
+    ///
+    /// On failure it does NOT force the login screen — the caller is expected
+    /// to recover (roll the environment switch back and re-validate), so a
+    /// failed Local connect never strands the user or silently changes their
+    /// environment.
+    @MainActor
+    func signInToReachableLocal() async -> Bool {
+        // Reuse a still-valid Local session if one exists.
+        if hasSessionCookie {
+            await checkAuthStatus()
+            if isAuthenticated { return true }
+            // Stale/expired Local session — fall through to a fresh dev-login.
+        }
+        do {
+            try await devLogin(email: Self.devLoginEmail)
+            return true
+        } catch {
+            Log.auth.error("auto dev-login on switch failed: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
     }
 
     // MARK: - Persistence
