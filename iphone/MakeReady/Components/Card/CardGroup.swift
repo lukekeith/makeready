@@ -57,8 +57,14 @@ struct CardGroup: View {
             }
             .padding(16)
             .frame(height: 104)  // 72 + 16*2 padding
-            .background(Color.cardBackground)
+            // Selected style consistent with CardStudySelectable: tinted
+            // background + brand-primary border (the image keeps its checkmark).
+            .background(data.isSelected ? Color.backgroundPurple : Color.cardBackground)
             .cornerRadius(cornerRadius)
+            .overlay(
+                RoundedRectangle(cornerRadius: cornerRadius)
+                    .stroke(data.isSelected ? Color.brandPrimary : Color.clear, lineWidth: 2)
+            )
         }
         .buttonStyle(.plain)
     }
