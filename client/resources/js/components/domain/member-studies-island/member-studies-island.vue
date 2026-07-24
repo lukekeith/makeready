@@ -13,6 +13,9 @@ interface StudyLessonInput {
   scheduledDate?: string | null
   completedAt?: string | null
   estimatedMinutes?: number | null
+  // Server-reported count of scheduled activities. A lesson with 0 activities has
+  // nothing to complete, so it's treated as vacuously done (monday#12268464531).
+  activityCount?: number | null
   href?: string | null
 }
 interface Study {
@@ -46,11 +49,20 @@ function daysAgo(l: StudyLessonInput): number {
   return Math.max(0, daysBetween(new Date(l.scheduledDate), today))
 }
 
+/** A lesson counts as done if it has a completion timestamp OR has no activities
+ *  at all — a zero-activity lesson has nothing to complete, so it's vacuously
+ *  done rather than stranding the member on a perpetual INCOMPLETE
+ *  (monday#12268464531). activityCount is null when unreported (fixtures) — only
+ *  an explicit 0 triggers the vacuous-complete path. */
+function isComplete(l: StudyLessonInput): boolean {
+  return !!l.completedAt || l.activityCount === 0
+}
+
 /** First not-yet-completed lesson in schedule order; falls back to the last
  *  lesson when every lesson is complete. */
 function nextLesson(lessons: StudyLessonInput[]): StudyLessonInput | null {
   if (!lessons.length) return null
-  return lessons.find((l) => !l.completedAt) ?? lessons[lessons.length - 1]
+  return lessons.find((l) => !isComplete(l)) ?? lessons[lessons.length - 1]
 }
 
 /** Adapt a group-home lesson into the StudyLesson shape LessonCard expects
@@ -85,7 +97,7 @@ function badgeFor(complete: boolean, overdue: boolean): Badge {
 // it has a completion timestamp.
 function completionOf(lessons: StudyLessonInput[]): { completed: number; total: number; fraction: number } {
   const total = lessons.length
-  const completed = lessons.filter((l) => l.completedAt).length
+  const completed = lessons.filter(isComplete).length
   return { completed, total, fraction: total ? completed / total : 0 }
 }
 
@@ -95,7 +107,7 @@ const cards = computed(() =>
     const raw = nextLesson(study.lessons)
     if (!raw) return { study, lesson: null as StudyLesson | null, state: 'incomplete' as LessonState, daysUntil: 0, badge: { label: null, variant: 'next' } as Badge, href: null as string | null, completed, total, fraction }
     const available = isAvailable(raw)
-    const complete = !!raw.completedAt
+    const complete = isComplete(raw)
     const ago = daysAgo(raw)
     // Available, unlocked in the past, and still not done → overdue.
     const overdue = available && !complete && ago > 0

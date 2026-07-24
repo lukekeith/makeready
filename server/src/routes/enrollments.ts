@@ -800,7 +800,7 @@ router.get('/groups/:groupId/study-enrollment', async (req, res) => {
       studyTitle: enrollment.studyProgram.name,
       studyDescription: enrollment.studyProgram.description || '',
       coverImageUrl: enrollment.studyProgram.coverImageUrl,
-      totalLessons: enrollment.studyProgram.days,
+      totalLessons: enrollment.lessonSchedules.length,
       completedLessons: completionMap.size,
       firstDate: enrollment.startDate.toISOString(),
       lastDate: enrollment.endDate.toISOString(),
@@ -893,6 +893,9 @@ router.get('/groups/:groupId/study-enrollments', async (req, res) => {
           orderBy: { scheduledDate: 'asc' },
           include: {
             lesson: { select: { id: true, dayNumber: true, title: true } },
+            // Count of scheduled activities per lesson — lets the member group-home
+            // treat a zero-activity lesson as vacuously complete (monday#12268464531).
+            _count: { select: { scheduledActivities: true } },
           },
         },
       },
@@ -929,7 +932,7 @@ router.get('/groups/:groupId/study-enrollments', async (req, res) => {
           studyTitle: enrollment.studyProgram.name,
           studyDescription: enrollment.studyProgram.description || '',
           coverImageUrl: enrollment.studyProgram.coverImageUrl,
-          totalLessons: enrollment.studyProgram.days,
+          totalLessons: enrollment.lessonSchedules.length,
           completedLessons: completionMap.size,
           lessons: enrollment.lessonSchedules.map(ls => ({
             id: ls.id,
@@ -937,6 +940,7 @@ router.get('/groups/:groupId/study-enrollments', async (req, res) => {
             title: ls.lesson?.title || ls.title || `Day ${ls.lesson?.dayNumber ?? 0}`,
             scheduledDate: ls.scheduledDate.toISOString(),
             completedAt: completionMap.get(ls.id)?.toISOString() || undefined,
+            activityCount: ls._count.scheduledActivities,
           })),
         }
       })
@@ -1084,7 +1088,7 @@ router.get('/groups/:groupId/study-enrollment/:enrollmentId', async (req, res) =
       studyTitle: enrollment.studyProgram.name,
       studyDescription: enrollment.studyProgram.description || '',
       coverImageUrl: enrollment.studyProgram.coverImageUrl,
-      totalLessons: enrollment.studyProgram.days,
+      totalLessons: enrollment.lessonSchedules.length,
       completedLessons: completionMap.size,
       firstDate: enrollment.startDate.toISOString(),
       lastDate: enrollment.endDate.toISOString(),

@@ -50,6 +50,9 @@
                 'scheduledDate'    => $l['scheduledDate'] ?? null,
                 'completedAt'      => $l['completedAt'] ?? null,
                 'estimatedMinutes' => $l['estimatedMinutes'] ?? null,
+                // Null when the source doesn't report it (fixtures); only an explicit
+                // 0 marks a zero-activity lesson as vacuously complete in the island.
+                'activityCount'    => $l['activityCount'] ?? null,
                 'href'             => route('lesson.show', ['groupId' => $groupId, 'lessonScheduleId' => $l['id'], 'step' => 1]),
             ];
         }
