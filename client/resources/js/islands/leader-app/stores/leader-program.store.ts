@@ -692,7 +692,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
   }
 
   async function loadProgramEnrollments(programId: string): Promise<
-    Array<{ id: string; name: string; subtitle?: string; imageUrl?: string; dateRange: string }>
+    Array<{ id: string; name: string; subtitle?: string; imageUrl?: string; dateRange: string; isActive: boolean }>
   > {
     const res = await axios.get(`/admin/api/programs/${programId}/enrollments`)
     const raw: Array<{
@@ -705,12 +705,16 @@ export const useLeaderProgram = defineStore('leader-program', () => {
         creator?: { name?: string | null } | null
       } | null
     }> = res.data?.enrollments ?? []
+    const now = Date.now()
     return raw.map((e) => ({
       id: e.id,
       name: e.group?.name ?? 'Unknown Group',
       subtitle: e.group?.creator?.name ?? undefined,
       imageUrl: e.group?.coverImageUrl ?? undefined,
       dateRange: enrollmentDateRange(e.startDate, e.endDate),
+      // Active = end date still in the future (the enrollment has no isActive
+      // column; mirrors iOS ProgramEnrollment.isActive) (monday#12268464531).
+      isActive: e.endDate ? new Date(e.endDate).getTime() > now : true,
     }))
   }
 

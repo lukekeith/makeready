@@ -135,6 +135,9 @@ struct ProgramHomePage: View {
     @State private var showPublishDialog = false
     @State private var showDraftAlert = false
     @State private var showPublishBlockedAlert = false
+    // Switching a published study to draft while groups are enrolled: confirm
+    // first, explaining that enrolled groups keep their lessons (monday#12268464531).
+    @State private var showSwitchToDraftConfirm = false
 
     // Publish updates (study sync). Tapping the Published badge kicks off a
     // read-only preview fetch; the "Published study" dialog opens immediately
@@ -187,6 +190,10 @@ struct ProgramHomePage: View {
         .task {
             // Trigger data load via Actions - AppState updates, view re-renders
             await loadProgramData()
+            // Enrollments back the switch-to-draft confirm's count, so load them
+            // on open (cache-first) rather than only when the Enrollments tab is
+            // visited (monday#12268464531).
+            await loadEnrollments()
         }
     }
 
@@ -585,7 +592,13 @@ struct ProgramHomePage: View {
                             publishUpdates(programId: program.id)
                         },
                         DialogButtonConfig("Switch to Draft", style: .secondary) {
-                            togglePublishStatus(programId: program.id, publish: false)
+                            // If any group is currently enrolled, confirm first and
+                            // explain the effect; otherwise switch to draft directly.
+                            if enrollments.contains(where: { $0.isActive }) {
+                                showSwitchToDraftConfirm = true
+                            } else {
+                                togglePublishStatus(programId: program.id, publish: false)
+                            }
                         },
                         DialogButtonConfig("Cancel", style: .secondary) {}
                     ]
@@ -595,6 +608,21 @@ struct ProgramHomePage: View {
                         },
                         DialogButtonConfig("Cancel", style: .secondary) {}
                     ]
+            )
+        }
+        .overlay {
+            // Explain-only confirm before switching a study with enrolled groups
+            // back to draft — no cascade, no kick-out (monday#12268464531).
+            DialogOverlay(
+                isPresented: $showSwitchToDraftConfirm,
+                title: "Switch to draft?",
+                message: switchToDraftMessage,
+                buttons: [
+                    DialogButtonConfig("Switch to Draft", style: .primary) {
+                        togglePublishStatus(programId: program.id, publish: false)
+                    },
+                    DialogButtonConfig("Cancel", style: .secondary) {}
+                ]
             )
         }
         .fullScreenCover(item: $previewItem) { item in
@@ -869,6 +897,15 @@ struct ProgramHomePage: View {
             return "Publish your latest edits to enrolled groups as a new version, or switch this study back to draft."
         }
         return "Checking for changes since the last publish…"
+    }
+
+    /// Explain-only copy for the switch-to-draft confirm: enrolled groups keep
+    /// their scheduled lessons; only new enrollments are affected. Pluralized on
+    /// the active-enrollment count (monday#12268464531).
+    private var switchToDraftMessage: String {
+        let count = enrollments.filter { $0.isActive }.count
+        let groups = count == 1 ? "1 group is" : "\(count) groups are"
+        return "\(groups) currently enrolled. Switching to draft removes this study from new enrollments. Groups already enrolled keep their scheduled lessons — they are not removed."
     }
 
     /// Kicked off as the badge dialog opens — loads the read-only diff that

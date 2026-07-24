@@ -332,6 +332,26 @@ async function onPublishedBadgeTap(): Promise<void> {
   }
   dialog.close()
   if (choice !== 1) return
+  // Explain what switching to draft means for enrolled groups before doing it —
+  // no cascade, no kick-out (monday#12268464531). The count is lazy-loaded, so
+  // fetch on demand; a failed or zero count simply skips the notice.
+  let activeEnrolled = 0
+  try {
+    activeEnrolled = (await store.loadProgramEnrollments(p.id)).filter((e) => e.isActive).length
+  } catch {
+    activeEnrolled = 0
+  }
+  if (activeEnrolled > 0) {
+    const proceed = await confirmDialog.confirm({
+      title: `Switch "${p.name}" to draft?`,
+      message: switchToDraftMessage(activeEnrolled),
+      buttons: [
+        { label: 'Switch to Draft', style: 'primary' },
+        { label: 'Cancel', style: 'secondary' },
+      ],
+    })
+    if (proceed !== 0) return
+  }
   togglingPublish.value = true
   try {
     await store.setPublished(p.id, false)
@@ -340,6 +360,13 @@ async function onPublishedBadgeTap(): Promise<void> {
   } finally {
     togglingPublish.value = false
   }
+}
+
+// Explain-only copy for the switch-to-draft confirm, pluralized on the active
+// enrollment count (monday#12268464531).
+function switchToDraftMessage(n: number): string {
+  const groups = n === 1 ? '1 group is' : `${n} groups are`
+  return `${groups} currently enrolled. Switching to draft removes this study from new enrollments. Groups already enrolled keep their scheduled lessons — they are not removed.`
 }
 
 // Condensed preview: last-published line, a count matrix ("2 changed ·
