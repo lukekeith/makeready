@@ -43,7 +43,7 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 |---|---|
 | 12325580210 UX change needed | CF-1, UX-6 |
 | 12344861586 UX update please | CF-2, UX-1, UX-2, UX-4, UX-8 |
-| 12268464531 publishing toggle error | ~~CF-3~~ (fixed `539cebe` 2026-07-23), CF-6, UX-9 |
+| 12268464531 publishing toggle error | ~~CF-3~~ (fixed `539cebe`), ~~CF-6~~/~~UX-9~~ (explain-only switch-to-draft confirm, 2026-07-23) |
 | 12415690223 member - error | CF-4 |
 | 12268576962 calendar breaks when unpublishing | CF-5 |
 | 12344966891 UI not updating | CF-4, CF-7 |
