@@ -1,5 +1,5 @@
 ---
-description: Summarize all changes since the last Xcode archive into docs/progress for iPhone release notes
+description: Summarize all changes since the last Xcode archive into docs/progress for iPhone release notes, then also emit the TestFlight "What to Test" prose summary
 ---
 
 Generate iPhone release notes for the QA team covering everything changed since
@@ -37,6 +37,15 @@ Run from the monorepo root (`/Users/lukekeith/www/makeready`).
 4. **Write** to `docs/progress/<TODAY>.md` (today's date, `date +%Y-%m-%d`). Include: last-archive version/build + date, next build number, the date window, and commit count. If the last archive predates the monorepo consolidation (`fc69ddb`), note that pre-consolidation changes are folded into that migration commit.
 
 5. **Report** the file path and a 2–3 line TL;DR the user can paste into Xcode's "What to Test."
+
+6. **Then run the `/progress-archive-summary` flow** (its full instructions live in
+   `.claude/commands/progress-archive-summary.md`) to also produce the prose TestFlight
+   "What to Test" summary. Reuse the **same "since last archive" window** you already
+   computed above — do not recompute it. That step writes
+   `docs/progress/<TODAY>-testflight.md` and prints the paragraph(s) verbatim. So a single
+   `/progress-archive` run ends with **two** artifacts: the structured QA doc
+   (`docs/progress/<TODAY>.md`) and the TestFlight prose summary
+   (`docs/progress/<TODAY>-testflight.md`).
 
 ## Notes
 - The build number is auto-set at build time from `git rev-list HEAD --count` (a Run Script phase), so the next archive's build = that count. It reset when the app moved into the monorepo, so it may read lower than the last TestFlight build — that's fine on a new marketing version.
