@@ -52,7 +52,7 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 | 12572733385 iPhone exegesis "Couldn't save changes" | Split from 12268645785; root-caused (overlap semantics) + fixed `e8e9718` (merge into existing); resolved-pending-verify |
 | ~~12415662995 member - reading issue~~ | CF-10 — ✅ CLOSED/Done (fbcd848) — exegesis top inset + mask → dynamic `var(--member-lesson-header)`; user-verified on member route |
 | 12386101354 error member experience | CF-10 (✅ fixed via fbcd848 / #12415662995), CF-19 (🔎 re-scoped — blank READ render, not zero-lesson study; provisional, pick-up notes in dossier) |
-| 12297336134 stuck | CF-11, CF-19, UX-2, UX-5 |
+| 12297336134 stuck | CF-11, CF-19, UX-2, ~~UX-5~~ (heading toolbar pinned above keyboard `0581087`, 2026-07-25, device-verify) |
 | 12344966853 UI update please | CF-11, UX-11 |
 | 12268578241 covering text | CF-12 |
 | ~~12268465402 should say lessons~~ | CF-13 ✅ CLOSED (fdb1b31) — Program Home tab renamed to "Lessons" |
