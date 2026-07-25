@@ -28,28 +28,10 @@ struct MarkdownEditor: View {
     @Environment(\.undoManager) private var undoManager
 
     var body: some View {
-        VStack(spacing: 0) {
-            toolbar
-            divider
-            editorArea
-        }
-        .background(Color.backgroundDark)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(borderOverlay)
-    }
-
-    private var toolbar: some View {
-        MarkdownEditorToolbar(
-            attributedText: $attributedText,
-            selection: $selection,
-            undoManager: undoManager
-        )
-    }
-
-    private var divider: some View {
-        Rectangle()
-            .fill(Color.white.opacity(0.08))
-            .frame(height: 1)
+        editorArea
+            .background(Color.backgroundDark)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(borderOverlay)
     }
 
     private var editorArea: some View {
@@ -72,6 +54,20 @@ struct MarkdownEditor: View {
                 .tint(Color.brandPrimary)
                 .font(Typography.s17)
                 .foregroundStyle(.white)
+                .toolbar {
+                    // Pin the formatting toolbar above the keyboard so the
+                    // heading (H1/H2/H3) picker stays reachable while editing,
+                    // instead of scrolling off the top of the block with the
+                    // keyboard up (monday#12297336134, sub-5). Shared by the
+                    // read-activity and exegesis note editors.
+                    ToolbarItemGroup(placement: .keyboard) {
+                        MarkdownEditorToolbar(
+                            attributedText: $attributedText,
+                            selection: $selection,
+                            undoManager: undoManager
+                        )
+                    }
+                }
         }
         .background(Color.backgroundDark)
         .onChange(of: attributedText) { oldValue, newValue in
