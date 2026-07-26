@@ -9,7 +9,9 @@ Pulled and analyzed 2026-07-05. All 22 incomplete items on **Ongoing Tasks Track
 | [triage-2026-07-19.md](triage-2026-07-19.md) | **Latest status refresh** — per-ticket verdicts (fixed / outstanding / needs clarification) against main @ ec028ba, post study-sync |
 | [code-fixes.md](code-fixes.md) | **Priority 1** — 19 code-only fixes (no new UI/UX needed), ordered by severity, with file:line evidence |
 | [ui-ux.md](ui-ux.md) | **Priority 2** — 11 items needing interaction design before build |
-| [feature-requests.md](feature-requests.md) | **Priority 3** — 12 feature tickets deduped to 9, grouped into roadmap themes |
+| [feature-feasibility-2026-07-25.md](feature-feasibility-2026-07-25.md) | **Deep feasibility pass** — 12 feature tickets → 9 features, each with scope/edge-cases/per-sub-capability effort + t-shirt, the contributor-platform consolidation thesis, and a build order. Supersedes feature-requests.md. |
+| [features/guest-contributor/](features/guest-contributor/) | **FR-7 full design spec** (draft for review) — the guest-contributor platform: locked decisions, object-level permission architecture, data model, security threat cases, UX flows, phased delivery. Source: ticket 12266593869. |
+| [feature-requests.md](feature-requests.md) | **Priority 3 (2026-07-05, superseded)** — original 12→9 grouping; kept for history |
 | [tickets.md](tickets.md) | Raw inventory: every open ticket with all comments transcribed and monday URLs |
 
 ## Headline findings

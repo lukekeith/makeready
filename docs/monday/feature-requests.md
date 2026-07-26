@@ -1,5 +1,8 @@
 # Feature Requests (Priority 3)
 
+> **Superseded 2026-07-25** by [feature-feasibility-2026-07-25.md](feature-feasibility-2026-07-25.md) — a deeper pass with per-sub-capability effort, t-shirt sizes, edge cases, and the contributor-platform consolidation thesis (backed by five fresh codebase investigations). This file is kept for history; several effort reads below were revised (e.g. FR-4 duplicate-study is now S, FR-5 templates mostly already exist, FR-1 living-study backbone is largely built).
+
+
 The 12 items on the **Feature requests** board (`18417603408`), analyzed and grouped. These all need product/UX definition before build — except FR-6, which already exists. Duplicates are merged (12 tickets → 9 features).
 
 ---
