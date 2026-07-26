@@ -7,6 +7,12 @@
   max-width: 440px;
   height: 100vh;
   height: 100dvh;
+  // `--lesson-vh` is set from window.innerHeight by lesson-island.vue and
+  // re-synced on resize/orientation/resume so the container recomputes against
+  // the real viewport after a WKWebView/Safari background→resume (stale `dvh`
+  // otherwise strands the exegesis bottom toolbar mid-screen). Falls back to
+  // `100dvh` before JS runs / when the var is unset.
+  height: var(--lesson-vh, 100dvh);
   margin: 0 auto;
   display: flex;
   flex-direction: column;

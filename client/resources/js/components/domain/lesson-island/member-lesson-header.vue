@@ -7,6 +7,23 @@ const state = useLessonState()
 const rootEl = ref<HTMLElement | null>(null)
 let resizeObserver: ResizeObserver | null = null
 
+function publishHeaderHeight() {
+  const el = rootEl.value
+  if (!el) return
+  document.body.style.setProperty('--member-lesson-header', `${Math.round(el.getBoundingClientRect().height)}px`)
+}
+
+// Re-measure when the page returns from the background. In a WKWebView (the
+// iPhone lesson-preview host) or mobile Safari, a background→resume can resolve
+// viewport units / safe-area insets stale, but the ResizeObserver won't re-fire
+// because the header box itself hasn't changed — so `--member-lesson-header`
+// would stay stale and the exegesis/read step would clip its scripture. Force a
+// re-publish on resume (after a frame so layout re-resolves first).
+function handleResume() {
+  if (document.visibilityState !== 'visible') return
+  requestAnimationFrame(publishHeaderHeight)
+}
+
 onMounted(() => {
   if (!rootEl.value) return
   resizeObserver = new ResizeObserver(([entry]) => {
@@ -14,10 +31,14 @@ onMounted(() => {
     document.body.style.setProperty('--member-lesson-header', `${h}px`)
   })
   resizeObserver.observe(rootEl.value)
+  document.addEventListener('visibilitychange', handleResume)
+  window.addEventListener('pageshow', handleResume)
 })
 
 onUnmounted(() => {
   resizeObserver?.disconnect()
+  document.removeEventListener('visibilitychange', handleResume)
+  window.removeEventListener('pageshow', handleResume)
   document.body.style.removeProperty('--member-lesson-header')
 })
 

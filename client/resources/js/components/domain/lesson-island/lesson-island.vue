@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
 import VideoStep from './steps/video-step.vue'
 import YoutubeStep from './steps/youtube-step.vue'
@@ -61,6 +62,39 @@ const state = createLessonState({
 
 provideLessonState(state)
 
+// ─── Viewport height sync ───────────────────────────────────────────────────────
+// `100dvh` can resolve stale after a WKWebView/Safari background→resume: the
+// exegesis step's bottom-anchored `‹ Done ›` toolbar (position:absolute; bottom:0)
+// then strands mid-screen with an empty gap below. Pin the container to the real
+// `window.innerHeight` via `--lesson-vh` and re-sync it on resize/orientation and
+// on resume, forcing the root to recompute against the true viewport bounds.
+
+const rootEl = ref<HTMLElement | null>(null)
+
+function syncViewportHeight() {
+  rootEl.value?.style.setProperty('--lesson-vh', `${window.innerHeight}px`)
+}
+
+function handleResume() {
+  if (document.visibilityState !== 'visible') return
+  requestAnimationFrame(syncViewportHeight)
+}
+
+onMounted(() => {
+  syncViewportHeight()
+  window.addEventListener('resize', syncViewportHeight)
+  window.addEventListener('orientationchange', syncViewportHeight)
+  window.addEventListener('pageshow', handleResume)
+  document.addEventListener('visibilitychange', handleResume)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', syncViewportHeight)
+  window.removeEventListener('orientationchange', syncViewportHeight)
+  window.removeEventListener('pageshow', handleResume)
+  document.removeEventListener('visibilitychange', handleResume)
+})
+
 // ─── AJAX Actions ─────────────────────────────────────────────────────────────
 
 async function saveVideoProgress(activityId: string, progress: number) {
@@ -114,6 +148,7 @@ async function visitExegesisHighlight(activityId: string, highlightId: string) {
 
 <template>
   <div
+    ref="rootEl"
     class="LessonActivity"
     :class="{ 'LessonActivity--read-fullscreen': state.isReadStep.value }"
   >
