@@ -315,7 +315,13 @@ struct EditEnrollmentDay: View {
     @ViewBuilder
     private func studyActivityCard(for activity: ScheduledActivity) -> some View {
         let isReady = activity.isConfigured
-        let pendingLabel = activity.type == "READ" ? "Provide text to read" : "Configure activity"
+        let pendingLabel: String = {
+            switch activity.type {
+            case "READ": return "Provide text to read"
+            case "EXEGESIS": return "Select passage and add highlights"
+            default: return "Configure activity"
+            }
+        }()
         let description: String = {
             guard isReady else { return pendingLabel }
             if activity.type == "READ", let summary = readBlockSummary(for: activity) {
@@ -334,7 +340,7 @@ struct EditEnrollmentDay: View {
                 onTap: {
                     guard !isLoading else { return }
                     switch activity.type {
-                    case "READ", "USER_INPUT":
+                    case "READ", "USER_INPUT", "YOUTUBE", "EXEGESIS":
                         editingActivityId = activity.id
                     default:
                         break
@@ -493,6 +499,26 @@ struct EditEnrollmentDay: View {
                     )
                 }
             )
+        case "YOUTUBE":
+            EditYouTubeActivityPage(
+                activity: activity.toStudyActivity(),
+                programId: programId,
+                onCancel: dismissEditActivity,
+                onSave: { _, _, _, _ in
+                    dismissEditActivity()
+                },
+                actions: .enrollment
+            )
+            .id(activity.id)
+        case "EXEGESIS":
+            EditExegesisActivityPage(
+                activity: activity.toStudyActivity(),
+                programId: programId,
+                onCancel: dismissEditActivity,
+                onSave: { dismissEditActivity() },
+                actions: .enrollment(lessonId: schedule.lesson.id)
+            )
+            .id(activity.id)
         default:
             EmptyView()
         }

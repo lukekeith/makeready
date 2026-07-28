@@ -8,11 +8,56 @@
 
 import SwiftUI
 
+/// Action closures for YOUTUBE activity operations, allowing reuse across the
+/// program and enrollment contexts (same pattern as ReadActivityActionProvider).
+struct YouTubeActivityActionProvider {
+    let context: LessonContext
+    /// (activityId, title, youtubeUrl) → persists the YouTube fields.
+    let updateYouTube: (String, String, String) async throws -> Void
+    /// Member-preview URL for the given activity id.
+    let previewURL: (String) -> URL?
+
+    /// Default: program activities via ProgramActions.
+    static var program: YouTubeActivityActionProvider {
+        YouTubeActivityActionProvider(
+            context: .program,
+            updateYouTube: { activityId, title, youtubeUrl in
+                _ = try await ProgramActions().updateActivityYouTube(
+                    activityId: activityId,
+                    title: title,
+                    youtubeUrl: youtubeUrl
+                )
+            },
+            previewURL: { activityId in
+                LessonPreviewModal.lessonURL(forActivityId: activityId)
+            }
+        )
+    }
+
+    /// Enrollment: scheduled activities via EnrollmentActions.
+    static var enrollment: YouTubeActivityActionProvider {
+        YouTubeActivityActionProvider(
+            context: .enrollment,
+            updateYouTube: { activityId, title, youtubeUrl in
+                _ = try await EnrollmentActions().updateScheduledActivityYouTube(
+                    activityId: activityId,
+                    title: title,
+                    youtubeUrl: youtubeUrl
+                )
+            },
+            previewURL: { activityId in
+                ReadActivityPreviewModal.buildPreviewURL(activityId: activityId)
+            }
+        )
+    }
+}
+
 struct EditYouTubeActivityPage: View {
     let activity: StudyActivity
     let programId: String?
     let onCancel: () -> Void
     let onSave: (String, String?, Int?, Int?) -> Void
+    var actions: YouTubeActivityActionProvider = .program
 
     @Environment(AuthManager.self) var authManager
 
@@ -141,7 +186,7 @@ struct EditYouTubeActivityPage: View {
             }
         }
         .fullScreenCover(isPresented: $showPreviewModal) {
-            LessonPreviewModal(url: LessonPreviewModal.lessonURL(forActivityId: activity.id), isPresented: $showPreviewModal)
+            LessonPreviewModal(url: actions.previewURL(activity.id), isPresented: $showPreviewModal)
         }
         .onAppear {
             title = activity.title ?? ""
@@ -207,10 +252,10 @@ struct EditYouTubeActivityPage: View {
 
         Task {
             do {
-                _ = try await ProgramActions().updateActivityYouTube(
-                    activityId: activity.id,
-                    title: finalTitle.isEmpty ? (metadataTitle ?? "YouTube") : finalTitle,
-                    youtubeUrl: finalUrl
+                try await actions.updateYouTube(
+                    activity.id,
+                    finalTitle.isEmpty ? (metadataTitle ?? "YouTube") : finalTitle,
+                    finalUrl
                 )
                 await MainActor.run {
                     isSaving = false

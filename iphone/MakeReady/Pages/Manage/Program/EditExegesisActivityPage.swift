@@ -16,11 +16,133 @@
 
 import SwiftUI
 
+/// Action closures for EXEGESIS activity operations, allowing reuse across the
+/// program and enrollment contexts (same pattern as ReadActivityActionProvider).
+/// All mutations route through Actions, which write to AppState; views observe.
+struct ExegesisActivityActionProvider {
+    let context: LessonContext
+    /// Live activity lookup so blocks/selections re-read fresh from AppState.
+    let liveActivity: (String) -> StudyActivity?
+    /// Optimistic local write of merged selections: (activityId, blockId, merged).
+    let applyLocalSelections: (String, String, [ReadBlockSelection]) -> Void
+    let fetchHighlights: (String) async throws -> (readBlockId: String?, highlights: [ExegesisHighlight])
+    /// (activityId, readBlockId, start, end, noteMarkdown)
+    let createHighlight: (String, String, Int, Int, String) async throws -> ExegesisHighlight
+    /// (activityId, highlightId, noteMarkdown)
+    let updateHighlightNote: (String, String, String) async throws -> ExegesisHighlight
+    /// (activityId, highlightId)
+    let deleteHighlight: (String, String) async throws -> Void
+    /// (activityId, blockId, selections)
+    let updateSelections: (String, String, [ReadBlockSelection]) async throws -> Void
+    /// (activityId, passageData, content)
+    let addSourceReference: (String, PassageData, String?) async throws -> Void
+    /// (activityId, title)
+    let updateTitle: (String, String) async throws -> Void
+    /// Block styling (image/color/font via BlockStyleEditor + snapshot revert)
+    /// is program-only for now — BlockStyleEditor talks to ProgramActions.
+    let supportsBlockStyling: Bool
+    /// Member-preview URL for the given activity id.
+    let previewURL: (String) -> URL?
+
+    /// Default: program activities via ProgramActions + the program entity store.
+    static var program: ExegesisActivityActionProvider {
+        ExegesisActivityActionProvider(
+            context: .program,
+            liveActivity: { AppState.shared.activities[$0] },
+            applyLocalSelections: { activityId, blockId, merged in
+                if var activity = AppState.shared.activities[activityId],
+                   var blocks = activity.readBlocks,
+                   let index = blocks.firstIndex(where: { $0.id == blockId }) {
+                    blocks[index].selections = merged
+                    activity.readBlocks = blocks
+                    AppState.shared.activities.upsert(activity)
+                    AppState.shared.persist()
+                }
+            },
+            fetchHighlights: { try await ProgramActions().fetchExegesisHighlights(activityId: $0) },
+            createHighlight: { activityId, readBlockId, start, end, note in
+                try await ProgramActions().createExegesisHighlight(
+                    activityId: activityId, readBlockId: readBlockId, start: start, end: end, noteMarkdown: note
+                )
+            },
+            updateHighlightNote: { activityId, highlightId, note in
+                try await ProgramActions().updateExegesisHighlight(
+                    activityId: activityId, highlightId: highlightId, noteMarkdown: note
+                )
+            },
+            deleteHighlight: { activityId, highlightId in
+                try await ProgramActions().deleteExegesisHighlight(activityId: activityId, highlightId: highlightId)
+            },
+            updateSelections: { activityId, blockId, selections in
+                try await ProgramActions().updateReadBlockSelections(activityId: activityId, blockId: blockId, selections: selections)
+            },
+            addSourceReference: { activityId, passageData, content in
+                _ = try await ProgramActions().addSourceReference(activityId: activityId, passageData: passageData, content: content)
+            },
+            updateTitle: { activityId, title in
+                _ = try await ProgramActions().updateActivityContent(activityId: activityId, title: title)
+            },
+            supportsBlockStyling: true,
+            previewURL: { LessonPreviewModal.lessonURL(forActivityId: $0) }
+        )
+    }
+
+    /// Enrollment: scheduled activities via EnrollmentActions + the scheduled
+    /// lesson aggregate. `lessonId` is the scheduled lesson containing the activity.
+    static func enrollment(lessonId: String) -> ExegesisActivityActionProvider {
+        ExegesisActivityActionProvider(
+            context: .enrollment,
+            liveActivity: { activityId in
+                AppState.shared.scheduledLessons[lessonId]?
+                    .activities.first { $0.id == activityId }?.toStudyActivity()
+            },
+            applyLocalSelections: { activityId, blockId, merged in
+                _ = AppState.shared.mutateScheduledActivity(activityId: activityId) { activity in
+                    if var blocks = activity.readBlocks,
+                       let index = blocks.firstIndex(where: { $0.id == blockId }) {
+                        blocks[index].selections = merged
+                        activity.readBlocks = blocks
+                    }
+                }
+                AppState.shared.persist()
+            },
+            fetchHighlights: { try await EnrollmentActions().fetchExegesisHighlights(activityId: $0) },
+            createHighlight: { activityId, readBlockId, start, end, note in
+                try await EnrollmentActions().createExegesisHighlight(
+                    activityId: activityId, readBlockId: readBlockId, start: start, end: end, noteMarkdown: note
+                )
+            },
+            updateHighlightNote: { activityId, highlightId, note in
+                try await EnrollmentActions().updateExegesisHighlight(
+                    activityId: activityId, highlightId: highlightId, noteMarkdown: note
+                )
+            },
+            deleteHighlight: { activityId, highlightId in
+                try await EnrollmentActions().deleteExegesisHighlight(activityId: activityId, highlightId: highlightId)
+            },
+            updateSelections: { activityId, blockId, selections in
+                try await EnrollmentActions().updateReadBlockSelections(activityId: activityId, blockId: blockId, selections: selections)
+            },
+            addSourceReference: { activityId, passageData, content in
+                _ = try await EnrollmentActions().addSourceReference(activityId: activityId, passageData: passageData, content: content)
+            },
+            updateTitle: { activityId, title in
+                _ = try await EnrollmentActions().updateScheduledActivity(
+                    activityId: activityId, title: title, helpTitle: nil, helpDescription: nil
+                )
+            },
+            supportsBlockStyling: false,
+            previewURL: { ReadActivityPreviewModal.buildPreviewURL(activityId: $0) }
+        )
+    }
+}
+
 struct EditExegesisActivityPage: View {
     let activity: StudyActivity
     let programId: String?
     let onCancel: () -> Void
     let onSave: () -> Void
+    var actions: ExegesisActivityActionProvider = .program
 
     @Environment(AuthManager.self) var authManager
     @Environment(OverlayManager.self) private var overlayManager
@@ -62,7 +184,7 @@ struct EditExegesisActivityPage: View {
     // MARK: - Derived
 
     private var lockedBlock: ActivityReadBlock? {
-        AppState.shared.activities[activity.id]?.readBlocks?.first(where: { $0.isLocked })
+        actions.liveActivity(activity.id)?.readBlocks?.first(where: { $0.isLocked })
     }
 
     private var hasPassage: Bool { lockedBlock != nil }
@@ -110,7 +232,7 @@ struct EditExegesisActivityPage: View {
         }
         .fullScreenCover(isPresented: $showSlidePreview) {
             LessonPreviewModal(
-                url: LessonPreviewModal.lessonURL(forActivityId: activity.id),
+                url: actions.previewURL(activity.id),
                 isPresented: $showSlidePreview
             )
         }
@@ -154,8 +276,10 @@ struct EditExegesisActivityPage: View {
                                 passageRow
                                     .padding(.horizontal, 16)
 
-                                // Image, color, and font size controls
-                                if hasPassage, let blockId = lockedBlock?.id {
+                                // Image, color, and font size controls.
+                                // Program-only: BlockStyleEditor is wired to
+                                // ProgramActions and the program entity store.
+                                if hasPassage, actions.supportsBlockStyling, let blockId = lockedBlock?.id {
                                     BlockStyleEditor(
                                         activityId: activity.id,
                                         blockId: blockId,
@@ -421,7 +545,7 @@ struct EditExegesisActivityPage: View {
     @MainActor
     private func loadExegesisHighlights() async {
         do {
-            let result = try await ProgramActions().fetchExegesisHighlights(activityId: activity.id)
+            let result = try await actions.fetchHighlights(activity.id)
             exegesisHighlights = result.highlights.sorted { lhs, rhs in
                 if lhs.start == rhs.start { return lhs.end < rhs.end }
                 return lhs.start < rhs.start
@@ -466,18 +590,14 @@ struct EditExegesisActivityPage: View {
             // only create when the selection is clear of every existing highlight,
             // since the server rejects overlapping creates.
             if let existing = matchingExegesisHighlight(for: range) ?? overlappingExegesisHighlight(for: range) {
-                saved = try await ProgramActions().updateExegesisHighlight(
-                    activityId: activity.id,
-                    highlightId: existing.id,
-                    noteMarkdown: markdown
-                )
+                saved = try await actions.updateHighlightNote(activity.id, existing.id, markdown)
             } else if let blockId = lockedBlock?.id {
-                saved = try await ProgramActions().createExegesisHighlight(
-                    activityId: activity.id,
-                    readBlockId: blockId,
-                    start: range.location,
-                    end: range.location + range.length,
-                    noteMarkdown: markdown
+                saved = try await actions.createHighlight(
+                    activity.id,
+                    blockId,
+                    range.location,
+                    range.location + range.length,
+                    markdown
                 )
             } else {
                 continue
@@ -537,13 +657,14 @@ struct EditExegesisActivityPage: View {
                         let content = selectedText.isEmpty
                             ? nil
                             : BibleVerseContentNormalizer.normalizedMarkdown(from: selectedText)
-                        _ = try await ProgramActions().addSourceReference(activityId: activity.id, passageData: passageData, content: content)
+                        try await actions.addSourceReference(activity.id, passageData, content)
 
-                        // Re-apply styling to the new block
-                        if let newBlockId = lockedBlock?.id {
-                            let actions = ProgramActions()
+                        // Re-apply styling to the new block (program-only —
+                        // block styling isn't editable in the enrollment context)
+                        if actions.supportsBlockStyling, let newBlockId = lockedBlock?.id {
+                            let programActions = ProgramActions()
                             if savedImageUrl != nil || savedColor != nil || savedOpacity != nil {
-                                try await actions.setReadBlockBackground(
+                                try await programActions.setReadBlockBackground(
                                     activityId: activity.id,
                                     blockId: newBlockId,
                                     imageUrl: savedImageUrl,
@@ -552,7 +673,7 @@ struct EditExegesisActivityPage: View {
                                 )
                             }
                             if let fs = savedFontSize {
-                                try await actions.setReadBlockFontSize(
+                                try await programActions.setReadBlockFontSize(
                                     activityId: activity.id,
                                     blockId: newBlockId,
                                     fontSize: fs
@@ -595,40 +716,42 @@ struct EditExegesisActivityPage: View {
         // Revert styling on the current block (may be new if passage changed)
         if let blockId = lockedBlock?.id {
             Task {
-                let actions = ProgramActions()
-                do {
-                    // Revert background styling
-                    try await actions.setReadBlockBackground(
-                        activityId: activity.id,
-                        blockId: blockId,
-                        imageUrl: snapshotImageUrl,
-                        color: snapshotColor,
-                        overlayOpacity: snapshotOpacity,
-                        clearImage: snapshotImageUrl == nil && lockedBlock?.backgroundImageUrl != nil,
-                        clearColor: snapshotColor == nil && lockedBlock?.backgroundColor != nil,
-                        clearOverlayOpacity: snapshotOpacity == nil && lockedBlock?.backgroundOverlayOpacity != nil
-                    )
-                    // Revert font size
-                    try await actions.setReadBlockFontSize(
-                        activityId: activity.id,
-                        blockId: blockId,
-                        fontSize: snapshotFontSize
-                    )
-                } catch {
-                    await MainActor.run {
-                        AppState.shared.recordError(
-                            error,
-                            context: "EditExegesisActivityPage.cancelAndRevert (styling)",
-                            surface: true,
-                            friendlyMessage: "Couldn't revert your changes"
+                if actions.supportsBlockStyling {
+                    let programActions = ProgramActions()
+                    do {
+                        // Revert background styling
+                        try await programActions.setReadBlockBackground(
+                            activityId: activity.id,
+                            blockId: blockId,
+                            imageUrl: snapshotImageUrl,
+                            color: snapshotColor,
+                            overlayOpacity: snapshotOpacity,
+                            clearImage: snapshotImageUrl == nil && lockedBlock?.backgroundImageUrl != nil,
+                            clearColor: snapshotColor == nil && lockedBlock?.backgroundColor != nil,
+                            clearOverlayOpacity: snapshotOpacity == nil && lockedBlock?.backgroundOverlayOpacity != nil
                         )
+                        // Revert font size
+                        try await programActions.setReadBlockFontSize(
+                            activityId: activity.id,
+                            blockId: blockId,
+                            fontSize: snapshotFontSize
+                        )
+                    } catch {
+                        await MainActor.run {
+                            AppState.shared.recordError(
+                                error,
+                                context: "EditExegesisActivityPage.cancelAndRevert (styling)",
+                                surface: true,
+                                friendlyMessage: "Couldn't revert your changes"
+                            )
+                        }
                     }
                 }
 
                 // Revert title if it was saved during this session
                 if activity.title != originalTitle {
                     do {
-                        _ = try await actions.updateActivityContent(activityId: activity.id, title: originalTitle)
+                        try await actions.updateTitle(activity.id, originalTitle)
                     } catch {
                         await MainActor.run {
                             AppState.shared.recordError(
@@ -666,18 +789,9 @@ struct EditExegesisActivityPage: View {
         let merged = mergeSelection(into: existing, range: range, style: style?.rawValue)
         NSLog("🟨 ExegesisSelectionTrace applyStyle merged activityId=\(activityId) blockId=\(blockId) previousCount=\(existing.count) mergedCount=\(merged.count)")
 
-        if var activity = AppState.shared.activities[activityId],
-           var blocks = activity.readBlocks,
-           let index = blocks.firstIndex(where: { $0.id == blockId }) {
-            NSLog("🟨 ExegesisSelectionTrace applyStyle appState update begin blockIndex=\(index)")
-            blocks[index].selections = merged
-            activity.readBlocks = blocks
-            AppState.shared.activities.upsert(activity)
-            AppState.shared.persist()
-            NSLog("🟨 ExegesisSelectionTrace applyStyle appState update end")
-        } else {
-            NSLog("🟨 ExegesisSelectionTrace applyStyle appState update skipped activityFound=\(AppState.shared.activities[activityId] != nil)")
-        }
+        // Optimistic local write so the preview re-renders immediately; the
+        // provider routes it to the program store or the scheduled aggregate.
+        actions.applyLocalSelections(activityId, blockId, merged)
 
         hasSaved = false
         NSLog("🟨 ExegesisSelectionTrace applyStyle hasSaved=false; starting API save")
@@ -686,12 +800,12 @@ struct EditExegesisActivityPage: View {
         Task {
             do {
                 if style == .highlight {
-                    let created = try await ProgramActions().createExegesisHighlight(
-                        activityId: activityId,
-                        readBlockId: blockId,
-                        start: range.location,
-                        end: range.location + range.length,
-                        noteMarkdown: ""
+                    let created = try await actions.createHighlight(
+                        activityId,
+                        blockId,
+                        range.location,
+                        range.location + range.length,
+                        ""
                     )
                     await MainActor.run {
                         upsertExegesisHighlight(created)
@@ -700,13 +814,13 @@ struct EditExegesisActivityPage: View {
                     }
                     NSLog("🟨 ExegesisSelectionTrace applyStyle API createHighlight success activityId=\(activityId) blockId=\(blockId) highlightId=\(created.id) range={\(created.start)-\(created.end)}")
                 } else if style == nil, let existingHighlight = existingHighlightForDelete {
-                    try await ProgramActions().deleteExegesisHighlight(activityId: activityId, highlightId: existingHighlight.id)
+                    try await actions.deleteHighlight(activityId, existingHighlight.id)
                     await MainActor.run {
                         exegesisHighlights.removeAll { $0.id == existingHighlight.id }
                     }
                     NSLog("🟨 ExegesisSelectionTrace applyStyle API deleteHighlight success activityId=\(activityId) blockId=\(blockId) highlightId=\(existingHighlight.id)")
                 } else {
-                    try await ProgramActions().updateReadBlockSelections(activityId: activityId, blockId: blockId, selections: merged)
+                    try await actions.updateSelections(activityId, blockId, merged)
                     NSLog("🟨 ExegesisSelectionTrace applyStyle API save selections success activityId=\(activityId) blockId=\(blockId) mergedCount=\(merged.count)")
                 }
             } catch {
@@ -774,7 +888,7 @@ struct EditExegesisActivityPage: View {
         Task {
             do {
                 if titleChanged {
-                    _ = try await ProgramActions().updateActivityContent(activityId: activity.id, title: title)
+                    try await actions.updateTitle(activity.id, title)
                 }
                 try await savePendingNotes()
                 await MainActor.run {

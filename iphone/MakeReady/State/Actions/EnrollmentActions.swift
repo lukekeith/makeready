@@ -782,6 +782,143 @@ private let api: APIClientProtocol
         return activity
     }
 
+    /// Update a scheduled YOUTUBE activity with URL and optional time bounds.
+    /// Mirrors ProgramActions.updateActivityYouTube for the enrollment context.
+    @MainActor
+    func updateScheduledActivityYouTube(
+        activityId: String,
+        title: String,
+        youtubeUrl: String,
+        startSeconds: Int? = nil,
+        endSeconds: Int? = nil
+    ) async throws -> ScheduledActivity {
+        struct Response: Decodable {
+            let success: Bool
+            let scheduledActivity: ScheduledActivity?
+            let error: String?
+        }
+        var body: [String: Any] = [
+            "title": title,
+            "youtubeUrl": youtubeUrl
+        ]
+        if let startSeconds = startSeconds { body["youtubeStartSeconds"] = startSeconds }
+        if let endSeconds = endSeconds { body["youtubeEndSeconds"] = endSeconds }
+
+        let response: Response = try await api.patch(
+            "/api/scheduled-activities/\(activityId)",
+            body: body,
+            responseType: Response.self
+        )
+        guard response.success, var activity = response.scheduledActivity else {
+            throw APIError.serverError(response.error ?? "Failed to update YouTube activity")
+        }
+
+        // Ensure the fields are present on the synced activity in case the
+        // server response doesn't echo them back
+        if activity.youtubeUrl == nil || activity.youtubeUrl!.isEmpty {
+            activity.youtubeUrl = youtubeUrl
+        }
+        if activity.title == nil || activity.title!.isEmpty {
+            activity.title = title
+        }
+        if let startSeconds = startSeconds { activity.youtubeStartSeconds = startSeconds }
+        if let endSeconds = endSeconds { activity.youtubeEndSeconds = endSeconds }
+
+        syncScheduledActivityToState(activity)
+        return activity
+    }
+
+    // MARK: - Exegesis Highlights (scheduled activities)
+
+    @MainActor
+    func fetchExegesisHighlights(activityId: String) async throws -> (readBlockId: String?, highlights: [ExegesisHighlight]) {
+        struct ResponseBody: Decodable {
+            let success: Bool
+            let readBlockId: String?
+            let highlights: [ExegesisHighlight]?
+            let error: String?
+        }
+
+        let response: ResponseBody = try await api.get(
+            "/api/scheduled-activities/\(activityId)/exegesis-highlights",
+            responseType: ResponseBody.self
+        )
+
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to fetch exegesis highlights")
+        }
+
+        return (response.readBlockId, response.highlights ?? [])
+    }
+
+    @MainActor
+    func createExegesisHighlight(activityId: String, readBlockId: String, start: Int, end: Int, noteMarkdown: String = "") async throws -> ExegesisHighlight {
+        struct ResponseBody: Decodable {
+            let success: Bool
+            let highlight: ExegesisHighlight?
+            let error: String?
+        }
+
+        let body: [String: Any] = [
+            "readBlockId": readBlockId,
+            "start": start,
+            "end": end,
+            "noteMarkdown": noteMarkdown,
+        ]
+
+        let response: ResponseBody = try await api.post(
+            "/api/scheduled-activities/\(activityId)/exegesis-highlights",
+            body: body,
+            responseType: ResponseBody.self
+        )
+
+        guard response.success, let highlight = response.highlight else {
+            throw APIError.serverError(response.error ?? "Failed to create highlight")
+        }
+
+        return highlight
+    }
+
+    @MainActor
+    func updateExegesisHighlight(activityId: String, highlightId: String, noteMarkdown: String) async throws -> ExegesisHighlight {
+        struct ResponseBody: Decodable {
+            let success: Bool
+            let highlight: ExegesisHighlight?
+            let error: String?
+        }
+
+        let body: [String: Any] = ["noteMarkdown": noteMarkdown]
+
+        let response: ResponseBody = try await api.patch(
+            "/api/scheduled-activities/\(activityId)/exegesis-highlights/\(highlightId)",
+            body: body,
+            responseType: ResponseBody.self
+        )
+
+        guard response.success, let highlight = response.highlight else {
+            throw APIError.serverError(response.error ?? "Failed to update highlight")
+        }
+
+        return highlight
+    }
+
+    @MainActor
+    func deleteExegesisHighlight(activityId: String, highlightId: String) async throws {
+        struct ResponseBody: Decodable {
+            let success: Bool
+            let error: String?
+        }
+
+        let response: ResponseBody = try await api.delete(
+            "/api/scheduled-activities/\(activityId)/exegesis-highlights/\(highlightId)",
+            responseType: ResponseBody.self
+        )
+
+        guard response.success else {
+            throw APIError.serverError(response.error ?? "Failed to delete highlight")
+        }
+    }
+
     // MARK: - Source Reference Operations
 
     /// Add a source reference to a scheduled activity

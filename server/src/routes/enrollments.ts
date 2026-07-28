@@ -13,6 +13,7 @@ import { recalculateScheduledLessonEstimate } from '../services/lesson-estimate.
 import { getUserOrgId } from '../services/media-library.js'
 import { getEnrollmentCompletionStats } from '../services/enrollment-analytics.service.js'
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
+import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '../services/youtube.js'
 import { hashLessonContent } from '../services/lesson-content-hash.js'
 import { buildLessonCopyRows, type LessonCopyRows } from '../services/lesson-copy.js'
 import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enrollment-sync.js'
@@ -3054,6 +3055,9 @@ router.patch('/scheduled-activities/:id', requireAuth, async (req, res) => {
       readContent: z.string().nullable().optional(),
       videoId: z.string().uuid().nullable().optional(),
       videoUrl: z.string().url().nullable().optional(),
+      youtubeUrl: z.string().url().nullable().optional(),
+      youtubeStartSeconds: z.number().int().min(0).nullable().optional(),
+      youtubeEndSeconds: z.number().int().min(0).nullable().optional(),
     })
 
     const body = schema.parse(req.body)
@@ -3088,9 +3092,36 @@ router.patch('/scheduled-activities/:id', requireAuth, async (req, res) => {
       }
     }
 
+    // If setting youtubeUrl, extract video ID and fetch metadata (mirrors
+    // PATCH /api/activities/:id for program activities)
+    const updateData: any = { ...body }
+    if (body.youtubeUrl) {
+      const youtubeVideoId = extractYouTubeVideoId(body.youtubeUrl)
+      if (!youtubeVideoId) {
+        return res.status(400).json({ success: false, error: 'Invalid YouTube URL' })
+      }
+      updateData.youtubeVideoId = youtubeVideoId
+
+      // Extract start time from URL if not explicitly provided
+      if (body.youtubeStartSeconds === undefined) {
+        const urlStart = extractStartTime(body.youtubeUrl)
+        if (urlStart) updateData.youtubeStartSeconds = urlStart
+      }
+
+      // Fetch thumbnail via oEmbed
+      const metadata = await fetchYouTubeMetadata(body.youtubeUrl)
+      if (metadata) {
+        updateData.youtubeThumbnailUrl = metadata.thumbnailUrl
+        // Auto-set title if activity has no meaningful title yet
+        if (!activity.title || activity.title === 'YouTube' || activity.title === 'Untitled') {
+          updateData.title = metadata.title
+        }
+      }
+    }
+
     await prisma.scheduledLessonActivity.update({
       where: { id },
-      data: body,
+      data: updateData,
     })
 
     // Backward compat: sync readContent to read blocks
@@ -3585,11 +3616,27 @@ router.post('/scheduled-activities/:id/source-references', requireAuth, async (r
       return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
     }
 
-    // Shift existing blocks up to make room at position 1
-    await prisma.activityReadBlock.updateMany({
-      where: { scheduledActivityId: id },
-      data: { orderNumber: { increment: 1 } },
-    })
+    if (activity.type === 'EXEGESIS') {
+      // EXEGESIS supports exactly one scripture passage block. Adding a new
+      // passage replaces the prior passage + any highlights (mirrors the
+      // program-activity source-references route).
+      const existingBlocks = await prisma.activityReadBlock.findMany({
+        where: { scheduledActivityId: id },
+        select: { id: true },
+      })
+      const blockIds = existingBlocks.map((b) => b.id)
+      if (blockIds.length > 0) {
+        await prisma.exegesisHighlight.deleteMany({ where: { readBlockId: { in: blockIds } } })
+      }
+      await prisma.activityReadBlock.deleteMany({ where: { scheduledActivityId: id } })
+      await prisma.activitySourceReference.deleteMany({ where: { scheduledActivityId: id } })
+    } else {
+      // Shift existing blocks up to make room at position 1
+      await prisma.activityReadBlock.updateMany({
+        where: { scheduledActivityId: id },
+        data: { orderNumber: { increment: 1 } },
+      })
+    }
 
     const ref = await prisma.activitySourceReference.create({
       data: {
@@ -4113,6 +4160,305 @@ router.patch('/scheduled-activities/:id/read-blocks/reorder', requireAuth, async
     }
     console.error('Error reordering read blocks on scheduled activity:', error)
     res.status(500).json({ success: false, error: 'Failed to reorder read blocks' })
+  }
+})
+
+// ============================================================================
+// Scheduled Activity: Exegesis Highlights
+// ============================================================================
+// Mirrors /api/activities/:activityId/exegesis-highlights (programs.ts) for
+// ScheduledLessonActivity. Highlights hang off ActivityReadBlock, which is
+// shared between program and scheduled activities, so only the activity
+// lookup + ownership check differ.
+
+/**
+ * Regenerate a locked block's `selections` JSON from its highlight rows so the
+ * member renderer and the editor preview stay in sync. (Local copy of the
+ * programs.ts helper — same table, scheduled-activity context.)
+ */
+async function syncScheduledExegesisSelectionsForBlock(readBlockId: string): Promise<void> {
+  const highlights = await prisma.exegesisHighlight.findMany({
+    where: { readBlockId },
+    orderBy: { orderNumber: 'asc' },
+    select: { start: true, end: true },
+  })
+
+  const selections = highlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
+
+  await prisma.activityReadBlock.update({
+    where: { id: readBlockId },
+    data: { selections: selections.length ? (selections as unknown as Prisma.InputJsonValue) : Prisma.DbNull },
+  })
+}
+
+/**
+ * Defensive sanitation for leader-authored markdown (local copy of the
+ * programs.ts helper): strip HTML, decode common entities, drop control chars.
+ */
+function sanitizeScheduledMarkdownInput(input: string): string {
+  let out = input
+
+  out = out.replace(/\r\n?/g, '\n')
+
+  if (/<\/?[a-z][\s\S]*?>/i.test(out)) {
+    out = out
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/div>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+  }
+
+  out = out
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+
+  out = out.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
+  out = out.replace(/\n{3,}/g, '\n\n')
+
+  return out.trim()
+}
+
+/**
+ * Load a scheduled activity and verify the caller may manage its enrollment.
+ * Returns null when not found or not permitted (callers respond 404 either way).
+ */
+async function getManagedScheduledExegesisActivity(activityId: string, userId: string) {
+  const activity = await prisma.scheduledLessonActivity.findUnique({
+    where: { id: activityId },
+    include: { lessonSchedule: { include: { enrollment: true } } },
+  })
+
+  if (
+    !activity ||
+    (activity.lessonSchedule.enrollment.createdById !== userId &&
+      !(await canManageGroupId(userId, activity.lessonSchedule.enrollment.groupId)))
+  ) {
+    return null
+  }
+  return activity
+}
+
+/**
+ * @openapi
+ * /api/scheduled-activities/{activityId}/exegesis-highlights:
+ *   get:
+ *     tags: [Enrollments]
+ *     summary: List exegesis highlights for a scheduled EXEGESIS activity
+ *     security:
+ *       - userSession: []
+ */
+router.get('/scheduled-activities/:activityId/exegesis-highlights', requireAuth, async (req, res) => {
+  try {
+    const { activityId } = req.params
+    const userId = (req.user as any).id
+
+    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+    if (!activity) {
+      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+    }
+
+    if (activity.type !== 'EXEGESIS') {
+      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
+    }
+
+    const block = await prisma.activityReadBlock.findFirst({
+      where: { scheduledActivityId: activityId, isLocked: true },
+      orderBy: { orderNumber: 'asc' },
+      select: { id: true },
+    })
+
+    if (!block) {
+      return res.json({ success: true, readBlockId: null, highlights: [] })
+    }
+
+    const highlights = await prisma.exegesisHighlight.findMany({
+      where: { readBlockId: block.id },
+      orderBy: { orderNumber: 'asc' },
+    })
+
+    res.json({ success: true, readBlockId: block.id, highlights })
+  } catch (error) {
+    console.error('Error listing exegesis highlights for scheduled activity:', error)
+    res.status(500).json({ success: false, error: 'Failed to list exegesis highlights' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/scheduled-activities/{activityId}/exegesis-highlights:
+ *   post:
+ *     tags: [Enrollments]
+ *     summary: Create an exegesis highlight on a scheduled EXEGESIS activity
+ *     security:
+ *       - userSession: []
+ */
+router.post('/scheduled-activities/:activityId/exegesis-highlights', requireAuth, async (req, res) => {
+  try {
+    const { activityId } = req.params
+    const userId = (req.user as any).id
+
+    const schema = z.object({
+      readBlockId: z.string().uuid(),
+      start: z.number().int().min(0),
+      end: z.number().int().min(1),
+      noteMarkdown: z.string().default(''),
+    }).refine((v) => v.end > v.start, { message: 'end must be greater than start' })
+
+    const body = schema.parse(req.body)
+
+    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+    if (!activity) {
+      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+    }
+
+    if (activity.type !== 'EXEGESIS') {
+      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
+    }
+
+    const block = await prisma.activityReadBlock.findFirst({
+      where: { id: body.readBlockId, scheduledActivityId: activityId, isLocked: true },
+      select: { id: true },
+    })
+
+    if (!block) {
+      return res.status(404).json({ success: false, error: 'Read block not found' })
+    }
+
+    // Enforce non-overlapping highlights
+    const existing = await prisma.exegesisHighlight.findMany({
+      where: { readBlockId: block.id },
+      select: { start: true, end: true },
+    })
+
+    const overlaps = existing.some((h) => !(body.end <= h.start || body.start >= h.end))
+    if (overlaps) {
+      return res.status(400).json({ success: false, error: 'Highlight overlaps an existing highlight' })
+    }
+
+    const nextOrder = await prisma.exegesisHighlight.aggregate({
+      where: { readBlockId: block.id },
+      _max: { orderNumber: true },
+    })
+
+    const created = await prisma.exegesisHighlight.create({
+      data: {
+        readBlockId: block.id,
+        orderNumber: (nextOrder._max.orderNumber ?? 0) + 1,
+        start: body.start,
+        end: body.end,
+        noteMarkdown: sanitizeScheduledMarkdownInput(body.noteMarkdown),
+      },
+    })
+
+    await syncScheduledExegesisSelectionsForBlock(block.id)
+
+    res.status(201).json({ success: true, highlight: created })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: error.errors })
+    }
+    console.error('Error creating exegesis highlight for scheduled activity:', error)
+    res.status(500).json({ success: false, error: 'Failed to create exegesis highlight' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/scheduled-activities/{activityId}/exegesis-highlights/{highlightId}:
+ *   patch:
+ *     tags: [Enrollments]
+ *     summary: Update an exegesis highlight's note on a scheduled activity
+ *     security:
+ *       - userSession: []
+ */
+router.patch('/scheduled-activities/:activityId/exegesis-highlights/:highlightId', requireAuth, async (req, res) => {
+  try {
+    const { activityId, highlightId } = req.params
+    const userId = (req.user as any).id
+
+    const schema = z.object({
+      noteMarkdown: z.string(),
+    })
+    const body = schema.parse(req.body)
+
+    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+    if (!activity) {
+      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+    }
+
+    if (activity.type !== 'EXEGESIS') {
+      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
+    }
+
+    // Ensure highlight belongs to this scheduled activity via the read block
+    const highlight = await prisma.exegesisHighlight.findUnique({
+      where: { id: highlightId },
+      include: { readBlock: { select: { scheduledActivityId: true, id: true } } },
+    })
+
+    if (!highlight || highlight.readBlock.scheduledActivityId !== activityId) {
+      return res.status(404).json({ success: false, error: 'Highlight not found' })
+    }
+
+    const updated = await prisma.exegesisHighlight.update({
+      where: { id: highlightId },
+      data: { noteMarkdown: sanitizeScheduledMarkdownInput(body.noteMarkdown) },
+    })
+
+    res.json({ success: true, highlight: updated })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ success: false, error: error.errors })
+    }
+    console.error('Error updating exegesis highlight for scheduled activity:', error)
+    res.status(500).json({ success: false, error: 'Failed to update exegesis highlight' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/scheduled-activities/{activityId}/exegesis-highlights/{highlightId}:
+ *   delete:
+ *     tags: [Enrollments]
+ *     summary: Delete an exegesis highlight from a scheduled activity
+ *     security:
+ *       - userSession: []
+ */
+router.delete('/scheduled-activities/:activityId/exegesis-highlights/:highlightId', requireAuth, async (req, res) => {
+  try {
+    const { activityId, highlightId } = req.params
+    const userId = (req.user as any).id
+
+    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+    if (!activity) {
+      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+    }
+
+    if (activity.type !== 'EXEGESIS') {
+      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
+    }
+
+    const highlight = await prisma.exegesisHighlight.findUnique({
+      where: { id: highlightId },
+      include: { readBlock: { select: { scheduledActivityId: true, id: true } } },
+    })
+
+    if (!highlight || highlight.readBlock.scheduledActivityId !== activityId) {
+      return res.status(404).json({ success: false, error: 'Highlight not found' })
+    }
+
+    await prisma.exegesisHighlight.delete({ where: { id: highlightId } })
+    await syncScheduledExegesisSelectionsForBlock(highlight.readBlock.id)
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Error deleting exegesis highlight for scheduled activity:', error)
+    res.status(500).json({ success: false, error: 'Failed to delete exegesis highlight' })
   }
 })
 

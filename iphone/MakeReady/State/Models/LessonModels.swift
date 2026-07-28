@@ -31,6 +31,11 @@ struct ScheduledActivity: Codable, Identifiable {
     var videoId: String?
     var videoUrl: String?
     var video: EmbeddedVideo?
+    var youtubeUrl: String?              // Full YouTube URL (YOUTUBE activities)
+    var youtubeVideoId: String?          // Extracted YouTube video ID
+    var youtubeStartSeconds: Int?        // Start time in seconds
+    var youtubeEndSeconds: Int?          // End time in seconds
+    var youtubeThumbnailUrl: String?     // Thumbnail URL from oEmbed
     let prayerPrompt: String?           // legacy
     let notes: String?                  // legacy
     var orderNumber: Int
@@ -42,6 +47,7 @@ struct ScheduledActivity: Codable, Identifiable {
         case readContent, sourceReferences, readBlocks
         case themeId
         case passageReference, passageText, videoId, videoUrl, video
+        case youtubeUrl, youtubeVideoId, youtubeStartSeconds, youtubeEndSeconds, youtubeThumbnailUrl
         case prayerPrompt, notes, orderNumber, estimatedSeconds
     }
 
@@ -71,6 +77,11 @@ struct ScheduledActivity: Codable, Identifiable {
         videoId = try container.decodeIfPresent(String.self, forKey: .videoId)
         videoUrl = try container.decodeIfPresent(String.self, forKey: .videoUrl)
         video = try container.decodeIfPresent(EmbeddedVideo.self, forKey: .video)
+        youtubeUrl = try container.decodeIfPresent(String.self, forKey: .youtubeUrl)
+        youtubeVideoId = try container.decodeIfPresent(String.self, forKey: .youtubeVideoId)
+        youtubeStartSeconds = try container.decodeIfPresent(Int.self, forKey: .youtubeStartSeconds)
+        youtubeEndSeconds = try container.decodeIfPresent(Int.self, forKey: .youtubeEndSeconds)
+        youtubeThumbnailUrl = try container.decodeIfPresent(String.self, forKey: .youtubeThumbnailUrl)
         prayerPrompt = try container.decodeIfPresent(String.self, forKey: .prayerPrompt)
         notes = try container.decodeIfPresent(String.self, forKey: .notes)
         orderNumber = try container.decodeIfPresent(Int.self, forKey: .orderNumber) ?? 1
@@ -97,6 +108,11 @@ struct ScheduledActivity: Codable, Identifiable {
         try container.encodeIfPresent(videoId, forKey: .videoId)
         try container.encodeIfPresent(videoUrl, forKey: .videoUrl)
         try container.encodeIfPresent(video, forKey: .video)
+        try container.encodeIfPresent(youtubeUrl, forKey: .youtubeUrl)
+        try container.encodeIfPresent(youtubeVideoId, forKey: .youtubeVideoId)
+        try container.encodeIfPresent(youtubeStartSeconds, forKey: .youtubeStartSeconds)
+        try container.encodeIfPresent(youtubeEndSeconds, forKey: .youtubeEndSeconds)
+        try container.encodeIfPresent(youtubeThumbnailUrl, forKey: .youtubeThumbnailUrl)
         try container.encodeIfPresent(prayerPrompt, forKey: .prayerPrompt)
         try container.encodeIfPresent(notes, forKey: .notes)
         try container.encode(orderNumber, forKey: .orderNumber)
@@ -165,6 +181,18 @@ struct ScheduledActivity: Codable, Identifiable {
                 return true
             }
             return readContent != nil && !readContent!.isEmpty
+        case "YOUTUBE":
+            return youtubeUrl != nil && !youtubeUrl!.isEmpty
+        case "EXEGESIS":
+            // Mirrors StudyActivity.isConfigured: needs a title, a locked
+            // scripture block with content, and at least one highlight.
+            guard let t = title, !t.isEmpty else { return false }
+            guard let blocks = readBlocks,
+                  let locked = blocks.first(where: { $0.isLocked }),
+                  let content = locked.content, !content.isEmpty else {
+                return false
+            }
+            return (locked.selections ?? []).isEmpty == false
         case "USER_INPUT":
             return true
         default:
@@ -172,10 +200,11 @@ struct ScheduledActivity: Codable, Identifiable {
         }
     }
 
-    /// Convert to StudyActivity for use with EditReadActivityPage
+    /// Convert to StudyActivity for use with the shared activity editors
+    /// (EditReadActivityPage, EditYouTubeActivityPage, EditExegesisActivityPage).
     func toStudyActivity() -> StudyActivity {
         let activityType = ActivityType(rawValue: type) ?? .read
-        return StudyActivity(
+        var activity = StudyActivity(
             id: id,
             lessonId: lessonId,
             type: activityType,
@@ -193,6 +222,12 @@ struct ScheduledActivity: Codable, Identifiable {
             videoId: videoId,
             passageReference: passageReference
         )
+        activity.youtubeUrl = youtubeUrl
+        activity.youtubeVideoId = youtubeVideoId
+        activity.youtubeStartSeconds = youtubeStartSeconds
+        activity.youtubeEndSeconds = youtubeEndSeconds
+        activity.youtubeThumbnailUrl = youtubeThumbnailUrl
+        return activity
     }
 }
 
