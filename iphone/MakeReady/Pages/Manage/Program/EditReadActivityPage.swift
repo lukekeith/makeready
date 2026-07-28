@@ -799,7 +799,20 @@ struct EditReadActivityPage: View {
     private func openSlidePreview() {
         // Themes were loaded at app startup into AppState — no network
         // round-trip needed here. See AppState.loadTextThemes().
-        showSlidePreview = true
+        //
+        // The preview WebView renders the SERVER's copy of the lesson, so any
+        // unsaved block text must be flushed first or the preview shows stale
+        // content (monday#12628511666). On save failure the error banner
+        // surfaces and the preview stays closed.
+        if hasSaved {
+            showSlidePreview = true
+            return
+        }
+        Task {
+            if await performSave() {
+                showSlidePreview = true
+            }
+        }
     }
 
     // MARK: - Set Titles Modal
@@ -1096,45 +1109,55 @@ struct EditReadActivityPage: View {
     // MARK: - Save
 
     private func save() {
+        Task { _ = await performSave() }
+    }
+
+    /// Persist the title + any dirty editable blocks. Awaitable so callers
+    /// (the Save link, and Preview's flush-before-present) can sequence on
+    /// completion. Returns true on success; on failure surfaces the error
+    /// banner and returns false.
+    @discardableResult
+    private func performSave() async -> Bool {
+        guard !isSaving else { return false }
         isSaving = true
-        Task {
-            do {
-                try await actions.updateTitle(activity.id, title)
+        do {
+            try await actions.updateTitle(activity.id, title)
 
-                // Convert each editable block's AttributedString to markdown
-                // only at save time — no per-keystroke round trip.
-                var markdownByBlockId: [String: String] = [:]
-                for block in orderedBlocks where !block.isLocked {
-                    let attr = editableBlockAttributed[block.id] ?? AttributedString()
-                    markdownByBlockId[block.id] = MarkdownEditor.attributedToMarkdown(attr)
-                }
-
-                for block in orderedBlocks where !block.isLocked {
-                    let currentContent = markdownByBlockId[block.id] ?? ""
-                    let originalContent = block.content ?? ""
-                    if currentContent != originalContent {
-                        try await actions.updateReadBlock(activity.id, block.id, currentContent)
-                    }
-                }
-
-                // Notify parent of updated blocks (with saved content applied)
-                var finalBlocks = orderedBlocks
-                for i in 0..<finalBlocks.count where !finalBlocks[i].isLocked {
-                    finalBlocks[i].content = markdownByBlockId[finalBlocks[i].id] ?? finalBlocks[i].content
-                }
-                onBlocksChanged?(finalBlocks)
-
-                isSaving = false
-                hasSaved = true
-            } catch {
-                isSaving = false
-                AppState.shared.recordError(
-                    error,
-                    context: "EditReadActivityPage.save",
-                    surface: true,
-                    friendlyMessage: "Couldn't save changes"
-                )
+            // Convert each editable block's AttributedString to markdown
+            // only at save time — no per-keystroke round trip.
+            var markdownByBlockId: [String: String] = [:]
+            for block in orderedBlocks where !block.isLocked {
+                let attr = editableBlockAttributed[block.id] ?? AttributedString()
+                markdownByBlockId[block.id] = MarkdownEditor.attributedToMarkdown(attr)
             }
+
+            for block in orderedBlocks where !block.isLocked {
+                let currentContent = markdownByBlockId[block.id] ?? ""
+                let originalContent = block.content ?? ""
+                if currentContent != originalContent {
+                    try await actions.updateReadBlock(activity.id, block.id, currentContent)
+                }
+            }
+
+            // Notify parent of updated blocks (with saved content applied)
+            var finalBlocks = orderedBlocks
+            for i in 0..<finalBlocks.count where !finalBlocks[i].isLocked {
+                finalBlocks[i].content = markdownByBlockId[finalBlocks[i].id] ?? finalBlocks[i].content
+            }
+            onBlocksChanged?(finalBlocks)
+
+            isSaving = false
+            hasSaved = true
+            return true
+        } catch {
+            isSaving = false
+            AppState.shared.recordError(
+                error,
+                context: "EditReadActivityPage.save",
+                surface: true,
+                friendlyMessage: "Couldn't save changes"
+            )
+            return false
         }
     }
 
