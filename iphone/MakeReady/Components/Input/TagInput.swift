@@ -48,7 +48,13 @@ struct TagInput: View {
                     .foregroundColor(.white)
                     .focused($isFocused)
                     .submitLabel(.done)
-                    .onSubmit { addTag(inputText) }
+                    .onSubmit {
+                        addTag(inputText)
+                        // Tags are entered in batches — keep the field focused
+                        // so the keyboard stays up for the next tag instead of
+                        // the default resign-on-submit (monday#12629830200).
+                        isFocused = true
+                    }
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
                     .frame(maxWidth: .infinity, minHeight: 28, alignment: .leading)
