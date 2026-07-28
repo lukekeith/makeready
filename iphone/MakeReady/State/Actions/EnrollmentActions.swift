@@ -412,17 +412,52 @@ private let api: APIClientProtocol
     /// - Parameter enrollmentId: The enrollment to add the lesson to
     @MainActor
     func addScheduledLesson(enrollmentId: String) async throws {
-        let response: APISuccessResponse = try await api.post(
-            "/api/enrollments/\(enrollmentId)/schedules",
-            body: [:],
-            responseType: APISuccessResponse.self
-        )
+        // The server requires a lessonId — it copies that program lesson's
+        // activities and dates the schedule by walking the enrollment's
+        // enabled days past the last existing schedule. Resolve the study's
+        // next unscheduled lesson (lowest day number) to send.
+        let details = try await getEnrollmentDetails(id: enrollmentId)
+        let scheduledLessonIds = Set(details.lessonSchedules.map { $0.lessonId })
 
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to add scheduled lesson")
+        _ = try await ProgramActions().getProgram(id: details.studyProgramId)
+        let nextLesson = state.lessonsFor(programId: details.studyProgramId)
+            .sorted { $0.dayNumber < $1.dayNumber }
+            .first { !scheduledLessonIds.contains($0.id) }
+
+        guard let nextLesson else {
+            throw AddScheduledLessonError.allLessonsScheduled
+        }
+
+        do {
+            let response: APISuccessResponse = try await api.post(
+                "/api/enrollments/\(enrollmentId)/schedules",
+                body: ["lessonId": nextLesson.id],
+                responseType: APISuccessResponse.self
+            )
+            guard response.success else {
+                throw APIError.serverError(response.error ?? "Failed to add scheduled lesson")
+            }
+        } catch let error as APIError {
+            // 409 = the resolved lesson was scheduled concurrently; from the
+            // user's perspective there is nothing left to add.
+            if case .serverError(let message) = error, message.localizedCaseInsensitiveContains("already scheduled") {
+                throw AddScheduledLessonError.allLessonsScheduled
+            }
+            throw error
         }
 
         NSLog("📅 EnrollmentActions: Added scheduled lesson to enrollment \(enrollmentId)")
+    }
+
+    /// Thrown by `addScheduledLesson` when every lesson in the study is
+    /// already on the enrollment's schedule — callers surface it as an
+    /// informational banner (no retry: there is nothing to add).
+    enum AddScheduledLessonError: LocalizedError {
+        case allLessonsScheduled
+
+        var errorDescription: String? {
+            "All lessons in this study are already scheduled"
+        }
     }
 
     // MARK: - Update Schedule Title

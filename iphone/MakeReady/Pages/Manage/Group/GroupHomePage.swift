@@ -150,7 +150,7 @@ struct GroupHomePage: View {
             DialogOverlay(
                 isPresented: $showAddLessonDialog,
                 title: "Add a new lesson?",
-                message: "This will add a new scheduled lesson to the end of the enrollment.",
+                message: "This will schedule the study's next lesson at the end of the enrollment.",
                 buttons: [
                     DialogButtonConfig(
                         isAddingLesson ? "Adding..." : "Add lesson",
@@ -795,6 +795,19 @@ struct GroupHomePage: View {
                 if let groupId = group?.id {
                     _ = try? await EnrollmentActions().loadEnrollments(groupId: groupId)
                 }
+            } catch let error as EnrollmentActions.AddScheduledLessonError {
+                // Nothing left to add — informational, no retry.
+                await MainActor.run {
+                    isAddingLesson = false
+                    addLessonEnrollmentId = nil
+                    state.recordError(
+                        error,
+                        context: "GroupHomePage.addScheduledLesson",
+                        surface: true,
+                        friendlyMessage: "All lessons in this study are already scheduled"
+                    )
+                }
+                return
             } catch {
                 await MainActor.run {
                     // Clear the pending state before recording so the banner

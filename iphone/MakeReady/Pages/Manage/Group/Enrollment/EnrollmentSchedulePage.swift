@@ -183,7 +183,7 @@ struct EnrollmentSchedulePage: View {
             DialogOverlay(
                 isPresented: $showAddLessonDialog,
                 title: "Add a new lesson?",
-                message: "This will add a new scheduled lesson to the end of the enrollment.",
+                message: "This will schedule the study's next lesson at the end of the enrollment.",
                 buttons: [
                     DialogButtonConfig(
                         isAddingLesson ? "Adding..." : "Add lesson",
@@ -538,6 +538,17 @@ struct EnrollmentSchedulePage: View {
             do {
                 try await EnrollmentActions().addScheduledLesson(enrollmentId: enrollment.id)
                 await loadEnrollmentDetails(showLoading: false)
+            } catch let error as EnrollmentActions.AddScheduledLessonError {
+                // Nothing left to add — informational, no retry.
+                await MainActor.run {
+                    isAddingLesson = false
+                    AppState.shared.recordError(
+                        error,
+                        context: "EnrollmentSchedulePage.addScheduledLesson",
+                        surface: true,
+                        friendlyMessage: "All lessons in this study are already scheduled"
+                    )
+                }
             } catch {
                 // User tapped "Add lesson" — retry re-runs the add (the
                 // isAddingLesson guard has been cleared by then).
