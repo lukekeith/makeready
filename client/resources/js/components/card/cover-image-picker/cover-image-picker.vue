@@ -5,8 +5,8 @@ import { cva } from '../../../util/cva'
 //
 // A 240px-tall cover well for a study program: a translucent image well, a
 // bottom appBackground gradient, and a bottom-left text overlay (program name +
-// description, or an "Add cover image" / "Add program name" placeholder). In
-// `display` mode a pencil edit button sits in the top-right.
+// description, or an "Add cover image" / "Tap to select cover image"
+// placeholder). In `display` mode a pencil edit button sits in the top-right.
 //
 // PARITY NOTE: in the isolated compare snapshot the iOS AsyncImage never resolves
 // the remote cover URL, so a configured image renders the white@0.1 placeholder
@@ -102,8 +102,10 @@ const hasDescription = computed(() => trimmedDescription.value.length > 0)
       <p v-else-if="!hasImage" class="CoverImagePicker__placeholderLarge">
         Add cover image
       </p>
-      <p v-else class="CoverImagePicker__placeholderLarge">
-        Add program name
+      <!-- Has image, no name: the tap opens the PHOTO picker, so the hint
+           describes that (monday#12629957974) — small secondary style. -->
+      <p v-else class="CoverImagePicker__placeholderSmall">
+        Tap to select cover image
       </p>
     </div>
 

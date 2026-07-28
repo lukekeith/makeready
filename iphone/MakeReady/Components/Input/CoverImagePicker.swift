@@ -136,10 +136,14 @@ struct CoverImagePicker: View {
                             .font(Typography.s22)
                             .foregroundColor(.white.opacity(0.2))
                     } else {
-                        // Has image, no name - "Add program name"
-                        Text("Add program name")
-                            .font(Typography.s22)
-                            .foregroundColor(.white.opacity(0.2))
+                        // Has image, no name. Tapping the well opens the PHOTO
+                        // picker, so the hint must describe that (monday#12629957974
+                        // — "Add program name" promised a rename affordance the
+                        // tap doesn't provide). Small secondary style, matching
+                        // the "Add cover image" hint above.
+                        Text("Tap to select cover image")
+                            .font(Typography.s13)
+                            .foregroundColor(.white.opacity(0.4))
                     }
                 }
                 .padding(16)
