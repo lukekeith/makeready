@@ -527,15 +527,18 @@ struct MainPrograms: View {
     private var programsList: some View {
         ForEach(programs, id: \.id) { program in
             let isDeleting = deletingProgramId == program.id
+            // Delete is creator-only (matches MainLibrary's browse list and the
+            // server's DELETE authorization) — others get an inert card.
+            let isOwn = program.isEditable(by: authManager.currentUser?.id)
 
             SwipeableCard(
-                slideButtons: [
+                slideButtons: isOwn ? [
                     SlideButton(icon: "trash", style: .delete) {
                         programToDelete = program
                         showDeleteConfirmation = true
                     }
-                ],
-                isSwipeEnabled: !isDeleting,
+                ] : [],
+                isSwipeEnabled: isOwn && !isDeleting,
                 onTap: {
                     NSLog("👆 Program card tapped: id=\(program.id)")
                     selectedProgramId = program.id

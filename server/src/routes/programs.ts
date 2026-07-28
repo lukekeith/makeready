@@ -1404,8 +1404,13 @@ router.delete('/programs/:id', requireAuth, async (req, res) => {
     const { id } = req.params
     const userId = (req.user as any).id
 
+    // Deliberate carve-out from the org-content rule (`mutationFilter`):
+    // deletion is CREATOR-only (+ super admin). Org role-holders may edit
+    // org programs but never delete someone else's — a non-creator falls
+    // through the filter and reads as the existing 404.
+    const superAdmin = await isSuperAdmin(userId)
     const program = await prisma.studyProgram.findFirst({
-      where: { id, ...(await mutationFilter(userId)), isActive: true },
+      where: { id, isActive: true, ...(superAdmin ? {} : { creatorId: userId }) },
     })
 
     if (!program) {
