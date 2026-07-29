@@ -2,12 +2,14 @@
  * Program-level mutation authorization (integration).
  *
  * Program-level mutations (rename/publish, add/edit/reorder lessons, cover
- * image, delete) historically funnelled through `mutationFilter`, which was
+ * image) historically funnelled through `mutationFilter`, which was
  * creator-only — so a non-creator org owner / group leader could edit a
- * program's activities (already org-scoped) but could NOT rename it, reorder
- * its lessons, or delete it (404). After the fix, `mutationFilter` is org-aware
+ * program's activities (already org-scoped) but could NOT rename it or reorder
+ * its lessons (404). After the fix, `mutationFilter` is org-aware
  * (creator / org owner / role-holder / super admin), matching
  * `canManageOrgContent`. Strangers still fall through to 404; unauth gets 401.
+ * DELETE is the deliberate exception: creator-only (monday#12622983805) —
+ * see program-delete-authorization.test.ts.
  *
  * Auth is real end-to-end: each user gets an API key and drives the endpoints
  * via `Authorization: Bearer mr_…` through the live middleware.
@@ -120,11 +122,15 @@ describe('Program-level mutation authorization', () => {
     expect(res.status).toBe(404)
   })
 
-  it('lets a NON-creator org leader DELETE the program (the fix — was 404)', async () => {
+  it('denies a NON-creator org leader DELETE (deletion is creator-only — monday#12622983805 carve-out)', async () => {
     const res = await request(app)
       .delete(`/api/programs/${programId}`)
       .set('Authorization', bearer(leader.token))
-    expect(res.status).toBe(200)
-    expect(res.body.success).toBe(true)
+    expect(res.status).toBe(404)
+
+    // The program is untouched — full delete coverage lives in
+    // program-delete-authorization.test.ts.
+    const program = await prisma.studyProgram.findUnique({ where: { id: programId } })
+    expect(program?.isActive).toBe(true)
   })
 })
