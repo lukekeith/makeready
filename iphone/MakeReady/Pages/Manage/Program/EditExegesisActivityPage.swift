@@ -22,9 +22,11 @@ import SwiftUI
 struct ExegesisActivityActionProvider {
     let context: LessonContext
     /// Live activity lookup so blocks/selections re-read fresh from AppState.
-    let liveActivity: (String) -> StudyActivity?
+    /// @MainActor: synchronous closures that touch AppState (main-actor
+    /// isolated) — the async closures below hop via await instead.
+    let liveActivity: @MainActor (String) -> StudyActivity?
     /// Optimistic local write of merged selections: (activityId, blockId, merged).
-    let applyLocalSelections: (String, String, [ReadBlockSelection]) -> Void
+    let applyLocalSelections: @MainActor (String, String, [ReadBlockSelection]) -> Void
     let fetchHighlights: (String) async throws -> (readBlockId: String?, highlights: [ExegesisHighlight])
     /// (activityId, readBlockId, start, end, noteMarkdown)
     let createHighlight: (String, String, Int, Int, String) async throws -> ExegesisHighlight
@@ -41,8 +43,10 @@ struct ExegesisActivityActionProvider {
     /// Block styling (image/color/font via BlockStyleEditor + snapshot revert)
     /// is program-only for now — BlockStyleEditor talks to ProgramActions.
     let supportsBlockStyling: Bool
-    /// Member-preview URL for the given activity id.
-    let previewURL: (String) -> URL?
+    /// Member-preview URL for the given activity id. @MainActor: the
+    /// enrollment builder calls PreviewWebView.buildPreviewURL,
+    /// whose View-conforming type is main-actor isolated.
+    let previewURL: @MainActor (String) -> URL?
 
     /// Default: program activities via ProgramActions + the program entity store.
     static var program: ExegesisActivityActionProvider {
@@ -132,7 +136,7 @@ struct ExegesisActivityActionProvider {
                 )
             },
             supportsBlockStyling: false,
-            previewURL: { ReadActivityPreviewModal.buildPreviewURL(activityId: $0) }
+            previewURL: { PreviewWebView.buildPreviewURL(activityId: $0) }
         )
     }
 }

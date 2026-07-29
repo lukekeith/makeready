@@ -14,8 +14,10 @@ struct YouTubeActivityActionProvider {
     let context: LessonContext
     /// (activityId, title, youtubeUrl) → persists the YouTube fields.
     let updateYouTube: (String, String, String) async throws -> Void
-    /// Member-preview URL for the given activity id.
-    let previewURL: (String) -> URL?
+    /// Member-preview URL for the given activity id. @MainActor: the
+    /// enrollment builder calls PreviewWebView.buildPreviewURL,
+    /// whose View-conforming type is main-actor isolated.
+    let previewURL: @MainActor (String) -> URL?
 
     /// Default: program activities via ProgramActions.
     static var program: YouTubeActivityActionProvider {
@@ -46,7 +48,7 @@ struct YouTubeActivityActionProvider {
                 )
             },
             previewURL: { activityId in
-                ReadActivityPreviewModal.buildPreviewURL(activityId: activityId)
+                PreviewWebView.buildPreviewURL(activityId: activityId)
             }
         )
     }
