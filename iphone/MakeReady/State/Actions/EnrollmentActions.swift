@@ -86,6 +86,17 @@ private let api: APIClientProtocol
         }
     }
 
+    /// Resolve the scheduled-lesson aggregate id for a schedule WITHOUT the
+    /// legacy `lessonScheduleMap` (only Home/Calendar loading warms that map;
+    /// the Group → enrollment path warms `enrollmentDetailsById` +
+    /// `scheduledLessons` instead — monday#12628423737).
+    @MainActor
+    private func scheduledLessonId(enrollmentId: String, scheduleId: String) -> String? {
+        state.enrollmentDetailsById[enrollmentId]?.lessonSchedules
+            .first { $0.id == scheduleId }?.lesson.id
+            ?? state.lessonScheduleMap[scheduleId]?.schedule.lesson.id
+    }
+
     // MARK: - Load Enrollments for Group
 
     /// Load enrollments for a specific group
@@ -696,14 +707,18 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to add scheduled activity")
         }
 
-        // Append to the parent lesson aggregate (the single source of truth)
-        // and patch the legacy schedule map for calendar/home cards.
+        // Append to the parent lesson aggregate UNCONDITIONALLY — the day
+        // editor renders from state.scheduledLessons, and the old guard on the
+        // legacy map silently skipped this whole write on the Group →
+        // enrollment path (monday#12628423737: activity created server-side
+        // but never shown until re-entry).
+        if let lessonId = scheduledLessonId(enrollmentId: enrollmentId, scheduleId: scheduleId),
+           var lesson = state.scheduledLessons[lessonId] {
+            lesson.activities.append(activity)
+            state.scheduledLessons.upsert(lesson)
+        }
+        // Legacy schedule map (calendar/home cards): patch only when present.
         if let entry = state.lessonScheduleMap[scheduleId] {
-            let scheduledLessonId = entry.schedule.lesson.id
-            if var lesson = state.scheduledLessons[scheduledLessonId] {
-                lesson.activities.append(activity)
-                state.scheduledLessons.upsert(lesson)
-            }
             var schedule = entry.schedule
             schedule.lesson.activities.append(activity)
             state.lessonScheduleMap[scheduleId] = (schedule: schedule, studyName: entry.studyName, enrollmentId: entry.enrollmentId)
@@ -726,31 +741,33 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to reorder scheduled activities")
         }
 
-        // Apply the new orderNumber to each activity in the lesson aggregate
-        // (single source of truth) and patch the legacy schedule map.
-        if let entry = state.lessonScheduleMap[scheduleId] {
-            let scheduledLessonId = entry.schedule.lesson.id
-            if var lesson = state.scheduledLessons[scheduledLessonId] {
-                let byId = Dictionary(uniqueKeysWithValues: lesson.activities.map { ($0.id, $0) })
-                var reordered: [ScheduledActivity] = []
-                for (i, activityId) in activityIds.enumerated() {
-                    if var a = byId[activityId] {
-                        a.orderNumber = i + 1
-                        reordered.append(a)
-                    }
-                }
-                for a in lesson.activities where !activityIds.contains(a.id) {
+        // Apply the new orderNumber in the lesson aggregate UNCONDITIONALLY
+        // (same conditional-write defect as addScheduledActivity —
+        // monday#12628423737), then patch the legacy schedule map only when
+        // an entry exists.
+        let lessonId = scheduledLessonId(enrollmentId: enrollmentId, scheduleId: scheduleId)
+        if let lessonId, var lesson = state.scheduledLessons[lessonId] {
+            let byId = Dictionary(uniqueKeysWithValues: lesson.activities.map { ($0.id, $0) })
+            var reordered: [ScheduledActivity] = []
+            for (i, activityId) in activityIds.enumerated() {
+                if var a = byId[activityId] {
+                    a.orderNumber = i + 1
                     reordered.append(a)
                 }
-                lesson.activities = reordered
-                state.scheduledLessons.upsert(lesson)
             }
-
-            var schedule = entry.schedule
-            schedule.lesson.activities = state.scheduledLessons[scheduledLessonId]?.activities ?? schedule.lesson.activities
-            state.lessonScheduleMap[scheduleId] = (schedule: schedule, studyName: entry.studyName, enrollmentId: entry.enrollmentId)
-            state.persist()
+            for a in lesson.activities where !activityIds.contains(a.id) {
+                reordered.append(a)
+            }
+            lesson.activities = reordered
+            state.scheduledLessons.upsert(lesson)
         }
+        if let entry = state.lessonScheduleMap[scheduleId] {
+            var schedule = entry.schedule
+            schedule.lesson.activities = lessonId.flatMap { state.scheduledLessons[$0]?.activities }
+                ?? schedule.lesson.activities
+            state.lessonScheduleMap[scheduleId] = (schedule: schedule, studyName: entry.studyName, enrollmentId: entry.enrollmentId)
+        }
+        state.persist()
 
         NSLog("📅 EnrollmentActions: Reordered activities for schedule \(scheduleId)")
     }
