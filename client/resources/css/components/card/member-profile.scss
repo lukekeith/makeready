@@ -1,0 +1,263 @@
+// MemberProfile — twin of MemberProfilePage.swift. Full-bleed hero modal:
+// #0d101a base, photo/initials under an ALWAYS-on gradient, content starting
+// at 45% of the modal box height, pad-bottom 100 scroll region.
+.MemberProfile {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--color-canvas); // iOS Color.appBackground #0d101a
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+
+  &__photo {
+    position: absolute;
+    inset: 0;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover; // iOS .aspectRatio(.fill) + .clipped()
+      display: block;
+    }
+  }
+
+  // iOS Motion.standard photo fade (300ms ease-in-out), frozen in captures.
+  &-photo-enter-active {
+    transition: opacity 0.3s ease-in-out;
+  }
+
+  &-photo-enter-from {
+    opacity: 0;
+  }
+
+  // ALWAYS present (iOS: "never inside a conditional").
+  &__gradient {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      rgba(13, 16, 26, 0.2) 0%,
+      rgba(13, 16, 26, 0.6) 50%,
+      rgba(13, 16, 26, 1) 75%
+    );
+  }
+
+  // Initials layer does NOT scroll (outside the ScrollView on iOS).
+  &__initials {
+    position: absolute;
+    top: 12%; // iOS spacer geometry.size.height * 0.12
+    left: 50%;
+    transform: translateX(-50%);
+    width: 240px;
+    height: 240px;
+    border-radius: 50%;
+    background: var(--color-white-5); // iOS white.opacity(0.05)
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__initialsText {
+    font-size: 80px; // iOS Typography.s80Bold
+    font-weight: 700;
+    color: var(--color-white-30);
+  }
+
+  &__statusbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 54px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0 8px 52px;
+    z-index: 3;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  &__scroll {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    z-index: 1;
+  }
+
+  // Direct child of the definite-height scrollport → % height resolves.
+  &__spacer {
+    height: 45%; // iOS Color.clear.frame(height: geometry.size.height * 0.45)
+  }
+
+  &__content {
+    display: flex;
+    flex-direction: column;
+    align-items: center; // iOS VStack default center alignment
+    gap: 16px; // iOS VStack(spacing: 16)
+    padding: 0 16px 100px; // iOS .padding(.horizontal,16).padding(.bottom,100)
+  }
+
+  &__name {
+    margin: 0;
+    font-size: 32px; // iOS Typography.s32Bold
+    font-weight: 700;
+    text-align: center;
+    color: #fff;
+  }
+
+  &__actions {
+    display: flex;
+    gap: 16px; // iOS HStack(spacing: 16)
+  }
+
+  &__panel {
+    width: 100%;
+  }
+
+  &__groups {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px; // iOS VStack(spacing: 8)
+  }
+
+  // Removed membership: iOS applies .opacity(0.5) to the card THEN overlays the
+  // stroke — so the border is NOT dimmed. CSS can't un-dim a child, so the dim
+  // goes on CardGroup and the border on the wrapper's ::after.
+  &__cardWrap {
+    position: relative;
+    width: 100%;
+
+    .CardGroup {
+      width: 100%;
+    }
+
+    &--removed {
+      .CardGroup {
+        opacity: 0.5;
+      }
+
+      &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        border: 1.5px solid #df1439; // iOS Color.destructive, lineWidth 1.5
+        border-radius: 4px;
+        pointer-events: none;
+      }
+    }
+  }
+
+  &__loading {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(13, 16, 26, 0.8); // iOS appBackground.opacity(0.8)
+  }
+
+  &__spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--color-white-30);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: MemberProfile-spin 0.8s linear infinite;
+  }
+
+  &__error {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px; // iOS VStack(spacing: 12)
+    padding: 32px;
+    background: rgba(13, 16, 26, 0.9); // iOS appBackground.opacity(0.9)
+    text-align: center;
+  }
+
+  &__errorGlyph {
+    display: inline-flex;
+    width: 40px; // iOS Typography.s40 glyph
+    height: 40px;
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__errorText {
+    margin: 0;
+    font-size: 15px; // iOS Typography.s15
+    color: var(--color-white-50);
+  }
+
+  &__retry {
+    border: none;
+    background: none;
+    padding: 0;
+    font-size: 17px; // iOS default body font (no .font modifier)
+    color: var(--color-brand-500); // iOS Color.brandPrimary
+    cursor: pointer;
+  }
+
+  &__back {
+    position: absolute;
+    top: 8px; // iOS .padding(.top, 8)
+    left: 16px; // iOS .padding(.leading, 16)
+    z-index: 3;
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.3); // iOS black.opacity(0.3)
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+  }
+
+  &__backIcon {
+    display: inline-flex;
+    width: 16px; // iOS Typography.s16Semibold glyph
+    height: 16px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+}
+
+@keyframes MemberProfile-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.capture-page .MemberProfile__spinner,
+.capture-wrap .MemberProfile__spinner {
+  animation: none;
+}
+
+// Capture host has no definite height and every layer here is absolutely
+// positioned (auto height would collapse to 0). Production overrides via the
+// modal host's :deep(height: 100%).
+.capture-page .MemberProfile,
+.capture-wrap .MemberProfile {
+  height: 100vh;
+}

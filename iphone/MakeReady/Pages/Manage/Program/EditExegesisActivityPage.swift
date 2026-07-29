@@ -812,6 +812,11 @@ struct EditExegesisActivityPage: View {
                         ""
                     )
                     await MainActor.run {
+                        // The server merges overlapping highlights into the
+                        // created one (union span) — drop the absorbed locals.
+                        exegesisHighlights.removeAll {
+                            $0.id != created.id && $0.start < created.end && $0.end > created.start
+                        }
                         upsertExegesisHighlight(created)
                         let key = highlightNoteKey(for: NSRange(location: created.start, length: created.end - created.start))
                         savedNoteMarkdownByHighlight[key] = created.noteMarkdown
@@ -876,8 +881,14 @@ struct EditExegesisActivityPage: View {
             NSLog("🟨 ExegesisSelectionTrace mergeSelection removeStyle kept=\(kept.count)")
             return kept
         }
-        let result = kept + [ReadBlockSelection(start: start, end: end, style: style)]
-        NSLog("🟨 ExegesisSelectionTrace mergeSelection resultCount=\(result.count)")
+        // Same-style overlaps merge into one union span (matching the server,
+        // which absorbs overlapping highlights on create); other styles are
+        // still replaced by the new selection.
+        let sameStyle = overlapping.filter { $0.style == style }
+        let unionStart = min(start, sameStyle.map(\.start).min() ?? start)
+        let unionEnd = max(end, sameStyle.map(\.end).max() ?? end)
+        let result = kept + [ReadBlockSelection(start: unionStart, end: unionEnd, style: style)]
+        Log.ui.info("🟨 ExegesisSelectionTrace mergeSelection resultCount=\(result.count, privacy: .public) union={\(unionStart, privacy: .public)-\(unionEnd, privacy: .public)}")
         return result
     }
 

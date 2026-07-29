@@ -1,6 +1,6 @@
 ---
 description: Port ONE iPhone leader screen to the web LeaderApp with pixel parity — analyze the Swift source, build/extend the shared Vue twin, register it in the /compare system, capture + diff both platforms, wire production, verify, and update the parity manifest. With no argument, takes the next item from the manifest's dependency-ordered build queue. Designed to run in a FRESH session.
-argument-hint: [screen-id from docs/parity/manifest.md — omit to take the next queued item]
+argument-hint: [screen-id from docs/parity/manifest.md — omit to take the next queued item; "verify" to batch-verify all ready screens]
 ---
 
 # Parity screen — $ARGUMENTS
@@ -10,11 +10,20 @@ parity, following the proven pipeline below. Work ONE screen at a time; each
 phase ends with something verifiable. The iPhone render is always the design
 reference; the web is what you build.
 
+**Argument `verify`?** Skip the build pipeline entirely and run the **VERIFY
+batch mode** at the bottom of this file. That mode is also the right response
+when the user says they've finished testing a batch of `ready` screens.
+
 **No screen id given?** Open `docs/parity/manifest.md` → **Build queue
-(dependency-ordered)** → take the FIRST unchecked item, tell the user which one
-you picked (and why it's next: its prerequisites are done), and proceed with it
-as the screen id. If its listed prerequisites are NOT all checked, stop and
-surface that instead of building out of order.
+(dependency-ordered)** → take the FIRST item that is neither done (`[x]`) nor
+ready (`[~]`), tell the user which one you picked (and why it's next: its
+prerequisites are done), and proceed with it as the screen id. Prerequisites
+count as satisfied when `[x]` verified OR `[~]` ready — `ready` means built,
+wired, diff-clean, and handed off for testing; only the user's live sign-off
+is pending, and that never blocks downstream build work. If a prerequisite is
+neither, stop and surface that instead of building out of order. If every
+queue item is `[x]` or `[~]`, tell the user the build queue is drained and
+suggest `/parity-screen verify`.
 
 ## Hard rules (re-read these before EVERY phase)
 
@@ -29,7 +38,8 @@ surface that instead of building out of order.
 - Every built screen must be previewable on the WEB side of /compare before
   the run ends (fixture + toClient + captured shot + `webBuilt` confirmed) —
   an iPhone-side seeding limitation is a note, never a reason to skip.
-- One screen per run. Finish by updating `docs/parity/manifest.md` — that file
+- One screen per BUILD run (the `verify` batch mode may sign off many `ready`
+  screens at once). Finish by updating `docs/parity/manifest.md` — that file
   is how the next session continues.
 
 **At the end of every phase, print that phase's exit checklist with ✓/✗ per
@@ -47,8 +57,10 @@ item.** Do not advance with an ✗ — either fix it or surface why to the user.
    and `compare-twins-index` (per-twin traps). Check for a memory about this
    screen's area.
 3. Confirm the environment is up: `docker compose ps` (client :8001, server
-   :3010, postgres :5434) and `curl -s localhost:5950/api/compare/manifest`
-   (capture UI). If missing, run `/dev-start`.
+   :3010, postgres :5434), `curl -s localhost:5950/api/compare/manifest`
+   (capture UI), and `curl -s -o /dev/null localhost:8002` (the HOST
+   `/_capture` artisan that web captures MUST go through — see
+   `capture-web-host-8002` memory). If missing, run `/dev-start`.
 
 **Exit checklist 0:** manifest row found (or added) ✓ · prerequisites checked ✓
 · relevant memories read ✓ · env up ✓
@@ -95,11 +107,11 @@ server routes ✓ · memory file written ✓ · manifest → `spec` ✓
 - Register the component in
   `components/domain/component-capture/component-capture.vue` (import + map).
 - Reuse the foundation: `islands/leader-app/overlay/` (routes/store/
-  managed-modal/slide-stack), `styles/_animated-border.scss`. If this screen
-  needs the missing `.menu` or `.page` chrome, build `managed-menu.vue`
-  (#111215, stroke #242937, content-sized bottom card) or `managed-page.vue`
-  (translateX push, easeOut 300ms in / easeIn 250ms out) per the specs in
-  `leader-app-study-management` memory.
+  overlay-host/slide-stack), `styles/_animated-border.scss`. ALL FOUR chromes
+  exist — `managed-modal.vue` (bottom sheet), `managed-menu.vue` (content-sized
+  bottom card), `managed-page.vue` (horizontal push, built 2026-07-28 — see
+  `parity-member-requests` memory), and `raw`. Register the route with the
+  right chrome; never build new chrome or local scrims.
 - SlideStack rule: detail panes must render from the SLOT's mounted item (not
   the live binding) so content survives slide-out.
 
@@ -124,10 +136,16 @@ untouched (git diff shows additions only) ✓ · registered in component-capture
    case. If missing, add one (Swift edit) — but **NEVER run xcodebuild without
    the user's explicit approval**.
 4. Capture web: `cd client && npm run build` (captures serve the BUILT bundle,
-   not HMR!) then `cd capture && node runners/compare/capture.mjs $ARGUMENTS
-   pro-max client`.
+   not HMR!) then `cd capture && CAPTURE_BASE_URL=http://localhost:8002 node
+   runners/compare/capture.mjs $ARGUMENTS pro-max '*' client`.
+   **`CAPTURE_BASE_URL` is mandatory** — the default :8001 is the DOCKER
+   client whose pages advertise a stale LAN VITE_ORIGIN and capture as
+   silently BLANK shots (see `capture-web-host-8002` memory; the :8002 host
+   artisan comes from `/capture-start`). **`'*'` captures every variant** —
+   there is NO --variant flag; an unknown token silently falls back to the
+   default variant only.
 5. Capture iPhone (with user approval): `node runners/compare/capture.mjs
-   $ARGUMENTS pro-max iphone`.
+   $ARGUMENTS pro-max '*' iphone`.
 6. **Diff programmatically first**: `cd capture && node
    runners/compare/diff.mjs $ARGUMENTS pro-max` — it prints a mismatch % per
    variant, the hottest vertical bands (in points), and writes a highlighted
@@ -186,15 +204,39 @@ Update the manifest row → `wired`.
 chrome) ✓ · entry point wired ✓ · dialog/label strings iOS-exact ✓ · build
 green ✓ · `php artisan test` green ✓ · manifest → `wired` ✓
 
-## 5. VERIFY — user in the loop
+## 5. READY — hand off for verification (do NOT block on the user)
 
 - Tell the user exactly what to test live (`/admin/...` path + gestures) and
   what to look at in `http://localhost:5950/compare/$ARGUMENTS`.
-- Process their pins with `/compare-resolve $ARGUMENTS` until clean.
-- When they confirm: manifest row → ✅ `verified`, check off the item in the
-  Build queue, update the area memory with anything non-obvious learned, and
-  name the next queue item so the user knows what a bare `/parity-screen` will
-  pick up.
+- Manifest row → `ready`, Build-queue item → `[~]` (ready — awaiting batch
+  verify; satisfies prerequisites for dependent items).
+- Update the area memory with anything non-obvious learned during the build.
+- Name the next buildable queue item, then END the run. Verification happens
+  later — in batch via `/parity-screen verify`, or whenever the user confirms
+  directly. Never sit waiting for the user inside a build run.
 
-**Exit checklist 5:** user confirmed ✓ · manifest → `verified` + queue item
-checked off ✓ · area memory updated ✓ · next queue item named ✓
+**Exit checklist 5:** test script delivered ✓ · manifest → `ready` + queue
+item `[~]` ✓ · area memory updated ✓ · next buildable queue item named ✓
+
+## VERIFY batch mode — `/parity-screen verify` (user in the loop)
+
+Signs off every `ready` screen in one pass instead of one per run.
+
+1. Collect every manifest row at `ready` (queue items `[~]`). Confirm the env
+   is up (same checks as phase 0) — the user is about to test live.
+2. Print ONE consolidated test script, grouped by entry point so shared
+   navigation is walked once (e.g. the group chain is a single walk: Groups
+   tab → group card → Group Home → settings / invite / members panes), with
+   each screen's checks condensed to its riskiest behaviors, plus the
+   `http://localhost:5950/compare/<id>` links to review.
+3. Process pins with `/compare-resolve <id>` until clean.
+4. For each screen the user confirms: manifest row → ✅ `verified`, queue item
+   `[~]` → `[x]`, area memory updated. A screen the user rejects drops back to
+   the failing phase's status with a noted fix plan — fixes may run in this
+   same session, then the screen returns to `ready`.
+5. Name the next buildable queue item so the user knows what a bare
+   `/parity-screen` picks up.
+
+**Exit checklist V:** every confirmed screen → `verified` + `[x]` ✓ · every
+rejected screen has a status rollback + fix plan ✓ · memories updated ✓ ·
+next buildable queue item named ✓

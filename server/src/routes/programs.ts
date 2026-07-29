@@ -3030,35 +3030,47 @@ router.post('/activities/:activityId/exegesis-highlights', requireAuth, async (r
       return res.status(404).json({ success: false, error: 'Read block not found' })
     }
 
-    // Enforce non-overlapping highlights
+    // Overlapping highlights merge: the new range absorbs every highlight it
+    // touches — union span, notes concatenated in document order.
     const existing = await prisma.exegesisHighlight.findMany({
       where: { readBlockId: block.id },
-      select: { start: true, end: true },
+      orderBy: { start: 'asc' },
     })
+    const absorbed = existing.filter((h) => body.end > h.start && body.start < h.end)
 
-    const overlaps = existing.some((h) => !(body.end <= h.start || body.start >= h.end))
-    if (overlaps) {
-      return res.status(400).json({ success: false, error: 'Highlight overlaps an existing highlight' })
-    }
+    const start = Math.min(body.start, ...absorbed.map((h) => h.start))
+    const end = Math.max(body.end, ...absorbed.map((h) => h.end))
+    const noteMarkdown = [...absorbed.map((h) => h.noteMarkdown), sanitizeMarkdownInput(body.noteMarkdown)]
+      .filter((n) => n && n.trim())
+      .join('\n\n')
 
     const nextOrder = await prisma.exegesisHighlight.aggregate({
       where: { readBlockId: block.id },
       _max: { orderNumber: true },
     })
+    // A merged highlight keeps the earliest absorbed position in the list
+    const orderNumber = absorbed.length
+      ? Math.min(...absorbed.map((h) => h.orderNumber))
+      : (nextOrder._max.orderNumber ?? 0) + 1
 
-    const created = await prisma.exegesisHighlight.create({
-      data: {
-        readBlockId: block.id,
-        orderNumber: (nextOrder._max.orderNumber ?? 0) + 1,
-        start: body.start,
-        end: body.end,
-        noteMarkdown: sanitizeMarkdownInput(body.noteMarkdown),
-      },
+    const created = await prisma.$transaction(async (tx) => {
+      if (absorbed.length) {
+        await tx.exegesisHighlight.deleteMany({ where: { id: { in: absorbed.map((h) => h.id) } } })
+      }
+      return tx.exegesisHighlight.create({
+        data: {
+          readBlockId: block.id,
+          orderNumber,
+          start,
+          end,
+          noteMarkdown,
+        },
+      })
     })
 
     await syncExegesisSelectionsForBlock(block.id)
 
-    res.status(201).json({ success: true, highlight: created })
+    res.status(201).json({ success: true, highlight: created, absorbedIds: absorbed.map((h) => h.id) })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })

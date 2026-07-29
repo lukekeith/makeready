@@ -182,7 +182,7 @@ struct ScheduledActivity: Codable, Identifiable {
             }
             return readContent != nil && !readContent!.isEmpty
         case "YOUTUBE":
-            return youtubeUrl != nil && !youtubeUrl!.isEmpty
+            return youtubeUrl?.isEmpty == false
         case "EXEGESIS":
             // Mirrors StudyActivity.isConfigured: needs a title, a locked
             // scripture block with content, and at least one highlight.

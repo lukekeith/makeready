@@ -34,6 +34,10 @@ import { classnames } from '../../../util/classnames'
 export interface InfoPanelItem {
   label: string
   value: string
+  /** iOS InfoPanel.dataRowContent: a row with an onTap renders its value in
+   *  brandPrimary and is clickable (additive — captured rendering unchanged
+   *  when omitted). */
+  tappable?: boolean
 }
 
 interface Props {
@@ -47,17 +51,31 @@ const props = withDefaults(defineProps<Props>(), {
   items: () => [],
 })
 
+const emit = defineEmits<{ rowTap: [number] }>()
+
 const classes = computed(() =>
   classnames(InfoPanelCva.variants({ mode: props.mode }), props.class)
 )
+
+const onRowClick = (i: number) => {
+  if (props.items[i]?.tappable) emit('rowTap', i)
+}
 </script>
 
 <template>
   <div :class="classes">
     <template v-for="(item, i) in items" :key="i">
-      <div class="InfoPanel__row">
+      <div
+        class="InfoPanel__row"
+        :class="item.tappable && 'InfoPanel__row--tappable'"
+        @click="onRowClick(i)"
+      >
         <span class="InfoPanel__label">{{ item.label }}</span>
-        <span class="InfoPanel__value">{{ item.value }}</span>
+        <span
+          class="InfoPanel__value"
+          :class="item.tappable && 'InfoPanel__value--tappable'"
+          >{{ item.value }}</span
+        >
       </div>
       <div v-if="i < items.length - 1" class="InfoPanel__divider" aria-hidden="true"></div>
     </template>

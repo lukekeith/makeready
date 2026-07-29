@@ -37,6 +37,13 @@ struct CaptureState: Codable {
     let homeStats: CaptureHomeStats?
     // Group-home views: which group to render, and which slider screen (0 = overview)
     let groupId: String?
+    // Member-profile page: member id + seeded display name (profile itself
+    // loads over the network, so only the seeded pre-load state can render)
+    let memberId: String?
+    let seedName: String?
+    // Member-requests page: pending join requests seeded into
+    // AppState.pendingJoinRequestsByGroupId (group names come from `groups`)
+    let joinRequests: [CaptureJoinRequest]?
     let screenIndex: Int?
     // Isolated component views (view == "component.*")
     let component: CaptureComponent?
@@ -359,6 +366,17 @@ struct CaptureGroup: Codable {
     let memberDirectory: Bool?
     let memberCount: Int?
     let creatorId: String?
+}
+
+// Pending join request seed for pages.member-requests. `createdAt` is a unix
+// epoch (defaults to the fixed capture base 1_700_000_000 when omitted).
+struct CaptureJoinRequest: Codable {
+    let id: String
+    let groupId: String
+    let memberId: String?
+    let firstName: String?
+    let lastName: String?
+    let createdAt: Double?
 }
 
 struct CaptureEnrollment: Codable {

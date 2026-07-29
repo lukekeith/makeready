@@ -54,6 +54,12 @@ import EditGroup from '../../card/edit-group/edit-group.vue'
 import GroupInvite from '../../card/group-invite/group-invite.vue'
 // GroupMembersPage.swift (trailing pane in group-home) — web-only compare.
 import GroupMembersPage from '../../card/group-members-page/group-members-page.vue'
+// MemberProfilePage.swift (.memberProfile modal) — web-only until a
+// pages.member-profile ViewRegistry case is built.
+import MemberProfile from '../../card/member-profile/member-profile.vue'
+// MemberRequestsPage.swift (.page chrome) — web-only until a
+// pages.member-requests ViewRegistry case is built.
+import MemberRequestsPage from '../../card/member-requests-page/member-requests-page.vue'
 import EditReadActivity from '../../card/edit-read-activity/edit-read-activity.vue'
 import EditExegesisActivity from '../../card/edit-exegesis-activity/edit-exegesis-activity.vue'
 import ExegesisHighlightMenu from '../../card/exegesis-highlight-menu/exegesis-highlight-menu.vue'
@@ -191,6 +197,8 @@ const registry: Record<string, unknown> = {
   EditGroup,
   GroupInvite,
   GroupMembersPage,
+  MemberProfile,
+  MemberRequestsPage,
   EditReadActivity,
   // iOS EditExegesisActivityPage — single-page EXEGESIS editor twin.
   EditExegesisActivity,

@@ -47,7 +47,7 @@ struct Configuration {
             return value
         }
         #if DEBUG
-        return "192.168.1.65"
+        return "192.168.68.84"
         #else
         return "127.0.0.1"
         #endif

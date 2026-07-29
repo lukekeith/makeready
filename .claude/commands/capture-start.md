@@ -10,7 +10,7 @@ persist. Each step is idempotent — skip a server that's already responding.
 
 > **Strictly additive — never disable other apps.** This command MUST NOT kill,
 > restart, or `kill -9` any process. The capture system owns these ports and only
-> these: **5950** (UI), **5951** (API), **8001** (Laravel `/_capture`), plus a shared
+> these: **5950** (UI), **5951** (API), **8002** (host Laravel `/_capture` — :8001 belongs to the docker client), plus a shared
 > **client Vite** dev server. If any port it needs is occupied by something that
 > isn't the capture app, **report the conflict and skip that step** — do not attempt
 > a start that could error, and never touch the other process. Do not change these
@@ -47,11 +47,15 @@ elif lsof -ti tcp:5950 >/dev/null 2>&1 || lsof -ti tcp:5951 >/dev/null 2>&1; the
   echo "WARNING: :5950/:5951 in use by a NON-capture process — skipping (left untouched). Free it manually if you want the capture UI."
 else
   echo "starting capture UI/API…"   # run the next line in the BACKGROUND
-  ( cd /Users/lukekeith/www/makeready/capture && npm run dev )
+  ( cd /Users/lukekeith/www/makeready/capture && CAPTURE_BASE_URL=http://localhost:8002 npm run dev )
 fi
 ```
 When started, it serves the UI on **:5950** and the API on **:5951** (Vite proxies
-`/api` + `/screenshots`). Run it **in the background**.
+`/api` + `/screenshots`). Run it **in the background**. `CAPTURE_BASE_URL` makes
+UI-triggered web captures hit the HOST `/_capture` server on :8002 (step 4) —
+NOT the docker client on :8001, whose pages advertise a LAN `VITE_ORIGIN` that
+goes stale whenever the Mac's IP changes and then renders every capture as a
+blank #0d101a page (see `capture-web-host-8002` memory, 2026-07-28).
 
 ## 4. Web-capture dependencies (background)
 
@@ -70,16 +74,22 @@ else
   ( cd /Users/lukekeith/www/makeready/client && npm run dev )
 fi
 
-# Laravel /_capture server on :8001
-if curl -s -o /dev/null http://localhost:8001; then
-  echo "laravel :8001 already up"
-elif lsof -ti tcp:8001 >/dev/null 2>&1; then
-  echo "WARNING: :8001 in use by a NON-capture process — skipping (left untouched)."
+# HOST Laravel /_capture server on :8002. Do NOT use :8001 for captures — that
+# is the DOCKER client (docker-compose.override.yml remaps it because finpro-api
+# owns 8000); its pages advertise VITE_ORIGIN=<LAN IP>:5174 for iPhone-device
+# previews, which breaks silently (blank captures) when the Mac's IP changes.
+if curl -s -o /dev/null http://localhost:8002; then
+  echo "laravel /_capture :8002 already up"
+elif lsof -ti tcp:8002 >/dev/null 2>&1; then
+  echo "WARNING: :8002 in use by a NON-capture process — skipping (left untouched)."
 else
-  echo "starting laravel /_capture on :8001…"   # BACKGROUND
-  ( cd /Users/lukekeith/www/makeready/capture && CAPTURE_FIXTURES_PATH="$(pwd)/fixtures/client" php ../client/artisan serve --port=8001 )
+  echo "starting laravel /_capture on :8002…"   # BACKGROUND
+  ( cd /Users/lukekeith/www/makeready/capture && CAPTURE_FIXTURES_PATH="$(pwd)/fixtures/client" php ../client/artisan serve --port=8002 )
 fi
 ```
+
+CLI capture runs also need the base URL: prefix them with
+`CAPTURE_BASE_URL=http://localhost:8002` (the runner defaults to :8001).
 
 ## 5. Verify + report
 
@@ -87,7 +97,7 @@ fi
 echo "capture UI   :5950 -> $(curl -s -o /dev/null -w '%{http_code}' http://localhost:5950/compare)"
 echo "capture API  :5951 -> $(curl -s -o /dev/null -w '%{http_code}' http://localhost:5950/api/compare/manifest)"
 echo "postgres     :5434 -> $(PGPASSWORD=postgres pg_isready -h localhost -p 5434 -U postgres >/dev/null 2>&1 && echo OK || echo DOWN)"
-echo "laravel      :8001 -> $(curl -s -o /dev/null -w '%{http_code}' http://localhost:8001)"
+echo "laravel      :8002 -> $(curl -s -o /dev/null -w '%{http_code}' http://localhost:8002)"
 echo "client vite        -> $(test -f /Users/lukekeith/www/makeready/client/public/hot && curl -s -o /dev/null -w '%{http_code}' "$(cat /Users/lukekeith/www/makeready/client/public/hot)/@vite/client" || echo 'no hot file')"
 ```
 
@@ -98,7 +108,7 @@ Report this table:
 | Compare UI | http://localhost:5950/compare | Side-by-side comparison + comments |
 | Capture API | http://localhost:5951 | DB-backed comments/versions/screenshots |
 | Capture DB | postgres://localhost:5434/makeready_capture | Comments, versions, screenshots |
-| Laravel `/_capture` | http://localhost:8001 | Renders web fixtures for Playwright |
+| Laravel `/_capture` | http://localhost:8002 (HOST — not the :8001 docker client) | Renders web fixtures for Playwright |
 | Client Vite | (see `client/public/hot`) | Serves the component-capture island |
 
 **Then remind the user:**

@@ -17,7 +17,7 @@ export const OverlayPriority = {
   topLevel: 300,
 } as const
 
-export type OverlayChrome = 'modal' | 'menu' | 'raw'
+export type OverlayChrome = 'modal' | 'menu' | 'raw' | 'page'
 
 export interface OverlayRoute {
   id: string
@@ -60,6 +60,12 @@ export const ROUTES = {
   }),
   // iOS Route.groupHome — default modal priority/chrome, tap-outside dismisses.
   groupHome: route('groupHome'),
+  // iOS Route.memberProfile — default modal priority/chrome, tap-outside dismisses.
+  memberProfile: route('memberProfile'),
+  // iOS Route.memberRequests — the ONLY `.page` chrome route (ManagedPageView
+  // horizontal push). iOS dismissOnTapOutside is `true` but DEAD metadata:
+  // page chrome never reads it (the scrim has hit-testing off).
+  memberRequests: route('memberRequests', { chrome: 'page' }),
   // iOS Route.lessonActionMenu — .menu priority, menu chrome (ManagedMenuView).
   lessonActionMenu: route('lessonActionMenu', { priority: OverlayPriority.menu }),
   // Notifications feed (study-sync phase 6) — default modal chrome; opened

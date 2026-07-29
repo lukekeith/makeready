@@ -1,0 +1,32 @@
+{
+  "id": "member-requests",
+  "type": "page",
+  "group": "Group",
+  "title": "Group · Member Requests",
+  "adapter": "member-requests",
+  "viewports": ["pro-max"],
+  "note": "The ONLY iOS `.page` chrome route (ManagedPageView horizontal push — the chrome itself is exercised live, snapshots render the page content). iPhone side seedable via the new pages.member-requests ViewRegistry case + CaptureState.joinRequests (added 2026-07-28) but the capture app needs a user-approved xcodebuild first. Request r-2's group is deliberately NOT in the seeded groups → its Group chip is omitted (iOS omits silently). Avatars omitted → purple initials circles. Dates are fixed epochs formatted in LOCAL tz by both sides.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "groups": [
+          { "id": "g-1", "name": "Young Adults" },
+          { "id": "g-3", "name": "Tuesday Bible Study" }
+        ],
+        "requests": [
+          { "id": "r-1", "groupId": "g-1", "firstName": "Jordan", "lastName": "Blake", "createdAt": 1700000000 },
+          { "id": "r-2", "groupId": "g-2", "firstName": "Riley", "lastName": "Nakamura", "createdAt": 1700432000 },
+          { "id": "r-3", "groupId": "g-3", "firstName": "Sam", "lastName": "Chen", "createdAt": 1700864000 }
+        ]
+      }
+    },
+    {
+      "name": "empty",
+      "shared": {
+        "groups": [],
+        "requests": []
+      }
+    }
+  ]
+}

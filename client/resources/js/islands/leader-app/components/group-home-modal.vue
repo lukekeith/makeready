@@ -16,6 +16,7 @@ import EditGroup from '../../../components/card/edit-group/edit-group.vue'
 import GroupInvite from '../../../components/card/group-invite/group-invite.vue'
 import GroupMembersPage from '../../../components/card/group-members-page/group-members-page.vue'
 import LessonActionMenu from '../../../components/card/lesson-action-menu/lesson-action-menu.vue'
+import MemberProfileModal from './member-profile-modal.vue'
 import SlideStack from '../overlay/slide-stack.vue'
 import { ROUTES } from '../overlay/overlay-routes'
 import { inject } from 'vue'
@@ -59,6 +60,18 @@ function openMembers(): void {
   memberSearch.value = ''
   if (store.group) void store.loadGroupMembers(store.group.id)
   rightScreen.value = 'members'
+}
+
+// iOS GroupMembersPage.handleMemberTap → present(.memberProfile) with the
+// row's userId + seed name/avatar (seed choreography: hero renders frame 1).
+function openMemberProfile(rowId: string): void {
+  const row = store.memberRows.find((m) => m.id === rowId)
+  if (!row) return
+  overlayManager.present(ROUTES.memberProfile, MemberProfileModal, {
+    memberId: row.userId || row.id,
+    seedName: [row.firstName, row.lastName].filter(Boolean).join(' '),
+    seedAvatarUrl: row.avatarUrl ?? '',
+  })
 }
 
 // Copied toast (iOS copyToClipboard — 2s auto-hide, Motion.standardBrisk).
@@ -320,9 +333,10 @@ async function openLesson(): Promise<void> {
             @back="rightScreen = null"
             @update:search-text="memberSearch = $event"
             @retry="store.group && store.loadGroupMembers(store.group.id)"
+            @member-tap="openMemberProfile"
           />
-          <!-- memberTap / requestTap / respond intentionally unbound:
-               member-profile + member-request-respond are separate queue items. -->
+          <!-- requestTap / respond intentionally unbound:
+               member-request-respond is a separate queue item. -->
           <GroupInvite
             v-else-if="item === 'invite'"
             :group-name="store.invite?.groupName ?? store.group?.name ?? ''"

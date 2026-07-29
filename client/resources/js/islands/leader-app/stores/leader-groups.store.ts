@@ -30,7 +30,17 @@ export interface LeaderMember {
 }
 
 export interface LeaderRequest {
+  /** iOS GroupJoinRequest.id = "{groupId}-{requestId}". */
   id: string
+  requestId: string
+  groupId: string
+  firstName: string
+  lastName: string
+  avatarUrl: string | null
+  /** Group name chip; undefined when the group is unknown (chip omitted). */
+  groupName?: string
+  /** Pre-formatted "MMM d, yyyy" request date. */
+  requestedLabel: string
 }
 
 export interface LeaderEnrollment {
@@ -145,12 +155,19 @@ export const useLeaderGroups = defineStore('leader-groups', () => {
             .catch(() => [] as ApiMember[]),
         ),
       )
+      interface ApiJoinRequest {
+        id: string
+        createdAt?: string
+        member?: { id: string; firstName?: string | null; lastName?: string | null; avatarUrl?: string | null }
+      }
       const requestLists = await Promise.all(
         groups.value.map((g) =>
           axios
             .get(`/admin/api/groups/${g.id}/join-requests`)
-            .then((r) => (r.data.requests ?? []) as Array<{ id: string }>)
-            .catch(() => [] as Array<{ id: string }>),
+            .then((r) =>
+              ((r.data.requests ?? []) as ApiJoinRequest[]).map((req) => ({ groupId: g.id, req })),
+            )
+            .catch(() => [] as Array<{ groupId: string; req: ApiJoinRequest }>),
         ),
       )
 
@@ -186,7 +203,19 @@ export const useLeaderGroups = defineStore('leader-groups', () => {
       deduped.sort((a, b) => a.name.toLowerCase().localeCompare(b.name.toLowerCase()))
 
       members.value = deduped
-      requests.value = requestLists.flat()
+      // Full request rows (iOS MemberRequestsPage list) — SINGLE source of
+      // truth: the entry-card badge count derives from this same array (iOS
+      // keeps a separate presenter snapshot that can desync — not ported).
+      requests.value = requestLists.flat().map(({ groupId, req }) => ({
+        id: `${groupId}-${req.id}`,
+        requestId: req.id,
+        groupId,
+        firstName: req.member?.firstName ?? '',
+        lastName: req.member?.lastName ?? '',
+        avatarUrl: req.member?.avatarUrl ?? null,
+        groupName: groupNameById.get(groupId),
+        requestedLabel: req.createdAt ? MONTH_DAY_YEAR.format(new Date(req.createdAt)) : '',
+      }))
       membersLoaded = true
     } catch (err) {
       membersError.value = message(err, 'Failed to load members')
@@ -241,11 +270,35 @@ export const useLeaderGroups = defineStore('leader-groups', () => {
     }
   }
 
+  // iOS GroupActions.approveJoinRequest / rejectJoinRequest: POST with empty
+  // body, then splice the local row synchronously on success (NOT optimistic —
+  // the row stays until the response lands; no rollback path needed). Throws
+  // on failure so the caller can surface iOS's banner strings.
+  async function approveRequest(row: LeaderRequest): Promise<void> {
+    const res = await axios.post(
+      `/admin/api/groups/${row.groupId}/join-requests/${row.requestId}/approve`,
+      {},
+    )
+    if (!res.data?.success) throw new Error(res.data?.error || 'approve failed')
+    requests.value = requests.value.filter((r) => r.id !== row.id)
+  }
+
+  async function rejectRequest(row: LeaderRequest): Promise<void> {
+    const res = await axios.post(
+      `/admin/api/groups/${row.groupId}/join-requests/${row.requestId}/reject`,
+      {},
+    )
+    if (!res.data?.success) throw new Error(res.data?.error || 'reject failed')
+    requests.value = requests.value.filter((r) => r.id !== row.id)
+  }
+
   return {
     groups,
     members,
     requests,
     enrollments,
+    approveRequest,
+    rejectRequest,
     groupsLoading,
     membersLoading,
     enrolledLoading,

@@ -1,0 +1,110 @@
+// MemberRequestsPage — twin of MemberRequestsPage.swift (`.page` chrome).
+// appBackground page: 56px PageTitle row (own twin), then empty state or a
+// 4px-gap card list padded h16/top8/bottom100 (hidden-NavBar allowance).
+.MemberRequestsPage {
+  position: relative;
+  width: 100%;
+  background: var(--color-canvas); // iOS Color.appBackground #0d101a
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0 8px 52px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  &__title {
+    flex: 0 0 auto;
+  }
+
+  // Centered between the header and the bottom (iOS Spacer/Spacer sandwich).
+  &__empty {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px; // iOS VStack(spacing: 16)
+  }
+
+  &__emptyGlyph {
+    display: inline-flex;
+    width: 48px; // iOS Typography.s48 glyph
+    height: 48px;
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__emptyTitle {
+    margin: 0;
+    font-size: 17px; // iOS Typography.s17Semibold
+    font-weight: 600;
+    color: var(--color-white-20);
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  &__cards {
+    position: relative; // anchors the TransitionGroup leave-active rows
+    display: flex;
+    flex-direction: column;
+    gap: 4px; // iOS VStack(spacing: 4)
+    padding: 8px 16px 100px; // iOS .padding(.top,8).padding(.horizontal,16).padding(.bottom,100)
+  }
+}
+
+// Row add/remove ≈ iOS .transition(.scale.combined(with: .opacity)) under
+// Motion.standard (easeInOut 300ms). Inert in static captures.
+.MemberRequestsPage-row-enter-active,
+.MemberRequestsPage-row-leave-active {
+  transition:
+    transform 0.3s ease-in-out,
+    opacity 0.3s ease-in-out;
+}
+
+.MemberRequestsPage-row-leave-active {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+}
+
+.MemberRequestsPage-row-enter-from,
+.MemberRequestsPage-row-leave-to {
+  transform: scale(0);
+  opacity: 0;
+}
+
+.MemberRequestsPage-row-move {
+  transition: transform 0.3s ease-in-out;
+}
+
+.capture-page .MemberRequestsPage-row-enter-active,
+.capture-wrap .MemberRequestsPage-row-enter-active {
+  transition: none;
+}
+
+// Capture host has no definite height; the empty state centers via flex, so
+// the root must fill the viewport there. Production overrides via the page
+// chrome (absolute inset page → height 100%).
+.capture-page .MemberRequestsPage,
+.capture-wrap .MemberRequestsPage {
+  min-height: 100vh;
+}

@@ -1491,6 +1491,51 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .transaction { $0.disablesAnimations = true }
         )
 
+    case "pages.member-requests":
+        // Seed AppState.pendingJoinRequestsByGroupId from fixture.state
+        // .joinRequests; group names/order come from state.groups (already
+        // seeded by CaptureEnvironment). Renders inside no chrome — the page
+        // content itself (the ManagedPageView push is exercised live).
+        if let seeds = fixture.state?.joinRequests {
+            var byGroup: [String: [JoinRequest]] = [:]
+            for seed in seeds {
+                let request = JoinRequest(
+                    id: seed.id,
+                    status: "pending",
+                    message: nil,
+                    createdAt: Date(timeIntervalSince1970: seed.createdAt ?? 1_700_000_000),
+                    member: JoinRequestMember(
+                        id: seed.memberId ?? seed.id,
+                        firstName: seed.firstName,
+                        lastName: seed.lastName,
+                        avatarUrl: nil
+                    )
+                )
+                byGroup[seed.groupId, default: []].append(request)
+            }
+            AppState.shared.pendingJoinRequestsByGroupId = byGroup
+        }
+        return AnyView(
+            MemberRequestsPage(overlayManager: OverlayManager(), onRequestApproved: {})
+                .transaction { $0.disablesAnimations = true }
+        )
+
+    case "pages.member-profile":
+        // MemberProfilePage loads its profile over the NETWORK (GroupActions,
+        // not AppState), so the harness can only render the seeded pre-load
+        // state: hero background + gradient + initials + name. The profile
+        // fetch fails in the harness and may pop the error overlay — snapshot
+        // renders the seed state; full-content variants are web-only.
+        return AnyView(
+            MemberProfilePage(
+                memberId: fixture.state?.memberId ?? "capture-member",
+                overlayManager: OverlayManager(),
+                seedAvatarUrl: nil,
+                seedName: fixture.state?.seedName ?? "Marcus Thompson"
+            )
+            .transaction { $0.disablesAnimations = true }
+        )
+
     case "component.AddMenu":
         guard fixture.state?.component != nil else { throw ViewRegistryError.unknownView("component.AddMenu: missing state.component") }
         // AddMenu builds its rows from hardcoded content; the submenu sits offscreen at rest,

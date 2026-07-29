@@ -21,6 +21,8 @@ import editDay from './edit-day.mjs';
 import editGroup from './edit-group.mjs';
 import groupInvite from './group-invite.mjs';
 import groupMembersPage from './group-members-page.mjs';
+import memberProfile from './member-profile.mjs';
+import memberRequests from './member-requests.mjs';
 import biblePassagePicker from './bible-passage-picker.mjs';
 import editExegesisActivity from './edit-exegesis-activity.mjs';
 import exegesisHighlightMenu from './exegesis-highlight-menu.mjs';
@@ -147,6 +149,8 @@ export const adapters = {
   'group-invite': groupInvite,
   // WEB-ONLY: same pane family. NOT `group-members` (the Groups TAB comparison).
   'group-members-page': groupMembersPage,
+  'member-profile': memberProfile,
+  'member-requests': memberRequests,
   'bible-passage-picker': biblePassagePicker,
   'edit-exegesis-activity': editExegesisActivity,
   'exegesis-highlight-menu': exegesisHighlightMenu,

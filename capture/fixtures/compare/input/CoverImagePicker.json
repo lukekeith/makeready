@@ -24,6 +24,15 @@
       }
     },
     {
+      "name": "EditableImageNoName",
+      "shared": {
+        "mode": "editable",
+        "programName": "",
+        "programDescription": "",
+        "existingImageUrl": "https://picsum.photos/800/482"
+      }
+    },
+    {
       "name": "DisplayWithImage",
       "shared": {
         "mode": "display",

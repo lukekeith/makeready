@@ -1,0 +1,58 @@
+{
+  "id": "member-profile",
+  "type": "page",
+  "group": "Group",
+  "title": "Group · Member Profile",
+  "adapter": "member-profile",
+  "viewports": ["pro-max"],
+  "note": "iPhone side limited by design: MemberProfilePage loads its profile over the NETWORK (GroupActions → GET /api/members/:id/profile), not from AppState, so the harness can only seed the pre-load hero state (name + initials + gradient) — the `hero` variant. Full-content `default` and the `error` variant are WEB-FORWARD. A `pages.member-profile` ViewRegistry case exists (added 2026-07-28) but the app must be rebuilt (user-approved xcodebuild) before any iPhone capture. Avatar omitted → initials render (remote URLs never resolve in snapshots); all dates/durations are pre-formatted deterministic literals.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "name": "Marcus Thompson",
+        "loaded": true,
+        "joined": "Jan 12, 2026",
+        "age": "34",
+        "phone": "213.862.3686",
+        "email": "marcus.thompson@example.com",
+        "groups": [
+          {
+            "id": "g-3",
+            "name": "Men's Group",
+            "number": "12d",
+            "dateLabel": "Removed Jul 16, 2026 at 4:12 PM",
+            "removed": true
+          },
+          {
+            "id": "g-1",
+            "name": "Young Adults",
+            "number": "6mo",
+            "dateLabel": "Joined Jan 12, 2026 at 9:30 AM"
+          },
+          {
+            "id": "g-2",
+            "name": "Tuesday Bible Study",
+            "number": "3mo",
+            "dateLabel": "Joined Apr 2, 2026 at 7:00 PM"
+          }
+        ]
+      }
+    },
+    {
+      "name": "hero",
+      "shared": {
+        "name": "Marcus Thompson",
+        "loaded": false
+      }
+    },
+    {
+      "name": "error",
+      "shared": {
+        "name": "Marcus Thompson",
+        "loaded": false,
+        "errorMessage": "Failed to load member profile"
+      }
+    }
+  ]
+}

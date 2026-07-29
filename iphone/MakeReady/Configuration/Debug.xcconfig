@@ -6,7 +6,7 @@ API_BASE_URL = http:/$()/127.0.0.1:3010
 
 // LAN IP of the dev machine, for physical-device local testing.
 // Debug-only so personal IPs never ship in other configurations.
-LOCAL_SERVER_URL = 192.168.1.65
+LOCAL_SERVER_URL = 192.168.68.84
 
 // App Configuration
 PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.debug

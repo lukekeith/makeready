@@ -867,10 +867,10 @@ private let api: APIClientProtocol
 
         // Ensure the fields are present on the synced activity in case the
         // server response doesn't echo them back
-        if activity.youtubeUrl == nil || activity.youtubeUrl!.isEmpty {
+        if (activity.youtubeUrl ?? "").isEmpty {
             activity.youtubeUrl = youtubeUrl
         }
-        if activity.title == nil || activity.title!.isEmpty {
+        if (activity.title ?? "").isEmpty {
             activity.title = title
         }
         if let startSeconds = startSeconds { activity.youtubeStartSeconds = startSeconds }

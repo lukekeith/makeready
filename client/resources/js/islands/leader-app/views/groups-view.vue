@@ -17,6 +17,7 @@ import SearchField from '../../../components/card/search-field/search-field.vue'
 import SkeletonCardGroup from '../../../components/card/skeleton-card-group/skeleton-card-group.vue'
 import { useLeaderGroups } from '../stores/leader-groups.store'
 import GroupHomeModal from '../components/group-home-modal.vue'
+import MemberRequestsHost from '../components/member-requests-host.vue'
 import { ROUTES } from '../overlay/overlay-routes'
 import { useOverlayManager } from '../overlay/overlay.store'
 
@@ -154,10 +155,12 @@ const PLUS =
       <div v-if="store.membersLoading && !store.members.length" class="LeaderGroups__state">Loading…</div>
       <div v-else-if="store.membersError" class="LeaderGroups__state">{{ store.membersError }}</div>
       <template v-else>
+        <!-- iOS MemberHomePage.presentRequestsPage → .memberRequests (page chrome) -->
         <button
           v-if="store.requests.length && !search"
           class="LeaderGroups__requests"
           type="button"
+          @click="overlayManager.present(ROUTES.memberRequests, MemberRequestsHost, {})"
         >
           <span class="LeaderGroups__requestsLabel">Member requests</span>
           <span class="LeaderGroups__requestsCount">{{ store.requests.length }}</span>

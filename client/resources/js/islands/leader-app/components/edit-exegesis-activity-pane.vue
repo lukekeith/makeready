@@ -169,9 +169,6 @@ const highlightRuns = computed(() =>
 async function onSelect(range: CharRange): Promise<void> {
   const b = block.value
   if (!b) return
-  // The server 400s on overlap; tapping an existing highlight is the edit path.
-  const overlaps = highlights.value.some((h) => h.start < range.end && h.end > range.start)
-  if (overlaps) return
   try {
     const created = await store.createExegesisHighlight(
       props.lessonId,
@@ -180,11 +177,16 @@ async function onSelect(range: CharRange): Promise<void> {
       range,
     )
     if (created) {
-      highlights.value = [...highlights.value, created]
+      // The server merges overlaps: the created highlight absorbs every
+      // highlight it touches (union span, notes concatenated) — drop them.
+      highlights.value = [
+        ...highlights.value.filter((h) => h.end <= created.start || h.start >= created.end),
+        created,
+      ]
       dirty.value = true
     }
   } catch {
-    // Overlap race or network failure — the selection simply doesn't stick.
+    // Network failure — the selection simply doesn't stick.
   }
 }
 

@@ -74,3 +74,13 @@
     }
   }
 }
+
+// Additive: iOS dataRowContent — tappable rows render their value in
+// brandPrimary (captures never pass `tappable`; rendering unchanged there).
+.InfoPanel__row--tappable {
+  cursor: pointer;
+}
+
+.InfoPanel__value--tappable {
+  color: var(--color-brand-500); // iOS Color.brandPrimary #6C47FF
+}

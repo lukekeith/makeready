@@ -25,6 +25,11 @@ struct User: Codable {
 }
 
 /// Authentication-flow errors surfaced to the user.
+///
+/// Not thrown by the login flow anymore — `signIn()` falls back to Production
+/// when Local is unreachable. Still used by ProfilePage when an *explicit*
+/// switch to Local fails, where surfacing the error (not switching silently)
+/// is the right behavior.
 enum AuthError: LocalizedError {
     /// The selected Local dev server didn't answer at the configured host/port.
     case localServerUnreachable(host: String, port: String)
@@ -94,7 +99,7 @@ class AuthManager: NSObject {
     /// OAuth otherwise.
     @MainActor
     func signIn() async throws {
-        try await resolveLoginEnvironment()
+        await resolveLoginEnvironment()
 
         if Configuration.isLocalDevelopment {
             try await devLogin(email: Self.devLoginEmail)
@@ -105,13 +110,13 @@ class AuthManager: NSObject {
 
     /// If the user picked Local, verify it's reachable before committing the
     /// login to it. `LocalPortHealer` probes `/health` (and adopts a moved dev
-    /// port). If nothing answers, we **no longer silently switch to Production**
-    /// — that hid the real problem (usually a wrong Server IP) and bounced the
-    /// user between environments. Instead we throw so the login screen surfaces
-    /// a clear, actionable error and the user's Local selection is preserved.
+    /// port). If nothing answers (e.g. the Mac's LAN IP changed), fall back to
+    /// **Production** so login always works. The switch is persisted, so the
+    /// environment switcher shows where the session actually lives — switch
+    /// back to Local there once the dev server is reachable again.
     /// No-op for non-dev builds and non-Local selections.
     @MainActor
-    private func resolveLoginEnvironment() async throws {
+    private func resolveLoginEnvironment() async {
         guard Configuration.devMode, Configuration.selectedEnvironment == .local else {
             return
         }
@@ -122,8 +127,8 @@ class AuthManager: NSObject {
             return
         case .notFound, .skipped:
             let host = Configuration.localServerIP ?? Configuration.defaultLocalIP
-            Log.auth.info("Local server unreachable at login")
-            throw AuthError.localServerUnreachable(host: host, port: Configuration.localAPIPort)
+            Log.auth.info("Local server unreachable at \(host, privacy: .public):\(Configuration.localAPIPort, privacy: .public) — falling back to Production for login")
+            Configuration.selectedEnvironment = .production
         }
     }
 

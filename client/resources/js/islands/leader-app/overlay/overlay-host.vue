@@ -7,6 +7,7 @@
 // content component receives the item's props.
 import ManagedMenu from './managed-menu.vue'
 import ManagedModal from './managed-modal.vue'
+import ManagedPage from './managed-page.vue'
 import { useOverlayManager } from './overlay.store'
 
 const store = useOverlayManager()
@@ -34,6 +35,14 @@ const BASE_Z = 100
       >
         <component :is="item.component" v-bind="item.props" />
       </ManagedMenu>
+      <!-- page chrome: horizontal push (iOS ManagedPageView — .memberRequests) -->
+      <ManagedPage
+        v-else-if="item.chrome === 'page'"
+        :overlay-id="item.id"
+        :style="{ zIndex: BASE_Z + index }"
+      >
+        <component :is="item.component" v-bind="item.props" />
+      </ManagedPage>
       <!-- raw chrome: the component owns its own presentation -->
       <div
         v-else
