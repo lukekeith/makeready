@@ -236,6 +236,14 @@ export async function previewEnrollmentEdit(
         `Reschedules ${changed.size} upcoming lesson${changed.size === 1 ? '' : 's'}` +
           (lockedCount > 0 ? ` (${lockedCount} already sent will not move).` : '.')
       )
+    } else if (existing.length > 0 && lockedCount === existing.length) {
+      // Every lesson is locked (sent or past) — the requested dates cannot
+      // take effect, so say so instead of letting the confirm imply they will
+      // (monday#12661792842).
+      reschedule = { lessonsShifted: 0, lockedUnchanged: lockedCount }
+      summary.push(
+        `All ${lockedCount} lesson${lockedCount === 1 ? ' has' : 's have'} already been sent or completed — the schedule and dates will not change.`
+      )
     }
   }
 
@@ -332,12 +340,18 @@ export async function applyEnrollmentEdit(
       const enrollmentData: Record<string, unknown> = { updatedById: userId }
       if (changingGroup) enrollmentData.groupId = changes.groupId
       if (rescheduling) {
-        enrollmentData.startDate = targetStartDate
         enrollmentData.enabledDays = JSON.stringify(targetEnabledDays)
-        // Recompute endDate from the resulting schedule set.
+        // Derive BOTH dates from the resulting schedule set, not the request:
+        // locked lessons never move, so the requested startDate may not be
+        // where lessons actually begin. Writing it blindly persisted
+        // startDate > endDate on a fully-locked enrollment (monday#12661792842).
         const finalDates = schedules.map((s) => dateChanges.get(s.id) ?? s.scheduledDate)
         if (finalDates.length > 0) {
-          enrollmentData.endDate = new Date(Math.max(...finalDates.map((d) => d.getTime())))
+          const times = finalDates.map((d) => d.getTime())
+          enrollmentData.startDate = new Date(Math.min(...times))
+          enrollmentData.endDate = new Date(Math.max(...times))
+        } else {
+          enrollmentData.startDate = targetStartDate
         }
       }
       await tx.enrollment.update({ where: { id: enrollmentId }, data: enrollmentData })
