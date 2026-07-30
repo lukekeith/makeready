@@ -618,6 +618,10 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
             self.readerTextView.transform = .identity
             self.readerTextView.alpha = 0
             self.verseCircleContainer.alpha = 0
+            // Drop the outgoing chapter's numbers now so they can't flash over
+            // the incoming text; layoutVerseCircles restores visibility when it
+            // rebuilds for the new chapter (monday#12661826210).
+            self.clearVerseCircles()
 
             // Seed the real text view with the preview content so there's no jump
             // when we swap from preview → real reader
@@ -1063,6 +1067,12 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
 
     private func layoutVerseCircles() {
         clearVerseCircles()
+
+        // A completed chapter swipe leaves this container faded out and
+        // translated off-screen with the outgoing chapter; the rebuilt numbers
+        // must never inherit that hidden state (monday#12661826210).
+        verseCircleContainer.transform = .identity
+        verseCircleContainer.alpha = 1
 
         let textView = readerTextView
         let layoutManager = textView.layoutManager
