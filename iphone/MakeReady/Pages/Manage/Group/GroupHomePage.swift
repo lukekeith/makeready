@@ -795,16 +795,16 @@ struct GroupHomePage: View {
                 if let groupId = group?.id {
                     _ = try? await EnrollmentActions().loadEnrollments(groupId: groupId)
                 }
-            } catch let error as EnrollmentActions.AddScheduledLessonError {
-                // Nothing left to add — informational, no retry.
+            } catch is EnrollmentActions.AddScheduledLessonError {
+                // Nothing left to add. This is a settled state, not a failure —
+                // route it to the neutral notice channel, not the error banner
+                // (monday#12668501065).
                 await MainActor.run {
                     isAddingLesson = false
                     addLessonEnrollmentId = nil
-                    state.recordError(
-                        error,
-                        context: "GroupHomePage.addScheduledLesson",
-                        surface: true,
-                        friendlyMessage: "All lessons in this study are already scheduled"
+                    state.showNotice(
+                        "All lessons in this study are already scheduled",
+                        context: "GroupHomePage.addScheduledLesson"
                     )
                 }
                 return

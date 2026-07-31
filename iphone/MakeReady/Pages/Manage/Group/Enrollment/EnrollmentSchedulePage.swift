@@ -51,6 +51,22 @@ struct EnrollmentSchedulePage: View {
     /// with details; nil until loaded → cards fall back to empty outlined blocks.
     @State private var completionStats: EnrollmentCompletionStats?
 
+    /// True when every lesson in the study already has a schedule on this
+    /// enrollment — "Add lesson" has nothing left to add. Mirrors the lesson
+    /// resolution in `EnrollmentActions.addScheduledLesson` so the dead end is
+    /// visible BEFORE the tap rather than only as a message after it
+    /// (monday#12668501065).
+    ///
+    /// An empty program-lesson list means "not loaded yet", not "nothing to
+    /// add" — so it deliberately reads false and leaves the button enabled.
+    private var allLessonsScheduled: Bool {
+        guard let details = enrollmentDetails else { return false }
+        let programLessons = AppState.shared.lessonsFor(programId: details.studyProgramId)
+        guard !programLessons.isEmpty else { return false }
+        let scheduledLessonIds = Set(details.lessonSchedules.map { $0.lessonId })
+        return programLessons.allSatisfy { scheduledLessonIds.contains($0.id) }
+    }
+
     // Initialize from cache so the slide-in/modal-open animates with content
     // already laid out — async content arriving mid-flight is inserted outside
     // the animation transaction and lands at its final position (see
@@ -308,24 +324,36 @@ struct EnrollmentSchedulePage: View {
                                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         }
 
-                        BoxButton(
-                            action: { showAddLessonDialog = true },
-                            label: nil,
-                            icon: "plus",
-                            iconPosition: .right,
-                            variant: .secondary,
-                            style: .solid,
-                            size: .lg,
-                            fullWidth: true,
-                            iconOpacity: 0.5
-                        )
-                        .opacity(isAddingLesson ? 0.5 : 1.0)
-                        .disabled(isAddingLesson)
+                        VStack(spacing: 8) {
+                            BoxButton(
+                                action: { showAddLessonDialog = true },
+                                label: nil,
+                                icon: "plus",
+                                iconPosition: .right,
+                                variant: .secondary,
+                                style: .solid,
+                                size: .lg,
+                                fullWidth: true,
+                                iconOpacity: 0.5
+                            )
+                            .opacity(isAddingLesson || allLessonsScheduled ? 0.5 : 1.0)
+                            .disabled(isAddingLesson || allLessonsScheduled)
+
+                            // Say why the button is dead, instead of letting the
+                            // user tap it to find out (monday#12668501065).
+                            if allLessonsScheduled {
+                                Text("Every lesson in this study is scheduled")
+                                    .font(Typography.s13)
+                                    .foregroundColor(.white.opacity(0.5))
+                                    .multilineTextAlignment(.center)
+                            }
+                        }
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 16)
                     .padding(.bottom, 40)
                     .animation(Motion.micro, value: isAddingLesson)
+                    .animation(Motion.micro, value: allLessonsScheduled)
                 }
             } else {
                 // Empty state
@@ -538,15 +566,15 @@ struct EnrollmentSchedulePage: View {
             do {
                 try await EnrollmentActions().addScheduledLesson(enrollmentId: enrollment.id)
                 await loadEnrollmentDetails(showLoading: false)
-            } catch let error as EnrollmentActions.AddScheduledLessonError {
-                // Nothing left to add — informational, no retry.
+            } catch is EnrollmentActions.AddScheduledLessonError {
+                // Nothing left to add. This is a settled state, not a failure —
+                // route it to the neutral notice channel, not the error banner
+                // (monday#12668501065).
                 await MainActor.run {
                     isAddingLesson = false
-                    AppState.shared.recordError(
-                        error,
-                        context: "EnrollmentSchedulePage.addScheduledLesson",
-                        surface: true,
-                        friendlyMessage: "All lessons in this study are already scheduled"
+                    AppState.shared.showNotice(
+                        "All lessons in this study are already scheduled",
+                        context: "EnrollmentSchedulePage.addScheduledLesson"
                     )
                 }
             } catch {

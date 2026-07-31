@@ -27,6 +27,18 @@ enum LessonContext {
 /// Rendering these is a deliberate no-op until the error-surface UI is
 /// approved (Decision Point A) — recording happens now so failures stop
 /// vanishing into logs.
+/// How a surfaced message reads to the user. The banner styles itself from
+/// this — `.error` is the historical (and default) behavior, so every existing
+/// `recordError` call site is unchanged.
+enum AppMessageKind {
+    /// Something failed. Red, warning glyph.
+    case error
+    /// Nothing failed — the app is stating a fact the user needs
+    /// ("All lessons in this study are already scheduled"). Neutral styling,
+    /// no retry: there is nothing to re-run.
+    case notice
+}
+
 struct AppError: Identifiable {
     let id = UUID()
     /// Where the failure happened, e.g. "GroupActions.loadGroups"
@@ -34,6 +46,9 @@ struct AppError: Identifiable {
     /// Human-readable description (error.localizedDescription)
     let message: String
     let occurredAt = Date()
+    /// Styling/semantics for the banner. Defaults to `.error` so existing
+    /// call sites keep their behavior.
+    var kind: AppMessageKind = .error
     /// Whether this error shows the top error banner (Decision Point A:
     /// user-INITIATED failures surface; background refreshes stay
     /// console-only — the cache-first contract means users are looking at
@@ -290,6 +305,26 @@ final class AppState {
             activeSurfacedError = appError
         }
         Log.state.error("\(context, privacy: .public): \(error.localizedDescription, privacy: .public)")
+    }
+
+    /// Surface a neutral informational message in the top banner.
+    ///
+    /// Use when the user took an action that *succeeded in having no effect* —
+    /// there is nothing left to do, and nothing went wrong. Routing these
+    /// through `recordError(surface: true)` mis-reports a normal state as a
+    /// failure (monday#12668501065).
+    ///
+    /// Deliberately has no `retry`: a notice describes a settled state, so
+    /// there is nothing to re-run. It is not added to the `errors` history
+    /// either — that queue is for failures.
+    func showNotice(_ message: String, context: String) {
+        activeSurfacedError = AppError(
+            context: context,
+            message: message,
+            kind: .notice,
+            surface: true
+        )
+        Log.state.info("\(context, privacy: .public): \(message, privacy: .public)")
     }
 
     /// Drop all recorded errors (e.g. once a future surface has shown them).

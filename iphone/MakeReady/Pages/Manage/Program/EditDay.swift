@@ -1170,6 +1170,10 @@ struct LessonPreviewModal: View {
     /// which triggers a fresh page load — the simplest way to restart animations.
     @State private var reloadToken: Int = 0
 
+    /// Set when the WebView reports a failed navigation, so the modal can say
+    /// so instead of showing an unexplained blank screen (monday#12668501065).
+    @State private var loadFailed: Bool = false
+
     var body: some View {
         VStack(spacing: 0) {
             // Header bar: close (left) + replay (right)
@@ -1206,12 +1210,22 @@ struct LessonPreviewModal: View {
             // Web view — id(reloadToken) forces full reconstruction on replay
             if let url = url {
                 let _ = NSLog("👁️ LessonPreviewModal: rendering WebView for \(url.absoluteString)")
-                LessonPreviewWebView(url: url)
-                    .id(reloadToken)
+                ZStack {
+                    LessonPreviewWebView(url: url, didFail: $loadFailed)
+                        .id(reloadToken)
+
+                    // A failed load previously left an empty black screen with
+                    // no explanation — the reported symptom (monday#12668501065).
+                    if loadFailed {
+                        LessonPreviewUnavailable {
+                            loadFailed = false
+                            reloadToken += 1
+                        }
+                    }
+                }
             } else {
                 let _ = NSLog("⚠️ LessonPreviewModal: url is nil, WebView not rendered")
-                Text("No preview URL")
-                    .foregroundColor(.white.opacity(0.5))
+                LessonPreviewUnavailable(onRetry: nil)
             }
         }
         .background(Color.appBackground)
@@ -1241,21 +1255,117 @@ extension LessonPreviewModal {
     }
 }
 
+// MARK: - Lesson Preview Failure State
+
+/// Shown when the preview can't be loaded. Replaces the blank black screen the
+/// modal used to leave behind, which gave the user nothing to act on and
+/// nothing to report (monday#12668501065).
+struct LessonPreviewUnavailable: View {
+    /// When nil, the failure isn't retryable (no URL to load).
+    var onRetry: (() -> Void)?
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "eye.slash")
+                .font(Typography.s28)
+                .foregroundColor(.white.opacity(0.3))
+
+            Text("Preview unavailable")
+                .font(Typography.s17Bold)
+                .foregroundColor(.white)
+
+            Text("This lesson couldn't be loaded for preview.")
+                .font(Typography.s14)
+                .foregroundColor(.white.opacity(0.5))
+                .multilineTextAlignment(.center)
+
+            if let onRetry {
+                Button(action: onRetry) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(Typography.s13Semibold)
+                        Text("Try again")
+                            .font(Typography.s14Semibold)
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 4)
+            }
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color.appBackground)
+    }
+}
+
 // MARK: - Lesson Preview Web View
 
 struct LessonPreviewWebView: UIViewRepresentable {
     let url: URL
+    /// Reports a failed navigation up to the modal so it can show an
+    /// explanation instead of a blank screen (monday#12668501065).
+    var didFail: Binding<Bool>? = nil
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(didFail: didFail)
+    }
 
     func makeUIView(context: Context) -> WKWebView {
         let webView = WKWebView()
         webView.isOpaque = false
         webView.backgroundColor = UIColor(named: "appBackground")
         webView.scrollView.backgroundColor = UIColor(named: "appBackground")
+        webView.navigationDelegate = context.coordinator
         loadWithPreviewToken(into: webView)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {}
+
+    /// Flags navigation failures and HTTP error statuses. A 404 from the
+    /// preview route completes "successfully" as far as WKWebView is
+    /// concerned, so the status code has to be checked explicitly — that is
+    /// exactly the case that produced the reported blank screen.
+    final class Coordinator: NSObject, WKNavigationDelegate {
+        private let didFail: Binding<Bool>?
+
+        init(didFail: Binding<Bool>?) {
+            self.didFail = didFail
+        }
+
+        private func flagFailure(_ reason: String) {
+            Log.ui.error("LessonPreviewModal: \(reason, privacy: .public)")
+            Task { @MainActor in self.didFail?.wrappedValue = true }
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationResponse: WKNavigationResponse,
+            decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+        ) {
+            if let http = navigationResponse.response as? HTTPURLResponse, http.statusCode >= 400 {
+                flagFailure("HTTP \(http.statusCode) for \(webView.url?.absoluteString ?? "unknown")")
+            }
+            decisionHandler(.allow)
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            flagFailure("navigation failed — \(error.localizedDescription)")
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            didFailProvisionalNavigation navigation: WKNavigation!,
+            withError error: Error
+        ) {
+            flagFailure("provisional navigation failed — \(error.localizedDescription)")
+        }
+    }
 
     /// Request a preview token from the API, append it to the URL, and load.
     private func loadWithPreviewToken(into webView: WKWebView) {

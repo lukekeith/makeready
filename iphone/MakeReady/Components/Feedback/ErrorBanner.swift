@@ -33,6 +33,7 @@ struct ErrorBannerHost: View {
             if let error = state.activeSurfacedError {
                 ErrorBanner(
                     message: error.message,
+                    kind: error.kind,
                     onRetry: error.retry.map { retry in
                         {
                             dismiss()
@@ -69,12 +70,29 @@ struct ErrorBannerHost: View {
 /// The banner itself — pure presentation.
 struct ErrorBanner: View {
     let message: String
+    /// Styling/semantics. Defaults to `.error` so existing call sites and
+    /// previews are unchanged.
+    var kind: AppMessageKind = .error
     var onRetry: (() -> Void)? = nil
     let onDismiss: () -> Void
 
+    private var glyph: String {
+        switch kind {
+        case .error: return "exclamationmark.triangle.fill"
+        case .notice: return "info.circle.fill"
+        }
+    }
+
+    private var background: Color {
+        switch kind {
+        case .error: return Color.error
+        case .notice: return Color.accentBlue
+        }
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "exclamationmark.triangle.fill")
+            Image(systemName: glyph)
                 .font(Typography.s14)
                 .foregroundColor(.white)
 
@@ -103,7 +121,7 @@ struct ErrorBanner: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color.error)
+        .background(background)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -134,6 +152,12 @@ struct ErrorBanner: View {
 
             ErrorBanner(
                 message: "Upload failed — the file may be too large to process",
+                onDismiss: { }
+            )
+
+            ErrorBanner(
+                message: "All lessons in this study are already scheduled",
+                kind: .notice,
                 onDismiss: { }
             )
 
