@@ -14,6 +14,7 @@ prompted by sub-issue **J** of that ticket ("Newly added tags dont show up on th
 | [STATUS.md](STATUS.md) | **Implementation status & continuation notes** — read before resuming |
 | [audit.md](audit.md) | Every local server-data collection in the iPhone app (19 sites), each classified against the rule with a disposition |
 | [enforcement.md](enforcement.md) | The SwiftLint custom rule, baseline procedure, and review checklist that keep the rule true |
+| [library-evaluation.md](library-evaluation.md) | Research review — should we adopt TCA / swift-sharing / SQLiteData / SwiftData instead? (Verdict: no, and the one condition that flips it) |
 
 ## The rule
 

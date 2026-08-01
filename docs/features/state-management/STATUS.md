@@ -22,6 +22,13 @@
 - **Web is out of scope** — audited and conformant (14 Pinia stores, zero component API calls).
 - **Do not migrate all 19 sites.** Eight have a demonstrated problem; seven are correct as written;
   four need a judgment call. Dispositions in [audit.md](audit.md).
+- **Build vs. buy settled (2026-08-01): build.** Researched TCA, swift-sharing, Verge, OneWay,
+  SQLiteData, and SwiftData — see [library-evaluation.md](library-evaluation.md). Decisive finding:
+  **iOS has no TanStack Query equivalent**, which is the category this bug lives in, so "adopt a
+  library and it goes away" was never available. Everything that exists is a state *container*, and
+  MakeReady already has a working one. Only database-as-source-of-truth (SQLiteData) would
+  structurally kill the bug class, and that is a client data-layer re-platform — disproportionate to
+  8 sites. **Revisit triggers are listed in that doc; check them before re-litigating.**
 - **The earlier fix sketch for J is superseded.** `docs/monday/tickets/12668501065.md` originally
   proposed "refresh `allTags` in `.onAppear`". That treats the symptom; Phase B replaces it.
 
