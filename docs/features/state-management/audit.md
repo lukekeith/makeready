@@ -73,6 +73,30 @@ by AppState's cache-first loading contract.
 | `Components/Input/TagInput.swift` | `suggestions` | Transient autocomplete list. Should be *fed from* `AppState.allProgramTags` after Phase B, but the component holding a filtered suggestion list is correct. |
 | `Components/Layout/Dragula.swift` | `draggedItems` | Pure UI drag state. Not server data. |
 
+## Count reconciliation (2026-08-01 sanity check)
+
+The Phase D SwiftLint rule reports **21** hits, not 19. The delta is **not** a missing audit entry:
+
+- The audit `grep` above requires `= []`; the rule's regex stops at `=`, so it also matches
+  `@State var x: [Model] = someSeedValue`.
+- The 2 extra hits are `#Preview` mock fixtures — `GroupMembersPage.swift:512` (`mockRequests`) and
+  `:529` (`mockMembers`). Not real state; baseline them.
+
+**19 real sites stands.** But note the rule's broader regex is the *correct* one to enforce with,
+because `= someSeedValue` is precisely the shape of a Mode 2 forked copy
+(`_members = State(initialValue: cachedMembers)`). Do not narrow the rule to match this doc's grep.
+
+## Verified prerequisites (2026-08-01)
+
+Checked so Phase B/C don't stall on a missing API:
+
+| Claim | Status |
+|---|---|
+| `state.postsFor` / `membersFor` / `enrollmentsFor` / `lessonsFor` exist for Mode 2 read-through | ✅ all present in `AppState.swift` |
+| `MediaActions.loadAllMediaTags()` exists | ✅ `MediaActions.swift:410` |
+| `GroupLeader` is `Codable` (if persisted) | ✅ `GroupMembershipModels.swift:89` — also `Identifiable, Hashable` |
+| `allTags` / `allLeaders` have no consumers outside `MainLibrary` | ✅ grep confirms — Phase B's blast radius is contained |
+
 ## Summary
 
 | Disposition | Count |

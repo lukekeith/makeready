@@ -43,6 +43,25 @@ Note `excluded:` takes a **path regex** — that is the mechanism for scoping a 
     severity: error
 ```
 
+### Verified working (2026-08-01)
+
+This rule was **empirically tested** against the codebase before being written down — run with a
+throwaway config via `swiftlint --config`, not just reasoned about:
+
+- **`included:` is supported in `custom_rules`** and correctly scopes the rule to `Pages/` +
+  `Components/`. (The existing rules only demonstrate `excluded:`, so this was worth confirming.)
+- The regex fires on **21 sites**. That is the 19 real ones in [audit.md](audit.md) **plus 2
+  `#Preview` mock fixtures** — `GroupMembersPage.swift:512` (`mockRequests`) and `:529`
+  (`mockMembers`).
+- The regex is intentionally broader than the audit's `grep` (which required `= []`), so it also
+  catches `@State var x: [Model] = someSeedValue` — **exactly the shape a Mode 2 forked copy takes**.
+  Do not narrow it to `= []`.
+
+**On the preview mocks:** `.swiftlint.yml` already excludes the `MakeReady/Preview Content`
+directory, but these mocks are declared inline inside a page file, so that exclusion does not reach
+them. Baseline them like any other deliberate exception — but expect them, and do not mistake them
+for real findings.
+
 **This regex is deliberately blunt.** It cannot tell a server model from a UI struct, so it will
 flag legitimate cases (`Dragula.draggedItems`, `ProgramHomePage.editTags`). That is acceptable and
 intended: those become **explicit baseline entries** — a reviewer had to look at each one — rather

@@ -32,6 +32,26 @@
 - **The earlier fix sketch for J is superseded.** `docs/monday/tickets/12668501065.md` originally
   proposed "refresh `allTags` in `.onAppear`". That treats the symptom; Phase B replaces it.
 
+## Sanity check — 2026-08-01
+
+Ran before declaring the spec implementation-ready. **Result: ready, with one decision to make
+first.**
+
+| Check | Result |
+|---|---|
+| Phase D SwiftLint rule actually works | ✅ **empirically tested** via `swiftlint --config`; `included:` is supported in `custom_rules`; regex fires on 21 sites |
+| Mode 2 read-through helpers exist | ✅ `postsFor`, `membersFor`, `enrollmentsFor`, `lessonsFor` all present |
+| `loadAllMediaTags` exists | ✅ `MediaActions.swift:410` |
+| `GroupLeader` persistable | ✅ `Codable, Identifiable, Hashable` |
+| Phase B blast radius contained | ✅ `allTags`/`allLeaders` have no consumers outside `MainLibrary` |
+| "Mirror `textThemes`" is a 1-file change | ❌ **No — it is 7 sites across 2 files.** See README § "Phase B is wider than one file" |
+| Audit count of 19 correct | ✅ the rule's 21 includes 2 `#Preview` mocks; 19 real sites stands |
+
+**⚠️ Decide before starting Phase B: do tags/leaders persist to disk, or stay memory-only?**
+`textThemes` persists (7 wiring sites incl. `PersistedState.swift`). Tags and leaders are cheap to
+refetch and change often, so memory-only — matching `homeHeatmapData` at `AppState.swift:339-358` —
+is likely better and halves the work. This is the only open question blocking Phase B.
+
 ## Pick-up-here notes
 
 **Before writing any code in this repo, know these two things:**

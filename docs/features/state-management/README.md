@@ -105,9 +105,39 @@ later drifts, the same rule applies with "Pinia store" substituted for "AppState
 | Phase | Scope | Depends on |
 |---|---|---|
 | **A — The rule** | Add the rule to `iphone/.claude/CLAUDE.md` beside the existing "WRONG patterns" block. Pure docs; no code. | — |
-| **B — Mode 1: homeless domains** | `allProgramTags` + `groupLeaders` (+ `allMediaTags`) into `AppState` mirroring `textThemes`; tag/leader Actions write instead of return; `add/remove/syncTags` refresh the derived list; `MainLibrary` + `OrgHomePage` read through. **Fixes ticket 12668501065 sub-issue J.** | A |
+| **B — Mode 1: homeless domains** | `allProgramTags` + `groupLeaders` (+ `allMediaTags`) into `AppState` mirroring `textThemes`; tag/leader Actions write instead of return; `add/remove/syncTags` refresh the derived list; `MainLibrary` + `OrgHomePage` read through. **Fixes ticket 12668501065 sub-issue J.** ⚠️ See "Phase B is wider than one file" below. | A |
 | **C — Mode 2: forked copies** | `GroupHomePage.posts`, `GroupMembersPage.members`, `EnrollmentsListPage.enrollments`, `MemberHomePage.allMembers` read through to their existing stores instead of forking. | A |
 | **D — Enforcement** | SwiftLint custom rule + baseline regeneration + review checklist ([enforcement.md](enforcement.md)). **Must come after B and C** — see the ordering hazard below. | B, C |
+
+### Phase B is wider than one file — "mirror `textThemes`" pulls in persistence
+
+Discovered in the 2026-08-01 sanity check. `textThemes` is **not** a single property; it is wired
+through **seven** sites across two files:
+
+| File | Line | Role |
+|---|---|---|
+| `AppState.swift` | `:142` | the property itself |
+| `AppState.swift` | `:663` | hydrate on launch — `textThemes = persisted.textThemes` |
+| `PersistedState.swift` | `:58` | the persisted field |
+| `PersistedState.swift` | `:123` | default init |
+| `PersistedState.swift` | `:210` | snapshot from `AppState` |
+| `PersistedState.swift` | `:246` | `CodingKeys` |
+| `PersistedState.swift` | `:291` | decode — `decodeIfPresent(...) ?? []` |
+
+An implementer who adds only the `AppState` property will find it does not survive relaunch and
+have to reverse-engineer the rest. **`PersistedState.swift` is in scope for Phase B.**
+
+**Good news on compatibility:** `:291` decodes with `decodeIfPresent(…) ?? []`, so the persisted
+snapshot format is **backward compatible by construction** — adding fields will not invalidate
+existing on-disk state, and no cache-busting is needed on upgrade.
+
+**Open decision — should these persist at all?** `textThemes` persists because themes are stable
+and needed for rendering at launch. Tags and leaders are cheap to refetch and change often, so a
+memory-only property (no `PersistedState` change) may be the better call, matching how
+`AppState.swift:339-358` holds `homeHeatmapData` and friends. **Decide this before writing Phase B**
+— it is the difference between a 2-file change and a 1-file change. `GroupLeader` is
+`Codable, Identifiable, Hashable` (`GroupMembershipModels.swift:89`), so persistence is *possible*
+either way; the question is whether it is *wanted*.
 
 ### Ordering hazard (do not rearrange)
 
