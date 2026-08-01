@@ -1344,12 +1344,39 @@ private struct HighlightActionMenuContent: View {
 
     private var actionContentHeight: CGFloat { 120 }
 
+    /// How much of the sheet the raised keyboard covers.
+    ///
+    /// `UIResponder.keyboardFrameEndUserInfoKey` reports the whole keyboard
+    /// frame, and a SwiftUI `ToolbarItemGroup(placement: .keyboard)` — which is
+    /// how `MarkdownEditor` mounts its formatting bar — rides along inside that
+    /// frame as an input accessory. So this single number is "keyboard **and**
+    /// markdown toolbar", which is exactly the region the editor must stay clear
+    /// of (monday#12668399336).
+    ///
+    /// Reads the shared observer, so the height chain below re-evaluates when
+    /// the keyboard shows/hides. `KeyboardState` already wraps its own updates in
+    /// `withAnimation`, so the resize rides that animation — no choreography here.
+    private var keyboardInset: CGFloat { KeyboardState.shared.height }
+
+    /// Vertical space the editor column can actually occupy.
+    ///
+    /// Previously derived purely from `Screen.bounds.height`, which ignored the
+    /// keyboard entirely: the editor's frame extended underneath it, so the last
+    /// lines of a long note were rendered but unreachable — the reported bug.
     private var editorContentHeight: CGFloat {
-        expandedSheetHeight - bottomSafeAreaInset - 76
+        // The keyboard frame already spans the home-indicator area, so the
+        // bottom safe-area inset must not be subtracted a second time.
+        let bottomReserve = keyboardInset > 0 ? keyboardInset : bottomSafeAreaInset
+        return expandedSheetHeight - bottomReserve - 76
     }
 
     private var noteEditorHeight: CGFloat {
-        max(220, editorContentHeight - 152)
+        // The 220 floor exists so the editor stays usable with the keyboard
+        // down. With the keyboard up that floor is what would push the field
+        // back under it, so drop to the editor's own minimum — a short
+        // scrollable field beats an unreachable caret.
+        let minimumHeight: CGFloat = keyboardInset > 0 ? 120 : 220
+        return max(minimumHeight, editorContentHeight - 152)
     }
 
     private var expandedSheetHeight: CGFloat {
