@@ -23,7 +23,11 @@ struct GroupMembersPage: View {
     /// forking the returned array here only created a second, un-invalidatable
     /// truth. `membersFor` sorts alphabetically, matching what this page shows.
     private var members: [GroupMember] { state.membersFor(groupId: groupId) }
-    @State private var joinRequests: [JoinRequest] = []
+    /// Read through to the store — `loadJoinRequests` already writes
+    /// `pendingJoinRequestsByGroupId`, which is what drives the red-dot
+    /// indicators elsewhere. Forking it here meant approve/decline could
+    /// update the dots and this list independently.
+    private var joinRequests: [JoinRequest] { state.pendingJoinRequestsByGroupId[groupId] ?? [] }
     @State private var isLoading = true
     @State private var error: String?
 
@@ -47,12 +51,12 @@ struct GroupMembersPage: View {
         self.overlayManager = overlayManager
         self.onDismiss = onDismiss
 
-        // Members need no seeding any more — the computed property above reads
-        // the same cache directly, so content is laid out before the slide
-        // begins without a copy existing at all.
+        // Neither list needs seeding any more — both computed properties above
+        // read the same cache directly, so content is laid out before the slide
+        // begins without a copy existing at all. The cached values are still
+        // read here to decide whether to open on the spinner.
         let cachedMembers = AppState.shared.membersFor(groupId: groupId)
         let cachedRequests = AppState.shared.pendingJoinRequestsByGroupId[groupId] ?? []
-        _joinRequests = State(initialValue: cachedRequests)
         _isLoading = State(initialValue: cachedMembers.isEmpty && cachedRequests.isEmpty)
     }
 
@@ -399,13 +403,12 @@ struct GroupMembersPage: View {
             async let membersTask = GroupActions().loadMembers(groupId: groupId)
             async let requestsTask = loadJoinRequests()
 
-            // The members half is consumed by AppState, not by this page —
-            // `loadMembers` writes the store and the computed property above
-            // re-reads it.
-            let (_, loadedRequests) = try await (membersTask, requestsTask)
+            // Both halves are consumed by AppState, not by this page — each
+            // Action writes the store and the computed properties above
+            // re-read it.
+            _ = try await (membersTask, requestsTask)
 
             await MainActor.run {
-                joinRequests = loadedRequests
                 isLoading = false
             }
         } catch {

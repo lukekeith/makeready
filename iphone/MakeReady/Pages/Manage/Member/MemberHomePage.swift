@@ -48,7 +48,17 @@ struct MemberHomePage: View {
     @State private var statusFilterExpanded = false
 
     // Requests state (loaded for card on Members tab)
-    @State private var allJoinRequests: [GroupJoinRequest] = []
+    /// Pending join requests across the leader's groups, read through to the
+    /// store. `GroupJoinRequest` is just a view-model pairing (group + request),
+    /// so it is derived here rather than stored — the underlying list lives in
+    /// `AppState.pendingJoinRequestsByGroupId`, which the red-dot indicators
+    /// also read.
+    private var allJoinRequests: [GroupJoinRequest] {
+        state.orderedGroups.flatMap { group in
+            (state.pendingJoinRequestsByGroupId[group.id] ?? [])
+                .map { GroupJoinRequest(groupId: group.id, request: $0) }
+        }
+    }
     @State private var isRequestsLoading = true
     @State private var requestsError: String?
     @State private var requestsLoaded = false
@@ -752,28 +762,17 @@ struct MemberHomePage: View {
 
             let currentGroups = state.orderedGroups
 
-            let requests = await withTaskGroup(
-                of: (String, [JoinRequest]?).self,
-                returning: [GroupJoinRequest].self
-            ) { group in
+            // Nothing is collected or wrapped here: each call writes its
+            // group's requests into AppState, and `allJoinRequests` above
+            // derives the wrapped union back out.
+            await withTaskGroup(of: Void.self) { group in
                 for userGroup in currentGroups {
                     group.addTask {
-                        let requests = try? await self.loadJoinRequestsForGroup(groupId: userGroup.id)
-                        return (userGroup.id, requests)
+                        _ = try? await self.loadJoinRequestsForGroup(groupId: userGroup.id)
                     }
                 }
-
-                var collected: [GroupJoinRequest] = []
-                for await (groupId, requests) in group {
-                    if let requests = requests {
-                        let wrapped = requests.map { GroupJoinRequest(groupId: groupId, request: $0) }
-                        collected.append(contentsOf: wrapped)
-                    }
-                }
-                return collected
             }
 
-            allJoinRequests = requests
             isRequestsLoading = false
             requestsLoaded = true
         } catch {
