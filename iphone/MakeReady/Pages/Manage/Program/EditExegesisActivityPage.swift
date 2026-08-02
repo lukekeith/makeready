@@ -488,7 +488,7 @@ struct EditExegesisActivityPage: View {
                 highlightText: BibleVerseContentNormalizer.normalizedPlainText(from: lockedBlock?.content ?? ""),
                 noteDrafts: $noteDrafts,
                 attributedNoteDrafts: $attributedNoteDrafts,
-                savedNoteMarkdownByHighlight: savedNoteMarkdownByHighlight,
+                savedNoteMarkdownByHighlight: $savedNoteMarkdownByHighlight,
                 onNavigate: { range in
                     navigateToHighlight(range)
                 },
@@ -958,7 +958,15 @@ private struct HighlightActionMenuContent: View {
 
     @State private var mode: Mode = .actions
     @State private var saveState: SaveState = .idle
-    @State private var savedNoteMarkdownByHighlight: [String: String]
+    /// Bound to the page's dictionary, NOT a copy of it. It used to be
+    /// `@State` seeded with `State(initialValue:)`, which SwiftUI applies only
+    /// on the FIRST construction of this view's identity — so the notes the
+    /// page hydrates asynchronously (`loadExegesisHighlights`) never arrived,
+    /// `currentNoteHasContent` stayed false, and the button read "Add note"
+    /// for a highlight that already had one (monday#12668543338).
+    /// Every other dictionary here was already a `Binding`; this one is now
+    /// consistent with them.
+    @Binding private var savedNoteMarkdownByHighlight: [String: String]
     @State private var noteEditorOriginalDrafts: [String: String] = [:]
     @State private var noteEditorOriginallyMissingDrafts: Set<String> = []
 
@@ -968,7 +976,7 @@ private struct HighlightActionMenuContent: View {
         highlightText: String,
         noteDrafts: Binding<[String: String]>,
         attributedNoteDrafts: Binding<[String: AttributedString]>,
-        savedNoteMarkdownByHighlight: [String: String],
+        savedNoteMarkdownByHighlight: Binding<[String: String]>,
         onNavigate: @escaping (NSRange) -> Void,
         onDelete: @escaping () -> Void,
         onCommitNote: @escaping (NSRange, String) -> Void,
@@ -979,7 +987,7 @@ private struct HighlightActionMenuContent: View {
         self.highlightText = highlightText
         self._noteDrafts = noteDrafts
         self._attributedNoteDrafts = attributedNoteDrafts
-        self._savedNoteMarkdownByHighlight = State(initialValue: savedNoteMarkdownByHighlight)
+        self._savedNoteMarkdownByHighlight = savedNoteMarkdownByHighlight
         self.onNavigate = onNavigate
         self.onDelete = onDelete
         self.onCommitNote = onCommitNote

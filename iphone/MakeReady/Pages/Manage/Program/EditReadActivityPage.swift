@@ -362,10 +362,30 @@ struct EditReadActivityPage: View {
 
     // MARK: - Edit Activity Content (Screen 1)
 
+    /// Leaves highlight mode if it's active, and reports whether it did.
+    /// Callers use the return value to swallow the tap that exited, so a single
+    /// tap never both exits highlight mode AND performs a destructive or
+    /// saving action (monday#12668543338).
+    @discardableResult
+    private func exitHighlightModeIfActive() -> Bool {
+        guard highlightingBlockId != nil else { return false }
+        withAnimation(Motion.micro) {
+            highlightingBlockId = nil
+            pendingSelectionRange = nil
+            pendingSelectionBlockId = nil
+        }
+        return true
+    }
+
     private var editActivityContent: some View {
         ZStack(alignment: .bottom) {
             Color.appBackground
                 .ignoresSafeArea()
+                // Tapping empty space is the other half of "anywhere outside
+                // the active block exits highlight mode" — previously only
+                // OTHER locked blocks honored that, so an activity with a
+                // single verse block had no background escape either.
+                .onTapGesture { exitHighlightModeIfActive() }
 
             VStack(spacing: 0) {
                 if canEdit {
@@ -374,8 +394,19 @@ struct EditReadActivityPage: View {
                         leftLink: "Cancel",
                         rightLink: isSaving ? "Saving..." : (hasSaved ? "Done" : "Save"),
                         rightLinkColor: isSaving ? .white.opacity(0.3) : nil,
-                        onLeftLinkTap: { onCancel() },
+                        onLeftLinkTap: {
+                            // Highlight mode dims this header, and it used to
+                            // disable it outright — which left a one-locked-block
+                            // activity with NO way out but force-quitting the app
+                            // (monday#12668543338). It stays tappable now and the
+                            // first tap leaves highlight mode, consistent with
+                            // "tapping anywhere outside the active block exits"
+                            // below. Nothing is saved or discarded by that tap.
+                            if exitHighlightModeIfActive() { return }
+                            onCancel()
+                        },
                         onRightLinkTap: {
+                            if exitHighlightModeIfActive() { return }
                             guard !isSaving else { return }
                             if hasSaved {
                                 onSave(title)
@@ -385,7 +416,6 @@ struct EditReadActivityPage: View {
                         }
                     )
                     .opacity(highlightingBlockId == nil ? 1 : 0.3)
-                    .allowsHitTesting(highlightingBlockId == nil)
                 } else {
                     // Read-only header for non-creators: back chevron only,
                     // no save affordance regardless of input state.
@@ -626,9 +656,7 @@ struct EditReadActivityPage: View {
                 // outside the active block exits highlight mode rather than
                 // toggling collapse.
                 if highlightingBlockId != nil && !isHighlighting {
-                    withAnimation(Motion.micro) {
-                        highlightingBlockId = nil
-                    }
+                    exitHighlightModeIfActive()
                     return
                 }
                 if isHighlighting { return }
