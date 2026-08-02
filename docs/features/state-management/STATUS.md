@@ -1,5 +1,15 @@
 # Status — Application State Standardization
 
+> **Superseded as the status source (2026-08-01).** This feature is now run by the `/build-spec`
+> pipeline: live status is the **Pipeline status** + **Phase status** snapshot tables in
+> [README.md](README.md), backed by a ledger outside git. Resume with
+> `/build-spec state-management`.
+>
+> This file is retained because its **Pick-up-here notes** (the dirty working tree and the foreign
+> `AppState.swift` hunk) are still true and still hazardous — they are also mirrored into the
+> ledger's environment notes and [09-gaps-and-decisions.md](09-gaps-and-decisions.md) as `O1`.
+> The phase checklist and decisions below are historical; the pipeline's copies are authoritative.
+
 **Nothing built yet.** Spec written 2026-08-01. Read [README.md](README.md) first, then this file.
 
 ## Phase checklist

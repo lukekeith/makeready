@@ -294,6 +294,52 @@ let data = try await api.get("/api/programs")
 catch { NSLog("Error: \(error)") }   // use state.recordError(...) instead
 ```
 
+### 📍 Where does this data live? (the rule)
+
+> **Any server-derived collection that more than one screen can read, or that any screen can
+> mutate, lives in `AppState`** — as an `EntityStore` when it has identity, or as a plain
+> `@Observable` property when it is a reference list.
+>
+> **An Action's job is to mutate state, not to return data for a view to hold.** An Action that
+> returns a collection is a smell: the caller now owns a copy that nothing can invalidate.
+>
+> **When a mutation changes data another screen derives from** — tag lists, leader lists, counts —
+> **the mutating Action must refresh that derived state in the same call.**
+>
+> **Every collection you add to `AppState` must be cleared in `clearInMemory()`.** Org-scoped data
+> left behind leaks into the next user's session after sign-out.
+>
+> Genuinely screen-local state stays local, and must NOT be migrated.
+
+**The two hosting shapes:**
+
+```swift
+// Has identity (an id you look up, update, or relate) → EntityStore
+let posts = EntityStore<GroupPost>()
+
+// A reference list with no identity semantics → plain @Observable property
+var allProgramTags: [String] = []      // cf. homeHeatmapData & friends in AppState.swift
+```
+
+**These are CORRECT as `@State` — do not migrate them:**
+
+```swift
+// ✅ CORRECT: an in-flight edit buffer (not yet server data)
+@State private var editTags: [String] = []        // ProgramHomePage
+
+// ✅ CORRECT: pure UI state
+@State private var draggedItems: [Item] = []      // Dragula
+```
+
+The test, in order: **(1)** Is it server data at all? Pure UI state isn't — leave it. **(2)** Can
+another screen read the same data? → `AppState`. **(3)** Can any screen mutate it? → `AppState`,
+*and* the mutating Action refreshes whatever derives from it.
+
+Why this is written down: the pattern was honoured for whatever happened to have an `EntityStore`
+and quietly skipped for everything else — so "where does this live?" was answered by inspecting
+types instead of by a rule. Full spec, per-site audit, and enforcement:
+`docs/features/state-management/`.
+
 ### Available Actions
 
 | Action | Purpose | Key Methods |

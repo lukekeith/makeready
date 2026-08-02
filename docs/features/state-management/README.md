@@ -4,17 +4,68 @@ Spec for standardizing how MakeReady's client apps hold server data. Written 202
 codebase audit recorded in `docs/monday/tickets/12668501065.md` § "State-management analysis",
 prompted by sub-issue **J** of that ticket ("Newly added tags dont show up on the tag filter").
 
-> **Implementation status lives in [STATUS.md](STATUS.md)** — phase checklist, decisions made
-> during the build, and pick-up-here notes for resuming in a fresh session. Nothing built yet.
+**Status: building.** Phases A and B verified; Phase C-a written and awaiting a compile check.
+Adopted into the `/build-spec` pipeline 2026-08-01.
+
+## Pipeline status (snapshot — updated at step completions; 2026-08-01)
+
+**To execute this feature: `/build-spec state-management`** — no prior familiarity required.
+
+**Progress:** ▓▓▓▓▓▓░░░░ ~62% (spec ✅ · audit ✅ · decisions ✅ · plan ✅ · **build: A ✅ B ✅
+VERIFIED, C-a written and lint-clean**. Three of Phase B's checks — the cross-org sign-out walk, the
+media-tag repro, and the `/compare` re-capture — were not individually exercised and are carried to
+the verify step rather than closed)
+
+| Step | Status |
+|---|---|
+| spec | ✅ suite 01–09 (2026-08-01, adopted from the pre-pipeline docs) |
+| integrity | ✅ 2026-08-01 — DEFECTS (2), both corrected; all 13 citations verified exact |
+| audit | ✅ **clean (2026-08-01, after 2 passes + a closed delta round)** — pass 1: `G2` logout leak in the exemplar, `G3` paginated fork, `G4` 7 call sites not 2, `X1` capture not out of scope. **Pass 2 (delta)**: `G5`, `G6` — both inside the pagination design the decisions had just added. All resolved; see [09](09-gaps-and-decisions.md) |
+| decisions | ✅ **all 4 answered (Luke, 2026-08-01)** — memory-only · fix the `textThemes` leak here · design paginated posts now · capture in scope. Consequences applied across 01/02/03/06/07/08 |
+| plan | ✅ **5 phase docs written (2026-08-01)** — 10–14, 20 tasks; C split into C-a/C-b. Build go-ahead: ✅ given (Luke, 2026-08-01) |
+| build | per-phase table below — **2 of 5 phases VERIFIED; C-a needs a build** |
+| verify | ⬜ |
+| sign-off | ⬜ |
+
+## Phase status
+
+Five phase docs, written 2026-08-01. All are **iPhone-only** (the capture work edits
+`iphone/MakeReadyCaptureTests/`, which is iPhone code — capture is a *verification surface*, not a
+separate phase).
+
+**Dependencies (corrected 2026-08-01):** `A → {B, C-a, C-b} → D`. B, C-a and C-b each depend only
+on **A**, not on each other — C-a and C-b read through to stores that already exist. The phase docs
+originally chained all five strictly in sequence; that was a planning error, and it mattered
+because it let B's blocked state block phases that had no reason to wait. **D still runs last**, for
+the baseline reason in § Ordering hazard.
+
+| Phase | App | Doc | Tasks | Status |
+|---|---|---|---|---|
+| A — the rule | iphone | [10-phase-a-the-rule.md](10-phase-a-the-rule.md) | 1 | ✅ **VERIFIED 2026-08-01** |
+| B — Mode 1: homeless domains | iphone | [11-phase-b-homeless-domains.md](11-phase-b-homeless-domains.md) | 8 | ✅ **VERIFIED 2026-08-01** — build ✅ SwiftLint ✅ + Luke's app pass; 3 checks carried to verify |
+| C-a — Mode 2: clean read-throughs | iphone | [12-phase-c1-read-throughs.md](12-phase-c1-read-throughs.md) | 4 | 🔄 **written, needs a build** — 3 read-throughs done; C1.4 refuted as unnecessary (`G9`) |
+| C-b — Mode 2: paginated posts | iphone | [13-phase-c2-paginated-posts.md](13-phase-c2-paginated-posts.md) | 4 | ⬜ |
+| D — enforcement | iphone | [14-phase-d-enforcement.md](14-phase-d-enforcement.md) | 4 | ⬜ **must be last** |
+
+**Why C split:** `D3` chose to design store-backed pagination rather than defer it, which made the
+original Phase C too large for one session. C-a is three straight read-throughs with no pagination
+in them; C-b is the only phase that touches store architecture.
 
 ## Documents
 
 | Doc | Contents |
 |---|---|
-| [STATUS.md](STATUS.md) | **Implementation status & continuation notes** — read before resuming |
+| [01-architecture.md](01-architecture.md) | Decisions table, baseline patterns by file:line, out-of-scope — plus the index into the narrative docs below |
+| [02-app-impact.md](02-app-impact.md) | **Which of the four apps this touches, and why not the other three** — sequencing, backward compatibility, blast radius |
+| [03-data-and-api.md](03-data-and-api.md) | Not affected (no schema, no endpoint) — plus the client-side `PersistedState` format notes |
+| [04-server.md](04-server.md) · [05-client.md](05-client.md) · [07-capture.md](07-capture.md) | Not affected — each with its evidence and what the audit must re-check |
+| [06-iphone.md](06-iphone.md) | The app in scope: `AppState` additions, Actions changes, page read-throughs, and what is *not* in scope |
+| [08-testing.md](08-testing.md) | Gates, per-phase verification (static vs live), and the human-verification script |
+| [09-gaps-and-decisions.md](09-gaps-and-decisions.md) | The G/D/O/C/X ledger + audit pass log — all decisions answered, `O1` cleared, `G7`–`G9` found during the builds |
 | [audit.md](audit.md) | Every local server-data collection in the iPhone app (19 sites), each classified against the rule with a disposition |
 | [enforcement.md](enforcement.md) | The SwiftLint custom rule, baseline procedure, and review checklist that keep the rule true |
 | [library-evaluation.md](library-evaluation.md) | Research review — should we adopt TCA / swift-sharing / SQLiteData / SwiftData instead? (Verdict: no, and the one condition that flips it) |
+| [STATUS.md](STATUS.md) | Pre-pipeline status doc, retained for its **pick-up-here notes** (dirty-tree hazards). Live status is the snapshot above |
 
 ## The rule
 
@@ -27,6 +78,11 @@ prompted by sub-issue **J** of that ticket ("Newly added tags dont show up on th
 >
 > **When a mutation changes data another screen derives from** — tag lists, leader lists, counts —
 > **the mutating Action must refresh that derived state in the same call.**
+>
+> **Every collection added to `AppState` must be cleared in `clearInMemory()`.** Org-scoped data
+> left behind leaks into the next user's session after sign-out.
+> *(Clause added 2026-08-01 by G2/D2 — the audit found the codebase's own exemplar, `textThemes`,
+> violating it. Shipped in Phase A.)*
 >
 > Genuinely screen-local state stays local. An in-flight edit buffer (`ProgramHomePage.editTags`)
 > or pure UI state (`Dragula.draggedItems`) is correct as `@State` and must not be migrated.
@@ -131,13 +187,13 @@ have to reverse-engineer the rest. **`PersistedState.swift` is in scope for Phas
 snapshot format is **backward compatible by construction** — adding fields will not invalidate
 existing on-disk state, and no cache-busting is needed on upgrade.
 
-**Open decision — should these persist at all?** `textThemes` persists because themes are stable
-and needed for rendering at launch. Tags and leaders are cheap to refetch and change often, so a
-memory-only property (no `PersistedState` change) may be the better call, matching how
-`AppState.swift:339-358` holds `homeHeatmapData` and friends. **Decide this before writing Phase B**
-— it is the difference between a 2-file change and a 1-file change. `GroupLeader` is
-`Codable, Identifiable, Hashable` (`GroupMembershipModels.swift:89`), so persistence is *possible*
-either way; the question is whether it is *wanted*.
+**Resolved by `D1` (Luke, 2026-08-01): memory-only.** Tags and leaders are cheap to refetch and
+change often, so they are plain `@Observable` properties following `homeHeatmapData` — **no
+`PersistedState` change at all**, and the seven-site wiring above is out of scope. (`GroupLeader` is
+`Codable, Identifiable, Hashable`, so persistence was *possible*; it just wasn't *wanted*.) The
+table above is retained because it documents how the `textThemes` exemplar is actually wired —
+useful if a future collection does need to persist. **As built (Phase B, 2026-08-01), Phase B
+touched `AppState.swift` and four call-site files; `PersistedState.swift` was never opened.**
 
 ### Ordering hazard (do not rearrange)
 
