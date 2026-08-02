@@ -549,7 +549,14 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
       .set(authed())
       .send({ startDate: '2035-09-09T12:00:00.000Z' })
     expect(res.status).toBe(200)
-    expect(res.body.preview.reschedule).toBeNull() // nothing can move
+    // Still a no-op — nothing shifts — but the preview now SAYS so rather than
+    // staying null, so the confirm dialog can't imply the dates will change
+    // (monday#12661792842, f8df609). Asserting the shape, not just non-null,
+    // keeps this test honest about which half is the no-op.
+    expect(res.body.preview.reschedule).toEqual({
+      lessonsShifted: 0,
+      lockedUnchanged: before.length,
+    })
     await prisma.enrollment.delete({ where: { id: enrollmentId } })
   })
 
