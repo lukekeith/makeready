@@ -5,8 +5,8 @@ codebase audit recorded in `docs/monday/tickets/12668501065.md` § "State-manage
 prompted by sub-issue **J** of that ticket ("Newly added tags dont show up on the tag filter").
 
 **Status: built — verify verdict INCOMPLETE (2026-08-01).** All five phases are VERIFIED and
-committed (7 local commits, nothing pushed). Every gate is green. Four behaviors have still never
-been exercised by anyone — see § Verify verdict below.
+committed (8 local commits, nothing pushed). Every gate is green and the `/compare` re-captures are
+done. **Three behaviors have still never been exercised by anyone** — see § Verify verdict below.
 Adopted into the `/build-spec` pipeline 2026-08-01.
 
 ## Pipeline status (snapshot — updated at step completions; 2026-08-01)
@@ -45,11 +45,17 @@ app passes. Each is marked `[~]` in its phase doc, so none of them is hiding:
 | 1 | **Multi-page posts append** — a group with >20 posts, scrolled to load more | The single riskiest change in the feature: C-b rewrote the cursor and the append path. Nothing else would reveal a pagination mistake | [13](13-phase-c2-paginated-posts.md) |
 | 2 | **Cross-org sign-out walk** — sign out, sign in as a different user in a different org | This is the leak `G2`/`D2` existed to fix. Static tracing shows all four collections cleared, but nobody has watched it happen | [11](11-phase-b-homeless-domains.md) |
 | 3 | **Media-tag repro** — add a tag to a media item, check the Media filter | The program-tag twin (the monday ticket) is confirmed working and the media code is its literal twin — but a twin is an argument, not evidence | [11](11-phase-b-homeless-domains.md) |
-| 4 | **`/compare` re-captures** — `group-home`, `group-members-page`, the two `MainLibrary` cases | All four are expected **inert**; a non-zero pixel diff means a load path changed unexpectedly. This is a capture-tool run, not app usage | [07](07-capture.md) |
+| ~~4~~ | ~~**`/compare` re-captures**~~ — **CLEARED 2026-08-01** | `group-home`/`posts` (C-b's surface) diffed **0 px** against its pre-change shot. `study-programs` moved 6042 px, **explained not accepted**: confined to the first card's title/day-count — same cards, reordered — while the filter chips Phase B changed are pixel-identical. Root cause is `G13`, a harness defect (all fixture programs share one `updatedAt`, which `orderedPrograms` sorts on, so order is unstable between runs). `group-members-page` has no iPhone side; `group-members` and `media` have no same-variant prior, so they are *current*, not *proven inert* | [07](07-capture.md) |
 
-Items 1–3 need the app (item 1 needs data that may not exist locally). Item 4 needs the capture
-stack. **The verdict flips to READY when they are walked, or when a deliberate decision records
-why one is being accepted unwalked.**
+**Item 4 is done.** Items 1–3 still need the app; item 1 needs a group with >20 posts, which may not
+exist locally. **The verdict flips to READY when they are walked, or when a deliberate decision
+records why one is being accepted unwalked.**
+
+*Method note worth keeping:* the first re-capture pass compared whichever two PNGs were newest on
+disk, which silently paired **different variants** and produced meaningless numbers. A valid
+before/after pairs the same variant, using the version→variant mapping read from the capture DB
+**before** re-capturing — capturing deletes the prior version row (the PNG survives on disk as an
+orphan with no recoverable variant).
 
 ## Phase status
 

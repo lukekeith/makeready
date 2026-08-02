@@ -76,10 +76,13 @@ None — no new UI surfaces.
       rendering. `membersFor` sorts alphabetically and `enrollmentsFor` by start date; if the fork
       was in a different order, that is a **finding to surface**, not a diff to accept
 - [x] Empty states still render correctly (a group with no members / no enrollments)
-- [~] **Re-capture and diff** `group-members-page` and the group Members/Enrolled tab cases
-      (`ViewRegistry.swift:201`) — **carried to `/build-spec-verify`.** This is a capture-tool run,
-      not app usage, so Luke's walk could not have covered it. Batched with C-b's and Phase B's
-      re-captures into one pass ([07-capture](07-capture.md))
+- [x] **`/compare` re-capture — attempted 2026-08-01; NOT comparable, for reasons recorded rather
+      than glossed.** `group-members-page` has **no iPhone side at all** (`toIphone()` returns
+      `null` — it is a web-only comparison, as `G9` established), so no iPhone change can move it.
+      `group-members` was re-captured successfully, but the capture DB holds **no prior iPhone
+      version of the same variant** to compare against — the only older PNG on disk is an orphan
+      whose variant cannot be established. Stated plainly: this comparison is *captured and current*,
+      not *verified inert*. It renders the resting state either way (`G9`)
 - [x] Spec parity spot-check: no `@State` array of server models remains in the three files —
       all three are computed reads (`membersFor`, `enrollmentsFor`, and the union of `membersFor`
       over `orderedGroups`), confirmed by the compiler accepting the setter removal
@@ -112,6 +115,7 @@ violations, 0 serious, 267 files.
 cross-screen freshness, the ordering watch (`MemberHomePage.allMembers` as a derived union — no
 ordering complaint), the empty states, and the C1.5 join-request lists.
 
-**Carried to `/build-spec-verify`:** the `/compare` re-capture, marked `[~]` — a capture-tool run
-rather than app usage, so the walk could not have covered it.
+**`/compare`:** re-captured 2026-08-01. `group-members-page` is web-only so no iPhone change can
+affect it; `group-members` has no same-variant prior to diff against, so it is *current*, not
+*proven inert*. Recorded rather than glossed.
 <!-- flip to: ✅ YYYY-MM-DD — gates output summarized, walk results, commit sha(s) -->

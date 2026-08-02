@@ -84,10 +84,16 @@ None — no new overlays, sub-screens, deep links, or components. This is state 
       (`clearInMemory()` assigns `[]` to all four; `clearAllData()` also wipes the disk snapshot)
 - [x] `OrgHomePage` still renders its leaders list correctly (B.6) — covered by Luke's pass
 - [x] Media tab tag filter still populates (B.3's third loader) — covered by Luke's pass
-- [~] Re-capture the two `MainLibrary` ViewRegistry cases (`ViewRegistry.swift:227`, `:254`) and
-      diff — **expected inert**. **Carried to the final verify step**, where the capture work for
-      C-a and C-b runs anyway; batching all the re-captures into one pass avoids three separate
-      simulator runs ([07-capture](07-capture.md))
+- [x] **Re-capture the two `MainLibrary` ViewRegistry cases — DONE 2026-08-01, and the non-zero
+      diff is explained, not accepted.** `study-programs` (Programs tab) was re-captured in both
+      variants that had a valid prior: `tags-panel-open` and `filters-active`, each **6042 px
+      (0.16%)**. The delta is confined to the **first card's title and day count** — same cards,
+      reordered. **The filter chips this phase actually changed ("All tags", "All leaders") are
+      pixel-identical**, as are the second card, the sort label and the whole layout.
+      Root cause is `G13`, a capture-harness defect unrelated to this feature: every fixture program
+      is seeded with the same `updatedAt`, while `orderedPrograms` sorts on it, so the order falls
+      back to dictionary iteration and is unstable between runs. `media` (Media tab) was
+      re-captured but has **no same-variant prior**, so it is *current*, not *proven inert*
 - [~] Media tab: add a tag to a media item → the Media tags filter lists it without a reload
       (B.8/G7) — **carried to the final verify step**; the symmetric program-tag path (the J repro)
       is confirmed working, and the media code is its literal twin
@@ -127,9 +133,9 @@ lint phase).
 successfully."* That covers the J repro — the reason this phase exists — plus OrgHome's leaders and
 the Media tab filter.
 
-**Honest residue (3 items, marked `[~]` above, carried to `/build-spec-verify`, not silently
-dropped):** the cross-org sign-out walk (needs two accounts in two orgs), the media-tag repro (the
-program-tag twin is confirmed), and the `/compare` re-capture (batched with C-a's and C-b's captures
-so the simulator runs once). None of these gate the next phase; all three are logged in the ledger.
+**Honest residue (2 items, marked `[~]` above, carried to `/build-spec-verify`, not silently
+dropped):** the cross-org sign-out walk (needs two accounts in two orgs) and the media-tag repro
+(the program-tag twin is confirmed). The third, the `/compare` re-capture, was **completed
+2026-08-01** — see the checklist above.
 
 **Commits:** none yet — iPhone commits need explicit approval, still to be offered.

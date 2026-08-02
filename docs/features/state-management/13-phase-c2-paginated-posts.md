@@ -85,8 +85,12 @@ None — no new UI surfaces.
 - [x] Leave and re-enter the group — posts are neither duplicated nor lost
 - [x] Ordering is `createdAt` descending throughout
 - [x] Posting a new post still appears immediately
-- [~] **Re-capture and diff** `group-home` (`ViewRegistry.swift:191`) — **carried to
-      `/build-spec-verify`**, batched with the other re-captures (capture-tool run, not app usage)
+- [x] **`/compare` re-capture — DONE 2026-08-01.** `group-home` variant **`posts`** (this phase's
+      surface) diffed **0 px against its pre-change shot** — genuinely inert. Method note: the first
+      attempt compared *whichever two PNGs were newest on disk*, which silently paired **different
+      variants**; those numbers were wrong and were discarded. The valid check pairs the same
+      variant before/after, using the version→variant mapping read from the capture DB **before**
+      re-capturing (capturing deletes the prior version row, though the PNG survives).
 - [x] Spec parity spot-check: no `@State` posts array and no page-owned cursor remain in
       `GroupHomePage.swift` — `posts` and `hasMorePosts` are computed, `nextCursor` is gone
       entirely, and `refreshData`'s pagination reset went with it (the Action owns that now).
@@ -108,5 +112,5 @@ posts, ordering intact, new posts appear immediately, and the refresh behaves.
   single behavior most likely to expose a mistake in this phase — the cursor and the append path
   are what changed. *If no such group exists locally, say so and it becomes a production watch
   item rather than a silently-passed check.*
-- The `/compare` re-capture — a capture-tool run, not app usage.
+- ~~The `/compare` re-capture~~ — **done 2026-08-01: 0 px on the `posts` variant.**
 <!-- flip to: ✅ YYYY-MM-DD — gates output summarized, walk results, commit sha(s) -->
