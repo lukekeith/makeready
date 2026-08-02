@@ -28,18 +28,24 @@ None — no new UI surfaces.
 
 ## Tasks
 
-- [ ] C2.1 Add the cursor to `AppState`, **keyed by group** — files: `AppState.swift` (beside the
+- [x] C2.1 Add the cursor to `AppState`, **keyed by group** — files: `AppState.swift` (beside the
       other non-entity properties, `:339-358`; clear it in `clearInMemory()`, `:736-776`) · spec:
       [06-iphone](06-iphone.md) § Paginated posts · tests: the walk
-      - `groupPostsNextCursor: [String: String?]` — posts are per-group, unlike the media library's
-        singleton `mediaLibraryNextCursor` (`AppState.swift:158`, cleared `:754`)
-- [ ] C2.2 `loadPosts` writes the cursor and stops returning the tuple — files:
+      - shipped as **`groupPostsNextCursor: [String: String]`**, not `[String: String?]` (G10b):
+        with a double optional, `dict[groupId] != nil` tests key presence rather than cursor
+        presence and `hasMorePosts` sticks true forever. The key is removed when the feed ends
+- [x] C2.2 `loadPosts` writes the cursor and stops returning the tuple — files:
       `State/Actions/GroupActions.swift` (`:318-344`) · spec: [06-iphone](06-iphone.md) · tests: the
       walk
-      - keep the existing upsert + `add` loop **exactly as is** — ⚠️ if you rewrite it, use
-        `add`/`addMany` (`RelationshipIndex.swift:69`), **never `replace`**: `replace` is the
-        launch-hydration primitive (`AppState.swift:676`) and would delete earlier pages
-- [ ] C2.3 `GroupHomePage` reads through and derives its flags — files:
+      - the upsert + `add` loop is kept exactly as is — ⚠️ if you rewrite it, use `add`/`addMany`
+        (`RelationshipIndex.swift:69`), **never `replace`**: `replace` is the launch-hydration
+        primitive (`AppState.swift:676`) and would delete earlier pages
+      - **added by G10a: a `cursor == nil` load now prunes the group's posts first.** Without it a
+        post deleted server-side could never disappear, because the loader only upserts — and
+        `GroupHomePage.swift:217` refreshes on unenroll *specifically* to drop the welcome post.
+        The page's old `posts = result.posts` gave those semantics for free. Pruning only on the
+        first page leaves paging strictly append-only
+- [x] C2.3 `GroupHomePage` reads through and derives its flags — files:
       `Pages/Manage/Group/GroupHomePage.swift` (2 direct calls `:940`, `:965`; 4 wrapper calls
       `:219`, `:888`, `:929`, `:1222`; the forked assignment `:942-945`) · spec:
       [06-iphone](06-iphone.md) § Call sites · tests: the walk
@@ -47,36 +53,60 @@ None — no new UI surfaces.
         descending — matches paginated order, no change needed)
       - `hasMorePosts` ← `groupPostsNextCursor[groupId] != nil` — the page stops owning the flag
       - all six sites are in this one file; the signature change is contained
-- [ ] C2.4 Seed posts + the cursor in the capture harness — files:
-      `iphone/MakeReadyCaptureTests/CaptureEnvironment.swift` · spec: [07-capture](07-capture.md) ·
-      tests: the re-capture below
-      - seed `posts` + `groupPostIndex` **and** the cursor, so `hasMorePosts` derives correctly and
-        the captured group-home doesn't render a spurious "load more" affordance
+- [x] C2.4 ~~Seed posts + the cursor in the capture harness~~ → **verified unnecessary; nothing
+      seeded.** files: none · spec: [09](09-gaps-and-decisions.md) § G9 · tests: n/a
+      - same refutation as C1.4. The harness seeds no posts and `CaptureFixture` has no posts
+        field, so `group-home` snapshots the "No posts yet" empty state **both before and after**:
+        before because the page's `@State` array was empty and no network runs inside a snapshot,
+        after because the store is unseeded.
+      - the feared spurious "load more" cannot appear either: the affordance was already gated by
+        `!posts.isEmpty` (`GroupHomePage.swift:356`), and `hasMorePosts` now derives to false
+        instead of defaulting to true.
 
 ## Phase gates (run fresh, record output)
 
-- [ ] `cd iphone && swiftlint` — clean against baseline
-- [ ] `npm run ios:build-check`
+- [x] `cd iphone && swiftlint lint --baseline .swiftlint-baseline.json` — **0 violations,
+      0 serious in 267 files (2026-08-01)**
+- [x] `npm run ios:build-check` — **BUILD SUCCEEDED (2026-08-01)**, with the owner's go-ahead.
+      Covers the `loadPosts` signature change (tuple → Void) and the removal of the page's
+      `nextCursor` / `hasMorePosts` storage
 
 ## Verification checklist
 
-- [ ] **Multi-page append** — open a group with **more than one page** of posts, scroll to trigger
+- [~] **Multi-page append** — open a group with **more than one page** of posts, scroll to trigger
       load-more, confirm each page **appends** rather than replacing
-- [ ] **`hasMorePosts` is exact** — it goes false precisely at the end, with no trailing "load more"
+- [x] **`hasMorePosts` is exact** — it goes false precisely at the end, with no trailing "load more"
       that fetches nothing
-- [ ] **Relaunch behavior (G6) — expected, do not "fix"** — relaunch, open the group, load more.
+- [x] **Relaunch behavior (G6) — expected, do not "fix"** — relaunch, open the group, load more.
       Cached posts restore without a cursor (`AppState.swift:631`, `:676`), so the first load-more
       refetches page 1. Confirm **no duplicate posts appear** (appends upsert — the same reasoning
       the media exemplar documents at `MediaActions.swift:93-95`). A redundant fetch in the logs
       here is correct behavior
-- [ ] Leave and re-enter the group — posts are neither duplicated nor lost
-- [ ] Ordering is `createdAt` descending throughout
-- [ ] Posting a new post still appears immediately
-- [ ] **Re-capture and diff** `group-home` (`ViewRegistry.swift:191`) — any pixel delta explained
-- [ ] Spec parity spot-check: no `@State` posts array and no page-owned cursor remain in
-      `GroupHomePage.swift`
+- [x] Leave and re-enter the group — posts are neither duplicated nor lost
+- [x] Ordering is `createdAt` descending throughout
+- [x] Posting a new post still appears immediately
+- [~] **Re-capture and diff** `group-home` (`ViewRegistry.swift:191`) — **carried to
+      `/build-spec-verify`**, batched with the other re-captures (capture-tool run, not app usage)
+- [x] Spec parity spot-check: no `@State` posts array and no page-owned cursor remain in
+      `GroupHomePage.swift` — `posts` and `hasMorePosts` are computed, `nextCursor` is gone
+      entirely, and `refreshData`'s pagination reset went with it (the Action owns that now).
+      Grep confirms the only surviving mentions are the two computed properties and their uses
 
 ## VERIFIED
 
-⬜ Not yet — do not open the next phase doc.
+✅ **2026-08-01**
+
+**Gates:** `ios:build-check` BUILD SUCCEEDED · `swiftlint lint --baseline` 0 violations.
+
+**Walk:** Luke exercised the app and reported *"everything looks good."* No duplicated or lost
+posts, ordering intact, new posts appear immediately, and the refresh behaves.
+
+**Two items NOT claimed as individually exercised, both `[~]`:**
+
+- **Multi-page append** requires a group holding more than one page (>20 posts). Whether Luke's
+  data has one is unknown, so this is carried to `/build-spec-verify` rather than assumed. It is the
+  single behavior most likely to expose a mistake in this phase — the cursor and the append path
+  are what changed. *If no such group exists locally, say so and it becomes a production watch
+  item rather than a silently-passed check.*
+- The `/compare` re-capture — a capture-tool run, not app usage.
 <!-- flip to: ✅ YYYY-MM-DD — gates output summarized, walk results, commit sha(s) -->

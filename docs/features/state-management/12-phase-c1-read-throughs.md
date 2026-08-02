@@ -49,26 +49,69 @@ None — no new UI surfaces.
         restore it — new scope, and a compare-baseline change. Left as the follow-up
         `ViewRegistry.swift:266-267` already calls it.
 
+- [x] C1.5 **Join requests read through too** — files:
+      `Pages/Manage/Group/Member/GroupMembersPage.swift` (`joinRequests`),
+      `Pages/Manage/Member/MemberHomePage.swift` (`allJoinRequests`) · spec:
+      [09](09-gaps-and-decisions.md) § G11 · tests: the walk
+      - **added 2026-08-01**, after the integrity check confirmed what [audit.md](audit.md):60-61
+        had left as "confirm before acting": the store already exists
+        (`AppState.pendingJoinRequestsByGroupId`), `loadJoinRequests` writes it **and** returns, and
+        both pages forked the return — the same Mode 2 shape as C1.1–C1.3
+      - `MemberHomePage`'s `GroupJoinRequest` wrapper is derived at read time rather than stored
+      - fixed here rather than left for Phase D to grandfather
+
 ## Phase gates (run fresh, record output)
 
 - [x] `cd iphone && swiftlint lint --baseline .swiftlint-baseline.json` — **0 violations,
       0 serious in 267 files (2026-08-01)**
-- [ ] `npm run ios:build-check` — needs the owner's go-ahead (O2)
+- [x] `npm run ios:build-check` — **BUILD SUCCEEDED (2026-08-01)**, re-run after C1.5 landed.
+      Load-bearing here — converting `@State` arrays to computed properties removes their setters,
+      so any missed assignment fails the compile
 
 ## Verification checklist
 
-- [ ] **Cross-screen freshness** — change a member or an enrollment on one screen; the other screen
+- [x] **Cross-screen freshness** — change a member or an enrollment on one screen; the other screen
       reflects it **without a manual reload**
-- [ ] **Nothing rendered changed shape** — order, inclusion, and counts match the previous forked
+- [x] **Nothing rendered changed shape** — order, inclusion, and counts match the previous forked
       rendering. `membersFor` sorts alphabetically and `enrollmentsFor` by start date; if the fork
       was in a different order, that is a **finding to surface**, not a diff to accept
-- [ ] Empty states still render correctly (a group with no members / no enrollments)
-- [ ] **Re-capture and diff** `group-members-page` and the group Members/Enrolled tab cases
-      (`ViewRegistry.swift:201`) — any pixel delta must be **explained**, not accepted
-      ([07-capture](07-capture.md))
-- [ ] Spec parity spot-check: no `@State` array of server models remains in the three files
+- [x] Empty states still render correctly (a group with no members / no enrollments)
+- [~] **Re-capture and diff** `group-members-page` and the group Members/Enrolled tab cases
+      (`ViewRegistry.swift:201`) — **carried to `/build-spec-verify`.** This is a capture-tool run,
+      not app usage, so Luke's walk could not have covered it. Batched with C-b's and Phase B's
+      re-captures into one pass ([07-capture](07-capture.md))
+- [x] Spec parity spot-check: no `@State` array of server models remains in the three files —
+      all three are computed reads (`membersFor`, `enrollmentsFor`, and the union of `membersFor`
+      over `orderedGroups`), confirmed by the compiler accepting the setter removal
+
+### Build notes (2026-08-01)
+
+- **No Action signatures were changed**, unlike Phase B. `loadEnrollments` has **17 call sites**
+  including `GroupHomePage.swift` — Phase C-b's file — so re-signaturing it from a C-a task would
+  have reached into the next phase's work. The returns are discarded at the three sites instead.
+  `loadMembers` and `loadEnrollments` therefore still return collections the rule calls a smell;
+  the natural place to revisit that is C-b, which touches `loadPosts` anyway.
+- **`EnrollmentsListPage` no longer splices locally on delete** — `deleteEnrollment(id:)` removes
+  from `state.enrollments` and both indexes (`EnrollmentActions.swift:319-325`), so the
+  read-through drops the row. The old `enrollments.removeAll { … }` was a second truth doing the
+  same job.
+- **`MemberHomePage.allMembers` is now derived**, not assigned once after loading: the union of
+  `membersFor` over `orderedGroups`. Ordering is per-group alphabetical, concatenated in group
+  order. The existing de-dup at `:80` still applies (a member can appear in several groups). If the
+  live walk shows a different order than before, that is a **finding to surface**, not a diff to
+  accept.
 
 ## VERIFIED
 
-⬜ Not yet — do not open the next phase doc.
+✅ **2026-08-01**
+
+**Gates:** `ios:build-check` BUILD SUCCEEDED (re-run after C1.5) · `swiftlint lint --baseline` 0
+violations, 0 serious, 267 files.
+
+**Walk:** Luke exercised the app and reported *"everything looks good."* That covers the
+cross-screen freshness, the ordering watch (`MemberHomePage.allMembers` as a derived union — no
+ordering complaint), the empty states, and the C1.5 join-request lists.
+
+**Carried to `/build-spec-verify`:** the `/compare` re-capture, marked `[~]` — a capture-tool run
+rather than app usage, so the walk could not have covered it.
 <!-- flip to: ✅ YYYY-MM-DD — gates output summarized, walk results, commit sha(s) -->

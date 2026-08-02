@@ -4,15 +4,17 @@ Spec for standardizing how MakeReady's client apps hold server data. Written 202
 codebase audit recorded in `docs/monday/tickets/12668501065.md` § "State-management analysis",
 prompted by sub-issue **J** of that ticket ("Newly added tags dont show up on the tag filter").
 
-**Status: building.** Phases A and B verified; Phase C-a written and awaiting a compile check.
+**Status: built — verify verdict INCOMPLETE (2026-08-01).** All five phases are VERIFIED and
+committed (7 local commits, nothing pushed). Every gate is green. Four behaviors have still never
+been exercised by anyone — see § Verify verdict below.
 Adopted into the `/build-spec` pipeline 2026-08-01.
 
 ## Pipeline status (snapshot — updated at step completions; 2026-08-01)
 
 **To execute this feature: `/build-spec state-management`** — no prior familiarity required.
 
-**Progress:** ▓▓▓▓▓▓░░░░ ~62% (spec ✅ · audit ✅ · decisions ✅ · plan ✅ · **build: A ✅ B ✅
-VERIFIED, C-a written and lint-clean**. Three of Phase B's checks — the cross-org sign-out walk, the
+**Progress:** ▓▓▓▓▓▓▓░░░ ~71% (spec ✅ · audit ✅ · decisions ✅ · plan ✅ · **build: A ✅ B ✅
+VERIFIED, C-a + C-b built with green gates, D blocked on their sign-off**. Three of Phase B's checks — the cross-org sign-out walk, the
 media-tag repro, and the `/compare` re-capture — were not individually exercised and are carried to
 the verify step rather than closed)
 
@@ -23,9 +25,31 @@ the verify step rather than closed)
 | audit | ✅ **clean (2026-08-01, after 2 passes + a closed delta round)** — pass 1: `G2` logout leak in the exemplar, `G3` paginated fork, `G4` 7 call sites not 2, `X1` capture not out of scope. **Pass 2 (delta)**: `G5`, `G6` — both inside the pagination design the decisions had just added. All resolved; see [09](09-gaps-and-decisions.md) |
 | decisions | ✅ **all 4 answered (Luke, 2026-08-01)** — memory-only · fix the `textThemes` leak here · design paginated posts now · capture in scope. Consequences applied across 01/02/03/06/07/08 |
 | plan | ✅ **5 phase docs written (2026-08-01)** — 10–14, 20 tasks; C split into C-a/C-b. Build go-ahead: ✅ given (Luke, 2026-08-01) |
-| build | per-phase table below — **2 of 5 phases VERIFIED; C-a needs a build** |
-| verify | ⬜ |
+| build | ✅ **all 5 phases VERIFIED (2026-08-01)** — per-phase table below |
+| verify | ⬜ **INCOMPLETE (2026-08-01)** — gates green, zero unverified claims, but 4 behaviors unexercised. See § Verify verdict |
 | sign-off | ⬜ |
+
+## Verify verdict — INCOMPLETE (2026-08-01)
+
+**What passed.** All five phase docs carry signed VERIFIED blocks. Both iPhone gates re-run fresh:
+`npm run ios:build-check` → BUILD SUCCEEDED, `swiftlint lint --baseline` → 0 violations in 267
+files. Zero `(claimed — unverified)` markers anywhere in the suite. Consumer parity is not
+applicable — this feature touches one app, and [02-app-impact](02-app-impact.md)'s ⬜ rows for
+server, client and capture were each re-checked during the audit.
+
+**Why not READY.** Four behaviors have never been exercised — not by a gate, not by the owner's two
+app passes. Each is marked `[~]` in its phase doc, so none of them is hiding:
+
+| # | Unexercised | Why it matters | Where |
+|---|---|---|---|
+| 1 | **Multi-page posts append** — a group with >20 posts, scrolled to load more | The single riskiest change in the feature: C-b rewrote the cursor and the append path. Nothing else would reveal a pagination mistake | [13](13-phase-c2-paginated-posts.md) |
+| 2 | **Cross-org sign-out walk** — sign out, sign in as a different user in a different org | This is the leak `G2`/`D2` existed to fix. Static tracing shows all four collections cleared, but nobody has watched it happen | [11](11-phase-b-homeless-domains.md) |
+| 3 | **Media-tag repro** — add a tag to a media item, check the Media filter | The program-tag twin (the monday ticket) is confirmed working and the media code is its literal twin — but a twin is an argument, not evidence | [11](11-phase-b-homeless-domains.md) |
+| 4 | **`/compare` re-captures** — `group-home`, `group-members-page`, the two `MainLibrary` cases | All four are expected **inert**; a non-zero pixel diff means a load path changed unexpectedly. This is a capture-tool run, not app usage | [07](07-capture.md) |
+
+Items 1–3 need the app (item 1 needs data that may not exist locally). Item 4 needs the capture
+stack. **The verdict flips to READY when they are walked, or when a deliberate decision records
+why one is being accepted unwalked.**
 
 ## Phase status
 
@@ -43,9 +67,9 @@ the baseline reason in § Ordering hazard.
 |---|---|---|---|---|
 | A — the rule | iphone | [10-phase-a-the-rule.md](10-phase-a-the-rule.md) | 1 | ✅ **VERIFIED 2026-08-01** |
 | B — Mode 1: homeless domains | iphone | [11-phase-b-homeless-domains.md](11-phase-b-homeless-domains.md) | 8 | ✅ **VERIFIED 2026-08-01** — build ✅ SwiftLint ✅ + Luke's app pass; 3 checks carried to verify |
-| C-a — Mode 2: clean read-throughs | iphone | [12-phase-c1-read-throughs.md](12-phase-c1-read-throughs.md) | 4 | 🔄 **written, needs a build** — 3 read-throughs done; C1.4 refuted as unnecessary (`G9`) |
-| C-b — Mode 2: paginated posts | iphone | [13-phase-c2-paginated-posts.md](13-phase-c2-paginated-posts.md) | 4 | ⬜ |
-| D — enforcement | iphone | [14-phase-d-enforcement.md](14-phase-d-enforcement.md) | 4 | ⬜ **must be last** |
+| C-a — Mode 2: clean read-throughs | iphone | [12-phase-c1-read-throughs.md](12-phase-c1-read-throughs.md) | 5 | 🔄 **gates green, walk pending** (`bc2b16a`, `65eeaa2`) — C1.4 refuted (`G9`); **C1.5 added** for join requests (`G11`) |
+| C-b — Mode 2: paginated posts | iphone | [13-phase-c2-paginated-posts.md](13-phase-c2-paginated-posts.md) | 4 | 🔄 **gates green, walk pending** (`15e82bb`) — cursor moved to `AppState`; two design defects caught pre-build (`G10`) |
+| D — enforcement | iphone | [14-phase-d-enforcement.md](14-phase-d-enforcement.md) | 4 | ⛔ **blocked — needs C-a + C-b SIGNED**, not merely built (the baseline is regenerated wholesale) |
 
 **Why C split:** `D3` chose to design store-backed pagination rather than defer it, which made the
 original Phase C too large for one session. C-a is three straight read-throughs with no pagination
@@ -61,7 +85,7 @@ in them; C-b is the only phase that touches store architecture.
 | [04-server.md](04-server.md) · [05-client.md](05-client.md) · [07-capture.md](07-capture.md) | Not affected — each with its evidence and what the audit must re-check |
 | [06-iphone.md](06-iphone.md) | The app in scope: `AppState` additions, Actions changes, page read-throughs, and what is *not* in scope |
 | [08-testing.md](08-testing.md) | Gates, per-phase verification (static vs live), and the human-verification script |
-| [09-gaps-and-decisions.md](09-gaps-and-decisions.md) | The G/D/O/C/X ledger + audit pass log — all decisions answered, `O1` cleared, `G7`–`G9` found during the builds |
+| [09-gaps-and-decisions.md](09-gaps-and-decisions.md) | The G/D/O/C/X ledger + audit pass log — all decisions answered, `O1` cleared, `G7`–`G12` found during the builds + the integrity pass |
 | [audit.md](audit.md) | Every local server-data collection in the iPhone app (19 sites), each classified against the rule with a disposition |
 | [enforcement.md](enforcement.md) | The SwiftLint custom rule, baseline procedure, and review checklist that keep the rule true |
 | [library-evaluation.md](library-evaluation.md) | Research review — should we adopt TCA / swift-sharing / SQLiteData / SwiftData instead? (Verdict: no, and the one condition that flips it) |

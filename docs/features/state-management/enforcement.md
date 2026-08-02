@@ -50,9 +50,23 @@ throwaway config via `swiftlint --config`, not just reasoned about:
 
 - **`included:` is supported in `custom_rules`** and correctly scopes the rule to `Pages/` +
   `Components/`. (The existing rules only demonstrate `excluded:`, so this was worth confirming.)
-- The regex fires on **21 sites**. That is the 19 real ones in [audit.md](audit.md) **plus 2
-  `#Preview` mock fixtures** — `GroupMembersPage.swift:512` (`mockRequests`) and `:529`
-  (`mockMembers`).
+- The regex fired on **21 sites** when measured: the 19 real ones in [audit.md](audit.md) **plus 2
+  `#Preview` mock fixtures** — `mockRequests` and `mockMembers` in `GroupMembersPage.swift`.
+
+  **Re-measured after the builds (2026-08-01): 11 sites — 9 real + the same 2 mocks** (now at
+  `GroupMembersPage.swift:520`, `:537`). Phases B, C-a and C-b deleted 8, and G11's join-request
+  fix deleted 2 more — **21 → 13 → 11**. Both numbers are kept
+  because the *drop* is the evidence: Phase D's grandfathering check (`14-phase-d` § Verification)
+  diffs the regenerated baseline expecting the sites those phases fixed to be **gone**, and that
+  diff is meaningless against a stale expected count. **11 is what D should expect** — 9 if the
+  two mocks are excluded rather than baselined.
+
+  The 9 real survivors are **exactly** the ones [audit.md](audit.md) dispositioned as legitimately
+  screen-local: `editTags`, `originalEditTags`, `draggedItems`, `suggestions`, `tags`,
+  `orderedBlocks`, `orderedLessons`, `exegesisHighlights`, `activityLogs`. The two join-request
+  forks that were on this list are **gone** — they were never legitimately local (a store already
+  existed and both pages forked it), and G11 fixed them rather than baselining them. The baseline
+  now grandfathers only deliberate, reviewed cases.
 - The regex is intentionally broader than the audit's `grep` (which required `= []`), so it also
   catches `@State var x: [Model] = someSeedValue` — **exactly the shape a Mode 2 forked copy takes**.
   Do not narrow it to `= []`.
