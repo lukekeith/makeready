@@ -1,0 +1,410 @@
+// UnenrollOptions — twin of iPhone UnenrollOptionsModal (the .unenrollOptions
+// modal content: 4-phase machine). Colors are the iOS literals (#ff4444
+// destructive, #ffaa00 warning, #57DB5D success).
+.UnenrollOptions {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-canvas); // iOS Color.appBackground
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__dragSpacer {
+    flex: 0 0 16px; // iOS modalProvidesDragIndicator spacer
+  }
+
+  // PageTitle.iconTitle equivalent (icon + centered title, h56 padH8).
+  &__titleBar {
+    position: relative;
+    flex: 0 0 56px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+  }
+
+  &__iconBtn {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    color: #fff;
+    cursor: pointer;
+
+    svg {
+      width: 17px; // iOS Typography.s17 glyph
+      height: 17px;
+    }
+  }
+
+  &__title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 17px; // iOS Typography.s17Bold
+    font-weight: var(--font-weight-bold);
+  }
+
+  // ── Loading ──
+  &__loading {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+  }
+
+  &__spinner {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 2.5px solid var(--color-white-20);
+    border-top-color: #fff;
+  }
+
+  &__loadingText {
+    font-size: 15px; // iOS Typography.s15
+    color: var(--color-white-50);
+  }
+
+  // ── Options scroll ──
+  &__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 24px; // iOS VStack(spacing: 24)
+    padding-top: 16px;
+  }
+
+  &__programHeader {
+    display: flex;
+    align-items: center;
+    gap: 14px; // iOS HStack(spacing: 14)
+    padding: 0 16px;
+  }
+
+  &__programImage {
+    flex: 0 0 auto;
+    width: 56px;
+    height: 56px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--color-white-10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &__programFallback {
+    display: inline-flex;
+    width: 22px;
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  &__programName {
+    font-size: 18px; // iOS Typography.s18Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1.25;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2; // iOS lineLimit(2)
+    overflow: hidden;
+  }
+
+  &__lessonCount {
+    padding: 0 16px;
+    font-size: 15px; // iOS Typography.s15
+    color: var(--color-white-50);
+  }
+
+  // Info banner: color@10% fill, r10, pad 14; icon s16, text s14 color@90%.
+  &__banner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 16px;
+    padding: 14px;
+    border-radius: 10px;
+  }
+
+  &__banner--success {
+    background: rgba(87, 219, 93, 0.1); // #57DB5D @ 10%
+    color: #57db5d;
+  }
+
+  &__banner--warning {
+    background: rgba(255, 170, 0, 0.1); // #ffaa00 @ 10%
+    color: #ffaa00;
+  }
+
+  &__bannerIcon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 17px; // iOS Typography.s16 glyph
+    height: 17px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__bannerText {
+    font-size: 14px; // iOS Typography.s14
+    opacity: 0.9; // iOS color.opacity(0.9) text
+  }
+
+  // Option card: pad 16, white@8 r12; 36×36 icon well; chevron white@30.
+  &__optionCard {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 0 16px;
+    padding: 16px;
+    border: none;
+    border-radius: 12px;
+    background: var(--color-white-8, rgba(255, 255, 255, 0.08));
+    font: inherit;
+    color: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  &__optionIcon {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+
+    svg {
+      width: 19px; // iOS Typography.s18 glyph
+      height: 19px;
+    }
+  }
+
+  &__optionIcon--destructive {
+    background: rgba(255, 68, 68, 0.15); // #ff4444 @ 15%
+    color: #ff4444;
+  }
+
+  &__optionBody {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__optionTitle {
+    font-size: 16px; // iOS Typography.s16Semibold
+    font-weight: var(--font-weight-semibold);
+  }
+
+  &__optionTitle--destructive {
+    color: #ff4444;
+  }
+
+  &__optionDesc {
+    font-size: var(--text-sm); // iOS Typography.s13
+    line-height: 1.35; // iOS .lineSpacing(2)
+    color: var(--color-white-50);
+  }
+
+  &__optionChevron {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 8px;
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  // Disabled full-removal block: white@4 r12, all content white@20.
+  &__disabledCard {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0 16px;
+    padding: 16px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  &__disabledHead {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  &__disabledIcon {
+    display: inline-flex;
+    width: 17px;
+    height: 17px;
+    color: var(--color-white-20);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__disabledTitle {
+    font-size: 16px; // iOS Typography.s16Semibold
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-white-20);
+  }
+
+  &__disabledText {
+    font-size: 14px; // iOS Typography.s14
+    line-height: 1.35;
+    color: var(--color-white-20);
+  }
+
+  &__quiet {
+    align-self: center;
+    margin-top: 8px; // iOS .padding(.top, 8)
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 15px; // iOS Typography.s15
+    color: var(--color-white-50);
+    cursor: pointer;
+  }
+
+  &__bottomSpacer {
+    flex: 0 0 40px;
+  }
+
+  // ── Confirm ──
+  &__confirmBody {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px; // iOS VStack(spacing: 24)
+    padding: 0 32px;
+    text-align: center;
+  }
+
+  &__confirmIcon {
+    display: inline-flex;
+    width: 48px; // iOS Typography.s48 glyph
+    height: 48px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__confirmIcon--fullRemoval {
+    color: #ff4444;
+  }
+
+  &__confirmIcon--cancelFuture {
+    color: #ffaa00;
+  }
+
+  &__confirmTitle {
+    font-size: 20px; // iOS Typography.s20Bold
+    font-weight: var(--font-weight-bold);
+  }
+
+  &__confirmDesc {
+    font-size: 15px; // iOS Typography.s15
+    line-height: 1.45; // iOS .lineSpacing(4)
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  &__confirmActions {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__proceed {
+    align-self: stretch;
+    height: 48px;
+    border: none;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 15px; // iOS Typography.s15Semibold
+    font-weight: var(--font-weight-semibold);
+    color: #fff;
+    cursor: pointer;
+  }
+
+  &__proceed--fullRemoval {
+    background: #ff4444;
+  }
+
+  &__proceed--cancelFuture {
+    background: #ffaa00;
+  }
+
+  // ── Error ──
+  &__stateBlock {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 32px;
+    text-align: center;
+  }
+
+  &__stateIcon {
+    width: 40px;
+    height: 40px;
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__stateText {
+    font-size: 15px;
+    color: var(--color-white-50);
+  }
+
+  &__retry {
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 17px;
+    color: var(--color-brand-500);
+    cursor: pointer;
+  }
+}

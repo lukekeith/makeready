@@ -48,6 +48,10 @@ import { useOverlayManager } from '../overlay/overlay.store'
 import type { LeaderActivity, LeaderReadBlock } from '../stores/leader-program.store'
 import { useLeaderProgram } from '../stores/leader-program.store'
 import { useLeaderLibrary } from '../stores/leader-library.store'
+import {
+  programActivityActions,
+  type ActivityEditorActions,
+} from '../stores/activity-editor-actions'
 import { fileToResizedJpegBase64 } from '../../../utils/image-upload'
 
 const props = defineProps<{
@@ -55,11 +59,17 @@ const props = defineProps<{
   lessonId: string
   activity: LeaderActivity
   previewUrl?: string
+  /** iOS ReadActivityActionProvider — omit for the `.program` default; the
+   *  enrollment host passes the scheduled-activity variant. */
+  actions?: ActivityEditorActions
 }>()
 
 const emit = defineEmits<{ cancel: [] }>()
 
+// Themes are context-free (GET /api/themes) — always the program store.
 const store = useLeaderProgram()
+const acts: ActivityEditorActions =
+  props.actions ?? programActivityActions(props.programId, props.lessonId, props.activity.id)
 
 // Live blocks from the store (auto-saved ops re-render through here).
 // iOS appendNewBlocksToEnd quirk ported faithfully: a passage added THIS
@@ -102,13 +112,13 @@ async function onRightTap(): Promise<void> {
   saving.value = true
   try {
     if (title.value !== (props.activity.title || 'Read')) {
-      await store.updateActivity(props.lessonId, props.activity.id, { title: title.value.trim() })
+      await acts.updateActivity({ title: title.value.trim() })
     }
     // iOS save(): only PATCH blocks whose markdown actually differs.
     for (const [id, md] of Object.entries(editedContent)) {
       const b = blocks.value.find((x) => x.id === id)
       if (b && !b.isLocked && md !== b.content) {
-        await store.updateReadBlock(props.lessonId, props.activity.id, id, { content: md })
+        await acts.updateReadBlock(id, { content: md })
       }
     }
   } finally {
@@ -175,7 +185,7 @@ function presentStylePicker(b: LeaderReadBlock, range: CharRange): void {
 function applyStyle(b: LeaderReadBlock, range: CharRange, style: 'bold' | 'highlight' | null): void {
   const kept = b.selections.filter((s) => !(s.start < range.end && s.end > range.start))
   const next = style ? [...kept, { start: range.start, end: range.end, style }] : kept
-  void store.updateReadBlock(props.lessonId, props.activity.id, b.id, { selections: next })
+  void acts.updateReadBlock(b.id, { selections: next })
 }
 
 // ── Delete (iOS alert strings, both block kinds) — shared confirm service ──
@@ -195,9 +205,20 @@ async function requestDeleteBlock(target: LeaderReadBlock): Promise<void> {
   if (choice !== 0 || deleting.value) return
   deleting.value = true
   try {
-    await store.deleteReadBlock(props.lessonId, props.activity.id, target.id)
+    await acts.deleteReadBlock(target.id)
     delete editedContent[target.id]
     appendedIds.value = appendedIds.value.filter((id) => id !== target.id)
+  } catch (err) {
+    // Scheduled activities reject deleting the LAST read block (400) — the
+    // program route never errors here. Surface the server's message.
+    const serverMessage = (err as { response?: { data?: { error?: unknown } } })?.response?.data
+      ?.error
+    void confirmDialog.confirm({
+      title: 'Something went wrong',
+      message:
+        typeof serverMessage === 'string' ? serverMessage : "Couldn't delete the block",
+      buttons: [{ label: 'OK', style: 'secondary' }],
+    })
   } finally {
     deleting.value = false
   }
@@ -208,7 +229,7 @@ function onReorder(ids: string[]): void {
   // A reorder renumbers everything server-side — the visual order becomes
   // canonical, so the session-append override resets.
   appendedIds.value = []
-  void store.reorderReadBlocks(props.lessonId, props.activity.id, ids)
+  void acts.reorderReadBlocks(ids)
 }
 
 // ── Source menu (iOS bottom sheet: Bible verse / Custom text) ──
@@ -217,7 +238,7 @@ const showSourceMenu = ref(false)
 async function addCustomTextBlock(): Promise<void> {
   showSourceMenu.value = false
   const maxOrder = blocks.value.reduce((m, b) => Math.max(m, b.orderNumber), 0)
-  await store.createReadBlock(props.lessonId, props.activity.id, {
+  await acts.createReadBlock({
     isLocked: false,
     content: '',
     orderNumber: maxOrder + 1,
@@ -242,10 +263,7 @@ function onSourceMenuGone(): void {
 
 // iOS currentUsedPassages — every passage the LESSON's activities reference
 // (drives the picker's "already used" tinting).
-const usedPassages = computed(() => {
-  const lesson = store.program?.lessons.find((l) => l.id === props.lessonId)
-  return (lesson?.activities ?? []).flatMap((a) => a.passages)
-})
+const usedPassages = computed(() => acts.usedPassages())
 
 // iOS handlePassageSelected: normalized content → addSourceReference (server
 // creates the locked block) → session-append the new block → set-titles modal.
@@ -260,9 +278,7 @@ async function onPassageConfirmed(p: ConfirmedPassage): Promise<void> {
   const content = normalizeScriptureMarkdown(p.selectedText)
   const previousIds = props.activity.readBlocks.map((b) => b.id)
   try {
-    await store.addSourceReference(
-      props.lessonId,
-      props.activity.id,
+    await acts.addSourceReference(
       {
         bookNumber: p.bookNumber,
         bookName: p.bookName,
@@ -288,9 +304,8 @@ const setActivityTitle = ref(false)
 const setLessonTitle = ref(false)
 const pendingTitleReference = ref('')
 
-const lesson = computed(() => store.program?.lessons.find((l) => l.id === props.lessonId))
-const lessonActivityCount = computed(() => lesson.value?.activities.length ?? 0)
-const lessonCurrentTitle = computed(() => lesson.value?.title || 'Untitled lesson')
+const lessonActivityCount = computed(() => acts.lessonActivityCount())
+const lessonCurrentTitle = computed(() => acts.lessonTitle())
 const activityCurrentTitle = computed(() => title.value || props.activity.title || 'Read')
 const setTitlesActionLabel = computed(() =>
   setActivityTitle.value && setLessonTitle.value ? 'Set titles' : 'Set title',
@@ -315,8 +330,10 @@ function dismissSetTitles(apply: boolean): void {
   if (!reference) return
   // iOS: the activity title only changes LOCAL state (tri-state flips to
   // "Save"); the lesson title persists immediately (EditDay.saveLessonTitle).
+  // In the enrollment context updateLessonTitle is absent and the toggle
+  // silently no-ops — exactly like iOS (onLessonTitleUpdate is nil there).
   if (applyActivity) title.value = reference
-  if (applyLesson) void store.updateLessonTitle(props.programId, props.lessonId, reference)
+  if (applyLesson) void acts.updateLessonTitle?.(reference)
 }
 
 // ── Screen 2: Edit Themes (nested SlideStack; style wiring = next stage) ──
@@ -344,7 +361,7 @@ const themeOptions = computed(() =>
 )
 
 function setBlockStyle(blockId: string, fields: Record<string, unknown>): void {
-  void store.updateReadBlock(props.lessonId, props.activity.id, blockId, fields)
+  void acts.updateReadBlock(blockId, fields)
 }
 
 // iOS InlineFontSizePicker: "m" writes nil (server null == default).

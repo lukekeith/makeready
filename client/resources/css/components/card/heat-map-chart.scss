@@ -48,4 +48,51 @@
     // Square corners mirror Swift Charts' RectangleMark.
     background: var(--color-brand-500);
   }
+
+  // Additive (showXLabels mode — Program Home analytics tab): the chart frame
+  // becomes a 2×2 grid so a bottom day-label band fits INSIDE chartHeight
+  // (Swift Charts reserves the axis band inside `.frame(height:)`). The
+  // default flex layout above is untouched when showXLabels is off.
+  &__chart--xlabels {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: 1fr auto;
+    column-gap: var(--space-sm); // iOS axis horizontalSpacing 8
+
+    .HeatMapChartTwin__labels {
+      grid-column: 1;
+      grid-row: 1;
+      // iOS AxisMarks sit at integer values = cell BOTTOM edges (y grows up),
+      // so each label centers on its row's bottom boundary — not the row
+      // middle (measured off the analytics-tab iPhone reference).
+      align-items: end;
+    }
+
+    .HeatMapChartTwin__labels .HeatMapChartTwin__label {
+      transform: translateY(50%);
+    }
+
+    .HeatMapChartTwin__grid {
+      grid-column: 2;
+      grid-row: 1;
+    }
+  }
+
+  &__xaxis {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    padding-top: var(--space-sm); // iOS AxisValueLabel verticalSpacing 8
+  }
+
+  &__xlabel {
+    flex: 1 1 0;
+    min-width: 0;
+    // iOS AxisValueLabel anchors LEADING at the mark (the cell's left edge) —
+    // measured off the analytics-tab iPhone reference.
+    text-align: left;
+    font-size: 10px; // iOS Typography.s10 (matches the y labels)
+    line-height: 1;
+    color: var(--fg-tertiary); // iOS white.opacity(0.5)
+  }
 }

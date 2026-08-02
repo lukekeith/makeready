@@ -24,6 +24,9 @@ export default {
           backgroundColor: block?.backgroundColor ?? null,
           backgroundOverlayOpacity: block?.backgroundOverlayOpacity ?? null,
           backgroundImageUrl: block?.backgroundImageUrl ?? null,
+          // Scheduled (enrollment) context: iOS supportsBlockStyling false —
+          // the image/color/font row is hidden entirely.
+          showStyleEditor: shared?.scheduled !== true,
           statusBar: true,
         },
       },
@@ -32,6 +35,9 @@ export default {
 
   toIphone(shared) {
     const { user = {}, activity = {} } = shared ?? {};
+    // The `scheduled` variant is WEB-ONLY — the ViewRegistry case constructs
+    // the PROGRAM page, which always renders the style row (see fixture note).
+    if (shared?.scheduled === true) return null;
     return {
       platform: 'iphone',
       view: 'pages.edit-exegesis-activity',

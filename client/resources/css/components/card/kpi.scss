@@ -65,6 +65,13 @@
     flex: 1 1 auto;
   }
 
+  // Additive (iOS Kpi(expand: true)): the card fills its proposed frame,
+  // content pinned top-leading. Parents give the cell an explicit height
+  // (e.g. the Program Home analytics 116px KPI rows).
+  &--expand {
+    height: 100%;
+  }
+
   // ── standard ─────────────────────────────────────────────────────────────
   // VStack(spacing: 8) leading: label row / value(28) / description.
   &--variant-standard {

@@ -1703,6 +1703,43 @@ model MembershipEvent {
   @@map("membership_events")
 }
 
+model ClientEvent {
+  id                   String @id // Client-generated UUID — natural idempotency key; retried batches insert-ignore on conflict
+  eventType            String // Must be a registered client-instrumented analytics event type (e.g. LESSON_OPENED); unknown types are rejected at ingest
+  occurredAt           DateTime // Client clock (UTC), clamped at ingest into [receivedAt - 48h, receivedAt + 5min]
+  receivedAt           DateTime @default(now()) // Server clock at ingest
+  memberId             String? // Acting member — set from the session, never from the payload. Intentionally NO FK (append-only analytics table); the analytics_events ce: view arm joins members for existence, so member deletion still erases these events from analytics
+  userId               String? // Acting user (leader-side) — set from the session, never from the payload. Intentionally NO FK; see memberId
+  organizationId       String? // Enriched server-side from the enrollment's group at ingest
+  groupId              String? // Enriched server-side at ingest
+  enrollmentId         String?
+  studyProgramId       String? // Enriched server-side from the enrollment at ingest
+  lessonScheduleId     String?
+  lessonId             String? // Enriched server-side from the lesson schedule at ingest
+  dayNumber            Int? // Enriched server-side from the source curriculum lesson at ingest
+  scheduledActivityId  String?
+  activityType         String? // Enriched server-side from the scheduled activity at ingest (USER_INPUT/READ/VIDEO/YOUTUBE/EXEGESIS)
+  scheduledDate        DateTime? // Enriched server-side from the lesson schedule's planned date at ingest
+  value                Float @default(1)
+  metadata             Json? // Event-specific attributes; anything queried regularly gets promoted to a real column (additive)
+  @@index([eventType, occurredAt])
+  @@index([memberId])
+  @@index([enrollmentId])
+  @@index([studyProgramId, occurredAt])
+  @@index([occurredAt])
+  @@map("client_events")
+}
+
+model AnalyticsRefreshState {
+  id                   String @id // Always 'singleton' — one row of refresh freshness/telemetry
+  lastRefreshedAt      DateTime? // Completion instant of the last successful analytics_events refresh
+  lastDurationMs       Int? // Duration of the last successful refresh
+  lastError            String? @db.Text // Message of the most recent refresh failure; cleared on success
+  consecutiveFailures  Int @default(0)
+  updatedAt            DateTime @updatedAt
+  @@map("analytics_refresh_state")
+}
+
 model SmsCampaign {
   id                   String @id @default(uuid())
   slug                 String @unique // Lookup key, e.g. group-invite, study-invite

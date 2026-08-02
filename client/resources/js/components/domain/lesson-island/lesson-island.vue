@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import axios from 'axios'
+import { track } from '../../../analytics'
 import VideoStep from './steps/video-step.vue'
 import YoutubeStep from './steps/youtube-step.vue'
 import ReadStep from './steps/read-step.vue'
@@ -62,6 +63,30 @@ const state = createLessonState({
 
 provideLessonState(state)
 
+// ─── Analytics instrumentation ────────────────────────────────────────────────
+// The two Phase-B events (docs/features/analytics/event-ingestion.md):
+// LESSON_OPENED on island mount, ACTIVITY_STARTED on the first display of each
+// activity step — this watch is the single emit point for all step types.
+// Fire-and-forget; the tracker never surfaces errors. Previews are not member
+// engagement and are skipped entirely.
+
+const analyticsEnabled = !props.isPreview && !props.groupId.startsWith('pvw-')
+const startedActivityIds = new Set<string>()
+
+watch(
+  state.currentStep,
+  (step) => {
+    const activity = step?.activity
+    if (!analyticsEnabled || !activity?.id || startedActivityIds.has(activity.id)) return
+    startedActivityIds.add(activity.id)
+    track('ACTIVITY_STARTED', {
+      lessonScheduleId: props.lessonScheduleId,
+      scheduledActivityId: activity.id,
+    })
+  },
+  { immediate: true }
+)
+
 // ─── Viewport height sync ───────────────────────────────────────────────────────
 // `100dvh` can resolve stale after a WKWebView/Safari background→resume: the
 // exegesis step's bottom-anchored `‹ Done ›` toolbar (position:absolute; bottom:0)
@@ -81,6 +106,9 @@ function handleResume() {
 }
 
 onMounted(() => {
+  if (analyticsEnabled) {
+    track('LESSON_OPENED', { lessonScheduleId: props.lessonScheduleId })
+  }
   syncViewportHeight()
   window.addEventListener('resize', syncViewportHeight)
   window.addEventListener('orientationchange', syncViewportHeight)

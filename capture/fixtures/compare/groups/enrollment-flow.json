@@ -1,0 +1,143 @@
+{
+  "id": "enrollment-flow",
+  "type": "page",
+  "group": "Groups",
+  "title": "Enrollment Flow",
+  "adapter": "enrollment-flow",
+  "viewports": ["pro-max"],
+  "note": "EnrollmentFlowModal 3-panel wizard. iPhone side: pages.enrollment-flow ViewRegistry case pending first user-approved xcodebuild; panel seeding is limited to panel 0 (the step index and calendar selection are private @State), so 'select-dates' and 'confirm' are WEB-ONLY. iOS's frosted range panel (.ultraThinMaterial) renders INVISIBLE in iPhone snapshots (compare-frosted-material-invisible) — expect that delta on select-dates if an iPhone shot ever exists. All dates fixed (today pinned via calendarToday).",
+  "variants": [
+    {
+      "name": "select-group",
+      "shared": {
+        "entry": "program",
+        "step": 0,
+        "selectedGroupId": "grp-2",
+        "programs": [
+          {
+            "id": "prog-preselected",
+            "name": "Who Is God?",
+            "days": 25
+          }
+        ],
+        "groups": [
+          {
+            "id": "grp-1",
+            "name": "Young Professionals",
+            "description": "A group for young adults navigating career and faith",
+            "memberCount": 9,
+            "enrollmentCount": 2,
+            "enrolled": true
+          },
+          {
+            "id": "grp-2",
+            "name": "Morning Study Group",
+            "description": "Early risers digging into the Word before work",
+            "memberCount": 6,
+            "enrollmentCount": 1
+          },
+          {
+            "id": "grp-3",
+            "name": "Riverside Small Group",
+            "description": "Neighborhood group meeting on the east side",
+            "memberCount": 4,
+            "enrollmentCount": 0
+          },
+          {
+            "id": "grp-4",
+            "name": "College Ministry",
+            "description": "Students from the downtown campus",
+            "memberCount": 12,
+            "enrollmentCount": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "select-program",
+      "shared": {
+        "entry": "group",
+        "step": 0,
+        "selectedProgramId": "prog-2",
+        "groups": [
+          {
+            "id": "grp-preselected",
+            "name": "Morning Study Group",
+            "memberCount": 6
+          }
+        ],
+        "programs": [
+          {
+            "id": "prog-1",
+            "name": "Who Is God?",
+            "description": "A 25-day journey through the character and nature of God",
+            "days": 25,
+            "isPublished": true,
+            "disabled": true,
+            "enrolledUntil": "enrolled until Sep 7"
+          },
+          {
+            "id": "prog-2",
+            "name": "Foundations of Faith",
+            "description": "Core beliefs every follower should understand deeply",
+            "days": 14,
+            "isPublished": true
+          },
+          {
+            "id": "prog-3",
+            "name": "The Gospel of John",
+            "description": "Walking chapter by chapter through John's account",
+            "days": 21,
+            "isPublished": true
+          },
+          {
+            "id": "prog-4",
+            "name": "Psalms of Praise",
+            "description": "Draft study exploring worship through the Psalms",
+            "days": 10,
+            "isPublished": false
+          }
+        ]
+      }
+    },
+    {
+      "name": "select-dates",
+      "shared": {
+        "entry": "group",
+        "step": 1,
+        "calendarStartMonth": "2026-08",
+        "calendarMonthCount": 2,
+        "calendarToday": "2026-08-01",
+        "startDate": "2026-08-03",
+        "endDate": "2026-09-07",
+        "enabledDays": [1, 2, 3, 4, 5],
+        "overriddenDates": ["2026-08-12"],
+        "existingLessonDates": ["2026-08-20", "2026-09-10"]
+      }
+    },
+    {
+      "name": "confirm",
+      "shared": {
+        "entry": "group",
+        "step": 2,
+        "startDate": "2026-08-03",
+        "endDate": "2026-09-07",
+        "enabledDays": [1, 2, 3, 4, 5],
+        "smsTime": "07:30",
+        "requireResponse": true,
+        "syncToStudy": false,
+        "confirmGroup": {
+          "name": "Morning Study Group",
+          "description": "Early risers digging into the Word before work",
+          "isPrivate": true,
+          "memberCount": 6
+        },
+        "confirmProgram": {
+          "name": "Who Is God?",
+          "description": "A 25-day journey through the character and nature of God",
+          "days": 25
+        }
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
-import React, { useContext, useEffect, useState } from 'react';
-import { NavLink, Outlet, useParams } from 'react-router-dom';
+import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
 import { CaptureContext } from '../App.jsx';
 import CaptureButton from './CaptureButton.jsx';
 import LogDrawer from './LogDrawer.jsx';
@@ -45,6 +45,59 @@ export default function Layout() {
   };
 
   const p = params.platform || (platforms.length > 0 ? platforms[0].id : '');
+
+  // ── Typeahead search over every screen in the platform ──
+  // A set's screens ARE its variants here (`03-program-home-with-lessons`,
+  // `04-…-many-lessons`), so one flat list covers both "another screen" and
+  // "another variant of this screen". Mirrors the /compare search.
+  const navigate = useNavigate();
+  const [query, setQuery] = useState('');
+  const [highlight, setHighlight] = useState(0);
+  const searchRef = useRef(null);
+
+  const allScreens = useMemo(
+    () => (manifest?.sets ?? []).flatMap((set) =>
+      (set.screens ?? []).map((screen) => ({ set, screen })),
+    ),
+    [manifest],
+  );
+
+  // Separator-insensitive, so "program home", "program-home" and "ProgramHome"
+  // all hit the same entries.
+  const norm = (s) => (s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const matches = useMemo(() => {
+    const q = norm(query.trim());
+    if (!q) return [];
+    return allScreens
+      .filter(({ set, screen }) =>
+        norm(screen.title).includes(q) ||
+        norm(screen.screen).includes(q) ||
+        norm(screen.view).includes(q) ||
+        norm(set.title).includes(q) ||
+        norm(set.folder).includes(q))
+      .slice(0, 8);
+  }, [query, allScreens]);
+  useEffect(() => setHighlight(0), [query]);
+
+  const gotoScreen = ({ set, screen }) => {
+    setQuery('');
+    // Expand the containing set, or the screen we just jumped to would be
+    // hidden inside a collapsed section.
+    setCollapsed((prev) => {
+      if (!prev.has(set.folder)) return prev;
+      const next = new Set(prev);
+      next.delete(set.folder);
+      return next;
+    });
+    navigate(`/${p}/screen/${set.folder}/${screen.screen}`);
+  };
+
+  const onSearchKey = (e) => {
+    if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight((h) => Math.min(h + 1, matches.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0)); }
+    else if (e.key === 'Enter') { if (matches[highlight]) gotoScreen(matches[highlight]); }
+    else if (e.key === 'Escape') { setQuery(''); searchRef.current?.blur(); }
+  };
 
   return (
     <div className="layout">
@@ -103,6 +156,35 @@ export default function Layout() {
 
       <aside className="layout__sidebar">
         {manifestError && <div className="error-banner">{manifestError}</div>}
+        {/* Pinned above the nav so it stays reachable while the set list scrolls */}
+        <div className="nav-search">
+          <input
+            ref={searchRef}
+            className="nav-search__input"
+            placeholder="Search screens…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={onSearchKey}
+          />
+          {matches.length > 0 && (
+            <div className="nav-search__dropdown">
+              {matches.map((m, i) => (
+                <button
+                  key={`${m.set.folder}/${m.screen.screen}`}
+                  className={`nav-search__opt${i === highlight ? ' is-active' : ''}`}
+                  onMouseEnter={() => setHighlight(i)}
+                  onMouseDown={(e) => { e.preventDefault(); gotoScreen(m); }}
+                >
+                  <span className="nav-search__title">{m.screen.title}</span>
+                  <span className="nav-search__meta">
+                    <span className="nav-search__set">{m.set.title}</span>
+                    <span className="nav-search__id">{m.screen.screen}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         <div className="nav__section">
           <div className="nav__section-title">Workflows</div>
           <NavLink

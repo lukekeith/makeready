@@ -1,0 +1,115 @@
+// EnrollmentActionMenu — twin of iOS EnrollmentActionMenu (menu chrome:
+// managed-menu supplies the bottom card; this rule owns the content).
+.EnrollmentActionMenu {
+  display: flex;
+  flex-direction: column;
+  padding-top: 8px; // iOS .padding(.top, 8)
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__header {
+    display: flex;
+    justify-content: center;
+    padding: 16px 0; // iOS .padding(.vertical, 16)
+  }
+
+  &__study {
+    font-size: 17px; // iOS Typography.s17Bold
+    font-weight: var(--font-weight-bold);
+  }
+
+  &__group {
+    display: flex;
+    flex-direction: column;
+    margin: 0 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-white-5);
+    overflow: hidden;
+  }
+
+  &__item {
+    display: flex;
+    align-items: center;
+    gap: 16px; // iOS HStack(spacing: 16)
+    padding: 16px;
+    border: none;
+    background: none;
+    font: inherit;
+    color: #fff;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  &__itemIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px; // iOS 18pt glyph in a 24×24 frame
+    height: 24px;
+    color: var(--color-brand-500);
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  &__itemLabel {
+    font-size: 17px; // iOS Typography.s17Semibold
+    font-weight: var(--font-weight-semibold);
+  }
+
+  &__readonly {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; // iOS VStack(spacing: 12)
+    margin: 0 16px;
+  }
+
+  &__fyi {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-white-5);
+  }
+
+  &__fyiIcon {
+    display: inline-flex;
+    flex: 0 0 auto;
+    width: 20px; // iOS Typography.s18 glyph
+    height: 20px;
+    color: var(--color-brand-500);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__fyiText {
+    font-size: 14px; // iOS Typography.s14
+    line-height: 1.35;
+    color: var(--color-white-70);
+  }
+
+  &__readonly .EnrollmentActionMenu__group--single {
+    margin: 0;
+  }
+
+  &__close {
+    display: flex;
+    justify-content: center;
+    padding: 32px 0; // iOS .padding(.vertical, 32)
+    border: none;
+    background: none;
+    color: #fff;
+    cursor: pointer;
+
+    svg {
+      width: 20px; // iOS Typography.s20Medium
+      height: 20px;
+    }
+  }
+}

@@ -5,11 +5,57 @@
   "title": "Calendar",
   "adapter": "calendar",
   "viewports": ["pro-max"],
-  "shared": {
-    "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
-    "calendarEvents": [
-      { "id": "ev-1", "date": "2026-06-29", "title": "Day 5 — The Righteous Will Live by Faith", "studyName": "Romans in 30 days" },
-      { "id": "ev-2", "date": "2026-07-01", "title": "Day 1 — In the Beginning Was the Word", "studyName": "The Gospel of John" }
-    ]
-  }
+  "note": "MainCalendar (tab root). The iPhone reference renders the TOP of the month window (today −12 months) because the harness snapshot precedes the controller's scroll-to-current-month — so `default` seeds the window start, where no dots/today disc are visible, matching it. `today` is pinned to the iPhone capture date (2026-06-29) so both sides stay deterministic. `with-events` (dots + today disc + selection ring) and `expanded` (the curtain-split event list, which is internal UIKit state the harness cannot reach) are WEB-ONLY: making them two-sided needs a re-capture with a scrolled/seeded controller.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "today": "2026-06-29",
+        "title": "Jun 2026",
+        "windowStart": "2025-06",
+        "monthCount": 25,
+        "calendarEvents": [
+          { "id": "ev-1", "date": "2026-06-29", "title": "Day 5 — The Righteous Will Live by Faith", "studyName": "Romans in 30 days" },
+          { "id": "ev-2", "date": "2026-07-01", "title": "Day 1 — In the Beginning Was the Word", "studyName": "The Gospel of John" }
+        ]
+      }
+    },
+    {
+      "name": "with-events",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "today": "2026-06-29",
+        "title": "Jun 2026",
+        "windowStart": "2026-06",
+        "monthCount": 3,
+        "selectedDate": "2026-07-01",
+        "calendarEvents": [
+          { "id": "ev-1", "date": "2026-06-29", "dayNumber": 5, "studyName": "Romans in 30 days", "estimatedMinutes": 25, "activities": [{ "activityType": "READ" }, { "activityType": "EXEGESIS" }, { "activityType": "USER_INPUT" }] },
+          { "id": "ev-2", "date": "2026-06-30", "dayNumber": 6, "studyName": "Romans in 30 days", "estimatedMinutes": 20, "activities": [{ "activityType": "READ" }, { "activityType": "USER_INPUT" }] },
+          { "id": "ev-3", "date": "2026-07-01", "dayNumber": 1, "studyName": "The Gospel of John", "estimatedMinutes": 30, "activities": [{ "activityType": "READ" }, { "activityType": "YOUTUBE" }] },
+          { "id": "ev-4", "date": "2026-07-01", "dayNumber": 7, "studyName": "Romans in 30 days", "estimatedMinutes": 15, "activities": [{ "activityType": "VIDEO" }] },
+          { "id": "ev-5", "date": "2026-07-06", "dayNumber": 8, "studyName": "Romans in 30 days", "estimatedMinutes": 25, "activities": [{ "activityType": "READ" }, { "activityType": "EXEGESIS" }] }
+        ]
+      }
+    },
+    {
+      "name": "expanded",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "today": "2026-06-29",
+        "title": "Jun 2026",
+        "windowStart": "2026-06",
+        "monthCount": 3,
+        "selectedDate": "2026-06-29",
+        "expanded": true,
+        "calendarEvents": [
+          { "id": "ev-1", "date": "2026-06-29", "dayNumber": 5, "studyName": "Romans in 30 days", "estimatedMinutes": 25, "activities": [{ "activityType": "READ" }, { "activityType": "EXEGESIS" }, { "activityType": "USER_INPUT" }] },
+          { "id": "ev-2", "date": "2026-06-30", "dayNumber": 6, "studyName": "Romans in 30 days", "estimatedMinutes": 20, "activities": [{ "activityType": "READ" }, { "activityType": "USER_INPUT" }] },
+          { "id": "ev-3", "date": "2026-07-01", "dayNumber": 1, "studyName": "The Gospel of John", "estimatedMinutes": 30, "activities": [{ "activityType": "READ" }, { "activityType": "YOUTUBE" }] },
+          { "id": "ev-4", "date": "2026-07-01", "dayNumber": 7, "studyName": "Romans in 30 days", "estimatedMinutes": 15, "activities": [{ "activityType": "VIDEO" }] }
+        ]
+      }
+    }
+  ]
 }

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\ComplianceController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\MarketingController;
@@ -132,6 +133,15 @@ Route::middleware('member.auth')->prefix('member')->group(function () {
     Route::post('/groups/{groupId}/lessons/{lessonScheduleId}/activity/{activityId}/submit', [LessonController::class, 'submitNote'])->name('lesson.activity.submit');
     Route::post('/groups/{groupId}/lessons/{lessonScheduleId}/activity/{activityId}/video-progress', [LessonController::class, 'saveVideoProgress'])->name('lesson.video.progress');
     Route::post('/groups/{groupId}/lessons/{lessonScheduleId}/activity/{activityId}/exegesis-visit', [LessonController::class, 'visitExegesisHighlight'])->name('lesson.exegesis.visit');
+    // Batched analytics event ingestion (web tracker → server flat layer).
+    // CSRF-exempt: the page-close flush uses navigator.sendBeacon, which
+    // cannot send CSRF headers. Safe because the endpoint is member-session-
+    // authed, idempotent (client UUID keys), zod-validated, and rate-limited
+    // on the API server. (Exempted here rather than bootstrap/app.php — the
+    // dev container bind-mounts routes/ but not bootstrap/.)
+    Route::post('/analytics/events', [AnalyticsController::class, 'ingestEvents'])
+        ->withoutMiddleware([\Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class])
+        ->name('analytics.events');
 });
 
 // Leader admin — public auth routes (no middleware)

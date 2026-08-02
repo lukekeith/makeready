@@ -33,7 +33,13 @@ function dateRange(startIso, endIso) {
 
 export default {
   toClient(shared) {
-    const { programName = '', lessons = [], selectedTab = 0, enrollments = [] } = shared ?? {};
+    const {
+      programName = '',
+      lessons = [],
+      selectedTab = 0,
+      enrollments = [],
+      analytics = null,
+    } = shared ?? {};
     return {
       platform: 'client',
       view: 'pages.leader-twin',
@@ -44,6 +50,14 @@ export default {
           published: true,
           hasCoverImage: false,
           selectedTab,
+          // Analytics-tab payload (wrapper-response shape, same seed the
+          // iPhone decodes into ProgramAnalytics). analyticsNow pins the
+          // relative "As of …" footer to the frozen string in the iPhone
+          // reference shots ("11 hours ago" — captured 2026-07-30T05:40Z
+          // against the fixture's fixed freshAsOf).
+          ...(analytics
+            ? { analytics, analyticsNow: '2026-07-30T05:40:00.000Z' }
+            : {}),
           enrollments: enrollments.map((e) => ({
             id: e.id,
             name: e.group?.name ?? 'Unknown Group',
@@ -68,10 +82,14 @@ export default {
   },
 
   toIphone(shared) {
-    const { user = {}, ...state } = shared ?? {};
+    // captureHeight is a capture directive, not page state: hoisted to the
+    // fixture top level so the snapshot runner renders the full scrollable
+    // page on a taller canvas (see CaptureRunner.swift).
+    const { user = {}, captureHeight, ...state } = shared ?? {};
     return {
       platform: 'iphone',
       view: 'pages.program-home',
+      ...(captureHeight ? { captureHeight } : {}),
       auth: {
         isAuthenticated: true,
         currentUser: {

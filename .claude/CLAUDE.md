@@ -98,10 +98,29 @@ Task: Create something
 2. Is it a page?                → Use `/page` (client)
 3. Is it a store?               → Use `/store` (client)
 4. Is it an API endpoint?       → Use `/api` (server)
-5. Is it a complete feature?    → Use `/feature` (coordinates multiple)
+5. Is it a complete feature?    → Use `/build-spec-draft` then `/build-spec` (see below)
 6. Need to review/refactor?     → Use `/architect`
 7. Need Postman collection?     → Use `/postman`
 ```
+
+### Multi-app features — the `/build-spec` pipeline
+
+Anything that touches more than one app (or changes the database) goes through the spec
+pipeline rather than being written directly:
+
+```
+/build-spec-draft <feature>   ← the spec conversation → docs/features/<feature>/ (numbered suite)
+/build-spec <feature>         ← audit → decisions → plan → build (one app per phase) → verify
+/build-spec                   ← no argument: shows every feature in flight and continues one
+/build-spec-help              ← what the commands do and how resuming works
+```
+
+It exists because a single spec here usually spans server + client + iphone. The rules it
+enforces: `02-app-impact.md` states in-scope/out-of-scope for **every** app with a reason,
+`03-data-and-api.md` is the one contract both consumers code against and it **freezes** when the
+server phase verifies, and the build runs **one app per phase, server before its consumers**.
+Templates, per-app quality gates, house rules and environment landmines live in
+`.claude/skills/build-spec/REFERENCE.md`.
 
 ---
 

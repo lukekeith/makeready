@@ -41,6 +41,8 @@ export interface LeaderRequest {
   groupName?: string
   /** Pre-formatted "MMM d, yyyy" request date. */
   requestedLabel: string
+  /** Raw ISO createdAt — the respond modal formats its own long date/time. */
+  createdAt: string | null
 }
 
 export interface LeaderEnrollment {
@@ -215,6 +217,7 @@ export const useLeaderGroups = defineStore('leader-groups', () => {
         avatarUrl: req.member?.avatarUrl ?? null,
         groupName: groupNameById.get(groupId),
         requestedLabel: req.createdAt ? MONTH_DAY_YEAR.format(new Date(req.createdAt)) : '',
+        createdAt: req.createdAt ?? null,
       }))
       membersLoaded = true
     } catch (err) {

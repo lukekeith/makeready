@@ -11,12 +11,21 @@
 //     service, then sms:/tel:/mailto: (iOS opens the system apps).
 //   • person.badge.plus opens the native CNContact sheet on iOS — no web
 //     equivalent, intentionally inert (flagged at verify).
-//   • Group-card tap presents .changeMembership on iOS — a later queue item,
-//     intentionally unbound here.
+//   • Group-card tap presents .changeMembership (iOS handleGroupTap): mode
+//     from the card's removed state, candidates = every org group the member
+//     is NOT an active member of; remove/rejoin/transfer run dismiss-then-act
+//     via the leader-member store (no refetch — the store flips the cards,
+//     exactly like the iOS Actions). memberName fallback "this member"
+//     (LOWERCASE t — iOS differs from the respond modal's "This member").
 import { onMounted } from 'vue'
 import MemberProfile from '../../../components/card/member-profile/member-profile.vue'
+import ChangeMembershipModal from './change-membership-modal.vue'
+import { type TransferCandidate } from '../../../components/card/change-membership/change-membership.vue'
 import { useLeaderMember } from '../stores/leader-member.store'
+import { useLeaderGroups } from '../stores/leader-groups.store'
 import { useConfirmDialog } from '../overlay/confirm-dialog.store'
+import { useOverlayManager } from '../overlay/overlay.store'
+import { ROUTES } from '../overlay/overlay-routes'
 
 const props = withDefaults(
   defineProps<{
@@ -28,7 +37,9 @@ const props = withDefaults(
 )
 
 const store = useLeaderMember()
+const groupsStore = useLeaderGroups()
 const confirmDialog = useConfirmDialog()
+const overlayManager = useOverlayManager()
 
 onMounted(() => {
   store.reset(props.seedName, props.seedAvatarUrl)
@@ -65,6 +76,53 @@ async function onEmail(): Promise<void> {
   })
   if (idx === 0 && store.email) window.location.href = `mailto:${store.email}`
 }
+
+// iOS handleGroupTap → .changeMembership. Candidates = every org group the
+// member is NOT an active member of (iOS orderedGroups minus active ids;
+// activeStudies pending an enrollment-count source on web — 0 omits the chip,
+// same as iOS when a group has no active studies).
+function onGroupTap(groupId: string): void {
+  const card = store.groups.find((g) => g.id === groupId)
+  if (!card) return
+  const activeIds = new Set(store.groups.filter((g) => !g.removed).map((g) => g.id))
+  const candidates: TransferCandidate[] = groupsStore.groups
+    .filter((g) => !activeIds.has(g.id))
+    .map((g) => ({
+      id: g.id,
+      name: g.name,
+      coverImageUrl: g.coverImageUrl || undefined,
+      memberCount: g.memberCount,
+      activeStudies: 0,
+    }))
+  overlayManager.present(ROUTES.changeMembership, ChangeMembershipModal, {
+    // iOS fallback, verbatim: lowercase "this member".
+    memberName: store.displayName || 'this member',
+    groupName: card.name,
+    mode: card.removed ? 'removed' : 'joined',
+    candidates,
+    onRemove: () => void act(() => store.removeFromGroup(card.id), "Couldn't remove from group"),
+    onRejoin: () => void act(() => store.rejoinGroup(card.id), "Couldn't rejoin group"),
+    onTransfer: (targetId: string) => {
+      const target = candidates.find((c) => c.id === targetId)
+      void act(
+        () => store.transferTo(card.id, targetId, target?.name ?? 'Group', target?.coverImageUrl),
+        "Couldn't transfer to the selected group",
+      )
+    },
+    onCancel: () => {},
+  })
+}
+
+// iOS surfaces failures on the global error banner (no retry closures for
+// these three); web presents the same strings through the shared dialog until
+// a banner foundation exists.
+async function act(run: () => Promise<void>, failure: string): Promise<void> {
+  try {
+    await run()
+  } catch {
+    void confirmDialog.confirm({ title: failure, message: '', buttons: [{ label: 'OK' }] })
+  }
+}
 </script>
 
 <template>
@@ -85,9 +143,10 @@ async function onEmail(): Promise<void> {
       @phone-tap="onCall"
       @email-tap="onEmail"
       @retry="store.loadMemberProfile(props.memberId)"
+      @group-tap="onGroupTap"
     />
-    <!-- addContact / groupTap intentionally unbound: iOS CNContact sheet has
-         no web equivalent; change-membership is a separate queue item. -->
+    <!-- addContact intentionally unbound: iOS CNContact sheet has no web
+         equivalent (flagged at verify). -->
   </div>
 </template>
 

@@ -1,0 +1,99 @@
+// MemberRequestRespond — twin of MemberRequestRespondModal.swift (RAW chrome:
+// the modal IS its own presentation — opaque appBackground wash, centered
+// content). The production host animates opacity (whole layer) + scale
+// (content only); this file is the static rendering.
+.MemberRequestRespond {
+  position: absolute;
+  inset: 0;
+  background: var(--color-canvas); // iOS Color.appBackground #0d101a — OPAQUE
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  &__statusbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0 8px 52px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  // iOS VStack(spacing: 32) .padding(32) .frame(maxWidth: .infinity)
+  &__content {
+    width: 100%;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  // iOS VStack(spacing: 8)
+  &__title {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  &__name {
+    margin: 0;
+    font-size: 24px; // iOS Typography.s24Bold
+    font-weight: 700;
+    color: #fff;
+  }
+
+  &__sentence {
+    margin: 0;
+    font-size: 17px; // iOS Typography.s17
+    color: var(--color-white-70);
+    line-height: calc(17px + 4px + 4px); // iOS .lineSpacing(4)
+  }
+
+  // iOS VStack(spacing: 8) of 48pt r8 buttons, CENTERED labels, no h-padding
+  &__buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__button {
+    appearance: none;
+    border: 0;
+    width: 100%;
+    height: 48px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 12px; // iOS Typography.s12Bold
+    font-weight: 700;
+    letter-spacing: 0.1px; // iOS .tracking(0.1)
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    &--approve {
+      background: var(--color-brand-500); // iOS Color.brandPrimary #6c47ff
+    }
+
+    &--reject {
+      background: var(--color-white-10);
+    }
+
+    &--cancel {
+      color: var(--color-white-50);
+      background: var(--color-white-5);
+    }
+  }
+}

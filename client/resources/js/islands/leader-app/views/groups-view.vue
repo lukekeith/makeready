@@ -15,9 +15,13 @@ import CardMember from '../../../components/card/card-member/card-member.vue'
 import CardEnrolled from '../../../components/card/card-enrolled/card-enrolled.vue'
 import SearchField from '../../../components/card/search-field/search-field.vue'
 import SkeletonCardGroup from '../../../components/card/skeleton-card-group/skeleton-card-group.vue'
+import SwipeableCard from '../../../components/card/swipeable-card/swipeable-card.vue'
+import EnrollmentActionMenu from '../../../components/card/enrollment-action-menu/enrollment-action-menu.vue'
 import { useLeaderGroups } from '../stores/leader-groups.store'
 import GroupHomeModal from '../components/group-home-modal.vue'
 import MemberRequestsHost from '../components/member-requests-host.vue'
+import EnrollmentScheduleModal from '../components/enrollment-schedule-modal.vue'
+import UnenrollOptionsModal from '../components/unenroll-options-modal.vue'
 import { ROUTES } from '../overlay/overlay-routes'
 import { useOverlayManager } from '../overlay/overlay.store'
 
@@ -29,6 +33,48 @@ const overlayManager = useOverlayManager()
 // iOS MemberHomePage.presentGroupHome — card tap → .groupHome modal overlay.
 function openGroupHome(groupId: string): void {
   overlayManager.present(ROUTES.groupHome, GroupHomeModal, { groupId })
+}
+
+// ── Enrolled tab (iOS MemberHomePage.handleEnrolledTap / swipe-trash) ──
+
+// SF "trash" — the enrolled-row swipe button (SlideButton .delete).
+const ENROLLED_TRASH =
+  '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M6 7l1 12.5A2 2 0 0 0 9 21.5h6a2 2 0 0 0 2-2L18 7"/><path d="M10 11v6.5M14 11v6.5"/></svg>'
+const ENROLLED_BUTTONS = [{ icon: ENROLLED_TRASH, variant: 'delete' as const }]
+
+function openEnrollmentSchedule(enrollmentId: string): void {
+  overlayManager.present(ROUTES.enrollmentSchedule, EnrollmentScheduleModal, {
+    enrollmentId,
+    titleOverride: 'Lessons',
+    onChanged: () => store.loadEnrolled(true),
+  })
+}
+
+// Row tap → .enrollmentActionMenu first (iOS): Edit lessons → schedule;
+// Edit enrollment / Preview study = later queue items (dismiss-only).
+function onEnrolledTap(enrollmentId: string, studyTitle: string): void {
+  const dismiss = () => overlayManager.dismiss(ROUTES.enrollmentActionMenu.id)
+  overlayManager.present(ROUTES.enrollmentActionMenu, EnrollmentActionMenu, {
+    studyName: studyTitle,
+    canManage: true,
+    onEditLessons: () => {
+      dismiss()
+      openEnrollmentSchedule(enrollmentId)
+    },
+    onEditEnrollment: dismiss,
+    onPreview: dismiss,
+    onClose: dismiss,
+  })
+}
+
+// Swipe trash → .unenrollOptions (iOS presentUnenrollModal).
+function onEnrolledUnenroll(row: { id: string; studyTitle: string; studyImageURL?: string | null }): void {
+  overlayManager.present(ROUTES.unenrollOptions, UnenrollOptionsModal, {
+    enrollmentId: row.id,
+    programName: row.studyTitle,
+    programImageUrl: row.studyImageURL ?? undefined,
+    onComplete: () => store.loadEnrolled(true),
+  })
 }
 
 // Each tab is its own route (/admin/groups/{list,members,enrolled}) so it's
@@ -202,15 +248,22 @@ const PLUS =
       </div>
       <div v-else-if="!filteredEnrollments.length" class="LeaderGroups__state">No results for “{{ search }}”</div>
       <div v-else class="LeaderGroups__list LeaderGroups__list--enrolled">
-        <CardEnrolled
+        <SwipeableCard
           v-for="e in filteredEnrollments"
           :key="e.id"
-          :study-title="e.studyTitle"
-          :group-name="e.groupName"
-          :date-range="e.dateRange"
-          :lessons-left="e.lessonsLeft"
-          :studyImageURL="e.studyImageURL || undefined"
-        />
+          bare
+          :slide-buttons="ENROLLED_BUTTONS"
+          @action="onEnrolledUnenroll(e)"
+          @tap="onEnrolledTap(e.id, e.studyTitle)"
+        >
+          <CardEnrolled
+            :study-title="e.studyTitle"
+            :group-name="e.groupName"
+            :date-range="e.dateRange"
+            :lessons-left="e.lessonsLeft"
+            :studyImageURL="e.studyImageURL || undefined"
+          />
+        </SwipeableCard>
       </div>
     </div>
   </div>

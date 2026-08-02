@@ -1512,14 +1512,44 @@ html {
 .cmp-nav__slider--versions { transform: translateX(-50%); }
 .cmp-nav__pane { width: 50%; flex-shrink: 0; height: 100%; overflow-y: auto; padding: 10px 8px 24px; }
 
-.cmp-search { position: relative; flex-shrink: 0; padding: 10px 10px; border-bottom: 1px solid var(--border); }
-.cmp-search__input { width: 100%; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; color: var(--text); font: inherit; font-size: 13px; }
-.cmp-search__input:focus { outline: none; border-color: var(--accent); }
-.cmp-search__dropdown { position: absolute; left: 6px; right: 6px; top: 100%; z-index: 30; background: var(--bg-panel); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.7); overflow: hidden; }
-.cmp-search__opt { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; text-align: left; font-size: 13px; }
-.cmp-search__opt.is-active { background: var(--accent-soft); color: var(--accent); }
-.cmp-search__id { margin-left: auto; font-size: 10px; font-family: ui-monospace, monospace; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-search,
+.nav-search { position: relative; flex-shrink: 0; padding: 10px 10px; border-bottom: 1px solid var(--border); }
+.cmp-search__input,
+.nav-search__input { width: 100%; background: var(--bg); border: 1px solid var(--border-strong); border-radius: 8px; padding: 8px 10px; color: var(--text); font: inherit; font-size: 13px; }
+.cmp-search__input:focus,
+.nav-search__input:focus { outline: none; border-color: var(--accent); }
+.cmp-search__dropdown,
+.nav-search__dropdown { position: absolute; left: 6px; right: 6px; top: 100%; z-index: 30; background: var(--bg-panel); border: 1px solid var(--border-strong); border-radius: 8px; box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.7); overflow: hidden; }
+.cmp-search__opt,
+.nav-search__opt { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; text-align: left; font-size: 13px; }
+.cmp-search__opt.is-active,
+.nav-search__opt.is-active { background: var(--accent-soft); color: var(--accent); }
+.cmp-search__id,
+.nav-search__id { margin-left: auto; font-size: 10px; font-family: ui-monospace, monospace; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cmp-search__type { font-size: 10px; color: var(--text-muted); text-transform: uppercase; flex: none; }
+
+/* Platform sidebar search. Shares the /compare look above; the differences are
+   structural: .layout__sidebar is a single scrolling block with 12px padding
+   (not a flex column with its own scroll pane), so the bar is stickied and
+   bleeds out to the sidebar edges rather than sitting inside the padding. */
+.nav-search {
+  position: sticky;
+  top: -12px;
+  z-index: 20;
+  margin: -12px -12px 10px;
+  padding: 12px 10px 10px;
+  background: var(--bg-panel);
+}
+/* Two lines per option: the title is what you scan, and screen titles here are
+   long and share a prefix within a set ("Create Study Program: …"), so competing
+   for one row truncated the part that actually distinguishes them. The meta line
+   carries the set and the screen id — the id being what separates variants
+   (03-program-home-with-lessons vs 04-program-home-many-lessons). */
+.nav-search__opt { flex-direction: column; align-items: stretch; gap: 2px; }
+.nav-search__title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-search__meta { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.nav-search__set { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; flex: none; }
+.nav-search__id { margin-left: auto; }
 
 .cmp-nav__component { display: flex; align-items: center; gap: 6px; width: 100%; text-align: left; }
 .cmp-nav__component-title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

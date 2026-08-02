@@ -76,12 +76,15 @@ None — no new overlays, sub-screens, deep links, or components. This is state 
 - [x] **The J repro** — edit a program's tags → return to Library → Programs → open `All tags` →
       the new tag is listed **without toggling a filter**. *Exercised by Luke in the running app,
       2026-08-01: "everything seems to work in the app and it built successfully."*
-- [~] **The sign-out walk (G2/D2)** — sign out, sign in as a **different user in a different org**,
+- [~] **The sign-out walk (G2/D2) — ACCEPTED UNWALKED (Luke, 2026-08-02).** Never exercised: the
+      feature was closed before the walk. **This is the leak the feature exists to fix, and nobody
+      has watched it work.** Evidence is static only — the code path is traced and verified
+      (`clearInMemory()` assigns `[]` to all four; `clearAllData()` also wipes the disk snapshot).
+      Original instruction: sign out, sign in as a **different user in a different org**,
       open the Library filters: tag and leader dropdowns are empty or repopulated for the new org,
-      **never showing the previous user's values**. Repeat for themes (the D2 fix).
-      **Carried to the final verify step** — Luke's pass covered normal use, and this one needs two
-      accounts in two orgs, so it is NOT claimed as done. The code path is traced and static-verified
-      (`clearInMemory()` assigns `[]` to all four; `clearAllData()` also wipes the disk snapshot)
+      **never showing the previous user's values**. Repeat for themes (the D2 fix). Feasibility was
+      confirmed 2026-08-02 — any second Google account works, since an unknown `googleId` creates
+      its own org (`server/src/routes/auth.ts:1087-1105`)
 - [x] `OrgHomePage` still renders its leaders list correctly (B.6) — covered by Luke's pass
 - [x] Media tab tag filter still populates (B.3's third loader) — covered by Luke's pass
 - [x] **Re-capture the two `MainLibrary` ViewRegistry cases — DONE 2026-08-01, and the non-zero
@@ -95,8 +98,10 @@ None — no new overlays, sub-screens, deep links, or components. This is state 
       back to dictionary iteration and is unstable between runs. `media` (Media tab) was
       re-captured but has **no same-variant prior**, so it is *current*, not *proven inert*
 - [~] Media tab: add a tag to a media item → the Media tags filter lists it without a reload
-      (B.8/G7) — **carried to the final verify step**; the symmetric program-tag path (the J repro)
-      is confirmed working, and the media code is its literal twin
+      (B.8/G7) — **ACCEPTED UNWALKED (Luke, 2026-08-02).** Never exercised. The evidence is an
+      argument by symmetry, not an observation: the program-tag path (the J repro) is confirmed
+      working and the media code is its literal twin. Note `G14` — the capture harness **cannot**
+      render this behavior on either tab, so no automated check can ever substitute for the walk
 - [x] Spec parity spot-check: the three properties are memory-only and cleared — traced in the
       shipped code (2026-08-01). `AppState.swift`: the three declarations sit in a new
       `// MARK: - Reference Collections` block with **no `PersistedState` wiring** (D1 honored — a

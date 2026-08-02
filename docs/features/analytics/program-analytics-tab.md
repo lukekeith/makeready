@@ -21,6 +21,7 @@ One round trip assembling registry queries (+ the two engagement-shaped series).
     "year":  [{ "date": "2025-08-01", "count": … }, …]          // 12 monthly points
   },
   "heatmap": [{ "day": 0, "hour": 8, "count": 3 }, …],          // engagement.ts shape, program-scoped
+  "topGroups": [{ "groupId": "…", "groupName": "…", "memberCount": 9, "lessonCompletions": 20, "completionPct": 0.74 }, …],  // owner-requested 2026-07-30: every enrolled group ranked by completion, top 10; pct = completions ÷ Σ(active members × active schedules) per group
   "funnel":  [{ "dayNumber": 1, "membersCompleted": 22 }, …],   // one row per curriculum day; distinct members with LESSON_COMPLETED for that day (not partial activity)
   "contentMix": [{ "activityType": "VIDEO", "completions": 87 }, …],
   "topMembers": [{ "memberId": "…", "name": "…", "avatarUrl": null, "groupName": "…", "completions": 41 }, …],   // top 10
@@ -34,7 +35,8 @@ iPhone: models in `State/Models/` (move `HeatmapBucket`/`DayActivityCount` out o
 
 Reference styling: `MainHome.chartsSection` (:585-645) — section title `Typography` + card backgrounds, `chartLoadingState` skeleton while `!loaded`, empty-state overlay pattern for zero data.
 
-### 1. KPI grid — 2×2 `Kpi` (.compact)
+### 1. KPI grid — 2×2 `Kpi` (.standard, uniform cells)
+Built as explicit rows of fixed-height (116pt) cells using `Kpi(expand: true)` (param added 2026-07-30: fills the proposed frame, content top-leading, so the card background stretches) — a bare LazyVGrid let each card hug its content, producing ragged widths/heights. `.standard`, not the originally-specced `.compact`, because compact drops the `description` line ("of {total} total").
 - **Members reached** (`membersReached`) — icon `person.2`
 - **Active enrollments** — value `activeEnrollments`, description "of {totalEnrollments} total"
 - **Lessons completed** (`lessonCompletions`)
@@ -45,14 +47,17 @@ Reference styling: `MainHome.chartsSection` (:585-645) — section title `Typogr
 - **Video completions** — `videoCompletions`, description "avg {avgWatchPercent}% watched"
 Hide the whole row when the program has no video activities.
 
-### 3. Recent activity — segmented `Week · Month · Year` + `LineChart`
-- `LineChart(dataPoints:)` single-line convenience init, `showArea: true`, `interpolationMethod: .monotone`, brand color; `TimeScale` `.days` for week/month, `.months` for year.
+### 3. Recent activity — segmented `Week · Month · Year` + `VerticalBarChart`
+- **Columns, not a line (owner direction 2026-07-30):** discrete daily counts must read exactly; the original monotone LineChart implied values between days and made magnitudes hard to judge. `VerticalBarChart` brand color; `showValues` on the 7-bar week view only; the 30-bar month view thins x-axis marks to ~weekly via the chart's `xAxisValues` param (added for this — category labels must stay unique per bar or Swift Charts merges them).
 - Series come pre-zero-filled from the server; toggle is pure client state (all three series in the one payload — no refetch).
 
 ### 4. Activity heatmap — `HeatMapChart`, "like the dashboard"
 - Mirror `MainHome` exactly: 7 columns × 24 rows, x = day labels, y = `12a…11p`, `chartHeight: 576`, default brand ramp.
 - **Mapping trap**: `HeatMapChart` field names are transposed — map `bucket.day → week` and `bucket.hour → day` exactly as `MainHome.heatmapData` (:48-58) does.
 - Window: last 30 days (denser than the dashboard's 7 at program scale). Caption "Last 30 days".
+
+### 1b. Top groups — table, directly below the KPI grid (owner-requested 2026-07-30, shipped with B2)
+One card, a divider-separated row per enrolled group (top 10 by completion %): group name + "{memberCount} members" subtitle, trailing completion % over a "Completion" caption (mirrors the left subtitle's type/opacity) + thin brand capsule progress fill. Data = `topGroups` (server-ranked; groups with zero completions still listed). Section hidden when the program has no enrolled groups. Tab order is now: KPI grid → Top groups → Recent activity → heatmap → (Phase C sections) → freshness footer.
 
 ### 5. Lesson funnel — `VerticalBarChart`
 - x = "Day 1"…"Day N" (`funnel.dayNumber`), y = `membersCompleted`, `showValues: false` above ~10 bars.
@@ -72,8 +77,9 @@ Hide the whole row when the program has no video activities.
 ### Empty / loading / freshness
 
 **Sparse data is the launch-day norm, not the edge case** (production currently holds ~60 engagement events total): every section must look intentional at 1-20 events — LineChart with `.monotone` over 3 points, a heatmap with 5 filled cells on the quiet ramp, a funnel with single-digit bars. Design-review each chart against a 5-event fixture, not just the rich mock.
-- Whole-tab empty state when the program has zero enrollments: illustration-free, "No activity yet — analytics appear once groups enroll and members engage." (matches MainHome's empty-overlay tone).
-- Per-section zero data → keep section with its empty overlay (dashboard pattern), except the two hide-rules above (video row, donut).
+- Whole-tab empty state when the program has zero enrollments **or zero activity anywhere in the payload** (owner rule 2026-07-30): illustration-free, "No activity yet — analytics appear once groups enroll and members engage." (matches MainHome's empty-overlay tone).
+- **Per-section zero data → HIDE the section** (owner rule 2026-07-30, supersedes the original keep-with-overlay pattern): Top groups hides when no group has a completion; Recent activity hides only when ALL THREE series are flat (one empty period keeps the section — the toggle's other periods have data — with its per-period overlay); heatmap hides when no bucket is non-zero; plus the original video-row and donut hide-rules.
+- **Heatmap zero-fill:** the server sends only non-zero buckets and HeatMapChart's domain is data-driven, so the client zero-fills the full 7×24 grid before charting — sparse data must never drop empty day columns (found via the `analytics-sparse` capture variant).
 - Footer caption: "As of {freshAsOf, relative}" — surfaces the matview refresh honestly.
 
 ## Build order

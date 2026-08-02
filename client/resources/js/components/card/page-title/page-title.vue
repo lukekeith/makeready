@@ -33,6 +33,9 @@ interface Props {
   rightIcons?: IconAction[]
   showDropdown?: boolean
   backText?: string
+  // Additive (iOS PageTitle rightLinkDisabled): the right link renders at
+  // brandPrimary@30% and ignores taps. Default keeps every existing capture.
+  rightLinkDisabled?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -119,7 +122,8 @@ const isBackLink = props.factory === 'backLinkTitle'
           v-else-if="props.rightLink"
           type="button"
           class="PageTitleBar__link"
-          @click="emit('right')"
+          :class="{ 'PageTitleBar__link--disabled': props.rightLinkDisabled }"
+          @click="!props.rightLinkDisabled && emit('right')"
         >
           {{ props.rightLink }}
         </button>

@@ -176,6 +176,74 @@ export const useLeaderMember = defineStore('leader-member', () => {
     }
   }
 
+  // ── Change-membership mutations (iOS GroupActions via the modal's
+  // presenter callbacks — MemberProfilePage does NO refetch; the Actions flip
+  // the group cards directly and the page re-renders). All calls use the
+  // canonical memberRecordId (iOS: profile?.id ?? memberId).
+
+  function flipCard(groupId: string, removed: boolean): void {
+    const now = new Date()
+    groups.value = groups.value.map((g) =>
+      g.id === groupId
+        ? {
+            ...g,
+            removed,
+            number: relativeDuration(now),
+            dateLabel: `${removed ? 'Removed' : 'Joined'} ${mediumDateShortTime(now)}`,
+          }
+        : g,
+    )
+  }
+
+  async function removeFromGroup(groupId: string): Promise<void> {
+    await axios.delete(`/admin/api/groups/${groupId}/members/${memberRecordId.value}`)
+    flipCard(groupId, true)
+  }
+
+  async function rejoinGroup(groupId: string): Promise<void> {
+    await axios.post(`/admin/api/groups/${groupId}/members`, {
+      memberId: memberRecordId.value,
+      role: 'member',
+    })
+    flipCard(groupId, false)
+  }
+
+  /** iOS transferMember: ADD to the target FIRST (while still active in the
+   *  source the server recognizes the member as an org member and heals a
+   *  missing org link), THEN remove from the source. No rollback — a failed
+   *  step 2 leaves the member in both groups, exactly like iOS. */
+  async function transferTo(
+    fromGroupId: string,
+    toGroupId: string,
+    toGroupName: string,
+    toCoverUrl?: string,
+  ): Promise<void> {
+    await axios.post(`/admin/api/groups/${toGroupId}/members`, {
+      memberId: memberRecordId.value,
+      role: 'member',
+    })
+    await axios.delete(`/admin/api/groups/${fromGroupId}/members/${memberRecordId.value}`)
+    flipCard(fromGroupId, true)
+    const existing = groups.value.find((g) => g.id === toGroupId)
+    if (existing) {
+      flipCard(toGroupId, false)
+    } else {
+      const now = new Date()
+      // iOS synthesizes the card with name fallback "Group".
+      groups.value = [
+        ...groups.value,
+        {
+          id: toGroupId,
+          name: toGroupName || 'Group',
+          imageUrl: toCoverUrl || undefined,
+          number: relativeDuration(now),
+          dateLabel: `Joined ${mediumDateShortTime(now)}`,
+          removed: false,
+        },
+      ]
+    }
+  }
+
   return {
     loading,
     error,
@@ -191,5 +259,8 @@ export const useLeaderMember = defineStore('leader-member', () => {
     memberRecordId,
     reset,
     loadMemberProfile,
+    removeFromGroup,
+    rejoinGroup,
+    transferTo,
   }
 })

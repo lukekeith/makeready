@@ -1,0 +1,35 @@
+{
+  "id": "edit-scheduled-user-input",
+  "type": "page",
+  "group": "Groups",
+  "title": "Edit Scheduled Write Activity",
+  "adapter": "edit-scheduled-user-input",
+  "viewports": ["pro-max"],
+  "note": "The SCHEDULED Write-activity editor (private EditScheduledUserInputView inside EditEnrollmentDay.swift:947-1064 — simpler than the program editor: no Placeholder field, right link always 'Save', short 'Show help' toggle copy, uppercase HELP DESCRIPTION section label). WEB-ONLY: the iOS view is a private struct gated behind EditEnrollmentDay's private @State — no ViewRegistry case can construct it. Preview button rendered here to mirror iOS (programId present); production passes showPreview false because scheduled activity ids 404 on the preview endpoint.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "sched-act-write-1",
+          "type": "USER_INPUT",
+          "title": "Reflect on the passage"
+        }
+      }
+    },
+    {
+      "name": "help-enabled",
+      "shared": {
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "activity": {
+          "id": "sched-act-write-1",
+          "type": "USER_INPUT",
+          "title": "Reflect on the passage",
+          "helpTitle": "What is exegesis?",
+          "helpDescription": "Exegesis is the careful study of a passage to draw out its original meaning."
+        }
+      }
+    }
+  ]
+}

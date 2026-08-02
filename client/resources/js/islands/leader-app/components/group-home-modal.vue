@@ -17,6 +17,8 @@ import GroupInvite from '../../../components/card/group-invite/group-invite.vue'
 import GroupMembersPage from '../../../components/card/group-members-page/group-members-page.vue'
 import LessonActionMenu from '../../../components/card/lesson-action-menu/lesson-action-menu.vue'
 import MemberProfileModal from './member-profile-modal.vue'
+import MemberRequestRespondModal from './member-request-respond-modal.vue'
+import EnrollmentFlowModal from './enrollment-flow-modal.vue'
 import SlideStack from '../overlay/slide-stack.vue'
 import { ROUTES } from '../overlay/overlay-routes'
 import { inject } from 'vue'
@@ -52,6 +54,29 @@ function openInvite(): void {
   rightScreen.value = 'invite'
 }
 
+// iOS handleEnroll → present(.enrollmentFlow) with the group preselected
+// (Select Program panel first). On completion iOS reloads posts (welcome
+// post) + prefetches enrollments; the web refreshes the same surfaces.
+function openEnrollmentFlow(): void {
+  const g = store.group
+  if (!g) return
+  overlayManager.present(ROUTES.enrollmentFlow, EnrollmentFlowModal, {
+    entry: 'group',
+    seedGroup: {
+      id: g.id,
+      name: g.name,
+      description: g.description ?? undefined,
+      isPrivate: g.isPrivate,
+      memberCount: g.memberCount,
+      imageUrl: g.coverImageUrl ?? undefined,
+    },
+    onComplete: () => {
+      void store.loadPosts(g.id)
+      void store.loadNextLesson(g.id)
+    },
+  })
+}
+
 // iOS handleMembers (person.2 icon). Members load on pane open (iOS .task);
 // the requests list is already warm from the badge prefetch.
 const memberSearch = ref('')
@@ -71,6 +96,37 @@ function openMemberProfile(rowId: string): void {
     memberId: row.userId || row.id,
     seedName: [row.firstName, row.lastName].filter(Boolean).join(' '),
     seedAvatarUrl: row.avatarUrl ?? '',
+  })
+}
+
+// iOS GroupMembersPage.handleRespond → present(.memberRequestRespond).
+// memberName fallback "This member" (capital T); groupName is the page's own
+// prop — NO fallback on this surface (iOS passes it verbatim). Post-action =
+// FULL refetch (iOS loadData), not a splice.
+const RESPOND_LONG_DATE = new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+const RESPOND_TIME_12H = new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' })
+
+function openRespond(requestId: string): void {
+  const row = store.requestRows.find((r) => r.id === requestId)
+  const group = store.group
+  if (!row || !group) return
+  const created = row.createdAt ? new Date(row.createdAt) : new Date(0)
+  const act = (kind: 'approve' | 'reject') =>
+    void store.respondToRequest(group.id, requestId, kind).catch(() => {
+      void confirmDialog.confirm({
+        title: kind === 'approve' ? "Couldn't approve the request" : "Couldn't reject the request",
+        message: '',
+        buttons: [{ label: 'OK' }],
+      })
+    })
+  overlayManager.present(ROUTES.memberRequestRespond, MemberRequestRespondModal, {
+    memberName: [row.firstName, row.lastName].filter(Boolean).join(' ').trim() || 'This member',
+    groupName: group.name,
+    dateLabel: RESPOND_LONG_DATE.format(created),
+    timeLabel: RESPOND_TIME_12H.format(created).replace(/[  ]/g, ' '),
+    onApprove: () => act('approve'),
+    onReject: () => act('reject'),
+    onCancel: () => {},
   })
 }
 
@@ -317,7 +373,7 @@ async function openLesson(): Promise<void> {
           @settings="openSettings"
           @invite="openInvite"
           @members="openMembers"
-          @enroll="() => {}"
+          @enroll="openEnrollmentFlow"
           @next-lesson-tap="openLessonMenu"
           @load-more="store.loadMorePosts()"
         />
@@ -334,9 +390,10 @@ async function openLesson(): Promise<void> {
             @update:search-text="memberSearch = $event"
             @retry="store.group && store.loadGroupMembers(store.group.id)"
             @member-tap="openMemberProfile"
+            @respond="openRespond"
           />
-          <!-- requestTap / respond intentionally unbound:
-               member-request-respond is a separate queue item. -->
+          <!-- requestTap (.memberRequestProfile) still unbound — separate
+               queue item. -->
           <GroupInvite
             v-else-if="item === 'invite'"
             :group-name="store.invite?.groupName ?? store.group?.name ?? ''"

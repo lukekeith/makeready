@@ -1,0 +1,146 @@
+{
+  "id": "enrollment-schedule",
+  "type": "page",
+  "group": "Groups",
+  "title": "Enrollment Schedule",
+  "adapter": "enrollment-schedule",
+  "viewports": [
+    "pro-max"
+  ],
+  "note": "EnrollmentSchedulePage (.enrollmentSchedule modal, dismissOnTapOutside false). WEB-ONLY for now: no pages.enrollment-schedule ViewRegistry case yet \u2014 seeding needs new CaptureState plumbing for AppState.enrollmentDetailsById (EnrollmentWithProgram + lessonSchedules + completion stats); deferred to the next approved-xcodebuild batch. Dates are pre-formatted strings in the fixture, fully deterministic.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "title": "Lessons",
+        "rows": [
+          {
+            "id": "sched-1",
+            "day": 1,
+            "title": "Creator and Sustainer",
+            "date": "Monday, Jul 20, 2026",
+            "estimatedMinutes": 25,
+            "released": true,
+            "activities": [
+              {
+                "activityType": "READ",
+                "fill": 0.66
+              },
+              {
+                "activityType": "EXEGESIS",
+                "fill": 0.33
+              },
+              {
+                "activityType": "YOUTUBE",
+                "fill": 1
+              },
+              {
+                "activityType": "USER_INPUT",
+                "fill": 0.66
+              }
+            ]
+          },
+          {
+            "id": "sched-2",
+            "day": 2,
+            "title": "Eternal and Self-Existent",
+            "date": "Tuesday, Jul 21, 2026",
+            "estimatedMinutes": 30,
+            "released": true,
+            "activities": [
+              {
+                "activityType": "READ",
+                "fill": 0.33
+              },
+              {
+                "activityType": "VIDEO",
+                "fill": 0
+              },
+              {
+                "activityType": "USER_INPUT",
+                "fill": 0.33
+              }
+            ]
+          },
+          {
+            "id": "sched-3",
+            "day": 3,
+            "title": "Holy and Just",
+            "date": "Wednesday, Aug 5, 2026",
+            "estimatedMinutes": 20,
+            "released": false,
+            "activities": [
+              {
+                "activityType": "READ",
+                "fill": 0
+              },
+              {
+                "activityType": "EXEGESIS",
+                "fill": 0
+              },
+              {
+                "activityType": "USER_INPUT",
+                "fill": 0
+              }
+            ]
+          },
+          {
+            "id": "sched-4",
+            "day": 4,
+            "title": "Omniscient and All-Knowing",
+            "date": "Thursday, Aug 6, 2026",
+            "estimatedMinutes": 22,
+            "released": false,
+            "activities": [
+              {
+                "activityType": "READ",
+                "fill": 0
+              },
+              {
+                "activityType": "YOUTUBE",
+                "fill": 0
+              },
+              {
+                "activityType": "USER_INPUT",
+                "fill": 0
+              }
+            ]
+          },
+          {
+            "id": "sched-5",
+            "day": 5,
+            "title": "Love and Mercy",
+            "date": "Friday, Aug 7, 2026",
+            "estimatedMinutes": 28,
+            "released": false,
+            "activities": [
+              {
+                "activityType": "READ",
+                "fill": 0
+              },
+              {
+                "activityType": "VIDEO",
+                "fill": 0
+              },
+              {
+                "activityType": "EXEGESIS",
+                "fill": 0
+              },
+              {
+                "activityType": "USER_INPUT",
+                "fill": 0
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "empty",
+      "shared": {
+        "title": "Lessons",
+        "rows": []
+      }
+    }
+  ]
+}

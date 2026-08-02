@@ -12,6 +12,9 @@ import EditProgramPane from './edit-program-pane.vue'
 import EditDayPane from './edit-day-pane.vue'
 import EnrollmentSyncPane from './enrollment-sync-pane.vue'
 import ConfirmationOverlayModal from './confirmation-overlay-modal.vue'
+import EnrollmentFlowModal from './enrollment-flow-modal.vue'
+import EnrollmentScheduleModal from './enrollment-schedule-modal.vue'
+import EnrollmentActionMenu from '../../../components/card/enrollment-action-menu/enrollment-action-menu.vue'
 import { ROUTES } from '../overlay/overlay-routes'
 import {
   OVERLAY_CONTEXT,
@@ -25,6 +28,7 @@ import {
   type PublishPreview,
   type PublishPreviewLesson,
 } from '../stores/leader-program.store'
+import type { ProgramAnalytics } from '../../../components/card/program-home/program-home.vue'
 
 // `preloaded`: skip the initial fetch when the store already holds this program
 // (the create flow seeds it from the POST response — iOS renders Program Home
@@ -69,6 +73,27 @@ watch(selectedTab, async (tab) => {
   }
 })
 
+// ── Analytics tab (iOS analyticsContent .task: cache-first render, refresh
+//    on every tab select; a failure keeps cached content, and only sets the
+//    error state when there is nothing cached) ──
+const analytics = ref<ProgramAnalytics | null>(null)
+const analyticsError = ref(false)
+let analyticsRequest = 0
+
+watch(selectedTab, async (tab) => {
+  if (tab !== 2) return
+  const req = ++analyticsRequest
+  try {
+    const fresh = await store.loadProgramAnalytics(props.programId)
+    if (req !== analyticsRequest) return
+    analytics.value = fresh
+    analyticsError.value = false
+  } catch {
+    // iOS: cancellation/failure is console-only when a cached payload exists.
+    if (req === analyticsRequest && !analytics.value) analyticsError.value = true
+  }
+})
+
 // SlideStack detail state — 'editProgram', 'day:<lessonId>', or
 // 'sync:<enrollmentId>' (study-sync settings for an enrolled group).
 const detailScreen = ref<string | null>(null)
@@ -77,9 +102,95 @@ const detailLessonId = computed(() =>
   detailScreen.value?.startsWith('day:') ? detailScreen.value.slice(4) : null,
 )
 
-// Enrollments-tab row tap → the enrollment's Study Sync settings pane.
+// Enrollments-tab row tap → the enrollment's Study Sync settings pane
+// (kept for the notification deep-link path; iOS row tap goes through the
+// action menu below).
 function openEnrollmentSync(enrollmentId: string): void {
   detailScreen.value = `sync:${enrollmentId}`
+}
+
+// iOS ProgramHomePage Enrollments row tap → `.enrollmentActionMenu`:
+// Edit lessons → .enrollmentSchedule (NO titleOverride here — the schedule
+// titles itself with the program name); Edit enrollment / Preview study are
+// later queue items (dismiss-only). The web keeps the study-sync pane
+// reachable from the schedule's sync icon.
+function onEnrollmentRowTap(enrollmentId: string): void {
+  const p = store.program
+  const dismiss = () => overlayManager.dismiss(ROUTES.enrollmentActionMenu.id)
+  overlayManager.present(ROUTES.enrollmentActionMenu, EnrollmentActionMenu, {
+    studyName: p?.name ?? 'Study',
+    canManage: true,
+    onEditLessons: () => {
+      dismiss()
+      overlayManager.present(ROUTES.enrollmentSchedule, EnrollmentScheduleModal, {
+        enrollmentId,
+        onChanged: refreshEnrollments,
+      })
+    },
+    onEditEnrollment: dismiss,
+    onPreview: dismiss,
+    onClose: dismiss,
+  })
+}
+
+// iOS ProgramHomePage.openEnrollmentFlow (Enrollments-tab add button):
+// draft-gated, then presents `.programEnrollmentFlow` with the program
+// preselected and the actively-enrolled group ids (rows dim). On completion
+// iOS reloads the program's enrollments — the web refreshes the same tab.
+function refreshEnrollments(): void {
+  enrollmentsLoaded = false
+  enrollmentsLoading.value = true
+  void store
+    .loadProgramEnrollments(props.programId)
+    .then((rows) => {
+      enrollments.value = rows
+      enrollmentsLoaded = true
+    })
+    .catch(() => {})
+    .finally(() => {
+      enrollmentsLoading.value = false
+    })
+}
+
+async function openProgramEnrollmentFlow(): Promise<void> {
+  const p = store.program
+  if (!p) return
+  if (!p.isPublished) {
+    // iOS showDraftAlert — same strings as the picker's draft alert.
+    void confirmDialog.confirm({
+      title: 'Draft Program',
+      message:
+        'This study program must be published before it can be used for enrollment. Open the program and publish it first.',
+      buttons: [{ label: 'Ok', style: 'secondary' }],
+    })
+    return
+  }
+  // iOS: enrolledIds = active enrollments' groupIds (already loaded on the
+  // tab; fall back to a fetch, failure → none dimmed).
+  let enrolledGroupIds: string[] = []
+  try {
+    const rows = enrollmentsLoaded
+      ? enrollments.value
+      : await store.loadProgramEnrollments(p.id)
+    enrolledGroupIds = rows
+      .filter((e) => (e as { isActive?: boolean }).isActive !== false)
+      .map((e) => (e as { groupId?: string }).groupId)
+      .filter((id): id is string => Boolean(id))
+  } catch {
+    enrolledGroupIds = []
+  }
+  overlayManager.present(ROUTES.programEnrollmentFlow, EnrollmentFlowModal, {
+    entry: 'program',
+    seedProgram: {
+      id: p.id,
+      name: p.name,
+      description: p.description || undefined,
+      days: p.days,
+      imageUrl: p.coverImageUrl || undefined,
+    },
+    enrolledGroupIds,
+    onComplete: refreshEnrollments,
+  })
 }
 
 function enrollmentName(enrollmentId: string): string | undefined {
@@ -642,13 +753,16 @@ function onCoverPicked(file: File): void {
         :loading="store.loading"
         :enrollments="enrollments"
         :enrollments-loading="enrollmentsLoading"
+        :analytics="analytics"
+        :analytics-error="analyticsError"
         :can-edit="canEdit"
         :editable="canEdit"
         @close="close"
         @select-tab="selectedTab = $event"
         @settings="openSettings"
         @select-lesson="detailScreen = `day:${$event}`"
-        @select-enrollment="openEnrollmentSync"
+        @select-enrollment="onEnrollmentRowTap"
+        @add-enrollment="openProgramEnrollmentFlow"
         @add-day="requestAddDay()"
         @delete-lesson="onDeleteLesson"
         @reorder-lessons="onReorderLessons"

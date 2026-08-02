@@ -3,6 +3,8 @@ import DashboardView from './views/dashboard-view.vue'
 import GroupsView from './views/groups-view.vue'
 import LibraryView from './views/library-view.vue'
 import ComingSoonView from './views/coming-soon-view.vue'
+import CalendarView from './views/calendar-view.vue'
+import SearchView from './views/search-view.vue'
 
 // Mobile leader app routes. Paths live under /admin (the Laravel /admin/{any?}
 // catch-all serves this island). The dashboard is the Home tab; the other tabs
@@ -20,8 +22,8 @@ export const router = createRouter({
     { path: '/admin/library', redirect: '/admin/library/programs' },
     { path: '/admin/library/programs', component: LibraryView, meta: { tab: 'library', title: 'Programs', libraryTab: 'programs' } },
     { path: '/admin/library/media', component: LibraryView, meta: { tab: 'library', title: 'Media', libraryTab: 'media' } },
-    { path: '/admin/calendar', component: ComingSoonView, meta: { tab: 'calendar', title: 'Calendar' } },
-    { path: '/admin/search', component: ComingSoonView, meta: { tab: 'search', title: 'Search' } },
+    { path: '/admin/calendar', component: CalendarView, meta: { tab: 'calendar', title: 'Calendar' } },
+    { path: '/admin/search', component: SearchView, meta: { tab: 'search', title: 'Search' } },
     { path: '/admin/profile', component: ComingSoonView, meta: { tab: 'profile', title: 'Profile' } },
     { path: '/admin/:pathMatch(.*)*', redirect: '/admin' },
   ],

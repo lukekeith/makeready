@@ -1,0 +1,26 @@
+{
+  "id": "enrollment-action-menu",
+  "type": "page",
+  "group": "Groups",
+  "title": "Enrollment Action Menu",
+  "adapter": "enrollment-action-menu",
+  "viewports": ["pro-max"],
+  "note": "EnrollmentActionMenu content (.enrollmentActionMenu menu chrome — chrome itself not captured, managed-menu precedent). WEB-ONLY: no iPhone ViewRegistry case (menus snapshot offscreen due to deferred entrance — same limitation as managed-menu).",
+  "variants": [
+    {
+      "name": "manage",
+      "shared": {
+        "studyName": "Who Is God?",
+        "canManage": true
+      }
+    },
+    {
+      "name": "readonly",
+      "shared": {
+        "studyName": "Who Is God?",
+        "canManage": false,
+        "creatorName": "Jordan Lee"
+      }
+    }
+  ]
+}

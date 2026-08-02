@@ -14,9 +14,15 @@
 //     add-day BoxButton (creator only); skeletons while loading; book.closed
 //     empty state
 //   • Enrollments: empty state ("No enrollments yet", person.3)
-//   • Analytics: "Coming soon"
+//   • Analytics: KPI 2×2 grid → Top Groups → Recent Activity (Week/Month/Year
+//     VerticalBarChart) → Activity Heatmap → "As of …" footer, with the iOS
+//     per-section hide rules (ProgramHomePage.analyticsContent)
 // Sections stack with VStack(spacing 20); trailing 40px spacer.
+import { computed, ref } from 'vue'
 import PageTitle from '../page-title/page-title.vue'
+import Kpi from '../kpi/kpi.vue'
+import VerticalBarChart from '../vertical-bar-chart/vertical-bar-chart.vue'
+import HeatMapChart from '../heat-map-chart/heat-map-chart.vue'
 import CoverImagePicker from '../cover-image-picker/cover-image-picker.vue'
 import TabSlider from '../tab-slider/tab-slider.vue'
 import CardLesson, { type CardLessonActivity } from '../card-lesson/card-lesson.vue'
@@ -33,6 +39,40 @@ export interface ProgramHomeLesson {
   title?: string
   estimatedMinutes?: number
   activities: CardLessonActivity[]
+}
+
+// GET /api/programs/:id/analytics contract (iOS AnalyticsModels.swift
+// ProgramAnalytics) — the slice the Analytics tab consumes.
+export interface ProgramAnalyticsDayCount {
+  date: string // "yyyy-MM-dd"
+  count: number
+}
+
+export interface ProgramAnalytics {
+  freshAsOf?: string | null
+  kpis: {
+    membersReached: number
+    activeEnrollments: number
+    totalEnrollments: number
+    lessonCompletions: number
+    completionRate: number // 0–1
+    videoCompletions: number
+    watchSeconds: number
+    avgWatchPercent: number // 0–1
+  }
+  recent: {
+    week: ProgramAnalyticsDayCount[]
+    month: ProgramAnalyticsDayCount[]
+    year: ProgramAnalyticsDayCount[]
+  }
+  heatmap: Array<{ day: number; hour: number; count: number }>
+  topGroups: Array<{
+    groupId: string
+    groupName: string
+    memberCount: number
+    lessonCompletions: number
+    completionPct: number // 0–1
+  }>
 }
 
 interface Props {
@@ -60,6 +100,14 @@ interface Props {
   // (swipe-left → trash), mirroring iOS ProgramHomePage.lessonCard. Off, the
   // original inert list renders unchanged.
   editable?: boolean
+  // Additive: Analytics-tab payload (iOS analyticsContent, cache-first).
+  // Absent + no error → the iOS loading skeleton renders.
+  analytics?: ProgramAnalytics | null
+  // Production: the load failed with no cached payload (iOS analyticsLoadFailed).
+  analyticsError?: boolean
+  // Capture-only deterministic "now" (ISO) for the relative "As of …" footer —
+  // production omits it and the wall clock is used (iOS relativeTo: Date()).
+  analyticsNow?: string
   // Capture-only: render the iOS device status bar (the iPhone reference
   // includes the simulator's). Production (the modal) never passes this.
   statusBar?: boolean
@@ -79,6 +127,8 @@ const props = withDefaults(defineProps<Props>(), {
   enrollmentsLoading: false,
   canEdit: true,
   editable: false,
+  analytics: null,
+  analyticsError: false,
   statusBar: false,
 })
 
@@ -144,6 +194,152 @@ function onRightIcon(index: number): void {
   else if (action === 'preview') emit('preview')
   else if (action === 'settings') emit('settings')
 }
+
+// ── Analytics tab (iOS ProgramHomePage.analyticsContent) ────────────────────
+
+// SF "person.2" (filled) — the Members-reached KPI icon, brandPrimary tint.
+const PERSON_2 =
+  '<svg viewBox="0 0 24 16" fill="currentColor"><circle cx="9" cy="5" r="3.4"/>'
+  + '<path d="M9 9.4c-3.6 0-6.5 2.2-6.5 5v1.1h13v-1.1c0-2.8-2.9-5-6.5-5z"/>'
+  + '<circle cx="17.4" cy="5.4" r="2.7"/>'
+  + '<path d="M17.6 9.6c-.7 0-1.4.1-2 .35 1.5 1.1 2.4 2.7 2.4 4.45v1.1h3.9v-1.1c0-2.6-1.9-4.8-4.3-4.8z"/></svg>'
+
+const HEATMAP_X_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const HEATMAP_Y_LABELS = [
+  '12a', '1a', '2a', '3a', '4a', '5a', '6a', '7a', '8a', '9a', '10a', '11a',
+  '12p', '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p', '10p', '11p',
+]
+
+// iOS @State analyticsTimeScale — Week(0) / Month(1) / Year(2), pure client
+// state (all three series arrive in the one payload).
+const analyticsScale = ref(0)
+
+// iOS static analyticsHasAnyActivity / hasRecentActivity — ported verbatim.
+function hasRecentActivity(recent: ProgramAnalytics['recent']): boolean {
+  return (
+    recent.week.some((d) => d.count > 0)
+    || recent.month.some((d) => d.count > 0)
+    || recent.year.some((d) => d.count > 0)
+  )
+}
+
+function hasAnyActivity(a: ProgramAnalytics): boolean {
+  return (
+    a.kpis.membersReached > 0
+    || a.kpis.lessonCompletions > 0
+    || a.kpis.videoCompletions > 0
+    || a.kpis.watchSeconds > 0
+    || hasRecentActivity(a.recent)
+    || a.heatmap.some((b) => b.count > 0)
+    || a.topGroups.some((g) => g.lessonCompletions > 0)
+  )
+}
+
+// Whole-tab empty rule (iOS analyticsContent:1656).
+const analyticsEmpty = computed(() => {
+  const a = props.analytics
+  if (!a) return false
+  return a.kpis.totalEnrollments === 0 || !hasAnyActivity(a)
+})
+
+// Per-section hide rules (owner rule: zero-data sections are REMOVED).
+const showTopGroups = computed(
+  () => !!props.analytics?.topGroups.some((g) => g.lessonCompletions > 0)
+)
+const showRecent = computed(
+  () => !!props.analytics && hasRecentActivity(props.analytics.recent)
+)
+const showHeatmap = computed(
+  () => !!props.analytics?.heatmap.some((b) => b.count > 0)
+)
+
+// completionRate KPI: iOS passes completionRate*100 through NumberFormatter
+// (max 1 frac) — pre-round so 0.63*100's float dust still reads "63%".
+const completionRatePct = computed(() =>
+  Math.round((props.analytics?.kpis.completionRate ?? 0) * 100 * 10) / 10
+)
+
+function memberCountLabel(n: number): string {
+  return `${n} member${n === 1 ? '' : 's'}`
+}
+
+function completionPctLabel(pct: number): string {
+  return `${Math.round(pct * 100)}%`
+}
+
+// "yyyy-MM-dd" parsed as a LOCAL date (iOS DateFormatters.dateKey uses the
+// local tz; `new Date(iso)` would parse UTC and shift the day).
+function parseDateKey(key: string): Date {
+  const [y, m, d] = key.split('-').map(Number)
+  return new Date(y, (m || 1) - 1, d || 1)
+}
+
+// Bar labels: week "EEE" / month "MMM d" / year "MMM" (unique per bar —
+// Swift Charts merges same-label categories).
+const recentBars = computed(() => {
+  const a = props.analytics
+  if (!a) return []
+  const series =
+    analyticsScale.value === 1 ? a.recent.month
+    : analyticsScale.value === 2 ? a.recent.year
+    : a.recent.week
+  return series.map((d) => {
+    const date = parseDateKey(d.date)
+    const label =
+      analyticsScale.value === 1
+        ? date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : analyticsScale.value === 2
+          ? date.toLocaleDateString('en-US', { month: 'short' })
+          : date.toLocaleDateString('en-US', { weekday: 'short' })
+    return { label, value: d.count, color: 'rgba(108,71,255,1)' }
+  })
+})
+
+const recentHasActivity = computed(() => recentBars.value.some((b) => b.value > 0))
+
+// Month view thins x-axis marks to indices 7/14/21/28 (index 0 skipped — it
+// truncates against the y-axis). iOS ProgramHomePage:1793-1795.
+const recentAxisValues = computed<string[] | null>(() => {
+  if (analyticsScale.value !== 1) return null
+  return recentBars.value.filter((_, i) => i > 0 && i % 7 === 0).map((b) => b.label)
+})
+
+// Heatmap: iOS maps bucket.day → week (x, Sun..Sat) and bucket.hour → day
+// (y, 0..23) — the MainHome transposition. Zero cells are dropped by the
+// chart itself (colorForValue → clear), so only non-zero buckets are passed.
+const heatPoints = computed(
+  () =>
+    props.analytics?.heatmap.map((b) => ({
+      week: b.day,
+      day: b.hour,
+      value: b.count,
+    })) ?? []
+)
+
+// "As of …" — mirrors RelativeDateTimeFormatter's numeric style ("11 hours
+// ago"). Largest fitting unit, value floored, via Intl.RelativeTimeFormat.
+const RELATIVE_UNITS: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+  ['year', 31536000],
+  ['month', 2592000],
+  ['week', 604800],
+  ['day', 86400],
+  ['hour', 3600],
+  ['minute', 60],
+]
+
+const freshLabel = computed<string | null>(() => {
+  const iso = props.analytics?.freshAsOf
+  if (!iso) return null
+  const then = Date.parse(iso)
+  if (Number.isNaN(then)) return null
+  const now = props.analyticsNow ? Date.parse(props.analyticsNow) : Date.now()
+  const delta = Math.max(0, (now - then) / 1000)
+  const fmt = new Intl.RelativeTimeFormat('en-US', { numeric: 'always' })
+  for (const [unit, secs] of RELATIVE_UNITS) {
+    if (delta >= secs) return `As of ${fmt.format(-Math.floor(delta / secs), unit)}`
+  }
+  return `As of ${fmt.format(-Math.floor(delta), 'second')}`
+})
 </script>
 
 <template>
@@ -330,8 +526,147 @@ function onRightIcon(index: number): void {
         </div>
       </div>
 
-      <!-- Analytics tab -->
-      <div v-else class="ProgramHome__analytics">Coming soon</div>
+      <!-- Analytics tab (iOS analyticsContent: cache-first render; sections
+           with zero data are hidden, not shown as empty shells) -->
+      <div v-else class="ProgramHome__analytics">
+        <template v-if="props.analytics">
+          <!-- Whole-tab empty state -->
+          <div v-if="analyticsEmpty" class="ProgramHome__analyticsState">
+            <span class="ProgramHome__analyticsStateTitle">No activity yet</span>
+            <span class="ProgramHome__analyticsStateSub"
+              >Analytics appear once groups enroll and members engage.</span
+            >
+          </div>
+
+          <template v-else>
+            <!-- 1. KPI grid: 2×2, 116pt rows of Kpi(.standard, expand) -->
+            <div class="ProgramHome__kpiGrid">
+              <div class="ProgramHome__kpiRow">
+                <Kpi
+                  expand
+                  label="Members reached"
+                  :kpi-value="props.analytics.kpis.membersReached"
+                  :icon="PERSON_2"
+                  icon-color="#6c47ff"
+                />
+                <Kpi
+                  expand
+                  label="Active enrollments"
+                  :kpi-value="props.analytics.kpis.activeEnrollments"
+                  :description="`of ${props.analytics.kpis.totalEnrollments} total`"
+                />
+              </div>
+              <div class="ProgramHome__kpiRow">
+                <Kpi
+                  expand
+                  label="Lessons completed"
+                  :kpi-value="props.analytics.kpis.lessonCompletions"
+                />
+                <Kpi
+                  expand
+                  label="Completion rate"
+                  :kpi-value="completionRatePct"
+                  value-type="percent"
+                />
+              </div>
+            </div>
+
+            <!-- 1b. Top Groups: divider-row card w/ completion capsules -->
+            <div v-if="showTopGroups" class="ProgramHome__analyticsSection">
+              <span class="ProgramHome__analyticsTitle">Top Groups</span>
+              <div class="ProgramHome__topGroups">
+                <template
+                  v-for="(g, i) in props.analytics.topGroups"
+                  :key="g.groupId"
+                >
+                  <div class="ProgramHome__topGroupRow">
+                    <div class="ProgramHome__topGroupHead">
+                      <div class="ProgramHome__topGroupNames">
+                        <span class="ProgramHome__topGroupName">{{ g.groupName }}</span>
+                        <span class="ProgramHome__topGroupMembers">{{
+                          memberCountLabel(g.memberCount)
+                        }}</span>
+                      </div>
+                      <div class="ProgramHome__topGroupPct">
+                        <span class="ProgramHome__topGroupPctValue">{{
+                          completionPctLabel(g.completionPct)
+                        }}</span>
+                        <span class="ProgramHome__topGroupPctLabel">Completion</span>
+                      </div>
+                    </div>
+                    <div class="ProgramHome__topGroupTrack">
+                      <div
+                        class="ProgramHome__topGroupFill"
+                        :style="{
+                          width: `${Math.max(0, Math.min(1, g.completionPct)) * 100}%`,
+                        }"
+                      ></div>
+                    </div>
+                  </div>
+                  <div
+                    v-if="i < props.analytics.topGroups.length - 1"
+                    class="ProgramHome__topGroupDivider"
+                  ></div>
+                </template>
+              </div>
+            </div>
+
+            <!-- 3. Recent Activity: Week/Month/Year toggle + VerticalBarChart -->
+            <div v-if="showRecent" class="ProgramHome__analyticsSection">
+              <span class="ProgramHome__analyticsTitle">Recent Activity</span>
+              <div class="ProgramHome__scaleSlider">
+                <TabSlider
+                  :tabs="['Week', 'Month', 'Year']"
+                  :selected-index="analyticsScale"
+                  @select="analyticsScale = $event"
+                />
+              </div>
+              <div class="ProgramHome__recentChart">
+                <VerticalBarChart
+                  :data-points="recentBars"
+                  :show-values="analyticsScale === 0 && recentHasActivity"
+                  :chart-height="200"
+                  :x-axis-values="recentAxisValues"
+                  y-axis-width="auto"
+                />
+                <span v-if="!recentHasActivity" class="ProgramHome__recentEmpty"
+                  >No activity in this period</span
+                >
+              </div>
+            </div>
+
+            <!-- 4. Activity Heatmap: 7 days × 24 hours, last 30 days -->
+            <div v-if="showHeatmap" class="ProgramHome__analyticsSection">
+              <span class="ProgramHome__analyticsTitle">Activity Heatmap</span>
+              <HeatMapChart
+                :data-points="heatPoints"
+                :show-day-labels="false"
+                :x-labels="HEATMAP_X_LABELS"
+                :y-labels="HEATMAP_Y_LABELS"
+                :chart-height="576"
+                show-x-labels
+              />
+              <span class="ProgramHome__heatmapCaption">Last 30 days</span>
+            </div>
+
+            <!-- Freshness footer -->
+            <div v-if="freshLabel" class="ProgramHome__analyticsFooter">
+              {{ freshLabel }}
+            </div>
+          </template>
+        </template>
+
+        <!-- Error (no cached payload) -->
+        <div v-else-if="props.analyticsError" class="ProgramHome__analyticsState">
+          <span class="ProgramHome__analyticsStateTitle">Couldn't load analytics</span>
+          <span class="ProgramHome__analyticsStateSub">Pull to refresh to try again.</span>
+        </div>
+
+        <!-- Loading skeleton -->
+        <div v-else class="ProgramHome__analyticsSkeletons">
+          <div v-for="i in 3" :key="i" class="ProgramHome__analyticsSkeleton"></div>
+        </div>
+      </div>
 
       <div class="ProgramHome__bottomSpacer"></div>
     </div>

@@ -29,8 +29,12 @@ import BiblePassagePickerHost, { type ConfirmedPassage } from './bible-passage-p
 import { OverlayPriority } from '../overlay/overlay-routes'
 import { useOverlayManager } from '../overlay/overlay.store'
 import { useConfirmDialog } from '../overlay/confirm-dialog.store'
-import { useLeaderProgram, type LeaderActivity, type LeaderReadBlock } from '../stores/leader-program.store'
+import { type LeaderActivity, type LeaderReadBlock } from '../stores/leader-program.store'
 import { useLeaderLibrary } from '../stores/leader-library.store'
+import {
+  programActivityActions,
+  type ActivityEditorActions,
+} from '../stores/activity-editor-actions'
 import { normalizeScriptureMarkdown } from '../../../utils/scripture-content-normalizer'
 import { passageReference } from '../../../utils/bible-data'
 import { fileToResizedJpegBase64 } from '../../../utils/image-upload'
@@ -41,11 +45,16 @@ const props = defineProps<{
   lessonId: string
   activity: LeaderActivity
   previewUrl?: string
+  /** iOS ExegesisActivityActionProvider — omit for the `.program` default;
+   *  the enrollment host passes the scheduled-activity variant (which also
+   *  sets supportsBlockStyling false, hiding the style row like iOS). */
+  actions?: ActivityEditorActions
 }>()
 
 const emit = defineEmits<{ cancel: [] }>()
 
-const store = useLeaderProgram()
+const acts: ActivityEditorActions =
+  props.actions ?? programActivityActions(props.programId, props.lessonId, props.activity.id)
 const library = useLeaderLibrary()
 const overlayManager = useOverlayManager()
 const confirmDialog = useConfirmDialog()
@@ -74,7 +83,7 @@ async function onSave(fields: { title: string }): Promise<void> {
   saving.value = true
   try {
     if (titleChanged) {
-      await store.updateActivity(props.lessonId, props.activity.id, {
+      await acts.updateActivity({
         title: fields.title,
         status: 'COMPLETE',
       })
@@ -112,14 +121,16 @@ let styleSnapshot = takeStyleSnapshot()
 
 function onCancel(): void {
   const b = block.value
-  if (dirty.value && b && styleSnapshot.blockId === b.id) {
+  // iOS gates the style revert on supportsBlockStyling (false in the
+  // scheduled context — there is no style UI to revert).
+  if (acts.supportsBlockStyling && dirty.value && b && styleSnapshot.blockId === b.id) {
     const changed =
       b.backgroundImageUrl !== styleSnapshot.backgroundImageUrl ||
       b.backgroundColor !== styleSnapshot.backgroundColor ||
       b.backgroundOverlayOpacity !== styleSnapshot.backgroundOverlayOpacity ||
       b.fontSize !== styleSnapshot.fontSize
     if (changed) {
-      void store.updateReadBlock(props.lessonId, props.activity.id, b.id, {
+      void acts.updateReadBlock(b.id, {
         backgroundImageUrl: styleSnapshot.backgroundImageUrl,
         backgroundColor: styleSnapshot.backgroundColor,
         backgroundOverlayOpacity: styleSnapshot.backgroundOverlayOpacity,
@@ -151,7 +162,7 @@ const highlights = ref<HighlightRow[]>(
 onMounted(async () => {
   if (!block.value) return
   try {
-    highlights.value = await store.fetchExegesisHighlights(props.activity.id)
+    highlights.value = await acts.fetchExegesisHighlights()
   } catch {
     // Seeded selections stand; notes load lazily next open.
   }
@@ -170,12 +181,7 @@ async function onSelect(range: CharRange): Promise<void> {
   const b = block.value
   if (!b) return
   try {
-    const created = await store.createExegesisHighlight(
-      props.lessonId,
-      props.activity.id,
-      b.id,
-      range,
-    )
+    const created = await acts.createExegesisHighlight(b.id, range)
     if (created) {
       // The server merges overlaps: the created highlight absorbs every
       // highlight it touches (union span, notes concatenated) — drop them.
@@ -210,7 +216,7 @@ async function savePendingNotes(): Promise<void> {
   for (const [id, draft] of Object.entries(noteDrafts)) {
     const h = highlights.value.find((x) => x.id === id)
     if (!h || draft === h.noteMarkdown) continue
-    await store.updateExegesisHighlightNote(props.activity.id, id, draft)
+    await acts.updateExegesisHighlightNote(id, draft)
     h.noteMarkdown = draft
     delete noteDrafts[id]
   }
@@ -287,8 +293,8 @@ function onTapHighlight(range: CharRange): void {
         const h = selectedHighlight.value
         overlayManager.dismissThen(MENU_ID, () => {
           if (!h || !block.value) return
-          void store
-            .deleteExegesisHighlight(props.lessonId, props.activity.id, block.value.id, h)
+          void acts
+            .deleteExegesisHighlight(block.value.id, h)
             .then(() => {
               highlights.value = highlights.value.filter((x) => x.id !== h.id)
               delete noteDrafts[h.id]
@@ -313,7 +319,7 @@ function setBlockStyle(fields: Record<string, unknown>): void {
   const b = block.value
   if (!b) return
   dirty.value = true // iOS blockStyleFingerprint flips hasSaved
-  void store.updateReadBlock(props.lessonId, props.activity.id, b.id, fields)
+  void acts.updateReadBlock(b.id, fields)
 }
 
 function onSelectSize(key: string): void {
@@ -398,10 +404,7 @@ async function onPhotoPicked(e: Event): Promise<void> {
 // ── Passage select/change (shared Bible picker; server REPLACES for EXEGESIS) ──
 const showBiblePicker = ref(false)
 
-const usedPassages = computed(() => {
-  const lesson = store.program?.lessons.find((l) => l.id === props.lessonId)
-  return (lesson?.activities ?? []).flatMap((a) => a.passages)
-})
+const usedPassages = computed(() => acts.usedPassages())
 
 async function onSelectPassage(): Promise<void> {
   if (block.value) {
@@ -432,9 +435,7 @@ async function onPassageConfirmed(p: ConfirmedPassage): Promise<void> {
   })
   const content = normalizeScriptureMarkdown(p.selectedText)
   try {
-    await store.addSourceReference(
-      props.lessonId,
-      props.activity.id,
+    await acts.addSourceReference(
       {
         bookNumber: p.bookNumber,
         bookName: p.bookName,
@@ -453,7 +454,9 @@ async function onPassageConfirmed(p: ConfirmedPassage): Promise<void> {
   Object.keys(noteDrafts).forEach((k) => delete noteDrafts[k])
   dirty.value = true
   const b = block.value
-  if (b) {
+  // iOS re-applies the pre-replace style only when supportsBlockStyling
+  // (skipped in the scheduled context, which has no style UI).
+  if (b && acts.supportsBlockStyling) {
     const style: Record<string, unknown> = {}
     if (prev.backgroundImageUrl) style.backgroundImageUrl = prev.backgroundImageUrl
     if (prev.backgroundColor) style.backgroundColor = prev.backgroundColor
@@ -461,7 +464,7 @@ async function onPassageConfirmed(p: ConfirmedPassage): Promise<void> {
       style.backgroundOverlayOpacity = prev.backgroundOverlayOpacity
     if (prev.fontSize) style.fontSize = prev.fontSize
     if (Object.keys(style).length > 0) {
-      void store.updateReadBlock(props.lessonId, props.activity.id, b.id, style)
+      void acts.updateReadBlock(b.id, style)
     }
   }
 }
@@ -486,6 +489,7 @@ function openPreview(): void {
       :background-color="block?.backgroundColor ?? null"
       :background-overlay-opacity="block?.backgroundOverlayOpacity ?? null"
       :show-preview="!!props.previewUrl"
+      :show-style-editor="acts.supportsBlockStyling"
       :selected-range="selectedRange"
       :uploading="uploading"
       @cancel="onCancel"

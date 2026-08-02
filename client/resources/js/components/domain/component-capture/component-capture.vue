@@ -60,6 +60,19 @@ import MemberProfile from '../../card/member-profile/member-profile.vue'
 // MemberRequestsPage.swift (.page chrome) — web-only until a
 // pages.member-requests ViewRegistry case is built.
 import MemberRequestsPage from '../../card/member-requests-page/member-requests-page.vue'
+// MemberRequestRespondModal.swift + ChangeMembershipModal.swift — the two
+// topLevel RAW modals (own opaque appBackground wash; page-type fixtures).
+import MemberRequestRespond from '../../card/member-request-respond/member-request-respond.vue'
+import ChangeMembership from '../../card/change-membership/change-membership.vue'
+// EnrollmentFlowModal.swift — the 3-panel enrollment wizard (.enrollmentFlow /
+// .programEnrollmentFlow modal) + its UIKit calendar (SelectEnrollDatePage).
+import EnrollmentFlow from '../../card/enrollment-flow/enrollment-flow.vue'
+import EnrollCalendar from '../../card/enroll-calendar/enroll-calendar.vue'
+// EnrollmentSchedulePage family (.enrollmentSchedule modal + its menu +
+// UnenrollOptionsModal).
+import EnrollmentSchedule from '../../card/enrollment-schedule/enrollment-schedule.vue'
+import EnrollmentActionMenu from '../../card/enrollment-action-menu/enrollment-action-menu.vue'
+import UnenrollOptions from '../../card/unenroll-options/unenroll-options.vue'
 import EditReadActivity from '../../card/edit-read-activity/edit-read-activity.vue'
 import EditExegesisActivity from '../../card/edit-exegesis-activity/edit-exegesis-activity.vue'
 import ExegesisHighlightMenu from '../../card/exegesis-highlight-menu/exegesis-highlight-menu.vue'
@@ -68,6 +81,9 @@ import VideoActivityPicker from '../../card/video-activity-picker/video-activity
 // overlay; capture passes only the capture-only statusBar prop).
 import AddActivityMenu from '../../../islands/leader-app/components/add-activity-menu.vue'
 import EditUserInputActivity from '../../card/edit-user-input-activity/edit-user-input-activity.vue'
+import EditScheduledUserInput from '../../card/edit-scheduled-user-input/edit-scheduled-user-input.vue'
+import SplitMonthCalendar from '../../card/split-month-calendar/split-month-calendar.vue'
+import GlobalSearch from '../../card/global-search/global-search.vue'
 import EditYouTubeActivity from '../../card/edit-youtube-activity/edit-youtube-activity.vue'
 import DonutChart from '../../card/donut-chart/donut-chart.vue'
 import HeatMapChart from '../../card/heat-map-chart/heat-map-chart.vue'
@@ -199,6 +215,13 @@ const registry: Record<string, unknown> = {
   GroupMembersPage,
   MemberProfile,
   MemberRequestsPage,
+  MemberRequestRespond,
+  ChangeMembership,
+  EnrollmentFlow,
+  EnrollCalendar,
+  EnrollmentSchedule,
+  EnrollmentActionMenu,
+  UnenrollOptions,
   EditReadActivity,
   // iOS EditExegesisActivityPage — single-page EXEGESIS editor twin.
   EditExegesisActivity,
@@ -209,6 +232,9 @@ const registry: Record<string, unknown> = {
   // production island component IS the twin.
   AddActivityMenu,
   EditUserInputActivity,
+  EditScheduledUserInput,
+  SplitMonthCalendar,
+  GlobalSearch,
   EditYouTubeActivity,
   // iOS DonutChart (Swift Charts SectorMark) — inline-SVG donut/pie twin.
   DonutChart,

@@ -1,0 +1,57 @@
+{
+  "id": "unenroll-options",
+  "type": "page",
+  "group": "Groups",
+  "title": "Unenroll Options",
+  "adapter": "unenroll-options",
+  "viewports": ["pro-max"],
+  "note": "UnenrollOptionsModal (.unenrollOptions modal, tap-outside dismisses). WEB-ONLY: no iPhone ViewRegistry case yet (the modal loads unenroll-info over the network on appear; seeding needs a mock or new plumbing) — deferred to the approved-xcodebuild batch.",
+  "variants": [
+    {
+      "name": "options-clean",
+      "shared": {
+        "phase": "options",
+        "programName": "Who Is God?",
+        "totalLessons": 25,
+        "lessonsWithData": 0,
+        "cleanLessons": 25,
+        "canFullyUnenroll": true
+      }
+    },
+    {
+      "name": "options-blocked",
+      "shared": {
+        "phase": "options",
+        "programName": "Who Is God?",
+        "totalLessons": 25,
+        "lessonsWithData": 8,
+        "cleanLessons": 17,
+        "canFullyUnenroll": false
+      }
+    },
+    {
+      "name": "confirm-remove",
+      "shared": {
+        "phase": "confirm",
+        "confirmMode": "fullRemoval",
+        "programName": "Who Is God?",
+        "totalLessons": 25,
+        "lessonsWithData": 0,
+        "cleanLessons": 25,
+        "canFullyUnenroll": true
+      }
+    },
+    {
+      "name": "confirm-cancel",
+      "shared": {
+        "phase": "confirm",
+        "confirmMode": "cancelFuture",
+        "programName": "Who Is God?",
+        "totalLessons": 25,
+        "lessonsWithData": 8,
+        "cleanLessons": 17,
+        "canFullyUnenroll": false
+      }
+    }
+  ]
+}

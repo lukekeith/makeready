@@ -85,6 +85,12 @@
     white-space: nowrap;
   }
 
+  // Additive (iOS rightLinkDisabled): brandPrimary at 30%, taps ignored.
+  &__link--disabled {
+    color: rgba(108, 71, 255, 0.3);
+    cursor: default;
+  }
+
   // Always-centered title overlay (iOS ZStack centered child, on top of icons).
   &__title {
     position: absolute;

@@ -165,4 +165,18 @@
     background: var(--bg-pending);
     border-color: var(--border-brand);
   }
+
+  // Additive (iOS isDisabled): 50% dim, taps ignored (enrollment flow).
+  &--is-disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  // Additive (iOS enrolledUntilText): brand s13 line under the meta row.
+  &__enrolledUntil {
+    margin-top: 4px; // iOS VStack(spacing: 4) under the meta HStack
+    font-size: var(--text-sm); // iOS Typography.s13
+    line-height: 1.25;
+    color: var(--color-brand-500);
+  }
 }

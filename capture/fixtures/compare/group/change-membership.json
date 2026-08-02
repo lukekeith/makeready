@@ -1,0 +1,64 @@
+{
+  "id": "change-membership",
+  "type": "page",
+  "group": "Group",
+  "title": "Group · Change Membership",
+  "adapter": "change-membership",
+  "viewports": ["pro-max"],
+  "note": "topLevel RAW modal with an INTERNAL panel state machine (main/confirm/transfer). iPhone can only ever render the MAIN panel (panel is private @State) → variants default + removed are two-sided (pages.change-membership ViewRegistry case + CaptureState.changeMembership seed; needs user-approved xcodebuild); confirm-remove / transfer / transfer-empty are WEB-ONLY via the twin's capture-only initialPanel props. Candidate covers omitted → person.2.fill icon wells (remote images never resolve in iPhone snapshots). Chevron pulse frozen in captures.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "memberName": "Jordan Blake",
+        "groupName": "Young Adults",
+        "mode": "joined",
+        "candidates": []
+      }
+    },
+    {
+      "name": "removed",
+      "shared": {
+        "memberName": "Jordan Blake",
+        "groupName": "Young Adults",
+        "mode": "removed",
+        "candidates": []
+      }
+    },
+    {
+      "name": "confirm-remove",
+      "shared": {
+        "memberName": "Jordan Blake",
+        "groupName": "Young Adults",
+        "mode": "joined",
+        "initialPanel": "confirm",
+        "initialConfirmKind": "remove",
+        "candidates": []
+      }
+    },
+    {
+      "name": "transfer",
+      "shared": {
+        "memberName": "Jordan Blake",
+        "groupName": "Young Adults",
+        "mode": "joined",
+        "initialPanel": "transfer",
+        "candidates": [
+          { "id": "g-2", "name": "Morning Study Group", "memberCount": 6, "activeStudies": 2 },
+          { "id": "g-3", "name": "Tuesday Bible Study", "memberCount": 11, "activeStudies": 1 },
+          { "id": "g-4", "name": "Riverside Small Group", "memberCount": 4, "activeStudies": 0 }
+        ]
+      }
+    },
+    {
+      "name": "transfer-empty",
+      "shared": {
+        "memberName": "Jordan Blake",
+        "groupName": "Young Adults",
+        "mode": "joined",
+        "initialPanel": "transfer",
+        "candidates": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,280 @@
+// GlobalSearch — the global search tab twin (iOS GlobalSearchPage.swift).
+// Composes SearchField + CardSearchResult; only the page scaffold, the filter
+// rail, the section headers and the two empty states live here.
+//
+// iOS owns NO page header on this screen: the search field is the first
+// element (padH16 / padTop16).
+//
+// Several iOS sizes have no design-system token and stay raw px per the
+// design-system exception: the 12px section label / badge icon (the scale
+// jumps 11→13), the 13px badge + meta text, and the 36px empty glyph.
+.GlobalSearch {
+  position: relative;
+  width: 100%; // the capture island centers children — page twins must fill
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-canvas); // iOS Color.appBackground
+  color: var(--fg-white);
+  // SF Pro drives every metric on this screen (same precedent as PageTitle).
+  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+  overflow: hidden;
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar
+  // (capture only — gated by the statusBar prop).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  // iOS: .padding(.horizontal, 16).padding(.top, 16) around the SearchField.
+  &__field {
+    flex: 0 0 auto;
+    padding: 16px 16px 0;
+  }
+
+  // The standalone SearchField twin draws its .ultraThinMaterial fill
+  // transparent — correct in isolation, where the iOS material has nothing
+  // behind it and renders invisible. On THIS page the reference shows a
+  // lifted field sampling to rgb(37,39,44) over #0d101a, i.e. white @ ~10%,
+  // so the page restores the fill (same context lesson as the calendar's
+  // Today pill).
+  .SearchFieldInput__field {
+    background: rgba(255, 255, 255, 0.1);
+    // iOS field height = padV12 ×2 + the 16pt magnifyingglass line box, which
+    // SF renders taller than a text line of the same size. The twin's token
+    // metrics land ~2px short against this page's reference.
+    min-height: 45.5px;
+  }
+
+  // The standalone twin types the field at --text-md (16px) although iOS is
+  // Typography.s15. In isolation that was within tolerance; over a full-width
+  // page field it makes the placeholder visibly wider than the reference.
+  .SearchFieldInput__placeholder,
+  .SearchFieldInput__text,
+  .SearchFieldInput__input {
+    font-size: 15px;
+    line-height: 17.9px; // SF Pro Text 15pt line box
+  }
+
+  // The twin's 18px icon box is wider than the SF magnifyingglass ink at 16pt:
+  // both platforms start the glyph at the same x, but the extra box width
+  // pushes the text ~4px right of the reference.
+  .SearchFieldInput__icon {
+    width: 14px;
+    height: 14px;
+  }
+
+  &__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__scroll {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    // iOS .padding(.bottom, 40) when the keyboard is hidden.
+    padding-bottom: 40px;
+  }
+
+  // iOS recents list adds .padding(.top, 8); results start flush.
+  &__scroll--recents {
+    padding-top: 8px;
+  }
+
+  // ─── Filter badge rail (results only) ──────────────────────────────────────
+  // iOS: horizontal ScrollView → HStack(spacing 8), padH16 padV10.
+  &__rail {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 10px 16px;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  // iOS: HStack(6), padH12 padV6, Capsule fill white@8% (brand when selected),
+  // 1px white@12% stroke when unselected.
+  &__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--color-white-50);
+    font: inherit;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  &__badge--selected {
+    background: var(--bg-brand-primary); // iOS Color.brandPrimary
+    border-color: transparent;
+    color: var(--fg-white);
+  }
+
+  &__badgeIcon {
+    display: inline-flex;
+    width: 12px; // iOS Typography.s12 glyph
+    height: 12px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__badgeLabel {
+    font-size: 13px; // iOS Typography.s13Medium
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+  }
+
+  // ─── Section header ───────────────────────────────────────────────────────
+  // iOS: HStack(8) { icon s14 in a 20×20 frame, LABEL s12 kerning 1.2 },
+  // padH16 padV12, both at white@50.
+  &__sectionHeader {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    color: var(--color-white-50);
+  }
+
+  &__sectionIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    flex: 0 0 auto;
+
+    svg {
+      width: 14px; // iOS Typography.s14 glyph inside the 20×20 frame
+      height: 14px;
+      display: block;
+    }
+  }
+
+  &__sectionLabel {
+    font-size: 12px; // iOS Typography.s12
+    font-weight: var(--font-weight-regular);
+    letter-spacing: 1.2px; // iOS .kerning(1.2)
+    text-transform: uppercase;
+    line-height: 1;
+  }
+
+  // iOS: 1px white@6% rule, padH16 — results mode only.
+  &__divider {
+    height: 1px;
+    margin: 0 16px;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  // ─── Empty states ─────────────────────────────────────────────────────────
+  // "No results" is vertically CENTERED (Spacer above and below); the recents
+  // empty state is TOP-ANCHORED with padTop 80 (iOS puts it in the ScrollView).
+  &__empty,
+  &__recentsEmpty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px; // iOS VStack(spacing: 12)
+  }
+
+  &__empty {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  // iOS .padding(.top, 80) inside the recents ScrollView; the reference sits
+  // 2px lower once the SF glyph's ink inset is accounted for.
+  &__recentsEmpty {
+    flex: 1 1 auto;
+    padding-top: 82px;
+  }
+
+  &__emptyGlyph {
+    display: inline-flex;
+    width: 36px; // iOS Typography.s36
+    height: 36px;
+    color: var(--color-white-20);
+
+    svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+  }
+
+  &__emptyText {
+    font-size: 15px; // iOS Typography.s15
+    color: var(--color-white-50);
+    text-align: center;
+  }
+
+  // ─── Loading (iOS ProgressView tinted white@30, vertically centered) ───────
+  &__loading {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__spinner {
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    border: 2px solid rgba(255, 255, 255, 0.12);
+    border-top-color: var(--color-white-30);
+    animation: GlobalSearch-spin 0.8s linear infinite;
+  }
+}
+
+@keyframes GlobalSearch-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Captures freeze the spinner so the shot is deterministic.
+.capture-page .GlobalSearch__spinner,
+.capture-wrap .GlobalSearch__spinner {
+  animation: none;
+}
+
+// Capture harness: the leader-twin page has no height chain, so the screen
+// fills the viewport there (production sizes it via the view's flex column).
+.capture-page .GlobalSearch,
+.capture-wrap .GlobalSearch {
+  min-height: 100vh;
+}

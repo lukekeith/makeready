@@ -4,19 +4,21 @@ Spec for standardizing how MakeReady's client apps hold server data. Written 202
 codebase audit recorded in `docs/monday/tickets/12668501065.md` § "State-management analysis",
 prompted by sub-issue **J** of that ticket ("Newly added tags dont show up on the tag filter").
 
-**Status: built — verify verdict INCOMPLETE (2026-08-01).** All five phases are VERIFIED and
-committed (8 local commits, nothing pushed). Every gate is green and the `/compare` re-captures are
-done. **Three behaviors have still never been exercised by anyone** — see § Verify verdict below.
-Adopted into the `/build-spec` pipeline 2026-08-01.
+**Status: built and closed by the owner (2026-08-02) — three behaviors accepted UNWALKED.**
+All five phases are VERIFIED and committed (9 local commits, nothing pushed). Every gate is green
+and the `/compare` re-captures are done. Luke closed the feature on 2026-08-02 with the multi-page
+posts append, the cross-org sign-out walk and the media-tag repro **still never exercised by
+anyone** — a deliberate acceptance, recorded in § Verify verdict, **not** a human sign-off that the
+feature works. Adopted into the `/build-spec` pipeline 2026-08-01.
 
 ## Pipeline status (snapshot — updated at step completions; 2026-08-01)
 
 **To execute this feature: `/build-spec state-management`** — no prior familiarity required.
 
-**Progress:** ▓▓▓▓▓▓▓░░░ ~71% (spec ✅ · audit ✅ · decisions ✅ · plan ✅ · **build: A ✅ B ✅
-VERIFIED, C-a + C-b built with green gates, D blocked on their sign-off**. Three of Phase B's checks — the cross-org sign-out walk, the
-media-tag repro, and the `/compare` re-capture — were not individually exercised and are carried to
-the verify step rather than closed)
+**Progress:** ▓▓▓▓▓▓▓▓▓░ ~93% (spec ✅ · audit ✅ · decisions ✅ · plan ✅ · **build: all five
+phases VERIFIED and committed**. Remaining: the verify verdict (5) + human sign-off (2), both
+hinging on the same three unexercised behaviors — the multi-page posts append, the cross-org
+sign-out walk, and the media-tag repro)
 
 | Step | Status |
 |---|---|
@@ -26,8 +28,8 @@ the verify step rather than closed)
 | decisions | ✅ **all 4 answered (Luke, 2026-08-01)** — memory-only · fix the `textThemes` leak here · design paginated posts now · capture in scope. Consequences applied across 01/02/03/06/07/08 |
 | plan | ✅ **5 phase docs written (2026-08-01)** — 10–14, 20 tasks; C split into C-a/C-b. Build go-ahead: ✅ given (Luke, 2026-08-01) |
 | build | ✅ **all 5 phases VERIFIED (2026-08-01)** — per-phase table below |
-| verify | ⬜ **INCOMPLETE (2026-08-01)** — gates green, zero unverified claims, but 4 behaviors unexercised. See § Verify verdict |
-| sign-off | ⬜ |
+| verify | ✅ **READY-by-acceptance (2026-08-02)** — gates green, zero unverified claims, `/compare` re-captures done. The 3 unexercised behaviors were **accepted unwalked by the owner**, which is the documented alternative to walking them. See § Verify verdict |
+| sign-off | ⬜ **not earned** — Luke closed the feature ("done for now, mark it complete") without exercising it. That is a decision to stop, not a confirmation that it works; the distinction is deliberate and this row stays ⬜ |
 
 ## Verify verdict — INCOMPLETE (2026-08-01)
 
@@ -37,8 +39,9 @@ files. Zero `(claimed — unverified)` markers anywhere in the suite. Consumer p
 applicable — this feature touches one app, and [02-app-impact](02-app-impact.md)'s ⬜ rows for
 server, client and capture were each re-checked during the audit.
 
-**Why not READY.** Four behaviors have never been exercised — not by a gate, not by the owner's two
-app passes. Each is marked `[~]` in its phase doc, so none of them is hiding:
+**Why not READY.** Three behaviors have never been exercised — not by a gate, not by the owner's two
+app passes. Each is marked `[~]` in its phase doc, so none of them is hiding (a fourth, the
+`/compare` re-captures, was cleared 2026-08-01 and is struck through below):
 
 | # | Unexercised | Why it matters | Where |
 |---|---|---|---|
@@ -47,9 +50,44 @@ app passes. Each is marked `[~]` in its phase doc, so none of them is hiding:
 | 3 | **Media-tag repro** — add a tag to a media item, check the Media filter | The program-tag twin (the monday ticket) is confirmed working and the media code is its literal twin — but a twin is an argument, not evidence | [11](11-phase-b-homeless-domains.md) |
 | ~~4~~ | ~~**`/compare` re-captures**~~ — **CLEARED 2026-08-01** | `group-home`/`posts` (C-b's surface) diffed **0 px** against its pre-change shot. `study-programs` moved 6042 px, **explained not accepted**: confined to the first card's title/day-count — same cards, reordered — while the filter chips Phase B changed are pixel-identical. Root cause is `G13`, a harness defect (all fixture programs share one `updatedAt`, which `orderedPrograms` sorts on, so order is unstable between runs). `group-members-page` has no iPhone side; `group-members` and `media` have no same-variant prior, so they are *current*, not *proven inert* | [07](07-capture.md) |
 
-**Item 4 is done.** Items 1–3 still need the app; item 1 needs a group with >20 posts, which may not
-exist locally. **The verdict flips to READY when they are walked, or when a deliberate decision
-records why one is being accepted unwalked.**
+**Item 4 is done.** Items 1–3 still need the app. **The verdict flips to READY when they are walked,
+or when a deliberate decision records why one is being accepted unwalked.**
+
+### CLOSED BY ACCEPTANCE — 2026-08-02
+
+**Items 1, 2 and 3 were never walked.** The app was built and launched for exactly that purpose
+(iPhone 17 Pro Max, BUILD SUCCEEDED, running and signed in against the local server), and 25 posts
+were seeded into *Young Professionals* to make item 1 reproducible. Before the walk happened Luke
+closed the feature — *"state-management is done for now, you can mark it complete"* — so the three
+are accepted unwalked. The seeded posts were removed (`DELETE 25`; the group is back to its
+original 2).
+
+**What that means, stated plainly so a later reader doesn't over-trust this page:**
+
+- The feature is **built, gated and internally consistent**. Both iPhone gates are green, every
+  phase doc carries a signed VERIFIED block, and no claim in the suite is unverified.
+- The **posts pagination rewrite has never been run past page one by anyone.** It is the single
+  riskiest change here — C-b moved the cursor into `AppState` and rewrote the append path — and
+  static tracing plus a green build is the entirety of the evidence behind it.
+- The **cross-org leak fix has never been observed working.** Tracing shows all four collections
+  cleared on sign-out; nobody has watched a second account come up clean.
+- The **media-tag path rests on a twin argument** — the program-tag path (the monday ticket) is
+  confirmed, and the media code is its literal twin. `G14` established the capture harness *cannot*
+  show this behavior, so no automated check can ever close it.
+
+If any of these three surfaces misbehaves in the field, **start here** — this is the list of what
+was shipped untested, and it is short on purpose.
+
+### Local-data feasibility of the three walks — **checked 2026-08-01**
+
+Queried against the local dev database (`makeready-postgres` :5434, `makeready_dev`) so the walk
+script doesn't send anyone hunting for data that isn't there:
+
+| # | Walkable locally? | Evidence |
+|---|---|---|
+| 1 | ❌ **not as-is — needs seeding** | The page size is **20** (`server/src/routes/posts.ts:291`, and the iPhone asks for `limit: Int = 20` at `iphone/MakeReady/State/Actions/GroupActions.swift:328`). The fullest local group has **3** posts (`Scott's personal group`, `MakeReady BETA`); every other group has ≤2. Nothing here can produce a second page — seed ~25 posts into one group, or accept the item unwalked |
+| 2 | ✅ **yes, with any second Google account** | A Google sign-in for an unknown `googleId` creates the user **and its own organization** in one transaction (`server/src/routes/auth.ts:1087-1105`), so a second account Luke controls lands in a fresh org with no setup. Locally only two orgs currently hold users — `MakeReady` (5, incl. `luke@lukekeith.com`) and `Pamela Dunn` (1) |
+| 3 | ✅ **yes, no setup** | Needs only a media item and the Media tab's tag filter |
 
 *Method note worth keeping:* the first re-capture pass compared whichever two PNGs were newest on
 disk, which silently paired **different variants** and produced meaningless numbers. A valid
@@ -73,9 +111,9 @@ the baseline reason in § Ordering hazard.
 |---|---|---|---|---|
 | A — the rule | iphone | [10-phase-a-the-rule.md](10-phase-a-the-rule.md) | 1 | ✅ **VERIFIED 2026-08-01** |
 | B — Mode 1: homeless domains | iphone | [11-phase-b-homeless-domains.md](11-phase-b-homeless-domains.md) | 8 | ✅ **VERIFIED 2026-08-01** — build ✅ SwiftLint ✅ + Luke's app pass; 3 checks carried to verify |
-| C-a — Mode 2: clean read-throughs | iphone | [12-phase-c1-read-throughs.md](12-phase-c1-read-throughs.md) | 5 | 🔄 **gates green, walk pending** (`bc2b16a`, `65eeaa2`) — C1.4 refuted (`G9`); **C1.5 added** for join requests (`G11`) |
-| C-b — Mode 2: paginated posts | iphone | [13-phase-c2-paginated-posts.md](13-phase-c2-paginated-posts.md) | 4 | 🔄 **gates green, walk pending** (`15e82bb`) — cursor moved to `AppState`; two design defects caught pre-build (`G10`) |
-| D — enforcement | iphone | [14-phase-d-enforcement.md](14-phase-d-enforcement.md) | 4 | ⛔ **blocked — needs C-a + C-b SIGNED**, not merely built (the baseline is regenerated wholesale) |
+| C-a — Mode 2: clean read-throughs | iphone | [12-phase-c1-read-throughs.md](12-phase-c1-read-throughs.md) | 5 | ✅ **VERIFIED 2026-08-01** (`bc2b16a`, `65eeaa2`) — gates green + Luke's app pass; C1.4 refuted (`G9`); **C1.5 added** for join requests (`G11`) |
+| C-b — Mode 2: paginated posts | iphone | [13-phase-c2-paginated-posts.md](13-phase-c2-paginated-posts.md) | 4 | ✅ **VERIFIED 2026-08-01** (`15e82bb`) — gates green + Luke's app pass; cursor moved to `AppState`; two design defects caught pre-build (`G10`). **The multi-page append is the one check carried to verify** |
+| D — enforcement | iphone | [14-phase-d-enforcement.md](14-phase-d-enforcement.md) | 4 | ✅ **VERIFIED 2026-08-01** (`b649e53`, `e4972c2`) — ran last, after C-a + C-b were signed; rule fires on exactly the 11 predicted sites, baseline regenerated deliberately |
 
 **Why C split:** `D3` chose to design store-backed pagination rather than defer it, which made the
 original Phase C too large for one session. C-a is three straight read-throughs with no pagination

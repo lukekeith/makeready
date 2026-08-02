@@ -39,18 +39,27 @@ interface Props {
   dataPoints: VerticalBarChartDataPoint[]
   showValues?: boolean
   chartHeight?: number
+  // Additive (iOS VerticalBarChart xAxisValues 2026-07-30): when supplied, only
+  // these category labels get an x-axis mark — dense series (e.g. a 30-bar
+  // month) thin their marks to ~weekly while every band keeps its slot.
+  // Omitted (the default, matching every existing capture) labels every bar.
+  xAxisValues?: string[] | null
+  // Additive: iOS's leading axis column HUGS its widest label (+8pt spacing).
+  // 'auto' reproduces that; the numeric default 32 keeps every existing
+  // capture identical (it was measured off wider 2-3 char tick labels).
+  yAxisWidth?: number | 'auto'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   showValues: true,
   chartHeight: 200,
+  xAxisValues: null,
+  yAxisWidth: 32,
 })
 
 // Bottom band reserved for x-axis category labels (iOS AxisValueLabel
 // verticalSpacing 8 + ~16pt label line for Typography.s12).
 const X_AXIS_H = 24
-// Leading y-axis column: tick label + iOS horizontalSpacing 8.
-const Y_AXIS_W = 32
 // iOS BarMark default thickness ≈ 0.72 of each category band (measured off the
 // iPhone snapshots across the 4-, 6- and 7-bar variants).
 const BAR_RATIO = 0.72
@@ -111,6 +120,14 @@ const yTicks = computed(() => {
   return out
 })
 
+// 'auto' y-axis column: widest tick label (~7px/char at Typography.s11) + the
+// 8px horizontalSpacing, mirroring iOS's hugging axis column.
+const yAxisWidthPx = computed(() => {
+  if (props.yAxisWidth !== 'auto') return props.yAxisWidth
+  const maxLen = yTicks.value.reduce((m, t) => Math.max(m, t.label.length), 1)
+  return maxLen * 7 + 8
+})
+
 const bars = computed(() =>
   props.dataPoints.map((p) => ({
     label: p.label,
@@ -130,7 +147,7 @@ const bars = computed(() =>
       <div
         class="VBarChartTwin__plot"
         :style="{
-          gridTemplateColumns: `${Y_AXIS_W}px 1fr`,
+          gridTemplateColumns: `${yAxisWidthPx}px 1fr`,
           gridTemplateRows: `1fr ${X_AXIS_H}px`,
         }"
       >
@@ -165,13 +182,16 @@ const bars = computed(() =>
           </div>
         </div>
 
-        <!-- Bottom x-axis category labels, aligned under each band. -->
+        <!-- Bottom x-axis category labels, aligned under each band. When
+             xAxisValues thins the marks, unlisted bands keep an empty slot so
+             band alignment is preserved (iOS AxisMarks(values:)). -->
         <div class="VBarChartTwin__xaxis">
           <span
             v-for="(b, i) in bars"
             :key="i"
             class="VBarChartTwin__xlabel"
-            >{{ b.label }}</span
+            :class="{ 'VBarChartTwin__xlabel--thinned': !!xAxisValues }"
+            >{{ !xAxisValues || xAxisValues.includes(b.label) ? b.label : '' }}</span
           >
         </div>
       </div>

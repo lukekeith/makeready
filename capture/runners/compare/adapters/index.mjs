@@ -23,6 +23,13 @@ import groupInvite from './group-invite.mjs';
 import groupMembersPage from './group-members-page.mjs';
 import memberProfile from './member-profile.mjs';
 import memberRequests from './member-requests.mjs';
+import memberRequestRespond from './member-request-respond.mjs';
+import changeMembership from './change-membership.mjs';
+import enrollmentFlow from './enrollment-flow.mjs';
+import enrollmentSchedule from './enrollment-schedule.mjs';
+import editScheduledUserInput from './edit-scheduled-user-input.mjs';
+import enrollmentActionMenu from './enrollment-action-menu.mjs';
+import unenrollOptions from './unenroll-options.mjs';
 import biblePassagePicker from './bible-passage-picker.mjs';
 import editExegesisActivity from './edit-exegesis-activity.mjs';
 import exegesisHighlightMenu from './exegesis-highlight-menu.mjs';
@@ -151,6 +158,13 @@ export const adapters = {
   'group-members-page': groupMembersPage,
   'member-profile': memberProfile,
   'member-requests': memberRequests,
+  'member-request-respond': memberRequestRespond,
+  'change-membership': changeMembership,
+  'enrollment-flow': enrollmentFlow,
+  'enrollment-schedule': enrollmentSchedule,
+  'edit-scheduled-user-input': editScheduledUserInput,
+  'enrollment-action-menu': enrollmentActionMenu,
+  'unenroll-options': unenrollOptions,
   'bible-passage-picker': biblePassagePicker,
   'edit-exegesis-activity': editExegesisActivity,
   'exegesis-highlight-menu': exegesisHighlightMenu,

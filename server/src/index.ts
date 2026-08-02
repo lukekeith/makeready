@@ -37,6 +37,8 @@ import groupJoinRequestRoutes from './routes/group-join-requests.js'
 import eventsRoutes from './routes/events.js'
 import activityLogsRoutes from './routes/activity-logs.js'
 import engagementRoutes from './routes/engagement.js'
+import analyticsRoutes from './routes/analytics.js'
+import programAnalyticsRoutes from './routes/program-analytics.js'
 import notesRoutes from './routes/notes.js'
 import activityProgressRoutes from './routes/activity-progress.js'
 import memberLessonsRoutes from './routes/member-lessons.js'
@@ -474,6 +476,13 @@ app.use('/api/activity-logs', activityLogsRoutes)
 // from real study progress rather than the request/audit log)
 app.use('/api/engagement', engagementRoutes)
 
+// Analytics layer (flat computed analytics_events matview: generic query,
+// metric catalog, client event ingestion, manual refresh)
+app.use('/api/analytics', analyticsRoutes)
+
+// Program Analytics tab wrapper (assembled payload for the iPhone tab)
+app.use('/api', programAnalyticsRoutes)
+
 // API keys routes (CRUD for API key management)
 app.use('/api/api-keys', apiKeysRoutes)
 
@@ -596,6 +605,14 @@ if (process.env.NODE_ENV !== 'test') {
       startCacheEvictionJob()
     }).catch((err) => {
       console.warn('⚠️ Could not start cache eviction job:', err.message)
+    })
+
+    // Analytics matview refresh loop (10 min, advisory-locked across
+    // instances; the query path has its own staleness backstop)
+    import('./services/analytics.service.js').then(({ startAnalyticsRefreshJob }) => {
+      startAnalyticsRefreshJob()
+    }).catch((err) => {
+      console.warn('⚠️ Could not start analytics refresh job:', err.message)
     })
 
     // Warm up the embedding model (semantic Bible search) after boot so the

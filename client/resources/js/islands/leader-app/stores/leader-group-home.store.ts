@@ -156,7 +156,15 @@ export const useLeaderGroupHome = defineStore('leader-group-home', () => {
     Array<{ id: string; userId: string; firstName: string; lastName: string; avatarUrl?: string; dateLabel: string }>
   >([])
   const requestRows = ref<
-    Array<{ id: string; firstName: string; lastName: string; avatarUrl?: string; dateLabel: string }>
+    Array<{
+      id: string
+      firstName: string
+      lastName: string
+      avatarUrl?: string
+      dateLabel: string
+      /** Raw ISO createdAt — the respond modal formats its own long date/time. */
+      createdAt: string | null
+    }>
   >([])
   const membersLoading = ref(false)
   const membersError = ref<string | null>(null)
@@ -302,11 +310,23 @@ export const useLeaderGroupHome = defineStore('leader-group-home', () => {
         lastName: r.member?.lastName ?? '',
         avatarUrl: r.member?.avatarUrl ?? undefined,
         dateLabel: formatMemberDate(r.createdAt),
+        createdAt: r.createdAt ?? null,
       }))
       showRequestBadge.value = requests.length > 0
     } catch {
       // Silent.
     }
+  }
+
+  /** iOS GroupMembersPage approve/reject: POST, then a FULL loadData refetch
+   *  (members + requests) — this surface refetches rather than splicing. */
+  async function respondToRequest(
+    groupId: string,
+    requestId: string,
+    kind: 'approve' | 'reject',
+  ): Promise<void> {
+    await axios.post(`/admin/api/groups/${groupId}/join-requests/${requestId}/${kind}`, {})
+    await Promise.all([loadGroupMembers(groupId), loadRequestBadge(groupId)])
   }
 
   // iOS GroupMembersPage loadData — members sorted client-side by name.
@@ -482,6 +502,7 @@ export const useLeaderGroupHome = defineStore('leader-group-home', () => {
     loadGroupHome,
     loadGroupInvite,
     loadGroupMembers,
+    respondToRequest,
     loadMorePosts,
     loadLessonInviteUrl,
     saveGroup,

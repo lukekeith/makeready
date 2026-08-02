@@ -3910,6 +3910,14 @@ router.patch('/scheduled-activities/:activityId/read-blocks/:blockId', requireAu
       orderNumber: z.number().int().min(1).optional(),
       themeId: z.string().uuid().nullable().optional(),
       contentFormat: z.enum(['html', 'markdown']).optional(),
+      // Style fields mirror the program read-block PATCH (programs.ts) —
+      // scheduled and program activities share ActivityReadBlock, but these
+      // were missing here, silently stripping every style write from the
+      // scheduled editors (web Edit Themes / exegesis styling).
+      backgroundImageUrl: z.string().nullable().optional(),
+      backgroundColor: z.string().nullable().optional(),
+      backgroundOverlayOpacity: z.number().min(0).max(1).nullable().optional(),
+      fontSize: z.enum(['xs', 's', 'm', 'lg', 'xl']).nullable().optional(),
       selections: z.array(selectionSchema).nullable().optional(),
     })
 
@@ -3954,6 +3962,10 @@ router.patch('/scheduled-activities/:activityId/read-blocks/:blockId', requireAu
         ...(body.orderNumber !== undefined && { orderNumber: body.orderNumber }),
         ...(body.themeId !== undefined && { themeId: body.themeId }),
         ...(body.contentFormat !== undefined && { contentFormat: body.contentFormat }),
+        ...(body.backgroundImageUrl !== undefined && { backgroundImageUrl: body.backgroundImageUrl }),
+        ...(body.backgroundColor !== undefined && { backgroundColor: body.backgroundColor }),
+        ...(body.backgroundOverlayOpacity !== undefined && { backgroundOverlayOpacity: body.backgroundOverlayOpacity }),
+        ...(body.fontSize !== undefined && { fontSize: body.fontSize }),
         ...(body.selections !== undefined && { selections: body.selections === null ? Prisma.DbNull : (body.selections as Prisma.InputJsonValue) }),
       },
     })

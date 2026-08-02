@@ -103,4 +103,15 @@
     color: var(--color-white-70); // iOS .white.opacity(0.7)
     white-space: nowrap;
   }
+
+  // Additive (xAxisValues mode): labels are wider than their dense bands, so
+  // each slot clamps to exact band width and centers its overflowing text
+  // (flex centering overflows both edges equally — the iOS AxisValueLabel
+  // centered-on-mark behavior). Existing captures never pass xAxisValues.
+  &__xlabel--thinned {
+    min-width: 0;
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+  }
 }

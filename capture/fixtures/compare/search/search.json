@@ -5,6 +5,7 @@
   "title": "Search",
   "adapter": "search",
   "viewports": ["pro-max"],
+  "note": "GlobalSearchPage (tab root, no page header). The two ORIGINAL iPhone references are degenerate states and the web side matches them exactly: `recent-results` renders 'No recent items' (iOS hydrates recents from AppState, which drops every entity the harness has not cached) and `with-results` renders the LOADING spinner (the mocked /api/search response never resolves before the snapshot). iOS also leaves the field INACTIVE with an initialQuery — no close button, no active border. The populated renderings (`recents-populated`, `results-populated`, `results-filtered`, `no-results`) are WEB-ONLY: reaching them on iPhone needs a seeded AppState plus a resolving mock.",
   "variants": [
     {
       "name": "recent-results",
@@ -33,7 +34,112 @@
         "groups": [
           { "id": "g-001", "name": "Sunday Morning Group", "memberCount": 27, "isPrivate": true }
         ],
-        "searchQuery": "study"
+        "searchQuery": "study",
+        "searchLoading": true
+      }
+    },
+    {
+      "name": "recents-populated",
+      "shared": {
+        "webOnly": true,
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "sections": [
+          {
+            "category": "program",
+            "rows": [
+              { "id": "prog-1", "title": "Romans in 30 days", "subtitle": "30 days, 30 lessons", "timeAgo": "2h ago" },
+              { "id": "prog-2", "title": "The Gospel of John", "subtitle": "21 days, 21 lessons", "timeAgo": "Yesterday" }
+            ]
+          },
+          {
+            "category": "group",
+            "rows": [
+              { "id": "g-001", "title": "Sunday Morning Group", "subtitle": "27 members", "timeAgo": "3d ago" }
+            ]
+          },
+          {
+            "category": "lesson",
+            "rows": [
+              { "id": "l-1", "title": "The Righteous Will Live by Faith", "subtitle": "Day 5 - Romans in 30 days", "timeAgo": "1w ago" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "results-populated",
+      "shared": {
+        "webOnly": true,
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "searchQuery": "john",
+        "sections": [
+          {
+            "category": "program",
+            "count": 2,
+            "rows": [
+              { "id": "prog-2", "title": "The Gospel of John", "subtitle": "21 days" },
+              { "id": "prog-4", "title": "Letters of John", "subtitle": "12 days" }
+            ]
+          },
+          {
+            "category": "lesson",
+            "count": 1,
+            "rows": [
+              { "id": "l-2", "title": "In the Beginning Was the Word", "subtitle": "Day 1 - The Gospel of John" }
+            ]
+          },
+          {
+            "category": "member",
+            "count": 2,
+            "rows": [
+              { "id": "m-1", "title": "John Carter", "subtitle": "john.carter@example.com", "isMember": true, "initials": "JC" },
+              { "id": "m-2", "title": "Johnny Reyes", "subtitle": "johnny@example.com", "isMember": true, "initials": "JR" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "results-filtered",
+      "shared": {
+        "webOnly": true,
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "searchQuery": "john",
+        "activeCategory": "member",
+        "sections": [
+          {
+            "category": "program",
+            "count": 2,
+            "rows": [
+              { "id": "prog-2", "title": "The Gospel of John", "subtitle": "21 days" },
+              { "id": "prog-4", "title": "Letters of John", "subtitle": "12 days" }
+            ]
+          },
+          {
+            "category": "lesson",
+            "count": 1,
+            "rows": [
+              { "id": "l-2", "title": "In the Beginning Was the Word", "subtitle": "Day 1 - The Gospel of John" }
+            ]
+          },
+          {
+            "category": "member",
+            "count": 2,
+            "rows": [
+              { "id": "m-1", "title": "John Carter", "subtitle": "john.carter@example.com", "isMember": true, "initials": "JC" },
+              { "id": "m-2", "title": "Johnny Reyes", "subtitle": "johnny@example.com", "isMember": true, "initials": "JR" }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "no-results",
+      "shared": {
+        "webOnly": true,
+        "user": { "id": "user-1", "name": "Alex Rivera", "email": "alex@example.com", "picture": null },
+        "searchQuery": "zebra",
+        "sections": []
       }
     }
   ]

@@ -1,0 +1,329 @@
+// SplitMonthCalendar — the calendar screen twin (iOS MainCalendar →
+// SplitMonthCalendar + SplitMonthLayout + SplitMonthCalendarController).
+// Composes CalendarWeekdayHeader / CalendarDayCell / CalendarBottomBar /
+// PageTitle / CardLesson; only the page scaffold and the grid geometry live
+// here.
+//
+// Grid geometry is a 1:1 port of SplitMonthLayout: horizontalPadding 16,
+// cellWidth = (W − 32) / 7 (seven equal columns), cellSize.height 56,
+// monthHeaderHeight 32, monthSpacing 0.
+//
+// Several iOS sizes have no design-system token and stay raw px per the
+// design-system exception (same as CalendarDayCell's 14px number): the 56px
+// row height, the 32px month header, the 16px month name/year, and the 8px
+// gradient fade.
+.SplitMonthCalendar {
+  position: relative;
+  width: 100%; // the capture island centers children — page twins must fill
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-canvas); // iOS Color.appBackground
+  color: var(--fg-white);
+  overflow: hidden;
+  // SF Pro drives every metric on this screen (the grid is UIKit system-font
+  // labels), and the composed twins inherit their family — same precedent as
+  // PageTitle. Without it the month labels render narrower and the columns
+  // drift against the iPhone reference.
+  font-family: -apple-system, 'SF Pro Text', system-ui, sans-serif;
+
+  // iOS top safe-area (iPhone 16 Pro Max = 62pt) holding the status bar
+  // (capture only — gated by the statusBar prop).
+  &__statusbar {
+    flex: 0 0 auto;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 11px;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1;
+  }
+
+  &__indicators {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+
+  // ─── Header block (iOS: fixed VStack, always visible) ───────────────────────
+  &__header {
+    flex: 0 0 auto;
+    background: var(--bg-canvas);
+  }
+
+  // iOS CalendarWeekdayHeader carries .padding(.horizontal,16)/.vertical(8).
+  // The standalone twin drops them (the capture wrap supplies the gutter), so
+  // the page re-applies them here.
+  &__weekdays {
+    padding: 8px 16px;
+
+    // The standalone twin sets line-height 1 (correct for its isolated
+    // capture frame). On the page the row must occupy SF's real 12pt line box
+    // (~14.3px) — otherwise the whole month grid below sits ~2px high against
+    // the iPhone reference, and the letters themselves ride ~1px high.
+    .CalendarWeekdayHeader__day {
+      line-height: 14.3px;
+    }
+  }
+
+  // iOS LinearGradient(appBackground → appBackground.opacity(0)), height 8.
+  &__fade {
+    height: 8px;
+    background: linear-gradient(to bottom, var(--bg-canvas), transparent);
+  }
+
+  // ─── Body ──────────────────────────────────────────────────────────────────
+  &__body {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  &__scroll {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  // One section per month, no spacing between them (iOS monthSpacing 0).
+  &__month {
+    position: relative;
+  }
+
+  // iOS CalendarMonthHeaderView: frame h32 at x16/width−32, with the label
+  // stack LEADING-aligned and BOTTOM-anchored at −4.
+  &__monthHeader {
+    display: flex;
+    align-items: baseline;
+    gap: 4px; // iOS containerStack spacing 4
+    height: 32px;
+    padding: 0 16px 4px;
+    box-sizing: border-box;
+    align-items: flex-end;
+  }
+
+  &__monthName {
+    font-size: 16px; // iOS .systemFont(16, .bold); no token at this step
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+    line-height: 1.1;
+  }
+
+  &__monthYear {
+    font-size: 16px; // iOS .systemFont(16, .regular)
+    font-weight: var(--font-weight-regular);
+    color: var(--color-white-50);
+    line-height: 1.1;
+  }
+
+  // Seven equal columns inside the 16px side padding; rows are a fixed 56px.
+  // Days are placed explicitly by weekdayIndex/rowIndex — there are no
+  // padding cells, exactly like SplitCalendarMonth.generate.
+  &__grid {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    grid-auto-rows: 56px;
+    height: calc(var(--rows, 1) * 56px);
+    margin: 0 16px;
+  }
+
+  // iOS WeekSeparatorDecorationView: 1px white@10%, full grid width, centered
+  // on the row boundary (y − 0.5), behind the cells (zIndex −1).
+  &__separator {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+    z-index: 0;
+  }
+
+  &__cell {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 100%;
+    height: 56px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+  }
+
+  // The standalone CalendarDayCell twin is a fixed 48×56 box (its isolated
+  // capture frame). In the page it fills the column instead, and the today
+  // disc / selection ring take the FULL cell width and stay square — so on a
+  // 440px viewport the 58.3px circle overflows the 56px row, exactly like the
+  // UIKit constraints (width == contentView.width, height == width, centered).
+  // Precedent: AddActivityMenu overrides CardActivityType's fixed tile the
+  // same way; the standalone comparison is untouched.
+  .CalendarDayCell {
+    width: 100%;
+    height: 56px;
+  }
+
+  .CalendarDayCell__today,
+  .CalendarDayCell__ring {
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1;
+    transform: translateY(-50%);
+  }
+
+  // ─── Expanded event list (iOS ExpandedEventListView) ───────────────────────
+  &__list {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding-bottom: 32px; // iOS LazyVStack .padding(.bottom, 32)
+  }
+
+  // iOS EventDaySection: HStack(spacing 4), padH16, padTop 20, padBottom
+  // 12 (8 when the day has no events).
+  &__dayHeader {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    padding: 20px 16px 12px;
+  }
+
+  &__dayHeader--empty {
+    padding-bottom: 8px;
+  }
+
+  &__dayName {
+    font-size: var(--text-md); // iOS Typography.s16Bold
+    font-weight: var(--font-weight-bold);
+    color: var(--fg-primary);
+  }
+
+  &__dayDate {
+    font-size: var(--text-md); // iOS Typography.s16 (regular)
+    font-weight: var(--font-weight-regular);
+    color: var(--color-white-50);
+  }
+
+  // today → brand name + brand@50 date; past → both white@50.
+  &__dayHeader--today &__dayName {
+    color: var(--color-brand-500);
+  }
+
+  &__dayHeader--today &__dayDate {
+    color: rgba(108, 71, 255, 0.5); // iOS brandPrimary.opacity(0.5)
+  }
+
+  &__dayHeader--past &__dayName {
+    color: var(--color-white-50);
+  }
+
+  // iOS: each event card padH16 padBottom8, dimmed to 50% when past.
+  &__event {
+    display: block;
+    width: 100%;
+    padding: 0 16px 8px;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+  }
+
+  &__event--past {
+    opacity: 0.5;
+  }
+
+  // ─── Loading (iOS: opaque cover + centered white spinner) ───────────────────
+  &__loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-canvas);
+    z-index: 3;
+  }
+
+  &__spinner {
+    width: 20px;
+    height: 20px;
+    border-radius: var(--radius-full);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-top-color: #fff;
+    animation: SplitMonthCalendar-spin 0.8s linear infinite;
+  }
+
+  // ─── Today pill (iOS ZStack bottomLeading, padLeading 16) ──────────────────
+  &__bottomBar {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    z-index: 4;
+    // iOS animates the padding change with Motion.standardBrisk (250ms).
+    transition: bottom 250ms ease-in-out;
+  }
+
+  // iOS bottomPadding: 80 when the NavBar is visible, else 16.
+  &__bottomBar--navbar {
+    bottom: 80px;
+  }
+
+  // Capture-only: the iPhone page sits above the 34pt home-indicator safe
+  // area, so its pill clears the bottom by 16 + 34. Production has the real
+  // NavBar instead and never passes this.
+  &__bottomBar--homeIndicator {
+    bottom: calc(16px + 34px);
+  }
+
+  &__bottomBar--homeIndicator.SplitMonthCalendar__bottomBar--navbar {
+    bottom: calc(80px + 34px);
+  }
+
+  // The standalone CalendarBottomBar twin draws NO capsule: in its isolated
+  // snapshot the iOS .ultraThinMaterial has nothing behind it and renders
+  // invisible (see the compare-frosted-material-invisible memory). On the
+  // PAGE the material sits over the calendar grid and does read — the iPhone
+  // reference shows a lifted capsule sampling to rgb(39,41,46) over the
+  // #0d101a canvas, i.e. white @ ~10%. So the page restores the fill/shadow.
+  .CalendarBottomBar {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); // iOS shadow black@30 r8 y4
+  }
+
+  // Same line-box correction as the weekday row: iOS's 14pt label occupies a
+  // ~16.7px line box, which is what makes the pill 37pt tall rather than 34.
+  .CalendarBottomBar__today-label {
+    line-height: 16.7px;
+  }
+}
+
+@keyframes SplitMonthCalendar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Captures freeze the spinner so the shot is deterministic.
+.capture-page .SplitMonthCalendar__spinner,
+.capture-wrap .SplitMonthCalendar__spinner {
+  animation: none;
+}
+
+// Capture harness: the leader-twin page has no height chain, so the screen
+// fills the viewport there (production sizes it via the view's flex column).
+// The grid scroller is absolutely positioned, so it also needs the body to
+// have a real height — 100vh minus the header block resolves that.
+.capture-page .SplitMonthCalendar,
+.capture-wrap .SplitMonthCalendar {
+  min-height: 100vh;
+}

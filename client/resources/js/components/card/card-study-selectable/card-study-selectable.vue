@@ -28,6 +28,13 @@ interface Props {
   imageUrl?: string
   selected?: boolean
   isPublished?: boolean
+  // Additive (iOS CardStudySelectable isDisabled): 50% dim + taps ignored —
+  // used by the enrollment flow for already-enrolled programs and while the
+  // group's enrollment data loads. Default keeps every existing capture.
+  disabled?: boolean
+  // Additive (iOS enrolledUntilText): brand-colored "enrolled until MMM d"
+  // line under the meta row. Absent = not rendered (captured layout).
+  enrolledUntil?: string
   class?: string
 }
 
@@ -36,6 +43,8 @@ const props = withDefaults(defineProps<Props>(), {
   imageUrl: '',
   selected: false,
   isPublished: true,
+  disabled: false,
+  enrolledUntil: '',
 })
 
 const emit = defineEmits<{ click: [MouseEvent] }>()
@@ -43,13 +52,18 @@ const emit = defineEmits<{ click: [MouseEvent] }>()
 const classes = computed(() =>
   classnames(
     'CardStudySelectable',
-    props.selected && 'CardStudySelectable--is-selected',
+    // iOS: selection visuals only apply while enabled (isSelected && !isDisabled).
+    props.selected && !props.disabled && 'CardStudySelectable--is-selected',
+    props.disabled && 'CardStudySelectable--is-disabled',
     props.class
   )
 )
 
-const onClick = (e: MouseEvent) => emit('click', e)
+const onClick = (e: MouseEvent) => {
+  if (!props.disabled) emit('click', e)
+}
 const onKeydown = (e: KeyboardEvent) => {
+  if (props.disabled) return
   if (e.key === 'Enter' || e.key === ' ') {
     e.preventDefault()
     emit('click', e as unknown as MouseEvent)
@@ -90,6 +104,10 @@ const onKeydown = (e: KeyboardEvent) => {
           {{ isPublished ? 'Published' : 'Draft' }}
         </span>
       </div>
+
+      <span v-if="enrolledUntil" class="CardStudySelectable__enrolledUntil">{{
+        enrolledUntil
+      }}</span>
     </div>
 
     <div class="CardStudySelectable__cover">

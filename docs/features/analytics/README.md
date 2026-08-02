@@ -2,10 +2,13 @@
 
 Spec for MakeReady's analytics layer and its first consumer, the **Program Home Analytics tab** (monday#12661762474). Written 2026-07-29 from the codebase deep dive recorded in `docs/monday/tickets/12661762474.md`.
 
+> **Implementation status lives in [STATUS.md](STATUS.md)** — phase checklist, what's verified, decisions made during the build, and the pick-up-here notes for resuming in a fresh session. Phases A (layer + ingestion) and B (Program tab part 1 + web instrumentation) built 2026-07-30; Phase C is next.
+
 ## Documents
 
 | Doc | Contents |
 |---|---|
+| [STATUS.md](STATUS.md) | **Implementation status & continuation notes** — read this before resuming work |
 | [architecture.md](architecture.md) | The flat analytics layer: fact materialized view, refresh strategy, generic query endpoint, expansion model |
 | [metrics-catalog.md](metrics-catalog.md) | Event types, dimensions, and the initial metric registry (incl. video watch time & completions) |
 | [program-analytics-tab.md](program-analytics-tab.md) | The iPhone Program Home Analytics tab UI spec — sections, charts, data contracts, phasing |

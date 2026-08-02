@@ -1,0 +1,452 @@
+// EnrollmentFlow — twin of iPhone EnrollmentFlowModal (3-panel wizard).
+// Panel chrome + confirm-page cards; composed twins (PageTitle, SearchField,
+// CardGroup, CardStudySelectable, EnrollCalendar, ToggleControl, MenuInput)
+// carry their own styling. Raw px mirror the hand-measured iOS layout
+// (design-system intrinsic-size exception).
+// Absolute-inset full-bleed (same pattern as ChangeMembership / AddActivityMenu:
+// page-type fixture; production hosts wrap it in a positioned full-height box).
+.EnrollmentFlow {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-canvas); // iOS Color.appBackground
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  // iOS HStack of 3 full-width panels offset by -panelIndex*width
+  // (Motion.standard 300ms ease-in-out). Frozen in captures via the global
+  // .capture-page animation rules.
+  &__track {
+    display: flex;
+    width: 300%;
+    height: 100%;
+    transition: transform 300ms ease-in-out;
+  }
+
+  &__panel {
+    position: relative;
+    width: calc(100% / 3);
+    height: 100%;
+    overflow: hidden;
+  }
+
+  // 16px spacer above each PageTitle (iOS modalProvidesDragIndicator).
+  &__dragSpacer {
+    flex: 0 0 16px;
+    height: 16px;
+  }
+
+  // ── Panel 0: header overlays the scroll (iOS .overlay(alignment: .top)) ──
+  &__header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--color-canvas);
+  }
+
+  &__search {
+    padding: 0 16px 16px;
+  }
+
+  &__scroll {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px; // iOS VStack(spacing: 4)
+    padding: 0 16px 100px;
+  }
+
+  &__listSpacer {
+    flex: 0 0 auto;
+  }
+
+  &__skeletons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px; // iOS loading VStack(spacing: 12)
+  }
+
+  &__row--disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  // Empty / error states (iOS: spacer 100 → icon s40 → text s15 white@70).
+  &__stateBlock {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding-top: 100px;
+    text-align: center;
+  }
+
+  &__stateIcon {
+    width: 40px;
+    height: 40px;
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__stateIcon--warning {
+    color: #ff9f0a; // iOS .orange
+  }
+
+  &__stateText {
+    font-size: 15px; // iOS Typography.s15
+    line-height: 1.3;
+    color: var(--color-white-70);
+  }
+
+  &__retry {
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: 17px;
+    color: var(--color-brand-500);
+    cursor: pointer;
+  }
+
+  // ── Panel 1: dates ──
+  &__datesLayout {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  &__calendarScroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  // SelectedRangePanel — iOS .ultraThinMaterial with top radius 8. The web
+  // approximates the material with a translucent dark fill + backdrop blur
+  // (NB: iPhone SNAPSHOTS render the material invisible — see the
+  // compare-frosted-material-invisible memory when diffing).
+  &__rangePanel {
+    flex: 0 0 auto;
+    border-radius: 8px 8px 0 0;
+    background: rgba(30, 33, 44, 0.72);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  &__rangeLabel {
+    padding: 10px 0; // iOS .padding(.vertical, 10)
+    text-align: center;
+    font-size: 12px; // iOS Typography.s12Bold
+    font-weight: var(--font-weight-bold);
+    letter-spacing: 1.2px; // iOS .tracking(1.2)
+    color: #fff;
+  }
+
+  &__dayPicker {
+    display: flex;
+    justify-content: center;
+    gap: 8px; // iOS HStack(spacing: 8)
+    padding: 0 16px 32px;
+  }
+
+  &__dayToggle {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--color-white-10);
+    font-family: inherit;
+    font-size: var(--text-sm); // iOS Typography.s13Bold
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white-50);
+    cursor: pointer;
+  }
+
+  &__dayToggle--on {
+    background: #fff;
+    color: var(--color-canvas); // iOS Color.appBackground text
+  }
+
+  // ── Panel 2: confirm ──
+  &__confirmLayout {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+
+  &__confirmScroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px; // iOS VStack(spacing: 8)
+    padding: 8px 16px 40px;
+  }
+
+  // Overview card: white@10 r8, VStack(16), pad 16.
+  &__overviewCard {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-white-10);
+  }
+
+  &__overviewRow {
+    display: flex;
+    gap: 16px;
+  }
+
+  &__overviewBody {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  &__overviewName {
+    font-size: 17px; // iOS Typography.s17Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1.25;
+    color: #fff;
+  }
+
+  &__overviewDesc {
+    font-size: var(--text-sm); // iOS Typography.s13
+    line-height: 1.3;
+    color: var(--color-white-70);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  &__overviewDesc--group {
+    -webkit-line-clamp: 2; // iOS lineLimit(2)
+  }
+
+  &__overviewDesc--program {
+    -webkit-line-clamp: 3; // iOS lineLimit(3)
+  }
+
+  &__overviewMeta {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: var(--text-sm); // iOS Typography.s13
+    color: var(--color-white-70);
+  }
+
+  &__overviewMetaIcon {
+    display: inline-flex;
+    width: 15px; // iOS s14 glyph
+    height: 15px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  &__overviewImage {
+    flex: 0 0 auto;
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-md); // iOS RoundedRectangle(cornerRadius: 8)
+    overflow: hidden;
+    background: var(--color-white-10);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+  }
+
+  &__overviewFallback {
+    display: inline-flex;
+    width: 34px; // iOS s32 glyph
+    color: var(--color-white-30);
+
+    svg {
+      width: 100%;
+      height: auto;
+    }
+  }
+
+  &__overviewArrow {
+    align-self: flex-start;
+    display: inline-flex;
+    width: 32px; // iOS s32Medium
+    height: 32px;
+    color: rgba(255, 255, 255, 0.2);
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // Members stats card.
+  &__statsCard {
+    display: flex;
+    padding: 16px;
+    border-radius: var(--radius-md);
+    background: var(--color-white-10);
+  }
+
+  &__stat {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__statValue {
+    font-size: 22px; // iOS Typography.s22Bold
+    font-weight: var(--font-weight-bold);
+    line-height: 1.15;
+    color: #fff;
+  }
+
+  &__statLabel {
+    font-size: var(--text-sm); // iOS Typography.s13
+    color: var(--color-white-70);
+  }
+
+  // Schedule card: [w60 date col | flexible center | w60 date col], no pad.
+  &__scheduleCard {
+    display: flex;
+    border-radius: var(--radius-md);
+    background: var(--color-white-10);
+  }
+
+  &__scheduleDate {
+    flex: 0 0 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 16px 0 24px;
+  }
+
+  &__scheduleDay {
+    font-size: 28px; // iOS Typography.s28
+    line-height: 1.15;
+    color: #fff;
+  }
+
+  &__scheduleMonth {
+    font-size: 15px; // iOS Typography.s15Bold
+    font-weight: var(--font-weight-bold);
+    color: var(--color-brand-500);
+  }
+
+  &__scheduleCenter {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 0 24px;
+  }
+
+  &__scheduleCaption {
+    font-size: 15px; // iOS Typography.s15
+    color: var(--color-white-50);
+  }
+
+  &__scheduleDays {
+    display: flex;
+    gap: 8px;
+  }
+
+  &__dayCircle {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--color-white-10);
+    font-size: var(--text-sm); // iOS Typography.s13Bold
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white-50);
+  }
+
+  &__dayCircle--on {
+    background: #fff;
+    color: var(--color-canvas);
+  }
+
+  // Send invites row: white@10, radius 10 (iOS uses 10 here, not 8).
+  &__invitesRow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: var(--color-white-10);
+  }
+
+  &__invitesLabel {
+    font-size: 17px; // iOS Typography.s17
+    color: #fff;
+  }
+
+  // Native time-picker well (iOS DatePicker .hourAndMinute, dark).
+  &__timeWell {
+    position: relative;
+    padding: 6px 11px;
+    border-radius: var(--radius-md);
+    background: var(--color-white-10);
+    font-size: 17px;
+    color: #fff;
+  }
+
+  &__timeInput {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  // FieldGroup wrapper for the bare ToggleControls (iOS FieldGroup chrome:
+  // white@5, radius 10, 4px vertical padding).
+  &__fieldCard {
+    padding: 4px 0;
+    border-radius: 10px;
+    background: var(--color-white-5);
+  }
+
+  &__syncBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  &__syncCaption {
+    font-size: var(--text-sm); // iOS Typography.s13
+    line-height: 1.3;
+    color: var(--color-white-50);
+  }
+}

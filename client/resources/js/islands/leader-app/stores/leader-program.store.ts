@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 import axios from 'axios'
+import type { ProgramAnalytics } from '../../../components/card/program-home/program-home.vue'
 
 // Program detail for the mobile leader app's Program Home modal (the iPhone
 // ProgramHomePage), fetched through the shared /admin/api/* proxy. Mirrors the
@@ -192,7 +193,7 @@ function mapReadBlock(b: ApiReadBlock, index: number): LeaderReadBlock {
   }
 }
 
-interface ApiActivity {
+export interface ApiActivity {
   id: string
   activityType?: string
   status?: string | null
@@ -273,7 +274,9 @@ function activityStatus(a: ApiActivity): 'default' | 'incomplete' | 'complete' {
   return isConfigured(a) ? 'complete' : 'incomplete'
 }
 
-function mapActivity(a: ApiActivity): LeaderActivity {
+// Exported for the enrollment-schedule store: scheduled activities share the
+// same payload shape (modulo `type` vs `activityType` — callers normalize).
+export function mapActivity(a: ApiActivity): LeaderActivity {
   return {
     id: a.id,
     activityType: a.activityType ?? 'READ',
@@ -692,7 +695,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
   }
 
   async function loadProgramEnrollments(programId: string): Promise<
-    Array<{ id: string; name: string; subtitle?: string; imageUrl?: string; dateRange: string; isActive: boolean }>
+    Array<{ id: string; groupId?: string; name: string; subtitle?: string; imageUrl?: string; dateRange: string; isActive: boolean }>
   > {
     const res = await axios.get(`/admin/api/programs/${programId}/enrollments`)
     const raw: Array<{
@@ -700,6 +703,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
       startDate?: string | null
       endDate?: string | null
       group?: {
+        id?: string | null
         name?: string | null
         coverImageUrl?: string | null
         creator?: { name?: string | null } | null
@@ -708,6 +712,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     const now = Date.now()
     return raw.map((e) => ({
       id: e.id,
+      groupId: e.group?.id ?? undefined,
       name: e.group?.name ?? 'Unknown Group',
       subtitle: e.group?.creator?.name ?? undefined,
       imageUrl: e.group?.coverImageUrl ?? undefined,
@@ -716,6 +721,31 @@ export const useLeaderProgram = defineStore('leader-program', () => {
       // column; mirrors iOS ProgramEnrollment.isActive) (monday#12268464531).
       isActive: e.endDate ? new Date(e.endDate).getTime() > now : true,
     }))
+  }
+
+  // GET /api/programs/:id/analytics — the Analytics-tab payload (iOS
+  // ProgramActions.getProgramAnalytics: timezone = device IANA identifier,
+  // no `days` param; nil-able arrays default empty like the Swift decode).
+  async function loadProgramAnalytics(programId: string): Promise<ProgramAnalytics> {
+    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+    const res = await axios.get(`/admin/api/programs/${programId}/analytics`, {
+      params: { timezone },
+    })
+    const d = res.data ?? {}
+    if (!d.success || !d.kpis || !d.recent) {
+      throw new Error(d.error ?? 'Failed to load program analytics')
+    }
+    return {
+      freshAsOf: d.freshAsOf ?? null,
+      kpis: d.kpis,
+      recent: {
+        week: d.recent.week ?? [],
+        month: d.recent.month ?? [],
+        year: d.recent.year ?? [],
+      },
+      heatmap: d.heatmap ?? [],
+      topGroups: d.topGroups ?? [],
+    }
   }
 
   // GET /api/themes — loaded once (iOS AppState.textThemes at startup).
@@ -1027,5 +1057,6 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     updateActivityVideo,
     removeActivityVideo,
     loadProgramEnrollments,
+    loadProgramAnalytics,
   }
 })

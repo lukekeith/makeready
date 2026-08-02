@@ -1,0 +1,148 @@
+// EnrollCalendar — twin of the iPhone enrollment date picker's UIKit calendar
+// (SelectEnrollDatePage.swift EnrollCalendarLayout / EnrollDayCell /
+// WeekHighlightDecorationView). Raw px are intentional: the iOS layout is a
+// hand-measured UICollectionView (design-system intrinsic-size exception).
+//
+// Geometry (EnrollCalendarLayout): horizontalPadding 16, monthHeader 48,
+// weekdayHeader 32, day row 56 (cellWidth = (width-32)/7), 16 gap after each
+// month. Circles: terminal 45 brand, override 36 + 1px border, ghost 40,
+// range bar radius 22.5 (#3D2C8C) behind the cells.
+.EnrollCalendar {
+  width: 100%;
+  padding: 0 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif;
+
+  &__month {
+    margin-bottom: 16px; // iOS 16pt gap after each month section
+  }
+
+  &__monthHeader {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__monthName {
+    font-size: 17px; // iOS .systemFont(17, .bold)
+    font-weight: var(--font-weight-bold);
+    color: #fff;
+  }
+
+  &__monthYear {
+    font-size: 17px;
+    color: var(--color-white-50);
+  }
+
+  &__weekdays {
+    height: 32px;
+    display: flex;
+    align-items: center;
+  }
+
+  &__weekday {
+    flex: 1 1 0;
+    text-align: center;
+    font-size: 12px; // iOS .systemFont(12, .bold)
+    font-weight: var(--font-weight-bold);
+    color: var(--color-white-50);
+  }
+
+  &__weekday--disabled {
+    color: var(--color-white-20);
+  }
+
+  &__week {
+    position: relative;
+    display: flex;
+    height: 56px; // iOS cell height
+  }
+
+  // WeekHighlightDecorationView: #3D2C8C, radius 22.5, behind the cells.
+  &__rangeBar {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    height: 45px;
+    border-radius: 22.5px;
+    background: #3d2c8c;
+  }
+
+  &__cell {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: none;
+    background: none;
+    font: inherit;
+    color: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  // Existing scheduled-lesson ghost (40px): white@10% future / systemYellow@22% past.
+  &__ghost {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+  }
+
+  &__ghost--future {
+    background: var(--color-white-10);
+  }
+
+  &__ghost--past {
+    background: rgba(255, 214, 10, 0.22); // iOS systemYellow @ 22%
+  }
+
+  // Override circle (36px, 1px border): green added / pink removed.
+  &__override {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+  }
+
+  &__override--added {
+    border: 1px solid #57db8c;
+  }
+
+  &__override--removed {
+    border: 1px solid #de3f87;
+  }
+
+  // Start/end circle (45px, brandPrimary).
+  &__terminal {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 45px;
+    height: 45px;
+    border-radius: 50%;
+    background: var(--color-brand-500);
+  }
+
+  &__day {
+    position: relative;
+    transform: translateY(-3px); // iOS label centerY constant -3
+    font-size: 14px; // iOS .systemFont(14, .bold)
+    font-weight: var(--font-weight-bold);
+    color: #fff;
+  }
+
+  &__day--muted {
+    color: var(--color-white-30);
+  }
+}

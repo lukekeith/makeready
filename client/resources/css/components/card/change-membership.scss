@@ -1,0 +1,275 @@
+// ChangeMembership — twin of ChangeMembershipModal.swift (RAW chrome: opaque
+// appBackground wash + own panels). Panel slide+fade transitions mirror iOS
+// panelTransition under Motion.standard (300ms ease-in-out); the chevron pulse
+// is the iOS raw literal (easeInOut 1.2s alternate infinite), frozen in
+// captures.
+.ChangeMembership {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: var(--color-canvas); // iOS Color.appBackground #0d101a — OPAQUE
+  color: #fff;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro', sans-serif;
+
+  &__statusbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 62px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0 8px 52px;
+    z-index: 3;
+  }
+
+  &__clock {
+    font-size: 17px;
+    font-weight: 600;
+  }
+
+  // Panels fill the modal; content centers vertically (iOS maxHeight infinity
+  // VStack with spacing 32 + padding 32).
+  &__panel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    background: var(--color-canvas); // transfer occludes the drag underlay
+  }
+
+  &__panelBody {
+    display: flex;
+    flex-direction: column;
+    gap: 32px; // iOS VStack(spacing: 32)
+    padding: 32px;
+  }
+
+  &__titleBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    text-align: center;
+  }
+
+  &__headline {
+    margin: 0;
+    font-size: 18px; // iOS Typography.s18Bold
+    font-weight: 700;
+    color: #fff;
+  }
+
+  &__body {
+    margin: 0;
+    font-size: 17px; // iOS Typography.s17
+    color: var(--color-white-70);
+    line-height: calc(17px + 4px + 4px); // iOS .lineSpacing(4)
+  }
+
+  &__rows {
+    display: flex;
+    flex-direction: column;
+    gap: 8px; // iOS VStack(spacing: 8)
+  }
+
+  // iOS actionRow: label-LEFT + icon-RIGHT, pad-h 20, h48 r8
+  &__row {
+    appearance: none;
+    border: 0;
+    width: 100%;
+    height: 48px;
+    padding: 0 20px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px; // iOS HStack(spacing: 12)
+    font-family: inherit;
+    color: #fff;
+    cursor: pointer;
+    text-decoration: none;
+
+    &--primary {
+      background: var(--color-brand-500); // iOS brandPrimary #6c47ff
+    }
+
+    &--secondary {
+      background: var(--color-white-10);
+    }
+
+    &--destructive {
+      background: var(--color-destructive); // iOS destructive #df1439
+    }
+
+    &--muted {
+      background: var(--color-white-5);
+
+      .ChangeMembership__rowLabel {
+        color: var(--color-white-50);
+      }
+    }
+  }
+
+  &__rowLabel {
+    font-size: 12px; // iOS Typography.s12Bold
+    font-weight: 700;
+    letter-spacing: 0.1px;
+  }
+
+  &__rowIcon {
+    display: inline-flex;
+    width: 16px; // iOS Typography.s16 icon
+    height: 16px;
+
+    svg {
+      width: 100%;
+      height: 100%;
+    }
+  }
+
+  // ── Transfer panel ─────────────────────────────────────────────────────
+  &__panel--transfer {
+    justify-content: flex-start;
+    z-index: 2;
+  }
+
+  &__chevronZone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 64px; // iOS swipeDownAffordance frame
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+    z-index: 2;
+  }
+
+  &__chevron {
+    display: inline-flex;
+    width: 20px; // iOS Typography.s20Semibold glyph
+    height: 20px;
+    color: #fff;
+    opacity: 0.3;
+    animation: cm-chevron-pulse 1.2s ease-in-out infinite alternate;
+  }
+
+  &__transferTitle {
+    margin: 0;
+    padding: 72px 32px 0; // iOS .padding(.top, 72) — literal, fadeZone 64 + 8
+    font-size: 18px;
+    font-weight: 700;
+    text-align: center;
+    flex: 0 0 auto;
+  }
+
+  &__transferEmpty {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 32px;
+    text-align: center;
+  }
+
+  &__transferScroll {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    margin-top: 16px; // iOS VStack(spacing: 16)
+    // iOS scrollFadeMask: top 64px clear→black gradient, then solid.
+    mask-image: linear-gradient(to bottom, transparent 0, #000 64px);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 64px);
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+
+  &__transferList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 64px 32px 32px; // iOS .padding(.top, fadeZoneHeight 64) h32 b32
+  }
+
+  // Fixed close — never slides with panels (iOS layer 3)
+  &__close {
+    appearance: none;
+    border: 0;
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--color-white-10);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 3;
+
+    svg {
+      width: 16px; // iOS Typography.s16Semibold xmark
+      height: 16px;
+    }
+  }
+}
+
+// iOS chevron pulse: opacity .3↔.9 + translateY 0↔8, simultaneous.
+@keyframes cm-chevron-pulse {
+  from {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0.9;
+    transform: translateY(8px);
+  }
+}
+
+// Frozen in capture harnesses (same pattern as _animated-border).
+.capture-page .ChangeMembership__chevron,
+.capture-wrap .ChangeMembership__chevron {
+  animation: none;
+}
+
+// ── Panel transitions (iOS panelTransition under Motion.standard 300ms) ────
+// Forward: incoming from bottom, outgoing to top. Back: reversed.
+.cm-panel-forward-enter-active,
+.cm-panel-forward-leave-active,
+.cm-panel-back-enter-active,
+.cm-panel-back-leave-active {
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
+}
+
+.cm-panel-forward-enter-from {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.cm-panel-forward-leave-to {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.cm-panel-back-enter-from {
+  transform: translateY(-100%);
+  opacity: 0;
+}
+
+.cm-panel-back-leave-to {
+  transform: translateY(100%);
+  opacity: 0;
+}
+
+.capture-page .cm-panel-forward-enter-active,
+.capture-page .cm-panel-forward-leave-active,
+.capture-page .cm-panel-back-enter-active,
+.capture-page .cm-panel-back-leave-active {
+  transition: none;
+}

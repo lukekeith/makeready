@@ -52,6 +52,9 @@ interface Props {
   backgroundColor?: string | null
   backgroundOverlayOpacity?: number | null
   showPreview?: boolean
+  /** iOS supportsBlockStyling — false in the SCHEDULED (enrollment) context:
+   *  the image/color/font row is hidden entirely. Default true (program). */
+  showStyleEditor?: boolean
   /** Production: inputs/selection become live. Captures never pass these. */
   interactive?: boolean
   selectedRange?: CharRange | null
@@ -74,6 +77,7 @@ const props = withDefaults(defineProps<Props>(), {
   backgroundColor: null,
   backgroundOverlayOpacity: null,
   showPreview: true,
+  showStyleEditor: true,
   interactive: false,
   selectedRange: null,
   uploading: false,
@@ -193,7 +197,7 @@ const CHEV_LEFT =
       </div>
 
       <!-- Style panel (iOS: only when a passage exists; NO theme row). -->
-      <div v-if="hasPassage" class="EditExegesisActivity__section">
+      <div v-if="hasPassage && props.showStyleEditor" class="EditExegesisActivity__section">
         <BlockStyleEditor
           :interactive="props.interactive && props.canEdit"
           :has-image="!!backgroundImageUrl"

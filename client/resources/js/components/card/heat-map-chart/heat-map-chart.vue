@@ -36,12 +36,18 @@ interface Props {
   // x-column and `day` maps to the y-row, exactly like the Swift RectangleMark.
   xLabels?: string[]
   yLabels?: string[]
+  // Additive (2026-07-30, Program Home analytics tab): render the xLabels as a
+  // bottom axis row inside the chartHeight frame (iOS AxisMarks on the x-axis).
+  // Default off keeps every existing capture identical — the dashboard passes
+  // xLabels for column count only (its bottom band is cut off by the NavBar).
+  showXLabels?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   dataPoints: () => [],
   showDayLabels: true,
   chartHeight: 120,
+  showXLabels: false,
 })
 
 // iOS y-axis lists Sun(0)…Sat(6) bottom→top; rendered top→bottom it reverses.
@@ -71,6 +77,30 @@ const maxValue = computed(
   () => props.dataPoints.reduce((m, p) => Math.max(m, p.value || 0), 0) || 1
 )
 
+// showXLabels (axis-marks) mode: Swift Charts' y-domain (measured off BOTH
+// Program Home analytics iPhone references): fully-clear (zero) marks don't
+// extend the domain, so when a non-zero cell reaches the topmost axis value
+// (yEnd ≥ rowCount-1) the domain ends exactly there ([0,23] — 23 units);
+// otherwise Charts pads past the top axis mark to fit it inside the plot
+// ([0,24] — full rowCount units). The 23-unit case renders as a 0-height
+// first grid row.
+const yUnits = computed(() => {
+  const maxYEnd = props.dataPoints.reduce(
+    (m, p) => ((p.value || 0) > 0 ? Math.max(m, p.day + 1) : m),
+    0
+  )
+  return maxYEnd >= rowCount.value - 1 ? maxYEnd : rowCount.value
+})
+
+const gridRowsTemplate = computed(() => {
+  if (!props.showXLabels) return `repeat(${rowCount.value}, 1fr)`
+  // minmax(0px, 0fr): a bare 0fr track still grows to its content's
+  // min-content height (the top y-label lives in it) — clamp it to zero.
+  return yUnits.value < rowCount.value
+    ? `minmax(0px, 0fr) repeat(${rowCount.value - 1}, 1fr)`
+    : `repeat(${rowCount.value}, 1fr)`
+})
+
 const cells = computed(() =>
   props.dataPoints
     .filter((p) => (p.value || 0) > 0) // iOS colorForValue returns .clear for <=0
@@ -88,11 +118,15 @@ const cells = computed(() =>
 
 <template>
   <div class="HeatMapChartTwin">
-    <div class="HeatMapChartTwin__chart" :style="{ height: chartHeight + 'px' }">
+    <div
+      class="HeatMapChartTwin__chart"
+      :class="{ 'HeatMapChartTwin__chart--xlabels': showXLabels }"
+      :style="{ height: chartHeight + 'px' }"
+    >
       <div
         v-if="yAxisLabels.length"
         class="HeatMapChartTwin__labels"
-        :style="{ gridTemplateRows: `repeat(${rowCount}, 1fr)` }"
+        :style="{ gridTemplateRows: gridRowsTemplate }"
         aria-hidden="true"
       >
         <span
@@ -107,7 +141,7 @@ const cells = computed(() =>
         class="HeatMapChartTwin__grid"
         :style="{
           gridTemplateColumns: `repeat(${weekCount}, 1fr)`,
-          gridTemplateRows: `repeat(${rowCount}, 1fr)`,
+          gridTemplateRows: gridRowsTemplate,
         }"
       >
         <div
@@ -116,6 +150,19 @@ const cells = computed(() =>
           class="HeatMapChartTwin__cell"
           :style="{ gridColumn: cell.col, gridRow: cell.row, opacity: cell.opacity }"
         />
+      </div>
+
+      <div
+        v-if="showXLabels && xLabels?.length"
+        class="HeatMapChartTwin__xaxis"
+        aria-hidden="true"
+      >
+        <span
+          v-for="(label, i) in xLabels"
+          :key="i"
+          class="HeatMapChartTwin__xlabel"
+          >{{ label }}</span
+        >
       </div>
     </div>
   </div>

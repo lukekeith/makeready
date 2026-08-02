@@ -7,7 +7,7 @@
   "viewports": [
     "pro-max"
   ],
-  "note": "'enrollments' variant is web-forward: the iPhone harness cannot seed selectedTab (private @State), so its pane shows the Lessons tab.",
+  "note": "iPhone tab seeding: ProgramHomePage(initialTab:) is driven by shared.selectedTab (0 Lessons / 1 Enrollments / 2 Analytics). 'analytics' + 'analytics-sparse' are TWO-SIDED (web analytics tab ported 2026-07-30); the analytics payload mirrors the GET /api/programs/:id/analytics contract (seeds AppState.programAnalyticsById on iPhone, the twin's `analytics` prop on web). freshAsOf is fixed and the adapter pins the web 'As of \u2026' caption via analyticsNow to match the frozen iPhone shots ('11 hours ago'); an iPhone recapture at a different wall-clock time will drift that one string (advisory).",
   "variants": [
     {
       "name": "default",
@@ -409,6 +409,960 @@
             "startDate": "2026-05-15T12:00:00.000Z"
           }
         ]
+      }
+    },
+    {
+      "name": "analytics",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "programId": "prog-capture-1",
+        "programName": "Who Is God?",
+        "programDays": 30,
+        "lessons": [
+          {
+            "id": "lesson-1",
+            "dayNumber": 1,
+            "title": "Creator and Sustainer",
+            "estimatedMinutes": 25,
+            "activities": [
+              {
+                "id": "act-1-1",
+                "type": "READ",
+                "title": "Genesis 1:1-3",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-2",
+                "type": "EXEGESIS",
+                "title": "In the Beginning",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-3",
+                "type": "YOUTUBE",
+                "title": "The God Who Creates",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-4",
+                "type": "USER_INPUT",
+                "title": "What does it mean that God created everything?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-2",
+            "dayNumber": 2,
+            "title": "Eternal and Self-Existent",
+            "estimatedMinutes": 30,
+            "activities": [
+              {
+                "id": "act-2-1",
+                "type": "READ",
+                "title": "Psalm 90:1-4",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-2",
+                "type": "VIDEO",
+                "title": "The I AM \u2014 Introduction",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-3",
+                "type": "EXEGESIS",
+                "title": "From Everlasting to Everlasting",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-4",
+                "type": "USER_INPUT",
+                "title": "How does God's eternal nature change your perspective on time?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-5",
+                "type": "USER_INPUT",
+                "title": "Where do you struggle most with trusting God's timing?",
+                "orderNumber": 5,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-3",
+            "dayNumber": 3,
+            "title": "Holy and Just",
+            "estimatedMinutes": 20,
+            "activities": [
+              {
+                "id": "act-3-1",
+                "type": "READ",
+                "title": "Isaiah 6:1-8",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-2",
+                "type": "EXEGESIS",
+                "title": "Holy, Holy, Holy",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-3",
+                "type": "USER_INPUT",
+                "title": "How does God's holiness affect how you live?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-4",
+            "dayNumber": 4,
+            "title": "Omniscient and All-Knowing",
+            "estimatedMinutes": 22,
+            "activities": [
+              {
+                "id": "act-4-1",
+                "type": "READ",
+                "title": "Psalm 139:1-6",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-2",
+                "type": "YOUTUBE",
+                "title": "Does God Know the Future?",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-3",
+                "type": "USER_INPUT",
+                "title": "How does it feel to know that God fully knows you?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-5",
+            "dayNumber": 5,
+            "title": "Love and Mercy",
+            "estimatedMinutes": 28,
+            "activities": [
+              {
+                "id": "act-5-1",
+                "type": "READ",
+                "title": "1 John 4:7-12",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-2",
+                "type": "VIDEO",
+                "title": "The Love of God",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-3",
+                "type": "EXEGESIS",
+                "title": "God Is Love",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-4",
+                "type": "USER_INPUT",
+                "title": "How has God's love changed you?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          }
+        ],
+        "selectedTab": 2,
+        "analytics": {
+          "freshAsOf": "2026-07-29T18:40:00.000Z",
+          "kpis": {
+            "membersReached": 9,
+            "activeEnrollments": 2,
+            "totalEnrollments": 3,
+            "lessonCompletions": 34,
+            "completionRate": 0.63,
+            "videoCompletions": 12,
+            "watchSeconds": 15480,
+            "avgWatchPercent": 0.81
+          },
+          "recent": {
+            "week": [
+              {
+                "date": "2026-07-23",
+                "count": 3
+              },
+              {
+                "date": "2026-07-24",
+                "count": 0
+              },
+              {
+                "date": "2026-07-25",
+                "count": 5
+              },
+              {
+                "date": "2026-07-26",
+                "count": 2
+              },
+              {
+                "date": "2026-07-27",
+                "count": 0
+              },
+              {
+                "date": "2026-07-28",
+                "count": 4
+              },
+              {
+                "date": "2026-07-29",
+                "count": 6
+              }
+            ],
+            "month": [
+              {
+                "date": "2026-06-30",
+                "count": 0
+              },
+              {
+                "date": "2026-07-01",
+                "count": 2
+              },
+              {
+                "date": "2026-07-02",
+                "count": 0
+              },
+              {
+                "date": "2026-07-03",
+                "count": 4
+              },
+              {
+                "date": "2026-07-04",
+                "count": 0
+              },
+              {
+                "date": "2026-07-05",
+                "count": 0
+              },
+              {
+                "date": "2026-07-06",
+                "count": 1
+              },
+              {
+                "date": "2026-07-07",
+                "count": 0
+              },
+              {
+                "date": "2026-07-08",
+                "count": 7
+              },
+              {
+                "date": "2026-07-09",
+                "count": 0
+              },
+              {
+                "date": "2026-07-10",
+                "count": 0
+              },
+              {
+                "date": "2026-07-11",
+                "count": 3
+              },
+              {
+                "date": "2026-07-12",
+                "count": 0
+              },
+              {
+                "date": "2026-07-13",
+                "count": 0
+              },
+              {
+                "date": "2026-07-14",
+                "count": 5
+              },
+              {
+                "date": "2026-07-15",
+                "count": 0
+              },
+              {
+                "date": "2026-07-16",
+                "count": 0
+              },
+              {
+                "date": "2026-07-17",
+                "count": 2
+              },
+              {
+                "date": "2026-07-18",
+                "count": 0
+              },
+              {
+                "date": "2026-07-19",
+                "count": 0
+              },
+              {
+                "date": "2026-07-20",
+                "count": 6
+              },
+              {
+                "date": "2026-07-21",
+                "count": 0
+              },
+              {
+                "date": "2026-07-22",
+                "count": 0
+              },
+              {
+                "date": "2026-07-23",
+                "count": 3
+              },
+              {
+                "date": "2026-07-24",
+                "count": 0
+              },
+              {
+                "date": "2026-07-25",
+                "count": 5
+              },
+              {
+                "date": "2026-07-26",
+                "count": 0
+              },
+              {
+                "date": "2026-07-27",
+                "count": 2
+              },
+              {
+                "date": "2026-07-28",
+                "count": 0
+              },
+              {
+                "date": "2026-07-29",
+                "count": 6
+              }
+            ],
+            "year": [
+              {
+                "date": "2025-08-01",
+                "count": 0
+              },
+              {
+                "date": "2025-09-01",
+                "count": 0
+              },
+              {
+                "date": "2025-10-01",
+                "count": 4
+              },
+              {
+                "date": "2025-11-01",
+                "count": 9
+              },
+              {
+                "date": "2025-12-01",
+                "count": 6
+              },
+              {
+                "date": "2026-01-01",
+                "count": 0
+              },
+              {
+                "date": "2026-02-01",
+                "count": 3
+              },
+              {
+                "date": "2026-03-01",
+                "count": 12
+              },
+              {
+                "date": "2026-04-01",
+                "count": 18
+              },
+              {
+                "date": "2026-05-01",
+                "count": 9
+              },
+              {
+                "date": "2026-06-01",
+                "count": 24
+              },
+              {
+                "date": "2026-07-01",
+                "count": 31
+              }
+            ]
+          },
+          "heatmap": [
+            {
+              "day": 0,
+              "hour": 9,
+              "count": 3
+            },
+            {
+              "day": 0,
+              "hour": 20,
+              "count": 5
+            },
+            {
+              "day": 1,
+              "hour": 6,
+              "count": 2
+            },
+            {
+              "day": 1,
+              "hour": 21,
+              "count": 4
+            },
+            {
+              "day": 2,
+              "hour": 7,
+              "count": 6
+            },
+            {
+              "day": 2,
+              "hour": 12,
+              "count": 1
+            },
+            {
+              "day": 3,
+              "hour": 6,
+              "count": 3
+            },
+            {
+              "day": 3,
+              "hour": 22,
+              "count": 2
+            },
+            {
+              "day": 4,
+              "hour": 7,
+              "count": 5
+            },
+            {
+              "day": 4,
+              "hour": 19,
+              "count": 3
+            },
+            {
+              "day": 5,
+              "hour": 8,
+              "count": 1
+            },
+            {
+              "day": 6,
+              "hour": 10,
+              "count": 7
+            },
+            {
+              "day": 6,
+              "hour": 16,
+              "count": 2
+            },
+            {
+              "day": 6,
+              "hour": 20,
+              "count": 4
+            }
+          ],
+          "funnel": [],
+          "contentMix": [],
+          "topMembers": [],
+          "topEnrollments": [],
+          "topGroups": [
+            {
+              "groupId": "grp-1",
+              "groupName": "Young Professionals",
+              "memberCount": 9,
+              "lessonCompletions": 20,
+              "completionPct": 0.74
+            },
+            {
+              "groupId": "grp-2",
+              "groupName": "Morning Study Group",
+              "memberCount": 6,
+              "lessonCompletions": 9,
+              "completionPct": 0.5
+            },
+            {
+              "groupId": "grp-3",
+              "groupName": "Riverside Small Group",
+              "memberCount": 4,
+              "lessonCompletions": 3,
+              "completionPct": 0.25
+            }
+          ]
+        },
+        "captureHeight": 2110
+      }
+    },
+    {
+      "name": "analytics-sparse",
+      "shared": {
+        "user": {
+          "id": "user-1",
+          "name": "Alex Rivera",
+          "email": "alex@example.com",
+          "picture": null
+        },
+        "programId": "prog-capture-1",
+        "programName": "Who Is God?",
+        "programDays": 30,
+        "lessons": [
+          {
+            "id": "lesson-1",
+            "dayNumber": 1,
+            "title": "Creator and Sustainer",
+            "estimatedMinutes": 25,
+            "activities": [
+              {
+                "id": "act-1-1",
+                "type": "READ",
+                "title": "Genesis 1:1-3",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-2",
+                "type": "EXEGESIS",
+                "title": "In the Beginning",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-3",
+                "type": "YOUTUBE",
+                "title": "The God Who Creates",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-1-4",
+                "type": "USER_INPUT",
+                "title": "What does it mean that God created everything?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-2",
+            "dayNumber": 2,
+            "title": "Eternal and Self-Existent",
+            "estimatedMinutes": 30,
+            "activities": [
+              {
+                "id": "act-2-1",
+                "type": "READ",
+                "title": "Psalm 90:1-4",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-2",
+                "type": "VIDEO",
+                "title": "The I AM \u2014 Introduction",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-3",
+                "type": "EXEGESIS",
+                "title": "From Everlasting to Everlasting",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-4",
+                "type": "USER_INPUT",
+                "title": "How does God's eternal nature change your perspective on time?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-2-5",
+                "type": "USER_INPUT",
+                "title": "Where do you struggle most with trusting God's timing?",
+                "orderNumber": 5,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-3",
+            "dayNumber": 3,
+            "title": "Holy and Just",
+            "estimatedMinutes": 20,
+            "activities": [
+              {
+                "id": "act-3-1",
+                "type": "READ",
+                "title": "Isaiah 6:1-8",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-2",
+                "type": "EXEGESIS",
+                "title": "Holy, Holy, Holy",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-3-3",
+                "type": "USER_INPUT",
+                "title": "How does God's holiness affect how you live?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-4",
+            "dayNumber": 4,
+            "title": "Omniscient and All-Knowing",
+            "estimatedMinutes": 22,
+            "activities": [
+              {
+                "id": "act-4-1",
+                "type": "READ",
+                "title": "Psalm 139:1-6",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-2",
+                "type": "YOUTUBE",
+                "title": "Does God Know the Future?",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-4-3",
+                "type": "USER_INPUT",
+                "title": "How does it feel to know that God fully knows you?",
+                "orderNumber": 3,
+                "status": "PENDING"
+              }
+            ]
+          },
+          {
+            "id": "lesson-5",
+            "dayNumber": 5,
+            "title": "Love and Mercy",
+            "estimatedMinutes": 28,
+            "activities": [
+              {
+                "id": "act-5-1",
+                "type": "READ",
+                "title": "1 John 4:7-12",
+                "orderNumber": 1,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-2",
+                "type": "VIDEO",
+                "title": "The Love of God",
+                "orderNumber": 2,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-3",
+                "type": "EXEGESIS",
+                "title": "God Is Love",
+                "orderNumber": 3,
+                "status": "PENDING"
+              },
+              {
+                "id": "act-5-4",
+                "type": "USER_INPUT",
+                "title": "How has God's love changed you?",
+                "orderNumber": 4,
+                "status": "PENDING"
+              }
+            ]
+          }
+        ],
+        "selectedTab": 2,
+        "analytics": {
+          "freshAsOf": "2026-07-29T18:40:00.000Z",
+          "kpis": {
+            "membersReached": 3,
+            "activeEnrollments": 2,
+            "totalEnrollments": 3,
+            "lessonCompletions": 0,
+            "completionRate": 0,
+            "videoCompletions": 0,
+            "watchSeconds": 0,
+            "avgWatchPercent": 0
+          },
+          "recent": {
+            "week": [
+              {
+                "date": "2026-07-23",
+                "count": 0
+              },
+              {
+                "date": "2026-07-24",
+                "count": 0
+              },
+              {
+                "date": "2026-07-25",
+                "count": 1
+              },
+              {
+                "date": "2026-07-26",
+                "count": 0
+              },
+              {
+                "date": "2026-07-27",
+                "count": 0
+              },
+              {
+                "date": "2026-07-28",
+                "count": 2
+              },
+              {
+                "date": "2026-07-29",
+                "count": 0
+              }
+            ],
+            "month": [
+              {
+                "date": "2026-06-30",
+                "count": 0
+              },
+              {
+                "date": "2026-07-01",
+                "count": 0
+              },
+              {
+                "date": "2026-07-02",
+                "count": 0
+              },
+              {
+                "date": "2026-07-03",
+                "count": 0
+              },
+              {
+                "date": "2026-07-04",
+                "count": 0
+              },
+              {
+                "date": "2026-07-05",
+                "count": 0
+              },
+              {
+                "date": "2026-07-06",
+                "count": 0
+              },
+              {
+                "date": "2026-07-07",
+                "count": 0
+              },
+              {
+                "date": "2026-07-08",
+                "count": 0
+              },
+              {
+                "date": "2026-07-09",
+                "count": 0
+              },
+              {
+                "date": "2026-07-10",
+                "count": 0
+              },
+              {
+                "date": "2026-07-11",
+                "count": 0
+              },
+              {
+                "date": "2026-07-12",
+                "count": 0
+              },
+              {
+                "date": "2026-07-13",
+                "count": 0
+              },
+              {
+                "date": "2026-07-14",
+                "count": 0
+              },
+              {
+                "date": "2026-07-15",
+                "count": 0
+              },
+              {
+                "date": "2026-07-16",
+                "count": 0
+              },
+              {
+                "date": "2026-07-17",
+                "count": 0
+              },
+              {
+                "date": "2026-07-18",
+                "count": 0
+              },
+              {
+                "date": "2026-07-19",
+                "count": 0
+              },
+              {
+                "date": "2026-07-20",
+                "count": 1
+              },
+              {
+                "date": "2026-07-21",
+                "count": 0
+              },
+              {
+                "date": "2026-07-22",
+                "count": 0
+              },
+              {
+                "date": "2026-07-23",
+                "count": 0
+              },
+              {
+                "date": "2026-07-24",
+                "count": 0
+              },
+              {
+                "date": "2026-07-25",
+                "count": 0
+              },
+              {
+                "date": "2026-07-26",
+                "count": 1
+              },
+              {
+                "date": "2026-07-27",
+                "count": 0
+              },
+              {
+                "date": "2026-07-28",
+                "count": 0
+              },
+              {
+                "date": "2026-07-29",
+                "count": 0
+              }
+            ],
+            "year": [
+              {
+                "date": "2025-08-01",
+                "count": 0
+              },
+              {
+                "date": "2025-09-01",
+                "count": 0
+              },
+              {
+                "date": "2025-10-01",
+                "count": 0
+              },
+              {
+                "date": "2025-11-01",
+                "count": 0
+              },
+              {
+                "date": "2025-12-01",
+                "count": 0
+              },
+              {
+                "date": "2026-01-01",
+                "count": 0
+              },
+              {
+                "date": "2026-02-01",
+                "count": 0
+              },
+              {
+                "date": "2026-03-01",
+                "count": 0
+              },
+              {
+                "date": "2026-04-01",
+                "count": 0
+              },
+              {
+                "date": "2026-05-01",
+                "count": 0
+              },
+              {
+                "date": "2026-06-01",
+                "count": 0
+              },
+              {
+                "date": "2026-07-01",
+                "count": 3
+              }
+            ]
+          },
+          "heatmap": [
+            {
+              "day": 2,
+              "hour": 7,
+              "count": 1
+            },
+            {
+              "day": 5,
+              "hour": 20,
+              "count": 2
+            }
+          ],
+          "funnel": [],
+          "contentMix": [],
+          "topMembers": [],
+          "topEnrollments": [],
+          "topGroups": [
+            {
+              "groupId": "grp-1",
+              "groupName": "Young Professionals",
+              "memberCount": 9,
+              "lessonCompletions": 0,
+              "completionPct": 0
+            },
+            {
+              "groupId": "grp-2",
+              "groupName": "Morning Study Group",
+              "memberCount": 6,
+              "lessonCompletions": 0,
+              "completionPct": 0
+            },
+            {
+              "groupId": "grp-3",
+              "groupName": "Riverside Small Group",
+              "memberCount": 4,
+              "lessonCompletions": 0,
+              "completionPct": 0
+            }
+          ]
+        },
+        "captureHeight": 1800
       }
     }
   ]

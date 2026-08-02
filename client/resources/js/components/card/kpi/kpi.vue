@@ -49,6 +49,11 @@ interface Props {
   icon?: string // inline SVG markup
   iconColor?: string // CSS color; default = white@50%
   trend?: { points: number[] } | null
+  // Additive (iOS Kpi(expand:) 2026-07-30): fill the proposed frame with the
+  // card background, content pinned top-leading — used by fixed-height grid
+  // rows so cells without a description still stretch. Default keeps every
+  // existing captured rendering (content-hugging).
+  expand?: boolean
   class?: string
 }
 
@@ -62,7 +67,11 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const classes = computed(() =>
-  classnames(KpiCva.variants({ variant: props.variant }), props.class)
+  classnames(
+    KpiCva.variants({ variant: props.variant }),
+    props.expand && 'Kpi--expand',
+    props.class
+  )
 )
 
 // Mirror Kpi.swift's format(): NumberFormatter(.decimal) with US grouping.

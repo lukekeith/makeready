@@ -73,8 +73,21 @@ None — no new UI surfaces.
 
 ## Verification checklist
 
-- [~] **Multi-page append** — open a group with **more than one page** of posts, scroll to trigger
-      load-more, confirm each page **appends** rather than replacing
+- [~] **Multi-page append — ACCEPTED UNWALKED (Luke, 2026-08-02).** Never exercised by anyone. The
+      app was built and launched for this walk and the data was seeded for it; the feature was
+      closed before it happened. **This is the riskiest untested surface in the feature** — if posts
+      duplicate, vanish or stop loading in the field, look here first. Original instruction:
+      open a group with **more than one page** of posts, scroll to trigger
+      load-more, confirm each page **appends** rather than replacing.
+      **Local data made walkable 2026-08-01:** no local group had more than 3 posts against a page
+      size of 20 (`server/src/routes/posts.ts:291`), so 25 throwaway posts were seeded into
+      **Young Professionals** (`ece51e8e-0e5d-49e7-97be-cfeefd54b3ab`, Luke's group) → 27 posts =
+      20 + 7. Every seeded row is id-prefixed `seedpg-`; remove them with
+      `DELETE FROM posts WHERE id LIKE 'seedpg-%';` once the walk is done.
+      Their `createdAt` values are staggered one hour apart and **all 27 are distinct on purpose**:
+      the server cursor is `createdAt < cursor` (**strict** — `posts.ts:317`), so posts sharing a
+      timestamp at a page boundary would be silently skipped and would read as a bug in the code
+      under test rather than as a property of the fixture.
 - [x] **`hasMorePosts` is exact** — it goes false precisely at the end, with no trailing "load more"
       that fetches nothing
 - [x] **Relaunch behavior (G6) — expected, do not "fix"** — relaunch, open the group, load more.

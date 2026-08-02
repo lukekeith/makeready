@@ -4383,6 +4383,114 @@ models:
       - fields: [createdAt]
 
   # ===========================================================================
+  # Analytics — client event ingestion + refresh telemetry
+  # (docs/features/analytics/ — the analytics_events MATERIALIZED VIEW itself is
+  # a hand-written migration in atlas/migrations/, not modeled here; the YAML
+  # toolchain doesn't model matviews.)
+  # ===========================================================================
+  ClientEvent:
+    table_name: client_events
+    fields:
+      id:
+        type: string
+        primary: true
+        description: "Client-generated UUID — natural idempotency key; retried batches insert-ignore on conflict"
+      eventType:
+        type: string
+        description: "Must be a registered client-instrumented analytics event type (e.g. LESSON_OPENED); unknown types are rejected at ingest"
+      occurredAt:
+        type: datetime
+        description: "Client clock (UTC), clamped at ingest into [receivedAt - 48h, receivedAt + 5min]"
+      receivedAt:
+        type: datetime
+        default: now()
+        description: "Server clock at ingest"
+      memberId:
+        type: string
+        nullable: true
+        description: "Acting member — set from the session, never from the payload. Intentionally NO FK (append-only analytics table); the analytics_events ce: view arm joins members for existence, so member deletion still erases these events from analytics"
+      userId:
+        type: string
+        nullable: true
+        description: "Acting user (leader-side) — set from the session, never from the payload. Intentionally NO FK; see memberId"
+      organizationId:
+        type: string
+        nullable: true
+        description: "Enriched server-side from the enrollment's group at ingest"
+      groupId:
+        type: string
+        nullable: true
+        description: "Enriched server-side at ingest"
+      enrollmentId:
+        type: string
+        nullable: true
+      studyProgramId:
+        type: string
+        nullable: true
+        description: "Enriched server-side from the enrollment at ingest"
+      lessonScheduleId:
+        type: string
+        nullable: true
+      lessonId:
+        type: string
+        nullable: true
+        description: "Enriched server-side from the lesson schedule at ingest"
+      dayNumber:
+        type: int
+        nullable: true
+        description: "Enriched server-side from the source curriculum lesson at ingest"
+      scheduledActivityId:
+        type: string
+        nullable: true
+      activityType:
+        type: string
+        nullable: true
+        description: "Enriched server-side from the scheduled activity at ingest (USER_INPUT/READ/VIDEO/YOUTUBE/EXEGESIS)"
+      scheduledDate:
+        type: datetime
+        nullable: true
+        description: "Enriched server-side from the lesson schedule's planned date at ingest"
+      value:
+        type: float
+        default: 1
+      metadata:
+        type: json
+        nullable: true
+        description: "Event-specific attributes; anything queried regularly gets promoted to a real column (additive)"
+    indexes:
+      - fields: [eventType, occurredAt]
+      - fields: [memberId]
+      - fields: [enrollmentId]
+      - fields: [studyProgramId, occurredAt]
+      - fields: [occurredAt]
+
+  AnalyticsRefreshState:
+    table_name: analytics_refresh_state
+    fields:
+      id:
+        type: string
+        primary: true
+        description: "Always 'singleton' — one row of refresh freshness/telemetry"
+      lastRefreshedAt:
+        type: datetime
+        nullable: true
+        description: "Completion instant of the last successful analytics_events refresh"
+      lastDurationMs:
+        type: int
+        nullable: true
+        description: "Duration of the last successful refresh"
+      lastError:
+        type: text
+        nullable: true
+        description: "Message of the most recent refresh failure; cleared on success"
+      consecutiveFailures:
+        type: int
+        default: 0
+      updatedAt:
+        type: datetime
+        updatedAt: true
+
+  # ===========================================================================
   # SMS Campaigns (A2P compliant messaging)
   # ===========================================================================
   SmsCampaign:

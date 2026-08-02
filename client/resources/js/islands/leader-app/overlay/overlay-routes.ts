@@ -71,4 +71,31 @@ export const ROUTES = {
   // Notifications feed (study-sync phase 6) — default modal chrome; opened
   // from the dashboard banner. Web-first: no iOS Route twin yet.
   notifications: route('notifications'),
+  // iOS Route.memberRequestRespond — topLevel RAW (the modal ships its own
+  // opaque appBackground wash; tap-outside is swallowed on iOS, so the flag
+  // here is dead metadata just like on iOS).
+  memberRequestRespond: route('memberRequestRespond', {
+    priority: OverlayPriority.topLevel,
+    chrome: 'raw',
+  }),
+  // iOS Route.changeMembership — topLevel RAW (same contract).
+  changeMembership: route('changeMembership', {
+    priority: OverlayPriority.topLevel,
+    chrome: 'raw',
+  }),
+  // iOS Route.enrollmentFlow / .programEnrollmentFlow — the 3-panel enrollment
+  // wizard (group entry / program entry). Modal chrome, tap-outside NEVER
+  // dismisses (Route.swift:186-188).
+  enrollmentFlow: route('enrollmentFlow', { dismissOnTapOutside: false }),
+  programEnrollmentFlow: route('programEnrollmentFlow', {
+    dismissOnTapOutside: false,
+  }),
+  // iOS Route.enrollmentSchedule — modal, tap-outside NEVER dismisses.
+  enrollmentSchedule: route('enrollmentSchedule', { dismissOnTapOutside: false }),
+  // iOS Route.enrollmentActionMenu — .menu priority, menu chrome.
+  enrollmentActionMenu: route('enrollmentActionMenu', {
+    priority: OverlayPriority.menu,
+  }),
+  // iOS Route.unenrollOptions — modal, tap-outside DOES dismiss (default).
+  unenrollOptions: route('unenrollOptions'),
 } as const

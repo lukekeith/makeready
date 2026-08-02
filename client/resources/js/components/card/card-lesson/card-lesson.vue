@@ -50,6 +50,11 @@ export interface CardLessonActivity {
   // Lesson icon box
   activityType?: string // READ / USER_INPUT / VIDEO / YOUTUBE / EXEGESIS
   status?: 'default' | 'incomplete' | 'complete'
+  // Additive (iOS ActivityStyle .percentComplete(f) — enrollment schedule):
+  // 0…1 member-completion fraction. When set it overrides `status`: box bg =
+  // brand color at opacity f, 1.5px brand border, icon white when f>0 else
+  // the brand color. Absent = captured rendering.
+  fill?: number
 }
 
 export interface CardLessonSection {
@@ -118,6 +123,33 @@ const ACTIVITY_META: Record<string, { type: string; icon: string }> = {
 
 function activityMeta(t?: string) {
   return ACTIVITY_META[t ?? ''] ?? ACTIVITY_META.READ
+}
+
+// ActivityStyle.brandColor per raw type (ActivityStyle.swift:128-147) — used
+// only by the additive percent-complete fill (classes carry the rest).
+const BRAND_COLOR: Record<string, string> = {
+  read: '#6c47ff',
+  userInput: '#3b82f6',
+  video: '#ffffff',
+  youtube: '#dc2626',
+  exegesis: '#f59e0b',
+}
+
+// iOS .percentComplete(f): bg brand@clamp(f), border brand 1.5pt, icon white
+// when f>0 else brand (VIDEO icon = #ef4444, ActivityStyle.iconColor).
+function fillStyle(a: CardLessonActivity): Record<string, string> | undefined {
+  if (a.fill == null) return undefined
+  const meta = activityMeta(a.activityType)
+  const brand = BRAND_COLOR[meta.type] ?? BRAND_COLOR.read
+  const f = Math.min(Math.max(a.fill, 0), 1)
+  const alpha = Math.round(f * 255).toString(16).padStart(2, '0')
+  const iconColor =
+    f > 0 ? (meta.type === 'video' ? '#ef4444' : '#ffffff') : meta.type === 'video' ? '#ef4444' : brand
+  return {
+    background: `${brand}${alpha}`,
+    border: `1.5px solid ${brand}`,
+    color: iconColor,
+  }
 }
 
 // Tight viewBox so the glyph fills its box like iOS SF chevron.right at s14
@@ -248,6 +280,7 @@ const onKeydown = (e: KeyboardEvent) => {
               `CardLesson__box--type-${activityMeta(a.activityType).type}`,
               `CardLesson__box--status-${a.status ?? 'default'}`,
             ]"
+            :style="fillStyle(a)"
             v-html="activityMeta(a.activityType).icon"
           />
           <span v-if="overflowCount" class="CardLesson__overflow">+{{ overflowCount }}</span>

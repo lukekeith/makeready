@@ -1,0 +1,19 @@
+{
+  "id": "member-request-respond",
+  "type": "page",
+  "group": "Group",
+  "title": "Group · Member Request Respond",
+  "adapter": "member-request-respond",
+  "viewports": ["pro-max"],
+  "note": "topLevel RAW modal — ships its own opaque appBackground wash (snapshots render exactly that; no chrome involved). Single state. requestedAt is a fixed epoch formatted in LOCAL tz by both sides (iOS fullMonthDayYear + time12Hour; adapter mirrors). Fallback strings (This member / the group) are PRESENTER logic, not the modal's. iPhone side = new pages.member-request-respond ViewRegistry case (+ CaptureState.respond seed) — needs a user-approved xcodebuild before first capture; entrance opacity-0 frozen via disablesAnimations.",
+  "variants": [
+    {
+      "name": "default",
+      "shared": {
+        "memberName": "Jordan Blake",
+        "groupName": "Young Adults",
+        "requestedAt": 1700000000
+      }
+    }
+  ]
+}
