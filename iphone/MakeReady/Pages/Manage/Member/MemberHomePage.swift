@@ -27,7 +27,13 @@ struct MemberHomePage: View {
     @State private var isRefreshing = false
 
     // Members tab state
-    @State private var allMembers: [GroupMember] = []
+    /// Every member across the leader's groups, read through to the store.
+    /// `loadMembers` writes each group's members into `AppState.members` and
+    /// indexes them by group, so the union below IS the loaded set — the page
+    /// no longer keeps a copy the rest of the app can't invalidate.
+    private var allMembers: [GroupMember] {
+        state.orderedGroups.flatMap { state.membersFor(groupId: $0.id) }
+    }
     @State private var isMembersLoading = true
     @State private var membersError: String?
     @State private var membersLoaded = false
@@ -821,25 +827,17 @@ struct MemberHomePage: View {
 
             let currentGroups = state.orderedGroups
 
-            // Load members for all groups concurrently
-            let members = await withTaskGroup(
-                of: [GroupMember].self,
-                returning: [GroupMember].self
-            ) { group in
+            // Load members for all groups concurrently. Nothing is collected
+            // here: each call writes its group's members into AppState, and
+            // `allMembers` above reads the union back out.
+            await withTaskGroup(of: Void.self) { group in
                 for userGroup in currentGroups {
                     group.addTask {
-                        (try? await GroupActions().loadMembers(groupId: userGroup.id)) ?? []
+                        _ = try? await GroupActions().loadMembers(groupId: userGroup.id)
                     }
                 }
-
-                var collected: [GroupMember] = []
-                for await groupMembers in group {
-                    collected.append(contentsOf: groupMembers)
-                }
-                return collected
             }
 
-            allMembers = members
             isMembersLoading = false
             membersLoaded = true
         } catch {

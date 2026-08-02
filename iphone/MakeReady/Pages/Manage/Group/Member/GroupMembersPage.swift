@@ -18,7 +18,11 @@ struct GroupMembersPage: View {
     private var state: AppState { AppState.shared }
 
     // Data state
-    @State private var members: [GroupMember] = []
+    /// Read through to the store — never a private copy. `loadMembers` already
+    /// upserts every member into `AppState.members` and indexes it by group, so
+    /// forking the returned array here only created a second, un-invalidatable
+    /// truth. `membersFor` sorts alphabetically, matching what this page shows.
+    private var members: [GroupMember] { state.membersFor(groupId: groupId) }
     @State private var joinRequests: [JoinRequest] = []
     @State private var isLoading = true
     @State private var error: String?
@@ -43,9 +47,11 @@ struct GroupMembersPage: View {
         self.overlayManager = overlayManager
         self.onDismiss = onDismiss
 
+        // Members need no seeding any more — the computed property above reads
+        // the same cache directly, so content is laid out before the slide
+        // begins without a copy existing at all.
         let cachedMembers = AppState.shared.membersFor(groupId: groupId)
         let cachedRequests = AppState.shared.pendingJoinRequestsByGroupId[groupId] ?? []
-        _members = State(initialValue: cachedMembers)
         _joinRequests = State(initialValue: cachedRequests)
         _isLoading = State(initialValue: cachedMembers.isEmpty && cachedRequests.isEmpty)
     }
@@ -393,10 +399,12 @@ struct GroupMembersPage: View {
             async let membersTask = GroupActions().loadMembers(groupId: groupId)
             async let requestsTask = loadJoinRequests()
 
-            let (loadedMembers, loadedRequests) = try await (membersTask, requestsTask)
+            // The members half is consumed by AppState, not by this page —
+            // `loadMembers` writes the store and the computed property above
+            // re-reads it.
+            let (_, loadedRequests) = try await (membersTask, requestsTask)
 
             await MainActor.run {
-                members = loadedMembers
                 joinRequests = loadedRequests
                 isLoading = false
             }

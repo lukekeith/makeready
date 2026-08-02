@@ -19,7 +19,11 @@ struct EnrollmentsListPage: View {
 
     // Use centralized state for fine-grained reactivity
     private var state: AppState { AppState.shared }
-    @State private var enrollments: [EnrollmentWithProgram] = []
+    /// Read through to the store — never a private copy. `loadEnrollments`
+    /// already writes `AppState.enrollments` + the group index, and
+    /// `deleteEnrollment` removes from both, so this page sees every mutation
+    /// any screen makes. `enrollmentsFor` sorts by start date descending.
+    private var enrollments: [EnrollmentWithProgram] { state.enrollmentsFor(groupId: groupId) }
     @State private var isLoading = true
     @State private var error: String?
 
@@ -62,8 +66,10 @@ struct EnrollmentsListPage: View {
         self.pendingEnrollment = pendingEnrollment
         self.isCreatingEnrollment = isCreatingEnrollment
 
+        // No enrollment seeding needed — the computed property above reads the
+        // same cache directly, so the slide-in still animates with content
+        // already laid out, without a second copy existing.
         let cachedEnrollments = AppState.shared.enrollmentsFor(groupId: groupId)
-        _enrollments = State(initialValue: cachedEnrollments)
         _isLoading = State(initialValue: cachedEnrollments.isEmpty)
     }
 
@@ -277,9 +283,9 @@ struct EnrollmentsListPage: View {
         error = nil
 
         do {
-            let loaded = try await EnrollmentActions().loadEnrollments(groupId: groupId)
+            // The Action writes the store; the computed property re-reads it.
+            _ = try await EnrollmentActions().loadEnrollments(groupId: groupId)
             await MainActor.run {
-                enrollments = loaded
                 isLoading = false
             }
         } catch {
@@ -368,17 +374,13 @@ struct EnrollmentsListPage: View {
         do {
             switch option {
             case .fullRemoval:
+                // No local splice: the Action removes the enrollment from the
+                // store and both indexes, so the read-through drops the row.
                 try await EnrollmentActions().deleteEnrollment(id: enrollment.id)
-                await MainActor.run {
-                    enrollments.removeAll { $0.id == enrollment.id }
-                }
             case .cancelFuture:
                 try await EnrollmentActions().cancelFutureLessons(id: enrollment.id)
-                // Reload enrollments to get updated state
-                let reloaded = try await EnrollmentActions().loadEnrollments(groupId: groupId)
-                await MainActor.run {
-                    enrollments = reloaded
-                }
+                // Reload so the store holds the updated state
+                _ = try await EnrollmentActions().loadEnrollments(groupId: groupId)
             }
 
             await MainActor.run {
