@@ -397,7 +397,12 @@ let api: APIClientProtocol
 
     // MARK: - Cover Image Upload
 
-    /// Get tags for a specific program
+    /// Get tags for a specific program.
+    ///
+    /// Reviewed against the state rule and deliberately left as a return: this
+    /// is a per-program lookup, not a shared collection. Its result belongs to
+    /// one program's edit buffer, no second screen derives from it, and the
+    /// org-wide list it would otherwise duplicate is `AppState.allProgramTags`.
     @MainActor
     func getTags(programId: String) async throws -> [String] {
         struct TagsResponse: Decodable {
@@ -418,9 +423,59 @@ let api: APIClientProtocol
         return tags
     }
 
-    /// Add tags to a program
+    /// Add tags to a program, then refresh the org-wide tag list.
     @MainActor
     func addTags(programId: String, tags: [String]) async throws {
+        try await postTags(programId: programId, tags: tags)
+        await refreshAllTags()
+    }
+
+    /// Remove tags from a program, then refresh the org-wide tag list.
+    @MainActor
+    func removeTags(programId: String, tags: [String]) async throws {
+        try await deleteTags(programId: programId, tags: tags)
+        await refreshAllTags()
+    }
+
+    /// Sync tags for a program (compares old vs new, adds/removes as needed).
+    /// Calls the non-refreshing primitives so the derived list is refetched
+    /// once at the end rather than once per direction.
+    @MainActor
+    func syncTags(programId: String, oldTags: [String], newTags: [String]) async throws {
+        let toAdd = newTags.filter { !oldTags.contains($0) }
+        let toRemove = oldTags.filter { !newTags.contains($0) }
+        guard !toAdd.isEmpty || !toRemove.isEmpty else { return }
+
+        if !toAdd.isEmpty {
+            try await postTags(programId: programId, tags: toAdd)
+        }
+        if !toRemove.isEmpty {
+            try await deleteTags(programId: programId, tags: toRemove)
+        }
+        await refreshAllTags()
+    }
+
+    /// The invalidation edge the state rule requires: a program's tags just
+    /// changed, so the org-wide list every other screen derives from is now
+    /// stale and is refreshed in the same call. Without this, editing a
+    /// program's tags leaves the Library filter showing the old set until
+    /// something else happens to reload it (monday 12668501065 sub-issue J).
+    ///
+    /// Deliberately non-throwing: the mutation already succeeded, and failing
+    /// the caller over a stale filter list would report a successful save as
+    /// an error. The failure goes to the error channel, console-only.
+    @MainActor
+    private func refreshAllTags() async {
+        do {
+            try await loadAllTags()
+        } catch {
+            state.recordError(error, context: "ProgramActions.refreshAllTags")
+        }
+    }
+
+    /// POST the tag additions. No refresh — callers own that.
+    @MainActor
+    private func postTags(programId: String, tags: [String]) async throws {
         let body: [String: Any] = ["tags": tags]
         let response: APISuccessResponse = try await api.post(
             "/api/programs/\(programId)/tags",
@@ -432,9 +487,9 @@ let api: APIClientProtocol
         }
     }
 
-    /// Remove tags from a program
+    /// DELETE the tag removals. No refresh — callers own that.
     @MainActor
-    func removeTags(programId: String, tags: [String]) async throws {
+    private func deleteTags(programId: String, tags: [String]) async throws {
         let body: [String: Any] = ["tags": tags]
         let response: APISuccessResponse = try await api.request(
             endpoint: "/api/programs/\(programId)/tags",
@@ -447,23 +502,12 @@ let api: APIClientProtocol
         }
     }
 
-    /// Sync tags for a program (compares old vs new, adds/removes as needed)
+    /// Load every program tag in the org (ordered by usage count) into
+    /// `AppState.allProgramTags`. Writes rather than returns: the tag list is
+    /// shared by the Library filter and invalidated by the mutators above, so
+    /// no caller may hold a private copy.
     @MainActor
-    func syncTags(programId: String, oldTags: [String], newTags: [String]) async throws {
-        let toAdd = newTags.filter { !oldTags.contains($0) }
-        let toRemove = oldTags.filter { !newTags.contains($0) }
-
-        if !toAdd.isEmpty {
-            try await addTags(programId: programId, tags: toAdd)
-        }
-        if !toRemove.isEmpty {
-            try await removeTags(programId: programId, tags: toRemove)
-        }
-    }
-
-    /// Get all program tags ordered by usage count
-    @MainActor
-    func loadAllTags() async throws -> [String] {
+    func loadAllTags() async throws {
         let response: TagsResponse = try await api.get(
             "/api/programs/tags",
             responseType: TagsResponse.self
@@ -471,13 +515,15 @@ let api: APIClientProtocol
         guard response.success, let tags = response.tags else {
             throw APIError.serverError(response.error ?? "Failed to load tags")
         }
-        return tags.map { $0.tag }
+        state.allProgramTags = tags.map { $0.tag }
     }
 
-    /// List group leaders in the caller's organization with their program +
-    /// media counts. Drives the Library "Group leaders" filter dropdown.
+    /// Load the org's group leaders (with their program + media counts) into
+    /// `AppState.groupLeaders`. Drives the Library "Group leaders" filter and
+    /// Org Home's leader list — two screens, so it lives in state, not in
+    /// either page.
     @MainActor
-    func loadGroupLeaders() async throws -> [GroupLeader] {
+    func loadGroupLeaders() async throws {
         let response: GroupLeadersResponse = try await api.get(
             "/api/group-leaders",
             responseType: GroupLeadersResponse.self
@@ -485,10 +531,14 @@ let api: APIClientProtocol
         guard response.success, let leaders = response.leaders else {
             throw APIError.serverError(response.error ?? "Failed to load group leaders")
         }
-        return leaders
+        state.groupLeaders = leaders
     }
 
-    /// Get AI-suggested tags for a program
+    /// Get AI-suggested tags for a program.
+    ///
+    /// Also deliberately a return (see `getTags`): a per-program suggestion set
+    /// that is not server state at all until the user accepts it — nothing
+    /// else can read it, and nothing derives from it.
     @MainActor
     func suggestTags(programId: String) async throws -> [String] {
         struct SuggestTagsResponse: Decodable {

@@ -105,11 +105,14 @@ struct MainLibrary: View {
     private var programsFilter: FilterState { FilterStateManager.shared.state(for: "library.programs") }
     private var mediaFilter: FilterState { FilterStateManager.shared.state(for: "library.media") }
 
-    // Tags state (loaded from API)
-    @State private var allTags: [String] = []
-    /// Group leaders in the org with program/media counts. Loaded once on
-    /// first appear, shared between Programs + Media tabs.
-    @State private var allLeaders: [GroupLeader] = []
+    // Filter reference lists — read through to AppState, never copied out of
+    // it. Editing a program's tags refreshes `allProgramTags` inside the
+    // mutating Action, so these dropdowns update with no refresh call here.
+    private var allTags: [String] { state.allProgramTags }
+    /// Group leaders in the org with program/media counts. Shared between the
+    /// Programs and Media tabs — and with Org Home, which is why it lives in
+    /// AppState rather than in either page.
+    private var allLeaders: [GroupLeader] { state.groupLeaders }
 
     // Library filter dropdown expansion state. Both tabs share one enum so
     // only a single panel can be open at a time.
@@ -120,7 +123,7 @@ struct MainLibrary: View {
     @State private var selectedTimeFilter: MediaTimeFilter = .allTime
     @State private var selectedMediaTags: Set<String> = []
     @State private var selectedMediaLeaders: Set<String> = []
-    @State private var allMediaTags: [String] = []
+    private var allMediaTags: [String] { state.allMediaTags }
     @State private var mediaSortOption: MediaSortOption = .newestFirst
     @State private var mediaToDelete: MediaLibraryItem?
     @State private var showMediaDeleteConfirmation = false
@@ -470,20 +473,8 @@ struct MainLibrary: View {
         .task {
             // Tags + leaders are reloaded on selection change too via
             // loadPrograms; this initial load is for the very first appear.
-            if allTags.isEmpty {
-                do {
-                    allTags = try await ProgramActions().loadAllTags()
-                } catch {
-                    state.recordError(error, context: "MainLibrary.loadAllTags")
-                }
-            }
-            if allLeaders.isEmpty {
-                do {
-                    allLeaders = try await ProgramActions().loadGroupLeaders()
-                } catch {
-                    state.recordError(error, context: "MainLibrary.loadGroupLeaders")
-                }
-            }
+            await ensureProgramTagsLoaded()
+            await ensureGroupLeadersLoaded()
         }
         // Tap-outside-the-row scrim + dropdown panel. Rendered as an overlay
         // anchored to the top of programsTabContent so it doesn't push the
@@ -840,20 +831,8 @@ struct MainLibrary: View {
         }
         .task {
             await loadMedia(forceRefresh: false)
-            if allMediaTags.isEmpty {
-                do {
-                    allMediaTags = try await MediaActions().loadAllMediaTags()
-                } catch {
-                    state.recordError(error, context: "MainLibrary.loadAllMediaTags")
-                }
-            }
-            if allLeaders.isEmpty {
-                do {
-                    allLeaders = try await ProgramActions().loadGroupLeaders()
-                } catch {
-                    state.recordError(error, context: "MainLibrary.loadGroupLeaders (media tab)")
-                }
-            }
+            await ensureMediaTagsLoaded()
+            await ensureGroupLeadersLoaded()
         }
         .overlay(alignment: .top) {
             mediaDropdownOverlay
@@ -1174,8 +1153,7 @@ struct MainLibrary: View {
         }()
         async let tagsTask: () = {
             do {
-                let tags = try await ProgramActions().loadAllTags()
-                await MainActor.run { allTags = tags }
+                try await ProgramActions().loadAllTags()
             } catch {
                 await MainActor.run {
                     state.recordError(error, context: "MainLibrary.loadPrograms (tags)")
@@ -1184,8 +1162,7 @@ struct MainLibrary: View {
         }()
         async let leadersTask: () = {
             do {
-                let leaders = try await ProgramActions().loadGroupLeaders()
-                await MainActor.run { allLeaders = leaders }
+                try await ProgramActions().loadGroupLeaders()
             } catch {
                 await MainActor.run {
                     state.recordError(error, context: "MainLibrary.loadPrograms (leaders)")
@@ -1193,6 +1170,46 @@ struct MainLibrary: View {
             }
         }()
         _ = await (programsTask, tagsTask, leadersTask)
+    }
+
+    // MARK: - Shared filter reference lists
+    //
+    // The `isEmpty` checks below read AppState, so they are *global*
+    // conditions, not per-screen ones: if the Media tab already loaded the
+    // leaders, the Programs tab does not refetch them. That consolidation is
+    // deliberate — two load paths writing the same shared collection is the
+    // pattern this state rule exists to remove. The refresh path in
+    // `loadPrograms` above still refetches unconditionally, which is what
+    // pull-to-refresh and filter changes want.
+
+    @MainActor
+    private func ensureProgramTagsLoaded() async {
+        guard state.allProgramTags.isEmpty else { return }
+        do {
+            try await ProgramActions().loadAllTags()
+        } catch {
+            state.recordError(error, context: "MainLibrary.loadAllTags")
+        }
+    }
+
+    @MainActor
+    private func ensureMediaTagsLoaded() async {
+        guard state.allMediaTags.isEmpty else { return }
+        do {
+            try await MediaActions().loadAllMediaTags()
+        } catch {
+            state.recordError(error, context: "MainLibrary.loadAllMediaTags")
+        }
+    }
+
+    @MainActor
+    private func ensureGroupLeadersLoaded() async {
+        guard state.groupLeaders.isEmpty else { return }
+        do {
+            try await ProgramActions().loadGroupLeaders()
+        } catch {
+            state.recordError(error, context: "MainLibrary.loadGroupLeaders")
+        }
     }
 
     private func deleteProgram(_ program: StudyProgram) {

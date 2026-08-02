@@ -247,9 +247,55 @@ private let api: APIClientProtocol
         NSLog("📸 MediaActions: Updated media \(id)")
     }
 
-    /// Add tags to a media item
+    /// Add tags to a media item, then refresh the org-wide media tag list.
     @MainActor
     func addTags(mediaId: String, tags: [String]) async throws {
+        try await postTags(mediaId: mediaId, tags: tags)
+        await refreshAllMediaTags()
+    }
+
+    /// Remove tags from a media item, then refresh the org-wide media tag list.
+    @MainActor
+    func removeTags(mediaId: String, tags: [String]) async throws {
+        try await deleteTags(mediaId: mediaId, tags: tags)
+        await refreshAllMediaTags()
+    }
+
+    /// Sync tags (diff old vs new, add/remove as needed). Uses the
+    /// non-refreshing primitives so the derived list is refetched once.
+    @MainActor
+    func syncTags(mediaId: String, oldTags: [String], newTags: [String]) async throws {
+        let toAdd = newTags.filter { !oldTags.contains($0) }
+        let toRemove = oldTags.filter { !newTags.contains($0) }
+        guard !toAdd.isEmpty || !toRemove.isEmpty else { return }
+
+        if !toAdd.isEmpty {
+            try await postTags(mediaId: mediaId, tags: toAdd)
+        }
+        if !toRemove.isEmpty {
+            try await deleteTags(mediaId: mediaId, tags: toRemove)
+        }
+        await refreshAllMediaTags()
+    }
+
+    /// The media-side invalidation edge — the exact twin of
+    /// `ProgramActions.refreshAllTags()`. Media tags mutate through the same
+    /// add/remove/sync trio, so without this the Library Media tab's filter
+    /// reproduces sub-issue J on its own tab.
+    ///
+    /// Non-throwing for the same reason: the tag mutation already succeeded.
+    @MainActor
+    private func refreshAllMediaTags() async {
+        do {
+            try await loadAllMediaTags()
+        } catch {
+            state.recordError(error, context: "MediaActions.refreshAllMediaTags")
+        }
+    }
+
+    /// POST the tag additions. No refresh — callers own that.
+    @MainActor
+    private func postTags(mediaId: String, tags: [String]) async throws {
         let body: [String: Any] = ["tags": tags]
         let response: APISuccessResponse = try await api.post(
             "/api/media/\(mediaId)/tags",
@@ -261,9 +307,9 @@ private let api: APIClientProtocol
         }
     }
 
-    /// Remove tags from a media item
+    /// DELETE the tag removals. No refresh — callers own that.
     @MainActor
-    func removeTags(mediaId: String, tags: [String]) async throws {
+    private func deleteTags(mediaId: String, tags: [String]) async throws {
         let body: [String: Any] = ["tags": tags]
         let response: APISuccessResponse = try await api.request(
             endpoint: "/api/media/\(mediaId)/tags",
@@ -273,20 +319,6 @@ private let api: APIClientProtocol
         )
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to remove tags")
-        }
-    }
-
-    /// Sync tags (diff old vs new, add/remove as needed)
-    @MainActor
-    func syncTags(mediaId: String, oldTags: [String], newTags: [String]) async throws {
-        let toAdd = newTags.filter { !oldTags.contains($0) }
-        let toRemove = oldTags.filter { !newTags.contains($0) }
-
-        if !toAdd.isEmpty {
-            try await addTags(mediaId: mediaId, tags: toAdd)
-        }
-        if !toRemove.isEmpty {
-            try await removeTags(mediaId: mediaId, tags: toRemove)
         }
     }
 
@@ -404,10 +436,11 @@ private let api: APIClientProtocol
 
     // MARK: - Tags
 
-    /// List all distinct media tags in the user's org with usage counts.
-    /// Drives the Library Media tab tags filter dropdown.
+    /// Load every distinct media tag in the org (with usage counts) into
+    /// `AppState.allMediaTags`. Writes rather than returns — the Library Media
+    /// tab's tags filter reads it from state, so no page holds a copy.
     @MainActor
-    func loadAllMediaTags() async throws -> [String] {
+    func loadAllMediaTags() async throws {
         let response: TagsResponse = try await api.get(
             "/api/media/tags",
             responseType: TagsResponse.self
@@ -415,6 +448,6 @@ private let api: APIClientProtocol
         guard response.success, let tags = response.tags else {
             throw APIError.serverError(response.error ?? "Failed to load media tags")
         }
-        return tags.map { $0.tag }
+        state.allMediaTags = tags.map { $0.tag }
     }
 }

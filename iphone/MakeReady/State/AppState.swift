@@ -357,6 +357,31 @@ final class AppState {
     /// Whether home stats have been loaded at least once
     var homeStatsLoaded: Bool = false
 
+    // MARK: - Reference Collections
+
+    // Org-scoped reference lists: server-derived, read by more than one screen,
+    // and invalidated when a screen mutates them. They live here rather than in
+    // a page's @State so a mutation has somewhere to publish — see
+    // docs/features/state-management/ and the rule in .claude/CLAUDE.md.
+    //
+    // Plain @Observable properties, not EntityStore: these are reference lists
+    // without identity semantics (you never look one up by id or relate it).
+    // Memory-only by design — cheap to refetch, changes often, and persisting
+    // them would only widen the window in which the filter dropdowns show
+    // values the server has already forgotten.
+
+    /// Every program tag in the org, ordered by usage count. Drives the Library
+    /// Programs tab "All tags" filter; refreshed by the tag-mutating Actions.
+    var allProgramTags: [String] = []
+
+    /// Every media tag in the org, ordered by usage count. Drives the Library
+    /// Media tab tags filter.
+    var allMediaTags: [String] = []
+
+    /// Users with the Group Leader role in the org, with their program + media
+    /// counts. Drives the Library "Group leaders" filter and Org Home's list.
+    var groupLeaders: [GroupLeader] = []
+
     // MARK: - Calendar Data
 
     /// Scheduled lesson events keyed by date string ("yyyy-MM-dd"), today and future only
@@ -766,6 +791,17 @@ final class AppState {
         homeTotalMembers = 0
         homeTotalGroups = 0
         homeStatsLoaded = false
+        programAnalyticsById = [:]
+
+        // Org-scoped reference lists — every collection added above must be
+        // cleared here, or the previous user's values populate the next user's
+        // filter dropdowns after sign-out.
+        allProgramTags = []
+        allMediaTags = []
+        groupLeaders = []
+        // Pre-existing leak, fixed here deliberately (not collateral): themes
+        // are org-scoped too and were never cleared.
+        textThemes = []
 
         calendarEvents = [:]
         calendarEventsLoaded = false

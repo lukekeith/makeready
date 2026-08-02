@@ -20,7 +20,10 @@ struct OrgHomePage: View {
     @Environment(AuthManager.self) var authManager
 
     @State private var selectedTab: Int = 0
-    @State private var groupLeaders: [GroupLeader] = []
+    /// Read through to the shared list — the Library's filter dropdowns show
+    /// the same leaders, so a second private copy here would be the forked
+    /// state this app's rule forbids.
+    private var groupLeaders: [GroupLeader] { AppState.shared.groupLeaders }
     @State private var isLoadingLeaders: Bool = true
     @State private var leadersError: String?
     @State private var memberCount: Int?
@@ -186,8 +189,7 @@ struct OrgHomePage: View {
 
     private func loadLeaders() async {
         do {
-            let leaders = try await ProgramActions().loadGroupLeaders()
-            groupLeaders = leaders
+            try await ProgramActions().loadGroupLeaders()
             leadersError = nil
         } catch {
             // Background load — the in-page error state shows it; record
