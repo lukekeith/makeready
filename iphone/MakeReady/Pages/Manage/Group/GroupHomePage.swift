@@ -18,10 +18,17 @@ struct GroupHomePage: View {
 
     // Local state
     @State private var group: UserGroup?
-    @State private var posts: [GroupPost] = []
-    @State private var nextCursor: String?
     @State private var isLoadingPosts = false
-    @State private var hasMorePosts = true
+
+    /// The posts wall, read through to the store. `postsFor` already sorts
+    /// `createdAt` descending, which is the order the paginated feed arrives
+    /// in, so nothing re-sorts here.
+    private var posts: [GroupPost] { state.postsFor(groupId: groupId) }
+
+    /// Derived, not owned: the Action writes the cursor when a page comes back
+    /// and removes it at the end of the feed. The page used to hold both the
+    /// cursor and this flag, which is how the array and the store drifted.
+    private var hasMorePosts: Bool { state.groupPostsNextCursor[groupId] != nil }
 
     // Edit screen state
     @State private var showEditGroup = false
@@ -906,11 +913,9 @@ struct GroupHomePage: View {
     }
 
     private func refreshData() async {
-        // Reset pagination
-        await MainActor.run {
-            nextCursor = nil
-            hasMorePosts = true
-        }
+        // No pagination reset needed: `loadPosts` below passes cursor nil,
+        // which the Action treats as an authoritative first page — it prunes
+        // the group's posts and rewrites the cursor itself.
 
         // Reload group
         do {
@@ -937,11 +942,10 @@ struct GroupHomePage: View {
         }
 
         do {
-            let result = try await GroupActions().loadPosts(groupId: groupId, cursor: nil)
+            // The Action writes the store and the cursor; `posts` and
+            // `hasMorePosts` above re-read them.
+            try await GroupActions().loadPosts(groupId: groupId, cursor: nil)
             await MainActor.run {
-                posts = result.posts
-                nextCursor = result.nextCursor
-                hasMorePosts = result.nextCursor != nil
                 isLoadingPosts = false
             }
         } catch {
@@ -954,7 +958,7 @@ struct GroupHomePage: View {
     }
 
     private func loadMorePosts() {
-        guard !isLoadingPosts, hasMorePosts, let cursor = nextCursor else { return }
+        guard !isLoadingPosts, let cursor = state.groupPostsNextCursor[groupId] else { return }
 
         Task {
             await MainActor.run {
@@ -962,11 +966,9 @@ struct GroupHomePage: View {
             }
 
             do {
-                let result = try await GroupActions().loadPosts(groupId: groupId, cursor: cursor)
+                // Appends into the store and advances the cursor there.
+                try await GroupActions().loadPosts(groupId: groupId, cursor: cursor)
                 await MainActor.run {
-                    posts.append(contentsOf: result.posts)
-                    nextCursor = result.nextCursor
-                    hasMorePosts = result.nextCursor != nil
                     isLoadingPosts = false
                 }
             } catch {

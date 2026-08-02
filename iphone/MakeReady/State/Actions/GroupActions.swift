@@ -313,9 +313,19 @@ private let api: APIClientProtocol
 
     // MARK: - Posts
 
-    /// Load posts for a group
+    /// Load a page of a group's posts into `AppState`.
+    ///
+    /// Writes rather than returns: the posts feed is read through
+    /// `state.postsFor(groupId:)` and "has more" is derived from
+    /// `state.groupPostsNextCursor`, so no page owns a copy of either.
+    ///
+    /// **A `cursor == nil` load is authoritative for the first page** — it
+    /// prunes this group's posts before adding, mirroring `loadMembers` below.
+    /// That is what makes a deleted post actually disappear on refresh (the
+    /// unenroll flow relies on exactly this to drop the welcome post). Paged
+    /// loads (`cursor != nil`) only ever **append**.
     @MainActor
-    func loadPosts(groupId: String, cursor: String? = nil, limit: Int = 20) async throws -> (posts: [GroupPost], nextCursor: String?) {
+    func loadPosts(groupId: String, cursor: String? = nil, limit: Int = 20) async throws {
         let context = LoadingStateManager.contextKey(.groups, groupId, .posts)
         state.loadingStates.startLoading(context: context, hasCachedData: state.groupPostIndex.hasChildren(groupId))
 
@@ -334,14 +344,30 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to load posts")
         }
 
-        // Add to state (don't replace if paginating)
+        // First page is authoritative: drop what the group held so posts
+        // deleted server-side actually disappear. Paged loads never prune —
+        // that would delete the pages already gathered.
+        if cursor == nil {
+            let staleIds = state.groupPostIndex.get(groupId)
+            state.posts.removeMany(staleIds)
+            state.groupPostIndex.removeAll(parentId: groupId)
+        }
+
+        // Add to state (append — never `replace`, which would drop earlier pages)
         for post in posts {
             state.posts.upsert(post)
             state.groupPostIndex.add(parentId: groupId, childId: post.id)
         }
 
+        // Key present == more to load. Removing it (rather than storing nil)
+        // is what keeps the derived `hasMorePosts` honest.
+        if let next = response.nextCursor {
+            state.groupPostsNextCursor[groupId] = next
+        } else {
+            state.groupPostsNextCursor.removeValue(forKey: groupId)
+        }
+
         state.persist()
-        return (posts: posts, nextCursor: response.nextCursor)
     }
 
     /// Create a post in a group

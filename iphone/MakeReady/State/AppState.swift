@@ -382,6 +382,17 @@ final class AppState {
     /// counts. Drives the Library "Group leaders" filter and Org Home's list.
     var groupLeaders: [GroupLeader] = []
 
+    /// Keyset cursor for each group's posts feed, keyed by group id — posts
+    /// paginate per group, unlike the media library's singleton
+    /// `mediaLibraryNextCursor`. The cursor lives here rather than on the page
+    /// so "has more posts" is derived from state instead of owned by a view.
+    ///
+    /// `[String: String]`, NOT `[String: String?]`: the key is **removed** when
+    /// the server returns no cursor, so `groupPostsNextCursor[id] != nil` means
+    /// "more to load" rather than "we have looked at this group" — with a
+    /// double optional that test silently answers the wrong question.
+    var groupPostsNextCursor: [String: String] = [:]
+
     // MARK: - Calendar Data
 
     /// Scheduled lesson events keyed by date string ("yyyy-MM-dd"), today and future only
@@ -799,6 +810,7 @@ final class AppState {
         allProgramTags = []
         allMediaTags = []
         groupLeaders = []
+        groupPostsNextCursor = [:]
         // Pre-existing leak, fixed here deliberately (not collateral): themes
         // are org-scoped too and were never cleared.
         textThemes = []
