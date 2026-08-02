@@ -22,7 +22,11 @@ describe('Members API', () => {
       expect(response.status).toBe(400)
       expect(response.body).toHaveProperty('error')
       expect(response.body.success).toBe(false)
-      expect(response.body.error.toLowerCase()).toContain('e.164')
+      // The message goes straight to a member's screen, so it names the field
+      // in plain language and leaks neither zod internals nor "E.164"
+      // (monday#12668543338).
+      expect(response.body.error.toLowerCase()).toContain('phone number')
+      expect(response.body.error.toLowerCase()).not.toContain('expected string')
     })
 
     it('should reject phone numbers without + prefix', async () => {
@@ -39,7 +43,7 @@ describe('Members API', () => {
 
         expect(response.status).toBe(400)
         expect(response.body.success).toBe(false)
-        expect(response.body.error.toLowerCase()).toContain('e.164')
+        expect(response.body.error.toLowerCase()).toContain('phone number')
       }
     })
 
@@ -74,6 +78,22 @@ describe('Members API', () => {
       if (!response.body.success && response.status === 400) {
         expect(response.body.error.toLowerCase()).not.toContain('e.164')
         expect(response.body.error.toLowerCase()).not.toContain('format')
+      }
+    })
+
+    it('should accept a null organizationId (the join flows send one)', async () => {
+      // The regression this guards: StudyJoinController reads organizationId
+      // out of the session as `?? null` and posts that null, which the old
+      // `.optional()` schema rejected — the member saw "Expected string,
+      // received null" above the Send code button (monday#12668543338).
+      const response = await request(app)
+        .post('/api/members/verify-phone')
+        .send({ phoneNumber: '+15555551234', organizationId: null })
+
+      // May still fail on Twilio, but never on validation.
+      if (response.status === 400) {
+        expect(response.body.error.toLowerCase()).not.toContain('expected string')
+        expect(response.body.error.toLowerCase()).not.toContain('received null')
       }
     })
 

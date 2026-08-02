@@ -420,17 +420,42 @@ const verifyPhoneSchema = z.object({
   phoneNumber: z
     .string()
     .regex(/^\+[1-9]\d{1,14}$/, 'Phone number must be in E.164 format'),
-  organizationId: z.string().optional(), // Optional: For new member creation
+  // Optional: for new member creation. `.nullable()` matters as much as
+  // `.optional()` — the join flows read this out of the session and post an
+  // explicit `null` when the lesson carries no organization
+  // (client StudyJoinController.php:62 `?? null`, and the same pattern in
+  // JoinController / EventJoinController). `.optional()` alone accepts
+  // `undefined` but rejects `null`, which 400'd the whole phone step
+  // (monday#12668543338).
+  organizationId: z.string().nullable().optional(),
 })
+
+/**
+ * Turn a zod failure into something a member can act on.
+ *
+ * The raw `error.errors[0].message` used to go straight to the browser, so a
+ * null organizationId surfaced as "Expected string, received null" above the
+ * Send code button (monday#12668543338). Field-specific guidance is kept where
+ * it's genuinely useful — the phone regex already carries a human message —
+ * and everything else collapses to a generic line. The detail stays in the
+ * server log for debugging.
+ */
+function verificationValidationError(error: z.ZodError): string {
+  if (error.errors.some((e) => e.path[0] === 'phoneNumber')) {
+    return 'Please enter a valid phone number.'
+  }
+  return "We couldn't start phone verification. Please try again."
+}
 
 // Handler function for sending verification (shared by both routes)
 async function handleSendVerification(req: any, res: any) {
   try {
     const validation = verifyPhoneSchema.safeParse(req.body)
     if (!validation.success) {
+      console.warn('send-verification validation failed:', validation.error.errors)
       return res.status(400).json({
         success: false,
-        error: validation.error.errors[0].message,
+        error: verificationValidationError(validation.error),
       })
     }
 
@@ -514,9 +539,10 @@ router.post('/verify-phone', async (req, res) => {
   try {
     const validation = verifyPhoneSchema.safeParse(req.body)
     if (!validation.success) {
+      console.warn('verify-phone validation failed:', validation.error.errors)
       return res.status(400).json({
         success: false,
-        error: validation.error.errors[0].message,
+        error: verificationValidationError(validation.error),
       })
     }
 
