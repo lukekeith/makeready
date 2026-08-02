@@ -179,8 +179,9 @@ The `SwiftLint (audit conventions)` build phase fails the build when NEW code vi
 no `print`/`NSLog` (use the `Log.<domain>` wrappers — `Utilities/Log.swift`), no
 `try!`/`as!`, no inline `Color(hex:)` outside `Colors.swift`, no raw `.system(size:)`
 outside `Typography.swift`, no `asyncAfter(deadline:)` choreography, formatters must be
-`static`, and no lazy containers in animated overlay files. The ~1,100 existing
-violations (2,449 at gate creation) are grandfathered in
+`static`, no lazy containers in animated overlay files, and **no server collection held in
+a view's `@State`** (`server_collection_in_view_state` — the state rule below). The ~1,000
+existing violations (2,449 at gate creation) are grandfathered in
 `iphone/.swiftlint-baseline.json` — never regenerate the baseline to silence a new
 violation; fix the code, or (for a consciously-accepted case like a toast timer) regenerate
 deliberately and say so in the commit message:
@@ -334,6 +335,24 @@ var allProgramTags: [String] = []      // cf. homeHeatmapData & friends in AppSt
 The test, in order: **(1)** Is it server data at all? Pure UI state isn't — leave it. **(2)** Can
 another screen read the same data? → `AppState`. **(3)** Can any screen mutate it? → `AppState`,
 *and* the mutating Action refreshes whatever derives from it.
+
+**The build enforces the storage half; review enforces the rest.** SwiftLint's
+`server_collection_in_view_state` fails the build on a new `@State` array of models inside
+`Pages/` or `Components/`. It is deliberately blunt — it cannot tell a server model from a UI
+struct, so a legitimate case (an edit buffer, drag state) becomes a **reviewed baseline entry**
+rather than a silent omission. It cannot see these three, so check them by hand:
+
+- **Does this Action return a collection?** Then why does the caller need to own it? The default is
+  that the Action writes `AppState` and returns `Void`. "Writes the store *and* returns it" is the
+  exact shape that produced every forked copy this rule exists to prevent — the caller keeps the
+  return, and the two drift.
+- **Does this mutation invalidate anything derived?** Adding a tag changes the tag list; approving a
+  request changes a count and a red dot. The mutating Action refreshes them in the same call.
+- **Is the escape hatch being used honestly?** Baselining is for genuinely screen-local state. If a
+  store for the data already exists, baselining is hiding a bug, not accepting one.
+
+It also does not catch non-array shapes — a dictionary, or a single model in `@State`. Widen the
+regex if a real case appears.
 
 Why this is written down: the pattern was honoured for whatever happened to have an `EntityStore`
 and quietly skipped for everything else — so "where does this live?" was answered by inspecting

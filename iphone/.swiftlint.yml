@@ -63,6 +63,13 @@ custom_rules:
     message: "Formatters are expensive to create — declare static and reuse (audit 5.1; see DateFormatters.swift). Inside a static-initializer closure, name the local `f` (the regex can't see closure context). Actions/Services keep deliberate once-per-OPERATION locals (see Date+Formatting.swift's thread note) — those are baselined, not new-code license."
     severity: error
 
+  server_collection_in_view_state:
+    name: "Server collection held in view @State"
+    regex: '@State\s+(?:private\s+)?var\s+\w+\s*:\s*\[[A-Z]\w*\]\s*='
+    included: '.*/MakeReady/(Pages|Components)/.*'
+    message: "Server-derived collections live in AppState (an EntityStore, or an @Observable property like allProgramTags) — see docs/features/state-management/README.md § The rule. In-flight edit buffers and pure UI state are exempt: baseline them deliberately. Deliberately blunt — it cannot tell a server model from a UI struct, so a legitimate case becomes a reviewed baseline entry rather than a silent omission."
+    severity: error
+
   lazy_container_in_overlay_content:
     name: "Lazy container in animated overlay file"
     regex: 'Lazy[VH](?:Stack|Grid)\('
