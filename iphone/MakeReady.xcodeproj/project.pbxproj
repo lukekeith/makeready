@@ -268,6 +268,7 @@
 		STMD0001000000000000001 /* StudyModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMD0002000000000000001 /* StudyModels.swift */; };
 		STMM0001000000000000001 /* ModelFormatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000001 /* ModelFormatters.swift */; };
 		STMM0001000000000000002 /* VideoModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000002 /* VideoModels.swift */; };
+		STMM0001000000000000009 /* AnalyticsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000009 /* AnalyticsModels.swift */; };
 		STMM0001000000000000003 /* NotificationModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000003 /* NotificationModels.swift */; };
 		STMM0001000000000000004 /* MediaModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000004 /* MediaModels.swift */; };
 		STMM0001000000000000005 /* EnrollmentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = STMM0002000000000000005 /* EnrollmentModels.swift */; };
@@ -592,6 +593,7 @@
 		STMD0002000000000000001 /* StudyModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyModels.swift; sourceTree = "<group>"; };
 		STMM0002000000000000001 /* ModelFormatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelFormatters.swift; sourceTree = "<group>"; };
 		STMM0002000000000000002 /* VideoModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoModels.swift; sourceTree = "<group>"; };
+		STMM0002000000000000009 /* AnalyticsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsModels.swift; sourceTree = "<group>"; };
 		STMM0002000000000000003 /* NotificationModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationModels.swift; sourceTree = "<group>"; };
 		STMM0002000000000000004 /* MediaModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MediaModels.swift; sourceTree = "<group>"; };
 		STMM0002000000000000005 /* EnrollmentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentModels.swift; sourceTree = "<group>"; };
@@ -1404,6 +1406,7 @@
 				STMM0002000000000000006 /* LessonModels.swift */,
 				STMM0002000000000000007 /* ThemeModels.swift */,
 				STMM0002000000000000008 /* GroupMembershipModels.swift */,
+				STMM0002000000000000009 /* AnalyticsModels.swift */,
 				F54242419B56019FDB7F83F5 /* EnrollmentEditModels.swift */,
 			);
 			path = Models;
@@ -1661,6 +1664,7 @@
 				STMM0001000000000000006 /* LessonModels.swift in Sources */,
 				STMM0001000000000000007 /* ThemeModels.swift in Sources */,
 				STMM0001000000000000008 /* GroupMembershipModels.swift in Sources */,
+				STMM0001000000000000009 /* AnalyticsModels.swift in Sources */,
 				STB77E7199AA71F4BCDB56 /* AppState.swift in Sources */,
 				UFEF000100000000000001 /* UserFacingErrorFormatter.swift in Sources */,
 				FLST0001000000000000001 /* FilterState.swift in Sources */,

@@ -36,7 +36,8 @@ struct ProgramHomePage: View {
         onShowAddActivityMenu: (([String], @escaping (String) -> Void) -> Void)?,
         onDismiss: (() -> Void)? = nil,
         leftIcon: String = "xmark",
-        initialCoverImage: UIImage? = nil
+        initialCoverImage: UIImage? = nil,
+        initialTab: Int = 0
     ) {
         self.overlayManager = overlayManager
         self.programId = programId
@@ -44,6 +45,9 @@ struct ProgramHomePage: View {
         self.onDismiss = onDismiss
         self.leftIcon = leftIcon
         _coverImage = State(initialValue: initialCoverImage)
+        // Seedable so the capture harness (and deep links, if ever needed) can
+        // open a specific tab; production call sites default to Lessons.
+        _selectedTab = State(initialValue: initialTab)
     }
 
     // MARK: - Centralized State Access
@@ -101,6 +105,11 @@ struct ProgramHomePage: View {
     // MARK: - Local UI State (legitimate - not app data)
 
     @State private var selectedTab = 0
+
+    // Analytics tab: Week/Month/Year toggle (pure client state — all three
+    // series ship in one payload) + fetch-failure flag for the no-cache case.
+    @State private var analyticsTimeScale = 0
+    @State private var analyticsLoadFailed = false
     @State private var coverImage: UIImage?
     @State private var isUploadingImage = false
 
@@ -393,7 +402,8 @@ struct ProgramHomePage: View {
                 _ = try await ProgramActions().getProgramEnrollments(programId: programId, forceRefresh: true)
                 NSLog("🔄 ProgramHomePage: Refreshed enrollments for \(programId)")
             case 2: // Analytics
-                NSLog("🔄 ProgramHomePage: Analytics refresh not yet implemented")
+                _ = try await ProgramActions().getProgramAnalytics(programId: programId)
+                Log.ui.info("🔄 ProgramHomePage: refreshed analytics for \(programId, privacy: .public)")
             default:
                 break
             }
@@ -1630,18 +1640,360 @@ struct ProgramHomePage: View {
 
     // MARK: - Analytics Tab
 
+    /// Sections 1/3/4 of the analytics tab spec (KPI grid, Recent Activity
+    /// line, heatmap) — docs/features/analytics/program-analytics-tab.md.
+    /// Video row, funnel, content mix, and leaderboards land in Phase C2.
     @ViewBuilder
     private var analyticsContent: some View {
-        VStack {
+        let analytics = state.programAnalyticsById[programId]
+
+        VStack(alignment: .leading, spacing: 24) {
+            if let analytics {
+                // Owner rule (2026-07-30): a section with zero data is HIDDEN,
+                // not shown as an empty shell. No enrollments — or enrollments
+                // with zero engagement anywhere — collapses to the whole-tab
+                // empty state.
+                if analytics.kpis.totalEnrollments == 0 || !Self.analyticsHasAnyActivity(analytics) {
+                    analyticsEmptyState
+                } else {
+                    analyticsKpiGrid(analytics.kpis)
+                    if analytics.topGroups.contains(where: { $0.lessonCompletions > 0 }) {
+                        analyticsTopGroupsSection(analytics.topGroups)
+                    }
+                    if Self.hasRecentActivity(analytics.recent) {
+                        analyticsRecentSection(analytics.recent)
+                    }
+                    if analytics.heatmap.contains(where: { $0.count > 0 }) {
+                        analyticsHeatmapSection(analytics.heatmap)
+                    }
+                    analyticsFreshnessFooter(analytics)
+                }
+            } else if analyticsLoadFailed {
+                analyticsErrorState
+            } else {
+                analyticsLoadingState
+            }
+        }
+        .padding(.horizontal, 16)
+        .task {
+            // Cache-first: any cached payload above renders immediately; this
+            // refreshes it in the background on every tab select.
+            do {
+                _ = try await ProgramActions().getProgramAnalytics(programId: programId)
+                analyticsLoadFailed = false
+            } catch let error as NSError where error.code == NSURLErrorCancelled {
+                // Tab switched away mid-fetch — not a failure.
+            } catch {
+                Log.ui.error("⚠️ ProgramHomePage: analytics load failed: \(error, privacy: .public)")
+                analyticsLoadFailed = true
+            }
+        }
+    }
+
+    /// Any engagement signal at all — KPIs, any recent series point, any
+    /// heatmap bucket, or any group completion. All-zero payloads render the
+    /// whole-tab empty state instead of a wall of zeroed sections.
+    private static func analyticsHasAnyActivity(_ analytics: ProgramAnalytics) -> Bool {
+        let kpis = analytics.kpis
+        return kpis.membersReached > 0
+            || kpis.lessonCompletions > 0
+            || kpis.videoCompletions > 0
+            || kpis.watchSeconds > 0
+            || hasRecentActivity(analytics.recent)
+            || analytics.heatmap.contains { $0.count > 0 }
+            || analytics.topGroups.contains { $0.lessonCompletions > 0 }
+    }
+
+    /// Any non-zero point across the week/month/year series. The section is
+    /// hidden only when ALL THREE are flat — a single empty period keeps the
+    /// section (the toggle's other periods have data) with its per-period
+    /// overlay.
+    private static func hasRecentActivity(_ recent: ProgramAnalyticsRecent) -> Bool {
+        recent.week.contains { $0.count > 0 }
+            || recent.month.contains { $0.count > 0 }
+            || recent.year.contains { $0.count > 0 }
+    }
+
+    // Section 1 — KPI grid (2×2). The spec's "of {total} total" description
+    // needs the standard Kpi layout (compact drops description). Explicit
+    // rows with expanded, fixed-height cells so every card fills its slot
+    // uniformly — LazyVGrid let each card hug its content, leaving ragged
+    // widths/heights.
+    private let analyticsKpiCardHeight: CGFloat = 116
+
+    private func analyticsKpiGrid(_ kpis: ProgramAnalyticsKpis) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                Kpi(
+                    value: Double(kpis.membersReached),
+                    valueType: .number,
+                    label: "Members reached",
+                    icon: "person.2",
+                    iconColor: .brandPrimary,
+                    expand: true
+                )
+                Kpi(
+                    value: Double(kpis.activeEnrollments),
+                    valueType: .number,
+                    label: "Active enrollments",
+                    description: "of \(kpis.totalEnrollments) total",
+                    expand: true
+                )
+            }
+            .frame(height: analyticsKpiCardHeight)
+
+            HStack(spacing: 12) {
+                Kpi(
+                    value: Double(kpis.lessonCompletions),
+                    valueType: .number,
+                    label: "Lessons completed",
+                    expand: true
+                )
+                Kpi(
+                    value: kpis.completionRate * 100,
+                    valueType: .percent,
+                    label: "Completion rate",
+                    expand: true
+                )
+            }
+            .frame(height: analyticsKpiCardHeight)
+        }
+    }
+
+    // Section 3 — Recent activity: Week · Month · Year toggle + column chart
+    // (columns over a line by owner direction 2026-07-30 — discrete daily
+    // counts read exactly; a smoothed curve implied values between days).
+    // All three series arrive pre-zero-filled in one payload, so the toggle
+    // is pure client state (no refetch).
+    private func analyticsRecentSection(_ recent: ProgramAnalyticsRecent) -> some View {
+        let series: [DayActivityCount] = {
+            switch analyticsTimeScale {
+            case 1: return recent.month
+            case 2: return recent.year
+            default: return recent.week
+            }
+        }()
+
+        // Category labels must be UNIQUE per bar (Swift Charts merges same-
+        // label bars): weekday names for the 7-day window, "Jul 1" for the
+        // 30-day window, month names for the 12-month window.
+        let bars = series.compactMap { day -> BarChartDataPoint? in
+            guard let date = DateFormatters.dateKey.date(from: day.date) else { return nil }
+            let label: String
+            switch analyticsTimeScale {
+            case 1: label = DateFormatters.monthDay.string(from: date)
+            case 2: label = DateFormatters.monthAbbrev.string(from: date)
+            default: label = DateFormatters.weekdayAbbrev.string(from: date)
+            }
+            return BarChartDataPoint(label: label, value: Double(day.count), color: Color.brandPrimary)
+        }
+        // The 30-bar month view can't label every bar — mark roughly weekly.
+        // Skip the very first bar's mark: hard against the y-axis it truncates
+        // to "…".
+        let axisValues: [String]? = analyticsTimeScale == 1
+            ? bars.enumerated().filter { $0.offset > 0 && $0.offset % 7 == 0 }.map { $0.element.label }
+            : nil
+        let hasActivity = series.contains { $0.count > 0 }
+
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("Recent Activity")
+                .font(Typography.s13Semibold)
+                .foregroundColor(.white.opacity(0.5))
+                .textCase(.uppercase)
+                .tracking(0.5)
+
+            TabSlider(
+                tabs: ["Week", "Month", "Year"],
+                selectedIndex: $analyticsTimeScale
+            )
+
+            ZStack {
+                VerticalBarChart(
+                    dataPoints: bars,
+                    showValues: analyticsTimeScale == 0 && hasActivity,
+                    chartHeight: 200,
+                    xAxisValues: axisValues
+                )
+
+                if !hasActivity {
+                    Text("No activity in this period")
+                        .font(Typography.s15Semibold)
+                        .foregroundColor(.white.opacity(0.2))
+                }
+            }
+        }
+    }
+
+    // Section 4 — heatmap, mirroring MainHome's mapping (HeatMapChart's field
+    // names are transposed: bucket.day → week, bucket.hour → day). The server
+    // sends only non-zero buckets and the chart's domain is data-driven, so
+    // the full 7×24 grid is zero-filled here — sparse data must never drop
+    // empty leading/trailing day columns.
+    private func analyticsHeatmapSection(_ heatmap: [HeatmapBucket]) -> some View {
+        let dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        var counts: [Int: Int] = [:]
+        for bucket in heatmap {
+            counts[bucket.day * 24 + bucket.hour] = bucket.count
+        }
+        var points: [HeatMapDataPoint] = []
+        for day in 0..<7 {
+            for hour in 0..<24 {
+                points.append(HeatMapDataPoint(
+                    week: day,
+                    day: hour,
+                    value: Double(counts[day * 24 + hour] ?? 0),
+                    dayLabel: dayLabels[day]
+                ))
+            }
+        }
+
+        return VStack(alignment: .leading, spacing: 16) {
+            Text("Activity Heatmap")
+                .font(Typography.s13Semibold)
+                .foregroundColor(.white.opacity(0.5))
+                .textCase(.uppercase)
+                .tracking(0.5)
+
+            HeatMapChart(
+                dataPoints: points,
+                showDayLabels: false,
+                xLabels: dayLabels,
+                yLabels: ["12a", "1a", "2a", "3a", "4a", "5a", "6a", "7a", "8a", "9a", "10a", "11a", "12p", "1p", "2p", "3p", "4p", "5p", "6p", "7p", "8p", "9p", "10p", "11p"],
+                chartHeight: 576
+            )
+
+            Text("Last 30 days")
+                .font(Typography.s13)
+                .foregroundColor(.white.opacity(0.3))
+        }
+    }
+
+    // Top groups (owner-requested 2026-07-30) — one table card, a row per
+    // enrolled group (top 10 by completion): name + member count, trailing
+    // completion % over a thin capsule progress fill.
+    private func analyticsTopGroupsSection(_ groups: [ProgramTopGroup]) -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Top Groups")
+                .font(Typography.s13Semibold)
+                .foregroundColor(.white.opacity(0.5))
+                .textCase(.uppercase)
+                .tracking(0.5)
+
+            VStack(spacing: 0) {
+                ForEach(Array(groups.enumerated()), id: \.element.groupId) { index, group in
+                    analyticsTopGroupRow(group)
+                    if index < groups.count - 1 {
+                        Rectangle()
+                            .fill(Color.white.opacity(0.05))
+                            .frame(height: 1)
+                    }
+                }
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(Color.white.opacity(0.05))
+            )
+        }
+    }
+
+    private func analyticsTopGroupRow(_ group: ProgramTopGroup) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(group.groupName)
+                        .font(Typography.s15Semibold)
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+                    Text("\(group.memberCount) member\(group.memberCount == 1 ? "" : "s")")
+                        .font(Typography.s13)
+                        .foregroundColor(.white.opacity(0.5))
+                }
+
+                Spacer()
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("\(Int((group.completionPct * 100).rounded()))%")
+                        .font(Typography.s15Semibold)
+                        .foregroundColor(.white)
+                    Text("Completion")
+                        .font(Typography.s13)
+                        .foregroundColor(.white.opacity(0.5))
+                }
+            }
+
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.08))
+                    Capsule()
+                        .fill(Color.brandPrimary)
+                        .frame(width: max(0, min(1, group.completionPct)) * geo.size.width)
+                }
+            }
+            .frame(height: 4)
+        }
+        .padding(16)
+    }
+
+    // "As of …" — surfaces the analytics matview refresh honestly, including
+    // for cached/offline payloads.
+    @ViewBuilder
+    private func analyticsFreshnessFooter(_ analytics: ProgramAnalytics) -> some View {
+        if let date = analytics.freshAsOfDate {
+            Text("As of \(Self.analyticsRelativeFormatter.localizedString(for: date, relativeTo: Date()))")
+                .font(Typography.s13)
+                .foregroundColor(.white.opacity(0.3))
+                .frame(maxWidth: .infinity, alignment: .center)
+        }
+    }
+
+    private static let analyticsRelativeFormatter = RelativeDateTimeFormatter()
+
+    private var analyticsLoadingState: some View {
+        VStack(spacing: 16) {
+            ForEach(0..<3, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.white.opacity(0.05))
+                    .frame(height: 120)
+            }
+        }
+    }
+
+    private var analyticsEmptyState: some View {
+        VStack(spacing: 8) {
             Spacer()
                 .frame(height: 80)
 
-            Text("Coming soon")
-                .font(Typography.s17)
-                .foregroundColor(.white.opacity(0.5))
+            Text("No activity yet")
+                .font(Typography.s17Bold)
+                .foregroundColor(.white.opacity(0.7))
+
+            Text("Analytics appear once groups enroll and members engage.")
+                .font(Typography.s15)
+                .foregroundColor(.white.opacity(0.4))
+                .multilineTextAlignment(.center)
 
             Spacer()
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var analyticsErrorState: some View {
+        VStack(spacing: 8) {
+            Spacer()
+                .frame(height: 80)
+
+            Text("Couldn't load analytics")
+                .font(Typography.s17Bold)
+                .foregroundColor(.white.opacity(0.7))
+
+            Text("Pull to refresh to try again.")
+                .font(Typography.s15)
+                .foregroundColor(.white.opacity(0.4))
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 

@@ -1095,28 +1095,7 @@ struct GroupJoinRequest: Identifiable, Sendable {
     var id: String { "\(groupId)-\(request.id)" }
 }
 
-// MARK: - Chart API Response Models
-
-struct HeatmapBucket: Codable {
-    let day: Int      // 0 (Sun) - 6 (Sat)
-    let hour: Int     // 0-23
-    let count: Int
-}
-
-struct HeatmapResponse: Codable {
-    let success: Bool
-    let data: [HeatmapBucket]?
-    let error: String?
-}
-
-struct DayActivityCount: Codable {
-    let date: String  // "yyyy-MM-dd"
-    let count: Int
-}
-
-struct WeeklyStatsResponse: Codable {
-    let success: Bool
-    let data: [DayActivityCount]?
-    let error: String?
-}
+// Chart API response models (HeatmapBucket/DayActivityCount + wrappers)
+// moved to State/Models/AnalyticsModels.swift — shared with the Program
+// Analytics tab.
 

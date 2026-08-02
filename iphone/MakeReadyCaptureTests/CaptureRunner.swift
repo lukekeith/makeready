@@ -69,6 +69,24 @@ final class CaptureRunner: XCTestCase {
                             .background(Color.appBackground)
                     )
                     snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
+                } else if let captureHeight = fixture.captureHeight {
+                    // Full-content page capture: same device width, taller
+                    // canvas, so the page's ScrollView lays out everything —
+                    // the iPhone analogue of the web runner's fullPage shot.
+                    // .fixed layout has no safe area, so synthesize the status
+                    // bar inset the device layout would have provided.
+                    let width = device.config.size?.width ?? 393
+                    let statusBarInset: CGFloat = device.statusBarStyle == .modern ? 59 : 20
+                    let insetContent = AnyView(
+                        baseView.safeAreaInset(edge: .top, spacing: 0) {
+                            Color.clear.frame(height: statusBarInset)
+                        }
+                    )
+                    view = AnyView(DeviceChrome(device: device, content: insetContent))
+                    snapshotting = .image(
+                        drawHierarchyInKeyWindow: true,
+                        layout: .fixed(width: width, height: CGFloat(captureHeight))
+                    )
                 } else {
                     // Wrap with device chrome (status bar)
                     view = AnyView(DeviceChrome(device: device, content: baseView))

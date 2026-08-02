@@ -662,4 +662,31 @@ let api: APIClientProtocol
         NSLog("📚 ProgramActions: Fetched \(enrollments.count) program enrollments for \(programId)")
         return enrollments
     }
+
+    // MARK: - Program Analytics
+
+    /// Fetch the assembled Program Analytics tab payload
+    /// (GET /api/programs/:id/analytics — the flat analytics layer wrapper)
+    /// and cache it in AppState. Memory-first: the tab renders
+    /// `state.programAnalyticsById[programId]` immediately and this call
+    /// refreshes it in the background on tab select / pull-to-refresh.
+    /// Buckets are computed server-side in the device's timezone.
+    @MainActor
+    @discardableResult
+    func getProgramAnalytics(programId: String) async throws -> ProgramAnalytics {
+        let tz = TimeZone.current.identifier
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "UTC"
+        let response: ProgramAnalyticsResponse = try await api.get(
+            "/api/programs/\(programId)/analytics?timezone=\(tz)",
+            responseType: ProgramAnalyticsResponse.self
+        )
+
+        guard let analytics = response.analytics else {
+            throw APIError.serverError(response.error ?? "Failed to load program analytics")
+        }
+
+        state.programAnalyticsById[programId] = analytics
+        Log.state.info("📊 ProgramActions: fetched analytics for \(programId, privacy: .public) (fresh as of \(analytics.freshAsOf ?? "unknown", privacy: .public))")
+        return analytics
+    }
 }

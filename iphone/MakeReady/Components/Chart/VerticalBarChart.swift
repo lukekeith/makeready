@@ -20,15 +20,21 @@ struct VerticalBarChart: View {
     let dataPoints: [BarChartDataPoint]
     let showValues: Bool
     let chartHeight: CGFloat
+    /// When set, only these category labels get x-axis marks — needed for
+    /// dense series (e.g. 30 daily bars) where labeling every bar collides.
+    /// Nil keeps the default: a mark under every bar.
+    let xAxisValues: [String]?
 
     init(
         dataPoints: [BarChartDataPoint],
         showValues: Bool = true,
-        chartHeight: CGFloat = 200
+        chartHeight: CGFloat = 200,
+        xAxisValues: [String]? = nil
     ) {
         self.dataPoints = dataPoints
         self.showValues = showValues
         self.chartHeight = chartHeight
+        self.xAxisValues = xAxisValues
     }
 
     var body: some View {
@@ -48,12 +54,24 @@ struct VerticalBarChart: View {
             }
         }
         .chartXAxis {
-            AxisMarks(position: .bottom) { value in
-                AxisValueLabel(verticalSpacing: 8) {
-                    if let stringValue = value.as(String.self) {
-                        Text(stringValue)
-                            .font(Typography.s12)
-                            .foregroundColor(.white.opacity(0.7))
+            if let xAxisValues {
+                AxisMarks(position: .bottom, values: xAxisValues) { value in
+                    AxisValueLabel(verticalSpacing: 8) {
+                        if let stringValue = value.as(String.self) {
+                            Text(stringValue)
+                                .font(Typography.s12)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                    }
+                }
+            } else {
+                AxisMarks(position: .bottom) { value in
+                    AxisValueLabel(verticalSpacing: 8) {
+                        if let stringValue = value.as(String.self) {
+                            Text(stringValue)
+                                .font(Typography.s12)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
                     }
                 }
             }

@@ -90,6 +90,10 @@ struct Kpi: View {
     var iconColor: Color? = nil
     var trend: KpiTrend? = nil
     var variant: KpiVariant = .standard
+    /// Fill the frame the parent proposes (content pinned top-leading) so the
+    /// card background stretches with it — lets grids of mixed-content KPIs
+    /// render uniform cells instead of each card hugging its content.
+    var expand: Bool = false
 
     private var formattedValue: String {
         Self.format(value, type: valueType)
@@ -149,6 +153,11 @@ struct Kpi: View {
                 iconValueLayout
             }
         }
+        .frame(
+            maxWidth: expand ? .infinity : nil,
+            maxHeight: expand ? .infinity : nil,
+            alignment: .topLeading
+        )
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 4)

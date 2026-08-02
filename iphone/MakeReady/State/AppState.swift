@@ -344,6 +344,13 @@ final class AppState {
     /// Total unique members across all groups
     var homeTotalMembers: Int = 0
 
+    /// Program Analytics tab payloads keyed by program id (memory-first
+    /// cache; refreshed on tab select + pull-to-refresh — no disk
+    /// persistence, low value at this payload size). The payload's
+    /// freshAsOf renders as the tab's "As of …" caption, so stale views
+    /// stay honestly labeled by construction.
+    var programAnalyticsById: [String: ProgramAnalytics] = [:]
+
     /// Total groups count
     var homeTotalGroups: Int = 0
 

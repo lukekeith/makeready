@@ -329,10 +329,97 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 overlayManager: OverlayManager(),
                 programId: programId,
                 onShowAddActivityMenu: nil,
-                initialCoverImage: coverImage
+                initialCoverImage: coverImage,
+                initialTab: fixture.state?.selectedTab ?? 0
             )
             .environment(authManager)
         )
+
+    case "pages.member-request-respond":
+        guard let seed = fixture.state?.respond else {
+            throw ViewRegistryError.unknownView("pages.member-request-respond: missing state.respond")
+        }
+        return AnyView(
+            MemberRequestRespondModal(
+                memberName: seed.memberName,
+                groupName: seed.groupName,
+                requestDate: Date(timeIntervalSince1970: seed.requestedAt ?? 1_700_000_000),
+                onApprove: {},
+                onReject: {},
+                onCancel: {}
+            )
+            // The modal animates its own opacity from 0 on .onAppear — freeze
+            // so the snapshot isn't blank (same fix as pages.add-activity-menu).
+            .transaction { $0.disablesAnimations = true }
+        )
+
+    case "pages.change-membership":
+        guard let seed = fixture.state?.changeMembership else {
+            throw ViewRegistryError.unknownView("pages.change-membership: missing state.changeMembership")
+        }
+        let transferCandidates = (seed.candidates ?? []).map {
+            ChangeMembershipModal.TransferGroup(
+                id: $0.id,
+                name: $0.name,
+                coverImageUrl: $0.coverImageUrl,
+                memberCount: $0.memberCount,
+                activeStudies: $0.activeStudies
+            )
+        }
+        return AnyView(
+            ChangeMembershipModal(
+                memberName: seed.memberName,
+                groupName: seed.groupName,
+                mode: seed.mode == "removed" ? .removed : .joined,
+                transferCandidates: transferCandidates,
+                onRemoveConfirmed: {},
+                onRejoinConfirmed: {},
+                onTransferConfirmed: { _ in },
+                onCancel: {}
+            )
+            .transaction { $0.disablesAnimations = true }
+        )
+
+    // EnrollmentFlowModal (.enrollmentFlow / .programEnrollmentFlow) — the
+    // 3-panel enrollment wizard. Only panel 0 is seedable (step index,
+    // calendar selection and confirm state are private @State):
+    // enrollmentFlowEntry "group" → Select Program panel (preselected group =
+    // first seeded group); "program" → Select Group panel (preselected
+    // program = first seeded program). existingEnrollments seeds [] so the
+    // program cards render enabled (isEnrollmentDataLoaded).
+    case "pages.enrollment-flow":
+        let entry = fixture.state?.enrollmentFlowEntry ?? "group"
+        if entry == "program" {
+            guard let program = AppState.shared.orderedPrograms.first else {
+                throw ViewRegistryError.unknownView("pages.enrollment-flow: no seeded programs")
+            }
+            return AnyView(
+                EnrollmentFlowModal(
+                    preselectedGroup: nil,
+                    preselectedProgram: program,
+                    onDismiss: {},
+                    onComplete: { _, _, _ in }
+                )
+                .environment(authManager)
+                .transaction { $0.disablesAnimations = true }
+            )
+        } else {
+            guard let group = AppState.shared.orderedGroups.first else {
+                throw ViewRegistryError.unknownView("pages.enrollment-flow: no seeded groups")
+            }
+            return AnyView(
+                EnrollmentFlowModal(
+                    preselectedGroup: group,
+                    preselectedProgram: nil,
+                    existingEnrollments: [],
+                    existingLessonDates: [],
+                    onDismiss: {},
+                    onComplete: { _, _, _ in }
+                )
+                .environment(authManager)
+                .transaction { $0.disablesAnimations = true }
+            )
+        }
 
     case "pages.edit-day":
         let lessonId = fixture.state?.lessonId ?? "capture-lesson-0"

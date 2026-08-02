@@ -129,6 +129,14 @@ func setupCaptureState(from fixture: CaptureFixture) {
         }
     }
 
+    // Seed the Program Analytics tab payload (ProgramHomePage analytics tab
+    // renders AppState.programAnalyticsById[programId] cache-first, so a
+    // seeded payload snapshots without any network)
+    if let analytics = fixtureState.analytics {
+        let programId = fixtureState.programId ?? "capture-prog-0"
+        state.programAnalyticsById[programId] = analytics
+    }
+
     // Seed lessons for ProgramHomePage fixtures
     if let fixtureLessons = fixtureState.lessons {
         let programId = fixtureState.programId ?? "capture-prog-0"

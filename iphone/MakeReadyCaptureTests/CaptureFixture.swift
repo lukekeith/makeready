@@ -6,6 +6,7 @@
 //
 
 import Foundation
+@testable import MakeReady
 
 struct CaptureFixture: Codable {
     let platform: String?
@@ -15,6 +16,11 @@ struct CaptureFixture: Codable {
     let devices: [String]
     let auth: CaptureAuth?
     let state: CaptureState?
+    // Page fixtures only: render on a canvas this many points TALL (device
+    // width kept) instead of the device height, so a scrolling page's full
+    // content is captured in one shot — the page-level analogue of the web
+    // runner's default fullPage screenshot. Ignored for component fixtures.
+    let captureHeight: Int?
 }
 
 struct CaptureAuth: Codable {
@@ -55,11 +61,24 @@ struct CaptureState: Codable {
     let videoThumbnailUrl: String?
     // Program-home views: seed lessons directly
     let lessons: [CaptureLesson]?
+    // Program-home: which TabSlider tab to open (0 Lessons / 1 Enrollments /
+    // 2 Analytics) — flows into ProgramHomePage(initialTab:)
+    let selectedTab: Int?
+    // Program-home Analytics tab: payload seeded into
+    // AppState.programAnalyticsById[programId]. Reuses the production
+    // Codable, so the fixture JSON is exactly the wrapper response shape.
+    let analytics: ProgramAnalytics?
     // Program metadata (name, days) for pages that show the full program header
     let programName: String?
     let programDays: Int?
     // Path to a local image file (relative to capture root) to seed as the program cover image
     let programCoverImagePath: String?
+    // Enrollment flow (pages.enrollment-flow): which entry presents it —
+    // "group" (preselected group → Select Program panel) or "program"
+    // (preselected program → Select Group panel). Lists come from
+    // `groups` / `programs`; the wizard's step index is private @State, so
+    // only panel 0 is seedable.
+    let enrollmentFlowEntry: String?
     // Calendar screen: lesson/event entries to seed into AppState.calendarEvents
     let calendarEvents: [CaptureCalendarEntry]?
     // Media library screen: items to seed into AppState.mediaLibrary
@@ -69,6 +88,37 @@ struct CaptureState: Codable {
     // programs/groups; `searchQuery` mocks GET /api/search + drives the query.
     let searchRecents: Bool?
     let searchQuery: String?
+    // pages.member-request-respond — prop seed for the topLevel RAW modal.
+    let respond: CaptureRespondSeed?
+    // pages.change-membership — prop seed (panel is private @State: only the
+    // MAIN panel is capturable; confirm/transfer variants are web-only).
+    let changeMembership: CaptureChangeMembershipSeed?
+}
+
+// MARK: - topLevel RAW modal seeds
+
+struct CaptureRespondSeed: Codable {
+    let memberName: String
+    let groupName: String
+    /// Unix epoch seconds; formatted by the modal itself (fullMonthDayYear +
+    /// time12Hour, LOCAL tz). Defaults to the fixed capture base when omitted.
+    let requestedAt: Double?
+}
+
+struct CaptureChangeMembershipSeed: Codable {
+    let memberName: String
+    let groupName: String
+    /// "joined" | "removed"
+    let mode: String?
+    let candidates: [CaptureTransferCandidate]?
+}
+
+struct CaptureTransferCandidate: Codable {
+    let id: String
+    let name: String
+    let coverImageUrl: String?
+    let memberCount: Int
+    let activeStudies: Int
 }
 
 /// A calendar entry for the Calendar SCREEN capture (seeded into

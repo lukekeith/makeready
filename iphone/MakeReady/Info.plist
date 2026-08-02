@@ -57,7 +57,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>342</string>
+	<string>349</string>
 	<key>DEV_MODE</key>
 	<string>$(DEV_MODE)</string>
 	<key>LOCAL_SERVER_URL</key>
