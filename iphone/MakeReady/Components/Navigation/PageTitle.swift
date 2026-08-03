@@ -318,11 +318,17 @@ extension PageTitle {
     }
 
     /// Link + Title + Link variant
+    /// - Note: `rightLinkColor` is accepted for source compatibility but has
+    ///   never been rendered — the right link takes its colour from
+    ///   `rightLinkDisabled` alone (see the body). Passing a colour here to mute
+    ///   the link silently does nothing; pass `rightLinkDisabled: true` instead.
+    ///   That trap cost real debugging time (monday#12668543338).
     static func linkTitleLink(
         title: String,
         leftLink: String,
         rightLink: String,
         rightLinkColor: Color? = nil,
+        rightLinkDisabled: Bool = false,
         onLeftLinkTap: @escaping () -> Void,
         onRightLinkTap: @escaping () -> Void
     ) -> PageTitle {
@@ -330,7 +336,7 @@ extension PageTitle {
             title: title,
             leftLink: leftLink,
             rightLink: rightLink.isEmpty ? nil : rightLink,
-            rightLinkDisabled: false,
+            rightLinkDisabled: rightLinkDisabled,
             onLeftLinkTap: onLeftLinkTap,
             onRightLinkTap: onRightLinkTap
         )

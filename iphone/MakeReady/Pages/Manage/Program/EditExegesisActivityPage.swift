@@ -481,6 +481,22 @@ struct EditExegesisActivityPage: View {
             return
         }
 
+        // TEMPORARY DIAGNOSTIC (monday#12668543338). Prints BOTH resolution
+        // paths so the next report is decidable in one reading.
+        if let range = selectedHighlightRange {
+            let key = highlightNoteKey(for: range)
+            let dictHit = savedNoteMarkdownByHighlight[key]
+            let overlap = overlappingExegesisHighlight(for: range)
+            Log.ui.info("""
+                exegesis note button: tapped=\(key, privacy: .public) \
+                dictHit=\(dictHit.map { "hit(\($0.count))" } ?? "MISS", privacy: .public) \
+                overlapHit=\(overlap.map { "hit(\($0.noteMarkdown.count))" } ?? "MISS", privacy: .public) \
+                resolvedHasNote=\(selectedHighlightHasNote, privacy: .public) \
+                dictKeys=\(savedNoteMarkdownByHighlight.keys.sorted().joined(separator: ","), privacy: .public) \
+                highlightSpans=\(exegesisHighlights.map { "\($0.start):\($0.end - $0.start)" }.joined(separator: ","), privacy: .public)
+                """)
+        }
+
         overlayManager.present(.exegesisHighlightActionMenu) {
             HighlightActionMenuContent(
                 selectedRange: $selectedHighlightRange,
@@ -501,14 +517,126 @@ struct EditExegesisActivityPage: View {
                     savedNoteMarkdownByHighlight.removeValue(forKey: key)
                     applyStyle(nil, range: range, blockId: blockId, activityId: activity.id)
                 },
-                onCommitNote: { range, markdown in
-                    commitNoteDraft(markdown, for: range)
+                onEditNote: {
+                    presentNoteEditor()
                 },
+                hasNote: selectedHighlightHasNote,
                 onDismiss: {
                     selectedHighlightRange = nil
                     scrollSelectedHighlightIntoView = false
                 }
             )
+        }
+    }
+
+    /// Swaps the action sheet for the full-screen note editor. Sequenced
+    /// dismiss-then-present via the overlay manager's completion — never
+    /// `asyncAfter` (MODAL_GUIDE D3/E1).
+    private func presentNoteEditor() {
+        // Seed a draft for EVERY highlight before the editor exists. The editor's
+        // pages read these dictionaries and must never fabricate a value mid-render
+        // — that produced an AttributeGraph cycle and a "setting value during
+        // update" crash (2026-08-02). Same cache-first discipline the slide-in
+        // pages use: content is complete from frame 1.
+        seedNoteDrafts()
+        overlayManager.dismiss(.exegesisHighlightActionMenu) {
+            overlayManager.present(.exegesisNoteEditor) {
+                ExegesisNoteEditorPage(
+                    highlightRanges: noteEditorRanges,
+                    highlightText: BibleVerseContentNormalizer.normalizedPlainText(
+                        from: lockedBlock?.content ?? ""
+                    ),
+                    selectedRange: $selectedHighlightRange,
+                    noteDrafts: $noteDrafts,
+                    attributedNoteDrafts: $attributedNoteDrafts,
+                    savedNoteMarkdownByHighlight: $savedNoteMarkdownByHighlight,
+                    onNavigate: { range in
+                        navigateToHighlight(range)
+                    },
+                    onCommitNote: { range, markdown in
+                        commitNoteDraft(markdown, for: range)
+                    },
+                    onPersist: {
+                        // The page's own server path — it writes each note and
+                        // calls `upsertExegesisHighlight`, which is what keeps
+                        // the highlight list (and so the "Edit note" label) in
+                        // step with what was just saved.
+                        try await savePendingNotes()
+                    },
+                    onCancelAll: {
+                        selectedHighlightRange = nil
+                        scrollSelectedHighlightIntoView = false
+                        overlayManager.dismiss(.exegesisHighlightActionMenu)
+                    },
+                    onDismiss: {
+                        selectedHighlightRange = nil
+                        scrollSelectedHighlightIntoView = false
+                    }
+                )
+            }
+        }
+    }
+
+    /// The note attached to `range`, resolved against the AUTHORITATIVE server
+    /// highlights first.
+    ///
+    /// The dictionary is keyed by `"location:length"` built from the block's
+    /// `selections`, while the notes arrive on `exegesis_highlights` rows. Those
+    /// are two separate server collections reaching the app by two paths — and
+    /// `selections` comes off the disk cache — so requiring exact key equality
+    /// meant a one-character drift silently reported "no note", which is what
+    /// showed "Add note" on a highlight that had one (monday#12668543338).
+    /// `overlappingExegesisHighlight` is the same overlap test the server itself
+    /// enforces, so it cannot miss for a highlight that genuinely exists.
+    /// The highlights the note editor pages through, and therefore how many dots
+    /// it shows.
+    ///
+    /// Derived from the FETCHED `exegesisHighlights` rather than the block's
+    /// `selections`, because `selections` arrives via the disk cache and can lag
+    /// the server — and when it lags, the dot count silently drops (a stale cache
+    /// holding one selection made the dots disappear entirely, since they only
+    /// render for more than one page). Falls back to the selections when the
+    /// fetch has not landed yet.
+    private var noteEditorRanges: [NSRange] {
+        guard !exegesisHighlights.isEmpty else { return sortedHighlightRanges }
+        return exegesisHighlights
+            .map { NSRange(location: $0.start, length: $0.end - $0.start) }
+            .sorted { lhs, rhs in
+                if lhs.location == rhs.location { return lhs.length < rhs.length }
+                return lhs.location < rhs.location
+            }
+    }
+
+    private func nonEmpty(_ value: String) -> String? {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : value
+    }
+
+    private func noteMarkdown(for range: NSRange) -> String {
+        if let highlight = overlappingExegesisHighlight(for: range) {
+            return highlight.noteMarkdown
+        }
+        return savedNoteMarkdownByHighlight[highlightNoteKey(for: range)] ?? ""
+    }
+
+    /// Whether the selected highlight already carries a note — drives the
+    /// "Edit note" vs "Add note" label.
+    private var selectedHighlightHasNote: Bool {
+        guard let range = selectedHighlightRange else { return false }
+        return !noteMarkdown(for: range)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .isEmpty
+    }
+
+    /// Fills `noteDrafts` + `attributedNoteDrafts` for every highlight from what
+    /// the server has, so the note editor's bindings are pure reads.
+    private func seedNoteDrafts() {
+        for range in noteEditorRanges {
+            let key = highlightNoteKey(for: range)
+            let markdown = noteDrafts[key] ?? nonEmpty(noteMarkdown(for: range)) ?? ""
+            noteDrafts[key] = markdown
+            if attributedNoteDrafts[key] == nil {
+                attributedNoteDrafts[key] = MarkdownEditor.markdownToAttributed(markdown)
+            }
         }
     }
 
@@ -935,17 +1063,6 @@ struct EditExegesisActivityPage: View {
 private struct HighlightActionMenuContent: View {
     @Environment(\.dismissOverlay) private var dismissOverlay
 
-    private enum Mode {
-        case actions
-        case noteEditor
-    }
-
-    private enum SaveState {
-        case idle
-        case saving
-        case saved
-    }
-
     @Binding var selectedRange: NSRange?
     let highlightRanges: [NSRange]
     let highlightText: String
@@ -953,11 +1070,13 @@ private struct HighlightActionMenuContent: View {
     @Binding var attributedNoteDrafts: [String: AttributedString]
     let onNavigate: (NSRange) -> Void
     let onDelete: () -> Void
-    let onCommitNote: (NSRange, String) -> Void
+    /// Asks the page to swap this sheet for the full-screen note editor.
+    let onEditNote: () -> Void
+    /// Resolved by the page against the authoritative server highlights — the
+    /// sheet must NOT re-derive this from the span-keyed dictionary, which is
+    /// what mislabelled noted highlights as "Add note" (monday#12668543338).
+    let hasNote: Bool
     let onDismiss: () -> Void
-
-    @State private var mode: Mode = .actions
-    @State private var saveState: SaveState = .idle
     /// Bound to the page's dictionary, NOT a copy of it. It used to be
     /// `@State` seeded with `State(initialValue:)`, which SwiftUI applies only
     /// on the FIRST construction of this view's identity — so the notes the
@@ -967,8 +1086,6 @@ private struct HighlightActionMenuContent: View {
     /// Every other dictionary here was already a `Binding`; this one is now
     /// consistent with them.
     @Binding private var savedNoteMarkdownByHighlight: [String: String]
-    @State private var noteEditorOriginalDrafts: [String: String] = [:]
-    @State private var noteEditorOriginallyMissingDrafts: Set<String> = []
 
     init(
         selectedRange: Binding<NSRange?>,
@@ -979,7 +1096,8 @@ private struct HighlightActionMenuContent: View {
         savedNoteMarkdownByHighlight: Binding<[String: String]>,
         onNavigate: @escaping (NSRange) -> Void,
         onDelete: @escaping () -> Void,
-        onCommitNote: @escaping (NSRange, String) -> Void,
+        onEditNote: @escaping () -> Void,
+        hasNote: Bool,
         onDismiss: @escaping () -> Void
     ) {
         self._selectedRange = selectedRange
@@ -990,7 +1108,8 @@ private struct HighlightActionMenuContent: View {
         self._savedNoteMarkdownByHighlight = savedNoteMarkdownByHighlight
         self.onNavigate = onNavigate
         self.onDelete = onDelete
-        self.onCommitNote = onCommitNote
+        self.onEditNote = onEditNote
+        self.hasNote = hasNote
         self.onDismiss = onDismiss
     }
 
@@ -998,36 +1117,13 @@ private struct HighlightActionMenuContent: View {
         VStack(spacing: 16) {
             navigationRow
 
-            ZStack(alignment: .top) {
-                if mode == .actions {
-                    actionButtonGroup
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .top)),
-                            removal: .opacity.combined(with: .move(edge: .bottom))
-                        ))
-                }
-
-                if mode == .noteEditor {
-                    noteEditorContent
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .frame(height: mode == .noteEditor ? editorContentHeight : actionContentHeight, alignment: .top)
-            .clipped()
+            actionButtonGroup
+                .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .padding(.bottom, 16 + bottomSafeAreaInset)
         .frame(height: sheetContentHeight, alignment: .top)
-        .animation(.spring(response: 0.42, dampingFraction: 0.9), value: mode)
-        .animation(.easeInOut(duration: 0.18), value: saveState)
-        .onChange(of: selectedRange?.location ?? NSNotFound) { _, _ in
-            saveState = .idle
-        }
-        .onChange(of: selectedRange?.length ?? 0) { _, _ in
-            saveState = .idle
-        }
         .onDisappear(perform: onDismiss)
     }
 
@@ -1036,7 +1132,6 @@ private struct HighlightActionMenuContent: View {
             // PREV button
             Button {
                 if let previousRange {
-                    prepareDraftForEditorNavigation(to: previousRange)
                     onNavigate(previousRange)
                 }
             } label: {
@@ -1082,7 +1177,6 @@ private struct HighlightActionMenuContent: View {
             // NEXT button
             Button {
                 if let nextRange {
-                    prepareDraftForEditorNavigation(to: nextRange)
                     onNavigate(nextRange)
                 }
             } label: {
@@ -1110,11 +1204,10 @@ private struct HighlightActionMenuContent: View {
         VStack(spacing: 8) {
             BoxButton(
                 action: {
-                    if let selectedRange {
-                        beginNoteEditorSession(for: selectedRange)
-                    }
-                    saveState = .idle
-                    mode = .noteEditor
+                    // Hands off to the full-screen editor instead of morphing
+                    // this sheet into one. Sequenced dismiss-then-present, never
+                    // asyncAfter (MODAL_GUIDE D3/E1).
+                    onEditNote()
                 },
                 label: noteButtonLabel,
                 icon: noteButtonIcon,
@@ -1143,151 +1236,6 @@ private struct HighlightActionMenuContent: View {
         }
     }
 
-    private var noteEditorContent: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(selectedHighlightExcerpt)
-                .font(Typography.s15Medium)
-                .foregroundColor(.white.opacity(0.78))
-                .lineLimit(3)
-                .truncationMode(.tail)
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .frame(height: 64, alignment: .topLeading)
-
-            MarkdownEditor(
-                placeholder: "Add a note...",
-                attributedText: currentAttributedDraftBinding,
-                minHeight: max(120, noteEditorHeight - 45),
-                autoGrow: false
-            )
-            .frame(maxWidth: .infinity)
-            .frame(height: noteEditorHeight)
-
-            HStack(spacing: 12) {
-                Button {
-                    dismissOverlay?()
-                    DispatchQueue.main.async {
-                        cancelNoteEditorSession()
-                    }
-                } label: {
-                    Text("Cancel")
-                        .font(Typography.s17Semibold)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 54)
-                        .background(Color.white.opacity(0.08))
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(.plain)
-                .disabled(saveState == .saving)
-
-                Button {
-                    saveTapped()
-                } label: {
-                    ZStack {
-                        if saveState == .saving {
-                            ProgressView()
-                                .tint(.white)
-                        } else {
-                            Text("Done")
-                                .font(Typography.s17Semibold)
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 54)
-                    .background(Color.brandPrimary)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                }
-                .buttonStyle(.plain)
-                .disabled(saveState == .saving)
-            }
-            .opacity(mode == .noteEditor ? 1 : 0)
-        }
-    }
-
-    private var currentAttributedDraftBinding: Binding<AttributedString> {
-        Binding(
-            get: {
-                attributedNoteDrafts[selectedRangeKey] ?? AttributedString()
-            },
-            set: { newValue in
-                attributedNoteDrafts[selectedRangeKey] = newValue
-                noteDrafts[selectedRangeKey] = MarkdownEditor.attributedToMarkdown(newValue)
-                if saveState == .saved { saveState = .idle }
-            }
-        )
-    }
-
-    private func prepareDraft(for range: NSRange) {
-        let key = rangeKey(for: range)
-        guard attributedNoteDrafts[key] == nil else { return }
-        let markdown = noteDrafts[key] ?? savedNoteMarkdownByHighlight[key] ?? ""
-        attributedNoteDrafts[key] = MarkdownEditor.markdownToAttributed(markdown)
-        noteDrafts[key] = markdown
-    }
-
-    private func snapshotDraftIfNeeded(for range: NSRange) {
-        let key = rangeKey(for: range)
-        guard noteEditorOriginalDrafts[key] == nil,
-              !noteEditorOriginallyMissingDrafts.contains(key) else { return }
-
-        if let currentDraft = noteDrafts[key] {
-            noteEditorOriginalDrafts[key] = currentDraft
-        } else {
-            noteEditorOriginallyMissingDrafts.insert(key)
-        }
-    }
-
-    private func beginNoteEditorSession(for range: NSRange) {
-        noteEditorOriginalDrafts.removeAll()
-        noteEditorOriginallyMissingDrafts.removeAll()
-        snapshotDraftIfNeeded(for: range)
-        prepareDraft(for: range)
-    }
-
-    private func prepareDraftForEditorNavigation(to range: NSRange) {
-        if mode == .noteEditor {
-            snapshotDraftIfNeeded(for: range)
-        }
-        prepareDraft(for: range)
-        saveState = .idle
-    }
-
-    private func cancelNoteEditorSession() {
-        for (key, markdown) in noteEditorOriginalDrafts {
-            noteDrafts[key] = markdown
-            attributedNoteDrafts.removeValue(forKey: key)
-        }
-        for key in noteEditorOriginallyMissingDrafts {
-            noteDrafts.removeValue(forKey: key)
-            attributedNoteDrafts.removeValue(forKey: key)
-        }
-        noteEditorOriginalDrafts.removeAll()
-        noteEditorOriginallyMissingDrafts.removeAll()
-        saveState = .idle
-    }
-
-    private func saveTapped() {
-        switch saveState {
-        case .idle, .saved:
-            guard let selectedRange else { return }
-            let key = selectedRangeKey
-            let markdown = noteDrafts[key] ?? savedNoteMarkdownByHighlight[key] ?? ""
-            onCommitNote(selectedRange, markdown)
-            if markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                savedNoteMarkdownByHighlight.removeValue(forKey: key)
-            } else {
-                savedNoteMarkdownByHighlight[key] = markdown
-            }
-            noteEditorOriginalDrafts.removeAll()
-            noteEditorOriginallyMissingDrafts.removeAll()
-            saveState = .idle
-            dismissOverlay?()
-        case .saving:
-            break
-        }
-    }
-
     private var selectedHighlightExcerpt: String {
         guard let selectedRange else { return "" }
         let text = highlightText as NSString
@@ -1310,18 +1258,12 @@ private struct HighlightActionMenuContent: View {
         "\(range.location):\(range.length)"
     }
 
-    private var currentNoteHasContent: Bool {
-        !(savedNoteMarkdownByHighlight[selectedRangeKey] ?? "")
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .isEmpty
-    }
-
     private var noteButtonLabel: String {
-        currentNoteHasContent ? "Edit note" : "Add note"
+        hasNote ? "Edit note" : "Add note"
     }
 
     private var noteButtonIcon: String {
-        currentNoteHasContent ? "square.and.pencil" : "plus"
+        hasNote ? "square.and.pencil" : "plus"
     }
 
     private var previousRange: NSRange? {
@@ -1342,54 +1284,11 @@ private struct HighlightActionMenuContent: View {
     }
 
     private var sheetContentHeight: CGFloat {
-        switch mode {
-        case .actions:
-            return 196 + bottomSafeAreaInset
-        case .noteEditor:
-            return expandedSheetHeight
-        }
+        196 + bottomSafeAreaInset
     }
 
     private var actionContentHeight: CGFloat { 120 }
 
-    /// How much of the sheet the raised keyboard covers.
-    ///
-    /// `UIResponder.keyboardFrameEndUserInfoKey` reports the whole keyboard
-    /// frame, and a SwiftUI `ToolbarItemGroup(placement: .keyboard)` — which is
-    /// how `MarkdownEditor` mounts its formatting bar — rides along inside that
-    /// frame as an input accessory. So this single number is "keyboard **and**
-    /// markdown toolbar", which is exactly the region the editor must stay clear
-    /// of (monday#12668399336).
-    ///
-    /// Reads the shared observer, so the height chain below re-evaluates when
-    /// the keyboard shows/hides. `KeyboardState` already wraps its own updates in
-    /// `withAnimation`, so the resize rides that animation — no choreography here.
-    private var keyboardInset: CGFloat { KeyboardState.shared.height }
-
-    /// Vertical space the editor column can actually occupy.
-    ///
-    /// Previously derived purely from `Screen.bounds.height`, which ignored the
-    /// keyboard entirely: the editor's frame extended underneath it, so the last
-    /// lines of a long note were rendered but unreachable — the reported bug.
-    private var editorContentHeight: CGFloat {
-        // The keyboard frame already spans the home-indicator area, so the
-        // bottom safe-area inset must not be subtracted a second time.
-        let bottomReserve = keyboardInset > 0 ? keyboardInset : bottomSafeAreaInset
-        return expandedSheetHeight - bottomReserve - 76
-    }
-
-    private var noteEditorHeight: CGFloat {
-        // The 220 floor exists so the editor stays usable with the keyboard
-        // down. With the keyboard up that floor is what would push the field
-        // back under it, so drop to the editor's own minimum — a short
-        // scrollable field beats an unreachable caret.
-        let minimumHeight: CGFloat = keyboardInset > 0 ? 120 : 220
-        return max(minimumHeight, editorContentHeight - 152)
-    }
-
-    private var expandedSheetHeight: CGFloat {
-        max(560, Screen.bounds.height - topSafeAreaInset - 40)
-    }
 
     private var topSafeAreaInset: CGFloat {
         guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return 0 }

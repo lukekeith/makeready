@@ -36,6 +36,10 @@ enum Route: Equatable, Hashable {
     case bibleVersionMenu
     case exegesisHighlightActionMenu
     case backgroundSourceMenu(blockId: String)
+    /// Full-screen note editor for an exegesis highlight. A page modal rather
+    /// than a menu: it owns a fixed layout with a scrollable reference passage,
+    /// a fixed-height note field, and swipe/dot navigation between highlights.
+    case exegesisNoteEditor
 
     // MARK: Page / detail modals
     case profilePage
@@ -98,6 +102,7 @@ enum Route: Equatable, Hashable {
         case .bibleVersionMenu: return "bibleVersionMenu"
         case .exegesisHighlightActionMenu: return "exegesisHighlightActionMenu"
         case .backgroundSourceMenu(let blockId): return "backgroundSourceMenu_\(blockId)"
+        case .exegesisNoteEditor: return "exegesisNoteEditor"
 
         case .profilePage: return "profilePage"
         case .createProgram: return "createProgram"
@@ -166,7 +171,10 @@ enum Route: Equatable, Hashable {
     enum Chrome { case modal, menu, page, raw }
     var chrome: Chrome {
         switch self {
-        case .addActivityMenu, .confirmationOverlay, .memberRequestRespond, .changeMembership:
+        case .addActivityMenu, .confirmationOverlay, .memberRequestRespond, .changeMembership,
+             // Full-screen surface that dissolves in — no push-from-the-right
+             // slide, no bottom sheet, so it owns its own chrome (Luke).
+             .exegesisNoteEditor:
             return .raw
         case .memberRequests:
             return .page
@@ -184,7 +192,10 @@ enum Route: Equatable, Hashable {
     var dismissOnTapOutside: Bool {
         switch self {
         case .enrollmentSchedule, .editEnrollmentDay,
-             .enrollmentFlow, .programEnrollmentFlow, .editEnrollmentFlow:
+             .enrollmentFlow, .programEnrollmentFlow, .editEnrollmentFlow,
+             // Holds unsaved note drafts across every highlight the user swiped
+             // through — a stray background tap must not discard them.
+             .exegesisNoteEditor:
             return false
         default:
             return true

@@ -176,6 +176,7 @@
 		ESYN0001000000000000001 /* EnrollmentSyncPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = ESYN0002000000000000001 /* EnrollmentSyncPage.swift */; };
 		EUAP0001000000000000001 /* EditUserInputActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EUAP0002000000000000001 /* EditUserInputActivityPage.swift */; };
 		EXHM0001000000000000001 /* ExegesisHighlightModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXHM0002000000000000001 /* ExegesisHighlightModal.swift */; };
+		EXNE0001000000000000001 /* ExegesisNoteEditorPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXNE0002000000000000001 /* ExegesisNoteEditorPage.swift */; };
 		EXVV000200000000000001 /* ExegesisVerseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXVV000100000000000001 /* ExegesisVerseView.swift */; };
 		EYTA0001000000000000001 /* EditYouTubeActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */; };
 		F7348D39938C43569FB89F82 /* CardVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6821D6AC4FD6411793E6237E /* CardVideo.swift */; };
@@ -497,6 +498,7 @@
 		ESYN0002000000000000001 /* EnrollmentSyncPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnrollmentSyncPage.swift; sourceTree = "<group>"; };
 		EUAP0002000000000000001 /* EditUserInputActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditUserInputActivityPage.swift; sourceTree = "<group>"; };
 		EXHM0002000000000000001 /* ExegesisHighlightModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisHighlightModal.swift; sourceTree = "<group>"; };
+		EXNE0002000000000000001 /* ExegesisNoteEditorPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisNoteEditorPage.swift; sourceTree = "<group>"; };
 		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
 		EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditYouTubeActivityPage.swift; sourceTree = "<group>"; };
 		F0FF0B250AF20FEA47BB6BD1 /* CardActivityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardActivityType.swift; sourceTree = "<group>"; };
@@ -1243,6 +1245,7 @@
 				ERAD0002000000000000001 /* EditReadActivityPage.swift */,
 				BF10EEACA707407AAB3CFB86 /* EditExegesisActivityPage.swift */,
 				EXHM0002000000000000001 /* ExegesisHighlightModal.swift */,
+				EXNE0002000000000000001 /* ExegesisNoteEditorPage.swift */,
 				EUAP0002000000000000001 /* EditUserInputActivityPage.swift */,
 				EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */,
 				PROG0004000000000000001 /* ProgramHomePage.swift */,
@@ -1813,6 +1816,7 @@
 				ERAD0001000000000000001 /* EditReadActivityPage.swift in Sources */,
 				1B6C33D7BDC64C0C88844A88 /* EditExegesisActivityPage.swift in Sources */,
 				EXHM0001000000000000001 /* ExegesisHighlightModal.swift in Sources */,
+				EXNE0001000000000000001 /* ExegesisNoteEditorPage.swift in Sources */,
 				RAPM0001000000000000001 /* ReadActivityPreviewModal.swift in Sources */,
 				EUAP0001000000000000001 /* EditUserInputActivityPage.swift in Sources */,
 				EYTA0001000000000000001 /* EditYouTubeActivityPage.swift in Sources */,
