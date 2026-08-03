@@ -140,6 +140,12 @@ struct EditReadActivityPage: View {
     /// `.onChange` opens the style picker. Cleared after the picker dismisses.
     @State private var pendingSelectionRange: NSRange?
     @State private var pendingSelectionBlockId: String?
+    /// The verse range selected but not yet committed, and the block it belongs
+    /// to. Owning it here is what lets the block repaint the span on every
+    /// SwiftUI pass instead of relying on UIKit's own selection rendering,
+    /// which used to vanish and leave stray grab handles (monday#12668695071).
+    @State private var liveSelectionRange: NSRange?
+    @State private var liveSelectionBlockId: String?
     /// Block currently in highlight-mode (text-selection enabled). Tap the
     /// highlighter icon next to the chevron to toggle. While set, the rest of
     /// the activity dims and drag-to-sort is suppressed for that block.
@@ -373,6 +379,8 @@ struct EditReadActivityPage: View {
             highlightingBlockId = nil
             pendingSelectionRange = nil
             pendingSelectionBlockId = nil
+            liveSelectionRange = nil
+            liveSelectionBlockId = nil
         }
         return true
     }
@@ -691,6 +699,22 @@ struct EditReadActivityPage: View {
                     }
                 }
 
+                // Highlight mode used to announce itself with nothing but a
+                // purple border and a tinted glyph, leaving the reporter with
+                // no idea what the mode wanted (monday#12668695071).
+                if isHighlighting && !isCollapsed {
+                    // No .transition() here: this lives inside a SwipeableCard,
+                    // where transition modifiers make the child animate
+                    // independently of the card during a swipe
+                    // (SWIFTUI_ANIMATION_PATTERNS.md § Swipeable Cards). The
+                    // withAnimation(Motion.micro) around highlightingBlockId
+                    // gives the insert its fade already.
+                    Text("Tap verses to select, then tap again to style")
+                        .font(Typography.s12Medium)
+                        .foregroundColor(Color.brandPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
                 if !isCollapsed, let content = block.content, !content.isEmpty {
                     SelectableLockedBlockView(
                         plainText: BibleVerseContentNormalizer.normalizedPlainText(from: content),
@@ -702,6 +726,13 @@ struct EditReadActivityPage: View {
                             set: { newValue in
                                 pendingSelectionRange = newValue
                                 pendingSelectionBlockId = newValue == nil ? nil : block.id
+                            }
+                        ),
+                        liveSelection: Binding(
+                            get: { liveSelectionBlockId == block.id ? liveSelectionRange : nil },
+                            set: { newValue in
+                                liveSelectionRange = newValue
+                                liveSelectionBlockId = newValue == nil ? nil : block.id
                             }
                         ),
                         isScripture: block.sourceReferenceId != nil
@@ -734,6 +765,8 @@ struct EditReadActivityPage: View {
                         highlightingBlockId = isHighlighting ? nil : block.id
                         pendingSelectionRange = nil
                         pendingSelectionBlockId = nil
+                        liveSelectionRange = nil
+                        liveSelectionBlockId = nil
                     }
                 } label: {
                     Image(systemName: "highlighter")

@@ -25,6 +25,13 @@ struct SelectableLockedBlockView: UIViewRepresentable {
     /// Set when the user finishes adjusting a non-empty selection.
     /// The parent presents the style picker on `.onChange`, then clears it.
     @Binding var pendingRange: NSRange?
+    /// The selection the user is building right now, owned by the parent's
+    /// SwiftUI state. This view paints the span itself (see
+    /// `makeAttributedString`) instead of leaning on UIKit's transient
+    /// selection rendering, which `updateUIView` wiped on every SwiftUI update
+    /// — leaving the system's grab handles bracketing nothing
+    /// (monday#12668695071).
+    @Binding var liveSelection: NSRange?
     /// Font size for the verse text. Defaults to 16pt if not provided.
     var fontSize: CGFloat = 16
     /// When true, non-editing selections render as white bg with dark text
@@ -52,8 +59,9 @@ struct SelectableLockedBlockView: UIViewRepresentable {
         view.dataDetectorTypes = []
         view.linkTextAttributes = [:]
         view.adjustsFontForContentSizeCategory = false
-        // Yellow/lime tint for active selection (matches Bible reader)
-        view.tintColor = UIColor(red: 0xF4/255, green: 0xFF/255, blue: 0x76/255, alpha: 0.5)
+        // No selection tint: the text view is never made first responder, so
+        // UIKit draws neither the selection fill nor its grab handles. The
+        // active range is painted as a text attribute instead.
         view.setContentHuggingPriority(.defaultLow, for: .horizontal)
         view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         view.setContentHuggingPriority(.required, for: .vertical)
@@ -74,8 +82,6 @@ struct SelectableLockedBlockView: UIViewRepresentable {
 
     func updateUIView(_ uiView: SelectionTextView, context: Context) {
         context.coordinator.parent = self
-        context.coordinator.suppressSelectionCallbacks = true
-        defer { context.coordinator.suppressSelectionCallbacks = false }
 
         uiView.attributedText = makeAttributedString()
         let verseRanges = Self.parseVerseRanges(from: plainText)
@@ -85,14 +91,9 @@ struct SelectableLockedBlockView: UIViewRepresentable {
             target: context.coordinator,
             action: #selector(Coordinator.handleCircleTap(_:))
         )
-
-        // Clear any active selection when leaving highlight mode
-        if !isSelectionEnabled && uiView.selectedRange.length > 0 {
-            uiView.selectedRange = NSRange(location: 0, length: 0)
-            if uiView.isFirstResponder {
-                uiView.resignFirstResponder()
-            }
-        }
+        // No selection to re-sync here: `makeAttributedString` above has
+        // already repainted the live span, and it paints nothing once
+        // `isSelectionEnabled` goes false.
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: SelectionTextView, context: Context) -> CGSize? {
@@ -116,6 +117,11 @@ struct SelectableLockedBlockView: UIViewRepresentable {
     }
 
     // MARK: - Attributed String
+
+    /// Lime wash for the in-progress selection — the same colour and alpha
+    /// `ExegesisVerseView` paints its own selection preview with, so the two
+    /// verse editors read alike.
+    private static let liveSelectionColor = UIColor(red: 0xF4/255, green: 0xFF/255, blue: 0x76/255, alpha: 0.55)
 
     private func makeAttributedString() -> NSAttributedString {
         let baseColor = UIColor.white.withAlphaComponent(0.85)
@@ -151,6 +157,20 @@ struct SelectableLockedBlockView: UIViewRepresentable {
             }
         }
 
+        // Painted last so an in-progress selection wins over whatever saved
+        // span it overlaps. This is the only rendering the live selection has:
+        // the text view is never first responder, so there is no system fill
+        // and no grab handles to fall out of sync with it (monday#12668695071).
+        if isSelectionEnabled, let live = liveSelection {
+            let start = max(0, live.location)
+            let end = min(length, live.location + live.length)
+            if end > start {
+                let range = NSRange(location: start, length: end - start)
+                attributed.addAttribute(.backgroundColor, value: Self.liveSelectionColor, range: range)
+                attributed.addAttribute(.foregroundColor, value: UIColor.black, range: range)
+            }
+        }
+
         return attributed
     }
 
@@ -158,7 +178,6 @@ struct SelectableLockedBlockView: UIViewRepresentable {
 
     final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
         var parent: SelectableLockedBlockView
-        var suppressSelectionCallbacks = false
         weak var tapGesture: UITapGestureRecognizer?
         var verseRanges: [(verse: Int, range: NSRange)] = []
 
@@ -166,16 +185,11 @@ struct SelectableLockedBlockView: UIViewRepresentable {
             self.parent = parent
         }
 
-        func textViewDidChangeSelection(_ textView: UITextView) {
-            // No-op — we manage selection entirely through tap gestures
-        }
-
         @objc func handleCircleTap(_ gesture: UITapGestureRecognizer) {
             guard parent.isSelectionEnabled,
                   gesture.state == .ended,
-                  let circle = gesture.view,
-                  let textView = circle.superview?.superview as? UITextView else { return }
-            applyVerseTap(tappedVerse: circle.tag, in: textView)
+                  let circle = gesture.view else { return }
+            applyVerseTap(tappedVerse: circle.tag)
         }
 
         /// Tap handler — works like the Bible reader:
@@ -200,7 +214,7 @@ struct SelectableLockedBlockView: UIViewRepresentable {
 
             // First check: did they tap an existing highlight (ReadBlockSelection)?
             // If so, open its editor instead of starting a new selection.
-            if textView.selectedRange.length == 0 {
+            if parent.liveSelection == nil {
                 for selection in parent.selections where charIndex >= selection.start && charIndex < selection.end {
                     let range = NSRange(location: selection.start, length: selection.end - selection.start)
                     let parent = self.parent
@@ -220,26 +234,24 @@ struct SelectableLockedBlockView: UIViewRepresentable {
                 charIndex < $0.range.location + $0.range.length
             }) else { return }
 
-            applyVerseTap(tappedVerse: tappedEntry.verse, in: textView)
+            applyVerseTap(tappedVerse: tappedEntry.verse)
         }
 
-        private func applyVerseTap(tappedVerse: Int, in textView: UITextView) {
+        private func applyVerseTap(tappedVerse: Int) {
             // Current selection expressed as a contiguous verse range
-            let currentSelection = versesOverlapping(textView.selectedRange)
+            let currentSelection = versesOverlapping(parent.liveSelection)
             let currentMin = currentSelection.first
             let currentMax = currentSelection.last
 
-            // Tapping inside current selection → clear everything
+            // Tapping inside current selection → commit it to the style picker
             if let minV = currentMin, let maxV = currentMax,
                tappedVerse >= minV && tappedVerse <= maxV {
-                textView.selectedRange = NSRange(location: 0, length: 0)
-                if textView.isFirstResponder {
-                    textView.resignFirstResponder()
-                }
+                // Cleared synchronously so a second tap reads the new state,
+                // the way this used to read back `textView.selectedRange`.
+                parent.liveSelection = nil
 
                 // Fire the completed selection if there was one
-                let clearedRange = rangeForVerses(from: minV, to: maxV)
-                if let range = clearedRange, range.length > 0 {
+                if let range = rangeForVerses(from: minV, to: maxV), range.length > 0 {
                     let parent = self.parent
                     DispatchQueue.main.async {
                         parent.pendingRange = range
@@ -255,17 +267,15 @@ struct SelectableLockedBlockView: UIViewRepresentable {
 
             guard let newRange = rangeForVerses(from: newMin, to: newMax) else { return }
 
-            // Make first responder so tint color renders the selection
-            if !textView.isFirstResponder {
-                textView.isSelectable = true
-                textView.becomeFirstResponder()
-            }
-            textView.selectedRange = newRange
+            // The span is rendered by `makeAttributedString` on the next
+            // SwiftUI pass. The text view stays non-selectable and non-first
+            // responder throughout, so no grab handles ever appear.
+            parent.liveSelection = newRange
         }
 
         /// Find which verses overlap the given character range
-        private func versesOverlapping(_ range: NSRange) -> [Int] {
-            guard range.length > 0 else { return [] }
+        private func versesOverlapping(_ range: NSRange?) -> [Int] {
+            guard let range, range.length > 0 else { return [] }
             let rangeEnd = range.location + range.length
             return verseRanges
                 .filter { entry in

@@ -2080,6 +2080,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 isSelectionEnabled: c.isSelectionEnabled ?? false,
                 editingRange: nil,
                 pendingRange: .constant(nil),
+                liveSelection: .constant(nil),
                 fontSize: CGFloat(c.fontSize ?? 16),
                 usePreviewHighlightStyle: c.usePreviewHighlightStyle ?? false,
                 isScripture: c.isScripture ?? true
