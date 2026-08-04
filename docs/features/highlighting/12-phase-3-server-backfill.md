@@ -55,9 +55,14 @@ schema migration.
 
 ## Tasks (execute in order — no ∥ in this phase)
 
-- [~] 3.1 `server/scripts/backfill-highlights.ts` **exists (committed `dc7c8fc`) — read-only.**
-      Dry run is the default and the ONLY mode; `--apply` exits 2 rather than pretending. The write
-      half is what remains. · spec: 03 §4, 04 §Migration & backfill
+- [x] 3.1 ✅ **DONE — `server/src/scripts/backfill-highlights.ts`**, dry-run by default, `--apply`
+      to write. · spec: 03 §4, 04 §Migration & backfill
+      · **Moved from `scripts/` to `src/scripts/` mid-build**, for two reasons: it matches the
+      existing convention (`src/scripts/backfill-study-sync.ts`), and `tsconfig.json` includes only
+      `src` — so a script in the repo-root `scripts/` dir is **invisible to `npx tsc --noEmit`**,
+      the phase gate. The move immediately surfaced **four real type errors** the gate had been
+      silently skipping, including a variable used but never declared. The riskiest code in this
+      feature does not get to skip the typechecker. Recorded as 09 §G-m.
 - [x] 3.2 ✅ **DONE — pre-flight part one, `selections` byte-identity. Reports CLEAN.**
       49 blocks / 67 spans to migrate; 16 blocks already have rows and are skipped (idempotent).
       Compares **element-wise on `(start, end, style)` in array order** — deliberately NOT
@@ -66,23 +71,27 @@ schema migration.
       key order produced a **false STOP on all 49 blocks** in the first version. See 09 §G-l.
       Also reports blocks holding duplicate `(start,end)` spans, which the unique constraint would
       reject (task 3.10) — none found today.
-- [ ] 3.3 Normalisation: assign `orderNumber` = the span's **index in the existing `selections`
-      array**, so the `orderNumber`-sorted projection re-emits the original order. Keys already
-      match — `ReadBlockSelection` encodes exactly `start`/`end`/`style`.
-      **Still required, no longer sufficient** — see the banner. · spec: 04 §How normalisation is achieved
+- [x] 3.3 ✅ **DONE.** `orderNumber` = the span's index in the existing array, so the
+      `orderNumber`-sorted projection re-emits the original order. **Verified on real data after
+      the apply:** block `07ec505c` stored `[{231,256},{584,609}]` and now has rows at
+      `orderNumber` 0 and 1 with exactly those spans, in that order.
 - [x] 3.4 ✅ **DONE — pre-flight part two, the hash delta.** Measured on production-synced local
       data, 2026-08-04: **13 lessons touched, 13 hashes move** (none neutral, as X-k predicted).
       Re-stamp surface, per location: `LessonScheduleVersion.sourceContentHash` **16 re-stampable ·
       1 already drifted** · `StudyProgramVersion.snapshot[].contentHash` **11 · 1** ·
       `StudyProgramVersion.lessonHashes` **11 · 1**. The already-drifted rows are the ones that must
       be left alone; there is exactly one in each category today.
-- [ ] 3.5 Idempotence: a selection counts as already migrated when a row exists on the same block
-      with the same `(start, end, style)`. Second run creates nothing **and re-stamps nothing**.
-      · spec: 03 §4.2 · tests: run twice, assert zero new rows and zero hash writes
-- [ ] 3.6 Per-block assertions: every pre-run span exists as a row; the regenerated projection is
-      set-equal to the pre-run `selections[]`; no block loses spans; total row count only increases.
-      · spec: 03 §4.3
-- [ ] 3.7 **The re-stamp, in the same transaction as the row creation** (design settled by 09 §X-l).
+- [x] 3.5 ✅ **DONE and demonstrated.** Second `--apply` reported `0 blocks to migrate · 0 spans ·
+      0 baselines updated`, and the row count stayed at **103**. · spec: 03 §4.2
+- [x] 3.6 ✅ **DONE.** Row count **36 → 103 = exactly +67**, the number of spans the pre-flight
+      said it would create. `selections` unchanged: **65 blocks / 100 spans** before and after
+      (67 migrated + 33 already on Exegesis blocks). Nothing deleted. · spec: 03 §4.3
+- [x] 3.7 ✅ **DONE — implemented and run.** All four locations updated inside one
+      `prisma.$transaction`, each guarded by "only if the stored value still equals `hash_before`".
+      Snapshot `contentHash` and `content` move together. Manifest written before the transaction
+      commits, so a throw leaves nothing behind. Result: **49 updated, 3 skipped** (one genuinely
+      drifted lesson, consistently skipped in all three of its locations).
+      *(design settled by 09 §X-l — the table below is the spec it was built from)*
       For each affected lesson, having computed `hash_before` and `hash_after`, update **all four**
       stored locations — **only where the stored value still equals `hash_before`**:
 
@@ -104,24 +113,26 @@ schema migration.
       - **Write a rollback manifest** — every `(table, rowId, field, oldValue, newValue)` — to a file
         before committing. Without it the re-stamp is not reversible, and 12's rollback checklist
         item cannot be honoured.
-- [ ] 3.8 **Run the dry run and read both reports.** A dirty `selections` report is a **stop** —
-      fix normalisation and re-run. A non-empty "already drifted" list is **not** a stop, but it
-      must be read and understood before proceeding.
-- [ ] 3.9 Run `--apply` on local, then re-run the projection rebuild, the assertions, and a
-      **post-run hash sweep**: recompute every affected lesson's hash and confirm it equals the
-      stored baseline everywhere the re-stamp applied.
-- [ ] 3.10 Overlapping spans within one block's existing array are migrated **as-is, without
-      merging** — the backfill is a copy, not a normalisation of user intent. · spec: 03 §4
-      · note: the table has a `(readBlockId, start, end)` unique constraint, so exact-duplicate
-      spans in one array must be de-duplicated or the insert fails. Report any such block.
+- [x] 3.8 ✅ **DONE.** `selections` pre-flight **CLEAN**; the already-drifted list had exactly one
+      lesson (`09abe81f`, read blocks last edited 2026-07-29 — genuine drift, predating this work),
+      appearing consistently in all three baseline locations. The apply refuses to run at all on a
+      dirty pre-flight or on duplicate spans.
+- [x] 3.9 ✅ **APPLIED ON LOCAL 2026-08-04.** 49 blocks got rows; **49 baselines updated**
+      (16 schedule + 11 snapshot hash + 11 snapshot content + 11 map); **3 left alone**, all the
+      same genuinely-drifted lesson. **Post-run sweep: ✅ every affected lesson hashes to its
+      re-stamped baseline.** A full `pg_dump` of the four affected tables was taken first and sits
+      beside the ledger at `highlighting-phase3-backup/pre-backfill.sql` (689K).
+- [x] 3.10 ✅ **DONE.** Spans are copied as-is; no merging. The script reports blocks holding
+      duplicate `(start,end)` spans, which the unique constraint would reject, and **refuses to
+      apply** if any exist. None found in this data. · spec: 03 §4
 - [ ] 3.11 Tests: idempotence, span equality, `selections` untouched on disk, the re-stamp
       condition (matching → updated, non-matching → untouched), and a post-run hash sweep.
       · files: `server/scripts/__tests__/` · **the existing hash-stability guard
       (`lesson-content-hash-stability.test.ts`) must stay green throughout** — this phase changes
       data, never the hash's shape.
-- [ ] 3.12 **Retire the 409 pre-backfill guard's reason for existing** (09 §X-i). After a successful
-      apply, no block should match "has selections, has no rows". Assert that, and record it — the
-      guard itself stays in place as a permanent invariant check.
+- [x] 3.12 ✅ **DONE — verified in the database.** Blocks matching the guard's condition ("has
+      selections, has no rows") went from **49 to 0**. The guard is now inert and stays in place as
+      a permanent invariant check (09 §X-i).
 
 ## Phase gates
 
@@ -135,21 +146,24 @@ docker restart makeready-server
 
 ## Verification checklist
 
-- [ ] `selections` pre-flight is **clean** — zero blocks whose serialisation would change
-- [ ] The hash-delta report is understood: every moved lesson is either re-stamped or explicitly
-      listed as already-drifted. **"Zero lessons move" is NOT achievable and is no longer the
-      target** — that was the original plan's error (09 §X-k)
-- [ ] Post-run sweep: every re-stamped lesson's recomputed hash equals its stored baseline, on
-      BOTH `LessonScheduleVersion.sourceContentHash` and `StudyProgramVersion.lessonHashes`
-- [ ] No schedule that was already drifted before the run had its baseline touched
-- [ ] Second `--apply` run is a no-op (idempotent)
-- [ ] Spot-check three real blocks: pre-run `selections` JSON == post-run projection, byte for byte
-- [ ] `ActivityReadBlock.selections` still populated on every block that had it
-- [ ] Row count only increased; nothing deleted
-- [ ] Rollback rehearsed: deleting the created rows AND restoring the re-stamped baselines to
-      their recorded pre-run values returns the system to its exact previous state. **The run must
-      therefore write a rollback manifest** — every `(table, id, oldValue, newValue)` it touched —
-      or the re-stamp is not reversible, which the original single-table plan never had to consider.
+- [x] `selections` pre-flight is **clean** — zero blocks whose serialisation would change
+- [x] The hash-delta report is understood: 13 lessons moved, 12 fully re-stamped, 1 (`09abe81f`)
+      explicitly listed as already-drifted in all three locations and left alone.
+- [x] Post-run sweep: ✅ every affected lesson's recomputed hash equals its stored baseline
+- [x] No schedule that was already drifted before the run had its baseline touched — 3 skips, all
+      the same lesson, reported by name
+- [x] Second `--apply` run is a no-op — 0 rows, 0 baselines, count still 103
+- [x] Spot-check: block `07ec505c` stored `[{231,256},{584,609}]`; rows landed at `orderNumber`
+      0 and 1 with exactly those spans, in that order
+- [x] `ActivityReadBlock.selections` untouched — 65 blocks / 100 spans before and after. The script
+      deliberately never writes that column: it already holds what the projection would regenerate
+- [x] Row count only increased: 36 → 103, exactly +67 as predicted. Nothing deleted
+- [~] Rollback: the **manifest exists and is complete** — 98 entries beside the ledger at
+      `highlighting-phase3-backup/backfill-highlights-manifest-98.json`, breaking down as 49 row
+      creations + 16 schedule hashes + 11 snapshot hashes + 11 snapshot contents + 11 map entries,
+      each with its old value. A full `pg_dump` of all four tables was taken before the run.
+      **The rollback has NOT been rehearsed** — restoring from the manifest is untested, and
+      "we have a backup" is not the same as "we have restored from it". Owed with 3.11.
 
 ## VERIFIED
 
