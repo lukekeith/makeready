@@ -1,6 +1,6 @@
 # highlighting — one text-highlighting service across every text surface
 
-**Status:** `spec complete` · integrity SOUND · **audit ✅ complete (3 passes)** · decisions ✅ closed · ready to plan
+**Status:** `planned` · 7 phase docs written · **awaiting the build go-ahead**
 
 One way to create, store, render and persist a text highlight — replacing three native
 implementations that disagree on granularity, colour, coordinates and when a selection commits.
@@ -27,14 +27,22 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 | integrity check | ✅ SOUND (3 defects corrected) |
 | audit | ✅ 3 passes — 2 gaps found + corrected, 2 risks closed with evidence |
 | decisions | ✅ 6 decided, 3 resolved, 3 acknowledged — no OPEN rows |
-| plan | ⬜ |
+| plan | ✅ 7 phases, 56 tasks |
 | build | ⬜ |
 | verify | ⬜ |
 | sign-off | ⬜ |
 
 ## Phase status
 
-Not planned yet — the plan step writes `10+-phase-N-*.md` after the audit is clean.
+| # | App | Doc | Tasks | Status |
+|---|---|---|---|---|
+| 1 | iphone | [10-phase-1-prerequisite-note-loss.md](10-phase-1-prerequisite-note-loss.md) | 5 | ⬜ **gates everything** |
+| 2 | server | [11-phase-2-server-schema-and-routes.md](11-phase-2-server-schema-and-routes.md) | 11 | ⬜ freezes the contract |
+| 3 | server | [12-phase-3-server-backfill.md](12-phase-3-server-backfill.md) | 9 | ⬜ touches customer data |
+| 4 | iphone | [13-phase-4-iphone-service.md](13-phase-4-iphone-service.md) | 15 | ⬜ ∥ with 5 |
+| 5 | client | [14-phase-5-client-consumers.md](14-phase-5-client-consumers.md) | 8 | ⬜ ∥ with 4 · member-visible |
+| 6 | capture | [15-phase-6-capture.md](15-phase-6-capture.md) | 8 | ⬜ |
+| 7 | cross-app | [16-phase-7-cross-app-e2e.md](16-phase-7-cross-app-e2e.md) | 8 | ⬜ |
 
 ## Docs
 
@@ -49,6 +57,7 @@ Not planned yet — the plan step writes `10+-phase-N-*.md` after the audit is c
 | [07-capture.md](07-capture.md) | The five affected fixtures |
 | [08-testing.md](08-testing.md) | Per-app tests, gates, E2E walk, human-verification script |
 | [09-gaps-and-decisions.md](09-gaps-and-decisions.md) | G/D/O/C/X ledger — owned by the audit |
+| `10`–`16` | the per-phase build guides — see Phase status above |
 
 ## Governing rules
 
