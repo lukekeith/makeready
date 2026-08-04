@@ -30,6 +30,12 @@ actually includes `selections` needs the audit or a running stack (`X-c`).
 | 2026-08-04 | 2 — delta + owed sweeps | 0 new findings | Delta over the six decisions. **D2/X-c feasibility confirmed in code**: `ReadBlockSelection` encodes exactly `start`/`end`/`style` (`id` is computed, not encoded) — identical to the projection's output — and `mergeSelection` returns `kept + [new]`, i.e. insertion order. So assigning `orderNumber` = array index at backfill makes the projection byte-identical. Owed per-app sweeps run: iPhone `clearInMemory` + `EntityStore` conventions present (`AppState.swift`); all four client stores named in 05 exist; server route conventions unchanged (generalising preserves the zod + try/catch + `{success}` envelope). **Still not run:** adversarial gap hunt and client component-coverage-by-view. |
 | 2026-08-04 | 1 — **PARTIAL** | 1 confirmed risk (X-c), 1 closed (X-d) | **Scoped to the cross-app contract and the two unresolved X-rows**, which were the highest-value unknowns. **Not yet done:** per-app pattern compliance sweeps (server route/service conventions, client island/store conventions, iPhone AppState/Actions conventions), component-coverage verification for the client, and the adversarial gap hunt. A full pass is still required before the plan step. |
 
+## Build findings
+
+| Date | Phase | Finding |
+|---|---|---|
+| 2026-08-04 | 1 | **Task 1.2 answered with evidence: the merge does NOT lose notes.** API-level repro on the local stack — a highlight spanning two noted highlights produced a merged row containing **all four** notes concatenated in document order. Production-synced data on another block independently shows the same concatenation signature (a note split mid-word across `\n\n` joins). **monday#12708759849 sub-issue A is therefore a client-side defect**, and the fix is 1.3a: re-key the note dictionary by highlight id instead of by range. The server path stays untouched, and Phase 3's backfill is cleared to write into it once 1.3a lands. |
+
 ## G — gaps
 
 | # | Status | Gap | Where |
