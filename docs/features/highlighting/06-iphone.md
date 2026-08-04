@@ -56,7 +56,7 @@ outright is a follow-up, not part of this feature.
 
 ## AppState & Actions
 
-- **Model**: `ExegesisHighlight` → `Highlight` in `Pages/Manage/Program/Models/StudyModels.swift:380`,
+- **Model**: `ExegesisHighlight` → `ContentHighlight` in `Pages/Manage/Program/Models/StudyModels.swift:380`,
   gaining `style`. `ReadBlockSelection` (`:372`) is retained — it still decodes the derived
   projection that older payloads carry.
 - **`blockIds[]` (03 §2.1)**: the Read editor is the multi-block consumer — an activity can hold
@@ -66,7 +66,7 @@ outright is a follow-up, not part of this feature.
   *(added 2026-08-04 — the integrity check found 03 introduced this field with no consumer doc
   explaining who reads it.)*
 - **Storage**: highlights are server data keyed by id and readable by more than one screen →
-  `EntityStore<Highlight>` on `AppState`, not view `@State`. Add to `clearInMemory()` — org-scoped
+  `EntityStore<ContentHighlight>` on `AppState`, not view `@State`. Add to `clearInMemory()` — org-scoped
   data left behind leaks into the next session. The SwiftLint rule
   `server_collection_in_view_state` enforces the storage half of this.
 - **Actions**: the eight near-identical methods
@@ -81,7 +81,7 @@ outright is a follow-up, not part of this feature.
 ### Disk cache
 
 `AppState` persists to disk. A build upgrading mid-flight must not decode a cached old-shape
-payload into `Highlight`. Bump the persisted-state version (or make `style` optional with a
+payload into `ContentHighlight`. Bump the persisted-state version (or make `style` optional with a
 `"highlight"` default) so an old cache degrades rather than fails.
 
 ## Component coverage

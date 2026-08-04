@@ -37,7 +37,7 @@ aliases — 16 mounted routes in total. Every task below applies to both files.
 
 | Task | Detail |
 |---|---|
-| Rename model references | `prisma.exegesisHighlight` → `prisma.highlight` throughout after `/schema` regenerates the client |
+| Rename model references | `prisma.exegesisHighlight` → **`prisma.contentHighlight`** throughout (NOT `prisma.highlight` — already the Bible reader's model), **and** the relation key `exegesisHighlights` → `contentHighlights`, after `npm run schema:generate` regenerates the client. Full site list in 11 §2.3 / 09 §G-f |
 | Generalise **all eight** routes | mount at `…/highlights` in both files, keep all eight `…/exegesis-highlights` paths as aliases (03 §2.5) |
 | Relax the activity-type gate | `EXEGESIS` **or** `READ`; 400 otherwise. **Different field per context** — `activity.activityType` in `programs.ts` (`:2968`, `:3020`, `:3105`, `:3151`) vs **`activity.type`** in `enrollments.ts` (`:4277` + siblings). Not a copy-paste |
 | GET returns all locked blocks | replace `findFirst({isLocked:true})` with `findMany`, add `blockIds[]`, keep `readBlockId` as the deprecated first block (03 §2.1) |

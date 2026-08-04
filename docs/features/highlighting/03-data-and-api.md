@@ -7,13 +7,22 @@
 ## 1. Schema change
 
 Source of truth is `server/schema/schema.yaml` — never edit `prisma/schema.prisma` or
-`atlas/.schema.hcl` (both are generated). Run `/schema` after editing the YAML.
+`atlas/.schema.hcl` (both are generated). After editing the YAML run `npm run schema:validate` →
+`schema:generate` → `schema:diff` → review → `migrate:apply` → `migrate:status`
+(**there is no `/schema` skill** — 09 §G-e).
 
-### 1.1 `ExegesisHighlight` → `Highlight`
+### 1.1 `ExegesisHighlight` → `ContentHighlight`  ·  applied 2026-08-04
+
+**Not `Highlight`.** That model already exists (`server/schema/schema.yaml:1435`) and is the Bible
+reader's per-user personal verse highlights — a different domain that this feature does not touch.
+Decided by Luke, 2026-08-04; analysis and blast radius in 09 §X-g.
+
+**The rename is internal only.** API paths stay activity-scoped at `…/highlights` and the response
+key stays `highlights` — §2 below is unaffected by this decision.
 
 ```yaml
-  Highlight:
-    table_name: highlights          # was exegesis_highlights
+  ContentHighlight:
+    table_name: content_highlights   # was exegesis_highlights
     fields:
       id:            { type: uuid, primary: true, default: uuid() }
       readBlockId:   { type: string, description: "FK to ActivityReadBlock (locked block)" }
@@ -37,18 +46,23 @@ The column is **not dropped** (D3). Its description changes from authoritative s
       selections:
         type: json
         nullable: true
-        description: "DERIVED, read-only projection of Highlight rows for this block, maintained
-                      by syncSelectionsForBlock(). Retained so shipped iPhone builds keep reading
-                      the shape they were built against. Do not write directly."
+        description: "DERIVED, read-only projection of ContentHighlight rows for this block,
+                      maintained by syncSelectionsForBlock(). Retained so shipped iPhone builds keep
+                      reading the shape they were built against. Do not write directly."
 ```
 
 ### 1.3 Migration list
 
 | # | Migration | Type | Reversible |
 |---|---|---|---|
-| M1 | rename `exegesis_highlights` → `highlights` (+ index/FK renames) | rename | yes |
-| M2 | add `highlights.style` default `'highlight'`, backfill existing rows to `'highlight'` | additive | yes |
-| M3 | **data backfill** — `ActivityReadBlock.selections[]` → `highlights` rows (see §4) | additive, idempotent | yes (rows are deletable; source column retained) |
+| M1 | rename `exegesis_highlights` → `content_highlights` (+ index/FK renames) | rename | yes |
+| M2 | add `content_highlights.style` default `'highlight'`, backfill existing rows to `'highlight'` | additive | yes |
+| M3 | **data backfill** — `ActivityReadBlock.selections[]` → `content_highlights` rows (see §4) | additive, idempotent | yes (rows are deletable; source column retained) |
+
+⚠️ **M1 is the single most dangerous statement in this feature.** Atlas may express a table rename
+as drop-and-create, which would destroy every existing highlight and violate governing rule 1. The
+generated migration must be read before it is applied, and must contain
+`ALTER TABLE … RENAME TO …` — hand-authored if Atlas does not produce it.
 
 No migration drops a column or deletes a row. `/build-spec` must not generate one that does.
 
@@ -146,7 +160,7 @@ gets an owner. Until then the aliases and the projection stay.
 ## 3. The derived projection
 
 `syncSelectionsForBlock(readBlockId)` (generalised from `syncExegesisSelectionsForBlock`,
-`programs.ts:2894-2907`) rewrites `ActivityReadBlock.selections` from the block's `Highlight` rows
+`programs.ts:2894-2907`) rewrites `ActivityReadBlock.selections` from the block's `ContentHighlight` rows
 after **every** mutation:
 
 ```ts

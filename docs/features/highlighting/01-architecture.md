@@ -51,7 +51,7 @@ Five layers in `iphone/MakeReady/Services/Highlighting/` (new), in dependency or
 | # | Decision | Rationale | Decided by |
 |---|---|---|---|
 | D1 | All four apps are in scope — converge the stored data model, not just the client layer | A client-only service leaves two stored shapes and the next person still meets both | **Luke** |
-| D2 | Promote `exegesis_highlights` → `highlights`, add a `style` column, keep absolute character offsets | Smallest migration that genuinely converges; the merge/note logic already lives in this table; no consumer re-codes coordinate math | **Luke** |
+| D2 | Promote `exegesis_highlights` → `content_highlights` (**not** `highlights` — taken by the Bible reader's verse highlights; 09 §X-g, decided 2026-08-04), add a `style` column, keep absolute character offsets | Smallest migration that genuinely converges; the merge/note logic already lives in this table; no consumer re-codes coordinate math | **Luke** |
 | D3 | Migration is **additive-only**. `ActivityReadBlock.selections` is never dropped by this feature — it becomes a server-derived projection. Dropping it is a separate, later, gated change | Shipped TestFlight builds read `selections` and must keep working; retaining it also makes rollback trivial. The projection mechanism already exists (`syncExegesisSelectionsForBlock`, `programs.ts:2894`) | Claude, elevated to a hard constraint by **Luke** |
 | D4 | One service; **granularity is injected per surface** — `.verse` for Read, `.word` for Exegesis and the Bible reader | Consistency belongs in the mechanism (where every bug was), not in forcing Read's deliberate verse-tap model into a drag | **Luke** |
 | D5 | The Bible reader adopts the **full interaction service** — same controller, snapping and renderer — while its commit still produces a *passage reference*, not a Highlight row | Adopting the service and authoring a highlight record are different things; conflating them was an error in the first draft | **Luke** (revised) |
@@ -80,7 +80,8 @@ Five layers in `iphone/MakeReady/Services/Highlighting/` (new), in dependency or
 - **Server merge + projection** — `server/src/routes/programs.ts:2997` (create + merge),
   `:3033-3045` (note concatenation), `:3056-3069` (transactional absorb), `:2894-2907`
   (`syncExegesisSelectionsForBlock`, the projection this feature reuses for D3).
-- **Schema source of truth** — `server/schema/schema.yaml:3794` (`ExegesisHighlight`), `:3744`
+- **Schema source of truth** — `server/schema/schema.yaml` (`ContentHighlight`, renamed from
+  `ExegesisHighlight` 2026-08-04), `ActivityReadBlock.selections`
   (`ActivityReadBlock.selections`). Never edit `prisma/schema.prisma` or `atlas/.schema.hcl`.
 
 ## Permissions / RBAC

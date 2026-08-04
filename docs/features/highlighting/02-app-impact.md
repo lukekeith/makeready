@@ -4,7 +4,7 @@
 
 | App | In scope | What changes | Owner doc |
 |---|---|---|---|
-| server | ✅ | `exegesis_highlights` → `highlights` + `style`; additive backfill of `ActivityReadBlock.selections[]` → rows; endpoint family generalised off "exegesis" with aliases; **the prerequisite merge data-loss fix** | [04-server.md](04-server.md) |
+| server | ✅ | `exegesis_highlights` → `content_highlights` + `style`; additive backfill of `ActivityReadBlock.selections[]` → rows; endpoint family generalised off "exegesis" with aliases; **the prerequisite merge data-loss fix** | [04-server.md](04-server.md) |
 | client | ✅ | member lesson player (`read-step`, `exegesis-step`, `use-lesson-state`) + LeaderApp panes/stores read `highlights[]`; saved-highlight colour → lime | [05-client.md](05-client.md) |
 | iphone | ✅ | new `Services/Highlighting/` (5 layers); Read + Exegesis editors adopt fully; Bible reader adopts the interaction layers; 8 Action methods collapse behind `HighlightStore` | [06-iphone.md](06-iphone.md) |
 | capture | ✅ | 5 existing fixtures re-captured — the rendering colour and the Read editor's selection visuals both change | [07-capture.md](07-capture.md) |
@@ -75,7 +75,7 @@ and reads the old shape.
   `lesson-content-hash.ts`, `lesson-version-resolution.ts`, `enrollment-sync.ts` all touch read
   blocks. A content hash that includes `selections` will change when the projection is rebuilt —
   the audit must check whether that spuriously invalidates lesson versions.
-- **Deletion cascade** — `programs.ts:2746` already deletes `exegesisHighlight` rows for a block
+- **Deletion cascade** — `programs.ts:2746` already deletes `contentHighlight` (was `exegesisHighlight`) rows for a block
   set; after convergence that path deletes *all* highlights including Read's. Verify it is still
   scoped correctly.
 - **`SelectableLockedBlockView`** has two consumers (the Read editor and the capture

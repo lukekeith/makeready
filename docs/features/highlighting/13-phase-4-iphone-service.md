@@ -41,9 +41,9 @@ if a transition misbehaves · `/ios-error-surface` for every new catch block · 
 
 **Model & state**
 
-- [ ] 4.7 `ExegesisHighlight` → `Highlight` + `style` (`StudyModels.swift:380`); keep
+- [ ] 4.7 `ExegesisHighlight` → `ContentHighlight` + `style` (`StudyModels.swift:380`); keep
       `ReadBlockSelection` (`:372`) for decoding the legacy projection · spec: 06
-- [ ] 4.8 `EntityStore<Highlight>` on `AppState`, cleared in `clearInMemory()`. Bump the persisted
+- [ ] 4.8 `EntityStore<ContentHighlight>` on `AppState`, cleared in `clearInMemory()`. Bump the persisted
       state version so an old disk cache degrades rather than failing to decode
       · spec: 06 §Disk cache · **SwiftLint `server_collection_in_view_state` enforces the storage half**
 - [ ] 4.8b **Entity-keyed note state + the identity-succession seam** *(design decided 2026-08-04)*.
@@ -58,7 +58,7 @@ if a transition misbehaves · `/ios-error-surface` for every new catch block · 
 
       **`savedNoteMarkdownByHighlight` is deleted outright, not re-keyed** — it is a mirror of
       server state that only exists because the view doesn't treat the entity as the source of
-      truth. Once highlights live in `EntityStore<Highlight>` (4.8), the saved note *is*
+      truth. Once highlights live in `EntityStore<ContentHighlight>` (4.8), the saved note *is*
       `state.highlights[id].noteMarkdown`.
 
       `ExegesisNoteEditorPage` navigates `[Highlight.ID]`, not `[NSRange]` — the thing being edited
