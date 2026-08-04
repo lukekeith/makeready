@@ -128,7 +128,6 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
     private var lastEmittedNativeSelectionRange = NSRange(location: NSNotFound, length: 0)
     private var nativeSelectionPreviewRange = NSRange(location: NSNotFound, length: 0)
     private var isApplyingNativeSelectionPreview = false
-    private var isNativeSelectionTouchActive = false
     private var nativeSelectionScrollAnchor: CGPoint?
     private weak var nativeSelectionScrollView: UIScrollView?
     private var nativeSelectionScrollGuardWorkItems: [DispatchWorkItem] = []
@@ -140,12 +139,21 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
     private var scrollFreezeReleaseWorkItem: DispatchWorkItem?
     private var preserveScrollWorkItems: [DispatchWorkItem] = []
     private var ignoresEmptySelectionUntilScrollFreezeRelease = false
-    /// Commit shortly after the user releases a native tap-and-hold selection.
-    /// Keeps highlight creation feeling responsive after finger lift while
-    /// allowing UIKit a brief moment to settle the selected range.
-    private let nativeSelectionTouchEndCommitDelay: TimeInterval = 0.5
-    /// Debounce selection-change commits so UIKit handle adjustments can settle.
-    private let nativeSelectionChangeSettleDelay: TimeInterval = 0.8
+    /// Number of fingers currently on this view, counted by `touchObserver`
+    /// rather than by the view's own touch callbacks.
+    ///
+    /// The highlight used to commit on a timer — 0.8s after any selection
+    /// change, 0.5s after `touchesEnded`/`touchesCancelled` — with
+    /// `isNativeSelectionTouchActive` as its only "is the finger still down?"
+    /// guard. But UIKit delivers `touchesCancelled` to a view the moment a
+    /// gesture recognizer claims the touch, which is exactly what the text
+    /// selection interaction does when a long press becomes a drag. The guard
+    /// therefore went false mid-gesture and the highlight locked itself in
+    /// under the user's finger (monday#12708759849). Counting touches from an
+    /// observer recognizer, which keeps receiving them whoever wins the
+    /// gesture, is what makes "the user actually let go" knowable.
+    private var activeTouchCount = 0
+    private var touchObserver: TouchObserverGestureRecognizer?
 
     override init(frame: CGRect, textContainer: NSTextContainer?) {
         super.init(frame: frame, textContainer: textContainer)
@@ -186,6 +194,19 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
         tap.delegate = self
         addGestureRecognizer(tap)
 
+        // Never recognizes, so it never competes with the text selection
+        // interaction — it exists purely to observe the real touch lifecycle.
+        let observer = TouchObserverGestureRecognizer()
+        observer.delegate = self
+        observer.cancelsTouchesInView = false
+        observer.delaysTouchesBegan = false
+        observer.delaysTouchesEnded = false
+        observer.onActiveTouchCountChanged = { [weak self] count in
+            self?.handleActiveTouchCountChanged(count)
+        }
+        addGestureRecognizer(observer)
+        touchObserver = observer
+
         circleContainer.backgroundColor = .clear
         circleContainer.isUserInteractionEnabled = true
         addSubview(circleContainer)
@@ -211,10 +232,12 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
         return result
     }
 
+    // These three keep the scroll-freeze bookkeeping they always had, but they
+    // no longer decide when the gesture is over: `touchesCancelled` fires while
+    // the finger is still down (a recognizer took the touch), and acting on it
+    // is what committed the highlight mid-drag. `touchObserver` owns that now.
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         if selectionEnabled, usesNativeSelection {
-            isNativeSelectionTouchActive = true
-            selectionDebounceWorkItem?.cancel()
             freezeEnclosingScroll(reason: "touchesBegan native text interaction")
         }
         super.touchesBegan(touches, with: event)
@@ -222,25 +245,37 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesEnded(touches, with: event)
-        if selectionEnabled, usesNativeSelection {
-            isNativeSelectionTouchActive = false
-            if selectedRange.length > 0 {
-                scheduleNativeSelectionCommit(reason: "touchesEnded", delay: nativeSelectionTouchEndCommitDelay)
-            } else {
-                extendScrollFreeze(reason: "touchesEnded without active native selection", releaseAfter: 0.2)
-            }
+        if selectionEnabled, usesNativeSelection, selectedRange.length == 0 {
+            extendScrollFreeze(reason: "touchesEnded without active native selection", releaseAfter: 0.2)
         }
     }
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesCancelled(touches, with: event)
-        if selectionEnabled, usesNativeSelection {
-            isNativeSelectionTouchActive = false
-            if selectedRange.length > 0 {
-                scheduleNativeSelectionCommit(reason: "touchesCancelled", delay: nativeSelectionTouchEndCommitDelay)
-            } else {
-                extendScrollFreeze(reason: "touchesCancelled without active native selection", releaseAfter: 0.2)
-            }
+        if selectionEnabled, usesNativeSelection, selectedRange.length == 0 {
+            extendScrollFreeze(reason: "touchesCancelled without active native selection", releaseAfter: 0.2)
+        }
+    }
+
+    /// Single source of truth for "is the user still touching the text".
+    private func handleActiveTouchCountChanged(_ count: Int) {
+        guard selectionEnabled, usesNativeSelection else {
+            activeTouchCount = count
+            return
+        }
+        let wasDown = activeTouchCount > 0
+        activeTouchCount = count
+
+        if count > 0 {
+            // A finger is down: whatever was queued is stale, and the selection
+            // stays live and adjustable for as long as this lasts.
+            selectionDebounceWorkItem?.cancel()
+            selectionDebounceWorkItem = nil
+            return
+        }
+
+        if wasDown, selectedRange.length > 0 {
+            commitNativeSelectionAfterLift(reason: "touch lifted")
         }
     }
 
@@ -462,7 +497,7 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
         if !isSelectionEnabled || !usesNativeTextSelection {
             selectedRange = NSRange(location: 0, length: 0)
             selectionDebounceWorkItem?.cancel()
-            isNativeSelectionTouchActive = false
+            activeTouchCount = 0
             lastEmittedNativeSelectionRange = NSRange(location: NSNotFound, length: 0)
             nativeSelectionPreviewRange = NSRange(location: NSNotFound, length: 0)
             clearAllScrollLocks(reason: "configureContent disabled native selection")
@@ -755,10 +790,16 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
 
         captureNativeSelectionScrollAnchorIfNeeded(reason: "selectionChanged")
         applyNativeSelectionPreview(rawRange, reason: "selectionChanged")
-        scheduleNativeSelectionCommit(reason: "selectionChanged", delay: nativeSelectionChangeSettleDelay)
+        // Deliberately does NOT schedule a commit. A selection change means the
+        // user is still choosing; committing here is what stole the gesture
+        // mid-drag (monday#12708759849). The commit happens on lift only.
     }
 
-    private func scheduleNativeSelectionCommit(reason: String, delay: TimeInterval) {
+    /// Commits the live selection once the user's finger has genuinely left the
+    /// glass. Hops one runloop turn so UIKit can settle `selectedRange` after
+    /// the lift — not a delay to wait out, and abandoned if a finger comes back
+    /// down before it runs.
+    private func commitNativeSelectionAfterLift(reason: String) {
         selectionDebounceWorkItem?.cancel()
         let workItem = DispatchWorkItem { [weak self] in
             guard let self,
@@ -769,8 +810,8 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
                 return
             }
 
-            if self.isNativeSelectionTouchActive {
-                self.scheduleNativeSelectionCommit(reason: "\(reason) touch still active", delay: 0.25)
+            guard self.activeTouchCount == 0 else {
+                // Touched down again during the hop — stay live.
                 return
             }
 
@@ -784,7 +825,10 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
                 return
             }
 
-            let selectedRange = latestRange
+            // UIKit's drag granularity is per-character, so a highlight could
+            // start or end mid-word. Widen to whole words before committing
+            // (monday#12708759849).
+            let selectedRange = Self.snappedToWordBoundaries(latestRange, in: latestText)
             guard selectedRange.length > 0,
                   !NSEqualRanges(selectedRange, self.lastEmittedNativeSelectionRange) else {
                 self.clearAllScrollLocks(reason: "selectionCommit duplicate or empty")
@@ -807,7 +851,34 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
             self.extendScrollFreeze(reason: "selectionCommit complete", releaseAfter: 0.35)
         }
         selectionDebounceWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: workItem)
+        DispatchQueue.main.async(execute: workItem)
+    }
+
+    /// Widens `range` outward so both ends land on word boundaries. Only ever
+    /// grows the range — never trims what the user dragged over.
+    static func snappedToWordBoundaries(_ range: NSRange, in text: NSString) -> NSRange {
+        guard range.length > 0,
+              range.location >= 0,
+              range.location + range.length <= text.length else { return range }
+
+        func isWordCharacter(at index: Int) -> Bool {
+            guard index >= 0, index < text.length else { return false }
+            let scalars = text.substring(with: NSRange(location: index, length: 1)).unicodeScalars
+            guard let scalar = scalars.first, scalars.count == 1 else { return false }
+            if CharacterSet.alphanumerics.contains(scalar) { return true }
+            // Intra-word punctuation: "Lord's", "God-fearing", the typographic
+            // apostrophe the Bible text actually uses.
+            return scalar == "'" || scalar == "\u{2019}" || scalar == "-"
+        }
+
+        var start = range.location
+        var end = range.location + range.length
+        // Extend only while genuinely mid-word — i.e. word characters on both
+        // sides of the boundary.
+        while start > 0, isWordCharacter(at: start), isWordCharacter(at: start - 1) { start -= 1 }
+        while end < text.length, isWordCharacter(at: end), isWordCharacter(at: end - 1) { end += 1 }
+
+        return NSRange(location: start, length: end - start)
     }
 
     // MARK: - Tap Handlers
@@ -882,6 +953,12 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
         _ gestureRecognizer: UIGestureRecognizer,
         shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
     ) -> Bool {
+        // The touch observer must never block or be blocked — it only watches.
+        if gestureRecognizer is TouchObserverGestureRecognizer
+            || otherGestureRecognizer is TouchObserverGestureRecognizer {
+            return true
+        }
+
         let otherName = String(describing: type(of: otherGestureRecognizer))
 
         if usesNativeSelection,
@@ -897,5 +974,52 @@ final class ExegesisTextView: UITextView, UITextViewDelegate, UIGestureRecognize
         }
 
         return true
+    }
+}
+
+/// A gesture recognizer that never recognizes anything — it exists solely to
+/// count the fingers on a view.
+///
+/// A view's own `touchesEnded`/`touchesCancelled` cannot answer "has the user
+/// let go?" once UIKit's text-selection interaction is involved: the moment a
+/// recognizer claims the touch, the view is sent `touchesCancelled` even though
+/// the finger is still down. Gesture recognizers, by contrast, keep receiving
+/// the whole touch sequence in parallel with whoever wins. Staying in
+/// `.possible` forever is what keeps this one receiving them — transitioning to
+/// `.failed` would stop delivery, and recognizing would steal the gesture from
+/// the text view (monday#12708759849).
+final class TouchObserverGestureRecognizer: UIGestureRecognizer {
+
+    /// Fired whenever the number of touches on the view changes, including down
+    /// to zero — which is the signal that the user genuinely released.
+    var onActiveTouchCountChanged: ((Int) -> Void)?
+
+    private var activeTouches: Set<UITouch> = []
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesBegan(touches, with: event)
+        activeTouches.formUnion(touches)
+        onActiveTouchCountChanged?(activeTouches.count)
+    }
+
+    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesEnded(touches, with: event)
+        activeTouches.subtract(touches)
+        onActiveTouchCountChanged?(activeTouches.count)
+    }
+
+    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent) {
+        super.touchesCancelled(touches, with: event)
+        activeTouches.subtract(touches)
+        onActiveTouchCountChanged?(activeTouches.count)
+    }
+
+    /// UIKit resets recognizers at the end of every touch sequence, so this also
+    /// backstops any touch whose end was never delivered.
+    override func reset() {
+        super.reset()
+        guard !activeTouches.isEmpty else { return }
+        activeTouches.removeAll()
+        onActiveTouchCountChanged?(0)
     }
 }
