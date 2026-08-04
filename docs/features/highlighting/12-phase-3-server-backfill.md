@@ -15,6 +15,15 @@ deleted; `ActivityReadBlock.selections` is retained.
 None — this is a script plus assertions. Do **not** use `/schema`: M3 is a data migration, not a
 schema migration.
 
+> ## ⛔ BLOCKED 2026-08-04 — this phase's central premise does not hold
+>
+> **The backfill cannot be hash-neutral, and no amount of `selections` normalisation makes it so.**
+> The lesson content hash covers the highlight **rows** as well as the `selections` column. A Read
+> block goes from zero rows to N, so the hashed array goes from `[]` to N entries and the hash
+> moves — even with `selections` reproduced byte-for-byte. Simulated in memory over 400 lessons:
+> **13 of 13 candidates move. None are neutral.** Tasks 3.3 and 3.6 are written against the wrong
+> model of the problem. See **09 §X-k**; a decision is needed before 3.1.
+
 ## Tasks (execute in order — no ∥ in this phase)
 
 - [ ] 3.1 Write `server/scripts/backfill-highlights.ts`. `--dry-run` is the **default**; `--apply`

@@ -301,6 +301,21 @@ here, and it will block `/build-spec-verify` for every server feature until fixe
   mirrors the program context, but that is evidence, not coverage.
 - **The 409 guard is defensive code the spec did not ask for** and is flagged for Luke's review.
 
+### Post-sign-off correction — 2026-08-04, found during Phase 3
+
+**This phase shipped a regression and the sign-off above did not catch it.** Task 2.3's rename
+changed a key name inside `canonicalLessonContent`, which is JSON-encoded to produce every lesson's
+content hash — so that key is a stored wire format, not a variable name. Every lesson with a read
+block re-hashed (183 of 300 sampled), which marks enrolled groups' scheduled lessons stale for
+content nobody edited. Fixed the same session: the canonical key is pinned back to
+`exegesisHighlights` while the Prisma relation keeps its new name. Stored-vs-recomputed went from
+50/116 matching to 113/116, the remaining 3 being genuine July edits. Full account at **09 §X-j**.
+
+**What this says about the gates, and it is not comfortable:** `tsc` passed, all 453 tests passed,
+and the regression was live the whole time. Nothing in the suite tests hash stability across a
+refactor. It was found only because Phase 3 went looking at the hash for its own reasons. The
+contract in `03` is unaffected — this is internal — so the freeze below stands.
+
 ## Contract freeze
 
 ✅ **`03-data-and-api.md`'s endpoint table is FROZEN as of 2026-08-04.** Consumers (phases 4 and 5)

@@ -61,7 +61,19 @@ interface ReadBlockContent {
   fontSize: string | null
   selections: unknown
   sourceReferenceId: string | null
-  contentHighlights: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
+  /**
+   * ⚠️ The KEY NAME here is a stored wire format, not a variable name — `stableStringify`
+   * JSON-encodes this object, so renaming this field changes every lesson's content hash and
+   * marks every enrolled group's scheduled lessons stale.
+   *
+   * The Prisma relation behind it was renamed `exegesisHighlights` -> `contentHighlights` in
+   * the `highlighting` feature (phase 2), and this key was renamed with it — which silently
+   * moved the hash of all 183 of 300 sampled lessons that have a read block. Reverted to the
+   * original key name 2026-08-04; see docs/features/highlighting/09 §X-j.
+   *
+   * Do not "tidy" this name to match the relation. It is deliberately out of step.
+   */
+  exegesisHighlights: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
 }
 
 interface ActivityContent {
@@ -182,7 +194,9 @@ export function canonicalLessonContent(lesson: LessonRow): LessonContent {
               block.sourceReferenceId != null
                 ? `ref:${refIndexById.get(block.sourceReferenceId) ?? 'unknown'}`
                 : null,
-            contentHighlights: [...(block.contentHighlights ?? [])]
+            // Key name deliberately differs from the relation name — see the interface. Renaming
+            // it re-hashes every lesson with a read block.
+            exegesisHighlights: [...(block.contentHighlights ?? [])]
               .sort((a, b) => a.orderNumber - b.orderNumber)
               .map((h) => ({
                 orderNumber: h.orderNumber,
