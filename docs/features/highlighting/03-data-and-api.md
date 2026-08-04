@@ -60,10 +60,12 @@ All paths exist in **two contexts** with identical shapes:
 `canManageOrgContent(userId, organizationId, creatorId)` — the org-aware helper, unchanged from
 today's exegesis routes (`programs.ts:2964`, `:3016`, `:3101`, `:3147`).
 
-> **Activity-type gate must relax.** Today every route 400s unless
-> `activity.activityType === 'EXEGESIS'` (`programs.ts:2968`, `:3020`, `:3105`, `:3151` — all
-> four routes). The generalised routes
-> accept **`EXEGESIS` and `READ`** and 400 on anything else.
+> **Activity-type gate must relax — and the two contexts don't spell it the same way.**
+> Program routes gate on `activity.activityType` (`programs.ts:2968`, `:3020`, `:3105`, `:3151`);
+> scheduled routes gate on **`activity.type`** (`enrollments.ts:4277` and its three siblings) —
+> a different field on a different model. Relaxing the gate is **not** a copy-paste across the two
+> files. Both accept **`EXEGESIS` and `READ`** afterwards and 400 on anything else.
+> *(added 2026-08-04 — gap hunt.)*
 
 ### 2.1 `GET /api/activities/:activityId/highlights`
 
@@ -202,3 +204,4 @@ They are part of the contract, not a client detail.
 | **Active/being-edited** | white @ 0.25 |
 | **"Used" reference (Bible reader)** | `#6c47ff` @ 0.2 — the one remaining purple, and it does not mean "highlight" |
 | **Overlap** | resolved server-side by §2.2 merge. Consumers never merge locally and then post a union. |
+| **`style: "bold"`** | renders as **font weight only — no background wash**, on every surface. *(added 2026-08-04 — G-b: `bold` was in the contract with no rendering rule, which is exactly the divergence this feature exists to prevent. `read-step.vue:63` already documents both style values.)* |

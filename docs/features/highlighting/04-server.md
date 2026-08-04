@@ -25,13 +25,21 @@ into an unproven destructive path contradicts governing rule 1.
 
 ## Route work
 
-All in `server/src/routes/programs.ts` (program context) and its scheduled-activity counterpart.
+**Two files, eight routes** *(corrected 2026-08-04 — G-a; the original wording hid half the work)*:
+
+| Context | File | Routes |
+|---|---|---|
+| program | `server/src/routes/programs.ts` | GET `:2954` · POST `:2997` · PATCH `:3086` · DELETE `:3137` |
+| scheduled / enrollment | `server/src/routes/enrollments.ts` | GET `:4267` · POST `:4312` · PATCH `:4403` · DELETE `:4456` |
+
+Both sets get the generalised `…/highlights` paths **and** keep their `…/exegesis-highlights`
+aliases — 16 mounted routes in total. Every task below applies to both files.
 
 | Task | Detail |
 |---|---|
 | Rename model references | `prisma.exegesisHighlight` → `prisma.highlight` throughout after `/schema` regenerates the client |
-| Generalise the four routes | mount at `…/highlights`, keep `…/exegesis-highlights` as aliases (03 §2.5) |
-| Relax the activity-type gate | `EXEGESIS` **or** `READ`; 400 otherwise (was EXEGESIS-only at all four sites: `:2968`, `:3020`, `:3105`, `:3151`) |
+| Generalise **all eight** routes | mount at `…/highlights` in both files, keep all eight `…/exegesis-highlights` paths as aliases (03 §2.5) |
+| Relax the activity-type gate | `EXEGESIS` **or** `READ`; 400 otherwise. **Different field per context** — `activity.activityType` in `programs.ts` (`:2968`, `:3020`, `:3105`, `:3151`) vs **`activity.type`** in `enrollments.ts` (`:4277` + siblings). Not a copy-paste |
 | GET returns all locked blocks | replace `findFirst({isLocked:true})` with `findMany`, add `blockIds[]`, keep `readBlockId` as the deprecated first block (03 §2.1) |
 | `style` on POST/PATCH | zod: `style: z.enum(['highlight','bold']).optional()`; incoming style wins on merge |
 | `syncSelectionsForBlock` | generalise `syncExegesisSelectionsForBlock` (`:2894`) to emit the real `style` instead of the hardcoded `'highlight'`; call after every mutation and after M3 |
