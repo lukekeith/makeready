@@ -9,7 +9,7 @@
 Source of truth is `server/schema/schema.yaml` — never edit `prisma/schema.prisma` or
 `atlas/.schema.hcl` (both are generated). After editing the YAML run `npm run schema:validate` →
 `schema:generate` → `schema:diff` → review → `migrate:apply` → `migrate:status`
-(**there is no `/schema` skill** — 09 §G-e).
+(`/schema` exists as a command and does all of this, but it APPLIES what it generates — do not use it on this feature; 09 §G-e, §X-h).
 
 ### 1.1 `ExegesisHighlight` → `ContentHighlight`  ·  applied 2026-08-04
 
@@ -195,9 +195,16 @@ Non-negotiable, per the feature's governing rule 1.
    - the regenerated projection is **set-equal** to the pre-run `selections[]` (order by
      `orderNumber`, compare `(start, end, style)`);
    - no block loses spans; total row count only increases.
-4. **Source retained** — `selections` is never cleared. Rollback = stop writing rows and point
-   consumers back at the column.
-5. Runs **only after** the prerequisite fix in 04 §Prerequisite is verified.
+4. **Source retained** — `selections` is never cleared. Rollback = delete the created rows, restore
+   the re-stamped hash baselines from the run's manifest, and point consumers back at the column.
+5. **The run is NOT hash-neutral, and the plan that said it would be was wrong** *(corrected
+   2026-08-04 — 09 §X-k)*. The lesson content hash covers the highlight **rows**, not only
+   `selections`, so creating rows moves it however faithfully the column is reproduced (measured:
+   13 of 13 candidate lessons). **DECIDED (Luke, 2026-08-04):** the run re-stamps the stored
+   baselines — `LessonScheduleVersion.sourceContentHash` **and** `StudyProgramVersion.lessonHashes`,
+   both sides or neither — but **only where the stored value still equals the pre-backfill hash**.
+   A stored value that already differed means genuine drift and is left untouched and reported.
+6. Runs **only after** the prerequisite fix in 04 §Prerequisite is verified.
 
 Overlapping spans within one block's existing `selections[]` are migrated **as-is, without
 merging** — the backfill is a copy, not a normalisation. Merging only ever happens on a user

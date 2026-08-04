@@ -77,6 +77,16 @@ The dry run must, before anything is written:
 **DECIDED (Luke, 2026-08-04): normalise — M3 must be hash-neutral.** Re-baselining the hashes was
 rejected; a dirty report is a bug to fix, not a churn to announce. Do not run M3 on a dirty report.
 
+> ⚠️ **SUPERSEDED IN PART, 2026-08-04 (09 §X-k).** The decision above, and the normalisation
+> argument below it, are correct about the **`selections` column** and that half still stands and is
+> still required. They are wrong that this makes M3 hash-neutral: `canonicalLessonContent` hashes
+> the highlight **rows** as well, and a Read block goes from zero rows to N. Measured over 400
+> lessons, **13 of 13 candidates move; none are neutral.** M3 therefore re-stamps the stored
+> baselines instead (both `LessonScheduleVersion.sourceContentHash` and
+> `StudyProgramVersion.lessonHashes`, only where they still hold the pre-backfill value) —
+> **DECIDED (Luke, 2026-08-04)**. See 12 §3.4, §3.7. Read the rest of this section as "how
+> `selections` byte-identity is achieved", which is what it actually proves.
+
 **How normalisation is achieved (verified in code, 2026-08-04):**
 
 - **Keys already match.** `ReadBlockSelection` (`StudyModels.swift:372`) is `Codable` over exactly
