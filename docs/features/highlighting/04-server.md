@@ -1,0 +1,82 @@
+# Server
+
+## Prerequisite — the open data-loss fix (D8)
+
+**Nothing in this phase proceeds until this is closed.**
+
+monday#12708759849 sub-issue A: a leader highlighted over two existing highlights that had notes,
+and the notes were erased. The deep dive
+([dossier](../../monday/tickets/12708759849.md)) established:
+
+- the server merge **does** concatenate absorbed notes (`programs.ts:3033-3045`) and returns the
+  concatenation on the created row;
+- `syncExegesisSelectionsForBlock` never touches `noteMarkdown`;
+- therefore the loss is client-side — either the note survives but is unreachable (the iPhone keys
+  notes by *range*, `highlightNoteKey` = `"location:length"`, which every merge invalidates by
+  construction), or an empty draft overwrites it.
+
+**Required before M3:** reproduce, then read the row back via `GET …/highlights` to determine
+which. Note text present → client keying/display bug, fixed in 06. Note text absent → the server
+path re-opens and this document grows a fix.
+
+Why it gates the migration: M3 moves every Read highlight into the table whose write path
+(`programs.ts:3056-3069`, `deleteMany` on absorbed rows) is the one under report. Migrating data
+into an unproven destructive path contradicts governing rule 1.
+
+## Route work
+
+All in `server/src/routes/programs.ts` (program context) and its scheduled-activity counterpart.
+
+| Task | Detail |
+|---|---|
+| Rename model references | `prisma.exegesisHighlight` → `prisma.highlight` throughout after `/schema` regenerates the client |
+| Generalise the four routes | mount at `…/highlights`, keep `…/exegesis-highlights` as aliases (03 §2.5) |
+| Relax the activity-type gate | `EXEGESIS` **or** `READ`; 400 otherwise (was EXEGESIS-only at all four sites: `:2968`, `:3020`, `:3105`, `:3151`) |
+| GET returns all locked blocks | replace `findFirst({isLocked:true})` with `findMany`, add `blockIds[]`, keep `readBlockId` as the deprecated first block (03 §2.1) |
+| `style` on POST/PATCH | zod: `style: z.enum(['highlight','bold']).optional()`; incoming style wins on merge |
+| `syncSelectionsForBlock` | generalise `syncExegesisSelectionsForBlock` (`:2894`) to emit the real `style` instead of the hardcoded `'highlight'`; call after every mutation and after M3 |
+| Deletion cascade | `:2746` deletes highlights for a block set — verify it stays correctly scoped now that Read highlights live there too |
+
+**Auth is unchanged**: `requireAuth` + `canManageOrgContent(userId, organizationId, creatorId)` on
+every route, plus the second ownership check on PATCH/DELETE
+(`highlight.readBlock.lessonActivityId === activityId`, `:3110-3117`). This feature must not widen
+or narrow access; if it does, that is an `X#` row.
+
+## Migration & backfill
+
+M1/M2 are schema (03 §1.3) via the YAML → `/schema` workflow. **Never** `npx prisma migrate dev`.
+
+M3 is a **script**, not a schema migration — `server/scripts/backfill-highlights.ts`, with
+`--dry-run` as the default and `--apply` required to write. It implements 03 §4 exactly:
+dry-run report → idempotent insert → per-block assertions → source column retained.
+
+Ordering: M1 → M2 → prerequisite fix verified → M3 dry-run reviewed → M3 apply → projection
+rebuild → assertions.
+
+## Tests
+
+- merge: overlapping create absorbs, unions the span, **concatenates notes**, keeps the earliest
+  `orderNumber`, returns `absorbedIds` — the regression guard for the prerequisite
+- merge with differing styles → incoming style wins
+- GET on a READ activity with **three** locked blocks returns highlights from all three and a
+  `blockIds` array of length 3
+- GET on a non-READ/EXEGESIS activity → 400
+- legacy `…/exegesis-highlights` alias returns byte-identical fields to today for an EXEGESIS
+  activity
+- PATCH `style` only, `noteMarkdown` only, both, neither (→400)
+- PATCH/DELETE of a highlight belonging to a different activity → 404
+- projection: after each mutation, `selections[]` equals the rows' `(start,end,style)` in order
+- backfill: idempotence (second run is a no-op), span-equality assertions, and that `selections`
+  is untouched on disk
+
+## Gates
+
+```
+cd server && npx tsc --noEmit
+cd server && npm run lint
+cd server && npm run test:run
+cd server && npm run schema:validate
+cd server && npm run schema:diff
+cd server && npm run migrate:status
+docker restart makeready-server          # after ANY server/src edit — tsx watch misses bind-mount events
+```
