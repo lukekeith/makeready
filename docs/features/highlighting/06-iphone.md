@@ -54,6 +54,12 @@ forever so UIKit keeps delivering it the whole sequence.
 - **Model**: `ExegesisHighlight` → `Highlight` in `Pages/Manage/Program/Models/StudyModels.swift:380`,
   gaining `style`. `ReadBlockSelection` (`:372`) is retained — it still decodes the derived
   projection that older payloads carry.
+- **`blockIds[]` (03 §2.1)**: the Read editor is the multi-block consumer — an activity can hold
+  several locked verse blocks, so it resolves each highlight to its block via
+  `highlight.readBlockId` and uses `blockIds` for ordering/empty-state. **Never read the deprecated
+  singular `readBlockId` off the response** — it names only the first block.
+  *(added 2026-08-04 — the integrity check found 03 introduced this field with no consumer doc
+  explaining who reads it.)*
 - **Storage**: highlights are server data keyed by id and readable by more than one screen →
   `EntityStore<Highlight>` on `AppState`, not view `@State`. Add to `clearInMemory()` — org-scoped
   data left behind leaks into the next session. The SwiftLint rule
@@ -82,7 +88,7 @@ payload into `Highlight`. Bump the persisted-state version (or make `style` opti
 | Highlight action menu | `ExegesisHighlightModal` | exists |
 | Note editor | `ExegesisNoteEditorPage` | exists |
 | Highlight-mode hint row | plain `Text` + `Typography.s12Medium` | exists |
-| Card chrome around blocks | `SwipeableCard` | exists — **shared by 14 screens**, do not modify |
+| Card chrome around blocks | `SwipeableCard` | exists — referenced by **13 files: 10 production screens, 2 demo pages, 1 layout wrapper** (`SwipeableScrollView`). Do not modify *(corrected 2026-08-04 — "14 screens" counted the component's own file and did not separate demos)* |
 
 Spec approval is approval to build the **(new)** rows.
 

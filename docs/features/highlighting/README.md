@@ -1,6 +1,6 @@
 # highlighting — one text-highlighting service across every text surface
 
-**Status:** `spec complete` · spec conversation 2026-08-04 · awaiting audit
+**Status:** `spec complete` · integrity SOUND · audit pass 1 partial · **decisions gate open**
 
 One way to create, store, render and persist a text highlight — replacing three native
 implementations that disagree on granularity, colour, coordinates and when a selection commits.
@@ -24,8 +24,9 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 | Step | Status |
 |---|---|
 | spec | ✅ suite written (README + 01–09) |
-| audit | ⬜ |
-| decisions | ⬜ |
+| integrity check | ✅ SOUND (3 defects corrected) |
+| audit | 🔄 pass 1 partial — X-c confirmed, X-d closed; per-app sweeps owed |
+| decisions | 🔄 open — see 09 |
 | plan | ⬜ |
 | build | ⬜ |
 | verify | ⬜ |

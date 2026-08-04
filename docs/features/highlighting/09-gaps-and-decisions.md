@@ -4,11 +4,29 @@
 > Row types: **G** gap in the spec · **D** open design decision · **O** open question for the user ·
 > **C** convention/pattern violation · **X** cross-app risk.
 
+## Integrity check — 2026-08-04
+
+**Verdict: SOUND** — 3 defects, all corrected in place; none changes scope, cost or a decision.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Suite completeness | ✅ README + 01–09 present; every app has an owner doc with content (no ⬜ apps in this feature) |
+| 2 | Citations (31 checked, all opened) | ✅ after correction — 4 had drifted and were fixed during the draft's self-review (`ReadActivityActionProvider` :14 not :20 · `ExegesisActivityActionProvider` :22 not :21 · the `activityType` gate is at **four** sites 2968/3020/3105/3151, not two · `canManageOrgContent` at 2964/3016/3101/3147). All `programs.ts`, `StudyModels.swift`, `schema.yaml`, `ViewRegistry.swift` and capture-fixture paths re-opened and confirmed |
+| 3 | Counts re-run | ❌→✅ **"SwipeableCard shared by 14 screens"** was both stale and silently scoped — 13 files reference it, of which 10 are production screens, 2 demo pages and 1 a layout wrapper. Corrected in 06. Verified correct: 2,165 lines (`BibleReaderOverlay`), 8 Action methods, ~10 scroll-lock state vars (10 of 22 lifecycle vars), 3 `ExegesisVerseView` consumers, 2 `SelectableLockedBlockView` consumers, **zero** callers of `snapToWordBoundaries`, 5 compare fixtures |
+| 4 | Commands exist & invoke correctly | ✅ all 11 verified by existence, not execution: `ios:build-check` (root), client `build`/`guard`/`vendor/bin/phpunit`, server `lint`/`test:run`/`schema:validate`/`schema:diff`/`migrate:status`, `swiftlint` on PATH (must run from `iphone/`), `capture/runners/compare/diff.mjs` |
+| 5 | Internal consistency | ❌→✅ all 9 intra-suite links and 3 ticket links resolve; 05/06 invent no fields. **`blockIds[]` was defined in 03 with no consumer doc explaining who reads it** — 06 now states the Read editor is the multi-block consumer and must not read the deprecated singular `readBlockId`. `D-a` was listed OPEN while 03 presented it as decided; now marked provisionally-decided-pending-ratification |
+| 6 | Ledger ↔ artifacts ↔ code | ✅ ledger step statuses match disk; README snapshot matches the ledger; progress recomputes to 10% (recon 1 + design 3 + 10 files × 0.6) exactly as recorded; OPEN rows are consistent with "nothing planned, nothing built" |
+| 7 | Unverifiable claims | ✅ no `(claimed — unverified)` markers. The one hedged claim — that `lesson-content-hash.ts` *may* include `selections` — is correctly hedged and already carried as `X-c` |
+
+**Not verified (flagged, not silently skipped):** no command was executed, per the skill's read-only
+rule — existence and invocation directory were established by reading. Whether the content hash
+actually includes `selections` needs the audit or a running stack (`X-c`).
+
 ## Audit pass log
 
 | Date | Pass | Findings | Notes |
 |---|---|---|---|
-| — | — | — | not yet audited |
+| 2026-08-04 | 1 — **PARTIAL** | 1 confirmed risk (X-c), 1 closed (X-d) | **Scoped to the cross-app contract and the two unresolved X-rows**, which were the highest-value unknowns. **Not yet done:** per-app pattern compliance sweeps (server route/service conventions, client island/store conventions, iPhone AppState/Actions conventions), component-coverage verification for the client, and the adversarial gap hunt. A full pass is still required before the plan step. |
 
 ## G — gaps
 
@@ -20,7 +38,7 @@
 
 | # | Status | Decision needed | Context |
 |---|---|---|---|
-| D-a | OPEN | **Style precedence on merge.** 03 §2.2 decides "incoming style wins" so consumers can rely on something. Nobody has ratified it. Alternative: highest-priority style wins, or merge refuses across differing styles. | 03 §2.2 |
+| D-a | OPEN — **provisionally decided in 03 §2.2** ("incoming style wins"), needs ratification | **Style precedence on merge.** 03 commits to an answer so consumers have something to code against; nobody has ratified it. Alternatives: highest-priority style wins, or merge refuses across differing styles. | 03 §2.2 |
 | D-b | OPEN | **Does the shared controller carry `ExegesisVerseView`'s scroll-lock machinery, or drop it?** ~10 state vars exist to stop the enclosing ScrollView jumping during native selection. Carrying it makes the controller heavier; dropping it risks reintroducing scroll jump that is not currently reported. | 06 §Selection lifecycle |
 | D-c | OPEN | **Wrapper or replacement** for `SelectableLockedBlockView` / `ExegesisVerseView`. Wrapping keeps the capture ViewRegistry cases resolving; replacing is cleaner but touches the harness in the same task. | 06, 07 |
 
@@ -43,7 +61,7 @@
 |---|---|---|---|
 | X-a | OPEN | **Build 374 is in testers' hands now** and reads `selections[]` + `…/exegesis-highlights`. Any slip in the projection or the aliases silently empties their Read highlights. | 03 §2.5/§3, tested by 08 E2E step 7 |
 | X-b | OPEN | **The backfill writes into the merge path that has an open data-loss report** (monday#12708759849 sub-issue A). | D8 makes the fix a prerequisite; 04 §Prerequisite gates M3 |
-| X-c | OPEN | `services/lesson-content-hash.ts` may include `selections` in the lesson content hash. Rebuilding the projection could spuriously invalidate lesson versions and trigger `enrollment-sync` for enrolled groups. | 03 §3 audit item; verify before M3 |
-| X-d | OPEN | `programs.ts:2746` deletes highlights for a set of blocks. After convergence that path deletes **Read** highlights too — scope must be re-verified. | 04 §Route work |
+| X-c | **OPEN — CONFIRMED 2026-08-04** | `lesson-content-hash.ts:180` **does** hash `selections` (`selections: block.selections ?? null`), and `enrollment-sync.ts:322` compares `schedule.currentVersion?.sourceContentHash === lesson.contentHash` to decide whether an enrolled group's scheduled lesson is stale. So the projection is *already* the mechanism by which a highlight edit invalidates a lesson version — and any change to how it serialises re-hashes **every** block that has highlights. Narrowed by inspection: style **values** should not change (exegesis rows are all `'highlight'`; Read's spans already carry real styles), so the exposure is **ordering and JSON shape** — the projection sorts by `orderNumber` and emits exactly `{start,end,style}`, whereas today's Read `selections` is whatever the client wrote. | The backfill must either reproduce each block's existing serialisation byte-for-byte, or be accompanied by a deliberate, announced hash re-baseline. **04 gains a required pre-flight**: diff old vs regenerated `selections` JSON across all blocks in the dry run and report every block whose hash would move. Consumers: `enrollment-sync`, `enrollment-edit`, `enrollment-sync-changes`, `study-program-publish`, `routes/enrollments.ts` |
+| X-d | **RESOLVED 2026-08-04 — no new risk** | `programs.ts:2740-2748` scopes the delete to one activity's own blocks (`lessonActivityId: id`) and deletes those blocks on the next line, so the highlights were going away with their blocks regardless. After convergence it also removes Read highlights — but those live on the same doomed blocks, and today's `selections` column dies with them identically. Behaviour is equivalent; no data becomes newly reachable or newly lost. | none — closed with evidence |
 | X-e | OPEN | The exegesis endpoints assume **one locked block per activity** (`findFirst`). READ activities have many. Any consumer still reading the singular `readBlockId` will silently address only the first block. | 03 §2.1 introduces `blockIds[]`; consumers must migrate off `readBlockId` |
 | X-f | OPEN | iPhone disk cache holds the old entity shape; an in-place upgrade must not fail the decode. | 06 §Disk cache |

@@ -50,8 +50,26 @@ M3 is a **script**, not a schema migration — `server/scripts/backfill-highligh
 `--dry-run` as the default and `--apply` required to write. It implements 03 §4 exactly:
 dry-run report → idempotent insert → per-block assertions → source column retained.
 
-Ordering: M1 → M2 → prerequisite fix verified → M3 dry-run reviewed → M3 apply → projection
-rebuild → assertions.
+Ordering: M1 → M2 → prerequisite fix verified → **content-hash pre-flight** → M3 dry-run reviewed →
+M3 apply → projection rebuild → assertions.
+
+### Content-hash pre-flight (required — X-c, confirmed 2026-08-04)
+
+`lesson-content-hash.ts:180` hashes `block.selections`, and `enrollment-sync.ts:322` treats a
+changed hash as "this enrolled group's scheduled lesson is out of date". The projection is
+therefore load-bearing on version resolution, and re-serialising it can mark **every enrolled
+group's lessons stale** for content nobody edited.
+
+The dry run must, before anything is written:
+
+1. compute each block's **current** `selections` JSON and the **regenerated** projection;
+2. report every block where the two differ — by value, by key order, or by array order;
+3. report how many lessons and enrolled schedules those blocks roll up to.
+
+A clean report (no differences) means M3 is hash-neutral and can proceed. A dirty report is a
+**decision**, not a warning: either normalise the projection to reproduce the existing bytes, or
+re-baseline the hashes deliberately and tell the affected groups' leaders. Do not run M3 on a dirty
+report.
 
 ## Tests
 
