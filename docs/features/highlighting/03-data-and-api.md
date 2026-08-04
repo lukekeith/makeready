@@ -113,8 +113,7 @@ document order with `\n\n`; the merged row keeps the earliest absorbed `orderNum
 > [04-server.md](04-server.md) §Prerequisite and D8.
 
 **Style on merge:** when absorbed rows disagree on `style`, the **incoming** style wins for the
-merged row. (Decided here so consumers can rely on it; flagged for the audit as a `D#` candidate
-if anyone disagrees.)
+merged row. **RATIFIED (Luke, 2026-08-04)** — consumers may rely on this.
 
 Errors: `400` invalid body / wrong activity type; `404` activity or block not found; `500`.
 
@@ -138,7 +137,9 @@ The four `…/exegesis-highlights…` paths remain mounted for **at least one re
 contexts, delegating to the same handlers and returning the same field names a shipped build
 decodes. They keep the strict `EXEGESIS`-only gate so an old build's behaviour is bit-identical.
 
-Removal is a separate, later change gated on adoption telemetry — not part of this feature.
+Removal is a separate, later change — not part of this feature.
+**DECIDED (Luke, 2026-08-04): revisit one release after this ships**, at which point the cleanup
+gets an owner. Until then the aliases and the projection stay.
 
 ## 3. The derived projection
 
@@ -155,9 +156,15 @@ selections = highlights
 This is what keeps shipped iPhone builds working (D3). It runs after create, update, delete and
 the M3 backfill. It is the **only** writer of that column.
 
-> **Audit item:** `services/lesson-content-hash.ts` may include `selections` in a lesson's content
-> hash. Rebuilding the projection must not spuriously invalidate lesson versions or trigger
-> `enrollment-sync`. Verify before M3 runs.
+> ⚠️ **CONFIRMED (2026-08-04) — this projection is load-bearing on lesson versioning.**
+> `lesson-content-hash.ts:180` hashes `block.selections`, and `enrollment-sync.ts:322` decides
+> whether an enrolled group's scheduled lesson is stale by comparing that hash. So the projection
+> is already how a highlight edit invalidates a version, and any change to how it *serialises*
+> re-hashes every block carrying highlights.
+> **DECIDED (Luke, 2026-08-04): M3 must be hash-neutral** — the backfill assigns `orderNumber` =
+> the span's index in the existing array so the projection re-emits byte-identical JSON. Proven
+> achievable in code; mechanism and pre-flight in [04-server.md](04-server.md) §Content-hash
+> pre-flight.
 
 ## 4. Backfill (M3) — the data-safety procedure
 

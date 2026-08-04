@@ -66,10 +66,23 @@ The dry run must, before anything is written:
 2. report every block where the two differ — by value, by key order, or by array order;
 3. report how many lessons and enrolled schedules those blocks roll up to.
 
-A clean report (no differences) means M3 is hash-neutral and can proceed. A dirty report is a
-**decision**, not a warning: either normalise the projection to reproduce the existing bytes, or
-re-baseline the hashes deliberately and tell the affected groups' leaders. Do not run M3 on a dirty
-report.
+**DECIDED (Luke, 2026-08-04): normalise — M3 must be hash-neutral.** Re-baselining the hashes was
+rejected; a dirty report is a bug to fix, not a churn to announce. Do not run M3 on a dirty report.
+
+**How normalisation is achieved (verified in code, 2026-08-04):**
+
+- **Keys already match.** `ReadBlockSelection` (`StudyModels.swift:372`) is `Codable` over exactly
+  `start`, `end`, `style` — its `id` is a computed property and is never encoded. The projection
+  emits the same three keys.
+- **Order is the only real variable.** The client appends new spans at the end —
+  `mergeSelection` returns `kept + [new]` (`EditReadActivityPage.swift`) — so the stored array is
+  in insertion order, while the projection sorts by `orderNumber`.
+- **Therefore:** the backfill assigns `orderNumber` = the span's **index in the existing
+  `selections` array**. The projection then re-emits the identical order, and the JSON is
+  byte-identical. Exegesis blocks are unaffected (their rows already own `orderNumber`, and their
+  projected style was and remains `'highlight'`).
+
+The pre-flight is what proves this held, per block, before anything is written.
 
 ## Tests
 

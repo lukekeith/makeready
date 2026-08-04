@@ -30,8 +30,12 @@ Commit fires when the touch count reaches zero — a genuine release — never o
 monday#12708759849). `TouchObserverGestureRecognizer` never recognizes and stays `.possible`
 forever so UIKit keeps delivering it the whole sequence.
 
-> **Carry-over risk:** `ExegesisVerseView` entangles selection with ~10 scroll-lock/anchor state
-> vars (`freezeEnclosingScroll`, `nativeSelectionScrollAnchor`, `preserveScrollWorkItems`,
+> **DECIDED (Luke, 2026-08-04): carry it.** The shared controller absorbs the scroll-lock
+> machinery rather than dropping it — nobody loses working behaviour, at the cost of a heavier
+> controller. Budget for it in the phase estimate: it is 10 of the view's 22 lifecycle state vars.
+>
+> **Carry-over detail:** `ExegesisVerseView` entangles selection with those ~10 scroll-lock/anchor
+> state vars (`freezeEnclosingScroll`, `nativeSelectionScrollAnchor`, `preserveScrollWorkItems`,
 > `ignoresEmptySelectionUntilScrollFreezeRelease`, …) that exist to stop the enclosing ScrollView
 > jumping during a native selection. The controller must carry this behaviour or drop it
 > deliberately — silently losing it reintroduces scroll jump, which is not currently reported and
@@ -45,9 +49,10 @@ forever so UIKit keeps delivering it the whole sequence.
 | **Exegesis editor** — `EditExegesisActivityPage` + `ExegesisVerseView` | `.word` | everything | notes UI, the highlight action menu, `ExegesisNoteEditorPage` |
 | **Bible reader** — `BibleReaderOverlay` | `.word` | `HighlightRange`, snapping, renderer, controller (D5) | its overlay chrome, verse circles, and **its output: a passage reference, not a Highlight row** |
 
-`SelectableLockedBlockView` and `ExegesisVerseView` either become thin wrappers over
-`HighlightableTextView` or are replaced by it. Prefer wrappers first so the capture
-`ViewRegistry` cases keep resolving.
+**DECIDED (Luke, 2026-08-04): wrap first, replace later.** `SelectableLockedBlockView` and
+`ExegesisVerseView` become thin wrappers over `HighlightableTextView`, so the capture
+`ViewRegistry` cases keep resolving and the harness never breaks mid-phase. Replacing them
+outright is a follow-up, not part of this feature.
 
 ## AppState & Actions
 
