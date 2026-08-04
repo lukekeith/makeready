@@ -53,6 +53,29 @@ if the fix touches a catch block · `/transition-review` is **not** needed (no a
       · files: `iphone/MakeReady/Pages/Manage/Program/EditExegesisActivityPage.swift`,
         `ExegesisNoteEditorPage.swift` · spec: 06 §Note keying
       · tests: a note survives a merge that changes the highlight's span
+
+      **Call-site map (surveyed 2026-08-04 — this is bigger than "change one function").**
+      Three dictionaries are range-keyed, not one: `noteDrafts` (`:183`),
+      `attributedNoteDrafts` (`:184`) and `savedNoteMarkdownByHighlight` (`:185`). Seventeen sites
+      in `EditExegesisActivityPage.swift` touch them:
+      `:487-488` (the note-button lookup + the TEMPORARY diagnostic at `:495`) ·
+      `:514-517` (delete clears all three) · `:618` (`noteMarkdown(for:)`) ·
+      `:634-638` (`seedNoteDrafts`) · `:649-651` (`highlightNoteKey`) ·
+      `:653` (`rangeFromHighlightNoteKey`) · `:689-695` (hydrate from server) ·
+      `:705-706` (draft write) · `:715-718` (flush pending drafts) ·
+      `:739-741` (post-save reconciliation) · `:949-950` (post-create).
+      All three are passed as `@Binding` into `ExegesisNoteEditorPage` (`:1069-1070`, `:1088`,
+      `:1094-1096`, `:1106-1108`) and into the action menu (`:505-507`, `:550-552`).
+
+      **The design constraint that makes this non-trivial:** `ExegesisNoteEditorPage` navigates by
+      **`NSRange`** (`highlightRanges: [NSRange]`, one page per range), so it has no id to key by.
+      Either (a) keep the dictionaries range-keyed but **re-key them after every merge** from the
+      server's returned row, or (b) thread highlight ids through the editor and convert at the
+      boundary via `exegesisHighlights` (which carries `id` + `start`/`end`). (b) is the real fix
+      and matches 06 §Note keying; (a) is a narrower patch. **Decide before writing.**
+
+      Also delete the `TEMPORARY DIAGNOSTIC` block at `:487-503` while here — it was added to make
+      this exact report decidable, and task 1.2 has now decided it.
 - [x] ~~1.3b~~ **NOT TAKEN** — ruled out by 1.2's evidence. This phase stays an iPhone phase.
 - [ ] ~~1.3b~~ *(original text, kept for the record)* If the note is absent from the DB → **STOP.** This phase becomes a *server* phase;
       re-open `04`, add the server fix, and re-run this phase doc's gates against `server/`. Do not
