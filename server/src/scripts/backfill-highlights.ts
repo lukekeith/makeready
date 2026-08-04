@@ -20,6 +20,7 @@
  * ─────────────────────────────────────────────────────────────────────────────────────────────
  *
  * Usage:  npx tsx src/scripts/backfill-highlights.ts [--verbose]
+ *         npx tsx src/scripts/backfill-highlights.ts --rollback=<manifest.json>
  *         npx tsx src/scripts/backfill-highlights.ts --apply [--verbose]
  *
  * Lives under src/ so `npx tsc --noEmit` actually covers it — tsconfig includes only `src`,
@@ -27,7 +28,7 @@
  * riskiest code in the feature; it does not get to skip the typechecker.
  */
 
-import { writeFileSync } from 'fs'
+import { readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { prisma } from '../lib/prisma.js'
 import {
@@ -38,6 +39,7 @@ import {
 
 const VERBOSE = process.argv.includes('--verbose')
 const APPLY = process.argv.includes('--apply')
+const ROLLBACK = process.argv.find((a) => a.startsWith('--rollback='))?.split('=')[1]
 
 interface Span { start: number; end: number; style?: string }
 
@@ -58,8 +60,71 @@ function projectionFor(spans: Span[]): Array<{ start: number; end: number; style
   return spans.map((s) => ({ start: s.start, end: s.end, style: s.style ?? 'highlight' }))
 }
 
+/**
+ * Reverse a previous `--apply` from its manifest.
+ *
+ * This exists so the rollback can be REHEARSED rather than merely described. A rollback that has
+ * never been executed is a paragraph, not a capability — and this migration touches customer data
+ * across four tables, one of which is a published-version audit record.
+ */
+async function rollback(manifestPath: string) {
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as ManifestEntry[]
+  console.log(`\n═══ ROLLBACK from ${manifestPath} (${manifest.length} entries) ═══\n`)
+
+  await prisma.$transaction(async (tx) => {
+    // 1 ── delete the rows this run created. Every such block had ZERO rows beforehand
+    //      (that is the condition the backfill selected on), so deleting all of its rows is exact.
+    const blockIds = manifest.filter((m) => m.table === 'content_highlights').map((m) => m.rowId)
+    if (blockIds.length) {
+      const { count } = await tx.contentHighlight.deleteMany({ where: { readBlockId: { in: blockIds } } })
+      console.log(`  deleted ${count} rows across ${blockIds.length} blocks`)
+    }
+
+    // 2 ── restore the schedule-version hashes
+    for (const m of manifest.filter((e) => e.table === 'LessonScheduleVersion')) {
+      await tx.lessonScheduleVersion.update({
+        where: { id: m.rowId },
+        data: { sourceContentHash: m.oldValue as string },
+      })
+    }
+
+    // 3 ── restore the program-version snapshot + map, one row at a time (JSON read-modify-write)
+    const pvIds = [...new Set(manifest.filter((e) => e.table === 'StudyProgramVersion').map((e) => e.rowId))]
+    for (const pvId of pvIds) {
+      const pv = await tx.studyProgramVersion.findUniqueOrThrow({
+        where: { id: pvId }, select: { snapshot: true, lessonHashes: true },
+      })
+      const snapshot = pv.snapshot as { lessons?: Array<{ id: string; contentHash: string; content: unknown }> } | null
+      const map = (pv.lessonHashes ?? {}) as Record<string, string>
+
+      for (const m of manifest.filter((e) => e.table === 'StudyProgramVersion' && e.rowId === pvId)) {
+        if (m.field === 'snapshot.contentHash') {
+          const sl = snapshot?.lessons?.find((l) => l.id === m.lessonId)
+          if (sl) sl.contentHash = m.oldValue as string
+        } else if (m.field === 'snapshot.content') {
+          const sl = snapshot?.lessons?.find((l) => l.id === m.lessonId)
+          if (sl) sl.content = m.oldValue
+        } else if (m.field.startsWith('lessonHashes.')) {
+          map[m.field.slice('lessonHashes.'.length)] = m.oldValue as string
+        }
+      }
+
+      await tx.studyProgramVersion.update({
+        where: { id: pvId },
+        data: { snapshot: snapshot as never, lessonHashes: map as never },
+      })
+    }
+    console.log(`  restored baselines on ${pvIds.length} program version(s)`)
+  })
+
+  console.log('\n═══ rollback complete — verify against the pre-run fingerprints ═══\n')
+  await prisma.$disconnect()
+}
+
 async function main() {
-  console.log('\n═══ backfill-highlights — DRY RUN (read-only; no --apply path exists yet) ═══\n')
+  if (ROLLBACK) return rollback(ROLLBACK)
+
+  console.log(APPLY ? '\n═══ backfill-highlights — APPLY ═══\n' : '\n═══ backfill-highlights — DRY RUN (pass --apply to write) ═══\n')
 
   // ── Candidates: blocks whose highlights still live only in the selections column ──────────
   const blocks = await prisma.activityReadBlock.findMany({

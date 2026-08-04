@@ -125,11 +125,18 @@ schema migration.
 - [x] 3.10 ✅ **DONE.** Spans are copied as-is; no merging. The script reports blocks holding
       duplicate `(start,end)` spans, which the unique constraint would reject, and **refuses to
       apply** if any exist. None found in this data. · spec: 03 §4
-- [ ] 3.11 Tests: idempotence, span equality, `selections` untouched on disk, the re-stamp
-      condition (matching → updated, non-matching → untouched), and a post-run hash sweep.
-      · files: `server/scripts/__tests__/` · **the existing hash-stability guard
-      (`lesson-content-hash-stability.test.ts`) must stay green throughout** — this phase changes
-      data, never the hash's shape.
+- [x] 3.11 ✅ **DONE — 18 tests, `src/scripts/__tests__/backfill-highlights.test.ts`.** Suite
+      458 → **476**. Covers candidate selection (including the JSON-null-is-a-scalar case), span →
+      row conversion (index ordering, style default, empty note, overlaps copied without merging),
+      the projection round-trip, duplicate-span detection, and **the re-stamp condition** — which
+      gets the most cases because it is the one place a wrong answer silently marks a leader's real
+      edit as synced.
+      **Honest limitation, stated rather than implied:** the script is a top-level program that
+      runs on import, so these tests exercise **local copies of its rules**, not the script itself.
+      If the script's logic changes they must be updated in step; its header says so. The
+      end-to-end behaviour is covered by the recorded live run and the rollback rehearsal instead.
+      **The hash-stability guard stayed green throughout** — this phase changes data, never the
+      hash's shape.
 - [x] 3.12 ✅ **DONE — verified in the database.** Blocks matching the guard's condition ("has
       selections, has no rows") went from **49 to 0**. The guard is now inert and stays in place as
       a permanent invariant check (09 §X-i).
@@ -158,7 +165,15 @@ docker restart makeready-server
 - [x] `ActivityReadBlock.selections` untouched — 65 blocks / 100 spans before and after. The script
       deliberately never writes that column: it already holds what the projection would regenerate
 - [x] Row count only increased: 36 → 103, exactly +67 as predicted. Nothing deleted
-- [~] Rollback: the **manifest exists and is complete** — 98 entries beside the ledger at
+- [x] **Rollback REHEARSED 2026-08-04 — executed, not described.** `--rollback=<manifest>` deletes
+      the created rows and restores every baseline from its recorded old value. Run for real against
+      the migrated database: **67 rows deleted across 49 blocks, baselines restored on 2 program
+      versions**, after which `content_highlights` was back to **36 rows with fingerprint
+      `4ab6fd621692720c1caf55657ae08117` — byte-identical to the pre-backfill state** — and a fresh
+      dry run reported the original 49 blocks to migrate and the original 16/11/11 re-stamp surface.
+      So the hash baselines were restored too, not just the rows. The backfill was then re-applied,
+      leaving local in the migrated state.
+- [x] Rollback inputs: the **manifest exists and is complete** — 98 entries beside the ledger at
       `highlighting-phase3-backup/backfill-highlights-manifest-98.json`, breaking down as 49 row
       creations + 16 schedule hashes + 11 snapshot hashes + 11 snapshot contents + 11 map entries,
       each with its old value. A full `pg_dump` of all four tables was taken before the run.
@@ -167,4 +182,35 @@ docker restart makeready-server
 
 ## VERIFIED
 
-*(unsigned)*
+✅ **VERIFIED 2026-08-04 — agent evidence. Phases 4 and 5 may open.**
+
+**What exists that didn't:** every existing Read highlight is now a `content_highlights` row, and
+the four places the old lesson hash was recorded have been corrected so this migration does not
+surface to leaders as content they never edited.
+
+**The run, on production-synced local data:**
+- 49 blocks migrated · **36 → 103 rows, exactly the +67 the pre-flight predicted**
+- 49 baselines re-stamped; **3 skipped**, all the same genuinely-drifted lesson (`09abe81f`),
+  skipped consistently in all three of its locations
+- Post-run sweep ✅ — every affected lesson hashes to its re-stamped baseline
+- Second `--apply` is a no-op; `selections` untouched at 65 blocks / 100 spans
+- Blocks matching the 409 guard's condition: **49 → 0**
+
+**Rollback rehearsed, not merely designed.** Executed against the migrated database: 67 rows
+deleted, baselines restored, `content_highlights` back to 36 rows with fingerprint
+`4ab6fd621692720c1caf55657ae08117` — byte-identical to the pre-backfill state — and the dry run
+back to its original 49-blocks / 16-11-11 shape, proving the hash baselines were restored too.
+Then re-applied.
+
+**Gates, fresh:** `tsc --noEmit` exit 0 · **476 tests pass** (458 + 18 new) · `migrate:status` OK,
+0 pending. `npm run lint` remains BLOCKED repo-wide with no ESLint config (09 §G-i), pre-existing.
+
+**What this sign-off does NOT claim:**
+- **No human has seen any of this.** All evidence is an agent's — psql, script output, vitest.
+- **The tests exercise copies of the script's rules, not the script**, because it is a top-level
+  program that runs on import (see 3.11). End-to-end confidence comes from the live run and the
+  rehearsed rollback, not from the unit tests.
+- **This ran on local only.** Production is untouched, and the same run against production data
+  would need its own backup, its own dry run read by a human, and its own manifest.
+- The `--apply` path has been executed **three times** on local (apply → rollback → apply). That is
+  what makes idempotence and reversibility claims here evidence rather than assertion.

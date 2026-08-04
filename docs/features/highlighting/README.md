@@ -1,7 +1,8 @@
 # highlighting — one text-highlighting service across every text surface
 
-**Status:** `building` · phases 1-2 of 7 **VERIFIED** · the note-loss prerequisite is fixed and
-human-confirmed; the schema, routes and projection are in and the API contract is **frozen**
+**Status:** `building` · phases 1-3 of 7 **VERIFIED** · note-loss fixed and human-confirmed; schema,
+routes and projection in with the contract **frozen**; Read highlights **migrated** (local only) with
+a rehearsed rollback. Next: the two consumer phases, which can run in parallel.
 
 One way to create, store, render and persist a text highlight — replacing three native
 implementations that disagree on granularity, colour, coordinates and when a selection commits.
@@ -29,7 +30,7 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 | audit | ✅ 3 passes — 2 gaps found + corrected, 2 risks closed with evidence |
 | decisions | ✅ 6 decided, 3 resolved, 3 acknowledged — no OPEN rows |
 | plan | ✅ 7 phases, 64 tasks (the Phase status column sums to 64; "56" was a miscount, corrected 2026-08-04) |
-| build | 🔄 2 of 7 phases done — phases 1 + 2 ✅ VERIFIED 2026-08-04 · **contract frozen** |
+| build | 🔄 3 of 7 phases done — phases 1 + 2 + 3 ✅ VERIFIED 2026-08-04 · **contract frozen · data migrated** |
 | verify | ⬜ |
 | sign-off | ⬜ |
 
@@ -39,7 +40,7 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 |---|---|---|---|---|
 | 1 | iphone | [10-phase-1-prerequisite-note-loss.md](10-phase-1-prerequisite-note-loss.md) | 5 | ✅ **VERIFIED 2026-08-04** — notes survive a merge (`6e349b5`); narrow fix, real one at 4.8b |
 | 2 | server | [11-phase-2-server-schema-and-routes.md](11-phase-2-server-schema-and-routes.md) | 11 | ✅ **VERIFIED 2026-08-04** — schema, migration, 8 routes, 18 tests; **`03` now FROZEN** |
-| 3 | server | [12-phase-3-server-backfill.md](12-phase-3-server-backfill.md) | 9 | ⬜ touches customer data |
+| 3 | server | [12-phase-3-server-backfill.md](12-phase-3-server-backfill.md) | 12 | ✅ **VERIFIED 2026-08-04** — 67 spans → rows, 4 hash baselines re-stamped, rollback rehearsed |
 | 4 | iphone | [13-phase-4-iphone-service.md](13-phase-4-iphone-service.md) | 15 | ⬜ ∥ with 5 |
 | 5 | client | [14-phase-5-client-consumers.md](14-phase-5-client-consumers.md) | 8 | ⬜ ∥ with 4 · member-visible |
 | 6 | capture | [15-phase-6-capture.md](15-phase-6-capture.md) | 8 | ⬜ |
