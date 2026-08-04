@@ -481,21 +481,10 @@ struct EditExegesisActivityPage: View {
             return
         }
 
-        // TEMPORARY DIAGNOSTIC (monday#12668543338). Prints BOTH resolution
-        // paths so the next report is decidable in one reading.
-        if let range = selectedHighlightRange {
-            let key = highlightNoteKey(for: range)
-            let dictHit = savedNoteMarkdownByHighlight[key]
-            let overlap = overlappingExegesisHighlight(for: range)
-            Log.ui.info("""
-                exegesis note button: tapped=\(key, privacy: .public) \
-                dictHit=\(dictHit.map { "hit(\($0.count))" } ?? "MISS", privacy: .public) \
-                overlapHit=\(overlap.map { "hit(\($0.noteMarkdown.count))" } ?? "MISS", privacy: .public) \
-                resolvedHasNote=\(selectedHighlightHasNote, privacy: .public) \
-                dictKeys=\(savedNoteMarkdownByHighlight.keys.sorted().joined(separator: ","), privacy: .public) \
-                highlightSpans=\(exegesisHighlights.map { "\($0.start):\($0.end - $0.start)" }.joined(separator: ","), privacy: .public)
-                """)
-        }
+        // The TEMPORARY DIAGNOSTIC that lived here existed to decide whether the
+        // note survived in the database. It did — proven at the API level on
+        // 2026-08-04 (docs/features/highlighting/10-phase-1-*.md task 1.2), so
+        // it has served its purpose and is removed.
 
         overlayManager.present(.exegesisHighlightActionMenu) {
             HighlightActionMenuContent(
@@ -942,12 +931,38 @@ struct EditExegesisActivityPage: View {
                     await MainActor.run {
                         // The server merges overlapping highlights into the
                         // created one (union span) — drop the absorbed locals.
-                        exegesisHighlights.removeAll {
+                        let absorbed = exegesisHighlights.filter {
                             $0.id != created.id && $0.start < created.end && $0.end > created.start
                         }
+                        exegesisHighlights.removeAll { h in absorbed.contains { $0.id == h.id } }
                         upsertExegesisHighlight(created)
+
+                        // The note dictionaries are keyed by RANGE, so a merge
+                        // silently orphans every absorbed span's entry: the note
+                        // is still in the database (proven at the API level,
+                        // 2026-08-04) but the UI looks it up under a key that no
+                        // longer exists and reports "no note". That is
+                        // monday#12708759849 sub-issue A.
+                        //
+                        // Succession is handled here because this is the only
+                        // place the client learns a merge happened. Phase 4 of
+                        // docs/features/highlighting/ replaces this with drafts
+                        // keyed by highlight id and a single applyMerge seam —
+                        // until then, re-key in step with the merge.
+                        for old in absorbed {
+                            let oldKey = highlightNoteKey(for: NSRange(location: old.start, length: old.end - old.start))
+                            noteDrafts.removeValue(forKey: oldKey)
+                            attributedNoteDrafts.removeValue(forKey: oldKey)
+                            savedNoteMarkdownByHighlight.removeValue(forKey: oldKey)
+                        }
+
                         let key = highlightNoteKey(for: NSRange(location: created.start, length: created.end - created.start))
                         savedNoteMarkdownByHighlight[key] = created.noteMarkdown
+                        // The server concatenated the absorbed notes into this
+                        // row, so the draft must follow the saved value rather
+                        // than keep a pre-merge copy of one fragment.
+                        noteDrafts[key] = created.noteMarkdown
+                        attributedNoteDrafts[key] = MarkdownEditor.markdownToAttributed(created.noteMarkdown)
                     }
                     NSLog("🟨 ExegesisSelectionTrace applyStyle API createHighlight success activityId=\(activityId) blockId=\(blockId) highlightId=\(created.id) range={\(created.start)-\(created.end)}")
                 } else if style == nil, let existingHighlight = existingHighlightForDelete {

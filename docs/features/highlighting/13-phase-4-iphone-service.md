@@ -46,6 +46,38 @@ if a transition misbehaves · `/ios-error-surface` for every new catch block · 
 - [ ] 4.8 `EntityStore<Highlight>` on `AppState`, cleared in `clearInMemory()`. Bump the persisted
       state version so an old disk cache degrades rather than failing to decode
       · spec: 06 §Disk cache · **SwiftLint `server_collection_in_view_state` enforces the storage half**
+- [ ] 4.8b **Entity-keyed note state + the identity-succession seam** *(design decided 2026-08-04)*.
+      Today three parallel dictionaries (`noteDrafts`, `attributedNoteDrafts`,
+      `savedNoteMarkdownByHighlight`) are keyed by a string derived from the span — mutable data, so
+      the key dies whenever the span moves. Replace all three with **one** map keyed by stable
+      identity:
+
+      ```swift
+      @State private var drafts: [Highlight.ID: HighlightDraft]   // markdown + attributed + isDirty
+      ```
+
+      **`savedNoteMarkdownByHighlight` is deleted outright, not re-keyed** — it is a mirror of
+      server state that only exists because the view doesn't treat the entity as the source of
+      truth. Once highlights live in `EntityStore<Highlight>` (4.8), the saved note *is*
+      `state.highlights[id].noteMarkdown`.
+
+      `ExegesisNoteEditorPage` navigates `[Highlight.ID]`, not `[NSRange]` — the thing being edited
+      is an entity, not a location; ranges are derived for display.
+
+      **The load-bearing piece — `applyMerge`.** Keying by id is not sufficient on its own: a merge
+      *destroys* entities and creates a new one, so id-keyed state is orphaned exactly as
+      range-keyed state was. The server already reports what happened (`absorbedIds` + the created
+      row); the client must treat that as an identity event in ONE place:
+
+      ```swift
+      func applyMerge(created: Highlight, absorbedIds: [Highlight.ID])
+      ```
+
+      — updates the store, folds the absorbed drafts into the survivor, and is the only site where
+      succession is handled. This is what makes the bug class impossible rather than merely moved.
+      · spec: 06 §Note keying · replaces the Phase 1 stop-gap (09 §C-b)
+      · tests: a draft survives a merge; an absorbed highlight's draft is folded, not orphaned
+
 - [ ] 4.9 Collapse the eight Action methods (`ProgramActions+Activities.swift:312-384`,
       `EnrollmentActions.swift:886-958`) behind `HighlightStore`; Actions still mutate AppState and
       return `Void` · spec: 06

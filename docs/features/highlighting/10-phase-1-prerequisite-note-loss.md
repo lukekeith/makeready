@@ -47,7 +47,7 @@ if the fix touches a catch block · `/transition-review` is **not** needed (no a
       the block's final state matches the recorded before-state (4 highlights: 2-19, 24-33, 86-88,
       122-162). Row **ids** differ for the two recreated ones — local dev data only.
       · spec: 04 §Prerequisite
-- [ ] 1.3a **CONFIRMED ROUTE (2026-08-04)** — the note is present in the DB → client bug. Re-key the note dictionary by
+- [x] 1.3a ✅ **DONE 2026-08-04 (narrow fix — see 09 §C-b).** **CONFIRMED ROUTE (2026-08-04)** — the note is present in the DB → client bug. Re-key the note dictionary by
       **highlight id** instead of range: `highlightNoteKey` returns `"\(location):\(length)"`
       (`EditExegesisActivityPage.swift:649-651`), which every merge invalidates by construction.
       · files: `iphone/MakeReady/Pages/Manage/Program/EditExegesisActivityPage.swift`,
@@ -75,13 +75,28 @@ if the fix touches a catch block · `/transition-review` is **not** needed (no a
       and matches 06 §Note keying; (a) is a narrower patch. **Decide before writing.**
 
       Also delete the `TEMPORARY DIAGNOSTIC` block at `:487-503` while here — it was added to make
-      this exact report decidable, and task 1.2 has now decided it.
+      this exact report decidable, and task 1.2 has now decided it. ✅ removed.
+
+      **What shipped (2026-08-04):** the narrow fix, not the id-keying. At the single site where
+      the client learns a merge happened (the create path in `applyStyle`), the absorbed spans'
+      entries are removed from all three dictionaries and the merged row's note is written under
+      the new span's key — into `savedNoteMarkdownByHighlight` **and** both draft maps, so the
+      draft follows the server's concatenation instead of keeping one pre-merge fragment. The
+      entity-keyed design and the `applyMerge` seam are Phase 4 task 4.8b; this is tracked as a
+      deliberate stop-gap at 09 §C-b.
 - [x] ~~1.3b~~ **NOT TAKEN** — ruled out by 1.2's evidence. This phase stays an iPhone phase.
 - [ ] ~~1.3b~~ *(original text, kept for the record)* If the note is absent from the DB → **STOP.** This phase becomes a *server* phase;
       re-open `04`, add the server fix, and re-run this phase doc's gates against `server/`. Do not
       continue to Phase 2 on an iPhone-only fix that didn't address the real cause.
 - [ ] 1.4 Update the monday ticket and dossier with the evidence and the resolution.
       · files: `docs/monday/tickets/12708759849.md`
+
+## Gate results — 2026-08-04
+
+- `npm run ios:build-check` → **BUILD SUCCEEDED** (build 386)
+- `cd iphone && swiftlint lint --baseline` → **0 violations, 0 serious, 268 files**
+- Installed and launched on the iPhone 17 Pro Max simulator (PID 33676)
+- 1.3b's server branch not taken, so the server gates do not apply
 
 ## Phase gates (run fresh, record output)
 
@@ -104,4 +119,12 @@ Plus, if 1.3b fires: `cd server && npx tsc --noEmit && npm run lint && npm run t
 
 > Sign with date + who + what was exercised. Until this block is signed, Phase 2 may not start.
 
-*(unsigned)*
+**Agent evidence, 2026-08-04 — NOT sign-off.** Tasks 1.1, 1.2 and 1.3a are complete; gates green;
+the fix is on the simulator. The **merge-with-notes check has not been performed by a human**, and
+it is the only thing that proves the reported symptom is gone. Task 1.4 (monday update) is also
+outstanding — it should quote the human result rather than the build result.
+
+**To sign:** open an Exegesis activity → make two highlights with different note text → save →
+drag one highlight across both → open the merged highlight's note. **Both notes must be there.**
+
+*(unsigned — awaiting the human merge check)*

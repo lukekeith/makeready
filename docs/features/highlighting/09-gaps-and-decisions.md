@@ -65,6 +65,8 @@ actually includes `selections` needs the audit or a running stack (`X-c`).
 |---|---|---|---|
 | C-a | **RESOLVED by this spec** (D9 folds all three snappers into one; the build phase deletes the duplicates) | `ExegesisVerseView.snappedToWordBoundaries` (added by `c8a0311`, 2026-08-03) is a third copy of word snapping alongside the dead `VerseSelectionLogic.snapToWordBoundaries` and the inline copy in `BibleReaderOverlay`. This spec's own D9 resolves it; recorded so the cleanup is not lost if the feature is descoped. | 06 §Snapping |
 
+| C-b | **OPEN — deliberate stop-gap, owned by Phase 4 task 4.8b** | Phase 1 fixes the note loss by re-keying the three range-keyed dictionaries *in step with the merge*, at the one call site that learns a merge happened. This treats the symptom: the keys are still derived from mutable geometry, so the next thing that shifts an offset re-breaks it. **DECIDED (Luke, 2026-08-04): ship the narrow fix now, do the entity-keyed design in Phase 4.** The good version needs the `EntityStore<Highlight>` that Phase 4 builds, so it genuinely cannot be done properly in Phase 1. Recorded here so that if Phase 4 slips or is descoped, this stays visibly a patch instead of quietly becoming the design. | 4.8b |
+
 ## X — cross-app risks
 
 | # | Status | Risk | Mitigation |
