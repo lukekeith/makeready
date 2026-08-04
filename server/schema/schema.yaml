@@ -3744,7 +3744,7 @@ models:
       selections:
         type: json
         nullable: true
-        description: "Array of styled text spans with start, end, style"
+        description: "DERIVED / READ-ONLY. Array of styled text spans {start, end, style}, regenerated from the ContentHighlight rows for this block by syncSelectionsForBlock — which is the ONLY writer. Do not write it from a route, a service or a client; write ContentHighlight rows instead. Retained because shipped iPhone builds and the web lesson player still read it, and because lesson-content-hash.ts hashes it (changing its serialisation restales every enrolled group's lessons). See docs/features/highlighting/03-data-and-api.md §3."
       createdAt:
         type: datetime
         default: now()
@@ -3780,19 +3780,33 @@ models:
         references: [id]
         onDelete: SetNull
         nullable: true
-      exegesisHighlights:
+      contentHighlights:
         type: one_to_many
-        target: ExegesisHighlight
+        target: ContentHighlight
     indexes:
       - fields: [lessonActivityId]
       - fields: [scheduledActivityId]
       - fields: [themeId]
 
   # ===========================================================================
-  # Exegesis Highlights (leader-authored highlights + markdown notes)
+  # Content Highlights (leader-authored highlights + markdown notes)
+  #
+  # Renamed from ExegesisHighlight / exegesis_highlights (2026-08-04, feature
+  # `highlighting` phase 2). The single home for leader-authored highlights on
+  # EVERY lesson-content text surface — Exegesis and Read alike. Read highlights
+  # currently live in ActivityReadBlock.selections and are migrated here in
+  # phase 3; that column then becomes a derived, read-only projection.
+  #
+  # NOT named `Highlight`: that model already exists (~line 1435) and is the
+  # Bible reader's PER-USER PERSONAL verse highlights — a different domain
+  # (members' private marks vs. leader-authored spans on content). Keeping the
+  # two names distinct is deliberate. See docs/features/highlighting/09 §X-g.
+  #
+  # The API surface is unchanged by this rename: routes stay activity-scoped at
+  # …/highlights and the response key stays `highlights`.
   # ===========================================================================
-  ExegesisHighlight:
-    table_name: exegesis_highlights
+  ContentHighlight:
+    table_name: content_highlights
     fields:
       id:
         type: uuid
@@ -3813,6 +3827,10 @@ models:
       noteMarkdown:
         type: text
         description: "Leader-authored markdown shown to members when they open the highlight"
+      style:
+        type: string
+        default: "highlight"
+        description: "How the span renders: 'highlight' (background wash) or 'bold' (font weight only, no wash). Defaults to 'highlight' so every pre-existing row keeps today's appearance."
       createdAt:
         type: datetime
         default: now()

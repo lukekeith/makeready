@@ -24,9 +24,9 @@ type ReadBlockOffsetAnnotation =
 
 export function hasReadBlockOffsetAnnotations(
   selections: ReadBlockOffsetAnnotation,
-  exegesisHighlights: ReadBlockOffsetAnnotation
+  contentHighlights: ReadBlockOffsetAnnotation
 ): boolean {
-  return Boolean((Array.isArray(selections) && selections.length > 0) || (Array.isArray(exegesisHighlights) && exegesisHighlights.length > 0))
+  return Boolean((Array.isArray(selections) && selections.length > 0) || (Array.isArray(contentHighlights) && contentHighlights.length > 0))
 }
 
 export function scriptureContentForCopy(
@@ -85,7 +85,7 @@ export interface CurriculumActivityRow {
     backgroundOverlayOpacity?: number | null
     fontSize?: string | null
     selections?: unknown
-    exegesisHighlights?: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
+    contentHighlights?: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
   }>
 }
 
@@ -143,7 +143,7 @@ export interface LessonCopyRows {
     fontSize: string | null
     selections: any
   }>
-  exegesisHighlightData: Array<{
+  contentHighlightData: Array<{
     id: string
     readBlockId: string
     orderNumber: number
@@ -169,7 +169,7 @@ export function buildLessonCopyRows(params: {
     scheduledActivityData: [],
     sourceRefData: [],
     readBlockData: [],
-    exegesisHighlightData: [],
+    contentHighlightData: [],
   }
 
   for (const activity of activities) {
@@ -223,10 +223,10 @@ export function buildLessonCopyRows(params: {
     for (const block of activity.readBlocks) {
       const newBlockId = randomUUID()
 
-      const exegesisHighlights = block.exegesisHighlights
+      const contentHighlights = block.contentHighlights
 
-      const derivedSelections = exegesisHighlights && exegesisHighlights.length > 0
-        ? exegesisHighlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
+      const derivedSelections = contentHighlights && contentHighlights.length > 0
+        ? contentHighlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
         : ((block.selections as any) ?? null)
 
       const sourceReferenceId = block.sourceReferenceId
@@ -235,7 +235,7 @@ export function buildLessonCopyRows(params: {
       const content = scriptureContentForCopy(
         block.content,
         sourceReferenceId != null,
-        hasReadBlockOffsetAnnotations(block.selections as ReadBlockOffsetAnnotation, exegesisHighlights)
+        hasReadBlockOffsetAnnotations(block.selections as ReadBlockOffsetAnnotation, contentHighlights)
       )
 
       rows.readBlockData.push({
@@ -256,9 +256,9 @@ export function buildLessonCopyRows(params: {
       })
 
       // Copy exegesis highlights (table) — IDs will differ between program vs scheduled copies
-      if (exegesisHighlights && exegesisHighlights.length > 0) {
-        for (const h of exegesisHighlights) {
-          rows.exegesisHighlightData.push({
+      if (contentHighlights && contentHighlights.length > 0) {
+        for (const h of contentHighlights) {
+          rows.contentHighlightData.push({
             id: randomUUID(),
             readBlockId: newBlockId,
             orderNumber: h.orderNumber,
@@ -335,7 +335,7 @@ interface SnapshotActivityContent {
     fontSize: string | null
     selections: unknown
     sourceReferenceId: string | null // positional: "ref:N" into sourceReferences
-    exegesisHighlights: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
+    contentHighlights: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
   }>
 }
 

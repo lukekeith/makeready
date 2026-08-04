@@ -139,7 +139,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
         sourceReferenceId: sourceRef.id,
       },
     })
-    await prisma.exegesisHighlight.create({
+    await prisma.contentHighlight.create({
       data: { readBlockId: readBlock.id, orderNumber: 1, start: 0, end: 5, noteMarkdown: 'Note on the opening.' },
     })
 
@@ -621,7 +621,7 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
       where: { scheduledActivityId: { in: actIds } },
       select: { id: true },
     })
-    const highlights = await prisma.exegesisHighlight.count({ where: { readBlockId: { in: blocks.map((b) => b.id) } } })
+    const highlights = await prisma.contentHighlight.count({ where: { readBlockId: { in: blocks.map((b) => b.id) } } })
     expect(acts).toHaveLength(1)
     expect(refs).toBe(1)
     expect(blocks).toHaveLength(1)

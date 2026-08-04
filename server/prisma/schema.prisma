@@ -1466,7 +1466,7 @@ model ActivityReadBlock {
   backgroundColor      String? // Hex color for block background
   backgroundOverlayOpacity Float? // 0-1 opacity for background overlay
   fontSize             String? // Font size: xs, s, m, lg, xl
-  selections           Json? // Array of styled text spans with start, end, style
+  selections           Json? // DERIVED / READ-ONLY. Array of styled text spans {start, end, style}, regenerated from the ContentHighlight rows for this block by syncSelectionsForBlock — which is the ONLY writer. Do not write it from a route, a service or a client; write ContentHighlight rows instead. Retained because shipped iPhone builds and the web lesson player still read it, and because lesson-content-hash.ts hashes it (changing its serialisation restales every enrolled group's lessons). See docs/features/highlighting/03-data-and-api.md §3.
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1474,20 +1474,21 @@ model ActivityReadBlock {
   scheduledActivity    ScheduledLessonActivity? @relation(fields: [scheduledActivityId], references: [id], onDelete: Cascade)
   sourceReference      ActivitySourceReference? @relation(fields: [sourceReferenceId], references: [id], onDelete: SetNull)
   theme                TextTheme? @relation(fields: [themeId], references: [id], onDelete: SetNull)
-  exegesisHighlights   ExegesisHighlight[]
+  contentHighlights    ContentHighlight[]
   @@index([lessonActivityId])
   @@index([scheduledActivityId])
   @@index([themeId])
   @@map("activity_read_blocks")
 }
 
-model ExegesisHighlight {
+model ContentHighlight {
   id                   String @id @default(uuid())
   readBlockId          String // FK to ActivityReadBlock (locked scripture block) that this highlight applies to
   orderNumber          Int // Stable ordering for highlight navigation
   start                Int // Start character offset (plain-text) into the block content
   end                  Int // End character offset (exclusive)
   noteMarkdown         String @db.Text // Leader-authored markdown shown to members when they open the highlight
+  style                String @default("highlight") // How the span renders: 'highlight' (background wash) or 'bold' (font weight only, no wash). Defaults to 'highlight' so every pre-existing row keeps today's appearance.
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1497,7 +1498,7 @@ model ExegesisHighlight {
   @@unique([readBlockId, start, end])
   @@index([readBlockId])
   @@index([readBlockId, orderNumber])
-  @@map("exegesis_highlights")
+  @@map("content_highlights")
 }
 
 model FaqItem {

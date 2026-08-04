@@ -371,8 +371,8 @@ async function applyVersion(
       if (rows.readBlockData.length > 0) {
         await tx.activityReadBlock.createMany({ data: rows.readBlockData })
       }
-      if (rows.exegesisHighlightData.length > 0) {
-        await tx.exegesisHighlight.createMany({ data: rows.exegesisHighlightData })
+      if (rows.contentHighlightData.length > 0) {
+        await tx.contentHighlight.createMany({ data: rows.contentHighlightData })
       }
 
       await tx.lessonSchedule.update({
@@ -511,8 +511,8 @@ async function applyVersion(
       if (rows.readBlockData.length > 0) {
         await tx.activityReadBlock.createMany({ data: rows.readBlockData })
       }
-      if (rows.exegesisHighlightData.length > 0) {
-        await tx.exegesisHighlight.createMany({ data: rows.exegesisHighlightData })
+      if (rows.contentHighlightData.length > 0) {
+        await tx.contentHighlight.createMany({ data: rows.contentHighlightData })
       }
       await tx.event.create({
         data: {

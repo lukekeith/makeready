@@ -424,7 +424,7 @@ studyPreviewPublicRouter.get('/:token/lesson/:lessonId', async (req, res) => {
               },
             },
             sourceReferences: true,
-            readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true, definition: true } }, exegesisHighlights: { orderBy: { orderNumber: 'asc' as const }, select: { id: true, orderNumber: true, start: true, end: true, noteMarkdown: true } } } },
+            readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true, definition: true } }, contentHighlights: { orderBy: { orderNumber: 'asc' as const }, select: { id: true, orderNumber: true, start: true, end: true, noteMarkdown: true } } } },
           },
         },
       },
@@ -537,7 +537,7 @@ studyPreviewPublicRouter.get('/:token/activity/:activityId', async (req, res) =>
           },
         },
         sourceReferences: true,
-        readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true, definition: true } }, exegesisHighlights: { orderBy: { orderNumber: 'asc' as const }, select: { id: true, orderNumber: true, start: true, end: true, noteMarkdown: true } } } },
+        readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true, definition: true } }, contentHighlights: { orderBy: { orderNumber: 'asc' as const }, select: { id: true, orderNumber: true, start: true, end: true, noteMarkdown: true } } } },
         lesson: {
           select: {
             studyProgramId: true,

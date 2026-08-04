@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { randomUUID } from 'crypto'
 import QRCode from 'qrcode'
@@ -163,7 +163,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
                   orderBy: { orderNumber: 'asc' },
                   include: {
                     theme: { select: { id: true, slug: true, name: true } },
-                    exegesisHighlights: { orderBy: { orderNumber: 'asc' } },
+                    contentHighlights: { orderBy: { orderNumber: 'asc' } },
                   },
                 },
               },
@@ -300,7 +300,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       const scheduledActivityData: LessonCopyRows['scheduledActivityData'] = []
       const sourceRefData: LessonCopyRows['sourceRefData'] = []
       const readBlockData: LessonCopyRows['readBlockData'] = []
-      const exegesisHighlightData: LessonCopyRows['exegesisHighlightData'] = []
+      const contentHighlightData: LessonCopyRows['contentHighlightData'] = []
 
       for (const sd of scheduleData) {
         const lesson = sd.lesson as typeof program.lessons[0]
@@ -312,7 +312,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         scheduledActivityData.push(...rows.scheduledActivityData)
         sourceRefData.push(...rows.sourceRefData)
         readBlockData.push(...rows.readBlockData)
-        exegesisHighlightData.push(...rows.exegesisHighlightData)
+        contentHighlightData.push(...rows.contentHighlightData)
       }
 
       if (scheduledActivityData.length > 0) {
@@ -327,14 +327,14 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         await prisma.activityReadBlock.createMany({ data: readBlockData })
       }
 
-      if (exegesisHighlightData.length > 0) {
-        await prisma.exegesisHighlight.createMany({ data: exegesisHighlightData })
+      if (contentHighlightData.length > 0) {
+        await prisma.contentHighlight.createMany({ data: contentHighlightData })
       }
 
       console.log(
         `   Step 2b: Complete - ${scheduledActivityData.length} scheduled activities, ` +
           `${sourceRefData.length} source refs, ${readBlockData.length} read blocks, ` +
-          `${exegesisHighlightData.length} exegesis highlights created`
+          `${contentHighlightData.length} exegesis highlights created`
       )
 
       // Step 3: Batch create events for calendar display
@@ -3626,7 +3626,7 @@ router.post('/scheduled-activities/:id/source-references', requireAuth, async (r
       })
       const blockIds = existingBlocks.map((b) => b.id)
       if (blockIds.length > 0) {
-        await prisma.exegesisHighlight.deleteMany({ where: { readBlockId: { in: blockIds } } })
+        await prisma.contentHighlight.deleteMany({ where: { readBlockId: { in: blockIds } } })
       }
       await prisma.activityReadBlock.deleteMany({ where: { scheduledActivityId: id } })
       await prisma.activitySourceReference.deleteMany({ where: { scheduledActivityId: id } })
@@ -4188,19 +4188,55 @@ router.patch('/scheduled-activities/:id/read-blocks/reorder', requireAuth, async
  * member renderer and the editor preview stay in sync. (Local copy of the
  * programs.ts helper — same table, scheduled-activity context.)
  */
-async function syncScheduledExegesisSelectionsForBlock(readBlockId: string): Promise<void> {
-  const highlights = await prisma.exegesisHighlight.findMany({
+async function syncScheduledSelectionsForBlock(readBlockId: string): Promise<void> {
+  const highlights = await prisma.contentHighlight.findMany({
     where: { readBlockId },
     orderBy: { orderNumber: 'asc' },
-    select: { start: true, end: true },
+    select: { start: true, end: true, style: true },
   })
 
-  const selections = highlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
+  const selections = highlights.map((h) => ({ start: h.start, end: h.end, style: h.style }))
 
   await prisma.activityReadBlock.update({
     where: { id: readBlockId },
     data: { selections: selections.length ? (selections as unknown as Prisma.InputJsonValue) : Prisma.DbNull },
   })
+}
+
+/** Styles a highlight may render as. Mirrors 03 §5 and the programs.ts copy. */
+const SCHEDULED_HIGHLIGHT_STYLES = ['highlight', 'bold'] as const
+
+/**
+ * Refuses a mutation on a block whose Read highlights have not been migrated into rows yet.
+ * Local copy of the programs.ts guard — see 09 §X-i for why it exists and when it retires.
+ */
+async function unmigratedScheduledBlockError(readBlockId: string): Promise<string | null> {
+  const [block, rowCount] = await Promise.all([
+    prisma.activityReadBlock.findUnique({ where: { id: readBlockId }, select: { selections: true } }),
+    prisma.contentHighlight.count({ where: { readBlockId } }),
+  ])
+
+  const spans = Array.isArray(block?.selections) ? block.selections.length : 0
+  if (spans > 0 && rowCount === 0) {
+    return 'This block\'s highlights have not been migrated yet. Writing now would discard them; run the highlight backfill first.'
+  }
+  return null
+}
+
+/**
+ * Activity-type gate. General routes accept EXEGESIS and READ; the legacy alias stays
+ * EXEGESIS-only so an old client's error behaviour is unchanged (03 §2.5).
+ *
+ * NOTE: this context gates on `activity.type`, whereas programs.ts gates on
+ * `activity.activityType` — different models, different field names (09 §G-a).
+ */
+function scheduledHighlightActivityTypeError(type: string, legacy: boolean): string | null {
+  if (legacy) {
+    return type === 'EXEGESIS' ? null : 'Activity is not an EXEGESIS activity'
+  }
+  return type === 'EXEGESIS' || type === 'READ'
+    ? null
+    : 'Activity is not an EXEGESIS or READ activity'
 }
 
 /**
@@ -4264,41 +4300,66 @@ async function getManagedScheduledExegesisActivity(activityId: string, userId: s
  *     security:
  *       - userSession: []
  */
-router.get('/scheduled-activities/:activityId/exegesis-highlights', requireAuth, async (req, res) => {
-  try {
-    const { activityId } = req.params
-    const userId = (req.user as any).id
+function listScheduledHighlightsHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId } = req.params
+      const userId = (req.user as any).id
 
-    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
-    if (!activity) {
-      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+      const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+      if (!activity) {
+        return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+      }
+
+      const typeError = scheduledHighlightActivityTypeError(activity.type, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      const blocks = await prisma.activityReadBlock.findMany({
+        where: { scheduledActivityId: activityId, isLocked: true },
+        orderBy: { orderNumber: 'asc' },
+        select: { id: true },
+      })
+
+      if (!blocks.length) {
+        return res.json(
+          legacy
+            ? { success: true, readBlockId: null, highlights: [] }
+            : { success: true, readBlockId: null, blockIds: [], highlights: [] }
+        )
+      }
+
+      const blockIds = blocks.map((b) => b.id)
+      // Legacy callers were only ever shown the first locked block; keep it that way.
+      const scopedIds = legacy ? [blockIds[0]] : blockIds
+
+      const highlights = await prisma.contentHighlight.findMany({
+        where: { readBlockId: { in: scopedIds } },
+        orderBy: { orderNumber: 'asc' },
+      })
+
+      // Document order across blocks: block position first, then position within the block.
+      highlights.sort(
+        (a, b) =>
+          scopedIds.indexOf(a.readBlockId) - scopedIds.indexOf(b.readBlockId) ||
+          a.orderNumber - b.orderNumber
+      )
+
+      res.json(
+        legacy
+          ? { success: true, readBlockId: blockIds[0], highlights }
+          : { success: true, readBlockId: blockIds[0], blockIds, highlights }
+      )
+    } catch (error) {
+      console.error('Error listing highlights for scheduled activity:', error)
+      res.status(500).json({ success: false, error: 'Failed to list highlights' })
     }
-
-    if (activity.type !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    const block = await prisma.activityReadBlock.findFirst({
-      where: { scheduledActivityId: activityId, isLocked: true },
-      orderBy: { orderNumber: 'asc' },
-      select: { id: true },
-    })
-
-    if (!block) {
-      return res.json({ success: true, readBlockId: null, highlights: [] })
-    }
-
-    const highlights = await prisma.exegesisHighlight.findMany({
-      where: { readBlockId: block.id },
-      orderBy: { orderNumber: 'asc' },
-    })
-
-    res.json({ success: true, readBlockId: block.id, highlights })
-  } catch (error) {
-    console.error('Error listing exegesis highlights for scheduled activity:', error)
-    res.status(500).json({ success: false, error: 'Failed to list exegesis highlights' })
   }
-})
+}
+
+router.get('/scheduled-activities/:activityId/highlights', requireAuth, listScheduledHighlightsHandler(false))
+router.get('/scheduled-activities/:activityId/exegesis-highlights', requireAuth, listScheduledHighlightsHandler(true))
 
 /**
  * @openapi
@@ -4309,87 +4370,102 @@ router.get('/scheduled-activities/:activityId/exegesis-highlights', requireAuth,
  *     security:
  *       - userSession: []
  */
-router.post('/scheduled-activities/:activityId/exegesis-highlights', requireAuth, async (req, res) => {
-  try {
-    const { activityId } = req.params
-    const userId = (req.user as any).id
+function createScheduledHighlightHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId } = req.params
+      const userId = (req.user as any).id
 
-    const schema = z.object({
-      readBlockId: z.string().uuid(),
-      start: z.number().int().min(0),
-      end: z.number().int().min(1),
-      noteMarkdown: z.string().default(''),
-    }).refine((v) => v.end > v.start, { message: 'end must be greater than start' })
+      const schema = z.object({
+        readBlockId: z.string().uuid(),
+        start: z.number().int().min(0),
+        end: z.number().int().min(1),
+        style: z.enum(SCHEDULED_HIGHLIGHT_STYLES).optional(),
+        noteMarkdown: z.string().default(''),
+      }).refine((v) => v.end > v.start, { message: 'end must be greater than start' })
 
-    const body = schema.parse(req.body)
+      const body = schema.parse(req.body)
 
-    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
-    if (!activity) {
-      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
-    }
-
-    if (activity.type !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    const block = await prisma.activityReadBlock.findFirst({
-      where: { id: body.readBlockId, scheduledActivityId: activityId, isLocked: true },
-      select: { id: true },
-    })
-
-    if (!block) {
-      return res.status(404).json({ success: false, error: 'Read block not found' })
-    }
-
-    // Overlapping highlights merge: the new range absorbs every highlight it
-    // touches — union span, notes concatenated in document order.
-    const existing = await prisma.exegesisHighlight.findMany({
-      where: { readBlockId: block.id },
-      orderBy: { start: 'asc' },
-    })
-    const absorbed = existing.filter((h) => body.end > h.start && body.start < h.end)
-
-    const start = Math.min(body.start, ...absorbed.map((h) => h.start))
-    const end = Math.max(body.end, ...absorbed.map((h) => h.end))
-    const noteMarkdown = [...absorbed.map((h) => h.noteMarkdown), sanitizeScheduledMarkdownInput(body.noteMarkdown)]
-      .filter((n) => n && n.trim())
-      .join('\n\n')
-
-    const nextOrder = await prisma.exegesisHighlight.aggregate({
-      where: { readBlockId: block.id },
-      _max: { orderNumber: true },
-    })
-    // A merged highlight keeps the earliest absorbed position in the list
-    const orderNumber = absorbed.length
-      ? Math.min(...absorbed.map((h) => h.orderNumber))
-      : (nextOrder._max.orderNumber ?? 0) + 1
-
-    const created = await prisma.$transaction(async (tx) => {
-      if (absorbed.length) {
-        await tx.exegesisHighlight.deleteMany({ where: { id: { in: absorbed.map((h) => h.id) } } })
+      const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+      if (!activity) {
+        return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
       }
-      return tx.exegesisHighlight.create({
-        data: {
-          readBlockId: block.id,
-          orderNumber,
-          start,
-          end,
-          noteMarkdown,
-        },
+
+      const typeError = scheduledHighlightActivityTypeError(activity.type, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      const block = await prisma.activityReadBlock.findFirst({
+        where: { id: body.readBlockId, scheduledActivityId: activityId, isLocked: true },
+        select: { id: true },
       })
-    })
 
-    await syncScheduledExegesisSelectionsForBlock(block.id)
+      if (!block) {
+        return res.status(404).json({ success: false, error: 'Read block not found' })
+      }
 
-    res.status(201).json({ success: true, highlight: created, absorbedIds: absorbed.map((h) => h.id) })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: error.errors })
+      const unmigrated = await unmigratedScheduledBlockError(block.id)
+      if (unmigrated) {
+        return res.status(409).json({ success: false, error: unmigrated })
+      }
+
+      // Overlapping highlights merge: the new range absorbs every highlight it
+      // touches — union span, notes concatenated in document order.
+      const existing = await prisma.contentHighlight.findMany({
+        where: { readBlockId: block.id },
+        orderBy: { start: 'asc' },
+      })
+      const absorbed = existing.filter((h) => body.end > h.start && body.start < h.end)
+
+      const start = Math.min(body.start, ...absorbed.map((h) => h.start))
+      const end = Math.max(body.end, ...absorbed.map((h) => h.end))
+      const noteMarkdown = [...absorbed.map((h) => h.noteMarkdown), sanitizeScheduledMarkdownInput(body.noteMarkdown)]
+        .filter((n) => n && n.trim())
+        .join('\n\n')
+      // Incoming style wins when absorbed rows disagree — ratified, 03 §2.2 / 09 §D-a.
+      const style = body.style ?? 'highlight'
+
+      const nextOrder = await prisma.contentHighlight.aggregate({
+        where: { readBlockId: block.id },
+        _max: { orderNumber: true },
+      })
+      // A merged highlight keeps the earliest absorbed position in the list
+      const orderNumber = absorbed.length
+        ? Math.min(...absorbed.map((h) => h.orderNumber))
+        : (nextOrder._max.orderNumber ?? 0) + 1
+
+      const created = await prisma.$transaction(async (tx) => {
+        if (absorbed.length) {
+          await tx.contentHighlight.deleteMany({ where: { id: { in: absorbed.map((h) => h.id) } } })
+        }
+        return tx.contentHighlight.create({
+          data: {
+            readBlockId: block.id,
+            orderNumber,
+            start,
+            end,
+            style,
+            noteMarkdown,
+          },
+        })
+      })
+
+      await syncScheduledSelectionsForBlock(block.id)
+
+      res.status(201).json({ success: true, highlight: created, absorbedIds: absorbed.map((h) => h.id) })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, error: error.errors })
+      }
+      console.error('Error creating highlight for scheduled activity:', error)
+      res.status(500).json({ success: false, error: 'Failed to create highlight' })
     }
-    console.error('Error creating exegesis highlight for scheduled activity:', error)
-    res.status(500).json({ success: false, error: 'Failed to create exegesis highlight' })
   }
-})
+}
+
+router.post('/scheduled-activities/:activityId/highlights', requireAuth, createScheduledHighlightHandler(false))
+router.post('/scheduled-activities/:activityId/exegesis-highlights', requireAuth, createScheduledHighlightHandler(true))
 
 /**
  * @openapi
@@ -4400,49 +4476,68 @@ router.post('/scheduled-activities/:activityId/exegesis-highlights', requireAuth
  *     security:
  *       - userSession: []
  */
-router.patch('/scheduled-activities/:activityId/exegesis-highlights/:highlightId', requireAuth, async (req, res) => {
-  try {
-    const { activityId, highlightId } = req.params
-    const userId = (req.user as any).id
+function updateScheduledHighlightHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId, highlightId } = req.params
+      const userId = (req.user as any).id
 
-    const schema = z.object({
-      noteMarkdown: z.string(),
-    })
-    const body = schema.parse(req.body)
+      const schema = z
+        .object({
+          noteMarkdown: z.string().optional(),
+          style: z.enum(SCHEDULED_HIGHLIGHT_STYLES).optional(),
+        })
+        .refine((v) => v.noteMarkdown !== undefined || v.style !== undefined, {
+          message: 'At least one of noteMarkdown or style is required',
+        })
+      const body = schema.parse(req.body)
 
-    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
-    if (!activity) {
-      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+      const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+      if (!activity) {
+        return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+      }
+
+      const typeError = scheduledHighlightActivityTypeError(activity.type, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      // Ensure highlight belongs to this scheduled activity via the read block
+      const highlight = await prisma.contentHighlight.findUnique({
+        where: { id: highlightId },
+        include: { readBlock: { select: { scheduledActivityId: true, id: true } } },
+      })
+
+      if (!highlight || highlight.readBlock.scheduledActivityId !== activityId) {
+        return res.status(404).json({ success: false, error: 'Highlight not found' })
+      }
+
+      const updated = await prisma.contentHighlight.update({
+        where: { id: highlightId },
+        data: {
+          ...(body.noteMarkdown !== undefined ? { noteMarkdown: sanitizeScheduledMarkdownInput(body.noteMarkdown) } : {}),
+          ...(body.style !== undefined ? { style: body.style } : {}),
+        },
+      })
+
+      // `style` is part of the derived projection, so a style change must refresh it.
+      if (body.style !== undefined) {
+        await syncScheduledSelectionsForBlock(highlight.readBlock.id)
+      }
+
+      res.json({ success: true, highlight: updated })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, error: error.errors })
+      }
+      console.error('Error updating highlight for scheduled activity:', error)
+      res.status(500).json({ success: false, error: 'Failed to update highlight' })
     }
-
-    if (activity.type !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    // Ensure highlight belongs to this scheduled activity via the read block
-    const highlight = await prisma.exegesisHighlight.findUnique({
-      where: { id: highlightId },
-      include: { readBlock: { select: { scheduledActivityId: true, id: true } } },
-    })
-
-    if (!highlight || highlight.readBlock.scheduledActivityId !== activityId) {
-      return res.status(404).json({ success: false, error: 'Highlight not found' })
-    }
-
-    const updated = await prisma.exegesisHighlight.update({
-      where: { id: highlightId },
-      data: { noteMarkdown: sanitizeScheduledMarkdownInput(body.noteMarkdown) },
-    })
-
-    res.json({ success: true, highlight: updated })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: error.errors })
-    }
-    console.error('Error updating exegesis highlight for scheduled activity:', error)
-    res.status(500).json({ success: false, error: 'Failed to update exegesis highlight' })
   }
-})
+}
+
+router.patch('/scheduled-activities/:activityId/highlights/:highlightId', requireAuth, updateScheduledHighlightHandler(false))
+router.patch('/scheduled-activities/:activityId/exegesis-highlights/:highlightId', requireAuth, updateScheduledHighlightHandler(true))
 
 /**
  * @openapi
@@ -4453,38 +4548,44 @@ router.patch('/scheduled-activities/:activityId/exegesis-highlights/:highlightId
  *     security:
  *       - userSession: []
  */
-router.delete('/scheduled-activities/:activityId/exegesis-highlights/:highlightId', requireAuth, async (req, res) => {
-  try {
-    const { activityId, highlightId } = req.params
-    const userId = (req.user as any).id
+function deleteScheduledHighlightHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId, highlightId } = req.params
+      const userId = (req.user as any).id
 
-    const activity = await getManagedScheduledExegesisActivity(activityId, userId)
-    if (!activity) {
-      return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+      const activity = await getManagedScheduledExegesisActivity(activityId, userId)
+      if (!activity) {
+        return res.status(404).json({ success: false, error: 'Scheduled activity not found' })
+      }
+
+      const typeError = scheduledHighlightActivityTypeError(activity.type, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      const highlight = await prisma.contentHighlight.findUnique({
+        where: { id: highlightId },
+        include: { readBlock: { select: { scheduledActivityId: true, id: true } } },
+      })
+
+      if (!highlight || highlight.readBlock.scheduledActivityId !== activityId) {
+        return res.status(404).json({ success: false, error: 'Highlight not found' })
+      }
+
+      await prisma.contentHighlight.delete({ where: { id: highlightId } })
+      await syncScheduledSelectionsForBlock(highlight.readBlock.id)
+
+      res.json({ success: true })
+    } catch (error) {
+      console.error('Error deleting highlight for scheduled activity:', error)
+      res.status(500).json({ success: false, error: 'Failed to delete highlight' })
     }
-
-    if (activity.type !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    const highlight = await prisma.exegesisHighlight.findUnique({
-      where: { id: highlightId },
-      include: { readBlock: { select: { scheduledActivityId: true, id: true } } },
-    })
-
-    if (!highlight || highlight.readBlock.scheduledActivityId !== activityId) {
-      return res.status(404).json({ success: false, error: 'Highlight not found' })
-    }
-
-    await prisma.exegesisHighlight.delete({ where: { id: highlightId } })
-    await syncScheduledExegesisSelectionsForBlock(highlight.readBlock.id)
-
-    res.json({ success: true })
-  } catch (error) {
-    console.error('Error deleting exegesis highlight for scheduled activity:', error)
-    res.status(500).json({ success: false, error: 'Failed to delete exegesis highlight' })
   }
-})
+}
+
+router.delete('/scheduled-activities/:activityId/highlights/:highlightId', requireAuth, deleteScheduledHighlightHandler(false))
+router.delete('/scheduled-activities/:activityId/exegesis-highlights/:highlightId', requireAuth, deleteScheduledHighlightHandler(true))
 
 // ============================================================================
 // Scheduled Activity: Reorder Activities
@@ -4706,7 +4807,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
               orderBy: { orderNumber: 'asc' },
               include: {
                 theme: { select: { id: true, slug: true, name: true } },
-                exegesisHighlights: { orderBy: { orderNumber: 'asc' } },
+                contentHighlights: { orderBy: { orderNumber: 'asc' } },
               },
             },
           },
@@ -4804,7 +4905,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
         data: { currentVersionId: versionId },
       })
 
-      const { scheduledActivityData, sourceRefData, readBlockData, exegesisHighlightData } = buildLessonCopyRows({
+      const { scheduledActivityData, sourceRefData, readBlockData, contentHighlightData } = buildLessonCopyRows({
         lessonScheduleId: scheduleId,
         versionId,
         activities: lesson.activities as any,
@@ -4819,8 +4920,8 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
       if (readBlockData.length > 0) {
         await prisma.activityReadBlock.createMany({ data: readBlockData })
       }
-      if (exegesisHighlightData.length > 0) {
-        await prisma.exegesisHighlight.createMany({ data: exegesisHighlightData })
+      if (contentHighlightData.length > 0) {
+        await prisma.contentHighlight.createMany({ data: contentHighlightData })
       }
 
       // Step 3: Create calendar event
@@ -4869,7 +4970,7 @@ router.post('/enrollments/:id/schedules', requireAuth, async (req, res) => {
               orderBy: { orderNumber: 'asc' },
               include: {
                 theme: { select: { id: true, slug: true, name: true } },
-                exegesisHighlights: { orderBy: { orderNumber: 'asc' } },
+                contentHighlights: { orderBy: { orderNumber: 'asc' } },
               },
             },
           },

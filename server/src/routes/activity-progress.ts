@@ -1319,7 +1319,7 @@ router.post(
         return res.status(404).json({ success: false, error: 'Read block not found' })
       }
 
-      const allHighlights = await prisma.exegesisHighlight.findMany({
+      const allHighlights = await prisma.contentHighlight.findMany({
         where: { readBlockId: lockedBlock.id },
         select: { id: true },
       })

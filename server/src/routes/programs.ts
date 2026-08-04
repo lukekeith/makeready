@@ -1,5 +1,5 @@
 import crypto from 'crypto'
-import { Router } from 'express'
+import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
 import sharp from 'sharp'
@@ -1707,7 +1707,7 @@ router.get('/activities/:id/preview-data', async (req, res) => {
             backgroundOverlayOpacity: true,
             fontSize: true,
             theme: { select: { id: true, slug: true, name: true, definition: true } },
-            exegesisHighlights: {
+            contentHighlights: {
               orderBy: { orderNumber: 'asc' as const },
               select: {
                 id: true,
@@ -1971,7 +1971,7 @@ router.get('/lessons/:id/preview-data', async (req, res) => {
               orderBy: { orderNumber: 'asc' as const },
               include: {
                 theme: { select: { id: true, slug: true, name: true, definition: true } },
-                exegesisHighlights: {
+                contentHighlights: {
                   orderBy: { orderNumber: 'asc' as const },
                   select: {
                     id: true,
@@ -2743,7 +2743,7 @@ router.post('/activities/:id/source-references', requireAuth, async (req, res) =
       })
       const blockIds = existingBlocks.map((b) => b.id)
       if (blockIds.length > 0) {
-        await prisma.exegesisHighlight.deleteMany({ where: { readBlockId: { in: blockIds } } })
+        await prisma.contentHighlight.deleteMany({ where: { readBlockId: { in: blockIds } } })
       }
       await prisma.activityReadBlock.deleteMany({ where: { lessonActivityId: id } })
       await prisma.activitySourceReference.deleteMany({ where: { lessonActivityId: id } })
@@ -2888,22 +2888,81 @@ router.delete('/activities/:id/source-references/:refId', requireAuth, async (re
 })
 
 // ============================================================================
-// Exegesis Highlights
+// Content Highlights (EXEGESIS + READ)
+//
+// One family of handlers, mounted at TWO paths (docs/features/highlighting/03 §2, §2.5):
+//   /activities/:activityId/highlights            — the general contract
+//   /activities/:activityId/exegesis-highlights   — legacy alias, kept for at least one release
+//
+// The alias is deliberately NOT just a different URL: it keeps the strict EXEGESIS-only gate and
+// the old single-block response shape, so a shipped iPhone build (374 is in testers' hands —
+// 09 §X-a) sees exactly what it was built against.
 // ============================================================================
 
-async function syncExegesisSelectionsForBlock(readBlockId: string): Promise<void> {
-  const highlights = await prisma.exegesisHighlight.findMany({
+/** Styles a highlight may render as. Mirrors 03 §5. */
+const HIGHLIGHT_STYLES = ['highlight', 'bold'] as const
+
+/**
+ * Rewrites `ActivityReadBlock.selections` from the block's ContentHighlight rows.
+ *
+ * THE ONLY WRITER of that column — it is a derived projection now (03 §3). Emits the row's real
+ * `style` rather than a hardcoded 'highlight', ordered by `orderNumber`, which reproduces the
+ * previous output byte-for-byte while every row's style is 'highlight'. That equality is what
+ * keeps lesson content hashes stable and stops every enrolled group's lessons going stale
+ * (09 §X-c).
+ */
+async function syncSelectionsForBlock(readBlockId: string): Promise<void> {
+  const highlights = await prisma.contentHighlight.findMany({
     where: { readBlockId },
     orderBy: { orderNumber: 'asc' },
-    select: { start: true, end: true },
+    select: { start: true, end: true, style: true },
   })
 
-  const selections = highlights.map((h) => ({ start: h.start, end: h.end, style: 'highlight' }))
+  const selections = highlights.map((h) => ({ start: h.start, end: h.end, style: h.style }))
 
   await prisma.activityReadBlock.update({
     where: { id: readBlockId },
     data: { selections: selections.length ? (selections as unknown as Prisma.InputJsonValue) : Prisma.DbNull },
   })
+}
+
+/**
+ * Refuses a mutation on a block whose Read highlights have not been migrated into rows yet.
+ *
+ * WHY THIS EXISTS (09 §X-i). Between this phase and the phase-3 backfill there are blocks whose
+ * highlights live ONLY in `ActivityReadBlock.selections` — 49 blocks holding 67 spans when this was
+ * measured. `syncSelectionsForBlock` regenerates that column from the rows, so the first write to
+ * such a block would replace all of its spans with just the one being written, silently destroying
+ * the rest. That would violate governing rule 1.
+ *
+ * The guard is deliberately loud (409) rather than clever: refusing a write is recoverable,
+ * losing a leader's highlights is not. It retires itself — once the backfill has run, no block
+ * matches this condition and the check is inert.
+ */
+async function unmigratedBlockError(readBlockId: string): Promise<string | null> {
+  const [block, rowCount] = await Promise.all([
+    prisma.activityReadBlock.findUnique({ where: { id: readBlockId }, select: { selections: true } }),
+    prisma.contentHighlight.count({ where: { readBlockId } }),
+  ])
+
+  const spans = Array.isArray(block?.selections) ? block.selections.length : 0
+  if (spans > 0 && rowCount === 0) {
+    return 'This block\'s highlights have not been migrated yet. Writing now would discard them; run the highlight backfill first.'
+  }
+  return null
+}
+
+/**
+ * Activity-type gate. The general routes accept EXEGESIS and READ; the legacy alias stays
+ * EXEGESIS-only so an old client's error behaviour is unchanged (03 §2.5).
+ */
+function highlightActivityTypeError(activityType: string, legacy: boolean): string | null {
+  if (legacy) {
+    return activityType === 'EXEGESIS' ? null : 'Activity is not an EXEGESIS activity'
+  }
+  return activityType === 'EXEGESIS' || activityType === 'READ'
+    ? null
+    : 'Activity is not an EXEGESIS or READ activity'
 }
 
 /**
@@ -2949,227 +3008,302 @@ function sanitizeMarkdownInput(input: string): string {
 }
 
 /**
- * List exegesis highlights for an EXEGESIS activity.
+ * List highlights for an activity.
+ *
+ * General route: every locked block's highlights, plus `blockIds[]` (03 §2.1). A READ activity has
+ * many verse blocks, so the single `readBlockId` the exegesis original returned cannot address
+ * them; it is retained but deprecated, carrying the FIRST locked block.
+ *
+ * Legacy alias: first locked block only — byte-identical to the pre-convergence response.
  */
-router.get('/activities/:activityId/exegesis-highlights', requireAuth, async (req, res) => {
-  try {
-    const { activityId } = req.params
-    const userId = (req.user as any).id
+function listHighlightsHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId } = req.params
+      const userId = (req.user as any).id
 
-    const activity = await prisma.lessonActivity.findUnique({
-      where: { id: activityId },
-      include: { lesson: { include: { studyProgram: true } } },
-    })
+      const activity = await prisma.lessonActivity.findUnique({
+        where: { id: activityId },
+        include: { lesson: { include: { studyProgram: true } } },
+      })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
-      return res.status(404).json({ success: false, error: 'Activity not found' })
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+        return res.status(404).json({ success: false, error: 'Activity not found' })
+      }
+
+      const typeError = highlightActivityTypeError(activity.activityType, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      const blocks = await prisma.activityReadBlock.findMany({
+        where: { lessonActivityId: activityId, isLocked: true },
+        orderBy: { orderNumber: 'asc' },
+        select: { id: true },
+      })
+
+      if (!blocks.length) {
+        return res.json(
+          legacy
+            ? { success: true, readBlockId: null, highlights: [] }
+            : { success: true, readBlockId: null, blockIds: [], highlights: [] }
+        )
+      }
+
+      const blockIds = blocks.map((b) => b.id)
+      // Legacy callers were only ever shown the first locked block; keep it that way.
+      const scopedIds = legacy ? [blockIds[0]] : blockIds
+
+      const highlights = await prisma.contentHighlight.findMany({
+        where: { readBlockId: { in: scopedIds } },
+        orderBy: { orderNumber: 'asc' },
+      })
+
+      // Document order across blocks: block position first, then position within the block.
+      // (Sorting by readBlockId would order by uuid, which is meaningless to a reader.)
+      highlights.sort(
+        (a, b) =>
+          scopedIds.indexOf(a.readBlockId) - scopedIds.indexOf(b.readBlockId) ||
+          a.orderNumber - b.orderNumber
+      )
+
+      res.json(
+        legacy
+          ? { success: true, readBlockId: blockIds[0], highlights }
+          : { success: true, readBlockId: blockIds[0], blockIds, highlights }
+      )
+    } catch (error) {
+      console.error('Error listing highlights:', error)
+      res.status(500).json({ success: false, error: 'Failed to list highlights' })
     }
-
-    if (activity.activityType !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    const block = await prisma.activityReadBlock.findFirst({
-      where: { lessonActivityId: activityId, isLocked: true },
-      orderBy: { orderNumber: 'asc' },
-      select: { id: true },
-    })
-
-    if (!block) {
-      return res.json({ success: true, readBlockId: null, highlights: [] })
-    }
-
-    const highlights = await prisma.exegesisHighlight.findMany({
-      where: { readBlockId: block.id },
-      orderBy: { orderNumber: 'asc' },
-    })
-
-    res.json({ success: true, readBlockId: block.id, highlights })
-  } catch (error) {
-    console.error('Error listing exegesis highlights:', error)
-    res.status(500).json({ success: false, error: 'Failed to list exegesis highlights' })
   }
-})
+}
+
+router.get('/activities/:activityId/highlights', requireAuth, listHighlightsHandler(false))
+router.get('/activities/:activityId/exegesis-highlights', requireAuth, listHighlightsHandler(true))
 
 /**
  * Create a new exegesis highlight.
  */
-router.post('/activities/:activityId/exegesis-highlights', requireAuth, async (req, res) => {
-  try {
-    const { activityId } = req.params
-    const userId = (req.user as any).id
+function createHighlightHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId } = req.params
+      const userId = (req.user as any).id
 
-    const schema = z.object({
-      readBlockId: z.string().uuid(),
-      start: z.number().int().min(0),
-      end: z.number().int().min(1),
-      noteMarkdown: z.string().default(''),
-    }).refine((v) => v.end > v.start, { message: 'end must be greater than start' })
+      const schema = z.object({
+        readBlockId: z.string().uuid(),
+        start: z.number().int().min(0),
+        end: z.number().int().min(1),
+        style: z.enum(HIGHLIGHT_STYLES).optional(),
+        noteMarkdown: z.string().default(''),
+      }).refine((v) => v.end > v.start, { message: 'end must be greater than start' })
 
-    const body = schema.parse(req.body)
+      const body = schema.parse(req.body)
 
-    const activity = await prisma.lessonActivity.findUnique({
-      where: { id: activityId },
-      include: { lesson: { include: { studyProgram: true } } },
-    })
+      const activity = await prisma.lessonActivity.findUnique({
+        where: { id: activityId },
+        include: { lesson: { include: { studyProgram: true } } },
+      })
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
-      return res.status(404).json({ success: false, error: 'Activity not found' })
-    }
-
-    if (activity.activityType !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    const block = await prisma.activityReadBlock.findFirst({
-      where: { id: body.readBlockId, lessonActivityId: activityId, isLocked: true },
-      select: { id: true },
-    })
-
-    if (!block) {
-      return res.status(404).json({ success: false, error: 'Read block not found' })
-    }
-
-    // Overlapping highlights merge: the new range absorbs every highlight it
-    // touches — union span, notes concatenated in document order.
-    const existing = await prisma.exegesisHighlight.findMany({
-      where: { readBlockId: block.id },
-      orderBy: { start: 'asc' },
-    })
-    const absorbed = existing.filter((h) => body.end > h.start && body.start < h.end)
-
-    const start = Math.min(body.start, ...absorbed.map((h) => h.start))
-    const end = Math.max(body.end, ...absorbed.map((h) => h.end))
-    const noteMarkdown = [...absorbed.map((h) => h.noteMarkdown), sanitizeMarkdownInput(body.noteMarkdown)]
-      .filter((n) => n && n.trim())
-      .join('\n\n')
-
-    const nextOrder = await prisma.exegesisHighlight.aggregate({
-      where: { readBlockId: block.id },
-      _max: { orderNumber: true },
-    })
-    // A merged highlight keeps the earliest absorbed position in the list
-    const orderNumber = absorbed.length
-      ? Math.min(...absorbed.map((h) => h.orderNumber))
-      : (nextOrder._max.orderNumber ?? 0) + 1
-
-    const created = await prisma.$transaction(async (tx) => {
-      if (absorbed.length) {
-        await tx.exegesisHighlight.deleteMany({ where: { id: { in: absorbed.map((h) => h.id) } } })
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+        return res.status(404).json({ success: false, error: 'Activity not found' })
       }
-      return tx.exegesisHighlight.create({
+
+      const typeError = highlightActivityTypeError(activity.activityType, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      const block = await prisma.activityReadBlock.findFirst({
+        where: { id: body.readBlockId, lessonActivityId: activityId, isLocked: true },
+        select: { id: true },
+      })
+
+      if (!block) {
+        return res.status(404).json({ success: false, error: 'Read block not found' })
+      }
+
+      const unmigrated = await unmigratedBlockError(block.id)
+      if (unmigrated) {
+        return res.status(409).json({ success: false, error: unmigrated })
+      }
+
+      // Overlapping highlights merge: the new range absorbs every highlight it
+      // touches — union span, notes concatenated in document order.
+      const existing = await prisma.contentHighlight.findMany({
+        where: { readBlockId: block.id },
+        orderBy: { start: 'asc' },
+      })
+      const absorbed = existing.filter((h) => body.end > h.start && body.start < h.end)
+
+      const start = Math.min(body.start, ...absorbed.map((h) => h.start))
+      const end = Math.max(body.end, ...absorbed.map((h) => h.end))
+      const noteMarkdown = [...absorbed.map((h) => h.noteMarkdown), sanitizeMarkdownInput(body.noteMarkdown)]
+        .filter((n) => n && n.trim())
+        .join('\n\n')
+      // Incoming style wins when absorbed rows disagree — ratified, 03 §2.2 / 09 §D-a.
+      const style = body.style ?? 'highlight'
+
+      const nextOrder = await prisma.contentHighlight.aggregate({
+        where: { readBlockId: block.id },
+        _max: { orderNumber: true },
+      })
+      // A merged highlight keeps the earliest absorbed position in the list
+      const orderNumber = absorbed.length
+        ? Math.min(...absorbed.map((h) => h.orderNumber))
+        : (nextOrder._max.orderNumber ?? 0) + 1
+
+      const created = await prisma.$transaction(async (tx) => {
+        if (absorbed.length) {
+          await tx.contentHighlight.deleteMany({ where: { id: { in: absorbed.map((h) => h.id) } } })
+        }
+        return tx.contentHighlight.create({
+          data: {
+            readBlockId: block.id,
+            orderNumber,
+            start,
+            end,
+            style,
+            noteMarkdown,
+          },
+        })
+      })
+
+      await syncSelectionsForBlock(block.id)
+
+      res.status(201).json({ success: true, highlight: created, absorbedIds: absorbed.map((h) => h.id) })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, error: error.errors })
+      }
+      console.error('Error creating highlight:', error)
+      res.status(500).json({ success: false, error: 'Failed to create highlight' })
+    }
+  }
+}
+
+router.post('/activities/:activityId/highlights', requireAuth, createHighlightHandler(false))
+router.post('/activities/:activityId/exegesis-highlights', requireAuth, createHighlightHandler(true))
+
+/**
+ * Update an existing highlight — `noteMarkdown`, `style`, or both (03 §2.3).
+ *
+ * At least one field is required: an empty PATCH is a client bug, not a no-op.
+ */
+function updateHighlightHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId, highlightId } = req.params
+      const userId = (req.user as any).id
+
+      const schema = z
+        .object({
+          noteMarkdown: z.string().optional(),
+          style: z.enum(HIGHLIGHT_STYLES).optional(),
+        })
+        .refine((v) => v.noteMarkdown !== undefined || v.style !== undefined, {
+          message: 'At least one of noteMarkdown or style is required',
+        })
+      const body = schema.parse(req.body)
+
+      const activity = await prisma.lessonActivity.findUnique({
+        where: { id: activityId },
+        include: { lesson: { include: { studyProgram: true } } },
+      })
+
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+        return res.status(404).json({ success: false, error: 'Activity not found' })
+      }
+
+      const typeError = highlightActivityTypeError(activity.activityType, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      // Ensure highlight belongs to this activity via the read block
+      const highlight = await prisma.contentHighlight.findUnique({
+        where: { id: highlightId },
+        include: { readBlock: { select: { lessonActivityId: true, id: true } } },
+      })
+
+      if (!highlight || highlight.readBlock.lessonActivityId !== activityId) {
+        return res.status(404).json({ success: false, error: 'Highlight not found' })
+      }
+
+      const updated = await prisma.contentHighlight.update({
+        where: { id: highlightId },
         data: {
-          readBlockId: block.id,
-          orderNumber,
-          start,
-          end,
-          noteMarkdown,
+          ...(body.noteMarkdown !== undefined ? { noteMarkdown: sanitizeMarkdownInput(body.noteMarkdown) } : {}),
+          ...(body.style !== undefined ? { style: body.style } : {}),
         },
       })
-    })
 
-    await syncExegesisSelectionsForBlock(block.id)
+      // `style` is part of the derived projection, so a style change must refresh it. The
+      // pre-convergence PATCH could only touch noteMarkdown and so never needed this.
+      if (body.style !== undefined) {
+        await syncSelectionsForBlock(highlight.readBlock.id)
+      }
 
-    res.status(201).json({ success: true, highlight: created, absorbedIds: absorbed.map((h) => h.id) })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: error.errors })
+      res.json({ success: true, highlight: updated })
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ success: false, error: error.errors })
+      }
+      console.error('Error updating highlight:', error)
+      res.status(500).json({ success: false, error: 'Failed to update highlight' })
     }
-    console.error('Error creating exegesis highlight:', error)
-    res.status(500).json({ success: false, error: 'Failed to create exegesis highlight' })
   }
-})
+}
+
+router.patch('/activities/:activityId/highlights/:highlightId', requireAuth, updateHighlightHandler(false))
+router.patch('/activities/:activityId/exegesis-highlights/:highlightId', requireAuth, updateHighlightHandler(true))
 
 /**
- * Update an existing exegesis highlight (noteMarkdown only).
+ * Delete a highlight.
  */
-router.patch('/activities/:activityId/exegesis-highlights/:highlightId', requireAuth, async (req, res) => {
-  try {
-    const { activityId, highlightId } = req.params
-    const userId = (req.user as any).id
+function deleteHighlightHandler(legacy: boolean) {
+  return async (req: Request, res: Response) => {
+    try {
+      const { activityId, highlightId } = req.params
+      const userId = (req.user as any).id
 
-    const schema = z.object({
-      noteMarkdown: z.string(),
-    })
-    const body = schema.parse(req.body)
+      const activity = await prisma.lessonActivity.findUnique({
+        where: { id: activityId },
+        include: { lesson: { include: { studyProgram: true } } },
+      })
 
-    const activity = await prisma.lessonActivity.findUnique({
-      where: { id: activityId },
-      include: { lesson: { include: { studyProgram: true } } },
-    })
+      if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
+        return res.status(404).json({ success: false, error: 'Activity not found' })
+      }
 
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
-      return res.status(404).json({ success: false, error: 'Activity not found' })
+      const typeError = highlightActivityTypeError(activity.activityType, legacy)
+      if (typeError) {
+        return res.status(400).json({ success: false, error: typeError })
+      }
+
+      const highlight = await prisma.contentHighlight.findUnique({
+        where: { id: highlightId },
+        include: { readBlock: { select: { lessonActivityId: true, id: true } } },
+      })
+
+      if (!highlight || highlight.readBlock.lessonActivityId !== activityId) {
+        return res.status(404).json({ success: false, error: 'Highlight not found' })
+      }
+
+      await prisma.contentHighlight.delete({ where: { id: highlightId } })
+      await syncSelectionsForBlock(highlight.readBlock.id)
+
+      res.json({ success: true })
+    } catch (error) {
+      console.error('Error deleting highlight:', error)
+      res.status(500).json({ success: false, error: 'Failed to delete highlight' })
     }
-
-    if (activity.activityType !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    // Ensure highlight belongs to this activity via the read block
-    const highlight = await prisma.exegesisHighlight.findUnique({
-      where: { id: highlightId },
-      include: { readBlock: { select: { lessonActivityId: true, id: true } } },
-    })
-
-    if (!highlight || highlight.readBlock.lessonActivityId !== activityId) {
-      return res.status(404).json({ success: false, error: 'Highlight not found' })
-    }
-
-    const updated = await prisma.exegesisHighlight.update({
-      where: { id: highlightId },
-      data: { noteMarkdown: sanitizeMarkdownInput(body.noteMarkdown) },
-    })
-
-    res.json({ success: true, highlight: updated })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return res.status(400).json({ success: false, error: error.errors })
-    }
-    console.error('Error updating exegesis highlight:', error)
-    res.status(500).json({ success: false, error: 'Failed to update exegesis highlight' })
   }
-})
+}
 
-/**
- * Delete an exegesis highlight.
- */
-router.delete('/activities/:activityId/exegesis-highlights/:highlightId', requireAuth, async (req, res) => {
-  try {
-    const { activityId, highlightId } = req.params
-    const userId = (req.user as any).id
-
-    const activity = await prisma.lessonActivity.findUnique({
-      where: { id: activityId },
-      include: { lesson: { include: { studyProgram: true } } },
-    })
-
-    if (!activity || !(await canManageOrgContent(userId, activity.lesson.studyProgram.organizationId, activity.lesson.studyProgram.creatorId))) {
-      return res.status(404).json({ success: false, error: 'Activity not found' })
-    }
-
-    if (activity.activityType !== 'EXEGESIS') {
-      return res.status(400).json({ success: false, error: 'Activity is not an EXEGESIS activity' })
-    }
-
-    const highlight = await prisma.exegesisHighlight.findUnique({
-      where: { id: highlightId },
-      include: { readBlock: { select: { lessonActivityId: true, id: true } } },
-    })
-
-    if (!highlight || highlight.readBlock.lessonActivityId !== activityId) {
-      return res.status(404).json({ success: false, error: 'Highlight not found' })
-    }
-
-    await prisma.exegesisHighlight.delete({ where: { id: highlightId } })
-    await syncExegesisSelectionsForBlock(highlight.readBlock.id)
-
-    res.json({ success: true })
-  } catch (error) {
-    console.error('Error deleting exegesis highlight:', error)
-    res.status(500).json({ success: false, error: 'Failed to delete exegesis highlight' })
-  }
-})
+router.delete('/activities/:activityId/highlights/:highlightId', requireAuth, deleteHighlightHandler(false))
+router.delete('/activities/:activityId/exegesis-highlights/:highlightId', requireAuth, deleteHighlightHandler(true))
 
 // ============================================================================
 // Activity Read Blocks

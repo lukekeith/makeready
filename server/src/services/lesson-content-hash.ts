@@ -29,7 +29,7 @@ export const LESSON_CONTENT_INCLUDE = {
       sourceReferences: true,
       readBlocks: {
         orderBy: { orderNumber: 'asc' as const },
-        include: { exegesisHighlights: { orderBy: { orderNumber: 'asc' as const } } },
+        include: { contentHighlights: { orderBy: { orderNumber: 'asc' as const } } },
       },
     },
   },
@@ -61,7 +61,7 @@ interface ReadBlockContent {
   fontSize: string | null
   selections: unknown
   sourceReferenceId: string | null
-  exegesisHighlights: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
+  contentHighlights: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
 }
 
 interface ActivityContent {
@@ -123,7 +123,7 @@ interface ActivityRow {
     fontSize: string | null
     selections: unknown
     sourceReferenceId: string | null
-    exegesisHighlights?: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
+    contentHighlights?: Array<{ orderNumber: number; start: number; end: number; noteMarkdown: string }>
   }>
 }
 
@@ -182,7 +182,7 @@ export function canonicalLessonContent(lesson: LessonRow): LessonContent {
               block.sourceReferenceId != null
                 ? `ref:${refIndexById.get(block.sourceReferenceId) ?? 'unknown'}`
                 : null,
-            exegesisHighlights: [...(block.exegesisHighlights ?? [])]
+            contentHighlights: [...(block.contentHighlights ?? [])]
               .sort((a, b) => a.orderNumber - b.orderNumber)
               .map((h) => ({
                 orderNumber: h.orderNumber,

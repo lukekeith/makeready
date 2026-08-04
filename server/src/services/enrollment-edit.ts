@@ -376,7 +376,7 @@ const PROGRAM_COPY_INCLUDE = {
             orderBy: { orderNumber: 'asc' as const },
             include: {
               theme: { select: { id: true, slug: true, name: true } },
-              exegesisHighlights: { orderBy: { orderNumber: 'asc' as const } },
+              contentHighlights: { orderBy: { orderNumber: 'asc' as const } },
             },
           },
         },
@@ -509,7 +509,7 @@ export async function applyStudySwap(
       const scheduledActivityData: LessonCopyRows['scheduledActivityData'] = []
       const sourceRefData: LessonCopyRows['sourceRefData'] = []
       const readBlockData: LessonCopyRows['readBlockData'] = []
-      const exegesisHighlightData: LessonCopyRows['exegesisHighlightData'] = []
+      const contentHighlightData: LessonCopyRows['contentHighlightData'] = []
       for (const s of newSchedules) {
         const rows = buildLessonCopyRows({
           lessonScheduleId: s.id,
@@ -519,12 +519,12 @@ export async function applyStudySwap(
         scheduledActivityData.push(...rows.scheduledActivityData)
         sourceRefData.push(...rows.sourceRefData)
         readBlockData.push(...rows.readBlockData)
-        exegesisHighlightData.push(...rows.exegesisHighlightData)
+        contentHighlightData.push(...rows.contentHighlightData)
       }
       if (scheduledActivityData.length > 0) await tx.scheduledLessonActivity.createMany({ data: scheduledActivityData })
       if (sourceRefData.length > 0) await tx.activitySourceReference.createMany({ data: sourceRefData })
       if (readBlockData.length > 0) await tx.activityReadBlock.createMany({ data: readBlockData })
-      if (exegesisHighlightData.length > 0) await tx.exegesisHighlight.createMany({ data: exegesisHighlightData })
+      if (contentHighlightData.length > 0) await tx.contentHighlight.createMany({ data: contentHighlightData })
 
       // ── New calendar events for the new schedules ───────────────────────
       await tx.event.createMany({

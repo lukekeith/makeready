@@ -669,7 +669,7 @@ export async function getMemberLessonDetail(
               orderBy: { orderNumber: 'asc' },
               include: {
                 theme: { select: { id: true, slug: true, name: true, definition: true } },
-                exegesisHighlights: { orderBy: { orderNumber: 'asc' } },
+                contentHighlights: { orderBy: { orderNumber: 'asc' } },
               },
             },
           },
@@ -847,8 +847,8 @@ export async function getMemberLessonDetail(
           backgroundOverlayOpacity: (block as any).backgroundOverlayOpacity ?? null,
           fontSize: (block as any).fontSize ?? null,
           selections: (block as any).selections ?? null,
-          exegesisHighlights: (block as any).exegesisHighlights
-            ? (block as any).exegesisHighlights.map((h: any) => ({
+          contentHighlights: (block as any).contentHighlights
+            ? (block as any).contentHighlights.map((h: any) => ({
                 id: h.id,
                 orderNumber: h.orderNumber,
                 start: h.start,
