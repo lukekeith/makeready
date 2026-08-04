@@ -647,7 +647,7 @@ struct EditReadActivityPage: View {
         // contains a UIViewRepresentable (SelectableLockedBlockView) which
         // SwipeableCard's default `.drawingGroup()` cannot flatten into a
         // Metal texture (it produces a yellow placeholder).
-        return SwipeableCard(
+        let card = SwipeableCard(
             slideButtons: canEdit ? [
                 SlideButton(icon: "trash", style: .delete) {
                     blockToDelete = block
@@ -699,22 +699,6 @@ struct EditReadActivityPage: View {
                     }
                 }
 
-                // Highlight mode used to announce itself with nothing but a
-                // purple border and a tinted glyph, leaving the reporter with
-                // no idea what the mode wanted (monday#12668695071).
-                if isHighlighting && !isCollapsed {
-                    // No .transition() here: this lives inside a SwipeableCard,
-                    // where transition modifiers make the child animate
-                    // independently of the card during a swipe
-                    // (SWIFTUI_ANIMATION_PATTERNS.md § Swipeable Cards). The
-                    // withAnimation(Motion.micro) around highlightingBlockId
-                    // gives the insert its fade already.
-                    Text("Tap verses to select, then tap again to style")
-                        .font(Typography.s12Medium)
-                        .foregroundColor(Color.brandPrimary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
                 if !isCollapsed, let content = block.content, !content.isEmpty {
                     SelectableLockedBlockView(
                         plainText: BibleVerseContentNormalizer.normalizedPlainText(from: content),
@@ -742,8 +726,16 @@ struct EditReadActivityPage: View {
             }
             .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+            // Rounding is PAINTED, not masked. This was
+            // `.background(Color.cardBackground).clipShape(RoundedRectangle(...))`,
+            // and the clip is realised as a layer mask because the card hosts a
+            // UIViewRepresentable inside a SwipeableCard. When the card's height
+            // changed the mask did not follow, and a mask larger than its layer
+            // leaves the corners outside its arcs — the card rendered square
+            // (monday#12701776858). A filled shape needs no mask, so it cannot
+            // desync. Safe without the clip: content is inset 16pt, well clear
+            // of the 12pt corner arc.
+            .background(RoundedRectangle(cornerRadius: 12).fill(Color.cardBackground))
             .overlay(
                 RoundedRectangle(cornerRadius: 12)
                     .stroke(
@@ -780,6 +772,31 @@ struct EditReadActivityPage: View {
                 .padding(.trailing, 44)
                 .opacity(isDeleting ? 0.5 : (dimForOtherHighlight ? 0.3 : 1))
             }
+        }
+
+        // The hint sits OUTSIDE the card on purpose. Inside, it was the only
+        // thing that changed the card's height when highlight mode toggled, and
+        // that resize is what left the card's corners square on exit
+        // (monday#12701776858). Out here the card's geometry is constant across
+        // the whole enter → highlight → exit cycle.
+        //
+        // Above rather than below: a verse block can be taller than the screen,
+        // so a hint underneath it would be scrolled out of sight — useless for
+        // the discoverability problem it exists to solve (monday#12668695071).
+        //
+        // No .transition(): during highlight mode drag-to-reorder is disabled
+        // (`canDrag = highlightingBlockId == nil`), so this never coexists with
+        // a swipe, but the card below it is still a SwipeableCard and the
+        // withAnimation(Motion.micro) on the toggle already fades the insert
+        // (SWIFTUI_ANIMATION_PATTERNS.md § Swipeable Cards).
+        return VStack(alignment: .leading, spacing: 8) {
+            if isHighlighting && !isCollapsed {
+                Text("Tap verses to select, then tap again to style")
+                    .font(Typography.s12Medium)
+                    .foregroundColor(Color.brandPrimary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            card
         }
         .padding(.horizontal, 16)
     }
