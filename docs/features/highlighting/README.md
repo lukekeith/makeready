@@ -1,6 +1,6 @@
 # highlighting — one text-highlighting service across every text surface
 
-**Status:** `planned` · 7 phase docs written · **awaiting the build go-ahead**
+**Status:** `building` · phase 1 of 7 · the note-loss diagnosis is answered, its fix is next
 
 One way to create, store, render and persist a text highlight — replacing three native
 implementations that disagree on granularity, colour, coordinates and when a selection commits.
@@ -28,7 +28,7 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 | audit | ✅ 3 passes — 2 gaps found + corrected, 2 risks closed with evidence |
 | decisions | ✅ 6 decided, 3 resolved, 3 acknowledged — no OPEN rows |
 | plan | ✅ 7 phases, 56 tasks |
-| build | ⬜ |
+| build | 🔄 phase 1 (2/5 tasks) |
 | verify | ⬜ |
 | sign-off | ⬜ |
 
@@ -36,7 +36,7 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 
 | # | App | Doc | Tasks | Status |
 |---|---|---|---|---|
-| 1 | iphone | [10-phase-1-prerequisite-note-loss.md](10-phase-1-prerequisite-note-loss.md) | 5 | ⬜ **gates everything** |
+| 1 | iphone | [10-phase-1-prerequisite-note-loss.md](10-phase-1-prerequisite-note-loss.md) | 5 | 🔄 2/5 — **diagnosis answered: client-side** |
 | 2 | server | [11-phase-2-server-schema-and-routes.md](11-phase-2-server-schema-and-routes.md) | 11 | ⬜ freezes the contract |
 | 3 | server | [12-phase-3-server-backfill.md](12-phase-3-server-backfill.md) | 9 | ⬜ touches customer data |
 | 4 | iphone | [13-phase-4-iphone-service.md](13-phase-4-iphone-service.md) | 15 | ⬜ ∥ with 5 |
