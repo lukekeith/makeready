@@ -133,7 +133,12 @@ Plus, if 1.3b fires: `cd server && npx tsc --noEmit && npm run lint && npm run t
 - [x] After the fix: two noted highlights, merged, and **both notes are present** in the merged
       highlight's note editor (Luke, 2026-08-04) AND in the API response (task 1.2, all four notes
       concatenated in document order).
-- [~] A note survives a merge that changes the highlight's span — **verified by human walkthrough
+- [x] A note survives a merge that changes the highlight's span — **UPGRADED 2026-08-05: no longer
+      human-walkthrough-only.** Phase 7 step 7.5 ran it over real HTTP against the live stack —
+      two noted highlights absorbed by a spanning third returned `"Note A\n\nNote B"` character for
+      character, and the data was restored to a byte-identical whole-table fingerprint. Phase 4's
+      `HighlightDraftStoreTests` (15 tests) additionally guard the client-side succession. Original
+      caveat retained below for the record. **verified by human walkthrough
       only. The automated regression guard named in 1.3a did NOT ship** (`6e349b5` touches one
       Swift file and three docs; no test). The succession logic is inline in the page's create
       path with no seam to call, so the test lands with the `applyMerge` extraction in Phase 4

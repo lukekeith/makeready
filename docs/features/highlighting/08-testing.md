@@ -47,12 +47,12 @@ and accept only those explained by the colour change (07).
 
 ```
 # server
-cd server && npx tsc --noEmit && npm run lint && npm run test:run
+cd server && npx tsc --noEmit && npm run test:run
 cd server && npm run schema:validate && npm run schema:diff && npm run migrate:status
 docker restart makeready-server
 
 # client
-cd client && npm run build && npm run guard && ./vendor/bin/phpunit
+cd client && npm run build && npm test && ./vendor/bin/phpunit
 
 # iphone
 npm run ios:build-check
@@ -61,6 +61,24 @@ cd iphone && swiftlint
 # capture
 curl -s localhost:5950/api/compare/manifest
 ```
+
+### Two gates are BLOCKED for reasons that predate this feature
+
+**Decided (Luke, 2026-08-04): correct the gate list, don't make this feature pay repo-wide debt.**
+Both commands are dropped from the runnable list above and recorded here instead, with the evidence
+already gathered, so they stay visible and owned rather than silently disappearing. Neither is
+caused by this feature and neither can be fixed inside it.
+
+| Gate | Why it cannot pass | Evidence |
+|---|---|---|
+| `cd server && npm run lint` | **There is no ESLint configuration anywhere in the repository** — no `.eslintrc*`, no `eslint.config.*`, no `eslintConfig` key, at `server/` or at the root. ESLint 8.40 exits with "couldn't find a configuration file". It also walks into the git-ignored `server/dist/`, four months stale. Blocks **every** server feature, not this one. | 09 §G-i |
+| `cd client && npm run guard` | **853 violations across ~40 component stylesheets** that predate the design-system migration. This feature only ever reduced the number: **856 → 853**, three removed and zero added, measured after phase 5.6 began editing files inside the guard's scan directory. | 09 §G-u |
+
+`npm test` (client) is **new** — added in phase 5.8, because the client had no JavaScript test
+runner at all and the repo-root `npm test --workspaces` was walking straight past it.
+
+Standing gate lists live in `.claude/skills/build-spec/REFERENCE.md` §7; the two rows above are
+recorded there too, so the next feature does not rediscover them.
 
 ## Cross-app E2E walk
 

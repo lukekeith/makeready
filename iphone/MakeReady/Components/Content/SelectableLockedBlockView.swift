@@ -2,40 +2,85 @@
 //  SelectableLockedBlockView.swift
 //  MakeReady
 //
-//  Read-only UITextView wrapper for locked read blocks. Renders existing
-//  ReadBlockSelection records as styled runs. Text selection works like the
-//  Bible reader: tap a verse to select it, tap another to extend the range,
-//  tap inside the selection to clear it.
+//  The Read editor's locked-block view. Since 2026-08-04 (highlighting phase
+//  4.11) this is a THIN WRAPPER over `HighlightableTextView` — it keeps its own
+//  public shape so both call sites and the capture `ViewRegistry` are unchanged,
+//  and delegates all of the behaviour it used to own.
+//
+//  What it used to own, and now shares: verse parsing, badge layout, the
+//  tap-to-select model, highlight painting, the bounds clamp, and edit-menu
+//  suppression. All of that existed here AND in `ExegesisVerseView`, in two
+//  versions that disagreed.
+//
+//  ⚠️ One deliberate behaviour change ships with this (09 §G-o): saved spans
+//  used to be painted opaque brand purple. They are now lime at 0.35, the
+//  contract's colour for a saved highlight on every surface (03 §5). The
+//  Exegesis editor already rendered them that way; this surface was the odd one.
+//
+//  ⚠️ SECOND behaviour change, 2026-08-04 (09 §X-q, requested by Luke):
+//  **highlight mode now selects by tap-and-hold like the Exegesis editor, not by
+//  tapping whole verses.** Until now this surface was `.verseTap` / `.verse` —
+//  tap a verse to select it, tap another to extend, tap inside to commit — which
+//  is what both the pre-refactor view and 03 §5's granularity table specified.
+//  Word-level drag is strictly more expressive (a phrase inside a verse was
+//  simply not expressible before), and it makes the two editors behave alike,
+//  which is the point of the shared service.
+//
+//  Two things fall out, and neither is incidental:
+//
+//  * **Tapping a verse no longer selects it.** That capability is gone, not
+//    hidden. A tap now only opens an EXISTING highlight (`onHighlightTapped`).
+//    If whole-verse selection is still wanted it comes back as an explicit
+//    addition, not as a leftover.
+//  * **The scroll lock starts running on this surface.** `.verseTap` never
+//    became first responder, so `TextSelectionController` was never even
+//    constructed for it (`HighlightableTextView.Coordinator.attach` returns
+//    early for that mode). Native drag makes the text view first responder
+//    inside a SwipeableCard inside a ScrollView, which is exactly the situation
+//    the lock exists for.
+//
+//  Safe because the parent already disables the competing long press: the Read
+//  editor sets `canDrag = highlightingBlockId == nil` (EditReadActivityPage),
+//  so drag-to-reorder is off while a block is being highlighted, and
+//  `isSelectionEnabled` is true only in highlight mode — so no stray selection
+//  handles appear outside it (monday#12668695071).
 //
 
 import SwiftUI
 import UIKit
 
-struct SelectableLockedBlockView: UIViewRepresentable {
+struct SelectableLockedBlockView: View {
     let plainText: String
     let selections: [ReadBlockSelection]
-    /// When false, the underlying UITextView refuses tap selection so
-    /// the parent's drag-to-sort gesture (Dragula) handles long-press instead.
-    /// Toggled on when the user enters explicit highlight mode.
+    /// When false, the underlying text view is not selectable at all, so the
+    /// parent's drag-to-sort gesture handles long-press instead — and no system
+    /// selection handles can appear on a block nobody is highlighting.
+    /// Toggled on when the user enters explicit highlight mode, which is also
+    /// when the parent turns drag-to-sort off.
     let isSelectionEnabled: Bool
     /// Range currently being edited via the style picker (if any). The matching
-    /// span is rendered solid white with dark text to make it visually clear
+    /// span renders solid white with dark text to make it visually clear
     /// which selection the modal is acting on. nil while the picker is closed.
     let editingRange: NSRange?
     /// Set when the user finishes adjusting a non-empty selection.
     /// The parent presents the style picker on `.onChange`, then clears it.
     @Binding var pendingRange: NSRange?
     /// The selection the user is building right now, owned by the parent's
-    /// SwiftUI state. This view paints the span itself (see
-    /// `makeAttributedString`) instead of leaning on UIKit's transient
-    /// selection rendering, which `updateUIView` wiped on every SwiftUI update
-    /// — leaving the system's grab handles bracketing nothing
-    /// (monday#12668695071).
+    /// SwiftUI state. The span is painted as a text attribute rather than left
+    /// to UIKit's transient selection rendering, which `updateUIView` wiped on
+    /// every SwiftUI update — leaving the system's grab handles bracketing
+    /// nothing (monday#12668695071).
+    ///
+    /// Since the switch to `.nativeDrag` the in-progress wash is painted by
+    /// `HighlightTextView.applyLivePreview` during the drag and this binding is
+    /// only cleared on commit. It stays in the public shape because the parent
+    /// tracks which block is live, and because the capture `ViewRegistry`
+    /// depends on the memberwise initialiser.
     @Binding var liveSelection: NSRange?
     /// Font size for the verse text. Defaults to 16pt if not provided.
     var fontSize: CGFloat = 16
     /// When true, non-editing selections render as white bg with dark text
-    /// (readable preview). When false, selections use purple highlight marker.
+    /// (readable preview).
     var usePreviewHighlightStyle: Bool = false
     /// True when the block's content was copied in by the Bible
     /// book/chapter/verse highlight process (`sourceReferenceId != nil`).
@@ -43,321 +88,48 @@ struct SelectableLockedBlockView: UIViewRepresentable {
     /// other locked blocks keep the standard system font.
     var isScripture: Bool = true
 
-    func makeUIView(context: Context) -> SelectionTextView {
-        let view = SelectionTextView()
-        view.delegate = context.coordinator
-        view.isEditable = false
-        view.isSelectable = false // We handle selection ourselves via taps
-        view.isScrollEnabled = false
-        view.backgroundColor = .clear
-        BibleVerseTextLayout.configureTextView(view)
-        view.configureVerseBadges(
-            verseRanges: Self.parseVerseRanges(from: plainText),
-            target: context.coordinator,
-            action: #selector(Coordinator.handleCircleTap(_:))
-        )
-        view.dataDetectorTypes = []
-        view.linkTextAttributes = [:]
-        view.adjustsFontForContentSizeCategory = false
-        // No selection tint: the text view is never made first responder, so
-        // UIKit draws neither the selection fill nor its grab handles. The
-        // active range is painted as a text attribute instead.
-        view.setContentHuggingPriority(.defaultLow, for: .horizontal)
-        view.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        view.setContentHuggingPriority(.required, for: .vertical)
-        view.setContentCompressionResistancePriority(.required, for: .vertical)
-        view.attributedText = makeAttributedString()
-
-        // Build verse ranges from the plain text
-        context.coordinator.verseRanges = Self.parseVerseRanges(from: plainText)
-
-        // Single tap — select/extend/deselect verses (like Bible reader)
-        let tap = UITapGestureRecognizer(target: context.coordinator, action: #selector(Coordinator.handleTap(_:)))
-        tap.delegate = context.coordinator
-        view.addGestureRecognizer(tap)
-        context.coordinator.tapGesture = tap
-
-        return view
-    }
-
-    func updateUIView(_ uiView: SelectionTextView, context: Context) {
-        context.coordinator.parent = self
-
-        uiView.attributedText = makeAttributedString()
-        let verseRanges = Self.parseVerseRanges(from: plainText)
-        context.coordinator.verseRanges = verseRanges
-        uiView.configureVerseBadges(
-            verseRanges: verseRanges,
-            target: context.coordinator,
-            action: #selector(Coordinator.handleCircleTap(_:))
-        )
-        // No selection to re-sync here: `makeAttributedString` above has
-        // already repainted the live span, and it paints nothing once
-        // `isSelectionEnabled` goes false.
-    }
-
-    func sizeThatFits(_ proposal: ProposedViewSize, uiView: SelectionTextView, context: Context) -> CGSize? {
-        guard let width = proposal.width, width.isFinite, width > 0 else { return nil }
-        let fitted = uiView.sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-        return CGSize(width: width, height: ceil(fitted.height))
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(parent: self)
-    }
-
-    // MARK: - Verse Range Parsing
-
-    /// Parse verse numbers from plain text. Verse numbers appear as digits
-    /// at the start of a line, optionally followed by a period, and the verse
-    /// range extends to the next parsed verse marker.
-    /// Returns an array of (verseNumber, characterRange) tuples.
-    static func parseVerseRanges(from text: String) -> [(verse: Int, range: NSRange)] {
-        VerseSelectionLogic.parseVersePositions(from: text).verseRanges
-    }
-
-    // MARK: - Attributed String
-
-    /// Lime wash for the in-progress selection — the same colour and alpha
-    /// `ExegesisVerseView` paints its own selection preview with, so the two
-    /// verse editors read alike.
-    private static let liveSelectionColor = UIColor(red: 0xF4/255, green: 0xFF/255, blue: 0x76/255, alpha: 0.55)
-
-    private func makeAttributedString() -> NSAttributedString {
-        let baseColor = UIColor.white.withAlphaComponent(0.85)
-
-        let parsed = VerseSelectionLogic.parseVersePositions(from: plainText)
-        let attributed = BibleVerseTextLayout.baseAttributedText(
+    var body: some View {
+        HighlightableTextView(
             plainText: plainText,
-            verseNumberRanges: parsed.numberRanges,
             fontSize: fontSize,
-            foregroundColor: baseColor,
-            paragraphStyle: BibleVerseTextLayout.paragraphStyle(justified: isScripture),
-            serif: isScripture
+            isScripture: isScripture,
+            highlights: painted,
+            savedAppearance: usePreviewHighlightStyle ? .preview : .saved,
+            editingRange: editingRange,
+            // CHANGED 2026-08-04 (09 §X-q): tap-and-hold word selection, the
+            // same input model as the Exegesis editor. This surface selected
+            // whole verses by tapping until now — see the file header.
+            mode: .nativeDrag,
+            granularity: .word,
+            isSelectionEnabled: isSelectionEnabled,
+            liveSelection: $liveSelection,
+            onCommit: { range in
+                // Deferred exactly as before: the parent presents the style
+                // picker from `.onChange(of: pendingRange)`, and assigning it
+                // inside the gesture's own turn used to land mid-update.
+                DispatchQueue.main.async { pendingRange = range }
+            },
+            onHighlightTapped: { range in
+                // Cleared first so `.onChange` fires even when the same span is
+                // tapped twice — otherwise re-opening a highlight's style
+                // picker silently does nothing.
+                pendingRange = nil
+                DispatchQueue.main.async { pendingRange = range }
+            }
         )
-
-        let editMarker = UIColor(red: 108.0/255.0, green: 71.0/255.0, blue: 255.0/255.0, alpha: 1.0)
-        let length = attributed.length
-        for selection in selections {
-            let start = max(0, selection.start)
-            let end = min(length, selection.end)
-            guard end > start else { continue }
-            let range = NSRange(location: start, length: end - start)
-            let isEditing = editingRange.map {
-                $0.location == start && $0.length == end - start
-            } ?? false
-            if isEditing {
-                attributed.addAttribute(.backgroundColor, value: UIColor.white, range: range)
-                attributed.addAttribute(.foregroundColor, value: UIColor.black, range: range)
-            } else if usePreviewHighlightStyle {
-                attributed.addAttribute(.backgroundColor, value: UIColor.white.withAlphaComponent(0.9), range: range)
-                attributed.addAttribute(.foregroundColor, value: UIColor.black, range: range)
-            } else {
-                attributed.addAttribute(.backgroundColor, value: editMarker, range: range)
-            }
-        }
-
-        // Painted last so an in-progress selection wins over whatever saved
-        // span it overlaps. This is the only rendering the live selection has:
-        // the text view is never first responder, so there is no system fill
-        // and no grab handles to fall out of sync with it (monday#12668695071).
-        if isSelectionEnabled, let live = liveSelection {
-            let start = max(0, live.location)
-            let end = min(length, live.location + live.length)
-            if end > start {
-                let range = NSRange(location: start, length: end - start)
-                attributed.addAttribute(.backgroundColor, value: Self.liveSelectionColor, range: range)
-                attributed.addAttribute(.foregroundColor, value: UIColor.black, range: range)
-            }
-        }
-
-        return attributed
     }
 
-    // MARK: - Coordinator
-
-    final class Coordinator: NSObject, UITextViewDelegate, UIGestureRecognizerDelegate {
-        var parent: SelectableLockedBlockView
-        weak var tapGesture: UITapGestureRecognizer?
-        var verseRanges: [(verse: Int, range: NSRange)] = []
-
-        init(parent: SelectableLockedBlockView) {
-            self.parent = parent
-        }
-
-        @objc func handleCircleTap(_ gesture: UITapGestureRecognizer) {
-            guard parent.isSelectionEnabled,
-                  gesture.state == .ended,
-                  let circle = gesture.view else { return }
-            applyVerseTap(tappedVerse: circle.tag)
-        }
-
-        /// Tap handler — works like the Bible reader:
-        /// - Tap a verse → select it
-        /// - Tap another verse → extend range to include it
-        /// - Tap inside current selection → clear selection
-        /// - Tap an existing highlight (ReadBlockSelection) → open its editor
-        @objc func handleTap(_ gesture: UITapGestureRecognizer) {
-            guard parent.isSelectionEnabled,
-                  gesture.state == .ended,
-                  let textView = gesture.view as? UITextView else { return }
-
-            let location = gesture.location(in: textView)
-            let textOffset = CGPoint(
-                x: location.x - textView.textContainerInset.left,
-                y: location.y - textView.textContainerInset.top
-            )
-            let charIndex = textView.layoutManager.characterIndex(
-                for: textOffset, in: textView.textContainer,
-                fractionOfDistanceBetweenInsertionPoints: nil
-            )
-
-            // First check: did they tap an existing highlight (ReadBlockSelection)?
-            // If so, open its editor instead of starting a new selection.
-            if parent.liveSelection == nil {
-                for selection in parent.selections where charIndex >= selection.start && charIndex < selection.end {
-                    let range = NSRange(location: selection.start, length: selection.end - selection.start)
-                    let parent = self.parent
-                    DispatchQueue.main.async {
-                        parent.pendingRange = nil
-                        DispatchQueue.main.async {
-                            parent.pendingRange = range
-                        }
-                    }
-                    return
-                }
-            }
-
-            // Find which verse was tapped
-            guard let tappedEntry = verseRanges.first(where: {
-                charIndex >= $0.range.location &&
-                charIndex < $0.range.location + $0.range.length
-            }) else { return }
-
-            applyVerseTap(tappedVerse: tappedEntry.verse)
-        }
-
-        private func applyVerseTap(tappedVerse: Int) {
-            // Current selection expressed as a contiguous verse range
-            let currentSelection = versesOverlapping(parent.liveSelection)
-            let currentMin = currentSelection.first
-            let currentMax = currentSelection.last
-
-            // Tapping inside current selection → commit it to the style picker
-            if let minV = currentMin, let maxV = currentMax,
-               tappedVerse >= minV && tappedVerse <= maxV {
-                // Cleared synchronously so a second tap reads the new state,
-                // the way this used to read back `textView.selectedRange`.
-                parent.liveSelection = nil
-
-                // Fire the completed selection if there was one
-                if let range = rangeForVerses(from: minV, to: maxV), range.length > 0 {
-                    let parent = self.parent
-                    DispatchQueue.main.async {
-                        parent.pendingRange = range
-                    }
-                }
-                return
-            }
-
-            // No current selection → select just this verse
-            // Existing selection → extend range to include tapped verse
-            let newMin = min(currentMin ?? tappedVerse, tappedVerse)
-            let newMax = max(currentMax ?? tappedVerse, tappedVerse)
-
-            guard let newRange = rangeForVerses(from: newMin, to: newMax) else { return }
-
-            // The span is rendered by `makeAttributedString` on the next
-            // SwiftUI pass. The text view stays non-selectable and non-first
-            // responder throughout, so no grab handles ever appear.
-            parent.liveSelection = newRange
-        }
-
-        /// Find which verses overlap the given character range
-        private func versesOverlapping(_ range: NSRange?) -> [Int] {
-            guard let range, range.length > 0 else { return [] }
-            let rangeEnd = range.location + range.length
-            return verseRanges
-                .filter { entry in
-                    let entryEnd = entry.range.location + entry.range.length
-                    return entry.range.location < rangeEnd && entryEnd > range.location
-                }
-                .map(\.verse)
-                .sorted()
-        }
-
-        /// Build a character range spanning from verse `from` to verse `to` (inclusive)
-        private func rangeForVerses(from: Int, to: Int) -> NSRange? {
-            guard let startEntry = verseRanges.first(where: { $0.verse == from }),
-                  let endEntry = verseRanges.first(where: { $0.verse == to }) else { return nil }
-            let loc = startEntry.range.location
-            let len = (endEntry.range.location + endEntry.range.length) - loc
-            return NSRange(location: loc, length: len)
-        }
-
-        func gestureRecognizer(
-            _ gestureRecognizer: UIGestureRecognizer,
-            shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer
-        ) -> Bool {
-            true
+    private var painted: [HighlightRenderer.Painted] {
+        selections.compactMap { selection in
+            HighlightSpan(start: selection.start, end: selection.end)
+                .map { .init(span: $0, style: selection.style) }
         }
     }
 }
 
-/// UITextView subclass that suppresses the system edit menu.
-final class SelectionTextView: UITextView {
-    private let circleContainer = UIView()
-    private var verseRanges: [VerseRange] = []
-    private weak var badgeTarget: AnyObject?
-    private var badgeAction: Selector?
-
-    override init(frame: CGRect, textContainer: NSTextContainer?) {
-        super.init(frame: frame, textContainer: textContainer)
-        setupVerseBadgeContainer()
-    }
-
-    required init?(coder: NSCoder) {
-        super.init(coder: coder)
-        setupVerseBadgeContainer()
-    }
-
-    private func setupVerseBadgeContainer() {
-        circleContainer.backgroundColor = .clear
-        circleContainer.isUserInteractionEnabled = true
-        addSubview(circleContainer)
-    }
-
-    func configureVerseBadges(verseRanges: [VerseRange], target: AnyObject, action: Selector) {
-        self.verseRanges = verseRanges
-        self.badgeTarget = target
-        self.badgeAction = action
-        setNeedsLayout()
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        BibleVerseTextLayout.layoutVerseBadges(
-            in: self,
-            container: circleContainer,
-            verseRanges: verseRanges,
-            target: badgeTarget,
-            action: badgeAction
-        )
-    }
-
-    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-        false
-    }
-
-    override func buildMenu(with builder: UIMenuBuilder) {
-        builder.remove(menu: .standardEdit)
-        builder.remove(menu: .lookup)
-        builder.remove(menu: .replace)
-        builder.remove(menu: .share)
-        builder.remove(menu: .format)
-        super.buildMenu(with: builder)
-    }
-}
+// `SelectionTextView` — the UITextView subclass that used to live here — is
+// gone: `HighlightTextView` does the same two jobs (verse badges, no edit menu)
+// for every surface. Nothing else referenced it.
 
 /// Known style identifiers.
 enum ReadBlockSelectionStyle: String {

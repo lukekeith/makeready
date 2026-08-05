@@ -1,8 +1,24 @@
 # highlighting — one text-highlighting service across every text surface
 
-**Status:** `building` · phases 1-3 of 7 **VERIFIED** · note-loss fixed and human-confirmed; schema,
-routes and projection in with the contract **frozen**; Read highlights **migrated** (local only) with
-a rehearsed rollback. Next: the two consumer phases, which can run in parallel.
+**Status:** `SHIPPED — verified READY and signed off by Luke, 2026-08-05` · **all 7 phases VERIFIED,
+all four apps' gates green, human-walked.**
+
+Three native highlight implementations are now one service. Along the way the feature fixed the
+data-loss bug that motivated it (notes erased when highlights merged), found a defect that had
+already reached members (blank notes in the web player), and turned up a fourth word-snapper nobody
+knew the web had. It also re-created its own original bug — the Exegesis editor committing a
+highlight before the finger lifts — because the refactor moved the code but not the call; sweeping
+for that pattern found two more of exactly the same shape (09 §X-p/p2/p3, method at §C-d).
+
+The central claim is **measured, not asserted**: brand purple `#6C47FF` → lime `#F4FF76 @0.35`, a
+one-for-one 23,319-px swap confined to the highlighted span, with every other web shot
+byte-identical. The live `@0.55` colour got its first visual test anywhere.
+
+**Two things a reader should know before trusting this:** no pre-feature *binary* was ever pointed
+at the current server — build 374 turned out to be unreconstructible, so that backward-compat check
+was **accepted on contract-level proof rather than executed** (09 §G-ad) — and the human walk was a
+blanket "everything works, I tested it" rather than a per-step report. Both are recorded as such in
+09 §Verify verdict. **Not yet committed or pushed.**
 
 One way to create, store, render and persist a text highlight — replacing three native
 implementations that disagree on granularity, colour, coordinates and when a selection commits.
@@ -28,11 +44,11 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 | spec | ✅ suite written (README + 01–09) |
 | integrity check | ✅ SOUND (3 defects corrected) |
 | audit | ✅ 3 passes — 2 gaps found + corrected, 2 risks closed with evidence |
-| decisions | ✅ 6 decided, 3 resolved, 3 acknowledged — no OPEN rows |
+| decisions | ✅ 7 decided, 4 resolved, 3 acknowledged — D-d (injectable highlight colour) decided 2026-08-05 and **deferred to a follow-up spec**, so it does not block; G-ab remains an open finding |
 | plan | ✅ 7 phases, 64 tasks (the Phase status column sums to 64; "56" was a miscount, corrected 2026-08-04) |
-| build | 🔄 3 of 7 phases done — phases 1 + 2 + 3 ✅ VERIFIED 2026-08-04 · **contract frozen · data migrated** |
-| verify | ⬜ |
-| sign-off | ⬜ |
+| build | ✅ **7 of 7 — every phase VERIFIED.** Phase 6 turned the colour claim from an assertion into a measurement: purple `#6C47FF` → lime `#F4FF76 @0.35`, one-for-one, in the web pixels |
+| verify | ✅ **READY 2026-08-05** — all 7 phases VERIFIED, zero blocking rows, four-app gates green (server tsc 0 · 476 tests · client build 0 · 33 vitest · 235 phpunit · **guard delta ZERO** · iPhone BUILD SUCCEEDED, zero new SwiftLint · capture up). Caveats named in 09 §Verify verdict |
+| sign-off | ✅ **2026-08-05 (Luke): "everything works, I tested it, let's wrap this spec"** — a blanket affirmative, recorded as such |
 
 ## Phase status
 
@@ -41,10 +57,10 @@ canonical copy (`VerseSelectionLogic.snapToWordBoundaries`) had **zero callers**
 | 1 | iphone | [10-phase-1-prerequisite-note-loss.md](10-phase-1-prerequisite-note-loss.md) | 5 | ✅ **VERIFIED 2026-08-04** — notes survive a merge (`6e349b5`); narrow fix, real one at 4.8b |
 | 2 | server | [11-phase-2-server-schema-and-routes.md](11-phase-2-server-schema-and-routes.md) | 11 | ✅ **VERIFIED 2026-08-04** — schema, migration, 8 routes, 18 tests; **`03` now FROZEN** |
 | 3 | server | [12-phase-3-server-backfill.md](12-phase-3-server-backfill.md) | 12 | ✅ **VERIFIED 2026-08-04** — 67 spans → rows, 4 hash baselines re-stamped, rollback rehearsed |
-| 4 | iphone | [13-phase-4-iphone-service.md](13-phase-4-iphone-service.md) | 15 | ⬜ ∥ with 5 |
-| 5 | client | [14-phase-5-client-consumers.md](14-phase-5-client-consumers.md) | 8 | ⬜ ∥ with 4 · member-visible |
-| 6 | capture | [15-phase-6-capture.md](15-phase-6-capture.md) | 8 | ⬜ |
-| 7 | cross-app | [16-phase-7-cross-app-e2e.md](16-phase-7-cross-app-e2e.md) | 8 | ⬜ |
+| 4 | iphone | [13-phase-4-iphone-service.md](13-phase-4-iphone-service.md) | 15 | ✅ **RE-VERIFIED 2026-08-04, HUMAN-CONFIRMED** — three dropped-call regressions (§X-p/p2/p3) found and fixed; Luke used it on a device |
+| 5 | client | [14-phase-5-client-consumers.md](14-phase-5-client-consumers.md) | 8 | ✅ **VERIFIED 2026-08-04** — fixed X-n (members saw blank notes), found G-v/G-w/X-o; client gained a test runner + 29 tests. **The "lime unseen by any human" caveat is CLOSED** — measured in pixels by 6.4 and walked by Luke 2026-08-05 |
+| 6 | capture | [15-phase-6-capture.md](15-phase-6-capture.md) | 8 | ✅ **VERIFIED 2026-08-05** — **the purple→lime swap proven in pixels** (23,553→234 px purple, 0→23,319 lime, one-for-one); the live `@0.55` value gets its first visual test anywhere; 9 re-baselines accepted and 18 reverted via a two-run determinism test; §G-aa ratified, §G-ab reframed as harness state, §G-ac open for web |
+| 7 | cross-app | [16-phase-7-cross-app-e2e.md](16-phase-7-cross-app-e2e.md) | 8 | ✅ **VERIFIED 2026-08-05** — 7.5 (**both notes survive a merge**, restored byte-identically) + 7.8 (per-block consumer parity) run against the live stack; 7.1–7.4/7.6 human-walked. **7.7 accepted, not executed** — build 374 is unreconstructible (§G-ad) |
 
 ## Docs
 

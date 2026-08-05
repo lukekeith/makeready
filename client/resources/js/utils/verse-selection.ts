@@ -96,3 +96,41 @@ export function applyVerseTap(
   const newMax = Math.max(currentMax ?? tappedVerse, tappedVerse)
   return { next: rangeForVerses(newMin, newMax, verseRanges), confirmed: null }
 }
+
+/**
+ * Whether the character at `index` belongs to a word.
+ *
+ * Alphanumerics, plus the three intra-word marks 03 §5 names: the straight
+ * apostrophe, the typographic apostrophe the Bible text actually uses, and the
+ * hyphen. Everything else — whitespace, and all other punctuation — is a
+ * boundary. Mirrors `HighlightSnapping.isWordCharacter` exactly.
+ */
+export function isWordCharacter(text: string, index: number): boolean {
+  if (index < 0 || index >= text.length) return false
+  const ch = text[index]
+  if (ch === "'" || ch === '’' || ch === '-') return true
+  return /[\p{L}\p{N}]/u.test(ch)
+}
+
+/**
+ * Widen `range` outward so both ends land on word boundaries — the web half of
+ * 03 §5's word snapping, and a line-for-line port of
+ * `HighlightSnapping.snapToWordBoundaries` (iphone/MakeReady/Services/
+ * Highlighting/HighlightSnapping.swift).
+ *
+ * Only ever GROWS the range. Each end extends only while genuinely mid-word,
+ * i.e. word characters on BOTH sides of the boundary — an end that already sits
+ * on a boundary is left alone, which is what stops a whole-verse selection
+ * (whose trailing character is the verse-terminating newline) from walking
+ * forward into the first word of the next verse.
+ */
+export function snapToWordBoundaries(range: CharRange, text: string): CharRange {
+  if (range.end <= range.start) return range
+  if (range.start < 0 || range.end > text.length) return range
+
+  let { start, end } = range
+  while (start > 0 && isWordCharacter(text, start) && isWordCharacter(text, start - 1)) start -= 1
+  while (end < text.length && isWordCharacter(text, end) && isWordCharacter(text, end - 1)) end += 1
+
+  return { start, end }
+}

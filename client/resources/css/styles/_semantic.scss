@@ -33,6 +33,14 @@
 
   // iOS semantic hues — brighter than the web ramps, tuned for dark surfaces.
   --color-ios-warning: #f4ff76; // iOS warning
+
+  // Highlighting (docs/features/highlighting/ 03 §5 — normative CROSS-APP).
+  // A saved highlight is the same wash here and on iOS; the hue is the same
+  // #f4ff76 as --color-ios-warning above, but it means "highlighted", not
+  // "warning", so it gets its own name rather than borrowing that one.
+  --color-highlight-saved: rgba(244, 255, 118, 0.35);
+  // The span being dragged/adjusted right now, before it commits.
+  --color-highlight-live: rgba(244, 255, 118, 0.55);
   --color-ios-error:   #ff4759; // iOS error
   --color-ios-success: #57db5d; // iOS success
   --color-ios-destructive-bright: #ff4444; // iOS LessonActionMenu destructive (Color(hex:"#ff4444"))

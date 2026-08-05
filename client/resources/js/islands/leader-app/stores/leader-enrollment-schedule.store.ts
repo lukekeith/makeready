@@ -492,15 +492,23 @@ export const useLeaderEnrollmentSchedule = defineStore('leader-enrollment-schedu
     activityId: string
   ): Promise<ExegesisHighlightData[]> {
     const res = await axios.get(
-      `/admin/api/scheduled-activities/${activityId}/exegesis-highlights`
+      `/admin/api/scheduled-activities/${activityId}/highlights`
     )
-    const raw: Array<{ id: string; start: number; end: number; noteMarkdown?: string | null }> =
-      res.data?.highlights ?? []
+    const raw: Array<{
+      id: string
+      start: number
+      end: number
+      noteMarkdown?: string | null
+      style?: string | null
+    }> = res.data?.highlights ?? []
     return raw.map((h) => ({
       id: h.id,
       start: h.start,
       end: h.end,
       noteMarkdown: h.noteMarkdown ?? '',
+      // 03 §1.1: the column defaults to "highlight"; an older payload that
+      // omits it renders as a highlight rather than losing the wash.
+      style: h.style ?? 'highlight',
     }))
   }
 
@@ -511,7 +519,7 @@ export const useLeaderEnrollmentSchedule = defineStore('leader-enrollment-schedu
     noteMarkdown = ''
   ): Promise<ExegesisHighlightData | null> {
     const res = await axios.post(
-      `/admin/api/scheduled-activities/${activityId}/exegesis-highlights`,
+      `/admin/api/scheduled-activities/${activityId}/highlights`,
       { readBlockId: blockId, start: range.start, end: range.end, noteMarkdown }
     )
     const h = res.data?.highlight
@@ -532,7 +540,13 @@ export const useLeaderEnrollmentSchedule = defineStore('leader-enrollment-schedu
           : b
       ),
     }))
-    return { id: h.id, start: h.start, end: h.end, noteMarkdown: h.noteMarkdown ?? '' }
+    return {
+      id: h.id,
+      start: h.start,
+      end: h.end,
+      noteMarkdown: h.noteMarkdown ?? '',
+      style: h.style ?? 'highlight',
+    }
   }
 
   async function updateScheduledExegesisHighlightNote(
@@ -541,7 +555,7 @@ export const useLeaderEnrollmentSchedule = defineStore('leader-enrollment-schedu
     noteMarkdown: string
   ): Promise<void> {
     await axios.patch(
-      `/admin/api/scheduled-activities/${activityId}/exegesis-highlights/${highlightId}`,
+      `/admin/api/scheduled-activities/${activityId}/highlights/${highlightId}`,
       { noteMarkdown }
     )
   }
@@ -552,7 +566,7 @@ export const useLeaderEnrollmentSchedule = defineStore('leader-enrollment-schedu
     highlight: { id: string; start: number; end: number }
   ): Promise<void> {
     await axios.delete(
-      `/admin/api/scheduled-activities/${activityId}/exegesis-highlights/${highlight.id}`
+      `/admin/api/scheduled-activities/${activityId}/highlights/${highlight.id}`
     )
     applyActivityEcho(activityId, undefined, (d) => ({
       ...d,

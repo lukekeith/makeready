@@ -160,7 +160,10 @@
       font-weight: 700;
     }
     &--highlight {
-      background: rgba(255, 235, 59, 0.35);
+      // 03 §5: #f4ff76 @ 0.35, identical to the iPhone's saved-highlight wash.
+      // Was Material amber (#ffeb3b) — the same alpha, a different hue, and it
+      // matched nothing on the native side.
+      background: var(--color-highlight-saved);
       padding: 0 0.1em;
       border-radius: 2px;
     }

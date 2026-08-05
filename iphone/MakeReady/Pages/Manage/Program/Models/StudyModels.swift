@@ -376,16 +376,67 @@ struct ReadBlockSelection: Codable, Identifiable, Equatable {
     let style: String
 }
 
-/// Leader-authored highlight + markdown note for EXEGESIS activities.
-struct ExegesisHighlight: Codable, Identifiable, Equatable {
+/// A leader-authored highlight + markdown note on a locked read block.
+///
+/// Renamed from `ExegesisHighlight` (2026-08-04, highlighting phase 4.7): the
+/// same rows now back READ activities as well as EXEGESIS, matching the server's
+/// `ContentHighlight` / `content_highlights` (03 §1.1). Offsets index into the
+/// stripped plain text of `ActivityReadBlock.content`, the same coordinate
+/// system as `ReadBlockSelection`.
+struct ContentHighlight: Codable, Identifiable, Equatable {
     let id: String
     let readBlockId: String
     var orderNumber: Int
     let start: Int
     let end: Int
+    /// `highlight` | `bold` (03 §1.1). `bold` renders as font weight only, no
+    /// background wash.
+    var style: String
     var noteMarkdown: String
     let createdAt: Date?
     var updatedAt: Date?
+
+    init(
+        id: String,
+        readBlockId: String,
+        orderNumber: Int,
+        start: Int,
+        end: Int,
+        style: String = ContentHighlight.defaultStyle,
+        noteMarkdown: String,
+        createdAt: Date? = nil,
+        updatedAt: Date? = nil
+    ) {
+        self.id = id
+        self.readBlockId = readBlockId
+        self.orderNumber = orderNumber
+        self.start = start
+        self.end = end
+        self.style = style
+        self.noteMarkdown = noteMarkdown
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
+    }
+
+    static let defaultStyle = "highlight"
+
+    /// Hand-written so a **disk cache written by an older build**, which has no
+    /// `style` key at all, degrades to the default instead of failing the whole
+    /// decode and wiping the cached state (09 §X-f). Swift's synthesised
+    /// decoder treats a missing key as an error even when the property has a
+    /// default, so this cannot be left to synthesis.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        readBlockId = try container.decode(String.self, forKey: .readBlockId)
+        orderNumber = try container.decode(Int.self, forKey: .orderNumber)
+        start = try container.decode(Int.self, forKey: .start)
+        end = try container.decode(Int.self, forKey: .end)
+        style = try container.decodeIfPresent(String.self, forKey: .style) ?? Self.defaultStyle
+        noteMarkdown = try container.decodeIfPresent(String.self, forKey: .noteMarkdown) ?? ""
+        createdAt = try container.decodeIfPresent(Date.self, forKey: .createdAt)
+        updatedAt = try container.decodeIfPresent(Date.self, forKey: .updatedAt)
+    }
 }
 
 /// A read block within a READ activity (verse or editable content section)
@@ -938,14 +989,9 @@ struct PassageData: Codable, Equatable {
 
 // MARK: - Highlight Range
 
-/// Word-level highlight range for precise text selection
-/// Used to recreate exact highlight position in Bible reader
-struct HighlightRange: Codable, Equatable {
-    let startElementId: String   // "45-1-1" (bookNum-chapter-verse)
-    let startOffset: Int         // Character offset in start verse
-    let endElementId: String     // "45-1-5"
-    let endOffset: Int           // Character offset in end verse (exclusive)
-}
+// `HighlightRange` moved to Services/Highlighting/HighlightRange.swift
+// (2026-08-04) so the highlighting service owns both coordinate systems and the
+// conversion between them. Same name, same fields, same Codable shape.
 
 // MARK: - Program Activity Context
 

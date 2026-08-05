@@ -296,7 +296,9 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
         readerTextView.backgroundColor = .clear
         // Left inset: 16 margin + 24 circle + 8 gap = 48
         readerTextView.textContainerInset = UIEdgeInsets(top: 24, left: 48, bottom: 60, right: 20)
-        readerTextView.tintColor = UIColor(red: 0xF4/255, green: 0xFF/255, blue: 0x76/255, alpha: 0.5)
+        // Live selection, at the contract's alpha (03 §5). This was 0.5 here and
+        // 0.55 in both editors — the same wash, two values (phase 4.13).
+        readerTextView.tintColor = HighlightAppearance.live.backgroundColor
 
         // Remove system text interactions so no selection handles, dismiss "×"
         // button, or edit menu appear. Selection is driven entirely by verse
@@ -999,7 +1001,10 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
 
         let usedVerseKey = "\(book.id)-\(chapter)"
         let usedInThisChapter = usedVerses[usedVerseKey] ?? []
-        let usedHighlightColor = brandPurple.withAlphaComponent(0.2)
+        // 03 §5's "used reference" colour, from the one place that owns it
+        // (highlighting phase 4.13). It is the only remaining purple wash in the
+        // app, and it does NOT mean "highlight".
+        let usedHighlightColor = HighlightAppearance.used.backgroundColor
 
         for verse in sortedVerses {
             var cleanText = verse.t
@@ -1793,47 +1798,22 @@ final class BibleReaderOverlayView: UIView, UITextFieldDelegate, UITextViewDeleg
     func textViewDidChangeSelection(_ textView: UITextView) {
         guard case .reader(let book, let chapter, _) = currentScreen else { return }
 
-        // Snap selection to word boundaries so partial words are never highlighted.
+        // Snap to word boundaries through the shared engine (highlighting phase
+        // 4.13). The inline copy that lived here treated apostrophes as
+        // boundaries, so "Lord's" split here but stayed whole in the Exegesis
+        // editor — the same text, two answers. `HighlightSnapping` is the
+        // contract's single implementation (03 §5); it is grow-only and leaves a
+        // verse-terminating newline alone, so a tapped verse circle still does
+        // not walk into the next verse.
         if textView.selectedRange.length > 0, let text = textView.text {
-            let nsText = text as NSString
-            let sel = textView.selectedRange
-
-            let isWordChar: (Int) -> Bool = { pos in
-                guard pos >= 0 && pos < nsText.length else { return false }
-                guard let scalar = Unicode.Scalar(nsText.character(at: pos)) else { return false }
-                return !CharacterSet.whitespacesAndNewlines.contains(scalar)
-                    && !CharacterSet.punctuationCharacters.contains(scalar)
-            }
-
-            // Expand start to beginning of word
-            var wordStart = sel.location
-            while wordStart > 0 && isWordChar(wordStart - 1) {
-                wordStart -= 1
-            }
-
-            // Expand end to end of word — but only if the selection currently
-            // ends mid-word. If it already terminates at a non-word character
-            // (the "\n" that ends each verse falls into this bucket), leave
-            // wordEnd alone. Without this guard, tapping a verse circle
-            // selects the whole verse + trailing newline, and the snap walks
-            // forward into the first word of the *next* verse.
-            var wordEnd = sel.location + sel.length
-            if wordEnd > 0 && isWordChar(wordEnd - 1) {
-                while wordEnd < nsText.length && isWordChar(wordEnd) {
-                    wordEnd += 1
-                }
-            }
-
-            // Ensure we haven't collapsed to nothing
-            if wordStart >= wordEnd {
-                wordStart = sel.location
-                wordEnd = sel.location + sel.length
-            }
-
-            let snapped = NSRange(location: wordStart, length: wordEnd - wordStart)
-            if snapped != sel {
+            let snapped = HighlightSnapping.snap(
+                textView.selectedRange,
+                in: text as NSString,
+                granularity: .word
+            )
+            if snapped != textView.selectedRange {
                 textView.selectedRange = snapped
-                return  // Will re-enter with snapped range
+                return  // Will re-enter with the snapped range
             }
         }
 

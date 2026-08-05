@@ -8,10 +8,31 @@ The app where the service actually lives, and where all three native highlight s
 |---|---|
 | `HighlightRange.swift` | the position type + absolute ↔ verse-relative conversion (absorbs `HighlightRange` from `StudyModels.swift:943`) |
 | `HighlightSnapping.swift` | `enum Granularity { case verse, word, character }` + one snapping implementation |
-| `HighlightRenderer.swift` | attributed-string painting for `.live` / `.saved` / `.active` / `.used`, using 03 §5's colours |
+| `HighlightRenderer.swift` | attributed-string painting for `.live` / `.saved` / `.active` / `.used`, using 03 §5's colours — **plus `.editing` and `.preview`** (see below) |
 | `TextSelectionController.swift` | the gesture lifecycle: `TouchObserverGestureRecognizer`, commit on genuine release, granularity injected |
 | `HighlightStore.swift` | `protocol HighlightStore` + the program/enrollment implementations |
 | `HighlightableTextView.swift` | the single `UIViewRepresentable` the surfaces mount |
+
+### Rendering — six appearances, four of them normative
+
+*(added 2026-08-04 while building 4.3 — the four-case list would have silently dropped two shipped
+appearances when the surfaces are wrapped at 4.11/4.12. Recorded as 09 §G-n; `03` is untouched.)*
+
+| Appearance | Value | Scope |
+|---|---|---|
+| `.saved` | `#F4FF76` @ 0.35 | **cross-app** (03 §5) |
+| `.live` | `#F4FF76` @ 0.55 | **cross-app** (03 §5) |
+| `.active` | white @ 0.25 | **cross-app** (03 §5) — the *transient tap-selection* wash (`ExegesisVerseView.swift:113`), not the being-edited highlight |
+| `.used` | `#6c47ff` @ 0.2 | **cross-app** (03 §5) — Bible reader only, and it does not mean "highlight" |
+| `.editing` | opaque white + black text | **iOS editor chrome** — the highlight open in the note editor (`ExegesisVerseView.swift:586`, `SelectableLockedBlockView.swift:150`) |
+| `.preview` | white @ 0.9 + black text | **iOS editor chrome** — the read-only preview rendering (`usePreviewHighlightStyle`; live caller `ExegesisNoteEditorPage.swift:271`) |
+
+The web player has no state corresponding to the last two, which is why they are app-local rather
+than contract rows. `style: "bold"` is font weight only, no wash, on every appearance (03 §5).
+
+**The Read editor's saved spans change colour** — they are opaque `#6c47ff` today
+(`SelectableLockedBlockView.swift:139` `editMarker`), not lime. That is the intended member-visible
+change, tracked as 09 §G-o so it is not "fixed" back.
 
 ### Snapping — one implementation, two deletions
 
@@ -45,7 +66,7 @@ forever so UIKit keeps delivering it the whole sequence.
 
 | Surface | Granularity | Adopts | Keeps |
 |---|---|---|---|
-| **Read editor** — `EditReadActivityPage` + `SelectableLockedBlockView` | `.verse` | renderer, store, controller (verse policy = today's tap-to-select behaviour expressed through the shared controller) | its verse-tap UX, the highlighter-glyph entry point, the hint row, the style picker |
+| **Read editor** — `EditReadActivityPage` + `SelectableLockedBlockView` | `.word` *(was `.verse` until 2026-08-04 — 09 §X-q)* | renderer, store, controller, **and the same `.nativeDrag` input model as the Exegesis editor** | the highlighter-glyph entry point, the hint row, the style picker. **NOT its verse-tap UX — that is removed**, so a tap now only reopens an existing highlight |
 | **Exegesis editor** — `EditExegesisActivityPage` + `ExegesisVerseView` | `.word` | everything | notes UI, the highlight action menu, `ExegesisNoteEditorPage` |
 | **Bible reader** — `BibleReaderOverlay` | `.word` | `HighlightRange`, snapping, renderer, controller (D5) | its overlay chrome, verse circles, and **its output: a passage reference, not a Highlight row** |
 

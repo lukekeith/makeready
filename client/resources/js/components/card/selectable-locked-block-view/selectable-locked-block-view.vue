@@ -22,14 +22,24 @@
 //     "2 "/"3 " here stay inline, matching `parseVersePositions`.
 //
 // Selections index into the full plain text (including the hidden leading verse
-// number). Each selection maps to the same attribute `makeAttributedString`
-// applies on iOS:
+// number). Each selection maps to the same attribute the iOS
+// `HighlightRenderer` applies (Services/Highlighting/HighlightRenderer.swift):
+//   • style "bold"               → font weight only, NO wash (03 §5)
 //   • highlight + preview style  → white@0.9 background, black text
-//   • highlight (default)        → brandPrimary #6c47ff background (purple marker),
+//   • highlight (default)        → #F4FF76 @ 0.35 (03 §5 saved highlight),
 //                                  text stays white@0.85 (only the bg run is set)
 // Base verse text is white@0.85 (`UIColor.white.withAlphaComponent(0.85)`).
-import { computed, ref, watch } from 'vue'
-import { applyVerseTap, parseVersePositions, type CharRange } from '../../../utils/verse-selection'
+//
+// ⚠️ The default highlight was solid brand purple until 2026-08-04
+// (highlighting phase 5.6). iOS changed the same wash in phase 4.11, and this
+// twin follows it so the two surfaces agree — the compare fixtures for this
+// screen are re-captured in phase 6.
+import { computed, ref } from 'vue'
+import {
+  parseVersePositions,
+  snapToWordBoundaries,
+  type CharRange,
+} from '../../../utils/verse-selection'
 
 interface Selection {
   start: number
@@ -44,11 +54,16 @@ interface Props {
   usePreviewHighlightStyle?: boolean
   isScripture?: boolean
   /**
-   * ADDITIVE (production highlight mode; captures never pass it): enables the
-   * iOS SelectionTextView tap mechanics — tap a verse to select it, tap
-   * another to extend the contiguous range, tap INSIDE the selection to
-   * confirm (emits `confirm` with the cleared range), tap an existing styled
-   * span (with no live selection) to reopen its editor (`openSelection`).
+   * ADDITIVE (production highlight mode; captures never pass it): enables
+   * native drag selection — select text and release to commit a word-snapped
+   * range (`confirm`), or click an existing styled span to reopen its editor
+   * (`openSelection`).
+   *
+   * **Was verse tapping until 2026-08-04** (09 §X-q/§X-r): tap a verse, tap
+   * another to extend, tap inside to confirm. iOS moved to tap-and-hold word
+   * selection at Luke's request and the web follows, because 03 §5 is normative
+   * for both consumers and he asked for consistent highlighting. Same mechanics
+   * as the `exegesis-verse-view` twin, same shared snapper.
    */
   interactive?: boolean
   class?: string
@@ -67,15 +82,7 @@ const emit = defineEmits<{
   openSelection: [range: CharRange]
 }>()
 
-// Live tap-selection (iOS UITextView selectedRange — tint only, never saved
-// until confirmed). Cleared whenever highlight mode ends.
-const liveRange = ref<CharRange | null>(null)
-watch(
-  () => props.interactive,
-  (on) => {
-    if (!on) liveRange.value = null
-  },
-)
+const root = ref<HTMLElement | null>(null)
 
 const parsedVerses = computed(() => parseVersePositions(props.plainText))
 const verseRanges = computed(() => parsedVerses.value.verseRanges)
@@ -87,26 +94,47 @@ const verseRanges = computed(() => parsedVerses.value.verseRanges)
 // (0–1 verses) keep their exact rendering.
 const multiVerse = computed(() => verseRanges.value.length > 1)
 
-function handleTapAt(charIndex: number): void {
+// ── Interactive: native selection → word-snapped highlight range ──
+//
+// Mirrors `exegesis-verse-view.vue` exactly, including the shared snapper from
+// `utils/verse-selection`, so the two web editors cannot drift the way the two
+// native ones did.
+
+/** Map a DOM point inside a segment span back to a plain-text offset. */
+function offsetAt(node: Node, nodeOffset: number): number | null {
+  const el = node instanceof Element ? node : node.parentElement
+  const span = el?.closest<HTMLElement>('[data-start]')
+  if (!span || !root.value?.contains(span)) return null
+  return Number(span.dataset.start) + nodeOffset
+}
+
+function onPointerUp(): void {
   if (!props.interactive) return
+  // Let the browser finalize the selection for this gesture first — the web
+  // counterpart of committing on genuine release (03 §5).
+  setTimeout(() => {
+    const sel = window.getSelection()
+    if (!sel || sel.rangeCount === 0) return
+    const range = sel.getRangeAt(0)
+    if (!root.value?.contains(range.commonAncestorContainer)) return
+    if (sel.isCollapsed) return // a plain click — handled per-segment below
+    const a = offsetAt(range.startContainer, range.startOffset)
+    const b = offsetAt(range.endContainer, range.endOffset)
+    if (a == null || b == null) return
+    const raw: CharRange = { start: Math.min(a, b), end: Math.max(a, b) }
+    if (raw.end <= raw.start) return
+    sel.removeAllRanges()
+    emit('confirm', snapToWordBoundaries(raw, props.plainText))
+  }, 0)
+}
 
-  // Existing styled span (no live selection) → reopen its editor.
-  if (!liveRange.value) {
-    const hit = props.selections.find((s) => charIndex >= s.start && charIndex < s.end)
-    if (hit) {
-      emit('openSelection', { start: hit.start, end: hit.end })
-      return
-    }
-  }
-
-  const entry = verseRanges.value.find(
-    (v) => charIndex >= v.range.start && charIndex < v.range.end,
-  )
-  if (!entry) return
-
-  const result = applyVerseTap(entry.verse, liveRange.value, verseRanges.value)
-  liveRange.value = result.next
-  if (result.confirmed) emit('confirm', result.confirmed)
+/** A plain click on an existing styled span reopens its editor. */
+function onSegmentClick(seg: Segment): void {
+  if (!props.interactive) return
+  const sel = window.getSelection()
+  if (sel && !sel.isCollapsed) return // a drag-selection, not a click
+  const hit = props.selections.find((s) => seg.start >= s.start && seg.start < s.end)
+  if (hit) emit('openSelection', { start: hit.start, end: hit.end })
 }
 
 // Parse a leading verse number ("1 ", "1. ") at the very start of the string —
@@ -122,16 +150,18 @@ const leading = computed(() => {
 type Segment = {
   text: string
   hidden: boolean
-  style: 'none' | 'highlight' | 'preview'
-  /** Live tap-selection tint (#F4FF76@0.5, interactive mode only). */
-  tinted: boolean
-  /** Segment start offset — maps a click back to a character index. */
+  style: 'none' | 'highlight' | 'preview' | 'bold'
+  /** Segment start offset — maps a DOM point back to a character index. */
   start: number
 }
 
-// Resolve which background a selected span gets, mirroring the iOS attribute
-// precedence (preview style wins, then the default purple highlight).
-function selectionStyle(): 'highlight' | 'preview' {
+// Resolve which background/font a selected span gets, mirroring the iOS
+// attribute precedence in `HighlightRenderer.paintHighlight` (a stored `bold`
+// gets weight and no wash at all, so it wins over the preview appearance;
+// otherwise preview wins, then the default saved highlight). An unrecognised
+// style falls back to `highlight`, matching `ReadBlockSelectionStyle`.
+function selectionStyle(sel: Selection): 'highlight' | 'preview' | 'bold' {
+  if (sel.style === 'bold') return 'bold'
   if (props.usePreviewHighlightStyle) return 'preview'
   return 'highlight'
 }
@@ -146,16 +176,11 @@ const segments = computed<Segment[]>(() => {
     cuts.add(Math.max(0, Math.min(len, s.start)))
     cuts.add(Math.max(0, Math.min(len, s.end)))
   }
-  // Interactive mode adds verse-boundary + live-selection cuts so every
-  // segment lies inside exactly one verse (clicks resolve to a verse) and the
-  // tint renders precisely. Captures never pass `interactive`, so the
-  // captured DOM is unchanged.
+  // Interactive mode cuts at verse boundaries too, so a click resolves inside
+  // exactly one verse. Captures never pass `interactive`, so the captured DOM
+  // is unchanged.
   if (props.interactive) {
     for (const v of verseRanges.value) cuts.add(Math.max(0, Math.min(len, v.range.start)))
-    if (liveRange.value) {
-      cuts.add(Math.max(0, Math.min(len, liveRange.value.start)))
-      cuts.add(Math.max(0, Math.min(len, liveRange.value.end)))
-    }
   }
   const points = [...cuts].sort((a, b) => a - b)
 
@@ -165,12 +190,10 @@ const segments = computed<Segment[]>(() => {
     const b = points[i + 1]
     if (b <= a) continue
     const sel = props.selections.find((s) => a >= s.start && b <= s.end)
-    const live = liveRange.value
     out.push({
       text: text.slice(a, b),
       hidden: b <= prefixLen,
-      style: sel ? selectionStyle() : 'none',
-      tinted: props.interactive && live != null && a >= live.start && b <= live.end,
+      style: sel ? selectionStyle(sel) : 'none',
       start: a,
     })
   }
@@ -186,8 +209,6 @@ const verseGroups = computed<VerseGroup[]>(() => {
   if (!multiVerse.value) return []
   const text = props.plainText
   const { verseRanges: ranges, numberRanges } = parsedVerses.value
-  const live = props.interactive ? liveRange.value : null
-
   return ranges.map((vr) => {
     const markerEnd =
       numberRanges.find((n) => n.verse === vr.verse)?.range.end ?? vr.range.start
@@ -200,10 +221,6 @@ const verseGroups = computed<VerseGroup[]>(() => {
     for (const s of props.selections) {
       addCut(s.start)
       addCut(s.end)
-    }
-    if (live) {
-      addCut(live.start)
-      addCut(live.end)
     }
     const points = [...cuts].sort((a, b) => a - b)
     const segments: Segment[] = []
@@ -218,8 +235,7 @@ const verseGroups = computed<VerseGroup[]>(() => {
       segments.push({
         text: trimmed,
         hidden: false,
-        style: sel ? selectionStyle() : 'none',
-        tinted: live != null && a >= live.start && b <= live.end,
+        style: sel ? selectionStyle(sel) : 'none',
         start: a,
       })
     }
@@ -234,9 +250,11 @@ const rootStyle = computed(() => ({
 
 <template>
   <div
+    ref="root"
     class="SelectableLockedBlockView"
     :class="[props.class, !props.isScripture && 'SelectableLockedBlockView--plain']"
     :style="rootStyle"
+    @pointerup="onPointerUp"
   >
     <!-- Multi-verse: one paragraph per verse, number hung in the gutter. -->
     <template v-if="multiVerse">
@@ -257,10 +275,11 @@ const rootStyle = computed(() => ({
             'SelectableLockedBlockView__seg',
             seg.style === 'highlight' && 'SelectableLockedBlockView__seg--highlight',
             seg.style === 'preview' && 'SelectableLockedBlockView__seg--preview',
-            seg.tinted && 'SelectableLockedBlockView__seg--tint',
-            props.interactive && 'SelectableLockedBlockView__seg--tappable',
+            seg.style === 'bold' && 'SelectableLockedBlockView__seg--bold',
+            props.interactive && 'SelectableLockedBlockView__seg--interactive',
           ]"
-          @click="props.interactive && handleTapAt(seg.start)"
+          :data-start="props.interactive ? seg.start : undefined"
+          @click="onSegmentClick(seg)"
           >{{ seg.text }}</span
         >
       </p>
@@ -280,10 +299,11 @@ const rootStyle = computed(() => ({
           seg.hidden && 'SelectableLockedBlockView__seg--hidden',
           seg.style === 'highlight' && 'SelectableLockedBlockView__seg--highlight',
           seg.style === 'preview' && 'SelectableLockedBlockView__seg--preview',
-          seg.tinted && 'SelectableLockedBlockView__seg--tint',
-          props.interactive && 'SelectableLockedBlockView__seg--tappable',
+          seg.style === 'bold' && 'SelectableLockedBlockView__seg--bold',
+          props.interactive && 'SelectableLockedBlockView__seg--interactive',
         ]"
-        @click="props.interactive && handleTapAt(seg.start)"
+        :data-start="props.interactive ? seg.start : undefined"
+        @click="onSegmentClick(seg)"
         >{{ seg.text }}</span
       >
     </p>

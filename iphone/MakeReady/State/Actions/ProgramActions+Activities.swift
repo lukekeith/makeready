@@ -306,95 +306,85 @@ extension ProgramActions {
         return nil
     }
 
-    // MARK: - Exegesis Highlights
+    // MARK: - Content Highlights
 
+    // The four highlight operations for the program context. Each one is a
+    // thin call into `APIHighlightStore` plus the AppState write that makes the
+    // result visible — there is no request-building or response-decoding here
+    // any more (highlighting phase 4.9). Before this, these four and their four
+    // enrollment twins were eight near-identical hand-written methods, and every
+    // contract change had to be made eight times.
+
+    /// Built from the INJECTED api client, not the singleton, so the
+    /// AppState writes below are reachable from a stubbed test.
+    private var highlightStore: APIHighlightStore {
+        APIHighlightStore(context: .program, api: api)
+    }
+
+    /// Loads the activity's highlights INTO AppState. Returns `Void` on purpose:
+    /// an Action that hands a collection back gives the caller a copy nothing
+    /// can invalidate (`iphone/.claude/CLAUDE.md` § the rule).
     @MainActor
-    func fetchExegesisHighlights(activityId: String) async throws -> (readBlockId: String?, highlights: [ExegesisHighlight]) {
-        struct ResponseBody: Decodable {
-            let success: Bool
-            let readBlockId: String?
-            let highlights: [ExegesisHighlight]?
-            let error: String?
-        }
+    func loadHighlights(activityId: String) async throws {
+        let result = try await highlightStore.fetch(activityId: activityId)
 
-        let response: ResponseBody = try await api.get(
-            "/api/activities/\(activityId)/exegesis-highlights",
-            responseType: ResponseBody.self
+        // Replace this activity's rows wholesale, so a highlight deleted
+        // elsewhere does not survive locally. Scoped by the blocks the response
+        // itself names (03 §2.1's `blockIds`) — never the deprecated singular
+        // `readBlockId`, which names only the FIRST locked block and is
+        // therefore wrong for a READ activity with several (phase 4.10).
+        let blockIds = Set(result.blockIds)
+        let stale = state.contentHighlights.all
+            .filter { blockIds.contains($0.readBlockId) }
+            .map(\.id)
+        state.contentHighlights.removeMany(stale)
+        state.contentHighlights.upsertMany(result.highlights)
+    }
+
+    /// Creates a highlight, and applies the server's merge to AppState.
+    ///
+    /// Returns the result rather than `Void` because a merge is an EVENT, not a
+    /// collection: the caller needs the created row and `absorbedIds` to carry
+    /// note succession (03 §2.2, 09 §C-b).
+    @MainActor
+    @discardableResult
+    func createHighlight(
+        activityId: String,
+        readBlockId: String,
+        span: HighlightSpan,
+        style: String = ContentHighlight.defaultStyle,
+        noteMarkdown: String = ""
+    ) async throws -> HighlightCreateResult {
+        let result = try await highlightStore.create(
+            activityId: activityId, readBlockId: readBlockId,
+            span: span, style: style, noteMarkdown: noteMarkdown
         )
 
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to fetch exegesis highlights")
-        }
-
-        return (response.readBlockId, response.highlights ?? [])
+        state.contentHighlights.removeMany(result.absorbedIds)
+        state.contentHighlights.upsert(result.highlight)
+        return result
     }
 
     @MainActor
-    func createExegesisHighlight(activityId: String, readBlockId: String, start: Int, end: Int, noteMarkdown: String = "") async throws -> ExegesisHighlight {
-        struct ResponseBody: Decodable {
-            let success: Bool
-            let highlight: ExegesisHighlight?
-            let error: String?
-        }
-
-        let body: [String: Any] = [
-            "readBlockId": readBlockId,
-            "start": start,
-            "end": end,
-            "noteMarkdown": noteMarkdown,
-        ]
-
-        let response: ResponseBody = try await api.post(
-            "/api/activities/\(activityId)/exegesis-highlights",
-            body: body,
-            responseType: ResponseBody.self
+    @discardableResult
+    func updateHighlight(
+        activityId: String,
+        highlightId: String,
+        noteMarkdown: String? = nil,
+        style: String? = nil
+    ) async throws -> ContentHighlight {
+        let highlight = try await highlightStore.update(
+            activityId: activityId, highlightId: highlightId,
+            noteMarkdown: noteMarkdown, style: style
         )
-
-        guard response.success, let highlight = response.highlight else {
-            throw APIError.serverError(response.error ?? "Failed to create highlight")
-        }
-
+        state.contentHighlights.upsert(highlight)
         return highlight
     }
 
     @MainActor
-    func updateExegesisHighlight(activityId: String, highlightId: String, noteMarkdown: String) async throws -> ExegesisHighlight {
-        struct ResponseBody: Decodable {
-            let success: Bool
-            let highlight: ExegesisHighlight?
-            let error: String?
-        }
-
-        let body: [String: Any] = ["noteMarkdown": noteMarkdown]
-
-        let response: ResponseBody = try await api.patch(
-            "/api/activities/\(activityId)/exegesis-highlights/\(highlightId)",
-            body: body,
-            responseType: ResponseBody.self
-        )
-
-        guard response.success, let highlight = response.highlight else {
-            throw APIError.serverError(response.error ?? "Failed to update highlight")
-        }
-
-        return highlight
-    }
-
-    @MainActor
-    func deleteExegesisHighlight(activityId: String, highlightId: String) async throws {
-        struct ResponseBody: Decodable {
-            let success: Bool
-            let error: String?
-        }
-
-        let response: ResponseBody = try await api.delete(
-            "/api/activities/\(activityId)/exegesis-highlights/\(highlightId)",
-            responseType: ResponseBody.self
-        )
-
-        guard response.success else {
-            throw APIError.serverError(response.error ?? "Failed to delete highlight")
-        }
+    func deleteHighlight(activityId: String, highlightId: String) async throws {
+        try await highlightStore.delete(activityId: activityId, highlightId: highlightId)
+        _ = state.contentHighlights.remove(highlightId)
     }
 
     // MARK: - Read Block Operations

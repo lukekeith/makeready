@@ -147,15 +147,20 @@ interface HighlightRow {
   start: number
   end: number
   noteMarkdown: string
+  /** 03 §1.1 — `highlight` | `bold`; `bold` renders as weight only (03 §5). */
+  style: string
 }
 
-// Seed from the block's server-synced selections until the fetch lands.
+// Seed from the block's server-synced selections until the fetch lands. The
+// projection carries the real style, so a `bold` span is seeded as bold rather
+// than being washed like a highlight.
 const highlights = ref<HighlightRow[]>(
   (block.value?.selections ?? []).map((s, i) => ({
     id: `seed-${i}`,
     start: s.start,
     end: s.end,
     noteMarkdown: '',
+    style: s.style ?? 'highlight',
   })),
 )
 
@@ -173,7 +178,7 @@ const sortedHighlights = computed(() =>
 )
 
 const highlightRuns = computed(() =>
-  sortedHighlights.value.map((h) => ({ start: h.start, end: h.end, style: 'highlight' })),
+  sortedHighlights.value.map((h) => ({ start: h.start, end: h.end, style: h.style })),
 )
 
 // Native selection committed → auto-create (iOS applyStyle(.highlight)).

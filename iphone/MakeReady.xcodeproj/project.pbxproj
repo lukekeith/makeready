@@ -306,6 +306,22 @@
 		VSEL0019000000000000001 /* VideoRecorderPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSEL0020000000000000001 /* VideoRecorderPage.swift */; };
 		VSEL0023000000000000001 /* VideoPlayerPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSEL0024000000000000001 /* VideoPlayerPage.swift */; };
 		VSLG000200000000000001 /* VerseSelectionLogic.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSLG000100000000000001 /* VerseSelectionLogic.swift */; };
+		HLRG000200000000000001 /* HighlightRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = HLRG000100000000000001 /* HighlightRange.swift */; };
+		HACT000200000000000001 /* HighlightActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HACT000100000000000001 /* HighlightActionsTests.swift */; };
+		HDST000200000000000001 /* HighlightDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = HDST000100000000000001 /* HighlightDraftStore.swift */; };
+		HDTT000200000000000001 /* HighlightDraftStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HDTT000100000000000001 /* HighlightDraftStoreTests.swift */; };
+		HTXV000200000000000001 /* HighlightableTextView.swift in Sources */ = {isa = PBXBuildFile; fileRef = HTXV000100000000000001 /* HighlightableTextView.swift */; };
+		VTPT000200000000000001 /* VerseTapPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = VTPT000100000000000001 /* VerseTapPolicyTests.swift */; };
+		HSTO000200000000000001 /* HighlightStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = HSTO000100000000000001 /* HighlightStore.swift */; };
+		HSTT000200000000000001 /* HighlightStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HSTT000100000000000001 /* HighlightStoreTests.swift */; };
+		TSCT000200000000000001 /* TextSelectionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = TSCT000100000000000001 /* TextSelectionController.swift */; };
+		SLCO000200000000000001 /* ScrollLockCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = SLCO000100000000000001 /* ScrollLockCoordinator.swift */; };
+		SCPT000200000000000001 /* SelectionCommitPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = SCPT000100000000000001 /* SelectionCommitPolicyTests.swift */; };
+		HLSN000200000000000001 /* HighlightSnapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = HLSN000100000000000001 /* HighlightSnapping.swift */; };
+		HLRN000200000000000001 /* HighlightRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = HLRN000100000000000001 /* HighlightRenderer.swift */; };
+		HSNT000200000000000001 /* HighlightSnappingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HSNT000100000000000001 /* HighlightSnappingTests.swift */; };
+		HRNT000200000000000001 /* HighlightRendererTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HRNT000100000000000001 /* HighlightRendererTests.swift */; };
+		HLRT000100000000000001 /* HighlightRangeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = HLRT000200000000000001 /* HighlightRangeTests.swift */; };
 		WKDI0001000000000000001 /* WeekdayIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = WKDI0002000000000000001 /* WeekdayIndicator.swift */; };
 /* End PBXBuildFile section */
 
@@ -632,6 +648,22 @@
 		VSEL0020000000000000001 /* VideoRecorderPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoRecorderPage.swift; sourceTree = "<group>"; };
 		VSEL0024000000000000001 /* VideoPlayerPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoPlayerPage.swift; sourceTree = "<group>"; };
 		VSLG000100000000000001 /* VerseSelectionLogic.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerseSelectionLogic.swift; sourceTree = "<group>"; };
+		HLRG000100000000000001 /* HighlightRange.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRange.swift; sourceTree = "<group>"; };
+		HACT000100000000000001 /* HighlightActionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightActionsTests.swift; sourceTree = "<group>"; };
+		HDST000100000000000001 /* HighlightDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightDraftStore.swift; sourceTree = "<group>"; };
+		HDTT000100000000000001 /* HighlightDraftStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightDraftStoreTests.swift; sourceTree = "<group>"; };
+		HTXV000100000000000001 /* HighlightableTextView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightableTextView.swift; sourceTree = "<group>"; };
+		VTPT000100000000000001 /* VerseTapPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VerseTapPolicyTests.swift; sourceTree = "<group>"; };
+		HSTO000100000000000001 /* HighlightStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightStore.swift; sourceTree = "<group>"; };
+		HSTT000100000000000001 /* HighlightStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightStoreTests.swift; sourceTree = "<group>"; };
+		TSCT000100000000000001 /* TextSelectionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TextSelectionController.swift; sourceTree = "<group>"; };
+		SLCO000100000000000001 /* ScrollLockCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScrollLockCoordinator.swift; sourceTree = "<group>"; };
+		SCPT000100000000000001 /* SelectionCommitPolicyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SelectionCommitPolicyTests.swift; sourceTree = "<group>"; };
+		HLSN000100000000000001 /* HighlightSnapping.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightSnapping.swift; sourceTree = "<group>"; };
+		HLRN000100000000000001 /* HighlightRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRenderer.swift; sourceTree = "<group>"; };
+		HSNT000100000000000001 /* HighlightSnappingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightSnappingTests.swift; sourceTree = "<group>"; };
+		HRNT000100000000000001 /* HighlightRendererTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRendererTests.swift; sourceTree = "<group>"; };
+		HLRT000200000000000001 /* HighlightRangeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HighlightRangeTests.swift; sourceTree = "<group>"; };
 		WKDI0002000000000000001 /* WeekdayIndicator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeekdayIndicator.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -884,6 +916,14 @@
 				MDLT000200000000000001 /* ModelDecodingTests.swift */,
 				UFEFT00200000000000001 /* UserFacingErrorFormatterTests.swift */,
 				58185043130519BCAA3EBF7A /* EnrollmentEditModelTests.swift */,
+				HLRT000200000000000001 /* HighlightRangeTests.swift */,
+				HSNT000100000000000001 /* HighlightSnappingTests.swift */,
+				HRNT000100000000000001 /* HighlightRendererTests.swift */,
+				SCPT000100000000000001 /* SelectionCommitPolicyTests.swift */,
+				HSTT000100000000000001 /* HighlightStoreTests.swift */,
+				VTPT000100000000000001 /* VerseTapPolicyTests.swift */,
+				HDTT000100000000000001 /* HighlightDraftStoreTests.swift */,
+				HACT000100000000000001 /* HighlightActionsTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -1327,6 +1367,21 @@
 			path = Resources;
 			sourceTree = "<group>";
 		};
+		HLGRP_0000000000000001 /* Highlighting */ = {
+			isa = PBXGroup;
+			children = (
+				HLRG000100000000000001 /* HighlightRange.swift */,
+				HLSN000100000000000001 /* HighlightSnapping.swift */,
+				HLRN000100000000000001 /* HighlightRenderer.swift */,
+				TSCT000100000000000001 /* TextSelectionController.swift */,
+				SLCO000100000000000001 /* ScrollLockCoordinator.swift */,
+				HSTO000100000000000001 /* HighlightStore.swift */,
+				HTXV000100000000000001 /* HighlightableTextView.swift */,
+				HDST000100000000000001 /* HighlightDraftStore.swift */,
+			);
+			path = Highlighting;
+			sourceTree = "<group>";
+		};
 		SRVS_GRP_00000000000001 /* Services */ = {
 			isa = PBXGroup;
 			children = (
@@ -1339,6 +1394,7 @@
 				LPHL0002000000000000001 /* LocalPortHealer.swift */,
 				PUSHMG0002000000000001 /* PushNotificationManager.swift */,
 				GSRC0001000000000000001 /* GlobalSearchEngine.swift */,
+				HLGRP_0000000000000001 /* Highlighting */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -1645,6 +1701,14 @@
 				MDLT000100000000000001 /* ModelDecodingTests.swift in Sources */,
 				UFEFT00100000000000001 /* UserFacingErrorFormatterTests.swift in Sources */,
 				9466692B2919B3B175C2EBA6 /* EnrollmentEditModelTests.swift in Sources */,
+				HLRT000100000000000001 /* HighlightRangeTests.swift in Sources */,
+				HSNT000200000000000001 /* HighlightSnappingTests.swift in Sources */,
+				HRNT000200000000000001 /* HighlightRendererTests.swift in Sources */,
+				SCPT000200000000000001 /* SelectionCommitPolicyTests.swift in Sources */,
+				HSTT000200000000000001 /* HighlightStoreTests.swift in Sources */,
+				VTPT000200000000000001 /* VerseTapPolicyTests.swift in Sources */,
+				HDTT000200000000000001 /* HighlightDraftStoreTests.swift in Sources */,
+				HACT000200000000000001 /* HighlightActionsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1916,6 +1980,14 @@
 				SPKM0001000000000000001 /* StylePickerMenu.swift in Sources */,
 				STCT0001000000000000001 /* StripContent.swift in Sources */,
 				VSLG000200000000000001 /* VerseSelectionLogic.swift in Sources */,
+				HLRG000200000000000001 /* HighlightRange.swift in Sources */,
+				HLSN000200000000000001 /* HighlightSnapping.swift in Sources */,
+				HLRN000200000000000001 /* HighlightRenderer.swift in Sources */,
+				TSCT000200000000000001 /* TextSelectionController.swift in Sources */,
+				SLCO000200000000000001 /* ScrollLockCoordinator.swift in Sources */,
+				HSTO000200000000000001 /* HighlightStore.swift in Sources */,
+				HTXV000200000000000001 /* HighlightableTextView.swift in Sources */,
+				HDST000200000000000001 /* HighlightDraftStore.swift in Sources */,
 				ACST000200000000000001 /* ActivityStyle.swift in Sources */,
 				1538E01A74676D21CF54D80C /* EnrollmentEditModels.swift in Sources */,
 				7884096BBF84248AC8C3BA8B /* EditEnrollmentFlowModal.swift in Sources */,

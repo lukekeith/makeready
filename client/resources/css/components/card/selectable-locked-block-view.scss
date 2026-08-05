@@ -69,10 +69,13 @@
     display: none;
   }
 
-  // Default highlight — solid brandPrimary purple marker (iOS editMarker
-  // #6c47ff), text stays white@0.85 (only the bg run is set on iOS).
+  // Default (saved) highlight — #F4FF76 @ 0.35, the ONE cross-app saved-highlight
+  // wash (03 §5). This was solid brand purple until 2026-08-04; iOS changed the
+  // same wash in `HighlightRenderer.saved`, and the compare fixtures for this
+  // screen are re-captured in phase 6. Text stays white@0.85 — only the
+  // background run is set, exactly as on iOS.
   &__seg--highlight {
-    background-color: var(--color-brand-500); // iOS editMarker / Color.brandPrimary (#6c47ff)
+    background-color: var(--color-highlight-saved);
   }
 
   // Preview highlight — solid white wash with black text.
@@ -81,18 +84,28 @@
     color: #000;
   }
 
-  // ── Interactive highlight mode (production only; captures never see these) ──
-
-  // Live tap-selection tint — iOS UITextView selection tint #F4FF76@0.5
-  // (Colors.highlightYellow). Wins over a styled span's purple while active.
-  &__seg--tint {
-    background-color: rgba(244, 255, 118, 0.5);
+  // `style: "bold"` — font weight ONLY, no wash, on every surface (03 §5).
+  &__seg--bold {
+    font-weight: 700;
   }
 
-  &__seg--tappable {
-    cursor: pointer;
-    user-select: none;
-    -webkit-user-select: none;
+  // ── Interactive highlight mode (production only; captures never see these) ──
+
+  // Native drag selection, matching the exegesis twin (09 §X-r, 2026-08-04).
+  //
+  // This replaced a tap-to-select-a-verse mode whose `--tappable` rule set
+  // `user-select: none` — i.e. the previous styling actively PREVENTED the
+  // interaction this now depends on. The live wash is `#F4FF76 @ 0.55`, the
+  // contract's live-selection colour (03 §5; iOS `HighlightRenderer.live`),
+  // applied through `::selection` because the browser owns the in-progress
+  // range here rather than the component.
+  &__seg--interactive {
+    cursor: text;
+
+    &::selection {
+      background-color: var(--color-highlight-live);
+      color: var(--color-white);
+    }
   }
 
   // Multi-verse content: one paragraph per verse (iOS paragraphSpacing 8)

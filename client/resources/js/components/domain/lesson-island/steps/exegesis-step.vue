@@ -33,6 +33,10 @@ interface ReadBlock {
     backgroundOverlayOpacity?: number | null;
     fontSize?: string | null;
     selections?: ReadBlockSelection[] | null;
+    /** Current name (server relation `ContentHighlight`, renamed 2026-08-04). */
+    contentHighlights?: ExegesisHighlight[];
+    /** Pre-rename name. Kept for payloads produced before the rename — the
+     *  dual-read window (03 §2.5). Remove with the legacy aliases. */
     exegesisHighlights?: ExegesisHighlight[];
 }
 
@@ -88,7 +92,12 @@ const lockedBlock = computed<ReadBlock | null>(() => {
 
 const highlights = computed<ExegesisHighlight[]>(() => {
     const block = lockedBlock.value;
-    const hs = block?.exegesisHighlights ?? [];
+    // The relation was renamed `exegesisHighlights` -> `contentHighlights` on
+    // the server (03 §1.1). Reading only the old name made this list silently
+    // empty, which fell through to the `selections` path below — and THAT path
+    // has no note text, so every member-facing exegesis note rendered blank
+    // (09 §X-n). Read the new name first, keep the old one for older payloads.
+    const hs = block?.contentHighlights ?? block?.exegesisHighlights ?? [];
     if (hs.length > 0) {
         return [...hs].sort(
             (a, b) =>

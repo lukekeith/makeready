@@ -27,21 +27,24 @@ import SwiftUI
 struct ExegesisNoteEditorPage: View {
 
     /// Every highlight on the block, in document order — one page each.
-    let highlightRanges: [NSRange]
-    /// Plain text of the whole block, which the ranges index into.
+    ///
+    /// ENTITIES, not ranges (highlighting phase 4.8b). The thing being edited is
+    /// a highlight; its span is a property of it, derived here for display. A
+    /// merge changes spans, so a page identified by its location is a page that
+    /// stops existing the moment the server merges anything.
+    let highlights: [ContentHighlight]
+    /// Plain text of the whole block, which the spans index into.
     let highlightText: String
 
-    @Binding var selectedRange: NSRange?
-    @Binding var noteDrafts: [String: String]
-    @Binding var attributedNoteDrafts: [String: AttributedString]
-    @Binding var savedNoteMarkdownByHighlight: [String: String]
+    @Binding var selectedId: String?
+    @Binding var drafts: HighlightDraftStore
 
     /// Tells the page which highlight is showing so it can scroll it into view
     /// behind the editor.
-    let onNavigate: (NSRange) -> Void
+    let onNavigate: (ContentHighlight) -> Void
     /// Stages ONE note's text. Save calls this for every note the session
     /// changed, then calls `onPersist` to write them.
-    let onCommitNote: (NSRange, String) -> Void
+    let onCommitNote: (ContentHighlight, String) -> Void
     /// Writes the staged notes to the server AND refreshes the page's highlight
     /// list. Without this the editor's Save only ever staged a draft, so the
     /// note never reached the server and reopening the highlight still offered
@@ -62,7 +65,7 @@ struct ExegesisNoteEditorPage: View {
     /// from the right (Luke).
     @State private var appeared = false
 
-    /// Page index, driven by and driving `selectedRange`.
+    /// Page index, driven by and driving `selectedId`.
     @State private var pageIndex: Int = 0
     /// Drafts as they were when the editor opened, for Cancel. Captured for
     /// EVERY highlight the session touches, not just the first — Save and Cancel
@@ -90,7 +93,7 @@ struct ExegesisNoteEditorPage: View {
 
             // Dots are FIXED at the top, above the paging content, so they stay
             // put while the pages move under them (Luke).
-            if !highlightRanges.isEmpty {
+            if !highlights.isEmpty {
                 dots
                     .frame(height: dotsRowHeight)
             }
@@ -106,8 +109,8 @@ struct ExegesisNoteEditorPage: View {
         .onAppear {
             withAnimation(Motion.micro) { appeared = true }
             captureOriginalsIfNeeded()
-            if let selectedRange,
-               let index = highlightRanges.firstIndex(where: { NSEqualRanges($0, selectedRange) }) {
+            if let selectedId,
+               let index = highlights.firstIndex(where: { $0.id == selectedId }) {
                 pageIndex = index
             }
             // Open on the highlight that was tapped.
@@ -120,14 +123,14 @@ struct ExegesisNoteEditorPage: View {
             pageIndex = newIndex
         }
         .onChange(of: pageIndex) { _, newIndex in
-            guard highlightRanges.indices.contains(newIndex) else { return }
-            let range = highlightRanges[newIndex]
-            snapshotOriginal(for: range)
-            // `onNavigate` already assigns the page's selected range; assigning
-            // `selectedRange` here too wrote the same parent state twice in one
+            guard highlights.indices.contains(newIndex) else { return }
+            let highlight = highlights[newIndex]
+            snapshotOriginal(for: highlight)
+            // `onNavigate` already assigns the page's selection; assigning
+            // `selectedId` here too wrote the same parent state twice in one
             // update cycle. Drafts are seeded before presentation, so there is
             // nothing to prepare here either.
-            onNavigate(range)
+            onNavigate(highlight)
         }
         .onDisappear(perform: onDismiss)
     }
@@ -144,9 +147,9 @@ struct ExegesisNoteEditorPage: View {
 
     // MARK: - Paging
 
-    private var currentRange: NSRange? {
-        guard highlightRanges.indices.contains(pageIndex) else { return highlightRanges.first }
-        return highlightRanges[pageIndex]
+    private var currentHighlight: ContentHighlight? {
+        guard highlights.indices.contains(pageIndex) else { return highlights.first }
+        return highlights[pageIndex]
     }
 
     /// A genuinely interactive pager: the current highlight tracks your finger,
@@ -166,8 +169,8 @@ struct ExegesisNoteEditorPage: View {
     private var highlightPager: some View {
         ScrollView(.horizontal) {
             HStack(spacing: 0) {
-                ForEach(Array(highlightRanges.enumerated()), id: \.offset) { index, range in
-                    highlightPage(for: range)
+                ForEach(Array(highlights.enumerated()), id: \.element.id) { index, highlight in
+                    highlightPage(for: highlight)
                         .frame(width: Screen.bounds.width)
                         .id(index)
                 }
@@ -183,18 +186,18 @@ struct ExegesisNoteEditorPage: View {
     /// One highlight: the passage hugging its full content, then the note field.
     /// Scrolls vertically on its own — the pager owns horizontal, this owns
     /// vertical, so neither has to arbitrate against the other.
-    private func highlightPage(for range: NSRange) -> some View {
+    private func highlightPage(for highlight: ContentHighlight) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                referenceBlock(for: range)
+                referenceBlock(for: highlight)
 
                 MarkdownEditor(
                     placeholder: "Add a note...",
-                    attributedText: draftBinding(for: range),
+                    attributedText: draftBinding(for: highlight),
                     minHeight: noteFieldMinHeight,
                     autoGrow: true
                 )
-                .id(rangeKey(for: range))
+                .id(highlight.id)
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -236,7 +239,7 @@ struct ExegesisNoteEditorPage: View {
     /// Dot navigation. Fixed above the paging content so it never slides with it.
     private var dots: some View {
         HStack(spacing: 6) {
-            ForEach(highlightRanges.indices, id: \.self) { index in
+            ForEach(highlights.indices, id: \.self) { index in
                 // Standard iOS page-control colouring: white for the current
                 // page, dimmed white for the rest (Luke) — not the brand purple.
                 // UIPageControl's own values are white / white @ 30%.
@@ -259,13 +262,13 @@ struct ExegesisNoteEditorPage: View {
     /// (Luke). Selection is off: this is reference material, not an input.
     /// The underlying UITextView scrolls, so a long highlight can be read in
     /// full while writing.
-    private func referenceBlock(for range: NSRange) -> some View {
+    private func referenceBlock(for highlight: ContentHighlight) -> some View {
         // Hugs its content: `ExegesisVerseView` sets `isScrollEnabled = false`
         // and self-sizes via `sizeThatFits`, so given no height constraint it
         // renders the WHOLE highlight and the page's single ScrollView carries
         // it. A fixed frame here only ever clipped it (Luke, 2026-08-02).
         ExegesisVerseView(
-            plainText: excerpt(for: range),
+            plainText: excerpt(for: highlight),
             highlights: [],
             isSelectionEnabled: false,
             usePreviewHighlightStyle: true,
@@ -279,20 +282,16 @@ struct ExegesisNoteEditorPage: View {
 
     // MARK: - Draft plumbing
 
-    private func rangeKey(for range: NSRange) -> String {
-        "\(range.location):\(range.length)"
-    }
-
-    private func excerpt(for range: NSRange) -> String {
+    private func excerpt(for highlight: ContentHighlight) -> String {
         let text = highlightText as NSString
+        let range = NSRange(location: highlight.start, length: highlight.end - highlight.start)
         guard range.location >= 0,
               range.location + range.length <= text.length else { return "" }
         return text.substring(with: range)
     }
 
-    private func draftBinding(for range: NSRange) -> Binding<AttributedString> {
-        let key = rangeKey(for: range)
-        return Binding(
+    private func draftBinding(for highlight: ContentHighlight) -> Binding<AttributedString> {
+        Binding(
             // A PURE STORED READ. It must never compute a value here: TabView
             // builds several pages at once, so each MarkdownEditor would receive
             // a freshly-built AttributedString, write it back during the same
@@ -301,20 +300,19 @@ struct ExegesisNoteEditorPage: View {
             // (crash, 2026-08-02; /animation-debug class 5). The page's drafts
             // are seeded by `seedNoteDrafts()` BEFORE this view is presented, so
             // the fallback below is only ever hit for a genuinely empty note.
-            get: { attributedNoteDrafts[key] ?? AttributedString() },
+            get: { drafts.attributed(for: highlight.id) ?? AttributedString() },
             set: { newValue in
-                attributedNoteDrafts[key] = newValue
-                noteDrafts[key] = MarkdownEditor.attributedToMarkdown(newValue)
+                drafts.setAttributed(
+                    newValue,
+                    markdown: MarkdownEditor.attributedToMarkdown(newValue),
+                    for: highlight
+                )
             }
         )
     }
 
-    private func prepareDraft(for range: NSRange) {
-        let key = rangeKey(for: range)
-        guard attributedNoteDrafts[key] == nil else { return }
-        let markdown = noteDrafts[key] ?? savedNoteMarkdownByHighlight[key] ?? ""
-        attributedNoteDrafts[key] = MarkdownEditor.markdownToAttributed(markdown)
-        noteDrafts[key] = markdown
+    private func prepareDraft(for highlight: ContentHighlight) {
+        drafts.prepare(for: highlight) { MarkdownEditor.markdownToAttributed($0) }
     }
 
     /// Snapshots the starting text of EVERY highlight, not just the tapped one.
@@ -323,17 +321,17 @@ struct ExegesisNoteEditorPage: View {
     private func captureOriginalsIfNeeded() {
         guard !didCaptureOriginals else { return }
         didCaptureOriginals = true
-        for range in highlightRanges {
-            prepareDraft(for: range)
-            snapshotOriginal(for: range)
+        for highlight in highlights {
+            prepareDraft(for: highlight)
+            snapshotOriginal(for: highlight)
         }
     }
 
-    private func snapshotOriginal(for range: NSRange) {
-        let key = rangeKey(for: range)
+    private func snapshotOriginal(for highlight: ContentHighlight) {
+        let key = highlight.id
         guard originalDrafts[key] == nil,
               !originallyMissingDrafts.contains(key) else { return }
-        if let current = noteDrafts[key] {
+        if let current = drafts[key]?.markdown {
             originalDrafts[key] = current
         } else {
             originallyMissingDrafts.insert(key)
@@ -345,41 +343,34 @@ struct ExegesisNoteEditorPage: View {
     /// Every highlight whose draft differs from what is saved on the server.
     /// Highlights whose note differs from what it was when the editor opened.
     ///
-    /// Compared against `originalDrafts` — the snapshot taken on appear — NOT
-    /// against `savedNoteMarkdownByHighlight`. That dictionary is keyed by exact
-    /// span string and can miss (the same miss that mislabelled "Add note"), and
-    /// a miss there reads as `""`, which made every seeded note look changed and
-    /// lit Save up before anything had been typed (Luke, 2026-08-02).
-    private var changedRanges: [NSRange] {
-        highlightRanges.filter { range in
-            let key = rangeKey(for: range)
-            let current = (noteDrafts[key] ?? "")
+    /// Compared against `originalDrafts` — the snapshot taken on appear — and
+    /// keyed by highlight ID. The predecessor compared against a dictionary
+    /// keyed by exact span string, which could miss (the same miss that
+    /// mislabelled "Add note"); a miss read as `""`, which made every seeded
+    /// note look changed and lit Save up before anything had been typed
+    /// (Luke, 2026-08-02). An id cannot miss.
+    private var changedHighlights: [ContentHighlight] {
+        highlights.filter { highlight in
+            let current = (drafts[highlight.id]?.markdown ?? "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            let original = (originalDrafts[key] ?? "")
+            let original = (originalDrafts[highlight.id] ?? "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             return current != original
         }
     }
 
-    private var hasUnsavedChanges: Bool { !changedRanges.isEmpty }
+    private var hasUnsavedChanges: Bool { !changedHighlights.isEmpty }
 
     private func saveAllChangedNotes() {
-        let ranges = changedRanges
-        guard !ranges.isEmpty else {
+        let changed = changedHighlights
+        guard !changed.isEmpty else {
             dismissWithFade()
             return
         }
 
         isSaving = true
-        for range in ranges {
-            let key = rangeKey(for: range)
-            let markdown = noteDrafts[key] ?? ""
-            onCommitNote(range, markdown)
-            if markdown.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                savedNoteMarkdownByHighlight.removeValue(forKey: key)
-            } else {
-                savedNoteMarkdownByHighlight[key] = markdown
-            }
+        for highlight in changed {
+            onCommitNote(highlight, drafts[highlight.id]?.markdown ?? "")
         }
 
         // Staging is not saving. Persist, and only dismiss once it lands — the
@@ -410,13 +401,13 @@ struct ExegesisNoteEditorPage: View {
     /// including highlights the user swiped through and edited, not just the
     /// visible one.
     private func restoreOriginals() {
+        let savedById = Dictionary(uniqueKeysWithValues: highlights.map { ($0.id, $0.noteMarkdown) })
         for (key, markdown) in originalDrafts {
-            noteDrafts[key] = markdown
-            attributedNoteDrafts.removeValue(forKey: key)
+            drafts.restore(markdown: markdown, for: key, savedMarkdown: savedById[key] ?? "")
+            drafts.discardAttributed(for: key)
         }
         for key in originallyMissingDrafts {
-            noteDrafts.removeValue(forKey: key)
-            attributedNoteDrafts.removeValue(forKey: key)
+            drafts.restore(markdown: nil, for: key, savedMarkdown: savedById[key] ?? "")
         }
         originalDrafts.removeAll()
         originallyMissingDrafts.removeAll()

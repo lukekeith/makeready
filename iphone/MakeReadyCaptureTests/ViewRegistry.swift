@@ -2061,7 +2061,12 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 isSelectionEnabled: c.isSelectionEnabled ?? false,
                 fontSize: CGFloat(c.fontSize ?? 16),
                 usePreviewHighlightStyle: c.usePreviewHighlightStyle ?? false,
-                pendingRange: .constant(nil)
+                pendingRange: .constant(nil),
+                // 6.8 / 09 §G-ac — this surface's capture path runs `.verseTap`,
+                // which is the mode that paints a seeded live span.
+                initialLiveSelection: c.liveSelection.map {
+                    NSRange(location: $0.start, length: max(0, $0.end - $0.start))
+                }
             )
             .padding(16)
         )
@@ -2080,7 +2085,11 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 isSelectionEnabled: c.isSelectionEnabled ?? false,
                 editingRange: nil,
                 pendingRange: .constant(nil),
-                liveSelection: .constant(nil),
+                // Seedable since 6.8 so the live `@0.55` wash is capturable at
+                // all; `.constant` is right here — a snapshot never mutates it.
+                liveSelection: .constant(c.liveSelection.map {
+                    NSRange(location: $0.start, length: max(0, $0.end - $0.start))
+                }),
                 fontSize: CGFloat(c.fontSize ?? 16),
                 usePreviewHighlightStyle: c.usePreviewHighlightStyle ?? false,
                 isScripture: c.isScripture ?? true

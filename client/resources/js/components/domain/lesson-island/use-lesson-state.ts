@@ -35,6 +35,8 @@ export interface Activity {
     content?: string
     sourceReferenceId?: string
     selections?: Array<{ start: number; end: number; style: string }> | null
+    contentHighlights?: Array<{ id: string; orderNumber: number; start: number; end: number; noteMarkdown: string }>
+    /** Pre-rename name — the dual-read window (03 §2.5, 09 §X-n). */
     exegesisHighlights?: Array<{ id: string; orderNumber: number; start: number; end: number; noteMarkdown: string }>
   }>
   readContent?: string

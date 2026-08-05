@@ -10,7 +10,7 @@
 //
 //  Invariants:
 //   - Exactly one locked scripture read block (managed via /source-references)
-//   - One or more highlights (ExegesisHighlight rows) attached to that block
+//   - One or more highlights (ContentHighlight rows) attached to that block
 //   - Verse text is never edited — only selected/highlighted
 //
 
@@ -27,11 +27,14 @@ struct ExegesisActivityActionProvider {
     let liveActivity: @MainActor (String) -> StudyActivity?
     /// Optimistic local write of merged selections: (activityId, blockId, merged).
     let applyLocalSelections: @MainActor (String, String, [ReadBlockSelection]) -> Void
-    let fetchHighlights: (String) async throws -> (readBlockId: String?, highlights: [ExegesisHighlight])
-    /// (activityId, readBlockId, start, end, noteMarkdown)
-    let createHighlight: (String, String, Int, Int, String) async throws -> ExegesisHighlight
+    /// Loads the activity's highlights INTO AppState. Void by design — the
+    /// view reads `AppState.contentHighlights`, it does not own a copy.
+    let loadHighlights: (String) async throws -> Void
+    /// (activityId, readBlockId, span, noteMarkdown) -> the created row PLUS the
+    /// rows the server's merge absorbed (03 §2.2).
+    let createHighlight: (String, String, HighlightSpan, String) async throws -> HighlightCreateResult
     /// (activityId, highlightId, noteMarkdown)
-    let updateHighlightNote: (String, String, String) async throws -> ExegesisHighlight
+    let updateHighlightNote: (String, String, String) async throws -> ContentHighlight
     /// (activityId, highlightId)
     let deleteHighlight: (String, String) async throws -> Void
     /// (activityId, blockId, selections)
@@ -63,19 +66,19 @@ struct ExegesisActivityActionProvider {
                     AppState.shared.persist()
                 }
             },
-            fetchHighlights: { try await ProgramActions().fetchExegesisHighlights(activityId: $0) },
-            createHighlight: { activityId, readBlockId, start, end, note in
-                try await ProgramActions().createExegesisHighlight(
-                    activityId: activityId, readBlockId: readBlockId, start: start, end: end, noteMarkdown: note
+            loadHighlights: { try await ProgramActions().loadHighlights(activityId: $0) },
+            createHighlight: { activityId, readBlockId, span, note in
+                try await ProgramActions().createHighlight(
+                    activityId: activityId, readBlockId: readBlockId, span: span, noteMarkdown: note
                 )
             },
             updateHighlightNote: { activityId, highlightId, note in
-                try await ProgramActions().updateExegesisHighlight(
+                try await ProgramActions().updateHighlight(
                     activityId: activityId, highlightId: highlightId, noteMarkdown: note
                 )
             },
             deleteHighlight: { activityId, highlightId in
-                try await ProgramActions().deleteExegesisHighlight(activityId: activityId, highlightId: highlightId)
+                try await ProgramActions().deleteHighlight(activityId: activityId, highlightId: highlightId)
             },
             updateSelections: { activityId, blockId, selections in
                 try await ProgramActions().updateReadBlockSelections(activityId: activityId, blockId: blockId, selections: selections)
@@ -110,19 +113,19 @@ struct ExegesisActivityActionProvider {
                 }
                 AppState.shared.persist()
             },
-            fetchHighlights: { try await EnrollmentActions().fetchExegesisHighlights(activityId: $0) },
-            createHighlight: { activityId, readBlockId, start, end, note in
-                try await EnrollmentActions().createExegesisHighlight(
-                    activityId: activityId, readBlockId: readBlockId, start: start, end: end, noteMarkdown: note
+            loadHighlights: { try await EnrollmentActions().loadHighlights(activityId: $0) },
+            createHighlight: { activityId, readBlockId, span, note in
+                try await EnrollmentActions().createHighlight(
+                    activityId: activityId, readBlockId: readBlockId, span: span, noteMarkdown: note
                 )
             },
             updateHighlightNote: { activityId, highlightId, note in
-                try await EnrollmentActions().updateExegesisHighlight(
+                try await EnrollmentActions().updateHighlight(
                     activityId: activityId, highlightId: highlightId, noteMarkdown: note
                 )
             },
             deleteHighlight: { activityId, highlightId in
-                try await EnrollmentActions().deleteExegesisHighlight(activityId: activityId, highlightId: highlightId)
+                try await EnrollmentActions().deleteHighlight(activityId: activityId, highlightId: highlightId)
             },
             updateSelections: { activityId, blockId, selections in
                 try await EnrollmentActions().updateReadBlockSelections(activityId: activityId, blockId: blockId, selections: selections)
@@ -180,10 +183,26 @@ struct EditExegesisActivityPage: View {
     @State private var showSlidePreview = false
     @State private var selectedHighlightRange: NSRange?
     @State private var scrollSelectedHighlightIntoView = false
-    @State private var noteDrafts: [String: String] = [:]
-    @State private var attributedNoteDrafts: [String: AttributedString] = [:]
-    @State private var savedNoteMarkdownByHighlight: [String: String] = [:]
-    @State private var exegesisHighlights: [ExegesisHighlight] = []
+    /// Note drafts keyed by highlight ID (highlighting phase 4.8b). Replaces
+    /// three dictionaries keyed by `"location:length"` — a key derived from
+    /// mutable data, which every merge invalidated (monday#12708759849 sub-issue
+    /// A). `savedNoteMarkdownByHighlight` is gone entirely: the saved note is
+    /// the entity's own `noteMarkdown` now that highlights live in `AppState`.
+    @State private var draftStore = HighlightDraftStore()
+    /// Derived from `AppState`, not held here (highlighting phase 4.8).
+    /// Highlights are server data with identity that three screens read, so a
+    /// view-local copy is exactly the forked state the state-management rule
+    /// exists to prevent — and SwiftLint's `server_collection_in_view_state`
+    /// enforces it.
+    private var exegesisHighlights: [ContentHighlight] {
+        let blockIds = Set((activity.readBlocks ?? []).filter(\.isLocked).map(\.id))
+        return AppState.shared.contentHighlights.all
+            .filter { blockIds.contains($0.readBlockId) }
+            .sorted { lhs, rhs in
+                if lhs.start == rhs.start { return lhs.end < rhs.end }
+                return lhs.start < rhs.start
+            }
+    }
 
     // MARK: - Derived
 
@@ -491,19 +510,15 @@ struct EditExegesisActivityPage: View {
                 selectedRange: $selectedHighlightRange,
                 highlightRanges: sortedHighlightRanges,
                 highlightText: BibleVerseContentNormalizer.normalizedPlainText(from: lockedBlock?.content ?? ""),
-                noteDrafts: $noteDrafts,
-                attributedNoteDrafts: $attributedNoteDrafts,
-                savedNoteMarkdownByHighlight: $savedNoteMarkdownByHighlight,
                 onNavigate: { range in
                     navigateToHighlight(range)
                 },
                 onDelete: {
                     guard let range = selectedHighlightRange,
                           let blockId = lockedBlock?.id else { return }
-                    let key = highlightNoteKey(for: range)
-                    noteDrafts.removeValue(forKey: key)
-                    attributedNoteDrafts.removeValue(forKey: key)
-                    savedNoteMarkdownByHighlight.removeValue(forKey: key)
+                    if let highlight = matchingExegesisHighlight(for: range) ?? overlappingExegesisHighlight(for: range) {
+                        draftStore.forget(id: highlight.id)
+                    }
                     applyStyle(nil, range: range, blockId: blockId, activityId: activity.id)
                 },
                 onEditNote: {
@@ -531,19 +546,17 @@ struct EditExegesisActivityPage: View {
         overlayManager.dismiss(.exegesisHighlightActionMenu) {
             overlayManager.present(.exegesisNoteEditor) {
                 ExegesisNoteEditorPage(
-                    highlightRanges: noteEditorRanges,
+                    highlights: exegesisHighlights,
                     highlightText: BibleVerseContentNormalizer.normalizedPlainText(
                         from: lockedBlock?.content ?? ""
                     ),
-                    selectedRange: $selectedHighlightRange,
-                    noteDrafts: $noteDrafts,
-                    attributedNoteDrafts: $attributedNoteDrafts,
-                    savedNoteMarkdownByHighlight: $savedNoteMarkdownByHighlight,
-                    onNavigate: { range in
-                        navigateToHighlight(range)
+                    selectedId: selectedHighlightIdBinding,
+                    drafts: $draftStore,
+                    onNavigate: { highlight in
+                        navigateToHighlight(range(of: highlight))
                     },
-                    onCommitNote: { range, markdown in
-                        commitNoteDraft(markdown, for: range)
+                    onCommitNote: { highlight, markdown in
+                        commitNoteDraft(markdown, for: highlight)
                     },
                     onPersist: {
                         // The page's own server path — it writes each note and
@@ -601,10 +614,29 @@ struct EditExegesisActivityPage: View {
     }
 
     private func noteMarkdown(for range: NSRange) -> String {
-        if let highlight = overlappingExegesisHighlight(for: range) {
-            return highlight.noteMarkdown
-        }
-        return savedNoteMarkdownByHighlight[highlightNoteKey(for: range)] ?? ""
+        overlappingExegesisHighlight(for: range)?.noteMarkdown ?? ""
+    }
+
+    private func range(of highlight: ContentHighlight) -> NSRange {
+        NSRange(location: highlight.start, length: highlight.end - highlight.start)
+    }
+
+    /// Bridges the page's range-based selection to the note editor's
+    /// identity-based one. The editor pages through entities; this page still
+    /// renders by span, so the translation happens here rather than in either.
+    private var selectedHighlightIdBinding: Binding<String?> {
+        Binding(
+            get: {
+                guard let range = selectedHighlightRange else { return nil }
+                return (matchingExegesisHighlight(for: range)
+                        ?? overlappingExegesisHighlight(for: range))?.id
+            },
+            set: { id in
+                selectedHighlightRange = id
+                    .flatMap { wanted in exegesisHighlights.first { $0.id == wanted } }
+                    .map { range(of: $0) }
+            }
+        )
     }
 
     /// Whether the selected highlight already carries a note — drives the
@@ -616,16 +648,12 @@ struct EditExegesisActivityPage: View {
             .isEmpty
     }
 
-    /// Fills `noteDrafts` + `attributedNoteDrafts` for every highlight from what
-    /// the server has, so the note editor's bindings are pure reads.
+    /// Gives every highlight a draft and a rendered working copy BEFORE the
+    /// note editor is presented, so its bindings are pure stored reads.
     private func seedNoteDrafts() {
-        for range in noteEditorRanges {
-            let key = highlightNoteKey(for: range)
-            let markdown = noteDrafts[key] ?? nonEmpty(noteMarkdown(for: range)) ?? ""
-            noteDrafts[key] = markdown
-            if attributedNoteDrafts[key] == nil {
-                attributedNoteDrafts[key] = MarkdownEditor.markdownToAttributed(markdown)
-            }
+        draftStore.seed(from: exegesisHighlights)
+        for highlight in exegesisHighlights {
+            draftStore.prepare(for: highlight) { MarkdownEditor.markdownToAttributed($0) }
         }
     }
 
@@ -635,19 +663,7 @@ struct EditExegesisActivityPage: View {
         selectedHighlightRange = range
     }
 
-    private func highlightNoteKey(for range: NSRange) -> String {
-        "\(range.location):\(range.length)"
-    }
-
-    private func rangeFromHighlightNoteKey(_ key: String) -> NSRange? {
-        let parts = key.split(separator: ":")
-        guard parts.count == 2,
-              let location = Int(parts[0]),
-              let length = Int(parts[1]) else { return nil }
-        return NSRange(location: location, length: length)
-    }
-
-    private func matchingExegesisHighlight(for range: NSRange) -> ExegesisHighlight? {
+    private func matchingExegesisHighlight(for range: NSRange) -> ContentHighlight? {
         exegesisHighlights.first { highlight in
             highlight.start == range.location && highlight.end == range.location + range.length
         }
@@ -657,7 +673,7 @@ struct EditExegesisActivityPage: View {
     /// server enforces). Used to merge an overlapping note into the existing
     /// highlight instead of creating a new one — the server rejects overlapping
     /// creates, which otherwise fails the whole save ("Couldn't save changes").
-    private func overlappingExegesisHighlight(for range: NSRange) -> ExegesisHighlight? {
+    private func overlappingExegesisHighlight(for range: NSRange) -> ContentHighlight? {
         let start = range.location
         let end = range.location + range.length
         return exegesisHighlights.first { !(end <= $0.start || start >= $0.end) }
@@ -666,22 +682,12 @@ struct EditExegesisActivityPage: View {
     @MainActor
     private func loadExegesisHighlights() async {
         do {
-            let result = try await actions.fetchHighlights(activity.id)
-            exegesisHighlights = result.highlights.sorted { lhs, rhs in
-                if lhs.start == rhs.start { return lhs.end < rhs.end }
-                return lhs.start < rhs.start
-            }
+            // The Action writes AppState; this view reads it (phase 4.9).
+            try await actions.loadHighlights(activity.id)
 
-            var savedNotes: [String: String] = [:]
-            for highlight in exegesisHighlights {
-                let range = NSRange(location: highlight.start, length: highlight.end - highlight.start)
-                let key = highlightNoteKey(for: range)
-                savedNotes[key] = highlight.noteMarkdown
-                if noteDrafts[key] == nil {
-                    noteDrafts[key] = highlight.noteMarkdown
-                }
-            }
-            savedNoteMarkdownByHighlight = savedNotes
+            let live = exegesisHighlights
+            draftStore.prune(keeping: live.map(\.id))
+            draftStore.seed(from: live)
             NSLog("🟨 ExegesisSelectionTrace loaded exegesis highlights count=\(exegesisHighlights.count) activityId=\(activity.id)")
         } catch {
             // Background load on appear — console-only.
@@ -690,59 +696,36 @@ struct EditExegesisActivityPage: View {
     }
 
     @MainActor
-    private func commitNoteDraft(_ markdown: String, for range: NSRange) {
-        let key = highlightNoteKey(for: range)
-        noteDrafts[key] = markdown
+    private func commitNoteDraft(_ markdown: String, for highlight: ContentHighlight) {
+        draftStore.setMarkdown(markdown, for: highlight)
         hasSaved = false
-        NSLog("🟨 ExegesisSelectionTrace commitNoteDraft activityId=\(activity.id) range=\(debugRange(range)) noteLength=\(markdown.count)")
+        Log.ui.debug("exegesis note draft staged, length \(markdown.count, privacy: .public)")
     }
 
     @MainActor
     private func savePendingNotes() async throws {
         guard lockedBlock?.id != nil else { return }
 
-        let pendingDrafts = noteDrafts
-        for (key, markdown) in pendingDrafts {
-            guard savedNoteMarkdownByHighlight[key] != markdown,
-                  let range = rangeFromHighlightNoteKey(key) else { continue }
+        // Every draft belongs to a highlight that exists, because drafts are
+        // keyed by that highlight's id. The predecessor also had a CREATE branch
+        // here, for drafts whose span matched no highlight — but that could only
+        // happen when the span-derived lookup MISSED, which is the bug this
+        // keying removes. Creating a highlight while saving a note was papering
+        // over it, so the branch is gone (2026-08-04, phase 4.8b).
+        for id in draftStore.dirtyIds {
+            guard let highlight = exegesisHighlights.first(where: { $0.id == id }),
+                  let markdown = draftStore[id]?.markdown else { continue }
 
-            let saved: ExegesisHighlight
-            // Update an exact OR overlapping existing highlight (merge into it);
-            // only create when the selection is clear of every existing highlight,
-            // since the server rejects overlapping creates.
-            if let existing = matchingExegesisHighlight(for: range) ?? overlappingExegesisHighlight(for: range) {
-                saved = try await actions.updateHighlightNote(activity.id, existing.id, markdown)
-            } else if let blockId = lockedBlock?.id {
-                saved = try await actions.createHighlight(
-                    activity.id,
-                    blockId,
-                    range.location,
-                    range.location + range.length,
-                    markdown
-                )
-            } else {
-                continue
-            }
-
+            let saved = try await actions.updateHighlightNote(activity.id, highlight.id, markdown)
             upsertExegesisHighlight(saved)
-            let savedKey = highlightNoteKey(for: NSRange(location: saved.start, length: saved.end - saved.start))
-            savedNoteMarkdownByHighlight[savedKey] = saved.noteMarkdown
-            noteDrafts[savedKey] = saved.noteMarkdown
-            NSLog("🟨 ExegesisSelectionTrace savePendingNotes success activityId=\(activity.id) highlightId=\(saved.id) range={\(saved.start)-\(saved.end)} noteLength=\(saved.noteMarkdown.count)")
+            draftStore.markSaved(saved)
+            Log.ui.debug("exegesis note saved, length \(saved.noteMarkdown.count, privacy: .public)")
         }
     }
 
     @MainActor
-    private func upsertExegesisHighlight(_ highlight: ExegesisHighlight) {
-        if let index = exegesisHighlights.firstIndex(where: { $0.id == highlight.id }) {
-            exegesisHighlights[index] = highlight
-        } else {
-            exegesisHighlights.append(highlight)
-        }
-        exegesisHighlights.sort { lhs, rhs in
-            if lhs.start == rhs.start { return lhs.end < rhs.end }
-            return lhs.start < rhs.start
-        }
+    private func upsertExegesisHighlight(_ highlight: ContentHighlight) {
+        AppState.shared.contentHighlights.upsert(highlight)
     }
 
     private func selectPassageTapped() {
@@ -921,54 +904,31 @@ struct EditExegesisActivityPage: View {
         Task {
             do {
                 if style == .highlight {
-                    let created = try await actions.createHighlight(
-                        activityId,
-                        blockId,
-                        range.location,
-                        range.location + range.length,
-                        ""
-                    )
+                    guard let span = HighlightSpan(range) else { return }
+                    let result = try await actions.createHighlight(activityId, blockId, span, "")
+                    let created = result.highlight
                     await MainActor.run {
-                        // The server merges overlapping highlights into the
-                        // created one (union span) — drop the absorbed locals.
-                        let absorbed = exegesisHighlights.filter {
-                            $0.id != created.id && $0.start < created.end && $0.end > created.start
-                        }
-                        exegesisHighlights.removeAll { h in absorbed.contains { $0.id == h.id } }
-                        upsertExegesisHighlight(created)
+                        // `absorbedIds` comes from the SERVER (03 §2.2). The
+                        // predecessor re-derived it locally with an overlap
+                        // test — a second copy of the server's merge rule, which
+                        // 03 §5 forbids consumers from keeping ("consumers never
+                        // merge locally"). The Action has already applied both
+                        // the removal and the upsert to AppState.
 
-                        // The note dictionaries are keyed by RANGE, so a merge
-                        // silently orphans every absorbed span's entry: the note
-                        // is still in the database (proven at the API level,
-                        // 2026-08-04) but the UI looks it up under a key that no
-                        // longer exists and reports "no note". That is
-                        // monday#12708759849 sub-issue A.
-                        //
-                        // Succession is handled here because this is the only
-                        // place the client learns a merge happened. Phase 4 of
-                        // docs/features/highlighting/ replaces this with drafts
-                        // keyed by highlight id and a single applyMerge seam —
-                        // until then, re-key in step with the merge.
-                        for old in absorbed {
-                            let oldKey = highlightNoteKey(for: NSRange(location: old.start, length: old.end - old.start))
-                            noteDrafts.removeValue(forKey: oldKey)
-                            attributedNoteDrafts.removeValue(forKey: oldKey)
-                            savedNoteMarkdownByHighlight.removeValue(forKey: oldKey)
-                        }
-
-                        let key = highlightNoteKey(for: NSRange(location: created.start, length: created.end - created.start))
-                        savedNoteMarkdownByHighlight[key] = created.noteMarkdown
-                        // The server concatenated the absorbed notes into this
-                        // row, so the draft must follow the saved value rather
-                        // than keep a pre-merge copy of one fragment.
-                        noteDrafts[key] = created.noteMarkdown
-                        attributedNoteDrafts[key] = MarkdownEditor.markdownToAttributed(created.noteMarkdown)
+                        // A merge DESTROYS entities and creates a new one, so
+                        // any state keyed by the absorbed highlights is orphaned
+                        // — which is monday#12708759849 sub-issue A. This is the
+                        // only place the client learns a merge happened, so it
+                        // is the only place succession is handled, and it is one
+                        // call (highlighting phase 4.8b; the phase-1 stop-gap
+                        // that re-keyed three dictionaries by hand is gone).
+                        draftStore.applyMerge(created: created, absorbedIds: result.absorbedIds)
                     }
                     NSLog("🟨 ExegesisSelectionTrace applyStyle API createHighlight success activityId=\(activityId) blockId=\(blockId) highlightId=\(created.id) range={\(created.start)-\(created.end)}")
                 } else if style == nil, let existingHighlight = existingHighlightForDelete {
                     try await actions.deleteHighlight(activityId, existingHighlight.id)
                     await MainActor.run {
-                        exegesisHighlights.removeAll { $0.id == existingHighlight.id }
+                        _ = AppState.shared.contentHighlights.remove(existingHighlight.id)
                     }
                     NSLog("🟨 ExegesisSelectionTrace applyStyle API deleteHighlight success activityId=\(activityId) blockId=\(blockId) highlightId=\(existingHighlight.id)")
                 } else {
@@ -1081,8 +1041,6 @@ private struct HighlightActionMenuContent: View {
     @Binding var selectedRange: NSRange?
     let highlightRanges: [NSRange]
     let highlightText: String
-    @Binding var noteDrafts: [String: String]
-    @Binding var attributedNoteDrafts: [String: AttributedString]
     let onNavigate: (NSRange) -> Void
     let onDelete: () -> Void
     /// Asks the page to swap this sheet for the full-screen note editor.
@@ -1092,23 +1050,10 @@ private struct HighlightActionMenuContent: View {
     /// what mislabelled noted highlights as "Add note" (monday#12668543338).
     let hasNote: Bool
     let onDismiss: () -> Void
-    /// Bound to the page's dictionary, NOT a copy of it. It used to be
-    /// `@State` seeded with `State(initialValue:)`, which SwiftUI applies only
-    /// on the FIRST construction of this view's identity — so the notes the
-    /// page hydrates asynchronously (`loadExegesisHighlights`) never arrived,
-    /// `currentNoteHasContent` stayed false, and the button read "Add note"
-    /// for a highlight that already had one (monday#12668543338).
-    /// Every other dictionary here was already a `Binding`; this one is now
-    /// consistent with them.
-    @Binding private var savedNoteMarkdownByHighlight: [String: String]
-
     init(
         selectedRange: Binding<NSRange?>,
         highlightRanges: [NSRange],
         highlightText: String,
-        noteDrafts: Binding<[String: String]>,
-        attributedNoteDrafts: Binding<[String: AttributedString]>,
-        savedNoteMarkdownByHighlight: Binding<[String: String]>,
         onNavigate: @escaping (NSRange) -> Void,
         onDelete: @escaping () -> Void,
         onEditNote: @escaping () -> Void,
@@ -1118,9 +1063,6 @@ private struct HighlightActionMenuContent: View {
         self._selectedRange = selectedRange
         self.highlightRanges = highlightRanges
         self.highlightText = highlightText
-        self._noteDrafts = noteDrafts
-        self._attributedNoteDrafts = attributedNoteDrafts
-        self._savedNoteMarkdownByHighlight = savedNoteMarkdownByHighlight
         self.onNavigate = onNavigate
         self.onDelete = onDelete
         self.onEditNote = onEditNote

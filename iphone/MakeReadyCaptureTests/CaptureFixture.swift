@@ -234,6 +234,13 @@ struct CaptureComponent: Codable {
     let plainText: String?
     let highlights: [CaptureHighlight]?
     let selections: [CaptureHighlight]?
+    /// An IN-PROGRESS selection — the span under the user's finger before
+    /// release. Rendered at the contract's live colour (`#F4FF76 @ 0.55`,
+    /// 03 §5) rather than the saved `@ 0.35`, so the two are visually
+    /// distinguishable in a snapshot. Added by highlighting phase 6.8: the
+    /// live colour is a contract value, and until now no fixture could express
+    /// one, because the component cases hardcoded `.constant(nil)`.
+    let liveSelection: CaptureHighlight?
     let isSelectionEnabled: Bool?
     let usePreviewHighlightStyle: Bool?
     let isScripture: Bool?

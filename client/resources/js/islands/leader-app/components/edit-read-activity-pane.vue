@@ -22,7 +22,11 @@
 //     to delete this block? This cannot be undone."
 //   • "Edit Themes" slides to Screen 2 (one BlockStyleEditor card per block).
 //     Style interactivity (theme/color/image/font) is the next stage.
-// DEFERRED (explicit): highlighter/selection styling (.stylePicker route).
+//   • Highlight mode + the .stylePicker route (highlight/bold/remove) ship
+//     here. The header comment used to say this was DEFERRED; it has not been
+//     since the parity project, and the highlighting spec was believing it
+//     (docs/features/highlighting/09 §G-v). Saved spans render per 03 §5:
+//     `highlight` → #F4FF76 @ 0.35, `bold` → font weight only, no wash.
 import { computed, reactive, ref } from 'vue'
 import PageTitle from '../../../components/card/page-title/page-title.vue'
 import TextInput from '../../../components/card/text-input/text-input.vue'

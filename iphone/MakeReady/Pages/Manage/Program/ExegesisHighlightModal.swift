@@ -14,15 +14,15 @@ import SwiftUI
 struct ExegesisHighlightModal: View {
     let overlayManager: OverlayManager
     let plainText: String
-    let highlights: [ExegesisHighlight]
+    let highlights: [ContentHighlight]
     let canEdit: Bool
     let onHighlightCreated: (NSRange) -> Void
-    let onHighlightTapped: (ExegesisHighlight) -> Void
-    let onHighlightDeleted: (ExegesisHighlight) -> Void
+    let onHighlightTapped: (ContentHighlight) -> Void
+    let onHighlightDeleted: (ContentHighlight) -> Void
 
     @State private var appeared = false
     @State private var pendingRange: NSRange? = nil
-    @State private var selectedHighlight: ExegesisHighlight? = nil
+    @State private var selectedHighlight: ContentHighlight? = nil
 
     private var derivedSelections: [ReadBlockSelection] {
         highlights.map { ReadBlockSelection(start: $0.start, end: $0.end, style: "highlight") }
@@ -110,7 +110,7 @@ struct ExegesisHighlightModal: View {
     }
 
     @ViewBuilder
-    private func highlightRow(_ h: ExegesisHighlight) -> some View {
+    private func highlightRow(_ h: ContentHighlight) -> some View {
         Button {
             onHighlightTapped(h)
         } label: {
@@ -153,7 +153,7 @@ struct ExegesisHighlightModal: View {
         .buttonStyle(.plain)
     }
 
-    private func snippet(for highlight: ExegesisHighlight) -> String {
+    private func snippet(for highlight: ContentHighlight) -> String {
         let start = max(0, min(highlight.start, plainText.count))
         let end = max(0, min(highlight.end, plainText.count))
         if end <= start { return "Highlight" }

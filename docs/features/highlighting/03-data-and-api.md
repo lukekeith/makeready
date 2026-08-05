@@ -217,7 +217,7 @@ They are part of the contract, not a client detail.
 
 | Rule | Value |
 |---|---|
-| **Granularity** | injected per surface: `verse` (Read editor), `word` (Exegesis editor, Bible reader). Never character. |
+| **Granularity** | injected per surface: **`word` (Read editor, Exegesis editor, Bible reader)**. Never character. *(amended 2026-08-04 — X-q: the Read editor was `verse`, selected by TAPPING a whole verse. Luke asked for tap-and-hold word selection there, matching Exegesis. A phrase inside a verse was previously not expressible on that surface. **Whole-verse tap-to-select is removed, not retained alongside.** Granularity stays injected because `.verse` and `.character` remain implemented and `.verse` is still used by the non-native Exegesis path.)* |
 | **Word snapping** | grow-only, outward from the user's range. `'` `’` `-` are **intra-word** ("Lord's" stays whole). Whitespace and all other punctuation are boundaries. Never trims what the user covered. |
 | **Commit** | on genuine pointer/finger release only. **Never on a timer**, never on a cancelled touch, never on a selection-change debounce. The selection stays live and adjustable until release. |
 | **Saved highlight** | `#F4FF76` @ **0.35** |

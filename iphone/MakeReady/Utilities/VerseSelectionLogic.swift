@@ -93,38 +93,11 @@ enum VerseSelectionLogic {
         return entry.range
     }
 
-    // MARK: - Word Boundary Snapping
-
-    /// Snap a selection range to word boundaries. Returns the snapped range,
-    /// or the original if no snapping was needed.
-    static func snapToWordBoundaries(_ sel: NSRange, in text: NSString) -> NSRange {
-        guard sel.length > 0 else { return sel }
-
-        let isWordChar: (Int) -> Bool = { pos in
-            guard pos >= 0 && pos < text.length else { return false }
-            guard let scalar = Unicode.Scalar(text.character(at: pos)) else { return false }
-            return !CharacterSet.whitespacesAndNewlines.contains(scalar)
-                && !CharacterSet.punctuationCharacters.contains(scalar)
-        }
-
-        var wordStart = sel.location
-        while wordStart > 0 && isWordChar(wordStart - 1) {
-            wordStart -= 1
-        }
-
-        var wordEnd = sel.location + sel.length
-        if wordEnd > 0 && isWordChar(wordEnd - 1) {
-            while wordEnd < text.length && isWordChar(wordEnd) {
-                wordEnd += 1
-            }
-        }
-
-        if wordStart >= wordEnd {
-            return sel
-        }
-
-        return NSRange(location: wordStart, length: wordEnd - wordStart)
-    }
+    // Word-boundary snapping moved to `Services/Highlighting/HighlightSnapping.swift`
+    // (2026-08-04, highlighting phase 4.14). The copy that lived here had ZERO
+    // callers and disagreed with the two that were actually used — it treated
+    // apostrophes as boundaries, so "Lord's" split. There is one implementation
+    // now, with the contract's semantics (03 §5).
 
     // MARK: - Circle Highlight State
 

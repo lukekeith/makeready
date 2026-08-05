@@ -15,6 +15,9 @@ export interface ExegesisHighlightData {
   start: number
   end: number
   noteMarkdown: string
+  /** 03 §1.1 — `highlight` | `bold`. Renderers treat an unknown value as
+   *  `highlight`, matching the iOS `ReadBlockSelectionStyle` fallback. */
+  style: string
 }
 
 export interface ActivityEditorActions {

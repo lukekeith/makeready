@@ -351,11 +351,23 @@ figure and say why. An honest reversal beats a ratchet.
 
 ## 7. Quality gates (per app — phase gate lists draw from here; verify runs them all)
 
+> ⚠️ **Two of the gates below are KNOWN-RED repo-wide and are not a feature's fault.** Verified
+> 2026-08-04 (`docs/features/highlighting/` 09 §G-i, §G-u). Judge a feature on the gates that
+> actually exist, and record these two as BLOCKED with evidence rather than failing verify on them:
+>
+> - **`server: npm run lint` cannot pass — there is no ESLint config anywhere in the repo.** No
+>   `.eslintrc*`, no `eslint.config.*`, no `eslintConfig` key, at `server/` or at the root; ESLint
+>   exits with "couldn't find a configuration file". Use `tsc --noEmit` + `test:run` as the server's
+>   real evidence until someone adds a config.
+> - **`client: npm run guard` reports ~850 violations** across ~40 component stylesheets predating
+>   the design-system migration. A feature's honest claim is the *delta* (run it before and after),
+>   not a green exit.
+
 **Server** (`/server`)
 ```
 cd server && npx tsc --noEmit                 # typecheck (needs `npx prisma generate` on a
                                               # clean checkout — src/generated/prisma must exist)
-cd server && npm run lint                     # eslint, --max-warnings 0
+cd server && npm run lint                     # eslint — ⚠️ BLOCKED repo-wide, see above
 cd server && npm run test:run                 # vitest
 cd server && npm run schema:validate          # when schema/*.yaml changed
 cd server && npm run schema:diff              # generates the Atlas migration
@@ -366,7 +378,8 @@ docker restart makeready-server               # AFTER ANY server/src EDIT — se
 **Client** (`/client`)
 ```
 cd client && npm run build                    # vite build (also required before any capture)
-cd client && npm run guard                    # tokenization guard (design-token compliance)
+cd client && npm test                         # vitest + @vue/test-utils (added 2026-08-04)
+cd client && npm run guard                    # tokenization guard — ⚠️ ~850 pre-existing, see above
 cd client && ./vendor/bin/phpunit             # Laravel Feature + Unit tests
 cd client && npm run story:build              # when Histoire stories changed
 ```

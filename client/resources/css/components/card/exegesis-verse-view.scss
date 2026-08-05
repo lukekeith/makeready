@@ -73,9 +73,11 @@
     display: none;
   }
 
-  // Default highlight — #F4FF76 @ 0.35 over the dark canvas (reads olive).
+  // Default (saved) highlight — #F4FF76 @ 0.35 over the dark canvas (reads
+  // olive). Same token as the Read editor's twin: 03 §5 makes this ONE wash
+  // across every surface, so it gets one definition.
   &__seg--highlight {
-    background-color: rgba(244, 255, 118, 0.35);
+    background-color: var(--color-highlight-saved);
   }
 
   // Preview highlight — solid white wash with black text.
@@ -103,7 +105,7 @@
     cursor: text;
 
     &::selection {
-      background-color: rgba(244, 255, 118, 0.55);
+      background-color: var(--color-highlight-live);
       color: #fff;
     }
   }

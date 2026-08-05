@@ -53,6 +53,12 @@ custom_rules:
   async_after_choreography:
     name: "asyncAfter wall-clock wait"
     regex: 'asyncAfter\(deadline:'
+    # ScrollLockCoordinator waits out UIKit's OWN asynchronous scroll settling,
+    # which offers no completion callback — it is not animation choreography.
+    # The machinery was carried verbatim out of ExegesisVerseView (decided
+    # 2026-08-04, docs/features/highlighting/ 09 §C-c) with its device-tuned
+    # delays intact; every call site funnels through one `dispatch(_:after:)`.
+    excluded: '.*ScrollLockCoordinator\.swift'
     message: "No wall-clock waits for navigation/animation choreography — use withAnimation(_:){} completion:, dismiss(_:then:), or SlideStack onDismissComplete (audit 3.2 / review rule E1). Legitimate timers (e.g. toasts) get baselined consciously."
     severity: error
 

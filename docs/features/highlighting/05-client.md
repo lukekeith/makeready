@@ -1,8 +1,17 @@
 # Client (web)
 
 In scope, but as a **consumer only** (D7): the web reads the converged shape and adopts the new
-colour. It does not gain a highlight-authoring module in this feature — the LeaderApp's authoring
-stays deferred and implements 03 §5's normative rules when it is built.
+colour. This feature builds **no new** highlight-authoring module for the web.
+
+> **Corrected 2026-08-04 (09 §G-v) — the web is not authoring-free, and this doc said it was.**
+> The original wording ("the LeaderApp's authoring stays deferred and implements 03 §5's normative
+> rules when it is built") is wrong: the LeaderApp shipped highlight authoring during the parity
+> project. The read pane has highlight mode + the `.stylePicker` route + `applyStyle`
+> (`edit-read-activity-pane.vue`); the exegesis pane creates highlights from a native selection,
+> edits their notes and deletes them (`edit-exegesis-activity-pane.vue`). So 03 §5's normative
+> rules bind the web **now**, not later — and checking that they actually held is what found
+> **09 §X-o**, a fourth word-snapper that disagreed with the contract. What stays deferred is
+> only *new* authoring surface; what already exists is held to the contract.
 
 ## Member lesson player — the member-facing risk
 

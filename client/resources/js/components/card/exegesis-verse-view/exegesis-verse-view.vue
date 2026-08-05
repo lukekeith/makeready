@@ -33,7 +33,11 @@
 // emit — the iOS ExegesisTextView native-selection debounce equivalent), and
 // a plain click inside an existing highlight emits `tapHighlight`.
 import { computed, ref } from 'vue'
-import { parseVersePositions, type CharRange } from '../../../utils/verse-selection'
+import {
+  parseVersePositions,
+  snapToWordBoundaries,
+  type CharRange,
+} from '../../../utils/verse-selection'
 
 interface Highlight {
   start: number
@@ -182,23 +186,14 @@ const verseGroups = computed<VerseGroup[]>(() => {
 })
 
 // ── Interactive: native selection → word-snapped highlight range ──
-
-// iOS VerseSelectionLogic.snapToWordBoundaries: expand start back to the
-// word's beginning; expand end forward only when it lands mid-word.
-function snapToWordBoundaries(range: CharRange, text: string): CharRange {
-  const isWordChar = (pos: number): boolean => {
-    if (pos < 0 || pos >= text.length) return false
-    return !/[\s\p{P}]/u.test(text[pos])
-  }
-  let start = range.start
-  while (start > 0 && isWordChar(start - 1)) start -= 1
-  let end = range.end
-  if (end > 0 && isWordChar(end - 1)) {
-    while (end < text.length && isWordChar(end)) end += 1
-  }
-  if (start >= end) return range
-  return { start, end }
-}
+//
+// The snapper lives in `utils/verse-selection` (2026-08-04, highlighting phase
+// 5.6): this component used to carry its own copy, and that copy disagreed with
+// the contract on both counts 03 §5 pins down — it treated `'` `’` `-` as
+// boundaries, so "Lord's" snapped to "Lord", and it grew the start backwards
+// whenever a word character preceded the selection, swallowing the previous
+// word when a selection began on a space. One definition now, matching
+// `HighlightSnapping` on iOS.
 
 // Map a DOM point inside a segment span back to a plain-text offset via the
 // span's data-start attribute (only rendered in interactive mode).

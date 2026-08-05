@@ -118,6 +118,19 @@ final class AppState {
     /// Media library items
     let mediaLibrary = EntityStore<MediaLibraryItem>()
 
+    /// Leader-authored highlights on locked read blocks, across BOTH activity
+    /// contexts (03 §2). Server data with identity, read by the Read editor,
+    /// the Exegesis editor and the note editor — so it lives here rather than
+    /// in any one view's `@State` (highlighting phase 4.8).
+    ///
+    /// **Deliberately NOT persisted to disk.** Highlights are fetched when an
+    /// editor opens, and a stale cached span renders a wash over the wrong
+    /// words. Keeping them memory-only also settles 09 §X-f outright: there is
+    /// no old-shape cached payload to fail decoding, so no schema-version bump
+    /// is needed. `ContentHighlight` still defaults a missing `style` on decode,
+    /// which covers the API side of the same risk.
+    let contentHighlights = EntityStore<ContentHighlight>()
+
     /// Organization ID (needed for media library API). Mirrors the first
     /// entry of `userOrganizations` for callers that only need the primary org.
     var organizationId: String?
@@ -782,6 +795,7 @@ final class AppState {
         templates.clear()
         notifications.clear()
         mediaLibrary.clear()
+        contentHighlights.clear()
         memberGroupCardsById = [:]
         nonMembersByOrgId = [:]
         organizationId = nil

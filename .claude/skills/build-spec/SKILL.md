@@ -77,8 +77,14 @@ Stop only for:
    (Step 6). These have answers only the user has.
 2. **A real question raised by the work** — a `D#` the audit surfaced, a contract choice, a
    blocked task. Ask it, in a batch with any siblings, then continue on the answer.
-3. **A bounded unit's edge** — context running low, or the next unit won't land in this window.
-   Checkpoint the ledger and say so.
+3. **Context genuinely running low** — checkpoint the ledger and say so.
+
+**A finished bounded unit is NOT a reason to stop** (Luke, 2026-08-04). Land the task, checkpoint
+the ledger, and take the next one in the same run — through phase closes, through `VERIFIED`
+sign-offs, into the next phase doc, and on to `/build-spec-verify` if you get that far. Keep going
+until one of the three reasons above actually bites. Re-typing the command is not a checkpoint
+mechanism; the ledger is. Narrate progress compactly between units rather than presenting a full
+step-end handoff at each one — the full handoff belongs at the actual stop.
 
 Everything else is the pipeline's own business. So the intended rhythm is exactly:
 `/build-spec <feature>` → it works → it asks what it genuinely needs → you answer →

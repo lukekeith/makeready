@@ -566,13 +566,31 @@ export const useLeaderProgram = defineStore('leader-program', () => {
   // block's `selections` ({start,end,style:'highlight'}) after every
   // create/delete, so we refresh the block locally the same way.
 
+  // Moved off the legacy `…/exegesis-highlights` alias onto the contract path
+  // (03 §2, highlighting phase 5.5). The aliases still exist for shipped iPhone
+  // builds, but they keep the strict EXEGESIS-only gate — so they 400 on a READ
+  // activity, and they omit `blockIds`, `absorbedIds` and `style`. New client
+  // code has no reason to be on them.
   async function fetchExegesisHighlights(
     activityId: string,
-  ): Promise<Array<{ id: string; start: number; end: number; noteMarkdown: string }>> {
-    const res = await axios.get(`/admin/api/activities/${activityId}/exegesis-highlights`)
-    const raw: Array<{ id: string; start: number; end: number; noteMarkdown?: string | null }> =
-      res.data?.highlights ?? []
-    return raw.map((h) => ({ id: h.id, start: h.start, end: h.end, noteMarkdown: h.noteMarkdown ?? '' }))
+  ): Promise<Array<{ id: string; start: number; end: number; noteMarkdown: string; style: string }>> {
+    const res = await axios.get(`/admin/api/activities/${activityId}/highlights`)
+    const raw: Array<{
+      id: string
+      start: number
+      end: number
+      noteMarkdown?: string | null
+      style?: string | null
+    }> = res.data?.highlights ?? []
+    return raw.map((h) => ({
+      id: h.id,
+      start: h.start,
+      end: h.end,
+      noteMarkdown: h.noteMarkdown ?? '',
+      // 03 §1.1: the column defaults to "highlight"; an older payload that
+      // omits it renders as a highlight rather than losing the wash.
+      style: h.style ?? 'highlight',
+    }))
   }
 
   async function createExegesisHighlight(
@@ -581,8 +599,14 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     blockId: string,
     range: { start: number; end: number },
     noteMarkdown = '',
-  ): Promise<{ id: string; start: number; end: number; noteMarkdown: string } | null> {
-    const res = await axios.post(`/admin/api/activities/${activityId}/exegesis-highlights`, {
+  ): Promise<{
+    id: string
+    start: number
+    end: number
+    noteMarkdown: string
+    style: string
+  } | null> {
+    const res = await axios.post(`/admin/api/activities/${activityId}/highlights`, {
       readBlockId: blockId,
       start: range.start,
       end: range.end,
@@ -602,7 +626,13 @@ export const useLeaderProgram = defineStore('leader-program', () => {
           : b,
       ),
     }))
-    return { id: h.id, start: h.start, end: h.end, noteMarkdown: h.noteMarkdown ?? '' }
+    return {
+      id: h.id,
+      start: h.start,
+      end: h.end,
+      noteMarkdown: h.noteMarkdown ?? '',
+      style: h.style ?? 'highlight',
+    }
   }
 
   async function updateExegesisHighlightNote(
@@ -610,7 +640,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     highlightId: string,
     noteMarkdown: string,
   ): Promise<void> {
-    await axios.patch(`/admin/api/activities/${activityId}/exegesis-highlights/${highlightId}`, {
+    await axios.patch(`/admin/api/activities/${activityId}/highlights/${highlightId}`, {
       noteMarkdown,
     })
   }
@@ -621,7 +651,7 @@ export const useLeaderProgram = defineStore('leader-program', () => {
     blockId: string,
     highlight: { id: string; start: number; end: number },
   ): Promise<void> {
-    await axios.delete(`/admin/api/activities/${activityId}/exegesis-highlights/${highlight.id}`)
+    await axios.delete(`/admin/api/activities/${activityId}/highlights/${highlight.id}`)
     replaceActivity(lessonId, undefined, activityId, (a) => ({
       ...a,
       readBlocks: a.readBlocks.map((b) =>
