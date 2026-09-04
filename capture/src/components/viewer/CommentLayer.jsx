@@ -9,7 +9,7 @@ import Thread from './Thread.jsx';
 export default function CommentLayer({
   platform, viewport, comments, numberOf, commentMode, draft, inv,
   onPlace, onSubmitDraft, onCancelDraft, selectedId, onSelect,
-  canEdit, onReply, onResolve, onDelete,
+  canEdit, onReply, onResolve, onDelete, hoverBox,
 }) {
   const [draftVal, setDraftVal] = useState('');
   useEffect(() => { setDraftVal(''); }, [draft?.x, draft?.y, draft?.platform]);
@@ -32,6 +32,13 @@ export default function CommentLayer({
 
   return (
     <div className={`cmp-commentlayer${commentMode ? ' cmp-commentlayer--placing' : ''}`} onClick={handleClick}>
+      {commentMode && !draft && !selectedId && hoverBox && (
+        <div
+          className="cmp-target-box cmp-target-box--hover"
+          style={{ left: `${hoverBox.x * 100}%`, top: `${hoverBox.y * 100}%`, width: `${hoverBox.w * 100}%`, height: `${hoverBox.h * 100}%` }}
+          aria-hidden="true"
+        />
+      )}
       {(selectedBox || draftBox) && (() => {
         const r = draftBox || selectedBox;
         return <div className="cmp-target-box" style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }} aria-hidden="true" />;

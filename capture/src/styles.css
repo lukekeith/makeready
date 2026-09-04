@@ -2028,3 +2028,7 @@ html {
 .cmp-cb-wiring__check.is-ok .cmp-cb-wiring__mark { color: #4ade80; }
 .cmp-cb-wiring__hint { display: block; font-size: 11px; color: var(--text-dim); margin-top: 2px; }
 .cmp-cb-col--render .cmp-log--docked { position: static; margin: 0; border-top: 1px solid var(--border); }
+
+/* Components browser: hover element highlight (hit-tested against the
+   hidden web-twin iframe) — lighter than the pinned target box. */
+.cmp-target-box--hover { border-style: dashed; background: rgba(74, 222, 128, 0.06); }

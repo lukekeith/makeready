@@ -1,6 +1,6 @@
 // Column 3 — pan/zoom render + version timeline + recapture (07 §3.3/§3.4).
 // The ZoomPane is the shared controlled viewer; this host owns view state (CR6).
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ZoomPane from '../../components/viewer/ZoomPane.jsx';
 import VersionTimeline from './VersionTimeline.jsx';
 import DevicePicker from './DevicePicker.jsx';
@@ -11,8 +11,21 @@ export default function RenderPane({
   detail, detailError, variant, viewport, onViewport,
   versionId, onSelectVersion, vdata, shotsVersion,
   capturing, log, onRecapture, commentApi,
+  onHoverInspect, onClearInspect, hoverBox,
 }) {
   const [view, setView] = useState({ scale: 1, cx: 0.5, cy: 0.5 });
+  const [capMenuOpen, setCapMenuOpen] = useState(false);
+  const capMenuRef = useRef(null);
+
+  // Close the recapture split-button menu on outside click or Escape.
+  useEffect(() => {
+    if (!capMenuOpen) return;
+    const onDown = (e) => { if (!capMenuRef.current?.contains(e.target)) setCapMenuOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setCapMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [capMenuOpen]);
   const [hover, setHover] = useState(null);
   const [natural, setNatural] = useState({ iphone: null });
   const resetView = useCallback(() => setView({ scale: 1, cx: 0.5, cy: 0.5 }), []);
@@ -61,6 +74,7 @@ export default function RenderPane({
     onReply: commentApi.onReply,
     onResolve: commentApi.onResolve,
     onDelete: commentApi.onDelete,
+    hoverBox,
   };
 
   return (
@@ -79,9 +93,35 @@ export default function RenderPane({
             >
               {commentApi.commentMode ? 'Commenting…' : 'Comment'}
             </button>
-            <button className="btn btn--primary" onClick={onRecapture} disabled={capturing}>
-              {capturing ? 'Capturing…' : 'Recapture'}
-            </button>
+            <div className="cmp-capsplit" ref={capMenuRef}>
+              <button className="btn btn--primary cmp-capsplit__main" onClick={() => onRecapture()} disabled={capturing}>
+                {capturing ? 'Capturing…' : 'Recapture'}
+              </button>
+              <button
+                className="btn btn--primary cmp-capsplit__caret"
+                onClick={() => setCapMenuOpen((o) => !o)}
+                disabled={capturing}
+                aria-haspopup="menu"
+                aria-expanded={capMenuOpen}
+                title="Recapture options"
+              >
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {capMenuOpen && (
+                <div className="cmp-capsplit__menu" role="menu">
+                  <button className="cmp-capsplit__item" role="menuitem" onClick={() => { setCapMenuOpen(false); onRecapture(); }}>
+                    <span className="cmp-capsplit__item-name">Recapture variant</span>
+                    <span className="cmp-capsplit__item-sub">{variant.name}</span>
+                  </button>
+                  <button className="cmp-capsplit__item" role="menuitem" onClick={() => { setCapMenuOpen(false); onRecapture({ allVariants: true }); }}>
+                    <span className="cmp-capsplit__item-name">Recapture all variants</span>
+                    <span className="cmp-capsplit__item-sub">{detail.variants?.length ? `${detail.variants.length} total` : 'whole component'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </>
         )}
       </div>
@@ -104,13 +144,15 @@ export default function RenderPane({
             setHover={setHover}
             capturing={capturing}
             commentMode={commentApi.commentMode}
+            onHoverInspect={onHoverInspect}
+            onClearInspect={onClearInspect}
             {...commentProps}
           />
         </div>
       ) : (
         <div className="cmp-cb-col__empty">
           never captured
-          {detail.canCapture && <div style={{ marginTop: 10 }}><button className="btn btn--primary" onClick={onRecapture} disabled={capturing}>{capturing ? 'Capturing…' : 'Capture now'}</button></div>}
+          {detail.canCapture && <div style={{ marginTop: 10 }}><button className="btn btn--primary" onClick={() => onRecapture()} disabled={capturing}>{capturing ? 'Capturing…' : 'Capture now'}</button></div>}
         </div>
       )}
 

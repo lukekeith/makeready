@@ -133,11 +133,87 @@ export default function ComponentsLayout() {
     return () => { clearTimeout(timer); socket.close(); };
   }, [bumpShots]);
 
+  // ── Element hit-testing (ported from CompareDetail): a HIDDEN live web-twin
+  // iframe is the hit-test oracle — hovering in comment mode outlines the
+  // element under the cursor on the shot, and a placed pin records
+  // targetSelector/targetLabel/targetMeta. No Vue twin → quietly disabled.
+  const webIframeRef = useRef(null);
+  const inspectWaiters = useRef(new Map());
+  const inspectReq = useRef(0);
+  const lastHoverRef = useRef(0);
+  const [webNat, setWebNat] = useState(null); // hidden iframe CSS box {w,h}
+  const [hoverTarget, setHoverTarget] = useState(null);
+  const webLive = vdata?.webLive ?? null;
+
+  useEffect(() => {
+    const onMsg = (e) => {
+      const m = e.data;
+      if (!m || typeof m !== 'object') return;
+      if (m.type === 'capture-inspected') {
+        const w = inspectWaiters.current.get(m.reqId);
+        if (w) { inspectWaiters.current.delete(m.reqId); w(m.target); }
+      } else if (m.type === 'capture-size') {
+        // The live harness posts its rendered height; keep the hidden iframe's
+        // box at the device width so fractions line up with the iPhone shot.
+        const width = detail?.viewportDimensions?.[viewport]?.width ?? 440;
+        const h = Math.max(1, Math.round(m.height));
+        setWebNat((n) => (n && n.w === width && n.h === h ? n : { w: width, h }));
+      }
+    };
+    window.addEventListener('message', onMsg);
+    return () => window.removeEventListener('message', onMsg);
+  }, [detail, viewport]);
+
+  // Seed the box at the device width; capture-size refines the height.
+  useEffect(() => {
+    if (!webLive) { setWebNat(null); return; }
+    const w = detail?.viewportDimensions?.[viewport]?.width ?? 440;
+    setWebNat((n) => (n ?? { w, h: Math.round(w * 0.6) }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [webLive?.url, viewport]);
+
+  const postInspect = (fx, fy, reqId) => {
+    const iframe = webIframeRef.current;
+    if (!iframe?.contentWindow || !webNat) return false;
+    iframe.contentWindow.postMessage({ type: 'capture-inspect', reqId, x: fx * webNat.w, y: fy * webNat.h }, '*');
+    return true;
+  };
+  const inspectWeb = (fx, fy) => new Promise((resolve) => {
+    const reqId = ++inspectReq.current;
+    if (!postInspect(fx, fy, reqId)) { resolve(null); return; }
+    const t = setTimeout(() => { inspectWaiters.current.delete(reqId); resolve(null); }, 600);
+    inspectWaiters.current.set(reqId, (target) => { clearTimeout(t); resolve(target); });
+  });
+  const clearInspect = useCallback(() => {
+    webIframeRef.current?.contentWindow?.postMessage({ type: 'capture-inspect-clear' }, '*');
+    setHoverTarget(null);
+  }, []);
+  // Hover highlight (throttled). Suspended while a draft composer or a thread
+  // is open — the target box stays pinned to that comment's element instead.
+  const hoverInspect = (fx, fy) => {
+    if (draftPin || selectedCommentId) return;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+    if (now - lastHoverRef.current < 40) return;
+    lastHoverRef.current = now;
+    inspectWeb(fx, fy).then((target) => setHoverTarget(target));
+  };
+  useEffect(() => { if (!commentMode || draftPin || selectedCommentId) clearInspect(); }, [commentMode, draftPin, selectedCommentId, clearInspect]);
+
   // ── Comments (anchored to the VIEWED version's screenshot — DB-2) ──
   const canComment = !!detail?.canCapture && !!vdata?.shot;
   const refreshComments = useCallback(async () => { await loadVdata(); await loadDetail(); loadTree(); }, [loadVdata, loadDetail, loadTree]);
 
-  const placeDraft = (platform, vp, x, y) => { setSelectedCommentId(null); setDraftPin({ platform, viewport: vp, x, y }); };
+  const placeDraft = (platform, vp, x, y) => {
+    setSelectedCommentId(null);
+    const hasLive = !!(webLive && webIframeRef.current);
+    // target: null = "resolving…"; resolved to undefined when nothing was hit
+    // (or there's no twin) so the draft chip disappears instead of sticking.
+    setDraftPin({ platform, viewport: vp, x, y, ...(hasLive ? { target: null } : {}) });
+    if (!hasLive) return;
+    inspectWeb(x, y).then((target) => {
+      setDraftPin((d) => (d && d.x === x && d.y === y && d.platform === platform && d.viewport === vp ? { ...d, target: target ?? undefined } : d));
+    });
+  };
   const submitDraft = async (text) => {
     if (!draftPin || !detail?.comparisonId) return;
     try {
@@ -150,8 +226,13 @@ export default function ComponentsLayout() {
         screenshotId: vdata?.screenshotId ?? undefined,
         text,
         source: 'user',
+        targetSelector: draftPin.target?.selector,
+        targetLabel: draftPin.target?.label,
+        targetMeta: draftPin.target
+          ? { rect: draftPin.target.rect, tag: draftPin.target.tag, text: draftPin.target.text, styles: draftPin.target.styles }
+          : undefined,
       });
-      setDraftPin(null); setCommentMode(false);
+      setDraftPin(null); setCommentMode(false); clearInspect();
       await refreshComments();
     } catch { /* keep the draft so the text isn't lost */ }
   };
@@ -164,11 +245,12 @@ export default function ComponentsLayout() {
   };
 
   // ── Recapture (always platform:"iphone" — CR10) ──
-  const runCapture = async () => {
+  const runCapture = async ({ allVariants = false } = {}) => {
     if (capturing || !detail?.comparisonId || !activeVariant) return;
     setLog([]); setCapturing(true);
     try {
-      const { runId } = await startCompareCapture({ id: detail.comparisonId, viewport, platform: 'iphone', variant: activeVariant.name });
+      // This variant, or "*" to recapture every variant of the component.
+      const { runId } = await startCompareCapture({ id: detail.comparisonId, viewport, platform: 'iphone', variant: allVariants ? '*' : activeVariant.name });
       unsubRef.current = subscribeCapture(runId, {
         onLine: (line) => setLog((p) => [...p, line]),
         onDone: () => { setCapturing(false); bumpShots(); },
@@ -252,6 +334,9 @@ export default function ComponentsLayout() {
           log={log}
           onRecapture={runCapture}
           commentApi={commentApi}
+          onHoverInspect={hoverInspect}
+          onClearInspect={clearInspect}
+          hoverBox={hoverTarget?.rect ?? null}
         />
 
         <SidePanel
@@ -264,6 +349,18 @@ export default function ComponentsLayout() {
           onSaveFixture={saveFixture}
         />
       </div>
+
+      {/* Hidden live web twin — hit-test oracle for element-targeted comments. */}
+      {webLive?.url && (
+        <iframe
+          ref={webIframeRef}
+          src={webLive.url}
+          title="web twin hit-test"
+          aria-hidden="true"
+          tabIndex={-1}
+          style={{ position: 'fixed', left: -10000, top: 0, width: webNat?.w ?? 440, height: webNat?.h ?? 600, border: 0, pointerEvents: 'none' }}
+        />
+      )}
     </div>
   );
 }

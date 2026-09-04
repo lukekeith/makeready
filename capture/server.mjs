@@ -1075,11 +1075,15 @@ app.get('/api/components/version/:vid', async (req, res) => {
     if (!v) return res.status(404).json({ error: 'Version not found' });
     const shots = await versionShots(v);
     const comments = await listCommentsForVariant(v.comparisonId, v.variantName, v.viewport);
+    const spec = await loadComparison(v.comparisonId);
     res.json({
       versionId: v.id, comparisonId: v.comparisonId, variantName: v.variantName,
       viewport: v.viewport, capturedAt: v.capturedAt, gitSha: v.gitSha,
       shot: shotUrlFromPath(shots.iphone?.path), screenshotId: shots.iphone?.id ?? null,
       sharedData: v.sharedData,
+      // Live web twin (loaded as a hidden hit-test iframe by the browser) —
+      // powers element-targeted comments; null when there's no Vue twin.
+      webLive: spec && !spec.error ? webLiveFor(spec, v.sharedData) : null,
       comments: comments.map((c) => ({ ...c, onThisVersion: c.versionId === v.id })),
     });
   } catch (err) {
