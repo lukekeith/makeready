@@ -2,10 +2,25 @@
 // Route: /components/* (React Router v6 splat, G2). The splat parses as
 // <component-path>[/<variant>]: the longest prefix resolving to a component in
 // the fs tree is the path; a trailing extra segment is the variant.
+//
+// This host owns (like CompareDetail does for /compare): the version-locked
+// payload (render + comments), comment mode/draft/selection, the capture run,
+// and the keybindings — the viewer components stay controlled (CR6).
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, useNavigate, useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { fetchComponentsTree, fetchComponentDetail } from '../../api.js';
+import {
+  fetchComponentsTree,
+  fetchComponentDetail,
+  fetchComponentVersion,
+  saveComponentFixture,
+  addComment,
+  replyComment,
+  resolveComment,
+  deleteComment,
+  startCompareCapture,
+  subscribeCapture,
+} from '../../api.js';
 import ComponentTree from './ComponentTree.jsx';
 import VariantList from './VariantList.jsx';
 import RenderPane from './RenderPane.jsx';
@@ -45,8 +60,19 @@ export default function ComponentsLayout() {
   const [detailError, setDetailError] = useState(null);
   const [viewport, setViewport] = useState(null);
   const [versionId, setVersionId] = useState(null); // null = current
+  const [vdata, setVdata] = useState(null); // version-locked payload (render + comments)
   const [liveConnected, setLiveConnected] = useState(false);
   const [shotsVersion, setShotsVersion] = useState(() => Date.now());
+
+  // Comment state (host-owned, CR6)
+  const [commentMode, setCommentMode] = useState(false);
+  const [draftPin, setDraftPin] = useState(null);
+  const [selectedCommentId, setSelectedCommentId] = useState(null);
+
+  // Capture run
+  const [log, setLog] = useState([]);
+  const [capturing, setCapturing] = useState(false);
+  const unsubRef = useRef(null);
 
   const byPath = useMemo(() => indexTree(treeData?.tree), [treeData]);
   const { path, variant } = useMemo(() => parseSplat(splat, byPath), [splat, byPath]);
@@ -77,8 +103,22 @@ export default function ComponentsLayout() {
     }
   }, [path, variant, detail, navigate]);
 
-  // Reset the version selection when the target changes.
-  useEffect(() => { setVersionId(null); }, [path, variant, viewport]);
+  const activeVariant = useMemo(() => {
+    if (!detail?.variants?.length) return null;
+    return detail.variants.find((v) => v.name === variant) ?? detail.variants[0];
+  }, [detail, variant]);
+
+  // Reset version + comment state when the target changes.
+  useEffect(() => { setVersionId(null); setSelectedCommentId(null); setDraftPin(null); setCommentMode(false); }, [path, variant, viewport]);
+
+  // The version-locked payload: selected old version, or the current one.
+  const activeVersionId = versionId ?? activeVariant?.versions?.[0]?.versionId ?? null;
+  const loadVdata = useCallback(async () => {
+    if (!activeVersionId) { setVdata(null); return; }
+    try { setVdata(await fetchComponentVersion(activeVersionId)); }
+    catch { setVdata(null); }
+  }, [activeVersionId]);
+  useEffect(() => { loadVdata(); }, [loadVdata, shotsVersion]);
 
   // Live updates: any finished capture refreshes the detail + tree badges.
   const bumpShots = useCallback(() => { setShotsVersion(Date.now()); loadTree(); }, [loadTree]);
@@ -93,13 +133,84 @@ export default function ComponentsLayout() {
     return () => { clearTimeout(timer); socket.close(); };
   }, [bumpShots]);
 
+  // ── Comments (anchored to the VIEWED version's screenshot — DB-2) ──
+  const canComment = !!detail?.canCapture && !!vdata?.shot;
+  const refreshComments = useCallback(async () => { await loadVdata(); await loadDetail(); loadTree(); }, [loadVdata, loadDetail, loadTree]);
+
+  const placeDraft = (platform, vp, x, y) => { setSelectedCommentId(null); setDraftPin({ platform, viewport: vp, x, y }); };
+  const submitDraft = async (text) => {
+    if (!draftPin || !detail?.comparisonId) return;
+    try {
+      await addComment(detail.comparisonId, {
+        variantName: vdata?.variantName ?? activeVariant?.name ?? 'default',
+        platform: 'iphone',
+        viewport: draftPin.viewport,
+        x: draftPin.x,
+        y: draftPin.y,
+        screenshotId: vdata?.screenshotId ?? undefined,
+        text,
+        source: 'user',
+      });
+      setDraftPin(null); setCommentMode(false);
+      await refreshComments();
+    } catch { /* keep the draft so the text isn't lost */ }
+  };
+  const onReply = async (commentId, text) => { await replyComment(detail.comparisonId, commentId, text, 'user'); await refreshComments(); };
+  const onResolve = async (c) => { await resolveComment(detail.comparisonId, c.id, !c.resolved); await refreshComments(); };
+  const onDelete = async (commentId) => {
+    if (selectedCommentId === commentId) setSelectedCommentId(null);
+    await deleteComment(detail.comparisonId, commentId);
+    await refreshComments();
+  };
+
+  // ── Recapture (always platform:"iphone" — CR10) ──
+  const runCapture = async () => {
+    if (capturing || !detail?.comparisonId || !activeVariant) return;
+    setLog([]); setCapturing(true);
+    try {
+      const { runId } = await startCompareCapture({ id: detail.comparisonId, viewport, platform: 'iphone', variant: activeVariant.name });
+      unsubRef.current = subscribeCapture(runId, {
+        onLine: (line) => setLog((p) => [...p, line]),
+        onDone: () => { setCapturing(false); bumpShots(); },
+        onError: () => setCapturing(false),
+      });
+    } catch (err) {
+      setCapturing(false);
+      setLog((p) => [...p, `Error: ${err.message}`]);
+    }
+  };
+  useEffect(() => () => unsubRef.current?.(), []);
+
+  // ── Data editor save (D8) ──
+  const saveFixture = async (shared, { recapture = false } = {}) => {
+    await saveComponentFixture(detail.path, activeVariant?.name ?? 'default', shared);
+    await loadDetail();
+    if (recapture) await runCapture();
+  };
+
+  // ── Keybindings (host-owned, CR6): c = comment mode, Esc = cancel ──
+  useEffect(() => {
+    const onKey = (e) => {
+      const el = e.target;
+      const typing = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable);
+      if (e.key === 'Escape') { setCommentMode(false); setDraftPin(null); setSelectedCommentId(null); return; }
+      if (typing) return;
+      if ((e.key === 'c' || e.key === 'C') && canComment) { setCommentMode((m) => !m); setDraftPin(null); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [canComment]);
+
   const selectComponent = (node) => navigate(`/components/${node.path}`);
   const selectVariant = (name) => navigate(`/components/${path}/${encodeURIComponent(name)}`);
 
-  const activeVariant = useMemo(() => {
-    if (!detail?.variants?.length) return null;
-    return detail.variants.find((v) => v.name === variant) ?? detail.variants[0];
-  }, [detail, variant]);
+  const commentApi = {
+    comments: vdata?.comments ?? [],
+    commentMode, setCommentMode,
+    draftPin, placeDraft, submitDraft, cancelDraft: () => setDraftPin(null),
+    selectedCommentId, setSelectedCommentId,
+    canComment, onReply, onResolve, onDelete,
+  };
 
   return (
     <div className="layout cmp-cb">
@@ -135,16 +246,22 @@ export default function ComponentsLayout() {
           onViewport={setViewport}
           versionId={versionId}
           onSelectVersion={setVersionId}
+          vdata={vdata}
           shotsVersion={shotsVersion}
-          onCaptured={bumpShots}
+          capturing={capturing}
+          log={log}
+          onRecapture={runCapture}
+          commentApi={commentApi}
         />
 
         <SidePanel
           detail={detail}
           variant={activeVariant}
-          viewport={viewport}
-          versionId={versionId}
-          onChanged={bumpShots}
+          activeVersionId={activeVersionId}
+          currentVersionId={activeVariant?.versions?.[0]?.versionId ?? null}
+          onSelectVersion={setVersionId}
+          commentApi={commentApi}
+          onSaveFixture={saveFixture}
         />
       </div>
     </div>

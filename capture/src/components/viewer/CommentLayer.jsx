@@ -68,9 +68,11 @@ export default function CommentLayer({
         <div className="cmp-pin" style={{ left: `${draft.x * 100}%`, top: `${draft.y * 100}%`, transform: `scale(${inv})`, transformOrigin: '0 0' }}>
           <span className="cmp-pin__dot cmp-pin__dot--draft">•</span>
           <div className={`cmp-pop cmp-pop--${draft.x > 0.55 ? 'left' : 'right'}`} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
-            <div className="cmp-target-chip cmp-target-chip--draft" title={draft.target?.selector}>
-              {draft.target ? `◎ ${draft.target.label}` : '◎ resolving element…'}
-            </div>
+            {draft.target !== undefined && (
+              <div className="cmp-target-chip cmp-target-chip--draft" title={draft.target?.selector}>
+                {draft.target ? `◎ ${draft.target.label}` : '◎ resolving element…'}
+              </div>
+            )}
             <textarea className="cmp-thread__input" autoFocus placeholder="Add a comment…" value={draftVal}
               onChange={(e) => setDraftVal(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') onCancelDraft(); if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && draftVal.trim()) onSubmitDraft(draftVal.trim()); }} />

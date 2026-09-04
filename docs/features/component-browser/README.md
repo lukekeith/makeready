@@ -17,7 +17,7 @@ filesystem index.
 | audit | ✅ CLEAN (pass 4, 2026-09-04) |
 | decisions | ✅ (no open rows) |
 | plan | ✅ (4 phase docs, 2026-09-04) |
-| build | 🔄 2/4 |
+| build | 🔄 3/4 |
 | verify | ⬜ |
 | sign-off | ⬜ |
 
@@ -27,7 +27,7 @@ filesystem index.
 |---|---|---|---|
 | 1 — Backend (fs index, retention, routes, MCP) | capture | [10-phase-1-capture-backend.md](10-phase-1-capture-backend.md) | ✅ VERIFIED 2026-09-04 |
 | 2 — Browser shell (viewer extraction, tree, variants) | capture | [11-phase-2-capture-browser-shell.md](11-phase-2-capture-browser-shell.md) | ✅ VERIFIED 2026-09-04 |
-| 3 — Browser detail (render, versions, comments, data) | capture | [12-phase-3-capture-browser-detail.md](12-phase-3-capture-browser-detail.md) | ⬜ |
+| 3 — Browser detail (render, versions, comments, data) | capture | [12-phase-3-capture-browser-detail.md](12-phase-3-capture-browser-detail.md) | ✅ VERIFIED 2026-09-04 |
 | 4 — Command + E2E | capture (+ root .claude) | [13-phase-4-command-and-e2e.md](13-phase-4-command-and-e2e.md) | ⬜ |
 
 ## Doc index
