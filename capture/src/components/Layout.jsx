@@ -120,6 +120,8 @@ export default function Layout() {
               {plat.title}
             </NavLink>
           ))}
+          <NavLink to="/compare" className="layout__platform-tab">Compare</NavLink>
+          <NavLink to="/components" className="layout__platform-tab">Components</NavLink>
         </div>
 
         {canCapture && (

@@ -73,3 +73,11 @@ code reads (single-app feature, no consumer-parity surface); E's flow-walk produ
 | 8 | Language lint | ✅ banned-vagueness grep clean; R1–R10 present in 01 AND 08 traceability (both directions) |
 
 Skipped: none. No live executions performed (existence + read verification only, per the skill).
+
+## Post-verify delta — 2026-09-04 (user request)
+
+Nav reachability: the Components tab now appears in EVERY capture UI header — added to the
+platform pages' `Layout.jsx` (which also lacked a Compare tab; added for consistency) and to
+`CompareLayout.jsx`; the root PlatformPicker gained a Components card. Verified in-browser on
+`/iphone`, `/` (and `/components`/`/compare` already had the full tab row). Scope: three
+header/picker markup blocks only; no route or contract change.

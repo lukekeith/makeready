@@ -41,6 +41,17 @@ export default function PlatformPicker() {
           <div className="platform-card__title">Compare</div>
           <div className="platform-card__sub">iPhone vs Web, same data</div>
         </Link>
+        <Link to="/components" className="platform-card platform-card--compare">
+          <div className="platform-card__icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+              <line x1="8" y1="13" x2="16" y2="13" />
+              <line x1="8" y1="17" x2="13" y2="17" />
+            </svg>
+          </div>
+          <div className="platform-card__title">Components</div>
+          <div className="platform-card__sub">iPhone component browser</div>
+        </Link>
       </div>
     </div>
   );

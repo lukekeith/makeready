@@ -242,6 +242,7 @@ export default function CompareLayout() {
             <NavLink to="/client" className="layout__platform-tab">Web</NavLink>
             <NavLink to="/iphone" className="layout__platform-tab">iPhone</NavLink>
             <NavLink to="/compare" className="layout__platform-tab layout__platform-tab--active">Compare</NavLink>
+            <NavLink to="/components" className="layout__platform-tab">Components</NavLink>
           </div>
           {activeRun && (
             <div className="layout__capture-group">
