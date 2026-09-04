@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -n server,vite -c blue,green 'node server.mjs' 'vite'",
+    "test": "node --test test/*.test.mjs",
     "server": "node server.mjs",
     "build": "vite build",
     "preview": "vite preview",

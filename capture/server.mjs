@@ -35,6 +35,9 @@ import {
   setAdapterResolver,
 } from './runners/compare/lib.mjs';
 import { buildInventory, queryInventory } from './runners/compare/inventory.mjs';
+import { saveVariantShared } from './runners/compare/lib.mjs';
+import { buildIndex, ScopeError, kebab, makereadyRoot as repoRoot } from './lib/fs-index.mjs';
+import { buildScopePayload } from './lib/comment-payload.mjs';
 import {
   syncComparison,
   getComparison,
@@ -976,6 +979,142 @@ if (!isProduction) {
       await deleteComment(req.params.cid);
       res.json({ ok: true });
     } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
+
+
+// ── Components browser (docs/features/component-browser — 03 §2) ──
+
+const repoRel = (absPath) => path.relative(repoRoot, absPath);
+
+function wiringPayload(node) {
+  const missing = ['fixture', 'adapter', 'registry'].filter((k) => !node.wired[k]);
+  return { missing, addCommand: `/capture-add ${kebab(node.name)}` };
+}
+
+// 03 §2.1 — the fs-indexed tree with per-component wiring, counts, thumbnails.
+app.get('/api/components/tree', async (_req, res) => {
+  try {
+    const index = await buildIndex();
+    const annotate = async (node) => {
+      if (node.type === 'folder') {
+        return { type: 'folder', name: node.name, path: node.path, children: await Promise.all(node.children.map(annotate)) };
+      }
+      let unresolvedComments = 0;
+      let thumbnail = null;
+      if (node.comparisonId) {
+        unresolvedComments = (await summarize(node.comparisonId)).unresolved;
+        const latest = await latestScreenshots(node.comparisonId, node.viewports[0]);
+        thumbnail = shotUrlFromPath(latest.iphone?.path);
+      }
+      return {
+        type: 'component', name: node.name, path: node.path, file: repoRel(node.file),
+        comparisonId: node.comparisonId, wired: node.wired, isWired: node.isWired,
+        collision: node.collision, variantCount: node.variantCount,
+        unresolvedComments, thumbnail,
+      };
+    };
+    res.json({ root: 'iphone/MakeReady/Components', tree: await Promise.all(index.tree.map(annotate)) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 03 §2.2 — component detail: variants + viewport-scoped version timelines.
+app.get('/api/components/detail', async (req, res) => {
+  try {
+    const p = String(req.query.path ?? '');
+    const index = await buildIndex();
+    const node = index.byPath.get(p);
+    if (!node || node.type !== 'component') return res.status(404).json({ error: 'unknown path' });
+    const viewport = (req.query.viewport && COMPARE_VIEWPORTS[req.query.viewport]) ? req.query.viewport : 'pro-max';
+    const base = {
+      path: node.path, name: node.name, comparisonId: node.comparisonId,
+      wired: node.wired, collision: node.collision, file: repoRel(node.file),
+      fixtureFile: node.fixtureFile, viewports: node.viewports, viewport,
+      commands: { resolve: `/component-resolve ${node.path}` },
+      canCapture: !isProduction,
+      viewportDimensions: COMPARE_VIEWPORTS,
+    };
+    if (!node.isWired) {
+      return res.json({ ...base, variants: [], wiring: wiringPayload(node) });
+    }
+    const spec = await loadComparison(node.comparisonId);
+    if (!spec || spec.error) return res.status(500).json({ error: spec?.error ?? 'fixture went missing' });
+    await syncComparison(spec);
+    const variants = [];
+    for (const v of getVariants(spec)) {
+      const comments = await listCommentsForVariant(spec.id, v.name, viewport);
+      const versions = (await listVersions(spec.id, { variantName: v.name, viewport, withScreenshots: true })).map((ver) => {
+        const iShot = ver.screenshots.find((sc) => sc.platform === 'iphone') ?? null;
+        return {
+          versionId: ver.id, capturedAt: ver.capturedAt, viewport: ver.viewport,
+          gitSha: ver.gitSha, gitDirty: ver.gitDirty,
+          shot: shotUrlFromPath(iShot?.path), screenshotId: iShot?.id ?? null,
+          unresolvedComments: comments.filter((c) => c.versionId === ver.id && !c.resolved).length,
+        };
+      });
+      variants.push({
+        name: v.name, shared: v.shared,
+        unresolvedComments: comments.filter((c) => !c.resolved).length,
+        versions,
+      });
+    }
+    res.json({ ...base, variants });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 03 §2.3 — a version-locked render + the variant's comments (this viewport, all versions).
+app.get('/api/components/version/:vid', async (req, res) => {
+  try {
+    const v = await getVersion(req.params.vid);
+    if (!v) return res.status(404).json({ error: 'Version not found' });
+    const shots = await versionShots(v);
+    const comments = await listCommentsForVariant(v.comparisonId, v.variantName, v.viewport);
+    res.json({
+      versionId: v.id, comparisonId: v.comparisonId, variantName: v.variantName,
+      viewport: v.viewport, capturedAt: v.capturedAt, gitSha: v.gitSha,
+      shot: shotUrlFromPath(shots.iphone?.path), screenshotId: shots.iphone?.id ?? null,
+      sharedData: v.sharedData,
+      comments: comments.map((c) => ({ ...c, onThisVersion: c.versionId === v.id })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 03 §2.5 — scope resolution (the MCP resolve_scope tool's HTTP twin; curl gate).
+app.get('/api/components/scope', async (req, res) => {
+  try {
+    res.json(await buildScopePayload(String(req.query.scope ?? '')));
+  } catch (err) {
+    if (err instanceof ScopeError) {
+      return res.status(err.code === 'not-found' ? 404 : 409).json({ error: err.message, code: err.code, paths: err.paths });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 03 §2.4 — fixture write (dev-only, like the other mutating routes).
+if (!isProduction) {
+  app.put('/api/components/fixture', async (req, res) => {
+    const { path: p, variant, shared } = req.body ?? {};
+    if (typeof shared !== 'object' || shared === null || Array.isArray(shared)) {
+      return res.status(400).json({ error: 'Body must include a "shared" object.' });
+    }
+    try {
+      const index = await buildIndex();
+      const node = index.byPath.get(String(p ?? ''));
+      if (!node || node.type !== 'component') return res.status(404).json({ error: 'unknown path' });
+      if (!node.wired.fixture) return res.status(409).json({ error: 'unwired' });
+      await saveVariantShared(node.comparisonId, variant ?? 'default', shared);
+      res.json({ ok: true, fixtureFile: node.fixtureFile });
+    } catch (err) {
+      if (err.code === 'unknown-variant') return res.status(404).json({ error: err.message });
       res.status(500).json({ error: err.message });
     }
   });

@@ -32,6 +32,10 @@ let adapterResolver = getAdapter;
 export function setAdapterResolver(fn) {
   adapterResolver = typeof fn === 'function' ? fn : getAdapter;
 }
+/** The CURRENT adapter resolver (honors hot-reload swaps) — throws for unknown ids. */
+export function resolveAdapter(key) {
+  return adapterResolver(key);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,6 +108,34 @@ async function updateComparisonRaw(id, mutate) {
 /** Writes the `shared` block back to a comparison spec (preserving the rest). */
 export async function saveComparisonShared(id, shared) {
   await updateComparisonRaw(id, (raw) => { raw.shared = shared; });
+  return loadComparison(id);
+}
+
+/**
+ * Writes ONE variant's `shared` back to a comparison spec (component-browser
+ * 03 §2.4). Validates the variant name against the spec's actual variant list —
+ * an unknown name throws (never getVariant()'s silent first-variant fallback).
+ * For a fixture with no `variants` array, only the implicit "default" variant
+ * is valid and the write lands on the top-level `shared`.
+ */
+export async function saveVariantShared(id, variantName, shared) {
+  const spec = await loadComparison(id);
+  if (!spec || spec.error) throw new Error(`Comparison "${id}" not found`);
+  const names = getVariants(spec).map((v) => v.name);
+  if (!names.includes(variantName)) {
+    const err = new Error(`Unknown variant "${variantName}" for "${id}" (has: ${names.join(', ')})`);
+    err.code = 'unknown-variant';
+    throw err;
+  }
+  await updateComparisonRaw(id, (raw) => {
+    if (Array.isArray(raw.variants) && raw.variants.length) {
+      const v = raw.variants.find((x) => (x.name ?? 'default') === variantName);
+      if (!v) { const err = new Error(`Variant "${variantName}" missing from raw fixture`); err.code = 'unknown-variant'; throw err; }
+      v.shared = shared;
+    } else {
+      raw.shared = shared;
+    }
+  });
   return loadComparison(id);
 }
 

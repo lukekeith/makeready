@@ -25,50 +25,12 @@ import {
 } from '../db/index.mjs';
 import { compareRoot } from '../runners/compare/lib.mjs';
 import { buildInventory, queryInventory } from '../runners/compare/inventory.mjs';
+// describeComment moved to the shared lib (component-browser suite) so the HTTP
+// scope route and these tools emit identical payloads. Behavior unchanged.
+import { describeComment, buildScopePayload } from '../lib/comment-payload.mjs';
+import { ScopeError } from '../lib/fs-index.mjs';
 
 const abs = (rel) => (rel ? path.join(compareRoot, rel) : null);
-
-/** Rich, LLM-friendly description of one comment + everything around it. */
-async function describeComment(c) {
-  const latest = await latestScreenshots(c.comparisonId, c.viewport);
-  const v = c.version ?? {};
-  const px = {
-    x: c.screenshot?.width ? Math.round(c.x * c.screenshot.width) : null,
-    y: c.screenshot?.height ? Math.round(c.y * c.screenshot.height) : null,
-  };
-  return {
-    commentId: c.id,
-    comparison: { id: c.comparisonId, title: c.comparison?.title, type: c.comparison?.type },
-    target: {
-      platform: c.platform,
-      viewport: c.viewport,
-      component: v.componentName ?? null,
-      iphoneView: v.iphoneView ?? null,
-      clientView: v.clientView ?? null,
-      device: c.screenshot?.device ?? null,
-    },
-    position: { xFraction: c.x, yFraction: c.y, xPx: px.x, yPx: px.y },
-    // The exact DOM element the pin resolved to (live hit-test of the web twin):
-    // its BEM selector → the SCSS rule to edit, plus current computed styles so a
-    // terse comment ("bottom radius should be 0") needs no extra interpretation.
-    commentedElement: c.targetSelector
-      ? {
-          selector: c.targetSelector,
-          label: c.targetLabel,
-          tag: c.targetMeta?.tag ?? null,
-          text: c.targetMeta?.text ?? null,
-          boxFraction: c.targetMeta?.rect ?? null,
-          computedStyles: c.targetMeta?.styles ?? null,
-        }
-      : null,
-    pinnedScreenshot: abs(c.screenshot?.path),
-    latestScreenshots: { iphone: abs(latest.iphone?.path), client: abs(latest.client?.path) },
-    version: { id: c.versionId, capturedAt: v.capturedAt, gitSha: v.gitSha, gitDirty: v.gitDirty, sourceHash: v.sourceHash },
-    sharedData: v.sharedData ?? null,
-    thread: (c.messages ?? []).map((m) => ({ source: m.source, text: m.text, at: m.createdAt })),
-    createdAt: c.createdAt,
-  };
-}
 
 const server = new McpServer({ name: 'makeready-capture', version: '1.0.0' });
 
@@ -182,6 +144,23 @@ server.tool(
   async ({ commentId, resolved }) => {
     await setResolved(commentId, resolved);
     return { content: [{ type: 'text', text: `${resolved ? 'Resolved' : 'Reopened'} ${commentId}.` }] };
+  },
+);
+
+server.tool(
+  'resolve_scope',
+  'Resolve a component-browser scope (an iPhone filesystem path relative to iphone/MakeReady/Components/) into its matched components and every UNRESOLVED iPhone-platform comment across all variants and versions. Scope forms: "Card/CardEvent" (one component) · "Card/**" or "Card" (folder, recursive) · "**" (everything) · a bare unique component name. Each comment carries the full context payload plus versionLabel ("current" | "old — captured <date>; current version is <id>" | "unanchored") so old-render comments read as references against the current render. Used by /component-resolve.',
+  { scope: z.string().describe('e.g. "Card/CardEvent", "Card/**", "**", or a unique component name') },
+  async ({ scope }) => {
+    try {
+      const payload = await buildScopePayload(scope);
+      return { content: [{ type: 'text', text: JSON.stringify(payload, null, 2) }] };
+    } catch (err) {
+      if (err instanceof ScopeError) {
+        return { content: [{ type: 'text', text: `Scope error (${err.code}): ${err.message}${err.paths.length ? `\nPaths: ${err.paths.join(', ')}` : ''}` }] };
+      }
+      throw err;
+    }
   },
 );
 

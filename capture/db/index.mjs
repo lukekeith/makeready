@@ -103,21 +103,16 @@ export async function deleteVersion(versionId) {
 /**
  * Finalize a freshly-created version after its captures have completed.
  *
- * This is the "no history" replace, but done SAFELY: instead of deleting the
- * prior version up front (which cascade-deletes its screenshots — including the
- * platform we're NOT recapturing this run), we
- *   1. carry forward the most-recent screenshot of every platform NOT captured
- *      this run, by re-parenting it onto the new version, then
- *   2. delete the now-stale prior versions for this (comparison, variant, viewport).
- *
- * So capturing one platform never drops the other's shot, and a screenshot is
- * only ever removed AFTER its replacement is in place. Re-parenting (vs. delete)
- * also keeps any comment anchored to the carried-forward shot alive; comments
- * pinned to a pruned version fall back to SetNull as before.
+ * History is KEPT (component-browser DB-1): every capture leaves a permanent
+ * Version and its Screenshot rows. For each platform NOT captured this run, the
+ * prior latest screenshot is COPY-forwarded — a new Screenshot row on the new
+ * version pointing at the same PNG file — so the new version pairs both
+ * platforms while every retained version keeps its own rows (and the comments
+ * anchored to them).
  *
  * `capturedPlatforms` is the set of platforms that actually produced a shot in
- * this run (a skipped/failed platform is treated as "not captured" and carried
- * forward, so a failed recapture can't destroy the previous good shot).
+ * this run (a skipped/failed platform is treated as "not captured" and copied
+ * forward, so a failed recapture can't lose the previous good shot).
  */
 export async function finalizeVariantVersion({ newVersionId, comparisonId, variantName, viewport, capturedPlatforms }) {
   const PLATFORMS = ['iphone', 'client'];
@@ -129,12 +124,11 @@ export async function finalizeVariantVersion({ newVersionId, comparisonId, varia
         orderBy: { createdAt: 'desc' },
       });
       if (prior) {
-        await tx.screenshot.update({ where: { id: prior.id }, data: { versionId: newVersionId } });
+        await tx.screenshot.create({
+          data: { versionId: newVersionId, platform, device: prior.device, path: prior.path, width: prior.width, height: prior.height },
+        });
       }
     }
-    await tx.version.deleteMany({
-      where: { comparisonId, variantName, viewport, id: { not: newVersionId } },
-    });
   });
 }
 
@@ -148,10 +142,11 @@ export async function versionShots(version) {
   for (const platform of ['iphone', 'client']) {
     let shot = await prisma.screenshot.findFirst({ where: { versionId: version.id, platform } });
     if (!shot) {
-      // Fall back to the latest shot of the platform this version didn't capture,
-      // so the comparison always shows both sides.
+      // Fall back to the latest shot of the platform this version didn't capture
+      // AT OR BEFORE its capture time (DB-1b), so a historical version pairs with
+      // its contemporaneous shot rather than today's.
       shot = await prisma.screenshot.findFirst({
-        where: { platform, version: { comparisonId: version.comparisonId, viewport: version.viewport } },
+        where: { platform, createdAt: { lte: version.capturedAt }, version: { comparisonId: version.comparisonId, viewport: version.viewport } },
         orderBy: { createdAt: 'desc' },
       });
     }
@@ -160,12 +155,17 @@ export async function versionShots(version) {
   return out;
 }
 
-/** Versions for a comparison, newest first, with platforms + rating + comment counts. */
-export async function listVersions(comparisonId) {
+/**
+ * Versions for a comparison, newest first, with platforms + rating + comment counts.
+ * Optional filters (component-browser DB-3): `variantName`, `viewport` narrow the list;
+ * `withScreenshots` includes the full Screenshot rows as `screenshots` on each entry.
+ * The single-arg call keeps its original shape.
+ */
+export async function listVersions(comparisonId, { variantName, viewport, withScreenshots } = {}) {
   const rows = await prisma.version.findMany({
-    where: { comparisonId },
+    where: { comparisonId, ...(variantName ? { variantName } : {}), ...(viewport ? { viewport } : {}) },
     orderBy: { capturedAt: 'desc' },
-    include: { screenshots: { select: { platform: true } }, comments: { select: { resolved: true } } },
+    include: { screenshots: withScreenshots ? true : { select: { platform: true } }, comments: { select: { resolved: true } } },
   });
   // version number per (variant, viewport), oldest = 1
   const seq = new Map();
@@ -191,6 +191,7 @@ export async function listVersions(comparisonId) {
     platforms: [...new Set(v.screenshots.map((s) => s.platform))],
     commentCount: v.comments.length,
     unresolvedCount: v.comments.filter((c) => !c.resolved).length,
+    ...(withScreenshots ? { screenshots: v.screenshots } : {}),
   }));
 }
 
