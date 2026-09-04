@@ -225,3 +225,44 @@ export function subscribeCapture(runId, { onLine, onDone, onError } = {}) {
   es.onerror = (err) => { onError?.(err); es.close(); };
   return () => es.close();
 }
+
+// ── Components browser (docs/features/component-browser 03 §2) ──
+
+export async function fetchComponentsTree() {
+  const res = await fetch('/api/components/tree');
+  if (!res.ok) throw new Error(`components tree fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchComponentDetail(path, viewport) {
+  const q = new URLSearchParams({ path });
+  if (viewport) q.set('viewport', viewport);
+  const res = await fetch(`/api/components/detail?${q}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `component detail fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchComponentVersion(versionId) {
+  const res = await fetch(`/api/components/version/${encodeURIComponent(versionId)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `component version fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function saveComponentFixture(path, variant, shared) {
+  const res = await fetch('/api/components/fixture', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, variant, shared }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `fixture save failed: ${res.status}`);
+  }
+  return res.json();
+}

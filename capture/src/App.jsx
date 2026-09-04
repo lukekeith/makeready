@@ -9,6 +9,7 @@ import Preview from './pages/Preview.jsx';
 import CompareLayout from './pages/compare/CompareLayout.jsx';
 import CompareHome from './pages/compare/CompareHome.jsx';
 import CompareDetail from './pages/compare/CompareDetail.jsx';
+import ComponentsLayout from './pages/components/ComponentsLayout.jsx';
 import { fetchManifest, fetchPlatforms } from './api.js';
 
 export const CaptureContext = createContext(null);
@@ -78,6 +79,7 @@ export default function App() {
     <CaptureContext.Provider value={ctx}>
       <Routes>
         <Route path="/" element={<PlatformPicker />} />
+        <Route path="/components/*" element={<ComponentsLayout />} />
         <Route path="/compare" element={<CompareLayout />}>
           <Route index element={<CompareHome />} />
           <Route path=":id" element={<CompareDetail />} />
