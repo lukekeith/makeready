@@ -1,6 +1,6 @@
 # component-browser — iPhone component browser in the capture app
 
-**Status: spec complete** (2026-09-03 — integrity SOUND, audit CLEAN pass 2, decisions closed)
+**Status: verify READY** (2026-09-04 — built 4/4 phases, all gates green; awaiting human sign-off)
 
 A four-column component browser at `/components` in the capture SPA: a filesystem tree of
 `iphone/MakeReady/Components/` → variant list → pan/zoom render with full version history →
@@ -18,7 +18,7 @@ filesystem index.
 | decisions | ✅ (no open rows) |
 | plan | ✅ (4 phase docs, 2026-09-04) |
 | build | ✅ 4/4 (2026-09-04) |
-| verify | ⬜ |
+| verify | ✅ READY (2026-09-04) |
 | sign-off | ⬜ |
 
 ## Phase status
