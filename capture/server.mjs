@@ -37,6 +37,8 @@ import {
 import { buildInventory, queryInventory } from './runners/compare/inventory.mjs';
 import { saveVariantShared } from './runners/compare/lib.mjs';
 import { buildIndex, ScopeError, kebab, makereadyRoot as repoRoot } from './lib/fs-index.mjs';
+import { buildUi2Index, ui2Counts, assetsDir as ui2AssetsDir } from './lib/ui2-index.mjs';
+import { isBuilt, ui2FixturePath } from './lib/ui2-fixture.mjs';
 import { buildScopePayload } from './lib/comment-payload.mjs';
 import {
   syncComparison,
@@ -57,6 +59,9 @@ import {
   deleteComment,
   summarize,
   capturedVariantNames,
+  createVersion,
+  addScreenshot,
+  findVersionBySourceHash,
 } from './db/index.mjs';
 
 const shotUrlFromPath = (rel) => (rel ? `/screenshots/compare/${rel}` : null);
@@ -128,7 +133,7 @@ const runnersRoot = path.resolve(__dirname, 'runners');
 const sharedPlatforms = [
   {
     id: 'client',
-    title: 'Web Client',
+    title: 'Web',
     captureRoot: path.resolve(fixturesRoot, 'client'),
     hasBladeComponents: true,
   },
@@ -1123,6 +1128,211 @@ if (!isProduction) {
     }
   });
 }
+
+// ── UI 2.0 spec browser (docs/ui2 — the 2.0 era of /components) ──
+//
+// The 1.0 era browses Swift components that exist; the 2.0 era browses REGISTRY
+// ROWS that are specced but not built. A row's "variants" are its designed
+// states and its "render" is the frozen Figma snapshot, registered in the same
+// Version/Screenshot tables (platform `design`) so the version timeline and
+// pinned comments work identically on both sides.
+
+const UI2_VIEWPORT = 'design';
+const ui2AssetUrl = (rel) => (rel ? `/ui2-assets/${path.basename(rel)}` : null);
+/** Screenshots carry their own platform, and the design ones live outside the
+ *  compare shot store — so URL resolution is per-screenshot, not per-caller. */
+const screenshotUrl = (sc) => (!sc ? null : sc.platform === 'design' ? ui2AssetUrl(sc.path) : shotUrlFromPath(sc.path));
+
+/** PNG dimensions from the IHDR header (no decode). */
+async function pngSize(abs) {
+  try {
+    const fh = await fs.open(abs, 'r');
+    try {
+      const buf = Buffer.alloc(24);
+      await fh.read(buf, 0, 24, 0);
+      if (buf.toString('ascii', 1, 4) !== 'PNG') return {};
+      return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+    } finally { await fh.close(); }
+  } catch { return {}; }
+}
+
+/**
+ * Register the row's current frozen snapshot as a design version per state.
+ * Idempotent: keyed on the PNG's sha, so reads are free and only a genuinely
+ * refreshed snapshot appends to the timeline. Returns the versions created.
+ */
+async function syncUi2Row(row) {
+  if (!row.snapshot || !row.variants.length) return [];
+  await syncComparison({
+    id: row.comparisonId,
+    type: 'ui2',
+    group: row.section,
+    title: `${row.id} ${row.name}`,
+    adapter: 'ui2-design',
+  });
+  const abs = path.resolve(repoRoot, row.snapshot.repoPath);
+  const { width, height } = await pngSize(abs);
+  const created = [];
+  for (const v of row.variants) {
+    const existing = await findVersionBySourceHash(row.comparisonId, {
+      variantName: v.name, viewport: UI2_VIEWPORT, sourceHash: row.snapshot.sha,
+    });
+    if (existing) continue;
+    const version = await createVersion({
+      comparisonId: row.comparisonId,
+      variantName: v.name,
+      viewport: UI2_VIEWPORT,
+      capturedAt: row.snapshot.capturedAt,
+      sourceHash: row.snapshot.sha,
+      componentName: `${row.id} ${row.name}`,
+      width, height,
+    });
+    await addScreenshot({ versionId: version.id, platform: 'design', device: 'figma', path: row.snapshot.repoPath, width, height });
+    created.push(version.id);
+  }
+  return created;
+}
+
+/** Shared row → API shape (the registry half; contract fields added per-caller). */
+const ui2RowBase = async (row) => {
+  const built = await isBuilt(row.id);
+  return {
+    id: row.id,
+    name: row.name,
+    nameNote: row.nameNote,
+    status: row.status,
+    platform: row.platform,
+    section: row.section,
+    comparisonId: row.comparisonId,
+    specced: !!row.contract,
+    built,
+    fixtureFile: built ? path.relative(repoRoot, ui2FixturePath(row.id)) : null,
+    hasSnapshot: !!row.snapshot,
+    stateCount: row.variants.length,
+  };
+};
+
+// The registry tree: sections → rows, with spec/snapshot state + comment badges.
+app.get('/api/ui2/tree', async (_req, res) => {
+  try {
+    const index = await buildUi2Index();
+    const sections = [];
+    for (const section of index.sections) {
+      const rows = [];
+      for (const row of section.rows) {
+        const unresolvedComments = row.contract ? (await summarize(row.comparisonId)).unresolved : 0;
+        rows.push({ ...(await ui2RowBase(row)), unresolvedComments, thumbnail: ui2AssetUrl(row.snapshot?.repoPath) });
+      }
+      sections.push({ name: section.name, rows });
+    }
+    const builtCount = sections.reduce((n, s) => n + s.rows.filter((r) => r.built).length, 0);
+    res.json({ root: 'docs/ui2/design-system/registry.md', sections, counts: { ...ui2Counts(index), built: builtCount } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// One registry row: the contract, its designed states as variants, each with the
+// design-version timeline. Mirrors /api/components/detail's shape so the browser
+// columns render either era without branching on the payload.
+app.get('/api/ui2/detail', async (req, res) => {
+  try {
+    const index = await buildUi2Index();
+    const row = index.byId.get(String(req.query.id ?? '').toUpperCase());
+    if (!row) return res.status(404).json({ error: 'unknown component' });
+    await syncUi2Row(row);
+
+    const base = {
+      ...(await ui2RowBase(row)),
+      era: '2.0',
+      registry: {
+        figmaRef: row.figmaRef,
+        variantsProse: row.variantsProse,
+        props: row.props,
+        definedIn: row.definedIn,
+        consumedBy: row.consumedBy,
+      },
+      contract: row.contract,
+      snapshot: row.snapshot ? { ...row.snapshot, url: ui2AssetUrl(row.snapshot.repoPath) } : null,
+      viewports: [UI2_VIEWPORT],
+      viewport: UI2_VIEWPORT,
+      viewportDimensions: {},
+      canCapture: !isProduction,
+      commands: { spec: `/ui2-component ${row.id}` },
+    };
+    if (!row.contract) {
+      // The 2.0 analogue of an unwired 1.0 component: the row exists, the
+      // contract doesn't. WiringChecklist's counterpart lives in the UI.
+      return res.json({ ...base, variants: [], needsSpec: true });
+    }
+
+    const variants = [];
+    for (const v of row.variants) {
+      const comments = await listCommentsForVariant(row.comparisonId, v.name, UI2_VIEWPORT);
+      const versions = (await listVersions(row.comparisonId, { variantName: v.name, viewport: UI2_VIEWPORT, withScreenshots: true })).map((ver) => {
+        const shot = ver.screenshots.find((sc) => sc.platform === 'design') ?? null;
+        return {
+          versionId: ver.id, capturedAt: ver.capturedAt, viewport: ver.viewport,
+          gitSha: ver.gitSha, gitDirty: ver.gitDirty,
+          shot: screenshotUrl(shot), screenshotId: shot?.id ?? null,
+          unresolvedComments: comments.filter((c) => c.versionId === ver.id && !c.resolved).length,
+        };
+      });
+      variants.push({
+        name: v.name,
+        slug: v.slug,
+        propValues: v.propValues,
+        consumption: v.consumption,
+        consumptionState: v.consumptionState,
+        cells: v.cells,
+        unresolvedComments: comments.filter((c) => !c.resolved).length,
+        versions,
+      });
+    }
+    res.json({ ...base, variants });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// A design version + its variant's comments (the 2.0 twin of
+// /api/components/version/:vid; no web twin exists to hit-test against).
+app.get('/api/ui2/version/:vid', async (req, res) => {
+  try {
+    const v = await getVersion(req.params.vid);
+    if (!v) return res.status(404).json({ error: 'Version not found' });
+    const shots = await versionShots(v);
+    const comments = await listCommentsForVariant(v.comparisonId, v.variantName, v.viewport);
+    res.json({
+      versionId: v.id, comparisonId: v.comparisonId, variantName: v.variantName,
+      viewport: v.viewport, capturedAt: v.capturedAt,
+      shot: screenshotUrl(shots.design), screenshotId: shots.design?.id ?? null,
+      webLive: null,
+      comments: comments.map((c) => ({ ...c, onThisVersion: c.versionId === v.id })),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+if (!isProduction) {
+  // "Recapture" for a spec: re-read the frozen snapshot from disk and append a
+  // design version if /ui2-component refreshed it.
+  app.post('/api/ui2/refresh', async (req, res) => {
+    try {
+      const index = await buildUi2Index();
+      const row = index.byId.get(String(req.body?.id ?? '').toUpperCase());
+      if (!row) return res.status(404).json({ error: 'unknown component' });
+      const created = await syncUi2Row(row);
+      res.json({ ok: true, created: created.length, sha: row.snapshot?.sha ?? null });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+}
+
+// Frozen Figma snapshots (read-only, flat directory).
+app.use('/ui2-assets', express.static(ui2AssetsDir));
 
 // Screenshots from the compare store
 app.use('/screenshots/compare', express.static(compareRoot));

@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
 import { parseContract } from '../lib/ui2-index.mjs';
-import { fixtureFromContract, ui2FixturePath } from '../lib/ui2-fixture.mjs';
+import { fixtureFromContract, ui2FixturePath, isBuilt, writeUi2Fixture } from '../lib/ui2-fixture.mjs';
 
 const CONTRACT = `# C-040 PageHeader — pushed-page bar
 
@@ -40,4 +41,18 @@ test('ui2FixturePath is case-stable and outside fixtures/compare', () => {
   const p = ui2FixturePath('C-040');
   assert.match(p, /capture\/fixtures\/ui2\/C-040\.json$/);
   assert.doesNotMatch(p, /fixtures\/compare/);
+});
+
+test('isBuilt tracks fixture presence', async () => {
+  const id = 'C-999';                       // a registry id no contract uses
+  await fs.rm(ui2FixturePath(id), { force: true });
+  assert.equal(await isBuilt(id), false);
+
+  await writeUi2Fixture(id, { id: 'ui2-c-999', registryId: id, variants: [] });
+  try {
+    assert.equal(await isBuilt(id), true);
+  } finally {
+    await fs.rm(ui2FixturePath(id), { force: true });
+  }
+  assert.equal(await isBuilt(id), false);
 });
