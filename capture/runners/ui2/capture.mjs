@@ -17,9 +17,15 @@ import path from 'node:path';
 import { readUi2Fixture } from '../../lib/ui2-fixture.mjs';
 import { makereadyRoot } from '../../lib/fs-index.mjs';
 import { createVersion, addScreenshot, finalizeVariantVersion, deleteVersion } from '../../db/index.mjs';
+import { COMPARE_VIEWPORTS } from '../compare/viewports.mjs';
 
-const VIEWPORT = 'design';          // the viewport syncUi2Row registers under
-const DEVICE = 'pro-max';
+const VIEWPORT = 'design';          // the DB viewport column syncUi2Row registers the Figma snapshot under — NOT a device, do not touch.
+// The iOS CaptureDevice raw value (iphone/MakeReadyCaptureTests/CaptureDevices.swift)
+// the fixture renders at and the runner reads its screenshot back from. Sourced
+// from the same compare-viewport entry captureIphone uses for its iPhone shots,
+// so there is one mapping from a size tier to a device key, not a second copy.
+// This is a DEVICE key, distinct from the `design` VIEWPORT above (a DB column).
+const DEVICE = COMPARE_VIEWPORTS['pro-max'].iphone; // 'iphone-16-pro-max'
 const TMP_WORKFLOW = 'ztmp-ui2';
 const captureRoot = path.resolve(makereadyRoot, 'capture');
 const iphoneFixtures = path.resolve(captureRoot, 'fixtures/iphone');
