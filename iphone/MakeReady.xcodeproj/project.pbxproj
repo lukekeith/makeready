@@ -180,6 +180,7 @@
 		EXNE0001000000000000001 /* ExegesisNoteEditorPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXNE0002000000000000001 /* ExegesisNoteEditorPage.swift */; };
 		EXVV000200000000000001 /* ExegesisVerseView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EXVV000100000000000001 /* ExegesisVerseView.swift */; };
 		EYTA0001000000000000001 /* EditYouTubeActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */; };
+		F18ECB611B022B33B89724A2 /* UI2TextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1771570ABE9F638E41908AA /* UI2TextInput.swift */; };
 		F7348D39938C43569FB89F82 /* CardVideo.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6821D6AC4FD6411793E6237E /* CardVideo.swift */; };
 		FBA761965D756D7E1B8A4EAC /* CaptureEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFA85A3C1CB013F77883FEC /* CaptureEnvironment.swift */; };
 		FCDD0001000000000000001 /* FilterChipDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCDD0002000000000000001 /* FilterChipDropdown.swift */; };
@@ -486,6 +487,7 @@
 		CPF00002000000000000001 /* CardProgramFull.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardProgramFull.swift; sourceTree = "<group>"; };
 		CSRC0002000000000000001 /* CardSearchResult.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSearchResult.swift; sourceTree = "<group>"; };
 		CSST0002000000000000001 /* CardStudySelectable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudySelectable.swift; sourceTree = "<group>"; };
+		D1771570ABE9F638E41908AA /* UI2TextInput.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2TextInput.swift; sourceTree = "<group>"; };
 		D1DRA6U1A000000000001 /* Dragula.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Dragula.swift; sourceTree = "<group>"; };
 		D1ROH1A000000000000001 /* ReorderHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReorderHelpers.swift; sourceTree = "<group>"; };
 		D3558B3DA7CB229771AFC92B /* FullScreenImageViewer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FullScreenImageViewer.swift; sourceTree = "<group>"; };
@@ -702,6 +704,7 @@
 			isa = PBXGroup;
 			children = (
 				4E3EDE96DC224885AEA9028D /* UI2PreviewTokens.swift */,
+				D1771570ABE9F638E41908AA /* UI2TextInput.swift */,
 			);
 			name = UI2Preview;
 			path = UI2Preview;
@@ -2005,6 +2008,7 @@
 				7884096BBF84248AC8C3BA8B /* EditEnrollmentFlowModal.swift in Sources */,
 				242EF38C8B5CF560901BBA0C /* EnrollmentActionMenu.swift in Sources */,
 				AF67C60E40EE1410EDA27F8A /* UI2PreviewTokens.swift in Sources */,
+				F18ECB611B022B33B89724A2 /* UI2TextInput.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

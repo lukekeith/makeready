@@ -2501,6 +2501,36 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .padding(.vertical, 16)
         )
 
+    // ── UI 2.0 preview builds (docs/ui2/preview-build.md) ──
+    case "component.ui2.C-045":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-045: missing state.component")
+        }
+        // C-045 §4 gives no default for `placeholder`, `lines` or `focused`, so a nil is a
+        // fixture bug, not a value to guess. `text` defaults to "" — §4's own "empty →
+        // placeholder shows".
+        guard let placeholder = c.placeholder else {
+            throw ViewRegistryError.unknownView("component.ui2.C-045: missing props.placeholder")
+        }
+        guard let linesRaw = c.lines, let lines = UI2TextInput.Lines(rawValue: linesRaw) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-045: props.lines must be single|multi")
+        }
+        guard let focused = c.focused else {
+            throw ViewRegistryError.unknownView("component.ui2.C-045: missing props.focused")
+        }
+        return AnyView(
+            UI2TextInput(
+                text: c.text ?? "",
+                placeholder: placeholder,
+                lines: lines,
+                focused: focused
+            )
+            .frame(width: 387)                      // OQ-PB-1 default: C-045 §1 deviation 2 master width
+            .padding(UI2Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Token.layoutBackground)  // OQ-PB-2 default
+        )
+
     default:
         throw ViewRegistryError.unknownView(fixture.view)
     }

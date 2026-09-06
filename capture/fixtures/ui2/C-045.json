@@ -1,0 +1,71 @@
+{
+  "id": "ui2-c-045",
+  "registryId": "C-045",
+  "component": "TextInput",
+  "view": "component.ui2.C-045",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Default × Single",
+      "slug": "default-single",
+      "props": {
+        "text": "",
+        "placeholder": "Placeholder",
+        "lines": "single",
+        "focused": false
+      }
+    },
+    {
+      "name": "Default × Multi",
+      "slug": "default-multi",
+      "props": {
+        "text": "",
+        "placeholder": "Placeholder",
+        "lines": "multi",
+        "focused": false
+      }
+    },
+    {
+      "name": "Has value × Single",
+      "slug": "has-value-single",
+      "props": {
+        "text": "Value",
+        "placeholder": "Placeholder",
+        "lines": "single",
+        "focused": false
+      }
+    },
+    {
+      "name": "Has value × Multi",
+      "slug": "has-value-multi",
+      "props": {
+        "text": "Value",
+        "placeholder": "Placeholder",
+        "lines": "multi",
+        "focused": false
+      }
+    },
+    {
+      "name": "Has value + Focus × Single",
+      "slug": "has-value-focus-single",
+      "props": {
+        "text": "",
+        "placeholder": "Placeholder",
+        "lines": "single",
+        "focused": true
+      }
+    },
+    {
+      "name": "Has value + Focus × Multi",
+      "slug": "has-value-focus-multi",
+      "props": {
+        "text": "",
+        "placeholder": "Placeholder",
+        "lines": "multi",
+        "focused": true
+      }
+    }
+  ]
+}

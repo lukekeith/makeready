@@ -352,6 +352,12 @@ struct CaptureComponent: Codable {
     let availableThemes: [CaptureThemeOption]?
     // ── UserMenu (connected component) ──
     let organizations: [CaptureOrg]?
+
+    // ── UI 2.0 preview (docs/ui2/preview-build.md §3 rule 3, amended 2026-09-06) ──
+    // Additive optionals only. `text` and `placeholder` already exist above and carry the
+    // contract's own prop names, so C-045 reuses them rather than adding duplicates.
+    let lines: String?                         // C-045 TextInput — "single" | "multi"
+    let focused: Bool?                         // C-045 TextInput — border + caret overlay state
 }
 
 /// A theme choice for BlockStyleEditor's theme picker.
