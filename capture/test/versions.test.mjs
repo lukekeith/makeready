@@ -16,6 +16,7 @@ import {
   versionShots,
   listVersions,
   addComment,
+  deleteVersion,
 } from '../db/index.mjs';
 
 const CID = '__test-component-browser';
@@ -132,6 +133,27 @@ test('DB-7: finalizeVariantVersion copies forward the platforms it is given', as
   });
   const shots3 = await prisma.screenshot.findMany({ where: { versionId: v3.id } });
   assert.deepEqual(shots3.map((s) => s.platform), ['iphone']);
+});
+
+test('DB-8: deleteVersion rolls back an orphaned version and its screenshots', async () => {
+  // Mirrors the ui2 runner's failure path (and runners/compare/capture.mjs's
+  // existing one): a Version is created before the capture step runs, so a
+  // failed capture must call deleteVersion rather than leave a phantom,
+  // zero-screenshot entry sitting in the timeline forever.
+  await syncComparison({ id: CID, type: 'component', group: '__Test', title: 'Test', adapter: CID });
+
+  const before = await prisma.version.count({ where: { comparisonId: CID } });
+  const failed = await createVersion({ comparisonId: CID, variantName: 'ui2-delete-on-failure', viewport: 'design' });
+  await addScreenshot({ versionId: failed.id, platform: 'iphone', device: 'pro-max', path: `_test/${CID}-orphan.png` });
+
+  await deleteVersion(failed.id);
+
+  const gone = await prisma.version.findUnique({ where: { id: failed.id } });
+  assert.equal(gone, null, 'version row removed');
+  const shots = await prisma.screenshot.findMany({ where: { versionId: failed.id } });
+  assert.deepEqual(shots, [], 'cascade removed its screenshots too');
+  const after = await prisma.version.count({ where: { comparisonId: CID } });
+  assert.equal(after, before, 'no net change to the comparison\'s version count');
 });
 
 test.after(async () => {

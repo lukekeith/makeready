@@ -16,7 +16,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { readUi2Fixture } from '../../lib/ui2-fixture.mjs';
 import { makereadyRoot } from '../../lib/fs-index.mjs';
-import { createVersion, addScreenshot, finalizeVariantVersion } from '../../db/index.mjs';
+import { createVersion, addScreenshot, finalizeVariantVersion, deleteVersion } from '../../db/index.mjs';
 
 const VIEWPORT = 'design';          // the viewport syncUi2Row registers under
 const DEVICE = 'pro-max';
@@ -76,26 +76,36 @@ async function captureVariant(fixture, variant, git) {
   });
 
   try {
-    console.log(`→ ${fixture.registryId} · ${variant.name} — xcodebuild, this takes a few minutes…`);
-    const code = await run('bash', [path.resolve(captureRoot, 'runners/iphone/capture.sh'), TMP_WORKFLOW, key], {
-      cwd: path.resolve(makereadyRoot, 'iphone'),
-      env: { ...process.env, CAPTURE_ROOT: iphoneFixtures },
-    });
-    if (code !== 0) throw new Error(`iphone runner exited ${code}`);
+    try {
+      console.log(`→ ${fixture.registryId} · ${variant.name} — xcodebuild, this takes a few minutes…`);
+      const code = await run('bash', [path.resolve(captureRoot, 'runners/iphone/capture.sh'), TMP_WORKFLOW, key], {
+        cwd: path.resolve(makereadyRoot, 'iphone'),
+        env: { ...process.env, CAPTURE_ROOT: iphoneFixtures },
+      });
+      if (code !== 0) throw new Error(`iphone runner exited ${code}`);
 
-    const src = path.join(dir, 'screenshots', DEVICE, `capture.${key}.png`);
-    const rel = path.join('_shots', fixture.id, VIEWPORT, 'iphone', `${version.id}.png`);
-    const dest = path.join(compareRoot, rel);
-    await fs.mkdir(path.dirname(dest), { recursive: true });
-    await fs.copyFile(src, dest);
-    const dims = pngSize(await fs.readFile(dest));
-    await addScreenshot({ versionId: version.id, platform: 'iphone', device: DEVICE, path: rel, width: dims.width ?? null, height: dims.height ?? null });
-    // Carry the frozen Figma snapshot onto this version so the newest one shows both.
-    await finalizeVariantVersion({
-      newVersionId: version.id, comparisonId: fixture.id, variantName: variant.name,
-      viewport: VIEWPORT, capturedPlatforms: ['iphone'], platforms: ['iphone', 'design'],
-    });
-    console.log(`✓ ${rel}`);
+      const src = path.join(dir, 'screenshots', DEVICE, `capture.${key}.png`);
+      const rel = path.join('_shots', fixture.id, VIEWPORT, 'iphone', `${version.id}.png`);
+      const dest = path.join(compareRoot, rel);
+      await fs.mkdir(path.dirname(dest), { recursive: true });
+      await fs.copyFile(src, dest);
+      const dims = pngSize(await fs.readFile(dest));
+      await addScreenshot({ versionId: version.id, platform: 'iphone', device: DEVICE, path: rel, width: dims.width ?? null, height: dims.height ?? null });
+      // Carry the frozen Figma snapshot onto this version so the newest one shows both.
+      await finalizeVariantVersion({
+        newVersionId: version.id, comparisonId: fixture.id, variantName: variant.name,
+        viewport: VIEWPORT, capturedPlatforms: ['iphone'], platforms: ['iphone', 'design'],
+      });
+      console.log(`✓ ${rel}`);
+    } catch (err) {
+      // A capture that never produced a screenshot must not leave an orphaned
+      // Version row behind — it would sit in the timeline forever with zero
+      // shots. Roll it back and let the caller count the failure (mirrors
+      // runners/compare/capture.mjs's deleteVersion-on-empty-capture path).
+      console.error(`✗ ${fixture.registryId} · ${variant.name}: ${err.message}`);
+      await deleteVersion(version.id);
+      throw err;
+    }
   } finally {
     await fs.rm(dir, { recursive: true, force: true });
   }
@@ -108,5 +118,16 @@ if (!fixture) { console.error(`${registryId} is not built — no fixture at capt
 const targets = which === '*' ? fixture.variants : fixture.variants.filter((v) => v.slug === which);
 if (!targets.length) { console.error(`no state matching "${which}"`); process.exit(1); }
 const git = gitInfo();
-for (const variant of targets) await captureVariant(fixture, variant, git);
+let failures = 0;
+for (const variant of targets) {
+  try {
+    await captureVariant(fixture, variant, git);
+  } catch (err) {
+    failures++;
+    console.error(`✗ state "${variant.name}" failed: ${err.message}`);
+  }
+}
+const succeeded = targets.length - failures;
+console.log(`\n${succeeded}/${targets.length} state(s) captured${failures ? `, ${failures} failed` : ''}.`);
+if (failures) process.exit(1);
 process.exit(0);
