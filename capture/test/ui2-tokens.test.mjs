@@ -67,8 +67,17 @@ test('parseTokens reads each family, skipping prose rows', () => {
     { name: 'color-accent-20', value: '#6c47ff33' },
   ]);
   assert.deepEqual(t.spacing, [{ name: 'space-page-margin', value: '16' }]);
-  // "50%" is not a CGFloat — a non-numeric radius is dropped, not guessed at.
+  // "50%" is not a CGFloat — a non-numeric radius is not silently dropped, it
+  // is routed into `skipped` alongside the other families (see below).
   assert.deepEqual(t.radii, [{ name: 'radius-card-sm', value: '4' }]);
+});
+
+test('parseTokens reports color/spacing/radius rows that fail their value regex via `skipped`, same as typography', () => {
+  const t = parseTokens(TOKENS);
+  // radius-circle: 50% is the token every circular component needs (Avatar is
+  // a live registry row) — it must be visible in `skipped`, not dropped by a
+  // bare .filter() the way color/spacing/radius used to be.
+  assert.ok(t.skipped.includes('radius-circle'), `expected "radius-circle" in skipped, got: ${JSON.stringify(t.skipped)}`);
 });
 
 test('tokensToSwift emits camelCased members with 8-digit hex alpha', () => {

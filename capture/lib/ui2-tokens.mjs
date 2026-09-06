@@ -57,14 +57,32 @@ function parseType(rows) {
   return { type, skipped };
 }
 
+/** Split a family's rows into those matching `valueRe` and the rest, whose
+ *  names are reported the same way `parseType` reports its unparseable rows —
+ *  a plain `.filter()` here would drop them with no trace at all, which is how
+ *  `radius-circle: 50%` (needed by every circular component, `Avatar` a live
+ *  registry row) vanished silently while `NOT PARSED` covered typography only. */
+function splitParsed(rows, valueRe) {
+  const parsed = [];
+  const skipped = [];
+  for (const row of rows) {
+    if (valueRe.test(row.value)) parsed.push(row);
+    else skipped.push(row.name);
+  }
+  return { parsed, skipped };
+}
+
 export function parseTokens(md) {
-  const { type, skipped } = parseType(familyRows(md, 'Typography'));
+  const { type, skipped: typeSkipped } = parseType(familyRows(md, 'Typography'));
+  const { parsed: colors, skipped: colorSkipped } = splitParsed(familyRows(md, 'Color'), /^#[0-9a-f]{6}([0-9a-f]{2})?$/i);
+  const { parsed: spacing, skipped: spacingSkipped } = splitParsed(familyRows(md, 'Spacing'), /^\d+(\.\d+)?$/);
+  const { parsed: radii, skipped: radiiSkipped } = splitParsed(familyRows(md, 'Radius'), /^\d+(\.\d+)?$/);
   return {
-    colors: familyRows(md, 'Color').filter((r) => /^#[0-9a-f]{6}([0-9a-f]{2})?$/i.test(r.value)),
+    colors,
     type,
-    skipped,
-    spacing: familyRows(md, 'Spacing').filter((r) => /^\d+(\.\d+)?$/.test(r.value)),
-    radii: familyRows(md, 'Radius').filter((r) => /^\d+(\.\d+)?$/.test(r.value)),
+    skipped: [...typeSkipped, ...colorSkipped, ...spacingSkipped, ...radiiSkipped],
+    spacing,
+    radii,
   };
 }
 

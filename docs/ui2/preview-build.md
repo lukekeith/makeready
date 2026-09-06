@@ -106,7 +106,11 @@ this lane must not pre-empt.
    spacing, radius and elevation value in a preview view resolves to a
    `UI2PreviewTokens.swift` symbol generated from `tokens.md`. A contract's **flagged
    literal** (e.g. C-034's `#1f2124`) is emitted as a literal with the contract's flag
-   repeated in a comment — never silently promoted to a token.
+   repeated in a comment — never silently promoted to a token. A value that is
+   **contract-traceable but has no token row** (C-045's `py9` inset, OQ-PB-5) is emitted as a
+   literal with a `GAP —` comment citing the contract line, and raised as an OQ — distinct
+   from a value that is **neither tokened nor traceable**, which still stops the build as a
+   spec defect (rule 5).
 5. **Every prop value traces to the contract.** A fixture entry's props come from §4's prop
    table crossed with that state's row in the §3 matrix, plus the contract's own sample
    strings. The build invents no prop, no state and no value; needing one is a spec defect,

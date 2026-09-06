@@ -8,6 +8,15 @@
 import React from 'react';
 import CopyCode from '../../components/CopyCode.jsx';
 
+/** The Swift type the preview-build lane actually generates for a registry row
+ *  (`docs/ui2/preview-build.md` §2, `.claude/commands/ui2-component-build.md`
+ *  phase 3): `UI2` + the registry name, uniformly — not only on the six rows
+ *  that collide with a 1.0 struct. This is a Swift-namespace fact only: the
+ *  ViewRegistry case key and the registry id stay unprefixed. */
+function previewTypeName(name) {
+  return `UI2${name}`;
+}
+
 /** `default | textButtons | twoIcons` → the member matching a matrix cell. */
 function enumCase(type, value) {
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -136,10 +145,10 @@ export default function Ui2DetailsTab({ detail, variant }) {
         <Section label="Sample call" note="derived from §4 — not normative">
           <CopyCode
             className="cmp-ui2d__code"
-            value={sampleCall(detail.name, propRows, propValues)}
+            value={sampleCall(previewTypeName(detail.name), propRows, propValues)}
             title="Click to copy the sample call"
           >
-            <pre className="cmp-ui2d__pre">{sampleCall(detail.name, propRows, propValues)}</pre>
+            <pre className="cmp-ui2d__pre">{sampleCall(previewTypeName(detail.name), propRows, propValues)}</pre>
           </CopyCode>
         </Section>
       )}

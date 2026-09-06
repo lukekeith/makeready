@@ -142,21 +142,30 @@ you will use. The generator drops the family prefix and lowerCamels the rest:
 | `space-page-margin` | `UI2Token.Space.pageMargin` |
 | `radius-card-sm` | `UI2Token.Radius.cardSm` |
 
-Every value the view needs is now one of exactly three things:
+Every value the view needs is now one of exactly four things:
 
 1. a `UI2Token` member → use it;
 2. the contract's **flagged literal** → emit the literal with the contract's flag repeated
    as a comment (`// FLAGGED LITERAL — C-034 §2: #1f2124, no token`);
-3. **neither** → a spec defect. **Stop**, name the value and the contract line, and say the
-   fix is a `/ui2-component` re-run that lands it in `tokens.md` or flags it. Do not invent a
-   token, and never hand-edit the generated file (the next run overwrites it).
+3. **contract-traceable, but no token row** → the value traces cleanly to a specific
+   contract line (a measured inset, a stated size) but `tokens.md` simply has no row for it
+   yet — emit it as a literal with a `GAP —` comment citing the contract line
+   (`// GAP — C-045 §2: py9, no spacing token`), and raise it as an OQ for the owner (a new
+   `tokens.md` row, or a flag on the contract line). This is not a flagged literal (the
+   contract never flagged it) and not a spec defect (it traces cleanly) — it is the path
+   C-045's `py9` inset took (OQ-PB-5), and `preview-build.md` §3 rule 4 states it the same
+   way.
+4. **neither tokened nor traceable** → a spec defect. **Stop**, name the value and the
+   contract line, and say the fix is a `/ui2-component` re-run that lands it in `tokens.md`
+   or flags it. Do not invent a token, and never hand-edit the generated file (the next run
+   overwrites it).
 
 `git diff --stat iphone/MakeReady/UI2Preview/UI2PreviewTokens.swift` after the run tells you
 whether `tokens.md` moved since the last build — report it if it did.
 
 **Exit checklist 2:** generator run and its output read ✓ · no `NOT PARSED` row is one this
-view needs ✓ · every contract value mapped to a member, a flagged literal, or stopped on ✓ ·
-generated file not hand-edited ✓
+view needs ✓ · every contract value mapped to a member, a flagged literal, a cited `GAP —`
+OQ, or stopped on as a spec defect ✓ · generated file not hand-edited ✓
 
 ## 3. WRITE — the view
 

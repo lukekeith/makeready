@@ -252,13 +252,22 @@ export default function Ui2Layout({ sub = '', header = null }) {
   );
 
   // Built components recapture the simulator render; unbuilt ones only have a
-  // frozen snapshot to re-read — the split-button copy should say which.
-  const renderLabels = useMemo(
-    () => (detail?.built
-      ? { ...RENDER_LABELS, recapture: 'Recapture render', busy: 'Capturing…' }
-      : RENDER_LABELS),
-    [detail?.built],
-  );
+  // frozen snapshot to re-read. `recapture`/`busy`/`emptyAction` all describe
+  // what `onRecapture` actually does when clicked, which is gated on
+  // `detail?.built` alone (runCapture vs runRefresh) — never on which platform
+  // happens to be toggled, so a built component's empty-state button says
+  // "Capture now" even while the design side is showing.
+  const renderLabels = useMemo(() => {
+    const base = detail?.built
+      ? { ...RENDER_LABELS, recapture: 'Recapture render', busy: 'Capturing…', emptyAction: 'Capture now' }
+      : RENDER_LABELS;
+    // `current` describes what is actually ON SCREEN — the SHOWN platform
+    // (`activeShot.platform`, post-fallback), not the raw toggle position. A
+    // built component viewed before it has ever been captured still falls
+    // back to the Figma snapshot (`activeShot.fallback`), so the label must
+    // say so rather than claiming a built render that isn't there.
+    return { ...base, current: activeShot.platform === 'iphone' ? 'Built render' : 'Frozen Figma snapshot' };
+  }, [detail?.built, activeShot.platform]);
 
   return (
     <div className="layout cmp-cb">
