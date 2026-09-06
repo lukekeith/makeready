@@ -18,7 +18,7 @@ export default function RenderPane({
   capturing, log, onRecapture, commentApi,
   onHoverInspect, onClearInspect, hoverBox,
   platform = 'iphone', emptyState = null, allVariants = true, labels = {},
-  platforms = null, onPlatform = null,
+  platforms = null, onPlatform = null, activeShot = null,
 }) {
   const text = {
     recapture: 'Recapture',
@@ -74,12 +74,24 @@ export default function RenderPane({
   if (!variant) return <div className="cmp-cb-col cmp-cb-col--render"><div className="cmp-cb-col__empty">Select a variant</div></div>;
 
   const isCurrent = versionId === null;
-  const shotUrl = vdata?.shot ? `${vdata.shot}?v=${shotsVersion}` : null;
+  // `activeShot` (host-computed, 2.0 dual-render only) names the screenshot
+  // ACTUALLY being displayed for the toggle's current selection — which can
+  // differ from `platform` when this version has no shot for that platform yet
+  // (an older version captured before the component was built) and the host
+  // fell back to the design shot. Everything downstream (the image, its natural
+  // dims, comment pins) keys off the SHOWN platform, not the raw toggle value,
+  // so a fallback never gets mislabeled as the real thing. 1.0 never passes
+  // `activeShot`, so `shown` collapses to the old `vdata.shot` behavior.
+  const shown = activeShot ?? { url: vdata?.shot ?? null, screenshotId: vdata?.screenshotId ?? null, platform, fallback: false };
+  const shotUrl = shown.url ? `${shown.url}?v=${shotsVersion}` : null;
 
   const commentProps = {
     // Only the VIEWED version's pins render on the canvas (07 §3.3); the
-    // Comments tab still lists every version's threads.
-    comments: (commentApi.comments ?? []).filter((c) => c.onThisVersion),
+    // Comments tab still lists every version's threads. A pin also carries the
+    // platform it was placed on — filter to the platform actually on screen so
+    // a Figma-anchored pin never appears to sit on the built render (or vice
+    // versa) just because both live on the same version.
+    comments: (commentApi.comments ?? []).filter((c) => c.onThisVersion && c.platform === shown.platform),
     numberOf,
     draft: commentApi.draftPin,
     onPlace: commentApi.placeDraft,
@@ -99,6 +111,12 @@ export default function RenderPane({
       <div className="cmp-cb-render__bar">
         <span className="cmp-cb-render__title">{detail.name} · {variant.name}</span>
         {!isCurrent && <span className="cmp-cb-render__oldchip">viewing old version</span>}
+        {shown.fallback && (
+          <span
+            className="cmp-cb-render__oldchip"
+            title="This version has no built render yet — showing the frozen Figma snapshot instead."
+          >no built render on this version — showing Figma</span>
+        )}
         <DevicePicker viewports={detail.viewports} selected={viewport} onSelect={onViewport} />
         {platforms?.length > 1 && onPlatform && (
           <div className="cmp-render__platforms">
@@ -159,12 +177,12 @@ export default function RenderPane({
       {shotUrl ? (
         <div className="cmp-cb-render__pane">
           <ZoomPane
-            platform={platform}
+            platform={shown.platform}
             label={isCurrent ? text.current : `Version ${vdata?.versionId?.slice(-6) ?? ''}`}
             url={shotUrl}
             viewport={viewport}
             captured
-            natural={natural[platform]}
+            natural={natural[shown.platform]}
             fallbackNatural={detail.viewportDimensions?.[viewport]}
             onNatural={onNatural}
             onReset={resetView}

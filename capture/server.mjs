@@ -1271,10 +1271,19 @@ app.get('/api/ui2/detail', async (req, res) => {
       const comments = await listCommentsForVariant(row.comparisonId, v.name, UI2_VIEWPORT);
       const versions = (await listVersions(row.comparisonId, { variantName: v.name, viewport: UI2_VIEWPORT, withScreenshots: true })).map((ver) => {
         const shot = ver.screenshots.find((sc) => sc.platform === 'design') ?? null;
+        const iphoneShot = ver.screenshots.find((sc) => sc.platform === 'iphone') ?? null;
         return {
           versionId: ver.id, capturedAt: ver.capturedAt, viewport: ver.viewport,
           gitSha: ver.gitSha, gitDirty: ver.gitDirty,
+          // `shot`/`screenshotId` stay the design (Figma) shot — every existing
+          // reader (VersionTimeline thumbnails) keeps working unchanged. `shots`
+          // carries BOTH platforms so a client rendering the built side (once
+          // there is one) doesn't get stuck on Figma forever (preview-build §5).
           shot: screenshotUrl(shot), screenshotId: shot?.id ?? null,
+          shots: {
+            design: { url: screenshotUrl(shot), screenshotId: shot?.id ?? null },
+            iphone: { url: screenshotUrl(iphoneShot), screenshotId: iphoneShot?.id ?? null },
+          },
           unresolvedComments: comments.filter((c) => c.versionId === ver.id && !c.resolved).length,
         };
       });
@@ -1306,7 +1315,14 @@ app.get('/api/ui2/version/:vid', async (req, res) => {
     res.json({
       versionId: v.id, comparisonId: v.comparisonId, variantName: v.variantName,
       viewport: v.viewport, capturedAt: v.capturedAt,
+      // `shot`/`screenshotId` stay the design (Figma) shot for existing readers;
+      // `shots` carries both platforms so the client can show whichever the
+      // platform toggle has selected instead of always the Figma snapshot.
       shot: screenshotUrl(shots.design), screenshotId: shots.design?.id ?? null,
+      shots: {
+        design: { url: screenshotUrl(shots.design), screenshotId: shots.design?.id ?? null },
+        iphone: { url: screenshotUrl(shots.iphone), screenshotId: shots.iphone?.id ?? null },
+      },
       webLive: null,
       comments: comments.map((c) => ({ ...c, onThisVersion: c.versionId === v.id })),
     });

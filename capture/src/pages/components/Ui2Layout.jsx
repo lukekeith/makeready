@@ -120,12 +120,31 @@ export default function Ui2Layout({ sub = '', header = null }) {
   const bumpShots = useCallback(() => { setShotsVersion(Date.now()); loadTree(); }, [loadTree]);
   useEffect(() => subscribeLive(() => bumpShots()), [subscribeLive, bumpShots]);
 
+  // The screenshot ACTUALLY shown for the toggle's current selection — falls
+  // back to `design` when this version has no shot for the selected platform
+  // (an older version captured before the component was built), and flags that
+  // fallback so nothing downstream (the pane, a new comment) mistakes the
+  // Figma image for a built one. `vdata.shots` is only present once the server
+  // knows about both platforms (Task 5 fix round 1); guard for the shape's
+  // absence rather than assume it.
+  const activeShot = useMemo(() => {
+    const shots = vdata?.shots;
+    if (!shots) return { url: vdata?.shot ?? null, screenshotId: vdata?.screenshotId ?? null, platform: 'design', fallback: false };
+    const chosen = shots[platform];
+    if (chosen?.url) return { url: chosen.url, screenshotId: chosen.screenshotId, platform, fallback: false };
+    const design = shots.design;
+    return { url: design?.url ?? null, screenshotId: design?.screenshotId ?? null, platform: 'design', fallback: platform !== 'design' };
+  }, [vdata, platform]);
+
   // ── Comments (anchored to the viewed design version) ──
-  const canComment = !!detail?.canCapture && !!vdata?.shot;
+  const canComment = !!detail?.canCapture && !!activeShot.url;
   const refreshComments = useCallback(async () => { await loadVdata(); await loadDetail(); loadTree(); }, [loadVdata, loadDetail, loadTree]);
 
   // No web twin exists for a 2.0 component, so there is nothing to hit-test:
   // pins carry their fraction only (element targeting arrives with the build).
+  // `platform` here is whatever RenderPane's ZoomPane is actually displaying
+  // (the SHOWN platform, post-fallback) — not necessarily the toggle's raw
+  // selection — so the pin is tagged with the image it was actually placed on.
   const placeDraft = (platform, viewport, x, y) => {
     setSelectedCommentId(null);
     setDraftPin({ platform, viewport, x, y });
@@ -135,11 +154,13 @@ export default function Ui2Layout({ sub = '', header = null }) {
     try {
       await addComment(detail.comparisonId, {
         variantName: vdata?.variantName ?? activeVariant?.name ?? 'default',
-        platform: 'design',
+        // The platform the pin was actually dropped on (see placeDraft) —
+        // falls back to the shown platform if a caller ever omits it.
+        platform: draftPin.platform ?? activeShot.platform,
         viewport: draftPin.viewport,
         x: draftPin.x,
         y: draftPin.y,
-        screenshotId: vdata?.screenshotId ?? undefined,
+        screenshotId: activeShot.screenshotId ?? undefined,
         text,
         source: 'user',
       });
@@ -272,6 +293,7 @@ export default function Ui2Layout({ sub = '', header = null }) {
         platform={platform}
         platforms={platforms}
         onPlatform={setPlatform}
+        activeShot={activeShot}
         allVariants={false}
         labels={renderLabels}
         emptyState={detail?.needsSpec ? <Ui2SpecChecklist detail={detail} /> : null}
