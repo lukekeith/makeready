@@ -228,7 +228,17 @@ export default function Ui2Layout({ sub = '', header = null }) {
   }, [canComment]);
 
   const commentApi = {
-    comments: vdata?.comments ?? [],
+    // Scoped to the platform actually on screen (`activeShot.platform`, which
+    // already accounts for a version-with-no-shot fallback). CommentsTab's
+    // list AND its "N open" badge both derive from this one array, so
+    // filtering here — rather than inside CommentsTab — keeps both
+    // automatically in agreement without CommentsTab or SidePanel needing to
+    // know about platforms at all. RenderPane is shared with the 1.0 era,
+    // but ComponentsLayout.jsx assembles its OWN `commentApi.comments`
+    // (hardcoding `platform: 'iphone'` on every 1.0 comment, confirmed at its
+    // :215/:283) — this filter only ever runs on 2.0's array, so 1.0 is
+    // untouched regardless of what this line does.
+    comments: (vdata?.comments ?? []).filter((c) => c.platform === activeShot.platform),
     commentMode, setCommentMode,
     draftPin, placeDraft, submitDraft, cancelDraft: () => setDraftPin(null),
     selectedCommentId, setSelectedCommentId,
