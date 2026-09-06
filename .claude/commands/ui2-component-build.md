@@ -35,9 +35,11 @@ presence (`preview-build.md` §6), so a successful run needs no registry edit at
   `NavigationCoordinator` case references `UI2Preview/`. A step that would need one stops
   and says so.
 - **Legacy untouched** (rule 2). `Colors.swift`, `Typography.swift`, `Pages/`,
-  `Services/Route.swift` are never edited. The only files this command writes outside
-  `UI2Preview/` and `capture/fixtures/ui2/` are the two **test-target** files named in
-  phase 4 — rule 3's reasoning, extended in phase 4e.
+  `Services/Route.swift` are never edited. Outside `UI2Preview/` and `capture/fixtures/ui2/`
+  this command writes exactly three files: the two **test-target** files of phase 4
+  (`ViewRegistry.swift`, `CaptureFixture.swift` — rule 3, amended 2026-09-06), and
+  `iphone/MakeReady.xcodeproj/project.pbxproj`, rewritten by the sync script in phase 5
+  because the target membership is what makes the view compile at all.
 - **Tokens by name** (rule 4). Every colour, type, spacing and radius value resolves to a
   `UI2Token` member generated from `tokens.md`. A contract's **flagged literal** stays a
   literal with the contract's flag repeated as a Swift comment — never silently promoted to
@@ -158,8 +160,22 @@ generated file not hand-edited ✓
 
 ## 3. WRITE — the view
 
-Write `iphone/MakeReady/UI2Preview/<Name>.swift`, where `<Name>` is the **registry name**
-(UpperCamel, no `C-###` prefix). One SwiftUI view:
+**Naming — `UI2` + the registry name** (`preview-build.md` §2). The view type and its file are
+`UI2<RegistryName>`: registry row `TextInput` → `UI2TextInput` in
+`iphone/MakeReady/UI2Preview/UI2TextInput.swift`. This is not optional and not per-component
+judgement: `UI2Preview/` compiles into the **same module** as `MakeReady/Components/`, and
+6 of the 69 registry rows already collide with a `struct` there (`Avatar`, `FieldGroup`,
+`PageHeader`, `RecordButton`, `SearchField`, `TextInput`), where the unprefixed name is a
+redeclaration error against a legacy file rule 2 forbids touching. The prefix is uniform so
+the answer never has to be re-derived and cannot rot when a 1.0 file lands. Still grep before
+you write — `grep -rn "^struct <RegistryName>" iphone/MakeReady` — and record the collision in
+the file header when there is one.
+
+**The ViewRegistry case key does not change**: it stays `component.ui2.C-###`, keyed on the
+**registry ID**, never on the Swift type name. The fixture, the comparison row and the browser
+URL all key on `C-###` too, so a `UI2` prefix is a Swift-namespace fact and nothing else.
+
+One SwiftUI view in that file:
 
 - **Parameters are §4's props** — same names, same types, in the contract's order. Every
   designed §3 state must be reachable **through the parameters alone**: a fixture can only
@@ -180,12 +196,19 @@ Write `iphone/MakeReady/UI2Preview/<Name>.swift`, where `<Name>` is the **regist
 
 ```swift
 //
-//  <Name>.swift
+//  UI2<RegistryName>.swift
 //  MakeReady — UI 2.0 preview namespace
 //
 //  Built from docs/ui2/design-system/components/C-###-<slug>.md (§2 geometry, §3 states,
 //  §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
 //  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
+//
+//  NAME: `UI2` + the registry name (preview-build.md §2).
+//  <only when a 1.0 namesake exists —>
+//  NAME DEVIATION: the registry name for C-### is `<RegistryName>`, but
+//  `MakeReady/Components/…/<RegistryName>.swift` already declares `struct <RegistryName>` in
+//  this same module and is a legacy file this lane may not touch (§3 rule 2). Reported by
+//  the build run.
 //
 ```
 
@@ -230,12 +253,14 @@ skipped the `undesigned` rows, and its `name`/`slug` per state are exactly the k
   state's §3 row (`Default × Single` → `text: ""`, `placeholder: "Placeholder"`,
   `lines: "single"`, `focused: false`). If the contract does not determine the translation,
   **stop**: that is the spec defect rule 5 describes, and it is fixed by `/ui2-component`.
-- **`devices`** — must be a real `CaptureDevice` **raw value** from
-  `iphone/MakeReadyCaptureTests/CaptureDevices.swift`: `iphone-se`, `iphone-15-pro`,
-  `iphone-16-pro-max`. It is **not** a compare viewport key. `fixtureFromContract` currently
-  emits `"pro-max"` — a viewport key, and the mistake that already bit the runner once —
-  so **override it to `["iphone-16-pro-max"]`** (OQ-PB-1's proposed default: the contract's
-  master width plus `pro-max`). Report the override; the module should be fixed to emit it.
+- **`devices`** — **confirm**, don't override: the value must be a real `CaptureDevice`
+  **raw value** from `iphone/MakeReadyCaptureTests/CaptureDevices.swift` (`iphone-se`,
+  `iphone-15-pro`, `iphone-16-pro-max`), never a compare viewport key. `fixtureFromContract`
+  emitted the viewport key `"pro-max"` until commit `2e22b74` fixed it at source; it now
+  derives `iphone-16-pro-max` from `COMPARE_VIEWPORTS`, so the draft should already be right
+  and the check is cheap. If it is ever a viewport key again, that is a regression in the
+  module — fix it there, not in the fixture. (`iphone-16-pro-max` is OQ-PB-1's proposed
+  default: the contract's master width plus `pro-max`.)
 - **`view`** — `component.ui2.C-###`, matching the case you are about to add.
 
 **c. Write** it through the module — `writeUi2Fixture` owns the path and the byte format, so
@@ -250,7 +275,8 @@ import { fixtureFromContract, writeUi2Fixture } from "./capture/lib/ui2-fixture.
 const file = "docs/ui2/design-system/components/C-045-text-input.md";   // ← this contract
 const contract = parseContract(await fs.readFile(file, "utf8"), { file });
 const fixture = fixtureFromContract(contract);
-fixture.devices = ["iphone-16-pro-max"];        // CaptureDevice raw value, not a viewport key
+// devices comes from the module (fixed in 2e22b74) — verify, do not override:
+if (!/^iphone-/.test(fixture.devices[0])) throw new Error(`not a CaptureDevice raw value: ${fixture.devices[0]}`);
 const audited = {                               // §4 props per state, keyed by variant NAME
   "Default × Single": { text: "", placeholder: "Placeholder", lines: "single", focused: false },
   // … one entry per designed state, exactly the names printed in step a
@@ -284,7 +310,7 @@ exactly as the neighbouring `component.*` cases do (`component.card-study`, line
             throw ViewRegistryError.unknownView("component.ui2.C-###: missing state.component")
         }
         return AnyView(
-            <Name>(/* §4 props from `c`, with the contract's defaults */)
+            UI2<RegistryName>(/* §4 props from `c`, with the contract's defaults */)
                 .frame(width: <master width from §2>)   // OQ-PB-1 default: the contract's master width
                 .padding(UI2Token.Space.pageMargin)
                 .frame(maxWidth: .infinity)             // fill the device width the runner renders at
@@ -313,13 +339,13 @@ add the missing ones as purely additive optionals in a UI 2.0 block at the end o
     let focused: Bool?
 ```
 
-This is the same argument `preview-build.md` §3 rule 3 makes for `ViewRegistry.swift` — the
-test target's fixture→view map is not shipping UI, so it does not engage D2 — and it is how
-every 1.0 card was onboarded (see the struct's "added as cards were onboarded" block).
-It is **additive only**: never modify, retype, rename or reorder an existing field, and never
-bend a prop's name to fit a field that already exists (that would break rule 5). **Report
-every field you add**, and note in the report that `preview-build.md` §3 rule 3 names only
-`ViewRegistry.swift` and should be amended to name this file too.
+`preview-build.md` §3 rule 3 (amended 2026-09-06) permits this explicitly and states its two
+bounds: **additive optional fields only**, and **never bend a prop name to fit an existing
+field** — a contract's prop name is the contract's, not something to rename into whatever the
+struct already has (that would break rule 5 as well). So: never modify, retype, rename or
+reorder an existing field, and **name every field you add in the run's report**, as rule 3
+requires. It is also how every 1.0 card was onboarded — see the struct's "added as cards were
+onboarded" block.
 
 **Exit checklist 4:** fixture derived from the parser, not hand-written ✓ · variant names
 untouched ✓ · every prop key is a §4 prop with a contract-traceable value ✓ · `devices` is a
@@ -392,6 +418,11 @@ capture/fixtures/compare/_shots/ui2-c-###/design/iphone/<versionId>.png
 `design` there is the DB **viewport** column `syncUi2Row` registers the Figma snapshot under
 — not a device. The newest file per state is this run's.
 
+**Expected collateral, do not commit it:** `capture.sh` re-runs the whole `CaptureRunner`
+suite, so roughly 20 unrelated 1.0 baseline PNGs under `capture/fixtures/iphone/*/screenshots/`
+are rewritten every capture (`preview-build.md` §5). Nothing broke. Leave them out of the
+commit, or restore them with `git checkout capture/fixtures/iphone`.
+
 **Exit checklist 5:** sync run and the new file named in its output ✓ · SwiftLint clean ✓ ·
 Postgres + simulator present ✓ · permission asked and granted ✓ · runner invoked directly and
 exited 0 ✓ · a PNG per built state located ✓
@@ -422,9 +453,11 @@ exited 0 ✓ · a PNG per built state located ✓
    - **tokens** — regenerated counts, anything `NOT PARSED`, any flagged literal emitted,
      and whether `UI2PreviewTokens.swift` changed since the last build;
    - **test-target edits** — the `ViewRegistry` case, and every `CaptureComponent` field
-     added (phase 4e);
-   - **OQ-PB-1..4 defaults taken** (device/width, background, no-op closures, drift), so an
-     owner ruling has a list to overturn;
+     added (rule 3 requires them named);
+   - **the view's name** — `UI2<RegistryName>`, and the 1.0 type it had to step around if
+     there was one;
+   - **OQ-PB defaults taken** (device/width, background, no-op closures, drift, and any
+     later OQ-PB row), so an owner ruling has a list to overturn;
    - **drift** — on a re-build, what changed in the contract since the previous fixture
      (rule 7);
    - **gaps** — step 3's list, by class.
