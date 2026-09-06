@@ -31,24 +31,34 @@ group = parent.find_subpath('UI2Preview', true)
 group.set_source_tree('<group>')
 group.set_path('UI2Preview')
 
-existing = group.files.to_h { |f| [f.display_name, f] }
+# Key existing references by their path relative to the UI2Preview group (not
+# just the basename), so a file in a subdirectory is tracked distinctly from a
+# same-named file elsewhere, and so the reference's `path` — which Xcode
+# resolves relative to the group, not just the basename — stays correct.
+existing = group.files.to_h { |f| [f.path, f] }
 added = []
 
-Dir.glob(preview_dir.join('*.swift')).sort.each do |path|
-  name = File.basename(path)
-  ref = existing[name] || group.new_reference(name)
+# Recurse: "every .swift file under UI2Preview/" includes subdirectories.
+# Files stay flat members of this one UI2Preview group (Xcode does not require
+# the group tree to mirror the folder tree) — only the reference's `path` needs
+# to carry the subdirectory-relative path so Xcode looks in the right place.
+on_disk = Dir.glob(preview_dir.join('**/*.swift')).sort
+on_disk_relative = on_disk.map { |path| Pathname.new(path).relative_path_from(preview_dir).to_s }
+
+on_disk_relative.each do |rel_path|
+  ref = existing[rel_path] || group.new_reference(rel_path)
   next if target.source_build_phase.files_references.include?(ref)
 
   target.add_file_references([ref])
-  added << name
+  added << rel_path
 end
 
 # Drop references to files that no longer exist on disk, so a deleted preview
 # does not break the build with a missing-file error.
-removed = group.files.reject { |f| File.exist?(preview_dir.join(f.display_name)) }
+removed = group.files.reject { |f| File.exist?(preview_dir.join(f.path)) }
 removed.each(&:remove_from_project)
 
 project.save
 puts "UI2Preview: #{group.files.count} file(s) in target MakeReady"
 puts "  added:   #{added.empty? ? '(none)' : added.join(', ')}"
-puts "  removed: #{removed.empty? ? '(none)' : removed.map(&:display_name).join(', ')}"
+puts "  removed: #{removed.empty? ? '(none)' : removed.map(&:path).join(', ')}"
