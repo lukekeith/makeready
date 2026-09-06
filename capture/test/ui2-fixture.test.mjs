@@ -30,6 +30,11 @@ test('fixtureFromContract emits one entry per DESIGNED state', () => {
   assert.equal(fixture.registryId, 'C-040');
   assert.equal(fixture.component, 'PageHeader');
   assert.equal(fixture.view, 'component.ui2.C-040');
+  // Device must be the iOS CaptureDevice raw value, not a viewport key. The Swift
+  // side does CaptureDevice(rawValue: deviceKey) on each devices array entry, and
+  // an unknown raw value silently fails after a full xcodebuild cycle. Derived from
+  // COMPARE_VIEWPORTS['pro-max'].iphone to stay in sync with capture.mjs.
+  assert.deepEqual(fixture.devices, ['iphone-16-pro-max']);
   // The undesigned row is skipped — there is no design to render.
   assert.deepEqual(fixture.variants.map((v) => v.name), ['Default · showTitle', 'Two icons · no showTitle']);
   // Props come from the matrix row, keyed by the §4 prop name.

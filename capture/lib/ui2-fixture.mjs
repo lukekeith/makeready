@@ -11,6 +11,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { makereadyRoot } from './fs-index.mjs';
 import { ui2ComparisonId } from './ui2-index.mjs';
+import { COMPARE_VIEWPORTS } from '../runners/compare/viewports.mjs';
 
 export const ui2FixtureDir = path.resolve(makereadyRoot, 'capture/fixtures/ui2');
 export const ui2FixturePath = (registryId) => path.join(ui2FixtureDir, `${registryId.toUpperCase()}.json`);
@@ -49,7 +50,11 @@ export function fixtureFromContract(contract) {
     registryId: contract.id,
     component: contract.name,
     view: `component.ui2.${contract.id}`,
-    devices: ['pro-max'],
+    // The iOS CaptureDevice raw value (iphone/MakeReadyCaptureTests/CaptureDevices.swift)
+    // must be a valid case like 'iphone-16-pro-max', not a viewport key like 'pro-max'.
+    // Derived from the same COMPARE_VIEWPORTS['pro-max'] entry that capture.mjs uses,
+    // so there is one mapping from a size tier to a device key, not a second copy.
+    devices: [COMPARE_VIEWPORTS['pro-max'].iphone],
     variants,
   };
 }
