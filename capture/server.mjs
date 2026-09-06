@@ -1329,6 +1329,20 @@ if (!isProduction) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // Capture the BUILT side of a UI 2.0 component (preview-build.md §5): renders
+  // the fixture in the iOS simulator and registers the PNG as the `iphone` side
+  // of the same comparison, alongside the frozen `design` (Figma) snapshot.
+  // Body: { id, variant? } — variant omitted (or "*") captures every state.
+  app.post('/api/ui2/capture', (req, res) => {
+    const id = String(req.body?.id ?? '').toUpperCase();
+    const variant = String(req.body?.variant ?? '*');
+    if (!safeId(id)) return res.status(400).json({ error: 'Invalid id' });
+    if (variant !== '*' && !safeId(variant)) return res.status(400).json({ error: 'Invalid variant' });
+    const args = [path.resolve(__dirname, 'runners/ui2/capture.mjs'), id, variant];
+    const runId = spawnJob('node', args, { cwd: __dirname, env: process.env });
+    res.json({ runId });
+  });
 }
 
 // Frozen Figma snapshots (read-only, flat directory).

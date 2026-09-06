@@ -20,6 +20,18 @@ if (!process.env.CAPTURE_DATABASE_URL) {
 
 export const prisma = new PrismaClient();
 
+/**
+ * Platforms a screenshot can belong to.
+ *
+ * `iphone` + `client` are the two captured sides of a /compare pair. `design` is
+ * the UI 2.0 side: a frozen Figma snapshot from `docs/ui2/design-system/
+ * components/assets/`, registered as a screenshot so 2.0 components get the same
+ * version timeline and pinned comments as captured ones (there is no 2.0 code to
+ * capture yet). It is never produced by a capture run.
+ */
+export const CAPTURE_PLATFORMS = ['iphone', 'client'];
+export const ALL_PLATFORMS = [...CAPTURE_PLATFORMS, 'design'];
+
 // ── Comparisons ──
 
 export async function syncComparison(spec) {
@@ -54,7 +66,7 @@ export async function setVersionRating(versionId, rating) {
 /** Most-recent screenshot per platform for a comparison + viewport. */
 export async function latestScreenshots(comparisonId, viewport) {
   const out = {};
-  for (const platform of ['iphone', 'client']) {
+  for (const platform of ALL_PLATFORMS) {
     out[platform] = await prisma.screenshot.findFirst({
       where: { platform, version: { comparisonId, viewport } },
       orderBy: { createdAt: 'desc' },
@@ -113,11 +125,14 @@ export async function deleteVersion(versionId) {
  * `capturedPlatforms` is the set of platforms that actually produced a shot in
  * this run (a skipped/failed platform is treated as "not captured" and copied
  * forward, so a failed recapture can't lose the previous good shot).
+ *
+ * `platforms` defaults to the two captured platforms; the ui2 lane passes
+ * ['iphone','design'] so the frozen Figma snapshot rides along with a freshly
+ * built render.
  */
-export async function finalizeVariantVersion({ newVersionId, comparisonId, variantName, viewport, capturedPlatforms }) {
-  const PLATFORMS = ['iphone', 'client'];
+export async function finalizeVariantVersion({ newVersionId, comparisonId, variantName, viewport, capturedPlatforms, platforms = CAPTURE_PLATFORMS }) {
   await prisma.$transaction(async (tx) => {
-    for (const platform of PLATFORMS) {
+    for (const platform of platforms) {
       if (capturedPlatforms.includes(platform)) continue;
       const prior = await tx.screenshot.findFirst({
         where: { platform, versionId: { not: newVersionId }, version: { comparisonId, variantName, viewport } },
@@ -139,7 +154,7 @@ export async function finalizeVariantVersion({ newVersionId, comparisonId, varia
  */
 export async function versionShots(version) {
   const out = {};
-  for (const platform of ['iphone', 'client']) {
+  for (const platform of ALL_PLATFORMS) {
     let shot = await prisma.screenshot.findFirst({ where: { versionId: version.id, platform } });
     if (!shot) {
       // Fall back to the latest shot of the platform this version didn't capture
@@ -193,6 +208,16 @@ export async function listVersions(comparisonId, { variantName, viewport, withSc
     unresolvedCount: v.comments.filter((c) => !c.resolved).length,
     ...(withScreenshots ? { screenshots: v.screenshots } : {}),
   }));
+}
+
+/**
+ * The version a given source snapshot already produced, if any. UI 2.0 design
+ * versions are keyed by the frozen PNG's sha: re-reading an unchanged asset must
+ * NOT mint a new version, while a refreshed snapshot (a /ui2-component re-run)
+ * must — that's what makes the design timeline meaningful.
+ */
+export async function findVersionBySourceHash(comparisonId, { variantName, viewport, sourceHash }) {
+  return prisma.version.findFirst({ where: { comparisonId, variantName, viewport, sourceHash } });
 }
 
 /** Screenshot history (newest first) for a comparison + viewport + platform. */
@@ -249,14 +274,15 @@ export async function getComment(id) {
  */
 export async function addComment({ comparisonId, variantName = 'default', screenshotId, platform, viewport, x, y, text, source = 'user', targetSelector = null, targetLabel = null, targetMeta = null }) {
   if (!text || !String(text).trim()) throw new Error('comment text is required');
-  if (platform !== 'iphone' && platform !== 'client') throw new Error('platform must be iphone|client');
+  if (!ALL_PLATFORMS.includes(platform)) throw new Error(`platform must be ${ALL_PLATFORMS.join('|')}`);
   if (!viewport) throw new Error('viewport is required');
 
-  // Resolve an anchor screenshot for iPhone pins (web is live → none).
+  // Resolve an anchor screenshot for pins drawn on an image (iPhone captures,
+  // UI 2.0 design snapshots). The web pane is live, so it has none.
   let shot = null;
   if (screenshotId) {
     shot = await prisma.screenshot.findUnique({ where: { id: screenshotId }, include: { version: true } });
-  } else if (platform === 'iphone') {
+  } else if (platform !== 'client') {
     shot = await prisma.screenshot.findFirst({
       where: { platform, version: { comparisonId, variantName, viewport } },
       orderBy: { createdAt: 'desc' },

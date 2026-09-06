@@ -100,6 +100,40 @@ test('component-browser version retention + anchoring', async (t) => {
   await cleanup();
 });
 
+test('DB-7: finalizeVariantVersion copies forward the platforms it is given', async () => {
+  // The ui2 lane captures ONLY the iphone side; without an explicit platform
+  // list the frozen Figma snapshot would not ride along to the new version,
+  // and the newest version would show a built render with no reference.
+  const variantName = 'ui2-copyforward';
+  const viewport = 'design';
+  await syncComparison({ id: CID, type: 'component', group: '__Test', title: 'Test', adapter: CID });
+
+  const v1 = await createVersion({ comparisonId: CID, variantName, viewport });
+  await addScreenshot({ versionId: v1.id, platform: 'design', device: 'figma', path: `_test/${CID}-design.png` });
+
+  await sleep(20);
+
+  const v2 = await createVersion({ comparisonId: CID, variantName, viewport });
+  await addScreenshot({ versionId: v2.id, platform: 'iphone', device: 'pro-max', path: `_test/${CID}-iphone.png` });
+  await finalizeVariantVersion({
+    newVersionId: v2.id, comparisonId: CID, variantName, viewport,
+    capturedPlatforms: ['iphone'], platforms: ['iphone', 'design'],
+  });
+
+  const shots = await prisma.screenshot.findMany({ where: { versionId: v2.id } });
+  assert.deepEqual(shots.map((s) => s.platform).sort(), ['design', 'iphone']);
+
+  // The default must not change: without `platforms`, only iphone+client are
+  // considered, so `design` is NOT copied forward.
+  const v3 = await createVersion({ comparisonId: CID, variantName, viewport });
+  await addScreenshot({ versionId: v3.id, platform: 'iphone', device: 'pro-max', path: `_test/${CID}-iphone3.png` });
+  await finalizeVariantVersion({
+    newVersionId: v3.id, comparisonId: CID, variantName, viewport, capturedPlatforms: ['iphone'],
+  });
+  const shots3 = await prisma.screenshot.findMany({ where: { versionId: v3.id } });
+  assert.deepEqual(shots3.map((s) => s.platform), ['iphone']);
+});
+
 test.after(async () => {
   await cleanup();
   await prisma.$disconnect();
