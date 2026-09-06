@@ -1,13 +1,15 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useParams } from 'react-router-dom';
 import { CaptureContext } from '../App.jsx';
+import AppHeader from './AppHeader.jsx';
+import NavSearch from './NavSearch.jsx';
 import CaptureButton from './CaptureButton.jsx';
 import LogDrawer from './LogDrawer.jsx';
 
 const COLLAPSED_KEY = 'capture-ui:collapsed-sets';
 
 export default function Layout() {
-  const { platforms, canCapture, manifest, manifestError, currentPlatform, setCurrentPlatform, activeRun, drawerVisible, setDrawerVisible } = useContext(CaptureContext);
+  const { platforms, canCapture, manifest, manifestError, currentPlatform, setCurrentPlatform, activeRun, drawerVisible, setDrawerVisible, bumpCapturesVersion, subscribeLive } = useContext(CaptureContext);
   const params = useParams();
 
   // Sync platform from URL
@@ -16,6 +18,10 @@ export default function Layout() {
       setCurrentPlatform(params.platform);
     }
   }, [params.platform, currentPlatform, setCurrentPlatform]);
+
+  // Same live refresh /compare and /components get: a finished capture (from
+  // this UI, the CLI or an agent) reloads the manifest and cache-busts the shots.
+  useEffect(() => subscribeLive(() => bumpCapturesVersion()), [subscribeLive, bumpCapturesVersion]);
 
   const hasSet = Boolean(params.folder);
   const hasScreen = Boolean(params.folder && params.screen);
@@ -53,7 +59,6 @@ export default function Layout() {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
-  const searchRef = useRef(null);
 
   const allScreens = useMemo(
     () => (manifest?.sets ?? []).flatMap((set) =>
@@ -96,34 +101,11 @@ export default function Layout() {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight((h) => Math.min(h + 1, matches.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0)); }
     else if (e.key === 'Enter') { if (matches[highlight]) gotoScreen(matches[highlight]); }
-    else if (e.key === 'Escape') { setQuery(''); searchRef.current?.blur(); }
   };
 
   return (
     <div className="layout">
-      <header className="layout__header">
-        <div className="layout__brand">
-          <span className="layout__brand-dot" />
-          <NavLink to={`/${p}`}>MakeReady Capture</NavLink>
-        </div>
-
-        {/* Platform tabs */}
-        <div className="layout__platform-tabs">
-          {platforms.map((plat) => (
-            <NavLink
-              key={plat.id}
-              to={`/${plat.id}`}
-              className={({ isActive }) =>
-                `layout__platform-tab${params.platform === plat.id ? ' layout__platform-tab--active' : ''}`
-              }
-            >
-              {plat.title}
-            </NavLink>
-          ))}
-          <NavLink to="/compare" className="layout__platform-tab">Compare</NavLink>
-          <NavLink to="/components" className="layout__platform-tab">Components</NavLink>
-        </div>
-
+      <AppHeader>
         {canCapture && (
           <div className="layout__capture-group">
             <span className="layout__capture-label">Capture</span>
@@ -154,20 +136,18 @@ export default function Layout() {
             )}
           </div>
         )}
-      </header>
+      </AppHeader>
 
       <aside className="layout__sidebar">
         {manifestError && <div className="error-banner">{manifestError}</div>}
         {/* Pinned above the nav so it stays reachable while the set list scrolls */}
-        <div className="nav-search">
-          <input
-            ref={searchRef}
-            className="nav-search__input"
-            placeholder="Search screens…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={onSearchKey}
-          />
+        <NavSearch
+          className="nav-search--sticky"
+          placeholder="Search screens…"
+          value={query}
+          onChange={setQuery}
+          onKeyDown={onSearchKey}
+        >
           {matches.length > 0 && (
             <div className="nav-search__dropdown">
               {matches.map((m, i) => (
@@ -186,7 +166,7 @@ export default function Layout() {
               ))}
             </div>
           )}
-        </div>
+        </NavSearch>
         <div className="nav__section">
           <div className="nav__section-title">Workflows</div>
           <NavLink

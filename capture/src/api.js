@@ -266,3 +266,59 @@ export async function saveComponentFixture(path, variant, shared) {
   }
   return res.json();
 }
+
+// ── UI 2.0 spec browser (docs/ui2 — the 2.0 era of the components browser) ──
+
+export async function fetchUi2Tree() {
+  const res = await fetch('/api/ui2/tree');
+  if (!res.ok) throw new Error(`ui2 tree fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchUi2Detail(id) {
+  const res = await fetch(`/api/ui2/detail?${new URLSearchParams({ id })}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 detail fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export async function fetchUi2Version(versionId) {
+  const res = await fetch(`/api/ui2/version/${encodeURIComponent(versionId)}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 version fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Re-read the frozen Figma snapshot from disk; appends a design version if
+ *  /ui2-component refreshed it. The 2.0 analogue of a recapture. */
+export async function refreshUi2Snapshot(id) {
+  const res = await fetch('/api/ui2/refresh', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 refresh failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Capture the BUILT side of a 2.0 component. Returns { runId } — the job streams
+ *  over SSE; follow it with subscribeCapture(). */
+export async function captureUi2(id, variant = '*') {
+  const res = await fetch('/api/ui2/capture', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, variant }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 capture failed: ${res.status}`);
+  }
+  return res.json();
+}

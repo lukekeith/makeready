@@ -20,6 +20,20 @@ export default function ZoomPane({
   const isWeb = !!webUrl;
   const [vpRef, size] = useElementSize();
   const drag = useRef(null);
+  const imgRef = useRef(null);
+
+  // `load` does NOT fire for an image the browser already holds, so reading the
+  // natural size only in onLoad leaves it unknown whenever the src is unchanged
+  // across a state change — every variant switch on a UI 2.0 component (one
+  // frozen snapshot serves all of a set's states) and any 1.0 version that
+  // copied a prior platform's shot forward. `geom` then falls back to its 1:2
+  // default and the image renders squeezed until the element is remounted.
+  // Reading it off the element covers both paths; onNatural is idempotent, so
+  // running this after every render costs two property reads.
+  useEffect(() => {
+    const el = imgRef.current;
+    if (el?.complete && el.naturalWidth) onNatural(platform, { w: el.naturalWidth, h: el.naturalHeight });
+  });
 
   const geom = useMemo(() => {
     const { w: W, h: H } = size;
@@ -105,7 +119,11 @@ export default function ZoomPane({
       <div className="cmp-zpane__head">
         <span className="cmp-pane__title">{label}</span>
         <span className={`cmp-pane__status ${captured ? 'is-ok' : 'is-missing'}`}>
-          {platform === 'client' ? (captured ? 'live' : 'not built') : (captured ? 'captured' : 'not captured')}
+          {platform === 'client'
+            ? (captured ? 'live' : 'not built')
+            : platform === 'design'
+              ? (captured ? 'design' : 'no snapshot')
+              : (captured ? 'captured' : 'not captured')}
         </span>
         <span className="cmp-zpane__zoom">{zoomPct}%</span>
         <button className="cmp-zpane__reset" onClick={onReset} title="Fit & center (0)" aria-label="Fit and center">
@@ -145,7 +163,7 @@ export default function ZoomPane({
                   style={{ width: '100%', height: '100%', border: 0, background: '#0d101a', pointerEvents: 'none' }}
                 />
               ) : (
-                <img className="cmp-zpane__img" src={url} alt={`${label} ${viewport}`} draggable={false}
+                <img ref={imgRef} className="cmp-zpane__img" src={url} alt={`${label} ${viewport}`} draggable={false}
                   onLoad={(e) => onNatural(platform, { w: e.target.naturalWidth, h: e.target.naturalHeight })} />
               )}
               <CommentLayer platform={platform} viewport={viewport} commentMode={commentMode} inv={1 / effScale} {...commentProps} />

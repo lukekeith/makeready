@@ -2,7 +2,7 @@
 // comment badges and per-row command copy (component-browser 07 §3.1, D11/D13).
 import React, { useMemo, useState } from 'react';
 import TreeView from '../../components/tree/TreeView.jsx';
-import TreeSearchInput from './TreeSearchInput.jsx';
+import NavSearch from '../../components/NavSearch.jsx';
 
 // D11: case-insensitive substring after stripping every non-alphanumeric char
 // from both query and candidate relative path ("cardev" matches "Card/CardEvent").
@@ -32,7 +32,7 @@ async function copyToClipboard(text) {
   }
 }
 
-export default function ComponentTree({ tree, selectedPath, onSelect }) {
+export default function ComponentTree({ tree, selectedPath, onSelect, header = null }) {
   const [query, setQuery] = useState('');
   const [copiedPath, setCopiedPath] = useState(null);
 
@@ -82,7 +82,13 @@ export default function ComponentTree({ tree, selectedPath, onSelect }) {
 
   return (
     <div className="cmp-cb-col cmp-cb-col--tree">
-      <TreeSearchInput value={query} onChange={setQuery} />
+      {header}
+      <NavSearch
+        placeholder="Filter components…"
+        label="Filter components"
+        value={query}
+        onChange={setQuery}
+      />
       {!tree && <div className="cmp-cb-col__empty">loading…</div>}
       {tree && nodes.length === 0 && <div className="cmp-cb-col__empty">No components match “{query}”.</div>}
       {nodes.length > 0 && (

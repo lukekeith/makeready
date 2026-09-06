@@ -1,5 +1,10 @@
 // Column 3 — pan/zoom render + version timeline + recapture (07 §3.3/§3.4).
 // The ZoomPane is the shared controlled viewer; this host owns view state (CR6).
+//
+// Era-agnostic: 1.0 renders a captured iPhone screenshot (platform `iphone`),
+// 2.0 renders the frozen Figma snapshot (platform `design`). Only the labels,
+// the empty state and the split-button menu differ — passed in by the host so
+// this pane stays one component for both.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ZoomPane from '../../components/viewer/ZoomPane.jsx';
 import VersionTimeline from './VersionTimeline.jsx';
@@ -12,7 +17,19 @@ export default function RenderPane({
   versionId, onSelectVersion, vdata, shotsVersion,
   capturing, log, onRecapture, commentApi,
   onHoverInspect, onClearInspect, hoverBox,
+  platform = 'iphone', emptyState = null, allVariants = true, labels = {},
+  platforms = null, onPlatform = null,
 }) {
+  const text = {
+    recapture: 'Recapture',
+    busy: 'Capturing…',
+    variantItem: 'Recapture variant',
+    allItem: 'Recapture all variants',
+    empty: 'never captured',
+    emptyAction: 'Capture now',
+    current: 'Current render',
+    ...labels,
+  };
   const [view, setView] = useState({ scale: 1, cx: 0.5, cy: 0.5 });
   const [capMenuOpen, setCapMenuOpen] = useState(false);
   const capMenuRef = useRef(null);
@@ -27,9 +44,9 @@ export default function RenderPane({
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [capMenuOpen]);
   const [hover, setHover] = useState(null);
-  const [natural, setNatural] = useState({ iphone: null });
+  const [natural, setNatural] = useState({});
   const resetView = useCallback(() => setView({ scale: 1, cx: 0.5, cy: 0.5 }), []);
-  useEffect(() => { resetView(); setNatural({ iphone: null }); }, [vdata?.versionId, viewport, resetView]);
+  useEffect(() => { resetView(); setNatural({}); }, [vdata?.versionId, viewport, resetView]);
   const onNatural = useCallback((platform, dims) => setNatural((n) => (n[platform] && n[platform].w === dims.w && n[platform].h === dims.h ? n : { ...n, [platform]: dims })), []);
 
   // Host-owned "0 = fit" key (CR6; `c`/Esc live in ComponentsLayout).
@@ -51,8 +68,8 @@ export default function RenderPane({
 
   if (detailError) return <div className="cmp-cb-col cmp-cb-col--render"><div className="error-banner">{detailError}</div></div>;
   if (!detail) return <div className="cmp-cb-col cmp-cb-col--render"><div className="cmp-cb-col__empty">Select a component and variant</div></div>;
-  if (!detail.variants?.length && detail.wiring) {
-    return <div className="cmp-cb-col cmp-cb-col--render"><WiringChecklist detail={detail} /></div>;
+  if (!detail.variants?.length && (emptyState || detail.wiring)) {
+    return <div className="cmp-cb-col cmp-cb-col--render">{emptyState ?? <WiringChecklist detail={detail} />}</div>;
   }
   if (!variant) return <div className="cmp-cb-col cmp-cb-col--render"><div className="cmp-cb-col__empty">Select a variant</div></div>;
 
@@ -83,6 +100,17 @@ export default function RenderPane({
         <span className="cmp-cb-render__title">{detail.name} · {variant.name}</span>
         {!isCurrent && <span className="cmp-cb-render__oldchip">viewing old version</span>}
         <DevicePicker viewports={detail.viewports} selected={viewport} onSelect={onViewport} />
+        {platforms?.length > 1 && onPlatform && (
+          <div className="cmp-render__platforms">
+            {platforms.map((p) => (
+              <button
+                key={p}
+                className={`cmp-render__platform${p === platform ? ' is-active' : ''}`}
+                onClick={() => onPlatform(p)}
+              >{p === 'design' ? 'Figma' : 'Built'}</button>
+            ))}
+          </div>
+        )}
         {detail.canCapture && (
           <>
             <button
@@ -95,8 +123,9 @@ export default function RenderPane({
             </button>
             <div className="cmp-capsplit" ref={capMenuRef}>
               <button className="btn btn--primary cmp-capsplit__main" onClick={() => onRecapture()} disabled={capturing}>
-                {capturing ? 'Capturing…' : 'Recapture'}
+                {capturing ? text.busy : text.recapture}
               </button>
+              {allVariants && (
               <button
                 className="btn btn--primary cmp-capsplit__caret"
                 onClick={() => setCapMenuOpen((o) => !o)}
@@ -109,14 +138,15 @@ export default function RenderPane({
                   <polyline points="6 9 12 15 18 9" />
                 </svg>
               </button>
-              {capMenuOpen && (
+              )}
+              {allVariants && capMenuOpen && (
                 <div className="cmp-capsplit__menu" role="menu">
                   <button className="cmp-capsplit__item" role="menuitem" onClick={() => { setCapMenuOpen(false); onRecapture(); }}>
-                    <span className="cmp-capsplit__item-name">Recapture variant</span>
+                    <span className="cmp-capsplit__item-name">{text.variantItem}</span>
                     <span className="cmp-capsplit__item-sub">{variant.name}</span>
                   </button>
                   <button className="cmp-capsplit__item" role="menuitem" onClick={() => { setCapMenuOpen(false); onRecapture({ allVariants: true }); }}>
-                    <span className="cmp-capsplit__item-name">Recapture all variants</span>
+                    <span className="cmp-capsplit__item-name">{text.allItem}</span>
                     <span className="cmp-capsplit__item-sub">{detail.variants?.length ? `${detail.variants.length} total` : 'whole component'}</span>
                   </button>
                 </div>
@@ -129,12 +159,12 @@ export default function RenderPane({
       {shotUrl ? (
         <div className="cmp-cb-render__pane">
           <ZoomPane
-            platform="iphone"
-            label={isCurrent ? 'Current render' : `Version ${vdata?.versionId?.slice(-6) ?? ''}`}
+            platform={platform}
+            label={isCurrent ? text.current : `Version ${vdata?.versionId?.slice(-6) ?? ''}`}
             url={shotUrl}
             viewport={viewport}
             captured
-            natural={natural.iphone}
+            natural={natural[platform]}
             fallbackNatural={detail.viewportDimensions?.[viewport]}
             onNatural={onNatural}
             onReset={resetView}
@@ -151,8 +181,8 @@ export default function RenderPane({
         </div>
       ) : (
         <div className="cmp-cb-col__empty">
-          never captured
-          {detail.canCapture && <div style={{ marginTop: 10 }}><button className="btn btn--primary" onClick={() => onRecapture()} disabled={capturing}>{capturing ? 'Capturing…' : 'Capture now'}</button></div>}
+          {text.empty}
+          {detail.canCapture && <div style={{ marginTop: 10 }}><button className="btn btn--primary" onClick={() => onRecapture()} disabled={capturing}>{capturing ? text.busy : text.emptyAction}</button></div>}
         </div>
       )}
 

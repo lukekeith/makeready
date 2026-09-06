@@ -1,5 +1,6 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { io } from 'socket.io-client';
 import Layout from './components/Layout.jsx';
 import PlatformPicker from './pages/PlatformPicker.jsx';
 import SetsIndex from './pages/SetsIndex.jsx';
@@ -9,7 +10,7 @@ import Preview from './pages/Preview.jsx';
 import CompareLayout from './pages/compare/CompareLayout.jsx';
 import CompareHome from './pages/compare/CompareHome.jsx';
 import CompareDetail from './pages/compare/CompareDetail.jsx';
-import ComponentsLayout from './pages/components/ComponentsLayout.jsx';
+import ComponentsRoute from './pages/components/ComponentsRoute.jsx';
 import { fetchManifest, fetchPlatforms } from './api.js';
 
 export const CaptureContext = createContext(null);
@@ -23,6 +24,7 @@ export default function App() {
   const [activeRun, setActiveRun] = useState(null);
   const [currentPlatform, setCurrentPlatform] = useState(null);
   const [drawerVisible, setDrawerVisible] = useState(false);
+  const [liveConnected, setLiveConnected] = useState(false);
 
   // Load platforms list on mount
   useEffect(() => {
@@ -51,6 +53,39 @@ export default function App() {
     }
   }, [currentPlatform, reloadManifest]);
 
+  // ── Realtime, once for the whole app ──
+  // The server pushes an event whenever ANY capture writes a screenshot or a job
+  // finishes — including captures run outside this UI (CLI, curl, an agent). One
+  // socket lives here so every UI (platform sets, /compare, /components) shares
+  // the same connection and the same `liveConnected` truth in the header, instead
+  // of each layout opening its own. Consumers subscribe for the refresh; bursts
+  // (e.g. a batch capture) are debounced here.
+  const liveListeners = useRef(new Set());
+  const subscribeLive = useCallback((fn) => {
+    liveListeners.current.add(fn);
+    return () => liveListeners.current.delete(fn);
+  }, []);
+
+  useEffect(() => {
+    const socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
+    let timer = null;
+    const fire = (event) => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { for (const fn of liveListeners.current) fn(event); }, 300);
+    };
+    socket.on('connect', () => {
+      setLiveConnected(true);
+      // Refresh on (re)connect too: after a server restart — e.g. a new adapter
+      // for a freshly-built Vue twin — the UI picks up the change immediately.
+      fire('connect');
+    });
+    socket.on('disconnect', () => setLiveConnected(false));
+    socket.on('compare:shot', () => fire('shot'));
+    socket.on('compare:done', () => fire('done'));
+    socket.on('compare:adapters', () => fire('adapters'));
+    return () => { clearTimeout(timer); socket.close(); };
+  }, []);
+
   const bumpCapturesVersion = useCallback(() => {
     setCapturesVersion(Date.now());
     reloadManifest(currentPlatform);
@@ -71,15 +106,17 @@ export default function App() {
       setActiveRun,
       drawerVisible,
       setDrawerVisible,
+      liveConnected,
+      subscribeLive,
     }),
-    [platforms, canCapture, currentPlatform, manifest, manifestError, reloadManifest, capturesVersion, bumpCapturesVersion, activeRun, drawerVisible],
+    [platforms, canCapture, currentPlatform, manifest, manifestError, reloadManifest, capturesVersion, bumpCapturesVersion, activeRun, drawerVisible, liveConnected, subscribeLive],
   );
 
   return (
     <CaptureContext.Provider value={ctx}>
       <Routes>
         <Route path="/" element={<PlatformPicker />} />
-        <Route path="/components/*" element={<ComponentsLayout />} />
+        <Route path="/components/*" element={<ComponentsRoute />} />
         <Route path="/compare" element={<CompareLayout />}>
           <Route index element={<CompareHome />} />
           <Route path=":id" element={<CompareDetail />} />

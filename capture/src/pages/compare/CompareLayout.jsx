@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation, useParams, useNavigate } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Outlet, NavLink, useLocation, useParams, useNavigate } from 'react-router-dom';
+import { CaptureContext } from '../../App.jsx';
+import AppHeader from '../../components/AppHeader.jsx';
+import NavSearch from '../../components/NavSearch.jsx';
 import { CompareContext } from './CompareContext.js';
 import { fetchCompareManifest, fetchVariants, startCompareBatchCapture, subscribeCapture } from '../../api.js';
 
@@ -66,6 +68,7 @@ const ChevronR = () => (
 );
 
 export default function CompareLayout() {
+  const { subscribeLive } = useContext(CaptureContext);
   const [manifest, setManifest] = useState(null);
   const [error, setError] = useState(null);
   const [shotsVersion, setShotsVersion] = useState(() => Date.now());
@@ -82,31 +85,12 @@ export default function CompareLayout() {
   useEffect(() => { reload(); }, [reload]);
   const bumpShots = useCallback(() => { setShotsVersion(Date.now()); reload(); }, [reload]);
 
-  // ── Live updates over socket.io ──
-  // The server pushes an event whenever ANY capture writes a screenshot — including
-  // captures run outside this UI (CLI, curl, an agent building a new twin). On each
-  // event we bumpShots(), which cache-busts screenshot URLs and refetches the
-  // manifest + the open variant, so the nav %, variant dots, and the detail view
-  // all refresh automatically. Bursts (e.g. a batch capture) are debounced.
-  const [liveConnected, setLiveConnected] = useState(false);
-  useEffect(() => {
-    const socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
-    let timer = null;
-    const refresh = () => { clearTimeout(timer); timer = setTimeout(() => bumpShots(), 300); };
-    socket.on('connect', () => {
-      setLiveConnected(true);
-      // Refresh on (re)connect too: after a server restart — e.g. a new adapter was
-      // added for a freshly-built Vue twin — the UI picks up the change immediately.
-      refresh();
-    });
-    socket.on('disconnect', () => setLiveConnected(false));
-    socket.on('compare:shot', refresh);
-    socket.on('compare:done', refresh);
-    // The capture server hot-reloaded its adapter registry (a new web twin) —
-    // refetch so the right-hand live web pane appears without a manual reload.
-    socket.on('compare:adapters', refresh);
-    return () => { clearTimeout(timer); socket.close(); };
-  }, [bumpShots]);
+  // ── Live updates (shared app socket, see App.jsx) ──
+  // Any capture that writes a screenshot — including ones run outside this UI
+  // (CLI, curl, an agent building a new twin) — bumps shots, which cache-busts
+  // screenshot URLs and refetches the manifest + the open variant, so the nav %,
+  // variant dots and the detail view all refresh automatically.
+  useEffect(() => subscribeLive(() => bumpShots()), [subscribeLive, bumpShots]);
 
   const ctx = useMemo(() => ({ manifest, reload, shotsVersion, bumpShots, activeRun, setActiveRun }),
     [manifest, reload, shotsVersion, bumpShots, activeRun]);
@@ -214,7 +198,6 @@ export default function CompareLayout() {
   // and "ManagedMenu" all hit the same entries).
   const [query, setQuery] = useState('');
   const [highlight, setHighlight] = useState(0);
-  const searchRef = useRef(null);
   const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
   const matches = useMemo(() => {
     const q = norm(query.trim());
@@ -228,7 +211,6 @@ export default function CompareLayout() {
     if (e.key === 'ArrowDown') { e.preventDefault(); setHighlight((h) => Math.min(h + 1, matches.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0)); }
     else if (e.key === 'Enter') { if (matches[highlight]) goto(matches[highlight].id); }
-    else if (e.key === 'Escape') { setQuery(''); searchRef.current?.blur(); }
   };
 
   const fmt = (iso) => { try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); } catch { return iso; } };
@@ -236,51 +218,38 @@ export default function CompareLayout() {
   return (
     <CompareContext.Provider value={ctx}>
       <div className="layout">
-        <header className="layout__header">
-          <div className="layout__brand"><span className="layout__brand-dot" /><NavLink to="/">MakeReady Capture</NavLink></div>
-          <div className="layout__platform-tabs">
-            <NavLink to="/client" className="layout__platform-tab">Web</NavLink>
-            <NavLink to="/iphone" className="layout__platform-tab">iPhone</NavLink>
-            <NavLink to="/compare" className="layout__platform-tab layout__platform-tab--active">Compare</NavLink>
-            <NavLink to="/components" className="layout__platform-tab">Components</NavLink>
-          </div>
+        <AppHeader>
           {activeRun && (
             <div className="layout__capture-group">
               <button className="layout__activity-btn" disabled><span className="layout__activity-spinner" />Capturing {activeRun.id}…</button>
             </div>
           )}
-          <span
-            title={liveConnected ? 'Live — the view auto-updates when captures complete' : 'Live updates offline'}
-            style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, letterSpacing: 0.3, textTransform: 'uppercase', color: liveConnected ? '#4ade80' : '#6b7280' }}
-          >
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: liveConnected ? '#4ade80' : '#6b7280', boxShadow: liveConnected ? '0 0 6px #4ade80' : 'none' }} />
-            Live
-          </span>
-        </header>
+        </AppHeader>
 
         <aside className="layout__sidebar cmp-nav">
           {error && <div className="error-banner">{error}</div>}
           {/* Search stays pinned above the slider — available on both panes */}
-          <div className="cmp-search">
-            <input
-              ref={searchRef}
-              className="cmp-search__input"
-              placeholder="Search components…"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={onSearchKey}
-            />
+          <NavSearch
+            placeholder="Search components…"
+            value={query}
+            onChange={setQuery}
+            onKeyDown={onSearchKey}
+          >
             {matches.length > 0 && (
-              <div className="cmp-search__dropdown">
+              <div className="nav-search__dropdown">
                 {matches.map((c, i) => (
-                  <button key={c.id} className={`cmp-search__opt${i === highlight ? ' is-active' : ''}`}
+                  <button key={c.id} className={`nav-search__opt${i === highlight ? ' is-active' : ''}`}
                     onMouseEnter={() => setHighlight(i)} onMouseDown={(e) => { e.preventDefault(); goto(c.id); }}>
-                    <span>{c.title}</span><span className="cmp-search__id">{c.id}</span><span className="cmp-search__type">{c.type}</span>
+                    <span className="nav-search__title">{c.title}</span>
+                    <span className="nav-search__meta">
+                      <span className="nav-search__type">{c.type}</span>
+                      <span className="nav-search__id">{c.id}</span>
+                    </span>
                   </button>
                 ))}
               </div>
             )}
-          </div>
+          </NavSearch>
           <div className={`cmp-nav__slider${id ? ' cmp-nav__slider--versions' : ''}`}>
             {/* Level 1 — components grouped into collapsible category sections */}
             <div className="cmp-nav__pane">

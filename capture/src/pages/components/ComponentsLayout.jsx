@@ -6,9 +6,10 @@
 // This host owns (like CompareDetail does for /compare): the version-locked
 // payload (render + comments), comment mode/draft/selection, the capture run,
 // and the keybindings — the viewer components stay controlled (CR6).
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { NavLink, useNavigate, useParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
+import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { CaptureContext } from '../../App.jsx';
+import AppHeader from '../../components/AppHeader.jsx';
 import {
   fetchComponentsTree,
   fetchComponentDetail,
@@ -50,9 +51,10 @@ function parseSplat(splat, byPath) {
   return { path: full || null, variant: null };
 }
 
-export default function ComponentsLayout() {
+export default function ComponentsLayout({ sub = '', header = null }) {
+  const { subscribeLive } = useContext(CaptureContext);
   const navigate = useNavigate();
-  const splat = useParams()['*'] ?? '';
+  const splat = sub;
 
   const [treeData, setTreeData] = useState(null);
   const [treeError, setTreeError] = useState(null);
@@ -61,7 +63,6 @@ export default function ComponentsLayout() {
   const [viewport, setViewport] = useState(null);
   const [versionId, setVersionId] = useState(null); // null = current
   const [vdata, setVdata] = useState(null); // version-locked payload (render + comments)
-  const [liveConnected, setLiveConnected] = useState(false);
   const [shotsVersion, setShotsVersion] = useState(() => Date.now());
 
   // Comment state (host-owned, CR6)
@@ -99,7 +100,7 @@ export default function ComponentsLayout() {
   // Selecting a component lands on its first variant (replace, like /compare).
   useEffect(() => {
     if (path && !variant && detail?.path === path && detail.variants?.length) {
-      navigate(`/components/${path}/${encodeURIComponent(detail.variants[0].name)}`, { replace: true });
+      navigate(`/components/1.0/${path}/${encodeURIComponent(detail.variants[0].name)}`, { replace: true });
     }
   }, [path, variant, detail, navigate]);
 
@@ -120,18 +121,10 @@ export default function ComponentsLayout() {
   }, [activeVersionId]);
   useEffect(() => { loadVdata(); }, [loadVdata, shotsVersion]);
 
-  // Live updates: any finished capture refreshes the detail + tree badges.
+  // Live updates (shared app socket, see App.jsx): any finished capture
+  // refreshes the detail + tree badges.
   const bumpShots = useCallback(() => { setShotsVersion(Date.now()); loadTree(); }, [loadTree]);
-  useEffect(() => {
-    const socket = io({ path: '/socket.io', transports: ['websocket', 'polling'] });
-    let timer = null;
-    const refresh = () => { clearTimeout(timer); timer = setTimeout(() => bumpShots(), 300); };
-    socket.on('connect', () => { setLiveConnected(true); refresh(); });
-    socket.on('disconnect', () => setLiveConnected(false));
-    socket.on('compare:shot', refresh);
-    socket.on('compare:done', refresh);
-    return () => { clearTimeout(timer); socket.close(); };
-  }, [bumpShots]);
+  useEffect(() => subscribeLive(() => bumpShots()), [subscribeLive, bumpShots]);
 
   // ── Element hit-testing (ported from CompareDetail): a HIDDEN live web-twin
   // iframe is the hit-test oracle — hovering in comment mode outlines the
@@ -283,8 +276,8 @@ export default function ComponentsLayout() {
     return () => document.removeEventListener('keydown', onKey);
   }, [canComment]);
 
-  const selectComponent = (node) => navigate(`/components/${node.path}`);
-  const selectVariant = (name) => navigate(`/components/${path}/${encodeURIComponent(name)}`);
+  const selectComponent = (node) => navigate(`/components/1.0/${node.path}`);
+  const selectVariant = (name) => navigate(`/components/1.0/${path}/${encodeURIComponent(name)}`);
 
   const commentApi = {
     comments: vdata?.comments ?? [],
@@ -296,27 +289,18 @@ export default function ComponentsLayout() {
 
   return (
     <div className="layout cmp-cb">
-      <header className="layout__header">
-        <div className="layout__brand"><span className="layout__brand-dot" /><NavLink to="/">MakeReady Capture</NavLink></div>
-        <div className="layout__platform-tabs">
-          <NavLink to="/client" className="layout__platform-tab">Web</NavLink>
-          <NavLink to="/iphone" className="layout__platform-tab">iPhone</NavLink>
-          <NavLink to="/compare" className="layout__platform-tab">Compare</NavLink>
-          <NavLink to="/components" className="layout__platform-tab layout__platform-tab--active">Components</NavLink>
-        </div>
-        <span
-          title={liveConnected ? 'Live — the view auto-updates when captures complete' : 'Live updates offline'}
-          style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, letterSpacing: 0.3, textTransform: 'uppercase', color: liveConnected ? '#4ade80' : '#6b7280' }}
-        >
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: liveConnected ? '#4ade80' : '#6b7280', boxShadow: liveConnected ? '0 0 6px #4ade80' : 'none' }} />
-          Live
-        </span>
-      </header>
+      <AppHeader>
+        {capturing && (
+          <div className="layout__capture-group">
+            <button className="layout__activity-btn" disabled><span className="layout__activity-spinner" />Capturing…</button>
+          </div>
+        )}
+      </AppHeader>
 
       <div className="cmp-cb__cols">
         {treeError
-          ? <div className="cmp-cb-col cmp-cb-col--tree"><div className="error-banner">{treeError}<button className="btn btn--mini" style={{ marginLeft: 8 }} onClick={loadTree}>Retry</button></div></div>
-          : <ComponentTree tree={treeData?.tree ?? null} selectedPath={path} onSelect={selectComponent} />}
+          ? <div className="cmp-cb-col cmp-cb-col--tree">{header}<div className="error-banner">{treeError}<button className="btn btn--mini" style={{ marginLeft: 8 }} onClick={loadTree}>Retry</button></div></div>
+          : <ComponentTree header={header} tree={treeData?.tree ?? null} selectedPath={path} onSelect={selectComponent} />}
 
         <VariantList detail={detail} selectedVariant={activeVariant?.name} onSelect={selectVariant} />
 
