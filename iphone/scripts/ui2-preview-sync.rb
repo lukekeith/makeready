@@ -1,8 +1,13 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 #
-# Make every Swift file under MakeReady/UI2Preview/ a member of the MakeReady
-# target (docs/ui2/preview-build.md §2).
+# Make every Swift file under MakeReady/UI2Preview/ a member of the UI2Preview
+# framework target (docs/ui2/preview-build.md §2).
+#
+# UI2Preview is its own Swift module, so its types carry no prefix and cannot
+# collide with the 1.0 types in MakeReady/Components/. The sources still SIT
+# under MakeReady/ on disk (path stability, and SwiftLint's `included: MakeReady`
+# keeps covering them) but they are NOT in the MakeReady target.
 #
 # The project has no file-system-synchronised groups (objectVersion 56), so a
 # generated file is invisible to the compiler until it is referenced here. This
@@ -20,8 +25,8 @@ preview_dir  = repo_root.join('iphone/MakeReady/UI2Preview')
 abort("no preview directory at #{preview_dir}") unless preview_dir.directory?
 
 project = Xcodeproj::Project.open(project_path.to_s)
-target  = project.targets.find { |t| t.name == 'MakeReady' }
-abort('MakeReady target not found') if target.nil?
+target  = project.targets.find { |t| t.name == 'UI2Preview' }
+abort('UI2Preview target not found') if target.nil?
 
 # The group is created relative to the MakeReady group so the pbxproj records a
 # relative path, not this machine's absolute one.
@@ -59,6 +64,6 @@ removed = group.files.reject { |f| File.exist?(preview_dir.join(f.path)) }
 removed.each(&:remove_from_project)
 
 project.save
-puts "UI2Preview: #{group.files.count} file(s) in target MakeReady"
+puts "UI2Preview: #{group.files.count} file(s) in target UI2Preview"
 puts "  added:   #{added.empty? ? '(none)' : added.join(', ')}"
 puts "  removed: #{removed.empty? ? '(none)' : removed.map(&:path).join(', ')}"

@@ -23,7 +23,7 @@ D2/D6/D7/D10, `design-system/registry.md` (the component universe), `design-syst
 contract (components/C-###-<slug>.md)
    │  §4 props table × §3 state matrix
    ▼
-tokens.md ──▶ UI2PreviewTokens.swift        (generated, every run)
+tokens.md ──▶ UI2Preview/Tokens.swift       (generated, every run)
    │
    ▼
 UI2Preview/<Name>.swift                     (the view, states driven by props)
@@ -45,41 +45,60 @@ browser: Figma snapshot ⇄ built render, per state, with the existing diff + co
 
 | Artifact | Path | Owner |
 |---|---|---|
-| The view | `iphone/MakeReady/UI2Preview/UI2<Name>.swift` | this lane |
-| Generated tokens | `iphone/MakeReady/UI2Preview/UI2PreviewTokens.swift` | generated from `tokens.md` — never hand-edited |
+| The view | `iphone/MakeReady/UI2Preview/<RegistryName>.swift` | this lane |
+| Generated tokens | `iphone/MakeReady/UI2Preview/Tokens.swift` | generated from `tokens.md` — never hand-edited |
 | Folder README | `iphone/MakeReady/UI2Preview/README.md` | states the preview-only rule + promotion path |
+| Xcode target | `UI2Preview` (framework) in `iphone/MakeReady.xcodeproj` | membership synced by `iphone/scripts/ui2-preview-sync.rb` |
 | Fixture | `capture/fixtures/ui2/C-###.json` | generated from the contract |
 | Registry case | `iphone/MakeReadyCaptureTests/ViewRegistry.swift` | one `case "component.ui2.C-###"` appended |
 | Command | `.claude/commands/ui2-component-build.md` | beside `/ui2-component`, `/ui2-screen` |
 
-The view must live in the **MakeReady app target**: `ViewRegistry.swift` is in
-`MakeReadyCaptureTests` and reaches views through `@testable import MakeReady`, so a
-separate package or target would be invisible to it. It is referenced by no screen, so it
-is dead code from the app's perspective — compiled, never presented.
+### The module (decided 2026-09-06 by the owner; binding from here)
 
-**No `#if DEBUG` wrapper.** Unreferenced SwiftUI views cost binary bytes and no behaviour,
-and a DEBUG wrapper is one more thing `ui2-shell` would have to unpick at promotion.
+**Preview views compile into their own Swift module, `UI2Preview`, and their types carry no
+prefix.** Registry row `TextInput` → `struct TextInput` in
+`iphone/MakeReady/UI2Preview/TextInput.swift`. The registry name **is** the type name, with
+nothing bolted on.
 
-**Naming: `UI2` + the registry name** (established 2026-09-06 by C-045, binding from here).
-The preview type and its file are `UI2<RegistryName>` — registry row `TextInput` →
-`UI2TextInput.swift`. `UI2Preview/` compiles into the **same module** as
-`MakeReady/Components/`, and the 2.0 registry names the *role*, which is often what the 1.0
-component was already called. Measured 2026-09-06: **6 of the 69 registry rows already
-collide** with a `struct` in `MakeReady/` — `Avatar`, `FieldGroup`, `PageHeader`,
-`RecordButton`, `SearchField`, `TextInput` — and for those the unprefixed name is a
-redeclaration error against a legacy file rule 2 forbids touching.
+**Why a module and not a folder.** A folder is not a namespace in Swift. Every file in a
+target shares one flat namespace no matter which directory it sits in, so
+`MakeReady/UI2Preview/PageHeader.swift` and `MakeReady/Components/Navigation/PageHeader.swift`
+were two declarations of the same name in the same module — a redeclaration error against a
+legacy file rule 2 forbids touching. Measured 2026-09-06: **6 of the 69 registry rows** name a
+`struct` that already exists in `MakeReady/` — `Avatar`, `FieldGroup`, `PageHeader`,
+`RecordButton`, `SearchField`, `TextInput`. A **module** is a namespace: `UI2Preview.PageHeader`
+and `MakeReady.PageHeader` are different types that coexist, and inside `UI2Preview/` the plain
+name resolves to the 2.0 one with no ceremony.
 
-The prefix is applied **uniformly**, not only to the six. A per-component judgement would have
-to be re-made on every run, would silently break when a 1.0 file is added or a registry row is
-renamed, and would leave `UI2Preview/` with two naming schemes. A build run still greps for a
-1.0 namesake (`grep -rn "^struct <RegistryName>" iphone/MakeReady`) and records the collision
-in the view's file header when there is one — that is the audit trail, not the decision.
+A uniform `UI2` type prefix was tried first (2026-09-06, C-045) and **rejected by the owner**:
+it made 69 types carry a marker for a collision that only 6 of them had, and it deferred the
+whole rename to cutover — see §7.
 
-The prefix is a **Swift-namespace fact only**. The `ViewRegistry` case key stays
-`component.ui2.C-###`, and the fixture, the comparison row and the browser URL all key on the
-registry **ID** — never on the type name. At promotion (§7) `ui2-shell` decides whether the
-prefix survives; by then legacy has been retired or namespaced, which is exactly the decision
-this lane must not pre-empt.
+**The sources stay on disk at `iphone/MakeReady/UI2Preview/`** even though they are not in the
+`MakeReady` target. The path is stable across the whole lane's docs and commands, and
+SwiftLint's `included: MakeReady` keeps covering them. The pbxproj is the authority on
+membership, not the directory: **a file in that folder is in the `UI2Preview` target and
+nowhere else.**
+
+**The module does not depend on `MakeReady`.** It imports SwiftUI and nothing else. If a
+preview view ever needs a 1.0 type, that is a spec defect (rule 2 territory), not a linkage to
+add.
+
+**The test target reaches it with `@testable import UI2Preview`**, beside its existing
+`@testable import MakeReady`. Testability is enabled by the project's Debug configuration,
+which is the configuration the scheme's TestAction — and therefore every capture — builds
+under; the types stay internal rather than being made `public` for the sake of one importer.
+Because `ViewRegistry.swift` imports *both* modules, the six colliding names are ambiguous
+**there**: every 2.0 reference in it is written `UI2Preview.TextInput`, and the pre-existing
+1.0 references to a colliding name are written `MakeReady.TextInput`. That qualification is
+confined to `ViewRegistry.swift` and is the only place the collision is still visible.
+
+**The `ViewRegistry` case key does not change.** It stays `component.ui2.C-###`, and the
+fixture, the comparison row and the browser URL all key on the registry **ID** — never on the
+type name.
+
+**No `#if DEBUG` wrapper.** Unreferenced SwiftUI views cost binary bytes and no behaviour, and
+a DEBUG wrapper is one more thing `ui2-shell` would have to unpick at promotion.
 
 ## 3. Binding rules
 
@@ -104,7 +123,7 @@ this lane must not pre-empt.
    field added is named in the run's report.
 4. **Tokens are generated, by name** (D7, `migration.md` rule 4). Every colour, type,
    spacing, radius and elevation value in a preview view resolves to a
-   `UI2PreviewTokens.swift` symbol generated from `tokens.md`. A contract's **flagged
+   `UI2Preview/Tokens.swift` symbol generated from `tokens.md`. A contract's **flagged
    literal** (e.g. C-034's `#1f2124`) is emitted as a literal with the contract's flag
    repeated in a comment — never silently promoted to a token. A value that is
    **contract-traceable but has no token row** (C-045's `py9` inset, OQ-PB-5) is emitted as a
@@ -196,14 +215,29 @@ browser surfaces three states per row, and the Details tab keys its empty state 
 
 ## 7. Promotion (what `ui2-shell` inherits)
 
-`ui2-shell` decides the real tree path, module boundary and flag. At that point:
+At cutover **1.0 is deleted** — D2's "parallel shell, hard cutover", with the legacy-tree
+removal already a phase in `migration.md`'s cutover execution. The two UIs never run
+side by side in production; the parallel period exists only while 2.0 is being built.
 
-- `UI2Preview/` files move into the decided tree; their content is already token-correct and
-  contract-faithful, so promotion is a move plus a namespace edit, not a rewrite.
-- `UI2PreviewTokens.swift` becomes the real generated token file (same generator, new path).
-- ViewRegistry cases stay — a promoted component is still worth capturing.
-- Stubs from §4 rule 3 must be resolved before promotion; the cutover checklist in
-  `migration.md` gains that gate.
+Two things follow, and they are the argument for the module:
+
+1. **The collisions this module solves are temporary.** They exist only while
+   `MakeReady/Components/` still holds the 1.0 `Avatar`, `FieldGroup`, `PageHeader`,
+   `RecordButton`, `SearchField` and `TextInput`. Once those are deleted, nothing in the app
+   owns those names.
+2. **Which is exactly why the types are named plainly now.** Because they are already
+   `PageHeader` and `TextInput` rather than `UI2PageHeader`/`UI2TextInput`, promotion is a
+   file move with **zero renames** — `ui2-shell` can keep `UI2Preview` as a module or dissolve
+   it into the app target, and no type changes name either way. A prefix would have bundled a
+   69-type mechanical rename into the same change that deletes the legacy tree, which is the
+   worst possible moment for it.
+
+So: `ui2-shell` decides the tree path and whether the module survives; the files move,
+`Tokens.swift` comes with them (same generator, new path), ViewRegistry cases stay — a
+promoted component is still worth capturing — and **no type is renamed at any point**. Stubs
+from §4 rule 3 must be resolved before promotion; the cutover checklist in `migration.md`
+gains that gate. `migration.md` owns the cutover plan; this section only says how the module
+lands in it.
 
 ## 8. Open questions
 
@@ -213,4 +247,4 @@ browser surfaces three states per row, and the Details tab keys its empty state 
 | OQ-PB-2 | Does a built preview render on `color-layout-background`, or on transparency so the diff isolates the component? C-040's bar is itself transparent, so the choice is visible | No — proposed default: `color-layout-background`, matching how the Figma snapshot is framed | owner |
 | OQ-PB-3 | Interaction-bearing props (`onBack`, `onChange`) have no render effect. Emit them as no-ops for signature fidelity, or omit them from the preview view entirely? | No — proposed default: emit as no-ops, so the promoted view keeps its real signature | owner |
 | OQ-PB-4 | When a contract changes after a build, does the command auto-rebuild every affected component, or report drift and wait? | No — proposed default: report drift, rebuild on request | owner |
-| OQ-PB-5 | **Live rule-4 deviation (C-045, 2026-09-06):** the Multi state's `py9` vertical inset has no row in `tokens.md` (the spacing family is 16/16/8/32/4/2/24), so `UI2Preview/UI2TextInput.swift` emits `9` as a literal with a `GAP —` comment citing C-045 §2. The value is contract-traceable — only its token *name* is missing — so this is not an invented value, but it is also not a token by name. Fix either way: a `/ui2-component` re-run that lands a 9pt spacing row in `tokens.md`, or one that flags the literal in C-045 §2 so rule 4's flagged-literal path covers it properly. Until then the literal stands and this row is why. | No | owner (which of the two fixes) |
+| OQ-PB-5 | **Live rule-4 deviation (C-045, 2026-09-06):** the Multi state's `py9` vertical inset has no row in `tokens.md` (the spacing family is 16/16/8/32/4/2/24), so `UI2Preview/TextInput.swift` emits `9` as a literal with a `GAP —` comment citing C-045 §2. The value is contract-traceable — only its token *name* is missing — so this is not an invented value, but it is also not a token by name. Fix either way: a `/ui2-component` re-run that lands a 9pt spacing row in `tokens.md`, or one that flags the literal in C-045 §2 so rule 4's flagged-literal path covers it properly. Until then the literal stands and this row is why. | No | owner (which of the two fixes) |

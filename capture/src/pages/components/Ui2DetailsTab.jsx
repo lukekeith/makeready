@@ -10,11 +10,11 @@ import CopyCode from '../../components/CopyCode.jsx';
 
 /** The Swift type the preview-build lane actually generates for a registry row
  *  (`docs/ui2/preview-build.md` §2, `.claude/commands/ui2-component-build.md`
- *  phase 3): `UI2` + the registry name, uniformly — not only on the six rows
- *  that collide with a 1.0 struct. This is a Swift-namespace fact only: the
- *  ViewRegistry case key and the registry id stay unprefixed. */
+ *  phase 3): the registry name, plain. Preview views compile into their own
+ *  `UI2Preview` module, so the six rows that share a name with a 1.0 struct
+ *  need no prefix — a module namespaces them, which a folder cannot. */
 function previewTypeName(name) {
-  return `UI2${name}`;
+  return name;
 }
 
 /** `default | textButtons | twoIcons` → the member matching a matrix cell. */

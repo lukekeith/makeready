@@ -1,6 +1,6 @@
 //
-//  UI2PreviewTokens.swift
-//  MakeReady — UI 2.0 preview namespace
+//  Tokens.swift
+//  UI2Preview — the UI 2.0 preview module
 //
 //  GENERATED FROM docs/ui2/design-system/tokens.md — DO NOT EDIT.
 //  Regenerate with: node capture/lib/ui2-tokens.mjs
@@ -10,8 +10,11 @@
 import SwiftUI
 
 /// A designed text style: SwiftUI has no line-height, so the leading is applied
-/// as lineSpacing (lineHeight − size) by the `ui2TextStyle` modifier.
-struct UI2TextStyle {
+/// as lineSpacing (lineHeight − size) by the `designTextStyle` modifier.
+///
+/// NOT `TextStyle`: SwiftUI already spells one `Font.TextStyle`, and a bare
+/// `TextStyle` here would read as that one at every call site.
+struct DesignTextStyle {
     let weight: Font.Weight
     let size: CGFloat
     let lineHeight: CGFloat?
@@ -22,12 +25,12 @@ struct UI2TextStyle {
 }
 
 extension View {
-    func ui2TextStyle(_ style: UI2TextStyle) -> some View {
+    func designTextStyle(_ style: DesignTextStyle) -> some View {
         font(style.font).tracking(style.tracking).lineSpacing(style.lineSpacing)
     }
 }
 
-enum UI2Token {
+enum Token {
     static let layoutBackground = Color(red: 0.0118, green: 0.0157, blue: 0.0196, opacity: 1)
     static let layoutBorder = Color(red: 0.1843, green: 0.2118, blue: 0.2235, opacity: 1)
     static let cardBackground = Color(red: 0.1216, green: 0.1294, blue: 0.1412, opacity: 1)
@@ -62,25 +65,25 @@ enum UI2Token {
     static let black = Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 1)
     static let transparent = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0)
 
-    // NOT `Type`: `UI2Token.Type` is Swift's metatype syntax for the enum itself.
+    // NOT `Type`: `Token.Type` is Swift's metatype syntax for the enum itself.
     enum TypeStyle {
-        static let calloutBold = UI2TextStyle(weight: .semibold, size: 16, lineHeight: 21, tracking: -0.32)
-        static let bodyLg = UI2TextStyle(weight: .regular, size: 17, lineHeight: 22, tracking: 0)
-        static let footnote = UI2TextStyle(weight: .regular, size: 13, lineHeight: 18, tracking: 0)
-        static let titleCard = UI2TextStyle(weight: .bold, size: 14, lineHeight: 20, tracking: 0)
-        static let valueEmphasis = UI2TextStyle(weight: .bold, size: 18, lineHeight: 24, tracking: 0)
-        static let caption = UI2TextStyle(weight: .regular, size: 12, lineHeight: 14, tracking: 0)
-        static let captionBold = UI2TextStyle(weight: .bold, size: 12, lineHeight: nil, tracking: 0)
-        static let captionSemibold = UI2TextStyle(weight: .semibold, size: 12, lineHeight: nil, tracking: 0)
-        static let body = UI2TextStyle(weight: .regular, size: 14, lineHeight: nil, tracking: 0)
-        static let sectionTitle = UI2TextStyle(weight: .semibold, size: 18, lineHeight: 24, tracking: 0)
-        static let subtitleSemibold = UI2TextStyle(weight: .semibold, size: 14, lineHeight: 20, tracking: 0)
-        static let valueHero = UI2TextStyle(weight: .regular, size: 24, lineHeight: 32, tracking: 0)
-        static let actionItem = UI2TextStyle(weight: .regular, size: 18, lineHeight: 24, tracking: 0)
-        static let navLabel = UI2TextStyle(weight: .bold, size: 14, lineHeight: 16, tracking: 0)
-        static let input = UI2TextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0)
-        static let pageTitle = UI2TextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: 0)
-        static let navAction = UI2TextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0.56)
+        static let calloutBold = DesignTextStyle(weight: .semibold, size: 16, lineHeight: 21, tracking: -0.32)
+        static let bodyLg = DesignTextStyle(weight: .regular, size: 17, lineHeight: 22, tracking: 0)
+        static let footnote = DesignTextStyle(weight: .regular, size: 13, lineHeight: 18, tracking: 0)
+        static let titleCard = DesignTextStyle(weight: .bold, size: 14, lineHeight: 20, tracking: 0)
+        static let valueEmphasis = DesignTextStyle(weight: .bold, size: 18, lineHeight: 24, tracking: 0)
+        static let caption = DesignTextStyle(weight: .regular, size: 12, lineHeight: 14, tracking: 0)
+        static let captionBold = DesignTextStyle(weight: .bold, size: 12, lineHeight: nil, tracking: 0)
+        static let captionSemibold = DesignTextStyle(weight: .semibold, size: 12, lineHeight: nil, tracking: 0)
+        static let body = DesignTextStyle(weight: .regular, size: 14, lineHeight: nil, tracking: 0)
+        static let sectionTitle = DesignTextStyle(weight: .semibold, size: 18, lineHeight: 24, tracking: 0)
+        static let subtitleSemibold = DesignTextStyle(weight: .semibold, size: 14, lineHeight: 20, tracking: 0)
+        static let valueHero = DesignTextStyle(weight: .regular, size: 24, lineHeight: 32, tracking: 0)
+        static let actionItem = DesignTextStyle(weight: .regular, size: 18, lineHeight: 24, tracking: 0)
+        static let navLabel = DesignTextStyle(weight: .bold, size: 14, lineHeight: 16, tracking: 0)
+        static let input = DesignTextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0)
+        static let pageTitle = DesignTextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: 0)
+        static let navAction = DesignTextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0.56)
     }
 
     enum Space {

@@ -46,12 +46,13 @@ custom_rules:
   raw_font_size_outside_typography:
     name: "Raw .system(size:) outside Typography.swift"
     regex: '\.system\(size:'
-    # UI2PreviewTokens.swift is the UI 2.0 namespace's own token file — the
+    # UI2Preview/Tokens.swift is the UI 2.0 module's own token file — the
     # direct 2.0 counterpart of Typography.swift (docs/ui2/migration.md rule
     # 4: 2.0 tokens are generated into their own namespace, legacy
     # Typography.swift stays untouched). It's what this rule exists to
     # permit, not a violation of it — don't remove it from the exclusion.
-    excluded: '.*(Typography|UI2PreviewTokens)\.swift'
+    # Path-anchored, not just the basename: only THAT Tokens.swift is exempt.
+    excluded: '.*(Typography\.swift|UI2Preview/Tokens\.swift)'
     message: "Use a Typography token instead of a raw size (audit 5.4)."
     severity: error
 

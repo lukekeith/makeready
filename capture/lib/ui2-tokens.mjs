@@ -1,5 +1,5 @@
 /**
- * tokens.md → UI2PreviewTokens.swift (preview-build.md §3 rule 4).
+ * tokens.md → UI2Preview/Tokens.swift (preview-build.md §3 rule 4).
  *
  * migration.md rule 4 says 2.0 tokens are GENERATED into the 2.0 namespace and
  * Colors.swift/Typography.swift are never touched. This is that generator: it
@@ -13,7 +13,7 @@ import path from 'node:path';
 import { makereadyRoot } from './fs-index.mjs';
 
 const tokensPath = path.resolve(makereadyRoot, 'docs/ui2/design-system/tokens.md');
-export const tokensOutPath = path.resolve(makereadyRoot, 'iphone/MakeReady/UI2Preview/UI2PreviewTokens.swift');
+export const tokensOutPath = path.resolve(makereadyRoot, 'iphone/MakeReady/UI2Preview/Tokens.swift');
 
 const cells = (line) => line.split(/(?<!\\)\|/).slice(1, -1).map((c) => c.replace(/\\\|/g, '|').trim());
 
@@ -102,8 +102,8 @@ function colorLine({ name, value }) {
 
 export function tokensToSwift(t) {
   return `//
-//  UI2PreviewTokens.swift
-//  MakeReady — UI 2.0 preview namespace
+//  Tokens.swift
+//  UI2Preview — the UI 2.0 preview module
 //
 //  GENERATED FROM docs/ui2/design-system/tokens.md — DO NOT EDIT.
 //  Regenerate with: node capture/lib/ui2-tokens.mjs
@@ -113,8 +113,11 @@ export function tokensToSwift(t) {
 import SwiftUI
 
 /// A designed text style: SwiftUI has no line-height, so the leading is applied
-/// as lineSpacing (lineHeight − size) by the \`ui2TextStyle\` modifier.
-struct UI2TextStyle {
+/// as lineSpacing (lineHeight − size) by the \`designTextStyle\` modifier.
+///
+/// NOT \`TextStyle\`: SwiftUI already spells one \`Font.TextStyle\`, and a bare
+/// \`TextStyle\` here would read as that one at every call site.
+struct DesignTextStyle {
     let weight: Font.Weight
     let size: CGFloat
     let lineHeight: CGFloat?
@@ -125,17 +128,17 @@ struct UI2TextStyle {
 }
 
 extension View {
-    func ui2TextStyle(_ style: UI2TextStyle) -> some View {
+    func designTextStyle(_ style: DesignTextStyle) -> some View {
         font(style.font).tracking(style.tracking).lineSpacing(style.lineSpacing)
     }
 }
 
-enum UI2Token {
+enum Token {
 ${t.colors.map(colorLine).join('\n')}
 
-    // NOT \`Type\`: \`UI2Token.Type\` is Swift's metatype syntax for the enum itself.
+    // NOT \`Type\`: \`Token.Type\` is Swift's metatype syntax for the enum itself.
     enum TypeStyle {
-${t.type.map((r) => `        static let ${member(r.name)} = UI2TextStyle(weight: .${r.weight}, size: ${r.size}, lineHeight: ${r.lineHeight ?? 'nil'}, tracking: ${r.tracking ?? 0})`).join('\n')}
+${t.type.map((r) => `        static let ${member(r.name)} = DesignTextStyle(weight: .${r.weight}, size: ${r.size}, lineHeight: ${r.lineHeight ?? 'nil'}, tracking: ${r.tracking ?? 0})`).join('\n')}
     }
 
     enum Space {

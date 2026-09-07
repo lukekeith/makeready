@@ -8,6 +8,11 @@
 
 import SwiftUI
 @testable import MakeReady
+// UI 2.0 preview views are their own module (docs/ui2/preview-build.md §2), so their
+// types carry no prefix — and six of them share a name with a 1.0 type in MakeReady.
+// Every 2.0 reference below is therefore module-qualified: `UI2Preview.TextInput`, not
+// `TextInput`. @testable, not a plain import, so the module stays internal-by-default.
+@testable import UI2Preview
 
 enum ViewRegistryError: Error {
     case unknownView(String)
@@ -1511,9 +1516,9 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             default: return .alphanumeric
             }
         }()
-        let textInput: TextInput = {
+        let textInput: MakeReady.TextInput = {
             if let floating = c.floatingLabel {
-                return TextInput(
+                return MakeReady.TextInput(
                     floatingLabel: floating,
                     icon: c.icon,
                     inputType: textInputType,
@@ -1521,14 +1526,14 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 )
             }
             if let label = c.label {
-                return TextInput(
+                return MakeReady.TextInput(
                     label: label,
                     icon: c.icon,
                     inputType: textInputType,
                     text: .constant(c.text ?? "")
                 )
             }
-            return TextInput(
+            return MakeReady.TextInput(
                 placeholder: c.placeholder ?? "",
                 inputType: textInputType,
                 text: .constant(c.text ?? "")
@@ -1720,7 +1725,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
     case "component.PageHeader":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.PageHeader: missing state.component") }
         return AnyView(
-            PageHeader(tabs: c.tabs ?? [], activeTab: .constant(c.activeTab?.intValue ?? 0))
+            MakeReady.PageHeader(tabs: c.tabs ?? [], activeTab: .constant(c.activeTab?.intValue ?? 0))
                 .padding(16)
         )
 
@@ -2512,23 +2517,23 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
         guard let placeholder = c.placeholder else {
             throw ViewRegistryError.unknownView("component.ui2.C-045: missing props.placeholder")
         }
-        guard let linesRaw = c.lines, let lines = UI2TextInput.Lines(rawValue: linesRaw) else {
+        guard let linesRaw = c.lines, let lines = UI2Preview.TextInput.Lines(rawValue: linesRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-045: props.lines must be single|multi")
         }
         guard let focused = c.focused else {
             throw ViewRegistryError.unknownView("component.ui2.C-045: missing props.focused")
         }
         return AnyView(
-            UI2TextInput(
+            UI2Preview.TextInput(
                 text: c.text ?? "",
                 placeholder: placeholder,
                 lines: lines,
                 focused: focused
             )
             .frame(width: 387)                      // OQ-PB-1 default: C-045 §1 deviation 2 master width
-            .padding(UI2Token.Space.pageMargin)
+            .padding(UI2Preview.Token.Space.pageMargin)
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
-            .background(UI2Token.layoutBackground)  // OQ-PB-2 default
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
 
     default:

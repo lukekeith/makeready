@@ -56,8 +56,8 @@ test('tokensToSwift emits a text style per type token', () => {
 |---|---|---|---|---|
 | type-page-title | SF Pro Regular 14 / 20 | observed | (new) | (new) |
 `));
-  assert.match(swift, /struct UI2TextStyle/);
-  assert.match(swift, /static let pageTitle = UI2TextStyle\(weight: \.regular, size: 14, lineHeight: 20, tracking: 0\)/);
+  assert.match(swift, /struct DesignTextStyle/);
+  assert.match(swift, /static let pageTitle = DesignTextStyle\(weight: \.regular, size: 14, lineHeight: 20, tracking: 0\)/);
 });
 
 test('parseTokens reads each family, skipping prose rows', () => {
@@ -82,7 +82,7 @@ test('parseTokens reports color/spacing/radius rows that fail their value regex 
 
 test('tokensToSwift emits camelCased members with 8-digit hex alpha', () => {
   const swift = tokensToSwift(parseTokens(TOKENS));
-  assert.match(swift, /enum UI2Token/);
+  assert.match(swift, /enum Token \{/);
   assert.match(swift, /static let cardBackground = Color\(red: [\d.]+, green: [\d.]+, blue: [\d.]+, opacity: 1\)/);
   // #6c47ff33 → opacity 0.2
   assert.match(swift, /static let accent20 = Color\(red: [\d.]+, green: [\d.]+, blue: [\d.]+, opacity: 0\.2\)/);
