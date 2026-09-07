@@ -2536,6 +2536,43 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
 
+    case "component.ui2.C-040":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-040: missing state.component")
+        }
+        // C-040 §4 gives no default for `style` or `showTitle`, so a nil is a fixture bug,
+        // not a value to guess. `title` is `String?` outright. `showIcons` is `n/a` for
+        // `default` / `textButtons` (§3), where the key is omitted; C-040 §1 records the
+        // Figma default for both booleans as true, so that is the default supplied here.
+        guard let styleRaw = c.style else {
+            throw ViewRegistryError.unknownView("component.ui2.C-040: missing props.style")
+        }
+        let ui2C040Style: UI2Preview.PageHeader.Style
+        switch styleRaw {
+        case "default": ui2C040Style = .standard
+        case "textButtons": ui2C040Style = .textButtons
+        case "twoIcons": ui2C040Style = .twoIcons
+        default:
+            throw ViewRegistryError.unknownView(
+                "component.ui2.C-040: props.style must be default|textButtons|twoIcons"
+            )
+        }
+        guard let showTitle = c.showTitle else {
+            throw ViewRegistryError.unknownView("component.ui2.C-040: missing props.showTitle")
+        }
+        return AnyView(
+            UI2Preview.PageHeader(
+                style: ui2C040Style,
+                title: c.title,
+                showTitle: showTitle,
+                showIcons: c.showIcons ?? true
+            )
+            .frame(width: 398)                      // OQ-PB-1 default: C-040 §1 deviation 2 master width
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
     default:
         throw ViewRegistryError.unknownView(fixture.view)
     }

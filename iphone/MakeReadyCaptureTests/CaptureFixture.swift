@@ -358,6 +358,8 @@ struct CaptureComponent: Codable {
     // contract's own prop names, so C-045 reuses them rather than adding duplicates.
     let lines: String?                         // C-045 TextInput — "single" | "multi"
     let focused: Bool?                         // C-045 TextInput — border + caret overlay state
+    let showTitle: Bool?                       // C-040 PageHeader — gates the centred title
+    let showIcons: Bool?                       // C-040 PageHeader — gates the trailing group (twoIcons only)
 }
 
 /// A theme choice for BlockStyleEditor's theme picker.

@@ -1,0 +1,83 @@
+{
+  "id": "ui2-c-040",
+  "registryId": "C-040",
+  "component": "PageHeader",
+  "view": "component.ui2.C-040",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Default · showTitle",
+      "slug": "default-showtitle",
+      "props": {
+        "style": "default",
+        "title": "Title",
+        "showTitle": true
+      }
+    },
+    {
+      "name": "Default · no showTitle",
+      "slug": "default-no-showtitle",
+      "props": {
+        "style": "default",
+        "showTitle": false
+      }
+    },
+    {
+      "name": "Text buttons · showTitle",
+      "slug": "text-buttons-showtitle",
+      "props": {
+        "style": "textButtons",
+        "title": "Title",
+        "showTitle": true
+      }
+    },
+    {
+      "name": "Text buttons · no showTitle",
+      "slug": "text-buttons-no-showtitle",
+      "props": {
+        "style": "textButtons",
+        "showTitle": false
+      }
+    },
+    {
+      "name": "Two icons · showTitle · showIcons",
+      "slug": "two-icons-showtitle-showicons",
+      "props": {
+        "style": "twoIcons",
+        "title": "Title",
+        "showTitle": true,
+        "showIcons": true
+      }
+    },
+    {
+      "name": "Two icons · showTitle · no showIcons",
+      "slug": "two-icons-showtitle-no-showicons",
+      "props": {
+        "style": "twoIcons",
+        "title": "Title",
+        "showTitle": true,
+        "showIcons": false
+      }
+    },
+    {
+      "name": "Two icons · no showTitle · showIcons",
+      "slug": "two-icons-no-showtitle-showicons",
+      "props": {
+        "style": "twoIcons",
+        "showTitle": false,
+        "showIcons": true
+      }
+    },
+    {
+      "name": "Two icons · no showTitle · no showIcons",
+      "slug": "two-icons-no-showtitle-no-showicons",
+      "props": {
+        "style": "twoIcons",
+        "showTitle": false,
+        "showIcons": false
+      }
+    }
+  ]
+}
