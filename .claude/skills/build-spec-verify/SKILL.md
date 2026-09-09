@@ -33,10 +33,21 @@ evidence in hand. Conventions in [`build-spec/REFERENCE.md`](../build-spec/REFER
    collections in `AppState` with mutations refreshing derived state); capture (twins additive-only).
 8. **Migrations applied locally** and idempotent (re-apply is a no-op); seed unaffected; the
    rollout order in 02 still holds against what actually shipped.
-9. **08-testing satisfied row by row** — each required test exists and passes, in the right app.
+9. **08-testing satisfied row by row** — each required test exists and passes, in the right app —
+   **including the requirement traceability table**: walk it `R#` by `R#` and confirm the cited
+   test/verification step exists, ran, and actually exercises that requirement (not merely a test
+   with a related name). An `R#` whose cited proof doesn't hold = INCOMPLETE.
 10. **Cross-app E2E walked** — 08's flow executed live against the local stack (`/dev-start`; the
     server container restarted after the last `server/src` edit). If the stack cannot be brought
     up, the verdict is BLOCKED-on-environment, never READY.
+11. **Cold-reader repeat** (REFERENCE.md §3c rule 6, run against the *as-built* suite) — spawn a
+    fresh Explore agent with ONLY the suite + phase docs (no build-session context, no ledger
+    scratch) and the instruction: "from these docs alone, explain how the feature works, how to
+    run its gates, and how you would extend it — list every question you cannot answer from the
+    docs." Every question it returns is a doc defect (the build drifted from the suite, or a
+    dated amendment never landed) = an INCOMPLETE item whose fix is a doc edit, cheap. The draft
+    step ran this probe against the *promised* feature; this run proves the docs still describe
+    the *shipped* one.
 
 ## The verdict
 

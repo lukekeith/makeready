@@ -1,5 +1,11 @@
 # iPhone → Web Leader-App Parity Manifest
 
+> **🧊 FROZEN (2026-09-01) — superseded by the UI 2.0 program.** The iPhone UI this
+> manifest ports is being completely rebuilt (`docs/ui2/README.md`, DECISIONS.md D3). Do
+> NOT run `/parity-screen` for the remaining unbuilt screens — they target a dying design.
+> Screens already ported stay in production until their 2.0 replacements land; `ready`
+> screens may still be batch-verified with `/parity-screen verify` if the user asks.
+
 The master tracker for porting every iPhone leader screen to the mobile-web
 LeaderApp (`/admin`, `client/resources/js/islands/leader-app/`) with pixel-level
 parity. **This file is the source of truth for what's done** — update it at the

@@ -81,9 +81,11 @@ claimed props, named patterns still look like the suite assumes. Mark each `**ve
 1. **Inventory sweep** (Explore, `sonnet`), per consumer: what exists TODAY in
    `client/resources/js/components/` + `client/ui/` and in `iphone/MakeReady/Components/`.
    Components move; never trust a stale inventory.
-2. **Matrix check**: every element of every view maps to a named existing component (verify the
-   export/props actually fit) or a **(new)** row. Neither = `C#`. Bespoke markup where a component
-   exists = `C#`.
+2. **Manifest check** (REFERENCE.md §3 rule 7): every element of every view maps to a manifest
+   row — existing (verify the export/props actually fit) or **(new)**. Neither = `C#`. Bespoke
+   markup where a component exists = `C#`. A manifest row missing any required column — path,
+   parameters with types, states, usage — = `C#` (an under-specified row is where mid-build
+   invention starts).
 3. **Missing components**: for each **(new)**, name the in-repo reference pattern it copies, and —
    when a twin exists on the other platform — whether it should be built as a `/compare` twin so
    both platforms share one source of truth.
@@ -101,6 +103,21 @@ correctness, media/video upload failure paths, timezone traps, offline-then-reco
 seed/test-data needs, and migration ordering against a running production server. Each = `G#` with
 a proposed resolution (Recommended), or `D#` if genuinely contested. Also grade 08: does the test
 plan cover the risks this pass surfaced, in the right app? Missing coverage = `G#` against 08.
+
+## Phase F — Language & operationalization (REFERENCE.md §3c)
+
+A fast pass over 01–08 for spec-language defects — each is a `G#` (or `D#` when the fix needs the
+user):
+
+- **Prompt echo**: requirement text that quotes the user instead of operationalizing ("as the user
+  said", product adjectives standing where criteria belong). Fix = rewrite as acceptance criteria +
+  move the quote to 01's Requirement provenance table.
+- **Unclosed fidelity**: any "match/mimic/similar to X" without a normative source AND an
+  enumerated deviation list ending "anything else that differs is a defect".
+- **Vagueness scan**: the §3c banned list; also un-ruled Decisions rows, `PROPOSED`/`TBD`
+  survivors, and requirements no test in 08 could pass or fail.
+- **Fresh-session test**: while walking Phase E's flows, note every point where you needed the
+  conversation (or this audit's own context) to know what the suite meant — each is a `G#`.
 
 ## Delta pass (`/build-spec-audit <feature> --delta`) — the mandatory follow-up to new material
 

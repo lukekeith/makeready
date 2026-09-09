@@ -105,6 +105,19 @@ For every gate, script, or command the suite names (`08-testing.md`, phase docs,
   a one-file change" family is worth singling out: it is the most expensive kind of wrong, because
   the implementer discovers it mid-phase.
 
+
+## Check 8 — Spec-language lint (mechanical half of REFERENCE.md §3c)
+
+Grep 01–09 for the banned-vagueness list (*as much as possible / as closely as possible / similar
+to / roughly / ideally / should probably / consider / maybe / TBD*), plus `PROPOSED` and empty
+"Passes when" cells. Every hit in a **normative** doc is a defect (fix in place or convert to a
+`D#` row); hits inside `analysis/` are exempt. Also confirm 01 carries a Requirement provenance
+table when the feature originated from user-stated requirements, and that every fidelity claim
+names its normative source. Then the **traceability grep**: every `R#` defined in 01 appears in
+08's traceability table with at least one named test or human-verification step, and every `R#`
+that 08 cites exists in 01 — an orphan on either side is a defect. This is the lint; the judgment
+half is audit Phase F.
+
 ## Recording the result
 
 Append to `09-gaps-and-decisions.md`:

@@ -23,10 +23,10 @@ build the iPhone phase before the server phase is verified.
 | `02-app-impact.md` | draft | **The monorepo doc.** Per-app scope (server / client / iphone / capture), the cross-app sequencing plan, contract ownership, and blast radius. Template in §2 |
 | `03-data-and-api.md` | draft | **The shared contract.** Prisma/YAML schema changes + migration list, and the endpoint table every consumer codes against (method, path, auth, request, response, error codes). Frozen after the server phase verifies (§3) |
 | `04-server.md` | draft | Route modules, services, middleware, permission checks per endpoint, external integrations (Twilio / R2 / Stream / APNs / Claude / API.Bible), push payloads |
-| `05-client.md` | draft | Laravel routes (`web.php`), Blade pages, Vue islands/components, Pinia stores, `/admin/api/{path}` proxy entries, SCSS/design-system usage, per-view component coverage matrix |
-| `06-iphone.md` | draft | `AppState` entities/properties, Actions, `Route` cases + chrome, Pages, Components, offline/disk-cache impact, push deep links, per-view component coverage matrix |
+| `05-client.md` | draft | Laravel routes (`web.php`), Blade pages, Vue islands/components, Pinia stores, `/admin/api/{path}` proxy entries, SCSS/design-system usage, **component manifest** (§3 rule 7) |
+| `06-iphone.md` | draft | `AppState` entities/properties, Actions, `Route` cases + chrome, Pages, Components, offline/disk-cache impact, push deep links, **component manifest** (§3 rule 7) |
 | `07-capture.md` | draft | `/compare` fixtures, adapters, twins, ViewRegistry cases, screenshot fixtures to re-capture — or an explicit **"Not affected — <reason>"** |
-| `08-testing.md` | draft | Per-app test plan, the gate list this feature's phases draw from (§7), the cross-app E2E walk script, the human-verification script (§6) |
+| `08-testing.md` | draft | Per-app test plan, the gate list this feature's phases draw from (§7), the cross-app E2E walk script, the human-verification script (§6), and the **requirement traceability table** — every `R#` from 01's provenance table cited by ≥ 1 test or human-verification step (a requirement no row cites is a spec defect) |
 | `09-gaps-and-decisions.md` | seeded by draft, **owned by** `/build-spec-audit` | The G/D/O/C/X ledger + dated audit pass log. OPEN rows block the plan step |
 | `10+-phase-<N>-<name>.md` | `/build-spec-plan` | One doc PER PHASE — the build guide `/build-spec-build` follows step-by-step. Template in §5 |
 | *(state ledger)* | every step | **Outside git** — §4 |
@@ -116,6 +116,16 @@ EntityStore or a shared Blade partial makes this bigger than it looks.>
    harness and production — new props default to the captured rendering; existing
    markup/classes are never altered. (See the `compare-twins-index` memory before touching
    any twin.)
+7. **The component manifest, and no invention mid-build.** `05`/`06` carry a **component
+   manifest**: one row per UI unit the feature renders — name, file path (per the app's
+   directory conventions), parameters/props with types and purpose, states it renders, and how
+   it is used (which views consume it, which existing pattern it copies). Rows are marked
+   **(new)** or name the verified existing component they reuse. **The build step may not
+   create, substitute, or extend a component that has no manifest row, and may not add a
+   capability no requirement or decision row names** — a mid-build discovery is a dated manifest
+   amendment + delta audit (§3b) BEFORE the code is written, never an inline invention. Silent
+   substitution of an existing component for a **(new)** row is equally a violation — the swap
+   is a manifest amendment too.
 
 ---
 
@@ -156,6 +166,62 @@ Concretely:
 consequences are themselves delta-audited. The loop terminates because each round is strictly
 smaller — but it must be allowed to run more than once rather than being cut short to reach the
 plan step.
+
+## 3c. Spec language standard (binding on the draft and every revision)
+
+Learned 2026-08-31 on the notes/memo suites: a spec that quotes the user's words instead of
+operationalizing them forces the *implementing* session to re-interpret the request — which is the
+job the spec existed to do once. These rules are binding on `/build-spec-draft`, enforced by
+`/build-spec-audit` (Phase F) and linted by `/build-spec-check` (Check 8):
+
+1. **No verbatim user phrasing as normative content.** The user's words may appear exactly once
+   per requirement, in 01-architecture's **Requirement provenance** table — `their words →
+   operationalized criteria` — for traceability. Everywhere else the spec speaks in its own
+   testable terms.
+2. **Every requirement is an acceptance criterion**: a measurable value, an observable behavior,
+   or a closed list. "Passes when …" must be writable for it. "Basic formatting options" is not a
+   requirement; "the 5-control strip in §N, each behaving per its row" is.
+3. **Fidelity/parity requirements need a normative source + a closed deviation list.** "Match
+   X as closely as possible" becomes: the named doc/measurements that define the target, plus an
+   **enumerated, complete list of deviations** — with the sentence "anything else that differs is
+   a defect". Open-ended similarity is unbuildable and unverifiable.
+4. **Decisions carry exact rulings.** A Decisions-table row states *what to do*, not what was
+   discussed. No `PROPOSED`, `TBD`, or "recommendation" survives into a final suite: each becomes
+   either a decision (marked *(default)* when adopted without explicit user sign-off, so it is
+   veto-able but actionable) or a `D#` ledger row that blocks the plan step.
+5. **Banned in normative docs** (01–08): *as much as possible, as closely as possible, similar
+   to, roughly, ideally, should probably, consider, maybe, TBD, etc./…* trailing a requirement
+   list. Each instance is replaced by a value, a closed list, or a `D#` row. (Analysis docs under
+   `analysis/` may keep exploratory language.)
+6. **The fresh-session test.** The suite must be implementable by a session that never saw the
+   conversation. The draft step proves it with a cold-reader probe (draft Phase 4); every question
+   the cold reader would need answered is a defect in the suite, not in the reader.
+7. **Reference-analysis separation.** Frame-level analyses, external research, and working notes
+   live in `docs/features/<feature>/analysis/` — never numbered `01`–`09` at the suite root,
+   which belongs to the pipeline's docs.
+
+---
+
+## 3d. UI 2.0 program suites (when `docs/ui2/` exists)
+
+Suites that build screens from the UI 2.0 program (`docs/ui2/README.md`) inherit its spec
+artifacts instead of re-deriving them:
+
+- **Normative sources**: the suite's fidelity requirements cite the program's screen specs —
+  "render `docs/ui2/screens/<id>.md` §1 with its deviation list" is the §3c-conformant
+  formulation (each screen spec already carries a named source + closed deviation list).
+- **Component manifests**: the suite's `05`/`06` manifest enumerates registry IDs from
+  `docs/ui2/design-system/registry.md` as a **closed subset** (plus suite-internal supporting
+  units). The §3 rule 7 no-invention rule applies against the registry: a component with no
+  registry row is added to the registry (dated) before the suite may reference it, and the
+  audit's inventory sweep checks the cited rows rather than re-inventorying the app.
+- **Drafting order**: a UI 2.0 suite is drafted from the README's **Build program** table
+  (screens covered + prerequisite suites); the draft may not claim a screen whose README row
+  isn't `gap-checked`, and it flips claimed rows to `suite-assigned`.
+- **Isolation**: the suite obeys `docs/ui2/migration.md`'s isolation rules (parallel shell,
+  distinct namespaces, no legacy edits from 2.0 work).
+
+---
 
 ## 4. The state ledger (the pipeline's memory, outside git)
 

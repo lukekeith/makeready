@@ -35,8 +35,12 @@ row if it wasn't planned.
    for any iPhone modal/menu, `/push-page` for a sub-screen, `/nav-route` for a deep link,
    `/component` `/page` `/store` for the web, `/api` for an endpoint. These encode conventions this
    pipeline does not restate.
-4. Implement per the house rules (REFERENCE.md §10). The task's tests ship in the same unit — a
-   task without its tests is not done.
+4. Implement per the house rules (REFERENCE.md §10), **rendering only components the 05/06
+   manifest names, with the manifest's parameters, at the manifest's paths** (§3 rule 7). Needing
+   a component, prop, or capability with no row = stop: dated manifest/suite amendment + delta
+   audit first, then code — never an inline invention, and never a silent swap of an existing
+   component for a **(new)** row. The task's tests ship in the same unit — a task without its
+   tests is not done.
 5. Run the checks the task names. Green → tick the checkbox (with date), checkpoint the ledger.
    Red → fix before moving on; a task is never ticked with failing checks.
 6. Context running low? Land the current task (or write its exact partial state into the ledger's

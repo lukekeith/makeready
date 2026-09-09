@@ -62,6 +62,13 @@ recommendation first and marked (Recommended). Work the fundamentals before the 
 Don't ask what recon already answered or what has one defensible answer — decide those and record
 them in the Decisions table. Stop asking when new answers stop changing the design.
 
+**Operationalize every answer on receipt** (REFERENCE.md §3c). When the user answers in product
+language ("basic formatting", "no limit", "like the Apple app"), restate it in the reply as its
+testable form — the exact control list, the verified bound, the normative source plus enumerated
+deviations — and let them correct the restatement. The restatement, never the quote, is what
+enters the suite; the original words go in 01-architecture's **Requirement provenance** table
+(their words → operationalized criteria) so intent stays traceable.
+
 ## Phase 3 — Present the design (sections, then approval)
 
 Present the full design in spec-section order (apps affected → data model → contract → server →
@@ -77,7 +84,9 @@ checkpoint — create the ledger FIRST, then update its *In flight* row between 
 - **README.md** — status line (`drafting` → `spec complete`), Pipeline status snapshot (spec 🔄,
   everything else ⬜), doc index, governing rules, the resume instruction.
 - **01-architecture** — overview, the **Decisions table** (every Phase-2/3 answer, including the
-  ones you decided silently), baseline patterns by `file:line`, RBAC summary, out-of-scope.
+  ones you decided silently — each row an exact ruling, *(default)* when adopted without explicit
+  user sign-off), the **Requirement provenance** table (user's words → acceptance criteria),
+  baseline patterns by `file:line`, RBAC summary, out-of-scope.
 - **02-app-impact** — REFERENCE.md §2's template, filled: the scope table (with a stated reason
   for every ⬜), the contract producer/consumer table, the sequencing plan, backward compatibility,
   blast radius.
@@ -87,18 +96,29 @@ checkpoint — create the ledger FIRST, then update its *In flight* row between 
   consumer from it alone.
 - **04-server / 05-client / 06-iphone / 07-capture** — per their REFERENCE rows. An app that isn't
   affected still gets its file with `**Not affected** — <why>`.
-- **05/06 component coverage**: every element of every view maps to a named existing component
-  (verify it exists NOW — a quick inventory pass) or a **(new)** row with a proposed contract.
-  Spec approval = approval to build those new components — say so explicitly to the user.
+- **05/06 component manifest** (REFERENCE.md §3 rule 7): every element of every view gets a
+  manifest row — name · file path (per the app's directory conventions) · parameters/props with
+  types and purpose · states rendered · usage (consuming views + the existing pattern it copies).
+  Existing components are verified NOW (inventory pass, export + props actually fit); everything
+  else is a **(new)** row. The manifest is exhaustive by construction: if the build step needs a
+  component or capability with no row, that is a spec defect, not an implementation choice. Spec
+  approval = approval to build exactly these — say so explicitly to the user.
 - **08-testing** — per-app test lists, the gate list the phase docs draw from (REFERENCE.md §7),
-  the cross-app E2E walk, and the **human-verification script** (what the user will be asked to
-  tap at sign-off).
+  the cross-app E2E walk, the **human-verification script** (what the user will be asked to tap
+  at sign-off), and the **requirement traceability table**: one row per `R#` from 01's provenance
+  table naming the test(s) and/or human-verification step(s) that prove it. Writing this table is
+  a self-test — an `R#` you can't cite a test for means either the requirement isn't operational
+  yet (fix 01) or the test plan has a hole (fix 08).
 - **09-gaps-and-decisions** — seeded: empty G/D/O/C/X tables + any decision the conversation left
   genuinely open (as `D#` rows) and any cross-app risk you already smell (as `X#` rows).
 
 Then self-review with fresh eyes — placeholder scan, internal consistency (does 06 consume fields
 03 actually returns?), scope check (decompose into multiple feature suites if it's really several
-features), ambiguity check — fix inline. Offer a commit (`docs(<feature>): add feature spec
+features), and the **language pass** (REFERENCE.md §3c: banned-vagueness scan, no un-provenanced
+user quotes, every fidelity claim closed with a deviation list) — fix inline. Then the
+**cold-reader probe**: spawn a fresh Explore agent with ONLY the suite (no conversation context)
+and the instruction "list every question you would have to ask before implementing this"; every
+question it returns is a suite defect to fix before handoff. Offer a commit (`docs(<feature>): add feature spec
 suite`); don't force it.
 
 ## Phase 5 — Hand off
