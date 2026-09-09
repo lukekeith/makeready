@@ -1,0 +1,327 @@
+{
+  "id": "ui2-c-026",
+  "registryId": "C-026",
+  "component": "DualSeriesBarChart",
+  "view": "component.ui2.C-026",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "state · Default",
+      "slug": "state-default",
+      "props": {
+        "days": [
+          {
+            "date": "2026-07-03",
+            "completed": 8,
+            "scheduled": 22
+          },
+          {
+            "date": "2026-07-04",
+            "completed": 5,
+            "scheduled": 12
+          },
+          {
+            "date": "2026-07-05",
+            "completed": 0,
+            "scheduled": 11
+          },
+          {
+            "date": "2026-07-06",
+            "completed": 5,
+            "scheduled": 13
+          },
+          {
+            "date": "2026-07-07",
+            "completed": 8,
+            "scheduled": 18
+          },
+          {
+            "date": "2026-07-08",
+            "completed": 9,
+            "scheduled": 22
+          },
+          {
+            "date": "2026-07-09",
+            "completed": 7,
+            "scheduled": 17
+          },
+          {
+            "date": "2026-07-10",
+            "completed": 6,
+            "scheduled": 14
+          },
+          {
+            "date": "2026-07-11",
+            "completed": 0,
+            "scheduled": 12
+          },
+          {
+            "date": "2026-07-12",
+            "completed": 10,
+            "scheduled": 24
+          },
+          {
+            "date": "2026-07-13",
+            "completed": 20,
+            "scheduled": 33
+          },
+          {
+            "date": "2026-07-14",
+            "completed": 12,
+            "scheduled": 29
+          },
+          {
+            "date": "2026-07-15",
+            "completed": 11,
+            "scheduled": 25
+          },
+          {
+            "date": "2026-07-16",
+            "completed": 13,
+            "scheduled": 28
+          },
+          {
+            "date": "2026-07-17",
+            "completed": 10,
+            "scheduled": 22
+          },
+          {
+            "date": "2026-07-18",
+            "completed": 9,
+            "scheduled": 21
+          },
+          {
+            "date": "2026-07-19",
+            "completed": 11,
+            "scheduled": 24
+          },
+          {
+            "date": "2026-07-20",
+            "completed": 12,
+            "scheduled": 26
+          },
+          {
+            "date": "2026-07-21",
+            "completed": 14,
+            "scheduled": 42
+          },
+          {
+            "date": "2026-07-22",
+            "completed": 3,
+            "scheduled": 6
+          },
+          {
+            "date": "2026-07-23",
+            "completed": 2,
+            "scheduled": 4
+          },
+          {
+            "date": "2026-07-24",
+            "completed": 1,
+            "scheduled": 3
+          },
+          {
+            "date": "2026-07-25",
+            "completed": 2,
+            "scheduled": 5
+          },
+          {
+            "date": "2026-07-26",
+            "completed": 7,
+            "scheduled": 17
+          },
+          {
+            "date": "2026-07-27",
+            "completed": 11,
+            "scheduled": 25
+          },
+          {
+            "date": "2026-07-28",
+            "completed": 12,
+            "scheduled": 26
+          },
+          {
+            "date": "2026-07-29",
+            "completed": 18,
+            "scheduled": 28
+          },
+          {
+            "date": "2026-07-30",
+            "completed": 11,
+            "scheduled": 25
+          },
+          {
+            "date": "2026-07-31",
+            "completed": 9,
+            "scheduled": 22
+          }
+        ],
+        "window": {
+          "end": "2026-07-31",
+          "start": "2026-07-03"
+        },
+        "today": "2026-08-15"
+      }
+    },
+    {
+      "name": "state · Today",
+      "slug": "state-today",
+      "props": {
+        "days": [
+          {
+            "date": "2026-07-03",
+            "scheduled": 14,
+            "completed": 6
+          },
+          {
+            "date": "2026-07-04",
+            "scheduled": 12,
+            "completed": 5
+          },
+          {
+            "date": "2026-07-05",
+            "scheduled": 11,
+            "completed": 0
+          },
+          {
+            "date": "2026-07-06",
+            "scheduled": 13,
+            "completed": 5
+          },
+          {
+            "date": "2026-07-07",
+            "scheduled": 18,
+            "completed": 8
+          },
+          {
+            "date": "2026-07-08",
+            "scheduled": 22,
+            "completed": 9
+          },
+          {
+            "date": "2026-07-09",
+            "scheduled": 17,
+            "completed": 7
+          },
+          {
+            "date": "2026-07-10",
+            "scheduled": 14,
+            "completed": 6
+          },
+          {
+            "date": "2026-07-11",
+            "scheduled": 12,
+            "completed": 0
+          },
+          {
+            "date": "2026-07-12",
+            "scheduled": 24,
+            "completed": 10
+          },
+          {
+            "date": "2026-07-13",
+            "scheduled": 33,
+            "completed": 20
+          },
+          {
+            "date": "2026-07-14",
+            "scheduled": 29,
+            "completed": 12
+          },
+          {
+            "date": "2026-07-15",
+            "scheduled": 25,
+            "completed": 11
+          },
+          {
+            "date": "2026-07-16",
+            "scheduled": 28,
+            "completed": 13
+          },
+          {
+            "date": "2026-07-17",
+            "scheduled": 22,
+            "completed": 10
+          },
+          {
+            "date": "2026-07-18",
+            "scheduled": 21,
+            "completed": 9
+          },
+          {
+            "date": "2026-07-19",
+            "scheduled": 24,
+            "completed": 11
+          },
+          {
+            "date": "2026-07-20",
+            "scheduled": 26,
+            "completed": 12
+          },
+          {
+            "date": "2026-07-21",
+            "scheduled": 42,
+            "completed": 14
+          },
+          {
+            "date": "2026-07-22",
+            "scheduled": 6,
+            "completed": 3
+          },
+          {
+            "date": "2026-07-23",
+            "scheduled": 4,
+            "completed": 2
+          },
+          {
+            "date": "2026-07-24",
+            "scheduled": 3,
+            "completed": 1
+          },
+          {
+            "date": "2026-07-25",
+            "scheduled": 5,
+            "completed": 2
+          },
+          {
+            "date": "2026-07-26",
+            "scheduled": 17,
+            "completed": 7
+          },
+          {
+            "date": "2026-07-27",
+            "scheduled": 25,
+            "completed": 11
+          },
+          {
+            "date": "2026-07-28",
+            "scheduled": 26,
+            "completed": 12
+          },
+          {
+            "date": "2026-07-29",
+            "scheduled": 28,
+            "completed": 18
+          },
+          {
+            "date": "2026-07-30",
+            "scheduled": 25,
+            "completed": 11
+          },
+          {
+            "date": "2026-07-31",
+            "scheduled": 22,
+            "completed": 9
+          }
+        ],
+        "window": {
+          "start": "2026-07-03",
+          "end": "2026-07-31"
+        },
+        "today": "2026-07-26"
+      }
+    }
+  ]
+}

@@ -4,7 +4,9 @@
 
 A four-column component browser at `/components` in the capture SPA: a filesystem tree of
 `iphone/MakeReady/Components/` → variant list → pan/zoom render with full version history →
-Comments/Data side panel. Comments feed a scoped `/component-resolve <scope>` Claude command
+Comments/Data side panel. A **UI 1.0 ⇄ 2.0 switch** at the top of the tree column swaps the
+source: 1.0 = built Swift components, 2.0 = the specced components of `docs/ui2/` rendered from
+their frozen Figma snapshots (phase 5). Comments feed a scoped `/component-resolve <scope>` Claude command
 that edits the Swift components, resolves the comments, and recaptures. Built entirely on the
 existing `/compare` substrate (fixtures, adapters, ViewRegistry, Postgres, runners) plus a
 filesystem index.
@@ -17,7 +19,7 @@ filesystem index.
 | audit | ✅ CLEAN (pass 4, 2026-09-04) |
 | decisions | ✅ (no open rows) |
 | plan | ✅ (4 phase docs, 2026-09-04) |
-| build | ✅ 4/4 (2026-09-04) |
+| build | ✅ 5/5 (2026-09-04 — phase 5 added post-verify, owner request) |
 | verify | ✅ READY (2026-09-04) |
 | sign-off | ⬜ |
 
@@ -29,6 +31,7 @@ filesystem index.
 | 2 — Browser shell (viewer extraction, tree, variants) | capture | [11-phase-2-capture-browser-shell.md](11-phase-2-capture-browser-shell.md) | ✅ VERIFIED 2026-09-04 |
 | 3 — Browser detail (render, versions, comments, data) | capture | [12-phase-3-capture-browser-detail.md](12-phase-3-capture-browser-detail.md) | ✅ VERIFIED 2026-09-04 |
 | 4 — Command + E2E | capture (+ root .claude) | [13-phase-4-command-and-e2e.md](13-phase-4-command-and-e2e.md) | ✅ VERIFIED 2026-09-04 |
+| 5 — UI 1.0 ⇄ 2.0 era switch | capture | [14-phase-5-ui2-era.md](14-phase-5-ui2-era.md) | ✅ VERIFIED 2026-09-04 |
 
 ## Doc index
 

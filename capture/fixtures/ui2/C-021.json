@@ -1,0 +1,74 @@
+{
+  "id": "ui2-c-021",
+  "registryId": "C-021",
+  "component": "GlyphButton",
+  "view": "component.ui2.C-021",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "button · export",
+      "slug": "button-export",
+      "props": {
+        "glyph": "export"
+      }
+    },
+    {
+      "name": "button · settings",
+      "slug": "button-settings",
+      "props": {
+        "glyph": "settings"
+      }
+    },
+    {
+      "name": "button · back",
+      "slug": "button-back",
+      "props": {
+        "glyph": "back"
+      }
+    },
+    {
+      "name": "button · add",
+      "slug": "button-add",
+      "props": {
+        "glyph": "add"
+      }
+    },
+    {
+      "name": "button · send",
+      "slug": "button-send",
+      "props": {
+        "glyph": "send"
+      }
+    },
+    {
+      "name": "button · arrow-forward",
+      "slug": "button-arrow-forward",
+      "props": {
+        "glyph": "arrow-forward"
+      }
+    },
+    {
+      "name": "button · three-dots",
+      "slug": "button-three-dots",
+      "props": {
+        "glyph": "three-dots"
+      }
+    },
+    {
+      "name": "button · search",
+      "slug": "button-search",
+      "props": {
+        "glyph": "search"
+      }
+    },
+    {
+      "name": "button · calendar",
+      "slug": "button-calendar",
+      "props": {
+        "glyph": "calendar"
+      }
+    }
+  ]
+}

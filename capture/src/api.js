@@ -308,6 +308,32 @@ export async function refreshUi2Snapshot(id) {
   return res.json();
 }
 
+/** Remove one capture from a state's timeline. Only versions carrying a built
+ *  render can be deleted; the frozen-snapshot versions are refused (409). */
+export async function deleteUi2Version(versionId) {
+  const res = await fetch(`/api/ui2/version/${versionId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `version delete failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Edit the props ONE state of a built 2.0 component renders with, in
+ *  capture/fixtures/ui2/C-###.json. `variant` is the state NAME, not its slug. */
+export async function saveUi2Fixture(id, variant, props) {
+  const res = await fetch('/api/ui2/fixture', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, variant, props }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 fixture save failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 /** Capture the BUILT side of a 2.0 component. Returns { runId } — the job streams
  *  over SSE; follow it with subscribeCapture(). */
 export async function captureUi2(id, variant = '*') {

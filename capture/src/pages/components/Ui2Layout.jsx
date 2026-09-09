@@ -12,11 +12,14 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { useNavigate } from 'react-router-dom';
 import { CaptureContext } from '../../App.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
+import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import {
   fetchUi2Tree,
   fetchUi2Detail,
   fetchUi2Version,
   refreshUi2Snapshot,
+  saveUi2Fixture,
+  deleteUi2Version,
   captureUi2,
   subscribeCapture,
   addComment,
@@ -107,7 +110,12 @@ export default function Ui2Layout({ sub = '', header = null }) {
   useEffect(() => { setVersionId(null); setSelectedCommentId(null); setDraftPin(null); setCommentMode(false); }, [id, key]);
   // Switching components: an unbuilt component has no `iphone` render, so the
   // toggle would be left pointing at a render that doesn't exist.
-  useEffect(() => { setPlatform('design'); }, [id]);
+  // A BUILT row opens on its built render: that is the thing being reviewed,
+  // and the Figma side is one identical whole-set snapshot shared by every
+  // state (syncUi2Row registers the same PNG under all of them), so defaulting
+  // to `design` made every state look the same and hid the render entirely.
+  // A row with no fixture still opens on Figma — it has nothing else.
+  useEffect(() => { setPlatform(detail?.built ? 'iphone' : 'design'); }, [id, detail?.built]);
 
   const activeVersionId = versionId ?? activeVariant?.versions?.[0]?.versionId ?? null;
   const loadVdata = useCallback(async () => {
@@ -140,14 +148,64 @@ export default function Ui2Layout({ sub = '', header = null }) {
   const canComment = !!detail?.canCapture && !!activeShot.url;
   const refreshComments = useCallback(async () => { await loadVdata(); await loadDetail(); loadTree(); }, [loadVdata, loadDetail, loadTree]);
 
-  // No web twin exists for a 2.0 component, so there is nothing to hit-test:
-  // pins carry their fraction only (element targeting arrives with the build).
+  // ── Element targeting (the 2.0 hit-test oracle) ──
+  //
+  // The 1.0 side hit-tests a hidden live Vue twin (ComponentsLayout). A 2.0
+  // component has no twin — so its BUILT render ships its own geometry instead:
+  // the capture harness writes each annotated part's rect beside the PNG
+  // (UI2Element.swift / CaptureRunner.writeElementMap) and the server hands it
+  // over with the version. That makes the hit test local and synchronous, with
+  // no iframe, no postMessage and no 600ms timeout to lose a race with.
+  //
+  // Only the built render has parts: the Figma snapshot is one flat image, and
+  // an unbuilt component has no render at all — both leave `elements` null and
+  // behave exactly as they did before.
+  const elements = activeShot.platform === 'iphone' ? (vdata?.elements?.elements ?? null) : null;
+  const [hoverTarget, setHoverTarget] = useState(null);
+
+  /** Smallest annotated part containing the point — the deepest one, since a
+   *  child's rect is inside its parent's. Reversed, that is the path from the
+   *  component down to the part, which is what the comment records.
+   *
+   *  Ties are real and common: a slot holding exactly one control has that
+   *  control's rect exactly (C-040's `Leading` and its `GlyphButton (back)`),
+   *  and the useful label is the inner one. The capture harness emits a part
+   *  after everything inside it (`transformAnchorPreference` appends the
+   *  ancestor to its subtree's value), so equal areas arrive deepest-first —
+   *  and a stable sort keeps them that way. */
+  const hitTest = useCallback((fx, fy) => {
+    if (!elements?.length) return null;
+    const hits = elements.filter((e) => fx >= e.x && fx <= e.x + e.w && fy >= e.y && fy <= e.y + e.h);
+    if (!hits.length) return null;
+    const inward = [...hits].sort((a, b) => (a.w * a.h) - (b.w * b.h)); // deepest first
+    const el = inward[0];
+    const path = [...inward].reverse().map((e) => e.name);              // component → part
+    return { selector: path.join(' › '), label: el.name, path, rect: { x: el.x, y: el.y, w: el.w, h: el.h } };
+  }, [elements]);
+
+  // Suspended while a draft composer or a thread is open — the target box stays
+  // pinned to THAT comment's element instead (CommentLayer's selectedBox).
+  const hoverInspect = useCallback((fx, fy) => {
+    if (draftPin || selectedCommentId) return;
+    setHoverTarget(hitTest(fx, fy));
+  }, [draftPin, selectedCommentId, hitTest]);
+  const clearInspect = useCallback(() => setHoverTarget(null), []);
+  useEffect(() => {
+    if (!commentMode || draftPin || selectedCommentId) setHoverTarget(null);
+  }, [commentMode, draftPin, selectedCommentId]);
+
   // `platform` here is whatever RenderPane's ZoomPane is actually displaying
   // (the SHOWN platform, post-fallback) — not necessarily the toggle's raw
   // selection — so the pin is tagged with the image it was actually placed on.
   const placeDraft = (platform, viewport, x, y) => {
     setSelectedCommentId(null);
-    setDraftPin({ platform, viewport, x, y });
+    setHoverTarget(null);
+    // No element map (Figma snapshot, or a render captured before the harness
+    // emitted one) → no `target` key at all, so the composer shows no chip
+    // rather than a stuck "resolving element…". A map that simply missed at
+    // this point resolves to undefined, which reads the same way.
+    const target = elements?.length ? hitTest(x, y) : null;
+    setDraftPin({ platform, viewport, x, y, ...(elements?.length ? { target: target ?? undefined } : {}) });
   };
   const submitDraft = async (text) => {
     if (!draftPin || !detail?.comparisonId) return;
@@ -163,8 +221,15 @@ export default function Ui2Layout({ sub = '', header = null }) {
         screenshotId: activeShot.screenshotId ?? undefined,
         text,
         source: 'user',
+        // The SwiftUI part the pin landed on — same three columns the 1.0 side
+        // fills from its web twin, so /component-resolve reads one shape.
+        targetSelector: draftPin.target?.selector,
+        targetLabel: draftPin.target?.label,
+        targetMeta: draftPin.target
+          ? { rect: draftPin.target.rect, path: draftPin.target.path, source: 'swiftui' }
+          : undefined,
       });
-      setDraftPin(null); setCommentMode(false);
+      setDraftPin(null); setCommentMode(false); setHoverTarget(null);
       await refreshComments();
     } catch { /* keep the draft so the text isn't lost */ }
   };
@@ -193,12 +258,15 @@ export default function Ui2Layout({ sub = '', header = null }) {
   };
 
   // A built component's "recapture" re-runs the simulator; an unbuilt one has
-  // only the frozen snapshot to re-read.
-  const runCapture = async () => {
-    if (busy || !detail?.built || !activeVariant) return;
+  // only the frozen snapshot to re-read. `allVariants` is the split-button's
+  // second item: `*` sends the runner every state in the fixture (undesigned
+  // states aren't in it), which is minutes per state — hence not the default.
+  const runCapture = async ({ allVariants = false } = {}) => {
+    if (busy || !detail?.built) return;
+    if (!allVariants && !activeVariant) return;
     setBusy(true); setLog([]);
     try {
-      const { runId } = await captureUi2(detail.id, activeVariant.slug);
+      const { runId } = await captureUi2(detail.id, allVariants ? '*' : activeVariant.slug);
       unsubRef.current = subscribeCapture(runId, {
         onLine: (line) => setLog((l) => [...l, line]),
         onDone: () => { setBusy(false); bumpShots(); },
@@ -209,6 +277,104 @@ export default function Ui2Layout({ sub = '', header = null }) {
     }
   };
   useEffect(() => () => unsubRef.current?.(), []);
+
+  // Delete one capture from the timeline. Destructive and not undoable, so it
+  // routes through ConfirmDialog (never window.confirm) with the confirm button
+  // styled destructive. The dialog names what actually goes and what stays,
+  // because those differ: the PNG stays on disk (it can back other versions),
+  // and any comments pinned to this version survive on the state, detached.
+  const [pendingDelete, setPendingDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const confirmDeleteVersion = async () => {
+    const v = pendingDelete;
+    if (!v) return;
+    setDeleting(true);
+    try {
+      await deleteUi2Version(v.versionId);
+      // Selecting a version that no longer exists would leave the pane loading
+      // a dead id, so drop back to current whenever the deleted one was shown.
+      if (versionId === v.versionId) setVersionId(null);
+      await loadDetail();
+      bumpShots();
+      setPendingDelete(null);
+    } catch (err) {
+      setLog([`Error: ${err.message}`]);
+      setPendingDelete(null);
+    } finally { setDeleting(false); }
+  };
+
+  // ── What the Data tab shows for the SELECTED version ──
+  //
+  // Two different things live here and must never be conflated:
+  //   · the props THIS render was captured with (`vdata.props`, recorded on the
+  //     version at capture time) — a record of what happened, and
+  //   · the fixture on disk (`variant.fixtureProps`) — what the NEXT capture
+  //     will use, which drifts the moment it is edited.
+  // They are equal right after a capture and diverge as soon as you edit. So a
+  // capture's own data is shown READ-ONLY, and editing is offered only when the
+  // thing on screen is also the thing an edit would change: the current render,
+  // still matching the fixture.
+  // Per-prop closed value sets, from §4's Type column (`enumOptions`). Keyed by
+  // the prop name a fixture writes — §4's ⊕ marker is annotation, not the name.
+  // A prop the contract does not enumerate is absent here and keeps a free text
+  // field; the fix for that is a `/ui2-component` re-run giving §4 a prop table,
+  // never a guessed option list.
+  const optionsByKey = useMemo(() => {
+    const rows = detail?.contract?.propRows ?? [];
+    return Object.fromEntries(rows.filter((p) => p.options?.length).map((p) => [p.key ?? p.name, p.options]));
+  }, [detail?.contract?.propRows]);
+
+  // Artwork for the option sets, keyed by prop — served from the PROVIDER row's
+  // assets (C-021 for a glyph), so one inventory previews everywhere.
+  const assetsByKey = useMemo(() => detail?.propAssets ?? null, [detail?.propAssets]);
+
+  const dataView = useMemo(() => {
+    const fixtureProps = activeVariant?.fixtureProps ?? null;
+    if (!fixtureProps) return null;                       // state isn't in the fixture — SidePanel says so
+    const currentId = activeVariant?.versions?.[0]?.versionId ?? null;
+    const onCurrent = versionId === null || versionId === currentId;
+    const captured = vdata?.props ?? null;
+    // Key order can differ between a hand-edited fixture and a recorded capture,
+    // so compare by sorted keys rather than raw JSON.
+    const stable = (o) => JSON.stringify(o, Object.keys(o ?? {}).sort());
+    const matchesFixture = !!captured && stable(captured) === stable(fixtureProps);
+
+    if (captured) {
+      if (onCurrent && matchesFixture) return { props: captured, optionsByKey, assetsByKey, editable: true, note: null, hint: null };
+      return {
+        props: captured,
+        optionsByKey,
+        assetsByKey,
+        editable: false,
+        hint: 'The data this render was captured with.',
+        note: onCurrent
+          ? 'The fixture has been edited since this capture, so this render no longer reflects it. Recapture to apply the current fixture data.'
+          : 'Read-only: this is an older capture. Select the current render to edit the fixture data.',
+      };
+    }
+    // No recorded props: the frozen Figma snapshot (never a capture), or a
+    // capture taken before the runner recorded them. Show the fixture, clearly
+    // labelled as the fixture rather than as this version's data.
+    return {
+      props: fixtureProps,
+      optionsByKey,
+      assetsByKey,
+      editable: onCurrent,
+      hint: 'Current fixture data — what the next capture will use.',
+      note: 'This version recorded no data of its own (the frozen Figma snapshot is not a capture).',
+    };
+  }, [activeVariant, vdata, versionId, optionsByKey, assetsByKey]);
+
+  // Data tab — write the edited props back to this state's fixture entry, then
+  // reload so the Data tab reflects what is actually on disk. "Save & Recapture"
+  // re-renders THIS state only (minutes per state), which is the whole point of
+  // editing the data: see the new render beside the frozen snapshot.
+  const saveFixture = async (props, { recapture = false } = {}) => {
+    if (!detail?.id || !activeVariant) return;
+    await saveUi2Fixture(detail.id, activeVariant.name, props);
+    await loadDetail();
+    if (recapture) await runCapture();
+  };
 
   // A built component has an `iphone` render on the same version; before that
   // there is only the frozen snapshot, so the toggle has nothing to switch to.
@@ -258,8 +424,31 @@ export default function Ui2Layout({ sub = '', header = null }) {
   // happens to be toggled, so a built component's empty-state button says
   // "Capture now" even while the design side is showing.
   const renderLabels = useMemo(() => {
+    // An undesigned state has no Figma artwork and nothing built. It gets no
+    // capture button at all (`emptyAction: null`): capturing one would render a
+    // design that does not exist and pre-empt the ruling its OQ is waiting on
+    // (preview-build.md §3 rule 6). The consumption cell already names that OQ.
+    if (activeVariant?.undesigned) {
+      return {
+        ...RENDER_LABELS,
+        emptyAction: null,
+        empty: `Undesigned state — no Figma artwork and nothing built${activeVariant.consumption ? ` (${activeVariant.consumption})` : ''}.`,
+      };
+    }
+    // `allItemSub` counts the states the runner will actually visit — the ones
+    // present in the fixture (`fixtureProps !== null`), not every §3 row, since
+    // undesigned rows have no fixture entry and are never captured.
+    const capturable = (detail?.variants ?? []).filter((v) => v.fixtureProps !== null).length;
     const base = detail?.built
-      ? { ...RENDER_LABELS, recapture: 'Recapture render', busy: 'Capturing…', emptyAction: 'Capture now' }
+      ? {
+        ...RENDER_LABELS,
+        recapture: 'Capture',
+        busy: 'Capturing…',
+        emptyAction: 'Capture now',
+        variantItem: 'Capture this state',
+        allItem: 'Capture all states',
+        allItemSub: capturable ? `${capturable} state${capturable === 1 ? '' : 's'}` : 'whole component',
+      }
       : RENDER_LABELS;
     // `current` describes what is actually ON SCREEN — the SHOWN platform
     // (`activeShot.platform`, post-fallback), not the raw toggle position. A
@@ -267,7 +456,28 @@ export default function Ui2Layout({ sub = '', header = null }) {
     // back to the Figma snapshot (`activeShot.fallback`), so the label must
     // say so rather than claiming a built render that isn't there.
     return { ...base, current: activeShot.platform === 'iphone' ? 'Built render' : 'Frozen Figma snapshot' };
-  }, [detail?.built, activeShot.platform]);
+  }, [detail?.built, detail?.variants, activeShot.platform, activeVariant?.undesigned, activeVariant?.consumption]);
+
+  // Prompt menu (RenderPane). 2.0 comments are resolved against the frozen Figma snapshot by
+  // /ui2-resolve, which takes the registry id and an OPTIONAL state slug — so "this state" and
+  // "every state" are the same command with and without the second argument.
+  const prompts = useMemo(() => {
+    if (!detail?.id) return [];
+    const list = [];
+    if (activeVariant?.slug) {
+      list.push({
+        label: 'Resolve variant comments',
+        sub: `/ui2-resolve ${detail.id} ${activeVariant.slug}`,
+        text: `/ui2-resolve ${detail.id} ${activeVariant.slug}`,
+      });
+    }
+    list.push({
+      label: 'Resolve all comments',
+      sub: `/ui2-resolve ${detail.id}`,
+      text: `/ui2-resolve ${detail.id}`,
+    });
+    return list;
+  }, [detail?.id, activeVariant?.slug]);
 
   return (
     <div className="layout cmp-cb">
@@ -308,15 +518,19 @@ export default function Ui2Layout({ sub = '', header = null }) {
         capturing={busy}
         log={log}
         onRecapture={detail?.built ? runCapture : runRefresh}
+        onDeleteVersion={detail?.canCapture ? setPendingDelete : null}
         commentApi={commentApi}
         platform={platform}
         platforms={platforms}
         onPlatform={setPlatform}
         activeShot={activeShot}
-        allVariants={false}
+        allVariants={!!detail?.built}
+        prompts={prompts}
         labels={renderLabels}
         emptyState={detail?.needsSpec ? <Ui2SpecChecklist detail={detail} /> : null}
-        hoverBox={null}
+        onHoverInspect={hoverInspect}
+        onClearInspect={clearInspect}
+        hoverBox={hoverTarget?.rect ?? null}
       />
 
       <SidePanel
@@ -326,9 +540,34 @@ export default function Ui2Layout({ sub = '', header = null }) {
         currentVersionId={activeVariant?.versions?.[0]?.versionId ?? null}
         onSelectVersion={setVersionId}
         commentApi={commentApi}
+        onSaveFixture={saveFixture}
+        dataView={dataView}
         mode="design"
       />
       </div>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete this capture?"
+        confirmLabel="Delete capture"
+        destructive
+        busy={deleting}
+        onConfirm={confirmDeleteVersion}
+        onCancel={() => setPendingDelete(null)}
+      >
+        <div>
+          The render captured on{' '}
+          <strong>{pendingDelete ? new Date(pendingDelete.capturedAt).toLocaleString() : ''}</strong>{' '}
+          is removed from this state&rsquo;s timeline permanently. This cannot be undone.
+        </div>
+        {pendingDelete?.unresolvedComments > 0 && (
+          <div className="cmp-confirm__note">
+            {pendingDelete.unresolvedComments} unresolved comment
+            {pendingDelete.unresolvedComments === 1 ? '' : 's'} pinned here will stay on the state,
+            no longer attached to a version.
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

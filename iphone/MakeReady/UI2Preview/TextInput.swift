@@ -43,6 +43,7 @@ struct TextInput: View {
                 RoundedRectangle(cornerRadius: Token.Radius.cardSm)
                     .strokeBorder(focused ? Token.textPrimary : Token.cardBorder, lineWidth: 1)
             )
+            .ui2Element("TextInput")                  // capture element map — UI2Element.swift
     }
 
     // §2: Single 44pt · Multi 88pt. (OQ-C-045-3's grow-with-content is undesigned and
@@ -69,6 +70,9 @@ struct TextInput: View {
             .lineLimit(lines == .single ? 1 : nil)
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
+            // §2 draws one text run whose ROLE changes with `text` — the element map says
+            // which, so a comment on it lands on the state it was made about.
+            .ui2Element(text.isEmpty ? "Placeholder" : "Value")
             // §2: Caret (focused): 2×24, r2, `color-accent`, leading the content row.
             // An OVERLAY, not a row item: the frozen snapshot's focused and unfocused
             // symbols place the text at the identical x (their ink profiles are equal from
@@ -79,6 +83,7 @@ struct TextInput: View {
                     RoundedRectangle(cornerRadius: Token.Radius.bar)
                         .fill(Token.accent)
                         .frame(width: 2, height: 24)
+                        .ui2Element("Caret")
                 }
             }
     }

@@ -822,7 +822,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             description: c.description,
             coverImageUrl: c.coverUrl,
             tags: c.tags ?? [],
-            days: c.days ?? 0,
+            days: c.days?.duration ?? 0,
             enrollmentCount: c.enrollmentCount,
             authorName: c.authorName,
             createdAt: makeCaptureDate(c.createdAt),
@@ -885,7 +885,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 id: "capture-prog-0",
                 name: c.title ?? "Study Program",
                 description: nil,
-                days: c.days ?? 0,
+                days: c.days?.duration ?? 0,
                 coverImageUrl: c.coverUrl
             ),
             isActive: !(c.isCompleted ?? false)
@@ -2560,14 +2560,180 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
         guard let showTitle = c.showTitle else {
             throw ViewRegistryError.unknownView("component.ui2.C-040: missing props.showTitle")
         }
+        // Glyph slots are props as of the 2026-09-07 ruling. `textButtons` renders no glyphs,
+        // so its states carry neither key and the view's designed defaults stand; any other
+        // style supplies both. An unknown glyph name is a fixture bug, not a value to guess.
+        let ui2C040Leading: UI2Preview.GlyphButton.Glyph
+        if let raw = c.leadingGlyph {
+            guard let parsed = UI2Preview.GlyphButton.Glyph(rawValue: raw) else {
+                throw ViewRegistryError.unknownView("component.ui2.C-040: props.leadingGlyph \"\(raw)\" is not a C-021 glyph")
+            }
+            ui2C040Leading = parsed
+        } else {
+            ui2C040Leading = .back                     // §3: the designed leading glyph
+        }
+        var ui2C040Right: [UI2Preview.GlyphButton.Glyph] = [.export, .settings]
+        if let raws = c.rightButtons {
+            ui2C040Right = try raws.map { raw in
+                guard let parsed = UI2Preview.GlyphButton.Glyph(rawValue: raw) else {
+                    throw ViewRegistryError.unknownView("component.ui2.C-040: props.rightButtons \"\(raw)\" is not a C-021 glyph")
+                }
+                return parsed
+            }
+        }
         return AnyView(
             UI2Preview.PageHeader(
                 style: ui2C040Style,
                 title: c.title,
                 showTitle: showTitle,
-                showIcons: c.showIcons ?? true
+                showIcons: c.showIcons ?? true,
+                leadingGlyph: ui2C040Leading,
+                rightButtons: ui2C040Right
             )
             .frame(width: 398)                      // OQ-PB-1 default: C-040 §1 deviation 2 master width
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-024":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-024: missing state.component")
+        }
+        // C-024 §4 gives a default only for `targetBars` (nil = one bar per point) and
+        // `averageLabel` (nil = line only), so those two read straight through. `series`,
+        // `align`, `widthFill` and `showAverage` have no contract default — a nil is a fixture
+        // bug, not a value to guess. `averageLabelSide` is only meaningful with a label.
+        guard let series = c.series else {
+            throw ViewRegistryError.unknownView("component.ui2.C-024: missing props.series")
+        }
+        guard let alignRaw = c.align, let align = UI2Preview.SparkBarChart.Align(rawValue: alignRaw) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-024: props.align must be top|center|bottom")
+        }
+        guard let fillRaw = c.widthFill, let widthFill = UI2Preview.SparkBarChart.WidthFill(rawValue: fillRaw) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-024: props.widthFill must be bars|gaps")
+        }
+        guard let showAverage = c.showAverage else {
+            throw ViewRegistryError.unknownView("component.ui2.C-024: missing props.showAverage")
+        }
+        let ui2C024LabelSide: UI2Preview.SparkBarChart.LabelSide
+        switch c.averageLabelSide {
+        case "left": ui2C024LabelSide = .left
+        case "right", nil: ui2C024LabelSide = .right   // §4: right is the designed placement
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-024: props.averageLabelSide must be left|right")
+        }
+        return AnyView(
+            UI2Preview.SparkBarChart(
+                series: series,
+                targetBars: c.targetBars,
+                align: align,
+                widthFill: widthFill,
+                showAverage: showAverage,
+                averageLabel: c.averageLabel,
+                averageLabelSide: ui2C024LabelSide
+            )
+            // OQ-PB-1: C-024 states no master width — §4 Sizing is explicit that the component
+            // has NO intrinsic size and fills its container, so the call site must fix BOTH
+            // axes. 97×64 is §2's stated sample footprint, i.e. the frozen snapshot's own
+            // symbol size, which is what makes the render and the snapshot comparable.
+            .frame(width: 97, height: 64)
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-021":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-021: missing state.component")
+        }
+        // C-021 §4 gives no default for `glyph` — it is the whole of the component, so a
+        // nil or an unknown name is a fixture bug, not a value to guess. `action` is
+        // interaction-bearing and defaulted to a no-op in the view (OQ-PB-3).
+        guard let glyphRaw = c.glyph, let glyph = UI2Preview.GlyphButton.Glyph(rawValue: glyphRaw) else {
+            throw ViewRegistryError.unknownView(
+                "component.ui2.C-021: props.glyph must be one of C-021 §3's nine glyph names"
+            )
+        }
+        return AnyView(
+            UI2Preview.GlyphButton(glyph: glyph)
+                // No master width to pin (OQ-PB-1): unlike C-040/C-045 this component states
+                // its own footprint — §2's 44pt hit target — so the call site adds only the
+                // page margin and the ground the snapshot is framed on.
+                .padding(UI2Preview.Token.Space.pageMargin)
+                .frame(maxWidth: .infinity)
+                .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-026":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-026: missing state.component")
+        }
+        // C-026 §4 gives no default for `days` or `window` — they are the whole of the chart,
+        // so a nil is a fixture bug, not a value to guess. `onPan` is interaction-bearing and
+        // defaulted to a no-op in the view (OQ-PB-3). `today` is the capture seam: §3 derives
+        // `state` from whether today falls inside the window, and reading the real clock would
+        // make the render change state on its own — see UI2Preview/DualSeriesBarChart.swift.
+        guard let timeline = c.days?.timeline else {
+            throw ViewRegistryError.unknownView("component.ui2.C-026: missing props.days (day timeline)")
+        }
+        guard let windowSpec = c.window,
+              let windowStart = makeUI2ChartDate(windowSpec.start),
+              let windowEnd = makeUI2ChartDate(windowSpec.end),
+              windowStart <= windowEnd else {
+            throw ViewRegistryError.unknownView("component.ui2.C-026: props.window must be { start, end } as yyyy-MM-dd, start ≤ end")
+        }
+        guard let today = makeUI2ChartDate(c.today) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-026: missing props.today (yyyy-MM-dd)")
+        }
+        let ui2C026Days: [UI2Preview.DualSeriesBarChart.Day] = try timeline.map {
+            guard let date = makeUI2ChartDate($0.date) else {
+                throw ViewRegistryError.unknownView("component.ui2.C-026: props.days[].date \"\($0.date)\" is not yyyy-MM-dd")
+            }
+            return UI2Preview.DualSeriesBarChart.Day(
+                date: date, scheduled: $0.scheduled, completed: $0.completed
+            )
+        }
+        return AnyView(
+            UI2Preview.DualSeriesBarChart(
+                days: ui2C026Days,
+                window: windowStart...windowEnd,
+                today: today
+            )
+            // OQ-PB-1: C-026 §2 states a FIXED 440×149 footprint, so both axes are pinned here.
+            // 440pt is exactly the iPhone 16 Pro Max logical width the runner renders at, which
+            // is why this call site adds NO page margin — §2's "full-bleed within
+            // `space-page-margin` insets on consumers" describes the consumer's inset, and
+            // applying it here would squeeze the chart to 408 and invalidate every x in §2.
+            .frame(width: 440, height: 149)
+            .frame(maxWidth: .infinity)
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-034":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-034: missing state.component")
+        }
+        // C-034 §4 gives no default for `placeholder` (§1 deviation 1: every consumer sets its
+        // own) or `focused`, so a nil in either is a fixture bug. `text` defaults to empty —
+        // §4: "empty → placeholder shows" — which is the contract's own default, not a guess.
+        // `onChange`/`onClear` are interaction-bearing and no-ops in the view (OQ-PB-3).
+        guard let placeholder = c.placeholder else {
+            throw ViewRegistryError.unknownView("component.ui2.C-034: missing props.placeholder")
+        }
+        guard let focused = c.focused else {
+            throw ViewRegistryError.unknownView("component.ui2.C-034: missing props.focused")
+        }
+        return AnyView(
+            UI2Preview.SearchField(
+                text: c.text ?? "",
+                placeholder: placeholder,
+                focused: focused
+            )
+            // OQ-PB-1 default: the contract's master width. §1 deviation 2 — "Master symbols
+            // are 387pt wide; consumers are width-driven — all three specced headers render
+            // 408×44." 387 is what the frozen snapshot shows, so 387 is what is diffable.
+            .frame(width: 387)
             .padding(UI2Preview.Token.Space.pageMargin)
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
@@ -2576,6 +2742,21 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
     default:
         throw ViewRegistryError.unknownView(fixture.view)
     }
+}
+
+/// C-026 fixture dates: `yyyy-MM-dd` read as UTC, matching how DualSeriesBarChart formats its
+/// tick labels — so a fixture date renders as the day it names in any simulator zone.
+private let ui2ChartDateFormatter: DateFormatter = {
+    let f = DateFormatter()
+    f.locale = Locale(identifier: "en_US_POSIX")
+    f.timeZone = TimeZone(secondsFromGMT: 0)
+    f.dateFormat = "yyyy-MM-dd"
+    return f
+}()
+
+private func makeUI2ChartDate(_ raw: String?) -> Date? {
+    guard let raw else { return nil }
+    return ui2ChartDateFormatter.date(from: raw)
 }
 
 

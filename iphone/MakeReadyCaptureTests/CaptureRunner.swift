@@ -10,6 +10,7 @@ import XCTest
 import SnapshotTesting
 import SwiftUI
 @testable import MakeReady
+@testable import UI2Preview
 
 final class CaptureRunner: XCTestCase {
 
@@ -61,12 +62,17 @@ final class CaptureRunner: XCTestCase {
                 let isComponent = fixture.view.hasPrefix("component.")
                 let view: AnyView
                 let snapshotting: Snapshotting<AnyView, UIImage>
+                // Collects the component's annotated parts (UI2Element.swift) DURING the
+                // snapshot's own layout pass — see writeElementMap for why it has to be
+                // that pass and not one of our own.
+                let elementMap = UI2ElementMap()
                 if isComponent {
                     let width = device.config.size?.width ?? 393
                     view = AnyView(
                         baseView
                             .frame(width: width)
                             .background(Color.appBackground)
+                            .ui2ElementMap(elementMap)
                     )
                     snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
                 } else if let captureHeight = fixture.captureHeight {
@@ -118,9 +124,69 @@ final class CaptureRunner: XCTestCase {
                     XCTFail("CAPTURE: Snapshot failed for \(workflow)/\(fixture.output) @ \(deviceKey): \(failure)")
                 }
 
+                // The element map sits beside the PNG for component fixtures — the
+                // capture browser's 2.0 hit-test oracle (UI2Element.swift). A 1.0
+                // component has no annotations, so this writes nothing for it.
+                if isComponent {
+                    writeElementMap(elementMap, to: "\(outputDir)/capture.\(outputName).elements.json")
+                }
+
                 let label = fixture.title ?? fixture.output
                 print("CAPTURE: ✓ \(label) @ \(deviceKey)")
             }
+        }
+    }
+
+    /// Writes the parts collected during the snapshot's layout pass beside its PNG.
+    ///
+    /// The map MUST come from the pass that rendered the image, and cannot come from a
+    /// measuring pass of our own: a `UIHostingController` that is in no window is sized
+    /// by `sizeThatFits` without ever running the render pass that evaluates the
+    /// collecting overlay's `GeometryReader`, so the collector is simply never called.
+    /// (That was the first implementation; it produced an empty map for every state.)
+    /// Sharing the snapshot's pass also makes the rects and the pixels the same layout by
+    /// construction, rather than two passes that have to be checked against each other.
+    ///
+    /// The collecting overlay is a `Color.clear` — it draws nothing and, an overlay being
+    /// sized by its content, lays out nothing — so the PNG is unchanged by its presence.
+    ///
+    /// Rects are written as fractions of the rendered view, so they line up with the PNG
+    /// at any device scale. No annotations (every 1.0 component, and any 2.0 component
+    /// built before UI2Element.swift) means no file, which the browser reads as "no
+    /// element highlights here" rather than an error.
+    @MainActor
+    private func writeElementMap(_ map: UI2ElementMap, to filePath: String) {
+        let size = map.size
+        guard size.width > 0, size.height > 0, !map.elements.isEmpty else {
+            print("CAPTURE: (no element map for \((filePath as NSString).lastPathComponent))")
+            return
+        }
+
+        let elements: [[String: Any]] = map.elements.compactMap { element in
+            // Clip to the measured frame: a hit target may extend beyond its own visual
+            // bounds (C-021 §2 does exactly that), and the browser hit-tests inside the
+            // image, so anything outside it is not addressable.
+            let clipped = element.rect.intersection(CGRect(origin: .zero, size: size))
+            guard !clipped.isNull, clipped.width > 0, clipped.height > 0 else { return nil }
+            return [
+                "name": element.name,
+                "x": Double(clipped.minX / size.width),
+                "y": Double(clipped.minY / size.height),
+                "w": Double(clipped.width / size.width),
+                "h": Double(clipped.height / size.height),
+            ]
+        }
+
+        let payload: [String: Any] = [
+            "size": ["w": Double(size.width), "h": Double(size.height)],
+            "elements": elements,
+        ]
+        do {
+            let data = try JSONSerialization.data(withJSONObject: payload, options: [.prettyPrinted, .sortedKeys])
+            try data.write(to: URL(fileURLWithPath: filePath))
+            print("CAPTURE: ◎ \(elements.count) element(s) mapped")
+        } catch {
+            print("CAPTURE: element map failed for \(filePath): \(error)")
         }
     }
 

@@ -128,7 +128,7 @@ Modeled on `compare-resolve.md`; the invocation is `<scope>` only (D7). Procedur
    default `pro-max` (03 §4, CR12) — so fresh versions land (R7). Verify via `get_latest_screenshots` + reading the
    new PNGs against the resolved comments.
 6. Summary: per component — resolved / replied-awaiting-decision / failed-verification; point
-   the user at `http://localhost:5950/components/<path>`.
+   the user at `http://localhost:5950/components/1.0/<path>`.
 
 Gate note: the command edits Swift → it must run `npm run ios:build-check` before the batch
 recapture (a broken build would burn an xcodebuild cycle) and report lint per the iphone gate

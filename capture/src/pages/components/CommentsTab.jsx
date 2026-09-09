@@ -21,14 +21,26 @@ export default function CommentsTab({ commentApi, activeVersionId, currentVersio
     commentApi.setSelectedCommentId(c.id);
   };
 
-  const renderItem = (c, { labelVersion } = {}) => (
+  // A list row is COLLAPSED until it is the selected comment: it shows the message and
+  // nothing else. Selecting it (click, Enter/Space, or clicking its pin in the render) is
+  // what reveals it in the preview AND opens the reply box + Resolve/Reply/Delete — so the
+  // list reads as a list, and only the comment you are actually working on shows controls.
+  const renderItem = (c, { labelVersion } = {}) => {
+    const selected = c.id === commentApi.selectedCommentId;
+    return (
     <div
       key={c.id}
-      className={`cmp-citem${c.id === commentApi.selectedCommentId ? ' cmp-citem--selected' : ''}${c.resolved ? ' cmp-citem--resolved' : ''}`}
+      className={`cmp-citem${selected ? ' cmp-citem--selected' : ''}${c.resolved ? ' cmp-citem--resolved' : ''}`}
       role="button"
       tabIndex={0}
       onClick={() => jump(c)}
-      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jump(c); } }}
+      // Only when the ROW itself has focus. Without this the reply textarea's own keys
+      // bubble here, and Space/Enter get preventDefault()ed — you could not type a space
+      // into a reply.
+      onKeyDown={(e) => {
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); jump(c); }
+      }}
     >
       <div className="cmp-citem__head">
         <span className="cmp-citem__num">{c.resolved ? '✓' : '•'}</span>
@@ -40,10 +52,11 @@ export default function CommentsTab({ commentApi, activeVersionId, currentVersio
         )}
       </div>
       <div className="cmp-citem__thread">
-        <Thread comment={c} canEdit={commentApi.canComment} onReply={commentApi.onReply} onResolve={commentApi.onResolve} onDelete={commentApi.onDelete} />
+        <Thread comment={c} canEdit={commentApi.canComment && selected} onReply={commentApi.onReply} onResolve={commentApi.onResolve} onDelete={commentApi.onDelete} />
       </div>
     </div>
-  );
+    );
+  };
 
   return (
     <div className="cmp-cb-comments">

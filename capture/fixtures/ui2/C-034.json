@@ -1,0 +1,38 @@
+{
+  "id": "ui2-c-034",
+  "registryId": "C-034",
+  "component": "SearchField",
+  "view": "component.ui2.C-034",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Default",
+      "slug": "default",
+      "props": {
+        "text": "",
+        "placeholder": "Search",
+        "focused": false
+      }
+    },
+    {
+      "name": "Focus",
+      "slug": "focus",
+      "props": {
+        "text": "",
+        "placeholder": "Search",
+        "focused": true
+      }
+    },
+    {
+      "name": "Has value",
+      "slug": "has-value",
+      "props": {
+        "text": "Value",
+        "placeholder": "Search",
+        "focused": false
+      }
+    }
+  ]
+}

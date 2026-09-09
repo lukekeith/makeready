@@ -287,6 +287,21 @@ export default function ComponentsLayout({ sub = '', header = null }) {
     canComment, onReply, onResolve, onDelete,
   };
 
+  // Prompt menu (RenderPane). /component-resolve's scope grammar is filesystem-shaped
+  // (`A/B/Name`, `A/B/**`, `**`) and it works across ALL variants of a component — there is
+  // no per-variant scope to copy, so 1.0 offers only the whole-component entry. A variant
+  // item would have to invent grammar the command cannot parse.
+  const prompts = useMemo(
+    () => (detail?.path
+      ? [{
+        label: 'Resolve all comments',
+        sub: `/component-resolve ${detail.path}`,
+        text: `/component-resolve ${detail.path}`,
+      }]
+      : []),
+    [detail?.path],
+  );
+
   return (
     <div className="layout cmp-cb">
       <AppHeader>
@@ -317,6 +332,7 @@ export default function ComponentsLayout({ sub = '', header = null }) {
           capturing={capturing}
           log={log}
           onRecapture={runCapture}
+          prompts={prompts}
           commentApi={commentApi}
           onHoverInspect={hoverInspect}
           onClearInspect={clearInspect}

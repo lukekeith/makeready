@@ -7,6 +7,7 @@
 // this pane stays one component for both.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import ZoomPane from '../../components/viewer/ZoomPane.jsx';
+import { copyToClipboard } from '../../util/clipboard.js';
 import VersionTimeline from './VersionTimeline.jsx';
 import DevicePicker from './DevicePicker.jsx';
 import WiringChecklist from './WiringChecklist.jsx';
@@ -18,13 +19,23 @@ export default function RenderPane({
   capturing, log, onRecapture, commentApi,
   onHoverInspect, onClearInspect, hoverBox,
   platform = 'iphone', emptyState = null, allVariants = true, labels = {},
-  platforms = null, onPlatform = null, activeShot = null,
+  platforms = null, onPlatform = null, activeShot = null, onDeleteVersion = null,
+  // The Prompt menu's contents, supplied by the host: [{ label, sub?, text }]. The text is
+  // what lands on the clipboard. Host-supplied rather than built here because the command
+  // that resolves a comment differs per era — 1.0 edits the Swift component
+  // (`/component-resolve`), 2.0 edits the preview view against its Figma snapshot
+  // (`/ui2-resolve`) — and only the host knows which it is. Empty ⇒ no button.
+  prompts = [],
 }) {
   const text = {
     recapture: 'Recapture',
     busy: 'Capturing…',
     variantItem: 'Recapture variant',
     allItem: 'Recapture all variants',
+    // Sub-line under the "all" menu item. Null = derive it from the variant
+    // count; a host whose "all" doesn't mean every listed variant (2.0 skips
+    // undesigned states) passes its own count instead.
+    allItemSub: null,
     empty: 'never captured',
     emptyAction: 'Capture now',
     current: 'Current render',
@@ -33,6 +44,9 @@ export default function RenderPane({
   const [view, setView] = useState({ scale: 1, cx: 0.5, cy: 0.5 });
   const [capMenuOpen, setCapMenuOpen] = useState(false);
   const capMenuRef = useRef(null);
+  const [promptMenuOpen, setPromptMenuOpen] = useState(false);
+  const [copiedPrompt, setCopiedPrompt] = useState(null);
+  const promptMenuRef = useRef(null);
 
   // Close the recapture split-button menu on outside click or Escape.
   useEffect(() => {
@@ -43,6 +57,23 @@ export default function RenderPane({
     document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [capMenuOpen]);
+  // Close the Prompt menu on outside click or Escape (mirrors the capture menu above).
+  useEffect(() => {
+    if (!promptMenuOpen) return;
+    const onDown = (e) => { if (!promptMenuRef.current?.contains(e.target)) setPromptMenuOpen(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setPromptMenuOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [promptMenuOpen]);
+
+  const copyPrompt = async (entry) => {
+    await copyToClipboard(entry.text);
+    setCopiedPrompt(entry.text);
+    setPromptMenuOpen(false);
+    setTimeout(() => setCopiedPrompt((t) => (t === entry.text ? null : t)), 1400);
+  };
+
   const [hover, setHover] = useState(null);
   const [natural, setNatural] = useState({});
   const resetView = useCallback(() => setView({ scale: 1, cx: 0.5, cy: 0.5 }), []);
@@ -111,12 +142,6 @@ export default function RenderPane({
       <div className="cmp-cb-render__bar">
         <span className="cmp-cb-render__title">{detail.name} · {variant.name}</span>
         {!isCurrent && <span className="cmp-cb-render__oldchip">viewing old version</span>}
-        {shown.fallback && (
-          <span
-            className="cmp-cb-render__oldchip"
-            title="This version has no built render yet — showing the frozen Figma snapshot instead."
-          >no built render on this version — showing Figma</span>
-        )}
         <DevicePicker viewports={detail.viewports} selected={viewport} onSelect={onViewport} />
         {platforms?.length > 1 && onPlatform && (
           <div className="cmp-render__platforms">
@@ -139,6 +164,56 @@ export default function RenderPane({
             >
               {commentApi.commentMode ? 'Commenting…' : 'Comment'}
             </button>
+          </>
+        )}
+
+        {prompts.length > 0 && (
+          <div className="cmp-capsplit cmp-capsplit--prompt" ref={promptMenuRef}>
+            {/* Same split-button structure as the capture button beside it — main half +
+                divided caret half — so the two read as one control family. The only
+                difference is colour: this one is the neutral `btn`, that one `btn--primary`.
+                Both halves open the menu here, because unlike capture there is no primary
+                action to put on the main half: every prompt lives in the menu. */}
+            <button
+              className="btn cmp-capsplit__main"
+              onClick={() => setPromptMenuOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={promptMenuOpen}
+              title="Copy a prompt for this component"
+            >
+              {copiedPrompt ? 'Copied!' : 'Prompt'}
+            </button>
+            <button
+              className="btn cmp-capsplit__caret"
+              onClick={() => setPromptMenuOpen((o) => !o)}
+              aria-haspopup="menu"
+              aria-expanded={promptMenuOpen}
+              title="Prompt options"
+            >
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            {promptMenuOpen && (
+              <div className="cmp-capsplit__menu cmp-capsplit__menu--prompts" role="menu">
+                {prompts.map((entry) => (
+                  <button
+                    key={entry.text}
+                    className="cmp-capsplit__item"
+                    role="menuitem"
+                    onClick={() => copyPrompt(entry)}
+                  >
+                    <span className="cmp-capsplit__item-name">{entry.label}</span>
+                    <span className="cmp-capsplit__item-sub">{entry.sub ?? entry.text}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {detail.canCapture && (
+          <>
             <div className="cmp-capsplit" ref={capMenuRef}>
               <button className="btn btn--primary cmp-capsplit__main" onClick={() => onRecapture()} disabled={capturing}>
                 {capturing ? text.busy : text.recapture}
@@ -165,7 +240,7 @@ export default function RenderPane({
                   </button>
                   <button className="cmp-capsplit__item" role="menuitem" onClick={() => { setCapMenuOpen(false); onRecapture({ allVariants: true }); }}>
                     <span className="cmp-capsplit__item-name">{text.allItem}</span>
-                    <span className="cmp-capsplit__item-sub">{detail.variants?.length ? `${detail.variants.length} total` : 'whole component'}</span>
+                    <span className="cmp-capsplit__item-sub">{text.allItemSub ?? (detail.variants?.length ? `${detail.variants.length} total` : 'whole component')}</span>
                   </button>
                 </div>
               )}
@@ -173,6 +248,15 @@ export default function RenderPane({
           </>
         )}
       </div>
+
+      {shown.fallback && (
+        <div className="cmp-cb-render__notice">
+          <span
+            className="cmp-cb-render__oldchip"
+            title="This version has no built render yet — showing the frozen Figma snapshot instead."
+          >no built render on this version — showing Figma</span>
+        </div>
+      )}
 
       {shotUrl ? (
         <div className="cmp-cb-render__pane">
@@ -200,7 +284,10 @@ export default function RenderPane({
       ) : (
         <div className="cmp-cb-col__empty">
           {text.empty}
-          {detail.canCapture && <div style={{ marginTop: 10 }}><button className="btn btn--primary" onClick={() => onRecapture()} disabled={capturing}>{capturing ? text.busy : text.emptyAction}</button></div>}
+          {/* A null `emptyAction` means there is nothing to capture and no
+              button to offer — an undesigned 2.0 state, where capturing would
+              be inventing the design its OQ is waiting on. */}
+          {detail.canCapture && text.emptyAction && <div style={{ marginTop: 10 }}><button className="btn btn--primary" onClick={() => onRecapture()} disabled={capturing}>{capturing ? text.busy : text.emptyAction}</button></div>}
         </div>
       )}
 
@@ -209,6 +296,7 @@ export default function RenderPane({
         selectedId={versionId}
         onSelect={onSelectVersion}
         shotsVersion={shotsVersion}
+        onDelete={onDeleteVersion}
       />
 
       {(capturing || log.length > 0) && <CaptureLogDock lines={log} capturing={capturing} viewportLabel={viewport} />}

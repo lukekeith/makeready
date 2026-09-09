@@ -96,6 +96,16 @@ async function captureVariant(fixture, variant, git) {
       await fs.mkdir(path.dirname(dest), { recursive: true });
       await fs.copyFile(src, dest);
       const dims = pngSize(await fs.readFile(dest));
+      // The element map the XCTest harness wrote beside the PNG (CaptureRunner
+      // writeElementMap): the browser's hit-test oracle for comments on this
+      // render. Optional by design — a component built before UI2Element.swift,
+      // or one whose parts are unannotated, simply has no highlights.
+      try {
+        await fs.copyFile(
+          path.join(dir, 'screenshots', DEVICE, `capture.${key}.elements.json`),
+          path.join(compareRoot, rel.replace(/\.png$/, '.elements.json')),
+        );
+      } catch { /* no map — highlights stay off for this render */ }
       await addScreenshot({ versionId: version.id, platform: 'iphone', device: DEVICE, path: rel, width: dims.width ?? null, height: dims.height ?? null });
       // Carry the frozen Figma snapshot onto this version so the newest one shows both.
       await finalizeVariantVersion({

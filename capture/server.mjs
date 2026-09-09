@@ -38,7 +38,7 @@ import { buildInventory, queryInventory } from './runners/compare/inventory.mjs'
 import { saveVariantShared } from './runners/compare/lib.mjs';
 import { buildIndex, ScopeError, kebab, makereadyRoot as repoRoot } from './lib/fs-index.mjs';
 import { buildUi2Index, ui2Counts, assetsDir as ui2AssetsDir } from './lib/ui2-index.mjs';
-import { isBuilt, ui2FixturePath } from './lib/ui2-fixture.mjs';
+import { isBuilt, ui2FixturePath, readUi2Fixture, writeUi2Fixture } from './lib/ui2-fixture.mjs';
 import { buildScopePayload } from './lib/comment-payload.mjs';
 import {
   syncComparison,
@@ -47,6 +47,7 @@ import {
   latestScreenshots,
   latestVersion,
   getVersion,
+  deleteVersion,
   getVariantLatest,
   versionShots,
   listVersions,
@@ -1143,6 +1144,32 @@ const ui2AssetUrl = (rel) => (rel ? `/ui2-assets/${path.basename(rel)}` : null);
  *  compare shot store — so URL resolution is per-screenshot, not per-caller. */
 const screenshotUrl = (sc) => (!sc ? null : sc.platform === 'design' ? ui2AssetUrl(sc.path) : shotUrlFromPath(sc.path));
 
+// The element map written beside a built (`iphone`) 2.0 render by the XCTest capture
+// harness — `{ size, elements: [{ name, x, y, w, h }] }`, rects as fractions of the
+// render. It is what the browser hit-tests to give a comment its element context, the
+// 2.0 answer to the 1.0 side's hidden web twin. Absent for the Figma snapshot and for
+// anything captured before the harness emitted it, which reads as "no highlights".
+const ui2ElementMap = async (sc) => {
+  if (!sc?.path || sc.platform !== 'iphone') return null;
+  try {
+    const raw = await fs.readFile(path.join(compareRoot, sc.path.replace(/\.png$/, '.elements.json')), 'utf-8');
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.elements) || !parsed.elements.length) return null;
+    // The map is collected during the pass that renders the PNG, so the two agree by
+    // construction — but the sidecar is a SEPARATE FILE keyed on the screenshot's
+    // path, and a screenshot path is copy-forwarded onto later versions
+    // (finalizeVariantVersion). A stale or mismatched map would put highlights in the
+    // wrong place, which is worse than none: the comment would record the wrong part.
+    // Aspect ratio is the one dimensionless check available (the map is in points, the
+    // PNG in pixels at the device scale), so a pass here means they describe one view.
+    if (sc.width > 0 && sc.height > 0 && parsed.size?.w > 0 && parsed.size?.h > 0) {
+      const drift = Math.abs((parsed.size.w / parsed.size.h) - (sc.width / sc.height));
+      if (drift / (sc.width / sc.height) > 0.01) return null;
+    }
+    return parsed;
+  } catch { return null; }
+};
+
 /** PNG dimensions from the IHDR header (no decode). */
 async function pngSize(abs) {
   try {
@@ -1174,6 +1201,13 @@ async function syncUi2Row(row) {
   const { width, height } = await pngSize(abs);
   const created = [];
   for (const v of row.variants) {
+    // An `undesigned` state has NO artwork in the frozen snapshot — that is what
+    // undesigned means. Registering the shared whole-set PNG under it anyway
+    // claimed a design that does not exist (C-024 `align · top` showed the six
+    // designed symbols, none of them top-aligned). Skip it: the row's Details
+    // and the render pane say the state is undesigned and name the OQ it waits
+    // on, which is the truthful thing to show.
+    if (v.consumptionState === 'undesigned') continue;
     const existing = await findVersionBySourceHash(row.comparisonId, {
       variantName: v.name, viewport: UI2_VIEWPORT, sourceHash: row.snapshot.sha,
     });
@@ -1259,6 +1293,19 @@ app.get('/api/ui2/detail', async (req, res) => {
       viewportDimensions: {},
       canCapture: !isProduction,
       commands: { spec: `/ui2-component ${row.id}` },
+      // Per-prop artwork for the value sets §4 declares, as URLs: { prop: { value: url } }.
+      // Built here rather than in the index so the `/ui2-assets` route stays known in one
+      // place, and built into a NEW object because the index is cached and must not be
+      // mutated per-request. The files are keyed on the PROVIDER row (C-021 for a glyph),
+      // so every component delegating to it previews the same inventory.
+      propAssets: Object.fromEntries(
+        (row.contract?.propRows ?? [])
+          .filter((p) => p.optionAssets)
+          .map((p) => [
+            p.key ?? p.name,
+            Object.fromEntries(Object.entries(p.optionAssets).map(([value, file]) => [value, `/ui2-assets/${file}`])),
+          ]),
+      ),
     };
     if (!row.contract) {
       // The 2.0 analogue of an unwired 1.0 component: the row exists, the
@@ -1266,20 +1313,43 @@ app.get('/api/ui2/detail', async (req, res) => {
       return res.json({ ...base, variants: [], needsSpec: true });
     }
 
+    // The built fixture, if this row has one — the source of the props each
+    // state was actually rendered with, and what the Data tab edits. Keyed by
+    // variant NAME (the same string the version timeline and comments key on),
+    // never by slug.
+    const fixture = await readUi2Fixture(row.id);
+    const fixtureProps = new Map((fixture?.variants ?? []).map((fv) => [fv.name, fv.props ?? {}]));
+
     const variants = [];
     for (const v of row.variants) {
       const comments = await listCommentsForVariant(row.comparisonId, v.name, UI2_VIEWPORT);
-      const versions = (await listVersions(row.comparisonId, { variantName: v.name, viewport: UI2_VIEWPORT, withScreenshots: true })).map((ver) => {
+      // An undesigned state has no artwork and nothing built, so it has nothing
+      // to show. syncUi2Row no longer mints a design version for one, but rows
+      // synced before that change still have theirs on disk — dropping them here
+      // covers both, without deleting anything (and any comment already pinned
+      // on such a version still counts in `unresolvedComments`).
+      const undesigned = v.consumptionState === 'undesigned';
+      const versions = undesigned ? [] : (await listVersions(row.comparisonId, { variantName: v.name, viewport: UI2_VIEWPORT, withScreenshots: true })).map((ver) => {
         const shot = ver.screenshots.find((sc) => sc.platform === 'design') ?? null;
         const iphoneShot = ver.screenshots.find((sc) => sc.platform === 'iphone') ?? null;
+        // `shot`/`screenshotId` is the version's REPRESENTATIVE thumbnail, so it
+        // prefers the built render and falls back to Figma for a version that
+        // has none (the design-only versions syncUi2Row mints from the frozen
+        // snapshot). Showing Figma for a version that HAS a render made a
+        // captured version indistinguishable from an uncaptured one in the
+        // timeline. `shots` still carries both platforms for the pane's toggle.
+        const thumb = iphoneShot ?? shot;
         return {
           versionId: ver.id, capturedAt: ver.capturedAt, viewport: ver.viewport,
           gitSha: ver.gitSha, gitDirty: ver.gitDirty,
-          // `shot`/`screenshotId` stay the design (Figma) shot — every existing
-          // reader (VersionTimeline thumbnails) keeps working unchanged. `shots`
-          // carries BOTH platforms so a client rendering the built side (once
-          // there is one) doesn't get stuck on Figma forever (preview-build §5).
-          shot: screenshotUrl(shot), screenshotId: shot?.id ?? null,
+          shot: screenshotUrl(thumb), screenshotId: thumb?.id ?? null,
+          hasBuiltRender: !!iphoneShot,
+          // The props THIS render was captured with, recorded by the ui2 runner
+          // at capture time (`sharedData`). The fixture on disk is the data the
+          // NEXT capture will use and drifts from this one the moment it is
+          // edited, so the two are reported separately and never conflated.
+          // null on a design-only version: the frozen snapshot is not a capture.
+          props: ver.sharedData ?? null,
           shots: {
             design: { url: screenshotUrl(shot), screenshotId: shot?.id ?? null },
             iphone: { url: screenshotUrl(iphoneShot), screenshotId: iphoneShot?.id ?? null },
@@ -1293,7 +1363,12 @@ app.get('/api/ui2/detail', async (req, res) => {
         propValues: v.propValues,
         consumption: v.consumption,
         consumptionState: v.consumptionState,
+        undesigned,
         cells: v.cells,
+        // The fixture props for this state, or null when the state has no
+        // fixture entry at all — an `undesigned` row, or one rule 6 skipped.
+        // null and {} mean different things to the Data tab, so keep them apart.
+        fixtureProps: fixtureProps.has(v.name) ? fixtureProps.get(v.name) : null,
         unresolvedComments: comments.filter((c) => !c.resolved).length,
         versions,
       });
@@ -1315,6 +1390,9 @@ app.get('/api/ui2/version/:vid', async (req, res) => {
     res.json({
       versionId: v.id, comparisonId: v.comparisonId, variantName: v.variantName,
       viewport: v.viewport, capturedAt: v.capturedAt,
+      // What THIS render was captured with (see /api/ui2/detail). null when the
+      // version is the frozen Figma snapshot rather than a capture.
+      props: v.sharedData ?? null,
       // `shot`/`screenshotId` stay the design (Figma) shot for existing readers;
       // `shots` carries both platforms so the client can show whichever the
       // platform toggle has selected instead of always the Figma snapshot.
@@ -1324,6 +1402,8 @@ app.get('/api/ui2/version/:vid', async (req, res) => {
         iphone: { url: screenshotUrl(shots.iphone), screenshotId: shots.iphone?.id ?? null },
       },
       webLive: null,
+      // 2.0 has no web twin to hit-test; the built render carries its own geometry.
+      elements: await ui2ElementMap(shots.iphone),
       comments: comments.map((c) => ({ ...c, onThisVersion: c.versionId === v.id })),
     });
   } catch (err) {
@@ -1334,6 +1414,63 @@ app.get('/api/ui2/version/:vid', async (req, res) => {
 if (!isProduction) {
   // "Recapture" for a spec: re-read the frozen snapshot from disk and append a
   // design version if /ui2-component refreshed it.
+  // Remove one CAPTURE from a state's timeline.
+  //
+  // Only a version carrying a built (`iphone`) render can go: the design-only
+  // versions are syncUi2Row's, minted from the frozen snapshot and re-minted on
+  // the next read, so deleting one is a no-op that looks like a bug. Refusing
+  // with a reason beats a delete that silently comes back.
+  //
+  // The PNG on disk is deliberately NOT unlinked. finalizeVariantVersion
+  // copy-forwards a screenshot path onto later versions, so one file can back
+  // several versions and deleting it would blank a version this request never
+  // named. Screenshot ROWS cascade with the version; comments do not — they are
+  // `onDelete: SetNull`, so they survive on the variant, detached from the
+  // version they were pinned to.
+  app.delete('/api/ui2/version/:vid', async (req, res) => {
+    try {
+      const version = await getVersion(req.params.vid);
+      if (!version) return res.status(404).json({ error: 'Version not found' });
+      const shots = await versionShots(version);
+      if (!shots.iphone) {
+        return res.status(409).json({
+          error: 'That version is the frozen Figma snapshot, not a capture — it would be re-created on the next read.',
+        });
+      }
+      await deleteVersion(version.id);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // The 2.0 twin of PUT /api/components/fixture: edit the props ONE state was
+  // rendered with, in `capture/fixtures/ui2/C-###.json`. Written through
+  // writeUi2Fixture so the byte format matches what /ui2-component-build
+  // produces and a later programmatic rewrite stays idempotent
+  // (preview-build.md §3 rule 7).
+  //
+  // Props only. The variant NAME is the DB key for versions and comments and
+  // the contract's §3 label, and the state list itself comes from the contract
+  // — so this route never adds, removes or renames a variant.
+  app.put('/api/ui2/fixture', async (req, res) => {
+    const { id, variant, props } = req.body ?? {};
+    if (typeof props !== 'object' || props === null || Array.isArray(props)) {
+      return res.status(400).json({ error: 'Body must include a "props" object.' });
+    }
+    try {
+      const fixture = await readUi2Fixture(String(id ?? ''));
+      if (!fixture) return res.status(404).json({ error: `no fixture for ${id} — build it with /ui2-component-build` });
+      const entry = (fixture.variants ?? []).find((v) => v.name === variant);
+      if (!entry) return res.status(404).json({ error: `unknown state "${variant}" in ${id}` });
+      entry.props = props;
+      await writeUi2Fixture(fixture.registryId, fixture);
+      res.json({ ok: true, fixtureFile: path.relative(repoRoot, ui2FixturePath(fixture.registryId)) });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.post('/api/ui2/refresh', async (req, res) => {
     try {
       const index = await buildUi2Index();

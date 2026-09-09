@@ -13,7 +13,11 @@
       "props": {
         "style": "default",
         "title": "Title",
-        "showTitle": true
+        "showTitle": true,
+        "leadingGlyph": "back",
+        "rightButtons": [
+          "settings"
+        ]
       }
     },
     {
@@ -21,7 +25,11 @@
       "slug": "default-no-showtitle",
       "props": {
         "style": "default",
-        "showTitle": false
+        "showTitle": false,
+        "leadingGlyph": "back",
+        "rightButtons": [
+          "settings"
+        ]
       }
     },
     {
@@ -48,7 +56,12 @@
         "style": "twoIcons",
         "title": "Title",
         "showTitle": true,
-        "showIcons": true
+        "showIcons": true,
+        "leadingGlyph": "back",
+        "rightButtons": [
+          "export",
+          "settings"
+        ]
       }
     },
     {
@@ -58,7 +71,12 @@
         "style": "twoIcons",
         "title": "Title",
         "showTitle": true,
-        "showIcons": false
+        "showIcons": false,
+        "leadingGlyph": "back",
+        "rightButtons": [
+          "export",
+          "settings"
+        ]
       }
     },
     {
@@ -67,7 +85,12 @@
       "props": {
         "style": "twoIcons",
         "showTitle": false,
-        "showIcons": true
+        "showIcons": true,
+        "leadingGlyph": "back",
+        "rightButtons": [
+          "export",
+          "settings"
+        ]
       }
     },
     {
@@ -76,7 +99,12 @@
       "props": {
         "style": "twoIcons",
         "showTitle": false,
-        "showIcons": false
+        "showIcons": false,
+        "leadingGlyph": "back",
+        "rightButtons": [
+          "export",
+          "settings"
+        ]
       }
     }
   ]

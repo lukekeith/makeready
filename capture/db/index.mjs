@@ -202,6 +202,10 @@ export async function listVersions(comparisonId, { variantName, viewport, withSc
     rating: v.rating,
     gitSha: v.gitSha,
     gitDirty: v.gitDirty,
+    // The fixture data this version was captured WITH, recorded at capture time.
+    // Distinct from the fixture on disk, which is what the NEXT capture will
+    // use — the two diverge as soon as the fixture is edited.
+    sharedData: v.sharedData,
     componentName: v.componentName,
     platforms: [...new Set(v.screenshots.map((s) => s.platform))],
     commentCount: v.comments.length,

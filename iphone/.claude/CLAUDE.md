@@ -83,6 +83,20 @@ This includes:
 
 **Exception:** You may run `xcrun simctl list` to check available simulators, but NEVER build, install, or launch without permission.
 
+**Named carve-out — the UI 2.0 preview capture runner (owner ruling 2026-09-08).**
+`node capture/runners/ui2/capture.mjs <C-###> …` may be run **without asking**, including the
+`xcodebuild` and `simctl` invocations it makes internally through
+`capture/runners/iphone/capture.sh`. Running `/ui2-component-build` IS the permission — a
+build that stops before capturing produces nothing anyone can look at, which is the point of
+that lane (`docs/ui2/preview-build.md`). The command's phase 5 gates the run instead: target
+sync, SwiftLint clean, Postgres up, simulator present — a failure there stops it before any
+time is spent.
+
+This carve-out is deliberately narrow. It names ONE script. Everything else in the list above
+is unchanged and still requires an explicit "yes": `/rebuild-iphone`, a bare `xcodebuild`,
+`xcrun simctl install`/`launch` run directly, opening Simulator, and building "to check if it
+compiles".
+
 ---
 
 **NEVER create custom UI elements without checking for existing components first.**

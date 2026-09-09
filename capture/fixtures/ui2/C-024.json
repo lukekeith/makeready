@@ -1,0 +1,155 @@
+{
+  "id": "ui2-c-024",
+  "registryId": "C-024",
+  "component": "SparkBarChart",
+  "view": "component.ui2.C-024",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "align · center",
+      "slug": "align-center",
+      "props": {
+        "series": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          52,
+          28,
+          0,
+          0,
+          0,
+          5,
+          25,
+          18,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          9,
+          22
+        ],
+        "align": "center",
+        "widthFill": "gaps",
+        "showAverage": false
+      }
+    },
+    {
+      "name": "align · bottom",
+      "slug": "align-bottom",
+      "props": {
+        "series": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          52,
+          28,
+          0,
+          0,
+          0,
+          5,
+          25,
+          18,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          9,
+          0
+        ],
+        "align": "bottom",
+        "widthFill": "gaps",
+        "showAverage": true,
+        "averageLabel": "24hrs",
+        "averageLabelSide": "right"
+      }
+    },
+    {
+      "name": "align · top",
+      "slug": "align-top",
+      "props": {
+        "series": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          52,
+          28,
+          0,
+          0,
+          0,
+          5,
+          25,
+          18,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          9,
+          0
+        ],
+        "align": "top",
+        "widthFill": "gaps",
+        "showAverage": true,
+        "averageLabel": "24hrs",
+        "averageLabelSide": "right"
+      }
+    },
+    {
+      "name": "state · No activity (both aligns)",
+      "slug": "state-no-activity-both-aligns",
+      "props": {
+        "series": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "align": "center",
+        "widthFill": "gaps",
+        "showAverage": false
+      }
+    }
+  ]
+}

@@ -57,7 +57,7 @@ command.
 
 6. **Summarize** per component: resolved / replied-awaiting-decision / failed-verification,
    with the files you touched. Point the user at
-   `http://localhost:5950/components/<path>` for each.
+   `http://localhost:5950/components/1.0/<path>` for each.
 
 ## Rules
 

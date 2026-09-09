@@ -1,6 +1,7 @@
 // Extracted VERBATIM from pages/compare/CompareDetail.jsx (component-browser
 // phase 2.1) so /compare and /components share one comment-thread UI.
 import React, { useEffect, useRef, useState } from 'react';
+import ConfirmDialog from '../ConfirmDialog.jsx';
 
 function formatTime(iso) {
   try { return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
@@ -13,6 +14,8 @@ function SourceTag({ source }) {
 export function Thread({ comment, canEdit, autoFocusReply, onReply, onResolve, onDelete }) {
   const [reply, setReply] = useState('');
   const [busy, setBusy] = useState(false);
+  // Never window.confirm — see components/ConfirmDialog.jsx.
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const replyRef = useRef(null);
   useEffect(() => { if (autoFocusReply && canEdit) replyRef.current?.focus({ preventScroll: true }); }, [autoFocusReply, canEdit]);
   const submit = async () => {
@@ -46,7 +49,7 @@ export function Thread({ comment, canEdit, autoFocusReply, onReply, onResolve, o
             </button>
             <button className="btn btn--mini cmp-resolve" onClick={submit} disabled={busy || !reply.trim()}>Reply</button>
             <button className="cmp-thread__del" title="Delete comment" aria-label="Delete comment"
-              onClick={() => { if (window.confirm('Delete this comment?')) onDelete(comment.id); }}>
+              onClick={() => setConfirmDelete(true)}>
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
               </svg>
@@ -54,6 +57,16 @@ export function Thread({ comment, canEdit, autoFocusReply, onReply, onResolve, o
           </div>
         </div>
       )}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete this comment?"
+        confirmLabel="Delete comment"
+        destructive
+        onConfirm={() => { setConfirmDelete(false); onDelete(comment.id); }}
+        onCancel={() => setConfirmDelete(false)}
+      >
+        The comment and every reply on it are removed permanently. This cannot be undone.
+      </ConfirmDialog>
     </>
   );
 }

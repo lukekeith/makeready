@@ -208,7 +208,12 @@ struct CaptureComponent: Codable {
     let studyImageURL: String?                 // CardEnrolled
     let groupImageURL: String?
     let tags: [String]?                        // CardProgramFull
-    let days: Int?                             // CardProgramFull / EnrollmentCard
+    // RETYPED 2026-09-08 (owner ruling, /ui2-component-build C-026). This was `Int?`, a
+    // 1.0 duration. C-026 §4's first prop is ALSO named `days` and is a day timeline, and
+    // preview-build.md §3 rule 3 forbids renaming a contract's prop to dodge a collision —
+    // so the field decodes both shapes, exactly as `activeTab` does for Int-or-String. The
+    // 1.0 readers ask for `.duration`; C-026 asks for `.timeline`.
+    let days: CaptureDays?                     // CardProgramFull / EnrollmentCard / C-026
     let enrollmentCount: Int?                  // CardProgramFull
     let programName: String?                   // UpcomingLessonCard
     let isCompleted: Bool?                     // EnrollmentCard
@@ -357,9 +362,32 @@ struct CaptureComponent: Codable {
     // Additive optionals only. `text` and `placeholder` already exist above and carry the
     // contract's own prop names, so C-045 reuses them rather than adding duplicates.
     let lines: String?                         // C-045 TextInput — "single" | "multi"
-    let focused: Bool?                         // C-045 TextInput — border + caret overlay state
+    let focused: Bool?                         // C-045 TextInput / C-034 SearchField — border + caret
     let showTitle: Bool?                       // C-040 PageHeader — gates the centred title
     let showIcons: Bool?                       // C-040 PageHeader — gates the trailing group (twoIcons only)
+    // C-024 SparkBarChart. `series` is the contract's own prop name and there is no existing
+    // field it could be bent into (rule 3's second bound); the 1.0 chart block above spells
+    // `dataPoints`/`trendLines`, which are different shapes for different cases.
+    let series: [Double]?                      // C-024 — the single data series
+    let targetBars: Int?                       // C-024 — bucket-aggregate down to N bars (nil = 1/point)
+    let align: String?                         // C-024 — "top" | "center" | "bottom"
+    let widthFill: String?                     // C-024 — "bars" | "gaps"
+    let showAverage: Bool?                     // C-024 — dashed average line
+    let averageLabel: String?                  // C-024 — label at the average line (nil = line only)
+    let averageLabelSide: String?              // C-024 — "left" | "right"
+    // C-021 GlyphButton. The contract's nine glyph names are also the asset-catalog
+    // names, so this one string is the whole prop (see UI2Preview/GlyphButton.swift).
+    let glyph: String?                         // C-021 — export|settings|back|add|send|arrow-forward|three-dots|search|calendar
+    // C-026 DualSeriesBarChart. `days` is above (retyped, see the note there); these two are
+    // additive. `today` is not a §4 prop — C-026 §3 derives `state` from whether today falls in
+    // the window, so the capture has to pin "now" or the render drifts by the day it was taken
+    // (UI2Preview/DualSeriesBarChart.swift documents it; raised for an OQ-PB row).
+    let window: CaptureUI2DateWindow?          // C-026 — visible slice { start, end }
+    let today: String?                         // C-026 — capture seam, ISO yyyy-MM-dd (UTC)
+    // C-040 PageHeader glyph slots (owner ruling 2026-09-07, OQ-C-040-6): both take any
+    // C-021 glyph name, so they carry the same vocabulary as `glyph` above.
+    let leadingGlyph: String?                  // C-040 — the leading slot's glyph
+    let rightButtons: [String]?                // C-040 — trailing glyphs, in order
 }
 
 /// A theme choice for BlockStyleEditor's theme picker.
@@ -771,6 +799,51 @@ struct CaptureTableItem: Codable {
 struct CaptureRightIcon: Codable {
     let icon: String?
     let showBadge: Bool?
+}
+
+/// One day of C-026 DualSeriesBarChart's timeline — §4 `days: [(date, scheduled, completed)]`.
+/// §2: "Completed ≤ scheduled by construction."
+struct CaptureUI2ChartDay: Codable {
+    let date: String        // ISO yyyy-MM-dd, read as UTC
+    let scheduled: Int
+    let completed: Int
+}
+
+/// C-026 DualSeriesBarChart §4 `window: date range` — the visible slice, inclusive.
+struct CaptureUI2DateWindow: Codable {
+    let start: String       // ISO yyyy-MM-dd, read as UTC
+    let end: String
+}
+
+/// Decodes a JSON value that is either a plain day COUNT (1.0: CardProgramFull's "30 days")
+/// or C-026's day TIMELINE. Two components legitimately spell their prop `days` and mean
+/// different things; this keeps both names intact rather than renaming either.
+struct CaptureDays: Codable {
+    let duration: Int?
+    let timeline: [CaptureUI2ChartDay]?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let i = try? container.decode(Int.self) {
+            duration = i
+            timeline = nil
+        } else if let days = try? container.decode([CaptureUI2ChartDay].self) {
+            timeline = days
+            duration = nil
+        } else {
+            duration = nil
+            timeline = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let duration {
+            try container.encode(duration)
+        } else {
+            try container.encode(timeline)
+        }
+    }
 }
 
 /// Decodes a JSON value that may be either an Int or a String (e.g. `activeTab`,

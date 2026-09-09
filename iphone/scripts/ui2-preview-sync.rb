@@ -2,7 +2,8 @@
 # frozen_string_literal: true
 #
 # Make every Swift file under MakeReady/UI2Preview/ a member of the UI2Preview
-# framework target (docs/ui2/preview-build.md §2).
+# framework target, and every .xcassets under it a RESOURCE of that target
+# (docs/ui2/preview-build.md §2).
 #
 # UI2Preview is its own Swift module, so its types carry no prefix and cannot
 # collide with the 1.0 types in MakeReady/Components/. The sources still SIT
@@ -58,9 +59,24 @@ on_disk_relative.each do |rel_path|
   added << rel_path
 end
 
+# Asset catalogs are RESOURCES, not sources: they carry the 2.0 glyph vectors
+# (C-021), which iOS can only render through a catalog — a raw .svg in a bundle
+# is not loadable. Globbed non-recursively into the catalog itself (an .xcassets
+# is a directory; its contents must NOT be added individually).
+catalogs = Dir.glob(preview_dir.join('**/*.xcassets')).sort
+catalogs_relative = catalogs.map { |path| Pathname.new(path).relative_path_from(preview_dir).to_s }
+
+catalogs_relative.each do |rel_path|
+  ref = existing[rel_path] || group.new_reference(rel_path)
+  next if target.resources_build_phase.files_references.include?(ref)
+
+  target.resources_build_phase.add_file_reference(ref)
+  added << "#{rel_path} (resource)"
+end
+
 # Drop references to files that no longer exist on disk, so a deleted preview
 # does not break the build with a missing-file error.
-removed = group.files.reject { |f| File.exist?(preview_dir.join(f.path)) }
+removed = group.files.reject { |f| File.exist?(preview_dir.join(f.path)) }  # a .xcassets is a directory — File.exist? is true for it
 removed.each(&:remove_from_project)
 
 project.save

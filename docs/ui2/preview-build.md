@@ -129,17 +129,35 @@ a DEBUG wrapper is one more thing `ui2-shell` would have to unpick at promotion.
    **contract-traceable but has no token row** (C-045's `py9` inset, OQ-PB-5) is emitted as a
    literal with a `GAP —` comment citing the contract line, and raised as an OQ — distinct
    from a value that is **neither tokened nor traceable**, which still stops the build as a
-   spec defect (rule 5).
-5. **Every prop value traces to the contract.** A fixture entry's props come from §4's prop
+   spec defect (rule 6).
+5. **Value sets have ONE owner, and icon props are previewed** (owner ruling
+   2026-09-07). A prop whose §4 Type cell enumerates its values (`default |
+   textButtons | twoIcons`) gets exactly those values in the browser's Data tab —
+   never a free text field. A prop that takes a value set owned by **another**
+   registry row cites that row instead of restating it: `C-021 glyph`, or
+   `[C-021 glyph]` for a list. The option set resolves from the cited contract at
+   parse time, so **adding a glyph to C-021's §3 updates every consumer at once**
+   and no copy can drift out of date. Restating another row's values in your own
+   §4 is a spec defect.
+
+   Where the providing row also ships artwork — `assets/<C-###>-<prop>-<value>.svg`,
+   checked on disk — the Data tab renders a **picture picker** rather than a text
+   dropdown, keyed on the PROVIDER so every consumer previews the same inventory.
+   A value with no file degrades to a plain label rather than a broken image, and a
+   value the contract does not list stays selectable so opening the editor can never
+   silently rewrite a fixture. C-021 GlyphButton is the first such provider (nine
+   glyphs, exported 2026-09-07).
+
+6. **Every prop value traces to the contract.** A fixture entry's props come from §4's prop
    table crossed with that state's row in the §3 matrix, plus the contract's own sample
    strings. The build invents no prop, no state and no value; needing one is a spec defect,
    resolved by a `/ui2-component` re-run, not in Swift.
-6. **States are the contract's states.** Fixture variant names are the §3 matrix labels
+7. **States are the contract's states.** Fixture variant names are the §3 matrix labels
    verbatim (the same strings the browser uses as version and comment keys — see §5), and
    every `consumed` / `designed-unconsumed` row gets one. `undesigned` rows are **skipped**:
    there is no design to render, so rendering one would be inventing the ruling its OQ is
    waiting for.
-7. **Re-runs are idempotent in what they WRITE, and additive in what they capture.** A
+8. **Re-runs are idempotent in what they WRITE, and additive in what they capture.** A
    second run against an unchanged contract rewrites the same generated files byte-for-byte.
    Capture is different: `captureVariant` creates a Version per run unconditionally, so a
    re-capture always appends to the timeline rather than deduplicating on an unchanged

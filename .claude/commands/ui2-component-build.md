@@ -16,9 +16,82 @@ executes. Its §3 binding rules and §4 dependency order are cited below, not re
 
 **Arguments:** `<C-###>` → build that registry row. A component *name* → resolve it against
 `docs/ui2/design-system/registry.md` and say which row you resolved to (two candidates →
-ask, never guess). **No argument** → list the rows that are specced but not built (a
-contract file at `docs/ui2/design-system/components/C-###-*.md`, no fixture at
-`capture/fixtures/ui2/C-###.json`) and ask which one; never pick for the user.
+ask, never guess).
+
+**No argument → print the build queue, then ask which one with AskUserQuestion; never pick
+for the user.** The
+queue is every row that is *buildable* — a contract file at
+`docs/ui2/design-system/components/C-###-*.md` (a row anchored only in a screen spec's §4
+is a legal dependency but not a legal target, phase 0.3) — annotated with what a build would
+actually cost, because "specced but not built" alone hides the thing that decides the run:
+whether its dependencies have contracts of their own. A component whose dependency resolves
+at level 2 or 3 will hit an artwork or prop gap it cannot close without a `/ui2-component`
+run, and the user deserves to know that *before* choosing, not in the phase 6 report.
+
+Run this from the repo root and print its table verbatim:
+
+```bash
+node --input-type=module -e '
+import fs from "node:fs/promises";
+import path from "node:path";
+const dir = "docs/ui2/design-system/components";
+const rows = [];
+for (const f of (await fs.readdir(dir)).filter((f) => /^C-\d{3}-.*\.md$/.test(f)).sort()) {
+  const md = await fs.readFile(path.join(dir, f), "utf8");
+  const id = f.slice(0, 5);
+  const name = (md.match(/^# C-\d{3} (\S+)/m) ?? [])[1] ?? "?";
+  const built = await fs.access(`capture/fixtures/ui2/${id}.json`).then(() => true, () => false);
+  const snap = (md.match(/Frozen snapshot:\s*`assets\/([^`]+)`/) ?? [])[1];
+  const hasSnap = snap ? await fs.access(path.join(dir, "assets", snap)).then(() => true, () => false) : false;
+  // §5 Consumes — the first bullet only; "Consumed by" is not a dependency.
+  const consumes = (md.match(/\*\*Consumes:\*\*([\s\S]*?)(?=\n- \*\*|\n## )/) ?? [])[1] ?? "";
+  const deps = [...new Set(consumes.match(/C-\d{3}/g) ?? [])];
+  const levels = await Promise.all(deps.map(async (d) => {
+    const hit = (await fs.readdir(dir)).find((x) => x.startsWith(d));
+    return { d, level: hit ? 1 : 2 };   // 2 = screen-spec anchor or registry row only
+  }));
+  const gapped = levels.filter((l) => l.level > 1).map((l) => l.d);
+  rows.push({ id, name, built, hasSnap, deps: deps.length, gapped });
+}
+for (const r of rows) {
+  const state = r.built ? "BUILT" : !r.hasSnap ? "no snapshot" : r.gapped.length ? `gaps: ${r.gapped.join(",")}` : "clean";
+  console.log(`${r.id}  ${r.name.padEnd(20)} ${(r.built ? "—" : "buildable").padEnd(10)} ${state}`);
+}
+'
+```
+
+Read the result out as three groups, in this order, and say what each means:
+
+- **Clean** — contract, snapshot, and every dependency has its own contract. A build here
+  should produce no dependency gap at all.
+- **Gaps: C-0xx** — buildable now, but the named dependency has no contract of its own, so
+  it resolves at level 2 or 3 (`preview-build.md` §4) and the run will surface an artwork or
+  prop gap it cannot honestly close. Name the `/ui2-component` run that would close it, and
+  let the user decide whether to build now and rebuild later, or spec the dependency first.
+- **BUILT** — already has a fixture; choosing it is a *re-build* (rule 8), which reports
+  drift against the contract rather than starting fresh.
+
+A component that is `no snapshot` is not buildable — §1 cites a frozen snapshot that is not
+on disk, so there is nothing to diff against. Say so and point at `/ui2-component`.
+
+**Then offer the pick list — always, with AskUserQuestion.** Prose alone makes the user
+retype an id the run already knows; the groups above are the *briefing*, the picker is the
+*choice*. One question, `header: "Build target"`, `multiSelect: false`:
+
+- **One option per buildable row**, `label` = `C-### Name` (e.g. `C-026 DualSeriesBarChart`),
+  `description` = the cost of *that* build in one line — `clean · no dependency gaps` for a
+  clean row, `gaps: C-069 NavTabButton (level 2) — will stub` for a gapped one.
+- **Recommend one** — the cheapest clean row — by putting it first with `(Recommended)` on the
+  label, and give the reason in its description.
+- **BUILT rows are options too**, described as `re-build · reports drift (rule 8)`, and they
+  sort last. Never omit them: a re-build is a legal target.
+- **`no snapshot` rows are NOT options.** They cannot be built; they were named in the prose.
+- Four options is the ceiling, so when more than four rows are buildable, offer the clean
+  rows, the recommended row, and the cheapest gapped row — the full list is already printed
+  above, and "Other" takes any `C-###` the user types.
+
+Take the selection as the run's argument and continue at phase 0 exactly as if it had been
+passed on the command line. Never build a row the user did not pick.
 
 ## How this differs from /ui2-component
 
@@ -45,9 +118,15 @@ presence (`preview-build.md` §6), so a successful run needs no registry edit at
   literal with the contract's flag repeated as a Swift comment — never silently promoted to
   a token. SwiftLint enforces the sharp edges as build errors (`iphone/.swiftlint.yml`):
   no `Color(hex:)`, no raw `.system(size:)`, no `print`/`NSLog`, no `LazyVStack`/`LazyVGrid`.
-- **Every prop traces** (rule 5): §4's prop table crossed with that state's §3 row, plus the
+- **Value sets have one owner** (rule 5). A prop whose §4 Type cell enumerates values gets
+  exactly those in the Data tab. A prop taking another row's set **cites that row** —
+  `C-021 glyph`, `[C-021 glyph]` — and the options resolve from that contract, so adding a
+  glyph to C-021 updates every consumer at once. Where the providing row ships artwork
+  (`assets/<C-###>-<prop>-<value>.svg`), the Data tab renders a **picture picker**. Nothing
+  to wire per component: it follows from the contract.
+- **Every prop traces** (rule 6): §4's prop table crossed with that state's §3 row, plus the
   contract's own sample strings. Inventing a prop, a state or a value is a spec defect.
-- **States are the contract's states** (rule 6). Fixture variant names are the §3 labels
+- **States are the contract's states** (rule 7). Fixture variant names are the §3 labels
   **verbatim** — they are the DB key for versions and comments. `undesigned` rows are
   skipped entirely: there is no design to render, and rendering one pre-empts the ruling its
   OQ is waiting for.
@@ -55,12 +134,15 @@ presence (`preview-build.md` §6), so a successful run needs no registry edit at
   CLI arguments. Never key anything on the slug, never hand-type the name (phase 4b).
 - **No `#if DEBUG`** (`preview-build.md` §2), and no `#Preview` block — the capture *is* the
   preview.
-- **Idempotent and visible** (rule 7). A re-run against an unchanged contract rewrites the
+- **Idempotent and visible** (rule 8). A re-run against an unchanged contract rewrites the
   same files byte-for-byte; a changed contract is a re-build event, reported as drift.
 - **Never fudge.** A render that cannot match the snapshot is a gap to surface, not a
   geometry to nudge.
-- **Ask before building.** `iphone/.claude/CLAUDE.md` forbids `xcodebuild`, `simctl
-  install/launch` and Simulator without explicit user permission. Phase 5 asks and waits.
+- **Capture without asking** (owner ruling 2026-09-08). The command's invocation is the
+  permission: phase 5 syncs, lints, checks the preconditions and then captures, with no
+  question in between. `iphone/.claude/CLAUDE.md` carries a carve-out naming
+  `capture/runners/ui2/capture.mjs` for this; every OTHER build path there still requires an
+  explicit yes.
 
 **At the end of every phase, print that phase's exit checklist with ✓/✗ per item.** Do not
 advance with an ✗ — fix it or surface why.
@@ -83,7 +165,7 @@ advance with an ✗ — fix it or surface why.
    `iphone/MakeReady/UI2Preview/Tokens.swift` — the generated file is the
    authority on **real member names**. Do not guess them.
 6. **Rebuild check:** does `capture/fixtures/ui2/C-###.json` already exist? If so this is a
-   re-build (rule 7) — read it now and diff the contract against it in phase 4, reporting
+   re-build (rule 8) — read it now and diff the contract against it in phase 4, reporting
    what moved.
 
 **Exit checklist 0:** preview-build.md + D11 read ✓ · row resolved with its registry fields ✓ ·
@@ -207,6 +289,16 @@ One SwiftUI view in that file:
 - **Tokens only**, per phase 2. No `Color(hex:)`, no `.system(size:)`, no legacy
   `Color.brand*` / `Typography.*` — those are rule-2 files.
 - **No `#if DEBUG`, no `#Preview`, no lazy containers, no `print`/`NSLog`.**
+- **Name the anatomy** with `.ui2Element("<part>")` (`UI2Preview/UI2Element.swift`). The 2.0
+  browser has no web twin to hit-test, so a comment gets its element context from the parts
+  the view names itself: the capture harness resolves each annotated rect and writes it
+  beside the PNG, and the browser highlights it under the cursor in comment mode. Annotate
+  the **root** (the registry name), **each §2 named slot**, and **each repeated item**
+  (`"Bar \(index + 1)"`); use §2's own anatomy vocabulary, since that string is what the
+  comment carries. A part whose identity changes with a prop says so — C-045's text run is
+  `"Placeholder"` or `"Value"`. Nesting is NOT declared: the browser derives it from rect
+  containment, so a dependency that names itself is reported inside whatever slot placed it.
+  An unannotated component is not an error — it just has no highlights.
 - File header: what it is, the contract path it was built from, and the preview-only rule —
 
 ```swift
@@ -226,8 +318,9 @@ preview-only rule and the §7 promotion path, and nothing else.
 
 **Exit checklist 3:** one view, parameters == §4 props ✓ · every designed §3 state reachable
 by props alone ✓ · tokens/flagged literals only ✓ · no `#if DEBUG` / `#Preview` / lazy
-container / legacy import ✓ · header cites the contract and the preview-only rule ✓ · folder
-README present ✓
+container / legacy import ✓ · root + every §2 named slot + every repeated item carries
+`.ui2Element` ✓ · header cites the contract and the preview-only rule ✓ · folder README
+present ✓
 
 ## 4. FIXTURE + REGISTRY CASE
 
@@ -257,10 +350,10 @@ skipped the `undesigned` rows, and its `name`/`slug` per state are exactly the k
 - **`props`** — every key must be a **§4 prop name**. When §4 is prose, or the §3 matrix's
   leading column does not name a prop, the parser falls back to the Figma **axis** and emits
   a pseudo-prop: C-045 yields `{"state × lines": "Default × Single"}`. That is not a prop.
-  Translate the axis value into §4 props yourself, per rule 5 — §4's table crossed with that
+  Translate the axis value into §4 props yourself, per rule 6 — §4's table crossed with that
   state's §3 row (`Default × Single` → `text: ""`, `placeholder: "Placeholder"`,
   `lines: "single"`, `focused: false`). If the contract does not determine the translation,
-  **stop**: that is the spec defect rule 5 describes, and it is fixed by `/ui2-component`.
+  **stop**: that is the spec defect rule 6 describes, and it is fixed by `/ui2-component`.
 - **`devices`** — **confirm**, don't override: the value must be a real `CaptureDevice`
   **raw value** from `iphone/MakeReadyCaptureTests/CaptureDevices.swift` (`iphone-se`,
   `iphone-15-pro`, `iphone-16-pro-max`), never a compare viewport key. `fixtureFromContract`
@@ -272,7 +365,7 @@ skipped the `undesigned` rows, and its `name`/`slug` per state are exactly the k
 - **`view`** — `component.ui2.C-###`, matching the case you are about to add.
 
 **c. Write** it through the module — `writeUi2Fixture` owns the path and the byte format, so
-a later programmatic rewrite is identical (rule 7). Re-derive, apply the audited props keyed
+a later programmatic rewrite is identical (rule 8). Re-derive, apply the audited props keyed
 by variant **name**, and let the loop throw if the audit missed a state:
 
 ```bash
@@ -353,7 +446,7 @@ add the missing ones as purely additive optionals in a UI 2.0 block at the end o
 `preview-build.md` §3 rule 3 (amended 2026-09-06) permits this explicitly and states its two
 bounds: **additive optional fields only**, and **never bend a prop name to fit an existing
 field** — a contract's prop name is the contract's, not something to rename into whatever the
-struct already has (that would break rule 5 as well). So: never modify, retype, rename or
+struct already has (that would break rule 6 as well). So: never modify, retype, rename or
 reorder an existing field, and **name every field you add in the run's report**, as rule 3
 requires. It is also how every 1.0 card was onboarded — see the struct's "added as cards were
 onboarded" block.
@@ -403,10 +496,20 @@ xcrun simctl list devices available | grep 'iPhone 17 Pro Max'
 
 (`simctl list` is the one simulator command allowed without asking.)
 
-**4. ASK.** `iphone/.claude/CLAUDE.md` is absolute: never run `xcodebuild`, `simctl
-install/launch` or the Simulator without explicit permission. Ask —
-*"Would you like me to build and capture C-### now? N states, a few minutes each."* — and
-**wait for an explicit yes.**
+**4. NO ASK — capture is part of the run** (owner ruling 2026-09-08). Invoking
+`/ui2-component-build` IS the permission: a build that stops before capturing has produced
+nothing anyone can look at, which is the entire point of the lane. Do not ask, do not offer,
+do not wait — go straight to step 5 as soon as steps 1–3 are green.
+
+The blanket prohibition in `iphone/.claude/CLAUDE.md` ("NEVER build without explicit
+permission") carries a **named carve-out for this runner** so the two documents agree; if
+that carve-out is ever removed, this step reverts to asking. The carve-out is narrow on
+purpose — it covers `capture/runners/ui2/capture.mjs` and nothing else. `/rebuild-iphone`,
+a bare `xcodebuild`, and "let me just check it compiles" all still require an explicit yes.
+
+Steps 1–3 are the gate that replaces the question: an unsynced file, a lint violation, a
+dead Postgres or a missing simulator each stop the run **before** minutes are spent. A red
+✗ there is not something to ask about — fix it or report it.
 
 **5. Capture**, from the repo root, invoking the runner **directly**:
 
@@ -430,14 +533,19 @@ capture/fixtures/compare/_shots/ui2-c-###/design/iphone/<versionId>.png
 `design` there is the DB **viewport** column `syncUi2Row` registers the Figma snapshot under
 — not a device. The newest file per state is this run's.
 
+Beside each render sits `<versionId>.elements.json` — the phase-3 `.ui2Element` annotations,
+resolved. Check it exists and names the parts you annotated; if it is missing, the run said
+`(no element map for …)` and the component's comments will have no element context. Its rects
+are fractions of the render, so they are readable without opening the PNG.
+
 **Expected collateral, do not commit it:** `capture.sh` re-runs the whole `CaptureRunner`
 suite, so roughly 20 unrelated 1.0 baseline PNGs under `capture/fixtures/iphone/*/screenshots/`
 are rewritten every capture (`preview-build.md` §5). Nothing broke. Leave them out of the
 commit, or restore them with `git checkout capture/fixtures/iphone`.
 
 **Exit checklist 5:** sync run and the new file named in its output ✓ · SwiftLint clean ✓ ·
-Postgres + simulator present ✓ · permission asked and granted ✓ · runner invoked directly and
-exited 0 ✓ · a PNG per built state located ✓
+Postgres + simulator present ✓ · runner invoked directly, without asking, and exited 0 ✓ · a
+PNG per built state located ✓
 
 ## 6. DIFF AND REPORT
 
@@ -470,7 +578,7 @@ exited 0 ✓ · a PNG per built state located ✓
    - **OQ-PB defaults taken** (device/width, background, no-op closures, drift, and any
      later OQ-PB row), so an owner ruling has a list to overturn;
    - **drift** — on a re-build, what changed in the contract since the previous fixture
-     (rule 7);
+     (rule 8);
    - **gaps** — step 3's list, by class.
 
 **Exit checklist 6:** every built state diffed against its snapshot ✓ · refinements
