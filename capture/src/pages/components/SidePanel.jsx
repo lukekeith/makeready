@@ -16,11 +16,17 @@ import Ui2DetailsTab from './Ui2DetailsTab.jsx';
 import Ui2LayoutTab from './Ui2LayoutTab.jsx';
 import Ui2ScreenTab from './Ui2ScreenTab.jsx';
 
-const TAB_LABEL = { details: 'Details', comments: 'Comments', contract: 'Contract', data: 'Data', layout: 'Layout', screen: 'Screen' };
+const TAB_LABEL = { details: 'Details', comments: 'Comments', contract: 'Contract', data: 'Data', layout: 'Layout', screen: 'Screen', component: 'Component' };
 
 export default function SidePanel({
   detail, variant, activeVersionId, currentVersionId, onSelectVersion, commentApi, onSaveFixture,
-  dataView = null, mode = 'code', elements = null, platform = null, onInspect = null,
+  dataView = null, mode = 'code', elements = null, platform = null, onInspect = null, onSelectComponent = null,
+  // Controlled-tab mode, used only by a 2.0 SCREEN (suite 07 §5.0). When `tab` is
+  // absent — every 1.0 caller and the 2.0 component path — the local state below
+  // runs exactly as before. Passing a controlled `component` tab on a COMPONENT
+  // row, whose tab list has no such entry, would pin the panel to its `comments`
+  // fallback and break tab switching there.
+  tab: tabProp = null, onTab = null, componentTab = null,
 }) {
   const [tab, setTab] = useState('comments');
   const ready = !!detail && !!variant;
@@ -33,26 +39,31 @@ export default function SidePanel({
   // show otherwise.
   const tabs = mode === 'design'
     ? (isScreen
-      ? ['screen', 'comments']
+      ? ['screen', 'component', 'comments']
       : ['details', 'comments', 'contract', ...(detail?.built ? ['data', 'layout'] : [])])
     : ['comments', 'data'];
   // Selecting a screen while Contract/Data is showing would land on a tab that
   // no longer exists and render nothing at all.
-  const activeTab = tabs.includes(tab) ? tab : 'comments';
+  const current = tabProp ?? tab;
+  const setCurrent = (t) => { if (onTab) onTab(t); else setTab(t); };
+  const activeTab = tabs.includes(current) ? current : 'comments';
   return (
     <div className="cmp-cb-col cmp-cb-col--side">
       <div className={`cmp-tab-switch${tabs.length > 4 ? ' cmp-tab-switch--tight' : ''}`}>
         {tabs.map((t) => (
-          <button key={t} className={`cmp-tab-switch__btn${activeTab === t ? ' cmp-tab-switch__btn--active' : ''}`} onClick={() => setTab(t)}>
+          <button key={t} className={`cmp-tab-switch__btn${activeTab === t ? ' cmp-tab-switch__btn--active' : ''}`} onClick={() => setCurrent(t)}>
             {TAB_LABEL[t]}
           </button>
         ))}
       </div>
       {/* Details is the one tab with something to say when a row has no states
           at all — an unspecced row's whole point is that nothing is set yet. */}
-      {!ready && activeTab !== 'details' && activeTab !== 'screen' && <div className="cmp-cb-col__empty">Select a component and variant</div>}
+      {!ready && activeTab !== 'details' && activeTab !== 'screen' && activeTab !== 'component' && <div className="cmp-cb-col__empty">Select a component and variant</div>}
       {!ready && activeTab === 'details' && detail && <Ui2DetailsTab detail={detail} variant={null} />}
       {!ready && activeTab === 'screen' && detail && <Ui2ScreenTab detail={detail} variant={null} />}
+      {/* The Component tab works with no frozen frames at all — its subject is the
+          selection, not the screen's artwork. */}
+      {activeTab === 'component' && componentTab}
       {ready && activeTab === 'comments' && (
         <CommentsTab
           commentApi={commentApi}
@@ -62,7 +73,7 @@ export default function SidePanel({
         />
       )}
       {ready && activeTab === 'details' && <Ui2DetailsTab detail={detail} variant={variant} />}
-      {ready && activeTab === 'screen' && <Ui2ScreenTab detail={detail} variant={variant} />}
+      {ready && activeTab === 'screen' && <Ui2ScreenTab detail={detail} variant={variant} onSelectComponent={onSelectComponent} />}
       {ready && activeTab === 'contract' && <Ui2ContractTab detail={detail} variant={variant} />}
       {/* Keyed on the VERSION as well as the state: each capture has its own
           element map, so switching versions must rebuild the tree and drop the

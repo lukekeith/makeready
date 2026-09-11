@@ -41,7 +41,7 @@ capture except the last, which is the three command files under root `.claude/`.
 | 2 | Element maps: parse, guard, serve | capture (backend) | [11](11-phase-2-element-maps-serving.md) | 6 | ✅ 2026-09-10 |
 | 3 | The element-map backfill | capture + docs/ui2 | [12](12-phase-3-backfill.md) | 5 | ✅ 2026-09-10 |
 | 4 | Hover, click and the box | capture (frontend) | [13](13-phase-4-targeting-ui.md) | 8 | ✅ 2026-09-10 |
-| 5 | Component tab, notes, composer | capture (frontend) | [14](14-phase-5-component-tab.md) | 9 | ⬜ |
+| 5 | Component tab, notes, composer | capture (frontend) | [14](14-phase-5-component-tab.md) | 9 | ✅ 2026-09-10 |
 | 6 | The three command files | root `.claude/` | [15](15-phase-6-commands.md) | 4 | ⬜ |
 
 The chain is strict: maps must be served before generating twelve of them is worth doing (3 after

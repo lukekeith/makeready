@@ -18,7 +18,7 @@ function Field({ label, children }) {
   );
 }
 
-export default function Ui2ScreenTab({ detail, variant }) {
+export default function Ui2ScreenTab({ detail, variant, onSelectComponent = null }) {
   const navigate = useNavigate();
   if (!detail) return <div className="cmp-cb-col__empty">Select a screen</div>;
   const spec = detail.spec;
@@ -70,7 +70,11 @@ export default function Ui2ScreenTab({ detail, variant }) {
               <button
                 key={c.id}
                 className={`cmp-ui2s__chip${c.specced ? '' : ' cmp-ui2s__chip--unspecced'}`}
-                onClick={() => navigate(`/components/2.0/${c.id}`)}
+                // A chip SELECTS into the Component tab rather than navigating
+                // away (R6) — the Component tab's Open control is the only thing
+                // that leaves the screen. The fallback keeps the 2.0 component
+                // path (which passes no handler) behaving as it always has.
+                onClick={() => (onSelectComponent ? onSelectComponent(c.id) : navigate(`/components/2.0/${c.id}`))}
                 title={c.specced ? 'specced — open its contract' : 'registry row only — no contract yet'}
               >
                 <span className="cmp-ui2s__chipid">{c.id}</span>

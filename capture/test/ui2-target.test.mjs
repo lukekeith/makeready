@@ -39,17 +39,6 @@ test('H-2: an equal-area tie resolves to the entry that comes FIRST', () => {
   assert.equal(hitTest([slot, inner], 0.05, 0.05).label, 'Leading');
 });
 
-test('H-2b: the backfilled maps really are ordered innermost-first', async () => {
-  const fs = await import('node:fs/promises');
-  const path = await import('node:path');
-  const { screenAssetsDir } = await import('../lib/ui2-index.mjs');
-  const map = JSON.parse(await fs.readFile(path.join(screenAssetsDir, 'home-dashboard.elements.json'), 'utf-8'));
-  const areas = map.elements.map((e) => e.w * e.h);
-  // Smallest first — so the first containing entry the hit test meets is always
-  // the innermost, ties included.
-  assert.deepEqual(areas, [...areas].sort((a, b) => a - b));
-});
-
 test('H-3: an empty, null or missed map returns null and never throws', () => {
   assert.equal(hitTest(null, 0.5, 0.5), null);
   assert.equal(hitTest([], 0.5, 0.5), null);
@@ -101,4 +90,59 @@ test('H-7: click-vs-drag discrimination is a pure predicate', async () => {
   assert.equal(isClick({ x: 100, y: 100 }, { x: 105, y: 100 }), false);  // 5px across
   assert.equal(isClick({ x: 100, y: 100 }, { x: 100, y: 120 }), false);  // a vertical pan
   assert.equal(isClick(null, { x: 100, y: 100 }), false);
+});
+
+// ── Mention helpers (08 §2, tests H-4, H-5) ───────────────────────────────────
+
+const { filterMentions, activeMention, commitToken } = await import('../src/lib/mentions.js');
+
+const INDEX = [
+  { kind: 'component', id: 'C-019', name: 'TopNav' },
+  { kind: 'component', id: 'C-052', name: 'DayChip' },
+  { kind: 'component', id: 'C-025', name: 'DayActivityCard' },
+  { kind: 'screen', id: 'home-dashboard', name: 'Home (leader dashboard)' },
+  { kind: 'screen', id: 'groups-home', name: 'Groups' },
+];
+
+test('H-4: the typeahead filter matches id and name, case-insensitively, id-prefix first', () => {
+  // by name
+  assert.deepEqual(filterMentions(INDEX, 'day').map((i) => i.id), ['C-052', 'C-025']);
+  assert.deepEqual(filterMentions(INDEX, 'DAY').map((i) => i.id), ['C-052', 'C-025']);
+  // by id prefix — the C-05x block, which is C-052 and NOT C-025 (a C-02x row)
+  assert.deepEqual(filterMentions(INDEX, 'c-05').map((i) => i.id), ['C-052']);
+  // screens too
+  assert.deepEqual(filterMentions(INDEX, 'home').map((i) => i.id), ['home-dashboard', 'groups-home']);
+  // an id-prefix hit outranks a name hit
+  assert.equal(filterMentions(INDEX, 'c-019')[0].id, 'C-019');
+  // no query returns everything; no match returns nothing
+  assert.equal(filterMentions(INDEX, '').length, 5);
+  assert.deepEqual(filterMentions(INDEX, 'zzz'), []);
+});
+
+test('activeMention finds the token being typed and ignores everything else', () => {
+  assert.deepEqual(activeMention('pins like @day', 14), { start: 10, query: 'day' });
+  assert.deepEqual(activeMention('@', 1), { start: 0, query: '' });
+  // an email address is not a mention
+  assert.equal(activeMention('mail a@b', 8), null);
+  // whitespace closes the token
+  assert.equal(activeMention('@day chip', 9), null);
+  // the caret has moved out of the token
+  assert.deepEqual(activeMention('@day and more', 4), { start: 0, query: 'day' });
+  assert.equal(activeMention('no mention here', 15), null);
+});
+
+test('H-5: committing a token replaces only the active query', () => {
+  const before = 'the rail pins like @day';
+  const { text, caret } = commitToken(before, before.length, '@C-052');
+  assert.equal(text, 'the rail pins like @C-052 ');
+  assert.equal(caret, text.length);
+
+  // surrounding text on BOTH sides survives, and the caret lands after the token
+  const mid = 'see @day for the rail';
+  const r = commitToken(mid, 8, '@C-052');
+  assert.equal(r.text, 'see @C-052  for the rail');
+  assert.equal(r.caret, 11);
+
+  // nothing to commit leaves the text alone
+  assert.deepEqual(commitToken('plain text', 5, '@C-052'), { text: 'plain text', caret: 5 });
 });

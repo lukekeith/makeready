@@ -168,3 +168,16 @@ test('a map that is not JSON at all is null rather than an exception', async () 
     assert.equal((await variantOf('home-dashboard', 'default')).elements, null);
   });
 });
+
+test('H-2b: the backfilled maps are ordered innermost-first, so ties pick the child', async () => {
+  // Lives in THIS file rather than beside the other hit-test tests because the
+  // tests above swap `home-dashboard.elements.json` in and out, and node runs test
+  // FILES in parallel processes — asserting on the real artifact from another file
+  // raced with those swaps.
+  const map = JSON.parse(await fs.readFile(mapPath(HOME), 'utf-8'));
+  const areas = map.elements.map((e) => e.w * e.h);
+  // Smallest first, so the first containing entry the hit test meets is always the
+  // innermost — exact ties included (09 §G-19).
+  assert.deepEqual(areas, [...areas].sort((a, b) => a - b));
+  assert.ok(map.elements.every((e) => e.ref && e.instance), 'every entry carries its ref and its Figma instance');
+});

@@ -34,6 +34,7 @@ import Ui2SpecChecklist from './Ui2SpecChecklist.jsx';
 import VariantList from './VariantList.jsx';
 import RenderPane from './RenderPane.jsx';
 import SidePanel from './SidePanel.jsx';
+import Ui2ComponentTab from './Ui2ComponentTab.jsx';
 import { hitTest } from '../../lib/hit-test.js';
 import { withSearch, selectedRef } from '../../lib/ui2-url.js';
 
@@ -266,10 +267,39 @@ export default function Ui2Layout({ sub = '', header = null }) {
       if (target?.ref) next.set('c', target.ref); else next.delete('c');
       return next;
     }, { replace: true });
+    if (target?.ref) setPanelTab('component');
   }, [isScreen, commentMode, hit, setSearchParams]);
 
   // The selection, read from the URL so it survives reload and sharing (D9).
   const selectedComponent = selectedRef(location.search);
+
+  /** Select a component into the Component tab without leaving the screen — the
+   *  render click (R3) and a Screen-tab chip (R6) both land here. */
+  const selectComponentId = useCallback((ref) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (ref) next.set('c', String(ref).toUpperCase()); else next.delete('c');
+      return next;
+    }, { replace: true });
+    setPanelTab('component');
+  }, [setSearchParams]);
+
+  // The right panel's tab, controlled only for a screen (07 §5.0). A selection
+  // event moves it to Component; clicking another tab wins until the next one.
+  const [panelTab, setPanelTab] = useState(null);
+  useEffect(() => { setPanelTab(null); }, [id]);
+  // On load, a URL carrying `?c=` opens on the Component tab — that is what makes
+  // a shared link land where its author was looking (R5).
+  const screenTab = panelTab ?? (selectedComponent ? 'component' : 'screen');
+
+  /** What the map already knows about the selection, so the title block paints
+   *  instantly while the registry fetch is in flight (09 §G-17 — the map is NOT
+   *  the identity source; a chip can select a component it does not contain). */
+  const selectionSeed = useMemo(() => {
+    if (!selectedComponent) return null;
+    const el = (activeVariant?.elements?.elements ?? []).find((e) => e.ref === selectedComponent);
+    return el?.resolved ?? null;
+  }, [selectedComponent, activeVariant]);
 
   /** The box the layer draws: the hovered rect, its label resolved against the
    *  LIVE registry (R2 — the map's stored name is only a fallback for a ref the
@@ -669,6 +699,19 @@ export default function Ui2Layout({ sub = '', header = null }) {
         elements={vdata?.elements ?? null}
         platform={activeShot.platform}
         onInspect={setInspectBox}
+        onSelectComponent={isScreen ? selectComponentId : null}
+        tab={isScreen ? screenTab : null}
+        onTab={isScreen ? setPanelTab : null}
+        componentTab={isScreen ? (
+          <Ui2ComponentTab
+            refId={selectedComponent}
+            seed={selectionSeed}
+            canWrite={!!detail?.canCapture}
+            onOpen={(ref) => navigate(`/components/2.0/${ref}`)}
+            onSelectComponent={selectComponentId}
+            onOpenScreen={(screenId) => navigate(`/components/2.0/${screenId}`)}
+          />
+        ) : null}
       />
       </div>
 
