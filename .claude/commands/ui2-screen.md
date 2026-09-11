@@ -61,6 +61,17 @@ advance with an ✗ — fix it or surface why to the user.
 **Exit checklist 0:** README row found (or added) ✓ · prerequisites specced ✓ · DECISIONS +
 registry + tokens loaded ✓ · doc sources read ✓
 
+**Read the screen's NOTES** before anything else in a re-spec:
+
+```
+node capture/lib/ui2-notes.mjs read <screen-id>
+```
+
+Notes are the owner's intent recorded since the last run — normative, and newer beats older
+(`docs/features/ui2-component-notes/01-architecture.md` D3/D6). Always through the parser,
+never by reading the markdown. A note that contradicts what this run is about to write is a
+thing to raise, not to quietly overwrite.
+
 ## 1. INGEST — capture the normative source
 
 **Figma screen** (URL provided now or in the README row):
@@ -161,10 +172,42 @@ Per resolved component, in this order:
 The screen's OWN frozen frame(s) stay in `docs/ui2/screens/assets/` (phase 1) — the two
 asset dirs are separate and the browser serves them from separate mounts.
 
+**Write the ELEMENT MAP — MANDATORY, once per frozen snapshot.** This walk has just paired
+every instance on the frame with a registry row; the map is that pairing written down, so it
+costs the run nothing beyond serialising what it already decided. Without it the browser
+cannot hit-test the screen: hovering draws no box, clicking selects nothing, and a comment
+dropped on the render records coordinates instead of a component
+(`docs/features/ui2-component-notes/03-data-and-api.md` §1.2).
+
+Write `docs/ui2/screens/assets/<snapshot-stem>.elements.json`, one per frozen frame:
+
+| Field | Value |
+|---|---|
+| `screen` / `snapshot` | the screen id, and the PNG this map describes |
+| `node` | the node that was EXPORTED — a frame normally, a **section** when the snapshot is a multi-frame sheet |
+| `size` | that exported image's own point space; for a section export, **including the export padding** (Figma pads a section PNG — 1096×3206 section → 1176×3286 file) |
+| `generatedBy` | `ui2-screen@<date>` |
+| `elements[]` | `{ ref, name, instance, x, y, w, h }` per instance |
+
+- **Rects are fractions of the exported image.** `get_metadata` reports each node relative to
+  its PARENT, so accumulate offsets down the tree; clamp to 0…1 (a horizontally scrolling rail
+  is genuinely wider than the frame) and drop anything wholly outside.
+- **Order matters for ties only:** write **smallest-area first, deepest-first within a tie**.
+  The hit test takes the first containing entry it meets, and a parent frame and the child
+  that fills it exactly are indistinguishable by area.
+- **An element the walk could not resolve is OMITTED** (D5). Unmapped is better than
+  mis-mapped: a wrong box attributes a note or a comment to the wrong component.
+- Refs must be a **subset of this spec's §4 closed list** — by construction, since that list
+  is what this phase just produced.
+
+`capture/scripts/ui2-screen-elements.mjs` is the one-time backfill tool for the ten screens
+specced before maps existed; it is **not** part of this run.
+
 **Exit checklist 2:** every element resolved ✓ · legacy pool checked before every `new` ✓ ·
 Consumed-by columns appended ✓ · naming & scoping check passed (new + consumed rows) ✓ ·
-**every touched row has artwork on disk (or is `no-figma`) ✓** · ambiguities asked or
-parked as OQ# ✓
+**every touched row has artwork on disk (or is `no-figma`) ✓** · **element map written for
+every frozen snapshot, every §4 row that appears on the frame represented ✓** · ambiguities
+asked or parked as OQ# ✓
 
 ## 3. WRITE — the screen spec
 

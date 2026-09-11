@@ -1,6 +1,6 @@
 # ui2-component-notes — screen element targeting, the Component tab, and notes
 
-**Status: planned — building** (audit clean, decisions closed, 6 phase docs, 2026-09-10)
+**Status: built — awaiting verify + your sign-off** (6 of 6 phases VERIFIED 2026-09-10)
 
 Point at a component on a 2.0 screen and talk about it. Three joined parts:
 
@@ -42,7 +42,7 @@ capture except the last, which is the three command files under root `.claude/`.
 | 3 | The element-map backfill | capture + docs/ui2 | [12](12-phase-3-backfill.md) | 5 | ✅ 2026-09-10 |
 | 4 | Hover, click and the box | capture (frontend) | [13](13-phase-4-targeting-ui.md) | 8 | ✅ 2026-09-10 |
 | 5 | Component tab, notes, composer | capture (frontend) | [14](14-phase-5-component-tab.md) | 9 | ✅ 2026-09-10 |
-| 6 | The three command files | root `.claude/` | [15](15-phase-6-commands.md) | 4 | ⬜ |
+| 6 | The three command files | root `.claude/` | [15](15-phase-6-commands.md) | 4 | ✅ 2026-09-10 |
 
 The chain is strict: maps must be served before generating twelve of them is worth doing (3 after
 2), targeting must work before the tab it selects into (5 after 4), and notes must be writable

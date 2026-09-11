@@ -51,11 +51,16 @@ for (const f of (await fs.readdir(dir)).filter((f) => /^C-\d{3}-.*\.md$/.test(f)
     return { d, level: hit ? 1 : 2 };   // 2 = screen-spec anchor or registry row only
   }));
   const gapped = levels.filter((l) => l.level > 1).map((l) => l.d);
-  rows.push({ id, name, built, hasSnap, deps: deps.length, gapped });
+  // Notes are requirements BEYOND the contract (phase 0.7), so they are part of
+  // what a build costs: a row with notes has intent the contract does not carry.
+  const notes = await fs.readFile(`docs/ui2/design-system/components/notes/${id}.md`, "utf8")
+    .then((t) => (t.match(/^## \d{4}-/gm) ?? []).length, () => 0);
+  rows.push({ id, name, built, hasSnap, deps: deps.length, gapped, notes });
 }
 for (const r of rows) {
   const state = r.built ? "BUILT" : !r.hasSnap ? "no snapshot" : r.gapped.length ? `gaps: ${r.gapped.join(",")}` : "clean";
-  console.log(`${r.id}  ${r.name.padEnd(20)} ${(r.built ? "—" : "buildable").padEnd(10)} ${state}`);
+  const notes = r.notes ? `${r.notes} note${r.notes === 1 ? "" : "s"}` : "";
+  console.log(`${r.id}  ${r.name.padEnd(20)} ${(r.built ? "—" : "buildable").padEnd(10)} ${state.padEnd(22)} ${notes}`);
 }
 '
 ```
@@ -69,7 +74,12 @@ Read the result out as three groups, in this order, and say what each means:
   prop gap it cannot honestly close. Name the `/ui2-component` run that would close it, and
   let the user decide whether to build now and rebuild later, or spec the dependency first.
 - **BUILT** — already has a fixture; choosing it is a *re-build* (rule 8), which reports
-  drift against the contract rather than starting fresh.
+  drift against the contract rather than starting fresh. A BUILT row **with notes** is
+  usually a `/ui2-component-update` run rather than a rebuild: that command verifies the
+  existing preview against spec + notes instead of regenerating it.
+- **N notes** — this row carries owner intent the contract does not: requirements beyond the
+  spec that phase 0.7 loads and phases 3–4 treat as binding. Say the count out loud when
+  briefing the choice; a component with notes costs more to build than its contract suggests.
 
 A component that is `no snapshot` is not buildable — §1 cites a frozen snapshot that is not
 on disk, so there is nothing to diff against. Say so and point at `/ui2-component`.
@@ -167,10 +177,32 @@ advance with an ✗ — fix it or surface why.
 6. **Rebuild check:** does `capture/fixtures/ui2/C-###.json` already exist? If so this is a
    re-build (rule 8) — read it now and diff the contract against it in phase 4, reporting
    what moved.
+7. **Load the NOTES.** Notes are the owner's statements of intent about what a component is
+   *for* — normative build input, not annotations
+   (`docs/features/ui2-component-notes/01-architecture.md` D3/R11). Run:
+
+   ```
+   node capture/lib/ui2-notes.mjs read C-###          # the target
+   node capture/lib/ui2-notes.mjs read <each dependency from phase 1>
+   node capture/lib/ui2-notes.mjs read <each screen whose §4 names this row>
+   ```
+
+   - **Always through the CLI, never by reading the markdown.** The module is the parser; a
+     second, eyeballed reading is exactly the divergence it exists to prevent.
+   - **Dependencies count**: a note on `C-021` binds every component that renders a `C-021`.
+   - **Screen notes count too**: the natural place to write "on @home-dashboard this chip
+     pins to the leading edge" is while looking at that screen, and the note lands on the
+     screen. The registry's "Consumed by" column names the screens to check.
+   - Order every note oldest → newest across all sources. **Newer supersedes older, and a
+     note supersedes the contract** — per property, not per note (R13).
+   - Print the notes you loaded, with their ids, before doing anything with them. A build
+     that silently honours an instruction the owner cannot see is worse than one that ignores
+     it.
 
 **Exit checklist 0:** preview-build.md + D11 read ✓ · row resolved with its registry fields ✓ ·
 contract file present and read in full ✓ · frozen snapshot located ✓ · tokens.md + generated
-token members read ✓ · rebuild-or-first-build known ✓
+token members read ✓ · rebuild-or-first-build known ✓ · notes loaded for target + dependencies +
+consuming screens, and printed ✓
 
 ## 1. RESOLVE — dependencies
 
@@ -254,6 +286,16 @@ view needs ✓ · every contract value mapped to a member, a flagged literal, a 
 OQ, or stopped on as a spec defect ✓ · generated file not hand-edited ✓
 
 ## 3. WRITE — the view
+
+**Notes bind here.** Where a note and the contract disagree, **the note wins** (D3), and the
+code that implements it carries the note's id in a comment:
+
+```swift
+// note 2026-09-11T14:32:05.412Z — the active chip pins to the leading edge
+```
+
+That comment is what makes an override reviewable: without it, the next reader sees the view
+contradicting its own contract and "fixes" it back.
 
 **Naming — the registry name, plain** (`preview-build.md` §2). The view type and its file are
 the registry name with nothing added: row `TextInput` → `struct TextInput` in
@@ -556,6 +598,11 @@ PNG per built state located ✓
    the sync in step 1 is only needed when a file was added or removed). Prefer the named
    state over `'*'` — each state is minutes.
 3. **Stop refining when the remaining delta is a real gap**, and name its class:
+   - **note-driven divergence** — a note (phase 0) told the build to do something the Figma
+     snapshot does not show. This is EXPECTED, not a diff failure: the render is correct and
+     the snapshot is what has fallen behind. Report these in their own list with the note id
+     that caused each one, and never "fix" the view back toward the picture — that would undo
+     the owner's own instruction;
    - SwiftUI genuinely cannot express the contract's construction;
    - the contract underspecifies what the snapshot shows (→ `/ui2-component` re-run);
    - a **stub** from phase 1 level 3;
@@ -579,6 +626,8 @@ PNG per built state located ✓
      later OQ-PB row), so an owner ruling has a list to overturn;
    - **drift** — on a re-build, what changed in the contract since the previous fixture
      (rule 8);
+   - **note-driven divergence** — every difference a note caused, with its note id, kept
+     separate from the gap list so the owner can see what their own instructions changed;
    - **gaps** — step 3's list, by class.
 
 **Exit checklist 6:** every built state diffed against its snapshot ✓ · refinements
