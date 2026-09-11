@@ -279,12 +279,26 @@ export default function ComponentsLayout({ sub = '', header = null }) {
   const selectComponent = (node) => navigate(`/components/1.0/${node.path}`);
   const selectVariant = (name) => navigate(`/components/1.0/${path}/${encodeURIComponent(name)}`);
 
+  // The comments panel's chat composer: a message about the variant as a whole, with no
+  // pin. `x`/`y` are simply omitted — the server stores NULL, and CommentLayer skips it.
+  const postMessage = async (text) => {
+    if (!detail?.comparisonId || !text.trim()) return;
+    await addComment(detail.comparisonId, {
+      variantName: activeVariant?.name ?? 'default',
+      platform: 'iphone',
+      viewport: viewport,
+      text: text.trim(),
+      source: 'user',
+    });
+    await refreshComments();
+  };
+
   const commentApi = {
     comments: vdata?.comments ?? [],
     commentMode, setCommentMode,
     draftPin, placeDraft, submitDraft, cancelDraft: () => setDraftPin(null),
     selectedCommentId, setSelectedCommentId,
-    canComment, onReply, onResolve, onDelete,
+    canComment, onReply, onResolve, onDelete, postMessage,
   };
 
   // Prompt menu (RenderPane). /component-resolve's scope grammar is filesystem-shaped

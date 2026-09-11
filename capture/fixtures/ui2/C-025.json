@@ -1,0 +1,118 @@
+{
+  "id": "ui2-c-025",
+  "registryId": "C-025",
+  "component": "DayActivityCard",
+  "view": "component.ui2.C-025",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Default",
+      "slug": "default",
+      "props": {
+        "state": "default",
+        "date": {
+          "month": "AUG",
+          "weekday": "MON",
+          "day": "24",
+          "state": "default"
+        },
+        "series": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          52,
+          28,
+          0,
+          0,
+          0,
+          5,
+          25,
+          18,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          9,
+          0
+        ],
+        "details": {
+          "line1": "27 mins",
+          "line2": "1 complete",
+          "state": "default"
+        }
+      }
+    },
+    {
+      "name": "Transparent",
+      "slug": "transparent",
+      "props": {
+        "state": "transparent",
+        "date": {
+          "month": "AUG",
+          "weekday": "MON",
+          "day": "24",
+          "state": "default"
+        },
+        "series": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          52,
+          28,
+          0,
+          0,
+          0,
+          5,
+          25,
+          18,
+          6,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          9,
+          0
+        ],
+        "details": {
+          "line1": "27 mins",
+          "line2": "1 complete",
+          "state": "default"
+        }
+      }
+    },
+    {
+      "name": "Percent circle",
+      "slug": "percent-circle",
+      "props": {
+        "state": "percentCircle",
+        "date": {
+          "month": "AUG",
+          "weekday": "MON",
+          "day": "24",
+          "state": "default"
+        },
+        "percent": 29,
+        "details": {
+          "line1": "27 mins",
+          "line2": "1 complete",
+          "state": "default"
+        }
+      }
+    }
+  ]
+}

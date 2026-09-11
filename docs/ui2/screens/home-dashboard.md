@@ -88,8 +88,9 @@ Closed list of registry IDs rendered: **C-019 TopNav** (collapsed state) · **C-
 SectionHeader** · **C-021 GlyphButton** · **C-022 MetaPair** · **C-023 KpiCard** ·
 **C-024 SparkBarChart** · **C-025 DayActivityCard** · **C-026 DualSeriesBarChart** ·
 **C-027 LegendItem** · **C-028 InlineDropdown** · **C-029 RadialDayClock** · **C-030
-TimeActivityChart** · **C-031 EnrollmentStatusRow** · **C-032 FollowedProgramHeader** ·
-**C-033 GroupFollowCard**.
+TimeActivityChart** · **C-031 EnrollmentStatusRow** · **C-073 StatusPercentDisc**
+(2026-09-10 — split out of C-031's anatomy by the full-set run; rendered here only inside
+C-031) · **C-032 FollowedProgramHeader** · **C-033 GroupFollowCard**.
 
 Contracts for the rows this screen introduces (all `(new)`; measured from node
 `3622:5487`, get_design_context 2026-09-01):
@@ -132,14 +133,18 @@ label). Correction carried there: the dashed annotation is the series AVERAGE, n
 line.
 
 ### C-025 DayActivityCard
-131×192; no fill; 1px left+right `card/border` borders (adjacent cards share borders);
-padding 16 horizontal, 8 vertical, gap 8. Top block: month + weekday (SF Pro Bold 12
-`text/secondary`, justified to card edges, e.g. "JUL"/"MON") → day number (SF Pro Bold 18
-white). Middle: SparkBarChart `align=center` filling remaining height. Bottom: minutes
-(SF Pro Regular 12 white, "27 mins") → lessons (SF Pro Regular 12 `green`, "8 lessons").
-Zero-activity state: value lines render dimmed in `text/secondary` ("0 mins" / "0
-complete") and the sparkline shows dots only. Props: `date`, `series`, `minutesLabel`,
-`lessonsLabel`, `isZero: Bool`.
+**Contract relocated 2026-09-10 → `../design-system/components/C-025-day-activity-card.md`**
+(`/ui2-component C-025`, D10). The owner-designated set `3672:9223` designs **three** states
+where this section described one, and the card's two sub-blocks are their own sets — now
+C-070 DateBlock (2 states) and C-071 ValuePair (7 states).
+
+What this screen consumes: C-025 `state=Transparent` (the no-fill, L/R-hairline form this
+section had described as the whole component), C-070 `Default`, and C-071 `Default`
+populated / `Nothing` zero. Two corrections landed in the relocation, both recorded in that
+file's §1 closed deviation list: the filled, fully-bordered form is Figma's `Default` and is
+consumed by no screen; and the zero state's lines are `color-white-20`, **not**
+`text/secondary` as written here — `text/secondary` is the separate designed `Muted` state
+that members-profile consumes.
 
 ### C-026 DualSeriesBarChart
 Contract relocated 2026-09-03 → `../design-system/components/C-026-dual-series-bar-chart.md`
@@ -174,17 +179,15 @@ within one fixed, non-panning period (not session length); the "mins" ticks are 
 labels (OQ-C-030-2).
 
 ### C-031 EnrollmentStatusRow
-408×64 row, 16 gap: left — 64pt circle (radius 32), fill = status color at 20% opacity,
-centered percent (number SF Pro Bold 18 + "%" SF Pro Semibold 12, status color). Right
-column (16 gap): top row — label (SF Pro Regular 14 white, flex) + count (SF Pro Regular
-14 white, right-aligned 40pt) + progress bar (sheet component "Percentages", used variant
-`style=Thick` 16pt / `aligned=Right`: track `White/10%`, status-color fill segment;
-`Thin`/`Left` variants are designed but unconsumed here); bottom — subtitle (SF Pro
-Regular 14 `text/secondary`, e.g. "178 total
-members enrolled across 15 groups"). Purpose (owner, 2026-09-01): progress-across-the-board
-as a percentage with counts — how many members currently enrolled in any of the leader's
-content are current. Fill color anomaly: see OQ-home-dashboard-6. Props: `percent`,
-`label`, `count`, `progress`, `subtitle`, `statusColor`.
+**Contract relocated 2026-09-10** → `../design-system/components/C-031-enrollment-status-row.md`
+(full-set `/ui2-component` run on the owner-designated set `3526:30288`). That run measures
+what this section stated in prose — the row's internal 8pt gap and its two flexing cells — and
+splits the 64pt percent circle out as its own registry row, **C-073 StatusPercentDisc**. This
+screen consumes `state=Default` at 408 wide (instance `3622:5617`), with the row's purpose
+unchanged (owner, 2026-09-01): progress-across-the-board as a percentage with counts — how many
+members currently enrolled in any of the leader's content are current. The fill-colour anomaly
+this section flagged is now decided evidence rather than a suspicion: the set spends BOTH greens
+inside one symbol (OQ-home-dashboard-6, and OQ-C-031-2 in the contract).
 
 ### C-032 FollowedProgramHeader
 40pt block inset 16: program title (SF Pro Bold 14ish white, single line) over meta line
@@ -192,15 +195,28 @@ content are current. Fill color anomaly: see OQ-home-dashboard-6. Props: `percen
 right-aligned GlyphButton `ellipsis`. Props: `title`, `author`, `createdLabel`, `onMenu`.
 
 ### C-033 GroupFollowCard
-179×228; `card/background`, 1px `card/border`, radius 8, padding 16, gap 10. Top: 64pt
-circular group photo (initials fallback per program convention when no photo) with a 16pt
-**linked/unlinked** glyph pinned top-right — linked (chain) = enrollment is study-synced to
-the program (updates publish through), unlinked (broken chain) = detached; from the
-enrollment's sync status (§5). Title: group name, SF Pro Bold 14/20 white, wraps. Bottom:
-members line ("9" white + "members" `White/50%`, 14/20) → completion line ("55%" +
-"complete", 14/20) colored by completion band — observed samples: 55%/89% `green`,
-21% `Text highlight` yellow, 12–13% `Red/100`; exact thresholds OQ-home-dashboard-3.
-Props: `name`, `photoURL?`, `memberCount`, `completionPercent`, `isLinked`, `onTap`.
+**Contract relocated 2026-09-10** → `../design-system/components/C-033-group-follow-card.md`
+(full-set `/ui2-component` run on the owner-designated set `3620:4662`, which this section's
+node ref — `3622:5628` — is one **instance** of). The set designs **two axes this section did
+not record**: `style` {Default, No bar} and `color` {Green, Yellow, Red}. What this screen
+consumes is `style=No bar` at all three colours; `Default` (a C-057 PercentBar in place of
+the members line, and no link glyph) is designed-unconsumed.
+
+Three corrections that contract carries, all of which change what this section asserted:
+- **`isLinked` → `showLink`.** The set exposes a boolean that shows or hides the glyph and
+  pins it to C-072 `linked=true`. The broken-chain artwork **is** designed — on C-072's own
+  set — but is not reachable from this card, so "unlinked (broken chain) = detached" is not
+  what this component renders today (OQ-C-033-3).
+- **The band is an independent prop, not a function of the percentage** — all four symbols
+  render "55%" and differ only in colour. That closes the independence half of
+  OQ-home-dashboard-3 below; the threshold half stays open.
+- **The completion line's colour rule is per-style**: in `No bar` both the number and its
+  label take the band colour; in `Default` only the number does and the label is
+  `color-white-50`.
+
+The 179×228 / r8 / p16 / gap-10 geometry, the 64pt avatar, and the wrapping Bold 14/20 title
+are unchanged. The 16pt glyph is now **C-072 LinkStatusGlyph**; the bar is **C-057
+PercentBar**. Props: see that contract's §4.
 
 ## 5. Data & API
 
@@ -249,7 +265,7 @@ this screen.
 |---|---|---|---|
 | OQ-home-dashboard-1 | Engagement: precise definition of a "current" member, the "N active" header metric, and where the arrow-right leads | No — owner explicitly deferred (2026-09-01, "plan the component itself for now"); **must resolve before the build suite's server phase** | Owner |
 | OQ-home-dashboard-2 | Session definition for session-ization (e.g. contiguous member activity with a gap timeout) | No for UI; gates the sessions API-GAP work | Owner + backend suite |
-| OQ-home-dashboard-3 | Completion-percent color thresholds (observed: 55/89 green, 21 yellow, 12–13 red) | No — build defaults need the closed bands before the suite freezes | Owner |
+| OQ-home-dashboard-3 | Completion-percent color thresholds (observed: 55/89 green, 21 yellow, 12–13 red). **Narrowed 2026-09-10 (C-033 set run):** the band is an independent `color` prop, not derived from the percentage — the set renders "55%" in all three colours — so what remains open is only the mapping this screen should apply when it picks a band, not whether the component derives one | No — build defaults need the closed bands before the suite freezes | Owner |
 | OQ-home-dashboard-4 | Following mechanics: where the followed set is stored (preference vs server model); group-card tap destination; ellipsis menu contents | No for this screen's layout; gates `home-follow-picker` and the assembled endpoint | Owner |
 | OQ-home-dashboard-5 | Chart annotation font is Inter in Figma (TODAY/max/min/ticks) while everything else is SF Pro — intentional, or normalize to SF Pro? (2026-09-03: the owner-designated C-026 set `3633:4505` and C-029 frame `3634:4871` — labels, value, caption — both use Inter; strong evidence toward intentional) | No — becomes a closed deviation once ruled | Owner |
 | OQ-home-dashboard-6 | Engagement progress fill is #4deb4b in Figma vs the `green` variable #6cff73 — intentional second green, or token drift? | No — token ruling | Owner |

@@ -148,6 +148,12 @@ variant; logged on OQ-study-program-home-9). Props: `months`, `days`.
   `Percent circle` (centers C-062), Date `Today` ("TODAY" `color-highlight` marker), and
   Activity details `Lesson day` (count `color-accent` + time). Closed change: these
   states join the contract; home's `Default`/zero-dimmed usage unchanged.
+  **Relocated 2026-09-10** to `../design-system/components/C-025-day-activity-card.md`,
+  which confirms all three and names the two sub-blocks as their own rows: this screen
+  consumes C-025 `state=Percent circle`, **C-070 DateBlock** `Today`, and **C-071
+  ValuePair** `Lesson day`. Note for OQ-3: the set's `Percent circle` sample renders 29% at
+  C-062's `Green 1` (largest, greenest band), which contradicts a monotonic percent→band
+  mapping — logged as OQ-C-025-4.
 - **C-020 SectionHeader** — accessory list gains the `text-link+button` combo (text-link
   + 16 gap + GlyphButton), closed. "Edit schedule" renders `color-text-secondary`
   (more OQ-shared-edit-field-4 evidence).

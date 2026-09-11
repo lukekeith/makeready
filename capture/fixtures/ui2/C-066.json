@@ -1,0 +1,35 @@
+{
+  "id": "ui2-c-066",
+  "registryId": "C-066",
+  "component": "ActionMenuOverlay",
+  "view": "component.ui2.C-066",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "C-066 container",
+      "slug": "c-066-container",
+      "props": {
+        "actions": [
+          {
+            "glyph": "c066-close",
+            "label": "Withdraw invitation"
+          },
+          {
+            "glyph": "c066-send",
+            "label": "Resend invitation"
+          }
+        ]
+      }
+    },
+    {
+      "name": "C-067 row · property1",
+      "slug": "c-067-row-property1",
+      "props": {
+        "glyph": "c066-close",
+        "label": "Withdraw invitation"
+      }
+    }
+  ]
+}

@@ -85,7 +85,20 @@ export default function Ui2DetailsTab({ detail, variant }) {
             <code>{detail.id} {detail.name}</code> is a registry row without a contract, so it has
             no states and no props. Spec it first — then this tab shows what each state sets.
           </p>
-          <CopyCode value={`${detail.commands.spec} <figma-url>`} />
+          {detail.snapshot && (
+            <p className="cmp-ui2d__prose">
+              The render is the artwork a <code>/ui2-screen</code> run captured when it minted this
+              row — enough to see what the row refers to, but it is a picture, not a contract:
+              nothing here says which states exist or what they set.
+            </p>
+          )}
+          <CopyCode value={detail.commands.spec} />
+          {!detail.registry?.figmaUrl && detail.registry?.figmaRef && (
+            <p className="cmp-ui2d__prose">
+              Append the node URL — the registry’s ref doesn’t resolve to one:{' '}
+              <code>{detail.registry.figmaRef}</code>
+            </p>
+          )}
         </Section>
       </div>
     );

@@ -81,8 +81,11 @@ model Comment {
   screenshotId String?
   platform     String // "iphone" | "client"
   viewport     String
-  x            Float // 0..1
-  y            Float // 0..1
+  // NULL = unanchored: a message about the variant as a whole, typed into the comments
+  // panel's chat input rather than dropped as a pin on the render. Pinned comments keep
+  // their 0..1 fractions; the render overlay skips anything unanchored.
+  x            Float? // 0..1, null when unanchored
+  y            Float? // 0..1, null when unanchored
   // The DOM element the pin resolved to (live hit-test of the web iframe). Lets a
   // terse comment ("bottom radius should be 0") target an exact BEM rule.
   targetSelector String? // e.g. ".CardEvent__block"

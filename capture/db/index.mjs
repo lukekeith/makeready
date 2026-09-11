@@ -276,10 +276,17 @@ export async function getComment(id) {
  * (so they survive recaptures by x/y); web pins have no screenshot (the web side
  * is a live iframe), they pin to the variant + position directly.
  */
+/** A pin carries both coordinates; a chat message carries neither. */
+function isAnchored(v) {
+  return v !== null && v !== undefined && Number.isFinite(Number(v));
+}
+const clamp01 = (v) => Math.max(0, Math.min(1, Number(v)));
+
 export async function addComment({ comparisonId, variantName = 'default', screenshotId, platform, viewport, x, y, text, source = 'user', targetSelector = null, targetLabel = null, targetMeta = null }) {
   if (!text || !String(text).trim()) throw new Error('comment text is required');
   if (!ALL_PLATFORMS.includes(platform)) throw new Error(`platform must be ${ALL_PLATFORMS.join('|')}`);
   if (!viewport) throw new Error('viewport is required');
+  if (isAnchored(x) !== isAnchored(y)) throw new Error('x and y must both be set (a pin) or both omitted (an unanchored message)');
 
   // Resolve an anchor screenshot for pins drawn on an image (iPhone captures,
   // UI 2.0 design snapshots). The web pane is live, so it has none.
@@ -302,8 +309,12 @@ export async function addComment({ comparisonId, variantName = 'default', screen
       screenshotId: shot?.id ?? null,
       platform,
       viewport,
-      x: Math.max(0, Math.min(1, Number(x) || 0)),
-      y: Math.max(0, Math.min(1, Number(y) || 0)),
+      // Unanchored (x/y omitted or null) = a message about the variant as a whole, typed
+      // into the comments panel's chat input. Distinct from a pin that happens to sit at
+      // 0,0 — which is why these are NULL rather than a sentinel coordinate: the render
+      // overlay filters on `x == null`, and nothing has to know a magic pair.
+      x: isAnchored(x) ? clamp01(x) : null,
+      y: isAnchored(y) ? clamp01(y) : null,
       targetSelector: targetSelector || null,
       targetLabel: targetLabel || null,
       targetMeta: targetMeta ?? undefined,

@@ -143,8 +143,11 @@ test('buildUi2Index indexes the real docs/ui2 registry', async () => {
       assert.match(row.id, /^C-\d{3}$/);
       assert.equal(row.comparisonId, ui2ComparisonId(row.id));
       assert.equal(index.byId.get(row.id), row);
-      // A specced row has states to browse; an unspecced one has none.
-      assert.equal(row.variants.length > 0, !!row.contract);
+      // A row has states to browse iff there is something to browse: a contract
+      // (its designed states) or, since 2026-09-10, artwork captured by the
+      // /ui2-screen run that minted it (one `set` state carrying the picture).
+      // A row with neither is a name only.
+      assert.equal(row.variants.length > 0, !!row.contract || !!row.snapshot);
     }
   }
   // Every contract that names a frozen snapshot resolves to a file on disk.

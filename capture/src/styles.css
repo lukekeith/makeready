@@ -1619,7 +1619,17 @@ html {
 .cmp-topbar__tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 .cmp-tab-switch { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 8px; overflow: hidden; }
-.cmp-tab-switch__btn { padding: 5px 14px; font-size: 13px; color: var(--text-dim); }
+/* `min-width: 0` so a strip that cannot fit its buttons shrinks them evenly
+   instead of clipping the first one — the 2.0 side reaches five tabs (Details ·
+   Comments · Contract · Data · Layout) in a 340px column. */
+.cmp-tab-switch__btn {
+  padding: 5px 14px;
+  font-size: 13px;
+  color: var(--text-dim);
+  min-width: 0;
+  white-space: nowrap;
+}
+.cmp-tab-switch--tight .cmp-tab-switch__btn { padding: 5px 9px; font-size: 12px; }
 .cmp-tab-switch__btn--active { background: var(--accent-soft); color: var(--accent); }
 
 /* Three edge-to-edge full-height columns */
@@ -2167,6 +2177,146 @@ html {
   letter-spacing: 0.3px;
 }
 .cmp-cb-comments { display: flex; flex-direction: column; min-height: 0; flex: 1; gap: 8px; }
+
+/* ── Comments panel as one chat per variant ──────────────────────────────────
+   Scrolling log + a composer pinned at the bottom. The log is the only thing that
+   scrolls (`flex: 1; min-height: 0`), so the composer never leaves the viewport no
+   matter how long the conversation gets. */
+.cmp-chatlog {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* One turn in the conversation. Truncated on purpose: the whole point of the modal is
+   that the panel never has to render a 1,500-character reply. */
+.cmp-turn {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.12s ease;
+}
+.cmp-turn:hover { border-color: var(--border-strong); }
+.cmp-turn--selected { border-color: var(--accent); }
+.cmp-turn--resolved { opacity: 0.55; }
+.cmp-turn__head { display: flex; align-items: center; gap: 6px; margin-bottom: 5px; flex-wrap: wrap; }
+.cmp-turn__done { font-size: 10px; color: var(--ok); font-weight: 700; }
+.cmp-turn__scope { font-size: 10px; color: var(--text-muted); }
+.cmp-turn__time { font-size: 10px; color: var(--text-muted); margin-left: auto; }
+/* Two lines of the opening message, then an ellipsis — enough to recognise it by. */
+.cmp-turn__msg {
+  font-size: 13px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+/* The reply trace: who answered last and the first line of it, on ONE line. */
+.cmp-turn__reply { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; min-width: 0; }
+.cmp-turn__replytext {
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.cmp-turn__more { font-size: 10px; color: var(--text-muted); margin-top: 4px; }
+
+/* The composer — shared by the panel and the modal, so replying feels identical in both. */
+.cmp-chatcomposer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid var(--border);
+}
+.cmp-chatcomposer__input {
+  flex: 1;
+  min-width: 0;
+  resize: none;
+  /* Grows with the text up to a cap, then scrolls — a long message must never push the
+     Send button off the panel. */
+  max-height: 140px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  field-sizing: content;
+}
+.cmp-chatcomposer__input:focus { outline: none; border-color: var(--accent); }
+.cmp-chatcomposer__send { flex: none; }
+
+/* ── Thread modal ─────────────────────────────────────────────────────────── */
+.cmp-threadmodal {
+  position: fixed;
+  inset: 0;
+  z-index: 60;                     /* above the render pane's menus (40) */
+  background: rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+}
+.cmp-threadmodal__panel {
+  display: flex;
+  flex-direction: column;
+  width: min(680px, 100%);
+  max-height: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+.cmp-threadmodal__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.cmp-threadmodal__title { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cmp-threadmodal__scope { font-size: 11px; color: var(--text-dim); }
+.cmp-threadmodal__vp { font-size: 11px; color: var(--text-muted); }
+.cmp-threadmodal__actions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+.cmp-threadmodal__log {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Full messages here — no clamp. This is the view that exists to show everything. */
+.cmp-chatmsg { display: flex; flex-direction: column; gap: 4px; }
+.cmp-chatmsg__meta { display: flex; align-items: center; gap: 8px; }
+.cmp-chatmsg__text {
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  padding: 9px 11px;
+  border-radius: 10px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+.cmp-chatmsg--claude .cmp-chatmsg__text { background: var(--bg); border-color: var(--border-strong); }
+
 .cmp-cb-comments__group {
   font-size: 10px;
   text-transform: uppercase;
@@ -2294,6 +2444,30 @@ html {
 .cmp-ui2__dot--registry { background: transparent; border: 1px solid var(--border-strong); }
 .cmp-ui2__dot--contract { background: var(--text-muted); }
 .cmp-ui2__dot--specced { background: #4ade80; }
+/* Artwork captured by a /ui2-screen run, contract not written yet — the row has
+   something to look at but nothing normative to read. */
+.cmp-ui2__dot--artwork { background: transparent; border: 1px solid #4ade80; }
+/* A screen id IS its handle, so it reads as the row's name rather than as a
+   monospace code next to one. */
+.cmp-ui2__name--screen { font-family: ui-monospace, monospace; font-size: 12px; }
+/* Kind filter above the search: All / Components / Screens. */
+.cmp-ui2__kinds {
+  flex: none;
+  padding: 8px 12px 0;
+}
+.cmp-ui2__kinds .FilterTag { padding: 3px 8px; font-size: 11px; }
+/* Heading over each axis, shown only when both are listed at once. */
+.cmp-ui2__group {
+  padding: 10px 12px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+.cmp-ui2__group:first-child { border-top: 0; margin-top: 0; }
 .cmp-ui2__foot {
   flex: none;
   padding: 8px 12px;
@@ -2301,6 +2475,26 @@ html {
   font-size: 10.5px;
   color: var(--text-muted);
 }
+
+/* Column 4, screen tab — the §4 component roll-call as clickable chips. */
+.cmp-ui2s__chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.cmp-ui2s__chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 3px 7px;
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  background: transparent;
+  font-size: 11px;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.cmp-ui2s__chip:hover { background: var(--bg-hover); color: var(--text); }
+.cmp-ui2s__chip--unspecced { border-style: dashed; }
+.cmp-ui2s__chipid { font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-muted); }
+.cmp-ui2s__chip--unspecced .cmp-ui2s__chipname { color: var(--text-muted); }
 
 /* Column 2 — a 2.0 state's consumption mark (replaces 1.0's version count). */
 .cmp-cb-variant__consumption { flex: none; font-size: 12px; color: var(--text-muted); }
@@ -2388,3 +2582,141 @@ html {
 .cmp-ui2c__oq li { line-height: 1.45; }
 .cmp-ui2c__oq li.is-blocking { color: #fb923c; }
 .cmp-ui2c__oqid { font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-muted); margin-right: 6px; }
+
+/* ── Components browser, 2.0: the Layout tab ──────────────────────────────────
+   The built render's measured geometry, from the element map the capture
+   harness writes beside the PNG (src/lib/ui2-layout.js does the derivation).
+   Accent-tinted rather than the comment layer's green: this box marks a part
+   you are READING, not one a comment is attached to. */
+.cmp-target-box--inspect {
+  border: 1.5px solid var(--accent);
+  background: var(--accent-soft);
+  z-index: 0;
+}
+
+.cmp-lay { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; gap: 8px; }
+
+.cmp-lay__frame {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding: 0 2px;
+}
+
+/* The tree takes only what it needs, up to half the column — C-030 has six
+   visible nodes and C-040 four, and stretching those to fill the panel would
+   push the detail off the bottom for no gain. Past the cap it scrolls. */
+.cmp-lay__tree {
+  flex: 0 1 auto;
+  max-height: 46%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  padding: 3px 0;
+}
+
+.cmp-lay__node {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 0;
+  font-size: 11.5px;
+  line-height: 16px;
+  cursor: default;
+  white-space: nowrap;
+}
+.cmp-lay__node:hover { background: var(--bg-hover); }
+.cmp-lay__node--sel { background: var(--accent-soft); }
+
+.cmp-lay__twist {
+  flex: 0 0 12px;
+  width: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  cursor: default;
+}
+.cmp-lay__twist--leaf { pointer-events: none; }
+
+.cmp-lay__node-name {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.cmp-lay__node-size {
+  flex: 0 0 auto;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+  font-size: 10.5px;
+}
+
+.cmp-lay__detail {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cmp-lay__detail-name { font-size: 12px; font-weight: 600; color: var(--text); }
+
+.cmp-lay__diagram { width: 100%; height: auto; display: block; }
+.cmp-lay__diagram-outer { fill: var(--bg); stroke: var(--border-strong); stroke-width: 1; }
+.cmp-lay__diagram-inner { fill: var(--bg-panel); stroke: var(--accent); stroke-width: 1; }
+.cmp-lay__diagram-tag { fill: var(--text-muted); font-size: 7px; font-weight: 600; letter-spacing: 0.08em; }
+.cmp-lay__diagram-n { fill: var(--text-dim); font-size: 9px; font-variant-numeric: tabular-nums; }
+.cmp-lay__diagram-size { fill: var(--text); font-size: 10px; font-variant-numeric: tabular-nums; }
+
+.cmp-lay__row {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  font-size: 11.5px;
+}
+.cmp-lay__row-label { color: var(--text-dim); }
+.cmp-lay__row-value { color: var(--text); font-variant-numeric: tabular-nums; white-space: pre-wrap; }
+
+/* One edge per line. Two columns saved four lines and cost far more: a value
+   that equals 16 names both `space-page-margin` and `space-card-padding`, and
+   that pair wrapped into a 55px column four times over. */
+.cmp-lay__edges { display: grid; gap: 2px; }
+.cmp-lay__edge { display: flex; gap: 6px; align-items: baseline; }
+.cmp-lay__edge-name { color: var(--text-muted); font-size: 10px; min-width: 38px; }
+
+.cmp-lay__stack { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; }
+.cmp-lay__axis { color: var(--text-dim); }
+.cmp-lay__gaps { color: var(--text); }
+
+.cmp-lay__val { display: inline-flex; gap: 5px; align-items: baseline; }
+/* A token name only ever appears beside a value it EXACTLY equals — a
+   near-miss shows as a bare number, because that gap is the drift the 2.0
+   lane exists to surface. */
+.cmp-lay__tok {
+  color: var(--accent);
+  font-size: 10px;
+  font-variant-numeric: normal;
+}
+
+.cmp-lay__hint { color: var(--text-muted); font-size: 11.5px; padding: 4px 2px; }
+.cmp-lay__cmd {
+  margin-top: 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 4px 6px;
+  user-select: all;
+  white-space: pre-wrap;
+  word-break: break-all;
+}

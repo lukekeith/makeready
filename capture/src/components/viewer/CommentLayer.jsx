@@ -9,7 +9,7 @@ import Thread from './Thread.jsx';
 export default function CommentLayer({
   platform, viewport, comments, numberOf, commentMode, draft, inv,
   onPlace, onSubmitDraft, onCancelDraft, selectedId, onSelect,
-  canEdit, onReply, onResolve, onDelete, hoverBox,
+  canEdit, onReply, onResolve, onDelete, hoverBox, inspectBox = null,
 }) {
   const [draftVal, setDraftVal] = useState('');
   useEffect(() => { setDraftVal(''); }, [draft?.x, draft?.y, draft?.platform]);
@@ -22,8 +22,12 @@ export default function CommentLayer({
   // Resolved comments stay in the right column but drop their preview pins —
   // except while selected from the column, so the thread can still be viewed
   // (and reopened) in place.
+  // `x == null` is an UNANCHORED message — typed into the comments panel's chat input
+  // rather than dropped on the render, so it has no position to draw a pin at. It still
+  // lives in the panel transcript; it just never appears here.
   const here = comments.filter(
-    (c) => c.platform === platform && c.viewport === viewport && (!c.resolved || c.id === selectedId),
+    (c) => c.x != null && c.platform === platform && c.viewport === viewport
+      && (!c.resolved || c.id === selectedId),
   );
   const showDraft = draft && draft.platform === platform && draft.viewport === viewport;
 
@@ -32,6 +36,16 @@ export default function CommentLayer({
 
   return (
     <div className={`cmp-commentlayer${commentMode ? ' cmp-commentlayer--placing' : ''}`} onClick={handleClick}>
+      {/* The Layout tab's box. Unlike `hoverBox` it is NOT gated on comment
+          mode — reading a part's geometry is not placing a comment — and it
+          sits under the comment boxes so a thread's target still wins. */}
+      {inspectBox && (
+        <div
+          className="cmp-target-box cmp-target-box--inspect"
+          style={{ left: `${inspectBox.x * 100}%`, top: `${inspectBox.y * 100}%`, width: `${inspectBox.w * 100}%`, height: `${inspectBox.h * 100}%` }}
+          aria-hidden="true"
+        />
+      )}
       {commentMode && !draft && !selectedId && hoverBox && (
         <div
           className="cmp-target-box cmp-target-box--hover"

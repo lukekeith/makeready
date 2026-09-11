@@ -1,0 +1,37 @@
+{
+  "id": "ui2-c-033",
+  "registryId": "C-033",
+  "component": "GroupFollowCard",
+  "view": "component.ui2.C-033",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Default",
+      "slug": "default",
+      "props": {
+        "style": "default",
+        "color": "green",
+        "title": "Group name",
+        "photoURL": "https://pub-8fbdd7669af54158b1759ab47dcef688.r2.dev/groups/group-162b0930-6a71-4fa0-bed7-f564af2f097e-1768356813624.jpeg",
+        "percent": "55%",
+        "progress": 0.8
+      }
+    },
+    {
+      "name": "No bar",
+      "slug": "no-bar",
+      "props": {
+        "style": "noBar",
+        "color": "green",
+        "title": "Group name",
+        "photoURL": "https://pub-8fbdd7669af54158b1759ab47dcef688.r2.dev/groups/group-162b0930-6a71-4fa0-bed7-f564af2f097e-1768356813624.jpeg",
+        "members": "9",
+        "percent": "55%",
+        "label": "complete",
+        "showLink": true
+      }
+    }
+  ]
+}

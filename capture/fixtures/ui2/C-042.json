@@ -1,0 +1,77 @@
+{
+  "id": "ui2-c-042",
+  "registryId": "C-042",
+  "component": "EditableFieldRow",
+  "view": "component.ui2.C-042",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Default",
+      "slug": "default",
+      "props": {
+        "label": "Field title",
+        "value": "Value of the field",
+        "multiline": false
+      }
+    },
+    {
+      "name": "Green indicator",
+      "slug": "green-indicator",
+      "props": {
+        "label": "Field title",
+        "value": "Value of the field",
+        "multiline": false,
+        "indicator": {
+          "text": "Published",
+          "tone": "positive"
+        }
+      }
+    },
+    {
+      "name": "Red indicator",
+      "slug": "red-indicator",
+      "props": {
+        "label": "Field title",
+        "value": "Value of the field",
+        "multiline": false,
+        "indicator": {
+          "text": "Something",
+          "tone": "negative"
+        }
+      }
+    },
+    {
+      "name": "Tags",
+      "slug": "tags",
+      "props": {
+        "label": "Tags",
+        "tags": [
+          "God",
+          "The beginning",
+          "Faith and love"
+        ],
+        "multiline": false
+      }
+    },
+    {
+      "name": "Age",
+      "slug": "age",
+      "props": {
+        "label": "Age",
+        "value": "All ages",
+        "multiline": false
+      }
+    },
+    {
+      "name": "Multiline",
+      "slug": "multiline",
+      "props": {
+        "label": "Field title",
+        "value": "Value of the field",
+        "multiline": true
+      }
+    }
+  ]
+}

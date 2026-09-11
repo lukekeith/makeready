@@ -17,7 +17,7 @@ export default function RenderPane({
   detail, detailError, variant, viewport, onViewport,
   versionId, onSelectVersion, vdata, shotsVersion,
   capturing, log, onRecapture, commentApi,
-  onHoverInspect, onClearInspect, hoverBox,
+  onHoverInspect, onClearInspect, hoverBox, inspectBox = null,
   platform = 'iphone', emptyState = null, allVariants = true, labels = {},
   platforms = null, onPlatform = null, activeShot = null, onDeleteVersion = null,
   // The Prompt menu's contents, supplied by the host: [{ label, sub?, text }]. The text is
@@ -135,6 +135,7 @@ export default function RenderPane({
     onResolve: commentApi.onResolve,
     onDelete: commentApi.onDelete,
     hoverBox,
+    inspectBox,
   };
 
   return (

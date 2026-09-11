@@ -130,9 +130,41 @@ against its now-larger consumer set — if consumption outgrew the name, rename 
 (ID stable, dated "renamed from" note) and propagate via grep across `docs/ui2/` in the
 same run.
 
+**Component artwork — MANDATORY for every row this run touches.** A registry row that
+nobody can SEE is a name, not a component: `/components/2.0/C-052` rendered blank for every
+row a screen run minted, so the reader had no way to tell what the row referred to. Every
+row this phase resolves therefore ends the run with a picture on disk.
+
+Per resolved component, in this order:
+
+1. **Already got artwork? Leave it alone.** Check
+   `docs/ui2/design-system/components/assets/` for `C-###-*.png`. A row that has been
+   BUILT, SPECCED (its contract cites a `Frozen snapshot:`) or captured by an earlier
+   screen run is done — never overwrite it, and never re-point a contract's snapshot at a
+   frame-local instance.
+2. **No artwork? Capture the COMPONENT, never the screen.** `get_screenshot` on:
+   - the row's **main component or set node** when the registry ref determines one — the
+     isolated symbol, which is what a component browser should show; else
+   - the **instance node inside this screen's frame** (`get_metadata` gives its id). That
+     renders the component alone, trimmed to its own bounds, with the sample content the
+     screen gave it — which is exactly the use-case view.
+   Saving the whole screen frame as a component's artwork is a defect: at 440×2521 the
+   component is invisible, and the file then blocks a real capture by rule 1.
+3. **Save as** `docs/ui2/design-system/components/assets/C-###-<kebab-name>.png` — the
+   registry name kebab-cased (`DayChip` → `C-052-day-chip.png`). The browser resolves a
+   contract-less row's render by that exact filename, so a mismatched slug shows nothing.
+   One PNG per row: several `C-###-*.png` files under one id are ambiguous and the browser
+   deliberately shows neither.
+4. **A row whose Figma ref is `no-figma`** (a DECISIONS-sourced component) has no design to
+   capture — skip it, and say so in the exit note rather than inventing artwork.
+
+The screen's OWN frozen frame(s) stay in `docs/ui2/screens/assets/` (phase 1) — the two
+asset dirs are separate and the browser serves them from separate mounts.
+
 **Exit checklist 2:** every element resolved ✓ · legacy pool checked before every `new` ✓ ·
 Consumed-by columns appended ✓ · naming & scoping check passed (new + consumed rows) ✓ ·
-ambiguities asked or parked as OQ# ✓
+**every touched row has artwork on disk (or is `no-figma`) ✓** · ambiguities asked or
+parked as OQ# ✓
 
 ## 3. WRITE — the screen spec
 

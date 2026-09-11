@@ -130,6 +130,11 @@ image, radius 8. **Designed, unconsumed:** `Default` (284pt large card), `Conden
   home-dashboard = lesson count in `color-positive`; members-profile = last-activity time
   in `text/secondary`. Zero state unchanged. Props: `captionLine: (String, Color)` replaces
   `lessonsLabel`.
+  **Superseded 2026-09-10** by `../design-system/components/C-025-day-activity-card.md`: the
+  caption line is not consumer-defined colour but a designed 7-state axis on its own set,
+  now **C-071 ValuePair**. This screen's two usages are its `Muted` (white over
+  `color-text-secondary`) and `Nothing` (both lines `color-white-20`) states; the card is
+  C-025 `state=Transparent` with C-070 DateBlock `Default`.
 - **C-037 ListResultRow** (renamed from MemberRow; ID stable) — the Figma set `3668:7440`
   defines `type` {Member (80pt — members-home), Member + tags (84), Group (96), **Group +
   tags (96 — consumed here**: 64pt group image, title, MetaChip row, chevron), Group +

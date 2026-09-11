@@ -1,0 +1,87 @@
+{
+  "id": "ui2-c-019",
+  "registryId": "C-019",
+  "component": "TopNav",
+  "view": "component.ui2.C-019",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "C-019 row · collapsed",
+      "slug": "c-019-row-collapsed",
+      "props": {
+        "tabs": [
+          "Home",
+          "Library",
+          "Groups",
+          "Members",
+          "Enrollments",
+          "Invites",
+          "Programs",
+          "Media"
+        ],
+        "selectedTab": "Home",
+        "expansion": 0,
+        "scrollOffset": 0
+      }
+    },
+    {
+      "name": "C-019 row · expanded",
+      "slug": "c-019-row-expanded",
+      "props": {
+        "tabs": [
+          "Home",
+          "Library",
+          "Groups",
+          "Members",
+          "Enrollments",
+          "Invites",
+          "Programs",
+          "Media"
+        ],
+        "selectedTab": "Home",
+        "expansion": 1,
+        "scrollOffset": 0
+      }
+    },
+    {
+      "name": "C-069 tab · collapsed × inactive",
+      "slug": "c-069-tab-collapsed-inactive",
+      "props": {
+        "label": "Home",
+        "presentation": "collapsed",
+        "active": false
+      }
+    },
+    {
+      "name": "C-069 tab · collapsed × active",
+      "slug": "c-069-tab-collapsed-active",
+      "props": {
+        "label": "Home",
+        "presentation": "collapsed",
+        "active": true
+      }
+    },
+    {
+      "name": "C-069 tab · expanded × inactive",
+      "slug": "c-069-tab-expanded-inactive",
+      "props": {
+        "label": "Home",
+        "presentation": "expanded",
+        "active": false,
+        "addAction": true
+      }
+    },
+    {
+      "name": "C-069 tab · expanded × active",
+      "slug": "c-069-tab-expanded-active",
+      "props": {
+        "label": "Home",
+        "presentation": "expanded",
+        "active": true,
+        "addAction": true
+      }
+    }
+  ]
+}

@@ -12,7 +12,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { makereadyRoot } from './fs-index.mjs';
 
-const tokensPath = path.resolve(makereadyRoot, 'docs/ui2/design-system/tokens.md');
+export const tokensPath = path.resolve(makereadyRoot, 'docs/ui2/design-system/tokens.md');
 export const tokensOutPath = path.resolve(makereadyRoot, 'iphone/MakeReady/UI2Preview/Tokens.swift');
 
 const cells = (line) => line.split(/(?<!\\)\|/).slice(1, -1).map((c) => c.replace(/\\\|/g, '|').trim());

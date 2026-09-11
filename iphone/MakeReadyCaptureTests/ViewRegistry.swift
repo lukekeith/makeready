@@ -740,7 +740,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             activities: mapLessonActivities(c.activities),
             title: c.title,
             description: c.description,
-            date: makeCaptureDateOptional(c.date),
+            date: makeCaptureDateOptional(c.date?.string),
             progress: c.progress,
             sections: lessonSections,
             status: lessonStatus,
@@ -852,7 +852,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             id: "capture-schedule-0",
             enrollmentId: "capture-enrollment-0",
             lessonId: "capture-lesson-0",
-            scheduledDate: makeCaptureDate(c.date),
+            scheduledDate: makeCaptureDate(c.date?.string),
             isCompleted: nil,
             completedAt: nil,
             lesson: LessonWithActivities(
@@ -1350,7 +1350,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             FieldGroup {
                 DatePickerField(
                     label: c.label ?? "Date",
-                    date: .constant(makeCaptureDate(c.date))
+                    date: .constant(makeCaptureDate(c.date?.string))
                 )
             }
             .padding(16)
@@ -2734,6 +2734,363 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             // are 387pt wide; consumers are width-driven — all three specced headers render
             // 408×44." 387 is what the frozen snapshot shows, so 387 is what is diffable.
             .frame(width: 387)
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-029":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-029: missing state.component")
+        }
+        // C-029 §4 gives no default for any of the four props — `hourValues` is the whole of the
+        // ring and the centre trio is the whole of the key value — so a nil is a fixture bug,
+        // not a value to guess. C-029 has no interaction-bearing props at all (§3: "display-only;
+        // the chart itself has no interactivity"), so OQ-PB-3 does not arise here.
+        guard let hourValues = c.hourValues, hourValues.count == 24 else {
+            throw ViewRegistryError.unknownView("component.ui2.C-029: props.hourValues must be 24 numbers")
+        }
+        guard let centerValue = c.centerValue,
+              let centerUnit = c.centerUnit,
+              let centerCaption = c.centerCaption else {
+            throw ViewRegistryError.unknownView(
+                "component.ui2.C-029: missing props.centerValue / centerUnit / centerCaption"
+            )
+        }
+        return AnyView(
+            UI2Preview.RadialDayClock(
+                hourValues: hourValues,
+                centerValue: centerValue,
+                centerUnit: centerUnit,
+                centerCaption: centerCaption
+            )
+            // OQ-PB-1 default: C-029 §2 states a fixed 357×326 footprint, so both axes are
+            // pinned here. §2 also says "labels overhang the frame's layout box on all four
+            // sides", so the page margin below is doing real work — without it the 12 AM and
+            // 12 PM labels would sit on the image edge, exactly as they do in the frozen
+            // snapshot's own 374×334 export.
+            .frame(width: 357, height: 326)
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-030":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-030: missing state.component")
+        }
+        // C-030 §4 gives no default for either prop — `bins` is the whole of the chart and
+        // `tickLabels` the whole of the tick row — so a nil is a fixture bug, not a value to
+        // guess. §4 states "No pan/interaction props", so OQ-PB-3 does not arise here.
+        guard let bins = c.bins, !bins.isEmpty else {
+            throw ViewRegistryError.unknownView("component.ui2.C-030: missing props.bins")
+        }
+        guard let tickLabels = c.tickLabels else {
+            throw ViewRegistryError.unknownView("component.ui2.C-030: missing props.tickLabels")
+        }
+        return AnyView(
+            UI2Preview.TimeActivityChart(
+                bins: bins,
+                // Back to §4's tuple type; CaptureUI2TickLabel exists only because a tuple is
+                // not Codable (see CaptureFixture.swift).
+                tickLabels: tickLabels.map { (value: $0.value, unit: $0.unit) }
+            )
+            // OQ-PB-1 default: C-030 §2 states a fixed 438×140 footprint (chart 100 + gap 16 +
+            // tick row 24), so both axes are pinned here. 438 is wider than the 408 a page-margin
+            // inset would leave on a 440pt Pro Max, so this call site adds NO horizontal margin —
+            // squeezing the chart would invalidate §2's 5px pitch and its 88-bar count.
+            .frame(width: 438, height: 140)
+            .padding(.vertical, UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-019":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-019: missing state.component")
+        }
+        // C-019 §3 is a MIXED state matrix: two rows belong to the C-019 row and four to
+        // C-069 NavTabButton, whose contract is C-019 §2b and which has no contract file —
+        // and therefore no comparison row — of its own. So both units render through this
+        // one case, dispatched on `presentation`, which is C-069's prop alone.
+        if let presentationRaw = c.presentation {
+            guard let presentation = UI2Preview.NavTabButton.Presentation(rawValue: presentationRaw) else {
+                throw ViewRegistryError.unknownView(
+                    "component.ui2.C-019: props.presentation must be collapsed|expanded"
+                )
+            }
+            // §4 (C-069) gives no default for `label` or `active`, so a nil is a fixture bug,
+            // not a value to guess. `addAction` is optional by contract — absent means the
+            // card renders no add slot, which is exactly §2b's collapsed case.
+            guard let label = c.label else {
+                throw ViewRegistryError.unknownView("component.ui2.C-019: missing props.label")
+            }
+            guard let active = c.active else {
+                throw ViewRegistryError.unknownView("component.ui2.C-019: missing props.active")
+            }
+            return AnyView(
+                UI2Preview.NavTabButton(
+                    label: label,
+                    presentation: presentation,
+                    active: active,
+                    addAction: (c.addAction ?? false) ? {} : nil
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)   // §2b sizes itself; sit leading
+                .padding(UI2Preview.Token.Space.pageMargin)
+                .background(UI2Preview.Token.layoutBackground)     // OQ-PB-2 default
+            )
+        }
+        // §4 (C-019) gives no default for `tabs`, `selectedTab` or `expansion`; `scrollOffset`
+        // is 0 at both designed resting states (§3 designs no scrolled one — the scrolled
+        // positions live only in the evidence-only instance frame), so 0 is the contract's
+        // value here, not a guess.
+        guard let tabs = c.tabs else {
+            throw ViewRegistryError.unknownView("component.ui2.C-019: missing props.tabs")
+        }
+        guard let selectedTab = c.selectedTab else {
+            throw ViewRegistryError.unknownView("component.ui2.C-019: missing props.selectedTab")
+        }
+        guard let expansion = c.expansion else {
+            throw ViewRegistryError.unknownView("component.ui2.C-019: missing props.expansion")
+        }
+        return AnyView(
+            UI2Preview.TopNav(
+                tabs: tabs,
+                selectedTab: selectedTab,
+                expansion: expansion,
+                scrollOffset: c.scrollOffset ?? 0
+            )
+            // OQ-PB-1 has no master width to take here: §2's content is 656 (collapsed) /
+            // 1048 (expanded), both wider than the 440pt device, and §2 says the row "clips
+            // at the raw edges — no fade mask". So the row is given the DEVICE width and
+            // clips, which IS the design; framing it at 656/1048 would only overflow the
+            // capture. 440 is pinned rather than `maxWidth: .infinity` because the harness
+            // proposes an unconstrained width, against which `.infinity` resolves to the
+            // row's own 656/1048 and the clip never happens — §2's own "the 440pt device".
+            // For the same reason this call site adds no HORIZONTAL margin: §2 owns the
+            // row's `px-8` inset, and a page margin here would be a second one.
+            .frame(width: 440)
+            .padding(.vertical, UI2Preview.Token.Space.pageMargin)
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+
+    case "component.ui2.C-042":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-042: missing state.component")
+        }
+        // C-042 §4 gives no default for `label` — it is the one prop every state carries —
+        // so a nil is a fixture bug, not a value to guess. `value`, `tags` and `indicator`
+        // are optional by contract (they ARE the §3 state axis), and §4 spells `multiline`
+        // as a plain Bool whose designed value is false in five of the six states, which is
+        // the contract's default rather than an invented one. `onTap` is interaction-bearing
+        // and defaulted to a no-op in the view (OQ-PB-3).
+        guard let ui2C042Label = c.label else {
+            throw ViewRegistryError.unknownView("component.ui2.C-042: missing props.label")
+        }
+        var ui2C042Indicator: UI2Preview.EditableFieldRow.Indicator?
+        if let spec = c.indicator {
+            guard let tone = UI2Preview.EditableFieldRow.Indicator.Tone(rawValue: spec.tone) else {
+                throw ViewRegistryError.unknownView(
+                    "component.ui2.C-042: props.indicator.tone must be positive|negative"
+                )
+            }
+            ui2C042Indicator = .init(text: spec.text, tone: tone)
+        }
+        return AnyView(
+            UI2Preview.EditableFieldRow(
+                label: ui2C042Label,
+                value: c.value,
+                tags: c.tags,
+                indicator: ui2C042Indicator,
+                multiline: c.multiline ?? false
+            )
+            // OQ-PB-1 default: the contract's master width. §1 deviation 2 — "Set symbols
+            // are 376pt wide; consumers render at their content width (members-profile:
+            // 408) — width-driven, not a variant." 376 is what the frozen snapshot shows,
+            // and its chevron's box right edge lands on exactly that, so 376 is what is
+            // diffable.
+            .frame(width: 376)
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+
+    case "component.ui2.C-066":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-066: missing state.component")
+        }
+        // C-066 §3 is a MIXED state matrix, like C-019's: one row is the C-066 container and
+        // one is C-067 ActionMenuRow, which has its own registry row but ships inside C-066's
+        // contract file and therefore owns no comparison row of its own. Both units render
+        // through this one case, dispatched on `actions` — C-066's prop alone.
+        if let actions = c.actions {
+            // §4 gives no default for `actions`: it IS the component, so a nil is a fixture
+            // bug, not a value to guess. `onSelect` / `onDone` are interaction-bearing and
+            // defaulted to no-ops in the view (OQ-PB-3).
+            return AnyView(
+                UI2Preview.ActionMenuOverlay(
+                    actions: actions.map {
+                        UI2Preview.ActionMenuOverlay.ActionItem(glyph: $0.glyph, label: $0.label)
+                    }
+                )
+                // OQ-PB-1 default: the contract's master width. §2 — "432pt wide in the
+                // frame (content 384)" — and §1 deviation 3 makes only the HEIGHT
+                // content-driven, so the width is pinned and the height is not. The frozen
+                // snapshot is exactly 432×212 with the panel bleeding to its edges, which is
+                // why this call site adds no page margin: the snapshot has none to match.
+                .frame(width: 432)
+                .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+                .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+            )
+        }
+        // §4 (C-067) gives no default for `glyph` or `label` — together they are the whole of
+        // the row — so a nil in either is a fixture bug. `onTap` is a no-op in the view.
+        guard let glyph = c.glyph else {
+            throw ViewRegistryError.unknownView("component.ui2.C-066: missing props.glyph")
+        }
+        guard let label = c.label else {
+            throw ViewRegistryError.unknownView("component.ui2.C-066: missing props.label")
+        }
+        return AnyView(
+            UI2Preview.ActionMenuRow(glyph: glyph, label: label)
+                // OQ-PB-1: C-067 states no master width of its own — it is width-driven
+                // inside C-066. §2's "content 384" is the width the frozen snapshot renders
+                // it at, so it is the width at which the row's chevron lands where the
+                // snapshot has it.
+                .frame(width: 384)
+                .padding(UI2Preview.Token.Space.rowGap)   // §2's p24, so the row sits where C-066 puts it
+                .frame(maxWidth: .infinity)
+                .background(UI2Preview.Token.modalBackground)   // §2: the surface C-067 always renders on
+        )
+
+    case "component.ui2.C-025":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-025: missing state.component")
+        }
+        // C-025 §4 gives a default for nothing except the two optionals it types as optional
+        // (`series: [Double]?`, `percent: Int?`), so a missing `state`, `date` or `details` is
+        // a fixture bug, not a value to guess. `series` and `percent` are read straight
+        // through: §3a says which state consumes which.
+        let ui2C025State: UI2Preview.DayActivityCard.CardState
+        switch c.state {
+        case "default": ui2C025State = .standard
+        case "transparent": ui2C025State = .transparent
+        case "percentCircle": ui2C025State = .percentCircle
+        default:
+            throw ViewRegistryError.unknownView(
+                "component.ui2.C-025: props.state must be default|transparent|percentCircle"
+            )
+        }
+        guard let dateProps = c.date?.block else {
+            throw ViewRegistryError.unknownView("component.ui2.C-025: missing props.date (C-070's props)")
+        }
+        let ui2C070State: UI2Preview.DateBlock.DateState
+        switch dateProps.state {
+        case "default": ui2C070State = .standard
+        case "today": ui2C070State = .today
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-025: props.date.state must be default|today")
+        }
+        guard let detailProps = c.details else {
+            throw ViewRegistryError.unknownView("component.ui2.C-025: missing props.details (C-071's props)")
+        }
+        let ui2C071State: UI2Preview.ValuePair.PairState
+        switch detailProps.state {
+        case "default": ui2C071State = .standard
+        case "nothing": ui2C071State = .nothing
+        case "muted": ui2C071State = .muted
+        case "lessonDay": ui2C071State = .lessonDay
+        case "highlighted": ui2C071State = .highlighted
+        case "single": ui2C071State = .single
+        case "singleMuted": ui2C071State = .singleMuted
+        default:
+            throw ViewRegistryError.unknownView(
+                "component.ui2.C-025: props.details.state must be one of C-025 §3b's seven values"
+            )
+        }
+        return AnyView(
+            UI2Preview.DayActivityCard(
+                state: ui2C025State,
+                date: UI2Preview.DateBlock(
+                    month: dateProps.month,
+                    weekday: dateProps.weekday,
+                    day: dateProps.day,
+                    state: ui2C070State
+                ),
+                series: c.series,
+                // `percent` is a two-shape field (CaptureFixture.swift): C-025 §4 types it
+                // `Int?`, so this case asks for the Int.
+                percent: c.percent?.intValue,
+                details: UI2Preview.ValuePair(
+                    line1: detailProps.line1,
+                    line2: detailProps.line2,
+                    state: ui2C071State
+                )
+            )
+            // OQ-PB-1: C-025 §2 opens "131×192 in every state", so the component states its
+            // own footprint and the call site does not fix one — it only supplies the outer
+            // margin and the ground.
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)             // fill the device width the runner renders at
+            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+
+    case "component.ui2.C-033":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-033: missing state.component")
+        }
+        let ui2C033Style: UI2Preview.GroupFollowCard.Style
+        switch c.style {
+        case "default": ui2C033Style = .standard
+        case "noBar": ui2C033Style = .noBar
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-033: props.style must be default|noBar")
+        }
+        let ui2C033Color: UI2Preview.GroupFollowCard.BandColor
+        switch c.color {
+        case "green": ui2C033Color = .green
+        case "yellow": ui2C033Color = .yellow
+        case "red": ui2C033Color = .red
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-033: props.color must be green|yellow|red")
+        }
+        // Seed the photo synchronously so the snapshot's single layout pass can render it.
+        // Same mechanism, and the same reason, as CaptureEnvironment's 1.0 image seeding:
+        // an `AsyncImage` task cannot finish inside that pass. `UI2Preview` imports SwiftUI
+        // only, so it has its own cache (UI2Preview/Ui2ImageCache.swift) rather than
+        // `MakeReady.ImageCache`.
+        if let photo = c.photoURL, let photoURL = URL(string: photo),
+           photoURL.scheme?.hasPrefix("http") == true,
+           let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
+            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+        }
+        // C-033 §4 gives a default for exactly one prop — `showLink` (§3d: "boolean prop,
+        // default true") — so that is the only `??` with a contract behind it. `title` and
+        // `percent` are required in both states, and a nil there is a fixture bug.
+        guard let ui2C033Title = c.title, let ui2C033Percent = c.percent?.stringValue else {
+            throw ViewRegistryError.unknownView("component.ui2.C-033: props.title and props.percent are required")
+        }
+        return AnyView(
+            UI2Preview.GroupFollowCard(
+                style: ui2C033Style,
+                color: ui2C033Color,
+                title: ui2C033Title,
+                photoURL: c.photoURL,
+                // §4 scopes `members` and `label` to `noBar`, so their absence in `Default` is
+                // the contract, not a missing default — and `Default` renders neither (it
+                // hard-codes "complete", deviation 7).
+                members: c.members ?? "",
+                percent: ui2C033Percent,
+                label: c.label ?? "",
+                showLink: c.showLink ?? true,
+                // §4 scopes `progress` to `default`; `noBar` draws no bar at all.
+                progress: c.progress ?? 0
+            )
+            // OQ-PB-1: C-033 §2 opens "179×228 in every state", so the component states its
+            // own footprint and the call site does not fix one — it only supplies the outer
+            // margin and the ground.
             .padding(UI2Preview.Token.Space.pageMargin)
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default

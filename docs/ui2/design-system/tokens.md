@@ -65,7 +65,11 @@ of these program tokens and is specced with the activities screens.
 
 Token hygiene flags (for the owner, non-blocking): the file carries three white aliases and
 two near-identical nav-text grays (#8ea0a7 vs #8d9fa7); `screens/home-dashboard.md` OQ-6
-flags a literal #4deb4b progress fill vs `color-positive`. From the component sheet
+flags a literal #4deb4b progress fill vs `color-positive` — **2026-09-10, C-031's set settles the
+evidence and not the ruling: a single symbol spends BOTH greens**, the bound `green` #6cff73 on
+the disc's number and the literal #4deb4b on the C-057 bar beside it (OQ-C-031-2). That run also
+records a second gap: a status colour at **20% opacity** grounds both C-073 and C-062 and has no
+row, where accent has `color-accent-20`. From the component sheet
 (2026-09-01): `Input/value` = `nav/text` (same hex), `nav/border-active` =
 `text/navigation`, `modal/background` = `card/background`; two error/negative reds
 (#fb2c36 vs #ff4759); two placeholder grays (OQ-members-home-4 residual); and a second
@@ -97,7 +101,25 @@ C-040 PageHeader set (2026-09-05): no new color variables either (`Purple/100%`,
 `color-text-primary`), and two type rows were added — note `type-page-title` (Regular 14/20)
 is the third 14-size row beside `type-body` (Regular 14, leading unmeasured) and
 `type-input` (Regular 14/24): whether these are two styles or three is a typography
-consolidation the owner should settle before the build phase generates code from this file.
+consolidation the owner should settle before the build phase generates code from this file. From the C-033 GroupFollowCard set (2026-09-10): no new colour variables
+(`green`, `Text highlight`, `Red/100`, `White/50%`, `White/100%` are all bound) — but the
+card's fill `#1f2124` and border `#2f363a` are RAW hex again, the **third** row after C-034
+and C-045 to show that pattern, which is now the rule rather than the exception for card
+surfaces; its sub-component **C-072 LinkStatusGlyph** is the first consumer of
+`color-brand-highlight` (#c5fff8) in the program; and its root stack gap is **10**, a value
+the spacing family (16/16/8/32/4/2/24) has no row for — carried as a flagged per-component
+literal under D7 rather than minting a token for a single site. **Superseded 2026-09-10:**
+that "occurs exactly once" claim no longer holds — the study-program-home re-spec (frame
+`3833:32194`) measures the same **10** as C-063 LessonCard's title-row gap, a second and
+unrelated site. Two occurrences is the threshold at which a flagged literal starts looking
+like a missing token; the owner should rule on a `space-title-gap` (10) row before the build
+phase generates code from this file. From the study-program-home re-spec itself
+(2026-09-10): **no new tokens** — every Figma variable on that frame (`Label
+Color/Dark/Primary`, `Color/Base/White`, `White/100%`, `White/50%`, `White/20%`,
+`Purple/100%`, `text/secondary`, `layout/border`, `Transparent`, `Callout / Bold`) is
+already bound, and the frame drops the `green`/`#4deb4b` progress fills and the categorical
+demographics palette entirely, so OQ-study-program-home-6's palette half now has no
+consuming screen.
 
 ## Typography
 
@@ -114,8 +136,8 @@ sets Inter, evidence toward intentional).
 | type-value-emphasis | SF Pro Bold 18 / 24 | observed (home-dashboard: day number, percent circle) | (new) | (new) |
 | type-caption | SF Pro Regular 12 / 14 | observed (home-dashboard: metadata, ticks, legends) | (new) | (new) |
 | type-caption-bold | SF Pro Bold 12 | observed (home-dashboard: day month/weekday) | (new) | (new) |
-| type-caption-semibold | SF Pro Semibold 12 | observed (home-dashboard: chart max annotation, % glyph) | (new) | (new) |
-| type-body | SF Pro Regular 14 | observed (home-dashboard: engagement row; line-height unmeasured — see `type-input` for the measured 14/24 input style) | (new) | (new) |
+| type-caption-semibold | SF Pro Semibold 12 / 12 | observed (home-dashboard: chart max annotation, % glyph — **line-height measured 2026-09-10 at 12/12** by the C-031 full-set run on the `%` glyph of C-073 StatusPercentDisc, one of the two observations already cited here) | (new) | (new) |
+| type-body | SF Pro Regular 14 / 14 | observed (home-dashboard: engagement row — **line-height measured 2026-09-10 at 14/14** by the C-031 full-set run, on the very row this token was first observed from: label, count and subtitle all set 14/14; distinct from `type-input`'s 14/24) | (new) | (new) |
 | type-section-title | SF Pro Semibold 18 / 24 | observed (study-program-home: section titles; measured — supersedes home-dashboard's "~16 Bold" approximation for C-020, OQ-study-program-home-9) | (new) | (new) |
 | type-subtitle-semibold | SF Pro Semibold 14 / 20 | observed (study-program-home: lesson subsection header) | (new) | (new) |
 | type-value-hero | SF Pro Regular 24 / 32 | observed (invite-home: recipient phone hero) | (new) | (new) |
@@ -160,4 +182,4 @@ sets Inter, evidence toward intentional).
 
 | Token | Definition | Figma variable | Notes |
 |---|---|---|---|
-| elevation-thumbnail | 0px 4px 4px rgba(0,0,0,0.2) | observed (study-program-home) | C-056 activity thumbnails — first shadow in the program |
+| elevation-thumbnail | 0px 4px 4px rgba(0,0,0,0.2) | observed (study-program-home, superseded frame `3524:29600`) | C-056 activity thumbnails — first shadow in the program. **Orphaned 2026-09-10:** the study-program-home re-spec removed C-056, this token's only consumer, and the C-061 slides that replaced it carry no shadow. The row stands (it records a real measurement) but nothing renders it; it lives or dies with OQ-study-program-home-14 |

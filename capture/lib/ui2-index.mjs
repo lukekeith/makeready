@@ -58,6 +58,38 @@ function splitName(raw) {
   return m ? { name: m[1].trim(), note: m[2].trim() } : { name: text, note: null };
 }
 
+// ── Figma node URLs ────────────────────────────────────────────────────────
+
+/**
+ * The one Figma file the whole 2.0 program lives in. Every contract's §1 and every
+ * registry Figma ref point into it — 23 URL citations across `docs/ui2/`, all this key —
+ * so a registry row's bare `3673:12007` composes a real link with nothing else needed.
+ */
+const FIGMA_FILE = 'https://www.figma.com/design/nVva9a2WvYmcWQo6zlHupO/Make-Ready-Mobile';
+
+/**
+ * A runnable Figma URL for a registry row's `figmaRef` cell, or null when the cell does
+ * not determine ONE node.
+ *
+ * Null in three cases, all of them deliberate — a caller that gets null must not invent a
+ * link, because a wrong node is worse than no node (it sends a spec run at the wrong
+ * symbol):
+ *   • `no-figma` — the row's contract comes from a feature DECISIONS doc, not the design
+ *     file (18 rows: the notes/memo components).
+ *   • no `nnn:nnn` anywhere — prose only (C-036).
+ *   • MORE than one distinct id — the cell cites a main plus a sheet copy, or several
+ *     sibling nodes (12 rows; C-034 cites three). Picking the first would be a guess.
+ *
+ * The registry writes ids with a colon; the URL fragment wants a dash.
+ */
+export function figmaNodeUrl(figmaRef) {
+  const ref = String(figmaRef ?? '');
+  if (/no-figma/i.test(ref)) return null;
+  const ids = [...new Set(ref.match(/\d+:\d+/g) ?? [])];
+  if (ids.length !== 1) return null;
+  return `${FIGMA_FILE}?node-id=${ids[0].replace(':', '-')}`;
+}
+
 export function parseRegistry(md) {
   const sections = [];
   let section = null;
@@ -78,6 +110,7 @@ export function parseRegistry(md) {
       status: stripMd(c[2]) || 'new',
       platform: stripMd(c[3]),
       figmaRef: c[4] ?? '',
+      figmaUrl: figmaNodeUrl(c[4] ?? ''),
       variantsProse: c[5] ?? '',
       props: c[6] ?? '',
       definedIn: c[7] ?? '',
@@ -286,6 +319,40 @@ export const variantSlug = (name) => (name ?? '')
 /** Distinct names can still slug alike ("Has value + focused" vs "Has value
  *  focused"); the slug is a route key, so it gets the same guarantee. */
 const uniqueSlugs = (names) => numbered(names.map(variantSlug), (s, n) => `${s}-${n}`);
+
+/** A registry name as a file slug: "DateBlock" → "date-block", "PercentBar" →
+ *  "percent-bar". Splits camel humps first so the result matches the filenames
+ *  /ui2-component and /ui2-screen write. */
+export const kebabName = (name) => (name ?? '')
+  .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, '-')
+  .replace(/^-+|-+$/g, '');
+
+/**
+ * The frozen snapshot PNG for a row that has no contract to declare one.
+ *
+ * A contract states its snapshot outright (`Frozen snapshot: \`assets/x.png\``)
+ * and that always wins. But most registry rows have no contract yet — they were
+ * minted by a `/ui2-screen` run that only needed to NAME the component — and
+ * since 2026-09-10 that run still captures the component's artwork. Without
+ * this fallback the artwork sat on disk unreferenced and the row rendered blank
+ * (C-052 DayChip was the reported case), which made "no contract" and "nobody
+ * has ever looked at this" indistinguishable in the browser.
+ *
+ * Resolution is deliberately narrow, because a wrong picture is worse than
+ * none: the row's own `C-###-<kebab name>.png` first, then a lone `C-###-*.png`
+ * when the row has exactly one candidate, and otherwise nothing — several PNGs
+ * under one id means the run wrote per-state artwork and only a contract can
+ * say which state is the representative one.
+ */
+function assetSnapshotFile(row, assetFiles) {
+  const exact = `${row.id}-${kebabName(row.name)}.png`;
+  if (assetFiles.has(exact)) return exact;
+  const prefix = `${row.id}-`;
+  const candidates = [...assetFiles].filter((f) => f.startsWith(prefix) && f.endsWith('.png'));
+  return candidates.length === 1 ? candidates[0] : null;
+}
 
 /**
  * Open questions are a table (`| OQ | Question | Blocks? | …`) in every current
@@ -553,28 +620,39 @@ export async function buildUi2Index() {
 
   await resolveOptionRefs(contracts);
 
+  let assetFiles = new Set();
+  try { assetFiles = new Set(await fs.readdir(assetsDir)); } catch { /* no assets yet */ }
+
   const byId = new Map();
   for (const section of sections) {
     for (const row of section.rows) {
       const contract = contracts.get(row.id) ?? null;
       let snapshot = null;
-      if (contract?.snapshotFile) {
-        const abs = path.join(assetsDir, contract.snapshotFile);
+      const file = contract?.snapshotFile ?? assetSnapshotFile(row, assetFiles);
+      if (file) {
+        const abs = path.join(assetsDir, file);
         const sha = await sha1(abs);
         if (sha) {
           snapshot = {
-            file: contract.snapshotFile,
+            file,
             repoPath: repoRelative(abs),
             sha,
             capturedAt: new Date(await mtime(abs)),
+            // The contract names its own snapshot; anything else was matched by
+            // filename, which the UI says out loud rather than passing off as a
+            // contracted artefact.
+            fromContract: !!contract?.snapshotFile,
           };
         }
       }
       // States are the browser's variants. A specced component with no parsable
-      // matrix still gets one variant so it can be viewed and commented on.
+      // matrix still gets one variant so it can be viewed and commented on — and
+      // so does an UNSPECCED row that has artwork, which is the whole point of
+      // capturing it: the row's picture is viewable and commentable before
+      // anyone writes its contract. A row with neither has nothing to show.
       const variants = contract
         ? (contract.states.length ? contract.states : [{ name: 'set', consumption: '', consumptionState: 'unknown', cells: [] }])
-        : [];
+        : (snapshot ? [{ name: 'set', slug: 'set', consumption: '', consumptionState: 'unknown', cells: [] }] : []);
       row.contract = contract;
       row.snapshot = snapshot;
       row.variants = variants;
@@ -594,6 +672,222 @@ export function ui2Counts(index) {
     for (const r of s.rows) {
       total += 1;
       if (r.contract) specced += 1;
+      if (r.snapshot) withSnapshot += 1;
+    }
+  }
+  return { total, specced, withSnapshot };
+}
+
+// ── screens (README screen tables + docs/ui2/screens/) ─────────────────────
+//
+// The 2.0 browser's second axis. Components come from registry.md; SCREENS come
+// from the README's "Screen table" (the exhaustive screen universe, the direct
+// analogue of a registry row) plus, for the ones that have been specced, their
+// spec doc under `screens/` and its frozen Figma snapshot(s) under
+// `screens/assets/`.
+//
+// A screen's "variants" are its designed content states — one per frozen
+// snapshot the spec cites, because that is exactly what a separate frame in
+// Figma means (invite-home ships `unlinked` + `linked`; shared-edit-field ships
+// an overview and a group-fields annex). A screen with one frame gets one state.
+
+export const readmePath = path.join(ui2Root, 'README.md');
+export const screensDir = path.join(ui2Root, 'screens');
+export const screenAssetsDir = path.join(screensDir, 'assets');
+
+/** DB key for a screen. Distinct prefix from `ui2-` so a screen and a component
+ *  can never collide in the comparison/version/comment tables. */
+export const ui2ScreenComparisonId = (id) => `ui2s-${id.toLowerCase()}`;
+
+/**
+ * The README's screen tables → sections → rows.
+ *
+ * Scoped to the `## Screen table` section: the README also carries a spec queue
+ * and phase gates, and a bare table scan would drag those in. Every `###`
+ * subsection under it is a screen group ("Tab roots (iphone)", "Flows &
+ * management screens"), which becomes a tree section exactly as a registry
+ * heading does.
+ */
+export function parseScreenTable(md) {
+  const body = docSections(md).find((s) => /^screen table$/i.test(s.title ?? ''))?.body;
+  if (!body) return [];
+  const sections = [];
+  let cur = null;
+  for (const line of body.split('\n')) {
+    const h = /^###\s+(.+?)\s*$/.exec(line);
+    if (h) { cur = { name: stripMd(h[1]), rows: [] }; sections.push(cur); continue; }
+    if (!cur || !line.trim().startsWith('|')) continue;
+    if (/^\|[\s:-]+\|/.test(line.trim())) continue;
+    const c = cells(line);
+    const id = stripMd(c[0] ?? '');
+    // Skip the header row and anything that isn't a screen id.
+    if (!id || /^screen$/i.test(id) || /\s/.test(id)) continue;
+    cur.rows.push({
+      id,
+      platform: stripMd(c[1] ?? ''),
+      figma: stripMd(c[2] ?? ''),
+      // The table writes an unspecced screen's status as an em dash.
+      status: stripMd(c[3] ?? '').replace(/^—$/, '') || 'queued',
+      specLink: /\(([^)]+\.md)\)/.exec(c[4] ?? '')?.[1] ?? null,
+      notes: stripMd(c[5] ?? ''),
+    });
+  }
+  return sections.filter((s) => s.rows.length);
+}
+
+/**
+ * A screen spec doc → the fields the browser renders.
+ *
+ * Snapshots are collected as every ``assets/<file>.png`` the doc cites, in
+ * document order, because the citation form varies by spec ("Frozen snapshot:
+ * `assets/x.png` — captured …" vs "snapshot `assets/x.png` (…)") and only the
+ * path itself is written identically everywhere. Order is the doc's order, so
+ * the first-cited frame is the screen's default state.
+ */
+export function parseScreenSpec(md, { file }) {
+  const titleLine = /^#\s+(.+)$/m.exec(md)?.[1] ?? '';
+  const titleMatch = /^(\S+)\s*—\s*(.+)$/.exec(stripMd(titleLine));
+  const sections = docSections(md);
+  const find = (re) => sections.find((s) => s.title && re.test(s.title));
+
+  const snapshotFiles = [...new Set(
+    [...md.matchAll(/`assets\/([^`]+\.png)`/g)].map((m) => m[1]),
+  )];
+
+  // §4 opens with the CLOSED list of rows the screen renders, then gives each
+  // introduced row its own `###` contract subsection. Only the closed list counts,
+  // so the scan stops at the first subsection heading.
+  //
+  // Scanning the whole section over-reports badly: the subsections cover contracts,
+  // amendment lists, and — after a re-spec — rows the screen no longer renders at
+  // all (study-program-home names C-053/54/55/56 precisely to say they are gone).
+  // A whole-section scan called that an 11-component screen 20.
+  //
+  // Both authored forms of the list are bold-prefixed ids, so one pattern covers
+  // them: bulleted ("- **C-052 DayChip** — …") and inline ("Closed list rendered:
+  // **C-020 SectionHeader** (×2) · **C-037 ListResultRow** …").
+  const componentsBody = find(/^\d*\.?\s*components/i)?.body ?? '';
+  const closedList = componentsBody.split(/^###\s/m)[0];
+  const bold = [...closedList.matchAll(/\*\*(C-\d{3})\b/g)].map((m) => m[1]);
+  const componentIds = [...new Set(
+    bold.length ? bold : [...closedList.matchAll(/\b(C-\d{3})\b/g)].map((m) => m[1]),
+  )];
+
+  return {
+    file,
+    id: titleMatch?.[1] ?? null,
+    name: titleMatch?.[2] ?? stripMd(titleLine),
+    statusLine: (/^Platform:.*$/m.exec(md)?.[0] ?? '').trim(),
+    figmaUrl: /https:\/\/www\.figma\.com\/\S+/.exec(md)?.[0]?.replace(/[.,)]+$/, '') ?? null,
+    figmaUrls: [...new Set(
+      [...md.matchAll(/https:\/\/www\.figma\.com\/\S+/g)].map((m) => m[0].replace(/[.,)]+$/, '')),
+    )],
+    snapshotFiles,
+    componentIds,
+    normativeSource: find(/normative/i)?.body ?? '',
+    layout: find(/layout/i)?.body ?? '',
+    behavior: find(/behavior/i)?.body ?? '',
+    components: componentsBody,
+    dataApi: find(/data\s*&?\s*api/i)?.body ?? '',
+    connections: find(/connection/i)?.body ?? '',
+    legacy: find(/legacy/i)?.body ?? '',
+    openQuestions: parseOpenQuestions(find(/open question/i)?.body ?? ''),
+    sections: sections.filter((s) => s.title),
+  };
+}
+
+/** A snapshot filename → its state label: the file stem with the screen id
+ *  stripped, or `default` when the file IS the screen ("invite-home.png" →
+ *  default, "invite-home-linked.png" → linked). A spec whose artwork is named
+ *  off-id (shared-edit-field's "edit-field-*") keeps its stem, which names the
+ *  real artefact rather than inventing a label the doc never wrote. */
+function screenStateLabel(fileName, screenId) {
+  const stem = fileName.replace(/\.png$/i, '');
+  if (stem === screenId) return 'default';
+  const stripped = stem.startsWith(`${screenId}-`) ? stem.slice(screenId.length + 1) : stem;
+  return stripped || 'default';
+}
+
+let screenCache = null;
+
+/**
+ * The screen index: sections → rows, each with its spec (when specced), its
+ * frozen snapshots as states, and a comparison id for versions + comments.
+ */
+export async function buildUi2Screens() {
+  const stamp = [
+    await mtime(readmePath),
+    await dirStamp(screensDir, (n) => n.endsWith('.md')),
+    await dirStamp(screenAssetsDir),
+  ].join('|');
+  if (screenCache?.stamp === stamp) return screenCache.index;
+
+  const sections = parseScreenTable(await fs.readFile(readmePath, 'utf8'));
+
+  const specs = new Map();
+  let files = [];
+  try { files = await fs.readdir(screensDir); } catch { /* no screens yet */ }
+  for (const f of files) {
+    if (!f.endsWith('.md')) continue;
+    const abs = path.join(screensDir, f);
+    const spec = parseScreenSpec(await fs.readFile(abs, 'utf8'), { file: repoRelative(abs) });
+    // Keyed on the FILENAME, not the parsed `# <id> — <name>` title. D8 makes the
+    // filename the screen id, and the title is prose that can legitimately repeat:
+    // `study-program-home-superseded-contracts.md` opens "# study-program-home —
+    // superseded component contracts", which by title would overwrite the real spec
+    // with whichever of the two `readdir` happened to yield last. By filename it
+    // simply matches no README row and is ignored, which is correct — a companion
+    // doc is not a screen.
+    specs.set(f.replace(/\.md$/, ''), spec);
+  }
+
+  const byId = new Map();
+  for (const section of sections) {
+    for (const row of section.rows) {
+      const spec = specs.get(row.id) ?? null;
+      const snapshots = [];
+      for (const fileName of spec?.snapshotFiles ?? []) {
+        const abs = path.join(screenAssetsDir, fileName);
+        const sha = await sha1(abs);
+        if (!sha) continue; // cited but not on disk — say nothing rather than 404 a render
+        snapshots.push({
+          file: fileName,
+          label: screenStateLabel(fileName, row.id),
+          repoPath: repoRelative(abs),
+          sha,
+          capturedAt: new Date(await mtime(abs)),
+        });
+      }
+      row.section = section.name;
+      row.spec = spec;
+      row.name = spec?.name ?? row.id;
+      row.snapshots = snapshots;
+      row.snapshot = snapshots[0] ?? null;
+      row.componentIds = spec?.componentIds ?? [];
+      row.variants = snapshots.map((s) => ({
+        name: s.label,
+        slug: variantSlug(s.label),
+        consumption: '',
+        consumptionState: 'unknown',
+        cells: [],
+        snapshot: s,
+      }));
+      row.comparisonId = ui2ScreenComparisonId(row.id);
+      byId.set(row.id, row);
+    }
+  }
+
+  const index = { sections, byId };
+  screenCache = { stamp, index };
+  return index;
+}
+
+export function ui2ScreenCounts(index) {
+  let total = 0; let specced = 0; let withSnapshot = 0;
+  for (const s of index.sections) {
+    for (const r of s.rows) {
+      total += 1;
+      if (r.spec) specced += 1;
       if (r.snapshot) withSnapshot += 1;
     }
   }

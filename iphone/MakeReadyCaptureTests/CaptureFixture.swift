@@ -168,7 +168,12 @@ struct CaptureComponent: Codable {
     let period: String?
     let progress: Double?             // 0…1 progress bars
     let badge: String?                // status badge text
-    let date: String?                 // ISO or display date string
+    // RETYPED 2026-09-10 (/ui2-component-build C-025), by the same reasoning and in the same
+    // shape as `days` below. This was `String?`, a 1.0 display/ISO date. C-025 §4's second
+    // prop is ALSO named `date` and is C-070 DateBlock's prop object, and preview-build.md §3
+    // rule 3 forbids bending a contract's prop name to fit an existing field — so the field
+    // decodes both shapes. The 1.0 readers ask for `.string`; C-025 asks for `.block`.
+    let date: CaptureDateOrBlock?     // ISO or display date string, OR C-070's props
     let dateRange: String?
     let memberCount: Int?
     let duration: String?
@@ -388,6 +393,126 @@ struct CaptureComponent: Codable {
     // C-021 glyph name, so they carry the same vocabulary as `glyph` above.
     let leadingGlyph: String?                  // C-040 — the leading slot's glyph
     let rightButtons: [String]?                // C-040 — trailing glyphs, in order
+    // C-029 RadialDayClock. All four are the contract's own §4 prop names and none of them
+    // could be bent into an existing field (rule 3's second bound): `series` above is C-024's
+    // single data series, a different shape for a different contract, and there is no existing
+    // centre-value trio at all.
+    let hourValues: [Double]?                  // C-029 — activity concentration per hour (24)
+    let centerValue: String?                   // C-029 — centre number
+    let centerUnit: String?                    // C-029 — unit beside the number
+    let centerCaption: String?                 // C-029 — caption under the value
+    // C-030 TimeActivityChart. Both are the contract's own §4 prop names. `bins` could not be
+    // bent into `series` (C-024's) or `dataPoints` (1.0's) without breaking rule 3's second
+    // bound, and no existing field carries a value+unit pair list.
+    let bins: [Double]?                        // C-030 — activity intensity per time slice
+    let tickLabels: [CaptureUI2TickLabel]?     // C-030 — the 4 justified C-022 MetaPairs
+    // C-019 TopNav / C-069 NavTabButton (C-019 §4 — one prop table for both units). `tabs`
+    // and `label` already exist above under the contract's own names, so they are reused
+    // rather than duplicated. `presentation` is also what the ViewRegistry case dispatches
+    // on: it is C-069's alone, so its presence says which of the two units a state renders.
+    let selectedTab: String?                   // C-019 — exactly one; sets C-069 active
+    let expansion: Double?                     // C-019 — the morph 0…1 (0 and 1 are designed)
+    let scrollOffset: Double?                  // C-019 — one shared offset, in pt
+    let presentation: String?                  // C-069 — "collapsed" | "expanded"
+    let active: Bool?                          // C-069 — the color-only active delta
+    // C-069 `addAction?` is an ACTION, and an action has no render effect — but its presence
+    // is what C-019 §2b gates the add slot on, so the fixture carries presence as a boolean
+    // under the contract's own prop name rather than bending it into some other field.
+    let addAction: Bool?                       // C-069 — does this card show its add slot
+    // C-042 EditableFieldRow. `label`, `value` and `tags` already exist above under the
+    // contract's own prop names, so C-042 reuses them rather than adding duplicates. These
+    // two are additive: `indicator` is a (text, tone) pair and a tuple is not Codable, and
+    // `multiline` has no existing field it could be bent into (rule 3's second bound —
+    // `lines` above is C-045's "single"|"multi" string, a different prop on a different
+    // contract).
+    let indicator: CaptureUI2Indicator?        // C-042 — trailing indicator { text, tone }
+    let multiline: Bool?                       // C-042 — value wraps instead of ellipsizing
+    // C-066 ActionMenuOverlay. `glyph` and `label` above already carry C-067 ActionMenuRow's
+    // own prop names, so the row state reuses them; only the container's list is additive.
+    // It could not be bent into any existing field (rule 3's second bound): `items`,
+    // `buttons` and `options` above are 1.0 shapes for 1.0 cases.
+    let actions: [CaptureUI2Action]?           // C-066 — the closed action list
+    // C-025 DayActivityCard. `series` above is C-024 SparkBarChart's own prop and C-025 §4
+    // delegates to it under the same name, so it is reused rather than duplicated. `date` is
+    // retyped above (see the note there). These three are additive: no existing field carries
+    // a card state, a completion percentage, or a two-line value pair.
+    let state: String?                         // C-025 — "default" | "transparent" | "percentCircle"
+    // RETYPED 2026-09-10 (/ui2-component-build C-033), by the same reasoning and in the same
+    // shape as `days` and `date` above. This was `Int?`, C-025 §4's `percent: Int?`. C-033 §4's
+    // `percent` is ALSO a prop of that name and is a display STRING ("55%") — OQ-C-033-5 is
+    // open on whether that is the component's contract or the sample's — and preview-build.md
+    // §3 rule 3 forbids bending a contract's prop name to fit an existing field. So the field
+    // decodes both shapes: C-025 asks for `.intValue`, C-033 for `.stringValue`.
+    let percent: CaptureIntOrString?           // C-025 — → C-062 PercentDisc; C-033 — the completion number
+    let details: CaptureUI2ValuePair?          // C-025 — → C-071 ValuePair's props
+    // C-033 GroupFollowCard. `style`, `color`, `title`, `label` and `progress` already exist
+    // above under the contract's own prop names, so C-033 reuses them rather than adding
+    // duplicates; `percent` is retyped just above. These three are additive and none could be
+    // bent into an existing field (rule 3's second bound): `avatarUrl`/`imageUrl` are 1.0
+    // names for 1.0 cases, and `memberCount: Int?` is neither this name nor this type.
+    let photoURL: String?                      // C-033 — → C-038 Avatar at 64
+    let members: String?                       // C-033 — the members-row number, a display string
+    let showLink: Bool?                        // C-033 — `noBar` only, gates C-072 LinkStatusGlyph
+}
+
+/// C-025 §4 `date` → C-070 DateBlock's own §4 props. The field names are the contract's.
+struct CaptureUI2DateBlock: Codable {
+    let month: String
+    let weekday: String
+    let day: String
+    let state: String                          // "default" | "today"
+}
+
+/// C-025 §4 `details` → C-071 ValuePair's own §4 props. The field names are the contract's;
+/// `state` takes the seven values of C-025 §3b.
+struct CaptureUI2ValuePair: Codable {
+    let line1: String
+    let line2: String?
+    let state: String
+}
+
+/// Decodes a JSON value that may be either a display/ISO date String (the 1.0 cards) or a
+/// C-070 DateBlock props object (C-025 §4's `date`). Same either-shape pattern as
+/// `CaptureDays` and `CaptureIntOrString`.
+struct CaptureDateOrBlock: Codable {
+    let string: String?
+    let block: CaptureUI2DateBlock?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let s = try? container.decode(String.self) {
+            string = s
+            block = nil
+        } else if let b = try? container.decode(CaptureUI2DateBlock.self) {
+            block = b
+            string = nil
+        } else {
+            string = nil
+            block = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let string {
+            try container.encode(string)
+        } else {
+            try container.encode(block)
+        }
+    }
+}
+
+/// C-066 §4 `actions: [ActionItem]`. Its two fields are C-067 ActionMenuRow's own §4 props.
+struct CaptureUI2Action: Codable {
+    let glyph: String
+    let label: String
+}
+
+/// C-042 §4 `indicator: (text: String, tone: positive|negative)?`. A struct only because a
+/// tuple is not Codable; the field names are the contract's.
+struct CaptureUI2Indicator: Codable {
+    let text: String
+    let tone: String                           // "positive" | "negative"
 }
 
 /// A theme choice for BlockStyleEditor's theme picker.
@@ -813,6 +938,14 @@ struct CaptureUI2ChartDay: Codable {
 struct CaptureUI2DateWindow: Codable {
     let start: String       // ISO yyyy-MM-dd, read as UTC
     let end: String
+}
+
+/// C-030 TimeActivityChart §4 `tickLabels: [(value: String, unit: String)]` — one tick pair.
+/// §4's type is a Swift tuple, which is not `Codable`; this struct carries the same two member
+/// names and the ViewRegistry case maps it back to the tuple the view's signature states.
+struct CaptureUI2TickLabel: Codable {
+    let value: String
+    let unit: String
 }
 
 /// Decodes a JSON value that is either a plain day COUNT (1.0: CardProgramFull's "30 days")

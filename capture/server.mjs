@@ -37,8 +37,12 @@ import {
 import { buildInventory, queryInventory } from './runners/compare/inventory.mjs';
 import { saveVariantShared } from './runners/compare/lib.mjs';
 import { buildIndex, ScopeError, kebab, makereadyRoot as repoRoot } from './lib/fs-index.mjs';
-import { buildUi2Index, ui2Counts, assetsDir as ui2AssetsDir } from './lib/ui2-index.mjs';
+import {
+  buildUi2Index, ui2Counts, assetsDir as ui2AssetsDir,
+  buildUi2Screens, ui2ScreenCounts, screenAssetsDir as ui2ScreenAssetsDir,
+} from './lib/ui2-index.mjs';
 import { isBuilt, ui2FixturePath, readUi2Fixture, writeUi2Fixture } from './lib/ui2-fixture.mjs';
+import { parseTokens, tokensPath } from './lib/ui2-tokens.mjs';
 import { buildScopePayload } from './lib/comment-payload.mjs';
 import {
   syncComparison,
@@ -1139,7 +1143,19 @@ if (!isProduction) {
 // pinned comments work identically on both sides.
 
 const UI2_VIEWPORT = 'design';
-const ui2AssetUrl = (rel) => (rel ? `/ui2-assets/${path.basename(rel)}` : null);
+/**
+ * A `docs/ui2/**\/assets/x.png` repo path → the URL that serves it.
+ *
+ * Components and screens keep separate asset dirs, and both register their
+ * artwork as platform `design` screenshots — so the mount is chosen by the
+ * path's DIRECTORY, never by the caller. Keying on the basename alone would
+ * have served a screen's PNG out of the components dir and 404'd.
+ */
+const ui2AssetUrl = (rel) => {
+  if (!rel) return null;
+  const mount = path.normalize(rel).includes(path.join('screens', 'assets')) ? 'ui2-screen-assets' : 'ui2-assets';
+  return `/${mount}/${path.basename(rel)}`;
+};
 /** Screenshots carry their own platform, and the design ones live outside the
  *  compare shot store — so URL resolution is per-screenshot, not per-caller. */
 const screenshotUrl = (sc) => (!sc ? null : sc.platform === 'design' ? ui2AssetUrl(sc.path) : shotUrlFromPath(sc.path));
@@ -1227,6 +1243,36 @@ async function syncUi2Row(row) {
   return created;
 }
 
+/**
+ * The SPACING tokens, as `[{ name, value }]` in points.
+ *
+ * The Layout tab names a measured value when it EQUALS a token — a 16pt inset
+ * is `space-page-margin`. Two tokens can share a value (`space-page-margin` and
+ * `space-card-padding` are both 16) and both are shipped: hiding one would
+ * assert which of them the render used, which the geometry cannot say.
+ *
+ * Radius tokens are deliberately NOT included. The panel derives no corner
+ * radius — a rect carries none — so every radius a value could match would be a
+ * false label on a distance: `radius-bar` is 2 and would have named C-030's 2pt
+ * bar gap `radius-bar`, which is a different property entirely.
+ *
+ * The same `parseTokens` the Swift generator runs on, so the browser and
+ * `UI2Preview/Tokens.swift` can never disagree about what tokens.md says.
+ */
+async function ui2SpacingTokens() {
+  try {
+    const md = await fs.readFile(tokensPath, 'utf-8');
+    const { spacing } = parseTokens(md);
+    return spacing
+      .map(({ name, value }) => ({ name, value: Number(value) }))
+      .filter((t) => Number.isFinite(t.value));
+  } catch {
+    // tokens.md unreadable → the panel shows bare numbers, which is the same
+    // thing it shows for a value no token matches. Never a reason to 500.
+    return [];
+  }
+}
+
 /** Shared row → API shape (the registry half; contract fields added per-caller). */
 const ui2RowBase = async (row) => {
   const built = await isBuilt(row.id);
@@ -1243,6 +1289,8 @@ const ui2RowBase = async (row) => {
     fixtureFile: built ? path.relative(repoRoot, ui2FixturePath(row.id)) : null,
     hasSnapshot: !!row.snapshot,
     stateCount: row.variants.length,
+    // For the Layout tab, which names a measured value when it equals a token.
+    spacingTokens: await ui2SpacingTokens(),
   };
 };
 
@@ -1281,6 +1329,9 @@ app.get('/api/ui2/detail', async (req, res) => {
       era: '2.0',
       registry: {
         figmaRef: row.figmaRef,
+        // Null whenever the ref does not determine ONE node — see figmaNodeUrl. The UI
+        // shows the raw `figmaRef` instead of guessing a link.
+        figmaUrl: row.figmaUrl ?? null,
         variantsProse: row.variantsProse,
         props: row.props,
         definedIn: row.definedIn,
@@ -1292,7 +1343,12 @@ app.get('/api/ui2/detail', async (req, res) => {
       viewport: UI2_VIEWPORT,
       viewportDimensions: {},
       canCapture: !isProduction,
-      commands: { spec: `/ui2-component ${row.id}` },
+      // Runnable verbatim: `commands.spec` carries the node URL whenever the registry
+      // determines one, because the UI puts this string in a click-to-COPY control and a
+      // `<figma-url>` placeholder there copies something you then have to hand-edit.
+      commands: {
+        spec: row.figmaUrl ? `/ui2-component ${row.id} ${row.figmaUrl}` : `/ui2-component ${row.id}`,
+      },
       // Per-prop artwork for the value sets §4 declares, as URLs: { prop: { value: url } }.
       // Built here rather than in the index so the `/ui2-assets` route stays known in one
       // place, and built into a NEW object because the index is cached and must not be
@@ -1307,9 +1363,19 @@ app.get('/api/ui2/detail', async (req, res) => {
           ]),
       ),
     };
-    if (!row.contract) {
-      // The 2.0 analogue of an unwired 1.0 component: the row exists, the
-      // contract doesn't. WiringChecklist's counterpart lives in the UI.
+    // The 2.0 analogue of an unwired 1.0 component: the row exists, the contract
+    // doesn't. WiringChecklist's counterpart lives in the UI, and `needsSpec`
+    // is what turns it on.
+    //
+    // An unspecced row still falls through to the variant loop whenever it has
+    // ARTWORK — since 2026-09-10 a /ui2-screen run captures the component it
+    // mints, so the row has a picture long before it has a contract, and the
+    // index gives it a single `set` state to hang that picture on. Returning
+    // early here (as this did) threw that away and rendered the row blank, which
+    // is what made C-052 unviewable. A row with neither contract nor artwork
+    // genuinely has nothing to show, and `row.variants` is empty for it anyway.
+    const needsSpec = !row.contract;
+    if (needsSpec && !row.variants.length) {
       return res.json({ ...base, variants: [], needsSpec: true });
     }
 
@@ -1373,7 +1439,162 @@ app.get('/api/ui2/detail', async (req, res) => {
         versions,
       });
     }
-    res.json({ ...base, variants });
+    res.json({ ...base, variants, needsSpec });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── UI 2.0 screens ─────────────────────────────────────────────────────────
+//
+// The registry's rows are one axis of the 2.0 program; the README's screen table
+// is the other. A screen is browsed exactly like a component — same four
+// columns, same version timeline, same pinned comments — because it is the same
+// kind of artefact: a frozen Figma frame with a normative spec beside it. The
+// only structural difference is that a screen's states each have their OWN
+// snapshot (invite-home's `unlinked` and `linked` are two frames), where a
+// component's states share one whole-set PNG.
+
+/** Register each of a screen's frozen frames as a design version of its state.
+ *  Idempotent on the PNG's sha, like syncUi2Row. */
+async function syncUi2Screen(row) {
+  if (!row.variants.length) return [];
+  await syncComparison({
+    id: row.comparisonId,
+    type: 'ui2-screen',
+    group: row.section,
+    title: `${row.id} — ${row.name}`,
+    adapter: 'ui2-design',
+  });
+  const created = [];
+  for (const v of row.variants) {
+    const abs = path.resolve(repoRoot, v.snapshot.repoPath);
+    const { width, height } = await pngSize(abs);
+    const existing = await findVersionBySourceHash(row.comparisonId, {
+      variantName: v.name, viewport: UI2_VIEWPORT, sourceHash: v.snapshot.sha,
+    });
+    if (existing) continue;
+    const version = await createVersion({
+      comparisonId: row.comparisonId,
+      variantName: v.name,
+      viewport: UI2_VIEWPORT,
+      capturedAt: v.snapshot.capturedAt,
+      sourceHash: v.snapshot.sha,
+      componentName: row.id,
+      width, height,
+    });
+    await addScreenshot({ versionId: version.id, platform: 'design', device: 'figma', path: v.snapshot.repoPath, width, height });
+    created.push(version.id);
+  }
+  return created;
+}
+
+/** Shared screen row → API shape (the README half). */
+const ui2ScreenRowBase = (row) => ({
+  id: row.id,
+  name: row.name,
+  kind: 'screen',
+  status: row.status,
+  platform: row.platform,
+  figma: row.figma,
+  section: row.section,
+  comparisonId: row.comparisonId,
+  specced: !!row.spec,
+  specFile: row.spec?.file ?? null,
+  hasSnapshot: !!row.snapshot,
+  stateCount: row.variants.length,
+  componentIds: row.componentIds,
+  notes: row.notes,
+});
+
+// The screen tree: README sections → screen rows, with spec/snapshot state.
+app.get('/api/ui2/screens', async (_req, res) => {
+  try {
+    const index = await buildUi2Screens();
+    const sections = [];
+    for (const section of index.sections) {
+      const rows = [];
+      for (const row of section.rows) {
+        const unresolvedComments = row.spec ? (await summarize(row.comparisonId)).unresolved : 0;
+        rows.push({ ...ui2ScreenRowBase(row), unresolvedComments, thumbnail: ui2AssetUrl(row.snapshot?.repoPath) });
+      }
+      sections.push({ name: section.name, rows });
+    }
+    res.json({ root: 'docs/ui2/README.md', sections, counts: ui2ScreenCounts(index) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// One screen: its spec, its designed content states as variants, each with the
+// design-version timeline. Same payload shape as /api/ui2/detail so the browser
+// columns render a screen without branching.
+app.get('/api/ui2/screen-detail', async (req, res) => {
+  try {
+    const index = await buildUi2Screens();
+    const row = index.byId.get(String(req.query.id ?? ''));
+    if (!row) return res.status(404).json({ error: 'unknown screen' });
+    await syncUi2Screen(row);
+
+    // Every C-### the spec's §4 enumerates, resolved against the registry so the
+    // UI can link each one and show the name it actually carries now (a row
+    // renamed after the screen was specced still resolves — ids never change).
+    const registry = await buildUi2Index();
+    const components = row.componentIds.map((id) => {
+      const c = registry.byId.get(id);
+      return { id, name: c?.name ?? null, specced: !!c?.contract, hasSnapshot: !!c?.snapshot };
+    });
+
+    const base = {
+      ...ui2ScreenRowBase(row),
+      era: '2.0',
+      spec: row.spec,
+      components,
+      snapshot: row.snapshot ? { ...row.snapshot, url: ui2AssetUrl(row.snapshot.repoPath) } : null,
+      viewports: [UI2_VIEWPORT],
+      viewport: UI2_VIEWPORT,
+      viewportDimensions: {},
+      canCapture: !isProduction,
+      commands: {
+        spec: row.spec?.figmaUrl
+          ? `/ui2-screen ${row.id} ${row.spec.figmaUrl}`
+          : `/ui2-screen ${row.id}`,
+      },
+    };
+    if (!row.variants.length) return res.json({ ...base, variants: [], needsSpec: true });
+
+    const variants = [];
+    for (const v of row.variants) {
+      const comments = await listCommentsForVariant(row.comparisonId, v.name, UI2_VIEWPORT);
+      const versions = (await listVersions(row.comparisonId, { variantName: v.name, viewport: UI2_VIEWPORT, withScreenshots: true })).map((ver) => {
+        const shot = ver.screenshots.find((sc) => sc.platform === 'design') ?? null;
+        return {
+          versionId: ver.id, capturedAt: ver.capturedAt, viewport: ver.viewport,
+          gitSha: ver.gitSha, gitDirty: ver.gitDirty,
+          shot: screenshotUrl(shot), screenshotId: shot?.id ?? null,
+          hasBuiltRender: false,
+          props: null,
+          shots: {
+            design: { url: screenshotUrl(shot), screenshotId: shot?.id ?? null },
+            iphone: { url: null, screenshotId: null },
+          },
+          unresolvedComments: comments.filter((c) => c.versionId === ver.id && !c.resolved).length,
+        };
+      });
+      variants.push({
+        name: v.name,
+        slug: v.slug,
+        consumption: '',
+        consumptionState: 'unknown',
+        undesigned: false,
+        cells: [],
+        fixtureProps: null,
+        snapshotFile: v.snapshot.file,
+        unresolvedComments: comments.filter((c) => !c.resolved).length,
+        versions,
+      });
+    }
+    res.json({ ...base, variants, needsSpec: !row.spec });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1473,8 +1694,18 @@ if (!isProduction) {
 
   app.post('/api/ui2/refresh', async (req, res) => {
     try {
+      const id = String(req.body?.id ?? '');
+      // A screen id is anything that isn't a C-### — the same shape test the
+      // browser routes on, so one Refresh button serves both registries.
+      if (!/^C-\d{3}$/i.test(id)) {
+        const screens = await buildUi2Screens();
+        const screen = screens.byId.get(id);
+        if (!screen) return res.status(404).json({ error: 'unknown screen' });
+        const created = await syncUi2Screen(screen);
+        return res.json({ ok: true, created: created.length, sha: screen.snapshot?.sha ?? null });
+      }
       const index = await buildUi2Index();
-      const row = index.byId.get(String(req.body?.id ?? '').toUpperCase());
+      const row = index.byId.get(id.toUpperCase());
       if (!row) return res.status(404).json({ error: 'unknown component' });
       const created = await syncUi2Row(row);
       res.json({ ok: true, created: created.length, sha: row.snapshot?.sha ?? null });
@@ -1500,6 +1731,7 @@ if (!isProduction) {
 
 // Frozen Figma snapshots (read-only, flat directory).
 app.use('/ui2-assets', express.static(ui2AssetsDir));
+app.use('/ui2-screen-assets', express.static(ui2ScreenAssetsDir));
 
 // Screenshots from the compare store
 app.use('/screenshots/compare', express.static(compareRoot));

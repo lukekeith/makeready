@@ -284,6 +284,21 @@ export async function fetchUi2Detail(id) {
   return res.json();
 }
 
+export async function fetchUi2Screens() {
+  const res = await fetch('/api/ui2/screens');
+  if (!res.ok) throw new Error(`ui2 screens fetch failed: ${res.status}`);
+  return res.json();
+}
+
+export async function fetchUi2ScreenDetail(id) {
+  const res = await fetch(`/api/ui2/screen-detail?${new URLSearchParams({ id })}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 screen fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
 export async function fetchUi2Version(versionId) {
   const res = await fetch(`/api/ui2/version/${encodeURIComponent(versionId)}`);
   if (!res.ok) {

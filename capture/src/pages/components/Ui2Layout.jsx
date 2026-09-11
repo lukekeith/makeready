@@ -16,6 +16,8 @@ import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import {
   fetchUi2Tree,
   fetchUi2Detail,
+  fetchUi2Screens,
+  fetchUi2ScreenDetail,
   fetchUi2Version,
   refreshUi2Snapshot,
   saveUi2Fixture,
@@ -34,15 +36,26 @@ import RenderPane from './RenderPane.jsx';
 import SidePanel from './SidePanel.jsx';
 
 const ID_RE = /^C-\d{3}$/i;
+/** Component or screen? The two registries share one route space, and their id
+ *  shapes are disjoint by construction: a component is always `C-###`, a screen
+ *  is always a kebab word from the README table. So the URL alone says which
+ *  endpoint to ask, with no lookup and no ambiguity. */
+const kindOf = (id) => (ID_RE.test(id ?? '') ? 'component' : 'screen');
 
-/** `<C-###>[/<variant-slug>]`. The slug is the canonical key (lowercase, dashed,
- *  never percent-encoded), but links made before slugs existed carry the state's
- *  display name — which could hold slashes — so everything after the id is kept
- *  as one string and resolved against slug first, name second. */
+/** `<C-###|screen-id>[/<variant-slug>]`. The slug is the canonical key
+ *  (lowercase, dashed, never percent-encoded), but links made before slugs
+ *  existed carry the state's display name — which could hold slashes — so
+ *  everything after the id is kept as one string and resolved against slug
+ *  first, name second. */
 function parseSub(sub) {
   const segs = (sub ?? '').split('/').filter(Boolean).map(decodeURIComponent);
-  if (!segs.length || !ID_RE.test(segs[0])) return { id: null, key: null };
-  return { id: segs[0].toUpperCase(), key: segs.slice(1).join('/') || null };
+  if (!segs.length) return { id: null, key: null, kind: null };
+  const kind = kindOf(segs[0]);
+  return {
+    id: kind === 'component' ? segs[0].toUpperCase() : segs[0],
+    key: segs.slice(1).join('/') || null,
+    kind,
+  };
 }
 
 const RENDER_LABELS = {
@@ -58,6 +71,7 @@ export default function Ui2Layout({ sub = '', header = null }) {
   const navigate = useNavigate();
 
   const [treeData, setTreeData] = useState(null);
+  const [screenData, setScreenData] = useState(null);
   const [treeError, setTreeError] = useState(null);
   const [detail, setDetail] = useState(null);
   const [detailError, setDetailError] = useState(null);
@@ -75,20 +89,26 @@ export default function Ui2Layout({ sub = '', header = null }) {
   const [platform, setPlatform] = useState('design');
   const unsubRef = useRef(null);
 
-  const { id, key } = useMemo(() => parseSub(sub), [sub]);
+  const { id, key, kind } = useMemo(() => parseSub(sub), [sub]);
+  const isScreen = kind === 'screen';
   const variantPath = useCallback((v) => `/components/2.0/${id}/${v.slug}`, [id]);
 
   const loadTree = useCallback(async () => {
-    try { setTreeData(await fetchUi2Tree()); setTreeError(null); }
-    catch (err) { setTreeError(err.message); }
+    // Both registries feed one column, so both are fetched together and one
+    // failure surfaces as one banner — a half-loaded tree would silently look
+    // like "there are no screens".
+    try {
+      const [components, screens] = await Promise.all([fetchUi2Tree(), fetchUi2Screens()]);
+      setTreeData(components); setScreenData(screens); setTreeError(null);
+    } catch (err) { setTreeError(err.message); }
   }, []);
   useEffect(() => { loadTree(); }, [loadTree]);
 
   const loadDetail = useCallback(async () => {
     if (!id) { setDetail(null); setDetailError(null); return; }
-    try { setDetail(await fetchUi2Detail(id)); setDetailError(null); }
+    try { setDetail(await (isScreen ? fetchUi2ScreenDetail(id) : fetchUi2Detail(id))); setDetailError(null); }
     catch (err) { setDetail(null); setDetailError(err.message); }
-  }, [id]);
+  }, [id, isScreen]);
   useEffect(() => { loadDetail(); }, [loadDetail, shotsVersion]);
 
   const activeVariant = useMemo(() => {
@@ -162,6 +182,10 @@ export default function Ui2Layout({ sub = '', header = null }) {
   // behave exactly as they did before.
   const elements = activeShot.platform === 'iphone' ? (vdata?.elements?.elements ?? null) : null;
   const [hoverTarget, setHoverTarget] = useState(null);
+  // The Layout tab drives its own box: it works outside comment mode (where
+  // `hoverTarget` is deliberately cleared), and it is set from a tree row
+  // rather than from a pointer over the render.
+  const [inspectBox, setInspectBox] = useState(null);
 
   /** Smallest annotated part containing the point — the deepest one, since a
    *  child's rect is inside its parent's. Reversed, that is the path from the
@@ -393,6 +417,20 @@ export default function Ui2Layout({ sub = '', header = null }) {
     return () => document.removeEventListener('keydown', onKey);
   }, [canComment]);
 
+  // The comments panel's chat composer: a message about the variant as a whole, with no
+  // pin. `x`/`y` are simply omitted — the server stores NULL, and CommentLayer skips it.
+  const postMessage = async (text) => {
+    if (!detail?.comparisonId || !text.trim()) return;
+    await addComment(detail.comparisonId, {
+      variantName: vdata?.variantName ?? activeVariant?.name ?? 'default',
+      platform: activeShot.platform,
+      viewport: detail?.viewport ?? 'design',
+      text: text.trim(),
+      source: 'user',
+    });
+    await refreshComments();
+  };
+
   const commentApi = {
     // Scoped to the platform actually on screen (`activeShot.platform`, which
     // already accounts for a version-with-no-shot fallback). CommentsTab's
@@ -408,13 +446,15 @@ export default function Ui2Layout({ sub = '', header = null }) {
     commentMode, setCommentMode,
     draftPin, placeDraft, submitDraft, cancelDraft: () => setDraftPin(null),
     selectedCommentId, setSelectedCommentId,
-    canComment, onReply, onResolve, onDelete,
+    canComment, onReply, onResolve, onDelete, postMessage,
   };
 
-  // RenderPane keys its title off `name`; show the registry id with it.
+  // RenderPane keys its title off `name`; show the id with it. A screen's id IS
+  // its handle (`study-program-home`) and its name is the prose title, so the two
+  // read as a sentence rather than as the component form's "C-052 DayChip".
   const renderDetail = useMemo(
-    () => (detail ? { ...detail, name: `${detail.id} ${detail.name}` } : null),
-    [detail],
+    () => (detail ? { ...detail, name: isScreen ? `${detail.id} — ${detail.name}` : `${detail.id} ${detail.name}` } : null),
+    [detail, isScreen],
   );
 
   // Built components recapture the simulator render; unbuilt ones only have a
@@ -463,6 +503,13 @@ export default function Ui2Layout({ sub = '', header = null }) {
   // "every state" are the same command with and without the second argument.
   const prompts = useMemo(() => {
     if (!detail?.id) return [];
+    // A screen has no /ui2-resolve equivalent — its comments are answered by
+    // re-running the spec against the design, so the one prompt offered is the
+    // spec command the server already composed (with the node URL when it has
+    // one, so the string is runnable verbatim).
+    if (isScreen) {
+      return [{ label: 'Re-spec this screen', sub: detail.commands.spec, text: detail.commands.spec }];
+    }
     const list = [];
     if (activeVariant?.slug) {
       list.push({
@@ -477,7 +524,7 @@ export default function Ui2Layout({ sub = '', header = null }) {
       text: `/ui2-resolve ${detail.id}`,
     });
     return list;
-  }, [detail?.id, activeVariant?.slug]);
+  }, [detail?.id, detail?.commands?.spec, activeVariant?.slug, isScreen]);
 
   return (
     <div className="layout cmp-cb">
@@ -492,7 +539,15 @@ export default function Ui2Layout({ sub = '', header = null }) {
       <div className="cmp-cb__cols">
       {treeError
         ? <div className="cmp-cb-col cmp-cb-col--tree">{header}<div className="error-banner">{treeError}<button className="btn btn--mini" style={{ marginLeft: 8 }} onClick={loadTree}>Retry</button></div></div>
-        : <Ui2Tree header={header} data={treeData} selectedId={id} onSelect={(row) => navigate(`/components/2.0/${row.id}`)} />}
+        : (
+          <Ui2Tree
+            header={header}
+            data={treeData}
+            screens={screenData}
+            selectedId={id}
+            onSelect={(row) => navigate(`/components/2.0/${row.id}`)}
+          />
+        )}
 
       <VariantList
         detail={detail}
@@ -502,7 +557,7 @@ export default function Ui2Layout({ sub = '', header = null }) {
           if (v) navigate(variantPath(v));
         }}
         mode="design"
-        emptyLabel="no states — component not specced yet"
+        emptyLabel={isScreen ? 'no frames — screen not specced yet' : 'no states — component not specced yet'}
       />
 
       <RenderPane
@@ -531,6 +586,7 @@ export default function Ui2Layout({ sub = '', header = null }) {
         onHoverInspect={hoverInspect}
         onClearInspect={clearInspect}
         hoverBox={hoverTarget?.rect ?? null}
+        inspectBox={inspectBox}
       />
 
       <SidePanel
@@ -543,6 +599,9 @@ export default function Ui2Layout({ sub = '', header = null }) {
         onSaveFixture={saveFixture}
         dataView={dataView}
         mode="design"
+        elements={vdata?.elements ?? null}
+        platform={activeShot.platform}
+        onInspect={setInspectBox}
       />
       </div>
 

@@ -38,6 +38,8 @@ flowchart TD
     programsHome --> program[study-program-home]
     classDef orphan stroke-dasharray: 4 4
     program --> editor[activities-editor]
+    program --> enrollment
+    program --> editField[shared-edit-field]
 ```
 
 ## Web member lesson runtime
@@ -87,8 +89,10 @@ the screen spec's §Connections. Overlay presentations are edges too (`overlay` 
 | ~~shell-tabs~~ | search-home | ~~tab~~ | **no tab edge (2026-09-05)** — Search is not in the closed 8-tab set; entry surface unaccounted for | `design-system/components/C-019-top-nav.md` §2 |
 | library-home | (3 creation flows, undesigned) | overlay? | the Library tab's nav add action → Record video / Record audio / Write a note (owner 2026-09-05); presentation undesigned, C-066 proposed — OQ-C-019-2/5 | `design-system/components/C-019-top-nav.md` §2b |
 | programs-home | study-program-home | push | program row tap (**moved from library-home 2026-09-05** — the owner's Library ruling; the pushed presentation is proven by the C-040 back bar) | `screens/study-program-home.md` §6 |
-| study-program-home | activities-editor | push | ActivityThumbnail tap (contract owned by activities-editor spec) | `screens/study-program-home.md` §6 |
-| study-program-home | (deferred) | push/tap | header settings + export, Group Activity arrowRight, GroupEnrollmentCard tap — destinations pending frames (OQ-study-program-home-3) | `screens/study-program-home.md` §8 |
+| study-program-home | activities-editor | push | ActivitySlide tap inside a C-063 LessonCard (contract owned by activities-editor spec; **2026-09-10** — was ActivityThumbnail tap, C-056 is orphaned) | `screens/study-program-home.md` §6 |
+| study-program-home | enrollment-home | push | C-037 enrollment row tap (**new 2026-09-10** — the re-spec turns the superseded frame's deferred "GroupEnrollmentCard tap" into a real edge) | `screens/study-program-home.md` §6 |
+| study-program-home | shared-edit-field | push | any of the 7 C-042 settings rows, one field per visit (**new 2026-09-10** — settings moved inline onto the page, so this replaces the deferred "header settings" destination) | `screens/study-program-home.md` §6 |
+| study-program-home | (deferred) | push/tap | Active-enrollments `add` (OQ-study-program-home-10), Lessons `add` (OQ-1). **Removed 2026-09-10:** header settings + export and Group Activity arrowRight are no longer on the frame — where publish, export and program analytics live in 2.0 is now OQ-study-program-home-14 | `screens/study-program-home.md` §8 |
 | activities-player | activities-completion | page | pager reaches final page | |
 
 ## Dependency notes (which screens must be specced first)
