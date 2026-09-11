@@ -46,6 +46,7 @@ import {
   noteKind, readNotes, appendNote, extractMentions, notesRepoPath, targetsWithNotes,
 } from './lib/ui2-notes.mjs';
 import { parseTokens, tokensPath } from './lib/ui2-tokens.mjs';
+import { pngSize } from './lib/png-size.mjs';
 import { buildScopePayload } from './lib/comment-payload.mjs';
 import {
   syncComparison,
@@ -1189,19 +1190,6 @@ const ui2ElementMap = async (sc) => {
   } catch { return null; }
 };
 
-/** PNG dimensions from the IHDR header (no decode). */
-async function pngSize(abs) {
-  try {
-    const fh = await fs.open(abs, 'r');
-    try {
-      const buf = Buffer.alloc(24);
-      await fh.read(buf, 0, 24, 0);
-      if (buf.toString('ascii', 1, 4) !== 'PNG') return {};
-      return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
-    } finally { await fh.close(); }
-  } catch { return {}; }
-}
-
 /**
  * Register the row's current frozen snapshot as a design version per state.
  * Idempotent: keyed on the PNG's sha, so reads are free and only a genuinely
@@ -1637,11 +1625,29 @@ app.get('/api/ui2/screen-detail', async (req, res) => {
     // Every C-### the spec's §4 enumerates, resolved against the registry so the
     // UI can link each one and show the name it actually carries now (a row
     // renamed after the screen was specced still resolves — ids never change).
+    //
+    // Resolution happens ONCE PER UNIQUE ref and is shared with the element maps
+    // below (suite 09 §X-3). Two reasons: `built` costs an isBuilt() fs check and
+    // a screen can render the same chip fourteen times, and the Screen tab's
+    // roll-call and the render's hover labels must never disagree about the same
+    // component.
     const registry = await buildUi2Index();
-    const components = row.componentIds.map((id) => {
+    const resolveCache = new Map();
+    const resolveRef = async (id) => {
+      if (resolveCache.has(id)) return resolveCache.get(id);
       const c = registry.byId.get(id);
-      return { id, name: c?.name ?? null, specced: !!c?.contract, hasSnapshot: !!c?.snapshot };
-    });
+      const resolved = c
+        ? { name: c.name, specced: !!c.contract, built: await isBuilt(c.id), hasSnapshot: !!c.snapshot }
+        : null;
+      resolveCache.set(id, resolved);
+      return resolved;
+    };
+
+    const components = [];
+    for (const id of row.componentIds) {
+      const r = await resolveRef(id);
+      components.push({ id, name: r?.name ?? null, specced: !!r?.specced, built: !!r?.built, hasSnapshot: !!r?.hasSnapshot });
+    }
 
     const base = {
       ...ui2ScreenRowBase(row),
@@ -1679,6 +1685,24 @@ app.get('/api/ui2/screen-detail', async (req, res) => {
           unresolvedComments: comments.filter((c) => c.versionId === ver.id && !c.resolved).length,
         };
       });
+      // The frame's component instances, each resolved so the browser can label a
+      // hover box without a second fetch. `null` when there is no map, it failed
+      // to parse, or it failed the aspect guard — the client draws no boxes for
+      // all three, and the screen renders exactly as it did before this existed.
+      let elements = null;
+      if (v.elements) {
+        const resolvedEls = [];
+        for (const el of v.elements.elements) {
+          resolvedEls.push({ ...el, resolved: await resolveRef(el.ref) });
+        }
+        elements = {
+          node: v.elements.node ?? null,
+          size: v.elements.size ?? null,
+          generatedBy: v.elements.generatedBy ?? null,
+          elements: resolvedEls,
+        };
+      }
+
       variants.push({
         name: v.name,
         slug: v.slug,
@@ -1688,6 +1712,7 @@ app.get('/api/ui2/screen-detail', async (req, res) => {
         cells: [],
         fixtureProps: null,
         snapshotFile: v.snapshot.file,
+        elements,
         unresolvedComments: comments.filter((c) => !c.resolved).length,
         versions,
       });

@@ -25,6 +25,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { makereadyRoot } from './fs-index.mjs';
+import { pngSize } from './png-size.mjs';
 
 export const ui2Root = path.resolve(makereadyRoot, 'docs/ui2');
 export const registryPath = path.join(ui2Root, 'design-system/registry.md');
@@ -808,6 +809,47 @@ function screenStateLabel(fileName, screenId) {
   return stripped || 'default';
 }
 
+/**
+ * A screen snapshot's element map — one rect per component instance on the frame
+ * (docs/features/ui2-component-notes/03-data-and-api.md §1.2).
+ *
+ * The sibling of `ui2ElementMap()` in server.mjs, which serves the iOS harness's
+ * maps beside a BUILT component render. A screen has no built render at all: its
+ * map is written from Figma at spec time by /ui2-screen (or, for the ten screens
+ * specced before this existed, by capture/scripts/ui2-screen-elements.mjs), and
+ * it carries a `ref` — the C-### the instance resolved to — which the harness
+ * maps have no need for.
+ *
+ * `size` is the exported IMAGE's coordinate space, not necessarily one frame's:
+ * shared-edit-field freezes a whole section of six frames as one PNG, so rects
+ * are fractions of whatever was exported (suite 09 §G-5). One rule covers both,
+ * because the browser hit-tests fractions of the image it is displaying.
+ *
+ * The aspect-ratio guard is the same reasoning as the harness's: the map and the
+ * PNG are separate files, and a stale map would put boxes — and therefore
+ * comment targets and note attributions — on the wrong component, which is worse
+ * than having none. Ratio is the one dimensionless check available (the map is in
+ * points, the PNG in pixels at whatever scale the export used).
+ */
+async function readScreenElementMap(abs, png) {
+  let parsed;
+  try {
+    parsed = JSON.parse(await fs.readFile(abs.replace(/\.png$/i, '.elements.json'), 'utf-8'));
+  } catch { return null; }
+
+  if (!Array.isArray(parsed?.elements) || !parsed.elements.length) return null;
+  // `ref` is REQUIRED (03 §1.2): an entry without one cannot be labelled, opened
+  // or noted against, and a map that contains one was written by something that
+  // did not follow the contract — so the whole map is suspect, not just the row.
+  if (!parsed.elements.every((e) => typeof e?.ref === 'string' && e.ref)) return null;
+
+  if (png?.width > 0 && png?.height > 0 && parsed.size?.w > 0 && parsed.size?.h > 0) {
+    const target = png.width / png.height;
+    if (Math.abs((parsed.size.w / parsed.size.h) - target) / target > 0.01) return null;
+  }
+  return parsed;
+}
+
 let screenCache = null;
 
 /**
@@ -850,12 +892,19 @@ export async function buildUi2Screens() {
         const abs = path.join(screenAssetsDir, fileName);
         const sha = await sha1(abs);
         if (!sha) continue; // cited but not on disk — say nothing rather than 404 a render
+        // Pixel dimensions are read here rather than in the route because the
+        // element map's aspect guard needs them, and this is the only place that
+        // already knows which PNG backs which state.
+        const png = await pngSize(abs);
         snapshots.push({
           file: fileName,
           label: screenStateLabel(fileName, row.id),
           repoPath: repoRelative(abs),
           sha,
+          width: png.width ?? null,
+          height: png.height ?? null,
           capturedAt: new Date(await mtime(abs)),
+          elements: await readScreenElementMap(abs, png),
         });
       }
       row.section = section.name;
@@ -871,6 +920,9 @@ export async function buildUi2Screens() {
         consumptionState: 'unknown',
         cells: [],
         snapshot: s,
+        // null when absent, unparseable, missing a ref, or aspect-mismatched —
+        // the client treats all four identically and draws no boxes.
+        elements: s.elements,
       }));
       row.comparisonId = ui2ScreenComparisonId(row.id);
       byId.set(row.id, row);

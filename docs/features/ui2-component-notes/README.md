@@ -38,7 +38,7 @@ capture except the last, which is the three command files under root `.claude/`.
 | # | Phase | App | Doc | Tasks | Status |
 |---|---|---|---|---|---|
 | 1 | Notes storage + routes | capture (backend) | [10](10-phase-1-notes-backend.md) | 5 | ✅ 2026-09-10 |
-| 2 | Element maps: parse, guard, serve | capture (backend) | [11](11-phase-2-element-maps-serving.md) | 6 | ⬜ |
+| 2 | Element maps: parse, guard, serve | capture (backend) | [11](11-phase-2-element-maps-serving.md) | 6 | ✅ 2026-09-10 |
 | 3 | The element-map backfill | capture + docs/ui2 | [12](12-phase-3-backfill.md) | 5 | ⬜ |
 | 4 | Hover, click and the box | capture (frontend) | [13](13-phase-4-targeting-ui.md) | 8 | ⬜ |
 | 5 | Component tab, notes, composer | capture (frontend) | [14](14-phase-5-component-tab.md) | 9 | ⬜ |
