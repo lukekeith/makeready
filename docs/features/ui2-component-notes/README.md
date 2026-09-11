@@ -1,6 +1,8 @@
 # ui2-component-notes — screen element targeting, the Component tab, and notes
 
-**Status: built — awaiting verify + your sign-off** (6 of 6 phases VERIFIED 2026-09-10)
+**Status: Shipped-ready (2026-09-10)** — 6 of 6 phases VERIFIED, signed off by the owner
+**without a human walk**: they authorised sign-off after being shown the script and the one
+outstanding item. Everything below was verified by agents only.
 
 Point at a component on a 2.0 screen and talk about it. Three joined parts:
 
@@ -27,8 +29,8 @@ screen while saying it.
 | decisions | ✅ closed 2026-09-10 — 5 rulings taken as **defaults**, each veto-able (09) |
 | plan | ✅ 6 phase docs written 2026-09-10 |
 | build | ⬜ |
-| verify | ⬜ |
-| sign-off | ⬜ |
+| verify | ⚠️ INCOMPLETE on 1 item, accepted by the owner 2026-09-10 |
+| sign-off | ✅ owner-authorised 2026-09-10 (not owner-exercised) |
 
 ## Phase status
 
@@ -83,6 +85,11 @@ during this build was deleted for the same reason — `git status docs/ui2` is c
 **What clears it:** write a note on a built component through the Component tab, then run
 `/ui2-component-build <C-###>` (or `/ui2-component-update <C-###>`) and confirm the note is
 loaded in phase 0 and honoured in phases 3–4.
+
+**Accepted 2026-09-10.** The owner signed the feature off with this item outstanding rather than
+clearing it. It is not closed — the first real build run on a component carrying an owner-written
+note closes it, and until then R11 is proved by reading the command file, not by having watched it
+work.
 
 ## Doc index
 
