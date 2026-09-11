@@ -31,11 +31,20 @@ Resolution, in order, per Figma instance in the frame:
 
 1. Read the exported node's `get_metadata` tree; keep every `<instance>` node with its `name`,
    node id, and rect. **The rect conversion is the step that gets this wrong if it is left
-   implicit:** `get_metadata` gives absolute canvas coordinates, so each instance becomes
-   `x = (abs.x - root.x) / root.w`, `y = (abs.y - root.y) / root.h`, `w = abs.w / root.w`,
-   `h = abs.h / root.h`, where `root` is the node that was exported (§1.0). Values are clamped to
-   `0…1`; an instance lying wholly outside the root's box (a detached annotation, a clipped
-   off-canvas layer) is dropped, not clamped to an edge.
+   implicit.** **Corrected 2026-09-10 (build phase 3, against the live MCP):** `get_metadata`
+   reports each node's rect **relative to its PARENT**, not in absolute canvas coordinates — only
+   the root carries a canvas position (`<frame id="3622:5487" x="22215" y="5495" …>` with children
+   at `x="0"`). So the walk **accumulates offsets down the tree**: a node's frame-space origin is
+   the sum of its ancestors' `x`/`y` below the root, and each instance becomes
+   `x = (ox / root.w)`, `y = (oy / root.h)`, `w = w / root.w`, `h = h / root.h`.
+   Values are clamped to `0…1` — horizontally scrolling rails are genuinely wider than the frame
+   (`home-dashboard`'s KPI rail is 468pt inside a 440pt frame, and its third card starts at 312)
+   — and an instance lying **wholly** outside the root's box is dropped rather than clamped to an
+   edge.
+
+   Since the metadata comes from the Figma MCP, which only the agent can call, the generator takes
+   a **saved metadata dump** as input rather than fetching it — the same pattern `/ui2-screen`
+   already uses ("grep the saved metadata dump", `.claude/commands/ui2-screen.md:91-168`).
 2. Build a lookup from the registry's **Figma ref** column: each row's cited set/node ids and
    the parenthesised sheet name (`set 3668:7440 (sheet, Search results)` → `C-037` keyed by
    both `3668:7440` and `search results`).

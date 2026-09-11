@@ -1,0 +1,93 @@
+{
+  "screen": "members-home",
+  "snapshot": "members-home.png",
+  "node": "3668:6801",
+  "size": {
+    "w": 440,
+    "h": 1892
+  },
+  "generatedBy": "backfill@2026-09-11",
+  "elements": [
+    {
+      "ref": "C-019",
+      "name": "TopNav",
+      "instance": "3668:6813",
+      "x": 0,
+      "y": 0.0248,
+      "w": 1,
+      "h": 0.0169
+    },
+    {
+      "ref": "C-034",
+      "name": "SearchField",
+      "instance": "3668:7387",
+      "x": 0.0364,
+      "y": 0.0502,
+      "w": 0.9273,
+      "h": 0.0233
+    },
+    {
+      "ref": "C-035",
+      "name": "FilterChip",
+      "instance": "3668:7390",
+      "x": 0.0364,
+      "y": 0.0819,
+      "w": 0.2545,
+      "h": 0.0127
+    },
+    {
+      "ref": "C-035",
+      "name": "FilterChip",
+      "instance": "3668:7616",
+      "x": 0.3091,
+      "y": 0.0819,
+      "w": 0.2659,
+      "h": 0.0127
+    },
+    {
+      "ref": "C-037",
+      "name": "ListResultRow",
+      "instance": "3668:7527",
+      "x": 0.0364,
+      "y": 0.1031,
+      "w": 0.9273,
+      "h": 0.0423
+    },
+    {
+      "ref": "C-037",
+      "name": "ListResultRow",
+      "instance": "3668:7540",
+      "x": 0.0364,
+      "y": 0.1453,
+      "w": 0.9273,
+      "h": 0.0423
+    },
+    {
+      "ref": "C-037",
+      "name": "ListResultRow",
+      "instance": "3668:7553",
+      "x": 0.0364,
+      "y": 0.1876,
+      "w": 0.9273,
+      "h": 0.0423
+    },
+    {
+      "ref": "C-037",
+      "name": "ListResultRow",
+      "instance": "3668:7648",
+      "x": 0.0364,
+      "y": 0.2299,
+      "w": 0.9273,
+      "h": 0.0423
+    },
+    {
+      "ref": "C-037",
+      "name": "ListResultRow",
+      "instance": "3668:7662",
+      "x": 0.0364,
+      "y": 0.2722,
+      "w": 0.9273,
+      "h": 0.0423
+    }
+  ]
+}

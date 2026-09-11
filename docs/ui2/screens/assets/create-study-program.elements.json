@@ -1,0 +1,39 @@
+{
+  "screen": "create-study-program",
+  "snapshot": "create-study-program.png",
+  "node": "3833:33374",
+  "size": {
+    "w": 440,
+    "h": 956
+  },
+  "generatedBy": "backfill@2026-09-11",
+  "elements": [
+    {
+      "ref": "C-040",
+      "name": "PageHeader",
+      "instance": "3833:33385",
+      "x": 0,
+      "y": 0.0492,
+      "w": 1,
+      "h": 0.0586
+    },
+    {
+      "ref": "C-046",
+      "name": "FieldGroup",
+      "instance": "3833:33389",
+      "x": 0.0364,
+      "y": 0.2416,
+      "w": 0.9273,
+      "h": 0.0732
+    },
+    {
+      "ref": "C-048",
+      "name": "PageActionButton",
+      "instance": "3833:33394",
+      "x": 0.0364,
+      "y": 0.3483,
+      "w": 0.9273,
+      "h": 0.0397
+    }
+  ]
+}
