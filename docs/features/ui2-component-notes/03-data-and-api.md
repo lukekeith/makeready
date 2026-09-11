@@ -87,7 +87,10 @@ iOS harness already uses beside its renders.
 
 **One entry per instance.** Fourteen `C-052` chips produce fourteen entries with the same
 `ref`. Nesting is expressed by containment, not by a parent field — the hit test derives depth
-from area (D8), and authoring order puts inner elements later.
+from area (D8). **Order is normative for ties only** (corrected 2026-09-10, 09 §G-19): entries are
+written **smallest-area first, and within an exact tie deepest-first**, because the hit test takes
+the first containing entry it meets. A parent frame and the single child that fills it exactly are
+indistinguishable by area, and only this ordering makes the child win.
 
 **Aspect-ratio guard.** Before use, the server compares `size.w / size.h` against the PNG's
 `width / height`; a divergence over 1% discards the map, exactly as `ui2ElementMap()` does

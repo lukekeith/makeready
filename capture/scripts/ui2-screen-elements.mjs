@@ -72,12 +72,16 @@ function parseMetadata(xml) {
       // The root's own x/y are canvas coordinates; everything below is relative
       // to it, so the origin of the frame space is (0,0).
       root = { id: a.id, name: a.name, w, h };
-      if (!selfClosing) stack.push({ ox: 0, oy: 0 });
+      if (!selfClosing) stack.push({ ox: 0, oy: 0, depth: 0 });
       continue;
     }
 
     const parent = stack[stack.length - 1] ?? { ox: 0, oy: 0 };
-    const node = { tag, id: a.id, name: a.name ?? '', ox: parent.ox + x, oy: parent.oy + y, w, h };
+    const node = {
+      tag, id: a.id, name: a.name ?? '',
+      ox: parent.ox + x, oy: parent.oy + y, w, h,
+      depth: (parent.depth ?? 0) + 1,
+    };
     nodes.push(node);
     if (!selfClosing) stack.push(node);
   }
@@ -187,12 +191,20 @@ async function mapScreen({ screenId, stem, dump, pad = 0 }, { index, byNode, loo
       ref,
       name: index.byId.get(ref)?.name ?? n.name,
       instance: n.id,
+      depth: n.depth,
       x: round4(clamp01((n.ox + pad) / space.w)),
       y: round4(clamp01((n.oy + pad) / space.h)),
       w: round4(clamp01(n.w / space.w)),
       h: round4(clamp01(n.h / space.h)),
     });
   }
+
+  // Order matters, and only for exact ties: the hit test takes the FIRST entry of
+  // an equal-area group (src/lib/hit-test.js), so the innermost must come first.
+  // Document order gives the opposite — a parent frame is written before the child
+  // that fills it exactly — so sort smallest-first and, within a tie, deepest-first.
+  elements.sort((a, b) => (a.w * a.h) - (b.w * b.h) || b.depth - a.depth);
+  for (const e of elements) delete e.depth;
 
   const map = {
     screen: screenId,

@@ -1,18 +1,40 @@
 // Extracted VERBATIM from pages/compare/CompareDetail.jsx (component-browser
 // phase 2.1). The web-iframe hit-test plumbing stays in the HOST (CompareDetail)
 // — this layer only renders pins/drafts/threads (suite CR6/D14).
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Thread from './Thread.jsx';
 
 // Pins + draft composer + open thread, living INSIDE the zoom/pan canvas so they
 // track the image. `inv` (1/scale) counter-scales pins so they stay constant size.
+/** Label height plus its gap, in px. The flip rule is "is there room above the
+ *  box", which is a PIXEL question — the same box at 40% zoom and at 200% zoom has
+ *  the same `y` fraction and very different room above it. */
+const LABEL_CLEARANCE = 24;
+
 export default function CommentLayer({
   platform, viewport, comments, numberOf, commentMode, draft, inv,
   onPlace, onSubmitDraft, onCancelDraft, selectedId, onSelect,
   canEdit, onReply, onResolve, onDelete, hoverBox, inspectBox = null,
+  // The component-targeting box on a 2.0 screen (suite 07 §4.5). `{ rect, label,
+  // insideFlip }` or null. The host forces it null in comment mode, so this layer
+  // never has to know about the two modes.
+  componentBox = null,
 }) {
   const [draftVal, setDraftVal] = useState('');
   useEffect(() => { setDraftVal(''); }, [draft?.x, draft?.y, draft?.platform]);
+
+  // The layer is inset:0 over the rendered image, so its own height IS the render's
+  // height on screen — which is what decides whether a label fits above its box.
+  const layerRef = useRef(null);
+  const [layerH, setLayerH] = useState(0);
+  useEffect(() => {
+    const el = layerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(([entry]) => setLayerH(entry.contentRect.height));
+    ro.observe(el);
+    setLayerH(el.clientHeight);
+    return () => ro.disconnect();
+  }, []);
 
   const handleClick = (e) => {
     if (!commentMode) return;
@@ -35,7 +57,7 @@ export default function CommentLayer({
   const draftBox = showDraft && draft.target?.rect ? draft.target.rect : null;
 
   return (
-    <div className={`cmp-commentlayer${commentMode ? ' cmp-commentlayer--placing' : ''}`} onClick={handleClick}>
+    <div ref={layerRef} className={`cmp-commentlayer${commentMode ? ' cmp-commentlayer--placing' : ''}`} onClick={handleClick}>
       {/* The Layout tab's box. Unlike `hoverBox` it is NOT gated on comment
           mode — reading a part's geometry is not placing a comment — and it
           sits under the comment boxes so a thread's target still wins. */}
@@ -45,6 +67,24 @@ export default function CommentLayer({
           style={{ left: `${inspectBox.x * 100}%`, top: `${inspectBox.y * 100}%`, width: `${inspectBox.w * 100}%`, height: `${inspectBox.h * 100}%` }}
           aria-hidden="true"
         />
+      )}
+      {/* Component targeting: drawn with the inspect box, UNDER the comment boxes,
+          so an open thread's target still wins the eye. Both the box and its label
+          are pointer-transparent — the hit test reads the render's own pointer
+          events, and a box that ate them would flicker at its own edges. */}
+      {componentBox && (
+        <div
+          className="cmp-target-box cmp-target-box--component"
+          style={{
+            left: `${componentBox.rect.x * 100}%`, top: `${componentBox.rect.y * 100}%`,
+            width: `${componentBox.rect.w * 100}%`, height: `${componentBox.rect.h * 100}%`,
+          }}
+          aria-hidden="true"
+        >
+          <span className={`cmp-target-box__label${componentBox.rect.y * layerH < LABEL_CLEARANCE ? ' cmp-target-box__label--inside' : ''}`}>
+            {componentBox.label}
+          </span>
+        </div>
       )}
       {commentMode && !draft && !selectedId && hoverBox && (
         <div

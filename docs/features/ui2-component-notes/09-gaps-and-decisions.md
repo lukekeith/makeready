@@ -82,6 +82,7 @@ calendar day the files were written. The audit is after the draft, not before it
 
 | Pass | Date | Result |
 |---|---|---|
+| 3 (delta, build) | 2026-09-10 | **2 findings, both fixed the same session** — raised by phase 3/4 implementation contradicting the suite. → **G-19** (D8's tie rule inverted), **G-20** (tests deleting real artifacts). Also four dated corrections to 07 §1.1 from live Figma data, recorded in phase 3's VERIFIED block. |
 | 2 (delta) | 2026-09-10 | **Clean of blockers — 2 new findings, both fixed the same session.** Triggered by: the decisions-gate rulings on G-5 / G-8 / G-9 / G-7 / O-5 and the spec edits resolving X-1…X-3, G-3, G-10, G-12…G-16 and C-2…C-6. Scope: the new designs in 07 §1.0, §4.2, §4.3, §5.0, §5.5, §8 and the amended contract in 03 §1.2, §2.3, §2.4, §4. Phases run: C (capture house rules) + E (adversarial) over the new material only. → **G-17**, **G-18** |
 | 1 | 2026-09-10 | **Not clean — 16 new findings** (X-1…X-3, G-3…G-16, C-2…C-6, O-5; G-4, G-6, G-11 fixed in the spec during the pass). Phases A–F all run; four claims verified in code and marked; six suite statements the code contradicted corrected in place. **3 blocking rows: G-5, G-8, G-9.** |
 
@@ -100,6 +101,13 @@ The mouseup-selection design was checked against `ZoomPane`'s actual refs: `vpRe
 at `:137`) is in scope inside the window `mouseup` handler, so the up-point fractions are
 computable there; and `componentBox` reaches `CommentLayer` through the existing `...commentProps`
 spread (`ZoomPane.jsx:169`), so no new ZoomPane prop is needed for the box itself.
+
+### Pass 3 (delta, build-time) findings
+
+| # | Row | Status |
+|---|---|---|
+| G-19 | **D8's tie rule was backwards.** The suite said an identical-area tie resolves to the entry appearing **later** in the map; the `hitTest` it claims to reuse verbatim stable-sorts by area ascending and takes `[0]` — **first** wins. The claim only looked right because the iOS harness emits parts deepest-first, so "first" and "innermost" coincide there. The screen backfill writes document order, where a parent frame precedes the child that fills it exactly — so every exact tie on a screen would have selected the CONTAINER. Found by writing H-2 against the shipped function rather than against the doc. | ✅ **Fixed (2026-09-10)** — 01 D8, 03 §1.2 and 07 §4.1 corrected; the generator now sorts (area asc, depth desc) so one rule serves both producers; H-2 + H-2b lock it |
+| G-20 | **The phase-2 tests destroyed phase-3's artifacts.** `ui2-elements.test.mjs` writes into the real `docs/ui2/screens/assets/` — the only directory `buildUi2Screens` reads — and unlinked the map in its cleanup. Harmless while no real maps existed; from the backfill onward every `npm test` deleted committed files, and E-1 additionally asserted that a real screen had *no* map. | ✅ **Fixed (2026-09-10)** — `withMap` backs up and restores whatever is on disk; E-1 creates its own "no map" condition. Verified by running the suite twice and counting the maps |
 
 ### Verified in code this pass (2026-09-10)
 

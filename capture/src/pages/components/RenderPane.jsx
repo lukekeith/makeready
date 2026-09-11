@@ -18,6 +18,8 @@ export default function RenderPane({
   versionId, onSelectVersion, vdata, shotsVersion,
   capturing, log, onRecapture, commentApi,
   onHoverInspect, onClearInspect, hoverBox, inspectBox = null,
+  // Component targeting on a 2.0 screen — pass-through only (suite 07 §4.2).
+  onHoverTarget, onClearTarget, onSelectTarget, componentBox = null,
   platform = 'iphone', emptyState = null, allVariants = true, labels = {},
   platforms = null, onPlatform = null, activeShot = null, onDeleteVersion = null,
   // The Prompt menu's contents, supplied by the host: [{ label, sub?, text }]. The text is
@@ -136,6 +138,7 @@ export default function RenderPane({
     onDelete: commentApi.onDelete,
     hoverBox,
     inspectBox,
+    componentBox,
   };
 
   return (
@@ -279,6 +282,9 @@ export default function RenderPane({
             commentMode={commentApi.commentMode}
             onHoverInspect={onHoverInspect}
             onClearInspect={onClearInspect}
+            onHoverTarget={onHoverTarget}
+            onClearTarget={onClearTarget}
+            onSelectTarget={onSelectTarget}
             {...commentProps}
           />
         </div>

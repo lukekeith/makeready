@@ -9,7 +9,7 @@
 // and pinned comments behave exactly as they do on the 1.0 side (there is no
 // 2.0 code to capture yet; when there is, the same columns show it).
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { CaptureContext } from '../../App.jsx';
 import AppHeader from '../../components/AppHeader.jsx';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
@@ -34,6 +34,8 @@ import Ui2SpecChecklist from './Ui2SpecChecklist.jsx';
 import VariantList from './VariantList.jsx';
 import RenderPane from './RenderPane.jsx';
 import SidePanel from './SidePanel.jsx';
+import { hitTest } from '../../lib/hit-test.js';
+import { withSearch, selectedRef } from '../../lib/ui2-url.js';
 
 const ID_RE = /^C-\d{3}$/i;
 /** Component or screen? The two registries share one route space, and their id
@@ -91,7 +93,16 @@ export default function Ui2Layout({ sub = '', header = null }) {
 
   const { id, key, kind } = useMemo(() => parseSub(sub), [sub]);
   const isScreen = kind === 'screen';
-  const variantPath = useCallback((v) => `/components/2.0/${id}/${v.slug}`, [id]);
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  // Navigation WITHIN a screen keeps the query, so `?c=` survives landing on the
+  // first state, the canonicalising replace below, and a state click. Navigating
+  // to a different screen or component drops it — a selection means nothing
+  // somewhere else (suite 07 §5.5).
+  const variantPath = useCallback(
+    (v) => withSearch(`/components/2.0/${id}/${v.slug}`, location.search),
+    [id, location.search],
+  );
 
   const loadTree = useCallback(async () => {
     // Both registries feed one column, so both are fetched together and one
@@ -180,43 +191,95 @@ export default function Ui2Layout({ sub = '', header = null }) {
   // Only the built render has parts: the Figma snapshot is one flat image, and
   // an unbuilt component has no render at all — both leave `elements` null and
   // behave exactly as they did before.
-  const elements = activeShot.platform === 'iphone' ? (vdata?.elements?.elements ?? null) : null;
+  //
+  // A SCREEN's parts come from its element map on the variant (written from Figma
+  // at spec time), not from a built render — a screen has none. Feeding both
+  // through one `elements` const is deliberate (suite 09 §G-8): the comment
+  // composer reads it too, so a pin dropped on a mapped screen records the
+  // component it landed on instead of bare coordinates.
+  const elements = isScreen
+    ? (activeVariant?.elements?.elements ?? null)
+    : (activeShot.platform === 'iphone' ? (vdata?.elements?.elements ?? null) : null);
   const [hoverTarget, setHoverTarget] = useState(null);
+  // The component box under the pointer, live only OUTSIDE comment mode — the
+  // mirror image of `hoverTarget`, which is live only inside it.
+  const [componentTarget, setComponentTarget] = useState(null);
   // The Layout tab drives its own box: it works outside comment mode (where
   // `hoverTarget` is deliberately cleared), and it is set from a tree row
   // rather than from a pointer over the render.
   const [inspectBox, setInspectBox] = useState(null);
 
-  /** Smallest annotated part containing the point — the deepest one, since a
-   *  child's rect is inside its parent's. Reversed, that is the path from the
-   *  component down to the part, which is what the comment records.
+  /** The hit test itself lives in src/lib/hit-test.js so it can be tested without
+   *  a DOM and shared with the screen path, which needs the `ref` a screen map
+   *  carries. Rule unchanged: smallest containing rect, first-wins on a tie. */
+  /**
+   * One hit test for both readers — the component box and the comment composer —
+   * so a pin and a hover box can never disagree about what they are pointing at
+   * (suite 07 §4.4).
    *
-   *  Ties are real and common: a slot holding exactly one control has that
-   *  control's rect exactly (C-040's `Leading` and its `GlyphButton (back)`),
-   *  and the useful label is the inner one. The capture harness emits a part
-   *  after everything inside it (`transformAnchorPreference` appends the
-   *  ancestor to its subtree's value), so equal areas arrive deepest-first —
-   *  and a stable sort keeps them that way. */
-  const hitTest = useCallback((fx, fy) => {
-    if (!elements?.length) return null;
-    const hits = elements.filter((e) => fx >= e.x && fx <= e.x + e.w && fy >= e.y && fy <= e.y + e.h);
-    if (!hits.length) return null;
-    const inward = [...hits].sort((a, b) => (a.w * a.h) - (b.w * b.h)); // deepest first
-    const el = inward[0];
-    const path = [...inward].reverse().map((e) => e.name);              // component → part
-    return { selector: path.join(' › '), label: el.name, path, rect: { x: el.x, y: el.y, w: el.w, h: el.h } };
-  }, [elements]);
+   * On a SCREEN the label is resolved against the LIVE registry and prefixed with
+   * the id (`C-023 KpiCard`, R2). The map's stored `name` is only a fallback for a
+   * ref the registry no longer knows — a component renamed since the map was
+   * written must read as its current name everywhere, which is the whole reason
+   * the map stores a ref at all.
+   */
+  const hit = useCallback((fx, fy) => {
+    const target = hitTest(elements, fx, fy);
+    if (!target || !isScreen) return target;
+    const entry = elements?.find((e) => e.ref === target.ref && e.x === target.rect.x && e.y === target.rect.y);
+    const name = entry?.resolved?.name ?? target.label;
+    return { ...target, label: target.ref ? `${target.ref} ${name}` : name };
+  }, [elements, isScreen]);
 
   // Suspended while a draft composer or a thread is open — the target box stays
   // pinned to THAT comment's element instead (CommentLayer's selectedBox).
   const hoverInspect = useCallback((fx, fy) => {
     if (draftPin || selectedCommentId) return;
-    setHoverTarget(hitTest(fx, fy));
-  }, [draftPin, selectedCommentId, hitTest]);
+    setHoverTarget(hit(fx, fy));
+  }, [draftPin, selectedCommentId, hit]);
   const clearInspect = useCallback(() => setHoverTarget(null), []);
   useEffect(() => {
     if (!commentMode || draftPin || selectedCommentId) setHoverTarget(null);
   }, [commentMode, draftPin, selectedCommentId]);
+
+  // ── Component targeting (screens only, comment mode OFF) ──
+  //
+  // Comment mode owns the pointer when it is on: ZoomPane stops reporting
+  // component hover, and this clears whatever was drawn. The two boxes can
+  // therefore never be on screen together.
+  const hoverComponent = useCallback((fx, fy) => {
+    if (!isScreen || commentMode) return;
+    setComponentTarget(hit(fx, fy));
+  }, [isScreen, commentMode, hit]);
+  const clearComponent = useCallback(() => setComponentTarget(null), []);
+  useEffect(() => { if (commentMode) setComponentTarget(null); }, [commentMode]);
+  useEffect(() => { setComponentTarget(null); }, [id, key]);
+
+  /** Click on the render: select the component under the pointer, or clear the
+   *  selection when the click landed on no mapped rect. Never navigates — the
+   *  Component tab's Open control is the only thing that leaves the screen (R3). */
+  const selectComponent = useCallback((fx, fy) => {
+    if (!isScreen || commentMode) return;
+    const target = hit(fx, fy);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (target?.ref) next.set('c', target.ref); else next.delete('c');
+      return next;
+    }, { replace: true });
+  }, [isScreen, commentMode, hit, setSearchParams]);
+
+  // The selection, read from the URL so it survives reload and sharing (D9).
+  const selectedComponent = selectedRef(location.search);
+
+  /** The box the layer draws: the hovered rect, its label resolved against the
+   *  LIVE registry (R2 — the map's stored name is only a fallback for a ref the
+   *  registry no longer knows), and whether the label must flip inside. */
+  const componentBox = useMemo(() => {
+    if (!componentTarget || !isScreen) return null;
+    // Whether the label has room above its box is a PIXEL question and depends on
+    // the zoom, so CommentLayer decides it from its own measured height (R2).
+    return { rect: componentTarget.rect, label: componentTarget.label };
+  }, [componentTarget, isScreen]);
 
   // `platform` here is whatever RenderPane's ZoomPane is actually displaying
   // (the SHOWN platform, post-fallback) — not necessarily the toggle's raw
@@ -228,7 +291,7 @@ export default function Ui2Layout({ sub = '', header = null }) {
     // emitted one) → no `target` key at all, so the composer shows no chip
     // rather than a stuck "resolving element…". A map that simply missed at
     // this point resolves to undefined, which reads the same way.
-    const target = elements?.length ? hitTest(x, y) : null;
+    const target = elements?.length ? hit(x, y) : null;
     setDraftPin({ platform, viewport, x, y, ...(elements?.length ? { target: target ?? undefined } : {}) });
   };
   const submitDraft = async (text) => {
@@ -587,6 +650,10 @@ export default function Ui2Layout({ sub = '', header = null }) {
         onClearInspect={clearInspect}
         hoverBox={hoverTarget?.rect ?? null}
         inspectBox={inspectBox}
+        onHoverTarget={isScreen ? hoverComponent : undefined}
+        onClearTarget={isScreen ? clearComponent : undefined}
+        onSelectTarget={isScreen ? selectComponent : undefined}
+        componentBox={componentBox}
       />
 
       <SidePanel

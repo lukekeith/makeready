@@ -2720,3 +2720,44 @@ html {
   white-space: pre-wrap;
   word-break: break-all;
 }
+
+/* ── UI 2.0 screen element targeting (suite 07 §6) ────────────────────────── */
+
+/* The hover box on a SCREEN render. Distinct from --hover (comment mode's dashed
+   green) and --inspect (the Layout tab's filled accent): this one is an outline
+   only, because it appears under a moving pointer and a fill would flicker the
+   whole render as the target changes. */
+.cmp-target-box--component {
+  border: 1.5px solid var(--accent);
+  background: transparent;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  z-index: 2;
+}
+
+/* `position: absolute` against the box, not the layer, so the label tracks its
+   box without a second set of percentage math. Pointer-transparent like its
+   parent — see CommentLayer. */
+.cmp-target-box__label {
+  position: absolute;
+  left: -1.5px;
+  bottom: 100%;
+  margin-bottom: 3px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* A box at the very top of the frame has no room above it: the label flips
+   inside the box's top edge rather than clipping off the render (R2). */
+.cmp-target-box__label--inside {
+  bottom: auto;
+  top: 1.5px;
+  left: 1.5px;
+  margin-bottom: 0;
+}

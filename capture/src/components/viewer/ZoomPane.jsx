@@ -2,6 +2,7 @@
 // phase 2.1). Fully CONTROLLED: the host owns {view, hover, natural, animating}
 // and the keybindings; this pane computes fit + wheel/drag transforms only.
 import React, { useEffect, useMemo, useRef } from 'react';
+import { isClick } from '../../lib/hit-test.js';
 import useElementSize from './useElementSize.js';
 import CommentLayer from './CommentLayer.jsx';
 
@@ -15,6 +16,10 @@ export default function ZoomPane({
   platform, label, url, webUrl, missingLabel, missingAction, viewport, captured, natural, fallbackNatural, onNatural, onReset,
   view, setView, hover, setHover, capturing, animating, clearAnim,
   iframeRef, onHoverInspect, onClearInspect,
+  // Component targeting on a 2.0 SCREEN render (suite 07 §4.2). All three are
+  // optional and every 1.0 caller omits them, so this pane behaves exactly as it
+  // did for /compare and the 1.0 component browser.
+  onHoverTarget, onClearTarget, onSelectTarget,
   commentMode, ...commentProps
 }) {
   const isWeb = !!webUrl;
@@ -80,6 +85,10 @@ export default function ZoomPane({
     if (e.button !== 0) return;
     clearAnim?.();
     drag.current = { x: e.clientX, y: e.clientY };
+    // Where the press started, so mouseup can tell a click from the end of a pan.
+    // Panning and component selection share this gesture (both live only when
+    // comment mode is OFF), and movement is the only thing that separates them.
+    const origin = { x: e.clientX, y: e.clientY };
     const move = (ev) => {
       if (!drag.current || !geom) return;
       const dx = ev.clientX - drag.current.x;
@@ -87,7 +96,21 @@ export default function ZoomPane({
       drag.current = { x: ev.clientX, y: ev.clientY };
       setView((v) => ({ ...v, cx: v.cx - dx / (geom.baseW * v.scale), cy: v.cy - dy / (geom.baseH * v.scale) }));
     };
-    const up = () => { drag.current = null; window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up); };
+    const up = (ev) => {
+      drag.current = null;
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      if (!onSelectTarget || !geom || !isClick(origin, { x: ev.clientX, y: ev.clientY })) return;
+      // The up point, not the down point: a 1–4px shake should select what the
+      // pointer ended on. `vpRef` is the viewport this handler was bound from,
+      // so the fractions are computed exactly as onMouseMove does.
+      const rect = vpRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const { baseW, baseH, tx, ty } = geom;
+      const fx = (ev.clientX - rect.left - tx) / (baseW * view.scale);
+      const fy = (ev.clientY - rect.top - ty) / (baseH * view.scale);
+      if (fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1) onSelectTarget(fx, fy);
+    };
     window.addEventListener('mousemove', move);
     window.addEventListener('mouseup', up);
   };
@@ -102,6 +125,12 @@ export default function ZoomPane({
     // In comment mode, highlight the web element under the cursor (works while
     // hovering either pane — the fraction maps onto the aligned web iframe).
     if (commentMode && fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1) onHoverInspect?.(fx, fy);
+    // OUT of comment mode, report the component under the cursor on a 2.0 screen.
+    // Deliberately a second, independent call rather than a widened condition: the
+    // comment-mode branch above is shared with /compare and the 1.0 browser and
+    // must keep behaving exactly as it does.
+    if (!commentMode && fx >= 0 && fx <= 1 && fy >= 0 && fy <= 1) onHoverTarget?.(fx, fy);
+    if (!commentMode && (fx < 0 || fx > 1 || fy < 0 || fy > 1)) onClearTarget?.();
   };
 
   // Ghost cursor mirrored from the opposite pane.
@@ -138,7 +167,13 @@ export default function ZoomPane({
         className={`cmp-zpane__viewport${commentMode ? '' : ' cmp-zpane__viewport--grab'}`}
         onMouseDown={onMouseDown}
         onMouseMove={onMouseMove}
-        onMouseLeave={() => { setHover((h) => (h && h.source === platform ? null : h)); if (commentMode) onClearInspect?.(); }}
+        onMouseLeave={() => {
+          setHover((h) => (h && h.source === platform ? null : h));
+          if (commentMode) onClearInspect?.();
+          // Unconditional: R1 wants zero boxes the moment the pointer leaves the
+          // render, and the component box lives outside comment mode.
+          onClearTarget?.();
+        }}
       >
         {geom && (isWeb ? natural : url) ? (() => {
           // Web (live iframe): keep the element at its natural CSS width so the

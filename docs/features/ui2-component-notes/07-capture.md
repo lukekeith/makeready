@@ -153,7 +153,7 @@ export function hitTest(elements, fx, fy) // → null | { ref, name, path, selec
 |---|---|
 | Containment | `fx >= e.x && fx <= e.x + e.w && fy >= e.y && fy <= e.y + e.h` |
 | Winner | smallest area among the hits (D8) |
-| Tie | the entry appearing **later** in the array wins — a stable sort preserves authoring order (D8) |
+| Tie | the entry appearing **first** in the array wins — a stable sort preserves map order, and both producers emit the innermost first (D8, corrected 2026-09-10) |
 | `ref` | `el.ref ?? null` — screens carry it, the iOS harness maps do not |
 | `name` | `el.name` (the map's stored name; the caller resolves the live registry name for display) |
 | `path` / `selector` | unchanged from today: hits reversed, outermost → innermost, joined ` › ` |
@@ -236,9 +236,12 @@ starts drawing element boxes there. **This is adopted deliberately**, not tolera
   events, and a box that ate them would flicker at its own edges.
 - Label content is `C-### Name` from the live registry (R2); it falls back to the map's stored
   `name` only when the ref no longer resolves.
-- Label sits above the box; when `box.y` is less than the label's height as a fraction of the
-  render, it flips inside the box's top edge (R2). The host computes the flip and passes
-  `insideFlip`, so the layer stays presentational.
+- Label sits above the box; when there is not `LABEL_CLEARANCE` (24px) of room above it, it flips
+  inside the box's top edge (R2). **Corrected 2026-09-10 (build phase 4):** the draft had the host
+  compute this from the rect's `y` fraction, which cannot be right — the same box at 40% zoom and
+  at 200% zoom has the same fraction and very different room above it. `CommentLayer` measures its
+  own height (it is `inset: 0` over the render, so its height IS the render's on-screen height)
+  and decides in pixels.
 - Zero DOM at rest: `componentBox` is null unless hovering (R1).
 
 ## 5. The Component tab
