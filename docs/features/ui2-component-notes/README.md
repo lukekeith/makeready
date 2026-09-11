@@ -48,6 +48,42 @@ The chain is strict: maps must be served before generating twelve of them is wor
 2), targeting must work before the tab it selects into (5 after 4), and notes must be writable
 before the command that verifies against them can be checked (6 after 5).
 
+## GATE: INCOMPLETE — 1 item (2026-09-10)
+
+Everything an agent can verify is verified. **One requirement's proof needs you to run a
+command**, and inventing that proof would mean fabricating normative content — so it is listed
+rather than claimed.
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Phases complete | ✅ all 6 VERIFIED and dated; zero unchecked task rows |
+| 2 | Gates green NOW | ✅ re-run fresh: `npm test` 103/102 pass/1 (the pre-existing `parseContract` case, unrelated — baseline was 73/72/1, so **+30 tests, all passing**); `npx vite build` clean; all three new routes answer 200 |
+| 3 | Contract integrity | ✅ 03's shapes match what shipped, field for field. Amendments all dated and carried in 09 (G-5 composite space, G-7 `after`/409, X-3 unique-ref resolution, G-8 comment targets, G-19 tie order) |
+| 4 | Consumer parity | ✅ n/a in the cross-app sense — one consumer (the capture SPA) plus the two commands, which read notes through the same parser via its CLI (09 §X-2) |
+| 5 | Unverified claims | ✅ zero `(claimed — unverified)` markers |
+| 6 | Open ledger rows | ✅ zero OPEN rows; every G/D/O/C/X row DECIDED, RESOLVED or ACKNOWLEDGED |
+| 7 | Pattern regressions | ✅ capture house rules hold: shared viewer components changed additively (every new prop optional, both 1.0 callers pass none — walked in-browser), no `window.confirm` (discard uses `ConfirmDialog`), pure logic in `src/lib/` with tests |
+| 8 | Migrations | ✅ n/a — no schema change; the whole data surface is repo files |
+| 9 | 08-testing row by row | ⚠️ **one gap** — see below. Every cited automated test exists and passes; human 1–15 walked in Chrome |
+| 10 | E2E walked | ✅ the full human script, live, against the real backfilled maps |
+| 11 | Cold-reader probe | ⏭️ **skipped** — it calls for a fresh agent with no build context, and this session was told not to use subagents. Substituted: every path, command and count the suite cites was re-checked against the as-built code (integrity check, 09). Honest caveat: that proves the docs are *accurate*, not that they are *sufficient* for a stranger |
+
+### The blocking item
+
+**R11 — "notes are taken into account when running `/ui2-component-build`"** is proved by 08's
+C-1 and C-2, and both need a real `/ui2-component-build` run: a SwiftUI compile plus a simulator
+capture, against a component carrying a note. **C-6** (a `/ui2-screen` run writing an element
+map) and **C-7** (the update command asking before it captures) are the same shape.
+
+They are deferred rather than faked because the only honest input is a **real note you wrote**.
+A note is normative build input: inventing one, building Swift to satisfy it, then deleting it
+would leave the lane dirty and prove nothing about your intent. Every verification note written
+during this build was deleted for the same reason — `git status docs/ui2` is clean.
+
+**What clears it:** write a note on a built component through the Component tab, then run
+`/ui2-component-build <C-###>` (or `/ui2-component-update <C-###>`) and confirm the note is
+loaded in phase 0 and honoured in phases 3–4.
+
 ## Doc index
 
 | Doc | Contents |
