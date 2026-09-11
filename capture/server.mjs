@@ -42,6 +42,9 @@ import {
   buildUi2Screens, ui2ScreenCounts, screenAssetsDir as ui2ScreenAssetsDir,
 } from './lib/ui2-index.mjs';
 import { isBuilt, ui2FixturePath, readUi2Fixture, writeUi2Fixture } from './lib/ui2-fixture.mjs';
+import {
+  noteKind, readNotes, appendNote, extractMentions, notesRepoPath, targetsWithNotes,
+} from './lib/ui2-notes.mjs';
 import { parseTokens, tokensPath } from './lib/ui2-tokens.mjs';
 import { buildScopePayload } from './lib/comment-payload.mjs';
 import {
@@ -1294,6 +1297,101 @@ const ui2RowBase = async (row) => {
   };
 };
 
+// ── UI 2.0 notes (docs/features/ui2-component-notes/03-data-and-api.md §2) ──
+//
+// Notes are files under docs/ui2, not DB rows (suite D1): they are normative spec
+// content, so they live where every other normative artefact lives — reviewable in
+// a PR, diffable, and surviving a capture-DB reset. The parser is
+// lib/ui2-notes.mjs, which the two /ui2-component commands run as a CLI, so the
+// browser and the skills cannot disagree about what a note says.
+
+/** Every mentionable target: the registry's rows and the README's screens. One
+ *  payload, filtered client-side — it is ~98 rows, so a request per keystroke
+ *  would be waste (03 §2.3). */
+async function ui2MentionIndex() {
+  const [index, screens, withNotes] = await Promise.all([
+    buildUi2Index(), buildUi2Screens(), targetsWithNotes(),
+  ]);
+  const items = [];
+  for (const section of index.sections) {
+    for (const row of section.rows) {
+      items.push({
+        kind: 'component', id: row.id, name: row.name,
+        section: section.name, hasNotes: withNotes.has(row.id.toUpperCase()),
+      });
+    }
+  }
+  for (const section of screens.sections) {
+    for (const row of section.rows) {
+      items.push({
+        kind: 'screen', id: row.id, name: row.name ?? row.id,
+        section: section.name, hasNotes: withNotes.has(row.id),
+      });
+    }
+  }
+  return items;
+}
+
+/** A target exists when the registry or the README screen table knows it. Notes
+ *  are keyed on the id alone, so an unknown id is a 404 rather than a file the
+ *  browser would happily create under a typo. */
+async function ui2ResolveTarget(target) {
+  const kind = noteKind(target);
+  if (!kind) return null;
+  if (kind === 'component') {
+    const row = (await buildUi2Index()).byId.get(String(target).toUpperCase());
+    return row ? { kind, id: row.id, name: row.name } : null;
+  }
+  const row = (await buildUi2Screens()).byId.get(String(target));
+  return row ? { kind, id: row.id, name: row.name ?? row.id } : null;
+}
+
+/** Mention tokens → the rows they name. A token that resolves to nothing is left
+ *  out of `refs` and stays literal text in the body (03 §1.1) — a note must never
+ *  render a broken link for writing about something that has since been renamed. */
+function ui2ResolveMentions(body, mentionItems) {
+  const byId = new Map(mentionItems.map((m) => [m.id.toUpperCase(), m]));
+  const refs = [];
+  for (const { token, id } of extractMentions(body)) {
+    const hit = byId.get(id.toUpperCase());
+    if (hit) refs.push({ token, kind: hit.kind, id: hit.id, name: hit.name });
+  }
+  return refs;
+}
+
+app.get('/api/ui2/notes', async (req, res) => {
+  try {
+    const target = String(req.query.target ?? '');
+    const resolved = await ui2ResolveTarget(target);
+    if (!resolved) return res.status(404).json({ error: 'unknown target' });
+
+    const read = await readNotes(resolved.id);
+    const mentions = await ui2MentionIndex();
+    res.json({
+      target: resolved.id,
+      kind: resolved.kind,
+      file: read.file,
+      exists: read.exists,
+      // Newest first for display; the FILE is oldest-first, which is what makes
+      // an append a pure append and what D3's precedence reads.
+      notes: [...read.notes].reverse().map((n) => ({
+        ...n, refs: ui2ResolveMentions(n.body, mentions),
+      })),
+      parseError: read.parseError,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/ui2/mentions', async (_req, res) => {
+  try {
+    res.json({ items: await ui2MentionIndex() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // The registry tree: sections → rows, with spec/snapshot state + comment badges.
 app.get('/api/ui2/tree', async (_req, res) => {
   try {
@@ -1674,6 +1772,42 @@ if (!isProduction) {
   // Props only. The variant NAME is the DB key for versions and comments and
   // the contract's §3 label, and the state list itself comes from the contract
   // — so this route never adds, removes or renames a variant.
+  // Append one note. Write-side only, so it sits with the other repo writers
+  // inside the non-production block: a deployed capture instance can READ notes
+  // but never writes into the repo it was built from (suite 09 §X-1).
+  app.post('/api/ui2/notes', async (req, res) => {
+    try {
+      const { target, body, after } = req.body ?? {};
+      const resolved = await ui2ResolveTarget(String(target ?? ''));
+      if (!resolved) return res.status(404).json({ error: 'unknown target' });
+
+      const text = String(body ?? '').trim();
+      if (!text) return res.status(400).json({ error: 'note body is empty' });
+      if (text.length > 8000) return res.status(400).json({ error: 'note body is over 8000 characters' });
+
+      // `after` is the newest note id the client held when it opened the
+      // composer. Appending is a read-modify-write of a file the owner may also
+      // be editing, so a mismatch means someone else appended in between: refuse
+      // rather than write a note whose author never saw what it now follows
+      // (suite 09 §G-7). Omitting `after` opts out — the CLI and tests do.
+      const current = await readNotes(resolved.id);
+      const last = current.notes[current.notes.length - 1]?.id ?? null;
+      if (after !== undefined && after !== null && after !== last) {
+        return res.status(409).json({ error: 'notes changed on disk', last });
+      }
+
+      const note = await appendNote(resolved.id, text, new Date(), resolved.name);
+      const mentions = await ui2MentionIndex();
+      res.json({
+        ok: true,
+        file: notesRepoPath(resolved.id),
+        note: { ...note, refs: ui2ResolveMentions(note.body, mentions) },
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.put('/api/ui2/fixture', async (req, res) => {
     const { id, variant, props } = req.body ?? {};
     if (typeof props !== 'object' || props === null || Array.isArray(props)) {

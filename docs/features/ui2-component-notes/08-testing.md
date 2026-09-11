@@ -39,7 +39,9 @@ no new failure. Fixing it is not this feature's job and must not be bundled in.
 | E-2 | A map whose `size` aspect ratio diverges from the PNG by >1% is discarded (null) |
 | E-3 | A map with an element missing `ref` is rejected as malformed (03 §1.2 makes `ref` required) |
 | E-4 | An element whose `ref` is not in the registry attaches with `resolved: null`, not dropped |
-| E-5 | Editing a map file changes the index cache stamp (a stale index would serve old boxes) |
+| E-5 | Editing a map file changes the index cache stamp (a stale index would serve old boxes) — a **regression** test of `dirStamp(screenAssetsDir)`, which already covers it (09 §G-6) |
+| E-6 | A composite export (section node, rects fractions of the whole sheet) parses and passes the aspect guard (09 §G-5), using `edit-field-group-fields.png`'s real dimensions |
+| E-7 | `pngSize` reads width/height from a real screen PNG's IHDR, and `buildUi2Screens` attaches them to the snapshot (09 §G-3) |
 
 `capture/test/ui2-index.test.mjs` (extend):
 
@@ -60,6 +62,9 @@ only collects `capture/test/*.test.mjs`, so a test file anywhere else never runs
 | H-3 | Hit test with an empty or null map returns null, never throws |
 | H-4 | Typeahead filter matches on id and on name, case-insensitively; ranks exact-id-prefix first |
 | H-5 | Token commit replaces only the active `@query` and leaves surrounding text intact |
+| H-6 | `withSearch` preserves `?c=` across a state path build and across the canonicalising replace; a different screen drops it (09 §G-9) |
+| H-7 | Click-vs-drag: a pointer that moved more than 4px between down and up yields no selection; ≤4px selects the rect under the up point (09 §C-4) |
+| H-8 | `hitTest` returns the element's `ref` (screens) and `null` for a map without one (iOS harness maps) (09 §C-6) |
 
 ## 3. Route tests
 
@@ -73,6 +78,9 @@ Exercised with `curl` against a running capture server, asserted by status + sha
 | R-4 | `GET /api/ui2/mentions` returns every registry row and every README screen row |
 | R-5 | `GET /api/ui2/screen-detail?id=home-dashboard` carries `variants[].elements` with resolved refs |
 | R-6 | A screen with no map returns `elements: null` and still returns every other key |
+| R-7 | `elements[].resolved` and `components[]` agree on every ref, and `built` appears on both (09 §X-3) |
+| R-8 | `POST` with a stale `after` → 409 and no write; `POST` with no `after` → 200 (09 §G-7) |
+| R-9 | `node capture/lib/ui2-notes.mjs read C-052` prints the same JSON the route returns (09 §X-2) |
 
 ## 4. Human verification script
 
@@ -90,6 +98,9 @@ Run at `http://localhost:5950/components/2.0/home-dashboard/default`.
 10. **R7/R9** — Save. The note appears at the top of the list with its mention rendered as a chip carrying the component's current name. Check the file on disk: it matches 03 §1.1.
 11. **Comment mode isolation** — Press `c`. Hover the render: the component box is gone and comment placement behaves as before. Press Escape: component hover returns.
 12. **Degradation** — Open a screen with no element map. It renders normally with no boxes and no errors in the console.
+13. **1.0 regression (09 §C-3)** — Open a 1.0 comparison (`/compare/<id>`) and a 1.0 component (`/components/1.0/<id>`). Press `c`: element hover-inspect still highlights in comment mode exactly as before, and outside comment mode nothing highlights. Drag to pan on a 2.0 screen: the render pans and no selection happens.
+14. **Selection survives navigation (09 §G-9)** — With a component selected, switch frames on a multi-frame screen (`invite-home` → `linked`): the selection and the Component tab survive. Paste `/components/2.0/home-dashboard?c=C-023` into a fresh tab: it lands on the default frame with C-023 selected. Click a different screen in the tree: the selection is gone.
+15. **Screen comments name their component (09 §G-8)** — Press `c` on a mapped screen, drop a pin on a KpiCard: the draft chip reads `C-023 KpiCard`. Submit, reload, reopen the thread: the chip is still there. Drop a pin on an unmapped area: no chip, and the comment submits normally.
 
 ## 5. Command verification
 
@@ -101,6 +112,8 @@ Run at `http://localhost:5950/components/2.0/home-dashboard/default`.
 | C-4 | `/ui2-component-update` with two notes contradicting each other on one property and agreeing on another: the newer wins on the contested property, the older's other statement survives (R13) |
 | C-5 | `/ui2-component-update` never writes under `docs/ui2` — verified with `git status --porcelain docs/ui2 \| grep -v '/notes/'` before and after a run that produced a drift list, comparing the two. **Corrected 2026-09-10 (audit pass 1):** the original check was unscoped, and notes live under `docs/ui2/**/notes/` and are routinely dirty from the browser's own appends, so it would have failed on a correct run (09 §G-11) |
 | C-6 | `/ui2-screen` on any screen writes an element map whose refs are a subset of that spec's §4 closed list |
+| C-7 | `/ui2-component-update` asks before capturing (09 §O-5) and prints `/ui2-component-build`'s Hard-rules block at the head of each phase (09 §G-12) |
+| C-8 | A note written on a SCREEN whose §4 names the target is loaded by `/ui2-component-build` phase 0 and by `/ui2-component-update` phase 0 (09 §G-14) |
 
 ## 6. Requirement traceability
 
@@ -122,4 +135,15 @@ Run at `http://localhost:5950/components/2.0/home-dashboard/default`.
 | D1 | N-4, N-5, human 10 |
 | D5 | C-6, E-3 |
 | D8 | H-1, H-2, human 3 |
-| D9 | human 5 |
+| D9 | human 5, human 14, H-6 |
+| G-5 (composite maps) | E-6, C-6 |
+| G-8 (screen comment targets) | human 15, R-5 |
+| G-9 (selection survives nav) | H-6, human 14 |
+| G-12 / O-5 (update-command rules) | C-7 |
+| G-13 (view states) | human 7, human 12, R-1 |
+| G-14 (screen notes bind components) | C-8 |
+| X-1 (production mode) | R-6, and the `canCapture` gate in human 12 |
+| X-2 (one parser) | R-9 |
+| X-3 (unique-ref resolution) | R-7 |
+| C-3 (1.0 regression) | human 13 |
+| C-4 (click vs drag) | H-7, human 13 |

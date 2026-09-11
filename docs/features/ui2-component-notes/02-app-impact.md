@@ -58,8 +58,11 @@ Single-app feature; sequencing is within the capture phase plan, not across apps
   key keeps its meaning.
 - **`.cmp-ui2s__chip` changes behavior** (R6): it selects instead of navigating. This is the one
   deliberate regression to existing behavior, and the Open control replaces the lost affordance.
-- **The comment system is untouched** (D2), so `/ui2-resolve` and every stored comment keep
-  working unchanged.
+- **The comment channel is untouched** (D2) — no route, no table, no resolution flow changes, so
+  `/ui2-resolve` and every stored comment keep working. **Amended 2026-09-10 (09 §G-8):** one
+  behavior does change — a comment placed on a **screen** now records which component it landed
+  on, because the screen's new element map feeds the hit test the comment composer already runs.
+  Comments stored before this ships have no target and render exactly as they do today.
 - **Notes are additive to the skills.** A component with no notes makes
   `/ui2-component-build` behave exactly as it does today.
 
@@ -67,7 +70,7 @@ Single-app feature; sequencing is within the capture phase plan, not across apps
 
 | If this breaks | What is lost | What still works |
 |---|---|---|
-| Element map missing or malformed | Hover boxes and click-to-select on screens | The whole screen view: render, states, versions, comments, Screen tab |
+| Element map missing or malformed | Hover boxes and click-to-select on screens, and screen comments fall back to untargeted pins | The whole screen view: render, states, versions, comments, Screen tab |
 | Note routes fail | Reading and adding notes in the browser | Every other tab; notes on disk are still readable by the skills and by the owner |
 | Note file hand-corrupted | That one target's notes list, and `/ui2-component-update`'s input for it | Every other target — files are per-target, so a parse failure is isolated |
 | Mention index fails | The `@` typeahead | Typing a token by hand still produces a valid note |

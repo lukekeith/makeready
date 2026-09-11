@@ -77,13 +77,13 @@ iOS harness already uses beside its renders.
 |---|---|
 | `screen` | Screen id (README table key, D8 of the UI2 program). |
 | `snapshot` | The PNG this map describes; the browser pairs them by filename, this field is the assertion. |
-| `node` | Figma node id of the frame, for provenance and re-run diffing. |
+| `node` | Figma node id of **the node that was exported** — a frame for most screens, a **section or multi-frame sheet** for a composite snapshot (decided 2026-09-10, 09 §G-5; `shared-edit-field` has two). Provenance and re-run diffing. |
 | `size` | The exported image's own coordinate space in points — **read from Figma, never guessed**. Used only to sanity-check aspect ratio against the PNG. **Corrected 2026-09-10 (audit pass 1):** the example above originally read `440×2126`, which is not home-dashboard's frame — the spec records `440×2730` (`docs/ui2/screens/home-dashboard.md` §1) and the PNG on disk is 331×2048 (ratio 0.1616 vs 0.1612, a 0.3% drift that passes). The original number would have diverged 28% and the guard below would have discarded the whole map. Composite (multi-frame) exports are 09 §G-5. |
 | `generatedBy` | `ui2-screen@<date>` (authoritative) or `backfill@<date>` (migrated, D5). |
 | `elements[].ref` | The registry id this instance resolved to. **Required** — an instance with no confident ref is omitted from the file entirely (D5). |
 | `elements[].name` | The registry name at authoring time. Display **falls back** to this only when `ref` no longer resolves; the live registry name wins (R2). |
 | `elements[].instance` | The Figma node id of this instance. Provenance; lets a re-spec diff the map. |
-| `elements[].x/y/w/h` | Rect as fractions of the frame, `0…1`, same convention as the iOS harness. |
+| `elements[].x/y/w/h` | Rect as fractions of **the exported image's own coordinate space**, `0…1`, same convention as the iOS harness. For a single-frame export that is the frame; for a composite it is the whole sheet (09 §G-5). The browser hit-tests fractions of the image it is displaying, so one rule covers both. Derivation from `get_metadata`'s absolute coordinates is in 07 §1.1 step 1. |
 
 **One entry per instance.** Fourteen `C-052` chips produce fourteen entries with the same
 `ref`. Nesting is expressed by containment, not by a parent field — the hit test derives depth
@@ -91,7 +91,8 @@ from area (D8), and authoring order puts inner elements later.
 
 **Aspect-ratio guard.** Before use, the server compares `size.w / size.h` against the PNG's
 `width / height`; a divergence over 1% discards the map, exactly as `ui2ElementMap()` does
-today. A stale map is worse than none — it would attribute notes to the wrong component.
+today (`server.mjs:1181-1184`). The arithmetic is identical for a composite export — it is the
+exported node's ratio against the image's, not "a frame's". A stale map is worse than none — it would attribute notes to the wrong component.
 
 ## 2. Endpoints
 
@@ -135,7 +136,8 @@ No auth — capture is a local dev tool with no auth layer.
 | 200 | `{ items: [ { kind: "component" \| "screen", id, name, section, hasNotes } ] }` |
 
 The union of every registry row and every README screen row, sorted components-then-screens by
-id. This is the `@` typeahead's whole data source; the client filters it locally (**98 rows —
+id. `hasNotes` is computed from **one `readdir` per notes directory** (two total), never a stat
+per row (09 §G-15); `buildUi2Index()` and `buildUi2Screens()` are already cached. This is the `@` typeahead's whole data source; the client filters it locally (**98 rows —
 73 registry ids + 25 README screen rows, verified in code (2026-09-10)** — so a request per
 keystroke would be waste).
 
@@ -154,7 +156,10 @@ current meaning.
 
 Each element's `ref` is additionally resolved against the registry so the client can label
 without a second fetch: entries gain `resolved: { name, specced, built, hasSnapshot }`, or
-`resolved: null` for a ref that no longer exists in the registry.
+`resolved: null` for a ref that no longer exists in the registry. **Resolution happens once per
+UNIQUE ref** (09 §X-3) — `built` costs an `isBuilt()` fs check and a screen can render the same
+chip fourteen times — and the same map backs the response's existing `components[]` array, which
+gains `built` so the two views of one component cannot disagree.
 
 ## 3. Effective requirements (the derivation both skills implement)
 
@@ -189,3 +194,16 @@ a failure would drive the build to undo the owner's own instruction.
 `GET /api/ui2/version/:vid` · `POST /api/ui2/refresh` · comment CRUD routes and the
 `makeready-capture` MCP comment tools. None change shape; the comment channel is deliberately
 independent of notes (D2).
+
+**One amendment, decided 2026-09-10 (09 §G-8).** Comment *routes* are unchanged, but comments
+placed on a **screen** now carry the `target` metadata the existing shape already has room for
+(`targetSelector` / `targetLabel`), because the screen's element map feeds the same hit test the
+comment composer already uses. `targetLabel` on a screen resolves to `C-### Name` from the live
+registry. Comments stored before this ships have no target and render exactly as they do now.
+
+**Production mode (09 §X-1).** A capture instance running with `NODE_ENV=production` or
+`RAILWAY=true` (`server.mjs:79`) serves the built bundle and every GET route above. Where the
+`docs/ui2` tree is absent, `GET /api/ui2/notes` answers `exists: false, notes: []` and
+`screen-detail` answers `elements: null` — the same degraded shapes as a missing file, never a
+500. `POST /api/ui2/notes` is not registered at all in that mode, and the client hides Add note
+on `canCapture === false`.

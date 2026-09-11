@@ -1,6 +1,6 @@
 # ui2-component-notes — screen element targeting, the Component tab, and notes
 
-**Status: audited, blocked on 3 decisions** (audit pass 1, 2026-09-10 — no code written)
+**Status: planned — building** (audit clean, decisions closed, 6 phase docs, 2026-09-10)
 
 Point at a component on a 2.0 screen and talk about it. Three joined parts:
 
@@ -22,28 +22,31 @@ screen while saying it.
 
 | Step | Status |
 |---|---|
-| spec | ✅ drafted 2026-09-11 (6 statements corrected by the audit 2026-09-10) |
-| audit | 🔄 pass 1 run 2026-09-10 — **16 new findings**, 3 of them blocking (09) |
-| decisions | 🔄 **blocked**: G-5 composite snapshots · G-8 screen-comment targeting · G-9 `?c=` navigation · plus G-7 default to veto and O-5 owner permission |
-| plan | ⬜ |
+| spec | ✅ drafted 2026-09-11 (6 statements corrected by the audit) |
+| audit | ✅ pass 1 (16 findings) + pass 2 delta (2, both fixed) + integrity check **SOUND**, all 2026-09-10 |
+| decisions | ✅ closed 2026-09-10 — 5 rulings taken as **defaults**, each veto-able (09) |
+| plan | ✅ 6 phase docs written 2026-09-10 |
 | build | ⬜ |
 | verify | ⬜ |
 | sign-off | ⬜ |
 
-## Proposed phases
+## Phase status
 
-One app, so phases are sequenced by dependency rather than by app boundary. Written out here
-because the plan step has not run — `/build-spec-plan` owns turning these into phase docs.
+Written by the plan step 2026-09-10. One app per phase; 02's scope table puts everything in
+capture except the last, which is the three command files under root `.claude/`.
 
-| # | Phase | Contents | Gate |
-|---|---|---|---|
-| 1 | Data + backend | `ui2-notes.mjs`, element-map parsing + aspect guard in `ui2-index.mjs`, the 3 routes, the backfill generator, 10 screens migrated and hand-checked | `npm test` green; N-*, E-*, X-1, R-* pass |
-| 2 | Targeting | Hover/click hit-testing on screen renders, the `--component` box + label, comment-mode isolation | human 1–3, 11–12 |
-| 3 | Component tab + notes UI | The tab, note cards, the notepad, the `@` typeahead, the chip-behavior change, `?c=` plumbing | human 4–10 |
-| 4 | Commands | `/ui2-component-update` (new), note-awareness in `/ui2-component-build`, map authoring in `/ui2-screen` | C-1…C-6 |
+| # | Phase | App | Doc | Tasks | Status |
+|---|---|---|---|---|---|
+| 1 | Notes storage + routes | capture (backend) | [10](10-phase-1-notes-backend.md) | 5 | ✅ 2026-09-10 |
+| 2 | Element maps: parse, guard, serve | capture (backend) | [11](11-phase-2-element-maps-serving.md) | 6 | ⬜ |
+| 3 | The element-map backfill | capture + docs/ui2 | [12](12-phase-3-backfill.md) | 5 | ⬜ |
+| 4 | Hover, click and the box | capture (frontend) | [13](13-phase-4-targeting-ui.md) | 8 | ⬜ |
+| 5 | Component tab, notes, composer | capture (frontend) | [14](14-phase-5-component-tab.md) | 9 | ⬜ |
+| 6 | The three command files | root `.claude/` | [15](15-phase-6-commands.md) | 4 | ⬜ |
 
-Phases 2 and 3 both depend on 1 and are independent of each other. Phase 4 needs real notes to
-verify against, so it goes last.
+The chain is strict: maps must be served before generating twelve of them is worth doing (3 after
+2), targeting must work before the tab it selects into (5 after 4), and notes must be writable
+before the command that verifies against them can be checked (6 after 5).
 
 ## Doc index
 
@@ -78,8 +81,7 @@ verify against, so it goes last.
 ## Continue
 
 ```
-/build-spec ui2-component-notes           ← puts the 3 blocking decisions to you, applies them,
-                                             re-audits the delta, then plans
+/build-spec ui2-component-notes           ← resumes the build at the first phase with unchecked tasks
 ```
 
 Audit pass 1 (2026-09-10) read the suite against the capture codebase, the two `.claude` commands

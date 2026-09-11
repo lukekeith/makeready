@@ -363,3 +363,40 @@ export async function captureUi2(id, variant = '*') {
   }
   return res.json();
 }
+
+// ── UI 2.0 notes (docs/features/ui2-component-notes/03-data-and-api.md §2) ──
+
+/** A target's notes, newest first, with every mention resolved to a current name. */
+export async function fetchUi2Notes(target) {
+  const res = await fetch(`/api/ui2/notes?${new URLSearchParams({ target })}`);
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 notes fetch failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Append one note. `after` is the newest note id the composer was opened with —
+ *  the server 409s when the file has moved on since, rather than appending under
+ *  a note this author never saw (suite 09 §G-7). */
+export async function postUi2Note(target, body, after = null) {
+  const res = await fetch('/api/ui2/notes', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target, body, after }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error ?? `ui2 note save failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+/** Every mentionable component and screen — fetched once and filtered in the
+ *  composer, because it is ~98 rows and the typeahead runs per keystroke. */
+export async function fetchUi2Mentions() {
+  const res = await fetch('/api/ui2/mentions');
+  if (!res.ok) throw new Error(`ui2 mentions fetch failed: ${res.status}`);
+  return res.json();
+}
+
