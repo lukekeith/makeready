@@ -1,6 +1,7 @@
 {
   "enabledPlugins": {
-    "builder@makeready": true
+    "builder@makeready": true,
+    "superpowers@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "makeready": {
