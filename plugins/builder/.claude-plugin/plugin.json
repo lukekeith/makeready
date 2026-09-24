@@ -1,6 +1,0 @@
-{
-  "name": "builder",
-  "description": "A dependency-free build pipeline for any repo. Sizes the work first (xs/sm in chat, md/lg as a SPEC + manifest through its own subagent task loop, xl as a program), then drives brainstorm → align → audit → plan → build → the human walk → signoff → verify → ship, resumable after any /clear from a ~12-line MANIFEST.md. Multi-app aware: every app gets a §Apps row, the contract freezes when the producer's phase verifies, and phases run one app at a time. Reads every project fact from one host file, .claude/builder.md. Entry: /builder:brainstorm. Resume: /builder:resume. Help: /builder:help.",
-  "version": "2.0.0",
-  "author": { "name": "MakeReady" }
-}
