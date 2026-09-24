@@ -1,44 +1,46 @@
 #!/usr/bin/env node
 /**
- * Cross-section obligation checker for a `docs/features/<feature>/SPEC.md`.
+ * Cross-section obligation checker for a feature's `SPEC.md`.
  *
  * WHY THIS EXISTS. One doc raises an obligation against another and nothing ever checks it. The
- * original case (FinPro, 2026-08-07): a surfaces doc correctly identified `N1` — parked drafts —
- * as "the only item that requires NEW persistence", correctly rated it the biggest backend item in
- * the flow, and even wrote down that the backend doc had no `T#` row for it. That finding then sat
- * unacted-on across two full passes, and was caught only because a human asked a direct question.
- * Nothing failed to *notice*. What failed was that no mechanism checked the obligation.
+ * original case: a surfaces doc correctly identified `N1` — parked drafts — as "the only item that
+ * requires NEW persistence", correctly rated it the biggest backend item in the flow, and even
+ * wrote down that the backend doc had no `T#` row for it. That finding then sat unacted-on across
+ * two full passes, and was caught only because a human asked a direct question. Nothing failed to
+ * *notice*. What failed was that no mechanism checked the obligation.
  *
  * Prose rules don't fix that class. A grep does. The obligations asserted here:
  *
- *   1. Every `N#` row in SPEC §Replaced surfaces (capabilities the PROTOTYPE ADDS — the only
- *      prototype→app direction in the pipeline, and therefore where all new backend work is born)
+ *   1. Every `N#` row in SPEC §Replaced surfaces (capabilities the DESIGN ADDS — the only
+ *      design→app direction in the pipeline, and therefore where all new backend work is born)
  *      must reach a disposition: cited by a `T#`/`SC#`/`D#` elsewhere in the spec, or explicitly
  *      marked as needing no persistence.
  *   2. Every `T#` row in §Findings & risks whose text implies DDL or a wire-shape change must have
  *      a matching `SC#` row in §Schema & API changes — the rule /builder:align states, enforced
  *      instead of trusted.
  *   3. Every `SC#` REMOVE row carries a named decider — on the row, or as a decided §Decisions row.
- *   4. MakeReady's monorepo obligation: every app §Apps marks in scope has its own SPEC section,
- *      and every contract row names at least one consumer. A four-app change that silently omits
- *      a consumer is the X# class — a server change that breaks a shipped iPhone build.
+ *   4. The multi-app obligations: every app `.claude/builder.md` declares has a §Apps row, an
+ *      in-scope app has its own SPEC section, and every §Contract row names at least one consumer.
+ *      An endpoint with no consumer is either dead or a consumer nobody audited.
  *
- *   node .claude/scripts/check-flow-obligations.mjs <feature>            # e.g. notes
- *   node .claude/scripts/check-flow-obligations.mjs docs/features/notes
- *   node .claude/scripts/check-flow-obligations.mjs <feature> --json
- *   node .claude/scripts/check-flow-obligations.mjs --all
+ *   node <plugin>/scripts/check-obligations.mjs <feature>
+ *   node <plugin>/scripts/check-obligations.mjs <registry>/<feature>
+ *   node <plugin>/scripts/check-obligations.mjs <feature> --json
+ *   node <plugin>/scripts/check-obligations.mjs --all
  *
  * Exit 0 = every obligation discharged (or the spec is too early to have them).
  * Exit 1 = at least one dangling obligation. Exit 2 = bad usage / no such feature.
  */
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs'
 import { join, dirname, isAbsolute } from 'node:path'
+import { requireConfig } from './config.mjs'
 
-const ROOT = process.env.CLAUDE_PROJECT_DIR || process.cwd()
-const REGISTRY_ROOT = 'docs/features'
+const CFG = requireConfig()
+const ROOT = CFG.root
+const REGISTRY_ROOT = CFG.registry
 const hasSpec = (dir) => existsSync(join(dir, 'SPEC.md'))
 
-/** `<feature>` → docs/features/<feature>; anything with a `/` is a folder or SPEC.md path. */
+/** `<feature>` → <registry>/<feature>; anything with a `/` is a folder or SPEC.md path. */
 const resolveSuite = (arg) => {
   if (!arg.includes('/')) return join(ROOT, REGISTRY_ROOT, arg)
   const abs = isAbsolute(arg) ? arg : join(ROOT, arg)
@@ -67,7 +69,7 @@ if (!suites.length) {
 /** Phrases that discharge an N# row without a downstream id — a deliberate "this needs no backend". */
 const NO_BACKEND = /no backend implication|client-only by decision|no schema change|no persistence needed/i
 /** Words in a T# row that mean the schema or the wire shape moves, so an SC# row is owed. */
-const DDL = /\bmodel\b|\bcolumn\b|\bmigration\b|\bprisma\b|\bschema\b|\bendpoint\b|\benum\b|\btable\b/i
+const DDL = /\bmodel\b|\bcolumn\b|\bfield\b|\bmigration\b|\bschema\b|\bendpoint\b|\benum\b|\btable\b/i
 /** A T# explicitly scoped away from DDL — service-only work owes no SC#. */
 const NO_DDL = /prototype-side only|no backend work|read-side projection|no DDL|no wire change|service-only|^\s*service\s*\|/i
 
@@ -90,13 +92,13 @@ const FINDINGS_SECTION = /^##\s+Findings(?:\s*&\s*risks)?\b[^\n]*\n([\s\S]*?)(?=
 const APPS_SECTION = /^##\s+Apps\b[^\n]*\n([\s\S]*?)(?=\n##\s|(?![\s\S]))/im
 const CONTRACT_SECTION = /^##\s+Contract\b[^\n]*\n([\s\S]*?)(?=\n##\s|(?![\s\S]))/im
 
-/** The four apps, and the SPEC section each one owes when it is in scope. */
-const APP_SECTIONS = {
-  server: /^##\s+Server\b/im,
-  client: /^##\s+Client\b/im,
-  iphone: /^##\s+iPhone\b/im,
-  capture: /^##\s+Capture\b/im,
-}
+/**
+ * The apps the config declares, and the SPEC section each one owes when it is in scope. The
+ * heading is matched case-insensitively on the app's own name, so a §Web section satisfies `web`.
+ */
+const APP_SECTIONS = Object.fromEntries(
+  CFG.appNames.map((name) => [name, new RegExp(`^##\\s+${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'im')])
+)
 
 const results = []
 
@@ -108,7 +110,7 @@ for (const dir of suites) {
   }
   const specPath = join(dir, 'SPEC.md')
   if (!existsSync(specPath)) {
-    console.error(`✖ no SPEC.md at ${feature} — nothing to check (a numbered suite has not been converted yet)`)
+    console.error(`✖ no SPEC.md at ${feature} — nothing to check (a legacy folder has not been converted yet)`)
     process.exit(2)
   }
   const spec = readFileSync(specPath, 'utf8')
@@ -171,7 +173,7 @@ for (const dir of suites) {
             rule: 'DDL-implying T# has no SC# row',
             id,
             detail:
-              `${id} names model/column/migration/prisma/schema/endpoint work but §Schema & API changes ` +
+              `${id} names model/field/migration/schema/endpoint work but §Schema & API changes ` +
               `never mentions it, so the migration checklist is missing it.`,
           })
         }
@@ -208,24 +210,32 @@ for (const dir of suites) {
     }
   }
 
-  // ── Obligation 4: the monorepo obligations (MakeReady) ────────────────────
+  // ── Obligation 4: the multi-app obligations ───────────────────────────────
   const apps = section(spec, APPS_SECTION)
   if (apps) {
+    // Parse the §Apps table into rows ONCE. Matching an app name with a loose row regex reads the
+    // table HEADER as a row whenever an app is named "app" — the single-app case — and then
+    // reports every app as out of scope. A row is a row only when its in-scope cell is ✅ or ⬜.
+    const appRows = apps
+      .split('\n')
+      .filter((l) => /^\s*\|/.test(l))
+      .map((l) => l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map((c) => c.trim()))
+      .filter((cells) => cells.length >= 2 && /[✅⬜]/.test(cells[1]))
+
     for (const [app, re] of Object.entries(APP_SECTIONS)) {
-      // An §Apps row marked in scope: `| server | ✅ | … |`
-      const row = new RegExp(`^\\|\\s*\`?${app}\`?\\s*\\|([^\\n]*)$`, 'im').exec(apps)
-      if (!row) {
+      const cells = appRows.find((c) => c[0].replace(/[`*]/g, '').toLowerCase() === app.toLowerCase())
+      if (!cells) {
         findings.push({
           severity: 'FAIL',
           rule: 'app missing from §Apps',
           id: app,
           detail:
-            `§Apps has no row for \`${app}\`. Every app gets a row, including the ones it doesn't touch — ` +
-            `an omission you can read is a decision; a missing row is an oversight.`,
+            `§Apps has no row for \`${app}\`, which ${CFG.path} declares. Every app gets a row, including ` +
+            `the ones it doesn't touch — an omission you can read is a decision; a missing row is an oversight.`,
         })
         continue
       }
-      const inScope = /✅/.test(row[1])
+      const inScope = /✅/.test(cells[1])
       if (inScope && !re.test(spec)) {
         findings.push({
           severity: 'FAIL',
@@ -236,7 +246,7 @@ for (const dir of suites) {
       }
       // A ⬜ row must EXPLAIN itself. Don't test for particular words — "untouched", "not affected"
       // and "no web-app change" are all fine — test that the cell actually says something.
-      const why = (row[1].split('|')[1] ?? '').replace(/[*`_]/g, '').trim()
+      const why = (cells[2] ?? '').replace(/[*`_]/g, '').trim()
       if (!inScope && why.length < 15) {
         findings.push({
           severity: 'WARN',
@@ -249,7 +259,7 @@ for (const dir of suites) {
   }
   const contract = section(spec, CONTRACT_SECTION)
   if (contract) {
-    // `| GET /api/… | server | client, iphone | 03 §2 |`
+    // `| GET /api/… | <producer> | <consumer>, <consumer> | … |`
     const rows = [...contract.matchAll(/^\|\s*`?((?:GET|POST|PATCH|PUT|DELETE)\s+[^|`]+)`?\s*\|([^|]*)\|([^|]*)\|/gim)]
     for (const [, endpoint, producer, consumers] of rows) {
       if (!consumers.trim() || /^[\s—–-]*$/.test(consumers)) {

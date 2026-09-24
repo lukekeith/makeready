@@ -1,36 +1,34 @@
 #!/usr/bin/env node
 /**
- * Enumerate the one feature registry — docs/features/ — with where each feature stands, so
- * /builder:resume can offer them for selection without loading a single doc.
+ * Enumerate the feature registry with where each feature stands, so /builder:resume can offer them
+ * for selection without loading a single doc. The registry root comes from `.claude/builder.md`.
  *
  * Four layouts:
  *   - MANIFEST.md (the builder pipeline): key/value MANIFEST.md carries state/size/next; a
  *     `tier: program` manifest tracks `child:` lines instead of its own state.
- *   - CONDENSED: a SPEC.md whose header carries `✅ SIGNED OFF` or `✅ SHIPPED` — the manifest
- *     is deleted at ship, so the header is the record.
- *   - NUMBERED SUITE (the pre-builder /build-spec layout, retired 2026-09-24): README.md +
- *     01-architecture … 08-testing + 09-gaps-and-decisions + 10+-phase-N-*.md. Read-only here:
- *     /builder:resume offers ONE action on such a folder, the conversion in REFERENCE §Condense.
- *   - UNNUMBERED LEGACY: an older folder with a STATUS.md or just prose docs.
+ *   - CONDENSED: a SPEC.md whose header carries `✅ SIGNED OFF` or `✅ SHIPPED` — the manifest is
+ *     deleted at ship, so the header is the record.
+ *   - LEGACY: a folder carrying BUILD STATE from a pipeline that ran before this one — phase docs
+ *     (`NN-phase-*.md`) or a `STATUS.md`. Read-only here: /builder:resume offers ONE action on such
+ *     a folder, the conversion in REFERENCE §Condense.
+ *   - ANALYSIS: docs that feed a design conversation but were never driven by a pipeline. Nothing
+ *     to convert — its next step is /builder:brainstorm.
  *
- * DONE = a SPEC.md header carrying `✅ SHIPPED`, or a README.md header carrying `✅ **SHIPPED`,
- * or a numbered suite whose README status line reads Shipped. A DONE feature is never offered
- * as a pipeline target.
+ * DONE = a SPEC.md header carrying `✅ SHIPPED`, or a README.md header or `**Status:**` line that
+ * opens SHIPPED. A DONE feature is never offered as a pipeline target.
  *
- *   node .claude/scripts/list-feature-specs.mjs               # table
- *   node .claude/scripts/list-feature-specs.mjs --json        # machine-readable
- *   node .claude/scripts/list-feature-specs.mjs --check       # resume-safety + size warnings
- *   node .claude/scripts/list-feature-specs.mjs --all         # include DONE features
+ *   node <plugin>/scripts/list-features.mjs               # table
+ *   node <plugin>/scripts/list-features.mjs --json        # machine-readable
+ *   node <plugin>/scripts/list-features.mjs --check       # resume-safety + size warnings
+ *   node <plugin>/scripts/list-features.mjs --all         # include DONE features
  */
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
+import { requireConfig } from './config.mjs'
 
-const ROOT = process.cwd()
-
-// One registry root. UI 2.0 lives under docs/ui2/ and is a SPEC PROGRAM, not a build registry —
-// its screens and components are specced by /ui2-screen and /ui2-component and enter this
-// pipeline as `--ui2 <ref>` requirements, never as feature folders of their own.
-const REGISTRY = [{ root: 'docs/features', requireManifest: false }]
+const CFG = requireConfig()
+const ROOT = CFG.root
+const REGISTRY = [{ root: CFG.registry, requireManifest: false }]
 const ENTRY_CMD = '/builder:resume'
 const PLAN_CMD = '/builder:brainstorm'
 
@@ -38,8 +36,7 @@ const SPEC_LINE_BUDGET = 500
 const PLAN_LINE_BUDGET = 400
 const VALID_SIZES = new Set(['xs', 'sm', 'md', 'lg', 'xl'])
 const SIZE_MAP = { xs: 'xs', s: 'sm', m: 'md', l: 'lg', xl: 'xl' }
-// Numbered-suite budgets (the retired /build-spec REFERENCE §1 caps; kept so in-flight suites
-// stay checked until they are converted).
+// Legacy-suite budgets — a doc this size taxes every step that reads it.
 const SUITE_DOC_KB_BUDGET = 40
 const LEDGER_KB_BUDGET = 60
 const PHASE_DOC_LINE_BUDGET = 200
@@ -140,7 +137,8 @@ const inspect = (root, name) => {
       out.state = `program — ${shipped}/${out.children.length} children shipped`
     } else {
       const bits = [mf.state ?? 'state?', `size ${mf.size ?? '?'}`]
-      if (mf.ui2 && mf.ui2 !== 'none') bits.push('prototype')
+      const designKey = CFG.design?.flag
+      if (designKey && mf[designKey] && mf[designKey] !== 'none') bits.push('prototype')
       if (mf.apps) bits.push(mf.apps)
       if (mf.contract && mf.contract !== 'none') bits.push(`contract ${mf.contract}`)
       if (mf.verify && mf.verify !== 'none') bits.push(`verify ${mf.verify}`)
@@ -190,6 +188,19 @@ const inspect = (root, name) => {
     return out
   }
 
+  // ---- A SPEC.md with no manifest and no condensed header is INCOMPLETE, not analysis ----
+  // Every builder feature carries both files; the sign-off and ship condense remove the manifest
+  // only AFTER writing the header that replaces it. So this shape means a half-written feature or
+  // a half-finished conversion, and saying "analysis" about it would hide that.
+  if (specText) {
+    out.layout = 'manifest'
+    out.source = 'SPEC.md (no MANIFEST.md)'
+    out.state = 'spec without a manifest — incomplete'
+    out.next = `${ENTRY_CMD} --path ${out.path}   (writes the missing MANIFEST.md)`
+    out.problems.push('SPEC.md has no MANIFEST.md beside it — a cold session cannot resume it')
+    return out
+  }
+
   const readmeText = files.some((f) => /^README\.md$/i.test(f)) ? read(join(dir, 'README.md')) : null
   if (readmeText && /✅\s*\*\*SHIPPED/.test(readmeText.slice(0, 800))) {
     out.done = true
@@ -201,26 +212,24 @@ const inspect = (root, name) => {
     return out
   }
 
-  // ---- The numbered /build-spec suite (retired 2026-09-24) ----
-  // README + 01-architecture … 08-testing + 09-gaps-and-decisions + 10+-phase-N-*.md.
+  // ---- A legacy folder from a pipeline that ran before this one ----
   //
-  // 🔴 A numbered folder is NOT automatically a suite awaiting conversion. The old pipeline's own
-  // markers are `02-app-impact.md` (it wrote one for every feature) and the `10+-phase-N-*.md`
-  // docs. A folder of numbered ANALYSIS docs with neither — the video/UX studies that feed a
-  // future design conversation — was never driven by that pipeline and has nothing to convert:
-  // its next step is the design conversation itself, not a conversion.
-  const suiteDocs = files.filter((f) => /^0[1-9]-/.test(f)).sort()
+  // 🔴 Numbered docs alone do NOT make a folder a suite awaiting conversion. The discriminator is
+  // BUILD STATE: phase docs, or a STATUS.md ledger. A folder of numbered ANALYSIS docs with
+  // neither — the studies that feed a future design conversation — was never driven by a pipeline
+  // and has nothing to convert: its next step is the design conversation itself.
+  const suiteDocs = files.filter((f) => /^\d\d-/.test(f)).sort()
   const phaseDocs = files.filter((f) => /^\d\d-phase-/.test(f)).sort()
-  const drivenBySuite = files.includes('02-app-impact.md') || phaseDocs.length > 0 || existsSync(join(dir, 'STATUS.md'))
-  if (suiteDocs.length >= 2 && drivenBySuite) {
+  const drivenByPipeline = phaseDocs.length > 0 || existsSync(join(dir, 'STATUS.md'))
+  if (suiteDocs.length >= 2 && drivenByPipeline) {
     out.layout = 'suite'
-    out.source = 'numbered suite (pre-builder layout)'
+    out.source = 'legacy layout (pre-builder)'
     for (const f of [...suiteDocs, ...phaseDocs]) {
       const body = read(join(dir, f))
       if (body == null) continue
       const kb = Math.round(Buffer.byteLength(body) / 1024)
-      if (/^09-/.test(f) && kb > LEDGER_KB_BUDGET) out.warnings.push(`${f} is ${kb}KB (budget ${LEDGER_KB_BUDGET}KB)`)
-      else if (/^0[1-8]-/.test(f) && kb > SUITE_DOC_KB_BUDGET)
+      if (/^\d\d-gaps|^\d\d-decisions/.test(f) && kb > LEDGER_KB_BUDGET) out.warnings.push(`${f} is ${kb}KB (budget ${LEDGER_KB_BUDGET}KB)`)
+      else if (/^\d\d-/.test(f) && !/^\d\d-phase-/.test(f) && kb > SUITE_DOC_KB_BUDGET)
         out.warnings.push(`${f} is ${kb}KB (budget ${SUITE_DOC_KB_BUDGET}KB)`)
       else if (/^\d\d-phase-/.test(f) && body.split('\n').length > PHASE_DOC_LINE_BUDGET)
         out.warnings.push(`${f} is over the ${PHASE_DOC_LINE_BUDGET}-line phase budget`)
@@ -244,18 +253,18 @@ const inspect = (root, name) => {
       out.state = `suite — ${suiteDocs.length} docs, unplanned${status ? ` · ${clip(status, 34)}` : ''}`
     }
     // The ONE action on a numbered suite is the conversion; everything else refuses to run on it.
-    out.next = `${ENTRY_CMD} --path ${out.path}   (converts the suite to SPEC.md + MANIFEST.md)`
+    out.next = `${ENTRY_CMD} --path ${out.path}   (converts it to SPEC.md + MANIFEST.md)`
     out.convert = true
     return out
   }
 
-  // ---- Unnumbered legacy driven by the old pipeline (a STATUS.md ledger) ----
+  // ---- Unnumbered legacy driven by a prior pipeline (a STATUS.md ledger) ----
   const statusText = read(join(dir, 'STATUS.md'))
   if (statusText) {
     out.layout = 'suite'
     out.source = 'STATUS.md'
-    out.next = `${ENTRY_CMD} --path ${out.path}   (converts the suite to SPEC.md + MANIFEST.md)`
-    out.state = `legacy suite (STATUS.md)${grabStatus(readmeText) ? ` · ${clip(grabStatus(readmeText), 34)}` : ''}`
+    out.next = `${ENTRY_CMD} --path ${out.path}   (converts it to SPEC.md + MANIFEST.md)`
+    out.state = `legacy (STATUS.md)${grabStatus(readmeText) ? ` · ${clip(grabStatus(readmeText), 34)}` : ''}`
     out.convert = true
     return out
   }
@@ -297,7 +306,7 @@ for (const { root, requireManifest } of REGISTRY) {
   }
 }
 if (!rows.length) {
-  console.error(`Nothing under docs/features — start one with ${PLAN_CMD} --size md <what you want>.`)
+  console.error(`Nothing under ${CFG.registry} — start one with ${PLAN_CMD} --size md <what you want>.`)
   process.exit(asJson ? 0 : 1)
 }
 

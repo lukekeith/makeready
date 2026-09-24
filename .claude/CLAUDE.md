@@ -139,12 +139,21 @@ it enforces, and that nothing else in this repo does:
    committing iPhone code, launching the simulator and archiving are explicit user calls at every
    size and under every flag.
 
-Sizes, flags, the SPEC/PLAN/MANIFEST shapes, per-app quality gates, house rules, environment
-landmines and the standing traps live in `plugins/builder/skills/resume/REFERENCE.md`.
+**It is self-contained and project-agnostic.** The plugin names no app, language or command: it
+reads every fact about this repo from **`.claude/builder.md`** — the four apps and their roles, the
+literal gate commands, the global constraints pasted into every implementer brief, the house rules
+the audit enforces, the environment landmines, the recipe skills, and the UI 2.0 design hook. Edit
+that file when the project changes; the plugin stays as it is. What the pipeline *does* (sizes,
+flags, the SPEC/PLAN/MANIFEST shapes, the condense, the legacy conversion) is
+`plugins/builder/skills/resume/REFERENCE.md`. It depends on no other plugin — the execution engine
+and plan format are vendored (`plugins/builder/LICENSE-THIRD-PARTY.md`) and its scripts ship in
+`plugins/builder/scripts/`.
 
 **A specced UI 2.0 design can BE the requirements** — `/builder:brainstorm --ui2 C-034` (or a whole
-screen, `--ui2 home-dashboard`). The pipeline **reads** `docs/ui2/` and routes any gap back to the
-command that owns it; it never writes a contract, registry row, token or note.
+screen, `--ui2 home-dashboard`). That flag exists because `.claude/builder.md` declares a `design:`
+block pointing at `docs/ui2/` and its resolver. The pipeline **reads** that design and routes any gap
+back to the `/ui2-*` or `/d2m-*` command that owns it; it never writes a contract, registry row,
+token or note.
 
 **Replaces `/build-spec*` (2026-09-24).** A folder still in the old numbered-suite layout
 (`01-architecture.md` … `09-gaps-and-decisions.md`) is converted, not rewritten:
