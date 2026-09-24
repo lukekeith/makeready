@@ -1,0 +1,14 @@
+{
+  "enabledPlugins": {
+    "superpowers@claude-plugins-official": true,
+    "builder@makeready": true
+  },
+  "extraKnownMarketplaces": {
+    "makeready": {
+      "source": {
+        "source": "directory",
+        "path": "."
+      }
+    }
+  }
+}

@@ -24,11 +24,12 @@ it. See `docs/features/component-browser/14-phase-5-ui2-era.md`.
 ## Hard rules
 
 - **Spec only — no app code.** The spec phase writes docs (`docs/ui2/`), never touches
-  `client/`, `server/`, `iphone/`, or `capture/`. Building happens later via `/build-spec`
+  `client/`, `server/`, `iphone/`, or `capture/`. Building happens later via `/builder:brainstorm --ui2 <ref>`
   suites (see **Build program** below).
 - **Figma is normative where it exists.** A screen spec cites its Figma node + a frozen
   snapshot under `screens/assets/`; deviations are a closed enumerated list ending "anything
-  else that differs is a defect" (build-spec REFERENCE.md §3c). No-Figma screens name a doc
+  else that differs is a defect" — the builder pipeline's spec-language rule,
+  `plugins/builder/skills/resume/REFERENCE.md` §SPEC.md. No-Figma screens name a doc
   source instead (activities analysis §, legacy screen file, or operationalized user intent).
 - **No legacy blending** (DECISIONS.md D2). Screen specs describe the new UI on its own
   terms; the only legacy reference is each spec's §Legacy-mapping (which screens/routes it
@@ -49,7 +50,7 @@ it. See `docs/features/component-browser/14-phase-5-ui2-era.md`.
 | `blocked(OQ#)` | spec written but an open question pins it — resolve in the spec's §8 |
 | `specced` | spec complete: normative source + closed contracts + registry rows + legacy mapping |
 | `gap-checked` | survived the gap-analysis sweeps (set during that phase, not per-run) |
-| `suite-assigned` | claimed by a build-spec suite in the Build program table |
+| `suite-assigned` | claimed by a builder feature in the Build program table |
 | `built` | its suite's phase covering this screen is VERIFIED |
 | ✅ `verified` | user verified live in the UI 2.0 shell |
 
@@ -150,13 +151,13 @@ Figma link jumps the queue; note the jump here.)*
 2. **Gap analysis** (`gap-analysis.md`): only after the spec phase — five sweeps (routes,
    pages, capabilities, endpoints, **registry naming/scoping** per the registry's Naming &
    scoping rules — first audit ran 2026-09-02) until zero open `GAP-###`.
-3. **Build phase**: decompose into `/build-spec` suites (table below), per `migration.md`.
+3. **Build phase**: decompose into `/builder:*` features (table below), per `migration.md`.
 
 **Running alongside all three:** the *preview build* lane (`preview-build.md`, D11) — `/ui2-component-build <C-###>` turns one specced component into a capturable SwiftUI preview so the browser can diff it against its frozen Figma snapshot. It is wired into no screen and decides nothing `ui2-shell` owns; it exists to make a contract verifiable before the build phase reaches it.
 
 ## Build program (empty until the build phase)
 
-Filled during gap analysis. Each suite is an ordinary `/build-spec` feature (one bounded
+Filled during gap analysis. Each suite is an ordinary `/builder:*` feature (one bounded
 flow — never one mega-suite, never one suite per screen) that cites this program's screen
 specs + registry rows as normative sources (REFERENCE.md §3d). Anticipated shape:
 `activities-model` (server) → `ui2-shell` → `activities-player-web` ∥ `activities-editor-ios`

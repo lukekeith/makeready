@@ -19,8 +19,8 @@ implementation details are settled in that suite's draft.
    namespace and their own navigation shell/coordinator. Legacy `Services/Route.swift`,
    `NavigationCoordinator`, and `Pages/` are **never edited** by a UI 2.0 suite.
 3. **Shared foundations stay shared.** `AppState`, Actions, services, and the server API are
-   shared — UI 2.0 changes them only through its build-spec suites' server/contract phases,
-   additively where a shipped legacy build still consumes them (build-spec audit Phase A
+   shared — UI 2.0 changes them only through its builder features' server phases,
+   additively where a shipped legacy build still consumes them (`/builder:audit`'s cross-app contract sweep
    backward-compat rules apply as normal).
 4. **Design-system isolation.** 2.0 tokens/components are generated from
    `design-system/tokens.md` + `registry.md` into the 2.0 namespace. Legacy `Colors.swift` /
@@ -36,7 +36,7 @@ implementation details are settled in that suite's draft.
 
 - [ ] Every README screen row is ✅ `verified`
 - [ ] `gap-analysis.md` shows zero open `GAP-###`
-- [ ] All build suites in the README Build program table are signed off (build-spec human sign-off)
+- [ ] All build features in the README Build program table are signed off (`/builder:signoff`)
 - [ ] Soak period with the flag on for internal/TestFlight users — duration decided at the time, recorded here
 - [ ] Data written by 2.0 verified readable by nothing legacy-only (no orphaned consumers)
 

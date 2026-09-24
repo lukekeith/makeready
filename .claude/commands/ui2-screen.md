@@ -23,10 +23,11 @@ README's Phase gates (gap analysis is next).
 ## Hard rules (re-read before EVERY phase)
 
 - **Docs only.** This command writes under `docs/ui2/` exclusively. No edits to `client/`,
-  `server/`, `iphone/`, `capture/` — building happens later via `/build-spec` suites.
+  `server/`, `iphone/`, `capture/` — building happens later via `/builder:brainstorm --ui2 <ref>`.
 - **Figma is normative** where attached (DECISIONS.md D5): cite node URL + frozen snapshot +
   capture date; deviations are a CLOSED enumerated list ending "anything else that differs
-  is a defect". Banned phrasings per build-spec REFERENCE.md §3c: "match as closely as
+  is a defect". Banned phrasings per the builder pipeline's spec-language rule
+  (`plugins/builder/skills/resume/REFERENCE.md` §SPEC.md, the §Decisions comment block): "match as closely as
   possible", "similar to", "like the design".
 - **Every visual element resolves to a registry row** (`docs/ui2/design-system/registry.md`,
   D6). Check the legacy candidate pool (`iphone/MakeReady/Components/`,

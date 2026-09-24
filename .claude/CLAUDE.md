@@ -98,29 +98,58 @@ Task: Create something
 2. Is it a page?                → Use `/page` (client)
 3. Is it a store?               → Use `/store` (client)
 4. Is it an API endpoint?       → Use `/api` (server)
-5. Is it a complete feature?    → Use `/build-spec-draft` then `/build-spec` (see below)
+5. Is it a complete feature?    → Use `/builder:brainstorm` (see below)
 6. Need to review/refactor?     → Use `/architect`
 7. Need Postman collection?     → Use `/postman`
 ```
 
-### Multi-app features — the `/build-spec` pipeline
+### Building anything — the `/builder:*` pipeline
 
-Anything that touches more than one app (or changes the database) goes through the spec
-pipeline rather than being written directly:
+**One command builds anything.** `/builder:brainstorm` sizes the request first and takes the
+matching path — most work never reaches a doc at all:
 
 ```
-/build-spec-draft <feature>   ← the spec conversation → docs/features/<feature>/ (numbered suite)
-/build-spec <feature>         ← audit → decisions → plan → build (one app per phase) → verify
-/build-spec                   ← no argument: shows every feature in flight and continues one
-/build-spec-help              ← what the commands do and how resuming works
+/builder:brainstorm <what you want>   ← THE ENTRY. Recons, announces a size with its evidence:
+                                         xs/sm  → designed and built in chat, nothing under docs/
+                                         md/lg  → docs/features/<feature>/SPEC.md + MANIFEST.md
+                                         xl     → PROGRAM.md, each child running the pipeline
+/builder:resume                       ← no argument: every feature in flight; pick one and it continues
+/builder:resume --path docs/features/<feature>   ← THE RESUME POINT after any /clear
+/builder:signoff --path <folder> <your words>    ← 🔒 only you can type it
+/builder:help                         ← the full card
 ```
 
-It exists because a single spec here usually spans server + client + iphone. The rules it
-enforces: `02-app-impact.md` states in-scope/out-of-scope for **every** app with a reason,
-`03-data-and-api.md` is the one contract both consumers code against and it **freezes** when the
-server phase verifies, and the build runs **one app per phase, server before its consumers**.
-Templates, per-app quality gates, house rules and environment landmines live in
-`.claude/skills/build-spec/REFERENCE.md`.
+The order for md and lg: **design → (align) → audit → [decisions] → plan → [go-ahead] → build →
+🔒 your walk + sign-off → verify → ship**, driven end to end by `/builder:resume` off a ~12-line
+`MANIFEST.md` that commits at every transition.
+
+**It exists because a single feature here usually spans server + client + iphone.** The four rules
+it enforces, and that nothing else in this repo does:
+
+1. **SPEC §Apps gives EVERY app a row**, including the ones it doesn't touch — a ⬜ row states why
+   not in one line, and the audit checks that claim. An omission you can read is a decision; a
+   missing row is an oversight.
+2. **SPEC §Contract is the one endpoint table both consumers code against**, every row naming its
+   consumers, and it **FREEZES when the server phase verifies**. Re-opening it is a deliberate
+   `/builder:revise` call that names every consumer to re-check.
+3. **One app per phase, server before its consumers** — each app's gates are different commands, so
+   a two-app phase cannot be gated, and client ∥ iphone parallelize because they never import each
+   other.
+4. **The walk comes before the deep verify pass**, and the iPhone half of the PR lock is stricter:
+   committing iPhone code, launching the simulator and archiving are explicit user calls at every
+   size and under every flag.
+
+Sizes, flags, the SPEC/PLAN/MANIFEST shapes, per-app quality gates, house rules, environment
+landmines and the standing traps live in `plugins/builder/skills/resume/REFERENCE.md`.
+
+**A specced UI 2.0 design can BE the requirements** — `/builder:brainstorm --ui2 C-034` (or a whole
+screen, `--ui2 home-dashboard`). The pipeline **reads** `docs/ui2/` and routes any gap back to the
+command that owns it; it never writes a contract, registry row, token or note.
+
+**Replaces `/build-spec*` (2026-09-24).** A folder still in the old numbered-suite layout
+(`01-architecture.md` … `09-gaps-and-decisions.md`) is converted, not rewritten:
+`/builder:resume --path docs/features/<name>` offers the conversion and leaves every numbered doc
+on disk.
 
 ---
 
