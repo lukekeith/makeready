@@ -30,7 +30,8 @@ designation in the contract.
 - **Docs only.** Writes under `docs/ui2/` exclusively.
 - **Figma is normative** (D5): cite node URL + frozen snapshot(s) + capture date;
   deviations are a CLOSED enumerated list ending "anything else that differs from the
-  source is a defect". Banned phrasings per build-spec REFERENCE.md §3c.
+  source is a defect". Banned phrasings per the builder pipeline's spec-language rule
+  (`plugins/builder/skills/resume/REFERENCE.md` §SPEC.md, the §Decisions comment block).
 - **Registry discipline** (D6): exactly one row per component — mint the next `C-###`
   only after proving no existing row covers it (check names AND anatomy — a geometry
   variant of an existing row is an amendment or a consolidation OQ, never a duplicate).
@@ -92,7 +93,15 @@ enumerated ✓ · token diff folded into tokens.md ✓ · no unexplained raw val
    append this component to its Consumed-by — or a justified mint). No element without
    a row.
 3. **Naming & scoping check** on the row being minted/enriched AND its sub-components;
-   renames propagate now.
+   renames propagate now. **This covers every axis, variant value and prop, not just the
+   component name** (registry rule 6, 2026-09-11): Figma's `Property 1` / `Variant2` /
+   `Variant3` are placeholders it auto-assigns, and carrying one into §3, §4 or a fixture is a
+   spec defect — it reaches the Swift signature and the Data tab, and `Property 1` is not a
+   legal Swift identifier. Record the Figma string once in §1 as evidence, then name the axis
+   for what it **selects**. If every variant differs only in one value a consumer should
+   supply, that value is the prop and the variants are its designed values — drop the axis
+   rather than renaming it. If the right name is genuinely unclear, **ask the owner in this
+   run**; parking it as an OQ ships the placeholder into code while the OQ waits.
 4. Ambiguities → ask the user ONE at a time; deferred answers become OQ rows in the
    contract file (`OQ-C-###-#`).
 
