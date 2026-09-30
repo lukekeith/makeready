@@ -2,19 +2,20 @@
 //  EditableFieldRow.swift
 //  UI2Preview — the UI 2.0 preview module
 //
-//  Built from docs/ui2/design-system/components/C-042-editable-field-row.md (§2 geometry,
-//  §3 states, §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
-//  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
+//  Built from C-042-editable-field-row in d2m (§2 geometry, §3 states, §4 props).
+//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
-//  DEPENDENCIES (preview-build.md §4):
-//  • C-068 TagChip — no contract file of its own; its anchor is C-042 §5 plus the
-//    registry row, which DOES carry a prop-level spec (filled `color-white-20`, r16,
-//    px8 py4, label 12/14 `color-white-70`). So it is built for real rather than stubbed,
-//    but inline and private: without its own contract and frozen snapshot it is not a
-//    legal build target and has no comparison row. `/ui2-component tag-chip
-//    https://www.figma.com/design/nVva9a2WvYmcWQo6zlHupO/Make-Ready-Mobile?node-id=3526-30837`
-//    would promote it to level 1. Only C-068's `Default` style is built — `Solid` is
-//    designed-unconsumed and belongs to that component's own run.
+//  Rulings honoured (all four C-042 open questions closed 2026-09-21):
+//  • OQ-C-042-1 — `Age` is a zero-delta content exemplar and builds as `Default`.
+//  • OQ-C-042-2 — unbounded multiline wrap; the field grows with content.
+//  • OQ-C-042-3 — the §3 defaults: system highlight on press, no disabled rows (omit instead).
+//  • OQ-C-042-4 — the Tags editor is a pattern gap that gates the first Tags-state CONSUMER;
+//    it does not touch this row's own render.
+//
+//  DEPENDENCIES (§5 Consumes, R-15):
+//  • C-068 TagChip — level 1: it has its own contract and preview (`TagChip.swift`, built by
+//    `/d2m-component-build C-068`), and this row consumes it directly. C-042 §3 renders
+//    `style=default`, which is C-068 §4's default, so the call site passes `label` only.
 //  • chevron-right — §5 names it "asset, part of anatomy", but no chevron-right vector has
 //    been exported: the catalog carries only C-021's `back`, which is the SAME artwork
 //    mirrored (its Figma group is literally named "Chevron--left"). It is therefore
@@ -85,7 +86,15 @@ struct EditableFieldRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
         }
+        // OQ-C-042-3 (ruled 2026-09-21): "system highlight on press" — `.plain` is exactly
+        // that: no idle decoration, the system's own pressed feedback, held as ephemeral
+        // button state (R-02), never as a prop. "No disabled rows (omit instead)" — so there
+        // is no `disabled` prop: a host that has nothing editable omits the row.
         .buttonStyle(.plain)
+        // R-17: the one interactive element carries its label and the button trait. The
+        // label reads what the row shows — label, then value / tags, then indicator.
+        .accessibilityLabel(accessibilityText)
+        .accessibilityAddTraits(.isButton)
         .ui2Element("EditableFieldRow")               // capture element map — UI2Element.swift
     }
 
@@ -96,7 +105,7 @@ struct EditableFieldRow: View {
     // stopped agreeing.
     //   74 = 16 + 14 (label box) + 8 + 20 (value box) + 16
     //   76 = 16 + 14 (label box) + 8 + 22 (chip height) + 16
-    // Multiline then grows past 74 on its own, which is OQ-C-042-2's proposed unbounded wrap.
+    // Multiline then grows past 74 on its own — OQ-C-042-2's unbounded wrap (ruled 2026-09-21).
     private var leftColumn: some View {
         VStack(alignment: .leading, spacing: Token.Space.elementGap) {
             Text(label)
@@ -131,7 +140,7 @@ struct EditableFieldRow: View {
                 .designTextStyle(Token.TypeStyle.pageTitle)
                 .foregroundStyle(Token.textPrimary)
                 // §3 Default: "single-line ellipsized value". §3 Multiline: "value not
-                // height-clamped/ellipsized (wraps)" — unbounded, per OQ-C-042-2's proposal.
+                // height-clamped/ellipsized (wraps)" — unbounded, per OQ-C-042-2 (ruled).
                 .lineLimit(multiline ? nil : 1)
                 .truncationMode(.tail)
                 .fixedSize(horizontal: false, vertical: true)
@@ -188,6 +197,14 @@ struct EditableFieldRow: View {
             .foregroundStyle(Token.white50)
     }
 
+    /// R-17: what VoiceOver reads for the row — the label, the state's content, the indicator.
+    private var accessibilityText: String {
+        var parts = [label]
+        if let tags { parts.append(tags.joined(separator: ", ")) } else if let value { parts.append(value) }
+        if let indicator { parts.append(indicator.text) }
+        return parts.joined(separator: ", ")
+    }
+
     /// §2: "chevron-right 18pt".
     private static let chevronSize: CGFloat = 18
 
@@ -196,36 +213,5 @@ struct EditableFieldRow: View {
     /// own size, which is what tokens.md's `lineHeight: nil` means.
     private static func lineBox(_ style: DesignTextStyle) -> CGFloat {
         style.lineHeight ?? style.size
-    }
-}
-
-/// C-068 TagChip — the filled chip the Tags state's value row is made of.
-///
-/// Private to this file on purpose: C-068 has no contract file and no frozen snapshot, so
-/// it is not a legal `/ui2-component-build` target and owns no comparison row. See the
-/// DEPENDENCIES note in the file header for what would promote it.
-private struct TagChip: View {
-
-    /// C-068 §4 (registry row): `label`.
-    let label: String
-
-    var body: some View {
-        Text(label)
-            // Registry row: "label 12/14 `color-white-70`" — `type-caption` is Regular 12/14.
-            .designTextStyle(Token.TypeStyle.caption)
-            .foregroundStyle(Token.white70)
-            .lineLimit(1)
-            // The designed 14 line box, fixed for the same reason the row's label is: it is
-            // below SF Pro's natural height at 12pt, and it is what makes the chip 22 tall
-            // (4 + 14 + 4) and therefore §2's 76pt Tags row.
-            .frame(height: Token.TypeStyle.caption.lineHeight ?? Token.TypeStyle.caption.size)
-            // Registry row: "px8 py4".
-            .padding(.horizontal, Token.Space.elementGap)
-            .padding(.vertical, Token.Space.metaGap)
-            // Registry row: "filled `color-white-20`, r16". `radius-modal` is the program's
-            // 16 row; on a 22pt-tall chip SwiftUI clamps it to a capsule, which is what the
-            // frozen snapshot shows. A `radius-chip` row would name it for what it is —
-            // reported as token hygiene, not a build-blocking gap.
-            .background(Token.white20, in: RoundedRectangle(cornerRadius: Token.Radius.modal))
     }
 }

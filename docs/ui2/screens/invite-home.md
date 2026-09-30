@@ -14,7 +14,9 @@ invitation event timeline. Two designed content states in two frames.
   — node `3832:31138` ("Invite home multiple groups", 440×1705); snapshot
   `assets/invite-home-linked.png` (2026-09-02)
 - Component-sheet sets consumed (D9): Header `3313:7615`, Detail `3499:27340`, Avatar
-  `147:1513`, Search results `3668:7440` (+ new status-row symbols `3832:313xx`), Metadta
+  `4115:31205` (**ref corrected 2026-09-11**; this line cited `147:1513`, which is one photo
+  SYMBOL of the superseded predecessor set — see `../design-system/components/C-038-avatar.md` §1),
+  Search results `3668:7440` (+ new status-row symbols `3832:313xx`), Metadta
   `3518:29457` (incl. `state=Complete, type=Key value, align=Right` symbol `3832:31341`),
   History `3526:30939` (single state=Default), line `3526:31009`.
 
@@ -38,10 +40,10 @@ back + centered title "Invite") → vertical scroll content (p16, column gap
 1. **Recipient hero** — "Invitation sent to" (Regular 14 `color-text-secondary`) over the
    phone number (`type-value-hero` SF Pro Regular 24/32 white, single-line ellipsis), 8 gap.
 2. **Identity block — two designed content states:**
-   - `unlinked` (frame 1): **C-041 DetailPair** ×2 in one row (16 gutter): "Invitation
+   - `unlinked` (frame 1): **C-022 MetaPair** ×2 in one row (16 gutter): "Invitation
      sent" (`Mon D, YYYY`) · "Invited by" (leader name).
-   - `linked` (frame 2): member row (16 gap: **C-038 Avatar** 54 + C-041 "Existing
-     member"/member name) → 32 → 2×2 C-041 grid (16 gaps): Age · Role · Birthday ·
+   - `linked` (frame 2): member row (16 gap: **C-038 Avatar** 54 + C-022 "Existing
+     member"/member name) → 32 → 2×2 C-022 grid (16 gaps): Age · Role · Birthday ·
      Joined. (The invitation-sent/invited-by pairs do not render in this frame.)
 3. *hairline*
 4. **Group invitations** — **C-020 SectionHeader** (`type-section-title`, accessory
@@ -82,7 +84,7 @@ back + centered title "Invite") → vertical scroll content (p16, column gap
 
 Closed list rendered: **C-020 SectionHeader** (×2, accessory none) · **C-037
 ListResultRow** (`Group+status` — new consumed type) · **C-038 Avatar** (54 — new size) ·
-**C-040 PageHeader** (Two icons, showIcons=false) · **C-041 DetailPair** (×2 / member
+**C-040 PageHeader** (Two icons, showIcons=false) · **C-022 MetaPair** (×2 / member
 block + ×4) · **C-043 MetaChip** (Default and Complete, Key value, align Right) · **C-065
 TimelineEventRow** *(introduced)*.
 
@@ -103,8 +105,9 @@ not part of the row.
   name + status C-043 chip; optional trailing 18pt chevron — new symbols `3832:313xx`
   extend the set beyond the five types enumerated 2026-09-01). Closed change: this type
   joins the contract; existing types unchanged. Icon-swap hygiene per deviation 3.
-- **C-038 Avatar** — size **54** joins the closed size list (32/40/54/64/164), evidenced
-  by the linked-member block.
+- **C-038 Avatar** — this screen instances it at **54** (linked-member block). *(Superseded
+  2026-09-11 by `../design-system/components/C-038-avatar.md` §3b: size is a consumer-applied
+  scale, not a variant axis — there is no "closed size list" to join.)*
 - **C-043 MetaChip** — first consumption of `Complete × Key value × Right` (sheet symbol
   `3832:31341`, added to the Metadta set after the 2026-09-01 probe). No prop change.
 - **C-048 PageActionButton** *(not rendered here — sheet-accuracy note found during the

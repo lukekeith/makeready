@@ -30,7 +30,7 @@ back chevron left, member name centered, no right icons) → vertically scrollin
 
 1. **Identity block** — Avatar (C-038) 164pt circle, left-aligned, 16pt top → 32pt → name
    (SF Pro Bold ~24/32 white) over email (SF Pro Regular 14/20 `text/secondary`), 8pt gap.
-2. **Quick stats** — 2×2 DetailPair (C-041) grid: cells 196×36, 16pt column gutter, 16pt
+2. **Quick stats** — 2×2 MetaPair (C-022) grid: cells 196×36, 16pt column gutter, 16pt
    row gap. Sample cells: Age / Role / Birthday / Joined.
 3. Hairline (`color-layout-border`) with `space-section-gap` (32) above/below.
 4. **Fields** — 8 stacked EditableFieldRow (C-042) rows, 74pt each, no separators between
@@ -42,7 +42,7 @@ back chevron left, member name centered, no right icons) → vertically scrollin
 6. Hairline. **Membership** — C-020 (title + MetaPair "2 groups" + GlyphButton `add`) →
    ListResultRow (C-037) `type=Group + tags` rows, 96pt each.
 7. Hairline. **Engagement** — C-020 (title + MetaPair "2 programs" + GlyphButton `add`) →
-   StudyProgramCard (C-044) `state=Progress` rows, 96pt each.
+   StudyProgramRow (C-059) `state=Progress` rows, 96pt each.
 
 ## 3. Behavior contract
 
@@ -68,7 +68,7 @@ back chevron left, member name centered, no right icons) → vertically scrollin
 - ListResultRow tap → the group's screen — deferred until the groups-area frames arrive
   (OQ-members-profile-2).
 - Engagement `add` → enroll/follow action — deferred (OQ-members-profile-2).
-- StudyProgramCard tap — no affordance shown in source (no chevron): not tappable in v1.
+- StudyProgramRow tap — no affordance shown in source (no chevron): not tappable in v1.
 
 **Motion:** standard push/pop chrome per the program's shell conventions (specced with the
 shell suites); no bespoke motion on this screen.
@@ -78,9 +78,10 @@ shell suites); no bespoke motion on this screen.
 Closed list rendered: **C-020 SectionHeader** · **C-021 GlyphButton** (glyphs `back` in
 C-040, `add` in section headers) · **C-022 MetaPair** · **C-024 SparkBarChart** (inside
 C-025) · **C-025 DayActivityCard** (amended) · **C-037 ListResultRow** (amended; `type=
-Group + tags`) · **C-038 Avatar** (amended; 164) · **C-040 PageHeader** (new) · **C-041
-DetailPair** (new) · **C-042 EditableFieldRow** (new) · **C-043 MetaChip** (new) · **C-044
-StudyProgramCard** (new).
+Group + tags`) · **C-038 Avatar** (amended; 164) · **C-040 PageHeader** (new) · **C-022
+DetailPair** (new) · **C-042 EditableFieldRow** (new) · **C-043 MetaChip** (new) · **C-059
+StudyProgramRow** (new — this screen's rows were specced here as C-044 StudyProgramCard;
+the two rows were consolidated 2026-09-10, see below).
 
 ### C-040 PageHeader (new)
 **Contract relocated 2026-09-05** → `../design-system/components/C-040-page-header.md`
@@ -88,10 +89,22 @@ StudyProgramCard** (new).
 the pushed-page presentation). This screen consumes `style=Two icons` with
 `showTitle=true, showIcons=false` — back + centred member name, no right icons.
 
-### C-041 DetailPair (new)
-Label-over-value pair (sheet component `3499:27339`, single `Default` variant): label SF
-Pro Regular 14 `text/secondary` over value SF Pro Regular 14 white, 8pt gap, left-aligned.
-Grid-consumed at 196×36. Props: `label`, `value`.
+### ~~C-041 DetailPair~~ → C-022 MetaPair
+**C-041 was removed 2026-09-11 (owner) as an accidental duplicate of C-022 MetaPair.** This
+screen's 2×2 quick-stats grid now cites **C-022**, and its four snapshot bounding boxes were
+repointed the same run.
+
+What this section measured still stands as the description of what this screen draws, and is
+carried here because C-022's own contract does **not** yet describe it: a label-over-value pair
+(sheet component `3499:27339`, whose single symbol Figma names with its `Property 1=Default`
+placeholder) — label SF Pro Regular 14 `text/secondary` **over** value SF Pro Regular 14 white,
+8pt gap, left-aligned, grid-consumed at 196×36. Props: `label`, `value`.
+
+**OQ-C-022-1 is now settled** (2026-09-11): C-022 carries a **`layout` axis** — `inline |
+stacked` — because both forms are designed in Figma and both are consumed, so neither could be
+dropped without changing a shipped screen. This screen's grid is `layout=stacked`. The full
+contract, including the measurements above re-verified at the source, is
+`../design-system/components/C-022-meta-pair.md`.
 
 ### C-042 EditableFieldRow
 **Contract relocated 2026-09-03** → `../design-system/components/C-042-editable-field-row.md`
@@ -108,15 +121,21 @@ radius 4, padding 8×4, SF Pro Regular 14. Axes: `type` {Single (one white text)
 `color-positive` treatment when a program is fully complete). `Purple` and `align=Right`
 variants designed-unconsumed. Props: `type`, `state`, `value`, `label?`.
 
-### C-044 StudyProgramCard (new)
-Program row (sheet set `3502:28948` "Study Program Card v2"): **consumed variant
-`state=Progress`**, 408×96, 16pt vertical padding: details column (title SF Pro Bold 14/20
-white ellipsized → 2pt-thin progress line = Percentages `style=Thin, aligned=Left` (fill
-#4deb4b, tracks completion %) → MetaChip row: "N complete" + "N hours") + trailing 64pt
-image, radius 8. **Designed, unconsumed:** `Default` (284pt large card), `Condensed`
-(120pt), `state4` (96pt) — future consumers (library/program screens) claim them. Props:
-`title`, `progress: Double`, `completeCount`, `hoursLabel`, `imageURL`, `isComplete`
-(drives MetaChip `Complete` state).
+### C-059 StudyProgramRow (new) — contract relocated 2026-09-10
+**Superseded here.** This screen minted the row as **C-044 StudyProgramCard** from the sheet
+set `3502:28948` "Study Program Card v2". On 2026-09-10 the owner designated that same set as
+C-059's source; the two rows were consolidated onto **C-059**, renamed **StudyProgramRow**, and
+**C-044 was struck**. The contract now lives at
+[`../design-system/components/C-059-study-program-row.md`](../design-system/components/C-059-study-program-row.md).
+
+What this screen consumes is unchanged: **`state=Progress`**, 408×96 — title → C-057 PercentBar
+`size=sm`/`Left` → two C-043 MetaChips ("N complete", "N hours") → trailing 64×64 `radius-card` image.
+
+Two facts recorded here have since changed and the contract is authoritative on both: the
+`Default` **284pt** variant no longer exists in the set (OQ-C-059-3), and the props are now
+`state` / `title` / `description` / `progress` / `metaChips` / `coverURL` / `onTap` — the
+chip content is a `[C-043 MetaChip]` list rather than the flattened `completeCount` /
+`hoursLabel` / `isComplete` recorded above.
 
 ### Amendments to existing rows (dated 2026-09-01)
 - **C-021 GlyphButton** — identified here as the sheet's Button set `3499:27547`; that
@@ -139,7 +158,10 @@ image, radius 8. **Designed, unconsumed:** `Default` (284pt large card), `Conden
   defines `type` {Member (80pt — members-home), Member + tags (84), Group (96), **Group +
   tags (96 — consumed here**: 64pt group image, title, MetaChip row, chevron), Group +
   tags + Cancel}. Member+tags / Group / Group+tags+Cancel designed-unconsumed.
-- **C-038 Avatar** — designed sizes now 32/40/64/**164** (this screen's identity block).
+- **C-038 Avatar** — this screen instances it at **164**. *(Superseded 2026-09-11 by
+  `../design-system/components/C-038-avatar.md` §3b: the set designs ONE diameter (40), so
+  32/40/54/64/164 are a consumer-applied scale, not designed sizes. How the initials and glyph
+  scale to 164 is undesigned — OQ-C-038-2.)*
 
 ## 5. Data & API
 

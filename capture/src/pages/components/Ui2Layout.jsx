@@ -30,13 +30,16 @@ import {
   deleteComment,
 } from '../../api.js';
 import Ui2Tree from './Ui2Tree.jsx';
+import Ui2MergeDialog from './Ui2MergeDialog.jsx';
+import Ui2DeleteDialog from './Ui2DeleteDialog.jsx';
 import Ui2SpecChecklist from './Ui2SpecChecklist.jsx';
 import VariantList from './VariantList.jsx';
 import RenderPane from './RenderPane.jsx';
 import SidePanel from './SidePanel.jsx';
-import Ui2ComponentTab from './Ui2ComponentTab.jsx';
+import Ui2ComponentPane from './Ui2ComponentPane.jsx';
+import Ui2ScreenPane from './Ui2ScreenPane.jsx';
 import { hitTest } from '../../lib/hit-test.js';
-import { withSearch, selectedRef } from '../../lib/ui2-url.js';
+import { withSearch, selectedRef, selectedScreenRef } from '../../lib/ui2-url.js';
 
 const ID_RE = /^C-\d{3}$/i;
 /** Component or screen? The two registries share one route space, and their id
@@ -267,30 +270,125 @@ export default function Ui2Layout({ sub = '', header = null }) {
       if (target?.ref) next.set('c', target.ref); else next.delete('c');
       return next;
     }, { replace: true });
-    if (target?.ref) setPanelTab('component');
   }, [isScreen, commentMode, hit, setSearchParams]);
 
   // The selection, read from the URL so it survives reload and sharing (D9).
   const selectedComponent = selectedRef(location.search);
 
-  /** Select a component into the Component tab without leaving the screen — the
-   *  render click (R3) and a Screen-tab chip (R6) both land here. */
+  /** Select a component into the component PANE without leaving the screen — the
+   *  render click (R3), a Screen-tab chip (R6) and the pane's own title picker all
+   *  land here. The selection alone opens the pane; there is no tab to move to. */
   const selectComponentId = useCallback((ref) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       if (ref) next.set('c', String(ref).toUpperCase()); else next.delete('c');
       return next;
     }, { replace: true });
-    setPanelTab('component');
   }, [setSearchParams]);
+  /** The pane's close icon. Same edit as clicking empty render — the selection is
+   *  the pane, so dropping it is the only way to close one. */
+  const clearComponentId = useCallback(() => selectComponentId(null), [selectComponentId]);
 
-  // The right panel's tab, controlled only for a screen (07 §5.0). A selection
-  // event moves it to Component; clicking another tab wins until the next one.
+  // ── The mirror, on a COMPONENT page: a selected SCREEN (`?s=`) ──
+  //
+  // Same relationship read from the other end. On a screen, `?c=` names a
+  // component drawn on it and Ui2ComponentPane owns column 4; on a component,
+  // `?s=` names a screen that renders it and Ui2ScreenPane does. The two never
+  // coexist — a page is one kind or the other — so they need no arbitration, and
+  // both survive reload and sharing for the same reason (D9).
+  const selectedScreen = selectedScreenRef(location.search);
+  const selectScreenId = useCallback((ref) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (ref) next.set('s', String(ref).toLowerCase()); else next.delete('s');
+      return next;
+    }, { replace: true });
+  }, [setSearchParams]);
+  const clearScreenId = useCallback(() => selectScreenId(null), [selectScreenId]);
+
+  // ── Render tabs ──
+  //
+  // Extra images borrowed into the render area beside the page's own: a screen's
+  // frame on a component page, a component's artwork on a screen page. The page's
+  // own render is tab 0 and RenderPane synthesises it, so this list holds only the
+  // borrowed ones.
+  //
+  // A tab carries its own url and (for a screen) its whole element map, so it
+  // outlives the pane that opened it — "persists until closed" means the close
+  // button on the tab, and nothing else. They are cleared when the PAGE changes,
+  // because a tab is a thing borrowed INTO a page: a screen tab highlighting C-035
+  // says nothing on C-045's page, and a component tab beside members-home says
+  // nothing beside groups-home.
+  const [tabs, setTabs] = useState([]);
+  const [activeTabKey, setActiveTabKey] = useState('self');
+  useEffect(() => { setTabs([]); setActiveTabKey('self'); }, [id]);
+  // Picking a state in column 2 is a request to SEE that state, so it pulls the
+  // view back to the page's own render. Without this, clicking a variant while a
+  // borrowed tab was showing changed an image that was not on screen and looked
+  // like nothing had happened. The borrowed tab is not closed — it stays in the
+  // strip, one click away, because "persists until closed" means the × and
+  // nothing else.
+  useEffect(() => { setActiveTabKey('self'); }, [key]);
+
+  /**
+   * The tabs as RenderPane draws them: a SCREEN tab's boxes are resolved here,
+   * against the page's component, rather than being frozen into the tab when it
+   * was opened.
+   *
+   * Labelled from the tab's own stored map (`el.resolved`), not the live registry:
+   * the tab may outlive the pane that fetched it, and a stored name is a better
+   * answer than none. A ref the map does not carry yields no box at all, which is
+   * the honest result for an instance the backfill could not resolve (D5).
+   */
+  const renderTabs = useMemo(() => tabs.map((t) => {
+    if (t.kind !== 'screen') return t;
+    const boxes = (t.elements ?? [])
+      .filter((e) => e.ref === id)
+      .map((e) => ({
+        rect: { x: e.x, y: e.y, w: e.w, h: e.h },
+        label: `${e.ref} ${e.resolved?.name ?? e.name ?? ''}`.trim(),
+      }));
+    return { ...t, boxes: boxes.length ? boxes : null, badge: id };
+  }), [tabs, id]);
+
+  const openTab = useCallback((tab) => {
+    if (!tab?.key) return;
+    // Re-opening an existing tab selects it rather than duplicating it, and
+    // refreshes its payload — the frame may have been re-frozen since.
+    setTabs((prev) => {
+      const i = prev.findIndex((t) => t.key === tab.key);
+      if (i === -1) return [...prev, tab];
+      const next = [...prev];
+      next[i] = tab;
+      return next;
+    });
+    setActiveTabKey(tab.key);
+  }, []);
+
+  // One schema's instances, greened while the pointer is on its row in the screen
+  // pane, and a request to frame one of them. Both are transient view state, not
+  // URL state: they last as long as the pointer does.
+  const [schemaBoxes, setSchemaBoxes] = useState(null);
+  const [zoomTo, setZoomTo] = useState(null);
+  useEffect(() => { setSchemaBoxes(null); }, [id, selectedScreen]);
+  // `nonce` because the SAME rect can be requested twice — zooming to a box,
+  // panning away, then asking for it again must move the view a second time, and
+  // an identical object would not re-fire the effect that does it.
+  const zoomToRect = useCallback((rect) => setZoomTo({ rect, nonce: Date.now() }), []);
+
+  const closeTab = useCallback((key) => {
+    setTabs((prev) => prev.filter((t) => t.key !== key));
+    // Closing the tab you are looking at falls back to the page's own render,
+    // which is the only tab that always exists.
+    setActiveTabKey((cur) => (cur === key ? 'self' : cur));
+  }, []);
+
+  // The right panel's tab, controlled only for a screen (07 §5.0). The component
+  // pane is NOT one of them — a selection replaces the whole panel — so this is
+  // just Screen/Comments, remembered across a selection coming and going.
   const [panelTab, setPanelTab] = useState(null);
   useEffect(() => { setPanelTab(null); }, [id]);
-  // On load, a URL carrying `?c=` opens on the Component tab — that is what makes
-  // a shared link land where its author was looking (R5).
-  const screenTab = panelTab ?? (selectedComponent ? 'component' : 'screen');
+  const screenTab = panelTab ?? 'screen';
 
   /** What the map already knows about the selection, so the title block paints
    *  instantly while the registry fetch is in flight (09 §G-17 — the map is NOT
@@ -310,6 +408,42 @@ export default function Ui2Layout({ sub = '', header = null }) {
     // the zoom, so CommentLayer decides it from its own measured height (R2).
     return { rect: componentTarget.rect, label: componentTarget.label };
   }, [componentTarget, isScreen]);
+
+  /** EVERY instance of one ref in the screen's element map, as drawable boxes —
+   *  a component used twice on a screen reads as used twice. Labelled from the
+   *  LIVE registry (R2); a ref the map does not carry (D5) yields nothing, which
+   *  is the honest answer for an instance the backfill could not resolve. */
+  const boxesForRef = useCallback((ref) => {
+    if (!isScreen || !ref) return null;
+    const els = activeVariant?.elements?.elements ?? [];
+    const registryName = detail?.components?.find((c) => c.id === ref)?.name ?? null;
+    const boxes = els
+      .filter((e) => e.ref === ref)
+      .map((e) => ({
+        rect: { x: e.x, y: e.y, w: e.w, h: e.h },
+        label: `${ref} ${registryName ?? e.resolved?.name ?? e.name ?? ''}`.trim(),
+      }));
+    return boxes.length ? boxes : null;
+  }, [isScreen, activeVariant, detail]);
+
+  /** The SELECTED component's boxes — they persist once the pointer has left the
+   *  render (R3: a selection lasts until another component is clicked, or empty
+   *  render is). */
+  const componentSelectedBoxes = useMemo(
+    () => boxesForRef(selectedComponent),
+    [boxesForRef, selectedComponent],
+  );
+
+  /** Hovering a Screen-tab chip previews that component on the render — the same
+   *  boxes, drawn in the hover weight, so you can find a component in the frame
+   *  before committing to selecting it. Comment mode owns the pointer and its
+   *  boxes, so nothing is previewed there (§4.5: the two never coexist). */
+  const [chipHover, setChipHover] = useState(null);
+  useEffect(() => { setChipHover(null); }, [id, key, commentMode]);
+  const componentPreviewBoxes = useMemo(
+    () => (commentMode ? null : boxesForRef(chipHover)),
+    [boxesForRef, chipHover, commentMode],
+  );
 
   // `platform` here is whatever RenderPane's ZoomPane is actually displaying
   // (the SHOWN platform, post-fallback) — not necessarily the toggle's raw
@@ -591,6 +725,12 @@ export default function Ui2Layout({ sub = '', header = null }) {
     return { ...base, current: activeShot.platform === 'iphone' ? 'Built render' : 'Frozen Figma snapshot' };
   }, [detail?.built, detail?.variants, activeShot.platform, activeVariant?.undesigned, activeVariant?.consumption]);
 
+  // D6 says one row per component; duplicates are how that gets violated, and merging is how
+  // it gets repaired. The dialog is opened from the Prompt menu rather than copied from it —
+  // see Ui2MergeDialog for why this one command is not one-click copyable.
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+
   // Prompt menu (RenderPane). 2.0 comments are resolved against the frozen Figma snapshot by
   // /ui2-resolve, which takes the registry id and an OPTIONAL state slug — so "this state" and
   // "every state" are the same command with and without the second argument.
@@ -615,6 +755,16 @@ export default function Ui2Layout({ sub = '', header = null }) {
       label: 'Resolve all comments',
       sub: `/ui2-resolve ${detail.id}`,
       text: `/ui2-resolve ${detail.id}`,
+    });
+    list.push({
+      label: 'Merge',
+      sub: 'fold a duplicate row into this one',
+      action: () => setMergeOpen(true),
+    });
+    list.push({
+      label: 'Delete',
+      sub: 'retire this row from the registry',
+      action: () => setDeleteOpen(true),
     });
     return list;
   }, [detail?.id, detail?.commands?.spec, activeVariant?.slug, isScreen]);
@@ -684,35 +834,72 @@ export default function Ui2Layout({ sub = '', header = null }) {
         onClearTarget={isScreen ? clearComponent : undefined}
         onSelectTarget={isScreen ? selectComponent : undefined}
         componentBox={componentBox}
+        componentSelectedBoxes={componentSelectedBoxes}
+        componentPreviewBoxes={componentPreviewBoxes}
+        tabs={renderTabs}
+        activeTabKey={activeTabKey}
+        onSelectTab={setActiveTabKey}
+        onCloseTab={closeTab}
+        tabPreviewBoxes={schemaBoxes}
+        zoomTo={zoomTo}
       />
 
-      <SidePanel
-        detail={detail}
-        variant={activeVariant}
-        activeVersionId={activeVersionId}
-        currentVersionId={activeVariant?.versions?.[0]?.versionId ?? null}
-        onSelectVersion={setVersionId}
-        commentApi={commentApi}
-        onSaveFixture={saveFixture}
-        dataView={dataView}
-        mode="design"
-        elements={vdata?.elements ?? null}
-        platform={activeShot.platform}
-        onInspect={setInspectBox}
-        onSelectComponent={isScreen ? selectComponentId : null}
-        tab={isScreen ? screenTab : null}
-        onTab={isScreen ? setPanelTab : null}
-        componentTab={isScreen ? (
-          <Ui2ComponentTab
-            refId={selectedComponent}
-            seed={selectionSeed}
-            canWrite={!!detail?.canCapture}
-            onOpen={(ref) => navigate(`/components/2.0/${ref}`)}
-            onSelectComponent={selectComponentId}
-            onOpenScreen={(screenId) => navigate(`/components/2.0/${screenId}`)}
-          />
-        ) : null}
-      />
+      {/* A selection OWNS column 4 (07 §5, D4): while one is live the screen's own
+          panel steps aside entirely, and the pane's close icon — or a click on
+          empty render — brings it back. */}
+      {isScreen && selectedComponent ? (
+        <Ui2ComponentPane
+          refId={selectedComponent}
+          seed={selectionSeed}
+          canWrite={!!detail?.canCapture}
+          components={detail?.components ?? []}
+          onOpen={(ref) => navigate(`/components/2.0/${ref}`)}
+          onSelect={selectComponentId}
+          onClose={clearComponentId}
+          onOpenScreen={(screenId) => navigate(`/components/2.0/${screenId}`)}
+          onOpenTab={openTab}
+          openTabKey={activeTabKey}
+        />
+      ) : !isScreen && selectedScreen ? (
+        <Ui2ScreenPane
+          screenId={selectedScreen}
+          componentId={detail?.id ?? id}
+          componentName={detail?.name ?? null}
+          propRows={detail?.contract?.propRows ?? []}
+          usage={(detail?.screens ?? []).find((s) => s.id === selectedScreen) ?? null}
+          screens={detail?.screens ?? []}
+          canWrite={!!detail?.canCapture}
+          onOpen={(sid) => navigate(`/components/2.0/${sid}`)}
+          onSelect={selectScreenId}
+          onClose={clearScreenId}
+          onOpenComponent={(ref) => navigate(`/components/2.0/${ref}`)}
+          onOpenTab={openTab}
+          openTabKey={activeTabKey}
+          onHoverSchema={setSchemaBoxes}
+          onZoomSchema={zoomToRect}
+        />
+      ) : (
+        <SidePanel
+          detail={detail}
+          variant={activeVariant}
+          activeVersionId={activeVersionId}
+          currentVersionId={activeVariant?.versions?.[0]?.versionId ?? null}
+          onSelectVersion={setVersionId}
+          commentApi={commentApi}
+          onSaveFixture={saveFixture}
+          dataView={dataView}
+          mode="design"
+          elements={vdata?.elements ?? null}
+          platform={activeShot.platform}
+          onInspect={setInspectBox}
+          onSelectComponent={isScreen ? selectComponentId : null}
+          onHoverComponent={isScreen ? setChipHover : null}
+          selectedScreen={isScreen ? null : selectedScreen}
+          onSelectScreen={isScreen ? null : selectScreenId}
+          tab={isScreen ? screenTab : null}
+          onTab={isScreen ? setPanelTab : null}
+        />
+      )}
       </div>
 
       <ConfirmDialog
@@ -737,6 +924,19 @@ export default function Ui2Layout({ sub = '', header = null }) {
           </div>
         )}
       </ConfirmDialog>
+
+      <Ui2MergeDialog
+        open={mergeOpen}
+        detail={detail}
+        tree={treeData}
+        onClose={() => setMergeOpen(false)}
+      />
+
+      <Ui2DeleteDialog
+        open={deleteOpen}
+        detail={detail}
+        onClose={() => setDeleteOpen(false)}
+      />
     </div>
   );
 }

@@ -16,19 +16,27 @@ import Ui2DetailsTab from './Ui2DetailsTab.jsx';
 import Ui2LayoutTab from './Ui2LayoutTab.jsx';
 import Ui2ScreenTab from './Ui2ScreenTab.jsx';
 
-const TAB_LABEL = { details: 'Details', comments: 'Comments', contract: 'Contract', data: 'Data', layout: 'Layout', screen: 'Screen', component: 'Component' };
+const TAB_LABEL = { details: 'Details', comments: 'Comments', contract: 'Contract', data: 'Data', layout: 'Layout', screen: 'Screen' };
 
 export default function SidePanel({
   detail, variant, activeVersionId, currentVersionId, onSelectVersion, commentApi, onSaveFixture,
   dataView = null, mode = 'code', elements = null, platform = null, onInspect = null, onSelectComponent = null,
+  onHoverComponent = null,
+  // The mirror pair, used only by a 2.0 COMPONENT: the Details tab lists the
+  // screens that render this row, and selecting one replaces this whole panel
+  // with Ui2ScreenPane — exactly as selecting a component does on a screen.
+  selectedScreen = null, onSelectScreen = null,
   // Controlled-tab mode, used only by a 2.0 SCREEN (suite 07 §5.0). When `tab` is
   // absent — every 1.0 caller and the 2.0 component path — the local state below
-  // runs exactly as before. Passing a controlled `component` tab on a COMPONENT
-  // row, whose tab list has no such entry, would pin the panel to its `comments`
-  // fallback and break tab switching there.
-  tab: tabProp = null, onTab = null, componentTab = null,
+  // runs exactly as before. A selected component is NOT a tab here: it replaces
+  // this whole panel with Ui2ComponentPane, so nothing in this list can be
+  // unreachable while a selection is live.
+  tab: tabProp = null, onTab = null,
 }) {
-  const [tab, setTab] = useState('comments');
+  // Null = "whatever this era leads with", resolved against `tabs` below rather
+  // than hard-coded: 2.0 leads with Details (Screen on a screen), 1.0 has no
+  // Details tab at all and still opens on Comments.
+  const [tab, setTab] = useState(null);
   const ready = !!detail && !!variant;
   // A SCREEN has no contract doc, no props and no fixture — its spec IS the
   // whole of what the panel can say — so it gets the Screen tab in place of
@@ -39,14 +47,15 @@ export default function SidePanel({
   // show otherwise.
   const tabs = mode === 'design'
     ? (isScreen
-      ? ['screen', 'component', 'comments']
+      ? ['screen', 'comments']
       : ['details', 'comments', 'contract', ...(detail?.built ? ['data', 'layout'] : [])])
     : ['comments', 'data'];
   // Selecting a screen while Contract/Data is showing would land on a tab that
-  // no longer exists and render nothing at all.
+  // no longer exists and render nothing at all — so an unavailable tab falls back
+  // to the era's first, which is the same rule the unset default uses.
   const current = tabProp ?? tab;
   const setCurrent = (t) => { if (onTab) onTab(t); else setTab(t); };
-  const activeTab = tabs.includes(current) ? current : 'comments';
+  const activeTab = tabs.includes(current) ? current : tabs[0];
   return (
     <div className="cmp-cb-col cmp-cb-col--side">
       <div className={`cmp-tab-switch${tabs.length > 4 ? ' cmp-tab-switch--tight' : ''}`}>
@@ -58,12 +67,9 @@ export default function SidePanel({
       </div>
       {/* Details is the one tab with something to say when a row has no states
           at all — an unspecced row's whole point is that nothing is set yet. */}
-      {!ready && activeTab !== 'details' && activeTab !== 'screen' && activeTab !== 'component' && <div className="cmp-cb-col__empty">Select a component and variant</div>}
-      {!ready && activeTab === 'details' && detail && <Ui2DetailsTab detail={detail} variant={null} />}
+      {!ready && activeTab !== 'details' && activeTab !== 'screen' && <div className="cmp-cb-col__empty">Select a component and variant</div>}
+      {!ready && activeTab === 'details' && detail && <Ui2DetailsTab detail={detail} variant={null} selectedScreen={selectedScreen} onSelectScreen={onSelectScreen} />}
       {!ready && activeTab === 'screen' && detail && <Ui2ScreenTab detail={detail} variant={null} />}
-      {/* The Component tab works with no frozen frames at all — its subject is the
-          selection, not the screen's artwork. */}
-      {activeTab === 'component' && componentTab}
       {ready && activeTab === 'comments' && (
         <CommentsTab
           commentApi={commentApi}
@@ -72,8 +78,8 @@ export default function SidePanel({
           onSelectVersion={onSelectVersion}
         />
       )}
-      {ready && activeTab === 'details' && <Ui2DetailsTab detail={detail} variant={variant} />}
-      {ready && activeTab === 'screen' && <Ui2ScreenTab detail={detail} variant={variant} onSelectComponent={onSelectComponent} />}
+      {ready && activeTab === 'details' && <Ui2DetailsTab detail={detail} variant={variant} selectedScreen={selectedScreen} onSelectScreen={onSelectScreen} />}
+      {ready && activeTab === 'screen' && <Ui2ScreenTab detail={detail} variant={variant} onSelectComponent={onSelectComponent} onHoverComponent={onHoverComponent} />}
       {ready && activeTab === 'contract' && <Ui2ContractTab detail={detail} variant={variant} />}
       {/* Keyed on the VERSION as well as the state: each capture has its own
           element map, so switching versions must rebuild the tree and drop the

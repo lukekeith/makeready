@@ -158,21 +158,43 @@ struct CaptureComponent: Codable {
     let iconSystemName: String?
     let imageStyle: CaptureImageStyle? // photo | icon | dateDisplay | timeDisplay
     let metadata: [CaptureDataItem]?
-    let selected: Bool?               // GroupCard: brand overlay + check
-    let size: String?                 // "Row" | "Mini"
+    // RETYPED 2026-09-15 (/d2m-component-build C-028), by the same reasoning and in the same
+    // shape as `size`, `date` and `percent` below. This was `Bool?`, the 1.0 GroupCard's
+    // brand-overlay flag (and C-047 RadioOptionRow's `selected: Bool`). C-028 InlineDropdown
+    // §4's second prop is ALSO named `selected` and is a **String** — the option that is
+    // current — and preview-build.md §3 rule 3 forbids bending a contract's prop name to fit
+    // an existing field. So the field decodes both shapes: the 1.0 readers and C-047 ask for
+    // `.boolValue`; C-028 asks for `.stringValue`.
+    let selected: CaptureBoolOrString? // GroupCard: brand overlay + check; C-047 — OR C-028's current option
+    // RETYPED 2026-09-11 (/ui2-component-build C-038), by the same reasoning and in the same
+    // shape as `date` and `percent` below. This was `String?`, the 1.0 card size "Row"|"Mini".
+    // C-038 §4's fourth prop is ALSO named `size` and is a **CGFloat diameter**, and
+    // preview-build.md §3 rule 3 forbids bending a contract's prop name to fit an existing
+    // field — so the field decodes both shapes. The 1.0 readers ask for `.stringValue`;
+    // C-038 asks for `.doubleValue`.
+    let size: CaptureDoubleOrString?  // "Row" | "Mini" (1.0 cards) — OR a diameter (C-038)
     let pendingRequestCount: Int?     // GroupCard avatar badge
     // ── generic scalars used across assorted cards ──
-    let day: Int?
+    // C-052 DayChip (2026-09-11) reuses this field: its §4 prop is ALSO named `day` and is
+    // ALSO an Int (the ordinal program day), so rule 3's second bound is satisfied by the
+    // contract's own name — no addition, no rename.
+    // RETYPED 2026-09-20 (/d2m-component-build C-025 — that row merged into C-023 RailCard `kind=day` 2026-09-21), by the same reasoning and in the same
+    // shape as `size`, `date` and `percent` below. This was `Int?`. C-025 §4 (now C-023 §4 `kind=day`; re-specced
+    // 2026-09-20, flat props) has a `day` that is a **String** ("24") → C-070 `day`, and
+    // rule 3's second bound forbids bending a contract's prop name to fit an existing field —
+    // so the field decodes both shapes. The 1.0 readers and C-052 ask for `.intValue`;
+    // C-023 `kind=day` (ex-C-025) asks for `.stringValue`.
+    let day: CaptureIntOrString?      // 1.0 cards / C-052 — an Int; C-023 kind=day (ex-C-025) — C-070's day string
     let month: String?
     let time: String?
     let period: String?
     let progress: Double?             // 0…1 progress bars
     let badge: String?                // status badge text
-    // RETYPED 2026-09-10 (/ui2-component-build C-025), by the same reasoning and in the same
+    // RETYPED 2026-09-10 (/ui2-component-build C-025 — that row merged into C-023 2026-09-21), by the same reasoning and in the same
     // shape as `days` below. This was `String?`, a 1.0 display/ISO date. C-025 §4's second
     // prop is ALSO named `date` and is C-070 DateBlock's prop object, and preview-build.md §3
     // rule 3 forbids bending a contract's prop name to fit an existing field — so the field
-    // decodes both shapes. The 1.0 readers ask for `.string`; C-025 asks for `.block`.
+    // decodes both shapes. The 1.0 readers ask for `.string`; C-023 `kind=day` (ex-C-025) asks for `.block`.
     let date: CaptureDateOrBlock?     // ISO or display date string, OR C-070's props
     let dateRange: String?
     let memberCount: Int?
@@ -432,19 +454,25 @@ struct CaptureComponent: Codable {
     // It could not be bent into any existing field (rule 3's second bound): `items`,
     // `buttons` and `options` above are 1.0 shapes for 1.0 cases.
     let actions: [CaptureUI2Action]?           // C-066 — the closed action list
-    // C-025 DayActivityCard. `series` above is C-024 SparkBarChart's own prop and C-025 §4
+    // C-023 RailCard `kind=day` (ex-C-025 DayActivityCard, merged 2026-09-21). `series` above is C-024 SparkBarChart's own prop and C-023 §4
     // delegates to it under the same name, so it is reused rather than duplicated. `date` is
     // retyped above (see the note there). These three are additive: no existing field carries
     // a card state, a completion percentage, or a two-line value pair.
-    let state: String?                         // C-025 — "default" | "transparent" | "percentCircle"
+    // C-053 StatusBadge reuses this field: its §4 prop is ALSO named `state` and is also a
+    // string, so rule 3's second bound is satisfied by the contract's own name — no
+    // addition, no rename.
+    // C-052 DayChip reuses it too: its §4 prop is ALSO named `state` and is also a string.
+    let state: String?                         // C-023 kind=day (ex-C-025) — "standard" | "transparent" | "percentCircle"
+                                               // C-053 — "published" | "draft"
+                                               // C-052 — "Default" | "Active"
     // RETYPED 2026-09-10 (/ui2-component-build C-033), by the same reasoning and in the same
-    // shape as `days` and `date` above. This was `Int?`, C-025 §4's `percent: Int?`. C-033 §4's
+    // shape as `days` and `date` above. This was `Int?`, C-025 §4's (now C-023 §4, `kind=day`) `percent: Int?`. C-033 §4's
     // `percent` is ALSO a prop of that name and is a display STRING ("55%") — OQ-C-033-5 is
     // open on whether that is the component's contract or the sample's — and preview-build.md
     // §3 rule 3 forbids bending a contract's prop name to fit an existing field. So the field
-    // decodes both shapes: C-025 asks for `.intValue`, C-033 for `.stringValue`.
-    let percent: CaptureIntOrString?           // C-025 — → C-062 PercentDisc; C-033 — the completion number
-    let details: CaptureUI2ValuePair?          // C-025 — → C-071 ValuePair's props
+    // decodes both shapes: C-023 `kind=day` (ex-C-025) asks for `.intValue`, C-033 for `.stringValue`.
+    let percent: CaptureIntOrString?           // C-023 kind=day (ex-C-025) — → C-062 PercentDisc; C-033 — the completion number
+    let details: CaptureUI2ValuePair?          // C-023 kind=day (ex-C-025, legacy nested shape) — → C-071 ValuePair's props
     // C-033 GroupFollowCard. `style`, `color`, `title`, `label` and `progress` already exist
     // above under the contract's own prop names, so C-033 reuses them rather than adding
     // duplicates; `percent` is retyped just above. These three are additive and none could be
@@ -453,9 +481,350 @@ struct CaptureComponent: Codable {
     let photoURL: String?                      // C-033 — → C-038 Avatar at 64
     let members: String?                       // C-033 — the members-row number, a display string
     let showLink: Bool?                        // C-033 — `noBar` only, gates C-072 LinkStatusGlyph
+    // C-038 Avatar. `state`, `initials` and `size` already exist above under the contract's own
+    // prop names, so they are reused — `size` is retyped in place (see the note there) rather
+    // than duplicated, and `state` is reused exactly as the retired C-025 case used it (now C-023 `kind=day`). `imageURL` IS additive:
+    // the struct's existing field is spelled `imageUrl` (lowercase u), a 1.0 name, and
+    // preview-build.md §3 rule 3's second bound forbids bending C-038 §4's `imageURL` into it.
+    let imageURL: String?                      // C-038 — the photo (NOT 1.0's `imageUrl`)
+    // C-046 FieldGroup. `label`, `text` and `placeholder` already exist above under the
+    // contract's own prop names (§4's `(input content)` row delegates the latter two to C-045
+    // verbatim), so C-046 reuses them rather than adding duplicates. Only `field` is additive:
+    // no existing field carries that name, and bending it onto `lines` — C-045's own
+    // "single"|"multi" — would rename a contract's prop into another contract's vocabulary,
+    // which rule 3's second bound forbids.
+    let field: String?                         // C-046 — "Text" | "Multiline Text"
+    // C-022 MetaPair. `value`, `label` and `align` already exist above under the contract's own
+    // prop names — `align` is C-024's field, the same name and the same `String?`, so reusing it
+    // satisfies rule 3's second bound exactly as C-053 reuses `state` (the value sets differ;
+    // each case parses its own). Only `layout` is additive: no existing field carries that name,
+    // and bending it onto `lines` — C-045's "single"|"multi" — would rename a contract's prop
+    // into another contract's vocabulary.
+    let layout: String?                        // C-022 — "inline" | "stacked"
+                                               // C-022 also reads `align` — "Left" | "Right"
+    let valueFirst: Bool?                      // C-022 — stacked only; value above label
+    // C-057 PercentBar. `progress` (Double?) and `size` (CaptureDoubleOrString?, read as
+    // `.stringValue`) already exist above under this contract's own prop names and types, so
+    // they are reused. The rest are additive: `align` above is C-024/C-022's, and C-057's prop
+    // is spelled `aligned` — bending one onto the other would rename a contract's prop into
+    // another contract's vocabulary, which rule 3's second bound forbids. `fillStyle`,
+    // `fillColor`, `thresholds` and `fillAnimation` come from note 2026-09-12T02:28:29.097Z and
+    // no existing field carries any of those names.
+    let aligned: String?                       // C-057 — "Right" | "Left"
+    let fillStyle: String?                     // C-057 — "solid" | "gradient"
+    let fillColor: String?                     // C-057 — a tokens.md colour row name; nil = derive from thresholds
+    let thresholds: CaptureUI2Thresholds?      // C-057 — the red/yellow/green ramp stops
+    let fillAnimation: CaptureUI2FillAnimation? // C-057 — fill 0 → value; omitted so captures are still
+    // C-035 FilterChip adds NOTHING. All three of its render-bearing §4 props — `type`,
+    // `active` and `label` — already exist above under the contract's own names and types
+    // (`type: String?` and `label: String?` in the 1.0 block, `active: Bool?` from C-069), so
+    // rule 3's second bound is satisfied by reuse and no field is added. `type` takes
+    // "Menu" | "Button" here; `active` is C-069's same-named boolean read by a second
+    // contract, exactly as C-052/C-053 read `state`.
+    // C-064 DateSpanIndicator adds ONE field. Its §4 second prop is ALSO named `days` and is
+    // ALSO an Int, and `days` above is already the polymorphic `CaptureDays` — whose `Int`
+    // branch is exactly this shape — so C-064 reads `.duration` and adds nothing for it, the
+    // way C-026 reads `.timeline` from the same field. `months` has no existing field at all
+    // and could not be bent into one (rule 3's second bound): `month: String?` in the 1.0 block
+    // is C-070's display month name, a different prop of a different type on a different
+    // contract.
+    let months: Int?                           // C-064 — whole months in the span
+                                               // C-064 also reads `days` — via `.duration`
+    // C-047 RadioOptionRow adds NOTHING. All three of its render-bearing §4 props — `title`,
+    // `description` and `selected` — already exist above under the contract's own names and
+    // types (`title: String?`, `description: String?` in the 1.0 block, `selected: Bool?`
+    // from GroupCard), so rule 3's second bound is satisfied by reuse and no field is added.
+    // `onSelect` is an action with no render effect and is not carried by the fixture.
+    // C-048 PageActionButton adds TWO fields. `label` already exists above under the contract's
+    // own prop name and type, so it is reused. `role` and `isEnabled` are additive and neither
+    // could be bent into an existing field (rule 3's second bound): `type`/`style`/`state` above
+    // are other contracts' vocabularies for other value sets, and `active`/`available`/`selected`
+    // are C-069's, C-013's and GroupCard's booleans meaning different things. `action` is an
+    // action with no render effect and is not carried by the fixture.
+    let role: String?                          // C-048 — "affirmative" | "destructive" | "prominent"
+    let isEnabled: Bool?                       // C-048 — false renders the Muted look
+    // C-049 LinkButton adds NOTHING. All three of its render-bearing §4 props — `label`,
+    // `style` and `isEnabled` — already exist above under the contract's own names and types
+    // (`label: String?` and `style: String?` in the 1.0 block, `isEnabled: Bool?` from C-048),
+    // so rule 3's second bound is satisfied by reuse and no field is added. `style` takes
+    // "default" | "muted" here, the way C-033 reads its own set from the same field. `onTap`
+    // is an action with no render effect and is not carried by the fixture.
+    // C-077 TrendIndicator adds ONE field. `label` already exists above under the contract's
+    // own prop name and type, so it is reused. `direction` has no existing field and could not
+    // be bent into one (rule 3's second bound): `type`/`style`/`state`/`role` above are other
+    // contracts' vocabularies for other value sets, and C-075's `direction` (left | right) is
+    // never carried by a fixture — C-064 builds it inline. Takes "up" | "down" | "neutral".
+    let direction: String?                     // C-077 — "up" | "down" | "neutral"
+    // C-077 re-build 2026-09-17: the owner's note of 04:23 split colour off `direction` into a
+    // third prop. No existing field carries a positive|negative|neutral valence, so it is added
+    // under the contract's own name (rule 3's second bound).
+    let polarity: String?                      // C-077 — "positive" | "negative" | "neutral"
+    // C-051 AISuggestionsBlock adds TWO fields. `state` already exists above under the
+    // contract's own prop name and type (a string, read as the nested enum's raw value the way
+    // C-052/C-053 read theirs), so it is reused. `promptCopy` and `suggestions` are additive:
+    // no existing field carries either name, and bending them onto `text`/`description` or
+    // `items`/`options`/`tags` — other contracts' and 1.0's vocabularies — would rename a
+    // contract's prop, which rule 3's second bound forbids. `onGenerate` and `onPick` are
+    // actions with no render effect and are not carried by the fixture.
+    let promptCopy: String?                    // C-051 — the `prompt` paragraph
+    let suggestions: [String]?                 // C-051 — row titles in order (≤ 3 rendered)
+    // C-050 SuggestionRow adds NOTHING. Its one render-bearing §4 prop, `title`, already
+    // exists above under the contract's own name and type (`title: String?` in the 1.0
+    // block), so rule 3's second bound is satisfied by reuse. `onAdd` is an action with no
+    // render effect and is not carried by the fixture.
+    // C-078 SuggestionRows (built 2026-09-22) adds NOTHING. Its one render-bearing §4 prop,
+    // `suggestions: [String]`, already exists above under the contract's own name and type
+    // (C-051's field — the same list C-051 hands it unchanged, §5), so rule 3's second bound
+    // is satisfied by reuse. `onPick` is an action with no render effect and is not carried.
+    // C-025 DayActivityCard re-build 2026-09-20 (row merged into C-023 RailCard `kind=day` 2026-09-21; fields kept): §4 is now FLAT (R-05) — `state`, `month`,
+    // `weekday`, `day`, `dateState`, `series`, `percent`, `line1`, `line2`, `detailsState`.
+    // `state`, `month`, `series` and `percent` already exist above under the contract's own
+    // names; `day` is retyped above. These five are additive and none could be bent into an
+    // existing field (rule 3's second bound): `date`/`details` above are the PRE-restructure
+    // nested bags, kept because the three authored previews still carry them (a build never
+    // re-props an existing preview) — the C-025 case read the flat keys first and fell
+    // back to the nested ones.
+    let weekday: String?                       // C-023 kind=day (ex-C-025) — → C-070 `weekday`
+    let dateState: String?                     // C-023 kind=day (ex-C-025) — → C-070 `state`: "default" | "today"
+    // C-071 ValuePair (built 2026-09-21) adds NOTHING: its three §4 props are `line1`,
+    // `line2` and `state`, and all three already exist under the contract's own names and
+    // types — `line1` / `line2` here, `state` above (the same string field C-053 / C-052
+    // reuse). Rule 3's second bound is satisfied by reuse; `detailsState` is C-023's own key.
+    let line1: String?                         // C-023 kind=day (ex-C-025) — → C-071 `line1`; C-071 — `line1`
+    let line2: String?                         // C-023 kind=day (ex-C-025) — → C-071 `line2` (nil in single / singleMuted); C-071 — `line2`
+    let detailsState: String?                  // C-023 kind=day (ex-C-025) — → C-071 `state`, one of its seven values
+    // ── preview props ──
+    // C-023 RailCard build 2026-09-21 (the merged row, both kinds in one case). Of its
+    // seventeen §4 props, thirteen already exist above under the contract's own names and
+    // types — `title`, `series`, `averageLabel`, `value` (metric); `state`, `month`,
+    // `weekday`, `day` (`.stringValue`), `dateState`, `percent` (`.intValue`), `line1`,
+    // `line2`, `detailsState` (day) — so rule 3's second bound is satisfied by reuse. These
+    // four are additive: no existing field carries the absorbing axis, and the three trend
+    // props are C-023's own names for what it forwards to C-077 (`direction` / `polarity` /
+    // `label` above are C-077's OWN keys, and a contract's prop name is never bent to fit).
+    let kind: String?                          // C-023 — "metric" | "day"
+    let trendDirection: String?                // C-023 kind=metric — → C-077 `direction`: "up" | "down" | "neutral"
+    let trendPolarity: String?                 // C-023 kind=metric — → C-077 `polarity`: "positive" | "negative" | "neutral"
+    let trendLabel: String?                    // C-023 kind=metric — → C-077 `label`
+    // C-031 EnrollmentStatusRow (built 2026-09-21) adds ONE field. Five of its six §4 props
+    // already exist above under the contract's own names and types — `percent`
+    // (`.intValue`), `label`, `count` (`Int?`, matching OQ-C-031-6's ruling), `progress`,
+    // `subtitle` — so rule 3's second bound is satisfied by reuse. `statusColor` has no
+    // existing field: `color` above is C-033's / C-027's own key for their sets, and a
+    // contract's prop name is never bent to fit. Takes OQ-C-031-1's closed set.
+    let statusColor: String?                   // C-031 — "green" | "yellow" | "red"
+    // C-043 MetaChip (built 2026-09-22) adds NOTHING: its four §4 props are `value`, `label`,
+    // `state` and `align`, and all four already exist above under the contract's own names
+    // and types — `value` / `label` (card fields), `state` (the shared string field), `align`
+    // (C-024's key, also a string). Rule 3's second bound is satisfied by reuse.
+    // C-076 ActivitySpinner (built 2026-09-24) adds ONE field. `size` (`.doubleValue`),
+    // `color` (a token name) and `direction` already exist above under the contract's own
+    // names; `period` exists too but as a String, so the case never reads it (a number there
+    // would fail to decode) and takes §4's default 1.0 — it has no effect on a phase-0 render.
+    let strokeWidth: Double?                   // C-076 — ring band width, pt
+    // C-020 SectionHeader (built 2026-09-25) adds ONE field. `title` and `style` already exist
+    // above under the contract's own names and types. `accessory` is §4's enum with associated
+    // values, so it decodes in Swift's own synthesized shape for such an enum — one key per case
+    // holding that case's payload, e.g. {"meta": {"value": "5", "label": "metrics", "glyph": "add"}}.
+    let accessory: CaptureUI2SectionAccessory? // C-020 — none | meta | link | dropdown | caption
+    // C-032 FollowedProgramHeader (built 2026-09-25) adds TWO fields. `title` already exists
+    // above under the contract's own name and type; `author` and `createdLabel` have no field.
+    let author: String?                        // C-032 — the program author's display name
+    let createdLabel: String?                  // C-032 — the caller-formatted created text
+    // C-054 AvatarProgressRow (built 2026-09-26) adds ONE field. `title`, `imageURL`,
+    // `initials` and `progress` already exist above under the contract's own names and types.
+    // `metadata` exists too, as `[CaptureDataItem]` — the 1.0 cards' chip list, whose `value`
+    // and `label` are already C-043's names; the two C-043 keys it lacks are added to
+    // `CaptureDataItem` itself (additive optionals), so the prop name is not bent.
+    let progressLabel: String?                 // C-054 — caller-formatted text beside the bar
+    // ── screen edit-text-single-field ──
+    // Reused as-is: `title`, `description`, `label`, `placeholder`, `text`, `focused`,
+    // `promptCopy`, `suggestions` (same names, same types).
+    let loadedValue: String?
+    let saving: Bool?
+    let aiState: String?
+    let __frameHeight: Double?
+    // ── screen edit-option-field ──
+    // Reused as-is: `title`, `description`, `options`, `selectedOption`, `loadedValue`,
+    // `saving`, `__frameHeight` (same names, same types).
+    let optionDescriptions: [String]?
+    let errorMessage: String?
+    // ── screen edit-options-custom-field ──
+    // Reused as-is: `title`, `description`, `options`, `selectedOption`, `saving`,
+    // `__frameHeight` (same names, same types).
+    let presetMinimums: [Int]?
+    let presetMaximums: [Int]?
+    let minimumLabel: String?
+    let maximumLabel: String?
+    let minimumPlaceholder: String?
+    let maximumPlaceholder: String?
+    let minimum: String?
+    let maximum: String?
+    let loadedMinimum: String?
+    let loadedMaximum: String?
+    let focusedInput: String?
+    // ── screen edit-text-multi-field ──
+    // Adds NOTHING: every `State` field — `title`, `description`, `label`, `placeholder`,
+    // `text`, `loadedValue`, `focused`, `saving`, `promptCopy`, `aiState`, `suggestions` — and
+    // `__frameHeight` already exist above with the same names and types.
+    // ── preview props ──
+    // C-079 ActivityScreenshot build 2026-09-26. §4 `image` is `Image?`, which JSON cannot
+    // carry, so the fixture names the screenshot by URL (file:// or http[s]) under the
+    // contract's own key and the registry case resolves it to an Image — the caller's job
+    // under R-04 / R-19. Absent = `nil` = the `empty` state.
+    let image: String?                         // C-079 — screenshot URL → `image: Image?`
+    // ── preview props ──
+    // C-067 ActionMenuRow build 2026-09-26. `glyph` and `label` already exist above under the
+    // contract's own names and types; `tone` has no field in this struct (C-042's lives
+    // inside `CaptureUI2Indicator`).
+    let tone: String?                          // C-067 — "standard" | "destructive"
+    // ── screen home-dashboard ──
+    // Reused as-is: `hourValues`, `centerValue`, `centerUnit`, `centerCaption`, `bins` (same
+    // names, same types). `enrollmentCount` exists above as `Int?` (CardProgramFull), so the
+    // screen's Following count is spelled `followedCount`. Everything else is the screen's own.
+    let metricCount: String?
+    let kpiTitles: [String]?
+    let kpiValues: [String]?
+    let kpiTrendDirections: [String]?
+    let kpiTrendPolarities: [String]?
+    let kpiTrendLabels: [String]?
+    let kpiAverageLabels: [String]?
+    let kpiSeries: [[Double]]?
+    let dayMonths: [String]?
+    let dayWeekdays: [String]?
+    let dayNumbers: [String]?
+    let dayDateStates: [String]?
+    let daySeries: [[Double]]?
+    let dayLine1s: [String]?
+    let dayLine2s: [String]?
+    let dayDetailsStates: [String]?
+    let chartDates: [String]?
+    let chartScheduled: [Int]?
+    let chartCompleted: [Int]?
+    let chartWindowStart: String?
+    let chartWindowEnd: String?
+    let chartToday: String?
+    let sessionRange: String?
+    let sessionTickValues: [String]?
+    let sessionTickUnits: [String]?
+    let activeCount: String?
+    let engagementPercent: Int?
+    let engagementLabel: String?
+    let engagementCount: Int?
+    let engagementProgress: Double?
+    let engagementSubtitle: String?
+    let engagementColor: String?
+    let followedCount: String?
+    let programTitles: [String]?
+    let programAuthors: [String]?
+    let programCreatedLabels: [String]?
+    let groupProgramIndices: [Int]?
+    let groupTitles: [String]?
+    let groupPhotoURLs: [String]?
+    let groupMembers: [String]?
+    let groupPercents: [String]?
+    let groupColors: [String]?
+    let groupShowLinks: [Bool]?
+    // ── preview props ──
+    // C-037 ListResultRow build 2026-09-27. `title`, `description`, `count` (`Int?`),
+    // `imageURL` and `initials` already exist above under the contract's own names and types.
+    // `chips` entries are C-043 MetaChip's own props, carried in `CaptureDataItem` (the C-054
+    // precedent) with C-043's `align` added there.
+    let subject: String?                       // C-037 — "member" | "group"
+    let detail: String?                        // C-037 — "text" | "chips"
+    let trailing: String?                      // C-037 — "chevron" | "cancel" | "none"
+    let chips: [CaptureDataItem]?              // C-037 — [C-043 MetaChip] props
+    // ── screen create-study-program ──
+    // Reused as-is: `text`, `errorMessage` (same names, same types).
+    let creating: Bool?
+    // ── preview props ──
+    // C-065 TimelineEventRow build 2026-09-28. `text` and `tone` already exist above under
+    // the contract's own names and types.
+    let dateLabel: String?                     // C-065
+    let highlight: String?                     // C-065
+    // ── preview props ──
+    // C-055 CategoryBarTable build 2026-09-28. `rows` already exists above as
+    // `[CaptureShimmerRow]?`; C-055's row fields are added to that struct, additively.
+    let valueColumnTitle: String?              // C-055
+    let countColumnTitle: String?              // C-055
+    // ── preview props ──
+    // C-059 StudyProgramRow build 2026-09-29. `state`, `title`, `description` and `progress`
+    // already exist above under the contract's own names and types. `metaChips` entries are
+    // C-043 MetaChip's own props, carried in `CaptureDataItem` (the C-037 / C-054 precedent,
+    // whose `state` and `align` are already C-043's names). §4 `cover` is `Image?`, which JSON
+    // cannot carry, so the fixture names it by URL and the registry case resolves it (C-079
+    // precedent). Absent = `nil` = the `missing-cover` state.
+    let metaChips: [CaptureDataItem]?          // C-059 — [C-043 MetaChip] props
+    let cover: String?                         // C-059 — cover URL → `cover: Image?`
+    // ── preview props ──
+    // C-063 LessonCard build 2026-09-29. `title` and `progress` already exist above under the
+    // contract's own names and types. §4 `slides` entries carry `image` by URL (C-079
+    // precedent: the registry case resolves it) and `label`.
+    let header: CaptureUI2LessonHeader?        // C-063 — `LessonCard.Header`
+    let metaLabel: String?                     // C-063
+    let slides: [CaptureUI2LessonSlide]?       // C-063 — [LessonCard.Slide]; C-081 — [ActivityNavBar.Slide]
+    // ── preview props ──
+    // C-081 ActivityNavBar build 2026-09-29. §4 `slides` reuses the field above under the
+    // contract's own name (its entries gain `id`, additive, below); `activeID` has no field.
+    let activeID: String?                      // C-081 — the outlined slide's id; nil = none
+    // ── screen members-profile ──
+    // Reused as-is: `avatarURL`, `initials`, `age` (`Int?`), `role`, the eight `day*` arrays,
+    // `groupTitles`, `groupPhotoURLs` and `programTitles` (same names, same types).
+    let memberName: String?
+    let email: String?
+    let birthday: String?
+    let joined: String?
+    let organization: String?
+    let phone: String?
+    let phoneVerified: Bool?
+    let emailVerified: Bool?
+    let gender: String?
+    let address: String?
+    let emergencyContact: String?
+    let groupLeaders: [String]?
+    let groupJoinedDates: [String]?
+    let programStates: [String]?
+    let programProgress: [Double]?
+    let programCompleteCounts: [String]?
+    let programHours: [String]?
+    let programCoverURLs: [String]?
 }
 
-/// C-025 §4 `date` → C-070 DateBlock's own §4 props. The field names are the contract's.
+/// C-063 §4 `header: LessonCard.Header` — exactly one key is present, named for the case
+/// (the C-020 `accessory` precedent); each payload's field names are the case's own labels.
+struct CaptureUI2LessonHeader: Codable {
+    struct Numbered: Codable { let lessonNumber: Int }
+    struct Linked: Codable { let label: String }
+    let numbered: Numbered?
+    let linked: Linked?
+}
+
+/// C-063 §4 `slides` element `LessonCard.Slide(image: Image?, label: String)`; `image` is a
+/// screenshot URL the registry case resolves. Absent `image` = `nil` = C-079's `empty`.
+struct CaptureUI2LessonSlide: Codable {
+    let image: String?
+    let label: String?
+    // ── preview props ──
+    let id: String?                            // C-081 — ActivityNavBar.Slide.id (C-063 has none)
+}
+
+/// C-020 §4 `accessory` — exactly one key is present, named for the case; each payload's field
+/// names are §4's own (`glyph` takes C-021's set, `.link`'s `style` takes C-049's).
+struct CaptureUI2SectionAccessory: Codable {
+    struct Meta: Codable { let value: String; let label: String; let glyph: String }
+    struct Link: Codable { let label: String; let style: String }
+    struct Dropdown: Codable { let options: [String]; let selected: String }
+    struct Caption: Codable { let label: String; let glyph: String }
+    struct Empty: Codable {}
+
+    let none: Empty?
+    let meta: Meta?
+    let link: Link?
+    let dropdown: Dropdown?
+    let caption: Caption?
+}
+
+/// C-025 §4 `date` (legacy nested shape; row now C-023 `kind=day`) → C-070 DateBlock's own §4 props. The field names are the contract's.
 struct CaptureUI2DateBlock: Codable {
     let month: String
     let weekday: String
@@ -463,8 +832,8 @@ struct CaptureUI2DateBlock: Codable {
     let state: String                          // "default" | "today"
 }
 
-/// C-025 §4 `details` → C-071 ValuePair's own §4 props. The field names are the contract's;
-/// `state` takes the seven values of C-025 §3b.
+/// C-025 §4 `details` (legacy nested shape; row now C-023 `kind=day`) → C-071 ValuePair's own §4 props. The field names are the contract's;
+/// `state` takes the seven values of C-071 §3 (was summarised as C-025 §3b).
 struct CaptureUI2ValuePair: Codable {
     let line1: String
     let line2: String?
@@ -472,7 +841,7 @@ struct CaptureUI2ValuePair: Codable {
 }
 
 /// Decodes a JSON value that may be either a display/ISO date String (the 1.0 cards) or a
-/// C-070 DateBlock props object (C-025 §4's `date`). Same either-shape pattern as
+/// C-070 DateBlock props object (the legacy C-025 §4 `date`; row now C-023 `kind=day`). Same either-shape pattern as
 /// `CaptureDays` and `CaptureIntOrString`.
 struct CaptureDateOrBlock: Codable {
     let string: String?
@@ -551,6 +920,10 @@ struct CaptureDataItem: Codable {
     let number: String?
     let badge: String?
     let isPurple: Bool?
+    // ── preview props ──
+    let state: String?                // C-054 `metadata` entry → C-043 `state` (default|purple|complete; "accent" per OQ-C-043-5)
+    let labelPosition: String?        // C-054 `metadata` entry → C-043 `align` (OQ-C-043-1: trailing = left, leading = right)
+    let align: String?                // C-037 `chips` entry → C-043 `align` (left|right), C-043 §4's own name
 }
 
 /// A lesson activity box (CardLesson .lesson/.planning, CardEnrolled).
@@ -895,6 +1268,10 @@ struct CaptureShimmerRow: Codable {
     let width: Int?
     let height: Int?
     let cornerRadius: Int?
+    // ── preview props ──
+    let label: String?                         // C-055 CategoryBarTable.Row
+    let progress: Double?                      // C-055
+    let countLabel: String?                    // C-055
 }
 
 /// A MenuInput option with an optional description (MenuInput .menu style).
@@ -940,6 +1317,23 @@ struct CaptureUI2DateWindow: Codable {
     let end: String
 }
 
+/// C-057 PercentBar — the three ramp stops from note 2026-09-12T02:28:29.097Z ("thresholds for
+/// red, yellow, and green … a value between 0 - 1 and the user can technically put them in any
+/// order"). Order-independence is the VIEW's job, not this struct's: it sorts before use.
+struct CaptureUI2Thresholds: Codable {
+    let red: Double
+    let yellow: Double
+    let green: Double
+}
+
+/// C-057 PercentBar — the fill animation from note 2026-09-12T02:28:29.097Z ("filling from 0 ->
+/// it's value at a duration with an easing function"). No fixture sets it: an animating bar
+/// would make the simulator capture race the transition.
+struct CaptureUI2FillAnimation: Codable {
+    let duration: Double
+    let easing: String      // "linear" | "easeIn" | "easeOut" | "easeInOut"
+}
+
 /// C-030 TimeActivityChart §4 `tickLabels: [(value: String, unit: String)]` — one tick pair.
 /// §4's type is a Swift tuple, which is not `Codable`; this struct carries the same two member
 /// names and the ViewRegistry case maps it back to the tuple the view's signature states.
@@ -981,6 +1375,67 @@ struct CaptureDays: Codable {
 
 /// Decodes a JSON value that may be either an Int or a String (e.g. `activeTab`,
 /// an Int index for PageHeader but a string tab id for NavBar).
+/// A JSON value that is either a number or a string. Exists for the same reason
+/// `CaptureIntOrString` does: two contracts spell the same prop name with different types, and
+/// preview-build.md §3 rule 3 forbids renaming either one to suit the struct.
+struct CaptureDoubleOrString: Codable {
+    let doubleValue: Double?
+    let stringValue: String?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let d = try? container.decode(Double.self) {
+            doubleValue = d
+            stringValue = nil
+        } else if let s = try? container.decode(String.self) {
+            stringValue = s
+            doubleValue = nil
+        } else {
+            doubleValue = nil
+            stringValue = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let d = doubleValue {
+            try container.encode(d)
+        } else {
+            try container.encode(stringValue)
+        }
+    }
+}
+
+/// A JSON value that is either a Bool or a String. Exists for the same reason the two above
+/// do: `selected` is a Bool for the 1.0 GroupCard and C-047, and a String for C-028.
+struct CaptureBoolOrString: Codable {
+    let boolValue: Bool?
+    let stringValue: String?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let b = try? container.decode(Bool.self) {
+            boolValue = b
+            stringValue = nil
+        } else if let s = try? container.decode(String.self) {
+            stringValue = s
+            boolValue = nil
+        } else {
+            boolValue = nil
+            stringValue = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let b = boolValue {
+            try container.encode(b)
+        } else {
+            try container.encode(stringValue)
+        }
+    }
+}
+
 struct CaptureIntOrString: Codable {
     let intValue: Int?
     let stringValue: String?

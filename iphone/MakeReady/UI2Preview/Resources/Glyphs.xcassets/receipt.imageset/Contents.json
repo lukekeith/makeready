@@ -1,0 +1,16 @@
+{
+  "images" : [
+    {
+      "filename" : "receipt.svg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "d2m",
+    "version" : 1
+  },
+  "properties" : {
+    "preserves-vector-representation" : true,
+    "template-rendering-intent" : "template"
+  }
+}

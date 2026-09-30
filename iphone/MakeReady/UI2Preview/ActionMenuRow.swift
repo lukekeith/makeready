@@ -2,146 +2,103 @@
 //  ActionMenuRow.swift
 //  UI2Preview — the UI 2.0 preview module
 //
-//  Built from docs/ui2/design-system/components/C-066-action-menu-overlay.md — C-067
-//  ActionMenuRow has its own registry row but ships inside C-066's contract file (§2
-//  anatomy, §3 `property1=Default`, §4 props). PREVIEW ONLY: referenced by no screen,
-//  route, tab or flag (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell
-//  suite (§7).
-//
-//  C-067 has no contract file and no frozen snapshot of its own, so it is not a legal
-//  `/ui2-component-build` target — but §3 gives it a designed row, so it is capturable
-//  through C-066's fixture and ViewRegistry case, exactly as C-069 NavTabButton is
-//  through C-019's.
+//  Built from C-067-action-menu-row in d2m (§2 geometry, §3 states, §4 props).
+//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
 
 import SwiftUI
 
-/// C-067 ActionMenuRow — one contextual action inside C-066 ActionMenuOverlay.
+/// C-067 ActionMenuRow — one contextual action row inside C-066 ActionMenuOverlay.
 ///
-/// Chrome-free and width-driven: it fills the width it is given, states its own intrinsic
-/// height, paints no surface and adds no outer padding. Frame, background and outer padding
-/// belong to the ViewRegistry call site (preview-build.md OQ-PB-1 / OQ-PB-2).
+/// Chrome-free and width-driven (R-16): it fills the width it is given, states its own
+/// intrinsic height (16 + 24 + 16 = 56), paints no background and adds no outer padding.
 struct ActionMenuRow: View {
 
-    /// The artwork C-066 supplies for its own content slot.
-    ///
-    /// §2 calls the glyph a **content slot** and §1 deviation 1 makes the sample glyphs
-    /// per-instantiation content, so they are NOT part of C-021 GlyphButton's owned set of
-    /// nine (preview-build.md §3 rule 5 — a set has one owner, and adding to C-021's is a
-    /// `/ui2-component` act on C-021, not something a build run may do). They live beside it
-    /// in the catalog under a `c066-` prefix, the same way C-034's and C-039's one-off
-    /// vectors do. Raw values are the asset names, which are also the fixture's prop values.
-    ///
-    /// Owner-supplied 2026-09-10, closing the two flagged stubs the first build reported:
-    /// `close` is the filled disc with the X knocked out that §1 deviation 2 calls "Misuse",
-    /// and `send` is the FILLED paper plane — distinct from C-021's outline `send`
-    /// ("Send--alt"), which is why the prefix is doing real work rather than ceremony.
-    enum ContentGlyph: String {
-        case close = "c066-close"
-        case send = "c066-send"
+    /// §4 `tone` (R-06 / R-36): the §3 tone axis.
+    enum Tone {
+        case standard
+        case destructive
     }
 
-    /// C-066 §4 (C-067): `glyph`. Names artwork rather than selecting from a set this
-    /// contract owns. Resolved against C-021's owned nine first — a consumer is free to use
-    /// one — then against `ContentGlyph`; a name in neither renders the flagged stub below
-    /// rather than a substitute.
+    /// §4 `glyph`: a glyph-library name, drawn as the leading 24pt glyph.
     let glyph: String
-    /// C-066 §4 (C-067): `label`.
+    /// §4 `label`: the action's title.
     let label: String
-    /// C-066 §4 (C-067): `onTap`. Interaction-bearing, so it has no render effect; emitted
-    /// as a defaulted no-op so the promoted view keeps its real signature (OQ-PB-3).
+    /// §4 `tone`: defaults to `.standard`, the designed base look (R-07).
+    var tone: Tone = .standard
+    /// §4 `onTap`: the row was tapped (R-03, R-33). No render effect.
     var onTap: () -> Void = {}
 
     var body: some View {
         Button(action: onTap) {
-            // §2: "56pt row (py16), gap 16".
-            HStack(spacing: Self.gap) {
+            // §2: center-aligned, item gap `space-card-padding`.
+            HStack(spacing: Token.Space.cardPadding) {
                 leadingGlyph.ui2Element("Glyph")
                 Text(label)
-                    // §2: label `type-action-item` (SF Pro Regular 18/24 white).
+                    // §2: `type-action-item`, one line, tail-truncated (OQ-C-067-004).
                     .designTextStyle(Token.TypeStyle.actionItem)
-                    .foregroundStyle(Token.textPrimary)
+                    .foregroundStyle(tint)
                     .lineLimit(1)
-                    // The designed 24pt line box — larger than SF Pro's natural ~21.5 at
-                    // 18pt, so it supplies the half-leading that centres the glyphs where
-                    // the snapshot has them. A minimum, so a longer label can never clip.
+                    .truncationMode(.tail)
+                    // The designed 24pt line box — taller than SF Pro's natural line at 18pt,
+                    // so it supplies the half-leading that centres the label on the glyphs.
                     .frame(
                         maxWidth: .infinity,
                         minHeight: Token.TypeStyle.actionItem.lineHeight ?? Token.TypeStyle.actionItem.size,
                         alignment: .leading
                     )
-                    .ui2Element("Label")
-                chevron.ui2Element("Chevron")
+                    .ui2Element(tone == .destructive ? "Label (destructive)" : "Label")
+                // §2: fixed anatomy on every row (OQ-C-066-3), `color-white-50` in every tone.
+                Glyph(.chevronRightCarbon, size: .md, tint: Token.white50)
+                    .accessibilityHidden(true)
+                    .ui2Element("Chevron")
             }
-            .padding(.vertical, Self.padY)
-            // §2: "56pt row" — 16 + 24 + 16. Stated rather than left to the intrinsic
-            // height because the glyph slot's stub has no artwork to size it.
-            .frame(maxWidth: .infinity, minHeight: Self.height, alignment: .leading)
+            // §2: `space-card-padding` top and bottom, horizontal padding 0.
+            .padding(.vertical, Token.Space.cardPadding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // §2: the whole row is the tap target.
             .contentShape(Rectangle())
         }
+        // §2 / OQ-C-067-002: the system highlight of a plain button style (ephemeral, R-02).
         .buttonStyle(.plain)
-        .ui2Element("ActionMenuRow")               // capture element map — UI2Element.swift
+        // R-17: one button element, labelled by `label`; glyph and chevron are decorative.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("ActionMenuRow")
     }
 
-    /// The asset name for `glyph`, or nil when neither set carries it.
-    private var glyphAsset: String? {
-        GlyphButton.Glyph(rawValue: glyph)?.rawValue ?? ContentGlyph(rawValue: glyph)?.rawValue
+    /// §2: glyph and label are `color-text-primary`; `tone=destructive` turns both
+    /// `color-negative` (OQ-C-066-2 + OQ-C-067-001).
+    private var tint: Color {
+        switch tone {
+        case .standard: return Token.textPrimary
+        case .destructive: return Token.negative
+        }
     }
 
     @ViewBuilder private var leadingGlyph: some View {
-        if let glyphAsset {
-            Image(glyphAsset, bundle: .ui2Preview)
-                // The catalog marks both C-066 vectors template-rendering, exactly as
-                // C-021's are, so their `fill="white"` is a mask and the tint below is the
-                // whole of their colour — which is what keeps §2's "white" a token here
-                // rather than baked-in artwork.
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .frame(width: Self.glyphSize, height: Self.glyphSize)
-                // §2: "24pt glyph (content slot, white)".
-                .foregroundStyle(Token.textPrimary)
+        if let name = Self.glyphName(glyph) {
+            Glyph(name, size: .md, tint: tint)
+                .accessibilityHidden(true)
         } else {
-            // STUB — C-067 `glyph`, no prop-level contract. The slot is per-instantiation
-            // content (§1 deviation 1), so a consumer can name artwork neither set carries.
-            // Substituting a near-enough glyph — or an SF Symbol — would hide that, which is
-            // what C-040's build history says not to do, so the slot renders obviously
-            // unfinished at the designed 24pt instead. No state built here takes this path.
+            // STUB — C-067 `glyph` names no glyph in the library. Drawn obviously unfinished
+            // at the designed 24pt rather than substituting a near-enough glyph.
             RoundedRectangle(cornerRadius: Token.Radius.cardSm)
                 .strokeBorder(Token.error, style: StrokeStyle(lineWidth: 1, dash: [3, 2]))
-                .frame(width: Self.glyphSize, height: Self.glyphSize)
+                .frame(width: GlyphSize.md.points, height: GlyphSize.md.points)
         }
     }
 
-    private var chevron: some View {
-        // §2: "24pt chevron-right glyph". The mirrored C-021 `back` vector — the same
-        // artwork (its Figma group is named "Chevron--left"), verified against this
-        // snapshot: `back`'s path spans x 7.5…16.05 of a 24 viewBox, so mirrored at a 24pt
-        // box its ink runs 7.95…16.5 from the box's leading edge; the snapshot's chevron
-        // measures x 392…399 against a box at 384…408, i.e. 8…15.
-        Image(GlyphButton.Glyph.back.rawValue, bundle: .ui2Preview)
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .frame(width: Self.glyphSize, height: Self.glyphSize)
-            .scaleEffect(x: -1, y: 1)              // chevron-left → chevron-right
-            // GAP — §2 states the chevron's SIZE and nothing about its colour (only the
-            // LEADING glyph is specified white). Measured on the frozen snapshot: its peak
-            // ink is (129, 130, 133) over the (31, 33, 36) container, which solves to 50%
-            // white at ~0.875 coverage and rules out the bluish `color-text-secondary`
-            // (133, 151, 158). The same measurement produced the same answer on C-042.
-            // Reported so a `/ui2-component` re-run can state it.
-            .foregroundStyle(Token.white50)
+    /// The library glyph `glyph` names. §4 retires the pre-library content names `c066-send`
+    /// and `c066-close`; §1 traces them to the same Figma art as `send-filled` (3832:31474)
+    /// and `x-circle-filled` (the "Misuse" instance), so a fixture still carrying them
+    /// resolves to those glyphs rather than to the stub.
+    private static func glyphName(_ glyph: String) -> GlyphName? {
+        switch glyph {
+        case "c066-send": return .sendFilled
+        case "c066-close": return .xCircleFilled
+        default: return GlyphName(rawValue: glyph)
+        }
     }
-
-    /// §2: "56pt row (py16)" — 16 + 24 + 16.
-    static let height: CGFloat = 56
-    /// §2: "24pt glyph … 24pt chevron-right glyph".
-    static let glyphSize: CGFloat = 24
-    // §2's py16 and gap 16. tokens.md coins its two 16 rows as `space-page-margin` and
-    // `space-card-padding` and neither was named for a row's internal inset — `card-padding`
-    // is taken here because every one of these 16s is INSIDE C-066's modal surface. A
-    // `space-gap` row would name it properly; reported as token hygiene, not a build gap.
-    private static let padY: CGFloat = Token.Space.cardPadding
-    private static let gap: CGFloat = Token.Space.cardPadding
 }

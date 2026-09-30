@@ -1,0 +1,27 @@
+{
+  "id": "ui2-c-052",
+  "registryId": "C-052",
+  "component": "DayChip",
+  "view": "component.ui2.C-052",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Default",
+      "slug": "default",
+      "props": {
+        "day": 1,
+        "state": "Default"
+      }
+    },
+    {
+      "name": "Active",
+      "slug": "active",
+      "props": {
+        "day": 1,
+        "state": "Active"
+      }
+    }
+  ]
+}

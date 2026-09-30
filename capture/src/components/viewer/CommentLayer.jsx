@@ -6,9 +6,15 @@ import Thread from './Thread.jsx';
 
 // Pins + draft composer + open thread, living INSIDE the zoom/pan canvas so they
 // track the image. `inv` (1/scale) counter-scales pins so they stay constant size.
-/** Label height plus its gap, in px. The flip rule is "is there room above the
- *  box", which is a PIXEL question — the same box at 40% zoom and at 200% zoom has
- *  the same `y` fraction and very different room above it. */
+/** Label height plus its gap, in SCREEN px. The flip rule is "is there room above
+ *  the box", which is a PIXEL question — the same box at 40% zoom and at 200% zoom
+ *  has the same `y` fraction and very different room above it.
+ *
+ *  The layer measures itself with a ResizeObserver, whose contentRect is the
+ *  LAYOUT box — canvas-local units, before the zoom transform — so the comparison
+ *  happens in local units and the constant is converted with `inv`. It used to be
+ *  compared raw, which was right only while the label scaled with the canvas; now
+ *  that the label is a fixed 24 screen px it occupies `24 * inv` local units. */
 const LABEL_CLEARANCE = 24;
 
 export default function CommentLayer({
@@ -19,6 +25,15 @@ export default function CommentLayer({
   // insideFlip }` or null. The host forces it null in comment mode, so this layer
   // never has to know about the two modes.
   componentBox = null,
+  // The SELECTED component's boxes — every instance of it on this screen. Unlike
+  // `componentBox` these are not pointer-driven: they persist for as long as the
+  // selection does, which is what makes a selection readable on the render after
+  // the pointer has moved away (and a component used twice visibly used twice).
+  componentSelectedBoxes = null,
+  // Preview boxes: the component under the pointer in the Screen tab's chip list.
+  // Same geometry as a selection, drawn in the hover weight — it is a "where is
+  // this?" answer, not a commitment.
+  componentPreviewBoxes = null,
 }) {
   const [draftVal, setDraftVal] = useState('');
   useEffect(() => { setDraftVal(''); }, [draft?.x, draft?.y, draft?.platform]);
@@ -56,6 +71,23 @@ export default function CommentLayer({
   const selectedBox = here.find((c) => c.id === selectedId && c.targetMeta?.rect)?.targetMeta?.rect;
   const draftBox = showDraft && draft.target?.rect ? draft.target.rect : null;
 
+  /**
+   * A target box's inline style: its rect as percentages of the render, plus
+   * `--inv` — the same 1/scale the pins counter-scale with.
+   *
+   * The box's RECT has to live inside the zoomed canvas (it tracks the image),
+   * but its stroke and its label must not: a 2px border inside `scale(3)` paints
+   * 6 device px, and the label's type grew with it. Everything that should be a
+   * CONSTANT number of screen pixels is written `calc(<px> * var(--inv))` in the
+   * stylesheet, so local units × the canvas scale come back to exactly that many
+   * device pixels at every zoom.
+   */
+  const boxStyle = (rect) => ({
+    left: `${rect.x * 100}%`, top: `${rect.y * 100}%`,
+    width: `${rect.w * 100}%`, height: `${rect.h * 100}%`,
+    '--inv': inv,
+  });
+
   return (
     <div ref={layerRef} className={`cmp-commentlayer${commentMode ? ' cmp-commentlayer--placing' : ''}`} onClick={handleClick}>
       {/* The Layout tab's box. Unlike `hoverBox` it is NOT gated on comment
@@ -64,7 +96,7 @@ export default function CommentLayer({
       {inspectBox && (
         <div
           className="cmp-target-box cmp-target-box--inspect"
-          style={{ left: `${inspectBox.x * 100}%`, top: `${inspectBox.y * 100}%`, width: `${inspectBox.w * 100}%`, height: `${inspectBox.h * 100}%` }}
+          style={boxStyle(inspectBox)}
           aria-hidden="true"
         />
       )}
@@ -72,16 +104,49 @@ export default function CommentLayer({
           so an open thread's target still wins the eye. Both the box and its label
           are pointer-transparent — the hit test reads the render's own pointer
           events, and a box that ate them would flicker at its own edges. */}
+      {/* Persistent selection, drawn UNDER the hover box: hovering another
+          component must still read as the thing under the pointer. */}
+      {componentSelectedBoxes?.map((b, i) => (
+        <div
+          key={`${b.rect.x}:${b.rect.y}:${i}`}
+          className="cmp-target-box cmp-target-box--component cmp-target-box--selected"
+          style={boxStyle(b.rect)}
+          aria-hidden="true"
+        >
+          {/* Only the FIRST instance carries the label: a component used four
+              times in a row would otherwise stack four overlapping labels and
+              none of them would be readable. */}
+          {i === 0 && (
+            <span className={`cmp-target-box__label${b.rect.y * layerH < LABEL_CLEARANCE * inv ? ' cmp-target-box__label--inside' : ''}`}>
+              {b.label}
+            </span>
+          )}
+        </div>
+      ))}
+      {/* `tone` lets a caller mark a preview as something other than "this
+          component": the screen pane uses it to pick out ONE schema's instances
+          in green, against the purple that already means "the component". */}
+      {componentPreviewBoxes?.map((b, i) => (
+        <div
+          key={`preview:${b.rect.x}:${b.rect.y}:${i}`}
+          className={`cmp-target-box cmp-target-box--component${b.tone ? ` cmp-target-box--${b.tone}` : ''}`}
+          style={boxStyle(b.rect)}
+          aria-hidden="true"
+        >
+          {i === 0 && (
+            <span className={`cmp-target-box__label${b.rect.y * layerH < LABEL_CLEARANCE * inv ? ' cmp-target-box__label--inside' : ''}`}>
+              {b.label}
+            </span>
+          )}
+        </div>
+      ))}
       {componentBox && (
         <div
           className="cmp-target-box cmp-target-box--component"
-          style={{
-            left: `${componentBox.rect.x * 100}%`, top: `${componentBox.rect.y * 100}%`,
-            width: `${componentBox.rect.w * 100}%`, height: `${componentBox.rect.h * 100}%`,
-          }}
+          style={boxStyle(componentBox.rect)}
           aria-hidden="true"
         >
-          <span className={`cmp-target-box__label${componentBox.rect.y * layerH < LABEL_CLEARANCE ? ' cmp-target-box__label--inside' : ''}`}>
+          <span className={`cmp-target-box__label${componentBox.rect.y * layerH < LABEL_CLEARANCE * inv ? ' cmp-target-box__label--inside' : ''}`}>
             {componentBox.label}
           </span>
         </div>
@@ -89,13 +154,13 @@ export default function CommentLayer({
       {commentMode && !draft && !selectedId && hoverBox && (
         <div
           className="cmp-target-box cmp-target-box--hover"
-          style={{ left: `${hoverBox.x * 100}%`, top: `${hoverBox.y * 100}%`, width: `${hoverBox.w * 100}%`, height: `${hoverBox.h * 100}%` }}
+          style={boxStyle(hoverBox)}
           aria-hidden="true"
         />
       )}
       {(selectedBox || draftBox) && (() => {
         const r = draftBox || selectedBox;
-        return <div className="cmp-target-box" style={{ left: `${r.x * 100}%`, top: `${r.y * 100}%`, width: `${r.w * 100}%`, height: `${r.h * 100}%` }} aria-hidden="true" />;
+        return <div className="cmp-target-box" style={boxStyle(r)} aria-hidden="true" />;
       })()}
       {here.map((c) => {
         const side = c.x > 0.55 ? 'left' : 'right';

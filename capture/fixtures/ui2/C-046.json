@@ -1,0 +1,55 @@
+{
+  "id": "ui2-c-046",
+  "registryId": "C-046",
+  "component": "FieldGroup",
+  "view": "component.ui2.C-046",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Text × Default",
+      "slug": "text-default",
+      "props": {
+        "label": "Field name",
+        "field": "Text",
+        "style": "Default",
+        "text": "",
+        "placeholder": "Placeholder"
+      }
+    },
+    {
+      "name": "Text × Focus",
+      "slug": "text-focus",
+      "props": {
+        "label": "Field name",
+        "field": "Text",
+        "style": "Focus",
+        "text": "",
+        "placeholder": "Placeholder"
+      }
+    },
+    {
+      "name": "Multiline Text × Default",
+      "slug": "multiline-text-default",
+      "props": {
+        "label": "Field name",
+        "field": "Multiline Text",
+        "style": "Default",
+        "text": "",
+        "placeholder": "Placeholder"
+      }
+    },
+    {
+      "name": "Multiline Text × Focus",
+      "slug": "multiline-text-focus",
+      "props": {
+        "label": "Field name",
+        "field": "Multiline Text",
+        "style": "Focus",
+        "text": "",
+        "placeholder": "Placeholder"
+      }
+    }
+  ]
+}

@@ -95,11 +95,19 @@ wrong node. This screen consumes `state=Default`, 408×44, placeholder "Search m
 its search *behavior* stays specced in §3 above.
 
 ### C-035 FilterChip
-24pt-tall pill: 1px `color-neutral-600` border, radius 8, horizontal padding 8, 4pt gap;
-**leading** 16pt chevron-down, then label SF Pro Bold 14/22 `text/navigation` (#8d9fa7).
-Label = current selection. States: `default` (as measured) and `pressed` (standard
-highlight); no distinct "filtered" treatment is in the source — a filtered chip simply
-shows the chosen option's name. Props: `label: String`, `onTap`.
+**Contract relocated 2026-09-11** → `../design-system/components/C-035-filter-chip.md`
+(owner-designated: the owner pasted this screen's chip instance `3668:7390`, which the run
+resolved to its main component, the variant set `3561:33782`). This section described **one of
+four designed variants**, and the set corrects it on two points. (1) The component has **two
+axes** — `type` {Menu, Button} × `active` {false, true} — all four designed. This screen's two
+chips are both `type=Menu, active=false`, as are all eight instances across this screen,
+groups-home and enrollments-home (each verified individually). (2) **"pressed" is not the second
+state.** There is a designed **active** treatment in both types — `type=Menu` inverts to a white
+ground with a black chevron and label — and no screen yet draws it (OQ-C-035-1); a genuine
+`pressed` state remains undesigned. The measurements this section gave (24pt, 1px
+`color-neutral-600`, radius 8, px 8, gap 4, 16pt chevron, label Bold 14/22 `text/navigation`) all
+hold for the variant it described, and the contract adds the chevron's own fill
+(`color-text-secondary`), which this section did not state.
 
 ### C-036 FilterMenuOverlay
 Full-screen single-select option menu, behavior normative from Filter.MP4 (§1 outline):
@@ -134,9 +142,12 @@ member belongs to; **hidden when 0** — evidence: rows show 2/1/3/—/3 and the
 (hidden at 0), `onTap`.
 
 ### C-038 Avatar
-Circular member/person image primitive: sizes 32 (this screen), 40, 64; photo fill, or
-initials fallback on `color-card-background` when no photo (program convention). Props:
-`imageURL: URL?`, `initials: String`, `size`.
+**Relocated 2026-09-11** to `../design-system/components/C-038-avatar.md`, which is now the
+contract. That run specced the set `4115:31205` ("Avatar v2") and **corrects this section on two
+points**: the initials fallback is a *designed* state, not a program convention, and its ground
+is **#242a3e** (`color-avatar-fallback`) — not `color-card-background` as stated here. It also
+demotes the size list to a consumer-applied scale (that file §3b) and records a third state,
+`Unknown user`. This screen consumes `Has photo` at **32**, inside C-037.
 
 ## 5. Data & API
 

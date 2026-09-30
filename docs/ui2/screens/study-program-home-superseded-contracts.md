@@ -61,7 +61,15 @@ Frame-local (nodes `3524:29763–29765`). 140×249, `radius-card` (8), image fil
 non-video activities and the no-thumbnail fallback are proposed defaults under OQ-8. The
 activities-editor/player specs may absorb or extend this row when the pager rows mint.
 
-### C-057 PercentBar (formalized)
+### C-057 PercentBar (formalized) — ~~SUPERSEDED 2026-09-11~~
+
+> **Editorial pointer added 2026-09-11 (not part of the frozen text below).** C-057's
+> contract now lives at `../design-system/components/C-057-percent-bar.md`, written from
+> the owner-designated set `3526:30471`. The block below is kept verbatim as the record of
+> what was specced, and it is wrong on two points the new contract corrects: the
+> `size=sm` + `Left` variant (Figma's `Thin`/`Left`) draws **no track**, and the set has **three** unbound fill colours,
+> not one. C-044 is struck and C-054 orphaned, so its consumer list is stale too.
+
 Sheet set `3526:30471` ("Percentages") — the bar unit already cited inside C-031 and
 C-044; promoted to its own row now that three composites share it (C-031, C-044, C-054).
 Track `color-white-10`, fill segment in the consumer's status color (frame literal

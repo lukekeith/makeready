@@ -1,0 +1,37 @@
+{
+  "id": "ui2-c-038",
+  "registryId": "C-038",
+  "component": "Avatar",
+  "view": "component.ui2.C-038",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "Has photo",
+      "slug": "has-photo",
+      "props": {
+        "state": "Has photo",
+        "imageURL": "https://pub-8fbdd7669af54158b1759ab47dcef688.r2.dev/groups/group-162b0930-6a71-4fa0-bed7-f564af2f097e-1768356813624.jpeg",
+        "size": 40
+      }
+    },
+    {
+      "name": "Initials",
+      "slug": "initials",
+      "props": {
+        "state": "Initials",
+        "initials": "TD",
+        "size": 40
+      }
+    },
+    {
+      "name": "Unknown user",
+      "slug": "unknown-user",
+      "props": {
+        "state": "Unknown user",
+        "size": 40
+      }
+    }
+  ]
+}

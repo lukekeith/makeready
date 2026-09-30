@@ -88,7 +88,8 @@ Closed list of registry IDs rendered: **C-019 TopNav** (collapsed state) · **C-
 SectionHeader** · **C-021 GlyphButton** · **C-022 MetaPair** · **C-023 KpiCard** ·
 **C-024 SparkBarChart** · **C-025 DayActivityCard** · **C-026 DualSeriesBarChart** ·
 **C-027 LegendItem** · **C-028 InlineDropdown** · **C-029 RadialDayClock** · **C-030
-TimeActivityChart** · **C-031 EnrollmentStatusRow** · **C-073 StatusPercentDisc**
+TimeActivityChart** · **C-031 EnrollmentStatusRow** · **C-062 PercentDisc** (`size=Green 2`,
+with `statusColor` — was ~~C-073 StatusPercentDisc~~, merged 2026-09-11)
 (2026-09-10 — split out of C-031's anatomy by the full-set run; rendered here only inside
 C-031) · **C-032 FollowedProgramHeader** · **C-033 GroupFollowCard**.
 
@@ -111,8 +112,21 @@ this spec's earlier prose; that contract's §3 carries the alias table. The 24×
 open question of its own (OQ-C-021-2).
 
 ### C-022 MetaPair
-Inline value+label pair, SF Pro Regular 12: value white, label `text/secondary`, 4pt gap
-(e.g. "5 metrics", "15 active", "0 mins"). Props: `value: String`, `label: String`.
+**Contract relocated 2026-09-11** → `../design-system/components/C-022-meta-pair.md`, written by
+the `/ui2-component C-022` run that **settled OQ-C-022-1** after the owner merged C-041 DetailPair
+into this row. This section described one instance (`3673:12445`); the run resolved it to the set
+`3636:5616` and specced both of the row's Figma sources.
+
+It corrects this section on three points: the inline form has an **`align` axis** (two designed
+symbols, where this section described one); **`align` swaps the ORDER of the value and label** and
+sets no alignment property, so a build must not implement it as one; and the inline type is
+**Regular 12/24**, which `C-030` §2 had already measured independently on the tick row. The
+`meta_button` accessory this screen pairs with C-021 is unchanged, and all three of this screen's
+C-022 instances were resolved individually — every one is `align=Left`.
+
+**Also corrected here:** this screen's element map reffed `3676:12466` as C-022. That node is a
+plain frame holding a text run and a `Chevron--down` — it is the Sessions header's **C-028
+InlineDropdown**, exactly as §2 describes. Repointed.
 
 ### C-023 KpiCard
 140×192; `card/background` fill, 1px `card/border`, radius 4, padding 16, internal gap 8.
@@ -154,8 +168,16 @@ The set corrects this section's earlier approximations: high gridline is `Text h
 **solid** 1px line (not dashed).
 
 ### C-027 LegendItem
-Dot (8pt circle, series color) + 8gap + label (SF Pro Regular 12 `text/secondary`).
-Props: `color`, `label`.
+Contract relocated 2026-09-11 → `../design-system/components/C-027-legend-item.md`. This
+section described **one instance** (`3673:12013`); resolving it upward found the variant set
+`3605:4386`, which has **two** variants — this screen consumes both, one per legend entry. The
+set corrects this section on three points: the label colour is `text/navigation` #8d9fa7 (not
+`text/secondary`, which is #85979e — a different colour, the same correction C-029 made for the
+hour labels); the label's leading is **24**, not the 14 that `tokens.md`'s `type-caption` implied
+by citing "legends" as an observation source; and **`color` is not a prop** — the dot colour is
+carried by the variant, while `label` is a genuine override (this screen replaces the set's
+"Total engagement" with "Scheduled lessons"). §2's Legend row description is unaffected and was
+verified against the frame this run.
 
 ### C-028 InlineDropdown
 Header-row control: current option label (SF Pro Regular 12, `text/secondary`) + 14pt
@@ -182,7 +204,9 @@ labels (OQ-C-030-2).
 **Contract relocated 2026-09-10** → `../design-system/components/C-031-enrollment-status-row.md`
 (full-set `/ui2-component` run on the owner-designated set `3526:30288`). That run measures
 what this section stated in prose — the row's internal 8pt gap and its two flexing cells — and
-splits the 64pt percent circle out as its own registry row, **C-073 StatusPercentDisc**. This
+splits the 64pt percent circle out as its own registry row, ~~**C-073 StatusPercentDisc**~~ —
+**merged into C-062 PercentDisc on 2026-09-11** (`size=Green 2`), which is what this screen now
+renders. This
 screen consumes `state=Default` at 408 wide (instance `3622:5617`), with the row's purpose
 unchanged (owner, 2026-09-01): progress-across-the-board as a percentage with counts — how many
 members currently enrolled in any of the leader's content are current. The fill-colour anomaly

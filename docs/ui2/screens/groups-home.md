@@ -63,7 +63,7 @@ mark it lost.
 ## 4. Components
 
 Closed list rendered — **all existing, no new rows minted**: **C-019 TopNav** (collapsed,
-Groups active) · **C-034 SearchField** ("Search groups") · **C-035 FilterChip** (×2) ·
+Groups active) · **C-034 SearchField** ("Search groups") · **C-035 FilterChip** (×2 — both `type=Menu, active=false`, one of its four designed variants; contract `../design-system/components/C-035-filter-chip.md`) ·
 **C-036 FilterMenuOverlay** (both chips) · **C-037 ListResultRow** (`type=Group + tags`) ·
 **C-038 Avatar** (64pt group image inside C-037) · **C-043 MetaChip** (`Single` leader,
 `Key value` member count).

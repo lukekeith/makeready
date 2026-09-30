@@ -34,7 +34,8 @@ a refinement: see the drift table in §1)
 | 8 | "Demographics" section: C-055 CategoryBarTable, 5 age bins | **Gone** |
 
 Rows that lose this screen as a consumer: **C-031**, **C-053**, **C-054**, **C-055**,
-**C-056**, **C-057**, **C-073**, and **C-038** (which reached this screen only inside C-054).
+**C-056**, **C-057**, **C-062** (as the 64pt status disc — was ~~C-073~~, merged 2026-09-11),
+and **C-038** (which reached this screen only inside C-054).
 C-054, C-055 and C-056 were *introduced* by this spec and now have **no consumer at all** —
 their contracts stand (the registry is append-only and a contract is the anchor), and the
 registry records them as orphaned pending OQ-14.
@@ -59,7 +60,7 @@ System status bar → **C-040 PageHeader** 56pt, style `Two icons` with `showTit
 
 1. **Program detail** (408 wide, children gap `space-section-gap` 32)
    1. **Cover** — 408×180, `radius-card` (8), program cover image fill (object-cover).
-   2. **Details grid** — 408×88, 2×2 of **C-041 DetailPair**, 16pt column/row gaps, each
+   2. **Details grid** — 408×88, 2×2 of **C-022 MetaPair**, 16pt column/row gaps, each
       cell 196×36: Created (`Mon D, YYYY`) · Author (creator name) · Group leader (program
       leader name) · Lessons (count).
 2. *hairline*
@@ -128,31 +129,46 @@ Closed list of registry rows this screen renders:
 - **C-022 MetaPair** — "3 groups", "31 days"
 - **C-037 ListResultRow** — enrollment rows (`type=Group+tags`)
 - **C-040 PageHeader** — `Two icons` + `showTitle` + **`showIcons=false`**
-- **C-041 DetailPair** — 2×2 details grid
+- **C-022 MetaPair** — 2×2 details grid (was C-041 DetailPair, removed 2026-09-11)
 - **C-042 EditableFieldRow** — the seven settings rows (`state=Default`)
 - **C-043 MetaChip** — leader-name (`Single`) and member-count (`Key value`) chips inside C-037, both `align=Left`
-- **C-052 DayChip** — day rail chip *(introduced here)*
+- **C-052 DayChip** — day rail chip *(introduced here; contract relocated 2026-09-11 to `../design-system/components/C-052-day-chip.md`)*
 - **C-061 ActivitySlide** — slide rail inside C-063 (`state=Fill`, `active=false`)
 - **C-063 LessonCard** — the three lesson blocks
 
-### C-052 DayChip (new — introduced by this screen)
-32×40, `radius-card-sm` (4), centered day number SF Pro Regular 14 white. Main
-components `3495:2777` (Default) / `3495:2787` (Active) — frame-local, not on the sheet.
-Instanced on this frame at `3833:33431`–`3833:33444`. Props: `day: Int`, `state`, `onTap`.
-**State coverage:** Figma defines `Default` (`color-white-20` fill) and `Active`
-(`color-accent` fill) only. The contract needs no more for v1; completed/locked/pressed
-are undesigned and may not be built without frames (OQ-7).
+### C-052 DayChip (contract relocated)
+**Relocated 2026-09-11** to `../design-system/components/C-052-day-chip.md`, which is now the
+contract — the owner designated the set `3495:2778` and that run measured it. **State coverage
+is unchanged:** `Default` and `Active` are the only designed values and this screen consumes
+**both** (13 chips Default, `3833:33431` Active), so the relocation moves the contract without
+moving a status. It corrects this section on four points: the number is Regular 14/**14**
+(= `type-body`, not an unmeasured "Regular 14"); `Default`'s `color-white-20` is a
+**translucent** fill, so the grey a snapshot shows is a composite and not the value; the box is
+fixed-width with `overflow: clip`, so a wide number is cut rather than hugged; and the frozen
+snapshot is now the whole set rather than one symbol. The relocated contract also verifies, by
+enumerating sheet `3632:4502` in full, this section's claim that the set is frame-local — the
+sheet's "Day" and "Date" frames are C-025 and C-070. Five component-level OQs
+(OQ-C-052-1…-5) are opened there; OQ-7 below keeps the undesigned-states half and
+OQ-11 keeps the rail↔list linkage.
 
-### C-053 StatusBadge (defined here, no longer consumed here)
-The contract below stands unchanged from the 2026-09-01 run and remains this row's anchor —
-but the current frame has **no badge**, so the row has no consumer (OQ-14).
+### C-053 StatusBadge (no longer consumed here; contract relocated)
+**Relocated 2026-09-11** to `../design-system/components/C-053-status-badge.md`, which is now
+the contract. That run measured the node and **corrects this section on one point**: the pill's
+green is the **raw literal `#6cff73`**, hex-equal to `color-positive` but bound to no Figma
+variable — the text below read "on `color-positive`" as though it were a binding (OQ-C-053-2).
+It also pins the geometry (74×25, height = 4 + 17 + 4, width content-driven), confirms there is
+no `draft` frame anywhere including the component sheet, and reconciles the label's type against
+`type-caption-bold` (OQ-C-053-3).
 
-Nodes `3524:29722/29723` (frame-local, no sheet set). Pill px 8 / py 4, `radius-card-sm`,
-label SF Pro Text Bold 12, line-height 1.4, tracking −0.24, `color-black` at 70% opacity.
-Props: `state: published | draft`.
-**State coverage:** Figma designs `published` only ("Published" on `color-positive`).
-`draft` is a **proposed default** ("Draft" on `color-white-20`, white text) pending
-ratification or a frame (OQ-4).
+**Superseded later the same day.** The owner pasted a **variant set** (`4147:8257`) that designs
+`draft` outright, so the contract was re-specced against it: `draft` is no longer a proposed
+default and **OQ-C-053-1 is closed by the design**. The proposal this section carried — "Draft"
+on `color-white-20` with `color-text-primary` — was wrong on **both** colours; the design is
+`color-neutral-600` with `color-neutral-50` at 70%. The `published` symbol itself did not drift.
+
+The row still has **no consumer** — the current frame draws no badge (OQ-14). Note for OQ-14: the
+owner **designated this row on 2026-09-11** by pasting its Figma link, which is evidence against
+striking it through.
 
 ### C-054 GroupEnrollmentCard / C-055 CategoryBarTable / C-056 ActivityThumbnail (defined here, no longer consumed here)
 All three were introduced by the 2026-09-01 run against the superseded frame and are absent
@@ -162,9 +178,17 @@ so nothing specced is lost, and the registry marks each `orphaned 2026-09-10` (O
 whether they are struck through, re-homed on a future frame, or consolidated —
 C-056 already carries a consolidation flag with C-061, OQ-enrollment-home-2).
 
-### C-057 PercentBar (formalized here, no longer consumed here)
-Still consumed by C-031, C-044, C-054, C-059 and C-033 — this screen simply no longer renders
-one. No contract change; the formalization stands.
+### C-057 PercentBar (contract relocated; no longer consumed here)
+**Relocated 2026-09-11** to `../design-system/components/C-057-percent-bar.md`, which is now the
+contract — the owner designated the set `3526:30471` and that run measured all twenty-four
+symbols. This screen still renders none; the live consumers are **C-031, C-033 and C-059**
+(C-044 struck 2026-09-10 into C-059, ~~C-054~~ orphaned the same day). The eight-line
+formalization this section pointed at, frozen in
+[`study-program-home-superseded-contracts.md`](study-program-home-superseded-contracts.md) §4,
+is superseded: it described the four variants as differing only in thickness and anchor, where
+the `size=sm` + `Left` variant — Figma's `Thin`/`Left`, the one two of the three consumers
+use — **draws no track at all**,
+and it named one unbound colour where the set has three.
 
 ### Amendments to existing rows (closed change lists)
 
@@ -272,7 +296,7 @@ dated status line where the new frame changed the answer. OQ-10…14 are new.
 | OQ-study-program-home-1 | Lessons header `add`: add a day/lesson at the end (proposed default, matches legacy addLesson) or open an add menu? | No — default proposed | owner |
 | OQ-study-program-home-2 | **Resolved by the new frame (2026-09-10):** the icon-swapped lesson-row export/share slot is gone with the old single-lesson block; the current lesson card has no accessory button. No ruling needed. | No — closed | — |
 | OQ-study-program-home-3 | **Narrowed (2026-09-10):** of the four deferred destinations, GroupEnrollmentCard-tap is answered (C-037 → `enrollment-home`) and header settings/export no longer exist on this screen. What remains is where settings and export live in 2.0 at all — see OQ-14. | No | owner (frames) |
-| OQ-study-program-home-4 | C-053 `draft` state is undesigned (proposed: "Draft" on `color-white-20`). **2026-09-10:** the badge has no consumer at all now, so this is no longer this screen's question — it rides with OQ-14. | No — default proposed | owner |
+| OQ-study-program-home-4 | ~~C-053 `draft` state is undesigned (proposed: "Draft" on `color-white-20`)~~ **MOVED 2026-09-11** to **OQ-C-053-1**, then **CLOSED the same day**: the owner pasted a variant set (`4147:8257`) that designs `draft` (`color-neutral-600` pill, `color-neutral-50` @ 70% label) — neither colour the proposal guessed. See `../design-system/components/C-053-status-badge.md`. | Closed | — |
 | OQ-study-program-home-5 | C-054 completion-color banding + `status=Default`. **2026-09-10:** C-054 is orphaned; the banding question survives on its own across C-031/C-057/C-062 (OQ-home-dashboard-3, OQ-enrollment-home-3) and is no longer scoped here. | No | owner |
 | OQ-study-program-home-6 | "Recent activity" ordering + demographics bar palette. **2026-09-10:** both sections are gone; the palette question survives in tokens.md's hygiene note only if a future frame reinstates a categorical chart. | No | owner |
 | OQ-study-program-home-7 | Undesigned states: DayChip beyond Default/Active; loading, both empty states and error for this page. Proposed defaults in §3; may not be built beyond them without frames. | No — defaults proposed | owner |
@@ -282,4 +306,4 @@ dated status line where the new frame changed the answer. OQ-10…14 are new.
 | OQ-study-program-home-11 | Day rail ↔ lesson list linkage: the frame shows one `Active` chip and three lesson cards but no evidence of what selection does. Proposed: the chip scrolls the list to that day's card and the list stays complete (rather than filtering to one day, which is what the superseded frame did). | No — default proposed | owner |
 | OQ-study-program-home-12 | The four new StudyProgram settings fields mirror Group semantics — but does **Visibility** gate discovery, enrollment, or both, and do **Age** / **Maximum members** enforce at enrollment time or only advise? The frame shows values, not rules. | **Yes** — the build suite cannot write the migration or the enforcement without this | owner |
 | OQ-study-program-home-13 | "Group leader" as a program-level field: is it a single assignable user (proposed default, one `leaderId`), or the creator by another name, or a per-enrollment value the details grid is flattening? Sample content shows one name on a three-group program. | **Yes** — decides whether a column is added at all | owner |
-| OQ-study-program-home-14 | **Orphan disposition.** C-053, C-054, C-055 and C-056 lost their only consumer, and with them the publish badge, the program analytics surface and the export flow lost their only 2.0 home. Are those product capabilities dropped, or do they belong on screens not yet designed? Until this is answered, gap analysis cannot classify them. | No — but it is the largest open item this re-spec creates | owner |
+| OQ-study-program-home-14 | **Orphan disposition.** C-053, C-054, C-055 and C-056 lost their only consumer, and with them the publish badge, the program analytics surface and the export flow lost their only 2.0 home. Are those product capabilities dropped, or do they belong on screens not yet designed? Until this is answered, gap analysis cannot classify them. **2026-09-11 evidence, not a ruling:** the owner both designated **C-053** (pasting its Figma link) and then **designed a brand-new `draft` state for it** — drawing a second state for a component with no consumer argues against striking that row through, more strongly than the designation alone did. Its contract now lives at `../design-system/components/C-053-status-badge.md`. The other three are untouched. | No — but it is the largest open item this re-spec creates | owner |

@@ -59,7 +59,10 @@ final class CaptureRunner: XCTestCase {
                 // Component fixtures (view == "component.*") render in isolation:
                 // no device chrome/status bar, sized to the device width with the
                 // component's intrinsic height — matching the web component harness.
+                // A 2.0 screen preview ("screen.<era>.<slug>") renders on the DEVICE canvas
+                // instead (D22, the branch below), and its parts need the element map too.
                 let isComponent = fixture.view.hasPrefix("component.")
+                let isScreen = fixture.view.hasPrefix("screen.")
                 let view: AnyView
                 let snapshotting: Snapshotting<AnyView, UIImage>
                 // Collects the component's annotated parts (UI2Element.swift) DURING the
@@ -71,7 +74,32 @@ final class CaptureRunner: XCTestCase {
                     view = AnyView(
                         baseView
                             .frame(width: width)
-                            .background(Color.appBackground)
+                            // The 2.0 app background (`color-layout-background`, #030405) —
+                            // not the 1.x `Color.appBackground` (#0d101a).
+                            .background(UI2Preview.Token.layoutBackground)
+                            .ui2ElementMap(elementMap)
+                    )
+                    snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
+                } else if isScreen {
+                    // A 2.0 screen preview: the device's width × max(its height, the content's
+                    // full length), content under the top safe area with the status bar drawn.
+                    let size = device.config.size ?? CGSize(width: 393, height: 852)
+                    // The canvas is a ZStack of the device rectangle and the content, so it
+                    // measures as the union of the two: `.sizeThatFits` proposes a ZERO height,
+                    // and a `.frame(minHeight:)` answers that proposal with exactly minHeight
+                    // whatever its content measures (a 2,372pt screen came out 956pt).
+                    view = AnyView(
+                        ZStack(alignment: .top) {
+                            Color.clear.frame(width: size.width, height: size.height)
+                            baseView
+                                .padding(.top, device.config.safeArea.top)
+                                .frame(width: size.width, alignment: .top)
+                        }
+                            // Every page sits on `color-layout-background` (#030405) unless the
+                            // screen paints its own — including the status bar and whatever
+                            // length the content leaves below itself.
+                            .background(UI2Preview.Token.layoutBackground)
+                            .overlay(alignment: .top) { StatusBarView(style: device.statusBarStyle) }
                             .ui2ElementMap(elementMap)
                     )
                     snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
@@ -127,7 +155,7 @@ final class CaptureRunner: XCTestCase {
                 // The element map sits beside the PNG for component fixtures — the
                 // capture browser's 2.0 hit-test oracle (UI2Element.swift). A 1.0
                 // component has no annotations, so this writes nothing for it.
-                if isComponent {
+                if isComponent || isScreen {
                     writeElementMap(elementMap, to: "\(outputDir)/capture.\(outputName).elements.json")
                 }
 

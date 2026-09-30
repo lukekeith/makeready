@@ -111,7 +111,10 @@ Variants not in this table may not be built without a ruling.
 **C-071 ValuePair:** `line1: String` · `line2: String?` (nil in `Single` / `Single muted`) ·
 `state` — the seven values of §3b.
 
-`percent` and the disc's band delegate to **C-062 PercentDisc**; the size/colour set is that
+`percent` and the disc's colour delegate to **C-062 PercentDisc** — and per that row's
+**owner ruling 2026-09-11** the colour is now computed continuously from `percent` (red→amber→
+green), so this card's disc is no longer one of six swatches: at the sampled 29% it renders
+`#FF8749`, not green. The size set is that
 row's and is not restated here. `series` delegates to **C-024 SparkBarChart**.
 
 ## 5. Composition
@@ -128,6 +131,6 @@ row's and is not restated here. `series` delegates to **C-024 SparkBarChart**.
 | OQ-C-025-1 | `Default` — the filled, fully-bordered, rounded card — is designed but consumed by **no** screen; all three consumers take `Transparent` or `Percent circle`. Is it a future surface's form, or superseded and due for removal from the set? | No | owner |
 | OQ-C-025-2 | `Default`'s corner radius measures 2pt. `tokens.md`'s only 2 is `radius-bar`, coined for sparkline bars. New `radius-card-xs` row, or reuse `radius-bar` under a widened note? | No — blocks a faithful build of `Default` only | owner |
 | OQ-C-025-3 | The day number is Bold 18 in an **18pt** line box; `type-value-emphasis` is Bold 18/**24**. New token row, or a flagged literal on this line? | No | owner |
-| OQ-C-025-4 | The `Percent circle` sample renders **29%** at C-062's `Green 1` — the largest, greenest band — which contradicts a monotonic percent→band mapping. Direct evidence on **OQ-enrollment-home-3** (the program-wide banding ruling); either the sample is placeholder content or band is an independent prop | No | owner |
+| OQ-C-025-4 | The `Percent circle` sample renders **29%** at C-062's `Green 1` — the largest, greenest band — which contradicts a monotonic percent→band mapping. Direct evidence on **OQ-enrollment-home-3** (the program-wide banding ruling); either the sample is placeholder content or band is an independent prop. **HALF-ANSWERED 2026-09-11** by the C-062 full-set run: C-062's set samples **`29` in all six symbols**, so the 29-at-`Green 1` here is the set's own default content bleeding through, not a designed percent→band pairing. The contradiction is therefore not evidence of anything — which leaves the real question (what percent selects what band) wholly with OQ-enrollment-home-3. See `C-062-percent-disc.md` §1 deviation 1 + §3c | No | owner |
 | OQ-C-025-5 | Pressed / selected / disabled are undesigned and no consuming spec makes the card tappable — proposed default in §3a is to add none | No | owner |
 | OQ-C-025-6 | C-071 `Single` / `Single muted` keep the full 36pt height with one line. Is the block fixed-height by contract, or is the second line's space an artifact of the sub-component frame? | No | owner |

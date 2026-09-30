@@ -24,8 +24,8 @@
       }
     },
     {
-      "name": "C-067 row · property1",
-      "slug": "c-067-row-property1",
+      "name": "C-067 row",
+      "slug": "c-067-row",
       "props": {
         "glyph": "c066-close",
         "label": "Withdraw invitation"

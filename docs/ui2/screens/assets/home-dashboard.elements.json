@@ -12,6 +12,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3673:12446",
+      "state": "button · add",
       "x": 0.9091,
       "y": 0.0348,
       "w": 0.0545,
@@ -21,6 +22,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3622:5616",
+      "state": "button · arrow-forward",
       "x": 0.9091,
       "y": 0.5648,
       "w": 0.0545,
@@ -30,6 +32,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3622:5626",
+      "state": "button · add",
       "x": 0.9091,
       "y": 0.6322,
       "w": 0.0545,
@@ -39,6 +42,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3622:5803",
+      "state": "button · three-dots",
       "x": 0.9091,
       "y": 0.6527,
       "w": 0.0545,
@@ -48,6 +52,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3622:5829",
+      "state": "button · three-dots",
       "x": 0.9091,
       "y": 0.7773,
       "w": 0.0545,
@@ -72,8 +77,8 @@
       "h": 0.0088
     },
     {
-      "ref": "C-022",
-      "name": "MetaPair",
+      "ref": "C-028",
+      "name": "InlineDropdown",
       "instance": "3676:12466",
       "x": 0.825,
       "y": 0.3502,
@@ -332,5 +337,6 @@
       "w": 0.8114,
       "h": 0.1194
     }
-  ]
+  ],
+  "stateBackfill": "figma@2026-09-12 — C-021 instances only"
 }

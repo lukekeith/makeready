@@ -9,7 +9,9 @@ below in one file — they ship together).
 
 - Figma: https://www.figma.com/design/nVva9a2WvYmcWQo6zlHupO/Make-Ready-Mobile?node-id=3883-9315
   — node `3883:9315` ("Modal action menu", lone component, 432×212 at 2 sample actions)
-- Row main component: `3832:31480` ("Action button", single `property1=Default`)
+- Row main component: `3832:31480` ("Action button", a single symbol Figma names
+  `property1=Default` — its auto-assigned placeholder, recorded here as evidence only and
+  kept out of §3 and §4 per registry naming rule 6)
 - Frozen snapshot: `assets/C-066-action-menu-overlay.png` — captured 2026-09-03
 
 **Deviations (closed list):**
@@ -43,7 +45,7 @@ flex · 24pt chevron-right glyph.
 | Unit | Axis | Values | Consumption |
 |---|---|---|---|
 | C-066 container | — | single designed variant | unconsumed (no screen yet; anticipated first consumer: invite-home actions — see §5) |
-| C-067 row | `property1` | `Default` (only) | unconsumed (inside C-066) |
+| C-067 row | — | single designed variant | unconsumed (inside C-066) |
 | C-067 row | pressed / disabled / destructive styling | — undesigned | **proposed defaults + OQ-C-066-2/3:** pressed = system highlight; no disabled rows (omit instead); destructive actions render identically until frames say otherwise |
 | C-066 presentation | scrim / position / motion | — undesigned | **proposed default + OQ-C-066-1:** dim scrim + `motion-menu-fade-in/out`, consistent with C-036 FilterMenuOverlay as the program's menu chrome |
 

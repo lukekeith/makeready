@@ -1,10 +1,11 @@
 // The notepad (suite 07 §5.3, R8): Add note replaces the whole right-panel region
 // BELOW the tab strip, so the context is never lost, and a bar pinned to the
 // bottom holds exactly Cancel and Save.
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ConfirmDialog from '../../components/ConfirmDialog.jsx';
 import MentionTypeahead from './MentionTypeahead.jsx';
 import { filterMentions, activeMention, commitToken } from '../../lib/mentions.js';
+import { caretCoordinates, placeTypeahead } from '../../lib/caret-position.js';
 
 export default function NoteComposer({ target, mentions, busy, error, onSave, onCancel }) {
   const [text, setText] = useState('');
@@ -12,7 +13,11 @@ export default function NoteComposer({ target, mentions, busy, error, onSave, on
   const [taIndex, setTaIndex] = useState(0);
   const [dismissed, setDismissed] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  // Where the popup hangs. Null until it is measured, which is also what keeps it
+  // from flashing at the stylesheet's default corner on the frame it opens.
+  const [anchor, setAnchor] = useState(null);
   const ref = useRef(null);
+  const bodyRef = useRef(null);
 
   useEffect(() => { ref.current?.focus(); }, []);
 
@@ -22,6 +27,21 @@ export default function NoteComposer({ target, mentions, busy, error, onSave, on
     [active, mentions],
   );
   useEffect(() => { setTaIndex(0); }, [active?.query]);
+
+  /** Hang the popup off the `@`, not the moving caret: anchored to the token it
+   *  stays put while the query is typed, where anchoring to the caret would walk
+   *  it sideways letter by letter. Measured in a layout effect so it is placed in
+   *  the same frame it appears — the previous fixed corner sat on top of the first
+   *  line, hiding the very text being typed. */
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const body = bodyRef.current;
+    if (!el || !body || !active || dismissed) { setAnchor(null); return; }
+    setAnchor(placeTypeahead(
+      caretCoordinates(el, active.start),
+      { width: body.clientWidth, height: body.clientHeight },
+    ));
+  }, [active?.start, active?.query, dismissed, text, caret]);
 
   const commit = (item) => {
     const next = commitToken(text, caret, `@${item.id}`);
@@ -61,7 +81,7 @@ export default function NoteComposer({ target, mentions, busy, error, onSave, on
         New note on <strong>{target}</strong>
       </div>
 
-      <div className="cmp-ui2n__pad-body">
+      <div className="cmp-ui2n__pad-body" ref={bodyRef}>
         <textarea
           ref={ref}
           className="cmp-ui2n__ta-input"
@@ -74,7 +94,7 @@ export default function NoteComposer({ target, mentions, busy, error, onSave, on
           disabled={busy}
         />
         {active && !dismissed && (
-          <MentionTypeahead items={matches} activeIndex={taIndex} onCommit={commit} />
+          <MentionTypeahead items={matches} activeIndex={taIndex} onCommit={commit} anchor={anchor ?? undefined} />
         )}
       </div>
 

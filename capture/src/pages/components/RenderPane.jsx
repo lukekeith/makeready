@@ -20,13 +20,29 @@ export default function RenderPane({
   onHoverInspect, onClearInspect, hoverBox, inspectBox = null,
   // Component targeting on a 2.0 screen — pass-through only (suite 07 §4.2).
   onHoverTarget, onClearTarget, onSelectTarget, componentBox = null,
+  componentSelectedBoxes = null, componentPreviewBoxes = null,
   platform = 'iphone', emptyState = null, allVariants = true, labels = {},
   platforms = null, onPlatform = null, activeShot = null, onDeleteVersion = null,
-  // The Prompt menu's contents, supplied by the host: [{ label, sub?, text }]. The text is
-  // what lands on the clipboard. Host-supplied rather than built here because the command
+  // Render tabs (2.0 only). `tabs` is the EXTRA tabs the host has opened — the
+  // page's own render is tab 0 and is synthesised here, because only this pane
+  // knows the label, url and platform that describe it. A tab carries everything
+  // needed to draw it (`url`, optional `boxes`), so a tab survives the side pane
+  // that opened it being closed: nothing is re-fetched to keep one alive.
+  tabs = [], activeTabKey = null, onSelectTab = null, onCloseTab = null,
+  // Green hover boxes for a borrowed tab (the screen pane's schema rows), and a
+  // request to frame one rect on it.
+  tabPreviewBoxes = null, zoomTo = null,
+  // The Prompt menu's contents, supplied by the host: [{ label, sub?, text }] — or
+  // [{ label, sub?, action }] for an entry that OPENS something instead of copying. The text
+  // is what lands on the clipboard. Host-supplied rather than built here because the command
   // that resolves a comment differs per era — 1.0 edits the Swift component
   // (`/component-resolve`), 2.0 edits the preview view against its Figma snapshot
   // (`/ui2-resolve`) — and only the host knows which it is. Empty ⇒ no button.
+  //
+  // `action` exists for commands that must not be copyable in one click. Merge is the case:
+  // it strikes a registry row out of the program and its argument ORDER decides which row
+  // dies, so the host opens a dialog that makes both sides explicit rather than handing over
+  // a pre-built string (see Ui2MergeDialog).
   prompts = [],
 }) {
   const text = {
@@ -70,6 +86,8 @@ export default function RenderPane({
   }, [promptMenuOpen]);
 
   const copyPrompt = async (entry) => {
+    // An `action` entry never touches the clipboard — it hands off to the host and closes.
+    if (entry.action) { setPromptMenuOpen(false); entry.action(); return; }
     await copyToClipboard(entry.text);
     setCopiedPrompt(entry.text);
     setPromptMenuOpen(false);
@@ -79,7 +97,31 @@ export default function RenderPane({
   const [hover, setHover] = useState(null);
   const [natural, setNatural] = useState({});
   const resetView = useCallback(() => setView({ scale: 1, cx: 0.5, cy: 0.5 }), []);
-  useEffect(() => { resetView(); setNatural({}); }, [vdata?.versionId, viewport, resetView]);
+  // Natural dimensions are a property of the IMAGE, so they are re-measured whenever the
+  // displayed render can change — a different version, a different device.
+  useEffect(() => { setNatural({}); }, [vdata?.versionId, viewport]);
+  // Pan/zoom is per COMPONENT, not per variant or version. Switching states (or stepping back
+  // through the timeline) inside one component keeps the viewer parked exactly where it was,
+  // which is what makes "is this inset the same in every state?" answerable by flipping between
+  // them. It resets when the component itself changes, and on a device change, whose render has
+  // different pixel dimensions under the same normalised (cx, cy).
+  // The active tab is in here as well: a different tab is a different image with
+  // its own aspect, so it has to be refitted rather than inheriting the previous
+  // one's pan — which is exactly the case the per-component rule above is NOT.
+  useEffect(() => { resetView(); }, [detail?.id, viewport, activeTabKey, resetView]);
+
+  // Frame one rect of the image. The rect is in image fractions, so the centre is
+  // the view's `cx/cy` directly; the scale is derived from the rect's own size
+  // rather than from measured pixels — this pane never learns the viewport's
+  // dimensions (ZoomPane measures them), and a fraction-based zoom lands the same
+  // way at any column width. 0.4 = let the box occupy about 40% of the fitted
+  // view, which reads as "zoomed in on this" without losing its surroundings.
+  useEffect(() => {
+    if (!zoomTo?.rect) return;
+    const { x, y, w, h } = zoomTo.rect;
+    const scale = Math.max(1, Math.min(8, 0.4 / Math.max(w, h, 0.001)));
+    setView({ scale, cx: x + w / 2, cy: y + h / 2 });
+  }, [zoomTo]);
   const onNatural = useCallback((platform, dims) => setNatural((n) => (n[platform] && n[platform].w === dims.w && n[platform].h === dims.h ? n : { ...n, [platform]: dims })), []);
 
   // Host-owned "0 = fit" key (CR6; `c`/Esc live in ComponentsLayout).
@@ -116,9 +158,52 @@ export default function RenderPane({
   // so a fallback never gets mislabeled as the real thing. 1.0 never passes
   // `activeShot`, so `shown` collapses to the old `vdata.shot` behavior.
   const shown = activeShot ?? { url: vdata?.shot ?? null, screenshotId: vdata?.screenshotId ?? null, platform, fallback: false };
-  const shotUrl = shown.url ? `${shown.url}?v=${shotsVersion}` : null;
+  const selfShotUrl = shown.url ? `${shown.url}?v=${shotsVersion}` : null;
+  const selfLabel = isCurrent ? text.current : `Version ${vdata?.versionId?.slice(-6) ?? ''}`;
 
-  const commentProps = {
+  // Tab 0 is the page's own render. It is built here rather than by the host
+  // because only this pane knows the label, the url and the fallback the version
+  // toggle resolved to — and it is never closable, since closing it would leave
+  // the viewer with nothing to show.
+  const selfTab = {
+    key: 'self',
+    kind: 'self',
+    title: detail.name,
+    subtitle: selfLabel,
+    closable: false,
+  };
+  // The strip is ALWAYS drawn, even when the page's own render is the only tab.
+  // A head that shows a plain title until you open something and then turns into
+  // a tab strip changes shape under you; one tab that gains neighbours does not,
+  // and it says up front that this area can hold more than one render.
+  const allTabs = [selfTab, ...tabs];
+  const active = allTabs.find((t) => t.key === activeTabKey) ?? selfTab;
+  const onSelf = active.kind === 'self';
+
+  // What the viewport actually shows. A borrowed tab brings its own image and its
+  // own boxes; the page's own render keeps every behaviour it had.
+  const shotUrl = onSelf ? selfShotUrl : (active.url ?? null);
+  // Keyed per tab so each image's measured dimensions are cached separately —
+  // sharing one key made a screen frame inherit the component's aspect for a
+  // frame before correcting itself.
+  const shownPlatform = onSelf ? shown.platform : active.key;
+
+  // Comments belong to the PAGE's render, so a borrowed tab shows none: a pin
+  // placed on C-035's snapshot would otherwise appear to sit on members-home's
+  // frame simply because both are on screen. Comment mode is suppressed the same
+  // way at the call site (the Comment button is hidden while a tab is active),
+  // and so are hit-testing and click-to-select — those read the PAGE's element
+  // map, so a borrowed tab is a picture to look at, not a surface to select on.
+  const commentProps = !onSelf ? {
+    comments: [],
+    numberOf,
+    draft: null,
+    canEdit: false,
+    // The one thing a borrowed tab DOES draw: the focused component's instances,
+    // in the same weight the screen page uses for a selected component.
+    componentSelectedBoxes: active.boxes ?? null,
+    componentPreviewBoxes: tabPreviewBoxes,
+  } : {
     // Only the VIEWED version's pins render on the canvas (07 §3.3); the
     // Comments tab still lists every version's threads. A pin also carries the
     // platform it was placed on — filter to the platform actually on screen so
@@ -139,6 +224,8 @@ export default function RenderPane({
     hoverBox,
     inspectBox,
     componentBox,
+    componentSelectedBoxes,
+    componentPreviewBoxes,
   };
 
   return (
@@ -147,7 +234,7 @@ export default function RenderPane({
         <span className="cmp-cb-render__title">{detail.name} · {variant.name}</span>
         {!isCurrent && <span className="cmp-cb-render__oldchip">viewing old version</span>}
         <DevicePicker viewports={detail.viewports} selected={viewport} onSelect={onViewport} />
-        {platforms?.length > 1 && onPlatform && (
+        {platforms?.length > 1 && onPlatform && onSelf && (
           <div className="cmp-render__platforms">
             {platforms.map((p) => (
               <button
@@ -158,7 +245,7 @@ export default function RenderPane({
             ))}
           </div>
         )}
-        {detail.canCapture && (
+        {detail.canCapture && onSelf && (
           <>
             <button
               className={`btn cmp-icon-btn${commentApi.commentMode ? ' btn--primary' : ''}`}
@@ -202,7 +289,7 @@ export default function RenderPane({
               <div className="cmp-capsplit__menu cmp-capsplit__menu--prompts" role="menu">
                 {prompts.map((entry) => (
                   <button
-                    key={entry.text}
+                    key={entry.text ?? entry.label}
                     className="cmp-capsplit__item"
                     role="menuitem"
                     onClick={() => copyPrompt(entry)}
@@ -265,28 +352,37 @@ export default function RenderPane({
       {shotUrl ? (
         <div className="cmp-cb-render__pane">
           <ZoomPane
-            platform={shown.platform}
-            label={isCurrent ? text.current : `Version ${vdata?.versionId?.slice(-6) ?? ''}`}
+            platform={shownPlatform}
+            label={selfLabel}
             url={shotUrl}
             viewport={viewport}
             captured
-            natural={natural[shown.platform]}
-            fallbackNatural={detail.viewportDimensions?.[viewport]}
+            natural={natural[shownPlatform]}
+            fallbackNatural={onSelf ? detail.viewportDimensions?.[viewport] : undefined}
             onNatural={onNatural}
             onReset={resetView}
             view={view}
             setView={setView}
             hover={hover}
             setHover={setHover}
-            capturing={capturing}
-            commentMode={commentApi.commentMode}
-            onHoverInspect={onHoverInspect}
-            onClearInspect={onClearInspect}
-            onHoverTarget={onHoverTarget}
-            onClearTarget={onClearTarget}
-            onSelectTarget={onSelectTarget}
+            capturing={onSelf && capturing}
+            status={onSelf ? null : (active.kind === 'screen' ? 'screen frame' : 'component artwork')}
+            tabs={allTabs}
+            activeTabKey={active.key}
+            onSelectTab={onSelectTab}
+            onCloseTab={onCloseTab}
+            commentMode={onSelf && commentApi.commentMode}
+            onHoverInspect={onSelf ? onHoverInspect : undefined}
+            onClearInspect={onSelf ? onClearInspect : undefined}
+            onHoverTarget={onSelf ? onHoverTarget : undefined}
+            onClearTarget={onSelf ? onClearTarget : undefined}
+            onSelectTarget={onSelf ? onSelectTarget : undefined}
             {...commentProps}
           />
+        </div>
+      ) : !onSelf ? (
+        <div className="cmp-cb-col__empty">
+          {active.title} has no frozen frame on disk, so there is nothing to show in this tab.
         </div>
       ) : (
         <div className="cmp-cb-col__empty">
@@ -298,6 +394,10 @@ export default function RenderPane({
         </div>
       )}
 
+      {/* The timeline is the PAGE's capture log. While a borrowed tab is showing,
+          picking a version would change an image that is not on screen, so it
+          steps aside rather than acting invisibly. */}
+      {onSelf && (
       <VersionTimeline
         versions={variant.versions ?? []}
         selectedId={versionId}
@@ -305,6 +405,7 @@ export default function RenderPane({
         shotsVersion={shotsVersion}
         onDelete={onDeleteVersion}
       />
+      )}
 
       {(capturing || log.length > 0) && <CaptureLogDock lines={log} capturing={capturing} viewportLabel={viewport} />}
     </div>

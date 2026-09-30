@@ -1,0 +1,25 @@
+{
+  "id": "ui2-c-053",
+  "registryId": "C-053",
+  "component": "StatusBadge",
+  "view": "component.ui2.C-053",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "published",
+      "slug": "published",
+      "props": {
+        "state": "published"
+      }
+    },
+    {
+      "name": "draft",
+      "slug": "draft",
+      "props": {
+        "state": "draft"
+      }
+    }
+  ]
+}

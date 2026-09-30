@@ -1400,6 +1400,75 @@ app.get('/api/ui2/tree', async (_req, res) => {
   }
 });
 
+/**
+ * Every screen whose §4 roll-call names `componentId`, with where it actually lands.
+ *
+ * `componentIds` says a screen renders the row; it does not say how often or in
+ * which frame, because §4 lists a row once however many times it is drawn. The
+ * element maps do — they are the only per-INSTANCE record — so each frame reports
+ * its own count. `instances: null` means that frame has no usable map (absent,
+ * unparseable, or aspect-mismatched), which is deliberately not the same as zero:
+ * the component may well be drawn there and simply unmeasured.
+ */
+async function ui2ScreensUsing(row, fixtureProps) {
+  const componentId = row.id;
+  // Does a §3 consumption cell name this screen? Bounded on both sides so
+  // `enrollment-home` never matches inside a longer id, and case-folded because
+  // the cells are prose.
+  const namesScreen = (text, screenId) =>
+    new RegExp(`(^|[^a-z0-9-])${screenId}([^a-z0-9-]|$)`, 'i').test(text ?? '');
+
+  const out = [];
+  for (const s of (await buildUi2Screens()).byId.values()) {
+    if (!s.componentIds?.includes(componentId)) continue;
+    out.push({
+      id: s.id,
+      name: s.name,
+      status: s.status,
+      platform: s.platform,
+      section: s.section,
+      specced: !!s.spec,
+      specFile: s.spec?.file ?? null,
+      figmaUrl: s.spec?.figmaUrl ?? null,
+      thumbnail: ui2AssetUrl(s.snapshot?.repoPath),
+      frames: (s.variants ?? []).map((v) => ({
+        name: v.name,
+        slug: v.slug,
+        instances: v.elements
+          ? v.elements.elements.filter((e) => e.ref === componentId).length
+          : null,
+      })),
+      // WHICH of this component's designed states this screen renders, with the
+      // props that produce each.
+      //
+      // Source is the contract's §3 **Consumption** column, which names its
+      // consuming screens ("consumed — home-dashboard, enrollments-home"). That
+      // is the only place the variant↔screen link is recorded: the screen element
+      // maps carry a ref, a node id and a rect per instance and no variant
+      // properties at all, so they can say how MANY there are and not which.
+      //
+      // The two agree where both speak — home-dashboard's §4 prose says C-021
+      // "consumes `add`, `arrow-forward` and `three-dots`", which is exactly what
+      // those three states' consumption cells claim — but they are independently
+      // written, so a screen whose instance count here disagrees with the number
+      // of states is a spec discrepancy worth seeing, not something to reconcile
+      // silently.
+      states: (row.variants ?? [])
+        .filter((v) => v.consumptionState !== 'undesigned' && namesScreen(v.consumption, s.id))
+        .map((v) => ({
+          name: v.name,
+          slug: v.slug,
+          consumption: v.consumption ?? null,
+          // What the built preview renders this state with, when the row is
+          // built; §3's own matrix cells otherwise. Never both invented.
+          props: fixtureProps.get(v.name) ?? null,
+          propValues: v.propValues ?? [],
+        })),
+    });
+  }
+  return out;
+}
+
 // One registry row: the contract, its designed states as variants, each with the
 // design-version timeline. Mirrors /api/components/detail's shape so the browser
 // columns render either era without branching on the payload.
@@ -1409,6 +1478,11 @@ app.get('/api/ui2/detail', async (req, res) => {
     const row = index.byId.get(String(req.query.id ?? '').toUpperCase());
     if (!row) return res.status(404).json({ error: 'unknown component' });
     await syncUi2Row(row);
+
+    // Read before `base` because the screens list below needs the per-state props
+    // too — one read, two consumers.
+    const fixture = await readUi2Fixture(row.id);
+    const fixtureProps = new Map((fixture?.variants ?? []).map((fv) => [fv.name, fv.props ?? {}]));
 
     const base = {
       ...(await ui2RowBase(row)),
@@ -1435,6 +1509,16 @@ app.get('/api/ui2/detail', async (req, res) => {
       commands: {
         spec: row.figmaUrl ? `/ui2-component ${row.id} ${row.figmaUrl}` : `/ui2-component ${row.id}`,
       },
+      // Every screen that renders this row — the INVERSE of a screen spec's §4
+      // roll-call, and the mirror of the `components` list `/screen-detail` returns.
+      //
+      // Derived from the screen specs, NOT from the registry's `consumedBy` prose:
+      // the prose is free text maintained by hand ("members-home (×2), groups-home
+      // (×2), …"), while `componentIds` is the same parse the screen's own chip
+      // list reads. Inverting the one source means the two directions of the
+      // relationship cannot disagree — and a screen that gains or drops the row in
+      // a re-spec updates both sides at once.
+      screens: await ui2ScreensUsing(row, fixtureProps),
       // Per-prop artwork for the value sets §4 declares, as URLs: { prop: { value: url } }.
       // Built here rather than in the index so the `/ui2-assets` route stays known in one
       // place, and built into a NEW object because the index is cached and must not be
@@ -1464,13 +1548,6 @@ app.get('/api/ui2/detail', async (req, res) => {
     if (needsSpec && !row.variants.length) {
       return res.json({ ...base, variants: [], needsSpec: true });
     }
-
-    // The built fixture, if this row has one — the source of the props each
-    // state was actually rendered with, and what the Data tab edits. Keyed by
-    // variant NAME (the same string the version timeline and comments key on),
-    // never by slug.
-    const fixture = await readUi2Fixture(row.id);
-    const fixtureProps = new Map((fixture?.variants ?? []).map((fv) => [fv.name, fv.props ?? {}]));
 
     const variants = [];
     for (const v of row.variants) {

@@ -1,0 +1,27 @@
+{
+  "id": "ui2-c-027",
+  "registryId": "C-027",
+  "component": "LegendItem",
+  "view": "component.ui2.C-027",
+  "devices": [
+    "iphone-16-pro-max"
+  ],
+  "variants": [
+    {
+      "name": "primary",
+      "slug": "primary",
+      "props": {
+        "color": "color-accent",
+        "label": "Completed lessons"
+      }
+    },
+    {
+      "name": "secondary",
+      "slug": "secondary",
+      "props": {
+        "color": "color-white-20",
+        "label": "Total engagement"
+      }
+    }
+  ]
+}

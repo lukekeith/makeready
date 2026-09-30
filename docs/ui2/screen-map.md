@@ -65,7 +65,7 @@ the screen spec's §Connections. Overlay presentations are edges too (`overlay` 
 | shell-tabs | groups-home | tab | tab select (Groups) | `screens/groups-home.md` §6 |
 | shell-tabs | enrollments-home | tab | tab select (Enrollments — active in the specced frame) | `screens/enrollments-home.md` §6 |
 | enrollments-home | C-036 FilterMenuOverlay | overlay | any of the 4 filter chips | `screens/enrollments-home.md` §6 |
-| enrollments-home | enrollment-home | push | EnrollmentProgressRow tap (resolves the row-tap half of OQ-enrollments-home-5, 2026-09-02) | `screens/enrollment-home.md` §6 |
+| enrollments-home | enrollment-home | push | StudyProgramRow tap (C-059, renamed 2026-09-10) (resolves the row-tap half of OQ-enrollments-home-5, 2026-09-02) | `screens/enrollment-home.md` §6 |
 | enrollments-home | (deferred) | push | GroupSectionHeader arrowRight — destination pending frames (OQ-enrollments-home-5, remaining half) | `screens/enrollments-home.md` §8 |
 | enrollment-home | enrollment-schedule-edit | push | "Edit schedule" text-link (screen pending Figma) | `screens/enrollment-home.md` §6 |
 | enrollment-home | (deferred) | push/tap | calendar glyph, day-card tap, lesson-card/slide taps (expected: activities-editor) — OQ-enrollment-home-1 | `screens/enrollment-home.md` §8 |

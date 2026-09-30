@@ -18,7 +18,7 @@ function Field({ label, children }) {
   );
 }
 
-export default function Ui2ScreenTab({ detail, variant, onSelectComponent = null }) {
+export default function Ui2ScreenTab({ detail, variant, onSelectComponent = null, onHoverComponent = null }) {
   const navigate = useNavigate();
   if (!detail) return <div className="cmp-cb-col__empty">Select a screen</div>;
   const spec = detail.spec;
@@ -65,7 +65,7 @@ export default function Ui2ScreenTab({ detail, variant, onSelectComponent = null
 
       {detail.components?.length > 0 && (
         <Field label={`Components (${detail.components.length})`}>
-          <div className="cmp-ui2s__chips">
+          <div className="cmp-ui2s__chips" onMouseLeave={() => onHoverComponent?.(null)}>
             {detail.components.map((c) => (
               <button
                 key={c.id}
@@ -75,6 +75,13 @@ export default function Ui2ScreenTab({ detail, variant, onSelectComponent = null
                 // that leaves the screen. The fallback keeps the 2.0 component
                 // path (which passes no handler) behaving as it always has.
                 onClick={() => (onSelectComponent ? onSelectComponent(c.id) : navigate(`/components/2.0/${c.id}`))}
+                // Hovering a chip previews the component ON THE RENDER, so you can
+                // find it in the frame before deciding to select it. Focus mirrors
+                // hover so the preview works from the keyboard too.
+                onMouseEnter={() => onHoverComponent?.(c.id)}
+                onMouseLeave={() => onHoverComponent?.(null)}
+                onFocus={() => onHoverComponent?.(c.id)}
+                onBlur={() => onHoverComponent?.(null)}
                 title={c.specced ? 'specced — open its contract' : 'registry row only — no contract yet'}
               >
                 <span className="cmp-ui2s__chipid">{c.id}</span>

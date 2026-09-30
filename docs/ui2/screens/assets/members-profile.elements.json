@@ -12,6 +12,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3668:8632",
+      "state": "button · add",
       "x": 0.9091,
       "y": 0.5593,
       "w": 0.0545,
@@ -21,6 +22,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3668:8752",
+      "state": "button · add",
       "x": 0.9091,
       "y": 0.6678,
       "w": 0.0545,
@@ -45,8 +47,8 @@
       "h": 0.0088
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3668:8143",
       "x": 0.0364,
       "y": 0.1491,
@@ -54,8 +56,8 @@
       "h": 0.0132
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3668:8144",
       "x": 0.5182,
       "y": 0.1491,
@@ -63,8 +65,8 @@
       "h": 0.0132
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3668:8145",
       "x": 0.0364,
       "y": 0.1681,
@@ -72,8 +74,8 @@
       "h": 0.0132
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3668:8146",
       "x": 0.5182,
       "y": 0.1681,
@@ -261,8 +263,8 @@
       "h": 0.0352
     },
     {
-      "ref": "C-044",
-      "name": "StudyProgramCard",
+      "ref": "C-059",
+      "name": "StudyProgramRow",
       "instance": "3668:9026",
       "x": 0.0364,
       "y": 0.6824,
@@ -270,13 +272,14 @@
       "h": 0.0352
     },
     {
-      "ref": "C-044",
-      "name": "StudyProgramCard",
+      "ref": "C-059",
+      "name": "StudyProgramRow",
       "instance": "3669:9152",
       "x": 0.0364,
       "y": 0.7176,
       "w": 0.9273,
       "h": 0.0352
     }
-  ]
+  ],
+  "stateBackfill": "figma@2026-09-12 — C-021 instances only"
 }

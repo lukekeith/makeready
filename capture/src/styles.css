@@ -11,6 +11,9 @@
   --accent-soft: rgba(139, 92, 246, 0.16);
   --ok: #4ade80;
   --warn: #fbbf24;
+  /* Not-done-yet, distinct from --warn: nothing is wrong, a step is simply
+     outstanding. Owner-specified amber (2026-09-11). */
+  --todo: #fcd34d;
   --err: #f87171;
   --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.03);
 }
@@ -1486,13 +1489,29 @@ html {
 .cmp-pop__title { font-size: 12px; font-weight: 600; color: var(--text-dim); }
 
 /* Precise comment targeting: live element highlight box + BEM label chip */
+/* Target boxes live INSIDE the zoom canvas so their rects track the image, which
+   means the canvas's `scale()` applies to their stroke and their label too — a
+   2px border painted 6px wide at 300%, type that grew with it. `--inv` (1/scale,
+   set inline by CommentLayer, the same value the pins counter-scale with) buys
+   that back: every length that should be a CONSTANT number of SCREEN pixels is
+   written `calc(<px> * var(--inv))`, so local units × the canvas scale land on
+   exactly <px> device pixels at any zoom. The fallback of 1 keeps an unscaled
+   caller (or a box rendered before the layer knows its scale) honest. */
 .cmp-target-box {
   position: absolute;
   z-index: 1;
   pointer-events: none;
-  border: 1.5px solid #4ade80;
+  border: 0;
+  /* The stroke is an INSET SHADOW, not a border. Chrome snaps a computed
+     `border-width` to whole DEVICE pixels, which quantises the counter-scaled
+     value (1.88px → 1.5px at DPR 2) and floors it to nothing past ~4× zoom, where
+     `1.5 * inv` falls under half a pixel — the stroke would simply disappear at
+     the zoom you most want it. Shadow spread takes the fraction exactly, and
+     box-sizing is border-box here, so an inset shadow occupies precisely the
+     pixels the border did. */
+  box-shadow: inset 0 0 0 calc(1.5px * var(--inv, 1)) #4ade80;
   background: rgba(74, 222, 128, 0.1);
-  border-radius: 3px;
+  border-radius: calc(3px * var(--inv, 1));
 }
 .cmp-target-chip {
   display: inline-flex;
@@ -1641,13 +1660,64 @@ html {
   display: flex; align-items: center; gap: 10px;
   padding: 8px 14px; border-bottom: 1px solid var(--border);
 }
-.cmp-zpane__zoom { margin-left: auto; font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.cmp-zpane__zoom { font-size: 12px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 .cmp-zpane__reset {
   width: 26px; height: 26px; border-radius: 6px; flex-shrink: 0;
   color: var(--text-dim); display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--border-strong);
 }
 .cmp-zpane__reset:hover { color: var(--text); background: var(--bg-hover); border-color: var(--accent); }
+
+/* Pane chrome floated over the render (status left, zoom right), so the head can
+   be the tab strip and the viewport keeps the height the head used to spend.
+   Backed by a translucent plate because they sit on artwork of any colour, and
+   pointer-transparent at the container level so they never eat a pan that starts
+   near a corner — only the controls themselves take hits. */
+.cmp-zpane__overlay {
+  position: absolute; top: 8px; z-index: 20;
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px; border-radius: 8px;
+  background: rgba(10, 10, 14, 0.72);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+.cmp-zpane__overlay--tl { left: 8px; }
+.cmp-zpane__overlay--tr { right: 8px; padding-left: 8px; }
+.cmp-zpane__overlay > * { pointer-events: auto; }
+.cmp-zpane__overlay .cmp-pane__status { margin-left: 0; }
+
+/* The head as a tab strip: tabs are edge-to-edge and scroll sideways rather than
+   wrapping, so opening a fifth screen never pushes the render down. */
+.cmp-zpane__head--tabs { padding: 0; gap: 0; align-items: stretch; }
+.cmp-zpane__tabs { display: flex; align-items: stretch; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.cmp-zpane__tabs::-webkit-scrollbar { display: none; }
+.cmp-zpane__tab {
+  display: flex; align-items: center; flex-shrink: 0;
+  max-width: 220px;
+  border-right: 1px solid var(--border);
+  color: var(--text-dim);
+}
+.cmp-zpane__tab:hover { background: var(--bg-hover); color: var(--text); }
+/* The active tab is marked by an accent underline sitting ON the head's bottom
+   border, so the strip keeps one continuous baseline whichever tab is current. */
+.cmp-zpane__tab.is-active { color: var(--text); box-shadow: inset 0 -2px 0 var(--accent); }
+.cmp-zpane__tab-btn {
+  display: flex; align-items: baseline; gap: 6px; min-width: 0;
+  padding: 9px 4px 9px 12px; background: transparent; border: 0;
+  color: inherit; font-size: 12px; cursor: pointer;
+}
+.cmp-zpane__tab-badge { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+.cmp-zpane__tab.is-active .cmp-zpane__tab-badge { color: var(--accent); }
+.cmp-zpane__tab-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A tab with no close button keeps the same right inset as one that has it, so
+   tab 0 does not read as narrower than its neighbours. */
+.cmp-zpane__tab-btn:only-child { padding-right: 12px; }
+.cmp-zpane__tab-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; margin-right: 6px; border-radius: 4px;
+  background: transparent; border: 0; color: var(--text-muted); cursor: pointer;
+}
+.cmp-zpane__tab-x:hover { background: var(--accent-soft); color: var(--text); }
 .cmp-zpane__viewport {
   flex: 1; position: relative; overflow: hidden;
   background: repeating-conic-gradient(#15151a 0% 25%, #101015 0% 50%) 50% / 22px 22px;
@@ -2384,7 +2454,14 @@ html {
 
 /* Components browser: hover element highlight (hit-tested against the
    hidden web-twin iframe) — lighter than the pinned target box. */
-.cmp-target-box--hover { border-style: dashed; background: rgba(74, 222, 128, 0.06); }
+/* The one box that stays a real border: a dash pattern has no shadow equivalent.
+   `max()` is the floor the shadow does not need — half a CSS pixel is one device
+   pixel at DPR 2, so the dashes thin out at high zoom instead of vanishing. */
+.cmp-target-box--hover {
+  box-shadow: none;
+  border: max(0.5px, calc(1.5px * var(--inv, 1))) dashed #4ade80;
+  background: rgba(74, 222, 128, 0.06);
+}
 
 /* ── Components browser: UI era switch + the 2.0 (spec) era ───────────────── */
 
@@ -2495,6 +2572,115 @@ html {
 .cmp-ui2s__chip--unspecced { border-style: dashed; }
 .cmp-ui2s__chipid { font-family: ui-monospace, monospace; font-size: 10px; color: var(--text-muted); }
 .cmp-ui2s__chip--unspecced .cmp-ui2s__chipname { color: var(--text-muted); }
+/* Selected — the chip whose pane is currently open, on either side of the
+   component/screen relationship. Same weight as the tree's selection so "this is
+   what column 4 is showing" reads the same wherever you are. */
+.cmp-ui2s__chip.is-active { border-color: var(--accent); color: var(--accent); }
+.cmp-ui2s__chip.is-active .cmp-ui2s__chipid,
+.cmp-ui2s__chip.is-active .cmp-ui2s__chipname { color: inherit; }
+/* Disabled = the component you are already on, inside a screen pane's roll-call.
+   It stays listed (leaving it out would make the roll-call disagree with the
+   screen's own) but is not a link to where you already are. */
+.cmp-ui2s__chip:disabled { cursor: default; opacity: 0.55; }
+.cmp-ui2s__chip:disabled:hover { background: transparent; color: var(--text-dim); }
+/* Chips nested in a pane section, rather than in a Details-tab Section. */
+.cmp-ui2n__states .cmp-ui2s__chips { margin-top: 6px; }
+.cmp-ui2p__screenshot-hint {
+  display: block; margin: 0 12px 12px; font-size: 11px; color: var(--text-muted);
+}
+.cmp-ui2p__screenshot:hover .cmp-ui2p__screenshot-hint { color: var(--accent); }
+.cmp-ui2p__screenshot:hover .cmp-ui2n__art { border-color: var(--accent); }
+.cmp-ui2p__screenshot.is-open .cmp-ui2n__art { border-color: var(--accent); }
+.cmp-ui2p__screenshot.is-open .cmp-ui2p__screenshot-hint { color: var(--accent); }
+/* The 1.0 component artwork has no border of its own; give it one so the hover
+   and open states have something to colour. */
+.cmp-ui2p__screenshot--wide .cmp-ui2n__art { border: 1px solid var(--border); border-radius: 5px; }
+
+/* ── Screen pane: the related-screens list, the selected block, the square frame ── */
+
+.cmp-ui2p__heading {
+  flex: 1; min-width: 0; padding-left: 4px;
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted);
+}
+
+/* Exactly ten rows tall, then it scrolls. The cap is in `em` off the row height
+   so it tracks the row, and `--rows` is here rather than inline so the number is
+   stated once and in the same place as the row it counts. */
+.cmp-ui2p__screens {
+  --row-h: 26px;
+  --rows: 10;
+  flex-shrink: 0;
+  max-height: calc(var(--row-h) * var(--rows));
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+}
+.cmp-ui2p__screen {
+  display: flex; align-items: baseline; gap: 6px; width: 100%;
+  height: var(--row-h); padding: 0 12px;
+  background: transparent; border: 0; border-left: 2px solid transparent;
+  color: var(--text-dim); font-size: 12px; text-align: left; cursor: pointer;
+}
+.cmp-ui2p__screen:hover { background: var(--bg-hover); color: var(--text); }
+.cmp-ui2p__screen.is-active { background: var(--accent-soft); color: var(--text); border-left-color: var(--accent); }
+.cmp-ui2p__screen.is-unspecced .cmp-ui2p__screen-name { font-style: italic; color: var(--text-muted); }
+.cmp-ui2p__screen-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmp-ui2p__screen-n { flex-shrink: 0; margin-left: auto; font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.cmp-ui2p__screens-empty { padding: 8px 12px; }
+
+.cmp-ui2p__selected {
+  flex-shrink: 0; display: flex; align-items: center; gap: 4px;
+  padding: 8px 8px 8px 12px; border-bottom: 1px solid var(--border);
+}
+/* Stacked, id on top: the id is the eyebrow you scan for and the name is the
+   title. Side by side, the name — the longer of the two — was the half that got
+   ellipsised by the shorter one sitting in front of it. */
+.cmp-ui2p__selected-text {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px;
+}
+.cmp-ui2p__selected-text .cmp-ui2p__id,
+.cmp-ui2p__selected-text .cmp-ui2p__name { max-width: 100%; }
+
+/* The square frame. 1:1 and full column width; the image COVERS it, so a ~1:2
+   screen shows about half and `object-position` (set from the pointer) scrubs
+   through the rest. */
+.cmp-ui2p__frame {
+  display: block; width: 100%; padding: 0; border: 0; background: transparent;
+  text-align: left; cursor: pointer;
+}
+.cmp-ui2p__frame-box {
+  display: block; position: relative; width: 100%; aspect-ratio: 1 / 1;
+  overflow: hidden; background: var(--bg);
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.cmp-ui2p__frame-img {
+  display: block; width: 100%; height: 100%; object-fit: cover;
+  /* No transition on object-position: the crop must track the pointer exactly,
+     and easing it turns scrubbing into a lag. */
+  user-select: none; -webkit-user-drag: none;
+}
+.cmp-ui2p__frame-hint {
+  display: block; padding: 6px 12px 12px; font-size: 11px; color: var(--text-muted);
+}
+.cmp-ui2p__frame:hover .cmp-ui2p__frame-hint { color: var(--accent); }
+.cmp-ui2p__frame:hover .cmp-ui2p__frame-box,
+.cmp-ui2p__frame.is-open .cmp-ui2p__frame-box { border-color: var(--accent); }
+.cmp-ui2p__frame.is-open .cmp-ui2p__frame-hint { color: var(--accent); }
+
+/* One schema = one state this screen renders, with the props that produce it. */
+.cmp-ui2p__schema { padding: 8px 0 4px; border-top: 1px solid var(--border); }
+.cmp-ui2p__schema:first-of-type { border-top: 0; }
+.cmp-ui2p__schema-head { display: flex; align-items: center; gap: 8px; padding-bottom: 4px; }
+.cmp-ui2p__schema-name { flex: 1; min-width: 0; font-size: 12.5px; color: var(--text); }
+/* Borrows .cmp-zpane__reset wholesale so the two zoom controls are one glyph and
+   one affordance; only the disabled state is added, which that control never had
+   a use for in the render head. */
+.cmp-ui2p__schema-zoom { flex-shrink: 0; }
+.cmp-ui2p__schema-zoom:disabled { opacity: 0.35; cursor: default; }
+.cmp-ui2p__schema-zoom:disabled:hover { color: var(--text-dim); background: transparent; border-color: var(--border-strong); }
+/* Hovering the row is what greens its instances, so the row says it is live. */
+.cmp-ui2p__schema:hover .cmp-ui2p__schema-name { color: var(--ok); }
+.cmp-ui2p__tally { margin-top: 8px; font-size: 11px; line-height: 1.5; color: var(--text-muted); }
 
 /* Column 2 — a 2.0 state's consumption mark (replaces 1.0's version count). */
 .cmp-cb-variant__consumption { flex: none; font-size: 12px; color: var(--text-muted); }
@@ -2589,7 +2775,7 @@ html {
    Accent-tinted rather than the comment layer's green: this box marks a part
    you are READING, not one a comment is attached to. */
 .cmp-target-box--inspect {
-  border: 1.5px solid var(--accent);
+  box-shadow: inset 0 0 0 calc(1.5px * var(--inv, 1)) var(--accent);
   background: var(--accent-soft);
   z-index: 0;
 }
@@ -2728,20 +2914,50 @@ html {
    only, because it appears under a moving pointer and a fill would flicker the
    whole render as the target changes. */
 .cmp-target-box--component {
-  border: 1.5px solid var(--accent);
   background: transparent;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+  /* Stroke inside, dark halo outside — one shadow list, both counter-scaled. */
+  box-shadow:
+    inset 0 0 0 calc(1.5px * var(--inv, 1)) var(--accent),
+    0 0 0 calc(1px * var(--inv, 1)) rgba(0, 0, 0, 0.35);
   z-index: 2;
 }
+
+/* The SELECTED component's box. It is not under a pointer, so unlike the hover
+   outline it can afford a faint fill — that is what makes it findable on a busy
+   render after the pointer has moved on. Drawn below the hover box (z-index) so
+   pointing at something else still wins the eye. */
+.cmp-target-box--selected {
+  z-index: 1;
+  /* 2px on screen at every zoom — the selection reads heavier than the hover
+     outline it sits under. */
+  box-shadow:
+    inset 0 0 0 calc(2px * var(--inv, 1)) var(--accent),
+    0 0 0 calc(1px * var(--inv, 1)) rgba(0, 0, 0, 0.35);
+  background: rgba(99, 102, 241, 0.1);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.cmp-target-box--selected .cmp-target-box__label { opacity: 0.95; }
+
+/* One SCHEMA's instances, greened on hover. Green because the component's own
+   instances are already purple on the same render — the two are different
+   questions ("where is C-021" vs "where is `button · add`") and must not be the
+   same colour. Drawn above the selection so it wins wherever they overlap. */
+.cmp-target-box--schema {
+  z-index: 3;
+  box-shadow:
+    inset 0 0 0 calc(2px * var(--inv, 1)) var(--ok),
+    0 0 0 calc(1px * var(--inv, 1)) rgba(0, 0, 0, 0.35);
+  background: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+.cmp-target-box--schema .cmp-target-box__label { background: var(--ok); color: #06240f; }
 
 /* `position: absolute` against the box, not the layer, so the label tracks its
    box without a second set of percentage math. Pointer-transparent like its
    parent — see CommentLayer. */
 .cmp-target-box__label {
   position: absolute;
-  left: -1.5px;
+  left: 0;
   bottom: 100%;
-  margin-bottom: 3px;
   padding: 2px 6px;
   border-radius: 4px;
   background: var(--accent);
@@ -2751,32 +2967,79 @@ html {
   line-height: 1.4;
   white-space: nowrap;
   pointer-events: none;
+  /* The whole chip counter-scales about the box corner it is anchored to, so its
+     type, padding and radius are all fixed while the anchor stays put. The 3px
+     gap above the box is part of the same transform (translateY), which keeps it
+     constant too — a margin here would scale. */
+  transform: scale(var(--inv, 1)) translateY(-3px);
+  transform-origin: left bottom;
 }
 
 /* A box at the very top of the frame has no room above it: the label flips
    inside the box's top edge rather than clipping off the render (R2). */
 .cmp-target-box__label--inside {
   bottom: auto;
-  top: 1.5px;
-  left: 1.5px;
-  margin-bottom: 0;
+  top: calc(2px * var(--inv, 1));
+  left: calc(2px * var(--inv, 1));
+  transform: scale(var(--inv, 1));
+  transform-origin: left top;
 }
 
 /* ── UI 2.0 notes: the Component tab, note cards and the composer (07 §6) ──── */
 
 .cmp-ui2n__chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 10px; }
+/* One noun per step in BOTH states — the icon carries done-ness, so the three
+   indicators read as one language instead of three grammars. */
 .cmp-ui2n__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 2px 8px;
   border: 1px solid var(--border);
   border-radius: 10px;
   font-size: 10.5px;
   color: var(--text-muted);
 }
+.cmp-ui2n__chip svg { flex-shrink: 0; }
 .cmp-ui2n__chip.is-on { border-color: var(--accent); color: var(--accent); }
+.cmp-ui2n__chip.is-todo { border-color: var(--todo); color: var(--todo); }
+
+/* The command that finishes an outstanding step, click-to-copy. Only steps a
+   slash command performs get a row — artwork has none, so it explains itself in
+   the chip's tooltip instead of offering something uncopyable. */
+.cmp-ui2n__todo { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 12px; }
+/* Top-aligned, not centred: the pane is ~200px wide, so a command wraps to two
+   lines often enough that a vertically-centred label would float against it. */
+.cmp-ui2n__todo-row { display: flex; align-items: flex-start; gap: 8px; font-size: 11px; min-width: 0; }
+.cmp-ui2n__todo-label {
+  flex-shrink: 0;
+  width: 50px;
+  padding-top: 3px;
+  color: var(--todo);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.cmp-ui2n__todo-row .copy-code {
+  min-width: 0;
+  font-size: 11px;
+  background: rgba(252, 211, 77, 0.08);
+  color: var(--text);
+  /* The string must stay READABLE in full — it is meant to be copied, so it wraps
+     rather than truncating behind an ellipsis. */
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.cmp-ui2n__todo-row .copy-code:hover { background: rgba(252, 211, 77, 0.16); border-color: var(--todo); }
+.cmp-ui2n__todo-row .copy-code:hover .copy-code__flash { color: var(--todo); }
 
 .cmp-ui2n__art {
   display: block;
+  width: auto;
   max-width: calc(100% - 24px);
+  max-height: 40px;
+  object-fit: contain;
+  object-position: left center;
   margin: 0 12px 10px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -2785,7 +3048,10 @@ html {
 .cmp-ui2n__open { margin: 0 12px 14px; }
 
 .cmp-ui2n__states { padding: 0 12px 12px; border-bottom: 1px solid var(--border); }
-.cmp-ui2n__state { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; font-size: 12px; }
+.cmp-ui2n__states--last { border-bottom: 0; }
+/* A state is a NAME with its consumption under it, stacked — side by side, a long
+   consumption line pushed the name off its own row. */
+.cmp-ui2n__state { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 4px 0; font-size: 12px; }
 .cmp-ui2n__state-name { color: var(--text); }
 .cmp-ui2n__muted { color: var(--text-muted); font-size: 11.5px; }
 
@@ -2889,3 +3155,235 @@ html {
 .cmp-ui2n__ta-name { color: var(--text); font-size: 12px; }
 .cmp-ui2n__ta-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); margin-left: auto; }
 .cmp-ui2n__ta-empty { padding: 8px 10px; color: var(--text-muted); font-size: 11.5px; }
+
+
+/* ── UI 2.0: the component PANE (column 4 while a component is selected) ────── */
+
+.cmp-ui2p { gap: 8px; }
+.cmp-ui2p__head { display: flex; align-items: center; gap: 4px; min-width: 0; }
+
+/* The title IS the picker — clicking the component's name is how you get to
+   another component in the same screen without leaving it. */
+.cmp-ui2p__picker { position: relative; flex: 1; min-width: 0; }
+.cmp-ui2p__title {
+  display: flex; align-items: baseline; gap: 6px; width: 100%; min-width: 0;
+  padding: 4px 6px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.cmp-ui2p__title:hover:not(:disabled) { border-color: var(--border-strong); background: var(--bg); }
+.cmp-ui2p__title:disabled { cursor: default; }
+.cmp-ui2p__id { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.cmp-ui2p__name { font-size: 13.5px; font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The chevron sits against the NAME, not against the far edge — it belongs to the
+   title it opens, and a long name truncates before it moves. */
+.cmp-ui2p__title svg { flex-shrink: 0; color: var(--text-muted); align-self: center; }
+
+.cmp-ui2p__menu {
+  position: absolute; z-index: 40; left: 0; top: calc(100% + 4px);
+  min-width: 100%; max-width: 300px; max-height: 320px; overflow-y: auto;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.7);
+  padding: 4px;
+}
+.cmp-ui2p__opt {
+  display: flex; align-items: baseline; gap: 7px; width: 100%;
+  padding: 5px 7px; border-radius: 6px; background: transparent;
+  color: var(--text); text-align: left; font-size: 12.5px; cursor: pointer;
+}
+.cmp-ui2p__opt:hover { background: var(--bg-hover); }
+.cmp-ui2p__opt.is-active { background: var(--accent-soft); color: var(--accent); }
+.cmp-ui2p__optid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+.cmp-ui2p__opt.is-active .cmp-ui2p__optid { color: inherit; }
+.cmp-ui2p__optname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A row in the screen's §4 roll-call with no contract yet still selects — it is
+   just visibly not specced, exactly as its chip is in the Screen tab. */
+.cmp-ui2p__opt--unspecced .cmp-ui2p__optname { color: var(--text-dim); font-style: italic; }
+
+.cmp-ui2p__icon {
+  width: 26px; height: 26px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 7px; background: transparent; color: var(--text-dim); cursor: pointer;
+}
+.cmp-ui2p__icon:hover:not(:disabled) { color: var(--text); background: var(--bg-hover); }
+.cmp-ui2p__icon:disabled { opacity: 0.4; cursor: default; }
+
+/* ── Merge dialog — pick the two sides of /ui2-component-merge ──────────────
+   Fixed 720×640: the panel is a comparison, and one that grew with its content
+   would resize as you scrolled the picker. The current component spans the top,
+   the picker and its preview split the middle 50/50, the command runs along the
+   foot. The picker is edge-to-edge so it reads as the same object as column 1. */
+.cmp-merge {
+  position: fixed;
+  inset: 0;
+  z-index: 110;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(4, 4, 6, 0.66);
+  backdrop-filter: blur(3px);
+  -webkit-backdrop-filter: blur(3px);
+}
+.cmp-merge__panel {
+  width: 720px;
+  height: 640px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  background: var(--bg-panel);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.55);
+}
+
+/* Top row — the current component, full width. */
+.cmp-merge__top { flex: none; border-bottom: 1px solid var(--border); }
+.cmp-merge__current { padding: 10px 12px 12px; }
+.cmp-merge__current-row { cursor: default; }
+.cmp-merge__current-meta {
+  margin-top: 6px;
+  padding: 0 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* Middle — picker | preview, 50/50. */
+.cmp-merge__cols { display: flex; flex: 1; min-height: 0; }
+.cmp-merge__col {
+  width: 50%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.cmp-merge__col--preview { border-left: 1px solid var(--border); }
+
+/* The role heading is a button: clicking either one swaps which side is kept,
+   which is the only way to express "merge the other direction" without making
+   the user retype the command. */
+.cmp-merge__role {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px 10px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+.cmp-merge__col .cmp-merge__role { border-bottom: 1px solid var(--border); }
+.cmp-merge__role:hover { background: var(--bg-hover); }
+.cmp-merge__role-title { display: block; font-size: 14px; font-weight: 600; color: var(--text); }
+.cmp-merge__role--duplicate .cmp-merge__role-title { color: var(--danger, #f87171); }
+.cmp-merge__role-desc {
+  display: block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+.cmp-merge__scroll { flex: 1; min-height: 0; overflow-y: auto; }
+
+/* Preview — a frame per designed state, wheel to step. Its header matches the
+   role headings' height so the two columns start on the same line. */
+.cmp-merge__preview-head {
+  flex: none;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+.cmp-merge__preview {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px;
+  /* The wheel handler steps frames instead of scrolling, so make that readable. */
+  cursor: ns-resize;
+}
+.cmp-merge__shot {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+/* Contain, never crop: a merge decision is made on the whole component. */
+.cmp-merge__shot img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.cmp-merge__shot-meta {
+  flex: none;
+  max-width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.cmp-merge__shot-name {
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cmp-merge__shot-kind { flex: none; font-size: 11px; color: var(--text-muted); }
+.cmp-merge__shot-nav { flex: none; font-size: 11px; color: var(--text-dim); }
+
+.cmp-merge__foot { flex: none; padding: 12px 14px; border-top: 1px solid var(--border); }
+.cmp-merge__cmd { display: block; width: 100%; box-sizing: border-box; }
+.cmp-merge__cmd--disabled { opacity: 0.5; pointer-events: none; }
+
+/* ── Delete dialog — retire a registry row. Reuses the merge panel's chrome;
+   narrower and content-height, because it is one decision and a sentence, not
+   a comparison. ── */
+.cmp-del__panel { width: 520px; height: auto; max-height: 640px; }
+.cmp-del__head { border-bottom: 1px solid var(--border); cursor: default; }
+.cmp-del__head:hover { background: transparent; }
+.cmp-del__body { padding: 12px 14px 14px; overflow-y: auto; }
+.cmp-del__warn {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  background: var(--bg-hover);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-dim);
+}
+.cmp-del__warn strong { color: var(--text); }
+.cmp-del__warn-note { margin-top: 6px; color: var(--text-muted); }
+.cmp-del__warn code { font-size: 11.5px; }
+.cmp-del__label {
+  display: block;
+  margin: 14px 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.cmp-del__req { font-weight: 400; color: var(--text-muted); }
+.cmp-del__input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+}
+.cmp-del__input:focus { outline: none; border-color: var(--accent); }

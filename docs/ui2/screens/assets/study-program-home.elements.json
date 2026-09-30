@@ -12,6 +12,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3833:32580",
+      "state": "button · add",
       "x": 0.9091,
       "y": 0.5843,
       "w": 0.0545,
@@ -21,6 +22,7 @@
       "ref": "C-021",
       "name": "GlyphButton",
       "instance": "3833:32764",
+      "state": "button · add",
       "x": 0.9091,
       "y": 0.4225,
       "w": 0.0545,
@@ -162,8 +164,8 @@
       "h": 0.0159
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3833:32217",
       "x": 0.0364,
       "y": 0.1313,
@@ -171,8 +173,8 @@
       "h": 0.0143
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3833:32216",
       "x": 0.5182,
       "y": 0.1313,
@@ -180,8 +182,8 @@
       "h": 0.0143
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3833:32218",
       "x": 0.0364,
       "y": 0.1519,
@@ -189,8 +191,8 @@
       "h": 0.0143
     },
     {
-      "ref": "C-041",
-      "name": "DetailPair",
+      "ref": "C-022",
+      "name": "MetaPair",
       "instance": "3833:32215",
       "x": 0.5182,
       "y": 0.1519,
@@ -431,5 +433,6 @@
       "w": 0.9636,
       "h": 0.1111
     }
-  ]
+  ],
+  "stateBackfill": "figma@2026-09-12 — C-021 instances only"
 }

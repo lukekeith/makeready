@@ -48,7 +48,13 @@ function NoteCard({ note, onMention }) {
   );
 }
 
-export default function NoteList({ notes, parseError, onMention, onAdd, canWrite, error, onRetry }) {
+export default function NoteList({
+  notes, parseError, onMention, onAdd, canWrite, error, onRetry,
+  // Notes hang off a component OR a screen — one file format, one reader, two
+  // kinds of target — so the empty state names whichever it is rather than
+  // calling a screen a component.
+  subject = 'component',
+}) {
   return (
     <div className="cmp-ui2n">
       <div className="cmp-ui2n__head">
@@ -76,7 +82,7 @@ export default function NoteList({ notes, parseError, onMention, onAdd, canWrite
 
       {!error && !parseError && !notes.length && (
         <div className="cmp-cb-col__empty">
-          No notes yet. A note says what this component is <em>for</em> — it is read by
+          No notes yet. A note says what this {subject} is <em>for</em> — it is read by
           /ui2-component-build and /ui2-component-update, and a newer note always wins.
         </div>
       )}

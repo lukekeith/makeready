@@ -103,6 +103,13 @@ export function parseRegistry(md) {
     }
     if (!REGISTRY_ROW.test(line)) continue;
     const c = cells(line);
+    // A REMOVED row is dropped from the index entirely — no nav entry, no detail, no
+    // route. The registry keeps it (IDs are append-only and never reused, so the struck
+    // row is the audit trail that says why C-0xx is skipped), but the browser is a view
+    // of the LIVE component universe and a merged-away row is noise in it. Keyed on the
+    // raw status cell, which a removal marks `**removed**` — see C-041 DetailPair,
+    // merged into C-022 on 2026-09-11.
+    if (/removed/i.test(c[2] ?? '')) continue;
     const { name, note } = splitName(c[1]);
     section?.rows.push({
       id: c[0],

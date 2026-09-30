@@ -97,7 +97,7 @@ No bar    17 + 140 + 10 + 44 + 17 = 228      (Completion = row 20 + 4 + row 20)
 
 | `style` | Completion slot | Link glyph | Colour rule |
 |---|---|---|---|
-| `Default` | stack gap 16: **C-057 PercentBar** (`style=Thin`, `aligned=Left`, 145×2) above one completion row. Slot 145×38; Top slot 146 | **never rendered** — the source gates it on `No bar`, so `showLink` has no effect here | number takes the band colour; label is `color-white-50`, and is the literal "complete" (deviation 7) |
+| `Default` | stack gap 16: **C-057 PercentBar** (`size=sm`, `aligned=Left`, 145×2; Figma spells that size `Thin`) above one completion row. Slot 145×38; Top slot 146 | **never rendered** — the source gates it on `No bar`, so `showLink` has no effect here | number takes the band colour; label is `color-white-50`, and is the literal "complete" (deviation 7) |
 | `No bar` | stack gap `space-meta-gap` (4): members row above completion row. Slot 145×44; Top slot 140 | rendered when `showLink` | **both** number and label take the band colour |
 
 The members row ("9" `color-text-primary` + "members" `color-white-50`) exists only in
@@ -179,12 +179,17 @@ Variants not in this table may not be built without a ruling.
 OQ-C-033-5.
 
 `progress` and the bar's geometry delegate to **C-057 PercentBar**; that row owns the
-`style`/`aligned` set and it is not restated here. The avatar's initials fallback is
+`style`/`aligned` set and it is not restated here. **That contract now exists** —
+`C-057-percent-bar.md`, written 2026-09-11 from the owner-designated set `3526:30471` — and it
+lands one fact this section did not have: the `size=sm` + `aligned=Left` variant this card
+consumes (Figma's `Thin`/`Left`) **draws no track**, verified on this card's own instance (`3621:4698` → `3621:4753`). So `Default`'s bar
+is a bare 145×2 green line, not a filled rail, and deviation 8's "145pt clipped track" is the
+clipped container rather than a drawn track. Whether that is intended is OQ-C-057-1. The avatar's initials fallback is
 **C-038 Avatar's**, and no symbol in this set draws it (OQ-C-033-7).
 
 ## 5. Composition
 
-- **Consumes:** C-038 Avatar (at 64) · C-057 PercentBar (`Thin` / `Left`, `default` only) ·
+- **Consumes:** C-038 Avatar (at 64) · C-057 PercentBar (`size=sm` / `aligned=Left`, `default` only, with `#4deb4b` as the `fillColor` override) ·
   C-072 LinkStatusGlyph (`linked=true`, `noBar` only).
 - **Consumed by:** home-dashboard (Following rails) — `No bar` at all three colours.
   C-072 is consumed by C-033 alone.
@@ -199,5 +204,5 @@ OQ-C-033-5.
 | OQ-C-033-4 | The title wraps with no stated limit. Three lines fit the Top slot's slack; a fourth clips against the card's `overflow: clip`. Max lines, or tail truncation? | No | owner |
 | OQ-C-033-5 | `members` and `percent` are display **strings** in the source ("9", "55%"), where `home-dashboard` §4 typed them `memberCount` / `completionPercent` numerically. Does the component take formatted strings, or numbers it formats? | No | owner |
 | OQ-C-033-6 | Pressed / selected / disabled are undesigned though the card is tappable — proposed default in §3f is to add none | No | owner |
-| OQ-C-033-7 | The avatar's initials fallback is asserted by `home-dashboard` §4 ("per program convention") and drawn by no symbol in this set. Confirm it is C-038's fallback and not a C-033-specific empty state | No | owner |
+| OQ-C-033-7 | ~~The avatar's initials fallback is asserted by `home-dashboard` §4 ("per program convention") and drawn by no symbol in this set. Confirm it is C-038's fallback and not a C-033-specific empty state~~ **ANSWERED 2026-09-11** by the C-038 full-set run: the fallback is C-038's own **designed** state `Initials` (`4115:31234`), not a C-033-local empty state. Its ground is `color-avatar-fallback` #242a3e, not the `color-card-background` the old prose claimed. See `C-038-avatar.md` §3a | No | owner |
 | OQ-C-033-8 | **C-072's name and family.** `-Glyph` is not one of the registry's sanctioned suffixes (`-Chip/-Card/-Row/-Bar/-Badge/-Header/-Overlay/-Button/-Chart`); a static 16pt indicator matches none of them (`-Badge` is a pill, taken by C-053 StatusBadge). Add `-Glyph` to the family list, or rename? Related: should C-072 and **C-021 GlyphButton** consolidate into one glyph-artwork provider that a button row and a static row both consume — the "value sets have one owner" shape `preview-build.md` §3 rule 5 already uses for C-021's nine glyphs? | No | owner |

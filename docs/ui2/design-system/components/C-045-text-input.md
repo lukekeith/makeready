@@ -36,7 +36,7 @@ Bordered field, `radius-card-sm` (4), no fill:
 
 | `state` × `lines` | Renders | Consumption |
 |---|---|---|
-| Default × Single | placeholder, card-border | consumed — shared-edit-field (C-046), create-study-program, enrollment-home (C-060-adjacent min/max via C-046) |
+| Default × Single | placeholder, card-border | consumed — shared-edit-field (C-046; including the 2-up age min/max), create-study-program. *(Corrected 2026-09-11 by the C-046 full-set run: this cell also named **enrollment-home** for the min/max pair. That screen renders neither row — its element map resolves to C-020/021/022/025/040/041/060/061/063 and its spec cites neither C-045 nor C-046; the age fields are `shared-edit-field`'s `radio+range` arrangement.)* |
 | Default × Multi | placeholder top-left, card-border | consumed — shared-edit-field (description fields) |
 | Has value × Single | value, card-border | consumed — shared-edit-field ("ready to save" frames), age-range min/max |
 | Has value × Multi | value wrapping, card-border | consumed — shared-edit-field (Group description) |

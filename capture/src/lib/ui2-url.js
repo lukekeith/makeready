@@ -24,3 +24,22 @@ export function selectedRef(search) {
   const c = new URLSearchParams(search ?? '').get('c');
   return c && /^C-\d{3}$/i.test(c) ? c.toUpperCase() : null;
 }
+
+/**
+ * The selected SCREEN id — `?s=<screen-id>`, the mirror of `?c=` and carried by
+ * the same `withSearch` rule.
+ *
+ * `?c=` lives on a screen page and names a component drawn on it; `?s=` lives on
+ * a COMPONENT page and names a screen that renders it. The two never appear
+ * together, because a page is one or the other.
+ *
+ * Validated by SHAPE only (a kebab word, never a `C-###`, since the two id spaces
+ * are disjoint by construction — see `kindOf`). Whether the screen exists is the
+ * fetch's answer, not the URL's: the pane renders "unknown screen" for a stale
+ * link exactly as the component pane does for a retired ref.
+ */
+export function selectedScreenRef(search) {
+  const s = new URLSearchParams(search ?? '').get('s');
+  if (!s || /^C-\d{3}$/i.test(s)) return null;
+  return /^[a-z0-9][a-z0-9-]*$/i.test(s) ? s.toLowerCase() : null;
+}

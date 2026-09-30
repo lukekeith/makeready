@@ -16,6 +16,19 @@ export default function ZoomPane({
   platform, label, url, webUrl, missingLabel, missingAction, viewport, captured, natural, fallbackNatural, onNatural, onReset,
   view, setView, hover, setHover, capturing, animating, clearAnim,
   iframeRef, onHoverInspect, onClearInspect,
+  // Render tabs (optional). When absent — /compare and every 1.0 caller — the
+  // head shows `label` exactly as it always has. When present, the head IS the
+  // tab strip and `label` is what the first (non-closable) tab reads.
+  //
+  // The tabs belong to the HOST, not this pane: it neither opens nor stores
+  // them, it only draws the strip and reports clicks. What a tab shows is
+  // decided entirely by the url/natural/boxes the host passes on the same
+  // render, so this pane stays the dumb controlled viewer it was written as.
+  tabs = null, activeTabKey = null, onSelectTab = null, onCloseTab = null,
+  // Overrides the derived status pill. A borrowed tab is neither "captured" nor
+  // "not captured" — those describe the PAGE's render — so its host says what the
+  // image actually is instead.
+  status = null,
   // Component targeting on a 2.0 SCREEN render (suite 07 §4.2). All three are
   // optional and every 1.0 caller omits them, so this pane behaves exactly as it
   // did for /compare and the 1.0 component browser.
@@ -143,24 +156,58 @@ export default function ZoomPane({
 
   const zoomPct = Math.round(view.scale * 100);
 
+  const statusLabel = status ?? (platform === 'client'
+    ? (captured ? 'live' : 'not built')
+    : platform === 'design'
+      ? (captured ? 'design' : 'no snapshot')
+      : (captured ? 'captured' : 'not captured'));
+
   return (
     <div className="cmp-zpane">
-      <div className="cmp-zpane__head">
-        <span className="cmp-pane__title">{label}</span>
-        <span className={`cmp-pane__status ${captured ? 'is-ok' : 'is-missing'}`}>
-          {platform === 'client'
-            ? (captured ? 'live' : 'not built')
-            : platform === 'design'
-              ? (captured ? 'design' : 'no snapshot')
-              : (captured ? 'captured' : 'not captured')}
-        </span>
-        <span className="cmp-zpane__zoom">{zoomPct}%</span>
-        <button className="cmp-zpane__reset" onClick={onReset} title="Fit & center (0)" aria-label="Fit and center">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
-            <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-          </svg>
-        </button>
+      <div className={`cmp-zpane__head${tabs?.length ? ' cmp-zpane__head--tabs' : ''}`}>
+        {tabs?.length ? (
+          <div className="cmp-zpane__tabs" role="tablist">
+            {tabs.map((t) => (
+              // The close control is a SIBLING of the tab button, not a nested
+              // one: a <button> inside a <button> is invalid HTML and the inner
+              // click does not reliably beat the outer one. Wrapping both in a
+              // div keeps "select" and "close" as two independent targets.
+              <div
+                key={t.key}
+                className={`cmp-zpane__tab${t.key === activeTabKey ? ' is-active' : ''}`}
+              >
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={t.key === activeTabKey}
+                  className="cmp-zpane__tab-btn"
+                  onClick={() => onSelectTab?.(t.key)}
+                  title={t.subtitle ? `${t.title} — ${t.subtitle}` : t.title}
+                >
+                  {t.badge && <span className="cmp-zpane__tab-badge">{t.badge}</span>}
+                  <span className="cmp-zpane__tab-title">{t.title}</span>
+                </button>
+                {/* The page's own render is tab 0 and has no close: closing it
+                    would leave the pane with nothing to show. */}
+                {t.closable !== false && (
+                  <button
+                    type="button"
+                    className="cmp-zpane__tab-x"
+                    onClick={() => onCloseTab?.(t.key)}
+                    title={`Close ${t.title}`}
+                    aria-label={`Close ${t.title}`}
+                  >
+                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true">
+                      <path d="M5 5l14 14M19 5L5 19" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <span className="cmp-pane__title">{label}</span>
+        )}
       </div>
       <div
         ref={vpRef}
@@ -216,6 +263,24 @@ export default function ZoomPane({
           </div>
         )}
         {capturing && <div className="viewport__spinner-overlay" aria-hidden="true"><div className="viewport__spinner" /></div>}
+
+        {/* The two control clusters float OVER the render rather than sitting in
+            the head, so the head is free to be the tab strip and the viewport
+            gets the full height back. They are the pane's own chrome — pinned to
+            the viewport, which is their positioning context — so /compare's two
+            side-by-side panes each carry their own pair. */}
+        <div className="cmp-zpane__overlay cmp-zpane__overlay--tl">
+          <span className={`cmp-pane__status ${captured ? 'is-ok' : 'is-missing'}`}>{statusLabel}</span>
+        </div>
+        <div className="cmp-zpane__overlay cmp-zpane__overlay--tr">
+          <span className="cmp-zpane__zoom">{zoomPct}%</span>
+          <button className="cmp-zpane__reset" onClick={onReset} title="Fit & center (0)" aria-label="Fit and center">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3" /><path d="M21 8V5a2 2 0 0 0-2-2h-3" />
+              <path d="M3 16v3a2 2 0 0 0 2 2h3" /><path d="M16 21h3a2 2 0 0 0 2-2v-3" />
+            </svg>
+          </button>
+        </div>
       </div>
     </div>
   );

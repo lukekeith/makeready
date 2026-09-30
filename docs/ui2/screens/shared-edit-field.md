@@ -133,13 +133,22 @@ designed variant of the pattern, unminted until a screen consumes it).
 proposals). This pattern consumes all six designed state×lines combinations; citation
 correction: `3547:31813` is a symbol inside set `3524:30063`, not a second set.
 
-### C-046 FieldGroup (new)
-Label + input stack — set `3524:30092` fully enumerated (2026-09-01): **`Field {Text 70pt,
-Multiline Text 114pt} × style {Default, Focus}`** — four designed variants. Label SF Pro
-Bold 14 white (unchanged across variants), 12pt gap, C-045 beneath; `style=Focus` = the
-inner C-045 in its `Has value + Focus` state (white border + 2×24 `color-accent` caret).
-Widths: 408 full or 196 compact (2-up range rows, width-driven not a variant). Props:
-`label`, plus C-045 pass-through (`lines`, `focused`).
+### C-046 FieldGroup (new) — contract relocated 2026-09-11
+**Superseded here.** The contract now lives at
+[`../design-system/components/C-046-field-group.md`](../design-system/components/C-046-field-group.md),
+written from the same set this section already cited (`3524:30092` — the owner's 2026-09-11
+paste confirmed the ref rather than replacing it), with all four symbols pinned by node id
+and the set frozen at `assets/C-046-field-group.png`.
+
+Unchanged for this screen: `Field {Text 70pt, Multiline Text 114pt} × style {Default,
+Focus}`, Bold-14 label over a 12pt gap over C-045, widths 408 full / 196 compact
+(width-driven, not a variant). **This screen consumes all four variants** — it is the only
+screen that does.
+
+One thing the full-set run surfaced that this screen should know: `style` has no
+"filled, but not focused" value, yet this screen's "ready to save" frames draw exactly that
+(C-045 `Has value`, unfocused). Resolving it is **OQ-C-046-1**, and it is a contract
+question, not a redraw — the frames are fine.
 
 ### C-047 RadioOptionRow (new)
 Sheet set `3770:6532`: 16pt vertical padding; title SF Pro Regular 14/20 white (single

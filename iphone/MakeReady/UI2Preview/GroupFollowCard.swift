@@ -12,19 +12,14 @@
 //    accepts as a full contract anchor. Only what C-033 §5 consumes is built: the 64pt photo
 //    circle. The initials fallback's typography is stated by no anchor, and C-033 exposes no
 //    `initials` prop at all (OQ-C-033-7), so that half belongs to a
-//    `/ui2-component Avatar <figma-url>` run — the same treatment C-062 PercentDisc gets in
-//    DayActivityCard.swift, where one designed band of six is built.
-//  • C-057 PercentBar — LEVEL 2, anchored in `docs/ui2/screens/study-program-home.md` §4.
-//    C-033 consumes `Thin`/`Left`; both axes are built here because the anchor states both
-//    and they are two numbers, not two designs.
-//  • C-072 LinkStatusGlyph — its contract is C-033 §3e, i.e. THIS file's contract. It has no
-//    contract file of its own, so it is not a legal `/ui2-component-build` target (that
-//    command's phase 0.3) and is built here, as preview-build.md §4 allows. It is
-//    instantiated nowhere but inside this card (C-033 §1).
-//
-//  ARTWORK: C-072's two vectors are the ones exported from the normative Figma set
-//  (C-033 §1), carried in Resources/Glyphs.xcassets. A raw .svg in a bundle is not loadable
-//  by iOS; the catalog is.
+//    `/ui2-component Avatar <figma-url>` run — the same treatment C-062 PercentDisc got in
+//    DayActivityCard.swift (retired 2026-09-21 — C-025 merged into C-023 RailCard), where one designed band of six was built.
+//  • C-057 PercentBar — was LEVEL 2 (anchored in `docs/ui2/screens/study-program-home.md` §4)
+//    and built inline here. **Promoted to LEVEL 1 on 2026-09-12**: C-057 now has its own
+//    contract and view, so the inline copy is gone and this card composes `PercentBar`.
+//  • C-072 LinkStatusGlyph — RETIRED 2026-09-26 into the glyph library: its two vectors are
+//    the glyphs `chain-link` (`linked=true`, the one this card draws) and `chain-broken`
+//    (`linked=false`), drawn through the generated `Glyph` view.
 //
 
 import SwiftUI
@@ -40,7 +35,7 @@ struct GroupFollowCard: View {
     /// C-033 §4 `style: default | noBar` (§3a's two designed styles).
     ///
     /// `standard` spells §4's `default`, which is a Swift keyword — the same substitution
-    /// `DayActivityCard.CardState` and `PageHeader.Style` make, resolved at the ViewRegistry
+    /// `PageHeader.Style` makes (and the retired `DayActivityCard.State` made), resolved at the ViewRegistry
     /// call site rather than by a raw value.
     enum Style {
         case standard
@@ -149,8 +144,10 @@ struct GroupFollowCard: View {
         .overlay(alignment: .topTrailing) {
             if style == .noBar && showLink {
                 // §3e: C-033 pins the glyph to `linked=true`; `linked=false` is designed but
-                // unreachable from this card (deviation 5, OQ-C-033-3).
-                LinkStatusGlyph(linked: true)
+                // unreachable from this card (deviation 5, OQ-C-033-3). C-072 was retired into
+                // the glyph library: `linked=true` is `chain-link`, `linked=false` `chain-broken`.
+                Glyph(.chainLink, size: .sm, tint: Token.textSecondary)
+                    .ui2Element("LinkStatusGlyph")
             }
         }
         .ui2Element("Top")
@@ -167,11 +164,15 @@ struct GroupFollowCard: View {
             VStack(alignment: .leading, spacing: Self.defaultCompletionGap) {
                 PercentBar(
                     progress: progress,
-                    fillColor: PercentBar.frameGreen,
-                    style: .thin,
+                    // C-033 §1 deviation 9 — this card passes its own colour, which is exactly
+                    // the OVERRIDE note 2026-09-12T02:28:29.097Z gives C-057's `fillColor`.
+                    fillColor: c033FrameGreen,
+                    // note 2026-09-12T02:28:29.097Z renames C-057's thickness axis: `Thin` → `sm`.
+                    size: .sm,
                     aligned: .left
                 )
-                .frame(width: Self.contentWidth, height: PercentBar.thinHeight)
+                // C-057 states its own 2pt height; only the width is this card's.
+                .frame(width: Self.contentWidth)
                 // §3a `Default`: "number takes the band colour; label is `color-white-50`,
                 // and is the literal \"complete\" (deviation 7)."
                 completionRow(
@@ -282,167 +283,40 @@ struct GroupFollowCard: View {
 
 // MARK: - C-038 Avatar
 
-/// C-038 Avatar — the circular person/group image primitive (C-033 §5, at 64).
-///
-/// LEVEL-2 DEPENDENCY (preview-build.md §4): C-038 has no contract file, so it is built from
-/// its screen-spec anchor — `docs/ui2/screens/members-home.md` §4, which D10 accepts as a full
-/// contract anchor: "Circular member/person image primitive: sizes 32, 40, 64; photo fill, or
-/// initials fallback on `color-card-background` when no photo (program convention)."
-///
-/// **The initials half is deliberately NOT built.** The anchor states no type style, size or
-/// colour for the initials, and C-033 §4 exposes no `initials` prop to feed it — which is
-/// precisely what OQ-C-033-7 asks the owner to confirm. So this view builds the photo path and
-/// the anchor's stated empty ground, and the lettering belongs to a
-/// `/ui2-component Avatar <figma-url>` run.
-struct Avatar: View {
-
-    /// members-home §4: `imageURL`. C-033 §4 hands it `photoURL: String?`.
-    let imageURL: String?
-    /// members-home §4: `size` — the closed set 32 / 40 / 64; C-033 §5 consumes 64.
-    let size: CGFloat
-
-    var body: some View {
-        ZStack {
-            // members-home §4: the no-photo ground is `color-card-background`.
-            Circle()
-                .fill(Token.cardBackground)
-            if let url = imageURL.flatMap(URL.init(string:)) {
-                // Cache-first, then async — the shape 1.0's `CachedCardImage` uses, and for
-                // the same reason (Ui2ImageCache.swift): a snapshot renders in one
-                // synchronous pass, so an `AsyncImage` alone comes out empty in a capture.
-                if let cached = Ui2ImageCache.shared.image(for: url) {
-                    Image(uiImage: cached)
-                        .resizable()
-                        // §2: "image cover-cropped (the source's 64×88 inner frame is the
-                        // crop, not a size)".
-                        .scaledToFill()
-                } else {
-                    AsyncImage(url: url) { image in
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    } placeholder: {
-                        // No designed loading state anywhere in the source; the ground
-                        // stands in.
-                        Color.clear
-                    }
-                }
-            }
-        }
-        // §2: "64×64, `radius-circle`". `radius-circle` is the one token row the generator
-        // reports as NOT PARSED (it is "50%", not a point value), so the shape is what names
-        // it: a circle IS the 50% radius, not a literal standing in for one.
-        .frame(width: size, height: size)
-        .clipShape(Circle())
-        .ui2Element("Avatar")
-    }
-}
+// The inline placeholder that stood here was SUPERSEDED 2026-09-11 by the real component:
+// `UI2Preview/Avatar.swift`, built from docs/ui2/design-system/components/C-038-avatar.md.
+// It was a level-2 build from the members-home §4 anchor and said so itself — "the lettering
+// belongs to a `/ui2-component Avatar <figma-url>` run". That run happened, and it also
+// corrected the anchor: the fallback ground is `color-avatar-fallback` (#242a3e), not
+// `color-card-background`, and the initials fallback is a designed state rather than an
+// asserted convention — which is what OQ-C-033-7 was waiting on.
+//
+// Removed rather than kept beside it: `UI2Preview` is one module and one flat namespace, so
+// two `struct Avatar` declarations do not compile. The call site above is unchanged — the real
+// view's `init` defaults `state` to C-038 §4's content derivation, so `Avatar(imageURL:size:)`
+// still resolves.
 
 // MARK: - C-057 PercentBar
 
-/// C-057 PercentBar — the progress bar unit C-033 `Default` puts above its completion row.
+// The inline LEVEL-2 copy that stood here was DELETED 2026-09-12 by `/ui2-component-build
+// C-057`. C-057 now has a contract file and its own view (`PercentBar.swift`), so this card
+// composes the real component — preview-build.md §4: "Level 1 and the dependency has no preview
+// of its own yet: prefer running /ui2-component-build C-0xx for it first … this component then
+// composes the real thing."
+//
+// Promoting it corrected a real defect the inline copy carried: it always drew the
+// `color-white-10` track, where the `Thin`/`Left` symbols this card instantiates draw **no
+// track at all** (C-057 §1 deviation 3 / §3a, verified on this card's own instance
+// `3621:4698` → `3621:4753`). So this card's `Default` bar is a bare 145×2 line, and its
+// captured render is stale until `/ui2-component-build C-033` re-runs.
+
+/// C-033 §1 deviation 9's flagged literal, kept here rather than reached for inside C-057: it
+/// is THIS card's statement about its own fill, and C-057's identical green is that row's
+/// separate flag. Two flags on one hex is what OQ-C-057-2 is for; collapsing them here would
+/// quietly answer it.
 ///
-/// LEVEL-2 DEPENDENCY (preview-build.md §4): C-057 has no contract file, so it is built from
-/// its screen-spec anchor — `docs/ui2/screens/study-program-home.md` §4, which D10 accepts as a
-/// full contract anchor: "Track `color-white-10`, fill segment in the consumer's status color
-/// (frame literal anomaly per §2). Variant axes (closed, from the sheet): `style={Thick 16pt,
-/// Thin 2pt}` × `aligned={Right, Left}`. Props: `progress: 0…1`, `fillColor`, `style`,
-/// `aligned`." C-033 §5 consumes `Thin` / `Left`.
-struct PercentBar: View {
-
-    /// study-program-home §4: `style={Thick 16pt, Thin 2pt}` — the axis is a height.
-    enum BarStyle {
-        case thick
-        case thin
-    }
-
-    /// study-program-home §4: `aligned={Right, Left}` — which edge the fill segment anchors to.
-    ///
-    /// `BarAlignment`, not `Alignment`: SwiftUI already spells one, and a nested `Alignment`
-    /// here would shadow it inside this type — the reason `Token.TypeStyle` is not `TextStyle`.
-    enum BarAlignment {
-        case left
-        case right
-    }
-
-    /// study-program-home §4: `progress: 0…1`.
-    let progress: Double
-    /// study-program-home §4: `fillColor` — "the consumer's status color".
-    let fillColor: Color
-    /// study-program-home §4: `style`.
-    let style: BarStyle
-    /// study-program-home §4: `aligned`.
-    let aligned: BarAlignment
-
-    var body: some View {
-        GeometryReader { proxy in
-            ZStack(alignment: aligned == .left ? .leading : .trailing) {
-                // study-program-home §4: "Track `color-white-10`".
-                Rectangle()
-                    .fill(Token.white10)
-                // "fill segment in the consumer's status color", clamped to the track.
-                Rectangle()
-                    .fill(fillColor)
-                    .frame(width: proxy.size.width * min(max(progress, 0), 1))
-            }
-        }
-        .frame(height: style == .thick ? Self.thickHeight : Self.thinHeight)
-        .ui2Element("PercentBar")
-    }
-
-    /// study-program-home §4: "`style={Thick 16pt, Thin 2pt}`".
-    static let thickHeight: CGFloat = 16
-    static let thinHeight: CGFloat = 2
-
-    // FLAGGED LITERAL — C-033 §1 deviation 9: "That bar's fill is the raw literal `#4deb4b` —
-    // C-057's already-recorded green anomaly (OQ-home-dashboard-6) — not `color-positive`."
-    // tokens.md carries the same flag. Emitted as a literal per preview-build.md §3 rule 4,
-    // NOT promoted to `color-positive` (#6cff73), which is a different green.
-    static let frameGreen = Color(red: 0.302, green: 0.9216, blue: 0.2941, opacity: 1)
-}
-
-// MARK: - C-072 LinkStatusGlyph
-
-/// C-072 LinkStatusGlyph — the 16pt link indicator in C-033 `No bar`'s top-right corner.
-///
-/// Its contract is C-033 §3e: "16×16 box in both states; the fill is BAKED INTO THE ARTWORK,
-/// not tinted by the consumer." That is a statement about the consumer — C-033 passes no
-/// colour — so the token is applied here, inside the glyph, rather than being frozen into the
-/// vector: preview-build.md §3 rule 4 wants the colour named, and §3e names it
-/// (`color-text-secondary` / `color-brand-highlight`).
-///
-/// NOT a button: §3e and the registry row are explicit that this is "a 16×16 static indicator
-/// (NOT a button — no hit target, no action)".
-struct LinkStatusGlyph: View {
-
-    /// C-033 §4: "C-072 LinkStatusGlyph: `linked: Bool` — the two values of §3e."
-    let linked: Bool
-
-    var body: some View {
-        Image(linked ? Self.linkedAsset : Self.unlinkedAsset, bundle: .ui2Preview)
-            // The catalog marks both vectors template-rendering, so the artwork is a mask and
-            // the tint below is the whole of its colour — which is what keeps §3e's fills
-            // tokens by name rather than baked hex.
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            // §3e: `true` is "two interlocking chain links, 15.02×11.5 in the 16×16 box";
-            // `false` is "a broken chain with radiating ticks, 14×14 in the 16×16 box". The
-            // artwork carries those proportions; the box is the frame.
-            .frame(width: Self.artworkSize(linked: linked).width,
-                   height: Self.artworkSize(linked: linked).height)
-            .foregroundColor(linked ? Token.textSecondary : Token.brandHighlight)
-            .frame(width: Self.box, height: Self.box)
-            .ui2Element("LinkStatusGlyph")
-    }
-
-    /// §3e: "16×16 box in both states".
-    private static let box: CGFloat = 16
-
-    private static func artworkSize(linked: Bool) -> CGSize {
-        linked ? CGSize(width: 15.02, height: 11.5) : CGSize(width: 14, height: 14)
-    }
-
-    private static let linkedAsset = "c072-link-linked"
-    private static let unlinkedAsset = "c072-link-unlinked"
-}
+// FLAGGED LITERAL — C-033 §1 deviation 9: "That bar's fill is the raw literal `#4deb4b` —
+// C-057's already-recorded green anomaly (OQ-home-dashboard-6) — not `color-positive`."
+// tokens.md carries the same flag. Emitted as a literal per preview-build.md §3 rule 4,
+// NOT promoted to `color-positive` (#6cff73), which is a different green.
+private let c033FrameGreen = Color(red: 0.302, green: 0.9216, blue: 0.2941, opacity: 1)

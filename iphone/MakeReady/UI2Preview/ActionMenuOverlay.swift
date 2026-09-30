@@ -10,12 +10,13 @@
 //  • C-067 ActionMenuRow — contract ships inside THIS file's §2/§3/§4, and §3 gives it a
 //    designed row, so it gets its own view (ActionMenuRow.swift) and is capturable through
 //    this component's fixture — the C-019 / C-069 NavTabButton arrangement.
-//  • C-048 PageActionButton (`color=White`) — level 2: its anchor is
-//    docs/ui2/screens/shared-edit-field.md §4, which D10 accepts as a full contract anchor.
-//    Built inline and private below, and ONLY the White variant: C-066 §2 states that one
-//    ("36pt, white FILL (not bordered), r8"), while `disabled` / `affirmative` /
-//    `destructive` / `Muted` belong to C-048's own run. `/ui2-component page-action-button
-//    <figma-url>` would give it a contract file, a frozen snapshot and a preview of its own.
+//  • C-048 PageActionButton — **level 1** since 2026-09-15: the row was relocated out of
+//    docs/ui2/screens/shared-edit-field.md §4 into a component record of its own, with a
+//    contract, a frozen snapshot and (since the /d2m-component-build C-048 run) a preview and
+//    a comparison row. So this file composes the REAL PageActionButton.swift at
+//    `role: .prominent` — C-048 §3 row 3, which is what C-066 §2's "36pt, white FILL (not
+//    bordered), r8" names. The private inline copy this file used to carry was deleted in that
+//    run: it existed only because C-048 "owns no comparison row", which stopped being true.
 //
 //  ARTWORK: the two content glyphs are the vectors the owner supplied 2026-09-10 (see
 //  ActionMenuRow.ContentGlyph), carried in Resources/Glyphs.xcassets under a `c066-` prefix
@@ -102,51 +103,11 @@ struct ActionMenuOverlay: View {
     /// §2 item 2: "C-048 PageActionButton, `color=White` — 36pt, white FILL (not bordered),
     /// r8, centered label 'Done'".
     private var doneButton: some View {
-        PageActionButton(label: "Done", action: onDone)
+        PageActionButton(label: "Done", role: .prominent, action: onDone)
     }
 
     /// §2: "1px `color-layout-border` hairline".
     private static let hairlineWidth: CGFloat = 1
     // §2's "internal gap 16". See ActionMenuRow for why `space-card-padding` is the 16 taken.
     private static let gap: CGFloat = Token.Space.cardPadding
-}
-
-/// C-048 PageActionButton, `color=White` — the "Done" dismissal.
-///
-/// Private to this file on purpose: C-048's anchor is `screens/shared-edit-field.md` §4
-/// (level 2), which is a legal source to build from but leaves it without a contract file or
-/// a frozen snapshot of its own — so it is not a legal `/ui2-component-build` target and
-/// owns no comparison row. See the DEPENDENCIES note in the file header.
-private struct PageActionButton: View {
-
-    /// shared-edit-field §4 (C-048): `label`. §2 here pins it to "Done".
-    let label: String
-    /// shared-edit-field §4 (C-048): `action`. Interaction-bearing (OQ-PB-3).
-    var action: () -> Void = {}
-
-    var body: some View {
-        Button(action: action) {
-            Text(label)
-                // GAP — C-066 §2: "SF Pro Text Regular 12/20, ls −0.24".
-                // docs/ui2/design-system/tokens.md has no 12/20 row at all, tracked or
-                // otherwise (`type-caption` is 12/**14** with no tracking), so this cannot
-                // resolve to a Token member (preview-build.md §3 rule 4). Emitted as §2's
-                // own literal and raised as an OQ — the same path C-045's `py9` took.
-                .designTextStyle(DesignTextStyle(weight: .regular, size: 12, lineHeight: 20, tracking: -0.24))
-                // §2: label `color-black`.
-                .foregroundStyle(Token.black)
-                .lineLimit(1)
-                // §2: "36pt" — the White variant's height, NOT shared-edit-field §4's 38.
-                .frame(maxWidth: .infinity, minHeight: Self.height)
-                // §2: "white FILL (not bordered)". tokens.md line 43 records
-                // `color-text-primary` (#ffffff) as the binding for `Color/Base/White`, so
-                // it is the program's white here rather than a text-only token.
-                .background(Token.textPrimary, in: RoundedRectangle(cornerRadius: Token.Radius.card))
-        }
-        .buttonStyle(.plain)
-        .ui2Element("PageActionButton")
-    }
-
-    /// §2: "36pt".
-    private static let height: CGFloat = 36
 }

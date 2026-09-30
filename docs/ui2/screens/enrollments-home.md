@@ -11,8 +11,9 @@ Platform: iphone · Status: specced · Specced: 2026-09-02
   — file `nVva9a2WvYmcWQo6zlHupO`, node `3823:34548` ("Enrollments", 440×1892)
 - Frozen snapshot: `assets/enrollments-home.png` — captured 2026-09-02
 - Component-sheet notes: search = C-034 set `3561:33795` (citation corrected 2026-09-05 —
-  `3561:33757` is a different, glyph-less component; see the C-034 contract); chips = C-035 `3668:7570`
-  internals; bar = C-057 set `3526:30471` (Thin/Left symbols `3621:47xx`); the
+  `3561:33757` is a different, glyph-less component; see the C-034 contract); chips = C-035 set `3561:33782` (**corrected 2026-09-11** — `3668:7570` is the *text node*
+  inside one of its symbols, not the component; all four chips here are `type=Menu,
+  active=false`, one of four designed variants); bar = C-057 set `3526:30471` (`size=sm`/`Left`, Figma's Thin/Left symbols `3621:47xx`); the
   enrollment row's main component is frame-local (`3823:35035` area), no variant axes.
 
 **Deviations (closed list):**
@@ -45,8 +46,9 @@ Then the sections container (16 padding, `space-section-gap` 32 between blocks),
   portrait source) + info column (8 gap: group name `type-title-card` white, single-line
   ellipsis; leader name SF Pro Regular 14/14 `color-white-50`) + right **C-021
   GlyphButton** `arrowRight`.
-- **Enrollment list** — one **C-059 EnrollmentProgressRow** (408×96) per enrollment of
-  that group, no separators between rows.
+- **Enrollment list** — one **C-059 StudyProgramRow** (408×96) per enrollment of
+  that group, no separators between rows. (This screen's rows render the enrolled-date
+  treatment, which the consolidated C-059 set does not design — OQ-C-059-1.)
 
 ## 3. Behavior contract
 
@@ -69,7 +71,7 @@ Then the sections container (16 padding, `space-section-gap` 32 between blocks),
   lists are closed but undesigned (OQ-2): org scope, group, leader, status. Chip label
   updates to the selection.
 - GroupSectionHeader arrowRight → group destination deferred (OQ-5).
-- EnrollmentProgressRow tap → enrollment detail destination deferred (OQ-5).
+- StudyProgramRow tap → enrollment detail destination deferred (OQ-5).
 - Section/row ordering: "Recent activity" implies recency — proposed default: sections by
   most-recent enrollment activity desc, rows by activity recency desc (OQ-1).
 - Vertical scroll; nav morph behavior owned by `shell-topnav`.
@@ -80,9 +82,9 @@ Then the sections container (16 padding, `space-section-gap` 32 between blocks),
 
 Closed list rendered: **C-019 TopNav** (collapsed) · **C-021 GlyphButton** (arrowRight) ·
 **C-034 SearchField** · **C-035 FilterChip** (×4) · **C-036 FilterMenuOverlay** (presented
-by chips) · **C-038 Avatar** (40, in C-058) · **C-057 PercentBar** (Thin/Left, in C-059) ·
-**C-058 GroupSectionHeader** *(introduced here)* · **C-059 EnrollmentProgressRow**
-*(introduced here)*.
+by chips) · **C-038 Avatar** (40, in C-058) · **C-043 MetaChip** (in C-059's designed set) ·
+**C-057 PercentBar** (`size=sm`/`Left`, in C-059) · **C-058 GroupSectionHeader** *(introduced here)* ·
+**C-059 StudyProgramRow** *(renamed from EnrollmentProgressRow 2026-09-10)*.
 
 ### C-058 GroupSectionHeader (new)
 Frame-local (nodes `3823:34882…`), no sheet set, no variant axes. 42pt row, 16 gap:
@@ -93,19 +95,26 @@ C-021 `arrowRight`. Props: `groupName`, `leaderName`, `photoURL`, `onOpen`.
 pressed state undesigned (OQ-6). Distinct from C-032 FollowedProgramHeader (program title
 + created meta + ellipsis) — this one identifies a group + leader with a forward affordance.
 
-### C-059 EnrollmentProgressRow (new)
-Frame-local main (`3823:35035` area, single variant). 96pt row (16pt vertical padding),
-16 gap: details column (16 gap: program title SF Pro Bold 14/14 white single-line
-ellipsis → **C-057 PercentBar** `Thin/Left` at 328pt width, fill in the status color →
-"enrolled «Mon D, YYYY»" SF Pro Regular 14/14 `color-text-secondary`) + trailing 64×64
-`radius-card` (8) cover thumbnail (clips an 88×64 portrait source). Props: `programTitle`,
-`progress`, `statusColor`, `enrolledLabel`, `coverURL`, `onTap`.
-**State coverage:** single designed variant; three fill colors observed as content
-(#4deb4b green, #e3eb4b yellow, #ff4759 red — banding thresholds undesigned, OQ-3);
-no completed/paused/pressed variants designed (OQ-6). Cross-note: closely parallels C-044
-StudyProgramCard `state=Progress` (title + Thin/Left bar + image) but with an
-enrolled-date meta line instead of MetaChips and a 64×64 thumb instead of full-width —
-distinct Figma components; consolidation is the owner's call (flagged, non-blocking).
+### C-059 StudyProgramRow (renamed 2026-09-10) — contract relocated
+**Superseded here.** The contract now lives at
+[`../design-system/components/C-059-study-program-row.md`](../design-system/components/C-059-study-program-row.md),
+written 2026-09-10 from the set the owner designated (`3502:28948` "Study Program Card v2").
+That run also **consolidated C-044 StudyProgramCard into this row** — the cross-note this
+section used to carry ("closely parallels C-044… consolidation is the owner's call") is the
+thing the owner ruled on, and C-044 is now struck.
+
+**What that changes for this screen.** The designated set designs three states — `Condensed`,
+`Progress`, `state4` — and **none of them draws the enrolled-date line these rows use**. What
+this screen renders (96pt row, 16pt vertical padding: title → C-057 `size=sm`/`Left` 328×2 →
+"enrolled «Mon D, YYYY»" `type-body` `color-text-secondary` → 64×64 `radius-card` cover
+clipping an 88×64 source) is drawn in a **folded, superseded source** the contract records and
+freezes (§1, §3d). Resolving that is **OQ-C-059-1**, and it blocks this screen's build:
+either these rows are redrawn as `state=Progress` (MetaChips, no date), or the date line
+becomes a designed variant, or it becomes a C-043 MetaChip on the C-054 precedent.
+
+The banding observation this section recorded stands and is carried into the contract as
+OQ-C-059-9 (#4deb4b / #e3eb4b / #ff4759, thresholds undesigned — local OQ-3). Pressed and
+completed treatments remain undesigned (local OQ-6 → contract OQ-C-059-7).
 
 ## 5. Data & API
 
@@ -127,7 +136,7 @@ Writes: none.
 - **Entry:** `shell-tabs` → enrollments-home (Enrollments tab — active in this frame's
   nav row).
 - **Exits:** GroupSectionHeader arrowRight → group destination deferred (OQ-5; likely
-  `groups-detail` or a group-enrollments surface) · EnrollmentProgressRow tap →
+  `groups-detail` or a group-enrollments surface) · StudyProgramRow tap →
   enrollment detail deferred (OQ-5, undesigned).
 - **Overlays:** C-036 FilterMenuOverlay ×4 (one per chip).
 - Nav-evidence note: this frame's tab row shows Home · Library · Groups · Members ·

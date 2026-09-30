@@ -7,61 +7,7 @@
 // not appear, which is why the call is labelled derived rather than normative.
 import React from 'react';
 import CopyCode from '../../components/CopyCode.jsx';
-
-/** The Swift type the preview-build lane actually generates for a registry row
- *  (`docs/ui2/preview-build.md` §2, `.claude/commands/ui2-component-build.md`
- *  phase 3): the registry name, plain. Preview views compile into their own
- *  `UI2Preview` module, so the six rows that share a name with a 1.0 struct
- *  need no prefix — a module namespaces them, which a folder cannot. */
-function previewTypeName(name) {
-  return name;
-}
-
-/** `default | textButtons | twoIcons` → the member matching a matrix cell. */
-function enumCase(type, value) {
-  const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const options = type.split('|').map((o) => o.trim()).filter(Boolean);
-  return options.find((o) => norm(o) === norm(value)) ?? null;
-}
-
-/** A matrix cell rendered as Swift, read through the prop's declared type. */
-function swiftValue(type = '', value = '') {
-  if (/^(true|false)$/i.test(value)) return value.toLowerCase();
-  if (type.includes('|')) {
-    const match = enumCase(type, value);
-    if (match) return `.${match}`;
-  }
-  if (/^-?\d+(\.\d+)?$/.test(value)) return value;
-  return `"${value}"`;
-}
-
-/** A prop the state doesn't set still has to appear if it isn't optional. */
-function swiftPlaceholder(type = '') {
-  if (type.includes('->')) return '{ … }';
-  if (/^Binding</.test(type)) return '$value';
-  if (/^\[/.test(type)) return '[]';
-  if (/\bBool\b/.test(type)) return 'true';
-  if (/\bInt\b|\bDouble\b/.test(type)) return '0';
-  if (/\bString\b/.test(type)) return '"…"';
-  return '…';
-}
-
-/**
- * The call site. Assigned props take the state's values; unassigned ones appear
- * only when required (an optional type carries its own "omit me").
- */
-function sampleCall(name, propRows, propValues) {
-  const assigned = new Map(propValues.map((p) => [p.name.toLowerCase(), p.value]));
-  const lines = [];
-  for (const prop of propRows) {
-    const value = assigned.get(prop.name.toLowerCase());
-    if (value !== undefined) lines.push(`  ${prop.name}: ${swiftValue(prop.type, value)},`);
-    else if (!prop.type.trim().endsWith('?')) lines.push(`  ${prop.name}: ${swiftPlaceholder(prop.type)},`);
-  }
-  if (!lines.length) return `${name}()`;
-  lines[lines.length - 1] = lines[lines.length - 1].replace(/,$/, '');
-  return `${name}(\n${lines.join('\n')}\n)`;
-}
+import { sampleCall, previewTypeName } from '../../lib/ui2-sample-call.js';
 
 function Section({ label, note, children }) {
   return (
@@ -72,8 +18,54 @@ function Section({ label, note, children }) {
   );
 }
 
-export default function Ui2DetailsTab({ detail, variant }) {
+/**
+ * The screens that render this component — the mirror of the Screen tab's
+ * component roll-call, and the same interaction: a chip SELECTS into the screen
+ * pane rather than navigating away, so you can read what a screen says about this
+ * component without losing the component you are looking at. The pane's own
+ * open-in-new is the only thing that leaves.
+ *
+ * The count beside a chip is instances, summed over the screen's frames — how
+ * many times the component is actually drawn there, which §4's roll-call cannot
+ * say because it lists a row once however often it appears. A frame with no
+ * element map contributes nothing rather than a zero, so a screen whose frames
+ * are all unmapped shows no count at all instead of a false "×0".
+ */
+function ScreenChips({ screens, selected, onSelect }) {
+  return (
+    <div className="cmp-ui2s__chips">
+      {screens.map((s) => {
+        const counted = s.frames.filter((f) => f.instances !== null);
+        const total = counted.reduce((n, f) => n + f.instances, 0);
+        return (
+          <button
+            key={s.id}
+            type="button"
+            className={`cmp-ui2s__chip${s.specced ? '' : ' cmp-ui2s__chip--unspecced'}${s.id === selected ? ' is-active' : ''}`}
+            onClick={() => onSelect(s.id)}
+            title={s.specced
+              ? `${s.name} — open what this screen says about this component`
+              : `${s.id} is a README row with no spec yet`}
+          >
+            <span className="cmp-ui2s__chipname">{s.id}</span>
+            {counted.length > 0 && <span className="cmp-ui2s__chipid">×{total}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+export default function Ui2DetailsTab({ detail, variant, selectedScreen = null, onSelectScreen = null }) {
   if (!detail) return <div className="cmp-cb-col__empty">Select a component</div>;
+  const screens = detail.screens ?? [];
+  // Rendered in both branches below — an unspecced row can still be consumed by a
+  // screen, and that is often the most useful thing the tab can say about it.
+  const screensSection = onSelectScreen && screens.length > 0 && (
+    <Section label={`Screens (${screens.length})`} note="every screen whose §4 renders this row">
+      <ScreenChips screens={screens} selected={selectedScreen} onSelect={onSelectScreen} />
+    </Section>
+  );
 
   // No contract means no §3 and no §4 — there is nothing this state could set,
   // so the tab's job is to say what would produce one.
@@ -100,6 +92,7 @@ export default function Ui2DetailsTab({ detail, variant }) {
             </p>
           )}
         </Section>
+        {screensSection}
       </div>
     );
   }
@@ -143,6 +136,8 @@ export default function Ui2DetailsTab({ detail, variant }) {
           </p>
         )}
       </Section>
+
+      {screensSection}
 
       {!detail.built && (
         <Section label="Not built yet" note="no render to compare against Figma">

@@ -38,7 +38,7 @@ column gap `space-section-gap` 32; sections px16 except the full-bleed rails):
 1. **Program identity block** — same anatomy as study-program-home §2 items 1–3 minus the
    badge: cover 408×180 `radius-card` (no C-053 StatusBadge) → program title
    (`type-title-card`, 1-line ellipsis) + 8 → description (Regular 14/20 `color-white-70`,
-   1-line ellipsis) → 2×2 **C-041 DetailPair** grid (16 gaps): Members (count) · Author ·
+   1-line ellipsis) → 2×2 **C-022 MetaPair** grid (16 gaps): Members (count) · Author ·
    Enrolled (`Mon D, YYYY`) · Group leader.
 2. *hairline* (`color-layout-border`).
 3. **Schedule section** — **C-020 SectionHeader** (`type-section-title`; accessory
@@ -91,9 +91,11 @@ Closed list rendered: **C-020 SectionHeader** (accessory `text-link+button` — 
 **C-021 GlyphButton** (`calendar` — first consumer) · **C-022 MetaPair** (×2 inside
 C-064) · **C-025 DayActivityCard** (`Percent circle` body + `Today` date + `Lesson day`
 details — all first-consumed here) · **C-040 PageHeader** (Two icons, `showIcons=false`) ·
-**C-041 DetailPair** (×4) · **C-060 CalendarDateCard** *(introduced)* · **C-061
+**C-022 MetaPair** (×4, ex-C-041) · **C-060 CalendarDateCard** *(introduced)* · **C-061
 ActivitySlide** *(introduced)* · **C-062 PercentDisc** *(introduced)* · **C-063
-LessonCard** *(introduced)* · **C-064 DateSpanIndicator** *(introduced)*.
+LessonCard** *(introduced)* · **C-064 DateSpanIndicator** *(introduced)* · **C-075
+ArrowGlyph** (×2 inside C-064, `direction=left` + `direction=right` — minted 2026-09-11 by the
+`/ui2-component C-064` run; the arrows this list previously left unresolved).
 
 ### C-060 CalendarDateCard (new)
 Sheet component `3836:7851`, single `state=Default`. 96×88: `color-card-background` fill,
@@ -115,14 +117,22 @@ axis are designed-unconsumed — not built without a consuming spec (expected co
 geometry — owner to rule one unit or two (OQ-2).
 
 ### C-062 PercentDisc (new)
-Sheet set `3822:34382` ("Percent and size"): completion disc whose **color AND diameter
-encode the band** — designed sizes `Green 1` (80pt), `Green 2`, `Yellow 1` (56pt,
-`#ffb53e`), `Yellow 2`, `Red 1` (44pt, `color-negative`), `size6`. Fill = band color at
-20% opacity; number Bold 14 + "%" Semibold 9, in the band color. Consumed here: Green 1
-(78%), Yellow 1 (65%), Red 1 (24%). Props: `percent`, `band`.
-**State coverage:** three of six variants consumed; Green 2 / Yellow 2 / size6
-designed-unconsumed (OQ-8). Band thresholds undesigned (OQ-3). Cross-note: C-031's
-64pt percent circle is a fixed-size sibling, not this unit.
+**Relocated 2026-09-11** to `../design-system/components/C-062-percent-disc.md`, which is now
+the contract. That run measured the set for the first time and **corrects this section**: the
+component is **always 80×80** — it is the *disc* inside that varies (80 / 64 / 56 / 48 / 44 /
+40), so a consumer laying out `Red 1` reserves 80, not 44. It also pins the three unmeasured
+variants, records the type leadings (number Bold 14/**24**, `%` Semibold 9/**12**, identical in
+all six variants), and notes that this set has no `band` prop — `size` carries colour and
+diameter as one inseparable axis (OQ-C-062-1), so the `percent, band` pair named here does not
+exist. Consumed here: `Green 1` (78%), `Yellow 1` (65%), `Red 1` (24%).
+**Owner ruling 2026-09-11 — colour is continuous.** A single colour computed from `percent` along
+a red→amber→green ramp drives both the disc fill (at 20%) and the text; there are no bands and no
+thresholds. **This screen's three instances change colour**: 78% renders `#ADDE5C` (not green),
+65% renders `#D3CB4E` (not amber), 24% renders `#FF7C4C` (not red) — enumerated in that file §3b.
+**OQ-3 (band thresholds) is moot for C-062** — there are no thresholds left to set; it survives
+only for the other components it named.
+**State coverage:** three of six consumed; `Green 2` / `Yellow 2` / `size6` designed-unconsumed
+(OQ-8). `size` now selects diameter alone.
 
 ### C-063 LessonCard (new)
 Frame-local (`3821:33713…`). py16 block: title row px16, 10 gap (lesson number Bold
@@ -136,12 +146,20 @@ title row — track `color-white-20`, fill `#4deb4b` (track diverges from C-057'
 locked/empty-activities undesigned (OQ-8).
 
 ### C-064 DateSpanIndicator (new)
-Sheet component `3836:7920` ("Text metadata"), single variant. 184×88 centered row, 8
-gap: arrow-left glyph 24 · **C-022 MetaPair** "«n» months" · MetaPair "«n» days" ·
-arrow-right glyph 24. Pairs render Regular 12/24 white value + `color-text-secondary`
-label — matching home's C-022 rendering (evidence against study-program-home's bold
-variant; logged on OQ-study-program-home-9). Props: `months`, `days`.
-**State coverage:** single designed state; static (OQ-5).
+**Relocated 2026-09-11** to `../design-system/components/C-064-date-span-indicator.md`, which
+is now this row's contract. The `/ui2-component C-064` run resolved the pasted node upward to
+its variant set (`3836:7921`; `3836:7920` is the symbol) and corrected four things this
+section had wrong: the arrows are **not** C-021 glyphs and now resolve to a new row, **C-075
+ArrowGlyph** (owner ruling, contract in C-064 §5a); the two pairs are local frames at gap
+**2**, not C-022 instances at gap 4 (the C-022 composition claim stands, the gap is
+OQ-C-064-3); the 184×88 box is **set**, with a 162×24 content band centred in it (OQ-C-064-2);
+and Figma's `Property 1=Default` is a placeholder axis, dropped per registry rule 6. Pairs do
+render Regular 12/24 white value + `color-text-secondary` label, as this section said —
+matching home's C-022 rendering (evidence against study-program-home's bold variant; logged on
+OQ-study-program-home-9), and their white **is** variable-bound here, which is new evidence on
+OQ-C-022-4. Props: `months`, `days`.
+**State coverage:** single designed state; static (OQ-5, now also OQ-C-064-4). ⚠️ **No frozen
+snapshot exists for this component** — OQ-C-064-1 blocks `/ui2-component-build C-064`.
 
 ### Amendments (dated 2026-09-02)
 - **C-025 DayActivityCard** — first consumption of three designed sheet states: body
@@ -153,7 +171,9 @@ variant; logged on OQ-study-program-home-9). Props: `months`, `days`.
   consumes C-025 `state=Percent circle`, **C-070 DateBlock** `Today`, and **C-071
   ValuePair** `Lesson day`. Note for OQ-3: the set's `Percent circle` sample renders 29% at
   C-062's `Green 1` (largest, greenest band), which contradicts a monotonic percent→band
-  mapping — logged as OQ-C-025-4.
+  mapping — logged as OQ-C-025-4. **Half-answered 2026-09-11:** C-062's set samples `29` in all
+  six symbols, so that was the set's own placeholder content, not a designed pairing; and the
+  colour ruling the same day removes bands altogether — at 29% the disc renders `#FF8749`.
 - **C-020 SectionHeader** — accessory list gains the `text-link+button` combo (text-link
   + 16 gap + GlyphButton), closed. "Edit schedule" renders `color-text-secondary`
   (more OQ-shared-edit-field-4 evidence).
@@ -176,7 +196,7 @@ Writes: none.
 
 ## 6. Connections
 
-- **Entry:** `enrollments-home` → enrollment-home (push, C-059 EnrollmentProgressRow tap
+- **Entry:** `enrollments-home` → enrollment-home (push, C-059 StudyProgramRow tap
   — **resolves the row-tap half of OQ-enrollments-home-5**; the group-arrow half stays
   open). Future entries expected from home-dashboard's followed-enrollment cards
   (OQ-home-dashboard-4) and group surfaces — each added by its own spec.
