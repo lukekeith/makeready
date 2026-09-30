@@ -1,13 +1,12 @@
 {
   "enabledPlugins": {
-    "builder@makeready": true,
     "superpowers@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
-    "makeready": {
+    "claude-builder": {
       "source": {
-        "source": "directory",
-        "path": "."
+        "source": "github",
+        "repo": "lukekeith/builder"
       }
     }
   }
