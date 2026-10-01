@@ -342,7 +342,13 @@ struct CaptureComponent: Codable {
     let floatingLabel: String?
     let markdown: String?
     let autoGrow: Bool?
-    let options: [String]?
+    // RETYPED 2026-09-30 (/d2m-component-build C-036), by the same reasoning and in the same
+    // shape as `selected`, `size`, `day`, `date` and `days`. This was `[String]?` (MenuInput,
+    // C-028 InlineDropdown, the edit-field pickers). C-036 FilterMenuOverlay §4's first prop
+    // is ALSO named `options` and is `[FilterMenuOverlay.Option]` — objects of id/label/glyph —
+    // and the rule forbids bending a contract's prop name to fit an existing field. So the
+    // field decodes both shapes: the existing readers ask for `.strings`; C-036 for `.items`.
+    let options: CaptureStringsOrOptions?
     let optionsWithDescriptions: [CaptureMenuOption]?
     let selectedOption: String?
     let html: String?
@@ -788,6 +794,31 @@ struct CaptureComponent: Codable {
     let programCompleteCounts: [String]?
     let programHours: [String]?
     let programCoverURLs: [String]?
+    // ── preview props ──
+    // C-036 FilterMenuOverlay build 2026-09-30. `options` is retyped above; these three are
+    // additive. `selectionMode` + `selectedIDs` are OQ-C-036-009's ruled selection API; the
+    // modifier's `isPresented` drives the Presented state (§4 .filterMenuPresentation).
+    let selectionMode: String?                 // C-036 — "single" | "multiple"
+    let selectedIDs: [String]?                 // C-036
+    let isPresented: Bool?                     // C-036 — .filterMenuPresentation(isPresented:)
+    // ── screen members-home ──
+    // Reused as-is: `searchText` (same name, same type).
+    let groupFilterLabel: String?
+    let leaderFilterLabel: String?
+    let groupOptions: [String]?
+    let leaderOptions: [String]?
+    let memberNames: [String]?
+    let memberPhotoURLs: [String]?
+    let memberJoinedLabels: [String]?
+    let memberGroupCounts: [Int]?
+    // ── preview props ──
+    // C-058 GroupSectionHeader build 2026-09-30. `groupName`, `imageURL` and `initials` already
+    // exist above under the contract's own names and types; `leaderName` is additive.
+    let leaderName: String?                    // C-058 — the group leader's display name
+    // ── preview props ──
+    // C-083 NavBarButton build 2026-09-30. `glyph` and `active` already exist above under the
+    // contract's own names and types; `accessibilityLabel` is additive.
+    let accessibilityLabel: String?            // C-083 — VoiceOver label, never drawn
 }
 
 /// C-063 §4 `header: LessonCard.Header` — exactly one key is present, named for the case
@@ -1464,3 +1495,39 @@ struct CaptureIntOrString: Codable {
     }
 }
 
+/// `options` decodes a list of strings (MenuInput, C-028 and the edit-field pickers) OR a list
+/// of C-036 FilterMenuOverlay.Option objects — see the RETYPED note on the field.
+struct CaptureStringsOrOptions: Codable {
+    let strings: [String]?
+    let items: [CaptureFilterMenuOption]?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let s = try? container.decode([String].self) {
+            strings = s
+            items = nil
+        } else if let o = try? container.decode([CaptureFilterMenuOption].self) {
+            items = o
+            strings = nil
+        } else {
+            strings = nil
+            items = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let s = strings {
+            try container.encode(s)
+        } else {
+            try container.encode(items)
+        }
+    }
+}
+
+/// C-036 §4 `FilterMenuOverlay.Option`: `id` · `label` · `glyph` (nil = no glyph box).
+struct CaptureFilterMenuOption: Codable {
+    let id: String
+    let label: String
+    let glyph: String?
+}

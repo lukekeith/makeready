@@ -359,7 +359,7 @@ enum Token {
     static let ink600 = Color(red: 0.2235, green: 0.2235, blue: 0.2235, opacity: 1)
     static let ink700 = Color(red: 0.1451, green: 0.1451, blue: 0.1451, opacity: 1)
     static let ink800 = Color(red: 0.0392, green: 0.0392, blue: 0.0392, opacity: 1)
-    static let ink900 = Color(red: 0.0039, green: 0.0039, blue: 0.0039, opacity: 1)
+    static let ink900 = Color(red: 0.0118, green: 0.0157, blue: 0.0196, opacity: 1)
     static let ink950 = Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 1)
 
     // NOT `Type`: `Token.Type` is Swift's metatype syntax for the enum itself.
@@ -410,5 +410,10 @@ enum Token {
         static let bar: CGFloat = 2
         static let card: CGFloat = 8
         static let modal: CGFloat = 16
+    }
+
+    enum Motion {
+        static let menuFadeIn = Animation.easeOut(duration: 0.3)
+        static let menuFadeOut = Animation.easeOut(duration: 0.25)
     }
 }

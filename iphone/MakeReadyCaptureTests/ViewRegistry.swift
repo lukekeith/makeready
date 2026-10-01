@@ -101,10 +101,43 @@ func makeCaptureDate(_ s: String?) -> Date {
 
 /// Builds the SwiftUI view for a given fixture, wrapping it with
 /// the required environment objects (AuthManager, OverlayManager).
+///
+/// A thin dispatcher: the out-of-line cases are routed here so their view's type-metadata
+/// resolution runs WITHOUT `buildCaptureViewInline`'s Debug stack frame beneath it — that frame
+/// is large enough that a deep SwiftUI body type overflows the thread (C-085 build, 2026-09-30).
 @MainActor
 func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
+    switch fixture.view {
+    case "component.ui2.C-037": return try buildUI2C037(fixture)
+    case "component.ui2.C-083": return try buildUI2C083(fixture)
+    case "component.ui2.C-085": return try buildUI2C085(fixture)
+    default: return try buildCaptureViewInline(for: fixture)
+    }
+}
+
+@MainActor @inline(never)
+private func buildCaptureViewInline(for fixture: CaptureFixture) throws -> AnyView {
     let authManager = makeMockAuthManager(from: fixture.auth)
 
+    // One switch per part, each out of line with its own stack frame. In Debug (-Onone)
+    // every case's locals get their own stack slot, and a single switch over every
+    // fixture grew past the 8 MB main-thread stack (EXC_BAD_ACCESS "Thread stack size
+    // exceeded" on entry, 2026-09-30). Add new cases to the LAST part; start a new part
+    // once it holds 25.
+    if let view = try buildCaptureViewPart1(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart2(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart3(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart4(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart5(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart6(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart7(fixture, authManager: authManager) { return view }
+    if let view = try buildCaptureViewPart8(fixture, authManager: authManager) { return view }
+    throw ViewRegistryError.unknownView(fixture.view)
+}
+
+/// Part 1 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart1(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
     switch fixture.view {
     case "component.card-study":
         guard let c = fixture.state?.component else {
@@ -135,7 +168,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardStudy(data: data).padding(16))
-
     case "component.GroupCard":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.GroupCard: missing state.component")
@@ -158,7 +190,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return AnyView(CardGroupMini(data: data).padding(16))
         }
         return AnyView(CardGroup(data: data).padding(16))
-
     case "component.CardEvent":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardEvent: missing state.component")
@@ -173,19 +204,16 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardEvent(data: data).padding(16))
-
     case "pages.login":
         return AnyView(
             LoginView()
                 .environment(authManager)
         )
-
     case "pages.home":
         return AnyView(
             MainView()
                 .environment(authManager)
         )
-
     case "pages.group-home":
         // Group is seeded into AppState by setupCaptureState; GroupHomePage.init
         // reads AppState.groups[groupId] for an immediate (non-loading) first paint.
@@ -200,7 +228,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     // Leader main screens (compare tool, iPhone-first). MemberHomePage applies
     // `pendingSubTab` in .onAppear, so a constant binding selects the tab for the
     // static capture (0 = Groups, 1 = Members, 2 = Enrolled). Data is seeded into
@@ -214,7 +241,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     case "pages.groups-enrolled":
         return AnyView(
             MemberHomePage(
@@ -224,7 +250,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     // MainLibrary defaults to the Programs tab (activeTab 0); programs are read
     // from AppState (seeded from the fixture).
     case "pages.study-programs":
@@ -232,7 +257,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             MainLibrary(overlayManager: OverlayManager())
                 .environment(authManager)
         )
-
     // GlobalSearchPage indexes the seeded programs/groups in AppState; the
     // capture shows its resting (recents/empty) state.
     case "pages.search":
@@ -243,7 +267,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     // MainHome Activity tab (initialTab: 1). Activity-log content needs its own
     // seeding (follow-up); the capture shows the tab + its empty/resting state.
     case "pages.activity":
@@ -251,7 +274,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             MainHome(overlayManager: OverlayManager(), avatarURL: nil, initialTab: 1)
                 .environment(authManager)
         )
-
     // MainLibrary Media tab (initialTab: 1). Media items need their own seeding
     // (follow-up); the capture shows the Media tab + its empty/resting state.
     case "pages.media":
@@ -259,7 +281,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             MainLibrary(overlayManager: OverlayManager(), initialTab: 1)
                 .environment(authManager)
         )
-
     // MainCalendar (no tabs). Calendar events need their own seeding (follow-up);
     // the capture shows the month grid + resting state.
     case "pages.calendar":
@@ -267,7 +288,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             MainCalendar(overlayManager: OverlayManager(), avatarURL: nil)
                 .environment(authManager)
         )
-
     // MemberHomePage Members tab (pendingSubTab: 1). Org-member content needs its
     // own seeding (follow-up); the capture shows the Members tab + resting state.
     case "pages.group-members":
@@ -279,13 +299,11 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     case "pages.create-program":
         return AnyView(
             CreateProgramPage(overlayManager: OverlayManager())
                 .environment(authManager)
         )
-
     case "pages.edit-read-activity":
         let activityId = fixture.state?.activity?.id ?? ""
         let lessonId = fixture.state?.lessonId ?? "capture-lesson-0"
@@ -304,7 +322,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .environment(OverlayManager())
             .environment(authManager)
         )
-
     case "pages.edit-exegesis-activity":
         let activityId = fixture.state?.activity?.id ?? ""
         let programId = fixture.state?.programId ?? "capture-prog-0"
@@ -321,7 +338,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .environment(OverlayManager())
             .environment(authManager)
         )
-
     case "pages.program-home":
         let programId = fixture.state?.programId ?? "capture-prog-0"
         var coverImage: UIImage? = nil
@@ -339,7 +355,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     case "pages.member-request-respond":
         guard let seed = fixture.state?.respond else {
             throw ViewRegistryError.unknownView("pages.member-request-respond: missing state.respond")
@@ -357,7 +372,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             // so the snapshot isn't blank (same fix as pages.add-activity-menu).
             .transaction { $0.disablesAnimations = true }
         )
-
     case "pages.change-membership":
         guard let seed = fixture.state?.changeMembership else {
             throw ViewRegistryError.unknownView("pages.change-membership: missing state.changeMembership")
@@ -384,7 +398,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .transaction { $0.disablesAnimations = true }
         )
-
     // EnrollmentFlowModal (.enrollmentFlow / .programEnrollmentFlow) — the
     // 3-panel enrollment wizard. Only panel 0 is seedable (step index,
     // calendar selection and confirm state are private @State):
@@ -425,7 +438,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .transaction { $0.disablesAnimations = true }
             )
         }
-
     case "pages.edit-day":
         let lessonId = fixture.state?.lessonId ?? "capture-lesson-0"
         let programId = fixture.state?.programId ?? "capture-prog-0"
@@ -442,7 +454,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     case "pages.video-activity-picker":
         return AnyView(
             VideoActivityPicker(
@@ -451,7 +462,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     case "pages.edit-youtube-activity":
         let activityId = fixture.state?.activity?.id ?? ""
         let programId = fixture.state?.programId ?? "capture-prog-0"
@@ -467,7 +477,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
-
     case "pages.edit-user-input-activity":
         let activityId = fixture.state?.activity?.id ?? ""
         let programId = fixture.state?.programId ?? "capture-prog-0"
@@ -483,7 +492,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .environment(authManager)
         )
+    default:
+        return nil
+    }
+}
 
+/// Part 2 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart2(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
     case "component.CardVideo":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardVideo: missing state.component")
@@ -498,7 +515,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardVideo(data: data).padding(16))
-
     case "component.CardVideoMini":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardVideoMini: missing state.component")
@@ -513,7 +529,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardVideoMini(data: data).padding(16))
-
     case "component.CardStudyMini":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardStudyMini: missing state.component")
@@ -529,7 +544,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardStudyMini(data: data).padding(16))
-
     case "component.CardStudySelectable":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardStudySelectable: missing state.component")
@@ -546,7 +560,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             isDisabled: false
         )
         return AnyView(CardStudySelectable(data: data).padding(16))
-
     case "component.CardEventMini":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardEventMini: missing state.component")
@@ -561,7 +574,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardEventMini(data: data).padding(16))
-
     case "component.CardMember":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardMember: missing state.component")
@@ -583,7 +595,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
         }
         return AnyView(CardMember(data: data).padding(16))
-
     case "component.CardContact":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardContact: missing state.component")
@@ -603,7 +614,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
         }
         return AnyView(CardContact(data: data).padding(16))
-
     case "component.CardActivityType":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardActivityType: missing state.component")
@@ -630,7 +640,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return AnyView(catCard.frame(width: 120).padding(16))
         }
         return AnyView(catCard.padding(16))
-
     case "component.CardActivity":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardActivity: missing state.component")
@@ -646,7 +655,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             createdAt: c.createdAt ?? "2026-01-30T12:00:00Z"
         )
         return AnyView(CardActivity(entry: entry).padding(16))
-
     case "component.CardLessonActivity":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardLessonActivity: missing state.component")
@@ -682,7 +690,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             CardLessonActivity(data: laData, size: laSize, showAnimatedBorder: isNewActivity)
                 .padding(16)
         )
-
     case "component.CardLesson":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardLesson: missing state.component")
@@ -749,7 +756,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             isReleased: c.isReleased ?? false
         )
         return AnyView(CardLesson(data: lessonData).padding(16))
-
     case "component.ScheduledLessonCard":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ScheduledLessonCard: missing state.component")
@@ -794,7 +800,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
         )
         return AnyView(ScheduledLessonCard(schedule: schedule).padding(16))
-
     case "component.CardEnrolled":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardEnrolled: missing state.component")
@@ -811,7 +816,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardEnrolled(data: data).padding(16))
-
     case "component.CardProgramFull":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardProgramFull: missing state.component")
@@ -830,7 +834,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             onTap: nil
         )
         return AnyView(CardProgramFull(data: data).padding(16))
-
     case "component.UpcomingLessonCard":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.UpcomingLessonCard: missing state.component")
@@ -870,7 +873,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onTap: nil
             ).padding(16)
         )
-
     case "component.EnrollmentCard":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.EnrollmentCard: missing state.component")
@@ -891,7 +893,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             isActive: !(c.isCompleted ?? false)
         )
         return AnyView(EnrollmentCard(enrollment: enrollment, onTap: nil).padding(16))
-
     case "component.CardMediaFull":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardMediaFull: missing state.component")
@@ -915,7 +916,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             updatedAt: Date(timeIntervalSince1970: 0)
         )
         return AnyView(CardMediaFull(item: item).frame(width: 120).padding(16))
-
     case "component.CardSearchResult":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardSearchResult: missing state.component")
@@ -937,7 +937,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.CardBibleSearchResult":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CardBibleSearchResult: missing state.component")
@@ -952,7 +951,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.GroupPostCard":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.GroupPostCard: missing state.component")
@@ -1006,7 +1004,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             attendeeCount: c.memberCount
         )
         return AnyView(GroupPostCard(post: post).padding(16))
-
     // MARK: - Button
 
     case "component.ActionButton":
@@ -1032,7 +1029,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return ActionButton(icon: c.icon ?? "questionmark", variant: variant, action: {})
         }()
         return AnyView(actionButton.padding(16))
-
     case "component.BoxButton":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.BoxButton: missing state.component")
@@ -1073,8 +1069,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 fullWidth: c.fullWidth ?? false
             ).padding(16)
         )
-
-
     // ===== Display =====
     // MARK: - Display
 
@@ -1087,7 +1081,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             Alert(message: c.message ?? c.text ?? "", variant: alertVariant)
                 .padding(16)
         )
-
     case "component.AlphabetScrubber":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.AlphabetScrubber: missing state.component")
@@ -1100,7 +1093,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(height: 360)
                 .padding(16)
         )
-
     case "component.Avatar":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.Avatar: missing state.component")
@@ -1124,7 +1116,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
+    default:
+        return nil
+    }
+}
 
+/// Part 3 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart3(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
     case "component.DialogOverlay":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.DialogOverlay: missing state.component")
@@ -1142,7 +1142,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .frame(height: 360)
         )
-
     case "component.FullScreenImageViewer":
         // The viewer takes a UIImage; remote fixture URLs can't be loaded
         // synchronously in a deterministic capture, so render the chrome over a
@@ -1151,7 +1150,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             FullScreenImageViewer(image: UIImage(systemName: "photo.fill"))
                 .frame(height: 480)
         )
-
     case "component.GroupSelectorSheet":
         // Self-contained: its GroupFixtureManager @StateObject hardcodes a default
         // group list, so it renders standalone. We only supply the selection binding
@@ -1160,7 +1158,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             GroupSelectorSheet(selectedGroup: .constant(nil))
                 .frame(width: 393, height: 640)
         )
-
     case "component.InfoPanel":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.InfoPanel: missing state.component")
@@ -1173,7 +1170,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             InfoPanel(items: infoItems, mode: infoMode)
                 .padding(16)
         )
-
     // SKIPPED component.InviteQRCodeView: QR image is fetched from the server at
     // runtime (network-dependent + requires AuthManager); a capture would show a
     // non-deterministic ProgressView spinner rather than a QR code.
@@ -1213,7 +1209,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.MemberListItem":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.MemberListItem: missing state.component")
@@ -1247,7 +1242,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             groups: c.groups ?? []
         )
         return AnyView(MemberListItem(member: member, variant: memberVariant).padding(16))
-
     // SKIPPED component.ShareInviteSheet: full-page sheet that embeds
     // InviteQRCodeView (server-fetched QR), and requires AuthManager +
     // OverlayManager — the QR area renders as a non-deterministic spinner.
@@ -1260,7 +1254,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             WeekdayIndicator(enabledDays: Set(c.enabledDays ?? []))
                 .padding(16)
         )
-
     // ===== Input =====
     case "component.AgeRangeInput":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.AgeRangeInput: missing state.component") }
@@ -1274,7 +1267,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .padding(16)
         )
-
     case "component.BackgroundSourceMenu":
         return AnyView(
             BackgroundSourceMenu(
@@ -1284,7 +1276,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.BackgroundSwatch":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.BackgroundSwatch: missing state.component") }
         return AnyView(
@@ -1296,7 +1287,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.BlockStyleEditor":
         // The BlockStyleEditor adapter seeds a one-block READ activity into AppState
         // (via setupCaptureState); the editor reads its background/color/font state
@@ -1329,7 +1319,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .environment(OverlayManager())
             .padding(16)
         )
-
     case "component.CoverImagePicker":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.CoverImagePicker: missing state.component") }
         let coverMode: CoverImagePickerMode = (c.mode == "display") ? .display : .editable
@@ -1343,7 +1332,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.DatePickerField":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.DatePickerField: missing state.component") }
         return AnyView(
@@ -1355,7 +1343,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .padding(16)
         )
-
     case "component.FieldGroup":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.FieldGroup: missing state.component") }
         let items = c.fieldRows ?? []
@@ -1378,7 +1365,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .padding(16)
         )
-
     case "component.InlineFontSizePicker":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.InlineFontSizePicker: missing state.component") }
         return AnyView(
@@ -1388,7 +1374,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.LargeTextInput":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.LargeTextInput: missing state.component") }
         let largeInputType: InputType = {
@@ -1413,7 +1398,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .padding(16)
         )
-
     case "component.MarkdownEditor":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.MarkdownEditor: missing state.component") }
         return AnyView(
@@ -1425,7 +1409,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.MenuInput":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.MenuInput: missing state.component") }
         let menuStyle: MenuInputStyle = {
@@ -1447,7 +1430,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             return MenuInput(
                 label: c.label ?? "",
-                options: c.options ?? [],
+                options: c.options?.strings ?? [],
                 selectedOption: .constant(c.selectedOption ?? ""),
                 style: menuStyle
             )
@@ -1456,7 +1439,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             FieldGroup { menuInput }
                 .padding(16)
         )
-
     case "component.MultilineTextInput":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.MultilineTextInput: missing state.component") }
         return AnyView(
@@ -1468,7 +1450,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .padding(16)
         )
-
     case "component.RichTextInput":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.RichTextInput: missing state.component") }
         return AnyView(
@@ -1481,7 +1462,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.SearchField":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.SearchField: missing state.component") }
         return AnyView(
@@ -1492,7 +1472,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.TagInput":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.TagInput: missing state.component") }
         return AnyView(
@@ -1502,7 +1481,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.TextInput":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.TextInput: missing state.component") }
         let textInputType: InputType = {
@@ -1543,7 +1521,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             FieldGroup { textInput }
                 .padding(16)
         )
-
     case "component.ToggleControl":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.ToggleControl: missing state.component") }
         return AnyView(
@@ -1556,7 +1533,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .padding(16)
         )
-
     // ===== Navigation =====
     case "component.ActionCardMenu":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.ActionCardMenu: missing state.component") }
@@ -1568,7 +1544,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             ) {}
         }
         return AnyView(ActionCardMenu(title: c.title ?? "", items: actionItems).padding(16))
+    default:
+        return nil
+    }
+}
 
+/// Part 4 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart4(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
     // AddActivityMenu fills the screen (.frame(maxWidth/maxHeight: .infinity)) and fades in
     // from opacity 0 on .onAppear, so it can't be a .sizeThatFits component capture — render
     // it as a page (device layout) with animations disabled so the entrance fade resolves
@@ -1582,7 +1566,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .transaction { $0.disablesAnimations = true }
         )
-
     case "pages.member-requests":
         // Seed AppState.pendingJoinRequestsByGroupId from fixture.state
         // .joinRequests; group names/order come from state.groups (already
@@ -1611,7 +1594,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             MemberRequestsPage(overlayManager: OverlayManager(), onRequestApproved: {})
                 .transaction { $0.disablesAnimations = true }
         )
-
     case "pages.member-profile":
         // MemberProfilePage loads its profile over the NETWORK (GroupActions,
         // not AppState), so the harness can only render the seeded pre-load
@@ -1627,7 +1609,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .transaction { $0.disablesAnimations = true }
         )
-
     case "component.AddMenu":
         guard fixture.state?.component != nil else { throw ViewRegistryError.unknownView("component.AddMenu: missing state.component") }
         // AddMenu builds its rows from hardcoded content; the submenu sits offscreen at rest,
@@ -1638,7 +1619,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .environment(AuthManager())
                 .padding(16)
         )
-
     case "component.FilterChipDropdown":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.FilterChipDropdown: missing state.component") }
         let chipItems: [FilterChipDropdownItem] = (c.items ?? []).map { item in
@@ -1655,7 +1635,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.HamburgerMenu":
         guard fixture.state?.component != nil else { throw ViewRegistryError.unknownView("component.HamburgerMenu: missing state.component") }
         // HamburgerMenu rows are hardcoded; fixture items are descriptive only.
@@ -1664,7 +1643,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .environment(OverlayManager())
                 .padding(16)
         )
-
     case "component.InviteMenu":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.InviteMenu: missing state.component") }
         // InviteMenu rows are hardcoded; menuId is the only fixture-driven value.
@@ -1673,7 +1651,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .environment(AuthManager())
                 .padding(16)
         )
-
     case "component.LessonActionMenu":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.LessonActionMenu: missing state.component") }
         let lamSchedule = LessonSchedule(
@@ -1706,7 +1683,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .environment(OverlayManager())
                 .padding(16)
         )
-
     case "component.NavBar":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.NavBar: missing state.component") }
         let navTab: NavBarTab = {
@@ -1721,14 +1697,12 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
         }()
         return AnyView(NavBar(activeTab: navTab, avatarURL: c.avatarURL).padding(16))
-
     case "component.PageHeader":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.PageHeader: missing state.component") }
         return AnyView(
             MakeReady.PageHeader(tabs: c.tabs ?? [], activeTab: .constant(c.activeTab?.intValue ?? 0))
                 .padding(16)
         )
-
     case "component.PageTitle":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.PageTitle: missing state.component") }
         let ptTitle = c.title ?? ""
@@ -1764,14 +1738,12 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
         }()
         return AnyView(ptView.padding(16))
-
     case "component.TabSlider":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.TabSlider: missing state.component") }
         return AnyView(
             TabSlider(tabs: c.tabs ?? [], selectedIndex: .constant(c.selectedIndex ?? 0))
                 .padding(16)
         )
-
     case "component.UserMenu":
         // The UserMenu adapter projects the signed-in user into fixture.auth (→ the
         // mock authManager above) and the org list into component.organizations.
@@ -1788,7 +1760,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .padding(.vertical, 16)
                 .background(Color.appBackground)
         )
-
     // ===== Chart =====
     // MARK: - Chart components
     //
@@ -1823,7 +1794,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .padding(16)
             .frame(height: 220)
         )
-
     case "component.HorizontalBarChart":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.HorizontalBarChart: missing state.component") }
         let resolve: (String?) -> Color = { raw in
@@ -1847,7 +1817,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.VerticalBarChart":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.VerticalBarChart: missing state.component") }
         let resolve: (String?) -> Color = { raw in
@@ -1871,7 +1840,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.HeatMapChart":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.HeatMapChart: missing state.component") }
         let heatPoints: [HeatMapDataPoint] = (c.heatMapPoints ?? []).map {
@@ -1897,7 +1865,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.LineChart":
         guard let c = fixture.state?.component else { throw ViewRegistryError.unknownView("component.LineChart: missing state.component") }
         let dateFormatter = DateFormatter()
@@ -1957,7 +1924,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     // ===== CalContentLoading =====
     // MARK: - Calendar
 
@@ -1975,7 +1941,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return CalendarBottomBar(onTodayTap: {})
         }()
         return AnyView(calBottomBar.padding(16))
-
     case "component.CalendarDayCell":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CalendarDayCell: missing state.component")
@@ -2010,7 +1975,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(width: 48, height: 56)
                 .padding(16)
         )
-
     case "component.CalendarEventListContent":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.CalendarEventListContent: missing state.component")
@@ -2036,11 +2000,9 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onEventTap: { _ in }
             )
         )
-
     case "component.CalendarWeekdayHeader":
         // No props — renders the fixed "S M T W T F S" header row.
         return AnyView(CalendarWeekdayHeader())
-
     // SKIPPED component.SplitMonthCalendar: UIViewControllerRepresentable wrapping a
     // live SplitMonthCalendarController (UICollectionView + scroll/expand/snapshot
     // pipeline). It cannot render meaningfully under .sizeThatFits without a hosting
@@ -2075,7 +2037,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.SelectableLockedBlockView":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.SelectableLockedBlockView: missing state.component")
@@ -2101,7 +2062,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     // SKIPPED component.ThemedContentView: WKWebView that loads a bundled
     // `themed-content.html` and renders via injected JS (window.renderTheme). Web
     // content loads asynchronously, so it produces nothing under a synchronous
@@ -2121,7 +2081,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(width: 320, height: 140)
             .padding(16)
         )
+    default:
+        return nil
+    }
+}
 
+/// Part 5 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
     case "component.ShimmerView":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ShimmerView: missing state.component")
@@ -2149,7 +2117,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
         }()
         return AnyView(shimmerContent.padding(16))
-
     // ===== CardsEtc =====
     // MARK: - Cards (Components/Card/)
 
@@ -2171,25 +2138,18 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             isSelected: c.selected?.boolValue ?? false
         )
         return AnyView(CardGroupMini(data: cgmData).padding(16))
-
     case "component.SkeletonCardGroup":
         return AnyView(SkeletonCardGroup().padding(16))
-
     case "component.SkeletonCardLesson":
         return AnyView(SkeletonCardLesson().padding(16))
-
     case "component.SkeletonCardLessonActivity":
         return AnyView(SkeletonCardLessonActivity().padding(16))
-
     case "component.SkeletonCardMediaFull":
         return AnyView(SkeletonCardMediaFull().frame(width: 120).padding(16))
-
     case "component.SkeletonCardProgramFull":
         return AnyView(SkeletonCardProgramFull().padding(16))
-
     case "component.SkeletonCardStudy":
         return AnyView(SkeletonCardStudy().padding(16))
-
     case "component.SlideButton":
         // SlideButton is a data struct, not a View. Its visual is the circular
         // action button rendered inside SwipeableCard.buttonRow. Reproduce that
@@ -2213,7 +2173,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .clipShape(Circle())
                 .padding(16)
         )
-
     case "component.SwipeableCard":
         // SwipeableCard wraps content and only reveals its action buttons once
         // swiped (abs(offset) > 5). At rest it shows just the content, so render
@@ -2248,7 +2207,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .padding(16)
         )
-
     // MARK: - Domain (Components/Domain/)
 
     case "component.SkeletonEnrollmentCard":
@@ -2262,7 +2220,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 programDays: c.programDays ?? 0
             ).padding(16)
         )
-
     // MARK: - Group (Components/Group/)
 
     case "component.GroupActionButton":
@@ -2276,7 +2233,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 action: {}
             ).padding(16)
         )
-
     case "component.SkeletonPostCard":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.SkeletonPostCard: missing state.component")
@@ -2285,7 +2241,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return AnyView(SkeletonPostCard(programName: name, programImageUrl: c.programImageUrl).padding(16))
         }
         return AnyView(SkeletonPostCard().padding(16))
-
     // MARK: - Feedback (Components/Feedback/)
 
     case "component.ConfirmationOverlay":
@@ -2310,7 +2265,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onDismiss: {}
             )
         )
-
     case "component.ErrorBanner":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ErrorBanner: missing state.component")
@@ -2322,7 +2276,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onDismiss: {}
             )
         )
-
     case "component.UnenrollConfirmation":
         // UnenrollConfirmation is a namespace of static helpers that presents a
         // ConfirmationOverlay (style .warning, "Done" button) via OverlayManager.
@@ -2344,7 +2297,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 onDismiss: {}
             )
         )
-
     // ===== LayoutOverlayVideo =====
     // MARK: - Layout / Overlays / Video
     //
@@ -2397,7 +2349,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             }
             .frame(height: 640)
         )
-
     case "component.SectionedTableView":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.SectionedTableView: missing state.component")
@@ -2428,7 +2379,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(height: 480)
             .padding(16)
         )
-
     case "component.StylePickerMenu":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.StylePickerMenu: missing state.component")
@@ -2449,7 +2399,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(.vertical, 16)
         )
-
     case "component.VideoGridItem":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.VideoGridItem: missing state.component")
@@ -2470,7 +2419,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(16)
         )
-
     case "component.VideoPreview":
         // SelectedAsset/recordedVideoURL both require live media (PHAsset / AVAsset);
         // there's no hook to inject a UIImage thumbnail. Render the empty-placeholder
@@ -2484,7 +2432,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(width: 330, height: 440)
             .padding(16)
         )
-
     case "component.VideoSourceBar":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.VideoSourceBar: missing state.component")
@@ -2505,7 +2452,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             )
             .padding(.vertical, 16)
         )
-
     // ── UI 2.0 preview builds (docs/ui2/preview-build.md) ──
     case "component.ui2.C-045":
         guard let c = fixture.state?.component else {
@@ -2535,7 +2481,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-040":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-040: missing state.component")
@@ -2595,7 +2540,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-024":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-024: missing state.component")
@@ -2642,7 +2586,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
+    default:
+        return nil
+    }
+}
 
+/// Part 6 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
     case "component.ui2.C-021":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-021: missing state.component")
@@ -2664,7 +2616,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity)
                 .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-026":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-026: missing state.component")
@@ -2709,7 +2660,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-034":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-034: missing state.component")
@@ -2738,7 +2688,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-029":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-029: missing state.component")
@@ -2774,7 +2723,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-030":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-030: missing state.component")
@@ -2804,7 +2752,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-019":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-019: missing state.component")
@@ -2873,8 +2820,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .padding(.vertical, UI2Preview.Token.Space.pageMargin)
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
-
     case "component.ui2.C-042":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-042: missing state.component")
@@ -2915,8 +2860,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
-
     case "component.ui2.C-066":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-066: missing state.component")
@@ -2964,7 +2907,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity)
                 .background(UI2Preview.Token.modalBackground)   // §2: the surface C-067 always renders on
         )
-
     // "component.ui2.C-025" — RETIRED 2026-09-21 by `/d2m-component-merge C-023 C-025`:
     // C-025 DayActivityCard was merged into C-023 RailCard as `kind=day`, its fixture retired
     // with its row, and its view (DayActivityCard.swift) removed. The merged view — both
@@ -3032,7 +2974,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-046":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-046: missing state.component")
@@ -3065,7 +3006,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-038":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-038: missing state.component")
@@ -3100,7 +3040,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)             // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-062":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-062: missing state.component")
@@ -3126,7 +3065,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity)             // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-053":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-053: missing state.component")
@@ -3147,7 +3085,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-027":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-027: missing state.component")
@@ -3181,7 +3118,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-022":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-022: missing state.component")
@@ -3233,7 +3169,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-052":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-052: missing state.component")
@@ -3258,7 +3193,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-057":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-057: missing state.component")
@@ -3337,7 +3271,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-035":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-035: missing state.component")
@@ -3373,7 +3306,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-064":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-064: missing state.component")
@@ -3400,7 +3332,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-047":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-047: missing state.component")
@@ -3432,7 +3363,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-048":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-048: missing state.component")
@@ -3467,7 +3397,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-039":
         guard fixture.state?.component != nil else {
             throw ViewRegistryError.unknownView("component.ui2.C-039: missing state.component")
@@ -3486,16 +3415,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity)
                 .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-028":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-028: missing state.component")
         }
         // C-028 §4 gives neither `options` nor `selected` a default, so a nil is a fixture
         // bug, not a value to guess. Both reuse existing fields under the contract's own
-        // names: `options` is already `[String]?`; `selected` was `Bool?` and is retyped to
+        // names: `options` decodes `[String]` (`.strings`, retyped for C-036); `selected` was `Bool?` and is retyped to
         // decode Bool-or-String (CaptureFixture.swift) — C-028's is the String.
-        guard let ui2C028Options = c.options else {
+        guard let ui2C028Options = c.options?.strings else {
             throw ViewRegistryError.unknownView("component.ui2.C-028: props.options is required")
         }
         guard let ui2C028Selected = c.selected?.stringValue else {
@@ -3511,7 +3439,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-049":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-049: missing state.component")
@@ -3547,7 +3474,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-077":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-077: missing state.component")
@@ -3584,7 +3510,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
+    default:
+        return nil
+    }
+}
 
+/// Part 7 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
     case "component.ui2.C-051":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-051: missing state.component")
@@ -3619,7 +3553,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-050":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-050: missing state.component")
@@ -3641,7 +3574,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-078":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-078: missing state.component")
@@ -3662,7 +3594,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-070":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-070: missing state.component")
@@ -3702,7 +3633,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-071":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-071: missing state.component")
@@ -3741,7 +3671,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-023":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-023: missing state.component")
@@ -3878,7 +3807,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-031":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-031: missing state.component")
@@ -3926,7 +3854,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-068":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-068: missing state.component")
@@ -3950,7 +3877,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-043":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-043: missing state.component")
@@ -3984,7 +3910,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-076":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-076: missing state.component")
@@ -4032,7 +3957,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity, alignment: .leading)  // fill the device width the runner renders at
                 .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "component.ui2.C-020":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-020: missing state.component")
@@ -4077,7 +4001,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)                       // fill the device width the runner renders at
             .background(UI2Preview.Token.layoutBackground)    // OQ-PB-2 default
         )
-
     case "screen.2.0.edit-text-single-field":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("screen.2.0.edit-text-single-field: missing state.component")
@@ -4103,7 +4026,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return AnyView(screen.frame(width: 440, height: CGFloat(height), alignment: .top))
         }
         return AnyView(screen.frame(width: 440))
-
     case "screen.2.0.edit-option-field":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("screen.2.0.edit-option-field: missing state.component")
@@ -4113,7 +4035,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             state: .init(
                 title: c.title ?? "Visibility",
                 description: c.description ?? "Visibility determines who is able to view the group",
-                options: c.options ?? ["Private", "Public"],
+                options: c.options?.strings ?? ["Private", "Public"],
                 optionDescriptions: c.optionDescriptions ?? [
                     "Only active members of the group can view information about the group, organization, and group leader.",
                     "Anyone can search and view information about the group and the group leader."
@@ -4129,7 +4051,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return AnyView(screen.frame(width: 440, height: CGFloat(height), alignment: .top))
         }
         return AnyView(screen.frame(width: 440))
-
     case "screen.2.0.edit-options-custom-field":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("screen.2.0.edit-options-custom-field: missing state.component")
@@ -4139,7 +4060,7 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             state: .init(
                 title: c.title ?? "Age range",
                 description: c.description ?? "If an age range is specified, then every member who joins must fall within the specified range.",
-                options: c.options ?? ["Any age", "18 - 25", "26 - 35", "36 - 50", "Custom range"],
+                options: c.options?.strings ?? ["Any age", "18 - 25", "26 - 35", "36 - 50", "Custom range"],
                 presetMinimums: c.presetMinimums ?? [18, 26, 36],
                 presetMaximums: c.presetMaximums ?? [25, 35, 50],
                 minimumLabel: c.minimumLabel ?? "Minimum age",
@@ -4160,7 +4081,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return AnyView(screen.frame(width: 440, height: CGFloat(height), alignment: .top))
         }
         return AnyView(screen.frame(width: 440))
-
     case "screen.2.0.edit-text-multi-field":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("screen.2.0.edit-text-multi-field: missing state.component")
@@ -4187,7 +4107,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             return AnyView(screen.frame(width: 440, height: CGFloat(height), alignment: .top))
         }
         return AnyView(screen.frame(width: 440))
-
     case "component.ui2.C-032":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-032: missing state.component")
@@ -4212,7 +4131,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-054":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-054: missing state.component")
@@ -4284,7 +4202,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-060":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-060: missing state.component")
@@ -4309,7 +4226,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-079":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-079: missing state.component")
@@ -4335,7 +4251,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-067":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-067: missing state.component")
@@ -4364,7 +4279,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-080":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-080: missing state.component")
@@ -4397,7 +4311,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "screen.2.0.home-dashboard":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("screen.2.0.home-dashboard: missing state.component")
@@ -4469,84 +4382,10 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 groupShowLinks: c.groupShowLinks ?? sample.groupShowLinks
             )
         ))
-
     case "component.ui2.C-037":
-        guard let c = fixture.state?.component else {
-            throw ViewRegistryError.unknownView("component.ui2.C-037: missing state.component")
-        }
-        // C-037 §4: `subject`, `title`, `detail` and `trailing` are required (no contract
-        // default), so a nil is a fixture bug. `description`/`count`/`imageURL`/`initials`
-        // default to nil and `chips` to []; `onTap` (nil = inert) and `onCancel` (no-op) have no
-        // render effect in a still capture.
-        let ui2C037Subject: UI2Preview.ListResultRow.Subject
-        switch c.subject {
-        case "member": ui2C037Subject = .member
-        case "group": ui2C037Subject = .group
-        default:
-            throw ViewRegistryError.unknownView("component.ui2.C-037: props.subject must be member|group")
-        }
-        guard let ui2C037Title = c.title else {
-            throw ViewRegistryError.unknownView("component.ui2.C-037: props.title is required")
-        }
-        let ui2C037Detail: UI2Preview.ListResultRow.Detail
-        switch c.detail {
-        case "text": ui2C037Detail = .text
-        case "chips": ui2C037Detail = .chips
-        default:
-            throw ViewRegistryError.unknownView("component.ui2.C-037: props.detail must be text|chips")
-        }
-        let ui2C037Trailing: UI2Preview.ListResultRow.Trailing
-        switch c.trailing {
-        case "chevron": ui2C037Trailing = .chevron
-        case "cancel": ui2C037Trailing = .cancel
-        case "none": ui2C037Trailing = .none
-        default:
-            throw ViewRegistryError.unknownView("component.ui2.C-037: props.trailing must be chevron|cancel|none")
-        }
-        // Each `chips` entry is a C-043 MetaChip's own §4 props, spelled as C-043 §4 spells them
-        // (`state` default|purple|complete, `align` left|right) with C-043's defaults.
-        var ui2C037Chips: [UI2Preview.ListResultRow.Chip] = []
-        for (index, item) in (c.chips ?? []).enumerated() {
-            guard let value = item.value else {
-                throw ViewRegistryError.unknownView("component.ui2.C-037: chips[\(index)].value is required")
-            }
-            guard let state = UI2Preview.MetaChip.State(rawValue: item.state ?? "default") else {
-                throw ViewRegistryError.unknownView(
-                    "component.ui2.C-037: chips[\(index)].state must be default|purple|complete")
-            }
-            guard let align = UI2Preview.MetaChip.Align(rawValue: item.align ?? "left") else {
-                throw ViewRegistryError.unknownView("component.ui2.C-037: chips[\(index)].align must be left|right")
-            }
-            ui2C037Chips.append(.init(value: value, label: item.label, state: state, align: align))
-        }
-        // Seed the photo synchronously so the snapshot's single layout pass can render it —
-        // same mechanism and same reason as the C-033 / C-038 / C-054 cases above.
-        let ui2C037ImageURL = c.imageURL.flatMap(URL.init(string:))
-        if let photoURL = ui2C037ImageURL, photoURL.scheme?.hasPrefix("http") == true,
-           let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
-        }
-        return AnyView(
-            UI2Preview.ListResultRow(
-                subject: ui2C037Subject,
-                title: ui2C037Title,
-                detail: ui2C037Detail,
-                description: c.description,
-                count: c.count,
-                chips: ui2C037Chips,
-                trailing: ui2C037Trailing,
-                imageURL: ui2C037ImageURL,
-                initials: c.initials
-            )
-            // C-037 deviation 1 (OQ-C-037-5): "the row fills its container; width is not a
-            // variant (the sheet's 382 vs consumers' 408 is the sheet cell)" — the consumers'
-            // 408 is the master width; width, margin and ground live here.
-            .frame(width: 408)
-            .padding(UI2Preview.Token.Space.pageMargin)
-            .frame(maxWidth: .infinity)
-            .background(UI2Preview.Token.layoutBackground)
-        )
-
+        // Out of line to keep buildCaptureView's Debug stack frame under the thread limit
+        // (moved 2026-09-30 when the C-085 case overflowed it; body unchanged).
+        return try buildUI2C037(fixture)
     case "component.ui2.C-061":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-061: missing state.component")
@@ -4567,7 +4406,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "screen.2.0.create-study-program":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("screen.2.0.create-study-program: missing state.component")
@@ -4584,7 +4422,15 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 errorMessage: c.errorMessage ?? sample.errorMessage
             )
         ))
+    default:
+        return nil
+    }
+}
 
+/// Part 8 of `buildCaptureView` — nil when `fixture.view` is not one of its cases.
+@MainActor @inline(never)
+private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthManager) throws -> AnyView? {
+    switch fixture.view {
     case "component.ui2.C-065":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-065: missing state.component")
@@ -4613,7 +4459,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-082":
         guard fixture.state?.component != nil else {
             throw ViewRegistryError.unknownView("component.ui2.C-082: missing state.component")
@@ -4629,7 +4474,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 .frame(maxWidth: .infinity)
                 .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
         )
-
     case "component.ui2.C-055":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-055: missing state.component")
@@ -4667,7 +4511,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-059":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-059: missing state.component")
@@ -4730,7 +4573,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-063":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-063: missing state.component")
@@ -4792,7 +4634,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "component.ui2.C-081":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-081: missing state.component")
@@ -4833,7 +4674,6 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
             .frame(maxWidth: .infinity)
             .background(UI2Preview.Token.layoutBackground)
         )
-
     case "screen.2.0.members-profile":
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("screen.2.0.members-profile: missing state.component")
@@ -4893,9 +4733,125 @@ func buildCaptureView(for fixture: CaptureFixture) throws -> AnyView {
                 programCoverURLs: c.programCoverURLs ?? sample.programCoverURLs
             )
         ))
-
+    case "component.ui2.C-036":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-036: missing state.component")
+        }
+        // §4 `options` is required (R-07) and IS the component, so a nil is a fixture bug.
+        // `options` decodes the object shape here (`.items`) — see CaptureStringsOrOptions.
+        guard let ui2C036Options = c.options?.items else {
+            throw ViewRegistryError.unknownView("component.ui2.C-036: props.options ([Option]) is required")
+        }
+        // OQ-C-036-009's selection API: `selectionMode` and `selectedIDs` are both required
+        // (R-07); an empty `selectedIDs` is legal (a plain option menu with no checkmark).
+        let ui2C036Mode: UI2Preview.FilterMenuOverlay.SelectionMode
+        switch c.selectionMode {
+        case "single": ui2C036Mode = .single
+        case "multiple": ui2C036Mode = .multiple
+        default:
+            throw ViewRegistryError.unknownView("component.ui2.C-036: props.selectionMode must be single|multiple")
+        }
+        guard let ui2C036Selected = c.selectedIDs else {
+            throw ViewRegistryError.unknownView("component.ui2.C-036: props.selectedIDs is required (may be [])")
+        }
+        let ui2C036View = UI2Preview.FilterMenuOverlay(
+            options: ui2C036Options.map {
+                UI2Preview.FilterMenuOverlay.Option(id: $0.id, label: $0.label, glyph: $0.glyph)
+            },
+            selectionMode: ui2C036Mode,
+            selectedIDs: Set(ui2C036Selected)
+        )
+        // The Presented state (§3) is the same view through the §4 modifier; the other states
+        // are the bare view, which paints no dim (OQ-C-036-4).
+        let ui2C036Content: AnyView = c.isPresented.map {
+            AnyView(ui2C036View.filterMenuPresentation(isPresented: $0))
+        } ?? AnyView(ui2C036View)
+        return AnyView(
+            ui2C036Content
+                // The frozen frame is 440×893 (§1). A component renders with no safe area, so
+                // Figma's list top y=53 — OQ-C-036-6: "Figma's 53 stands in for the status
+                // bar" — is supplied here as the top safe-area inset, and the zero bottom inset
+                // puts the close button's bottom at `space-section-gap` (y=817, as drawn).
+                .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 53) }
+                .frame(width: 440, height: 893)
+                .frame(maxWidth: .infinity)
+                .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+        )
+    case "screen.2.0.members-home":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("screen.2.0.members-home: missing state.component")
+        }
+        // A missing field takes this build's `populated` sample (the preview linked to the frozen
+        // frame `default`), single-sourced on the screen's State.
+        let sample = UI2Preview.MembersHomeScreen.State.populated
+        // C-038 photos inside C-037: the fixture names each image by URL and the harness resolves
+        // the bytes into the preview module's cache (the home-dashboard seam) — the view itself
+        // performs no network.
+        for raw in c.memberPhotoURLs ?? sample.memberPhotoURLs {
+            if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
+               UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+               let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
+                UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            }
+        }
+        // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
+        // max(its height, the content's length), under the top safe area — the bare screen here.
+        return AnyView(UI2Preview.MembersHomeScreen(
+            state: .init(
+                searchText: c.searchText ?? sample.searchText,
+                groupFilterLabel: c.groupFilterLabel ?? sample.groupFilterLabel,
+                leaderFilterLabel: c.leaderFilterLabel ?? sample.leaderFilterLabel,
+                groupOptions: c.groupOptions ?? sample.groupOptions,
+                leaderOptions: c.leaderOptions ?? sample.leaderOptions,
+                memberNames: c.memberNames ?? sample.memberNames,
+                memberPhotoURLs: c.memberPhotoURLs ?? sample.memberPhotoURLs,
+                memberJoinedLabels: c.memberJoinedLabels ?? sample.memberJoinedLabels,
+                memberGroupCounts: c.memberGroupCounts ?? sample.memberGroupCounts
+            )
+        ))
+    case "component.ui2.C-058":
+        guard let c = fixture.state?.component else {
+            throw ViewRegistryError.unknownView("component.ui2.C-058: missing state.component")
+        }
+        // C-058 §4: `groupName` and `leaderName` are required (no contract default), so a nil is a
+        // fixture bug. `imageURL` / `initials` default to nil; `onOpen` has R-03's no-op default
+        // and no render effect.
+        guard let ui2C058GroupName = c.groupName else {
+            throw ViewRegistryError.unknownView("component.ui2.C-058: props.groupName is required")
+        }
+        guard let ui2C058LeaderName = c.leaderName else {
+            throw ViewRegistryError.unknownView("component.ui2.C-058: props.leaderName is required")
+        }
+        // Seed the photo synchronously so the snapshot's single layout pass can render it —
+        // same mechanism and same reason as the C-033 / C-038 / C-054 cases above.
+        let ui2C058ImageURL = c.imageURL.flatMap(URL.init(string:))
+        if let photoURL = ui2C058ImageURL, photoURL.scheme?.hasPrefix("http") == true,
+           let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
+            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+        }
+        return AnyView(
+            UI2Preview.GroupSectionHeader(
+                groupName: ui2C058GroupName,
+                leaderName: ui2C058LeaderName,
+                imageURL: ui2C058ImageURL,
+                initials: c.initials
+            )
+            // C-058 §2: the row "fills the width it is given (408 at design)" — the master width,
+            // margin and ground live here (R-16).
+            .frame(width: 408)
+            .padding(UI2Preview.Token.Space.pageMargin)
+            .frame(maxWidth: .infinity)
+            .background(UI2Preview.Token.layoutBackground)
+        )
+    case "component.ui2.C-083":
+        // Out of line on purpose: buildCaptureView's Debug stack frame is at the thread's
+        // limit, and one more inline case overflows it (crash in the C-083 build, 2026-09-30).
+        return try buildUI2C083(fixture)
+    case "component.ui2.C-085":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildUI2C085(fixture)
     default:
-        throw ViewRegistryError.unknownView(fixture.view)
+        return nil
     }
 }
 
@@ -4908,6 +4864,154 @@ private let ui2ChartDateFormatter: DateFormatter = {
     f.dateFormat = "yyyy-MM-dd"
     return f
 }()
+
+/// `component.ui2.C-083` — C-083 NavBarButton. See the case in `buildCaptureView`.
+@MainActor @inline(never)
+private func buildUI2C083(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-083: missing state.component")
+    }
+    // C-083 §4: `glyph`, `accessibilityLabel` and `active` are required (R-07), so a nil is
+    // a fixture bug; `glyph` must be a library glyph. `onTap` is a no-op in the view.
+    guard let ui2C083GlyphRaw = c.glyph else {
+        throw ViewRegistryError.unknownView("component.ui2.C-083: missing props.glyph")
+    }
+    guard let ui2C083Glyph = UI2Preview.GlyphName(rawValue: ui2C083GlyphRaw) else {
+        throw ViewRegistryError.unknownView("component.ui2.C-083: props.glyph \"\(ui2C083GlyphRaw)\" is not a library glyph")
+    }
+    guard let ui2C083Label = c.accessibilityLabel else {
+        throw ViewRegistryError.unknownView("component.ui2.C-083: missing props.accessibilityLabel")
+    }
+    guard let ui2C083Active = c.active else {
+        throw ViewRegistryError.unknownView("component.ui2.C-083: missing props.active")
+    }
+    return AnyView(
+        UI2Preview.NavBarButton(
+            glyph: ui2C083Glyph,
+            accessibilityLabel: ui2C083Label,
+            active: ui2C083Active
+        )
+        // C-083 §2: minimum width 54 (16 + 22 + 16) — the designed symbol width. Margin
+        // and ground live here (R-16).
+        .frame(width: 54)
+        .padding(UI2Preview.Token.Space.pageMargin)
+        .frame(maxWidth: .infinity)
+        .background(UI2Preview.Token.layoutBackground)
+    )
+}
+
+@MainActor @inline(never)
+private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-085: missing state.component")
+    }
+    // C-085 §4: `kind`, `title` and `trailing` are required (R-07), so a nil is a fixture bug;
+    // `description` defaults to nil. `onTap` / `onRemove` are no-ops in a still capture.
+    guard let ui2C085Kind = c.kind.flatMap(UI2Preview.SearchResultRow.Kind.init(rawValue:)) else {
+        throw ViewRegistryError.unknownView(
+            "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post")
+    }
+    guard let ui2C085Title = c.title else {
+        throw ViewRegistryError.unknownView("component.ui2.C-085: props.title is required")
+    }
+    guard let ui2C085Trailing = c.trailing.flatMap(UI2Preview.SearchResultRow.Trailing.init(rawValue:)) else {
+        throw ViewRegistryError.unknownView("component.ui2.C-085: props.trailing must be remove|none")
+    }
+    return AnyView(
+        UI2Preview.SearchResultRow(
+            kind: ui2C085Kind,
+            title: ui2C085Title,
+            description: c.description,
+            trailing: ui2C085Trailing
+        )
+        // C-085 §1: the instance is 408 wide on search-home — the master width. Margin and
+        // ground live here (R-16).
+        .frame(width: 408)
+        .padding(UI2Preview.Token.Space.pageMargin)
+        .frame(maxWidth: .infinity)
+        .background(UI2Preview.Token.layoutBackground)
+    )
+}
+
+@MainActor @inline(never)
+private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-037: missing state.component")
+    }
+    // C-037 §4: `subject`, `title`, `detail` and `trailing` are required (no contract
+    // default), so a nil is a fixture bug. `description`/`count`/`imageURL`/`initials`
+    // default to nil and `chips` to []; `onTap` (nil = inert) and `onCancel` (no-op) have no
+    // render effect in a still capture.
+    let ui2C037Subject: UI2Preview.ListResultRow.Subject
+    switch c.subject {
+    case "member": ui2C037Subject = .member
+    case "group": ui2C037Subject = .group
+    default:
+        throw ViewRegistryError.unknownView("component.ui2.C-037: props.subject must be member|group")
+    }
+    guard let ui2C037Title = c.title else {
+        throw ViewRegistryError.unknownView("component.ui2.C-037: props.title is required")
+    }
+    let ui2C037Detail: UI2Preview.ListResultRow.Detail
+    switch c.detail {
+    case "text": ui2C037Detail = .text
+    case "chips": ui2C037Detail = .chips
+    default:
+        throw ViewRegistryError.unknownView("component.ui2.C-037: props.detail must be text|chips")
+    }
+    let ui2C037Trailing: UI2Preview.ListResultRow.Trailing
+    switch c.trailing {
+    case "chevron": ui2C037Trailing = .chevron
+    case "cancel": ui2C037Trailing = .cancel
+    case "none": ui2C037Trailing = .none
+    default:
+        throw ViewRegistryError.unknownView("component.ui2.C-037: props.trailing must be chevron|cancel|none")
+    }
+    // Each `chips` entry is a C-043 MetaChip's own §4 props, spelled as C-043 §4 spells them
+    // (`state` default|purple|complete, `align` left|right) with C-043's defaults.
+    var ui2C037Chips: [UI2Preview.ListResultRow.Chip] = []
+    for (index, item) in (c.chips ?? []).enumerated() {
+        guard let value = item.value else {
+            throw ViewRegistryError.unknownView("component.ui2.C-037: chips[\(index)].value is required")
+        }
+        guard let state = UI2Preview.MetaChip.State(rawValue: item.state ?? "default") else {
+            throw ViewRegistryError.unknownView(
+                "component.ui2.C-037: chips[\(index)].state must be default|purple|complete")
+        }
+        guard let align = UI2Preview.MetaChip.Align(rawValue: item.align ?? "left") else {
+            throw ViewRegistryError.unknownView("component.ui2.C-037: chips[\(index)].align must be left|right")
+        }
+        ui2C037Chips.append(.init(value: value, label: item.label, state: state, align: align))
+    }
+    // Seed the photo synchronously so the snapshot's single layout pass can render it —
+    // same mechanism and same reason as the C-033 / C-038 / C-054 cases above.
+    let ui2C037ImageURL = c.imageURL.flatMap(URL.init(string:))
+    if let photoURL = ui2C037ImageURL, photoURL.scheme?.hasPrefix("http") == true,
+       let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
+        UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+    }
+    return AnyView(
+        UI2Preview.ListResultRow(
+            subject: ui2C037Subject,
+            title: ui2C037Title,
+            detail: ui2C037Detail,
+            description: c.description,
+            count: c.count,
+            chips: ui2C037Chips,
+            trailing: ui2C037Trailing,
+            imageURL: ui2C037ImageURL,
+            initials: c.initials
+        )
+        // C-037 deviation 1 (OQ-C-037-5): "the row fills its container; width is not a
+        // variant (the sheet's 382 vs consumers' 408 is the sheet cell)" — the consumers'
+        // 408 is the master width; width, margin and ground live here.
+        .frame(width: 408)
+        .padding(UI2Preview.Token.Space.pageMargin)
+        .frame(maxWidth: .infinity)
+        .background(UI2Preview.Token.layoutBackground)
+    )
+}
+
 
 private func makeUI2ChartDate(_ raw: String?) -> Date? {
     guard let raw else { return nil }
