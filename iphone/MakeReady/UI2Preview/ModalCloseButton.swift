@@ -27,7 +27,7 @@ struct ModalCloseButton: View {
     }
 
     var body: some View {
-        Button(action: onClose) {
+        SwiftUI.Button(action: onClose) {
             // §2 Glyph: `close-carbon`, 24×24 (GlyphSize.md), centred — inset 10 on every side.
             // FLAGGED LITERAL — C-082 §2: glyph tint `color-slate-900`, a palette step with no
             // semantic token (the same flagged literal-by-token C-036 §2 uses).

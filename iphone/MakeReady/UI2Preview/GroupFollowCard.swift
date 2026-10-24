@@ -127,7 +127,7 @@ struct GroupFollowCard: View {
         VStack(alignment: .leading, spacing: Token.Space.elementGap) {
             // §2: "C-038 Avatar at 64 — 64×64, `radius-circle`, image cover-cropped (the
             // source's 64×88 inner frame is the crop, not a size)."
-            Avatar(imageURL: photoURL, size: Self.avatarSize)
+            Avatar(imageURL: photoURL.flatMap(URL.init(string:)), initials: nil, size: Self.avatarSize)
             // §2: "Title — `type-title-card` (Bold 14/20) `color-text-primary`, full content
             // width, WRAPS (the source sets `word-break: break-word`, not truncation)."
             Text(title)
@@ -292,9 +292,9 @@ struct GroupFollowCard: View {
 // asserted convention — which is what OQ-C-033-7 was waiting on.
 //
 // Removed rather than kept beside it: `UI2Preview` is one module and one flat namespace, so
-// two `struct Avatar` declarations do not compile. The call site above is unchanged — the real
-// view's `init` defaults `state` to C-038 §4's content derivation, so `Avatar(imageURL:size:)`
-// still resolves.
+// two `struct Avatar` declarations do not compile. C-038's state is derived-only (OQ-C-038-3),
+// so the call site above passes content alone — the photo URL, and no initials (a group has
+// none).
 
 // MARK: - C-057 PercentBar
 

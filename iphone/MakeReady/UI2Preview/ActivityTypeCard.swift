@@ -36,7 +36,7 @@ struct ActivityTypeCard: View {
     var onTap: () -> Void = {}
 
     var body: some View {
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             // §2: "Vertical stack, leading-aligned, stack gap `space-row-gap` (24)".
             VStack(alignment: .leading, spacing: Token.Space.rowGap) {
                 // §2.1 Glyph: "library glyph, 32×32 box, tinted `color-accent`".

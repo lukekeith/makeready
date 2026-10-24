@@ -35,7 +35,9 @@ struct SectionHeader: View {
         case none
         case meta(value: String, label: String, glyph: GlyphButton.Glyph)
         case link(label: String, style: LinkButton.Style)
-        case dropdown(options: [String], selected: String)
+        /// §4 owner ruling: "`dropdown` is a trigger, not a chooser" — it carries only the
+        /// `label` the caller sets from its own current selection; no option list, no selection.
+        case dropdown(label: String)
         case caption(label: String, glyph: GlyphButton.Glyph)
     }
 
@@ -47,11 +49,10 @@ struct SectionHeader: View {
     /// §4 `accessory` — "**Defaults to `.none`** — the designed bare form (invite-home)".
     var accessory: Accessory = .none
     /// §4 `onAccessoryTap` — "raised by the accessory's one action: the C-021 button in `meta`
-    /// and `caption`, the C-049 link in `link`. No-op default (R-03)".
+    /// and `caption`, the C-049 link in `link`, and the label-and-chevron trigger in `dropdown`.
+    /// No-op default (R-03)". §4: "The prior `options`, `selected` and `onSelect` props are
+    /// removed" — the C-036 the presenter shows owns the choice.
     var onAccessoryTap: () -> Void = {}
-    /// §4 `onSelect` — "the `dropdown` accessory's commit, passed straight through to C-028
-    /// `onSelect` … No-op default; inert for every other accessory".
-    var onSelect: (String) -> Void = { _ in }
 
     var body: some View {
         // §2 Row: "horizontal, `items: center`, gap **8** = `space-element-gap`". Height falls
@@ -113,7 +114,7 @@ struct SectionHeader: View {
             // §2: "C-022 MetaPair `layout=inline align=Left` … + 16 + C-021 GlyphButton".
             HStack(alignment: .center, spacing: Self.clusterGap) {
                 MetaPair(value: value, label: label, layout: .inline, align: .left)
-                GlyphButton(glyph: glyph, action: onAccessoryTap)
+                GlyphButton(glyph: glyph, onTap: onAccessoryTap)
             }
             .ui2Element("Accessory")
 
@@ -122,9 +123,15 @@ struct SectionHeader: View {
             LinkButton(label: label, style: linkStyle, onTap: onAccessoryTap)
                 .ui2Element("Accessory")
 
-        case let .dropdown(options, selected):
-            // §2: "C-028 InlineDropdown alone".
-            InlineDropdown(options: options, selected: selected, onSelect: onSelect)
+        case let .dropdown(label):
+            // §4: "The `dropdown` trigger takes only its look from C-028". C-028 renders exactly
+            // `selected` and nothing of `options` (C-028 §4), so the label goes in as both; the
+            // option set belongs to the C-036 the presenter shows on `onAccessoryTap`.
+            // Simultaneous, because C-028 already holds its ruled 44pt tap shape (OQ-C-028-3).
+            InlineDropdown(options: [label], selected: label)
+                .simultaneousGesture(TapGesture().onEnded(onAccessoryTap))
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction(.default, onAccessoryTap)
                 .ui2Element("Accessory")
 
         case let .caption(label, glyph):
@@ -147,7 +154,7 @@ struct SectionHeader: View {
                 .fixedSize()
                 .frame(height: Self.captionLineBox)
                 .ui2Element("Caption")
-            GlyphButton(glyph: glyph, action: onAccessoryTap)
+            GlyphButton(glyph: glyph, onTap: onAccessoryTap)
         }
         // The 44pt target spans the cluster: an expanded tap SHAPE centred on the 24pt row, not
         // a larger frame, so the row stays 24 — the construction C-021 / C-049 use.

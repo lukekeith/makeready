@@ -31,9 +31,17 @@ struct RadioOptionRow: View {
     /// §4: `selected: Bool` — whether this option is the chosen one. Maps to Figma `state`
     /// (`Selected` ↔ `true`, `Default` ↔ `false`).
     let selected: Bool
+    /// §4: `recommended: Bool` (default `false`) — an 18pt `star-filled-carbon` in
+    /// `color-amber-400` 10pt after the title. Independent of `selected`; maps to the Figma
+    /// `Icon` layer's visibility (shown in `Recommended` `4692:45996`).
+    var recommended: Bool = false
+    /// §4: `disabled: Bool` (default `false`) — the whole row at 0.4 opacity and `onSelect`
+    /// not fired (OQ-C-047-2, owner 2026-09-16). No Figma symbol.
+    var disabled: Bool = false
     /// §4: `onSelect: () -> Void` — fired when the row is tapped; the consumer updates its
-    /// selection and re-renders the stack. Interaction-bearing, so it has no render effect;
-    /// emitted as a defaulted no-op so the promoted view keeps its real signature.
+    /// selection and re-renders the stack. Not fired while `disabled`. Interaction-bearing,
+    /// so it has no render effect; emitted as a defaulted no-op so the promoted view keeps
+    /// its real signature.
     var onSelect: () -> Void = {}
 
     var body: some View {
@@ -46,11 +54,21 @@ struct RadioOptionRow: View {
         // and its consumer owns the page margin (§1 deviation 2).
         .padding(.vertical, Self.padY)
         .frame(maxWidth: .infinity, alignment: .leading)
-        // §3c (OQ-C-047-1 proposed default): the whole row is the hit target, and there is
-        // no pressed treatment beyond the selection change itself — so a tap gesture on the
-        // row's shape rather than a `Button`, whose `.plain` style still dims on press.
+        // §3c (OQ-C-047-1, ruled): the whole row is the hit target, and there is no pressed
+        // treatment beyond the selection change itself — so a tap gesture on the row's shape
+        // rather than a `Button`, whose `.plain` style still dims on press.
         .contentShape(Rectangle())
         .onTapGesture(perform: onSelect)
+        // §2 Disabled (OQ-C-047-2, ruled): "the whole row — text column, recommended mark
+        // and glyph — at 0.4 opacity … the row ignores taps (`onSelect` not fired)".
+        .opacity(disabled ? Self.disabledOpacity : 1)
+        .allowsHitTesting(!disabled)
+        // §2 Accessibility (D28, R-17): the row is the one interactive element — one combined
+        // label ("<title>, recommended" when the mark shows, OQ-C-047-001), a button, selected
+        // when `selected`, not enabled when `disabled`.
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
+        .disabled(disabled)
         .ui2Element("RadioOptionRow")               // capture element map — UI2Element.swift
     }
 
@@ -63,10 +81,46 @@ struct RadioOptionRow: View {
     //   54  = 16 + 22 + 16            title only — the 22pt glyph is taller than the 20pt
     //                                 title box, so the glyph sets the height
     //   80  = 16 + 20 + 8 + 20 + 16   one-line description
-    //   100 = 16 + 20 + 8 + 40 + 16   the sampled two-line description; a longer one keeps
-    //                                 growing (§1 deviation 5, OQ-C-047-3)
+    //   100 = 16 + 20 + 8 + 40 + 16   the sampled two-line description
+    //   120 = 16 + 20 + 8 + 60 + 16   the three-line cap — never exceeded (OQ-C-047-3)
+    // The recommended mark never changes them (18 < the 20pt title line).
     private var textColumn: some View {
         VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+            titleLine
+            if let description {
+                Text(description)
+                    // §2 Description: "SF Pro Regular 14/20 (`type-page-title`),
+                    // `color-text-secondary`, wraps to at most three lines, tail ellipsis
+                    // beyond, full column width" (OQ-C-047-3, owner 2026-09-16).
+                    // Not `designTextStyle`: its lineSpacing (lineHeight − size = 6) is added
+                    // to SF Pro's natural ~16.7 line, a 22.7pt pitch that made the three-line
+                    // cap 62.3 tall, not 60. Spend only the line box less the natural line
+                    // height — between lines, and half above / half below — so n lines are
+                    // exactly n × 20 (same construction as C-023's title / KPIPickerRow).
+                    .font(Token.TypeStyle.pageTitle.font)
+                    .tracking(Token.TypeStyle.pageTitle.tracking)
+                    .lineSpacing(Self.descriptionLeading)
+                    .padding(.vertical, Self.descriptionLeading / 2)
+                    .foregroundStyle(Token.textSecondary)
+                    .lineLimit(Self.descriptionLineCap)
+                    .truncationMode(.tail)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    // The capture harness measures with `sizeToFit()` on zero bounds, a NUMERIC
+                    // height proposal; `fixedSize` makes the text size to its own lines.
+                    .fixedSize(horizontal: false, vertical: true)
+                    .ui2Element("Description")
+            }
+        }
+        // `flex 1 0 0`: the column takes every point the glyph leaves, and never pushes it.
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // §2 Title line: "row, height 20, `items-center`, gap 10 between title and recommended
+    // mark; hugs its content (the mark sits right after the text, never trailing-aligned)".
+    // §2 Title: "with the mark shown the title truncates first — the mark is never clipped"
+    // (OQ-C-047-001): the mark is `fixedSize`, so only the title gives way.
+    private var titleLine: some View {
+        HStack(alignment: .center, spacing: Self.markGap) {
             Text(title)
                 // §2 Title: "SF Pro Regular 14/20 (`type-page-title` face), `color-text-primary`,
                 // single line, height 20, nowrap, overflow hidden, ellipsis". `type-page-title`
@@ -75,42 +129,32 @@ struct RadioOptionRow: View {
                 .foregroundStyle(Token.textPrimary)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                // A FIXED box: §2 states the title's height as 20, and a single line never
-                // needs to grow past its designed line box.
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: Self.lineBox(Token.TypeStyle.pageTitle))
                 .ui2Element("Title")
-            if let description {
-                Text(description)
-                    // §2 Description: "SF Pro Regular 14/20 (`type-page-title`),
-                    // `color-text-secondary`, wraps freely, full column width".
-                    .designTextStyle(Token.TypeStyle.pageTitle)
-                    .foregroundStyle(Token.textSecondary)
-                    // A MINIMUM here, unlike the title: the designed 20pt line box is larger
-                    // than SF Pro's natural ~16.7 at 14pt, and a wrapping description has to
-                    // be free to grow past it.
-                    .frame(
-                        maxWidth: .infinity,
-                        minHeight: Self.lineBox(Token.TypeStyle.pageTitle),
-                        alignment: .leading
-                    )
-                    // §3c (OQ-C-047-3 proposed default): no line cap — unlimited wrap.
-                    //
-                    // `fixedSize` OUTSIDE the min-height frame, not inside it as C-042's
-                    // Multiline value has it. The capture harness measures a component with
-                    // `sizeToFit()` on zero bounds, and that zero reaches SwiftUI as a NUMERIC
-                    // height proposal: a `minHeight` frame is proposal-driven, so it clamped
-                    // 0 → 20 and never asked the text — the sampled two-line description was
-                    // drawn on two lines but measured at one, and the row came out 80, not
-                    // §2's 100. Out here, `fixedSize` proposes nil to the frame, which then
-                    // sizes to the text (clamped to the 20pt line box) whatever the harness
-                    // proposes. C-042's sample never wraps, so it never hit this.
-                    .fixedSize(horizontal: false, vertical: true)
-                    .ui2Element("Description")
+            if recommended {
+                recommendedMark.ui2Element("Recommended mark")
             }
         }
-        // `flex 1 0 0`: the column takes every point the glyph leaves, and never pushes it.
+        // A FIXED box: §2 states the title line's height as 20, and a single line never
+        // needs to grow past its designed line box.
+        .frame(height: Self.lineBox(Token.TypeStyle.pageTitle))
         .frame(maxWidth: .infinity, alignment: .leading)
+        // OQ-C-047-001 (ruled 2026-10-24): VoiceOver reads the row as "<title>, recommended".
+        .accessibilityElement(children: .combine)
+    }
+
+    // §2 Recommended mark: "glyph `star-filled-carbon`, 18×18, `shrink 0`, tinted
+    // `color-amber-400`, centred on the 20pt title line". `Glyph` renders only the token
+    // scale (16 / 24 / 32), so the library imageset is drawn directly at 18 — the same way
+    // ListResultRow draws its 18pt glyphs.
+    private var recommendedMark: some View {
+        Image(GlyphName.starFilledCarbon.rawValue, bundle: .ui2Preview)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: Self.markSize, height: Self.markSize)
+            .foregroundStyle(Token.amber400)
+            .fixedSize()                             // `shrink 0`
+            .accessibilityLabel("recommended")
     }
 
     // §2 Glyph: "22×22, `shrink 0`. Unselected: ring centre (11,11) r10, 2pt stroke
@@ -146,6 +190,26 @@ struct RadioOptionRow: View {
     private static let glyphSize: CGFloat = 22
     private static let ringStroke: CGFloat = 2
     private static let dotRadius: CGFloat = 7
+
+    // FLAGGED LITERAL — C-047 §2 (D7): the 10pt title↔mark gap is Figma's measured gap, and
+    // the 18pt mark is shape geometry, not a token candidate.
+    private static let markGap: CGFloat = 10
+    private static let markSize: CGFloat = 18
+
+    // C-047 §2 Description (OQ-C-047-3): "wraps to at most three lines".
+    private static let descriptionLineCap = 3
+
+    // FLAGGED LITERAL — C-047 §2 (D7): the disabled 0.4 opacity is the ruling's own value;
+    // the token set holds no opacity token (OQ-C-047-2).
+    private static let disabledOpacity: Double = 0.4
+
+    /// §2 Description: the `type-page-title` line box (14/**20**) less the face's natural line
+    /// height — the leading actually left to spend between and around lines.
+    private static let descriptionLeading: CGFloat = {
+        let style = Token.TypeStyle.pageTitle
+        let natural = UIFont.systemFont(ofSize: style.size, weight: .regular).lineHeight
+        return max(lineBox(style) - natural, 0)
+    }()
 
     /// The designed line box of a type token: SwiftUI has no line-height, so the box has to
     /// be spelled as a frame.

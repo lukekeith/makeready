@@ -18,8 +18,10 @@ enum GlyphName: String, CaseIterable {
     case arrowDownCircle = "arrow-down-circle"
     case arrowDownRight = "arrow-down-right"
     case arrowLeft = "arrow-left"
+    case arrowLeftCarbon = "arrow-left-carbon"
     case arrowLeftRight = "arrow-left-right"
     case arrowRight = "arrow-right"
+    case arrowRightCarbon = "arrow-right-carbon"
     case arrowRightLeft = "arrow-right-left"
     case arrowUp = "arrow-up"
     case arrowUpCircle = "arrow-up-circle"
@@ -27,6 +29,7 @@ enum GlyphName: String, CaseIterable {
     case arrowUpRight = "arrow-up-right"
     case asterisk = "asterisk"
     case baby = "baby"
+    case backspace = "backspace"
     case banknote = "banknote"
     case barChart2 = "bar-chart-2"
     case barChart3 = "bar-chart-3"
@@ -51,7 +54,9 @@ enum GlyphName: String, CaseIterable {
     case checkSquare = "check-square"
     case checkmarkCarbon = "checkmark-carbon"
     case chevronDown = "chevron-down"
+    case chevronDownCarbon = "chevron-down-carbon"
     case chevronLeft = "chevron-left"
+    case chevronLeftCarbon = "chevron-left-carbon"
     case chevronRight = "chevron-right"
     case chevronRightCarbon = "chevron-right-carbon"
     case chevronUp = "chevron-up"
@@ -67,6 +72,7 @@ enum GlyphName: String, CaseIterable {
     case closeLargeCarbon = "close-large-carbon"
     case closeOutlineCarbon = "close-outline-carbon"
     case code = "code"
+    case colorPicker = "color-picker"
     case columns = "columns"
     case columns3 = "columns-3"
     case contact2 = "contact-2"
@@ -74,6 +80,7 @@ enum GlyphName: String, CaseIterable {
     case cornerDownLeft = "corner-down-left"
     case creditCard = "credit-card"
     case cross = "cross"
+    case dataSetCarbon = "data-set-carbon"
     case dollarSign = "dollar-sign"
     case download = "download"
     case edit = "edit"
@@ -93,8 +100,12 @@ enum GlyphName: String, CaseIterable {
     case gift = "gift"
     case gitBranch = "git-branch"
     case globe = "globe"
+    case google = "google"
+    case googleMono = "google-mono"
     case graduationCap = "graduation-cap"
+    case gridCarbon = "grid-carbon"
     case gripVertical = "grip-vertical"
+    case groupCarbon = "group-carbon"
     case hand = "hand"
     case handArrowDown = "hand-arrow-down"
     case hardDrive = "hard-drive"
@@ -158,6 +169,7 @@ enum GlyphName: String, CaseIterable {
     case power = "power"
     case receipt = "receipt"
     case refreshCw = "refresh-cw"
+    case renewCarbon = "renew-carbon"
     case repeatArrows = "repeat-arrows"
     case rocket = "rocket"
     case rotateCcw = "rotate-ccw"
@@ -178,11 +190,13 @@ enum GlyphName: String, CaseIterable {
     case sparkles = "sparkles"
     case squareArrowOutUpRight = "square-arrow-out-up-right"
     case star = "star"
+    case starFilledCarbon = "star-filled-carbon"
     case starList = "star-list"
     case tag = "tag"
     case tags = "tags"
     case target = "target"
     case textContent = "text-content"
+    case timeCarbon = "time-carbon"
     case trash2 = "trash-2"
     case trendingDown = "trending-down"
     case trendingUp = "trending-up"
@@ -216,6 +230,14 @@ enum GlyphName: String, CaseIterable {
 
     /// What VoiceOver reads: the name with its dashes as spaces.
     var label: String { rawValue.replacingOccurrences(of: "-", with: " ") }
+
+    /// false for a full-colour glyph (a logo, a flag): it keeps its own colours and ignores tint.
+    var isTemplate: Bool {
+        switch self {
+        case .google: return false
+        default: return true
+        }
+    }
 }
 
 /// The token scale a glyph renders at.
@@ -231,7 +253,8 @@ enum GlyphSize {
     }
 }
 
-/// One glyph from the library, template-rendered in a token colour.
+/// One glyph from the library: a template glyph rendered in a token colour, a
+/// full-colour glyph in its own colours (tint is ignored for it).
 struct Glyph: View {
     let name: GlyphName
     var size: GlyphSize = .md
@@ -244,12 +267,21 @@ struct Glyph: View {
     }
 
     var body: some View {
-        Image(name.rawValue, bundle: .ui2Preview)
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            .frame(width: size.points, height: size.points)
-            .foregroundStyle(tint)
-            .accessibilityLabel(name.label)
+        if name.isTemplate {
+            Image(name.rawValue, bundle: .ui2Preview)
+                .renderingMode(.template)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size.points, height: size.points)
+                .foregroundStyle(tint)
+                .accessibilityLabel(name.label)
+        } else {
+            Image(name.rawValue, bundle: .ui2Preview)
+                .renderingMode(.original)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size.points, height: size.points)
+                .accessibilityLabel(name.label)
+        }
     }
 }

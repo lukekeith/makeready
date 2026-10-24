@@ -40,14 +40,15 @@ final class CaptureRunner: XCTestCase {
             // Set up mock state
             setupCaptureState(from: fixture)
 
-            // Build the view
-            let baseView: AnyView
+            // Build the view — a converted case declares its preview frame (d2m designer-live-picks D5).
+            let built: CaptureCase
             do {
-                baseView = try buildCaptureView(for: fixture)
+                built = try buildCaptureCase(for: fixture)
             } catch {
                 XCTFail("CAPTURE: Unknown view '\(fixture.view)' in \(workflow)/\(fixture.output): \(error)")
                 continue
             }
+            let baseView = built.previewView()
 
             // Capture at each device size
             for deviceKey in fixture.devices {
@@ -70,15 +71,26 @@ final class CaptureRunner: XCTestCase {
                 // that pass and not one of our own.
                 let elementMap = UI2ElementMap()
                 if isComponent {
-                    let width = device.config.size?.width ?? 393
-                    view = AnyView(
-                        baseView
-                            .frame(width: width)
-                            // The 2.0 app background (`color-layout-background`, #030405) —
-                            // not the 1.x `Color.appBackground` (#0d101a).
-                            .background(UI2Preview.Token.layoutBackground)
-                            .ui2ElementMap(elementMap)
-                    )
+                    // A fill capture (d2m designer-pick-width) lays out at the page's width.
+                    let width = fixture.fill.map { CGFloat($0) } ?? device.config.size?.width ?? 393
+                    if let frame = built.previewFrame, fixture.bare == true || fixture.fill != nil {
+                        // d2m designer-live-picks D5: the BARE component — no master width, no specimen margin —
+                        // offered `width` (hugging only where the case declares it intrinsic), with `__root`
+                        // naming exactly its bounds: the server crops the design capture to it.
+                        let rooted: AnyView = frame.intrinsic
+                            ? AnyView(built.view.fixedSize().ui2Element("__root").frame(width: width, alignment: .leading))
+                            : AnyView(built.view.frame(width: width).ui2Element("__root"))
+                        view = AnyView(rooted.background(UI2Preview.Token.layoutBackground).ui2ElementMap(elementMap))
+                    } else {
+                        view = AnyView(
+                            baseView
+                                .frame(width: width)
+                                // The 2.0 app background (`color-layout-background`, #030405) —
+                                // not the 1.x `Color.appBackground` (#0d101a).
+                                .background(UI2Preview.Token.layoutBackground)
+                                .ui2ElementMap(elementMap)
+                        )
+                    }
                     snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
                 } else if isScreen {
                     // A 2.0 screen preview: the device's width × max(its height, the content's
@@ -139,14 +151,37 @@ final class CaptureRunner: XCTestCase {
                     withIntermediateDirectories: true
                 )
 
-                let failure = verifySnapshot(
-                    of: view,
-                    as: snapshotting,
-                    named: outputName,
-                    record: .all,
-                    snapshotDirectory: outputDir,
-                    testName: "capture"
-                )
+                let failure: String?
+                if let settle = fixture.settle {
+                    // Host the view in a real window and let it run (so .task loads from the
+                    // network stubs) BEFORE the snapshot; a view that is only hosted by the
+                    // snapshot never gets to load.
+                    let host = UIHostingController(rootView: view)
+                    let window = UIWindow(frame: UIScreen.main.bounds)
+                    window.rootViewController = host
+                    window.makeKeyAndVisible()
+                    let loaded = XCTestExpectation(description: "settle")
+                    DispatchQueue.main.asyncAfter(deadline: .now() + settle) { loaded.fulfill() }
+                    _ = XCTWaiter.wait(for: [loaded], timeout: settle + 1)
+                    failure = verifySnapshot(
+                        of: host,
+                        as: Snapshotting<UIViewController, UIImage>.image(on: device.config, drawHierarchyInKeyWindow: true),
+                        named: outputName,
+                        record: .all,
+                        snapshotDirectory: outputDir,
+                        testName: "capture"
+                    )
+                    window.isHidden = true
+                } else {
+                    failure = verifySnapshot(
+                        of: view,
+                        as: snapshotting,
+                        named: outputName,
+                        record: .all,
+                        snapshotDirectory: outputDir,
+                        testName: "capture"
+                    )
+                }
                 // In record mode, verifySnapshot returns a "recorded" message (not a real failure)
                 if let failure, !failure.contains("Record mode") && !failure.contains("recorded") {
                     XCTFail("CAPTURE: Snapshot failed for \(workflow)/\(fixture.output) @ \(deviceKey): \(failure)")
@@ -222,5 +257,70 @@ final class CaptureRunner: XCTestCase {
     private func snapshotDirectory(workflow: String, device: String) -> String {
         let root = CaptureFixtureLoader.captureRootPath()
         return "\(root)/\(workflow)/screenshots/\(device)"
+    }
+}
+
+/// d2m designer-live-picks D5/D10: what a ViewRegistry case declares about its preview frame.
+final class CaptureCaseTests: XCTestCase {
+    private func fixture(_ json: String) throws -> CaptureFixture {
+        try JSONDecoder().decode(CaptureFixture.self, from: Data(json.utf8))
+    }
+
+    func testFixtureDecodesBareAndFill() throws {
+        let f = try fixture(#"{"view":"component.ui2.C-035","output":"k.png","devices":["iphone-16-pro-max"],"bare":true,"fill":440,"state":{"component":{"type":"Menu","active":true,"label":"Videos"}}}"#)
+        XCTAssertEqual(f.bare, true)
+        XCTAssertEqual(f.fill, 440)
+        XCTAssertNil(try fixture(#"{"view":"component.ui2.C-035","output":"k.png","devices":[]}"#).bare)
+    }
+
+    @MainActor func testSearchFieldDeclaresItsMasterWidth() throws {
+        let built = try buildCaptureCase(for: try fixture(#"{"view":"component.ui2.C-034","output":"k.png","devices":["iphone-16-pro-max"],"state":{"component":{"placeholder":"Search","focused":false}}}"#))
+        XCTAssertEqual(built.previewFrame?.width, 387)
+        XCTAssertEqual(built.previewFrame?.intrinsic, false)
+    }
+
+    @MainActor func testFilterChipHugsItsLabel() throws {
+        let built = try buildCaptureCase(for: try fixture(#"{"view":"component.ui2.C-035","output":"k.png","devices":["iphone-16-pro-max"],"state":{"component":{"type":"Menu","active":true,"label":"Videos"}}}"#))
+        XCTAssertNil(built.previewFrame?.width)
+        XCTAssertEqual(built.previewFrame?.intrinsic, true)
+        XCTAssertEqual(built.previewFrame?.alignment, .leading)
+    }
+
+    @MainActor func testPageHeaderDeclaresItsFrame() throws {
+        let built = try buildCaptureCase(for: try fixture(#"{"view":"component.ui2.C-040","output":"k.png","devices":["iphone-16-pro-max"],"state":{"component":{"style":"default","showTitle":true,"title":"Media"}}}"#))
+        XCTAssertEqual(built.previewFrame?.width, 398)
+    }
+
+    @MainActor func testAnUnconvertedCaseIsFramed() throws {
+        let built = try buildCaptureCase(for: try fixture(#"{"view":"component.ui2.C-084","output":"k.png","devices":["iphone-16-pro-max"],"state":{"component":{"selected":"home"}}}"#))
+        XCTAssertNil(built.previewFrame, "D10: a case not converted yet keeps its inline frame")
+    }
+
+    /// D5: every specimen-framed component case declares its frame. Read from the source: a case body is
+    /// the text from its `case "component.` to the next 4-space `case "` or `default:`; a dispatcher case
+    /// (`return try buildUI2C0xx(fixture)`) is checked through its out-of-line function's body.
+    func testEveryComponentCaseDeclaresItsFrame() throws {
+        let url = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("ViewRegistry.swift")
+        let source = try String(contentsOf: url, encoding: .utf8)
+        var bodies: [String: String] = [:]
+        for chunk in source.components(separatedBy: "case \"component.").dropFirst() {
+            let view = "component." + String(chunk.prefix { $0 != "\"" })
+            let end = chunk.range(of: "\n    case \"") ?? chunk.range(of: "\n    default:")
+            var body = String(end.map { chunk[..<$0.lowerBound] } ?? chunk[...])
+            if let call = body.range(of: #"return try buildUI2C\d{3}\(fixture\)"#, options: .regularExpression) {
+                let name = String(body[call]).replacingOccurrences(of: "return try ", with: "").replacingOccurrences(of: "(fixture)", with: "")
+                if let start = source.range(of: "func \(name)("),
+                   let close = source.range(of: "\n}\n", range: start.upperBound..<source.endIndex) {
+                    body = String(source[start.lowerBound..<close.lowerBound])
+                }
+            }
+            bodies[view] = (bodies[view] ?? "") + body
+        }
+        // A case that cannot be bare goes here WITH its reason; nothing else does.
+        let framedOnPurpose: [String: String] = [:]
+        let inline = bodies.filter { view, body in
+            framedOnPurpose[view] == nil && !body.contains("declareCase(") && body.contains("UI2Preview.Token.Space.pageMargin")
+        }.keys.sorted()
+        XCTAssertEqual(inline, [], "these cases still frame inline — convert each to declareCase(…), or name it in framedOnPurpose with its reason")
     }
 }

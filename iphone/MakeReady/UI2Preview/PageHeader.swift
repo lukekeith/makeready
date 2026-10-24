@@ -2,15 +2,11 @@
 //  PageHeader.swift
 //  UI2Preview — the UI 2.0 preview module
 //
-//  Built from docs/ui2/design-system/components/C-040-page-header.md (§2 geometry, §3
-//  states, §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
-//  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
+//  Built from C-040-page-header in d2m (§2 geometry, §3 states, §4 props).
+//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
-//  DEPENDENCY: C-021 GlyphButton resolves at LEVEL 1 (preview-build.md §4) as of
-//  2026-09-07 — it has its own contract, its own preview view, and the real Figma vectors
-//  in Resources/Glyphs.xcassets. The inline stand-in this file used to carry (SF Symbols
-//  substituting for artwork that existed only in Figma) is gone, and with it the
-//  substitution gap the earlier build reported.
+//  DEPENDENCY: C-021 GlyphButton, level 1 — its own contract and preview view. It fills the
+//  leading slot and each trailing glyph and owns its 44×44 tap area (OQ-C-040-7).
 //
 
 import SwiftUI
@@ -18,84 +14,104 @@ import SwiftUI
 /// C-040 PageHeader — the 56pt bar at the top of a pushed page.
 struct PageHeader: View {
 
-    /// §4 `style` — the variant axis.
+    /// §4 `style` — the variant axis (R-06, nested by R-36).
     enum Style {
-        case standard      // §3 `Default`; `default` is a Swift keyword
+        case `default`
         case textButtons
         case twoIcons
+        case backAndLink
     }
 
+    // GAP — C-040 §2: "The labels' targets are their text box expanded to 44pt tall"; no
+    // hit-target token yet. OQ-C-021-4 (owner, 2026-10-20) mints `size-hit-target` = 44 for
+    // every C-021 host; this becomes that token's member once a spec run lands the row.
+    private static let labelHitHeight: CGFloat = 44
+
     let style: Style
+    /// §4 `title` — centred; single line, tail ellipsis (OQ-C-040-5).
     let title: String?
-    let showTitle: Bool
-    let showIcons: Bool
-    /// §4 `leadingGlyph` — any C-021 glyph, delegated to that contract (OQ-C-040-6 resolved
-    /// 2026-09-07). Designed value: `back`.
+    /// §4 `showTitle` — Figma default true.
+    var showTitle: Bool = true
+    /// §4 `showIcons` — gates the trailing glyph slot in `default` AND `twoIcons`
+    /// (OQ-C-040-1, deviation 5). Figma default true.
+    var showIcons: Bool = true
+    /// §4 `leadingGlyph` — any C-021 glyph (OQ-C-040-6). Designed: `back`.
     var leadingGlyph: GlyphButton.Glyph = .back
-    /// §4 `rightButtons` — the trailing glyphs in order. Designed: `[settings]` for
+    /// §4 `rightButtons` — trailing glyphs in order. Required. Designed: `[settings]` for
     /// `default`, `[export, settings]` for `twoIcons`.
-    var rightButtons: [GlyphButton.Glyph] = [.export, .settings]
-    // Interaction-bearing props have no render effect; emitted as no-ops so the promoted
-    // view keeps its real signature (preview-build.md OQ-PB-3's proposed default). A slot
-    // whose glyph is a free prop cannot keep a glyph-NAMED callback (§4, OQ-C-040-8), so
-    // the trailing handler is told which glyph was tapped.
+    let rightButtons: [GlyphButton.Glyph]
+    /// §4 `leadingLabel` — `textButtons` leading label (OQ-C-040-4).
+    var leadingLabel: String = "Cancel"
+    /// §4 `trailingLabel` — the trailing text action of `textButtons` and `backAndLink`
+    /// (OQ-C-040-4, D60): Select / Save / Enroll / Done.
+    var trailingLabel: String = "Done"
+    /// §4 `trailingEnabled` — whether the trailing text action is tappable. `false` is the
+    /// undesigned dimmed look (OQ-C-040-001): `color-white-50`, not tappable, same geometry.
+    var trailingEnabled: Bool = true
+    // Interaction-bearing props have no render effect; defaulted no-ops (R-03) so the
+    // promoted view keeps its real signature. Shape confirmed by OQ-C-040-8.
     var onLeading: () -> Void = {}
     var onRightButton: (GlyphButton.Glyph) -> Void = { _ in }
     var onCancel: () -> Void = {}
     var onDone: () -> Void = {}
 
     var body: some View {
-        HStack(spacing: 0) {
-            leading.ui2Element("Leading")
-            Spacer(minLength: 0)
-            trailing.ui2Element("Trailing")
+        // §2: leading at the start, trailing at the end, title centred on the bar's full
+        // width — never wider than the room the two slots leave it (OQ-C-040-5).
+        PageHeaderLayout(margin: Token.Space.pageMargin) {
+            leading.ui2Element("Leading").layoutValue(key: PageHeaderSlot.self, value: .leading)
+            trailing.ui2Element("Trailing").layoutValue(key: PageHeaderSlot.self, value: .trailing)
+            titleView.layoutValue(key: PageHeaderSlot.self, value: .title)
         }
-        .padding(Token.Space.pageMargin)              // §2: padding 16
-        .frame(height: 56)                               // §2: 56 = 16 + 24 + 16. Anatomy.
-        .background(Token.transparent)                // §2: no background, no hairline
-        // §1 deviation 3 + 4: the source places the title at left calc(50% + 0.5px) and 2pt
-        // low in two symbols; §2 contracts it as optically centred in all three.
-        .overlay(alignment: .center) { titleView }
-        .ui2Element("PageHeader")                     // capture element map — UI2Element.swift
+        .background(Token.transparent)                // §2: no background, no hairline (OQ-C-040-3)
+        .ui2Element("PageHeader")
     }
 
     @ViewBuilder private var leading: some View {
         switch style {
-        case .standard, .twoIcons:
-            GlyphButton(glyph: leadingGlyph, action: onLeading)
+        case .default, .twoIcons, .backAndLink:
+            GlyphButton(glyph: leadingGlyph, onTap: onLeading)
         case .textButtons:
-            Text("Cancel")                               // §1 deviation 1: a designed label
-                .designTextStyle(Token.TypeStyle.navAction)
-                .foregroundStyle(Token.white50)
-                .ui2Element("Cancel")
+            label(leadingLabel, color: Token.white50, action: onCancel)
+                .ui2Element("Leading label")
         }
     }
 
     @ViewBuilder private var trailing: some View {
         switch style {
-        case .standard:
-            // §2 + OQ-C-040-1: `showIcons` does NOT gate Default's trailing icon. The
-            // glyph list is the same prop as `twoIcons` uses; §3 pins Default's designed
-            // value to a single `settings`.
-            trailingGroup
-        case .textButtons:
-            Text("Done")
-                .designTextStyle(Token.TypeStyle.navAction)
-                .foregroundStyle(Token.accent)
-                .ui2Element("Done")
-        case .twoIcons:
-            if showIcons { trailingGroup }
+        case .default, .twoIcons:
+            if showIcons {                               // OQ-C-040-1: gates both glyph styles
+                HStack(spacing: Token.Space.rowGap) {    // §2: gap 24
+                    ForEach(Array(rightButtons.enumerated()), id: \.offset) { index, glyph in
+                        GlyphButton(glyph: glyph) { onRightButton(glyph) }
+                            .ui2Element("Trailing glyph \(index + 1)")
+                    }
+                }
+            }
+        case .textButtons, .backAndLink:              // D60: the same text action
+            label(trailingLabel, color: trailingEnabled ? Token.accent : Token.white50, action: onDone)
+                .disabled(!trailingEnabled)              // OQ-C-040-001: onDone never fires
+                .ui2Element("Trailing label")
         }
     }
 
-    /// The trailing glyph row — one builder for both styles that show glyphs, because the
-    /// glyphs are now the same prop; only the `showIcons` gate differs (§3).
-    @ViewBuilder private var trailingGroup: some View {
-        HStack(spacing: Token.Space.rowGap) {          // §2: gap 24
-            ForEach(rightButtons, id: \.self) { glyph in
-                GlyphButton(glyph: glyph) { onRightButton(glyph) }
-            }
+    /// §2: a text-action label (`textButtons`, `backAndLink`) — `type-nav-action`, no underline (not C-049), with its tap
+    /// target expanded to 44pt tall without changing the 24pt layout box.
+    private func label(_ text: String, color: Color, action: @escaping () -> Void) -> some View {
+        SwiftUI.Button(action: action) {
+            Text(text)
+                .designTextStyle(Token.TypeStyle.navAction)
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .fixedSize()
+                // §2: type-nav-action is 14 / 24 — a one-line Text gets no line box from
+                // lineSpacing, so the 24 is the frame (else a glyph-less bar is 49pt, not 56).
+                .frame(minHeight: Token.TypeStyle.navAction.lineHeight)
         }
+        .buttonStyle(.plain)
+        .contentShape(LabelHitShape(height: Self.labelHitHeight))
+        .accessibilityLabel(text)
+        .accessibilityAddTraits(.isButton)
     }
 
     @ViewBuilder private var titleView: some View {
@@ -103,8 +119,64 @@ struct PageHeader: View {
             Text(title)
                 .designTextStyle(Token.TypeStyle.pageTitle)
                 .foregroundStyle(Token.textPrimary)
-                .lineLimit(1)                            // §3: single line, no wrap
+                .lineLimit(1)                            // OQ-C-040-5: one line, never wraps
+                .truncationMode(.tail)                   // OQ-C-040-5: tail ellipsis
+                .accessibilityAddTraits(.isHeader)
                 .ui2Element("Title")
+        }
+    }
+}
+
+/// A tap shape `height` tall, vertically centred on the view's own box and as wide as it.
+private struct LabelHitShape: Shape {
+    let height: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        Path(CGRect(x: rect.minX, y: rect.midY - height / 2, width: rect.width, height: height))
+    }
+}
+
+/// Which §2 slot a subview of `PageHeaderLayout` fills. Keyed by role, not position: a slot
+/// that renders nothing (`showIcons` / `showTitle` false) drops out of the subviews entirely.
+private enum PageHeaderSlot: LayoutValueKey {
+    enum Role { case leading, trailing, title }
+    static let defaultValue: Role = .title
+}
+
+/// §2's bar. Height is the margin, the taller slot (24 — the glyph and the label line), and
+/// the margin again: 16 + 24 + 16 = 56. The title is centred on the full width and gets the
+/// width the slots leave symmetric about the centre, so a long title truncates instead of
+/// covering a slot.
+private struct PageHeaderLayout: Layout {
+    let margin: CGFloat
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let slots = subviews.filter { $0[PageHeaderSlot.self] != .title }.map { $0.sizeThatFits(.unspecified) }
+        let content = slots.map(\.height).max() ?? 0
+        let width = proposal.width ?? (slots.map(\.width).reduce(0, +) + margin * 2)
+        return CGSize(width: width, height: content + margin * 2)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var leadingWidth: CGFloat = 0
+        var trailingWidth: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            switch subview[PageHeaderSlot.self] {
+            case .leading:
+                leadingWidth = size.width
+                subview.place(at: CGPoint(x: bounds.minX + margin, y: bounds.midY), anchor: .leading, proposal: ProposedViewSize(size))
+            case .trailing:
+                trailingWidth = size.width
+                subview.place(at: CGPoint(x: bounds.maxX - margin, y: bounds.midY), anchor: .trailing, proposal: ProposedViewSize(size))
+            case .title:
+                break
+            }
+        }
+        let inset = margin + max(leadingWidth, trailingWidth)
+        let room = max(0, bounds.width - inset * 2)
+        for subview in subviews where subview[PageHeaderSlot.self] == .title {
+            subview.place(at: CGPoint(x: bounds.midX, y: bounds.midY), anchor: .center, proposal: ProposedViewSize(width: room, height: nil))
         }
     }
 }

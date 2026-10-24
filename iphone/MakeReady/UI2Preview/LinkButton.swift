@@ -41,7 +41,7 @@ struct LinkButton: View {
     var isEnabled: Bool = true
 
     var body: some View {
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             Text(label)
                 .designTextStyle(Token.TypeStyle.link)     // §2: `type-link` — SF Pro Semibold 14/24
                 .foregroundColor(color)

@@ -30,7 +30,7 @@ struct ActivitySlide: View {
     var onTap: () -> Void = {}
 
     var body: some View {
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             RoundedRectangle(cornerRadius: Token.Radius.card)
                 // §2 Fill: `color-activity-slide-placeholder`.
                 .fill(Token.activitySlidePlaceholder)

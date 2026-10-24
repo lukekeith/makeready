@@ -44,7 +44,7 @@ struct ActivityNavBar: View {
             // §2 Add button: "one C-021 GlyphButton `glyph=add`, 24×24 visual, trailing,
             // centred vertically … drawn above the strip and its mask. The 44 pt hit target is
             // C-021's." Pinned outside the scroll (OQ-C-081-002).
-            GlyphButton(glyph: .add, action: onAdd)
+            GlyphButton(glyph: .add, onTap: onAdd)
                 // §4 Accessibility (R-17): "The add button is labelled \"Add activity\"."
                 .accessibilityLabel("Add activity")
                 .ui2Element("Add button")
@@ -181,7 +181,7 @@ private struct FilledChipStub: View {
     var onTap: () -> Void = {}
 
     var body: some View {
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             RoundedRectangle(cornerRadius: Token.Radius.card)
                 .fill(Token.screenshotPlaceholder)
                 // STUB — the unfinished marker: a dashed border no contract designs.

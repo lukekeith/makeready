@@ -2,9 +2,8 @@
 //  SearchField.swift
 //  UI2Preview — the UI 2.0 preview module
 //
-//  Built from docs/ui2/design-system/components/C-034-search-field.md (§2 geometry, §3 states,
-//  §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
-//  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
+//  Built from C-034-search-field in d2m (§2 geometry, §3 states, §4 props).
+//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
 
 import SwiftUI
@@ -24,9 +23,8 @@ struct SearchField: View {
 
     /// C-034 §4 `text: Binding<String>` — "current query; empty → placeholder shows".
     ///
-    /// A plain `String` here, not a Binding: a fixture can only set values, and the render is
-    /// purely a function of the current one. Same accommodation the sibling C-045 TextInput
-    /// preview makes, and the same one preview-build.md makes for `focused`.
+    /// A plain `String` here, not a Binding — R-01 (Controlled): the value is a prop and
+    /// `onChange` beside it carries edits out, so every §3 state is reachable by props alone.
     let text: String
     /// C-034 §4 `placeholder: String` — consumer-set prompt (§1 deviation 1: "Search" is sample
     /// content; consumers set "Search members" / "Search groups" / "Search enrollments").
@@ -40,19 +38,25 @@ struct SearchField: View {
     /// C-034 §4 `onClear: () -> Void` — "C-039 tap — clears `text`, field **stays focused**".
     /// No render effect; same OQ-PB-3 default.
     let onClear: () -> Void
+    /// C-034 §4 `showsClearWhenEmpty: Bool = false` — OQ-calendar-home-5 (owner): keeps the
+    /// C-039 clear x visible with an empty query. Defaults off, so every other consumer
+    /// renders as before; calendar-home passes true (its empty-query x dismisses search).
+    let showsClearWhenEmpty: Bool
 
     init(
         text: String,
         placeholder: String,
         focused: Bool,
         onChange: @escaping (String) -> Void = { _ in },
-        onClear: @escaping () -> Void = {}
+        onClear: @escaping () -> Void = {},
+        showsClearWhenEmpty: Bool = false
     ) {
         self.text = text
         self.placeholder = placeholder
         self.focused = focused
         self.onChange = onChange
         self.onClear = onClear
+        self.showsClearWhenEmpty = showsClearWhenEmpty
     }
 
     /// C-034 §2's placed geometry. §3 is explicit that `state` "is **not** a free variant: it is
@@ -67,19 +71,18 @@ struct SearchField: View {
         static let contentLeft: CGFloat = 36        // §2: "left edge 36 (glyph 16 + 12 wide + 8 gap)"
         static let caretWidth: CGFloat = 2          // §2: "Caret (`Focus` only) — 2×24"
         static let caretHeight: CGFloat = 24
-        static let clearSize: CGFloat = 32          // §2: "Clear button — C-039, 32×32"
-        static let clearTrailing: CGFloat = 7       // §2: "trailing inset 7, top 5" (OQ-C-034-4:
-        static let clearTop: CGFloat = 5            // deliberately not optically centred)
+        static let clearTrailing: CGFloat = 7       // §2: "trailing inset 7"; vertically CENTRED
+                                                    // per OQ-C-034-4 (owner: "6/6 in the 44pt
+                                                    // field"), not §2's measured top 5
     }
 
     // MARK: - Derived state (§4)
 
     // §4: "`Default` = `text.isEmpty && !focused` · `Focus` = `text.isEmpty && focused` ·
-    // `Has value` = `!text.isEmpty`". Note `Has value` does NOT consult `focused` — which is
-    // also what makes the undesigned "Has value + focused" row (OQ-C-034-1) fall out correctly
-    // as `Has value` rather than needing a rule this build would have had to invent.
+    // `Has value` = `!text.isEmpty`". The undesigned "Has value + focused" row is OQ-C-034-1's
+    // ruling: `Has value` as designed plus a caret TRAILING the value — so the caret follows
+    // `focused` alone, and leads the placeholder or trails the value.
     private var isDefault: Bool { text.isEmpty && !focused }
-    private var showsCaret: Bool { text.isEmpty && focused }
     private var hasValue: Bool { !text.isEmpty }
 
     // §2: "**Fill** — `color-card-background` in `Default` only; `Focus` and `Has value` have
@@ -98,12 +101,12 @@ struct SearchField: View {
     // not as a second border rule." Same flagged-literal note as `fill`.
     private var border: Color { isDefault ? Token.cardBorder : Token.textPrimary }
 
-    // §3: placeholder `color-nav-text` in Default, `color-input-placeholder` in Focus (§3: it
-    // "deliberately **changes colour**… it darkens" — OQ-C-034-2 asks the owner to confirm
-    // intent); value `color-input-value` in Has value.
+    // §3: value `color-input-value` in Has value. Placeholder: §3 records `color-nav-text` in
+    // Default and `color-input-placeholder` in Focus, but OQ-C-034-2's ruling is "Drift: unify
+    // on color-input-placeholder in both states (Figma cleanup of the unfocused symbol)" —
+    // so the Default render deliberately differs from the frozen snapshot here.
     private var textColor: Color {
-        if hasValue { return Token.inputValue }
-        return focused ? Token.inputPlaceholder : Token.navText
+        hasValue ? Token.inputValue : Token.inputPlaceholder
     }
 
     // MARK: - Body
@@ -119,7 +122,7 @@ struct SearchField: View {
 
             searchGlyph
             contentRow
-            if hasValue { clearButton }
+            if hasValue || showsClearWhenEmpty { clearButton }
         }
         .frame(maxWidth: .infinity, minHeight: Geometry.height, maxHeight: Geometry.height)
         .clipped()                                  // §2: "content clipped"
@@ -163,17 +166,10 @@ struct SearchField: View {
     // §2: "**Content row** — left edge 36…, vertically centred. Text `type-input` (SF Pro
     // Regular 14 / 24)." §1 deviation 4 contracts the focused reading as "one content row
     // starting at **36**, caret leading the placeholder" — so the caret is a row item that
-    // displaces the text, not an overlay on top of it.
+    // displaces the text, not an overlay on top of it. With a value (OQ-C-034-1) it trails.
     private var contentRow: some View {
         HStack(spacing: 0) {
-            if showsCaret {
-                // §2: "**Caret** (`Focus` only) — 2×24, `radius-bar` (2), `color-accent`,
-                // leading the content row." §2 states no caret↔text gap, so there is none.
-                RoundedRectangle(cornerRadius: Token.Radius.bar)
-                    .fill(Token.accent)
-                    .frame(width: Geometry.caretWidth, height: Geometry.caretHeight)
-                    .ui2Element("Caret")
-            }
+            if focused && !hasValue { caret }
             Text(hasValue ? text : placeholder)
                 .designTextStyle(Token.TypeStyle.input)
                 .foregroundColor(textColor)
@@ -181,6 +177,7 @@ struct SearchField: View {
                 // §2 draws one text run whose ROLE changes with `text` — the element map says
                 // which, so a comment on it lands on the state it was made about.
                 .ui2Element(hasValue ? "Value" : "Placeholder")
+            if focused && hasValue { caret }
             Spacer(minLength: 0)
         }
         .padding(.leading, Geometry.contentLeft)
@@ -188,35 +185,22 @@ struct SearchField: View {
         .ui2Element("Content row")
     }
 
-    // §2: "**Clear button** (`Has value` only) — C-039, 32×32, trailing inset 7, top 5."
-    //
-    // C-039 ClearSearchButton still has no contract file of its own — its registry "Defined
-    // in" points back at C-034 §5, one line, so the ROW is unspecced. What changed is the
-    // artwork: the 14pt close vector is exported (2026-09-09, node `4029:40373`, which is
-    // `button=Clear` in the C-021 icon frame `3499:27547`) to
-    // docs/ui2/design-system/components/assets/C-039-clear-icon.svg. The registry's "14pt
-    // close vector, inset 9" matches it exactly — 14 centred in 32 leaves 9 a side.
-    //
-    // Still owed by /ui2-component: C-039's own contract (props, states, hit target), and a
-    // ruling on whether this vector is C-021's tenth glyph or C-039's own artwork.
-    private var clearButton: some View {
-        Image("c039-clear-icon", bundle: .ui2Preview)
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            // Registry C-039: "14pt close vector, inset 9" inside the 32pt button.
-            .frame(width: Self.clearVector, height: Self.clearVector)
-            // GAP — neither §2 nor the registry row states the tint. The sheet symbol fills
-            // `Purple/100%`, but C-034's own instance renders it white in both the frozen
-            // snapshot and the live Figma symbol, so the consumer overrides it.
-            .foregroundStyle(Token.textPrimary)
-            .frame(width: Geometry.clearSize, height: Geometry.clearSize)
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .padding(.trailing, Geometry.clearTrailing)
-            .offset(y: Geometry.clearTop)
-            .ui2Element("Clear button")
+    // §2: "**Caret** (`Focus` only) — 2×24, `radius-bar` (2), `color-accent`, leading the
+    // content row." §2 states no caret↔text gap, so there is none on either side.
+    private var caret: some View {
+        RoundedRectangle(cornerRadius: Token.Radius.bar)
+            .fill(Token.accent)
+            .frame(width: Geometry.caretWidth, height: Geometry.caretHeight)
+            .ui2Element("Caret")
     }
 
-    /// Registry C-039: the close vector inside the 32pt button.
-    private static let clearVector: CGFloat = 14
+    // §2: "**Clear button** (`Has value` only) — C-039, 32×32, trailing inset 7" — the real
+    // C-039 registry view (§5 Consumes, R-15), which owns its 32pt frame, tint, pressed dip and
+    // accessibility label; `onClear` is its action. Centred vertically per OQ-C-034-4.
+    private var clearButton: some View {
+        ClearSearchButton(action: onClear)
+            .padding(.trailing, Geometry.clearTrailing)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
+            .ui2Element("Clear button")
+    }
 }

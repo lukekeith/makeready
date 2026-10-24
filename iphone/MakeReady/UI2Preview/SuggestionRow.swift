@@ -54,7 +54,7 @@ struct SuggestionRow: View {
             // glyph is always C-021 `glyph = add`" — fixed, not a prop. C-021 owns the size,
             // the tint and the press highlight (OQ-C-050-1's "system highlight on the glyph
             // only, no row-level highlight").
-            GlyphButton(glyph: .add, action: onAdd)
+            GlyphButton(glyph: .add, onTap: onAdd)
                 .fixedSize()
                 .ui2Element("Add glyph")
         }

@@ -30,7 +30,7 @@ struct ActionMenuRow: View {
     var onTap: () -> Void = {}
 
     var body: some View {
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             // §2: center-aligned, item gap `space-card-padding`.
             HStack(spacing: Token.Space.cardPadding) {
                 leadingGlyph.ui2Element("Glyph")

@@ -6,10 +6,8 @@
 //  §3 states, §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
 //  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
 //
-//  ARTWORK: C-075's two vectors (§5a) are carried in Resources/Glyphs.xcassets under the
-//  `c075-` prefix, `original`-rendered because their fill is baked in — the same carriage
-//  C-072 and C-074 use. A raw .svg in a bundle is not loadable; the catalog is the only way
-//  iOS renders these.
+//  ARTWORK: the two arrows were C-075 ArrowGlyph, retired 2026-10-02 into the glyph library
+//  as `arrow-left-carbon` / `arrow-right-carbon` and drawn through the generated `Glyph` view.
 //
 
 import SwiftUI
@@ -50,13 +48,13 @@ struct DateSpanIndicator: View {
     // is what the 184×88 frame above leaves around it, not padding this stack applies.
     private var band: some View {
         HStack(alignment: .center, spacing: Self.bandGap) {
-            ArrowGlyph(direction: .left)
+            Glyph(.arrowLeftCarbon, size: .md, tint: Self.arrowTint)
                 .ui2Element("Leading arrow")
             pair(value: months, label: "months")
                 .ui2Element("Months pair")
             pair(value: days, label: "days")
                 .ui2Element("Days pair")
-            ArrowGlyph(direction: .right)
+            Glyph(.arrowRightCarbon, size: .md, tint: Self.arrowTint)
                 .ui2Element("Trailing arrow")
         }
         .ui2Element("Content band")
@@ -96,56 +94,9 @@ struct DateSpanIndicator: View {
     // NOT `Token.Space.elementGap`, which is the identical 8: spending the token here would
     // assert the decision the contract holds open.
     private static let bandGap: CGFloat = 8
-}
 
-/// C-075 ArrowGlyph — "a 24×24 static directional arrow (NOT a button — no hit target, no
-/// action, no tint prop)".
-///
-/// Built inline rather than as its own preview: its contract is **§5a of C-064's file** with no
-/// frozen snapshot of its own, so it is not a legal `/d2m-component-build` target and can never
-/// earn its own comparison row. The same carriage C-038 gives C-074 PersonGlyph and C-033 gives
-/// C-072 LinkStatusGlyph.
-struct ArrowGlyph: View {
-
-    /// C-075 §5a `direction: left | right` — the row's one axis, "both designed and both
-    /// consumed" by C-064. Raw values are the contract's own names, which are also the
-    /// artwork filenames (`assets/C-075-direction-<value>.svg`) and the catalog keys.
-    enum Direction: String {
-        case left
-        case right
-    }
-
-    /// C-075 §5a: "`direction: left | right`. **No tint prop** — see the fill note."
-    let direction: Direction
-
-    var body: some View {
-        // §5a: "**Fill:** `white @ 20%` (`White/20%` → `color-white-20`), baked into the
-        // exported path — `fill="white" fill-opacity="0.2"` — **not applied by the consumer**."
-        // So the imageset is `original`-rendered and carries no `.foregroundColor`;
-        // `Token.white20` is the token that value equals, and is named here rather than applied.
-        //
-        // This is also why `right` needs its own imageset despite sharing one vector with C-021
-        // `arrow-forward` (§5a: byte-identical paths): C-021's catalog entry is `template`, a
-        // mask tinted `color-accent`, and reusing it would drop the baked 20% white. The two
-        // rows differ in fill and role, which is the whole of OQ-C-064-7.
-        Image(Self.asset(for: direction), bundle: .ui2Preview)
-            .resizable()
-            .scaledToFit()
-            // §5a: "**Geometry:** 24×24 viewBox, one path, no container and no background."
-            // A stated size of the glyph's own box, like C-021 §2's 24 and C-072 §3e's 16 —
-            // no token row carries it, and the hex-equal `space-row-gap` (24) is a gap between
-            // table rows, not the size of an icon.
-            .frame(width: Self.box, height: Self.box)
-            .ui2Element("ArrowGlyph (\(direction.rawValue))")
-    }
-
-    /// §5a: "**Artwork:** `assets/C-075-direction-left.svg`, `assets/C-075-direction-right.svg`."
-    /// Carried into the catalog under the `c075-` prefix, so the asset name is derived from the
-    /// §5a value and there is no mapping table to drift.
-    private static func asset(for direction: Direction) -> String {
-        "c075-direction-\(direction.rawValue)"
-    }
-
-    /// §5a: the 24×24 box both values are drawn in.
-    private static let box: CGFloat = 24
+    // §5a: "**Fill:** `white @ 20%` (`White/20%` → `color-white-20`)". The library art keeps
+    // the absorbed `fill-opacity="0.2"`, so the 20% is already in the glyph's mask: tinting it
+    // `Token.white20` would compound to 4%. Full white over the 20% mask renders color-white-20.
+    private static let arrowTint = Token.white100
 }

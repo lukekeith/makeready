@@ -88,7 +88,7 @@ Screen ids are `<area>-<name>` kebab. Platform: `iphone` (leader app) or `web-me
 
 | Screen | Platform | Figma | Status | Spec | Notes |
 |---|---|---|---|---|---|
-| `activities-editor` | iphone | pending-figma | — | | leader edit-in-place canvas = the player (activities 07/09); preview system retired |
+| `activities-editor` | iphone | pending-figma | — | | leader edit-in-place canvas = the player (activities 07/09); preview system retired. **Text-tool behavior reference (2026-10-06):** [`activities/`](activities/README.md) — the reference editor's object model, every tool, and measured mode transitions, plus the mapping onto the four design frames and 10 owner OQs (`activities/10-target-ui-mapping.md` §5) |
 | `activities-player` | web-member | pending-figma | — | | vertical pager, member runtime (activities 01/03/05) |
 | `activities-completion` | web-member | pending-figma | — | | checkmark + streak/up-next page (activities 01 §end) |
 

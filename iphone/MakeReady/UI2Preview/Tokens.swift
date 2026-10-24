@@ -32,12 +32,29 @@ extension View {
     }
 }
 
+/// A designed elevation, authored as a CSS box-shadow (`x y blur color`). SwiftUI's
+/// shadow radius is the blur's standard deviation, half the CSS blur — applied by the
+/// `designShadow` modifier.
+struct DesignShadow {
+    let color: Color
+    let x: CGFloat
+    let y: CGFloat
+    let blur: CGFloat
+}
+
+extension View {
+    func designShadow(_ shadow: DesignShadow) -> some View {
+        self.shadow(color: shadow.color, radius: shadow.blur / 2, x: shadow.x, y: shadow.y)
+    }
+}
+
 enum Token {
     static let activitySlidePlaceholder = Color(red: 0.1804, green: 0.1804, blue: 0.1804, opacity: 1)
     static let negative = Color(red: 0.9843, green: 0.1725, blue: 0.2118, opacity: 1)
     static let positive = Color(red: 0.4824, green: 0.9451, blue: 0.6588, opacity: 1)
     static let screenshotPlaceholder = Color(red: 0.1176, green: 0.1608, blue: 0.2235, opacity: 1)
     static let scrim = Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.502)
+    static let success = Color(red: 0.3412, green: 0.8588, blue: 0.3647, opacity: 1)
     static let textNavigation = Color(red: 0.6, green: 0.6314, blue: 0.6863, opacity: 1)
     static let textPrimary = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 1)
     static let textSecondary = Color(red: 0.6, green: 0.6314, blue: 0.6863, opacity: 1)
@@ -368,52 +385,77 @@ enum Token {
         static let bodySm = DesignTextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: 0)
         static let byline = DesignTextStyle(weight: .regular, size: 12, lineHeight: 16, tracking: 0)
         static let calendarLabel = DesignTextStyle(weight: .bold, size: 12, lineHeight: 14, tracking: 0)
+        static let heroTitle = DesignTextStyle(weight: .regular, size: 24, lineHeight: 24, tracking: -0.1)
         static let input = DesignTextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0)
-        static let labelEmphasis = DesignTextStyle(weight: .semibold, size: 14, lineHeight: 24, tracking: 0)
+        static let keypadDigit = DesignTextStyle(weight: .regular, size: 28, lineHeight: 34, tracking: -0.15)
+        static let pageActionLabelLg = DesignTextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: -0.28)
+        static let passageVerse = DesignTextStyle(weight: .regular, size: 18, lineHeight: 25.2, tracking: 0.72)
+        static let stepTitle = DesignTextStyle(weight: .regular, size: 14, lineHeight: 18, tracking: -0.1)
+        static let summaryLabel = DesignTextStyle(weight: .bold, size: 14, lineHeight: 14, tracking: 0)
         static let titleTile = DesignTextStyle(weight: .bold, size: 17, lineHeight: 22, tracking: 0)
         static let actionItem = DesignTextStyle(weight: .regular, size: 18, lineHeight: 24, tracking: 0)
+        static let buttonLabel = DesignTextStyle(weight: .regular, size: 12, lineHeight: 20, tracking: -0.24)
         static let calendarDate = DesignTextStyle(weight: .regular, size: 40, lineHeight: 40, tracking: 0)
         static let caption = DesignTextStyle(weight: .regular, size: 12, lineHeight: 14, tracking: 0)
         static let link = DesignTextStyle(weight: .semibold, size: 14, lineHeight: 24, tracking: 0)
-        static let pageTitle = DesignTextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: 0)
-        static let valueEmphasis = DesignTextStyle(weight: .bold, size: 18, lineHeight: 24, tracking: 0)
+        static let overline = DesignTextStyle(weight: .medium, size: 11, lineHeight: 11, tracking: 1.1)
+        static let stepDescription = DesignTextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: -0.1)
+        static let overlineValue = DesignTextStyle(weight: .regular, size: 11, lineHeight: 11, tracking: 1.1)
+        static let buttonLabelLg = DesignTextStyle(weight: .medium, size: 17, lineHeight: 18, tracking: 0)
         static let titleCard = DesignTextStyle(weight: .bold, size: 14, lineHeight: 20, tracking: 0)
-        static let captionBold = DesignTextStyle(weight: .bold, size: 12, lineHeight: 12, tracking: 0)
+        static let codeDisplay = DesignTextStyle(weight: .bold, size: 24, lineHeight: 24, tracking: 0)
+        static let labelEmphasis = DesignTextStyle(weight: .semibold, size: 14, lineHeight: 24, tracking: 0)
+        static let valueEmphasis = DesignTextStyle(weight: .bold, size: 18, lineHeight: 24, tracking: 0)
+        static let body = DesignTextStyle(weight: .regular, size: 14, lineHeight: 14, tracking: 0)
         static let calloutBold = DesignTextStyle(weight: .semibold, size: 16, lineHeight: 21, tracking: -0.32)
+        static let captionBold = DesignTextStyle(weight: .bold, size: 12, lineHeight: 12, tracking: 0)
+        static let navAction = DesignTextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0.56)
+        static let pageTitle = DesignTextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: 0)
         static let bodyLg = DesignTextStyle(weight: .regular, size: 17, lineHeight: 22, tracking: 0)
         static let footnote = DesignTextStyle(weight: .regular, size: 13, lineHeight: 18, tracking: 0)
         static let captionSemibold = DesignTextStyle(weight: .semibold, size: 12, lineHeight: 12, tracking: 0)
-        static let body = DesignTextStyle(weight: .regular, size: 14, lineHeight: 14, tracking: 0)
         static let sectionTitle = DesignTextStyle(weight: .semibold, size: 18, lineHeight: 24, tracking: 0)
         static let subtitleSemibold = DesignTextStyle(weight: .semibold, size: 14, lineHeight: 20, tracking: 0)
         static let valueHero = DesignTextStyle(weight: .regular, size: 24, lineHeight: 32, tracking: 0)
         static let navLabel = DesignTextStyle(weight: .bold, size: 14, lineHeight: 16, tracking: 0)
-        static let navAction = DesignTextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0.56)
-        static let buttonLabel = DesignTextStyle(weight: .regular, size: 12, lineHeight: 20, tracking: -0.24)
     }
 
     enum Space {
         static let chipGap: CGFloat = 2
         static let fieldGap: CGFloat = 12
-        static let elementGap: CGFloat = 8
-        static let metaGap: CGFloat = 4
-        static let tilePadding: CGFloat = 24
-        static let cardPadding: CGFloat = 16
+        static let keypadGap: CGFloat = 32
         static let pageMargin: CGFloat = 16
-        static let sectionGap: CGFloat = 32
+        static let toolbarGap: CGFloat = 32
+        static let keypadInsetY: CGFloat = 23
+        static let tilePadding: CGFloat = 24
+        static let toggleGap: CGFloat = 16
+        static let stackGap: CGFloat = 16
+        static let buttonPadding: CGFloat = 8
+        static let labelValueGap: CGFloat = 10
+        static let buttonGap: CGFloat = 10
+        static let cardPadding: CGFloat = 16
+        static let elementGap: CGFloat = 8
         static let rowGap: CGFloat = 24
+        static let sectionGap: CGFloat = 32
+        static let metaGap: CGFloat = 4
     }
 
     enum Radius {
         static let cardXs: CGFloat = 2
         static let cardSm: CGFloat = 4
-        static let bar: CGFloat = 2
         static let card: CGFloat = 8
+        static let bar: CGFloat = 2
         static let modal: CGFloat = 16
     }
 
     enum Motion {
+        static let chipSelect = Animation.easeOut(duration: 0.15)
         static let menuFadeIn = Animation.easeOut(duration: 0.3)
         static let menuFadeOut = Animation.easeOut(duration: 0.25)
+    }
+
+    enum Elevation {
+        static let thumb = DesignShadow(color: Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.25), x: 0, y: 4, blur: 4)
+        static let thumbnail = DesignShadow(color: Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.2), x: 0, y: 4, blur: 4)
     }
 }

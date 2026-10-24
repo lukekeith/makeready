@@ -6,10 +6,10 @@
 //  §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
 //  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
 //
-//  Figma designs the two RESTING states only. Every transition rule — the finger-tracked
-//  morph, the gesture model, the switch choreography — lives in the behavior source
-//  (docs/features/navigation/01-account-switcher-analysis.md) and is undesigned here
-//  (OQ-C-019-5/6), so this view renders the two designed endpoints and nothing between.
+//  Figma designs the two RESTING states only. Every transition rule — the morph, the gesture
+//  model, the switch choreography — is §2c, restated from the behavior source
+//  (docs/features/navigation/01-account-switcher-analysis.md) and ruled by OQ-C-019-5/6:
+//  this view renders every `expansion` between the two designed endpoints.
 //
 
 import SwiftUI
@@ -48,17 +48,12 @@ struct TopNav: View {
     /// C-019 §4: `onToggleExpansion`. No render effect (OQ-PB-3).
     var onToggleExpansion: () -> Void = {}
     /// C-019 §4: `onAdd(tab)` — "absent for Home". No render effect (OQ-PB-3); which cards
-    /// SHOW a slot is §2b's rule, not this closure's presence — see `addAction(for:)`.
+    /// SHOW a slot is C-069 `hasAdd`, not this closure's presence.
     var onAdd: ((String) -> Void)?
 
-    // §2 table: row height 32 collapsed · 96 expanded.
-    private static let collapsedHeight: CGFloat = 32
-    private static let expandedHeight: CGFloat = 96
-
     // §2 table: row leading/trailing inset — 8 (`px-8`, in the component) collapsed; "none
-    // in the component" expanded (the home-dashboard instance adds 16 — OQ-C-019-1, which
-    // asks whether the two presentations should share one inset; the component is built as
-    // designed, asymmetry included).
+    // in the component" expanded, and none from the host (OQ-C-019-1, closed: one shared
+    // inset — the first label sits 16pt from the row edge in both presentations).
     //
     // GAP — the 8pt row inset has no row in docs/ui2/design-system/tokens.md, so it cannot
     // resolve to a Token member by name (preview-build.md §3 rule 4). The spacing family's
@@ -76,64 +71,58 @@ struct TopNav: View {
         // which is both the designed behaviour and the only construction that survives the
         // 656/1048-into-440 overflow.
         //
-        // §3's scroll indicator is UNDESIGNED (OQ-C-019-6), so none is rendered: showing
-        // the system one would invent the treatment that OQ waits on.
-        ScrollView(.horizontal) {
-            HStack(spacing: Token.Space.elementGap) {      // §2: gap = `space-element-gap` (8)
-                ForEach(tabs, id: \.self) { tab in
-                    NavTabButton(
-                        label: tab,
-                        presentation: presentation,
-                        active: tab == selectedTab,
-                        addAction: addAction(for: tab)
-                    )
-                    .contentShape(Rectangle())
-                    // §4: `onSelect(tab)`. A tap gesture rather than a Button because §3's
-                    // pressed state is UNDESIGNED (OQ-C-019-4) — a button style would render
-                    // a press treatment the contract has not ruled on, and the add slot's own
-                    // GlyphButton is already a Button nested inside this row.
-                    .onTapGesture { onSelect(tab) }
+        // §2c: "a thin indicator under the row appears while panning, then fades" — the
+        // system horizontal indicator's own behaviour (OQ-C-019-6), so it is left automatic.
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                HStack(spacing: Token.Space.elementGap) {      // §2: gap = `space-element-gap` (8)
+                    ForEach(tabs, id: \.self) { tab in
+                        // C-069 §4: every tab takes the row's `expansion` unchanged — §2c "one
+                        // row, two projections": 0→1 drives every tab at once — `hasAdd` per §1
+                        // deviation 3, and routes its two actions out through this row's §4
+                        // callbacks.
+                        NavTabButton(
+                            label: tab,
+                            expansion: progress,
+                            active: tab == selectedTab,
+                            hasAdd: tab != Self.tabWithoutAdd,
+                            onTap: { onSelect(tab) },
+                            onAdd: { onAdd?(tab) }
+                        )
+                    }
                 }
+                // §2 table: row leading/trailing inset.
+                .padding(.horizontal, inset)
+                // §4: `scrollOffset` — "one shared offset across both presentations". A resting
+                // render has no live scroll position to drive, so the offset is applied to the
+                // content, which is what a scroll position IS for a static frame.
+                .offset(x: -scrollOffset)
             }
-            // §2 table: row leading/trailing inset.
-            .padding(.horizontal, inset)
-            // §4: `scrollOffset` — "one shared offset across both presentations". A resting
-            // render has no live scroll position to drive, so the offset is applied to the
-            // content, which is what a scroll position IS for a static frame.
-            .offset(x: -scrollOffset)
+            .scrollIndicators(.automatic)
+            // §2c Switch (OQ-C-019-6): "the row auto-scrolls so the selected tab lands at the
+            // leading edge". Panning never changes selection, so only a selection moves it.
+            .onChange(of: selectedTab) { _, tab in
+                withAnimation { proxy.scrollTo(tab, anchor: .leading) }
+            }
         }
-        .scrollIndicators(.hidden)
-        // §2 table: row height 32 collapsed · 96 expanded, `items: center`.
-        .frame(height: height)
+        // §2 table: row height 32 collapsed · 96 expanded, growing in step with the tabs
+        // (§2c step 2: "the row height grows 32→96"), `items: center`.
+        .frame(height: NavTabButton.height(at: progress))
         .background(Token.layoutBackground)                // §2: on `color-layout-background`
         .contentShape(Rectangle())
         .onTapGesture { onToggleExpansion() }              // §4: "Tap toggles"
         .ui2Element("TopNav")                              // capture element map — UI2Element.swift
     }
 
-    /// §4: the designed symbols are `expansion`'s two ENDPOINTS. §3's morph intermediate is
-    /// undesigned (OQ-C-019-5), so this resolves to the nearer designed endpoint rather than
-    /// interpolating: rendering an in-between would invent the ruling that OQ waits on
-    /// (preview-build.md §3 rule 7).
-    private var presentation: NavTabButton.Presentation {
-        expansion >= 0.5 ? .expanded : .collapsed
-    }
+    /// §4: `expansion` 0…1 — the designed symbols are its two endpoints and "every value
+    /// between renders the §2c choreography" (OQ-C-019-5), which C-069 owns per tab.
+    private var progress: CGFloat { min(max(CGFloat(expansion), 0), 1) }
 
-    private var height: CGFloat {
-        presentation == .expanded ? Self.expandedHeight : Self.collapsedHeight
-    }
-
+    /// The row inset sheds 8 → 0 over C-069's growth window, while each tab's own padding
+    /// grows 8 → 16, so the first label stays put through the morph (OQ-C-019-1: "labels
+    /// morph in place with no lateral jump").
     private var inset: CGFloat {
-        presentation == .expanded ? Self.expandedInset : Self.collapsedInset
-    }
-
-    /// §2b: the add slot is designed on every EXPANDED card; §1 deviation 3: the row hides
-    /// it on Home. Whether a slot renders is that rule — not whether a consumer happened to
-    /// pass `onAdd`, which is an interaction prop with no render effect (OQ-PB-3). So the
-    /// closure returned here is non-nil wherever the design shows a slot, and forwards to
-    /// `onAdd` only if one was supplied.
-    private func addAction(for tab: String) -> (() -> Void)? {
-        guard presentation == .expanded, tab != Self.tabWithoutAdd else { return nil }
-        return { onAdd?(tab) }
+        let growth = NavTabButton.growth(at: progress)
+        return Self.collapsedInset + (Self.expandedInset - Self.collapsedInset) * growth
     }
 }

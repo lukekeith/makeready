@@ -73,8 +73,17 @@ extension View {
     /// contributed — so a component that named its root erased every part inside it and
     /// arrived with exactly one element. Transforming appends this view's bounds to what
     /// its subtree already produced, which is what makes nesting survive.
+    ///
+    /// The name is also the view's `accessibilityIdentifier` (d2m video-captures F2): the recording
+    /// runner (MakeReadyCaptureUITests) finds a card's element with
+    /// `descendants(matching: .any).matching(identifier: name).firstMatch` (D25). `.contain` makes
+    /// the annotated view an accessibility CONTAINER, so the identifier lands on it once instead of
+    /// being copied onto each child, and the children keep their own elements (a button inside
+    /// stays a button). Nothing renders differently.
     func ui2Element(_ name: String) -> some View {
-        transformAnchorPreference(key: UI2ElementPreferenceKey.self, value: .bounds) { value, anchor in
+        accessibilityElement(children: .contain)
+            .accessibilityIdentifier(name)
+            .transformAnchorPreference(key: UI2ElementPreferenceKey.self, value: .bounds) { value, anchor in
             value.append(UI2ElementAnchor(name: name, anchor: anchor))
         }
     }

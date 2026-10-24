@@ -2,113 +2,148 @@
 //  DayChip.swift
 //  UI2Preview — the UI 2.0 preview module
 //
-//  Built from docs/ui2/design-system/components/C-052-day-chip.md (§2 geometry, §3 states,
-//  §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
-//  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
+//  Built from C-052-day-chip in d2m (§2 geometry, §3 states, §4 props).
+//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
 
 import SwiftUI
 
-/// C-052 DayChip — "the 32×40 rounded box holding one ordinal program-day number".
+/// C-052 DayChip — one filled shape and one centred text run, in two looks (§2):
+/// `day` (the 32×40 rounded box holding an ordinal program-day number) and `weekday`
+/// (the 32×32 circle holding one uppercase weekday letter).
 ///
-/// §2: a fixed box and a number, in either state. §1 deviation 5: "Neither symbol has a
-/// border, a shadow, an icon, a dot or a press treatment. A rounded rectangle and one text
-/// run is the whole anatomy."
+/// §1 deviation 5: no border, no shadow, no icon, no press look. §3a: within one look the
+/// fill is the only delta; `look` changes shape, size and label type, never the fill.
 ///
-/// **Fixed, not content-sized** — the opposite of C-053 StatusBadge. §1 deviation 1: "The
-/// box is a fixed 32×40 with `overflow: clip`; the number is centred inside it. A label
-/// wider than 32 is **clipped**, not wrapped and not grown." The clip is modelled, not
-/// assumed away, because it is the behaviour OQ-C-052-4 is asking the owner about.
+/// **Fixed, not content-sized.** §1 deviation 1: a fixed box with `overflow: clip`; a label
+/// wider than the box is clipped, not wrapped and not grown (OQ-C-052-4, ruled).
 ///
-/// Chrome-free: frame, background and outer padding belong to the call site
-/// (preview-build.md OQ-PB-1 / OQ-PB-2).
+/// Chrome-free: frame, background and outer padding belong to the call site (R-16).
 struct DayChip: View {
 
-    /// §4 `state` — `Default | Active`. §3a: it "selects the chip fill and nothing else";
-    /// size, radius, clipping, type and text colour are identical in both symbols.
-    ///
-    /// §3b: `Active` means "this is the **selected** day", not "today" — the rail draws
-    /// ordinal program days on a template, which has no current date, and C-070 DateBlock is
-    /// where the program expresses "today". Raw values are §3a's labels verbatim, because
-    /// those strings are the fixture's variant keys (preview-build.md §3 rule 7).
+    /// §4 `content` — what the chip shows, and so its `look` (§3a). The case IS the look, so
+    /// a weekday letter can never be drawn in the 32×40 box or a day number in the circle.
+    enum Content {
+        /// The ordinal program day 1…N — not a calendar date.
+        case day(Int)
+        /// `letter` is the single uppercase initial drawn ("M"); `name` is the full weekday
+        /// name used as the accessibility label ("Monday").
+        case weekday(letter: String, name: String)
+    }
+
+    /// §4 `state` — selects the fill and nothing else (§3a). `Active` = selected / on, never
+    /// "today" (§3b). Raw values are §3's labels verbatim — the fixture's values.
     enum State: String {
         case `default` = "Default"
         case active = "Active"
     }
 
-    /// §4 `day` — "the ordinal program day rendered in the box — Day 1 … Day N, not a
-    /// calendar date". §4 records that Figma types the text override `string` with default
-    /// `"1"`; that is the source's authoring type, and the contract is `Int`.
-    let day: Int
+    /// §4 `content`. Required (R-07).
+    let content: Content
 
-    /// §4 `state`.
+    /// §4 `state`. Required (R-07).
     let state: State
 
-    /// §4 `onTap` — "Fires on tap. What the caller does with it … belongs to the consuming
-    /// screen, not to this row." Carries no render effect; emitted as a defaulted no-op so
-    /// the promoted view keeps its real signature (OQ-PB-3's default).
+    /// §4 `onTap` — what it means (select a day, toggle a weekday) is the consumer's call.
+    /// No render effect; a defaulted no-op (R-03, R-33).
     var onTap: () -> Void = {}
 
     var body: some View {
-        Button(action: onTap) {
-            number
-                // §2: "fixed **32 × 40**, contents centred on both axes".
-                .frame(width: Self.width, height: Self.height)
-                .background(
-                    // §2: `radius-card-sm` (4), fill per state, "No stroke".
-                    RoundedRectangle(cornerRadius: Token.Radius.cardSm)
-                        .fill(chipFill)
-                        .ui2Element("Chip")
-                )
-                // §2 / §1 deviation 1: `overflow: clip`. A number too wide for 32 is cut by
-                // the chip's own rounded rect rather than overflowing it.
-                .clipShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
+        SwiftUI.Button(action: onTap) {
+            chip
         }
         .buttonStyle(.plain)
+        // §4 Accessibility (R-17): a button, selected when Active, labelled per look.
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityAddTraits(state == .active ? [.isButton, .isSelected] : .isButton)
         .ui2Element("DayChip")     // capture element map — UI2Element.swift
     }
 
-    // §2: the centred number. `String(day)` rather than an interpolated Int: the source
-    // renders the digits as authored, with no grouping separator or locale formatting.
-    private var number: some View {
-        Text(String(day))
-            // §2: SF Pro Regular 14 / 14 — `type-body` exactly, the leading measured from
-            // the text node's own 14pt box.
-            .designTextStyle(Token.TypeStyle.body)
-            .foregroundColor(Self.numberWhite)
-            .lineLimit(1)
-            .fixedSize()
-            // §2: "the text node sits at x 12.5 / y 13 with a 7 × 14 box". SwiftUI's
-            // lineSpacing does nothing to a single line, so the 14pt line box is pinned as
-            // a frame — the same construction C-053's label uses — or the glyph centres
-            // against SF Pro's natural ~16.7pt line box instead of the measured one.
-            .frame(height: Self.lineBox)
-            .ui2Element("Number")
+    @ViewBuilder
+    private var chip: some View {
+        switch content {
+        case .day(let number):
+            label(String(number), style: Token.TypeStyle.body, lineBox: Self.dayLineBox, part: "Number")
+                // §2: fixed 32 × 40, contents centred on both axes.
+                .frame(width: Self.dayWidth, height: Self.dayHeight)
+                .background(
+                    // §2: `radius-card-sm` (4), fill per state, no stroke.
+                    RoundedRectangle(cornerRadius: Token.Radius.cardSm)
+                        .fill(fill)
+                        .ui2Element("Chip")
+                )
+                // §1 deviation 1: `overflow: clip`, cut by the chip's own rounded rect.
+                .clipShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
+                // §3c / OQ-C-052-5: day target 32 wide × 44 tall — the 2pt rail gap keeps
+                // the width at 32. The footprint stays §2's 32 × 40.
+                .contentShape(HitOutset(width: Self.dayWidth, height: Self.hitSize))
+        case .weekday(let letter, _):
+            label(letter, style: Token.TypeStyle.titleCard, lineBox: Self.weekdayLineBox, part: "Letter")
+                // §2: fixed 32 × 32, contents centred on both axes.
+                .frame(width: Self.weekdaySide, height: Self.weekdaySide)
+                .background(
+                    // §2 / §1 deviation 7: a Circle shape, not `radius-circle`; no stroke.
+                    Circle()
+                        .fill(fill)
+                        .ui2Element("Chip")
+                )
+                .clipShape(Circle())
+                // §3c / OQ-C-052-5: weekday target 44 × 44 — C-127's 16pt gap leaves 6pt a
+                // side, so neighbouring targets meet but do not overlap. Circle stays 32.
+                .contentShape(HitOutset(width: Self.hitSize, height: Self.hitSize))
+        }
     }
 
-    /// §3a: the one delta between the two symbols.
-    private var chipFill: Color {
+    /// §2: the centred label. `String(number)` rather than an interpolated Int: no grouping
+    /// separator or locale formatting. The line box is pinned as a frame — SwiftUI's
+    /// lineSpacing does nothing to a single line, so without it the glyph centres against
+    /// SF Pro's natural line box instead of the measured one (day 14, weekday 20).
+    private func label(_ text: String, style: DesignTextStyle, lineBox: CGFloat, part: String) -> some View {
+        Text(text)
+            .designTextStyle(style)
+            // §2: `color-text-primary`, both looks (deviation 2, ruled via OQ-C-022-4).
+            .foregroundColor(Token.textPrimary)
+            .lineLimit(1)
+            .fixedSize()
+            .frame(height: lineBox)
+            .ui2Element(part)
+    }
+
+    /// §3a: the one delta within a look, the same two tokens in both looks.
+    private var fill: Color {
         switch state {
-        // §1 deviation 3: `color-white-20` is white at **20% alpha**, not a grey. The
-        // token carries the alpha, so the chip composites against whatever ground the call
-        // site paints — which is the whole point of the deviation.
+        // §1 deviation 3: white at 20% alpha, not a grey — it composites against the ground.
         case .default: Token.white20
         case .active: Token.accent
         }
     }
 
-    // FLAGGED LITERAL — C-052 §1 deviation 2: "The number's white is raw `#ffffff`, bound to
-    // no Figma variable, while **both** chip fills **are** bound (`White/20%`,
-    // `Purple/100%`)." Emitted as the literal the source states per preview-build.md §3
-    // rule 4, NOT promoted to `Token.textPrimary` — promoting it would assert a binding
-    // Figma does not have, and the flag exists so the next Figma edit can move one and not
-    // the other. Seventh site of the pattern; OQ-C-052-2 asks for the binding, paired with
-    // OQ-C-022-4.
-    private static let numberWhite = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 1)
+    private var accessibilityLabel: String {
+        switch content {
+        case .day(let number): "Day \(number)"
+        case .weekday(_, let name): name
+        }
+    }
 
-    /// §2: the fixed box.
-    private static let width: CGFloat = 32
-    private static let height: CGFloat = 40
-    /// §2: the number's 14pt line box — see the frame on `number`.
-    private static let lineBox: CGFloat = 14
+    /// §2: the day look's fixed box.
+    private static let dayWidth: CGFloat = 32
+    private static let dayHeight: CGFloat = 40
+    /// §2: the weekday look's fixed circle.
+    private static let weekdaySide: CGFloat = 32
+    /// §3c / OQ-C-052-5: the expanded target on every axis that does not overlap a neighbour.
+    private static let hitSize: CGFloat = 44
+    /// §2: `type-body`'s 14pt line (day) and `type-title-card`'s 20pt line (weekday).
+    private static let dayLineBox: CGFloat = 14
+    private static let weekdayLineBox: CGFloat = 20
+}
+
+/// §3c: a hit shape `width` × `height`, centred on the chip — the target grows past the drawn
+/// shape without moving the layout.
+private struct HitOutset: Shape {
+    let width: CGFloat
+    let height: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        Path(rect.insetBy(dx: (rect.width - width) / 2, dy: (rect.height - height) / 2))
+    }
 }

@@ -69,7 +69,7 @@ struct LessonCard: View {
     /// `space-element-gap` (8) between the title row and the second line … absent second
     /// line → no gap". §2 Accessibility: "the title block is one button".
     private var titleBlock: some View {
-        Button(action: onOpen) {
+        SwiftUI.Button(action: onOpen) {
             VStack(alignment: .leading, spacing: Token.Space.elementGap) {
                 titleRow
                 secondLine
@@ -168,7 +168,7 @@ struct LessonCard: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(alignment: .top, spacing: Token.Space.metaGap) {
                 ForEach(slides.indices, id: \.self) { index in
-                    Button { onSelectSlide(index) } label: {
+                    SwiftUI.Button { onSelectSlide(index) } label: {
                         ActivityScreenshot(image: slides[index].image)
                             .frame(width: Self.slideWidth)
                     }

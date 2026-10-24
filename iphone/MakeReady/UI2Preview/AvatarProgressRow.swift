@@ -21,14 +21,13 @@ struct AvatarProgressRow: View {
 
     /// One entry of §4 `metadata` — "a C-043 MetaChip's own props (`value`, `label`, `state`,
     /// `labelPosition`), whose value sets C-043 owns". The fields therefore take C-043's own
-    /// types rather than restating its sets here; C-043's §4 still spells the last one
-    /// `align: left | right` (OQ-C-043-1 ruled the rename to `labelPosition` 2026-09-21, not yet
-    /// landed in its §4 or its build), so this view follows the built MetaChip.
+    /// types rather than restating its sets here (C-043 §4 landed the OQ-C-043-1 rename to
+    /// `labelPosition` on 2026-10-24).
     struct Chip {
         let value: String
         var label: String?
         var state: MetaChip.State = .default
-        var align: MetaChip.Align = .left
+        var labelPosition: MetaChip.LabelPosition = .trailing
     }
 
     /// §4 `title` — "the one-line heading; tail-ellipsized".
@@ -52,7 +51,7 @@ struct AvatarProgressRow: View {
     var body: some View {
         // §4 R-17 / OQ-C-054-008: a Button, so the row is one element with the `.isButton`
         // trait and the ruled pressed look (0.6 opacity for the duration of the touch).
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             row
         }
         .buttonStyle(PressedOpacity())
@@ -68,7 +67,7 @@ struct AvatarProgressRow: View {
         HStack(alignment: .top, spacing: Token.Space.cardPadding) {
             // §2.1 Avatar: C-038 at size 64; C-038's own chain picks the state (§1 deviation 6:
             // no row-local image treatment).
-            Avatar(imageURL: imageURL?.absoluteString, initials: initials, size: Self.avatarSize)
+            Avatar(imageURL: imageURL, initials: initials, size: Self.avatarSize)
             details
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -138,7 +137,7 @@ struct AvatarProgressRow: View {
     private var metadataRow: some View {
         ChipRowLayout(spacing: Token.Space.chipGap) {
             ForEach(Array(metadata.enumerated()), id: \.offset) { index, chip in
-                MetaChip(value: chip.value, label: chip.label, state: chip.state, align: chip.align)
+                MetaChip(value: chip.value, label: chip.label, state: chip.state, labelPosition: chip.labelPosition)
                     .ui2Element("Chip \(index + 1)")
             }
         }
@@ -152,7 +151,7 @@ struct AvatarProgressRow: View {
     private var accessibilityPhrase: String {
         let chips = metadata.map { chip -> String in
             guard let label = chip.label else { return chip.value }
-            return chip.align == .right ? "\(label) \(chip.value)" : "\(chip.value) \(label)"
+            return chip.labelPosition == .leading ? "\(label) \(chip.value)" : "\(chip.value) \(label)"
         }
         return ([title, progressLabel] + chips).joined(separator: ", ")
     }

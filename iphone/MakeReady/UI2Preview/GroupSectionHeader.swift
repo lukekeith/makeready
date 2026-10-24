@@ -52,7 +52,7 @@ struct GroupSectionHeader: View {
     private var identityBlock: some View {
         HStack(alignment: .center, spacing: Token.Space.cardPadding) {
             // C-038 names itself ("Avatar") in the element map; no second annotation here.
-            Avatar(imageURL: imageURL?.absoluteString, initials: initials, size: Self.avatarSize)
+            Avatar(imageURL: imageURL, initials: initials, size: Self.avatarSize)
             textColumn
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -102,7 +102,7 @@ struct GroupSectionHeader: View {
     // hit target is 44×44 (deviation 2)". C-021 already builds exactly that: an expanded content
     // shape around a 24pt layout box, so the row stays 42pt.
     private var arrow: some View {
-        GlyphButton(glyph: .arrowForward, action: onOpen)
+        GlyphButton(glyph: .arrowForward, onTap: onOpen)
             // §4 Accessibility: "Its label is **\"Open \(groupName)\"** so the stacked sections
             // stay distinct, and it carries the `.isButton` trait."
             .accessibilityLabel("Open \(groupName)")

@@ -115,7 +115,7 @@ struct FollowedProgramHeader: View {
     // tall (ruled, OQ-C-032-002)". C-021 already builds exactly that: an expanded content
     // shape around a 24pt layout box.
     private var overflowAction: some View {
-        GlyphButton(glyph: .threeDots, action: onMenu)
+        GlyphButton(glyph: .threeDots, onTap: onMenu)
             // §4 Accessibility (ruled, OQ-C-032-004): "More options for \(title)" with the
             // `.isButton` trait.
             .accessibilityLabel("More options for \(title)")

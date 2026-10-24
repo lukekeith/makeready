@@ -21,7 +21,7 @@ import SwiftUI
 struct TimelineEventRow: View {
 
     /// §3 `tone` — the dot colour and the highlight colour.
-    enum Tone { case neutral, positive }
+    enum Tone { case neutral, positive, accent }
 
     /// §4: `dateLabel: String` — the already-formatted date shown in the 100pt column. The
     /// caller formats it; the row never formats dates (R-04).
@@ -55,7 +55,7 @@ struct TimelineEventRow: View {
     // colour." The 20pt box matches the 20pt text line box, so the dot centres on line 1.
     private var dot: some View {
         Circle()
-            .fill(toneColor)
+            .fill(dotColor)
             .frame(width: Self.dotDiameter, height: Self.dotDiameter)
             .frame(width: Self.dotBox, height: Self.dotBox)
             .accessibilityHidden(true)
@@ -91,17 +91,27 @@ struct TimelineEventRow: View {
         var result = AttributedString(text)
         if let highlight, !highlight.isEmpty, tone != .neutral,
            let range = result.range(of: highlight) {
-            result[range].foregroundColor = toneColor
+            result[range].foregroundColor = highlightColor
         }
         return result
     }
 
-    // §3 tone colours: `neutral` → `color-text-secondary`; `positive` → `color-positive`
-    // (OQ-C-065-003 ratified the token over Figma's raw #6CFF73).
-    private var toneColor: Color {
+    // §3 tone colours — dot: `neutral` and `accent` → `color-text-secondary`; `positive` →
+    // `color-positive` (OQ-C-065-003 ratified the token over Figma's raw #6CFF73).
+    private var dotColor: Color {
         switch tone {
-        case .neutral: return Token.textSecondary
+        case .neutral, .accent: return Token.textSecondary
         case .positive: return Token.positive
+        }
+    }
+
+    // §3 tone colours — highlight: `neutral` plain (`color-white-100`); `positive` →
+    // `color-positive`; `accent` → `color-accent` (D54, over Figma's raw #6C47FF).
+    private var highlightColor: Color {
+        switch tone {
+        case .neutral: return Token.white100
+        case .positive: return Token.positive
+        case .accent: return Token.accent
         }
     }
 

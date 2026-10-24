@@ -71,7 +71,7 @@ struct EditableFieldRow: View {
     var onTap: () -> Void = {}
 
     var body: some View {
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             // §2: "gap 8" — also the measured distance between the indicator and the
             // chevron, and between the left column and the trailing group.
             HStack(spacing: Token.Space.elementGap) {
@@ -143,7 +143,6 @@ struct EditableFieldRow: View {
                 // height-clamped/ellipsized (wraps)" — unbounded, per OQ-C-042-2 (ruled).
                 .lineLimit(multiline ? nil : 1)
                 .truncationMode(.tail)
-                .fixedSize(horizontal: false, vertical: true)
                 // A MINIMUM here, unlike the label: the designed 20pt line box is LARGER
                 // than the natural ~16.7 (so it supplies the half-leading that puts the
                 // glyphs where the snapshot has them), and a wrapping Multiline value has
@@ -153,6 +152,11 @@ struct EditableFieldRow: View {
                     minHeight: Self.lineBox(Token.TypeStyle.pageTitle),
                     alignment: .leading
                 )
+                // OUTSIDE the minHeight frame, so the frame reports the wrapped text's ideal
+                // height and the row hugs it. Inside it, a host that proposes a small height
+                // (the capture harness proposes 0) clamps the frame to its 20pt minimum and
+                // a Multiline value overflows the row (C-042 comment, 2026-10-04).
+                .fixedSize(horizontal: false, vertical: true)
                 .ui2Element("Value")
         }
     }

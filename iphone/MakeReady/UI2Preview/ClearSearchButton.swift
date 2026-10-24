@@ -46,7 +46,7 @@ struct ClearSearchButton: View {
     }
 
     var body: some View {
-        Button(action: action) {
+        SwiftUI.Button(action: action) {
             Image("c039-clear-icon", bundle: .ui2Preview)
                 // Template-rendered like every glyph in this catalog, so the vector is a mask
                 // and the button style's tint below is the whole of its colour.

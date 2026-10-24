@@ -35,22 +35,37 @@ struct PercentBar: View {
     /// This replaces C-057 §4's `style` {Thick, Thin}. The two Figma values map exactly —
     /// `Thin` → `sm` (2pt), `Thick` → `lg` (16pt) — so the contract's §3 matrix still describes
     /// what is captured; only the vocabulary moved.
+    ///
+    /// `xs` is OQ-C-125-001's (owner, 2026-10-24): C-057 §4 — "the bar's construction … `xs` 4
+    /// (rounded r4, `color-white-20` track at both alignments)". It names a construction, not a
+    /// rank in height — `xs` is thicker than `sm`.
     enum Size: String {
+        case xs
         case sm
         case md
         case lg
 
         var height: CGFloat {
             switch self {
-            case .sm: 2                     // §2: `Thin` — 2, declared on the container
-            // GAP — note 2026-09-12T02:28:29.097Z asks for "one inbetween for md" and does not
-            // size it, and no Figma symbol draws it. 8 is the midpoint of the two designed
-            // heights that is also a value the program already spends (`space-element-gap`),
-            // chosen rather than the arithmetic 9 for that reason. A `/ui2-component C-057 <url>`
-            // run that lands `md` in §3 is what turns this into a measured value.
-            case .md: 8
-            case .lg: 16                    // §2: `Thick` — 16, from the fill child
+            // OQ-C-057-3 (owner, 2026-10-20): the heights are the component's own geometry,
+            // not shared values — flagged literals on §2, never tokens.
+            case .xs: 4                     // FLAGGED LITERAL — C-057 §2: `xs` 4 (OQ-C-125-001), no token
+            case .sm: 2                     // FLAGGED LITERAL — C-057 §2: `sm` 2 (Figma `Thin`), no token
+            case .md: 8                     // FLAGGED LITERAL — C-057 §2: `md` 8 (OQ-C-057-8), no token
+            case .lg: 16                    // FLAGGED LITERAL — C-057 §2: `lg` 16 (Figma `Thick`), no token
             }
+        }
+
+        /// C-057 §2: "Square corners at `sm` / `md` / `lg`; rounded r4 at `xs`". OQ-C-057-004
+        /// (2026-10-24): r4 on a 4pt bar is fully round, so `xs` draws a capsule and cites no
+        /// radius token.
+        var shape: AnyShape {
+            self == .xs ? AnyShape(Capsule()) : AnyShape(Rectangle())
+        }
+
+        /// C-057 §2 Track: `color-white-20` at `xs`, `color-white-10` at the set's sizes.
+        var trackColor: Color {
+            self == .xs ? Token.white20 : Token.white10
         }
     }
 
@@ -159,6 +174,9 @@ struct PercentBar: View {
                 fill(trackWidth: geo.size.width)
             }
             .frame(width: geo.size.width, height: geo.size.height)
+            // §3d: an `xs` fill shorter than its corner "clips to the rounded track, never a
+            // square sliver". A no-op at the square sizes.
+            .clipShape(size.shape)
         }
         // §3c: at `progress = 0` "the track renders at its variant's height with no fill; the
         // height is the component's, not the fill's" — the proposed default for the case the
@@ -177,25 +195,25 @@ struct PercentBar: View {
         .ui2Element("PercentBar")     // capture element map — UI2Element.swift
     }
 
-    /// §2: "full width of the host slot; fill `color-white-10`; **square corners**".
+    /// §2: "full width of the host slot; fill `color-white-10`; **square corners**" — and at
+    /// `xs`, `color-white-20` with r4 corners, "drawn at **both** alignments".
     ///
-    /// §1 deviation 3 / §3a: the `Thin` + `Left` symbols carry **no background** — six of the
-    /// set's twenty-four, and the variant both thin consumers use, verified on C-033's live
-    /// instance. Drawn as the source draws it; OQ-C-057-1 asks whether it is intended. `md` is
-    /// note-created and no symbol pairs it with `Left`, so it follows the tracked majority.
+    /// Every size × alignment draws the track. OQ-C-057-1 (owner, 2026-09-16): Figma's
+    /// rail-less `Thin` + `Left` symbols are "an authoring miss: Thin/Left gets the
+    /// color-white-10 track like the other three families" — §1 deviation 3 is the stale
+    /// source fact, and the six symbols are to be fixed in Figma.
     private var track: some View {
-        Rectangle()
-            .fill(drawsTrack ? Token.white10 : Color.clear)
+        size.shape
+            .fill(size.trackColor)
             .ui2Element("Track")
     }
 
-    private var drawsTrack: Bool { !(size == .sm && aligned == .left) }
-
     /// §2: "height = the track's; width = `progress` × the track's width; **square corners**;
-    /// … anchored to the end `aligned` names".
+    /// … anchored to the end `aligned` names" — "**r4** at `xs`, the same corner as its track".
     private func fill(trackWidth: CGFloat) -> some View {
         fillPaint(trackWidth: trackWidth)
             .frame(width: trackWidth * shownProgress)
+            .clipShape(size.shape)
             .ui2Element("Fill")
     }
 
@@ -263,17 +281,13 @@ struct PercentBar: View {
         return reached?.color ?? ramp[0].color
     }
 
-    // FLAGGED LITERALS — C-057 §2: the set spends three fill colours and binds **none** of
-    // them. `#ff4759` is hex-equal to `color-negative` but unbound; `#e3eb4b` and `#4deb4b`
-    // have no token and no Figma variable anywhere. Emitted as the literals the source states
-    // per preview-build.md §3 rule 4, NOT promoted to `Token.negative` / `Token.warning` /
-    // `Token.positive` — and note 2026-09-12T02:28:29.097Z, which asks for "red, yellow, and
-    // green", does not say WHICH, so it settles the mechanism and not the palette. §2: C-062's
-    // ruled ramp is #ff4759 → #ffb53e → #6cff73, so the two completion components share only
-    // their red. OQ-C-057-2 is the ruling that would replace these three lines with tokens.
-    private static let red = Color(red: 1.0, green: 0.2784, blue: 0.349, opacity: 1)        // #ff4759
-    private static let yellow = Color(red: 0.8902, green: 0.9216, blue: 0.2941, opacity: 1) // #e3eb4b
-    private static let green = Color(red: 0.302, green: 0.9216, blue: 0.2941, opacity: 1)   // #4deb4b
+    // OQ-C-057-2 (owner, 2026-09-16): "Bind C-057 to C-062's ruled anchors — color-negative →
+    // color-warning → color-positive — so the two components that express completion share
+    // one palette; #e3eb4b and #4deb4b are retired." The set's literals (§2) are Figma's
+    // stale samples; the ramp follows the tokens wherever they move.
+    private static let red = Token.negative
+    private static let yellow = Token.warning
+    private static let green = Token.positive
 
     // MARK: - Progress
 

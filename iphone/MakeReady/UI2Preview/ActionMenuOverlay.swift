@@ -103,7 +103,7 @@ struct ActionMenuOverlay: View {
     /// §2 item 2: "C-048 PageActionButton, `color=White` — 36pt, white FILL (not bordered),
     /// r8, centered label 'Done'".
     private var doneButton: some View {
-        PageActionButton(label: "Done", role: .prominent, action: onDone)
+        PageActionButton(label: "Done", role: .prominent, onTap: onDone)
     }
 
     /// §2: "1px `color-layout-border` hairline".

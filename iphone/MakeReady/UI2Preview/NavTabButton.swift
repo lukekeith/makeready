@@ -2,138 +2,181 @@
 //  NavTabButton.swift
 //  UI2Preview — the UI 2.0 preview module
 //
-//  Built from docs/ui2/design-system/components/C-019-top-nav.md §2b — which IS registry
-//  row C-069's contract (§4 props, §3 states). PREVIEW ONLY: referenced by no screen,
-//  route, tab or flag (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell
-//  suite (§7).
-//
-//  C-069 has no contract FILE of its own, so it is not a legal `/ui2-component-build`
-//  target (that command's phase 0.3) and is built here, inside its only consumer's run.
-//  It is a top-level type rather than a private view inside TopNav.swift because C-019 §3
-//  gives it four fixture states of its own that ViewRegistry has to construct directly —
-//  a private type could not serve them — and because it is a named registry row, so §2's
-//  plain naming and §7's zero-rename promotion apply to it exactly as to any other row.
+//  Built from C-069-nav-tab-button in d2m (§2 geometry, §3 states, §4 props).
+//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
 
 import SwiftUI
 
-/// C-069 NavTabButton — one tab of the C-019 row, in either presentation.
+/// C-069 NavTabButton — one tab of C-019 TopNav: a text label at `expansion` 0, a 124×96
+/// card at 1, and §2's morph frames in between.
 ///
-/// Chrome-free and intrinsically sized: collapsed is label-driven (58×32 at the "Home"
-/// sample), expanded is the fixed 124×96 card. Frame, background and outer padding belong
-/// to the call site (preview-build.md OQ-PB-1 / OQ-PB-2).
+/// The morph is a pure function of `expansion` (§2, R-04): the view holds no timer and no
+/// animation, so C-019 can scrub it under a finger and reverse it mid-gesture. Sized by §2
+/// itself (label-hugging collapsed, fixed card expanded); it paints no page background and
+/// adds no outer padding.
 struct NavTabButton: View {
 
-    /// C-019 §4 `presentation` {collapsed, expanded}. §1 deviation 1: the two Figma sets
-    /// disagree on the axis name for the same presentation (the row says `state=Default`);
-    /// the contract uses collapsed/expanded throughout, and so does this.
-    enum Presentation: String {
-        case collapsed
-        case expanded
+    /// §4 `label` — the tab's name, one of C-019's closed 8.
+    let label: String
+    /// §4 `expansion` 0…1 (OQ-C-069-001): 0 is the collapsed symbol, 1 the expanded one.
+    let expansion: CGFloat
+    /// §4 `active` — the selected tab.
+    let active: Bool
+    /// §4 `hasAdd` = true (R-07: every designed expanded symbol shows the slot; Home passes false).
+    var hasAdd: Bool = true
+    /// §4 `onTap` — tab tapped; C-019 decides select vs toggle (R-03). No render effect.
+    var onTap: () -> Void = {}
+    /// §4 `onAdd` — add slot tapped; C-019 routes it to the tab's create list. No render effect.
+    var onAdd: () -> Void = {}
+
+    /// R-02: press feedback is ephemeral and never a prop (§4 "Pressed is internal").
+    @State private var pressed = false
+
+    private enum Geometry {
+        // GAP — C-069 §2: "fixed 124×96" expanded card; no size token family.
+        static let expandedSize = CGSize(width: 124, height: 96)
+        // GAP — C-069 §2: collapsed "height 32 (8+16+8)"; no size token family.
+        static let collapsedHeight: CGFloat = 32
+        // GAP — C-069 §2: border "1px"; no stroke token.
+        static let border: CGFloat = 1
+        // GAP — C-069 §2 morph step 1: the outline pill's "radius 16"; `radius-modal` is also 16
+        // but names a different role.
+        static let pillRadius: CGFloat = 16
+        // GAP — C-069 §2: the add slot's "40×40 box"; no size token family.
+        static let addSlot: CGFloat = 40
+        // GAP — C-069 §2 morph windows (OQ-C-069-002, ratified): outline 0→0.2, growth 0.2→1,
+        // disclosure 0.7→1.
+        static let outlineEnd: CGFloat = 0.2
+        static let disclosureStart: CGFloat = 0.7
     }
 
-    /// C-019 §4 (C-069): `label`.
-    let label: String
-    /// C-019 §4 (C-069): `presentation`.
-    let presentation: Presentation
-    /// C-019 §4 (C-069): `active` — §2b's active delta.
-    let active: Bool
-    /// C-019 §4 (C-069): `addAction?` — the expanded card's add slot. The action itself
-    /// carries no render effect (OQ-PB-3), but its PRESENCE is what §2b gates the slot on,
-    /// which is why it is an optional closure and not a defaulted no-op.
-    var addAction: (() -> Void)?
+    // MARK: - §2 morph windows
 
-    // §2b collapsed: "padding 8 on all sides … height 32 = 8 + 16 + 8".
-    //
-    // GAP — the 8pt tab padding has no row in docs/ui2/design-system/tokens.md, so it
-    // cannot resolve to a Token member by name (preview-build.md §3 rule 4). The spacing
-    // family is 16/16/8/32/4/2/24, and its only 8 is `space-element-gap` — the row's GAP
-    // token (§2), a different role. Emitted as C-019 §2b's own literal; reported by the run.
-    private static let collapsedPadding: CGFloat = 8
-    // §2b: height 32.
-    private static let collapsedHeight: CGFloat = 32
-    // §2b expanded: "124×96 card".
-    private static let expandedSize = CGSize(width: 124, height: 96)
-    // §2b: the add slot's "40×40 hit area".
-    private static let addSlotSize: CGFloat = 40
-    // §2b: "1px solid border".
-    private static let borderWidth: CGFloat = 1
+    /// Window 2 at `expansion` — exposed so C-019's row grows its height and sheds its inset in
+    /// step with its tabs (one owner for the windows).
+    static func growth(at expansion: CGFloat) -> CGFloat {
+        window(expansion, Geometry.outlineEnd, 1)
+    }
+
+    /// §2 height at `expansion`: 32 → 96 across the growth window.
+    static func height(at expansion: CGFloat) -> CGFloat {
+        Geometry.collapsedHeight
+            + (Geometry.expandedSize.height - Geometry.collapsedHeight) * growth(at: expansion)
+    }
+
+    /// Window 1, 0 → 0.2: the outline's opacity.
+    private var outline: CGFloat { Self.window(expansion, 0, Geometry.outlineEnd) }
+    /// Window 2, 0.2 → 1: size, padding, radius and the active fill.
+    private var growth: CGFloat { Self.growth(at: expansion) }
+    /// Window 3, 0.7 → 1: the add slot's opacity.
+    private var disclosure: CGFloat { Self.window(expansion, Geometry.disclosureStart, 1) }
+
+    private static func window(_ expansion: CGFloat, _ start: CGFloat, _ end: CGFloat) -> CGFloat {
+        let progress = min(max(expansion, 0), 1)
+        return min(max((progress - start) / (end - start), 0), 1)
+    }
+
+    /// OQ-C-069-003 (ratified): pressed takes the active look — `color-text-primary` label,
+    /// `color-nav-tab-background` fill, `color-nav-border-active` border.
+    private var lit: Bool { active || pressed }
+
+    /// §2 padding 8 (`space-element-gap`) → 16 (`space-card-padding`), measured inside the 1px
+    /// border at the expanded end: the frozen snapshot's label ink sits 16 + 1 from the outer edge.
+    private var inset: CGFloat {
+        lerp(Token.Space.elementGap, Token.Space.cardPadding + Geometry.border, growth)
+    }
+
+    /// §2 corner: the pill's 16 → `radius-card` (8) across the growth window.
+    private var radius: CGFloat { lerp(Geometry.pillRadius, Token.Radius.card, growth) }
+
+    // MARK: - Body
 
     var body: some View {
-        presentedTab
-            .ui2Element("NavTabButton (\(label))")     // capture element map — UI2Element.swift
-    }
-
-    @ViewBuilder
-    private var presentedTab: some View {
-        switch presentation {
-        case .collapsed: collapsedTab
-        case .expanded: expandedTab
+        let shape = RoundedRectangle(cornerRadius: radius)
+        MorphLayout(growth: growth, inset: inset) {
+            labelText
         }
+        // §2 fill: none inactive; `color-nav-tab-background` active, fading in over growth.
+        .background(shape.fill(Token.navTabBackground).opacity(lit ? growth : 0))
+        // §2 border: 1px `color-nav-border` / `color-nav-border-active`, fading in over the outline.
+        .overlay(
+            shape
+                .strokeBorder(lit ? Token.navBorderActive : Token.navBorder, lineWidth: Geometry.border)
+                .opacity(outline)
+        )
+        .contentShape(shape)
+        .onTapGesture(perform: onTap)
+        .onLongPressGesture(minimumDuration: 0, pressing: { pressed = $0 }, perform: {})
+        // §2 Accessibility (R-17): the tab is one button labelled by `label`.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
+        .accessibilityAction { onTap() }
+        // Drawn after the border so the slot sits over it; outside the tab's gestures so the
+        // nested button consumes its own tap (§2 Hit areas).
+        .overlay(alignment: .bottomTrailing) { addSlot }
+        .ui2Element("NavTabButton")
     }
 
-    // §2b: label `type-nav-label` (SF Pro Bold 14/16). "The active delta is color only —
-    // no pill, no underline, no weight or size change."
+    /// §2 label: `type-nav-label`, single line, never wraps or scales; color only for active.
     private var labelText: some View {
         Text(label)
             .designTextStyle(Token.TypeStyle.navLabel)
-            .foregroundColor(active ? Token.textPrimary : Token.navText)
+            .foregroundStyle(lit ? Token.textPrimary : Token.navText)
             .lineLimit(1)
             .fixedSize()
+            // §2: the label box is the style's 16pt line, so 8 + 16 + 8 = 32 collapsed.
+            .frame(height: Token.TypeStyle.navLabel.lineHeight)
             .ui2Element("Label")
     }
 
-    // §2b collapsed: padding 8 all sides, height 32, width label-driven.
-    private var collapsedTab: some View {
-        labelText
-            .padding(Self.collapsedPadding)
-            .frame(height: Self.collapsedHeight)
-    }
-
-    // §2b expanded: 124×96 card, `radius-card` (8), `padding` `space-card-padding` (16),
-    // 1px solid border, label pinned top-left (`items: start`).
-    //
-    // §2b's `gap: 10` between label and add slot is deliberately NOT emitted: the add slot
-    // is absolutely positioned, so the gap has no layout effect (recorded, not tokenized —
-    // OQ-C-019-7).
-    private var expandedTab: some View {
-        labelText
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            // §2b: `padding` `space-card-padding` (16), measured INSIDE the 1px border —
-            // which is what the add slot's own "-1 … so it aligns to the card's outer edge
-            // over the 1px border" is compensating for: the slot has to be pulled back out
-            // of a content box the stroke already inset. Measured on the frozen snapshot:
-            // the label's ink sits at 18pt from the card's outer edge, 16 + 1 + bearing.
-            .padding(Self.borderWidth + Token.Space.cardPadding)
-            .frame(width: Self.expandedSize.width, height: Self.expandedSize.height)
-            .background(
-                // §2b: `active=false` → no fill (shows `color-layout-background`);
-                // `active=true` → `color-nav-tab-background`.
-                RoundedRectangle(cornerRadius: Token.Radius.card)
-                    .fill(active ? Token.navTabBackground : Token.transparent)
-            )
-            .overlay(
-                // §2b: border `color-nav-border` → active `color-nav-border-active`.
-                RoundedRectangle(cornerRadius: Token.Radius.card)
-                    .strokeBorder(active ? Token.navBorderActive : Token.navBorder,
-                                  lineWidth: Self.borderWidth)
-            )
-            .overlay(alignment: .bottomTrailing) { addSlot }
-    }
-
-    // §2b: a 40×40 hit area "anchored to the card's bottom-right, offset -1 on both axes so
-    // it aligns to the card's outer edge over the 1px border", containing C-021 GlyphButton
-    // `glyph=add` at 24pt in `color-accent`. Anchoring the slot to the card's OUTER frame is
-    // that construction's result — the -1 is how Figma expresses it against an inset stroke,
-    // not a second offset to apply on top. Drawn after the border overlay, so it sits over it.
-    //
-    // Its 40pt box is smaller than C-021's stated 44pt hit target — OQ-C-019-3.
+    /// §2: a 40×40 box anchored bottom-trailing on the card's outer edge, holding C-021
+    /// GlyphButton `glyph=add`. OQ-C-069-004: the 40 box stays as drawn; C-021's own 44pt
+    /// content shape, centred on it, is the hit area. Fades over window 3 with no layout jump,
+    /// and leaves accessibility and hit-testing while invisible.
     @ViewBuilder
     private var addSlot: some View {
-        if let addAction {
-            GlyphButton(glyph: .add, action: addAction)
-                .frame(width: Self.addSlotSize, height: Self.addSlotSize)
+        if hasAdd {
+            GlyphButton(glyph: .add, onTap: onAdd)
+                .frame(width: Geometry.addSlot, height: Geometry.addSlot)
+                .opacity(disclosure)
+                .allowsHitTesting(disclosure > 0)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Add to \(label)")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { onAdd() }
+                .accessibilityHidden(disclosure == 0)
                 .ui2Element("Add slot")
+        }
+    }
+
+    private func lerp(_ from: CGFloat, _ to: CGFloat, _ t: CGFloat) -> CGFloat {
+        from + (to - from) * t
+    }
+
+    /// §2's size table as one layout: width runs from the label-hugging width (label + 2×8)
+    /// to 124, height from 32 to 96, and the label stays pinned top-leading at `inset`.
+    private struct MorphLayout: Layout {
+        let growth: CGFloat
+        let inset: CGFloat
+
+        func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+            let labelWidth = subviews.first?.sizeThatFits(.unspecified).width ?? 0
+            let hugWidth = labelWidth + 2 * Token.Space.elementGap
+            return CGSize(
+                width: hugWidth + (Geometry.expandedSize.width - hugWidth) * growth,
+                height: Geometry.collapsedHeight
+                    + (Geometry.expandedSize.height - Geometry.collapsedHeight) * growth
+            )
+        }
+
+        func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+            subviews.first?.place(
+                at: CGPoint(x: bounds.minX + inset, y: bounds.minY + inset),
+                anchor: .topLeading,
+                proposal: .unspecified
+            )
         }
     }
 }

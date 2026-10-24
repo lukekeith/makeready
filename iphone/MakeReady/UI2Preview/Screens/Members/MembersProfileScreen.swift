@@ -173,6 +173,7 @@ struct MembersProfileScreen: View {
                 showTitle: true,
                 showIcons: false,
                 leadingGlyph: .back,
+                rightButtons: [],
                 onLeading: onBack
             )
             .ui2Element("C-040 PageHeader")
@@ -195,13 +196,18 @@ struct MembersProfileScreen: View {
         .background(Token.layoutBackground)                          // §2: `color-layout-background`
     }
 
-    /// §2: hairline (`color-layout-border`) with `space-section-gap` (32) above and below.
+    /// §2: hairline (`color-layout-border`) with `space-section-gap` (32) above and below. The
+    /// frame draws the line INSIDE that 64pt band (element map: every divider band measures 64,
+    /// the line at ~31–32), so it is overlaid on the band and adds no height of its own.
     private var sectionDivider: some View {
-        Rectangle()
-            .fill(Token.layoutBorder)
+        Color.clear
             .frame(maxWidth: .infinity)
-            .frame(height: Self.hairline)
-            .padding(.vertical, Token.Space.sectionGap)
+            .frame(height: Token.Space.sectionGap * 2)
+            .overlay {
+                Rectangle()
+                    .fill(Token.layoutBorder)
+                    .frame(height: Self.hairline)
+            }
             .padding(.horizontal, Token.Space.pageMargin)
     }
 
@@ -213,7 +219,7 @@ struct MembersProfileScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer().frame(height: Self.avatarTopGap)
             Avatar(
-                imageURL: Self.optionalText(state.avatarURL),
+                imageURL: Self.optionalText(state.avatarURL).flatMap(URL.init(string:)),
                 initials: Self.optionalText(state.initials),
                 size: Self.avatarSize
             )
@@ -388,7 +394,7 @@ struct MembersProfileScreen: View {
     private func groupChips(_ index: Int) -> [ListResultRow.Chip] {
         [
             .init(value: state.groupLeaders[safe: index] ?? ""),
-            .init(value: state.groupJoinedDates[safe: index] ?? "", label: Self.joinedLabel, align: .right)
+            .init(value: state.groupJoinedDates[safe: index] ?? "", label: Self.joinedLabel, labelPosition: .leading)
         ]
     }
 
@@ -494,12 +500,13 @@ private extension Array {
 extension MembersProfileScreen.State {
 
     /// §3 `populated` — every value is the text on the frozen frame `default` (node 3668:8120;
-    /// §1 deviation 1: sample content). Photos are stand-in URLs (the component previews'
-    /// picsum seeds); the day-rail series are read off the frame's bar shapes.
+    /// §1 deviation 1: sample content). Photos are stand-in URLs (a portrait for the member,
+    /// the component previews' picsum seeds elsewhere); the day-rail series are read off the
+    /// frame's bar shapes.
     static let populated = Self(
         memberName: "Tony Stark",
         email: "tstank@starkindustries.com",
-        avatarURL: "https://picsum.photos/seed/members-profile-avatar/328",
+        avatarURL: "https://i.pravatar.cc/328?img=12",
         initials: "TS",
         age: 52,
         role: "Member",

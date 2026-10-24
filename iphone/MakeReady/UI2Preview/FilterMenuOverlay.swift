@@ -134,7 +134,7 @@ private extension FilterMenuOverlay {
         var onTap: () -> Void = {}
 
         var body: some View {
-            Button(action: onTap) {
+            SwiftUI.Button(action: onTap) {
                 HStack(spacing: Token.Space.cardPadding) {
                     if let glyph {
                         leadingGlyph(glyph).ui2Element("Glyph")

@@ -56,7 +56,7 @@ struct SearchResultRow: View {
     var body: some View {
         // §2 / OQ-C-085-003: "the system highlight over the whole row, no geometry change; the
         // ✕ target has no separate pressed look" — the plain button style's ephemeral press.
-        Button(action: onTap) {
+        SwiftUI.Button(action: onTap) {
             band
         }
         .buttonStyle(.plain)
@@ -145,7 +145,7 @@ struct SearchResultRow: View {
             // `color-white-50`, y-centred; a 44pt invisible hit target centred on it delivers
             // `onRemove`". The button's frame is the 44pt target; the negative padding hands
             // the layout back its 18pt slot, so the band's geometry is the symbol's.
-            Button(action: onRemove) {
+            SwiftUI.Button(action: onRemove) {
                 glyph(.closeLargeCarbon)
                     .frame(width: Self.hitTarget, height: Self.hitTarget)
                     .contentShape(Rectangle())

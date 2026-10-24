@@ -9,6 +9,7 @@
 
 import Foundation
 import UIKit
+import CoreImage
 @testable import MakeReady
 
 /// Replaces AppState.shared with a fresh instance and populates from fixture data.
@@ -342,6 +343,36 @@ func setupCaptureState(from fixture: CaptureFixture) {
         ]
         if let data = try? JSONSerialization.data(withJSONObject: payload) {
             MockURLProtocol.responses["/api/search"] = data
+        }
+    }
+
+    // Study invite page — loads from GET /api/lesson-schedules/:id/invite.
+    // The QR is a real scannable code (CIQRCodeGenerator → PNG → base64).
+    if let invite = fixtureState.studyInvite {
+        var qrDataURL = ""
+        if let filter = CIFilter(name: "CIQRCodeGenerator") {
+            filter.setValue(Data(invite.inviteUrl.utf8), forKey: "inputMessage")
+            filter.setValue("M", forKey: "inputCorrectionLevel")
+            if let out = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
+               let cg = CIContext().createCGImage(out, from: out.extent),
+               let png = UIImage(cgImage: cg).pngData() {
+                qrDataURL = "data:image/png;base64," + png.base64EncodedString()
+            }
+        }
+        var inviteJSON: [String: Any] = [
+            "lessonScheduleId": invite.scheduleId,
+            "code": invite.code,
+            "inviteUrl": invite.inviteUrl,
+            "qrCode": qrDataURL,
+            "dayNumber": invite.dayNumber,
+            "studyProgram": ["id": "prog-1", "name": invite.programName, "days": invite.programDays],
+            "group": ["id": "group-1", "name": invite.groupName, "code": "ABC123"],
+        ]
+        if let d = invite.scheduledDate { inviteJSON["scheduledDate"] = d }
+        if let r = invite.passageReference { inviteJSON["passageReference"] = r }
+        let payload: [String: Any] = ["success": true, "invite": inviteJSON]
+        if let data = try? JSONSerialization.data(withJSONObject: payload) {
+            MockURLProtocol.responses["/api/lesson-schedules/\(invite.scheduleId)/invite"] = data
         }
     }
 

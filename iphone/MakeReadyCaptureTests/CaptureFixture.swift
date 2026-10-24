@@ -21,6 +21,18 @@ struct CaptureFixture: Codable {
     // content is captured in one shot — the page-level analogue of the web
     // runner's default fullPage screenshot. Ignored for component fixtures.
     let captureHeight: Int?
+    // Component fixtures only (d2m designer-pick-width, 2026-10-05): lay the
+    // component out FILLING this many points of width, its preview's specimen
+    // framing (a pinned master width, specimen margins) dropped — the
+    // component as a page uses it full-width. Nil: the natural specimen.
+    let fill: Int?
+    // d2m designer-live-picks D5 (2026-10-06): a DESIGN capture — lay out the bare component (no
+    // master width, no specimen margin) and name its exact bounds `__root` in the element map.
+    // Only a case that declares its PreviewFrame can; any other renders framed, with no `__root`.
+    let bare: Bool?
+    // Seconds to let the hosted view run (network-stub loads, .task) before the
+    // snapshot is taken. Nil: snapshot immediately.
+    let settle: Double?
 }
 
 struct CaptureAuth: Codable {
@@ -93,6 +105,21 @@ struct CaptureState: Codable {
     // pages.change-membership — prop seed (panel is private @State: only the
     // MAIN panel is capturable; confirm/transfer variants are web-only).
     let changeMembership: CaptureChangeMembershipSeed?
+    // pages.study-invite — mocks GET /api/lesson-schedules/:id/invite (the page
+    // loads everything from the network; the QR is built in the stub).
+    let studyInvite: CaptureStudyInviteSeed?
+}
+
+struct CaptureStudyInviteSeed: Codable {
+    let scheduleId: String
+    let code: String
+    let inviteUrl: String
+    let dayNumber: Int
+    let scheduledDate: String?
+    let passageReference: String?
+    let programName: String
+    let programDays: Int
+    let groupName: String
 }
 
 // MARK: - topLevel RAW modal seeds
@@ -172,7 +199,7 @@ struct CaptureComponent: Codable {
     // preview-build.md §3 rule 3 forbids bending a contract's prop name to fit an existing
     // field — so the field decodes both shapes. The 1.0 readers ask for `.stringValue`;
     // C-038 asks for `.doubleValue`.
-    let size: CaptureDoubleOrString?  // "Row" | "Mini" (1.0 cards) — OR a diameter (C-038)
+    let size: CaptureDoubleOrString?  // "Row" | "Mini" (1.0 cards) — OR a diameter (C-038) — OR C-048 "md" | "lg"
     let pendingRequestCount: Int?     // GroupCard avatar badge
     // ── generic scalars used across assorted cards ──
     // C-052 DayChip (2026-09-11) reuses this field: its §4 prop is ALSO named `day` and is
@@ -326,7 +353,13 @@ struct CaptureComponent: Codable {
     let iconColor: String?
     let age: Int?
     let joinDate: String?
-    let enabledDays: [Int]?
+    // RETYPED 2026-10-24 (/d2m:component:build C-127), in the same either-shape pattern as
+    // `date` above. This was `[Int]?` (0 = Sun … 6 = Sat — WeekdayIndicator, C-128). C-127 §4's
+    // prop is ALSO named `enabledDays` and takes weekday NAMES ("monday"), and the build rules
+    // forbid bending a contract's prop name to fit an existing field — so the field decodes both
+    // shapes into the same 0…6 indices. It is a Sequence of Int and array-literal-expressible, so
+    // the existing `Set(c.enabledDays ?? [])` readers compile unchanged.
+    let enabledDays: CaptureWeekdays?
 
     // ── Input ──
     let minAge: String?
@@ -416,7 +449,12 @@ struct CaptureComponent: Codable {
     // the window, so the capture has to pin "now" or the render drifts by the day it was taken
     // (UI2Preview/DualSeriesBarChart.swift documents it; raised for an OQ-PB row).
     let window: CaptureUI2DateWindow?          // C-026 — visible slice { start, end }
-    let today: String?                         // C-026 — capture seam, ISO yyyy-MM-dd (UTC)
+    // RETYPED 2026-10-21 (/d2m:component:build C-113), by the same reasoning and in the same
+    // shape as `selected` above. This was `String?`, C-026's capture seam for "now". C-113
+    // MonthDayCell §4's second prop is ALSO named `today` and is a **Bool**, and a contract's
+    // prop name is never bent to fit an existing field — so the field decodes both shapes:
+    // C-026 asks for `.stringValue`; C-113 asks for `.boolValue`.
+    let today: CaptureBoolOrString?            // C-026 — capture seam, ISO yyyy-MM-dd (UTC) — OR C-113's Bool
     // C-040 PageHeader glyph slots (owner ruling 2026-09-07, OQ-C-040-6): both take any
     // C-021 glyph name, so they carry the same vocabulary as `glyph` above.
     let leadingGlyph: String?                  // C-040 — the leading slot's glyph
@@ -499,7 +537,7 @@ struct CaptureComponent: Codable {
     // no existing field carries that name, and bending it onto `lines` — C-045's own
     // "single"|"multi" — would rename a contract's prop into another contract's vocabulary,
     // which rule 3's second bound forbids.
-    let field: String?                         // C-046 — "Text" | "Multiline Text"
+    let field: String?                         // C-046 — "Text" | "Multiline Text" | "Phone"
     // C-022 MetaPair. `value`, `label` and `align` already exist above under the contract's own
     // prop names — `align` is C-024's field, the same name and the same `String?`, so reusing it
     // satisfies rule 3's second bound exactly as C-053 reuses `state` (the value sets differ;
@@ -547,8 +585,13 @@ struct CaptureComponent: Codable {
     // are other contracts' vocabularies for other value sets, and `active`/`available`/`selected`
     // are C-069's, C-013's and GroupCard's booleans meaning different things. `action` is an
     // action with no render effect and is not carried by the fixture.
-    let role: String?                          // C-048 — "affirmative" | "destructive" | "prominent"
+    let role: String?                          // C-048 — "affirmative" | "destructive" | "prominent" | "secondary" | "accent"
     let isEnabled: Bool?                       // C-048 — false renders the Muted look
+    // C-048's 2026-10-20 glyph rows add ONE field. `glyph` (C-021's String), `layout` (C-022's
+    // String) and `enabled` (C-108's Bool) already exist above under the contract's own prop
+    // names and types and are reused; `layout` takes "spread" | "centered" here. `glyphPosition`
+    // has no existing field to reuse.
+    let glyphPosition: String?                 // C-048 — "leading" | "trailing"
     // C-049 LinkButton adds NOTHING. All three of its render-bearing §4 props — `label`,
     // `style` and `isEnabled` — already exist above under the contract's own names and types
     // (`label: String?` and `style: String?` in the 1.0 block, `isEnabled: Bool?` from C-048),
@@ -619,10 +662,10 @@ struct CaptureComponent: Codable {
     // existing field: `color` above is C-033's / C-027's own key for their sets, and a
     // contract's prop name is never bent to fit. Takes OQ-C-031-1's closed set.
     let statusColor: String?                   // C-031 — "green" | "yellow" | "red"
-    // C-043 MetaChip (built 2026-09-22) adds NOTHING: its four §4 props are `value`, `label`,
-    // `state` and `align`, and all four already exist above under the contract's own names
-    // and types — `value` / `label` (card fields), `state` (the shared string field), `align`
-    // (C-024's key, also a string). Rule 3's second bound is satisfied by reuse.
+    // C-043 MetaChip (built 2026-09-22): `value`, `label` and `state` reuse the fields above
+    // under the contract's own names. OQ-C-043-1 (landed in §4 2026-10-24) renamed `align` to
+    // `labelPosition` — `trailing | leading` — which has no field here, so it adds ONE.
+    let labelPosition: String?                 // C-043 — "trailing" | "leading"
     // C-076 ActivitySpinner (built 2026-09-24) adds ONE field. `size` (`.doubleValue`),
     // `color` (a token name) and `direction` already exist above under the contract's own
     // names; `period` exists too but as a String, so the case never reads it (a number there
@@ -704,6 +747,7 @@ struct CaptureComponent: Codable {
     let dayLine1s: [String]?
     let dayLine2s: [String]?
     let dayDetailsStates: [String]?
+    let dayDates: [String]?
     let chartDates: [String]?
     let chartScheduled: [Int]?
     let chartCompleted: [Int]?
@@ -740,6 +784,8 @@ struct CaptureComponent: Codable {
     let detail: String?                        // C-037 — "text" | "chips"
     let trailing: String?                      // C-037 — "chevron" | "cancel" | "none"
     let chips: [CaptureDataItem]?              // C-037 — [C-043 MetaChip] props
+    // C-037 update 2026-10-24 (selectable form): `subject` gains "program"; additive field.
+    let selection: String?                     // C-037 — "none" | "unselected" | "selected"
     // ── screen create-study-program ──
     // Reused as-is: `text`, `errorMessage` (same names, same types).
     let creating: Bool?
@@ -762,6 +808,8 @@ struct CaptureComponent: Codable {
     // precedent). Absent = `nil` = the `missing-cover` state.
     let metaChips: [CaptureDataItem]?          // C-059 — [C-043 MetaChip] props
     let cover: String?                         // C-059 — cover URL → `cover: Image?`
+    // C-059 update 2026-10-20 (D59): §4 `caption: String?` — the `Program` state's line.
+    let caption: String?                       // C-059 — `Program` caption, e.g. "3 enrolled"
     // ── preview props ──
     // C-063 LessonCard build 2026-09-29. `title` and `progress` already exist above under the
     // contract's own names and types. §4 `slides` entries carry `image` by URL (C-079
@@ -819,6 +867,528 @@ struct CaptureComponent: Codable {
     // C-083 NavBarButton build 2026-09-30. `glyph` and `active` already exist above under the
     // contract's own names and types; `accessibilityLabel` is additive.
     let accessibilityLabel: String?            // C-083 — VoiceOver label, never drawn
+    // ── preview props ──
+    // C-086 ActivityTypeGrid build 2026-10-02. `pendingType` is additive.
+    let pendingType: String?                   // C-086 — bibleVerse|text|video|youtube|write|poll; nil = interactive
+    // ── screen activity-new ──
+    // Reused as-is: `activeID`, `pendingType` (same names, same types; "" = interactive).
+    let slideIDs: [String]?
+    let slideLabels: [String]?
+    let createFailed: Bool?
+    // ── screen study-program-home ──
+    // Reused as-is: `createdLabel`, `authorName`, `leaderName`, `programName`,
+    // `programDescription` (same names, same types).
+    let coverURL: String?
+    let lessonCount: Int?
+    let visibility: String?
+    let ageRange: String?
+    let maximumMembers: String?
+    let memberDirectoryAccess: String?
+    let enrollmentNames: [String]?
+    let enrollmentPhotoURLs: [String]?
+    let enrollmentLeaders: [String]?
+    let enrollmentMemberCounts: [Int]?
+    let dayCount: Int?
+    let activeDay: Int?
+    let lessonNumbers: [Int]?
+    let lessonTitles: [String]?
+    let lessonDurations: [String]?
+    let lessonSlideImages: [[String]]?
+    let lessonSlideLabels: [[String]]?
+    // ── screen invite-home ──
+    // Reused as-is: `phone`, `memberName`, `avatarURL`, `initials`, `age` (`Int?`), `role`,
+    // `birthday`, `joined`, `groupTitles`, `groupPhotoURLs` (same names, same types). Not
+    // `linked`: that name is already decoded as `Linked?`.
+    let memberLinked: Bool?
+    let sentDate: String?
+    let invitedBy: String?
+    let groupStatuses: [String]?
+    let groupStatusDates: [String]?
+    let eventDates: [String]?
+    let eventTexts: [String]?
+    let eventHighlights: [String]?
+    let eventTones: [String]?
+    // ── screen groups-home ──
+    // Reused as-is: `searchText`, `leaderFilterLabel`, `leaderOptions`, `groupPhotoURLs` (same
+    // names, same types).
+    let orgFilterVisible: Bool?
+    let orgFilterLabel: String?
+    let orgOptions: [String]?
+    let groupNames: [String]?
+    let groupLeaderNames: [String]?
+    let groupMemberCounts: [Int]?
+    // ── screen enrollment-home ──
+    // Reused as-is: `coverURL`, `programName`, `programDescription`, `memberCount` (`Int?`),
+    // `authorName`, `leaderName`, the seven `day*` string arrays, `lessonNumbers`,
+    // `lessonTitles`, `lessonSlideImages`, `lessonSlideLabels` (same names, same types).
+    let enrolledLabel: String?
+    let startMonth: String?
+    let startWeekday: String?
+    let startDay: String?
+    let endMonth: String?
+    let endWeekday: String?
+    let endDay: String?
+    let spanMonths: Int?
+    let spanDays: Int?
+    let dayPercents: [Int]?
+    let lessonMetaLabels: [String]?
+    let lessonProgress: [Double?]?
+    // ── preview props ──
+    // C-089 InviteStatusRow build 2026-10-03. `status` (`String?`), `groupName` (`String?`)
+    // and `date` (`CaptureDateOrBlock?`, read as `.string`) already exist above under the
+    // contract's own names; `recipient` is additive.
+    let recipient: String?                     // C-089 — caller-formatted name or phone
+    // ── screen invites-home ──
+    // Reused as-is: `searchText`, `orgFilterLabel`, `groupFilterLabel`, `leaderFilterLabel`
+    // (same names, same types).
+    let statusFilterLabel: String?
+    let loading: Bool?
+    let inviteRecipients: [String]?
+    let inviteStatuses: [String]?
+    let inviteGroupNames: [String]?
+    let inviteDates: [String]?
+    // ── screen groups-detail ──
+    // Reused as-is: `groupName`, `coverURL`, `leaderName`, `createdLabel`, `visibility`,
+    // `ageRange`, `maximumMembers`, `memberDirectoryAccess`, `lessonTitles`, `lessonMetaLabels`,
+    // `lessonSlideImages`, `lessonSlideLabels`, the eight `day*` arrays, the six `chart*` fields,
+    // `memberNames`, `memberPhotoURLs`, `memberJoinedLabels`, `programTitles`,
+    // `programCoverURLs` and the four `event*` arrays (same names, same types).
+    let groupDescription: String?
+    let lessonProgramNames: [String]?
+    let programDescriptions: [String]?
+    let programEnrolledDates: [String]?
+    // groups-detail re-build 2026-10-18 (C-089 join-request rows, §2.7): additive.
+    let requestNames: [String]?
+    let requestDates: [String]?
+    // ── screen enrollments-home ──
+    // Reused as-is: `searchText`, the four `*FilterLabel`s, `loading`, `groupNames`,
+    // `groupLeaderNames`, `groupPhotoURLs`, `programTitles`, `programProgress`,
+    // `programCompleteCounts`, `programHours`, `programEnrolledDates` and `programCoverURLs`
+    // (same names, same types).
+    let failed: Bool?
+    let programGroupIndexes: [Int]?
+    // ── screen search-home ──
+    // Reused as-is: `searchText` (same name, same type).
+    let activeChip: String?
+    let recentKinds: [String]?
+    let recentTitles: [String]?
+    let recentDescriptions: [String]?
+    let resultKinds: [String]?
+    let resultTitles: [String]?
+    let resultDescriptions: [String]?
+    // ── screen home-kpi-picker ──
+    // Reused as-is: `kpiSeries`, `kpiAverageLabels`, `kpiValues`, `kpiTrendDirections`,
+    // `kpiTrendPolarities`, `kpiTrendLabels` (home-dashboard's — same names, same types).
+    let kpiNames: [String]?
+    let kpiDescriptions: [String]?
+    // ── preview props ──
+    // C-104 AuthProviderButton build 2026-10-08. `loading` (`Bool?`) already exists above under
+    // the contract's own name and type (invites-home's), so rule 3's second bound is satisfied
+    // by reuse; `provider` is additive.
+    let provider: String?                      // C-104 — "google"
+    // ── screen login ──
+    // Reused as-is: `errorMessage` (`String?`, edit-text-single-field's — same name, same type).
+    let authenticating: Bool?
+    // ── preview props ──
+    // C-092 CanvasTextObject build 2026-10-12. Reused as-is under the contract's own names:
+    // `text` (`String?`), `color` (`String?` — a token row name or a hex), `label` (`String?`),
+    // `size` (`CaptureDoubleOrString?` — its number) and `highlights` (`[CaptureHighlight]?` —
+    // start/end character offsets into `text`; C-092's optional `note` is not carried, it is not
+    // drawn). The rest are additive:
+    let font: String?                          // C-092 — poppins | sfPro | georgia | typewriter
+    let alignment: String?                     // C-092 — center | left | right
+    let listStyle: String?                     // C-092 — none | bullet | numbered | bibleVerse
+    let startNumber: Int?                      // C-092 — OQ-C-092-003, first verse number
+    let reference: CaptureUI2BibleReference?   // C-092 — `CanvasTextObject.Reference`
+    let animation: String?                     // C-092 — none | typewriter | pop | jump
+    let effect: String?                        // C-092 — none | sparkle | neon | shimmer | pixel
+    let transform: CaptureUI2CanvasTransform?  // C-092 — `CanvasTextObject.Transform`
+    let editing: Bool?                         // C-092 — first responder with the caret
+    // ── preview props ──
+    // C-105 Button build 2026-10-13. Reused as-is under the contract's own names: `label`
+    // (`String?`) and `leadingGlyph` (`String?` — a library glyph name, C-040's). Additive:
+    let trailingGlyph: String?                 // C-105 — the glyph after the label
+    // ── preview props ──
+    // C-091 ActivityCanvas build 2026-10-13. Reused as-is under the contract's own names: `mode`
+    // (`String?` — idle | editing | highlighting | manipulating, CardLesson's field). `passage`
+    // exists as `String?` (the 1.0 cards' reference text) and may not be retyped, so the fixture
+    // carries C-091's structured passage as a JSON string under the contract's key, decoded by
+    // the registry case into `CaptureUI2CanvasPassage` (the C-093 numeric-string precedent).
+    // The canvas height the screen gives it rides in `__frameHeight` (the screens' field).
+    // Additive:
+    let background: CaptureUI2CanvasBackground?    // C-091 — `ActivityCanvas.Background`
+    let selectedHighlightID: String?           // C-091 — the selected highlight's id
+    // RETYPED 2026-10-24 (/d2m:component:build C-052), by the same reasoning and in the same
+    // shape as `day`, `date` and `size` above. This was `[CaptureUI2CanvasChild]?`. C-052 §4
+    // (re-specced 2026-10-24) has a `content` that is a `DayChip.Content` object, and the
+    // build forbids bending a contract's prop name to fit an existing field — so the field
+    // decodes both shapes. C-091 asks for `.children`; C-052 for `.dayChip`.
+    let content: CaptureContentOrChildren?     // C-091 — the slot's children; C-052 — `DayChip.Content`
+    let centerGuide: Bool?                     // C-091 — the 1px centre guide (manipulating)
+    let deleteTarget: String?                  // C-091 — visible | armed (manipulating)
+    // ── preview props ──
+    // C-095 ColorPickerWell build 2026-10-13. Reused as-is under the contract's own name:
+    // `color` (`String?` — a #rrggbb hex, decoded by the registry case). Additive:
+    let armed: Bool?                           // C-095 — the eyedropper is live
+    // ── preview props ──
+    // C-097 PageIndicator build 2026-10-13. Additive:
+    let pageCount: Int?                        // C-097 — how many dots
+    let page: Int?                             // C-097 — 0-based active dot
+    // ── preview props ──
+    // C-094 TextColorPalette build 2026-10-13. Reused as-is under the contract's own name:
+    // `page` (`Int?`, C-097's). Additive:
+    let currentColor: String?                  // C-094 — a #rrggbb hex, decoded by the registry case
+    let swatches: [[CaptureUI2NamedColor]]?    // C-094 — `TextColorPalette.NamedColor` pages
+    // ── preview props ──
+    // C-106 ChipStrip build 2026-10-13. `items` already exists above as `[CaptureListItem]?` under
+    // the contract's own name, so it is reused (its element gains an additive `font`). Additive:
+    let selectedID: String?                    // C-106 — the id of the selected chip
+    // Harness key, not a §4 prop (the `__frameHeight` precedent): the width the strip is given.
+    // C-106 §3 `fit` is derived from width — `overflow` is reached on the same list below 421pt.
+    let __frameWidth: Double?
+    // ── screen activities-editor ──
+    // Reused as-is (same name and type): `slideIDs`, `slideLabels`, `activeID`,
+    // `selectedHighlightID`, `centerGuide`, `saving`. Additive:
+    let editorMode: String?
+    let openTool: String?
+    let objectTexts: [String]?
+    let objectFonts: [String]?
+    let objectColors: [String]?
+    let objectSizes: [Double]?
+    let objectXs: [Double]?
+    let objectYs: [Double]?
+    let objectScales: [Double]?
+    let objectRotations: [Double]?
+    let draftText: String?
+    let draftFont: String?
+    let draftColor: String?
+    let draftSize: Double?
+    let draftAlignment: String?
+    let pageImageURL: String?
+    let pageWashHex: String?
+    let pageWashOpacity: Double?
+    let verseTexts: [String]?
+    let firstVerse: Int?
+    let highlightIDs: [String]?
+    let highlightVerses: [Int]?
+    let highlightStarts: [Int]?
+    let highlightEnds: [Int]?
+    let deleteTargetShown: Bool?
+    let saveFailed: Bool?
+    // ── screen request-detail ──
+    // Reused as-is: `phone`, `groupName`, `status` (`String?`), `loading` (`Bool?`),
+    // `eventDates`, `eventTexts`, `eventHighlights` (same names, same types).
+    let requestDate: String?
+    let requestTime: String?
+    let groupPhotoURL: String?
+    let statusDate: String?
+    let responding: Bool?
+    // ── preview props ──
+    // C-108 KeypadKey build 2026-10-19. Both additive; no field of either name existed.
+    let key: String?                           // C-108 — §3's spelling: "digit(0)"…"digit(9)" | "delete"
+    let enabled: Bool?                         // C-108 — nil = §4's default true
+    // C-107 NumberKeypad build 2026-10-19. Additive; reuses `enabled` (same name, same type).
+    let deleteEnabled: Bool?                   // C-107 — nil = §4's default true
+    // ── preview props ──
+    // C-040 PageHeader rebuild 2026-10-19 (OQ-C-040-4). Both additive; no field of either name existed.
+    let leadingLabel: String?                  // C-040 — textButtons leading label; nil = §4's "Cancel"
+    let trailingLabel: String?                 // C-040 — textButtons trailing label; nil = §4's "Done"
+    // C-040 update 2026-10-24 (D60, OQ-C-040-001). Additive; no field of this name existed.
+    let trailingEnabled: Bool?                 // C-040 — textButtons / backAndLink trailing action; nil = §4's true
+    // ── preview props ──
+    // C-045 TextInput rebuild 2026-10-19. Additive; reuses `kind` and `alignment` (same names,
+    // same String type); no field named countryCode existed.
+    let countryCode: String?                   // C-045 — Phone prefix; nil = §4's "+1"
+    // ── screen invite-member ──
+    // Additive; no field of these names existed. Not `name`: that field is the component name.
+    let step: String?                          // "name" | "phone" | "sent"
+    let inviteeName: String?
+    let digits: String?                        // the national number's digits, 0–10
+    let sending: Bool?
+    // ── preview props ──
+    // C-069 NavTabButton build 2026-10-19. Additive; reuses `label`, `expansion` and `active`
+    // (same names, same types); no field named hasAdd existed.
+    let hasAdd: Bool?                          // C-069 — nil = §4's default true
+    // ── screen study-programs ──
+    // Reused as-is: `searchText`, `orgFilterLabel`, `leaderFilterLabel`, `loading`, `failed`,
+    // `programTitles`, `programDescriptions` and `programCoverURLs` (same names, same types).
+    let programEnrollmentCounts: [Int]?
+    // ── preview props ──
+    // C-110 CopyableCodeCard build 2026-10-20. Both additive; no field of either name existed.
+    let code: String?                          // C-110 — the code shown, verbatim
+    let copied: Bool?                          // C-110 — true shows the "Copied" overlay
+    // ── screen invite-qr ──
+    // Reused as-is: `code` (same name, same type).
+    let hintURL: String?                       // the context's enter-a-code URL
+    let qrCode: String?                        // the invite's `qrCode` data URL; nil = blank plate
+    let copiedTarget: String?                  // "code" | "link" | "" — the Copied overlay's element
+    // ── preview props ──
+    // C-114 WeekdayHeader build 2026-10-20. Additive; no field of that name existed.
+    let hairline: Bool?                        // C-114 — true draws the rule under the letters
+    // ── preview props ──
+    // C-112 EventIndicator build 2026-10-20. Additive; no field of that name existed.
+    let eventTypes: [String]?                  // C-112 — [EventIndicator.EventType] raw values, display order
+    // ── preview props ──
+    // C-116 WeekStrip build 2026-10-21. Additive; reuses `selected` (`.stringValue`) and
+    // `today` (`.stringValue`) as-is; no field named week existed in this struct.
+    let week: String?                          // C-116 — any day in the week, yyyy-MM-dd
+    // ── preview props ──
+    // C-117 CalendarEventBlock build 2026-10-21. Additive; reuses `title`, `detail` (String?)
+    // and the harness keys `__frameWidth` / `__frameHeight` as-is; no field of these names existed.
+    let detailKind: String?                    // C-117 — CalendarEventBlock.DetailKind raw value
+    let eventType: String?                     // C-117 — EventIndicator.EventType raw value (C-112)
+    let recurring: Bool?                       // C-117 — draws repeat-arrows
+    let timeRangeText: String?                 // C-117 — spoken time range, a11y label only
+    // ── preview props ──
+    // C-120 DayTimeline build 2026-10-21. Additive; no field of these names existed.
+    let timedEvents: [CaptureUI2TimedEvent]?   // C-120 — [DayTimeline.TimedEvent]
+    let allDayEvents: [CaptureUI2AllDayEvent]? // C-120 — [DayTimeline.AllDayEvent]
+    let allDayExpanded: Bool?                  // C-120 — all chips (true) vs 3 + "+N more"
+    let nowMinute: Int?                        // C-120 — the C-119 now line's minute; nil = not today
+    let topMinute: Int?                        // C-120 — the minute at the viewport's top
+    // ── preview props ──
+    // C-121 CalendarEventRow build 2026-10-21. Additive; reuses `title`, `detail`, `detailKind`
+    // and `eventType` as-is; no field of these names existed.
+    let timing: String?                        // C-121 — CalendarEventRow.Timing raw value
+    let startTime: String?                     // C-121 — caller-formatted start ("3:50 PM")
+    let endTime: String?                       // C-121 — caller-formatted end
+    let past: Bool?                            // C-121 — before today → row at 0.5 opacity
+    // ── screen calendar-home ──
+    // Additive; reuses `mode`, `selectedDate`, `focused`, `loading`, `eventDates` and
+    // `eventTypes` as-is (same names, same types); no field of these names existed.
+    let origin: String?                        // search's origin mode: month|day
+    let now: String?                           // injected now, yyyy-MM-dd'T'HH:mm
+    let topMonth: String?                      // month at the header, yyyy-MM
+    let query: String?                         // C-034 search query
+    let searchFetching: Bool?                  // undesigned search-fetching
+    let searchFailed: Bool?                    // undesigned search-error
+    let eventTitles: [String]?                 // CalendarEvent.title, one per event
+    let eventStarts: [String]?                 // CalendarEvent.startTime HH:mm, "" = all-day
+    let eventEnds: [String]?                   // CalendarEvent.endTime HH:mm
+    let eventLocations: [String]?              // CalendarEvent.locationName, "" = null
+    let eventURLs: [String]?                   // CalendarEvent.externalUrl, "" = null
+    let eventGroups: [String]?                 // CalendarEvent.groupName
+    let eventRecurring: [Bool]?                // CalendarEvent.isRecurring
+    // ── preview props ──
+    let showsClearWhenEmpty: Bool?             // C-034 SearchField — clear x with an empty query
+    // C-047 RadioOptionRow update 2026-10-24 (/d2m:component:update Run 2). Additive: §4 gained
+    // `recommended` and `disabled` (both `Bool`, default `false`); no field of these names
+    // existed, and `available`/`active`/`selected` mean other things on other contracts.
+    let recommended: Bool?                     // C-047 — amber star after the title
+    let disabled: Bool?                        // C-047 — whole row at 0.4, taps ignored
+    // C-128 DateRangePicker. Additive; reuses `lessonCount` (Int), `today` (string reading),
+    // `startDate` (String) and `enabledDays` ([Int]) as-is — same names, same types.
+    let overriddenDates: [String]?             // C-128 — yyyy-MM-dd, inclusion flipped
+    let existingLessonDates: [String]?         // C-128 — yyyy-MM-dd, event dots + overlap check
+    let currentScheduleDates: [String]?        // C-128 — yyyy-MM-dd, schedule ghost
+    let prompt: String?                        // C-128 — none | override(yyyy-MM-dd) | overlap(yyyy-MM-dd)
+    // ── screen enrollment-select-group ──
+    // Additive; reuses `searchText`, `orgFilterVisible`, `orgFilterLabel`, `leaderFilterLabel`,
+    // `groupNames`, `groupPhotoURLs`, `groupLeaderNames`, `groupMemberCounts`, `selectedIndex`,
+    // `loading` and `failed` as-is (same names, same types).
+    let groupEnrollmentCounts: [Int]?          // active enrollments per group row
+    // ── screen enrollment-select-program ──
+    // Additive; reuses `searchText`, `orgFilterVisible`, `orgFilterLabel`, `leaderFilterLabel`,
+    // `programTitles`, `programCoverURLs`, `programCreatedLabels`, `selectedIndex` and `loading`
+    // as-is (same names, same types).
+    let programDayCounts: [Int]?               // program length in days per row
+    let programCompletedCounts: [Int]?         // completed enrollments per row (OQ-003)
+    // ── screen enrollment-select-invite-time ──
+    let smsTime: String?                       // saved invite time "HH:mm"; "" = none saved
+    // ── screen enrollment-select-sync ──
+    let syncMode: String?                      // draft syncMode "AUTO" | "OFF"; "" = unset
+    // ── screen enrollment-select-access ──
+    let lessonAccess: String?                  // draft lessonAccess "one-at-a-time" | "all-at-once"; "" = unset
+    // ── preview props ──
+    // C-125 EnrollmentProgressHeader build 2026-10-24. Reuses `groupName` and `groupImageURL`
+    // (`String?`, parsed to URL at the case) as-is — same names.
+    let groupInitials: String?                 // C-125 — C-038 `initials` fallback
+    let completedSteps: Int?                   // C-125 — checklist rows done
+    let totalSteps: Int?                       // C-125 — checklist rows in all
+    // C-123 TaskDisc build 2026-10-24.
+    let look: CaptureUI2TaskDiscLook?          // C-123 — `TaskDisc.Look` as {"kind": "<case>", …}
+    // C-124 ChecklistStepRow build 2026-10-24. Reuses `title`, `description` and `status`
+    // (`String?`) as-is — same names.
+    let disc: CaptureUI2TaskDiscLook?          // C-124 — C-123 `TaskDisc.Look`, same encoding as `look`
+    // ── screen groups-enroll-program ──
+    // Additive; reuses `groupName`, `groupInitials`, `groupImageURL`, `programName`,
+    // `programDescription`, `smsTime`, `syncMode` and `lessonAccess` as-is (same names, same types).
+    let phase: String?                         // checklist | processing | enrolled
+    let groupCreatedOn: String?                // "January 3rd, 2025" as displayed
+    let groupActiveMembers: Int?               // active member count
+    let programImageURL: String?               // program row photo
+    let scheduleStartWeekday: String?          // "Monday"; schedule row done when scheduleStartDay ≠ ""
+    let scheduleStartMonth: String?            // "July"
+    let scheduleStartDay: String?              // "24"
+    let scheduleStartToday: Bool?              // C-123 date(today:)
+    let scheduleWeekdays: [String]?            // enabled weekdays, full names
+    let scheduleEndDate: String?               // "October 18th, 2026" as displayed
+    // ── screen enrollment-select-schedule ──
+    // Additive; reuses `lessonCount`, `today` (string reading), `startDate`, `enabledDays`,
+    // `overriddenDates`, `existingLessonDates` and `prompt` as-is (same names, same types).
+    let programChosen: Bool?                   // false = §3 needs-program
+}
+
+/// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
+/// values by label}`". Field names are the contract's associated-value labels.
+struct CaptureUI2TaskDiscLook: Codable {
+    let kind: String                           // glyph|check|photo|date|time|syncOn|syncOff|all|one
+    let glyph: String?                         // glyph — a library glyph name
+    let imageURL: String?                      // photo — nil = unresolved (OQ-C-123-001)
+    let weekday: String?                       // date
+    let month: String?                         // date
+    let day: String?                           // date
+    let today: Bool?                           // date
+    let time: String?                          // time
+    let period: String?                        // time
+}
+
+/// C-120 §4 `timedEvents` element — `DayTimeline.TimedEvent`, §4's own field names; `detailKind`
+/// and `eventType` are C-117's and C-112's raw values, decoded by the registry case.
+struct CaptureUI2TimedEvent: Codable {
+    let id: String
+    let title: String
+    let detail: String?
+    let detailKind: String
+    let eventType: String
+    let recurring: Bool
+    let startMinute: Int
+    let endMinute: Int
+    let timeRangeText: String
+}
+
+/// C-120 §4 `allDayEvents` element — `DayTimeline.AllDayEvent`; `eventType` is C-112's raw value.
+struct CaptureUI2AllDayEvent: Codable {
+    let id: String
+    let title: String
+    let eventType: String
+}
+
+/// C-094 §4 `swatches` element — `TextColorPalette.NamedColor`: the colour's name and a #rrggbb
+/// hex, decoded by the registry case.
+struct CaptureUI2NamedColor: Codable {
+    let name: String
+    let color: String
+}
+
+/// C-091 §4 `background: ActivityCanvas.Background` — exactly one key is present, named for the
+/// case (the C-020 `accessory` precedent); `image`'s fields are the case's own labels, `washColor`
+/// a #rrggbb swatch.
+struct CaptureUI2CanvasBackground: Codable {
+    struct Plain: Codable {}
+    struct ImagePayload: Codable {
+        let imageURL: String
+        let washColor: String
+        let washOpacity: Double
+    }
+    let plain: Plain?
+    let image: ImagePayload?
+}
+
+/// C-091 §4 `passage: ActivityCanvas.Passage` — carried as a JSON string in `passage`; `range` is
+/// [lowerBound, upperBound) as character offsets into its verse's `text`.
+struct CaptureUI2CanvasPassage: Codable {
+    struct Verse: Codable {
+        let number: Int
+        let text: String
+    }
+    struct Highlight: Codable {
+        let id: String
+        let verse: Int
+        let range: [Int]
+        let note: String?
+    }
+    let verses: [Verse]
+    let highlights: [Highlight]
+}
+
+/// Decodes a JSON value that may be either C-091's `content` slot (an array of children) or
+/// C-052's `DayChip.Content` object. Same either-shape pattern as `CaptureDateOrBlock`.
+struct CaptureContentOrChildren: Codable {
+    let children: [CaptureUI2CanvasChild]?
+    let dayChip: CaptureUI2DayChipContent?
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let c = try? container.decode([CaptureUI2CanvasChild].self) {
+            children = c
+            dayChip = nil
+        } else if let d = try? container.decode(CaptureUI2DayChipContent.self) {
+            dayChip = d
+            children = nil
+        } else {
+            children = nil
+            dayChip = nil
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        if let children {
+            try container.encode(children)
+        } else {
+            try container.encode(dayChip)
+        }
+    }
+}
+
+/// C-052 §4 `content: DayChip.Content` — exactly one key set: `{"day": 2}` → `.day(2)`, or
+/// `{"weekday": {"letter": "M", "name": "Monday"}}` → `.weekday(letter:name:)`.
+struct CaptureUI2DayChipContent: Codable {
+    let day: Int?
+    let weekday: CaptureUI2DayChipWeekday?
+}
+
+/// C-052 `.weekday(letter:name:)` — the field names are the contract's.
+struct CaptureUI2DayChipWeekday: Codable {
+    let letter: String
+    let name: String
+}
+
+/// One child of C-091's `content` slot. `component` names the registry row; the rest are that
+/// row's own §4 props under its own names, plus where the screen places it (canvas-local:
+/// `x`/`y` top-left and `width`; a committed C-092 is placed by its own `transform.position`).
+struct CaptureUI2CanvasChild: Codable {
+    let component: String                      // C-092 | C-093 | C-102 | C-105
+    let x: Double?
+    let y: Double?
+    let width: Double?
+    let text: String?                          // C-092
+    let font: String?                          // C-092
+    let size: Double?                          // C-092
+    let editing: Bool?                         // C-092
+    let transform: CaptureUI2CanvasTransform?  // C-092
+    let value: Double?                         // C-093 — 0…1
+    let glyph: String?                         // C-102
+    let tone: String?                          // C-102
+    let style: String?                         // C-102
+    let selected: Bool?                        // C-102
+    let accessibilityLabel: String?            // C-102
+    let label: String?                         // C-105
+    let leadingGlyph: String?                  // C-105
+}
+
+/// C-092 §4 `reference: CanvasTextObject.Reference?` — field names are the contract's.
+struct CaptureUI2BibleReference: Codable {
+    struct Point: Codable {
+        let book: String
+        let chapter: Int
+        let verse: Int?
+    }
+    let start: Point
+    let end: Point?
+}
+
+/// C-092 §4 `transform: CanvasTextObject.Transform` — `rotation` in degrees, `position` as {x, y}.
+struct CaptureUI2CanvasTransform: Codable {
+    struct Position: Codable {
+        let x: Double
+        let y: Double
+    }
+    let position: Position?
+    let scale: Double?
+    let rotation: Double?
+    let width: Double?
 }
 
 /// C-063 §4 `header: LessonCard.Header` — exactly one key is present, named for the case
@@ -844,7 +1414,7 @@ struct CaptureUI2LessonSlide: Codable {
 struct CaptureUI2SectionAccessory: Codable {
     struct Meta: Codable { let value: String; let label: String; let glyph: String }
     struct Link: Codable { let label: String; let style: String }
-    struct Dropdown: Codable { let options: [String]; let selected: String }
+    struct Dropdown: Codable { let label: String }   // §4: a trigger — label only
     struct Caption: Codable { let label: String; let glyph: String }
     struct Empty: Codable {}
 
@@ -1220,6 +1790,8 @@ struct CaptureListItem: Codable {
     let description: String?
     let label: String?
     let value: String?
+    // ── preview props ──
+    let font: String?                          // C-106 `ChipStrip.Item.font` — a C-092 font case, nil = none
 }
 
 /// A DialogOverlay action button (label + style).
@@ -1379,6 +1951,11 @@ struct CaptureUI2TickLabel: Codable {
 struct CaptureDays: Codable {
     let duration: Int?
     let timeline: [CaptureUI2ChartDay]?
+    // ── preview props ──
+    // C-115 MonthGrid build 2026-10-21. Additive: C-115 §4 also spells its prop `days`
+    // ([MonthGrid.DayEvents]), so this shape gains a third reading rather than either name
+    // being bent. Tried after the two existing ones, which it can never shadow.
+    var monthDays: [CaptureUI2MonthDayEvents]? = nil
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
@@ -1388,6 +1965,10 @@ struct CaptureDays: Codable {
         } else if let days = try? container.decode([CaptureUI2ChartDay].self) {
             timeline = days
             duration = nil
+        } else if let days = try? container.decode([CaptureUI2MonthDayEvents].self) {
+            monthDays = days
+            duration = nil
+            timeline = nil
         } else {
             duration = nil
             timeline = nil
@@ -1398,10 +1979,19 @@ struct CaptureDays: Codable {
         var container = encoder.singleValueContainer()
         if let duration {
             try container.encode(duration)
+        } else if let monthDays {
+            try container.encode(monthDays)
         } else {
             try container.encode(timeline)
         }
     }
+}
+
+/// C-115 MonthGrid §4 `MonthGrid.DayEvents` — `day` (1…31) and its C-112 `eventTypes` raw
+/// values in display order; the registry case maps it to the nested model type.
+struct CaptureUI2MonthDayEvents: Codable {
+    let day: Int
+    let eventTypes: [String]
 }
 
 /// Decodes a JSON value that may be either an Int or a String (e.g. `activeTab`,
@@ -1530,4 +2120,43 @@ struct CaptureFilterMenuOption: Codable {
     let id: String
     let label: String
     let glyph: String?
+}
+
+/// `enabledDays` decodes `[Int]` (0 = Sun … 6 = Sat) OR `[String]` weekday names
+/// ("sunday" … "saturday", C-127 §4 `ScheduleSummaryFooter.Weekday`) — see the RETYPED note on
+/// the field. Either way it reads as the 0…6 indices; an unknown name fails the decode.
+struct CaptureWeekdays: Codable, Sequence, ExpressibleByArrayLiteral {
+    static let names = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+
+    let indices: [Int]
+
+    init(arrayLiteral elements: Int...) {
+        indices = elements
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        if let ints = try? container.decode([Int].self) {
+            indices = ints
+        } else {
+            let strings = try container.decode([String].self)
+            indices = try strings.map { name in
+                guard let index = Self.names.firstIndex(of: name.lowercased()) else {
+                    throw DecodingError.dataCorruptedError(
+                        in: container, debugDescription: "enabledDays: \"\(name)\" is not a weekday name"
+                    )
+                }
+                return index
+            }
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(indices)
+    }
+
+    func makeIterator() -> IndexingIterator<[Int]> {
+        indices.makeIterator()
+    }
 }

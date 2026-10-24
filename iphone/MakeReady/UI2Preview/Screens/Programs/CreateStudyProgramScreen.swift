@@ -56,6 +56,7 @@ struct CreateStudyProgramScreen: View {
                 showTitle: true,
                 showIcons: false,
                 leadingGlyph: .back,
+                rightButtons: [],
                 onLeading: onBack
             )
             .ui2Element("C-040 PageHeader")
@@ -75,6 +76,7 @@ struct CreateStudyProgramScreen: View {
                     label: Self.label,
                     field: .text,
                     style: .default,
+                    layout: .default,
                     text: text,
                     placeholder: Self.placeholder
                 )
@@ -97,8 +99,8 @@ struct CreateStudyProgramScreen: View {
                     PageActionButton(
                         label: Self.createLabel,
                         role: .affirmative,
-                        isEnabled: createEnabled,
-                        action: { onCreate(trimmed) }
+                        enabled: createEnabled,
+                        onTap: { onCreate(trimmed) }
                     )
                     .ui2Element("C-048 PageActionButton")
                 }

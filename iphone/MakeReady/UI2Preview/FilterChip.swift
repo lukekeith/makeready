@@ -2,253 +2,220 @@
 //  FilterChip.swift
 //  UI2Preview — the UI 2.0 preview module
 //
-//  Built from docs/ui2/design-system/components/C-035-filter-chip.md (§2 geometry, §3 states,
-//  §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
-//  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
+//  Built from C-035-filter-chip in d2m (§2 geometry, §3 states, §4 props).
+//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
 //
 
 import SwiftUI
 
-/// C-035 FilterChip — "a 24pt pill whose label is the filter's current selection".
+/// C-035 FilterChip — "a 24pt pill whose label is the filter's current selection", and since the
+/// 2026-10-10 merge of C-101 FontChip also the 36pt font-sample chip (OQ-C-035-001).
 ///
-/// Chrome-free and width-driven in the sense §2 means it: the chip **hugs its label**
-/// (§3b "Width is not a variant" — 70 and 48 are what the sample label "Now" measures in
-/// each type, and the eight consumed instances run 83–117 on their real labels with no other
-/// change). It paints no page background and adds no outer padding; the frame, background and
-/// outer padding belong to the ViewRegistry call site (preview-build.md OQ-PB-1 / OQ-PB-2).
+/// Every type hugs its label (§3b "Width is not a variant"). It paints no page background and
+/// adds no outer padding; the frame and background belong to the capture call site (R-16).
 ///
-/// Two axes, four designed variants (§3a). `type=Menu` is a bordered, chevroned selector that
-/// presents C-036; `type=Button` is a chevron-less pill that draws **no border** and, when
-/// inactive, no ground at all (§1 change-list item 5 — the registry's "24pt pill, 1px border"
-/// reading holds for `type=Menu` only).
+/// Three types (§3a). `Menu` is a bordered, chevroned selector that presents C-036; `Button` is a
+/// chevron-less segmented single-select with no border (OQ-C-035-5); `Font` samples a C-092 face
+/// in a 36pt outlined chip that drops its border and fills white when selected.
+///
+/// The chip is the tappable control (OQ-C-035-003): `Menu` fires `onTap`, `Button` and `Font`
+/// fire `onSelect`, every type with the system press feedback OQ-C-035-6 ratified.
 struct FilterChip: View {
 
-    /// C-035 §4 `type: Menu | Button` — "selects the presentation… carried verbatim from the
-    /// source axis". The source's own axis values, capitalised as the source spells them
-    /// (§1's symbol table); the fixture's Data tab enumerates exactly these two.
+    /// C-035 §4 `type: Menu | Button | Font` (R-06, nested per R-36). `Menu` and `Button` are the
+    /// source axis values; `Font` is the contract's name for the 'Font button' set (OQ-C-035-001).
     enum ChipType: String {
         case menu = "Menu"
         case button = "Button"
+        case font = "Font"
     }
 
-    /// C-035 §4 `type`.
+    /// §4 `type`.
     let type: ChipType
-    /// C-035 §4 `active: Bool` — "selects the active treatment within the chosen `type` (§3a)".
-    /// §4: "`active` was not in the prior contract and is not optional to model: three of the
-    /// four designed variants are unreachable without it."
+    /// §4 `active` — applied filter / selected option / selected font (§3a).
     let active: Bool
-    /// C-035 §4 `label: String` — "the chip's text. In `type=Menu` this is **the filter's
-    /// current selection**, not a static name — every consumption overrides the sample 'Now'."
+    /// §4 `label` — Menu: the filter's current selection; Button: the category; Font: the face's
+    /// display name (§2's closed table).
     let label: String
-
-    /// C-035 §4 `onTap: () -> Void` — "`type=Menu` presents C-036 FilterMenuOverlay;
-    /// `type=Button`'s action is undesigned (OQ-C-035-5). No render effect." Emitted as a
-    /// defaulted no-op so the promoted view keeps its real signature (OQ-PB-3's default).
+    /// §4 `font: C-092 font` — the face the label is set in. Required in `type=Font` and ignored
+    /// by the other types, so it is optional here and nil for Menu/Button (R-07 callout).
+    let font: CanvasTextObject.Font?
+    /// §4 `onTap` — `type=Menu`: presents C-036 FilterMenuOverlay. No render effect.
     let onTap: () -> Void
+    /// §4 `onSelect` — `type=Button` / `type=Font`: the chip was chosen in its group
+    /// (OQ-C-035-5). No render effect.
+    let onSelect: () -> Void
 
     init(
         type: ChipType,
         active: Bool,
         label: String,
-        onTap: @escaping () -> Void = {}
+        font: CanvasTextObject.Font? = nil,
+        onTap: @escaping () -> Void = {},
+        onSelect: @escaping () -> Void = {}
     ) {
         self.type = type
         self.active = active
         self.label = label
+        self.font = font
         self.onTap = onTap
+        self.onSelect = onSelect
     }
 
     // MARK: - Geometry (§2)
 
     private enum Geometry {
-        /// §2: "height **24**, width content-driven".
-        static let height: CGFloat = 24
-        /// §2 Pill: "**px 8**".
-        ///
-        /// FLAGGED LITERAL — C-035 §2: "**The px 8 inset and the 4pt gap.** Recorded as
-        /// measured values rather than `space-element-gap` (8) and `space-meta-gap` (4). The
-        /// gap is a true sibling gap and hex-equal to `space-meta-gap`; the inset is a pill
-        /// inset, the case C-053 §2 and C-038 §2 both flag. Carried together for the same
-        /// reason C-027 §2 gives: naming one and not the other inside a two-part component
-        /// would be arbitrary."
+        /// §2: height **24** in `Menu` and `Button`.
+        static let pillHeight: CGFloat = 24
+        // FLAGGED LITERAL — C-035 §2: "The px 8 inset and the 4pt gap (`Menu`, `Button`). Recorded
+        // as measured values rather than as `space-element-gap` (8) and `space-meta-gap` (4)."
         static let horizontalInset: CGFloat = 8
-        /// §2 Pill: "`type=Menu` adds gap **4**; `type=Button` has no gap because it has one
-        /// child". Same flagged literal as the inset above.
         static let menuGap: CGFloat = 4
-        /// §2 Chevron: "**16×16**, leading".
-        static let chevronBox: CGFloat = 16
-        /// §3a: `type=Menu` carries a 1px border in both `active` values — visible
-        /// `color-neutral-600` when inactive, invisible white when active (§1 deviation 3).
+        // FLAGGED LITERAL — C-035 §2: "The `Font` inset 8 on every side — the same pill-inset
+        // case, carried from C-101 §2."
+        static let fontInset: CGFloat = 8
+        /// §2 Label (`Font`): "size **17**, line box **18**".
+        // FLAGGED LITERAL — C-035 §2: "The `Font` label 17/18 in a non-SF face — no `type-*` token
+        // can express a caller-chosen face; size and leading are the measured values."
+        static let fontLabelSize: CGFloat = 17
+        static let fontLabelBox: CGFloat = 18
+        /// §3a: the 1px / 1pt border of `Menu` and of inactive `Font`.
         static let borderWidth: CGFloat = 1
     }
 
     // MARK: - Variant resolution (§3a's closed matrix)
 
-    /// §3a Ground: `Menu/false` none · `Menu/true` `color-text-primary` (white) ·
-    /// `Button/false` none · `Button/true` `color-neutral-800`.
-    ///
-    /// §2 records the role mismatch this spends: "`Color/Base/White` is bound here as a
-    /// **fill**, where `tokens.md` carries that white only as `color-text-primary` — the same
-    /// variable-role mismatch C-038 found with `Border`" (OQ-C-035-4b). The token is used by
-    /// name anyway; the mismatch is the owner's to consolidate, not this build's to work around.
+    /// §3a Ground: `Menu/true` `color-text-primary` (white, OQ-C-035-4b) · `Button/true`
+    /// `color-neutral-800` · `Font/true` `color-white-100` · every inactive row none.
     private var ground: Color {
         switch (type, active) {
         case (.menu, true): return Token.textPrimary
         case (.button, true): return Token.neutral800
+        case (.font, true): return Token.white100
         default: return .clear
         }
     }
 
-    /// §3a Border: `Menu/false` 1px `color-neutral-600` · `Menu/true` 1px white, invisible ·
-    /// both `Button` rows none.
-    ///
-    /// §1 deviation 3: "`active=true, type=Menu` carries a 1px border in `Color/Base/White`
-    /// over a `Color/Base/White` fill — a border that cannot be seen, on the variant whose
-    /// ground is the same colour. Vestigial… stated here because it is in the source, not
-    /// because it renders." It is drawn rather than dropped because §3a's matrix lists it, and
-    /// dropping it would make the active pill 2pt narrower than the 70 §3a states.
+    /// §3a Border: `Menu/false` 1px `color-neutral-600` · `Menu/true` 1px white, invisible (§1
+    /// deviation 3 — drawn so the active pill keeps §3a's 70) · `Font/false` 1pt `color-nav-border`
+    /// · `Font/true` none ("the border is dropped, not recoloured") · `Button` none.
     private var border: Color? {
-        switch type {
-        case .menu: return active ? Token.textPrimary : Token.neutral600
-        case .button: return nil
+        switch (type, active) {
+        case (.menu, false): return Token.neutral600
+        case (.menu, true): return Token.textPrimary
+        case (.font, false): return Token.navBorder
+        default: return nil
         }
     }
 
-    /// §3a Chevron: `color-text-secondary` inactive, `color-black` active; `type=Button` has
-    /// none.
+    /// §3a Chevron: `color-text-secondary` inactive, `color-black` active (`Menu` only).
     private var chevronColor: Color { active ? Token.black : Token.textSecondary }
 
-    /// §3a Label colour: `color-black` in `Menu/true`, `color-text-primary` in `Button/true`,
-    /// and the flagged `text/navigation` literal in both inactive rows.
+    /// §3a Label colour.
     private var labelColor: Color {
         switch (type, active) {
-        case (.menu, true): return Token.black
+        case (.menu, true), (.font, true): return Token.black
         case (.button, true): return Token.textPrimary
-        default: return Self.navigationTextColor
+        case (.font, false): return Token.navText
+        default: return Token.textNavigation
         }
     }
 
-    /// §3a Label type: Bold 14/**22** in `type=Menu`, Bold 14/**24** in `type=Button`.
-    private var labelStyle: DesignTextStyle {
-        type == .menu ? Self.menuLabelStyle : Self.buttonLabelStyle
-    }
+    /// §2 measures every inset from INSIDE the border: "1 + 8 + 16 + 4 + 32 + 8 + 1 = **70**", and
+    /// the Font chip's "Width = label + 16 (+ 2 when outlined)". A bordered chip insets by 9.
+    private var borderInset: CGFloat { border == nil ? 0 : Geometry.borderWidth }
 
     // MARK: - Body
 
     var body: some View {
-        HStack(spacing: type == .menu ? Geometry.menuGap : 0) {
-            // §2: the chevron is `type=Menu` only.
-            if type == .menu { chevron }
-            labelText
+        // `SwiftUI.Button`: this module's own C-105 `Button` shadows SwiftUI's unqualified.
+        SwiftUI.Button(action: type == .menu ? onTap : onSelect) {
+            chip
         }
-        // §2 measures the px 8 from INSIDE the border, not from the pill's outer edge: "1 + 8 +
-        // 16 + 4 + 32 + 8 + 1 = **70**, the two 1s being the border, which is why the chevron
-        // sits at x=9 and not x=8." So a bordered type insets by 9 and an unbordered one by 8 —
-        // which is also why `type=Button`, drawing no border, measures 8 + 32 + 8 = 48.
-        // (Measured on the first capture: padding a flat 8 made the Menu chip 66.67 and put the
-        // chevron at x=8.) The border still draws INSIDE the 24pt height, as every symbol is 24.
-        .padding(.horizontal, Geometry.horizontalInset + (border == nil ? 0 : Geometry.borderWidth))
-        .frame(height: Geometry.height)
-        // §2: "`radius-card` (8)" — the pill is a rounded rect, not a capsule: an 8pt radius
-        // on a 24pt height leaves 8pt of straight edge top and bottom, which the snapshot shows.
-        .background(
-            RoundedRectangle(cornerRadius: Token.Radius.card).fill(ground)
-        )
-        .overlay(
-            // `strokeBorder`, not `stroke`: the border is drawn INSIDE the 70/48 width §2
-            // measures, which is what makes its arithmetic close ("1 + 8 + 16 + 4 + 32 + 8 + 1
-            // = 70, the two 1s being the border, which is why the chevron sits at x=9 and not
-            // x=8").
-            border.map { colour in
-                RoundedRectangle(cornerRadius: Token.Radius.card)
-                    .strokeBorder(colour, lineWidth: Geometry.borderWidth)
-            }
-        )
+        // OQ-C-035-6 (owner, 2026-09-16): "standard system press feedback, no bespoke symbol" —
+        // `.plain` is the framework's own pressed dim, in every type.
+        .buttonStyle(.plain)
+        // R-17 / §4 Accessibility: label = `label`, `.isButton` plus `.isSelected` when `active`.
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
         .ui2Element("FilterChip")
+    }
+
+    @ViewBuilder
+    private var chip: some View {
+        if type == .font {
+            fontLabel
+                .padding(Geometry.fontInset + borderInset)
+                .background(RoundedRectangle(cornerRadius: Token.Radius.card).fill(ground))
+                .overlay(borderOverlay)
+        } else {
+            HStack(spacing: type == .menu ? Geometry.menuGap : 0) {
+                if type == .menu { chevron }
+                pillLabel
+            }
+            .padding(.horizontal, Geometry.horizontalInset + borderInset)
+            .frame(height: Geometry.pillHeight)
+            // §2: `radius-card` (8) — a rounded rect, not a capsule.
+            .background(RoundedRectangle(cornerRadius: Token.Radius.card).fill(ground))
+            .overlay(borderOverlay)
+        }
+    }
+
+    /// `strokeBorder`: the border draws INSIDE the chip, which is what makes §2's widths close.
+    private var borderOverlay: some View {
+        border.map { colour in
+            RoundedRectangle(cornerRadius: Token.Radius.card)
+                .strokeBorder(colour, lineWidth: Geometry.borderWidth)
+        }
     }
 
     // MARK: - Parts (§2 anatomy)
 
-    /// §2 Chevron: "**16×16**, leading. Fill baked into the artwork: `color-text-secondary`
-    /// inactive, `color-black` active (§1 deviation 4)."
-    ///
-    /// The source ships **two** assets — the same path filled `#85979E` and `black` (§1
-    /// deviation 4, verified on export 2026-09-11 from nodes `3668:7602` / `3668:7610`: the two
-    /// SVGs are byte-identical but for the `fill` attribute). One asset is catalogued here,
-    /// template-rendering, and the fill is applied as a token at this call site — exactly the
-    /// accommodation C-072 LinkStatusGlyph makes for its own baked-fill pair, and what keeps
-    /// §3a's two chevron colours **tokens by name** (preview-build.md §3 rule 4) instead of
-    /// hexes frozen into a vector.
-    ///
-    /// Exported 2026-09-11 from `3668:7602` ("chevron--down", 16×16 at x=9 y=4 in the symbol)
-    /// to docs/ui2/design-system/components/assets/C-035-chevron-down.svg.
+    /// §2 Chevron: "**16×16**, leading — the library glyph **`chevron-down-carbon`** (Carbon
+    /// `chevron--down`, template paint)", tinted by token at the call site (D21). `.sm` is the 16pt
+    /// box; the glyph's own grid places the 10×5.7 vector inside it.
     private var chevron: some View {
-        Image(Self.chevronAsset, bundle: .ui2Preview)
-            .renderingMode(.template)
-            .resizable()
-            .scaledToFit()
-            // The vector is 10×5.7 inside the 16×16 instance box (measured on the node:
-            // origin 3, 5.3). Rendering the ARTWORK at its own size and the BOX as a frame
-            // keeps §2's 16×16 slot while drawing the chevron at the weight the source draws
-            // it — the same two-frame construction C-072 uses. The box centres it at
-            // (3, 5.15) against the source's (3, 5.3): 0.15pt low, below a 3× render's
-            // resolution and not worth an offset.
-            .frame(width: Self.chevronArtwork.width, height: Self.chevronArtwork.height)
-            .foregroundColor(chevronColor)
-            .frame(width: Geometry.chevronBox, height: Geometry.chevronBox)
+        Glyph(.chevronDownCarbon, size: .sm, tint: chevronColor)
             .ui2Element("Chevron")
     }
 
-    /// §2 Label: "SF Pro **Bold 14**; leading **22** in `type=Menu`, **24** in `type=Button`;
-    /// colour per variant (§3a); `nowrap`."
-    private var labelText: some View {
+    /// §2 Label (`Menu`, `Button`): `type-title-card` (Bold 14/20) in both types — OQ-C-035-3's
+    /// ruling; the source's 14/22 and 14/24 are §1 deviation 6. `nowrap`, never truncated (§3c).
+    private var pillLabel: some View {
         Text(label)
-            .designTextStyle(labelStyle)
+            .designTextStyle(Token.TypeStyle.titleCard)
             .foregroundColor(labelColor)
-            // §2: `nowrap`. §3c's proposed default for overflow is that "the chip does not
-            // truncate and the rail scrolls" (OQ-C-035-6), so no truncation is applied here —
-            // the chip hugs whatever the label measures.
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
-            // The label's line box IS its leading (measured: the Menu label node is 32×**22**
-            // at y=1 in the 24pt symbol, the Button label 32×**24** at y=0). Without the frame
-            // SwiftUI sizes the run to the font's own line height and the two types stop
-            // differing, which is precisely what §2's "two leadings, one component" records.
-            .frame(height: labelStyle.lineHeight ?? labelStyle.size)
+            // The line box IS the leading (§2 "Line box = the leading").
+            .frame(height: Token.TypeStyle.titleCard.lineHeight ?? Token.TypeStyle.titleCard.size)
             .ui2Element("Label")
     }
 
-    // MARK: - Flagged literals (§2)
+    /// §2 Label (`Font`): the display name set in the font's own face at 17, line box 18, `nowrap`.
+    private var fontLabel: some View {
+        Text(label)
+            .font(fontFace)
+            .foregroundColor(labelColor)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .frame(height: Geometry.fontLabelBox)
+            .ui2Element("Label")
+    }
 
-    // FLAGGED LITERAL — C-035 §2: "**The label colour in the two inactive variants.** Variable
-    // `text/navigation` #8d9fa7 has **no token row** — `tokens.md` records it only as a
-    // near-duplicate of `color-nav-text` (#8ea0a7) and as the hex-twin of
-    // `color-nav-border-active`. Cite the variable until the owner consolidates, as
-    // `C-029-radial-day-clock.md` §2 and `C-027-legend-item.md` §2 do." C-035 is the third
-    // text consumer of that variable, and §2 records that the "members-home Bold 14/22 label"
-    // consumer `tokens.md` already carried **is this row**. OQ-C-035-4a.
-    //
-    // NOT `Token.navBorderActive`, which is the same hex: that token names a BORDER role, and
-    // spending it on text would assert a consolidation the owner has not made.
-    private static let navigationTextColor = Color(
-        red: 0.5529, green: 0.6235, blue: 0.6549, opacity: 1
-    )
-
-    // FLAGGED LITERAL — C-035 §2: "**Both label leadings.**… The Menu label is Bold 14/**22**
-    // and the Button label is Bold 14/**24** — same face, same size, same weight, differing by
-    // variant axis alone. Bold 14/24 is already on file from C-062 (this is its second site);
-    // Bold 14/**22** is **new to the program**, which now carries five Bold-14 leadings: 14
-    // (C-046), 16 (`type-nav-label`), 20 (`type-title-card`), 22 (here), 24 (C-062 + here).
-    // Neither is minted as a token off this component." OQ-C-035-3, to settle with OQ-C-062-3
-    // and OQ-C-046-6 as one typography ruling.
-    private static let menuLabelStyle = DesignTextStyle(
-        weight: .bold, size: 14, lineHeight: 22, tracking: 0
-    )
-    private static let buttonLabelStyle = DesignTextStyle(
-        weight: .bold, size: 14, lineHeight: 24, tracking: 0
-    )
-
-    /// §1 deviation 4's artwork, and the size the vector occupies inside §2's 16×16 box.
-    private static let chevronAsset = "c035-chevron-down"
-    private static let chevronArtwork = CGSize(width: 10, height: 5.7)
+    /// OQ-C-035-004 (owner, 2026-10-13): "As the sheet draws each face — Poppins Bold, SF Pro
+    /// Text Medium, Georgia Regular, American Typewriter Regular; the chip samples the face, not
+    /// the canvas weight." (C-092 renders every face Bold on the canvas; this row does not.)
+    private var fontFace: SwiftUI.Font {
+        let points = Geometry.fontLabelSize
+        switch font {
+        case .poppins: return .custom("Poppins-Bold", fixedSize: points)
+        case .georgia: return .custom("Georgia", fixedSize: points)
+        case .typewriter: return .custom("AmericanTypewriter", fixedSize: points)
+        // `.sfPro`, and a nil `font` the capture case refuses before it gets here (§4: required
+        // in `type=Font`).
+        case .sfPro, .none:
+            return DesignTextStyle(weight: .medium, size: points, lineHeight: nil, tracking: 0).font
+        }
+    }
 }

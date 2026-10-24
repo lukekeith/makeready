@@ -13,22 +13,26 @@ import SwiftUI
 ///
 /// §2: a Details column (title + a per-state 2nd element + a C-043 chip row) beside a 64×64
 /// cover, with no border and no fill. Width-driven, intrinsic height (R-16): 120 `Condensed`,
-/// 96 `Progress` / `Complete` — the row's own `space-card-padding` inset top and bottom is
-/// inside that height; it paints no background and adds no other outer padding.
+/// 96 `Progress` / `Complete`, 132 `Enrolled` at a two-line description, 108 `Program` — the
+/// row's own `space-card-padding` inset top and bottom is inside that height; it paints no
+/// background and adds no other outer padding.
 ///
 /// Controlled (R-01): every §3 state is a prop combination — `state` + `progress` +
-/// `metaChips` give the three symbols, `progress = 0` and `cover = nil` the two ruled
+/// `metaChips` (+ `description`, + `caption`) give the five symbols, `progress = 0` and `cover = nil` the two ruled
 /// undesigned rows. The only internal state is the ephemeral pressed look (R-02), which the
 /// button style owns.
 struct StudyProgramRow: View {
 
-    /// §4 `state` — `Condensed | Progress | Complete`, nested per R-06 / R-36. Raw values are
-    /// §3's labels verbatim, because those are the strings the fixture carries. `Complete` is
-    /// Figma's placeholder `state4`, renamed by OQ-C-059-2 (deviation 4).
+    /// §4 `state` — `Condensed | Progress | Complete | Enrolled | Program`, nested per R-06 /
+    /// R-36. Raw values are §3's labels verbatim, because those are the strings the fixture
+    /// carries. `Complete` is Figma's placeholder `state4`, renamed by OQ-C-059-2 (deviation 4).
+    /// `Enrolled` is Figma `3767:11827`, added by D53; `Program` is Figma `3608:4488`, by D59.
     enum State: String {
         case condensed = "Condensed"
         case progress = "Progress"
         case complete = "Complete"
+        case enrolled = "Enrolled"
+        case program = "Program"
     }
 
     /// One entry of §4 `metaChips: [C-043 MetaChip]` — "each element a C-043 prop tuple
@@ -38,20 +42,26 @@ struct StudyProgramRow: View {
         let value: String
         var label: String?
         var state: MetaChip.State = .default
-        var align: MetaChip.Align = .left
+        /// C-043's `labelPosition` (OQ-C-043-1), still named `align` in this row's own §4.
+        var align: MetaChip.LabelPosition = .trailing
     }
 
     /// §4 `state` — required.
     let state: State
     /// §4 `title` — "single line, ellipsized in every state". Required.
     let title: String
-    /// §4 `description` — "`Condensed` only; wraps. Ignored in the other states". Unrequired
-    /// (R-07: two of three variants show the row without it).
+    /// §4 `description` — "`Condensed`, `Enrolled` and `Program` only; wraps in
+    /// `Condensed`/`Enrolled`, one line, ellipsized in `Program`. Ignored in the other states".
+    /// Unrequired (R-07: two of five variants show the row without it).
     let description: String?
-    /// §4 `progress` — "passed straight to C-057; `Complete` pins 1.0 whatever is passed".
-    /// Required.
+    /// §4 `caption` — "`Program` only (D59): the plain `color-accent` line under the
+    /// description — the caller's whole string … One line, ellipsized. Ignored in the other
+    /// states". Unrequired.
+    let caption: String?
+    /// §4 `progress` — "passed straight to C-057 in `Progress` / `Complete`; `Complete` pins
+    /// 1.0 whatever is passed; ignored in `Condensed`, `Enrolled` and `Program`". Required.
     let progress: Double
-    /// §4 `metaChips` — "the chip row, in order". Required.
+    /// §4 `metaChips` — "the chip row, in order. Ignored in `Program`". Required.
     let metaChips: [Chip]
     /// §4 `cover` — "the 88×64 portrait the 64×64 box crops, resolved by the caller (R-19 /
     /// R-32 … the row does no loading). `nil` → the ruled missing-cover box". Unrequired.
@@ -67,6 +77,7 @@ struct StudyProgramRow: View {
         state: State,
         title: String,
         description: String? = nil,
+        caption: String? = nil,
         progress: Double,
         metaChips: [Chip],
         cover: Image? = nil
@@ -74,6 +85,7 @@ struct StudyProgramRow: View {
         self.state = state
         self.title = title
         self.description = description
+        self.caption = caption
         self.progress = progress
         self.metaChips = metaChips
         self.cover = cover
@@ -85,6 +97,7 @@ struct StudyProgramRow: View {
         state: State,
         title: String,
         description: String? = nil,
+        caption: String? = nil,
         progress: Double,
         metaChips: [Chip],
         cover: Image? = nil,
@@ -93,6 +106,7 @@ struct StudyProgramRow: View {
         self.state = state
         self.title = title
         self.description = description
+        self.caption = caption
         self.progress = progress
         self.metaChips = metaChips
         self.cover = cover
@@ -105,8 +119,8 @@ struct StudyProgramRow: View {
                 // §2 Pressed (OQ-C-059-7): "the whole row at 0.6 opacity for the duration of
                 // the touch, when `onTap` is wired". §2 Accessibility (R-17): "one element —
                 // label = `title`, trait `.isButton`; the chips and bar are children of that
-                // element, not separately focusable".
-                Button(action: onTap) {
+                // element, not separately focusable" (§2: "the chips, bar and caption").
+                SwiftUI.Button(action: onTap) {
                     content
                 }
                 .buttonStyle(RowPressedStyle())
@@ -138,7 +152,7 @@ struct StudyProgramRow: View {
     // MARK: - Details
 
     /// §2 Details column — flexible; its gap is the per-variant "Details gap": 16 in
-    /// `Condensed`, `space-element-gap` (8) in `Progress` / `Complete`.
+    /// `Condensed`, `space-element-gap` (8) in `Progress` / `Complete` / `Enrolled` / `Program`.
     @ViewBuilder
     private var details: some View {
         switch state {
@@ -174,6 +188,34 @@ struct StudyProgramRow: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .ui2Element("Details")
+        case .enrolled:
+            // §2 `Enrolled` (D53): description "8 under the title; no C-057 PercentBar", then
+            // the chip row — the 8 above it derived from groups-detail's 132pt row and ratified
+            // by OQ-C-059-002.
+            VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+                titleText
+                if let description {
+                    descriptionText(description)
+                }
+                chipRow
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .ui2Element("Details")
+        case .program:
+            // §2 `Program` (D59): description "single line, ellipsized", then the caption —
+            // "no C-043 chip, no C-057 bar"; "a nil `description` or `caption` drops its line
+            // and its gap" (column 20 + 8 + 20 + 8 + 20 = 76).
+            VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+                titleText
+                if let description {
+                    singleLineDescriptionText(description)
+                }
+                if let caption {
+                    captionText(caption)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .ui2Element("Details")
         }
     }
 
@@ -191,7 +233,7 @@ struct StudyProgramRow: View {
             .ui2Element("Title")
     }
 
-    /// §2 `Condensed` description: `type-page-title` (Regular 14/20) in `color-text-secondary`
+    /// §2 `Condensed` / `Enrolled` description: `type-page-title` (Regular 14/20) in `color-text-secondary`
     /// (ruled OQ-C-059-5; Figma still binds `White/50%` — deviation 8), "wraps (no ellipsis)".
     /// One line keeps the 20pt box; more lines grow the row.
     private func descriptionText(_ text: String) -> some View {
@@ -204,13 +246,40 @@ struct StudyProgramRow: View {
             .ui2Element("Description")
     }
 
+    /// §2 `Program` description: `type-page-title` (Regular 14/20) `color-text-secondary`,
+    /// "single line, ellipsized (unlike `Condensed`/`Enrolled`)", in the 20pt line box.
+    private func singleLineDescriptionText(_ text: String) -> some View {
+        Text(text)
+            .designTextStyle(Token.TypeStyle.pageTitle)
+            .foregroundStyle(Token.textSecondary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.lineBox(Token.TypeStyle.pageTitle))
+            .ui2Element("Description")
+    }
+
+    /// §2 `Program` caption: "the `caption` string as plain text, `color-accent`, single line,
+    /// ellipsized, 20pt line box" — `type-page-title` (Regular 14/20), ratified by the owner in
+    /// OQ-C-059-004 (2026-10-20).
+    private func captionText(_ text: String) -> some View {
+        Text(text)
+            .designTextStyle(Token.TypeStyle.pageTitle)
+            .foregroundStyle(Token.accent)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(height: Self.lineBox(Token.TypeStyle.pageTitle))
+            .ui2Element("Caption")
+    }
+
     /// §2 chip row: "`space-chip-gap` (2): C-043 MetaChip × n" — whatever `metaChips` the
     /// caller passes, in order, each at its hug width (§3a: "the counts above are what the
     /// symbols demonstrate, not a limit").
     private var chipRow: some View {
         HStack(alignment: .center, spacing: Token.Space.chipGap) {
             ForEach(Array(metaChips.enumerated()), id: \.offset) { index, chip in
-                MetaChip(value: chip.value, label: chip.label, state: chip.state, align: chip.align)
+                MetaChip(value: chip.value, label: chip.label, state: chip.state, labelPosition: chip.align)
                     .ui2Element("Chip \(index + 1)")
             }
         }

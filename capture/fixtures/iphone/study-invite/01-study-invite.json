@@ -1,0 +1,25 @@
+{
+  "platform": "iphone",
+  "view": "pages.study-invite",
+  "settle": 2,
+  "output": "01-study-invite.png",
+  "title": "Study Invite: Populated",
+  "devices": ["iphone-se", "iphone-15-pro", "iphone-16-pro-max"],
+  "auth": {
+    "isAuthenticated": true,
+    "currentUser": { "id": "user-1", "name": "Luke Keith", "email": "luke@example.com", "picture": null }
+  },
+  "state": {
+    "studyInvite": {
+      "scheduleId": "sched-1",
+      "code": "K7P4QX",
+      "inviteUrl": "https://app.makeready.org/join/study/K7P4QX",
+      "dayNumber": 3,
+      "scheduledDate": "2026-06-03T00:00:00.000Z",
+      "passageReference": "Psalm 90:1-4",
+      "programName": "Who Is God?",
+      "programDays": 30,
+      "groupName": "Sunday Morning Group"
+    }
+  }
+}
