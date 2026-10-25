@@ -52,3 +52,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/ui2-fixtures and fi
 - 2026-10-25 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-10-25 unparked by the fleet — automatic retry 1 of 2
 - 2026-10-25 unparked by the fleet — automatic retry 2 of 2
+- 2026-10-25 unparked by a person — named to /builder:agent or /builder:fleet
