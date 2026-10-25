@@ -88,23 +88,23 @@ cd client && npm run story:build       # when Histoire stories changed
 ```
 npm run ios:build-check                # xcodebuild against a simulator destination (from the repo root)
 npm run ios:build-check -- --test      # when the phase ships XCTest coverage
-cd iphone && swiftlint                 # 🔴 MUST run from iphone/ — the included paths are relative
+cd iphone && swiftlint --baseline .swiftlint-baseline.json   # 🔴 MUST run from iphone/ — included paths are relative; the baseline holds ~995 inherited violations, so a red line here is a NEW one
 ```
 
 ### capture — fast
 
 ```
 curl -s localhost:5950/api/compare/manifest    # capture server up
-node capture/runners/compare/diff.mjs …        # programmatic pixel diff (advisory %)
+node capture/runners/compare/diff.mjs …        # programmatic pixel diff (advisory %) — needs a comparison id in place of …; run per screen by hand @known-red
 ```
 
 ### Deep set (verify only)
 
 ```
 every app's fast set, fresh
-cd iphone && swiftlint                         # across the whole app, not just the diff
+cd iphone && swiftlint --baseline .swiftlint-baseline.json   # across the whole app, not just the diff
 cd client && ./vendor/bin/phpunit              # the full Laravel suite
-node capture/runners/compare/diff.mjs …        # a pixel diff for EVERY screen with an iPhone twin
+node capture/runners/compare/diff.mjs …        # a pixel diff for EVERY screen with an iPhone twin — needs comparison ids; verify runs it per screen @known-red
 /dev-start                                     # then the cross-app E2E walk from SPEC §Testing, live
 ```
 
@@ -112,6 +112,24 @@ node capture/runners/compare/diff.mjs …        # a pixel diff for EVERY screen
 capture. It is the slowest and most fragile thing this pipeline runs, and the phases under it are
 already covered in seconds by route, service and component tests plus `/compare` diffs. It is
 authored in the last phase and run once, by verify.
+
+## Walk readiness
+
+What makes the **dev** environment run this branch before a human is asked to walk it.
+
+```
+migrations: server/atlas/migrations                    # Atlas, generated from server/schema/*.yaml
+status:     cd server && npm run migrate:status        # pending migrations on the local dev DB
+apply:      cd server && npm run migrate:apply
+apply_mode: ask                                        # ask before applying — a walk never runs on an old schema
+regenerate: cd server && npx prisma generate
+start:      docker compose up -d --build               # the full stack, as /dev-start does; the human's own dev env
+smoke:      curl -sf -A 'Mozilla/5.0' localhost:3010/health   # non-bot User-Agent (bot guard)
+```
+
+- `docker restart makeready-server` after any `server/src` change — the container does not hot-reload.
+- Rebuild the client (`cd client && npm run build`) before any web walk or `/compare` web capture.
+- iPhone: the walk runs a fresh Debug build in the simulator — launching it is the human's call.
 
 ## Global constraints
 
