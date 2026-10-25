@@ -1,5 +1,5 @@
 /**
- * tokens.md → UI2Preview/Tokens.swift (preview-build.md §3 rule 4).
+ * tokens.md → MakeReadyUI/Tokens.swift (preview-build.md §3 rule 4).
  *
  * migration.md rule 4 says 2.0 tokens are GENERATED into the 2.0 namespace and
  * Colors.swift/Typography.swift are never touched. This is that generator: it
@@ -13,7 +13,7 @@ import path from 'node:path';
 import { makereadyRoot } from './fs-index.mjs';
 
 export const tokensPath = path.resolve(makereadyRoot, 'docs/ui2/design-system/tokens.md');
-export const tokensOutPath = path.resolve(makereadyRoot, 'iphone/MakeReady/UI2Preview/Tokens.swift');
+export const tokensOutPath = path.resolve(makereadyRoot, 'iphone/MakeReadyUI/Tokens.swift');
 
 const cells = (line) => line.split(/(?<!\\)\|/).slice(1, -1).map((c) => c.replace(/\\\|/g, '|').trim());
 
@@ -103,7 +103,7 @@ function colorLine({ name, value }) {
 export function tokensToSwift(t) {
   return `//
 //  Tokens.swift
-//  UI2Preview — the UI 2.0 preview module
+//  MakeReadyUI — the UI 2.0 module
 //
 //  GENERATED FROM docs/ui2/design-system/tokens.md — DO NOT EDIT.
 //  Regenerate with: node capture/lib/ui2-tokens.mjs

@@ -130,7 +130,7 @@ recorded as a §1 deviation + an OQ ✓
 Find them all before editing any:
 
 ```bash
-grep -rn "C-<dup>" docs/ui2/ iphone/MakeReady/UI2Preview/ capture/fixtures/ui2/
+grep -rn "C-<dup>" docs/ui2/ iphone/MakeReadyUI/ capture/fixtures/ui2/
 ```
 
 Repoint each, and **count them in the report** (C-041's merge moved 19 element-map boxes
@@ -172,9 +172,9 @@ say so and skip to §5 — there is nothing to migrate.
    }
    ```
 3. **View** — fold the duplicate's SwiftUI view into the keeper's under
-   `iphone/MakeReady/UI2Preview/`, driven by the absorbing axis. Delete the duplicate's file
+   `iphone/MakeReadyUI/`, driven by the absorbing axis. Delete the duplicate's file
    **only after** its behaviour is reachable through the keeper's props, then re-run
-   `ruby iphone/scripts/ui2-preview-sync.rb` so the target membership follows.
+   `ruby iphone/scripts/makereadyui-sync.rb` so the target membership follows.
 4. **ViewRegistry + CaptureFixture** — the duplicate's `case "component.ui2.C-<dup>"` is
    removed and its props are served by the keeper's case. `CaptureComponent` fields are
    **additive optionals and are never removed** — another contract may have come to rely on
@@ -284,7 +284,7 @@ keeper's pre-existing state names unchanged ✓ · report covers all eight point
 - **Never delete a note.** Carry it to the keeper as a new timestamped note.
 - **Stop rather than merge two things that are not the same component.** §1's third outcome is
   a success.
-- Docs + build artifacts only: `docs/ui2/`, `iphone/MakeReady/UI2Preview/`,
+- Docs + build artifacts only: `docs/ui2/`, `iphone/MakeReadyUI/`,
   `capture/fixtures/ui2/`, and the two test-target files `preview-build.md` §3 rule 3 permits.
   Never `client/`, never Figma.
 - Commits stay the user's call — leave the working tree for review unless told otherwise.

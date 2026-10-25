@@ -1248,7 +1248,7 @@ async function syncUi2Row(row) {
  * bar gap `radius-bar`, which is a different property entirely.
  *
  * The same `parseTokens` the Swift generator runs on, so the browser and
- * `UI2Preview/Tokens.swift` can never disagree about what tokens.md says.
+ * `MakeReadyUI/Tokens.swift` can never disagree about what tokens.md says.
  */
 async function ui2SpacingTokens() {
   try {

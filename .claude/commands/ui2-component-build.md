@@ -1,5 +1,5 @@
 ---
-description: Build ONE specced UI 2.0 component as a capturable SwiftUI preview — resolve its dependencies, regenerate the tokens, write the view under iphone/MakeReady/UI2Preview/, generate its fixture + ViewRegistry case, capture it in the simulator, and diff the render against its frozen Figma snapshot. The build-side sibling of /ui2-component; wired into no screen, route or flag. Designed to run in a FRESH session.
+description: Build ONE specced UI 2.0 component as a capturable SwiftUI preview — resolve its dependencies, regenerate the tokens, write the view under iphone/MakeReadyUI/, generate its fixture + ViewRegistry case, capture it in the simulator, and diff the render against its frozen Figma snapshot. The build-side sibling of /ui2-component; wired into no screen, route or flag. Designed to run in a FRESH session.
 argument-hint: [C-### registry id (or component name); omit to be shown the specced-but-unbuilt rows]
 ---
 
@@ -114,11 +114,12 @@ presence (`preview-build.md` §6), so a successful run needs no registry edit at
 
 ## Hard rules (re-read before EVERY phase)
 
-- **Wired into nothing** (`preview-build.md` §3 rule 1). No screen, route, tab, flag or
-  `NavigationCoordinator` case references `UI2Preview/`. A step that would need one stops
-  and says so.
+- **Never hand-wire** (ui2-shell D2, superseding `preview-build.md` §3 rule 1). Files are
+  written under `iphone/MakeReadyUI/`; this command never wires them into a screen, route or
+  tab — the app wires these from `iphone/MakeReady/UI2/`. A step that would need a hand-wire
+  stops and says so.
 - **Legacy untouched** (rule 2). `Colors.swift`, `Typography.swift`, `Pages/`,
-  `Services/Route.swift` are never edited. Outside `UI2Preview/` and `capture/fixtures/ui2/`
+  `Services/Route.swift` are never edited. Outside `MakeReadyUI/` and `capture/fixtures/ui2/`
   this command writes exactly three files: the two **test-target** files of phase 4
   (`ViewRegistry.swift`, `CaptureFixture.swift` — rule 3, amended 2026-09-06), and
   `iphone/MakeReady.xcodeproj/project.pbxproj`, rewritten by the sync script in phase 5
@@ -172,7 +173,7 @@ advance with an ✗ — fix it or surface why.
    `docs/ui2/design-system/components/assets/<file>.png` (the `Frozen snapshot:` line in §1).
    No snapshot ⇒ nothing to diff against: stop and say so.
 5. Read `docs/ui2/design-system/tokens.md` (the families the contract cites) and
-   `iphone/MakeReady/UI2Preview/Tokens.swift` — the generated file is the
+   `iphone/MakeReadyUI/Tokens.swift` — the generated file is the
    authority on **real member names**. Do not guess them.
 6. **Rebuild check:** does `capture/fixtures/ui2/C-###.json` already exist? If so this is a
    re-build (rule 8) — read it now and diff the contract against it in phase 4, reporting
@@ -241,7 +242,7 @@ node capture/lib/ui2-tokens.mjs
 ```
 
 It reads `docs/ui2/design-system/tokens.md` and rewrites
-`iphone/MakeReady/UI2Preview/Tokens.swift`. Read its output: the counts line, and
+`iphone/MakeReadyUI/Tokens.swift`. Read its output: the counts line, and
 any `NOT PARSED (no token emitted): …` line — those rows produced **no** token and cannot be
 used by name.
 
@@ -256,9 +257,9 @@ you will use. The generator drops the family prefix and lowerCamels the rest:
 | `space-page-margin` | `Token.Space.pageMargin` |
 | `radius-card-sm` | `Token.Radius.cardSm` |
 
-(Inside the `UI2Preview` module those names need no qualification. In
+(Inside the `MakeReadyUI` module those names need no qualification. In
 `ViewRegistry.swift`, which imports both modules, they are written
-`UI2Preview.Token.…` — phase 4d.)
+`MakeReadyUI.Token.…` — phase 4d.)
 
 Every value the view needs is now one of exactly four things:
 
@@ -278,7 +279,7 @@ Every value the view needs is now one of exactly four things:
    or flags it. Do not invent a token, and never hand-edit the generated file (the next run
    overwrites it).
 
-`git diff --stat iphone/MakeReady/UI2Preview/Tokens.swift` after the run tells you
+`git diff --stat iphone/MakeReadyUI/Tokens.swift` after the run tells you
 whether `tokens.md` moved since the last build — report it if it did.
 
 **Exit checklist 2:** generator run and its output read ✓ · no `NOT PARSED` row is one this
@@ -299,13 +300,13 @@ contradicting its own contract and "fixes" it back.
 
 **Naming — the registry name, plain** (`preview-build.md` §2). The view type and its file are
 the registry name with nothing added: row `TextInput` → `struct TextInput` in
-`iphone/MakeReady/UI2Preview/TextInput.swift`. **Do not check for a 1.0 namesake and do not
-prefix.** `UI2Preview/` is its own Swift module — a folder is not a namespace in Swift, a
-module is — so `UI2Preview.PageHeader` and `MakeReady.PageHeader` coexist and the six colliding
+`iphone/MakeReadyUI/TextInput.swift`. **Do not check for a 1.0 namesake and do not
+prefix.** `MakeReadyUI/` is its own Swift module — a folder is not a namespace in Swift, a
+module is — so `MakeReadyUI.PageHeader` and `MakeReady.PageHeader` coexist and the six colliding
 registry rows (`Avatar`, `FieldGroup`, `PageHeader`, `RecordButton`, `SearchField`,
 `TextInput`) need no special handling here. The one place the collision is still visible is
 `ViewRegistry.swift`, which imports both modules: qualify every 2.0 reference there
-(`UI2Preview.TextInput`) — phase 4d.
+(`MakeReadyUI.TextInput`) — phase 4d.
 
 The module imports **SwiftUI only**. A preview view that needs a `MakeReady` type is a spec
 defect, not a linkage to add.
@@ -331,7 +332,7 @@ One SwiftUI view in that file:
 - **Tokens only**, per phase 2. No `Color(hex:)`, no `.system(size:)`, no legacy
   `Color.brand*` / `Typography.*` — those are rule-2 files.
 - **No `#if DEBUG`, no `#Preview`, no lazy containers, no `print`/`NSLog`.**
-- **Name the anatomy** with `.ui2Element("<part>")` (`UI2Preview/UI2Element.swift`). The 2.0
+- **Name the anatomy** with `.ui2Element("<part>")` (`MakeReadyUI/UI2Element.swift`). The 2.0
   browser has no web twin to hit-test, so a comment gets its element context from the parts
   the view names itself: the capture harness resolves each annotated rect and writes it
   beside the PNG, and the browser highlights it under the cursor in comment mode. Annotate
@@ -346,15 +347,15 @@ One SwiftUI view in that file:
 ```swift
 //
 //  <RegistryName>.swift
-//  UI2Preview — the UI 2.0 preview module
+//  MakeReadyUI — the UI 2.0 module
 //
 //  Built from docs/ui2/design-system/components/C-###-<slug>.md (§2 geometry, §3 states,
-//  §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
-//  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
+//  §4 props). Never hand-wired: the app wires this from iphone/MakeReady/UI2/
+//  (ui2-shell D2).
 //
 ```
 
-If `iphone/MakeReady/UI2Preview/README.md` does not exist, write it now —
+If `iphone/MakeReadyUI/README.md` does not exist, write it now —
 `preview-build.md` §2 makes this folder's README part of the lane: it states the
 preview-only rule and the §7 promotion path, and nothing else.
 
@@ -446,7 +447,7 @@ console.log(f.view, f.devices, f.variants.map((v) => `${v.name} → ${v.slug}`))
 **d. The registry case.** Append one case to `iphone/MakeReadyCaptureTests/ViewRegistry.swift`,
 immediately before the final `default:` (~line 2509), decoding `fixture.state?.component`
 exactly as the neighbouring `component.*` cases do (`component.card-study`, line 104).
-**Module-qualify every 2.0 name** — the file imports both `MakeReady` and `UI2Preview`, and
+**Module-qualify every 2.0 name** — the file imports both `MakeReady` and `MakeReadyUI`, and
 the six colliding registry names are ambiguous without it (the pre-existing 1.0 call sites for
 those names are qualified `MakeReady.…` for the same reason):
 
@@ -456,11 +457,11 @@ those names are qualified `MakeReady.…` for the same reason):
             throw ViewRegistryError.unknownView("component.ui2.C-###: missing state.component")
         }
         return AnyView(
-            UI2Preview.<RegistryName>(/* §4 props from `c`, with the contract's defaults */)
+            MakeReadyUI.<RegistryName>(/* §4 props from `c`, with the contract's defaults */)
                 .frame(width: <master width from §2>)   // OQ-PB-1 default: the contract's master width
-                .padding(UI2Preview.Token.Space.pageMargin)
+                .padding(MakeReadyUI.Token.Space.pageMargin)
                 .frame(maxWidth: .infinity)             // fill the device width the runner renders at
-                .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+                .background(MakeReadyUI.Token.layoutBackground)  // OQ-PB-2 default
         )
 ```
 
@@ -504,13 +505,13 @@ additions reported ✓
 **1. Sync.**
 
 ```bash
-ruby iphone/scripts/ui2-preview-sync.rb
+ruby iphone/scripts/makereadyui-sync.rb
 ```
 
-Files under `UI2Preview/` are **not** auto-included by folder — the project has no
+Files under `MakeReadyUI/` are **not** auto-included by folder — the project has no
 filesystem-synchronised groups, so a generated file is invisible to the compiler until it is
 referenced in the pbxproj. The script makes every `.swift` file under that folder a member of
-the **`UI2Preview` framework target** (not `MakeReady` — `preview-build.md` §2). **A file that
+the **`MakeReadyUI` framework target** (not `MakeReady` — `preview-build.md` §2). **A file that
 is not in the target does not compile, and the capture fails minutes later with an
 unknown-view error.** The script is idempotent and recursive; check its `added:` line names
 your new view (and that `Tokens.swift` is in the count).
@@ -618,10 +619,10 @@ PNG per built state located ✓
    - **dependencies** — each with its resolution level, and every level-3 stub with the
      `/ui2-component` run that would spec it;
    - **tokens** — regenerated counts, anything `NOT PARSED`, any flagged literal emitted,
-     and whether `UI2Preview/Tokens.swift` changed since the last build;
+     and whether `MakeReadyUI/Tokens.swift` changed since the last build;
    - **test-target edits** — the `ViewRegistry` case, and every `CaptureComponent` field
      added (rule 3 requires them named);
-   - **the view's name** — the registry name, plain, in module `UI2Preview`;
+   - **the view's name** — the registry name, plain, in module `MakeReadyUI`;
    - **OQ-PB defaults taken** (device/width, background, no-op closures, drift, and any
      later OQ-PB row), so an owner ruling has a list to overturn;
    - **drift** — on a re-build, what changed in the contract since the previous fixture

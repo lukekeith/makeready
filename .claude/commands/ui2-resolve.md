@@ -11,7 +11,7 @@ Resolve the unresolved comments on **$ARGUMENTS** in the 2.0 component browser
 **This is not `/component-resolve`.** That command's reference is the iPhone render and its
 subject is a shipping 1.0 component under `MakeReady/Components/`. Here the reference is the
 component's **frozen Figma snapshot**, and the subject is its **preview** — a view under
-`iphone/MakeReady/UI2Preview/` that is wired into no screen, route or flag. Everything in
+`iphone/MakeReadyUI/` that is never hand-wired (the app wires these from `iphone/MakeReady/UI2/`, ui2-shell D2). Everything in
 `docs/ui2/preview-build.md` §3 still binds; this command may not break a rule that command
 never had to think about.
 
@@ -131,7 +131,7 @@ and the next reader "fixes" it back.
 - Every prop value traces to §4 × §3 (rule 6). Fixture variant **names** are never touched
   (rule 7) — they are the DB key for versions and comments.
 - Never wire the view into anything (rule 1); never edit `Colors.swift`, `Typography.swift`,
-  `Pages/`, `Services/Route.swift` (rule 2); never hand-edit `UI2Preview/Tokens.swift` — if a
+  `Pages/`, `Services/Route.swift` (rule 2); never hand-edit `MakeReadyUI/Tokens.swift` — if a
   token must change, that is a `tokens.md` change plus `node capture/lib/ui2-tokens.mjs`.
 - **Never nudge geometry to match the picture.** A render that cannot match is a gap to
   report, not a number to tune.
@@ -215,7 +215,7 @@ list at the end — they are the work this command deliberately did not do.
   command is the last resort, not the first.
 - The contract is where a ruling lands, and the build follows the contract — so an owner-ruled
   state is visible to every later run instead of living as an unexplained special case in Swift.
-- Only ever touch `iphone/MakeReady/UI2Preview/`, `capture/fixtures/ui2/`, the target's own
+- Only ever touch `iphone/MakeReadyUI/`, `capture/fixtures/ui2/`, the target's own
   contract under `docs/ui2/design-system/components/` (§1a only), and — when a
   comment genuinely lands on the capture plumbing — the two test-target files
   `preview-build.md` §3 rule 3 permits (`ViewRegistry.swift`, `CaptureFixture.swift`, additive

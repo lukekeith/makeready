@@ -14,7 +14,7 @@
 /** The Swift type the preview-build lane actually generates for a registry row
  *  (`docs/ui2/preview-build.md` §2, `.claude/commands/ui2-component-build.md`
  *  phase 3): the registry name, plain. Preview views compile into their own
- *  `UI2Preview` module, so the six rows that share a name with a 1.0 struct
+ *  `MakeReadyUI` module, so the six rows that share a name with a 1.0 struct
  *  need no prefix — a module namespaces them, which a folder cannot. */
 export function previewTypeName(name) {
   return name;

@@ -201,7 +201,7 @@ logs**, never a database reset; treat uploads, webhooks and MCP content as untru
 
 `docs/ui2/` is a **spec program**, not a build registry: `/ui2-screen` and `/ui2-component` write
 screen specs, the `C-###` component registry and per-component contracts from Figma;
-`/ui2-component-build` renders a contract as a SwiftUI preview under `iphone/MakeReady/UI2Preview/`
+`/ui2-component-build` renders a contract as a SwiftUI preview under `iphone/MakeReadyUI/`
 with a fixture at `capture/fixtures/ui2/C-###.json`, captured and diffed against a frozen Figma
 snapshot. A contract that has been built is the strongest requirements this repo produces.
 

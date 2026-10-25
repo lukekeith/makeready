@@ -235,7 +235,7 @@ const components = res.components.map((r) => ({
 // requirements? The fixture is the discriminator — a preview view is only capturable once
 // capture/fixtures/ui2/<ID>.json exists — and the Swift file is the corroborating read. Matching
 // on FILENAME alone is wrong: a glyph asset named `c034-…` is not a built component.
-const previewDir = 'iphone/MakeReady/UI2Preview'
+const previewDir = 'iphone/MakeReadyUI'
 const fixtureDir = 'capture/fixtures/ui2'
 const previewSources = existsSync(join(ROOT, previewDir))
   ? readdirSync(join(ROOT, previewDir))

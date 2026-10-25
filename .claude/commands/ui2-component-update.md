@@ -1,5 +1,5 @@
 ---
-description: Verify ONE built UI 2.0 component preview against its spec AND its notes, fix what fails, recapture, and report. Derives the effective requirement set (contract + notes, newer wins per property), checks the built view and fixture against it, edits only UI2Preview/ and the fixture, and reports every place a note has overtaken the spec as drift for the owner to resolve. Never writes under docs/ui2. Designed to run in a FRESH session.
+description: Verify ONE built UI 2.0 component preview against its spec AND its notes, fix what fails, recapture, and report. Derives the effective requirement set (contract + notes, newer wins per property), checks the built view and fixture against it, edits only MakeReadyUI/ and the fixture, and reports every place a note has overtaken the spec as drift for the owner to resolve. Never writes under docs/ui2. Designed to run in a FRESH session.
 argument-hint: [C-### registry id; omit to be shown the components that have notes]
 ---
 
@@ -58,7 +58,7 @@ Four more of its own:
    `docs/ui2/design-system/components/C-###-<slug>.md`, or — for a row anchored only in a
    screen spec — that spec's §4 subsection. Read it in full.
 3. The frozen snapshot named in §1, and `capture/fixtures/ui2/C-###.json` if it exists.
-4. The built view at `iphone/MakeReady/UI2Preview/<Name>.swift`, and its `ViewRegistry` case.
+4. The built view at `iphone/MakeReadyUI/<Name>.swift`, and its `ViewRegistry` case.
 5. **The notes**, always through the parser, never by eye:
 
    ```
@@ -119,7 +119,7 @@ such, none guessed ✓
 
 ## 3. FIX
 
-Edit **only** `iphone/MakeReady/UI2Preview/` and `capture/fixtures/ui2/`.
+Edit **only** `iphone/MakeReadyUI/` and `capture/fixtures/ui2/`.
 
 - One edit per FAIL, each citing the requirement and — when its source is a note — that note's
   id in a code comment, exactly as `/ui2-component-build` phase 3 does.
@@ -130,7 +130,7 @@ Edit **only** `iphone/MakeReady/UI2Preview/` and `capture/fixtures/ui2/`.
   a requirement to make it pass.
 
 **Exit checklist 3:** one edit per FAIL ✓ · every note-driven edit carries its note id ✓ ·
-nothing written outside `UI2Preview/` and `capture/fixtures/ui2/` (`git status docs/ui2` shows
+nothing written outside `MakeReadyUI/` and `capture/fixtures/ui2/` (`git status docs/ui2` shows
 only note files, if anything) ✓ · unclosable FAILs named ✓
 
 ## 4. RECAPTURE + RE-VERIFY

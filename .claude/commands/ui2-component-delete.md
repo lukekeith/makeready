@@ -57,7 +57,7 @@ it is built.
 ## 1. PROVE it is unconsumed — the gate
 
 ```bash
-grep -rn "C-###" docs/ui2/ iphone/MakeReady/UI2Preview/ capture/fixtures/ui2/ iphone/MakeReadyCaptureTests/
+grep -rn "C-###" docs/ui2/ iphone/MakeReadyUI/ capture/fixtures/ui2/ iphone/MakeReadyCaptureTests/
 grep -c '"C-###"' docs/ui2/screens/assets/*.elements.json
 ```
 
@@ -116,8 +116,8 @@ has:
 
 1. **Delete the fixture** `capture/fixtures/ui2/C-###.json`. Fixture presence *is* built-ness
    (`preview-build.md` §6).
-2. **Delete the view** `iphone/MakeReady/UI2Preview/<Name>.swift`, then
-   `ruby iphone/scripts/ui2-preview-sync.rb` so target membership follows.
+2. **Delete the view** `iphone/MakeReadyUI/<Name>.swift`, then
+   `ruby iphone/scripts/makereadyui-sync.rb` so target membership follows.
    ⚠️ **First check nothing else imports it** — a preview view can be composed by another
    (C-025 builds C-071 inline). If it is, that is a **live consumer** and §1 should have caught
    it; go back.
@@ -206,6 +206,6 @@ cd iphone && swiftlint lint --quiet --baseline .swiftlint-baseline.json
 - **Never delete a Version, Comment, Screenshot, note, snapshot or contract file.**
 - **Never remove a `CaptureComponent` field.**
 - **A reason is required.** The row's Variants cell carries it verbatim.
-- Docs + build artifacts only: `docs/ui2/`, `iphone/MakeReady/UI2Preview/`,
+- Docs + build artifacts only: `docs/ui2/`, `iphone/MakeReadyUI/`,
   `capture/fixtures/ui2/`, and `ViewRegistry.swift`. Never `client/`, never Figma.
 - Commits stay the user's call — leave the working tree for review unless told otherwise.
