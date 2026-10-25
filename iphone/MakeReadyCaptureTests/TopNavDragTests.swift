@@ -27,4 +27,23 @@ final class TopNavDragTests: XCTestCase {
         XCTAssertTrue(TopNavDrag.lockAxis(true, translation: CGSize(width: 300, height: 1)))
         XCTAssertFalse(TopNavDrag.lockAxis(false, translation: CGSize(width: 1, height: 300)))
     }
+    /// Fix round 2: the lock belongs to ONE gesture. A cancelled gesture never reaches onEnded,
+    /// so its lock must not leak into the next drag, which has a different start location.
+    func testAxisLockIsPerGesture() {
+        var lock = TopNavDrag.AxisLock()
+        XCTAssertTrue(lock.update(start: CGPoint(x: 10, y: 10), translation: CGSize(width: 1, height: 9)))
+        // Same gesture keeps its lock even when it turns sideways.
+        XCTAssertTrue(lock.update(start: CGPoint(x: 10, y: 10), translation: CGSize(width: 300, height: 9)))
+        // No onEnded (cancelled), then a new horizontal gesture: re-locks, no stale `true`.
+        XCTAssertFalse(lock.update(start: CGPoint(x: 200, y: 12), translation: CGSize(width: 9, height: 1)))
+        XCTAssertFalse(lock.update(start: CGPoint(x: 200, y: 12), translation: CGSize(width: 1, height: 300)))
+    }
+    func testAxisLockEndReadsAndClears() {
+        var lock = TopNavDrag.AxisLock()
+        _ = lock.update(start: CGPoint(x: 10, y: 10), translation: CGSize(width: 1, height: 9))
+        XCTAssertTrue(lock.end(start: CGPoint(x: 10, y: 10), translation: CGSize(width: 300, height: 1)))
+        // Cleared: an end with no matching start decides from its own translation.
+        XCTAssertFalse(lock.end(start: CGPoint(x: 10, y: 10), translation: CGSize(width: 300, height: 1)))
+    }
 }
+
