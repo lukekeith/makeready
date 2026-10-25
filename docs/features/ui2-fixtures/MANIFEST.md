@@ -1,7 +1,7 @@
 size: lg
 state: built
 next: /builder:agent-walk --path docs/features/ui2-fixtures
-head: fdcb089
+head: 4352eac
 ticket: none
 branch: builder/ui2-fixtures
 pr: none
