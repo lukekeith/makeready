@@ -60,6 +60,16 @@ struct CaptureCase {
 /// never a shared helper or a sub-view inside a screen case.
 @MainActor enum CaptureCaseSink { static var declared: CaptureCase? }
 
+/// ui2-shell D11 / Task 12c (owner choice 2026-10-25): a chrome-less Home section-root screen is
+/// captured INSIDE the shell's TopNav (collapsed, section Home) + the 16pt gap, so d2m's Figma
+/// comparison still matches the frozen frame (which draws the whole page incl. the nav row) while
+/// the screen file stays content-only. Wrap a section screen here once it drops its own TopNav;
+/// do NOT wrap one that still embeds TopNav (it would double).
+@MainActor
+func homeSectionCapture<Content: View>(_ content: Content) -> AnyView {
+    AnyView(HomeSectionLayout(model: .constant(UI2ShellModel())) { content })
+}
+
 @MainActor
 func declareCase<V: View>(_ view: V, _ frame: PreviewFrame) -> AnyView {
     let built = CaptureCase(view: AnyView(view), previewFrame: frame)
@@ -1987,7 +1997,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         }
         // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
         // max(its height, the content's length), under the top safe area — the bare screen here.
-        return AnyView(MakeReadyUI.HomeDashboardScreen(
+        return homeSectionCapture(MakeReadyUI.HomeDashboardScreen(
             state: .init(
                 metricCount: c.metricCount ?? sample.metricCount,
                 kpiTitles: c.kpiTitles ?? sample.kpiTitles,
