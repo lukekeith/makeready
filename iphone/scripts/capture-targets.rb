@@ -13,7 +13,7 @@
 # MakeReadyCaptureUITests/*.swift plus MakeReadyCapture/RecordingJob.swift; the shared scheme
 # MakeReadyCapture runs it. MakeReady.app itself gains nothing.
 #
-# A SYNC, like ui2-preview-sync.rb: idempotent, re-run after the MakeReady target gains or loses a
+# A SYNC, like makereadyui-sync.rb: idempotent, re-run after the MakeReady target gains or loses a
 # file. `--check` changes nothing and exits 3 naming what is out of sync (record.sh runs it).
 # CAPTURE_TARGETS_PROJECT=<path to a .xcodeproj> points it at another copy of the project (used to
 # stage a commit against HEAD's pbxproj while the working tree carries uncommitted edits).

@@ -26,6 +26,12 @@ struct UI2Shell: View {
             PushNotificationManager.shared.clearPendingDeepLink()  // SPEC D17
             await AppState.shared.loadInitialData()                 // SPEC D24
         }
+        // SPEC D17: release 1 has no deep-link consumer, so a link set while the shell is
+        // mounted (a push tap, a URL, a file open) is dropped rather than left to fire later.
+        // Remove when the first 2.0 deep-link consumer lands.
+        .onChange(of: PushNotificationManager.shared.pendingDeepLink) { _, link in
+            if link != .none { PushNotificationManager.shared.clearPendingDeepLink() }
+        }
     }
 
     @ViewBuilder private var content: some View {

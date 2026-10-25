@@ -23,7 +23,7 @@ struct LoginContainer: View {
             do {
                 try await authManager.signIn()
             } catch {
-                Log.auth.error("Login failed: \(error.localizedDescription, privacy: .public)")
+                Log.auth.error("Login failed: \(error.localizedDescription, privacy: .private)")
                 errorMessage = LoginOutcome.message(for: error) ?? ""
             }
         }

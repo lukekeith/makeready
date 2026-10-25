@@ -17,8 +17,8 @@ struct EnvironmentActions {
     static func healthURL(for env: AppConfiguration.SelectedEnvironment) -> URL? {
         switch env {
         case .local:
-            if AppConfiguration.baseURL.contains("api.makeready.org") { return nil }   // no local URL resolved
-            return URL(string: "\(AppConfiguration.baseURL)/health")
+            // The rows probe all three environments, so Local's URL must not follow the selection.
+            return URL(string: "\(AppConfiguration.localAPIBaseURL)/health")
         case .staging: return URL(string: "https://staging.api.makeready.org/health")
         case .production: return URL(string: "https://api.makeready.org/health")
         }

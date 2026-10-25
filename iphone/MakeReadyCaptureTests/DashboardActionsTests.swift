@@ -99,4 +99,34 @@ final class DashboardActionsTests: XCTestCase {
         await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz, onUnauthorized: { signedOut = true }).refresh()
         XCTAssertTrue(signedOut)
     }
+
+    /// Final review M-5: a snapshot written before a DashboardSnapshot field existed must still
+    /// decode — the dashboard keeps what it has, and nothing else in the snapshot is lost.
+    func testDashboardMissingAFieldKeepsTheSnapshot() throws {
+        state.organizationId = "org1"
+        state.dashboard.completedTotal = 7
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        var dict = try XCTUnwrap(JSONSerialization.jsonObject(with: try encoder.encode(PersistedState(from: state))) as? [String: Any])
+        var dashboard = try XCTUnwrap(dict["dashboard"] as? [String: Any])
+        dashboard.removeValue(forKey: "kpiNames")
+        dict["dashboard"] = dashboard
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(PersistedState.self, from: try JSONSerialization.data(withJSONObject: dict))
+        XCTAssertEqual(decoded.organizationId, "org1")
+        XCTAssertEqual(decoded.dashboard.completedTotal, 7)
+        XCTAssertEqual(decoded.dashboard.kpiNames, DashboardSnapshot().kpiNames)
+    }
+
+    /// Final review M-6: a refresh still in flight at sign-out must not write the old
+    /// session's dashboard back into the cleared state.
+    func testRefreshInFlightAtSignOutDropsItsWrite() async {
+        await state.initialLoad.run { _ in }
+        api.beforeReturn = { [state] _, body in
+            if (body?["metrics"] as? [String]) == ["watch_seconds"] { state?.clearAllData() }   // sign-out lands mid-refresh
+        }
+        await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
+        XCTAssertEqual(state.dashboard, DashboardSnapshot())
+    }
 }

@@ -11,6 +11,22 @@ struct DashboardSnapshot: Codable, Equatable {
     var refreshedAt: Date?
 }
 
+extension DashboardSnapshot {
+    /// Tolerant: a key missing from an older snapshot keeps its default, so adding a field
+    /// never wipes the cached dashboard.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let empty = DashboardSnapshot()
+        completedSeries = try container.decodeIfPresent([String: Int].self, forKey: .completedSeries) ?? empty.completedSeries
+        completedTotal = try container.decodeIfPresent(Int.self, forKey: .completedTotal) ?? empty.completedTotal
+        completedPrevious = try container.decodeIfPresent(Int.self, forKey: .completedPrevious)
+        watchSeconds = try container.decodeIfPresent(Int.self, forKey: .watchSeconds)
+        activityDays = try container.decodeIfPresent([String: Int].self, forKey: .activityDays) ?? empty.activityDays
+        kpiNames = try container.decodeIfPresent([String].self, forKey: .kpiNames) ?? empty.kpiNames
+        refreshedAt = try container.decodeIfPresent(Date.self, forKey: .refreshedAt)
+    }
+}
+
 struct AnalyticsQueryResponse: Decodable {
     let rows: [[String: AnalyticsValue]]
     let previousRows: [[String: AnalyticsValue]]?

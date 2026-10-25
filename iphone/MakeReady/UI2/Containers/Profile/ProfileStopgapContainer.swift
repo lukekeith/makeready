@@ -8,6 +8,7 @@ struct ProfileStopgapContainer: View {
     @State private var current = AppConfiguration.selectedEnvironment
     @State private var health: [AppConfiguration.SelectedEnvironment: EnvironmentHealth] = [:]
     @State private var switchError = ""
+    @State private var isSwitching = false
 
     var body: some View {
         VStack(spacing: Token.Space.sectionGap) {
@@ -50,8 +51,11 @@ struct ProfileStopgapContainer: View {
     }
 
     private func select(_ env: AppConfiguration.SelectedEnvironment) {
+        guard !isSwitching else { return }   // a second tap mid-switch is ignored
+        isSwitching = true
         switchError = ""
         Task { @MainActor in
+            defer { isSwitching = false }
             do {
                 try await EnvironmentActions().switchTo(env, auth: authManager)
             } catch {
@@ -64,10 +68,14 @@ struct ProfileStopgapContainer: View {
         }
     }
 
+    /// Probes the three environments concurrently (each times out at 5 s).
     private func refreshHealth() async {
-        for env in AppConfiguration.SelectedEnvironment.allCases {
-            health[env] = .checking
-            health[env] = await EnvironmentActions().health(of: env)
+        for env in AppConfiguration.SelectedEnvironment.allCases { health[env] = .checking }
+        await withTaskGroup(of: (AppConfiguration.SelectedEnvironment, EnvironmentHealth).self) { group in
+            for env in AppConfiguration.SelectedEnvironment.allCases {
+                group.addTask { (env, await EnvironmentActions().health(of: env)) }
+            }
+            for await (env, result) in group { health[env] = result }
         }
     }
 }

@@ -296,7 +296,8 @@ struct PersistedState: Codable {
         self.mediaLibrary = try container.decodeIfPresent([MediaLibraryItem].self, forKey: .mediaLibrary) ?? []
         self.textThemes = try container.decodeIfPresent([TextTheme].self, forKey: .textThemes) ?? []
         self.organizationId = try container.decodeIfPresent(String.self, forKey: .organizationId)
-        self.dashboard = try container.decodeIfPresent(DashboardSnapshot.self, forKey: .dashboard) ?? DashboardSnapshot()
+        // A malformed dashboard is only a cache miss; it never discards the rest of the snapshot.
+        self.dashboard = (try? container.decodeIfPresent(DashboardSnapshot.self, forKey: .dashboard)) ?? DashboardSnapshot()
 
         // Home stats (optional for backwards compatibility)
         self.homeHeatmapData = try container.decodeIfPresent([HeatmapBucket].self, forKey: .homeHeatmapData) ?? []

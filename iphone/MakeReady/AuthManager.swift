@@ -46,6 +46,28 @@ enum AuthError: LocalizedError {
     }
 }
 
+/// AuthManager's network and session-credential I/O, injectable for tests
+/// (SPEC §Testing (b), (f)). `.live` is the app's behaviour.
+struct AuthIO {
+    /// Performs a raw request (`/auth/me`, `/auth/dev-login`, `/auth/logout`).
+    var send: (URLRequest) async throws -> (Data, URLResponse)
+    /// The authenticated client (`/auth/leader-access`).
+    var api: APIClientProtocol
+    var credential: () -> String?
+    var storeCredential: (String) -> Void
+    var clearCredential: () -> Void
+
+    static var live: AuthIO {
+        AuthIO(
+            send: { try await URLSession.shared.data(for: $0) },
+            api: APIClient.shared,
+            credential: { APIClient.shared.sessionCookieValue },
+            storeCredential: { SessionCredentialStore.set($0) },
+            clearCredential: { SessionCredentialStore.clear() }
+        )
+    }
+}
+
 // Authentication state manager
 @Observable
 class AuthManager: NSObject {
@@ -57,13 +79,23 @@ class AuthManager: NSObject {
     // Store session for WebAuthenticationSession
     @ObservationIgnored private var authSession: ASWebAuthenticationSession?
 
+    @ObservationIgnored private let io: AuthIO
+
+    /// The launch-time session validation started by `init`, if any (awaited by tests).
+    @ObservationIgnored private(set) var launchValidation: Task<Void, Never>?
+
     /// Whether a session credential exists. APIClient owns the credential;
     /// this just asks it.
     var hasSessionCookie: Bool {
-        APIClient.shared.isAuthenticated
+        io.credential() != nil
     }
 
-    override init() {
+    override convenience init() {
+        self.init(io: .live)
+    }
+
+    init(io: AuthIO) {
+        self.io = io
         super.init()
         print("🔧 AuthManager initialized")
 
@@ -71,8 +103,8 @@ class AuthManager: NSObject {
         loadUser()
 
         // If a session credential exists, validate it with the server in background
-        if APIClient.shared.isAuthenticated {
-            Task {
+        if io.credential() != nil {
+            launchValidation = Task {
                 print("🔍 Validating session with server...")
                 await checkAuthStatus()
                 print("✅ Auth status check complete. isAuthenticated: \(self.isAuthenticated)")
@@ -243,12 +275,12 @@ class AuthManager: NSObject {
     /// Keychain-backed store). Never cached here.
     private func storeSessionCookie(_ cookie: String) {
         print("💾 Storing session cookie (length: \(cookie.count))")
-        SessionCredentialStore.set(cookie)
+        io.storeCredential(cookie)
     }
 
     private func clearSessionCookie() {
         print("🗑️ Clearing session cookie")
-        SessionCredentialStore.clear()
+        io.clearCredential()
     }
 
     // MARK: - Exchange Auth Code
@@ -297,7 +329,7 @@ class AuthManager: NSObject {
         // stale session from a previous login and make /auth/me answer 200,
         // while APIClient (which requires the credential) rejects every
         // data request. That split-brain is exactly the bug this guard kills.
-        guard let sessionCookie = APIClient.shared.sessionCookieValue else {
+        guard let sessionCookie = io.credential() else {
             Log.auth.info("no session credential for this environment — not signed in")
             await MainActor.run {
                 self.currentUser = nil
@@ -320,18 +352,14 @@ class AuthManager: NSObject {
         request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
         Log.auth.info("attaching session cookie to /auth/me (length: \(sessionCookie.count))")
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await io.send(request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw URLError(.badServerResponse)
         }
 
         if httpResponse.statusCode == 401 {
-            await MainActor.run {
-                self.currentUser = nil
-                self.isAuthenticated = false
-                self.clearUser()
-            }
+            await endSessionLocally()
             throw NSError(domain: "AuthError", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
         }
 
@@ -357,10 +385,7 @@ class AuthManager: NSObject {
         } catch {
             if AuthStatusPolicy.shouldSignOut(after: error) {
                 Log.auth.info("session gone — signing out: \(error.localizedDescription)")
-                await MainActor.run {
-                    self.currentUser = nil
-                    self.isAuthenticated = false
-                }
+                await endSessionLocally()
             } else {
                 // Offline, timeout, 5xx, 429: keep the cached user (restored at init) — SPEC D27.
                 Log.auth.info("auth check failed, staying signed in: \(error.localizedDescription)")
@@ -383,13 +408,13 @@ class AuthManager: NSObject {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             // Add session cookie for authenticated logout
-            if let sessionCookie = APIClient.shared.sessionCookieValue {
+            if let sessionCookie = io.credential() {
                 request.setValue("connect.sid=\(sessionCookie)", forHTTPHeaderField: "Cookie")
             }
 
             // Attempt server logout, but don't fail if it errors (e.g., for debug bypass users)
             do {
-                let (_, _) = try await URLSession.shared.data(for: request)
+                let (_, _) = try await io.send(request)
                 print("✅ Server logout successful")
             } catch {
                 print("⚠️ Server logout failed (this is OK for debug users): \(error.localizedDescription)")
@@ -397,6 +422,13 @@ class AuthManager: NSObject {
         }
 
         // Always clear local authentication state
+        await endSessionLocally()
+    }
+
+    /// `signOut()` minus the server calls: clears the user, the session cookie and every
+    /// cached store, and re-arms the initial load (`clearAllData`), so nothing from this
+    /// session reaches the next sign-in (SPEC D26/D27; final review I-1).
+    private func endSessionLocally() async {
         await MainActor.run {
             self.currentUser = nil
             self.isAuthenticated = false
@@ -406,7 +438,7 @@ class AuthManager: NSObject {
             // Clear all cached data to prevent data leaking between users
             AppState.shared.clearAllData()
 
-            print("🔓 Local authentication state cleared")
+            Log.auth.info("local authentication state cleared")
         }
     }
 
@@ -428,7 +460,7 @@ class AuthManager: NSObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONSerialization.data(withJSONObject: ["email": email])
 
-        let (data, response) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await io.send(request)
 
         guard let httpResponse = response as? HTTPURLResponse,
               httpResponse.statusCode == 200 else {
@@ -451,7 +483,14 @@ class AuthManager: NSObject {
 
         // SPEC D7: dev-login is not leader-gated server-side — check before flipping isAuthenticated.
         struct LeaderAccess: Decodable { let canAccess: Bool }
-        let access = try await APIClient.shared.get("/auth/leader-access", responseType: LeaderAccess.self)
+        let access: LeaderAccess
+        do {
+            access = try await io.api.get("/auth/leader-access", responseType: LeaderAccess.self)
+        } catch {
+            // Unverified: a cookie left stored would be validated at the next launch with no leader check.
+            clearSessionCookie()
+            throw error
+        }
         guard access.canAccess else {
             try? await signOut()
             throw AuthError.leaderAccessDenied

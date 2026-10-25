@@ -499,7 +499,7 @@ iphone/
 ├── MakeReady/
 │   ├── MakeReadyApp.swift   # App entry point
 │   ├── AuthManager.swift    # Authentication state
-│   ├── MainView.swift       # Main navigation (root view)
+│   ├── UI2/                 # UI 2.0 app root + shell: UI2Root.swift (root view), Shell/, Containers/
 │   │
 │   ├── State/               # ⭐ CENTRALIZED STATE (see State Management section)
 │   │   ├── AppState.swift           # @Observable singleton
@@ -508,6 +508,8 @@ iphone/
 │   │   ├── Actions/                 # Data operations (see Available Actions table)
 │   │   └── Persistence/             # Disk caching
 │   │
+│   │   (Pages/, Components/ and MainView are legacy 1.0 UI — on disk but OUT of the app
+│   │    target since ui2-shell; the app target compiles UI2/ + iphone/MakeReadyUI/)
 │   ├── Pages/               # Page views (use AppState + Actions)
 │   │   ├── View/            # Main tab pages
 │   │   ├── Manage/          # Management pages (programs, groups, etc.)
@@ -520,6 +522,7 @@ iphone/
 │   │   └── Charts/          # Data visualizations
 │   │
 │   └── Assets.xcassets/     # Images and colors
+├── MakeReadyUI/             # UI 2.0 views — owned by d2m (/ui2-component-build); never hand-edit
 └── Info.plist               # App configuration
 ```
 
@@ -802,7 +805,7 @@ All menus/sheets support binding for presentation state (`@Binding var isPresent
 - Handles session persistence with UserDefaults
 
 **OAuth Flow:**
-1. App opens: `\(Configuration.baseURL)/auth/google?platform=ios` (local: `http://127.0.0.1:3010`, production: `https://api.makeready.org`)
+1. App opens: `\(AppConfiguration.baseURL)/auth/google?platform=ios` (local: `http://127.0.0.1:3010`, production: `https://api.makeready.org`)
 2. User signs in with Google (in SafariViewController)
 3. Callback: `makeready://auth/callback?code=xxx`
 4. App exchanges code for session with `/auth/exchange`
@@ -970,12 +973,11 @@ case .members:
 ```swift
 @EnvironmentObject var authManager: AuthManager
 
+// UI2Root (MakeReady/UI2/UI2Root.swift) is the app root
 if authManager.isAuthenticated {
-    // Show main app
-    MainView()
+    UI2Shell()
 } else {
-    // Show login
-    LoginView()
+    LoginContainer()
 }
 ```
 
@@ -1004,7 +1006,7 @@ if let user = authManager.currentUser {
 
 1. Create `MyPage.swift` in `/MakeReady/`
 2. Use `PageHeader` for primary pages or `PageTitle` for secondary pages
-3. Add navigation in `MainView.swift` or use modal presentation
+3. Wire it from a container under `MakeReady/UI2/` (UI 2.0 views live in `iphone/MakeReadyUI/`, built by d2m)
 4. Include `#Preview` at bottom
 
 ### Add New Component
@@ -1091,10 +1093,10 @@ The iPhone app communicates with the MakeReady backend server running at `http:/
 
 ### Base URL
 
-The base URL is resolved at runtime by `Configuration.baseURL` (see `MakeReady/Configuration.swift`) — never hardcode it:
+The base URL is resolved at runtime by `AppConfiguration.baseURL` (type `AppConfiguration` in `MakeReady/Configuration.swift`) — never hardcode it:
 
 ```swift
-Configuration.baseURL
+AppConfiguration.baseURL
 // Local (simulator):  http://127.0.0.1:3010
 // Local (device):     http://<local server IP>:3010 (configurable on Profile screen)
 // Staging:            https://staging.api.makeready.org
@@ -1210,7 +1212,7 @@ Create new invite
 
 ### Making Authenticated Requests
 
-All authenticated requests go through `APIClient.shared` (`MakeReady/State/API/APIClient.swift`). It resolves the base URL from `Configuration.baseURL` and attaches the `connect.sid` session cookie automatically. **Only Actions call APIClient — views must go through Actions.**
+All authenticated requests go through `APIClient.shared` (`MakeReady/State/API/APIClient.swift`). It resolves the base URL from `AppConfiguration.baseURL` and attaches the `connect.sid` session cookie automatically. **Only Actions call APIClient — views must go through Actions.**
 
 ```swift
 // In an Actions struct (MakeReady/State/Actions/)
@@ -1247,7 +1249,7 @@ struct NotificationActions {
 
 ### Example: Generate QR Code
 
-QR code generation lives in `AuthManager.generateQRCode(...)` (a legacy exception that builds its request from `Configuration.baseURL` with the session cookie — it disables caching so QR codes are always fresh):
+QR code generation lives in `AuthManager.generateQRCode(...)` (a legacy exception that builds its request from `AppConfiguration.baseURL` with the session cookie — it disables caching so QR codes are always fresh):
 
 ```swift
 // In AuthManager.swift (actual implementation, abridged)
@@ -1259,7 +1261,7 @@ func generateQRCode(
     errorCorrectionLevel: String = "M",
     includeLogo: Bool = true
 ) async throws -> UIImage {
-    guard let url = URL(string: "\(Configuration.baseURL)/api/qrcode/generate") else {
+    guard let url = URL(string: "\(AppConfiguration.baseURL)/api/qrcode/generate") else {
         throw URLError(.badURL)
     }
 

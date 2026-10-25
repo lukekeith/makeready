@@ -21,6 +21,7 @@ struct DashboardActions {
 
     @MainActor
     func refresh() async {
+        let generation = state.initialLoad.generation
         do {
             var next = state.dashboard
             next.kpiNames = try await kpiNames()
@@ -46,6 +47,8 @@ struct DashboardActions {
                 }
             }
             next.refreshedAt = now()
+            // A sign-out during the awaits re-armed the load: this is the old session's data.
+            guard state.initialLoad.isCurrent(generation) else { return }
             state.dashboard = next
             state.persist()
         } catch {

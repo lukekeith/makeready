@@ -28,6 +28,9 @@ final class StubAPIClient: APIClientProtocol {
     /// Per-call failure hook: return an error to throw for that call (checked after `errorToThrow`).
     var errorFor: ((_ endpoint: String, _ body: [String: Any]?) -> Error?)?
 
+    /// Runs on the main actor before each call returns (e.g. to land a sign-out mid-Action).
+    var beforeReturn: (@MainActor (_ endpoint: String, _ body: [String: Any]?) -> Void)?
+
     /// Every call made through the stub, in order.
     private(set) var calls: [RecordedCall] = []
 
@@ -43,6 +46,9 @@ final class StubAPIClient: APIClientProtocol {
 
     func request(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data {
         calls.append(RecordedCall(method: method, endpoint: endpoint, body: body))
+        if let beforeReturn {
+            await beforeReturn(endpoint, body)
+        }
         if let errorToThrow {
             throw errorToThrow
         }

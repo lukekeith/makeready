@@ -1,9 +1,9 @@
 //
-//  AppConfiguration.swift
+//  Configuration.swift (type AppConfiguration)
 //  MakeReady
 //
 //  Environment configuration for local development, staging, and production.
-//  When DEV_MODE is YES (set in xcconfig), the user menu shows an environment
+//  When DEV_MODE is YES (set in xcconfig), Profile shows an environment
 //  switcher. The selected environment persists across launches via UserDefaults.
 //
 
