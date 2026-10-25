@@ -14,4 +14,5 @@ target: ui2-preview-build
 walk: none
 verify: none
 ui2: none
-auto: off
+auto: on 2026-10-25
+agent-walk: on 2026-10-25
