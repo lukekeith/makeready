@@ -26,15 +26,16 @@ struct User: Codable {
 
 /// Authentication-flow errors surfaced to the user.
 ///
-/// Not thrown by the login flow anymore — `signIn()` falls back to Production
-/// when Local is unreachable. Still used by ProfilePage when an *explicit*
-/// switch to Local fails, where surfacing the error (not switching silently)
-/// is the right behavior.
+/// `localServerUnreachable` is thrown by an *explicit* switch to Local that fails;
+/// `leaderAccessDenied` by the dev-login leader gate (SPEC D7); `fixturesNotSeeded` by a
+/// Local dev-login as the Fixtures identity before `fixtures:reset` ran (ui2-fixtures D14).
 enum AuthError: LocalizedError {
     /// The selected Local dev server didn't answer at the configured host/port.
     case localServerUnreachable(host: String, port: String)
     /// The account signed in but is not a leader (SPEC D7).
     case leaderAccessDenied
+    /// The Fixtures dev identity has no user on the local server yet (ui2-fixtures D14).
+    case fixturesNotSeeded
 
     var errorDescription: String? {
         switch self {
@@ -42,6 +43,8 @@ enum AuthError: LocalizedError {
             return "Can't reach the local server at \(host):\(port). Check the Server IP in your profile."
         case .leaderAccessDenied:
             return "This account doesn't have leader access."
+        case .fixturesNotSeeded:
+            return "Fixtures not seeded — run npm run fixtures:reset in the server container."
         }
     }
 }
@@ -56,6 +59,8 @@ struct AuthIO {
     var credential: () -> String?
     var storeCredential: (String) -> Void
     var clearCredential: () -> Void
+    /// Probes (and heals) the Local API port before a Local login; stubbed in tests.
+    var heal: () async -> LocalPortHealer.Outcome = { await LocalPortHealer.heal() }
 
     static var live: AuthIO {
         AuthIO(
@@ -124,8 +129,11 @@ class AuthManager: NSObject {
 
     // MARK: - Login Entry Point
 
-    /// Dev-login identity used for the Local environment (dev builds only).
-    private static let devLoginEmail = "luke@lukekeith.com"
+    /// ui2-fixtures D13: both Local dev-login callers sign in as the selected dev identity.
+    @MainActor
+    func devLoginAsSelectedIdentity() async throws {
+        try await devLogin(email: DevLoginIdentity.current.email)
+    }
 
     /// Login button entry point. When the selected environment is **Local**,
     /// it first confirms the local server is actually reachable — healing the
@@ -138,7 +146,7 @@ class AuthManager: NSObject {
         await resolveLoginEnvironment()
 
         if AppConfiguration.isLocalDevelopment {
-            try await devLogin(email: Self.devLoginEmail)
+            try await devLoginAsSelectedIdentity()
         } else {
             try await signInWithGoogle()
         }
@@ -157,7 +165,7 @@ class AuthManager: NSObject {
             return
         }
 
-        switch await LocalPortHealer.heal() {
+        switch await io.heal() {
         case .healthy, .healed:
             // Local is reachable (port healed if it had moved) — stay on Local.
             return
@@ -466,7 +474,7 @@ class AuthManager: NSObject {
               httpResponse.statusCode == 200 else {
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? 0
             print("❌ Dev login failed: HTTP \(statusCode)")
-            throw URLError(.userAuthenticationRequired)
+            throw Self.devLoginFailure(status: statusCode, body: data, email: email)
         }
 
         let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
@@ -508,19 +516,31 @@ class AuthManager: NSObject {
         print("✅ Dev login: authenticated as \(user.name)")
     }
 
+    /// ui2-fixtures D14 / SPEC §Contract: both dev-login 404s look alike, so the body decides.
+    /// `User not found` for the Fixtures identity means `fixtures:reset` never ran; a 404
+    /// `Not found` (server not in development) and every other failure keep today's error.
+    static func devLoginFailure(status: Int, body: Data, email: String) -> Error {
+        if status == 404, email == DevLoginIdentity.fixtures.email,
+           let json = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+           json["error"] as? String == "User not found" {
+            return AuthError.fixturesNotSeeded
+        }
+        return URLError(.userAuthenticationRequired)
+    }
+
     // MARK: - Environment Switch (Local)
 
     /// Silent, non-interactive sign-in for a **reachable** Local server. Local
     /// uses passwordless dev-login, so this brings the user into the app
     /// without the login screen: it reuses a still-valid Local session, or
-    /// dev-logs-in fresh. Returns whether the user ended up authenticated.
+    /// dev-logs-in fresh as the selected dev identity. Returns whether the user
+    /// ended up authenticated.
     ///
-    /// On failure it does NOT force the login screen — the caller is expected
-    /// to recover (roll the environment switch back and re-validate), so a
-    /// failed Local connect never strands the user or silently changes their
-    /// environment.
+    /// Throws only `AuthError.fixturesNotSeeded` (ui2-fixtures D14), so the caller can say
+    /// so instead of "can't reach the local server". Any other failure returns `false`
+    /// and the caller recovers (rolls the environment switch back and re-validates).
     @MainActor
-    func signInToReachableLocal() async -> Bool {
+    func signInToReachableLocal() async throws -> Bool {
         // Reuse a still-valid Local session if one exists.
         if hasSessionCookie {
             await checkAuthStatus()
@@ -528,8 +548,10 @@ class AuthManager: NSObject {
             // Stale/expired Local session — fall through to a fresh dev-login.
         }
         do {
-            try await devLogin(email: Self.devLoginEmail)
+            try await devLoginAsSelectedIdentity()
             return true
+        } catch AuthError.fixturesNotSeeded {
+            throw AuthError.fixturesNotSeeded
         } catch {
             Log.auth.error("auto dev-login on switch failed: \(error.localizedDescription, privacy: .public)")
             return false

@@ -17,4 +17,11 @@ final class LoginOutcomeTests: XCTestCase {
         XCTAssertEqual(LoginOutcome.message(for: URLError(.timedOut)), "Authentication failed")
         XCTAssertEqual(LoginOutcome.message(for: NSError(domain: "AuthError", code: -1)), "Authentication failed")
     }
+
+    func testFixturesNotSeeded() {
+        XCTAssertEqual(LoginOutcome.message(for: AuthError.fixturesNotSeeded),
+                       "Fixtures not seeded — run npm run fixtures:reset in the server container.")
+        XCTAssertEqual(AuthError.fixturesNotSeeded.errorDescription,
+                       "Fixtures not seeded — run npm run fixtures:reset in the server container.")
+    }
 }

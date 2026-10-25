@@ -49,7 +49,13 @@ struct EnvironmentActions {
             case .healthy, .healed: reachable = true
             case .notFound, .skipped: reachable = false
             }
-            if reachable, await auth.signInToReachableLocal() {
+            // D14: an unseeded Fixtures identity is surfaced as such, not as "unreachable".
+            var seedingError: AuthError?
+            var signedIn = false
+            if reachable {
+                do { signedIn = try await auth.signInToReachableLocal() } catch AuthError.fixturesNotSeeded { seedingError = .fixturesNotSeeded }
+            }
+            if signedIn {
                 if auth.isAuthenticated { await AppState.shared.loadInitialData() }
                 return
             }
@@ -58,6 +64,7 @@ struct EnvironmentActions {
             AppState.shared.reloadForEnvironmentSwitch()
             await auth.checkAuthStatus()
             if auth.isAuthenticated { await AppState.shared.loadInitialData() }
+            if let seedingError { throw seedingError }
             let host = AppConfiguration.localServerIP ?? AppConfiguration.defaultLocalIP
             throw AuthError.localServerUnreachable(host: host, port: AppConfiguration.localAPIPort)
         }

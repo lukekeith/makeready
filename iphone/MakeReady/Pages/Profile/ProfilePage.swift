@@ -387,7 +387,7 @@ extension ProfilePage {
             case .notFound, .skipped: reachable = false
             }
 
-            if reachable, await authManager.signInToReachableLocal() {
+            if reachable, (try? await authManager.signInToReachableLocal()) == true {
                 if authManager.isAuthenticated {
                     await AppState.shared.loadInitialData()
                 }

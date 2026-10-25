@@ -318,3 +318,34 @@ struct AppConfiguration {
         print("   Auth Bypass: \(allowAuthBypass ? "Enabled" : "Disabled")")
     }
 }
+
+// MARK: - Local dev-login identity (ui2-fixtures D13)
+
+/// Who a dev build signs in as on Local: the owner's own account, or the seeded fixture
+/// owner (`npm run fixtures:reset` in the server container). Persisted in UserDefaults.
+/// Only reachable when DEV_MODE is YES (Local is unreachable otherwise).
+enum DevLoginIdentity: String, CaseIterable {
+    case you
+    case fixtures
+
+    var email: String {
+        switch self {
+        case .you: return "luke@lukekeith.com"
+        case .fixtures: return "fixtures@makeready.local"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .you: return "You"
+        case .fixtures: return "Fixtures"
+        }
+    }
+
+    private static let key = "devLoginIdentity"
+
+    static var current: DevLoginIdentity {
+        get { UserDefaults.standard.string(forKey: key).flatMap(DevLoginIdentity.init(rawValue:)) ?? .you }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: key) }
+    }
+}
