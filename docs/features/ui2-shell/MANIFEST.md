@@ -1,7 +1,7 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/ui2-shell
-head: 702f1e0
+head: 92c60d8
 ticket: none
 branch: ui2-preview-build
 pr: none
