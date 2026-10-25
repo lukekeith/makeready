@@ -1,14 +1,14 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/ui2-fixtures
-head: 38b7efe
+head: 2c61e46
 ticket: none
 branch: builder/ui2-fixtures
 pr: none
 apps: server+iphone
 contract: open
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-10-25
 tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
