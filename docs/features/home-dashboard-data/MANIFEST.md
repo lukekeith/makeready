@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/home-dashboard-data
-head: 05d6e01
+head: 5641a45
 ticket: none
-branch: ui2-preview-build
+branch: builder/home-dashboard-data
 pr: none
 apps: server+iphone
 contract: open
