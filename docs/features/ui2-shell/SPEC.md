@@ -110,7 +110,7 @@ only from the `legacy-final` tag (D5).
 
 | # | Decision | Ruling | Who / date |
 |---|---|---|---|
-| D1 | Where 2.0 code lives | Rename `iphone/MakeReady/UI2Preview/` → `iphone/MakeReadyUI/` and the framework target `UI2Preview` → `MakeReadyUI`; no type is renamed. Repoint d2m settings `previewDir` → `iphone/MakeReadyUI`, `tokensOutPath` → `iphone/MakeReadyUI/Tokens.swift`, `targetSyncCmd` → the renamed sync script. Link + embed `MakeReadyUI.framework` in the `MakeReady` app target. The module stays d2m-owned and never imports `MakeReady`. Why: one source of truth — d2m rebuilds and Figma diffs reach what ships, and the module boundary makes legacy UI unreferenceable. Rejected: keep the `UI2Preview` name (preview-only framing contradicts its use); copy into a new component tree (forks the code, diffs verify a copy that doesn't ship) | user 2026-10-24 |
+| D1 | Where 2.0 code lives | Rename `iphone/MakeReady/UI2Preview/` → `iphone/MakeReadyUI/` and the framework target `UI2Preview` → `MakeReadyUI`; no type is renamed. Repoint d2m settings `previewDir` → `iphone/MakeReadyUI`, `tokensOutPath` → `iphone/MakeReadyUI/Tokens.swift`, `targetSyncCmd` → the renamed sync script. ~~Link + embed `MakeReadyUI.framework` in the `MakeReady` app target.~~ **Superseded 2026-10-25 by D29** (every type in the module is `internal`; `@testable` is Debug-only, so a Release archive cannot use a linked module). The module stays d2m-owned and never imports `MakeReady`. Why: one source of truth — d2m rebuilds and Figma diffs reach what ships, and the module boundary makes legacy UI unreferenceable. Rejected: keep the `UI2Preview` name (preview-only framing contradicts its use); copy into a new component tree (forks the code, diffs verify a copy that doesn't ship) | user 2026-10-24 |
 | D2 | Where wiring lives | Hand-written code in the app target under `iphone/MakeReady/UI2/`: `UI2Root.swift`, `Shell/` (shell view, `UI2Tab`/`UI2Section` enums, `UI2Route`), `Containers/<Namespace>/<Id>Container.swift`. A container reads `AppState`/`AuthManager`, builds the screen's `State`, maps each `on…` callback to an Action, a shell route or a no-op, and renders the `MakeReadyUI` screen. No file under `iphone/MakeReadyUI/` is hand-edited for wiring. Why: d2m regenerates screen files; views stay pure (UI 2.0 D12–D15, D30, D37). Rejected: wiring inside d2m screen files (overwritten on rebuild) | user 2026-10-24 |
 | D3 | No flag | `MakeReadyApp` mounts `UI2Root` unconditionally; no build setting, UserDefaults key or server flag selects a shell. Supersedes UI 2.0 D2 and `docs/ui2/migration.md` isolation rule 1 + the `ui2-cutover` suite (recorded in d2m by F5). Why: clean break, same bundle id, no new App Store approval. Rejected: TestFlight-only runtime toggle, separate Release-UI2 config, new bundle id, server per-user flag — the owner wants no toggling | user 2026-10-24 |
 | D4 | Release cadence | Every TestFlight build archived after Phase 2 is 2.0, even with Login as its only working screen; App Store timing is not decided here. Archiving stays the owner's call (builder.md). Why: ship the new app early. Rejected: wait for parity before TestFlight (delays real-device feedback on the new app for months; the owner accepts a near-empty build) | user 2026-10-24 |
@@ -137,6 +137,8 @@ only from the `legacy-final` tag (D5).
 | D26 | Whose numbers Home shows | When `AppState.organizationId` is set, every Home query sends `filters.organizationId` = it. When it is nil, queries send no org filter and Home shows the server's default scope as returned — for a non-owner leader every org where they hold a role plus groups they created; for a Super Admin the whole platform. Enforcement: test (d). Why: every leader sees numbers; the server already scopes safely. Rejected: empty Home unless the user owns an org (non-owner leaders see nothing) | user 2026-10-25 |
 | D27 | Session loss and offline launch | `AuthManager.checkAuthStatus()` signs out only on a 401 from `/auth/me`; offline, timeout, 5xx and 429 keep the cached user and the shell opens on cached `AppState`. Any 2.0 Action that receives a 401 calls `AuthManager.signOut()`, and `UI2Root` shows Login. (`APIClient` today maps every non-2xx to `serverError`; it gains a distinguishable 401 case.) Enforcement: test (f). Why: an offline leader keeps their app; an expired session ends cleanly. Rejected: today's behaviour (offline launch shows Login; a mid-session 401 shows stale data until relaunch) | user 2026-10-25 |
 | D28 | Error surface in release 1 | Release 1 has no user mutation; errors are logged through the existing `recordError` path with no on-screen banner (legacy `ErrorBannerHost` leaves with `Components/`). The Login error line and the D16 switch error are the only surfaced errors. A 2.0 error host is a later feature's | (assumed at audit) 2026-10-25 |
+| D29 | How the app gets the 2.0 views | Every source file under `iphone/MakeReadyUI/` is a member of **both** the `MakeReadyUI` framework target (capture app + capture tests, unchanged) **and** the `MakeReady` app target; the app does not link or embed the framework and never writes `import MakeReadyUI`. The sync script adds each file to both targets. No access modifier changes and no d2m rule changes. Inside the app the 2.0 types are the app module's own (legacy's six same-named types are out of the target per D5). Containers write `SwiftUI.Button` where they mean SwiftUI's, because C-105 `Button` shadows it module-wide. Why: Release archives cannot use `@testable import`; this needs no change to ~140 d2m-generated files. Rejected: make the module `public` (a d2m build-rule change and a regeneration of every file before Phase 1, kept forever) | user 2026-10-25 |
+| D30 | 1.0 capture cases | Delete every non-`ui2` case from `iphone/MakeReadyCaptureTests/ViewRegistry.swift` (≈430 cases rendering legacy `Pages/`/`Components/`) and any capture-test file or fixture loader that only those cases use; keep every `component.ui2.*` and 2.0 screen case. The 1.0 PNGs and fixtures under `capture/fixtures/iphone/*` stay on disk as reference; 1.0 iPhone re-captures stop. Why: legacy leaves the `MakeReady` target (D5) and the capture tests compile against it; the parity project is frozen (UI 2.0 D3). Rejected: compile legacy into the capture targets (legacy must keep compiling as foundations change) | user 2026-10-25 |
 | D23 | Folder on disk | `iphone/MakeReadyUI/` sits beside `iphone/MakeReady/`; `.swiftlint.yml` `included:` gains `MakeReadyUI`, and `.swiftlint-baseline.json` paths are rewritten to match | (assumed at spec) 2026-10-25 |
 
 ## Contract
@@ -170,14 +172,13 @@ No schema change (established 2026-10-25).
 
 ## iphone
 
-**Phase 1 — rename + link.** Move the folder (`git mv`); in the pbxproj re-parent the one `UI2Preview` group to the main group with `path = MakeReadyUI` (file refs are group-relative — no per-file rewrite), rename target/product/bundle id `com.makeready.UI2Preview` → `com.makeready.MakeReadyUI`, config-list names, proxies and embed entries;
+**Phase 1 — rename + link.** Move the folder (`git mv`); in the pbxproj re-parent the one `UI2Preview` group to the main group with `path = MakeReadyUI` (file refs are group-relative — no per-file rewrite), rename target/product/bundle id `com.makeready.UI2Preview` → `com.makeready.MakeReadyUI`, config-list names, proxies and embed entries (capture targets only);
 `@testable import UI2Preview` → `MakeReadyUI` in `MakeReadyCaptureTests/ViewRegistry.swift`,
 `CaptureRunner.swift` and `MakeReadyCapture/MakeReadyCaptureApp.swift`; replace `UI2Preview.` module qualifiers in those files (≈100 in ViewRegistry, 4 in CaptureRunner incl. a scanned string at :322); rename
-`iphone/scripts/ui2-preview-sync.rb` (path :24, target :29, group parent :38 → main group) and update `iphone/scripts/capture-targets.rb:35,111-127`; SwiftLint paths (D23, incl. the `Tokens.swift` regex at `.swiftlint.yml:55` and 9 baseline entries); link + embed in
-`MakeReady` (target dependency, Frameworks build file, a new Embed Frameworks phase, `@executable_path/Frameworks` runpath) — extend `capture-targets.rb`'s idempotent embed to the app target. Update the module `README.md` to drop "preview only". d2m settings change (D1) is
+`iphone/scripts/ui2-preview-sync.rb` (path :24, target :29, group parent :38 → main group) and update `iphone/scripts/capture-targets.rb:35,111-127`; SwiftLint paths (D23, incl. the `Tokens.swift` regex at `.swiftlint.yml:55` and 9 baseline entries); the app target is NOT touched in this phase (D29's second membership waits for Phase 2, after legacy leaves — before that the six shared names and C-105 `Button` would break the legacy build). Update the module `README.md` to drop "preview only". d2m settings change (D1) is
 applied with d2m's own tooling by the owner (F5).
 
-**Phase 2 — clean break + Login.** Tag `legacy-final`. Move model types into `State/Models/`, then remove legacy UI from the target (D5), resolving whatever else the compiler reports in kept files by moving a type, never by keeping a UI file (F6). `AuthManager` gains the D7 error redirect + dev-login gate. `MakeReadyApp` mounts
+**Phase 2 — clean break + Login.** Tag `legacy-final`. Retire the 1.0 capture cases (D30). Move model types into `State/Models/`, then remove legacy UI from the target (D5), then add every `MakeReadyUI` file to the `MakeReady` target as its second membership (D29; the sync script learns to do this for every future d2m build), resolving whatever else the compiler reports in kept files by moving a type, never by keeping a UI file (F6). `AuthManager` gains the D7 error redirect + dev-login gate. `MakeReadyApp` mounts
 `UI2Root` (D3); `UI2Root` switches on `AuthManager.isAuthenticated` between `LoginContainer` and a
 placeholder shell (an empty page until Phase 3). An archive here is a valid login-only TestFlight
 build (D4).
@@ -256,4 +257,27 @@ each TabBar tab → Profile → switch environment → sign back in → Sign out
 | F11 | `/api/organizations/my/organization` matches owners only, so non-owner leaders have no `organizationId`; Super Admin analytics scope is platform-wide | D26 ruled 2026-10-25 |
 | F12 | Launch treats any `/auth/me` error as sign-out; no global 401 handling | D27 ruled 2026-10-25 |
 | F13 | `UI2Preview` imports UIKit in one file, contrary to D1's "SwiftUI only" | build-time risk, Phase 1 — identify the file; UIKit in the module is acceptable (the real rule: it never imports `MakeReady`) |
+| F15 | found at plan: the module has zero `public` declarations and `ENABLE_TESTABILITY` is Debug-only, so linking it into the app cannot archive | D29 |
+| F16 | found at plan: `ViewRegistry.swift` has 532 cases, ≈430 rendering legacy views; `MakeReadyCaptureTests` is in the `MakeReady` scheme's TestAction | D30 |
+| F17 | With D29 the capture tests `@testable import` both `MakeReady` and `MakeReadyUI`, which now declare the same 2.0 type names | build-time risk, Phase 1 — every 2.0 reference in capture-test files is written `MakeReadyUI.X` (ViewRegistry already qualifies); unqualified ones are qualified in Task 2 |
 | F14 | Legacy `ErrorBannerHost` leaves with `Components/`, so `recordError(surface:)` has no on-screen host in 2.0 | D28 |
+
+## Plan
+
+The plan, with its code: `docs/features/ui2-shell/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Rename the module folder, target and Swift references
+- Phase 1 · Task 2 · Rename the sync script and SwiftLint paths
+- Phase 2 · Task 3 · Capture and tooling follow the rename; prove it pixel-neutral
+- Phase 3 · Task 4 · Retire the 1.0 capture cases
+- Phase 3 · Task 5 · Move model types out of UI files
+- Phase 3 · Task 6 · Take legacy UI out of the target; put the 2.0 files in; mount UI2Root
+- Phase 3 · Task 7 · AuthManager — leader denial, dev-login gate, 401-only sign-out
+- Phase 3 · Task 8 · LoginContainer outcomes
+- Phase 4 · Task 9 · Shell state — tabs, sections, routes
+- Phase 4 · Task 10 · UI2Shell view — TabBar, TopNav host with the morph, empty pages
+- Phase 5 · Task 11 · Analytics models and DashboardActions
+- Phase 5 · Task 12 · Home mapper — snapshot → HomeDashboardScreen.State
+- Phase 5 · Task 13 · HomeDashboardContainer in the shell
+- Phase 6 · Task 14 · EnvironmentActions — switch and health
+- Phase 6 · Task 15 · Profile stopgap — Sign out + DEV environment switcher
