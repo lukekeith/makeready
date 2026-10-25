@@ -1,4 +1,5 @@
 # ui2-fixtures — spec
+> 🤖 AGENT SIGNED OFF 2026-10-25 — 4352eac · agent walk round 2 · not human-tested · evidence: .builder/ui2-fixtures/agent-walk/round-2/
 > lg · ticket none
 
 ## Idea
@@ -223,16 +224,4 @@ Fixtures → Home shows non-zero Overview + Activity → identity You → Home s
 | F16 | build-time risk: the +15% (±3%) trend and ≥ 18 non-empty days depend on tuning the PRNG against the D11 stagger | Phase 1, the `home-dashboard` layer task — test (d) settles it |
 | F17 | build-time risk: on every identity switch `signOut()` calls `/auth/logout` and removes the push token, and `StatePersistence`'s debounced save could rewrite the old identity's snapshot after `clear()` | Phase 2, the `switchIdentity` task — test that no snapshot is written after `clearAllData()` |
 | F18 | build-time risk: the agent walk env runs the server natively, so D5's walk-readiness `fixtures:` line must use the host form (`cd server && npm run fixtures:reset`) under `agent_walk.env`; the dev-env form stays `docker exec` | Phase 3, the builder.md task — write both forms |
-| F19 | follow-up (ui2-shell, not this feature): Home's Activity bars and day-card mini-charts never draw for any account, because `HomeDashboardMapper.swift:36,45` zeroes `chartScheduled`/`daySeries`. The fixture world now has 102 `lesson_schedules` to light them up once ui2-shell maps scheduled counts. Also seen: the Activity rail opens at the window's end, not today (ui2-shell D22) | D19; carried to the hand-off for the owner |
-
-## Plan
-
-The plan, with its code: `docs/features/ui2-fixtures/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Fixed IDs, FixtureContext and the date/PRNG helpers
-- Phase 1 · Task 2 · Guard, wipe, row counts, refresh retry and the fixtures CLI
-- Phase 2 · Task 3 · Base layer and the DB-backed isolation + empty-scenario tests
-- Phase 2 · Task 4 · The home-dashboard layer and the analytics-level tests
-- Phase 2 · Task 5 · Authoring guide, the builder house rule, and the contract freeze
-- Phase 3 · Task 6 · DevLoginIdentity, identity-aware dev-login and fixturesNotSeeded
-- Phase 3 · Task 7 · switchIdentity, the Profile identity picker and the Login notice
+| F19 | follow-up (ui2-shell, not this feature): Home's Activity bars and day-card mini-charts never draw for any account, because `HomeDashboardMapper.swift:36,45` zeroes `chartScheduled`/`daySeries`, and each day card's first line is hardcoded `"0 mins"` (:46), so per-day watch time never shows either. The fixture world now has 102 `lesson_schedules` to light them up once ui2-shell maps scheduled counts. Also seen: the Activity rail opens at the window's end, not today (ui2-shell D22) | D19; carried to the hand-off for the owner |
