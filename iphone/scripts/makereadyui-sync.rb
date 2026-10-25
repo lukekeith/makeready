@@ -1,51 +1,49 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 #
-# Make every Swift file under MakeReady/UI2Preview/ a member of the UI2Preview
+# Make every Swift file under iphone/MakeReadyUI/ a member of the MakeReadyUI
 # framework target, and every .xcassets under it a RESOURCE of that target
-# (docs/ui2/preview-build.md §2).
+# (ui2-shell SPEC D1/D29).
 #
-# UI2Preview is its own Swift module, so its types carry no prefix and cannot
-# collide with the 1.0 types in MakeReady/Components/. The sources still SIT
-# under MakeReady/ on disk (path stability, and SwiftLint's `included: MakeReady`
-# keeps covering them) but they are NOT in the MakeReady target.
+# MakeReadyUI is its own Swift module, so its types carry no prefix. The sources
+# sit in iphone/MakeReadyUI/, beside iphone/MakeReady/ (D23), and the group is
+# parented under the project's main group. This script touches the MakeReadyUI
+# target only; the MakeReady app target's second membership (D29) is added later.
 #
 # The project has no file-system-synchronised groups (objectVersion 56), so a
 # generated file is invisible to the compiler until it is referenced here. This
 # script SYNCS the folder rather than adding one file: it is idempotent, so
-# /ui2-component-build re-runs it after writing each new preview view without
-# tracking what it added last time.
+# d2m re-runs it after writing each new view without tracking what it added
+# last time.
 
 require 'xcodeproj'
 require 'pathname'
 
-repo_root   = Pathname.new(__dir__).parent.parent
+repo_root    = Pathname.new(__dir__).parent.parent
 project_path = repo_root.join('iphone/MakeReady.xcodeproj')
-preview_dir  = repo_root.join('iphone/MakeReady/UI2Preview')
+preview_dir  = repo_root.join('iphone/MakeReadyUI')
 
-abort("no preview directory at #{preview_dir}") unless preview_dir.directory?
+abort("no MakeReadyUI directory at #{preview_dir}") unless preview_dir.directory?
 
 project = Xcodeproj::Project.open(project_path.to_s)
-target  = project.targets.find { |t| t.name == 'UI2Preview' }
-abort('UI2Preview target not found') if target.nil?
+target  = project.targets.find { |t| t.name == 'MakeReadyUI' }
+abort('MakeReadyUI target not found') if target.nil?
 
-# The group is created relative to the MakeReady group so the pbxproj records a
-# relative path, not this machine's absolute one.
-parent = project.main_group.find_subpath('MakeReady', false)
-abort('MakeReady group not found') if parent.nil?
-group = parent.find_subpath('UI2Preview', true)
+# The group sits under the MAIN group (iphone/MakeReadyUI beside iphone/MakeReady),
+# recorded with a relative path.
+group = project.main_group.find_subpath('MakeReadyUI', true)
 group.set_source_tree('<group>')
-group.set_path('UI2Preview')
+group.set_path('MakeReadyUI')
 
-# Key existing references by their path relative to the UI2Preview group (not
+# Key existing references by their path relative to the MakeReadyUI group (not
 # just the basename), so a file in a subdirectory is tracked distinctly from a
 # same-named file elsewhere, and so the reference's `path` — which Xcode
 # resolves relative to the group, not just the basename — stays correct.
 existing = group.files.to_h { |f| [f.path, f] }
 added = []
 
-# Recurse: "every .swift file under UI2Preview/" includes subdirectories.
-# Files stay flat members of this one UI2Preview group (Xcode does not require
+# Recurse: "every .swift file under MakeReadyUI/" includes subdirectories.
+# Files stay flat members of this one MakeReadyUI group (Xcode does not require
 # the group tree to mirror the folder tree) — only the reference's `path` needs
 # to carry the subdirectory-relative path so Xcode looks in the right place.
 on_disk = Dir.glob(preview_dir.join('**/*.swift')).sort
@@ -80,6 +78,6 @@ removed = group.files.reject { |f| File.exist?(preview_dir.join(f.path)) }  # a 
 removed.each(&:remove_from_project)
 
 project.save
-puts "UI2Preview: #{group.files.count} file(s) in target UI2Preview"
+puts "MakeReadyUI: #{group.files.count} file(s) in target MakeReadyUI"
 puts "  added:   #{added.empty? ? '(none)' : added.join(', ')}"
 puts "  removed: #{removed.empty? ? '(none)' : removed.map(&:path).join(', ')}"

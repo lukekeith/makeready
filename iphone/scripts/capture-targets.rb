@@ -32,7 +32,7 @@ project = Xcodeproj::Project.open(project_path)
 find = ->(name) { project.targets.find { |t| t.name == name } || abort("#{name} target not found") }
 app   = find.('MakeReady')
 tests = find.('MakeReadyCaptureTests')
-ui2   = find.('UI2Preview')
+ui2   = find.('MakeReadyUI')
 changes = []
 
 capture = project.targets.find { |t| t.name == 'MakeReadyCapture' }
@@ -108,19 +108,19 @@ end
   capture.resources_build_phase.add_file_reference(ref, true) unless CHECK
 end
 
-# UI2Preview: a dependency, linked, and embedded.
+# MakeReadyUI: a dependency, linked, and embedded.
 unless capture.dependencies.any? { |d| d.target == ui2 }
-  changes << 'depend on UI2Preview'
+  changes << 'depend on MakeReadyUI'
   capture.add_dependency(ui2) unless CHECK
 end
 product = ui2.product_reference
 unless capture.frameworks_build_phase.files_references.include?(product)
-  changes << 'link UI2Preview.framework'
+  changes << 'link MakeReadyUI.framework'
   capture.frameworks_build_phase.add_file_reference(product, true) unless CHECK
 end
 embed = capture.copy_files_build_phases.find { |p| p.name == 'Embed Frameworks' }
 unless embed&.files_references&.include?(product)
-  changes << 'embed UI2Preview.framework'
+  changes << 'embed MakeReadyUI.framework'
   unless CHECK
     embed ||= capture.new_copy_files_build_phase('Embed Frameworks').tap { |p| p.symbol_dst_subfolder_spec = :frameworks }
     file = embed.add_file_reference(product, true)
