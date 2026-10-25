@@ -12,5 +12,5 @@ go-ahead: none
 walk: none
 verify: none
 ready: none
-ui2: login, home-dashboard, C-019, C-069, C-083, C-084, C-048, C-047
+ui2: none
 auto: off
