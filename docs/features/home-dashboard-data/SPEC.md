@@ -209,3 +209,20 @@ carries on. SC2 has no data. Independent ordering.
 | F12 | Mapper field names differ from the spec (`dayDetailsStates` lowercase, `dayLine2s`, centre/tick value+unit pairs, `groupProgramIndices`, `programCreatedLabels`, `engagementLabel`) | fixed in place: §iphone, D6, D8 |
 | F13 | ⬜ client re-derived: no client code calls `/api/analytics/query` (web reads `/admin/api/programs/:id/analytics`, `leader-program.store.ts:761`), and every registry metric filters by explicit `eventTypes`, so the Program Analytics tab is unchanged | ⬜ holds |
 | F14 | ⬜ capture re-derived: `screen.2.0.home-dashboard` renders from fixture JSON (`ViewRegistry.swift:1981-2000`); no State fields are added, so nothing changes | ⬜ holds |
+
+## Plan
+
+The plan, with its code: `docs/features/home-dashboard-data/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · `scheduled_lessons` metric + the `ls:` matview arm
+- Phase 2 · Task 2 · Shared analytics scope service
+- Phase 2 · Task 3 · Sessions service (sessionizer + moment loader)
+- Phase 2 · Task 4 · Home dashboard service — sessions by range, day minutes, engagement
+- Phase 2 · Task 5 · Following service (preference parse + assembly)
+- Phase 2 · Task 6 · `/api/home` routes
+- Phase 3 · Task 7 · Fixtures — every Home section populated, then freeze the contract
+- Phase 4 · Task 8 · DashboardSnapshot grows the /api/home sections (tolerant Codable types)
+- Phase 4 · Task 9 · DashboardActions.refresh() fetches scheduled, days, engagement, following and four session ranges
+- Phase 5 · Task 10 · HomeDashboardMapper fills Activity's scheduled columns and every day card
+- Phase 5 · Task 11 · HomeDashboardMapper maps Sessions for the container's selected range
+- Phase 5 · Task 12 · HomeDashboardMapper maps Engagement and Following with the D7 colour bands

@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/home-dashboard-data
-head: c1b3478
+head: dfb5b80
 ticket: none
 branch: builder/home-dashboard-data
 pr: none
