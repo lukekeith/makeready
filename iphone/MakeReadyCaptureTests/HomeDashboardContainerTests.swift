@@ -18,7 +18,7 @@ final class SharedOnceTaskTests: XCTestCase {
         let (gate, open) = AsyncStream<Void>.makeStream()
 
         let first = Task { @MainActor in
-            await once.run {
+            await once.run { _ in
                 runs += 1
                 for await _ in gate { break }   // held until the test opens the gate
                 finished = true
@@ -26,7 +26,7 @@ final class SharedOnceTaskTests: XCTestCase {
         }
         await Task.yield()
         let second = Task { @MainActor in
-            await once.run { runs += 1 }
+            await once.run { _ in runs += 1 }
             return finished                     // must observe the first run's completion
         }
         await Task.yield()
@@ -41,9 +41,9 @@ final class SharedOnceTaskTests: XCTestCase {
     func testResetAllowsANewRun() async {
         let once = SharedOnceTask()
         var runs = 0
-        await once.run { runs += 1 }
+        await once.run { _ in runs += 1 }
         once.reset()
-        await once.run { runs += 1 }
+        await once.run { _ in runs += 1 }
         XCTAssertEqual(runs, 2)
     }
 }

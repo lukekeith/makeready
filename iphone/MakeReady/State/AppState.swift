@@ -768,6 +768,9 @@ final class AppState {
     /// Clear all state (for logout) — wipes memory AND the current
     /// environment's persisted file.
     func clearAllData() {
+        // SPEC D24/D26: the next sign-in loads its own initial data (org included); a load
+        // still in flight is cancelled and its late results are dropped.
+        initialLoad.reset()
         clearInMemory()
         StatePersistence.shared.clear()
         NSLog("📦 AppState: Cleared all state")
@@ -846,23 +849,23 @@ final class AppState {
 
     /// The one initial load per session. A second caller awaits the in-flight load instead of
     /// returning early (SPEC D24: Home's first query waits for `organizationId`).
-    @ObservationIgnored private let initialLoad = SharedOnceTask()
+    @ObservationIgnored let initialLoad = SharedOnceTask()
 
     /// Load all initial data from API. Called once when user is authenticated.
     /// Uses cache-first pattern: shows cached data immediately, refreshes in background.
     /// Every caller returns only once that load has finished.
     func loadInitialData() async {
-        await initialLoad.run { [weak self] in await self?.performInitialLoad() }
+        await initialLoad.run { [weak self] generation in await self?.performInitialLoad(generation: generation) }
     }
 
-    private func performInitialLoad() async {
+    private func performInitialLoad(generation: Int) async {
         NSLog("📦 AppState: Loading initial data...")
 
         // Load all data concurrently
         async let programsTask: () = loadPrograms()
         async let templatesTask: () = loadTemplates()
         async let notificationsTask: () = loadUnreadNotificationCount()
-        async let orgTask: () = loadOrganization()
+        async let orgTask: () = loadOrganization(generation: generation)
         async let translationsTask: () = loadBibleTranslations()
         async let themesTask: () = loadTextThemes()
 
@@ -895,21 +898,29 @@ final class AppState {
         }
     }
 
-    private func loadOrganization() async {
+    private func loadOrganization(generation: Int) async {
         do {
             let response: OrganizationResponse = try await APIClient.shared.get(
                 "/api/organizations/my/organization",
                 responseType: OrganizationResponse.self
             )
-            if let org = response.data {
-                organizationId = org.id
-                userOrganizations = [org]
-                NSLog("📦 AppState: Loaded organization '\(org.name)' (\(org.id))")
-            } else {
-                userOrganizations = []
-            }
+            adoptOrganization(response.data, generation: generation)
         } catch {
             recordError(error, context: "AppState.loadOrganization")
+        }
+    }
+
+    /// The initial load's organization result. Ignored when the load that fetched it was
+    /// retired by a sign-out or environment switch while in flight (SPEC D26: a stale org
+    /// must not scope the next user's Home).
+    func adoptOrganization(_ org: OrganizationData?, generation: Int) {
+        guard initialLoad.isCurrent(generation) else { return }
+        if let org {
+            organizationId = org.id
+            userOrganizations = [org]
+            Log.state.info("loaded organization \(org.id, privacy: .public)")
+        } else {
+            userOrganizations = []
         }
     }
 

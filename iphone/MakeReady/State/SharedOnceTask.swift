@@ -7,14 +7,25 @@ import Foundation
 @MainActor
 final class SharedOnceTask {
     private var task: Task<Void, Never>?
+    /// Bumped by every `reset()`. The work receives the generation it started in, so a result
+    /// that lands after a reset can tell it is stale (`isCurrent`) and drop itself.
+    private(set) var generation = 0
 
-    func run(_ work: @escaping @MainActor () async -> Void) async {
+    func run(_ work: @escaping @MainActor (_ generation: Int) async -> Void) async {
         if let task { await task.value; return }
-        let next = Task { @MainActor in await work() }
+        let started = generation
+        let next = Task { @MainActor in await work(started) }
         task = next
         await next.value
     }
 
-    /// The next `run` starts fresh (an environment switch reloads initial data).
-    func reset() { task = nil }
+    func isCurrent(_ generation: Int) -> Bool { generation == self.generation }
+
+    /// The next `run` starts fresh (sign-out, environment switch). An in-flight run is
+    /// cancelled and its generation retired.
+    func reset() {
+        task?.cancel()
+        task = nil
+        generation += 1
+    }
 }

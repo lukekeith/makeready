@@ -328,6 +328,7 @@
 		882AEDB4ADA1B957C3EEA841 /* Glyphs.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 1C2E0CA42369F091D7F0AC1E /* Glyphs.xcassets */; };
 		88310D9DAAFE372424BCD2A9 /* UI2ShellModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 933803A1F05DD48F7891BDF2 /* UI2ShellModel.swift */; };
 		8A9E0F54CB22EEEF647FFA30 /* SharedOnceTask.swift in Sources */ = {isa = PBXBuildFile; fileRef = 50A596E014C87095A49DEF7D /* SharedOnceTask.swift */; };
+		8AEFEFC1519CB9C18AF3F9B3 /* AppStateInitialLoadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8F909A3505387F70258EEC9 /* AppStateInitialLoadTests.swift */; };
 		8B2620A9CB5F0B2C5BAFC289 /* ViewRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 813B940D8CC0C51848F38583 /* ViewRegistry.swift */; };
 		8C2B8B2950F40DDA1FC67AF7 /* ActivitySlide.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27B5E8FC7DCB0CDC2C17467C /* ActivitySlide.swift */; };
 		8C2BC52F9CD26B17CA3FC5D5 /* WeekStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA937AB383FD627EF44F636 /* WeekStrip.swift */; };
@@ -1032,6 +1033,7 @@
 		E779D25F48C54DBDB2A5321E /* CardVideoMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideoMini.swift; sourceTree = "<group>"; };
 		E84409E80C407DC088722D45 /* EditTextMultiFieldScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditTextMultiFieldScreen.swift; path = Screens/Fields/EditTextMultiFieldScreen.swift; sourceTree = "<group>"; };
 		E89C0105E9D7E00832450984 /* StudyCardsDemoPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyCardsDemoPage.swift; sourceTree = "<group>"; };
+		E8F909A3505387F70258EEC9 /* AppStateInitialLoadTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppStateInitialLoadTests.swift; sourceTree = "<group>"; };
 		E914735F357B49E183769E8C /* EnrollmentProgressHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentProgressHeader.swift; sourceTree = "<group>"; };
 		E952CAE97D190453E43F7C7A /* ActivityNewScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ActivityNewScreen.swift; path = Screens/Activities/ActivityNewScreen.swift; sourceTree = "<group>"; };
 		E9F83C09E34A9A68A7758BF1 /* InlineDropdown.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InlineDropdown.swift; sourceTree = "<group>"; };
@@ -1559,6 +1561,7 @@
 				B6BBCE49B263A647CD6AE3D7 /* DashboardActionsTests.swift */,
 				671238FA8D410853C42A08F2 /* HomeDashboardMapperTests.swift */,
 				9E7F31D88B56A0AFFE6B46A7 /* HomeDashboardContainerTests.swift */,
+				E8F909A3505387F70258EEC9 /* AppStateInitialLoadTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -2605,6 +2608,7 @@
 				60A5E32D863B5B2B9628E15D /* DashboardActionsTests.swift in Sources */,
 				C73ED610722685DD44D3F17F /* HomeDashboardMapperTests.swift in Sources */,
 				ECA96BEA4813897741240D5C /* HomeDashboardContainerTests.swift in Sources */,
+				8AEFEFC1519CB9C18AF3F9B3 /* AppStateInitialLoadTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
