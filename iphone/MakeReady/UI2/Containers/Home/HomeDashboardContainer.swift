@@ -1,0 +1,48 @@
+import SwiftUI
+
+/// SPEC D8/D9: Home section content. Cache-first (D20): renders the snapshot at once and
+/// refreshes in `.task`, after the shell's initial load (D24) so the queries carry the org.
+struct HomeDashboardContainer: View {
+    /// home-dashboard §3: the Sessions dropdown's closed option list.
+    static let sessionRanges = ["All time", "Year", "Month", "Week"]
+
+    @Environment(AuthManager.self) private var authManager
+    @State private var sessionRange = sessionRanges[0]
+    /// "Jump to today": the screen holds the panned timeline as its own state and exposes no
+    /// recentre input, so a new identity resets it to `state`'s window — centred on today (D22).
+    @State private var jumpToken = 0
+
+    var body: some View {
+        // The screen has no root ScrollView by design (its canvas is the content's full
+        // length); the container scrolls it vertically.
+        ScrollView(.vertical) {
+            HomeDashboardScreen(
+                state: HomeDashboardMapper.state(
+                    from: AppState.shared.dashboard, today: Date(),
+                    timeZone: .current, sessionRange: sessionRange
+                ),
+                onPickMetrics: {},                                   // D9 no-op
+                onJumpToToday: { jumpToken += 1 },
+                onSelectSessionRange: { sessionRange = $0 },         // D9: relabels an empty section
+                onOpenEngagement: {},                                // D9 no-op
+                onFollowEnrollment: {},                              // D9 no-op
+                onProgramMenu: { _ in },                             // D9 no-op
+                onOpenGroup: { _ in }                                // D9 no-op
+            )
+            .id(jumpToken)
+        }
+        .scrollIndicators(.hidden)
+        .task { await refresh() }
+    }
+
+    @MainActor
+    private func refresh() async {
+        await AppState.shared.loadInitialData()                      // D24: waits for the org
+        await DashboardActions(onUnauthorized: { [authManager] in
+            // D27: a 401 ends the session; UI2Root then shows Login.
+            do { try await authManager.signOut() } catch {
+                AppState.shared.recordError(error, context: "HomeDashboardContainer.signOut", surface: false)
+            }
+        }).refresh()
+    }
+}

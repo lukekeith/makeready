@@ -14,8 +14,9 @@ struct UI2Shell: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            topNav
-            content.frame(maxWidth: .infinity, maxHeight: .infinity)
+            // SPEC D12: the TopNav row (+ its gap) shows only on the Home tab; off-tab the
+            // layout collapses it to zero height but keeps it mounted (see HomeSectionLayout).
+            HomeSectionLayout(model: $model) { content }
             // C-084 §2 Motion: "the selection switches instantly with no animation".
             TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: {})
         }
@@ -25,19 +26,6 @@ struct UI2Shell: View {
             PushNotificationManager.shared.clearPendingDeepLink()  // SPEC D17
             await AppState.shared.loadInitialData()                 // SPEC D24
         }
-    }
-
-    /// SPEC D12: TopNav shows only on the Home tab, and switching back restores the section
-    /// AND the row's scroll position. TopNav's scroll position lives in its own ScrollView
-    /// (its `scrollOffset` prop is a static-render offset, not a binding), so the host stays
-    /// mounted off-tab — collapsed to zero height, hidden and inert — instead of being removed.
-    private var topNav: some View {
-        TopNavHost(model: $model)
-            .frame(height: model.showsTopNav ? nil : 0, alignment: .top)
-            .clipped()
-            .opacity(model.showsTopNav ? 1 : 0)
-            .allowsHitTesting(model.showsTopNav)
-            .accessibilityHidden(!model.showsTopNav)
     }
 
     @ViewBuilder private var content: some View {
@@ -50,7 +38,7 @@ struct UI2Shell: View {
 
     @ViewBuilder private var sectionContent: some View {
         switch model.section {
-        case .home: EmptyPage()               // Task 13 replaces this
+        case .home: HomeDashboardContainer()  // SPEC D8/D13
         default: EmptyPage()                  // SPEC D10: Library…Media are unwired
         }
     }

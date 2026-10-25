@@ -780,7 +780,7 @@ final class AppState {
     /// keeps its own snapshot file.
     func reloadForEnvironmentSwitch() {
         clearInMemory()
-        hasLoadedInitialData = false
+        initialLoad.reset()
         loadFromDisk()
         Log.state.info("swapped cached state for environment switch")
     }
@@ -844,15 +844,18 @@ final class AppState {
 
     // MARK: - Initial Data Loading
 
-    /// Whether initial data has been loaded this session
-    private var hasLoadedInitialData = false
+    /// The one initial load per session. A second caller awaits the in-flight load instead of
+    /// returning early (SPEC D24: Home's first query waits for `organizationId`).
+    @ObservationIgnored private let initialLoad = SharedOnceTask()
 
     /// Load all initial data from API. Called once when user is authenticated.
     /// Uses cache-first pattern: shows cached data immediately, refreshes in background.
+    /// Every caller returns only once that load has finished.
     func loadInitialData() async {
-        guard !hasLoadedInitialData else { return }
-        hasLoadedInitialData = true
+        await initialLoad.run { [weak self] in await self?.performInitialLoad() }
+    }
 
+    private func performInitialLoad() async {
         NSLog("📦 AppState: Loading initial data...")
 
         // Load all data concurrently
