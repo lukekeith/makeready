@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// SPEC D7 (outcomes completed in Task 8).
+/// SPEC D7: outcomes are mapped by `LoginOutcome`.
 struct LoginContainer: View {
     @Environment(AuthManager.self) private var authManager
     @State private var authenticating = false
@@ -20,7 +20,12 @@ struct LoginContainer: View {
         errorMessage = ""
         Task { @MainActor in
             defer { authenticating = false }
-            do { try await authManager.signIn() } catch { errorMessage = "Authentication failed" }
+            do {
+                try await authManager.signIn()
+            } catch {
+                Log.auth.error("Login failed: \(error.localizedDescription, privacy: .public)")
+                errorMessage = LoginOutcome.message(for: error) ?? ""
+            }
         }
     }
 }
