@@ -95,16 +95,19 @@ struct TopNav: View {
                         )
                     }
                 }
-                // §2 table: row leading/trailing inset.
-                .padding(.horizontal, inset)
                 // §4: `scrollOffset` — "one shared offset across both presentations". A resting
                 // render has no live scroll position to drive, so the offset is applied to the
                 // content, which is what a scroll position IS for a static frame.
                 .offset(x: -scrollOffset)
             }
             .scrollIndicators(.hidden)
+            // §2 table: row leading/trailing inset — as content margins, not padding, so the
+            // auto-scroll below lands the selected tab at the inset, not against the screen edge
+            // (owner 2026-10-25, ui2-shell D14(e)).
+            .contentMargins(.horizontal, inset, for: .scrollContent)
             // §2c Switch (OQ-C-019-6): "the row auto-scrolls so the selected tab lands at the
-            // leading edge". Panning never changes selection, so only a selection moves it.
+            // leading edge" — the inset's edge. Panning never changes selection, so only a
+            // selection moves it.
             .onChange(of: selectedTab) { _, tab in
                 withAnimation { proxy.scrollTo(tab, anchor: .leading) }
             }

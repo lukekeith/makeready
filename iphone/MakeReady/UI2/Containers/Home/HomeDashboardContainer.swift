@@ -8,9 +8,6 @@ struct HomeDashboardContainer: View {
 
     @Environment(AuthManager.self) private var authManager
     @State private var sessionRange = sessionRanges[0]
-    /// "Jump to today": the screen holds the panned timeline as its own state and exposes no
-    /// recentre input, so a new identity resets it to `state`'s window — centred on today (D22).
-    @State private var jumpToken = 0
 
     var body: some View {
         // The screen has no root ScrollView by design (its canvas is the content's full
@@ -22,14 +19,13 @@ struct HomeDashboardContainer: View {
                 timeZone: .current, sessionRange: sessionRange
             ),
             onPickMetrics: {},                                   // D9 no-op
-            onJumpToToday: { jumpToken += 1 },
+            onJumpToToday: {},                                   // D31: the screen eases back itself
             onSelectSessionRange: { sessionRange = $0 },         // D9: relabels an empty section
             onOpenEngagement: {},                                // D9 no-op
             onFollowEnrollment: {},                              // D9 no-op
             onProgramMenu: { _ in },                             // D9 no-op
             onOpenGroup: { _ in }                                // D9 no-op
         )
-        .id(jumpToken)
         .task { await refresh() }
     }
 

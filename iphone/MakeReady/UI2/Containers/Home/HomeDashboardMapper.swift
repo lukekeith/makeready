@@ -35,8 +35,10 @@ enum HomeDashboardMapper {
         st.chartCompleted = keys.map { s.activityDays[$0] ?? 0 }
         st.chartScheduled = Array(repeating: 0, count: keys.count)
         st.chartToday = todayKey
-        st.chartWindowStart = keys[max(0, todayIndex - 14)]
-        st.chartWindowEnd = keys[min(keys.count - 1, todayIndex + 14)]
+        // SPEC D31 (owner 2026-10-25): the window opens on the 29 days ending today, so today is
+        // the last column and the rail's three cards end on it.
+        st.chartWindowStart = keys[max(0, todayIndex - 28)]
+        st.chartWindowEnd = todayKey
         st.dayDates = keys
         st.dayMonths = window.map { months[$0.month - 1] }
         st.dayWeekdays = window.map { $0.key == todayKey ? "" : weekdays[$0.weekday - 1] }

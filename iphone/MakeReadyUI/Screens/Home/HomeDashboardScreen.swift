@@ -150,6 +150,11 @@ struct HomeDashboardScreen: View {
     /// True only while a finger (or its fling) drives the rail, so the rail's own programmatic
     /// scroll after a chart pan is not read back as a pan of the rail.
     @SwiftUI.State private var railUserScrolling = false
+    /// A jump to today is easing both timelines: the rail's own scroll (a fling still
+    /// decelerating) must not write the window back over it until the jump lands.
+    @SwiftUI.State private var jumping = false
+    /// The rail's visible rect in its content's space — where today's card is judged on screen.
+    @SwiftUI.State private var railVisible: CGRect?
     private static let railWindowLead = 2
 
     // MARK: - §2 constants (values that no §3 state changes)
@@ -277,73 +282,82 @@ struct HomeDashboardScreen: View {
     // MARK: §2.2 Activity
 
     private var activitySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            SectionHeader(
-                title: Self.activityTitle,
-                accessory: .link(label: Self.jumpToTodayLabel, style: .muted),
-                onAccessoryTap: onJumpToToday
-            )
-            .padding(.horizontal, Token.Space.pageMargin)
-            .ui2Element("C-020 SectionHeader 2")
-            Spacer().frame(height: Self.headerGap)
-            // §2.2: "day rail … 131×192, cards butt together with shared 1px vertical borders
-            // (−1 overlap), leading inset 16, horizontal scroll".
-            ScrollView(.horizontal) {
-                HStack(alignment: .top, spacing: Self.dayCardOverlap) {
-                    ForEach(state.dayNumbers.indices, id: \.self) { index in
-                        RailCard(
-                            kind: .day,
-                            series: state.daySeries[safe: index] ?? [],
-                            state: .transparent,
-                            month: state.dayMonths[safe: index] ?? "",
-                            weekday: state.dayWeekdays[safe: index] ?? "",
-                            day: state.dayNumbers[index],
-                            dateState: Self.dateState(state.dayDateStates[safe: index]),
-                            line1: state.dayLine1s[safe: index] ?? "",
-                            line2: Self.optionalText(state.dayLine2s[safe: index]),
-                            detailsState: Self.detailsState(state.dayDetailsStates[safe: index])
-                        )
-                        .frame(width: Self.dayCardWidth)
-                        .ui2Element(Self.partName("C-023 RailCard", ordinal: state.kpiTitles.count + index + 1))
+        // The reader lets "Jump to today" scroll the rail directly — a binding write the rail
+        // already holds would not move it, and a direct scroll also stops a running fling.
+        ScrollViewReader { rail in
+            VStack(alignment: .leading, spacing: 0) {
+                SectionHeader(
+                    title: Self.activityTitle,
+                    // ui2-shell D31: C-049 `default` (`color-accent`) while today's day card is off
+                    // screen; the designed `muted` while it shows, where a tap has nowhere to go.
+                    accessory: .link(label: Self.jumpToTodayLabel, style: todayCardOnScreen ? .muted : .default),
+                    onAccessoryTap: { jumpToToday(rail) }
+                )
+                .padding(.horizontal, Token.Space.pageMargin)
+                .ui2Element("C-020 SectionHeader 2")
+                Spacer().frame(height: Self.headerGap)
+                // §2.2: "day rail … 131×192, cards butt together with shared 1px vertical borders
+                // (−1 overlap), leading inset 16, horizontal scroll".
+                ScrollView(.horizontal) {
+                    HStack(alignment: .top, spacing: Self.dayCardOverlap) {
+                        ForEach(state.dayNumbers.indices, id: \.self) { index in
+                            RailCard(
+                                kind: .day,
+                                series: state.daySeries[safe: index] ?? [],
+                                state: .transparent,
+                                month: state.dayMonths[safe: index] ?? "",
+                                weekday: state.dayWeekdays[safe: index] ?? "",
+                                day: state.dayNumbers[index],
+                                dateState: Self.dateState(state.dayDateStates[safe: index]),
+                                line1: state.dayLine1s[safe: index] ?? "",
+                                line2: Self.optionalText(state.dayLine2s[safe: index]),
+                                detailsState: Self.detailsState(state.dayDetailsStates[safe: index])
+                            )
+                            .frame(width: Self.dayCardWidth)
+                            .ui2Element(Self.partName("C-023 RailCard", ordinal: state.kpiTitles.count + index + 1))
+                        }
                     }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, Token.Space.pageMargin)
                 }
-                .scrollTargetLayout()
+                .scrollIndicators(.hidden)
+                .scrollPosition(id: $railDay, anchor: .leading)
+                .onScrollGeometryChange(for: CGRect.self) { $0.visibleRect } action: { _, rect in
+                    railVisible = rect
+                }
+                .onScrollPhaseChange { _, phase in
+                    railUserScrolling = phase == .interacting || phase == .decelerating
+                }
+                .onChange(of: railDay) { _, day in
+                    guard railUserScrolling, !jumping, let day else { return }
+                    railMoved(to: day)
+                }
+                // The rail opens on the chart window's end, as a pan would leave it.
+                .onAppear { alignRail(to: chartWindow) }
+                Spacer().frame(height: Token.Space.sectionGap)           // §2.2: "→ 32pt →"
+                // §2.2: "DualSeriesBarChart 440×149 full-bleed". C-026 §3 derives Default/Today from
+                // whether `today` ∈ `window`.
+                DualSeriesBarChart(
+                    days: chartDays,
+                    window: sharedWindow ?? chartWindow,
+                    today: Self.chartDate(state.chartToday) ?? .distantPast,
+                    onWindowChange: chartPanned
+                )
+                .frame(width: Self.dualChartWidth, height: Self.dualChartHeight)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .ui2Element("C-026 DualSeriesBarChart")
+                Spacer().frame(height: Token.Space.sectionGap)           // frame `default`: 834→865
+                // §2.2: "Legend row (LegendItem ×2 …), inset 16, gap 16."
+                // GAP — home-dashboard §2.2: the 16pt gap between legend items has no spacing
+                // token that names the role; `space-page-margin` is the same number.
+                HStack(alignment: .center, spacing: Token.Space.pageMargin) {
+                    LegendItem(color: Token.accent, label: Self.completedLegendLabel)
+                        .ui2Element("C-027 LegendItem")
+                    LegendItem(color: Token.white20, label: Self.scheduledLegendLabel)
+                        .ui2Element("C-027 LegendItem 2")
+                }
                 .padding(.horizontal, Token.Space.pageMargin)
             }
-            .scrollIndicators(.hidden)
-            .scrollPosition(id: $railDay, anchor: .leading)
-            .onScrollPhaseChange { _, phase in
-                railUserScrolling = phase == .interacting || phase == .decelerating
-            }
-            .onChange(of: railDay) { _, day in
-                guard railUserScrolling, let day else { return }
-                railMoved(to: day)
-            }
-            // The rail opens on the chart window's end, as a pan would leave it.
-            .onAppear { alignRail(to: chartWindow) }
-            Spacer().frame(height: Token.Space.sectionGap)           // §2.2: "→ 32pt →"
-            // §2.2: "DualSeriesBarChart 440×149 full-bleed". C-026 §3 derives Default/Today from
-            // whether `today` ∈ `window`.
-            DualSeriesBarChart(
-                days: chartDays,
-                window: sharedWindow ?? chartWindow,
-                today: Self.chartDate(state.chartToday) ?? .distantPast,
-                onWindowChange: chartPanned
-            )
-            .frame(width: Self.dualChartWidth, height: Self.dualChartHeight)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .ui2Element("C-026 DualSeriesBarChart")
-            Spacer().frame(height: Token.Space.sectionGap)           // frame `default`: 834→865
-            // §2.2: "Legend row (LegendItem ×2 …), inset 16, gap 16."
-            // GAP — home-dashboard §2.2: the 16pt gap between legend items has no spacing
-            // token that names the role; `space-page-margin` is the same number.
-            HStack(alignment: .center, spacing: Token.Space.pageMargin) {
-                LegendItem(color: Token.accent, label: Self.completedLegendLabel)
-                    .ui2Element("C-027 LegendItem")
-                LegendItem(color: Token.white20, label: Self.scheduledLegendLabel)
-                    .ui2Element("C-027 LegendItem 2")
-            }
-            .padding(.horizontal, Token.Space.pageMargin)
         }
     }
 
@@ -491,6 +505,47 @@ struct HomeDashboardScreen: View {
 
     // MARK: Shared timeline (day rail ⇄ C-026)
 
+    /// ui2-shell D31 (owner 2026-10-25): whether any part of today's day card is inside the
+    /// rail's visible rect. No rect yet (first frame) or no today card → treated as on screen.
+    static func cardOnScreen(index: Int?, visible: CGRect?, leadingInset: CGFloat, width: CGFloat, step: CGFloat) -> Bool {
+        guard let index, let visible else { return true }
+        let minX = leadingInset + CGFloat(index) * step
+        return minX + width > visible.minX && minX < visible.maxX
+    }
+
+    private var todayCardOnScreen: Bool {
+        Self.cardOnScreen(
+            index: state.dayDateStates.firstIndex(of: "today"), visible: railVisible,
+            leadingInset: Token.Space.pageMargin, width: Self.dayCardWidth,
+            step: Self.dayCardWidth + Self.dayCardOverlap
+        )
+    }
+
+    // GAP — no motion token for the recentre: an ease-in-out, 0.45s.
+    private static var jumpAnimation: Animation { .easeInOut(duration: 0.45) }
+
+    /// ui2-shell D31: "Jump to today" eases both timelines back to `state`'s window — today at
+    /// the right — then tells the consumer.
+    private func jumpToToday(_ rail: ScrollViewProxy) {
+        // Tappable whatever the rail is doing: the jump takes the timeline from a fling or a
+        // running animation — the direct scroll stops the rail's deceleration even when the
+        // binding already holds the target, and `jumping` keeps the fling's last positions
+        // from re-moving the window meanwhile.
+        jumping = true
+        railUserScrolling = false
+        let lead = railLead(for: chartWindow, nearest: true)
+        withAnimation(Self.jumpAnimation, completionCriteria: .logicallyComplete) {
+            sharedWindow = nil
+            if let lead {
+                railDay = lead
+                rail.scrollTo(lead, anchor: .leading)
+            }
+        } completion: {
+            jumping = false
+        }
+        onJumpToToday()
+    }
+
     /// The chart panned: hold its window and bring the rail's matching card to the leading edge.
     private func chartPanned(_ window: ClosedRange<Date>) {
         sharedWindow = window
@@ -502,14 +557,19 @@ struct HomeDashboardScreen: View {
     /// rail's last day leaves it at its end); without it the rail moves only on an exact day,
     /// so a state whose rail and window were not drawn to line up opens as drawn.
     private func alignRail(to window: ClosedRange<Date>, nearest: Bool = false) {
-        guard let lead = Self.utcCalendar.date(byAdding: .day, value: -Self.railWindowLead, to: window.upperBound) else { return }
+        guard let index = railLead(for: window, nearest: nearest), index != railDay else { return }
+        railDay = index
+    }
+
+    /// The card that leads the rail for `window`: two days before its last day.
+    private func railLead(for window: ClosedRange<Date>, nearest: Bool) -> Int? {
+        guard let lead = Self.utcCalendar.date(byAdding: .day, value: -Self.railWindowLead, to: window.upperBound) else { return nil }
         let dates = state.dayDates.map(Self.chartDate)
         var index = dates.firstIndex { $0 == lead }
         if index == nil, nearest, !dates.isEmpty {
             index = dates.lastIndex { ($0 ?? .distantFuture) <= lead } ?? 0
         }
-        guard let index, index != railDay else { return }
-        railDay = index
+        return index
     }
 
     /// The rail was scrolled: move the chart window, same length, to end two days after the
