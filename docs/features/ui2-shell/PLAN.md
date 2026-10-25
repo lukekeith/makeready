@@ -1335,8 +1335,8 @@ Recipe: `/ios-error-surface` · SPEC D16
 - Test: `iphone/MakeReadyCaptureTests/EnvironmentActionsTests.swift`
 
 **Interfaces:**
-- Consumes: `Configuration.SelectedEnvironment` (`local, staging, production`), `Configuration.selectedEnvironment`, `Configuration.baseURL`, `LocalPortHealer.heal()` → outcome `.healthy/.healed/.notFound/.skipped`, `AuthManager.signInToReachableLocal()`, `.checkAuthStatus()`, `.isAuthenticated`, `AppState.persistImmediately()`, `.reloadForEnvironmentSwitch()`, `.loadInitialData()`, `AuthError.localServerUnreachable(host:port:)`.
-- Produces: `enum EnvironmentHealth: Equatable { case checking, reachable, unreachable; var label: String }`; `struct EnvironmentActions { static func healthURL(for: Configuration.SelectedEnvironment) -> URL?; func health(of:) async -> EnvironmentHealth; @MainActor func switchTo(_:auth:) async throws }`.
+- Consumes: `AppConfiguration.SelectedEnvironment` (`local, staging, production`), `AppConfiguration.selectedEnvironment`, `AppConfiguration.baseURL`, `LocalPortHealer.heal()` → outcome `.healthy/.healed/.notFound/.skipped`, `AuthManager.signInToReachableLocal()`, `.checkAuthStatus()`, `.isAuthenticated`, `AppState.persistImmediately()`, `.reloadForEnvironmentSwitch()`, `.loadInitialData()`, `AuthError.localServerUnreachable(host:port:)`.
+- Produces: `enum EnvironmentHealth: Equatable { case checking, reachable, unreachable; var label: String }`; `struct EnvironmentActions { static func healthURL(for: AppConfiguration.SelectedEnvironment) -> URL?; func health(of:) async -> EnvironmentHealth; @MainActor func switchTo(_:auth:) async throws }`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1373,18 +1373,18 @@ enum EnvironmentHealth: Equatable {
 
 /// SPEC D16: legacy ProfilePage's environment switch, moved out of the view.
 struct EnvironmentActions {
-    static func healthURL(for env: Configuration.SelectedEnvironment) -> URL? {
+    static func healthURL(for env: AppConfiguration.SelectedEnvironment) -> URL? {
         switch env {
         case .local:
-            if Configuration.baseURL.contains("api.makeready.org") { return nil }   // no local URL resolved
-            return URL(string: "\(Configuration.baseURL)/health")
+            if AppConfiguration.baseURL.contains("api.makeready.org") { return nil }   // no local URL resolved
+            return URL(string: "\(AppConfiguration.baseURL)/health")
         case .staging: return URL(string: "https://staging.api.makeready.org/health")
         case .production: return URL(string: "https://api.makeready.org/health")
         }
     }
 
     /// The health probe is a sanctioned direct URLSession call, as in legacy.
-    func health(of env: Configuration.SelectedEnvironment) async -> EnvironmentHealth {
+    func health(of env: AppConfiguration.SelectedEnvironment) async -> EnvironmentHealth {
         guard let url = Self.healthURL(for: env) else { return .unreachable }
         var request = URLRequest(url: url); request.timeoutInterval = 5
         let status = (try? await URLSession.shared.data(for: request))?.1 as? HTTPURLResponse
@@ -1392,11 +1392,11 @@ struct EnvironmentActions {
     }
 
     @MainActor
-    func switchTo(_ env: Configuration.SelectedEnvironment, auth: AuthManager) async throws {
-        let previous = Configuration.selectedEnvironment
+    func switchTo(_ env: AppConfiguration.SelectedEnvironment, auth: AuthManager) async throws {
+        let previous = AppConfiguration.selectedEnvironment
         guard previous != env else { return }
         AppState.shared.persistImmediately()
-        Configuration.selectedEnvironment = env
+        AppConfiguration.selectedEnvironment = env
         AppState.shared.reloadForEnvironmentSwitch()
         if env == .local {
             let outcome = await LocalPortHealer.heal()
@@ -1407,12 +1407,12 @@ struct EnvironmentActions {
                 return
             }
             AppState.shared.persistImmediately()
-            Configuration.selectedEnvironment = previous
+            AppConfiguration.selectedEnvironment = previous
             AppState.shared.reloadForEnvironmentSwitch()
             await auth.checkAuthStatus()
             if auth.isAuthenticated { await AppState.shared.loadInitialData() }
-            let host = Configuration.localServerIP ?? Configuration.defaultLocalIP
-            throw AuthError.localServerUnreachable(host: host, port: Configuration.localAPIPort)
+            let host = AppConfiguration.localServerIP ?? AppConfiguration.defaultLocalIP
+            throw AuthError.localServerUnreachable(host: host, port: AppConfiguration.localAPIPort)
         }
         await auth.checkAuthStatus()
         if auth.isAuthenticated { await AppState.shared.loadInitialData() }
@@ -1437,7 +1437,7 @@ Recipe: `/ios-error-surface` · SPEC D15, D16, D28
 - Test: `iphone/MakeReadyCaptureTests/ProfileStopgapTests.swift`
 
 **Interfaces:**
-- Consumes: `PageActionButton(label:role:…:onTap:)` with `role: .secondary`; `RadioOptionRow(title:description:selected:…:onSelect:)`; `EnvironmentActions`, `EnvironmentHealth` (Task 14); `AuthManager.signOut()`; `Configuration.devMode`.
+- Consumes: `PageActionButton(label:role:…:onTap:)` with `role: .secondary`; `RadioOptionRow(title:description:selected:…:onSelect:)`; `EnvironmentActions`, `EnvironmentHealth` (Task 14); `AuthManager.signOut()`; `AppConfiguration.devMode`.
 - Produces: `struct ProfileStopgapContainer: View`; `ProfileStopgapContainer.showsEnvironmentSwitcher(devMode:) -> Bool`.
 
 - [ ] **Step 1: Write the failing test**
@@ -1466,17 +1466,17 @@ struct ProfileStopgapContainer: View {
     static func showsEnvironmentSwitcher(devMode: Bool) -> Bool { devMode }
 
     @Environment(AuthManager.self) private var authManager
-    @State private var current = Configuration.selectedEnvironment
-    @State private var health: [Configuration.SelectedEnvironment: EnvironmentHealth] = [:]
+    @State private var current = AppConfiguration.selectedEnvironment
+    @State private var health: [AppConfiguration.SelectedEnvironment: EnvironmentHealth] = [:]
     @State private var switchError = ""
 
     var body: some View {
         VStack(spacing: Token.Space.sectionGap) {
             Spacer()
             PageActionButton(label: "Sign out", role: .secondary, onTap: signOut)
-            if Self.showsEnvironmentSwitcher(devMode: Configuration.devMode) {
+            if Self.showsEnvironmentSwitcher(devMode: AppConfiguration.devMode) {
                 VStack(spacing: 0) {
-                    ForEach(Configuration.SelectedEnvironment.allCases, id: \.self) { env in
+                    ForEach(AppConfiguration.SelectedEnvironment.allCases, id: \.self) { env in
                         RadioOptionRow(
                             title: env.rawValue.capitalized,
                             description: (health[env] ?? .checking).label,
@@ -1499,18 +1499,18 @@ struct ProfileStopgapContainer: View {
 
     private func signOut() { Task { try? await authManager.signOut() } }
 
-    private func select(_ env: Configuration.SelectedEnvironment) {
+    private func select(_ env: AppConfiguration.SelectedEnvironment) {
         switchError = ""
         Task { @MainActor in
             do { try await EnvironmentActions().switchTo(env, auth: authManager) }
             catch { switchError = error.localizedDescription; AppState.shared.recordError(error, context: "ProfileStopgap.switch", surface: false) }
-            current = Configuration.selectedEnvironment
+            current = AppConfiguration.selectedEnvironment
             await refreshHealth()
         }
     }
 
     private func refreshHealth() async {
-        for env in Configuration.SelectedEnvironment.allCases {
+        for env in AppConfiguration.SelectedEnvironment.allCases {
             health[env] = .checking
             health[env] = await EnvironmentActions().health(of: env)
         }

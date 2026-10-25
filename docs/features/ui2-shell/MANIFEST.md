@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: building
 next: /builder:resume --path docs/features/ui2-shell
-head: 938a2e8
+head: aba1092
 ticket: none
 branch: ui2-preview-build
 pr: none
