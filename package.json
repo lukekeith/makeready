@@ -20,7 +20,8 @@
     "test": "npm run test --workspaces",
     "lint": "npm run lint --workspaces",
     "ios:build-check": "./scripts/ios-build-check.sh",
-    "clean": "rm -rf node_modules client/node_modules server/node_modules client/dist server/dist"
+    "clean": "rm -rf node_modules client/node_modules server/node_modules client/dist server/dist",
+    "postinstall": "node scripts/restore-workspace-deps.mjs"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
