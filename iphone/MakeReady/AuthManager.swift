@@ -33,11 +33,15 @@ struct User: Codable {
 enum AuthError: LocalizedError {
     /// The selected Local dev server didn't answer at the configured host/port.
     case localServerUnreachable(host: String, port: String)
+    /// The account signed in but is not a leader (SPEC D7).
+    case leaderAccessDenied
 
     var errorDescription: String? {
         switch self {
         case let .localServerUnreachable(host, port):
             return "Can't reach the local server at \(host):\(port). Check the Server IP in your profile."
+        case .leaderAccessDenied:
+            return "This account doesn't have leader access."
         }
     }
 }
@@ -174,9 +178,8 @@ class AuthManager: NSObject {
                     NSLog("🔗 Callback path: %@", callbackURL.path)
                     NSLog("🔗 Callback has query: %@", callbackURL.query != nil ? "yes" : "no")
 
-                    // Extract auth code from callback URL
-                    if let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
-                       let code = components.queryItems?.first(where: { $0.name == "code" })?.value {
+                    switch AuthCallback.parse(callbackURL) {
+                    case .code(let code):
                         NSLog("✅ Auth code received (length: %d)", code.count)
 
                         // Exchange auth code for session
@@ -199,7 +202,10 @@ class AuthManager: NSObject {
                                 continuation.resume(throwing: error)
                             }
                         }
-                    } else {
+                    case .denied:
+                        Log.auth.info("sign-in refused: account has no leader access")
+                        continuation.resume(throwing: AuthError.leaderAccessDenied)
+                    case .invalid:
                         NSLog("❌ No auth code in callback URL")
                         continuation.resume(throwing: NSError(domain: "AuthError", code: -1, userInfo: [NSLocalizedDescriptionKey: "No auth code in callback"]))
                     }
@@ -349,11 +355,18 @@ class AuthManager: NSObject {
             try await fetchCurrentUser()
             print("✅ User is authenticated")
         } catch {
-            // User not authenticated, this is fine
-            print("ℹ️ User not authenticated: \(error.localizedDescription)")
-            await MainActor.run {
-                self.currentUser = nil
-                self.isAuthenticated = false
+            if AuthStatusPolicy.shouldSignOut(after: error) {
+                Log.auth.info("session gone — signing out: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.currentUser = nil
+                    self.isAuthenticated = false
+                }
+            } else {
+                // Offline, timeout, 5xx, 429: keep the cached user (restored at init) — SPEC D27.
+                Log.auth.info("auth check failed, staying signed in: \(error.localizedDescription)")
+                await MainActor.run {
+                    if self.currentUser != nil { self.isAuthenticated = true }
+                }
             }
         }
     }
@@ -435,6 +448,14 @@ class AuthManager: NSObject {
         // Store session cookie using the same mechanism as exchangeAuthCode
         storeSessionCookie(sessionCookie)
         print("🍪 Dev login: stored session cookie")
+
+        // SPEC D7: dev-login is not leader-gated server-side — check before flipping isAuthenticated.
+        struct LeaderAccess: Decodable { let canAccess: Bool }
+        let access = try await APIClient.shared.get("/auth/leader-access", responseType: LeaderAccess.self)
+        guard access.canAccess else {
+            try? await signOut()
+            throw AuthError.leaderAccessDenied
+        }
 
         // Set current user
         let user = User(

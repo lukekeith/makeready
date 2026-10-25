@@ -15,6 +15,8 @@ import UIKit
 /// Unified error type for all API operations
 enum APIError: LocalizedError {
     case notAuthenticated
+    /// HTTP 401 — the server says the session is gone (SPEC D27).
+    case unauthorized
     case networkError(Error)
     case serverError(String)
     case decodingError(Error)
@@ -25,6 +27,8 @@ enum APIError: LocalizedError {
         switch self {
         case .notAuthenticated:
             return "You must be logged in to perform this action."
+        case .unauthorized:
+            return "Your session has ended. Sign in again."
         case .networkError(let error):
             return "Network error: \(error.localizedDescription)"
         case .serverError(let message):
@@ -154,6 +158,10 @@ final class APIClient {
 
             guard let httpResponse = response as? HTTPURLResponse else {
                 throw APIError.invalidResponse
+            }
+
+            if httpResponse.statusCode == 401 {
+                throw APIError.unauthorized
             }
 
             guard (200...299).contains(httpResponse.statusCode) else {

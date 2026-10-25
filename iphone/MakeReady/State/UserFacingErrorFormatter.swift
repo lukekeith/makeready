@@ -110,6 +110,8 @@ extension APIError: UserFacingErrorMessageProviding {
         switch self {
         case .notAuthenticated:
             return "Sign in to continue."
+        case .unauthorized:
+            return "Your session has ended. Sign in again."
         case .networkError(let error):
             return UserFacingErrorFormatter.message(for: error)
         case .serverError(let message):
