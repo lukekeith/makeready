@@ -6,13 +6,22 @@ const authToken = process.env.TWILIO_AUTH_TOKEN;
 const verifyServiceSid = process.env.TWILIO_VERIFY_SERVICE_ID;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
 
-// Test mode configuration
-const isTestMode = process.env.NODE_ENV === 'test' || !!process.env.TEST_VERIFICATION_CODES;
+// Test mode configuration. Outside production, missing credentials fall back to
+// test mode so a secret-less environment (an isolated walk env, a fresh worktree) still boots.
+const isProduction = process.env.NODE_ENV === 'production';
+const missingCredentials = !accountSid || !authToken;
+const isTestMode =
+  process.env.NODE_ENV === 'test' ||
+  !!process.env.TEST_VERIFICATION_CODES ||
+  (!isProduction && missingCredentials);
 const testVerificationCodes = (process.env.TEST_VERIFICATION_CODES || '123456,000000').split(',').map(c => c.trim());
 
-// Only require Twilio credentials if not in test mode
-if (!isTestMode && (!accountSid || !authToken)) {
+// Only require Twilio credentials in production
+if (!isTestMode && missingCredentials) {
   throw new Error('Twilio credentials not found in environment variables');
+}
+if (isTestMode && missingCredentials && process.env.NODE_ENV !== 'test') {
+  console.warn('[Twilio] Credentials not set — running in TEST MODE (no SMS is sent)');
 }
 
 // Initialize Twilio client (may be null in test mode)
