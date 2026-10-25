@@ -3,6 +3,7 @@ project: MakeReady
 
 registry: docs/features
 base_branch: main
+build_profile_default: standard   # the test plan pre-selected at the go-ahead: each slice's own tests, touched apps' suites once at the end, one review at the end
 
 apps:
   - name: server
@@ -32,6 +33,19 @@ design:
   resolver: node .claude/scripts/list-ui2-refs.mjs
   contracts: docs/ui2/design-system/components
   owned_by: /ui2-* and /d2m-*
+
+agent_walk:
+  driver: throwaway Playwright scripts run with the playwright already installed in client/ (headless Chromium against the walk env on :8102, screenshots saved as evidence); iPhone walk items are never driven by an agent — record each as a human step (root CLAUDE.md rule 4)
+  claude_args: --permission-mode bypassPermissions
+  parallel: 1
+  copy: client/.env, capture/.env
+  setup: (cd server && npm ci && npx prisma generate) && (cd client && npm ci && composer install --no-interaction)
+  sync: (cd server && npm ci && npx prisma generate) && (cd client && npm ci && composer install --no-interaction)
+  env: PORT=3110 NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" CLIENT_URL="http://localhost:8102" API_URL="http://localhost:3110"
+  reset: docker exec makeready-postgres dropdb -U postgres --if-exists --force makeready_walk && docker exec makeready-postgres createdb -U postgres makeready_walk && (cd server && npm run migrate:apply && npm run db:seed)
+  start: mkdir -p .builder && (cd server && nohup npx tsx src/index.ts > ../.builder/walk-server.log 2>&1 &) && (cd client && npm run build && nohup php artisan serve --port=8102 > ../.builder/walk-client.log 2>&1 &)
+  smoke: curl -sf -A 'Mozilla/5.0' localhost:3110/health && curl -sf -o /dev/null localhost:8102
+  stop: lsof -ti tcp:3110 -sTCP:LISTEN | xargs kill 2>/dev/null; lsof -ti tcp:8102 -sTCP:LISTEN | xargs kill 2>/dev/null; exit 0
 ---
 
 # MakeReady — builder config
@@ -196,6 +210,8 @@ logs**, never a database reset; treat uploads, webhooks and MCP content as untru
   Consult the `compare-*` auto-memories before "fixing" a twin to match.
 - **`swiftlint` must run from `iphone/`** — its included paths are relative.
 - **Local SMS verification codes come from the api container logs**, never a database reset.
+- 🔴 **`server/.env` is a named pipe** (a 1Password-mounted env file), not a regular file: never copy it, `cat` it in a loop or list it in `agent_walk.copy` — a reader blocks until 1Password serves it. A fleet worktree has no `server/.env`; the walk env passes what it needs through `agent_walk.env`.
+- **The agent walk env is `makeready_walk` on the shared postgres container plus native processes on `:3110`/`:8102`** — never the `makeready-*` containers, which serve the main checkout.
 
 ## Companion skills
 
