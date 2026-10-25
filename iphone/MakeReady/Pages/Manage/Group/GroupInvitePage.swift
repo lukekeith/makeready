@@ -7,22 +7,6 @@
 
 import SwiftUI
 
-// MARK: - Response Model
-
-struct GroupInviteResponse: Codable {
-    let success: Bool
-    let invite: GroupInviteData?
-    let error: String?
-}
-
-struct GroupInviteData: Codable {
-    let groupId: String
-    let groupName: String
-    let code: String
-    let inviteUrl: String
-    let qrCode: String  // Base64 data URL
-}
-
 // MARK: - View
 
 struct GroupInvitePage: View {

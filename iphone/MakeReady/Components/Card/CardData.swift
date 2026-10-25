@@ -310,16 +310,6 @@ public struct SectionProgress: Identifiable {
     }
 }
 
-public enum LessonActivityStatus {
-    case `default`
-    case incomplete
-    case complete
-    /// Group-completion fill: brand-colored border always shown, with the fill
-    /// at an opacity equal to the fraction (0…1) of members who completed the
-    /// activity. 0 reads as an empty outlined block. Used on enrollment cards.
-    case percentComplete(Double)
-}
-
 public struct LessonActivityData: Identifiable {
     public let id = UUID()
     public let icon: String       // SF Symbol name

@@ -7,40 +7,6 @@
 
 import SwiftUI
 
-// MARK: - Response Model
-
-struct LessonInviteResponse: Codable {
-    let success: Bool
-    let invite: LessonInviteData?
-    let error: String?
-}
-
-struct LessonInviteData: Codable {
-    let lessonScheduleId: String
-    let code: String
-    let inviteUrl: String
-    let qrCode: String  // Base64 data URL
-    let dayNumber: Int?  // At root level in server response
-    let scheduledDate: String?
-    let passageReference: String?
-    let studyProgram: LessonInviteProgram?  // Server sends "studyProgram"
-    let group: LessonInviteGroup?
-}
-
-struct LessonInviteProgram: Codable {
-    let id: String
-    let name: String
-    let days: Int
-    let coverImageUrl: String?
-}
-
-struct LessonInviteGroup: Codable {
-    let id: String
-    let name: String
-    let code: String
-    let coverImageUrl: String?
-}
-
 // MARK: - View
 
 struct StudyInvitePage: View {

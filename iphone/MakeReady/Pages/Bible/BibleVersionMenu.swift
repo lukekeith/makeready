@@ -8,37 +8,6 @@
 
 import UIKit
 
-// MARK: - Bible Version
-
-struct BibleVersion: Identifiable, Equatable, Codable {
-    let id: String           // API.Bible ID
-    let code: String         // Abbreviation (e.g., "KJV", "NASB")
-    let name: String         // Full display name
-    let language: String?
-    let description: String?
-    let copyright: String?
-}
-
-struct BibleTranslationsResponse: Codable {
-    let translations: [BibleVersion]?
-    let error: String?
-}
-
-// MARK: - Known Translations (cached from API)
-
-let knownBibleVersions: [BibleVersion] = [
-    BibleVersion(id: "de4e12af7f28f599-02", code: "KJV",  name: "King James (Authorised) Version",           language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "01b29f4b342acc35-01", code: "ASV",  name: "American Standard Version",                  language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "9879dbb7cfe39e4d-04", code: "FBV",  name: "Free Bible Version",                        language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "65eec8e0b60e656b-01", code: "GNV",  name: "Geneva Bible",                               language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "55212e3cf4d04c49-01", code: "GNTD", name: "Good News Translation (US Version)",         language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "b32b9d1b64b4ef29-01", code: "LSV",  name: "Literal Standard Version",                   language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "c315fa9f71d4af3a-01", code: "WEB",  name: "World English Bible",                        language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "f72b840c855f362c-04", code: "WEBBE",name: "World English Bible, British Edition",       language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "7142879509583d59-04", code: "T4T",  name: "Translation for Translators",                language: "eng", description: nil, copyright: nil),
-    BibleVersion(id: "bba9f40f2062d3ca-01", code: "BSB",  name: "Berean Standard Bible",                      language: "eng", description: nil, copyright: nil),
-]
-
 // MARK: - Dropdown Overlay
 
 final class BibleVersionDropdown: UIView, UITableViewDataSource, UITableViewDelegate {

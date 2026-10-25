@@ -8,62 +8,6 @@
 
 import SwiftUI
 
-// MARK: - Data Model
-
-struct ActivityLogEntry: Identifiable, Codable {
-    let id: String
-    let category: String
-    let activityType: String
-    let status: String
-    let message: String
-    let userId: String?
-    let memberId: String?
-    let groupId: String?
-    let eventId: String?
-    let enrollmentId: String?
-    let organizationId: String?
-    let metadata: [String: AnyCodable]?
-    let createdAt: String
-}
-
-struct ActivityLogResponse: Codable {
-    let success: Bool
-    let logs: [ActivityLogEntry]
-    let pagination: ActivityLogPagination
-}
-
-struct ActivityLogPagination: Codable {
-    let hasMore: Bool
-    let nextCursor: String?
-    let count: Int
-}
-
-/// Type-erased Codable for metadata
-struct AnyCodable: Codable {
-    let value: Any
-
-    init(_ value: Any) {
-        self.value = value
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        if let string = try? container.decode(String.self) { value = string }
-        else if let int = try? container.decode(Int.self) { value = int }
-        else if let double = try? container.decode(Double.self) { value = double }
-        else if let bool = try? container.decode(Bool.self) { value = bool }
-        else { value = "" }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.singleValueContainer()
-        if let string = value as? String { try container.encode(string) }
-        else if let int = value as? Int { try container.encode(int) }
-        else if let double = value as? Double { try container.encode(double) }
-        else if let bool = value as? Bool { try container.encode(bool) }
-    }
-}
-
 // MARK: - Card Component
 
 struct CardActivity: View {

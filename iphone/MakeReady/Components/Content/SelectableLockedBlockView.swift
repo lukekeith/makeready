@@ -130,9 +130,3 @@ struct SelectableLockedBlockView: View {
 // `SelectionTextView` — the UITextView subclass that used to live here — is
 // gone: `HighlightTextView` does the same two jobs (verse badges, no edit menu)
 // for every surface. Nothing else referenced it.
-
-/// Known style identifiers.
-enum ReadBlockSelectionStyle: String {
-    case bold
-    case highlight
-}

@@ -345,6 +345,7 @@
 		9E4F671203B1823141BA9286 /* HamburgerMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000065000000000000001 /* HamburgerMenu.swift */; };
 		9E901AE32BB779DC46109F86 /* SelectEnrollDatePage.swift in Sources */ = {isa = PBXBuildFile; fileRef = SEDP0002000000000000001 /* SelectEnrollDatePage.swift */; };
 		9FDDB1DFF65D1374070ACA10 /* SplitMonthCalendarController.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAL_CTL00000000000001 /* SplitMonthCalendarController.swift */; };
+		A012D454E4132285E1833AB1 /* ExtractedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */; };
 		A09311045C4EFA32507D3DD8 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEC62002E39284807A347 /* APIClient.swift */; };
 		A1000001000000000000001 /* MakeReadyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1000002000000000000001 /* MakeReadyApp.swift */; };
 		A1000005000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A1000006000000000000001 /* Assets.xcassets */; };
@@ -551,6 +552,7 @@
 		E33E7E6028D60D8906715C62 /* ActionMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1415CE5DD9954FF8FEC16114 /* ActionMenuOverlay.swift */; };
 		E483F16C3BD6499F83ABEA69 /* SplitMonthCalendar.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAL_SWI00000000000001 /* SplitMonthCalendar.swift */; };
 		E489AAA8979BCC8168F7AD2F /* EntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF7F960A70FAA4CFB9D79 /* EntityStore.swift */; };
+		E4A81963C2E474C36BC23753 /* ExtractedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */; };
 		E5C0336E52DCA6917556CEC7 /* EnrollmentSelectInviteTimeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75733538DFA580C9A87172B7 /* EnrollmentSelectInviteTimeScreen.swift */; };
 		E6241F736771EB24D304F0B7 /* SectionedTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96E9450A2ED04CBB00CAAE87 /* SectionedTableView.swift */; };
 		E659924115E39ECB0366BF9A /* CaptureRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B52EC30DAB12213461B48A4 /* CaptureRunner.swift */; };
@@ -1152,6 +1154,7 @@
 		FDA937AB383FD627EF44F636 /* WeekStrip.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WeekStrip.swift; sourceTree = "<group>"; };
 		FDE2917CCA2C5196A802AAF6 /* EnrollmentSelectScheduleScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnrollmentSelectScheduleScreen.swift; path = Screens/Groups/EnrollmentSelectScheduleScreen.swift; sourceTree = "<group>"; };
 		FDE294872DE18CB5A3638502 /* ClearSearchButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClearSearchButton.swift; sourceTree = "<group>"; };
+		FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExtractedModels.swift; sourceTree = "<group>"; };
 		FF676E78A8861B4738753BFC /* DeviceChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceChrome.swift; sourceTree = "<group>"; };
 		FFF25134ABAC41698CAEC187 /* CardActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardActivity.swift; sourceTree = "<group>"; };
 		FLOW0002000000000000001 /* FlowLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlowLayout.swift; sourceTree = "<group>"; };
@@ -1695,7 +1698,6 @@
 		CAL_GRP_00000000000001 /* Calendar */ = {
 			isa = PBXGroup;
 			children = (
-				CAL_MDL00000000000001 /* CalendarModels.swift */,
 				CAL_DAY00000000000001 /* CalendarDayCell.swift */,
 				CAL_LAY00000000000001 /* SplitMonthLayout.swift */,
 				CAL_HDR00000000000001 /* CalendarHeaderView.swift */,
@@ -1959,14 +1961,6 @@
 			path = Group;
 			sourceTree = "<group>";
 		};
-		GRPMDL_GRP000000000001 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				GRPMD0002000000000000001 /* GroupModels.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
 		GSRC_SEARCH_GRP_000001 /* Search */ = {
 			isa = PBXGroup;
 			children = (
@@ -2080,7 +2074,6 @@
 		PGS_MANAGE_GROUP_ID2 /* Group */ = {
 			isa = PBXGroup;
 			children = (
-				GRPMDL_GRP000000000001 /* Models */,
 				CGRP0002000000000000001 /* CreateGroupPage.swift */,
 				GHMP0002000000000000001 /* GroupHomePage.swift */,
 				GINV0002000000000000001 /* GroupInvitePage.swift */,
@@ -2124,7 +2117,6 @@
 		PGS_MANAGE_PROGRAM_ID /* Program */ = {
 			isa = PBXGroup;
 			children = (
-				STMD_GRP_00000000000001 /* Models */,
 				37209AE4986545679D1F5B6C /* CreateProgramPage.swift */,
 				EDIT0002000000000000001 /* EditDay.swift */,
 				ERAD0002000000000000001 /* EditReadActivityPage.swift */,
@@ -2275,14 +2267,6 @@
 			path = State;
 			sourceTree = "<group>";
 		};
-		STMD_GRP_00000000000001 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				STMD0002000000000000001 /* StudyModels.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
 		STMODELSGRP000000000001 /* Models */ = {
 			isa = PBXGroup;
 			children = (
@@ -2297,6 +2281,10 @@
 				STMM0002000000000000008 /* GroupMembershipModels.swift */,
 				STMM0002000000000000009 /* AnalyticsModels.swift */,
 				F54242419B56019FDB7F83F5 /* EnrollmentEditModels.swift */,
+				STMD0002000000000000001 /* StudyModels.swift */,
+				GRPMD0002000000000000001 /* GroupModels.swift */,
+				CAL_MDL00000000000001 /* CalendarModels.swift */,
+				FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -2316,7 +2304,6 @@
 				TCVW0002000000000000001 /* ThemedContentView.swift */,
 				SLBV0002000000000000001 /* SelectableLockedBlockView.swift */,
 				EXVV000100000000000001 /* ExegesisVerseView.swift */,
-				BVT0002000000000000001 /* BibleVerseTextLayout.swift */,
 			);
 			path = Content;
 			sourceTree = "<group>";
@@ -2340,6 +2327,7 @@
 				STCT0002000000000000001 /* StripContent.swift */,
 				VSLG000100000000000001 /* VerseSelectionLogic.swift */,
 				ACST000100000000000001 /* ActivityStyle.swift */,
+				BVT0002000000000000001 /* BibleVerseTextLayout.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -2935,6 +2923,7 @@
 				1538E01A74676D21CF54D80C /* EnrollmentEditModels.swift in Sources */,
 				7884096BBF84248AC8C3BA8B /* EditEnrollmentFlowModal.swift in Sources */,
 				242EF38C8B5CF560901BBA0C /* EnrollmentActionMenu.swift in Sources */,
+				A012D454E4132285E1833AB1 /* ExtractedModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3368,6 +3357,7 @@
 				42D1374E3EEC4AB1C0E7D45F /* CaptureSession.swift in Sources */,
 				1C7377E96B118A95CE1A66FA /* MakeReadyCaptureApp.swift in Sources */,
 				B0690B7DABFFF705D00F34C1 /* RecordingJob.swift in Sources */,
+				E4A81963C2E474C36BC23753 /* ExtractedModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
