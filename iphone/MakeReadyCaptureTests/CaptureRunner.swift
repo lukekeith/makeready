@@ -38,8 +38,10 @@ final class CaptureRunner: XCTestCase {
 
         for (workflow, fixture) in fixtures {
             // SPEC D30: 1.0 fixtures stay on disk as reference but are no longer re-captured.
-            guard ViewRegistry.registeredKeys.contains(fixture.view) else {
-                print("CAPTURE: - skipped 1.0 fixture \(workflow)/\(fixture.output) (\(fixture.view))")
+            // Keyed on the 2.0 prefixes, NOT on a list: a 2.0 key missing from the switch must
+            // still reach buildCaptureCase and fail as "Unknown view".
+            guard fixture.view.hasPrefix("component.ui2.") || fixture.view.hasPrefix("screen.2.0.") else {
+                print("CAPTURE: - skipped non-2.0 fixture \(workflow)/\(fixture.output) (\(fixture.view))")
                 continue
             }
             // Set up mock state
