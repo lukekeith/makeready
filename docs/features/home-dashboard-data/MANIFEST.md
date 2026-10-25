@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: building
 next: /builder:resume --path docs/features/home-dashboard-data
-head: 6c50700
+head: c589088
 ticket: none
 branch: builder/home-dashboard-data
 pr: none
@@ -15,4 +15,5 @@ walk: none
 verify: none
 ui2: none
 auto: on 2026-10-25
+blocked: "iPhone commits are yours to approve (commit: manual); the server half is built and its contract frozen — next: /builder:resume --path docs/features/home-dashboard-data, approving each staged iPhone task"
 agent-walk: on 2026-10-25
