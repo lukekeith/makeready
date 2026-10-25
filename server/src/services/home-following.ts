@@ -105,12 +105,12 @@ export function assembleFollowing(
     programs.set(row.studyProgram.id, entry)
   }
   const sorted = [...programs.values()].sort(
-    (a, b) => a.program.title.localeCompare(b.program.title) || a.firstRank - b.firstRank
+    (a, b) => a.program.title.localeCompare(b.program.title, 'en', { sensitivity: 'base' }) || a.firstRank - b.firstRank
   )
   for (const entry of sorted) {
     entry.program.groups.sort(
       (a, b) =>
-        a.groupName.localeCompare(b.groupName) ||
+        a.groupName.localeCompare(b.groupName, 'en', { sensitivity: 'base' }) ||
         (entry.ranks.get(a.enrollmentId) ?? 0) - (entry.ranks.get(b.enrollmentId) ?? 0)
     )
   }
@@ -127,7 +127,14 @@ export async function getHomeFollowing(
 
   const manage = await enrollmentManageFilter(userId)
   const rows: FollowedEnrollmentRow[] = await prisma.enrollment.findMany({
-    where: { AND: [{ id: { in: ids } }, manage, { group: { isActive: true, ...scopeGroupWhere(scope) } }] },
+    where: {
+      AND: [
+        { id: { in: ids } },
+        manage,
+        { studyProgram: { isActive: true } },
+        { group: { isActive: true, ...scopeGroupWhere(scope) } },
+      ],
+    },
     select: {
       id: true,
       syncMode: true,

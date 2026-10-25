@@ -142,6 +142,7 @@ describe('getHomeFollowing', () => {
           AND: [
             { id: { in: ['e1', 'ghost', 'foreign'] } },
             manage,
+            { studyProgram: { isActive: true } },
             { group: { isActive: true, OR: [{ organizationId: { in: ['org-1'] } }, { id: { in: [] } }] } },
           ],
         },
