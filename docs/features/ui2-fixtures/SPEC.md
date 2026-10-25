@@ -223,3 +223,14 @@ Fixtures → Home shows non-zero Overview + Activity → identity You → Home s
 | F17 | build-time risk: on every identity switch `signOut()` calls `/auth/logout` and removes the push token, and `StatePersistence`'s debounced save could rewrite the old identity's snapshot after `clear()` | Phase 2, the `switchIdentity` task — test that no snapshot is written after `clearAllData()` |
 | F18 | build-time risk: the agent walk env runs the server natively, so D5's walk-readiness `fixtures:` line must use the host form (`cd server && npm run fixtures:reset`) under `agent_walk.env`; the dev-env form stays `docker exec` | Phase 3, the builder.md task — write both forms |
 
+## Plan
+
+The plan, with its code: `docs/features/ui2-fixtures/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Fixed IDs, FixtureContext and the date/PRNG helpers
+- Phase 1 · Task 2 · Guard, wipe, row counts, refresh retry and the fixtures CLI
+- Phase 2 · Task 3 · Base layer and the DB-backed isolation + empty-scenario tests
+- Phase 2 · Task 4 · The home-dashboard layer and the analytics-level tests
+- Phase 2 · Task 5 · Authoring guide, the builder house rule, and the contract freeze
+- Phase 3 · Task 6 · DevLoginIdentity, identity-aware dev-login and fixturesNotSeeded
+- Phase 3 · Task 7 · switchIdentity, the Profile identity picker and the Login notice

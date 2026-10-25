@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/ui2-fixtures
-head: b568c96
+head: 38b7efe
 ticket: none
 branch: builder/ui2-fixtures
 pr: none
