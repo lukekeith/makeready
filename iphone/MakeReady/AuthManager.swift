@@ -135,7 +135,14 @@ class AuthManager: NSObject {
     /// ui2-fixtures D13: both Local dev-login callers sign in as the selected dev identity.
     @MainActor
     func devLoginAsSelectedIdentity() async throws {
-        try await devLogin(email: DevLoginIdentity.current.email)
+        do {
+            try await devLogin(email: DevLoginIdentity.current.email)
+        } catch AuthError.fixturesNotSeeded {
+            // D14: revert in one place for every caller, so a missing fixture user
+            // can never leave Login stuck retrying the same identity.
+            DevLoginIdentity.current = .you
+            throw AuthError.fixturesNotSeeded
+        }
     }
 
     /// Login button entry point. When the selected environment is **Local**,

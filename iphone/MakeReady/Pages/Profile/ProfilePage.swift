@@ -387,15 +387,31 @@ extension ProfilePage {
             case .notFound, .skipped: reachable = false
             }
 
-            if reachable, (try? await authManager.signInToReachableLocal()) == true {
-                if authManager.isAuthenticated {
-                    await AppState.shared.loadInitialData()
-                }
-                return
+            var notSeeded = false
+            if reachable {
+                do {
+                    if try await authManager.signInToReachableLocal() {
+                        if authManager.isAuthenticated {
+                            await AppState.shared.loadInitialData()
+                        }
+                        return
+                    }
+                } catch AuthError.fixturesNotSeeded {
+                    notSeeded = true  // identity already reverted to You by AuthManager
+                } catch {}
             }
 
             // Couldn't reach / sign in to Local — recover without a bounce.
             await revertLocalSwitch(to: previous ?? .production)
+            if notSeeded {
+                AppState.shared.recordError(
+                    AuthError.fixturesNotSeeded,
+                    context: "ProfilePage.switchToLocal",
+                    surface: true,
+                    friendlyMessage: AuthError.fixturesNotSeeded.errorDescription ?? "Fixtures are not seeded."
+                )
+                return
+            }
             let host = Configuration.localServerIP ?? Configuration.defaultLocalIP
             AppState.shared.recordError(
                 AuthError.localServerUnreachable(host: host, port: Configuration.localAPIPort),

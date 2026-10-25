@@ -226,6 +226,23 @@ final class AuthManagerLaunchTests: XCTestCase {
         XCTAssertNil(credential)
     }
 
+    func testSignInRevertsFixturesIdentityToYouWhenNotSeeded() async throws {
+        try XCTSkipUnless(AppConfiguration.devMode, "needs the DEV_MODE=YES host build")
+        AppConfiguration.selectedEnvironment = .local
+        stubDevLogin()
+        responses["/auth/dev-login"] = .success((404, #"{"success":false,"error":"User not found"}"#))
+        DevLoginIdentity.current = .fixtures
+        let auth = AuthManager(io: io())
+        do {
+            try await auth.signIn()
+            XCTFail("expected fixturesNotSeeded")
+        } catch AuthError.fixturesNotSeeded {
+        } catch {
+            XCTFail("unexpected \(error)")
+        }
+        XCTAssertEqual(DevLoginIdentity.current, .you, "D14: the identity reverts so Login is never a dead end")
+    }
+
     func testServerNotInDevelopmentKeepsTodaysError() async {
         responses["/auth/dev-login"] = .success((404, #"{"error":"Not found"}"#))
         let auth = AuthManager(io: io())
