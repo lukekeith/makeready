@@ -33,6 +33,15 @@ Then, in an iPhone dev build on Local: Profile → Local identity → **Fixtures
 screen adds `sparse` / `extreme` exports when its spec lists those states; the runner offers a
 scenario as soon as one layer implements it.
 
+### What `full` makes non-empty on Home
+
+`screens/home-dashboard.ts` (home-dashboard-data D1, D12, D17): Overview (~700 completions, the
+current 24 days above the previous 24), Activity's scheduled and completed columns, every day card
+for the past 7 days (5–40 min sittings in morning, midday and evening bands; today's only after
+~07:15 Chicago), Sessions for every range, Engagement (10 of 24 members caught up → 42%, the rest
+1–5 lessons behind) and Following (the fixture user's `dashboard.followedEnrollments` preference =
+enrollments 2–4, two programs). The preference row cascades with the fixture user.
+
 ## Layers
 
 `index.ts` → `base.ts` → every file in `screens/`, in filename order, all sharing one
@@ -65,8 +74,9 @@ activity in the 07:00–21:00 Chicago band so it lands on the same calendar day 
 `0002` org, `0003` groups, `0004` members, `0005` programs, `0006` lessons, `0007` activities,
 `0008` enrollments, `0009` schedules, `000a` lesson progress, `000b` video progress, `000c`
 membership events, `000d` client events, `000e` user roles, `000f` group members, `0010` member
-orgs. A new kind gets the next free code. Rows that hang off a fixture member, group, program or
-the fixture user are deleted by reset's cascade; anything else needs a line in `wipe.ts`.
+orgs, `0011` user preferences. A new kind gets the next free code. Rows that hang off a fixture
+member, group, program or the fixture user are deleted by reset's cascade; anything else needs a
+line in `wipe.ts`.
 
 ## A new screen layer
 

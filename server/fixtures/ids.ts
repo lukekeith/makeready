@@ -23,6 +23,7 @@ export const FIXTURE_KIND = {
   userRole: '000e',
   groupMember: '000f',
   memberOrganization: '0010',
+  userPreference: '0011',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

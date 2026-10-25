@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, createPrng, weekdayOf } from '../context.js'
 import { FIXTURES_DIR, availableScenarios, loadLayers } from '../runner.js'
-import { apportion, dailyCompletionCounts } from '../screens/home-dashboard.js'
-
-const TODAY = '2026-10-25'
-// Member × schedule pairs per day under the D11 stagger (8 members per group).
-const capacity = (o: number) => (o <= -30 ? 8 : o <= -21 ? 16 : o <= -19 ? 24 : o <= -14 ? 16 : 24)
-
-function sum(counts: Map<number, number>, from: number, to: number): number {
-  let total = 0
-  for (let o = from; o <= to; o++) total += counts.get(o) ?? 0
-  return total
-}
+import {
+  DAY_PARTS,
+  FOLLOWED_ENROLLMENT_IDS,
+  SITTING_MAX_MINUTES,
+  apportion,
+  behindBy,
+} from '../screens/home-dashboard.js'
+import { FIXTURE_ENROLLMENT_IDS } from '../ids.js'
 
 describe('apportion', () => {
   it('splits a total exactly, at least one per slot, within caps', () => {
@@ -26,42 +22,41 @@ describe('apportion', () => {
   })
 })
 
-describe('dailyCompletionCounts (D11, F16)', () => {
-  const counts = dailyCompletionCounts(TODAY, createPrng(), capacity)
+describe('behindBy (home-dashboard-data D12, D17)', () => {
+  const indices = Array.from({ length: 24 }, (_, i) => i)
 
-  it('covers exactly days −48 … −1, each non-empty and within capacity', () => {
-    expect([...counts.keys()].sort((a, b) => a - b)).toEqual(Array.from({ length: 48 }, (_, i) => i - 48))
-    for (const [o, n] of counts) {
-      expect(n).toBeGreaterThanOrEqual(1)
-      expect(n).toBeLessThanOrEqual(capacity(o))
+  it('keeps 10 of 24 members caught up — 42%, the D7 yellow band', () => {
+    const caughtUp = indices.filter((i) => behindBy(i) === 0)
+    expect(caughtUp).toHaveLength(10)
+    expect(Math.round((caughtUp.length / 24) * 100)).toBe(42)
+  })
+
+  it('puts every other member 1–5 lessons behind', () => {
+    for (const i of indices.filter((n) => behindBy(n) !== 0)) {
+      expect(behindBy(i)).toBeGreaterThanOrEqual(1)
+      expect(behindBy(i)).toBeLessThanOrEqual(5)
     }
   })
 
-  it('makes the last 24 days 115% (±3%) of the 24 before, with ≥ 18 non-empty days', () => {
-    const current = sum(counts, -23, 0)
-    const previous = sum(counts, -47, -24)
-    expect(current / previous).toBeGreaterThanOrEqual(1.12)
-    expect(current / previous).toBeLessThanOrEqual(1.18)
-    let nonEmpty = 0
-    for (let o = -23; o <= 0; o++) if ((counts.get(o) ?? 0) > 0) nonEmpty++
-    expect(nonEmpty).toBeGreaterThanOrEqual(18)
-  })
-
-  it('keeps weekends near 40% of weekdays', () => {
-    const weekend: number[] = []
-    const weekday: number[] = []
-    for (const [o, n] of counts) {
-      const day = weekdayOf(addDays(TODAY, o))
-      ;(day === 0 || day === 6 ? weekend : weekday).push(n)
+  it('has caught-up members in each of the three groups', () => {
+    for (const g of [0, 1, 2]) {
+      expect(indices.slice(g * 8, g * 8 + 8).some((i) => behindBy(i) === 0)).toBe(true)
     }
-    const avg = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length
-    const ratio = avg(weekend) / avg(weekday)
-    expect(ratio).toBeGreaterThanOrEqual(0.3)
-    expect(ratio).toBeLessThanOrEqual(0.55)
   })
+})
 
-  it('is identical across runs (fixed seed)', () => {
-    expect(dailyCompletionCounts(TODAY, createPrng(), capacity)).toEqual(counts)
+describe('sittings stay in the 07:00–21:00 band (D11 of ui2-fixtures)', () => {
+  it('opens no earlier than 07:00 and finishes by 21:00 even at the longest length', () => {
+    for (const part of DAY_PARTS) {
+      expect(part.start).toBeGreaterThanOrEqual(7)
+      expect(part.end + SITTING_MAX_MINUTES / 60).toBeLessThanOrEqual(21)
+    }
+  })
+})
+
+describe('followed enrollments (D12)', () => {
+  it('follows enrollments 2, 3 and 4', () => {
+    expect(FOLLOWED_ENROLLMENT_IDS).toEqual([FIXTURE_ENROLLMENT_IDS[1], FIXTURE_ENROLLMENT_IDS[2], FIXTURE_ENROLLMENT_IDS[3]])
   })
 })
 
