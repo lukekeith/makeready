@@ -17,18 +17,29 @@ struct AnalyticsQueryResponse: Decodable {
 }
 
 enum AnalyticsValue: Decodable, Equatable {
-    case int(Int), string(String)
+    case int(Int), double(Double), string(String), null
 
     init(from decoder: Decoder) throws {
         let container = try decoder.singleValueContainer()
-        if let value = try? container.decode(Int.self) {
+        if container.decodeNil() {
+            self = .null
+        } else if let value = try? container.decode(Int.self) {
             self = .int(value)
+        } else if let value = try? container.decode(Double.self) {
+            self = .double(value)
         } else {
             self = .string(try container.decode(String.self))
         }
     }
 
-    var int: Int? { if case .int(let value) = self { return value }; return nil }
+    /// Integer value; a fractional metric (e.g. `SUM(value)::float8`) is rounded.
+    var int: Int? {
+        switch self {
+        case .int(let value): return value
+        case .double(let value): return value.isFinite ? Int(value.rounded()) : nil
+        default: return nil
+        }
+    }
     var string: String? { if case .string(let value) = self { return value }; return nil }
 }
 

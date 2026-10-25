@@ -36,8 +36,14 @@ struct DashboardActions {
             next.activityDays = byDay(activity.rows, metric: "lesson_completions")
 
             if next.kpiNames.contains("watch_seconds") {
-                let watch = try await query(["watch_seconds"], dimension: nil, from: nil, to: nil, compare: false)
-                next.watchSeconds = watch.rows.first?["watch_seconds"]?.int
+                do {
+                    let watch = try await query(["watch_seconds"], dimension: nil, from: nil, to: nil, compare: false)
+                    next.watchSeconds = watch.rows.first?["watch_seconds"]?.int
+                } catch {
+                    // A 401 still signs out; any other failure leaves watchSeconds as cached.
+                    if AuthStatusPolicy.shouldSignOut(after: error) { throw error }
+                    state.recordError(error, context: "DashboardActions.refresh.watchSeconds", surface: false)
+                }
             }
             next.refreshedAt = now()
             state.dashboard = next

@@ -70,4 +70,33 @@ final class DashboardActionsTests: XCTestCase {
         decoder.dateDecodingStrategy = .iso8601
         XCTAssertNoThrow(try decoder.decode(PersistedState.self, from: data))
     }
+
+    func testFractionalWatchSecondsRounds() async {
+        api.stub("POST", "/api/analytics/query", json: #"{"success":true,"rows":[{"day":"2026-10-24","lesson_completions":3,"watch_seconds":3600.5}]}"#)
+        await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
+        XCTAssertEqual(state.dashboard.watchSeconds, 3601)
+        XCTAssertEqual(state.dashboard.activityDays["2026-10-24"], 3)
+    }
+
+    func testNullMetricValueDoesNotThrow() async {
+        api.stub("POST", "/api/analytics/query", json: #"{"success":true,"rows":[{"day":"2026-10-24","lesson_completions":null},{"day":"2026-10-25","lesson_completions":2}]}"#)
+        await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
+        XCTAssertEqual(state.dashboard.activityDays["2026-10-25"], 2)
+        XCTAssertNotNil(state.dashboard.refreshedAt)
+    }
+
+    func testWatchSecondsFailureKeepsActivity() async {
+        api.errorFor = { _, body in (body?["metrics"] as? [String]) == ["watch_seconds"] ? APIError.serverError("boom") : nil }
+        state.dashboard.watchSeconds = 42
+        await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
+        XCTAssertEqual(state.dashboard.activityDays["2026-10-24"], 3)
+        XCTAssertEqual(state.dashboard.watchSeconds, 42)
+    }
+
+    func testWatchSecondsUnauthorizedStillSignsOut() async {
+        api.errorFor = { _, body in (body?["metrics"] as? [String]) == ["watch_seconds"] ? APIError.unauthorized : nil }
+        var signedOut = false
+        await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz, onUnauthorized: { signedOut = true }).refresh()
+        XCTAssertTrue(signedOut)
+    }
 }

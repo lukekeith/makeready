@@ -25,6 +25,9 @@ final class StubAPIClient: APIClientProtocol {
     /// When set, every call throws this instead of returning a response.
     var errorToThrow: Error?
 
+    /// Per-call failure hook: return an error to throw for that call (checked after `errorToThrow`).
+    var errorFor: ((_ endpoint: String, _ body: [String: Any]?) -> Error?)?
+
     /// Every call made through the stub, in order.
     private(set) var calls: [RecordedCall] = []
 
@@ -42,6 +45,9 @@ final class StubAPIClient: APIClientProtocol {
         calls.append(RecordedCall(method: method, endpoint: endpoint, body: body))
         if let errorToThrow {
             throw errorToThrow
+        }
+        if let error = errorFor?(endpoint, body) {
+            throw error
         }
         guard let data = responses["\(method) \(endpoint)"] else {
             throw APIError.serverError("StubAPIClient: no canned response for \(method) \(endpoint)")
