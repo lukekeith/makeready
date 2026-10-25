@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/ui2-fixtures
-head: f755183
+head: b568c96
 ticket: none
-branch: ui2-preview-build
+branch: builder/ui2-fixtures
 pr: none
 apps: server+iphone
 contract: open
@@ -15,4 +15,6 @@ walk: none
 verify: none
 ready: none
 ui2: none
-auto: off
+auto: on 2026-10-25
+blocked: none
+agent-walk: on 2026-10-25
