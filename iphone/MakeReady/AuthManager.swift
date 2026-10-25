@@ -78,6 +78,9 @@ struct AuthIO {
 class AuthManager: NSObject {
     var currentUser: User?
     var isAuthenticated: Bool = false
+    /// ui2-fixtures D13/D14: a message for Login after a dev-identity switch failed. The
+    /// switch's sign-out unmounts Profile, so Login is where it lands; Login clears it.
+    var loginNotice: String?
 
     private let userDefaultsKey = "makeready_current_user"
 

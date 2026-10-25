@@ -12,6 +12,12 @@ struct LoginContainer: View {
             onSignIn: signIn
         )
         .ignoresSafeArea(edges: .bottom)
+        // ui2-fixtures D13/D14: a failed dev-identity switch lands here signed out; show why.
+        .onChange(of: authManager.loginNotice, initial: true) { _, notice in
+            guard let notice else { return }
+            errorMessage = notice
+            authManager.loginNotice = nil
+        }
     }
 
     private func signIn() {

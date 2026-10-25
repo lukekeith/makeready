@@ -13,7 +13,15 @@ enum EnvironmentHealth: Equatable {
 }
 
 /// SPEC D16: legacy ProfilePage's environment switch, moved out of the view.
+/// ui2-fixtures D13: also the Local dev-login identity switch.
 struct EnvironmentActions {
+    /// Probes (and heals) the Local API port; injectable for tests.
+    private let heal: () async -> LocalPortHealer.Outcome
+
+    init(heal: @escaping () async -> LocalPortHealer.Outcome = { await LocalPortHealer.heal() }) {
+        self.heal = heal
+    }
+
     static func healthURL(for env: AppConfiguration.SelectedEnvironment) -> URL? {
         switch env {
         case .local:
@@ -45,7 +53,7 @@ struct EnvironmentActions {
         AppState.shared.reloadForEnvironmentSwitch()
         if env == .local {
             let reachable: Bool
-            switch await LocalPortHealer.heal() {
+            switch await heal() {
             case .healthy, .healed: reachable = true
             case .notFound, .skipped: reachable = false
             }
@@ -64,11 +72,34 @@ struct EnvironmentActions {
             AppState.shared.reloadForEnvironmentSwitch()
             await auth.checkAuthStatus()
             if auth.isAuthenticated { await AppState.shared.loadInitialData() }
-            if let seedingError { throw seedingError }
+            if let seedingError {
+                DevLoginIdentity.current = .you   // D14: the identity reverts to You
+                throw seedingError
+            }
             let host = AppConfiguration.localServerIP ?? AppConfiguration.defaultLocalIP
             throw AuthError.localServerUnreachable(host: host, port: AppConfiguration.localAPIPort)
         }
         await auth.checkAuthStatus()
         if auth.isAuthenticated { await AppState.shared.loadInitialData() }
+    }
+
+    /// ui2-fixtures D13: switches the Local dev-login identity. Persists it, signs out
+    /// (`clearAllData()` drops `AppState` and this environment's snapshot, so one identity's
+    /// cached Home never shows under the other), then signs in again; `signIn()` dev-logs
+    /// in with the new identity's email. On failure the identity reverts to You, the message
+    /// is handed to Login (`AuthManager.loginNotice`, D14; Profile is unmounted by the
+    /// sign-out) and the error is rethrown for the caller to record.
+    @MainActor
+    func switchIdentity(_ identity: DevLoginIdentity, auth: AuthManager) async throws {
+        guard DevLoginIdentity.current != identity else { return }
+        DevLoginIdentity.current = identity
+        do {
+            try await auth.signOut()
+            try await auth.signIn()
+        } catch {
+            DevLoginIdentity.current = .you
+            auth.loginNotice = LoginOutcome.message(for: error)
+            throw error
+        }
     }
 }
