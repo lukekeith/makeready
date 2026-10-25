@@ -9,6 +9,8 @@ the walk env would not start (walk env didn't come up — see /Users/lukekeith/w
 ## What was tried
 - 2 fleet run(s) in all — `git log --oneline -- docs/features/ui2-fixtures` lists what each changed
 
+- 2026-10-25 (retry after unpark): cause no longer holds. The code-side fix 3b32118 (server boots without Twilio/Google secrets) was reverted by the owner (ac68d84); instead the target `ui2-preview-build` carries 67361b0 + 1269d46 — `agent_walk.env` supplies test-mode Twilio, placeholder Google OAuth and a session secret, setup/sync is one root `npm ci`, `copy` adds `server/bin/atlas`, start runs the server in the foreground. Merged the target (29a1ce6, one doc conflict in builder.md §Environment landmines resolved keeping both lines). The fleet's env for this worktree was up at 14:34: `/health` → ok/db healthy, :8102 → 200.
+
 ## Evidence
 - the run that parked it: /Users/lukekeith/www/makeready/.builder/fleet/logs/ui2-fixtures-02.log — its last lines:
 
@@ -53,3 +55,4 @@ run agent_walk.start in /Users/lukekeith/www/makeready.fleet/ui2-fixtures and fi
 - 2026-10-25 unparked by the fleet — automatic retry 1 of 2
 - 2026-10-25 unparked by the fleet — automatic retry 2 of 2
 - 2026-10-25 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-10-25 retry: walk env up on the target's agent_walk config (merged 29a1ce6) — on to the agent walk
