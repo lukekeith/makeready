@@ -1,5 +1,5 @@
 # ui2-fixtures — spec
-> 🤖 AGENT SIGNED OFF 2026-10-25 — 4352eac · agent walk round 2 · not human-tested · evidence: .builder/ui2-fixtures/agent-walk/round-2/
+> ✅ SHIPPED 2026-10-25 — merged into ui2-preview-build · no ticket · 🤖 agent signed off (walk round 2), not human-tested
 > lg · ticket none
 
 ## Idea
