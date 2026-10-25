@@ -71,8 +71,9 @@ struct TopNav: View {
         // which is both the designed behaviour and the only construction that survives the
         // 656/1048-into-440 overflow.
         //
-        // §2c: "a thin indicator under the row appears while panning, then fades" — the
-        // system horizontal indicator's own behaviour (OQ-C-019-6), so it is left automatic.
+        // §2c proposed "a thin indicator under the row appears while panning, then fades"
+        // (undesigned, OQ-C-019-6); owner ruling 2026-10-25: the row shows no scroll
+        // indicator, so it is hidden.
         ScrollViewReader { proxy in
             ScrollView(.horizontal) {
                 HStack(spacing: Token.Space.elementGap) {      // §2: gap = `space-element-gap` (8)
@@ -98,7 +99,7 @@ struct TopNav: View {
                 // content, which is what a scroll position IS for a static frame.
                 .offset(x: -scrollOffset)
             }
-            .scrollIndicators(.automatic)
+            .scrollIndicators(.hidden)
             // §2c Switch (OQ-C-019-6): "the row auto-scrolls so the selected tab lands at the
             // leading edge". Panning never changes selection, so only a selection moves it.
             .onChange(of: selectedTab) { _, tab in
