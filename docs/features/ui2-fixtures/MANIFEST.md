@@ -1,7 +1,7 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/ui2-fixtures
-head: 2c61e46
+head: 9823ce7
 ticket: none
 branch: builder/ui2-fixtures
 pr: none
