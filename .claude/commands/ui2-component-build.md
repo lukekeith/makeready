@@ -1,5 +1,5 @@
 ---
-description: Build ONE specced UI 2.0 component as a capturable SwiftUI preview — resolve its dependencies, regenerate the tokens, write the view under iphone/MakeReadyUI/, generate its fixture + ViewRegistry case, capture it in the simulator, and diff the render against its frozen Figma snapshot. The build-side sibling of /ui2-component; wired into no screen, route or flag. Designed to run in a FRESH session.
+description: Build ONE specced UI 2.0 component as a capturable SwiftUI preview — resolve its dependencies, regenerate the tokens, write the view under iphone/MakeReadyUI/, generate its fixture + ViewRegistry case, capture it in the simulator, and diff the render against its frozen Figma snapshot. The build-side sibling of /ui2-component; these views ship — never hand-wired; the app wires them from `iphone/MakeReady/UI2/` containers (ui2-shell D2/D29). Designed to run in a FRESH session.
 argument-hint: [C-### registry id (or component name); omit to be shown the specced-but-unbuilt rows]
 ---
 
@@ -118,9 +118,9 @@ presence (`preview-build.md` §6), so a successful run needs no registry edit at
   written under `iphone/MakeReadyUI/`; this command never wires them into a screen, route or
   tab — the app wires these from `iphone/MakeReady/UI2/`. A step that would need a hand-wire
   stops and says so.
-- **Legacy untouched** (rule 2). `Colors.swift`, `Typography.swift`, `Pages/`,
-  `Services/Route.swift` are never edited. Outside `MakeReadyUI/` and `capture/fixtures/ui2/`
-  this command writes exactly three files: the two **test-target** files of phase 4
+- **Stay inside the module** (rule 2, updated for ui2-shell D5). A d2m build never edits files
+  outside `iphone/MakeReadyUI/`, the fixture and `ViewRegistry.swift`. Outside `MakeReadyUI/`
+  and `capture/fixtures/ui2/` this command writes exactly three files: the two **test-target** files of phase 4
   (`ViewRegistry.swift`, `CaptureFixture.swift` — rule 3, amended 2026-09-06), and
   `iphone/MakeReady.xcodeproj/project.pbxproj`, rewritten by the sync script in phase 5
   because the target membership is what makes the view compile at all.
@@ -227,7 +227,7 @@ Resolve each consumed row by `preview-build.md` §4's order, and print the table
   which defeats the lane): correct size and layout slot, obviously unfinished fill, and the
   comment `// STUB — C-###, no prop-level contract`. A stub is **recorded for the build
   report**, naming the `/ui2-component <name> <figma-url>` run that would spec it — never
-  silently emitted. `preview-build.md` §7 gates promotion on stubs being resolved.
+  silently emitted. the view ships, so a stub must be resolved or flagged.
 
 **Exit checklist 1:** §5 Consumes read (not Consumed-by) ✓ · every consumed row resolved to a
 level with its source path ✓ · level-1 dependencies ordered (built first, or inline with a
@@ -322,13 +322,13 @@ One SwiftUI view in that file:
   set props, so a state driven by internal `@State` is uncapturable. (`focused`, `selected`
   and friends are props here, not `@FocusState`.)
 - **Interaction-bearing props** (`onTap`, `onChange`, `onBack`) have no render effect. Emit
-  them as defaulted no-op closures so the promoted view keeps its real signature —
+  them as defaulted no-op closures so the shipped view keeps its real signature —
   `preview-build.md` OQ-PB-3's proposed default. Say in the report that you took it.
 - **Chrome-free and width-driven.** The view fills the width it is given and states its own
   intrinsic height; it paints no page background and adds no outer padding. The frame,
   background and padding belong to the ViewRegistry call site (phase 4d), so OQ-PB-1's
   master width and OQ-PB-2's `color-layout-background` are one line each to change when the
-  owner rules, and the file itself is promotable unchanged (`preview-build.md` §7).
+  owner rules, and the file itself ships unchanged.
 - **Tokens only**, per phase 2. No `Color(hex:)`, no `.system(size:)`, no legacy
   `Color.brand*` / `Typography.*` — those are rule-2 files.
 - **No `#if DEBUG`, no `#Preview`, no lazy containers, no `print`/`NSLog`.**
@@ -342,7 +342,7 @@ One SwiftUI view in that file:
   `"Placeholder"` or `"Value"`. Nesting is NOT declared: the browser derives it from rect
   containment, so a dependency that names itself is reported inside whatever slot placed it.
   An unannotated component is not an error — it just has no highlights.
-- File header: what it is, the contract path it was built from, and the preview-only rule —
+- File header: what it is, the contract path it was built from, and the never-hand-wired rule —
 
 ```swift
 //
@@ -356,13 +356,14 @@ One SwiftUI view in that file:
 ```
 
 If `iphone/MakeReadyUI/README.md` does not exist, write it now —
-`preview-build.md` §2 makes this folder's README part of the lane: it states the
-preview-only rule and the §7 promotion path, and nothing else.
+`preview-build.md` §2 makes this folder's README part of the lane: it states that
+these views ship, are never hand-wired, and are wired by the app from `iphone/MakeReady/UI2/`
+(ui2-shell D2/D29), and nothing else. There is no promotion step.
 
 **Exit checklist 3:** one view, parameters == §4 props ✓ · every designed §3 state reachable
 by props alone ✓ · tokens/flagged literals only ✓ · no `#if DEBUG` / `#Preview` / lazy
 container / legacy import ✓ · root + every §2 named slot + every repeated item carries
-`.ui2Element` ✓ · header cites the contract and the preview-only rule ✓ · folder README
+`.ui2Element` ✓ · header cites the contract and the never-hand-wired rule ✓ · folder README
 present ✓
 
 ## 4. FIXTURE + REGISTRY CASE
@@ -511,7 +512,9 @@ ruby iphone/scripts/makereadyui-sync.rb
 Files under `MakeReadyUI/` are **not** auto-included by folder — the project has no
 filesystem-synchronised groups, so a generated file is invisible to the compiler until it is
 referenced in the pbxproj. The script makes every `.swift` file under that folder a member of
-the **`MakeReadyUI` framework target** (not `MakeReady` — `preview-build.md` §2). **A file that
+the **`MakeReadyUI` framework target** and, from ui2-shell Phase 3 (D29), also the
+**`MakeReady` app target** — both memberships are added by the sync script, so the app
+compiles the same files without importing the module. **A file that
 is not in the target does not compile, and the capture fails minutes later with an
 unknown-view error.** The script is idempotent and recursive; check its `added:` line names
 your new view (and that `Tokens.swift` is in the count).
