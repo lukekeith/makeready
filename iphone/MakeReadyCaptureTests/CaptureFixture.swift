@@ -442,12 +442,12 @@ struct CaptureComponent: Codable {
     let averageLabel: String?                  // C-024 — label at the average line (nil = line only)
     let averageLabelSide: String?              // C-024 — "left" | "right"
     // C-021 GlyphButton. The contract's nine glyph names are also the asset-catalog
-    // names, so this one string is the whole prop (see UI2Preview/GlyphButton.swift).
+    // names, so this one string is the whole prop (see MakeReadyUI/GlyphButton.swift).
     let glyph: String?                         // C-021 — export|settings|back|add|send|arrow-forward|three-dots|search|calendar
     // C-026 DualSeriesBarChart. `days` is above (retyped, see the note there); these two are
     // additive. `today` is not a §4 prop — C-026 §3 derives `state` from whether today falls in
     // the window, so the capture has to pin "now" or the render drifts by the day it was taken
-    // (UI2Preview/DualSeriesBarChart.swift documents it; raised for an OQ-PB row).
+    // (MakeReadyUI/DualSeriesBarChart.swift documents it; raised for an OQ-PB row).
     let window: CaptureUI2DateWindow?          // C-026 — visible slice { start, end }
     // RETYPED 2026-10-21 (/d2m:component:build C-113), by the same reasoning and in the same
     // shape as `selected` above. This was `String?`, C-026's capture seam for "now". C-113

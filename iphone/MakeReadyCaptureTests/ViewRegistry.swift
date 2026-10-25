@@ -10,9 +10,9 @@ import SwiftUI
 @testable import MakeReady
 // UI 2.0 preview views are their own module (docs/ui2/preview-build.md §2), so their
 // types carry no prefix — and six of them share a name with a 1.0 type in MakeReady.
-// Every 2.0 reference below is therefore module-qualified: `UI2Preview.TextInput`, not
+// Every 2.0 reference below is therefore module-qualified: `MakeReadyUI.TextInput`, not
 // `TextInput`. @testable, not a plain import, so the module stays internal-by-default.
-@testable import UI2Preview
+@testable import MakeReadyUI
 
 enum ViewRegistryError: Error {
     case unknownView(String)
@@ -28,7 +28,7 @@ struct PreviewFrame {
     var width: CGFloat? = nil
     var height: CGFloat? = nil
     var marginEdges: Edge.Set = .all
-    var margin: CGFloat = UI2Preview.Token.Space.pageMargin
+    var margin: CGFloat = MakeReadyUI.Token.Space.pageMargin
     var alignment: Alignment = .center
     /// The component hugs its content (C-035 FilterChip): a bare capture lays it out `.fixedSize()`.
     var intrinsic: Bool = false
@@ -48,7 +48,7 @@ struct CaptureCase {
         return AnyView(
             v.padding(f.marginEdges, f.margin)
                 .frame(maxWidth: .infinity, alignment: f.alignment)
-                .background(UI2Preview.Token.layoutBackground)
+                .background(MakeReadyUI.Token.layoutBackground)
         )
     }
 }
@@ -2547,15 +2547,15 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
         guard let placeholder = c.placeholder else {
             throw ViewRegistryError.unknownView("component.ui2.C-045: missing props.placeholder")
         }
-        guard let kindRaw = c.kind, let kind = UI2Preview.TextInput.Kind(rawValue: kindRaw) else {
+        guard let kindRaw = c.kind, let kind = MakeReadyUI.TextInput.Kind(rawValue: kindRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-045: props.kind must be single|multi|phone")
         }
         guard let focused = c.focused else {
             throw ViewRegistryError.unknownView("component.ui2.C-045: missing props.focused")
         }
-        let ui2C045Alignment: UI2Preview.TextInput.Alignment
+        let ui2C045Alignment: MakeReadyUI.TextInput.Alignment
         if let alignmentRaw = c.alignment {
-            guard let parsed = UI2Preview.TextInput.Alignment(rawValue: alignmentRaw) else {
+            guard let parsed = MakeReadyUI.TextInput.Alignment(rawValue: alignmentRaw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-045: props.alignment must be leading|center")
             }
             ui2C045Alignment = parsed
@@ -2563,7 +2563,7 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
             ui2C045Alignment = .leading
         }
         return declareCase(
-            UI2Preview.TextInput(
+            MakeReadyUI.TextInput(
                 text: c.text ?? "",
                 placeholder: placeholder,
                 kind: kind,
@@ -2584,7 +2584,7 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
         guard let styleRaw = c.style else {
             throw ViewRegistryError.unknownView("component.ui2.C-040: missing props.style")
         }
-        let ui2C040Style: UI2Preview.PageHeader.Style
+        let ui2C040Style: MakeReadyUI.PageHeader.Style
         switch styleRaw {
         case "default": ui2C040Style = .default
         case "textButtons": ui2C040Style = .textButtons
@@ -2599,22 +2599,22 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-040: missing props.rightButtons")
         }
         // An unknown glyph name is a fixture bug, not a value to guess.
-        let ui2C040Leading: UI2Preview.GlyphButton.Glyph
+        let ui2C040Leading: MakeReadyUI.GlyphButton.Glyph
         if let raw = c.leadingGlyph {
-            guard let parsed = UI2Preview.GlyphButton.Glyph(rawValue: raw) else {
+            guard let parsed = MakeReadyUI.GlyphButton.Glyph(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-040: props.leadingGlyph \"\(raw)\" is not a C-021 glyph")
             }
             ui2C040Leading = parsed
         } else {
             ui2C040Leading = .back                     // §4 default
         }
-        let ui2C040Right: [UI2Preview.GlyphButton.Glyph] = try ui2C040RightRaw.map { raw in
-            guard let parsed = UI2Preview.GlyphButton.Glyph(rawValue: raw) else {
+        let ui2C040Right: [MakeReadyUI.GlyphButton.Glyph] = try ui2C040RightRaw.map { raw in
+            guard let parsed = MakeReadyUI.GlyphButton.Glyph(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-040: props.rightButtons \"\(raw)\" is not a C-021 glyph")
             }
             return parsed
         }
-        let ui2C040Header = UI2Preview.PageHeader(
+        let ui2C040Header = MakeReadyUI.PageHeader(
             style: ui2C040Style,
             title: c.title,
             showTitle: c.showTitle ?? true,
@@ -2639,16 +2639,16 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
         guard let series = c.series else {
             throw ViewRegistryError.unknownView("component.ui2.C-024: missing props.series")
         }
-        guard let alignRaw = c.align, let align = UI2Preview.SparkBarChart.Align(rawValue: alignRaw) else {
+        guard let alignRaw = c.align, let align = MakeReadyUI.SparkBarChart.Align(rawValue: alignRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-024: props.align must be top|center|bottom")
         }
-        guard let fillRaw = c.widthFill, let widthFill = UI2Preview.SparkBarChart.WidthFill(rawValue: fillRaw) else {
+        guard let fillRaw = c.widthFill, let widthFill = MakeReadyUI.SparkBarChart.WidthFill(rawValue: fillRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-024: props.widthFill must be bars|gaps")
         }
         guard let showAverage = c.showAverage else {
             throw ViewRegistryError.unknownView("component.ui2.C-024: missing props.showAverage")
         }
-        let ui2C024LabelSide: UI2Preview.SparkBarChart.LabelSide
+        let ui2C024LabelSide: MakeReadyUI.SparkBarChart.LabelSide
         switch c.averageLabelSide {
         case "left": ui2C024LabelSide = .left
         case "right", nil: ui2C024LabelSide = .right   // §4: right is the designed placement
@@ -2656,7 +2656,7 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-024: props.averageLabelSide must be left|right")
         }
         return declareCase(
-            UI2Preview.SparkBarChart(
+            MakeReadyUI.SparkBarChart(
                 series: series,
                 targetBars: c.targetBars,
                 align: align,
@@ -2687,13 +2687,13 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // C-021 §4 gives no default for `glyph` — it is the whole of the component, so a
         // nil or an unknown name is a fixture bug, not a value to guess. `action` (spelled
         // `onTap` by R-33) is interaction-bearing and defaulted to a no-op in the view.
-        guard let glyphRaw = c.glyph, let glyph = UI2Preview.GlyphButton.Glyph(rawValue: glyphRaw) else {
+        guard let glyphRaw = c.glyph, let glyph = MakeReadyUI.GlyphButton.Glyph(rawValue: glyphRaw) else {
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-021: props.glyph must be one of C-021 §3's nine glyph names"
             )
         }
         return declareCase(
-            UI2Preview.GlyphButton(glyph: glyph),
+            MakeReadyUI.GlyphButton(glyph: glyph),
             // No master width to pin: the component hugs its 24pt glyph (its 44pt tap area is
             // a content shape, OQ-C-021-001), so the call site adds only the page margin and
             // the ground the snapshot is framed on.
@@ -2707,7 +2707,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // so a nil is a fixture bug, not a value to guess. `onPan` is interaction-bearing and
         // defaulted to a no-op in the view (OQ-PB-3). `today` is the capture seam: §3 derives
         // `state` from whether today falls inside the window, and reading the real clock would
-        // make the render change state on its own — see UI2Preview/DualSeriesBarChart.swift.
+        // make the render change state on its own — see MakeReadyUI/DualSeriesBarChart.swift.
         guard let timeline = c.days?.timeline else {
             throw ViewRegistryError.unknownView("component.ui2.C-026: missing props.days (day timeline)")
         }
@@ -2720,16 +2720,16 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let today = makeUI2ChartDate(c.today?.stringValue) else {
             throw ViewRegistryError.unknownView("component.ui2.C-026: missing props.today (yyyy-MM-dd)")
         }
-        let ui2C026Days: [UI2Preview.DualSeriesBarChart.Day] = try timeline.map {
+        let ui2C026Days: [MakeReadyUI.DualSeriesBarChart.Day] = try timeline.map {
             guard let date = makeUI2ChartDate($0.date) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-026: props.days[].date \"\($0.date)\" is not yyyy-MM-dd")
             }
-            return UI2Preview.DualSeriesBarChart.Day(
+            return MakeReadyUI.DualSeriesBarChart.Day(
                 date: date, scheduled: $0.scheduled, completed: $0.completed
             )
         }
         return AnyView(
-            UI2Preview.DualSeriesBarChart(
+            MakeReadyUI.DualSeriesBarChart(
                 days: ui2C026Days,
                 window: windowStart...windowEnd,
                 today: today
@@ -2741,7 +2741,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             // applying it here would squeeze the chart to 408 and invalidate every x in §2.
             .frame(width: 440, height: 149)
             .frame(maxWidth: .infinity)
-            .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+            .background(MakeReadyUI.Token.layoutBackground)  // OQ-PB-2 default
         )
     case "component.ui2.C-034":
         guard let c = fixture.state?.component else {
@@ -2760,7 +2760,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // OQ-PB-1 default: the contract's master width. §1 deviation 2 — "Master symbols are 387pt wide;
         // consumers are width-driven." 387 is the preview's frame; a bare capture fills the width it is offered.
         return declareCase(
-            UI2Preview.SearchField(
+            MakeReadyUI.SearchField(
                 text: c.text ?? "",
                 placeholder: placeholder,
                 focused: focused,
@@ -2787,7 +2787,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             )
         }
         return declareCase(
-            UI2Preview.RadialDayClock(
+            MakeReadyUI.RadialDayClock(
                 hourValues: hourValues,
                 centerValue: centerValue,
                 centerUnit: centerUnit,
@@ -2814,7 +2814,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-030: missing props.tickLabels")
         }
         return declareCase(
-            UI2Preview.TimeActivityChart(
+            MakeReadyUI.TimeActivityChart(
                 bins: bins,
                 // Back to §4's tuple type; CaptureUI2TickLabel exists only because a tuple is
                 // not Codable (see CaptureFixture.swift).
@@ -2854,7 +2854,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
                 throw ViewRegistryError.unknownView("component.ui2.C-019: missing props.active")
             }
             return declareCase(
-                UI2Preview.NavTabButton(
+                MakeReadyUI.NavTabButton(
                     label: label,
                     expansion: presentationRaw == "expanded" ? 1 : 0,
                     active: active,
@@ -2877,7 +2877,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-019: missing props.expansion")
         }
         return declareCase(
-            UI2Preview.TopNav(
+            MakeReadyUI.TopNav(
                 tabs: tabs,
                 selectedTab: selectedTab,
                 expansion: expansion,
@@ -2907,9 +2907,9 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C042Label = c.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-042: missing props.label")
         }
-        var ui2C042Indicator: UI2Preview.EditableFieldRow.Indicator?
+        var ui2C042Indicator: MakeReadyUI.EditableFieldRow.Indicator?
         if let spec = c.indicator {
-            guard let tone = UI2Preview.EditableFieldRow.Indicator.Tone(rawValue: spec.tone) else {
+            guard let tone = MakeReadyUI.EditableFieldRow.Indicator.Tone(rawValue: spec.tone) else {
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-042: props.indicator.tone must be positive|negative"
                 )
@@ -2917,7 +2917,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             ui2C042Indicator = .init(text: spec.text, tone: tone)
         }
         return declareCase(
-            UI2Preview.EditableFieldRow(
+            MakeReadyUI.EditableFieldRow(
                 label: ui2C042Label,
                 value: c.value,
                 tags: c.tags,
@@ -2944,9 +2944,9 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             // bug, not a value to guess. `onSelect` / `onDone` are interaction-bearing and
             // defaulted to no-ops in the view (OQ-PB-3).
             return AnyView(
-                UI2Preview.ActionMenuOverlay(
+                MakeReadyUI.ActionMenuOverlay(
                     actions: actions.map {
-                        UI2Preview.ActionMenuOverlay.ActionItem(glyph: $0.glyph, label: $0.label)
+                        MakeReadyUI.ActionMenuOverlay.ActionItem(glyph: $0.glyph, label: $0.label)
                     }
                 )
                 // OQ-PB-1 default: the contract's master width. §2 — "432pt wide in the
@@ -2956,7 +2956,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
                 // why this call site adds no page margin: the snapshot has none to match.
                 .frame(width: 432)
                 .frame(maxWidth: .infinity)             // fill the device width the runner renders at
-                .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+                .background(MakeReadyUI.Token.layoutBackground)  // OQ-PB-2 default
             )
         }
         // §4 (C-067) gives no default for `glyph` or `label` — together they are the whole of
@@ -2968,15 +2968,15 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-066: missing props.label")
         }
         return AnyView(
-            UI2Preview.ActionMenuRow(glyph: glyph, label: label)
+            MakeReadyUI.ActionMenuRow(glyph: glyph, label: label)
                 // OQ-PB-1: C-067 states no master width of its own — it is width-driven
                 // inside C-066. §2's "content 384" is the width the frozen snapshot renders
                 // it at, so it is the width at which the row's chevron lands where the
                 // snapshot has it.
                 .frame(width: 384)
-                .padding(UI2Preview.Token.Space.rowGap)   // §2's p24, so the row sits where C-066 puts it
+                .padding(MakeReadyUI.Token.Space.rowGap)   // §2's p24, so the row sits where C-066 puts it
                 .frame(maxWidth: .infinity)
-                .background(UI2Preview.Token.modalBackground)   // §2: the surface C-067 always renders on
+                .background(MakeReadyUI.Token.modalBackground)   // §2: the surface C-067 always renders on
         )
     // "component.ui2.C-025" — RETIRED 2026-09-21 by `/d2m-component-merge C-023 C-025`:
     // C-025 DayActivityCard was merged into C-023 RailCard as `kind=day`, its fixture retired
@@ -2991,14 +2991,14 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-033: missing state.component")
         }
-        let ui2C033Style: UI2Preview.GroupFollowCard.Style
+        let ui2C033Style: MakeReadyUI.GroupFollowCard.Style
         switch c.style {
         case "default": ui2C033Style = .standard
         case "noBar": ui2C033Style = .noBar
         default:
             throw ViewRegistryError.unknownView("component.ui2.C-033: props.style must be default|noBar")
         }
-        let ui2C033Color: UI2Preview.GroupFollowCard.BandColor
+        let ui2C033Color: MakeReadyUI.GroupFollowCard.BandColor
         switch c.color {
         case "green": ui2C033Color = .green
         case "yellow": ui2C033Color = .yellow
@@ -3008,13 +3008,13 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         }
         // Seed the photo synchronously so the snapshot's single layout pass can render it.
         // Same mechanism, and the same reason, as CaptureEnvironment's 1.0 image seeding:
-        // an `AsyncImage` task cannot finish inside that pass. `UI2Preview` imports SwiftUI
-        // only, so it has its own cache (UI2Preview/Ui2ImageCache.swift) rather than
+        // an `AsyncImage` task cannot finish inside that pass. `MakeReadyUI` imports SwiftUI
+        // only, so it has its own cache (MakeReadyUI/Ui2ImageCache.swift) rather than
         // `MakeReady.ImageCache`.
         if let photo = c.photoURL, let photoURL = URL(string: photo),
            photoURL.scheme?.hasPrefix("http") == true,
            let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
         }
         // C-033 §4 gives a default for exactly one prop — `showLink` (§3d: "boolean prop,
         // default true") — so that is the only `??` with a contract behind it. `title` and
@@ -3023,7 +3023,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-033: props.title and props.percent are required")
         }
         return declareCase(
-            UI2Preview.GroupFollowCard(
+            MakeReadyUI.GroupFollowCard(
                 style: ui2C033Style,
                 color: ui2C033Color,
                 title: ui2C033Title,
@@ -3053,20 +3053,20 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let label = c.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-046: missing props.label")
         }
-        guard let fieldRaw = c.field, let field = UI2Preview.FieldGroup.Field(rawValue: fieldRaw) else {
+        guard let fieldRaw = c.field, let field = MakeReadyUI.FieldGroup.Field(rawValue: fieldRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-046: props.field must be Text|Multiline Text|Phone")
         }
-        guard let styleRaw = c.style, let ui2C046Style = UI2Preview.FieldGroup.Style(rawValue: styleRaw) else {
+        guard let styleRaw = c.style, let ui2C046Style = MakeReadyUI.FieldGroup.Style(rawValue: styleRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-046: props.style must be Default|Focus")
         }
-        guard let layoutRaw = c.layout, let ui2C046Layout = UI2Preview.FieldGroup.Layout(rawValue: layoutRaw) else {
+        guard let layoutRaw = c.layout, let ui2C046Layout = MakeReadyUI.FieldGroup.Layout(rawValue: layoutRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-046: props.layout must be Default|Centered")
         }
         guard let ui2C046Placeholder = c.placeholder else {
             throw ViewRegistryError.unknownView("component.ui2.C-046: missing props.placeholder")
         }
         return declareCase(
-            UI2Preview.FieldGroup(
+            MakeReadyUI.FieldGroup(
                 label: label,
                 field: field,
                 style: ui2C046Style,
@@ -3090,9 +3090,9 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // C-038 §4 `shape` / `selected` — host-set, so a missing value takes the contract's
         // default (`round` / `false`). `shape` reuses the existing `shape` field and `selected`
         // the retyped `selected` field (`.boolValue`, as C-047 does) — no new field.
-        let ui2C038Shape: UI2Preview.Avatar.Shape
+        let ui2C038Shape: MakeReadyUI.Avatar.Shape
         if let ui2C038ShapeRaw = c.shape {
-            guard let parsed = UI2Preview.Avatar.Shape(rawValue: ui2C038ShapeRaw) else {
+            guard let parsed = MakeReadyUI.Avatar.Shape(rawValue: ui2C038ShapeRaw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-038: props.shape must be round|square")
             }
             ui2C038Shape = parsed
@@ -3103,7 +3103,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // OQ-C-038-3 (d): state is derived-only, so the view takes no `state`. The fixture still
         // carries the §3 label; it must agree with what the content derives, or the preview
         // would be captured under the wrong label.
-        let ui2C038Derived = UI2Preview.Avatar.derive(imageURL: ui2C038ImageURL, initials: c.initials)
+        let ui2C038Derived = MakeReadyUI.Avatar.derive(imageURL: ui2C038ImageURL, initials: c.initials)
         if let ui2C038Raw = c.state, ui2C038Raw != ui2C038Derived.rawValue {
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-038: props.state \(ui2C038Raw) disagrees with the content, which derives \(ui2C038Derived.rawValue)")
@@ -3112,10 +3112,10 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // same mechanism and same reason as the C-033 case above.
         if let photoURL = ui2C038ImageURL, photoURL.scheme?.hasPrefix("http") == true,
            let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
         }
         return declareCase(
-            UI2Preview.Avatar(
+            MakeReadyUI.Avatar(
                 imageURL: ui2C038ImageURL,
                 initials: c.initials,
                 size: CGFloat(ui2C038Size),
@@ -3139,12 +3139,12 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-062: missing props.percent")
         }
         guard let ui2C062Raw = c.size?.stringValue,
-              let ui2C062Size = UI2Preview.PercentDisc.Size(rawValue: ui2C062Raw) else {
+              let ui2C062Size = MakeReadyUI.PercentDisc.Size(rawValue: ui2C062Raw) else {
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-062: props.size must be Green 1|Green 2|Yellow 1|Yellow 2|Red 1|size6")
         }
         return declareCase(
-            UI2Preview.PercentDisc(percent: ui2C062Percent, size: ui2C062Size),
+            MakeReadyUI.PercentDisc(percent: ui2C062Percent, size: ui2C062Size),
             // OQ-PB-1: C-062 §2/§3c — the slot is 80×80 in EVERY variant, so the component
             // states its own footprint and the call site fixes no width; it supplies the
             // outer margin and the ground only.
@@ -3158,11 +3158,11 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // not a value to guess. It reuses the existing `state` field under the contract's own
         // prop name (CaptureFixture.swift) — no new field.
         guard let ui2C053Raw = c.state,
-              let ui2C053State = UI2Preview.StatusBadge.State(rawValue: ui2C053Raw) else {
+              let ui2C053State = MakeReadyUI.StatusBadge.State(rawValue: ui2C053Raw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-053: props.state must be published|draft")
         }
         return declareCase(
-            UI2Preview.StatusBadge(state: ui2C053State),
+            MakeReadyUI.StatusBadge(state: ui2C053State),
             // OQ-PB-1: C-053 §3b — "Width is not a variant": the pill hugs its label, so
             // the component states its own footprint and the call site fixes no width; it
             // supplies the outer margin and the ground only.
@@ -3183,8 +3183,8 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         }
         let ui2C027Color: Color
         switch ui2C027ColorName {
-        case "color-accent":   ui2C027Color = UI2Preview.Token.accent
-        case "color-white-20": ui2C027Color = UI2Preview.Token.white20
+        case "color-accent":   ui2C027Color = MakeReadyUI.Token.accent
+        case "color-white-20": ui2C027Color = MakeReadyUI.Token.white20
         default:
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-027: props.color '\(ui2C027ColorName)' is not a tokens.md colour this case resolves")
@@ -3193,7 +3193,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-027: missing props.label")
         }
         return declareCase(
-            UI2Preview.LegendItem(color: ui2C027Color, label: ui2C027Label),
+            MakeReadyUI.LegendItem(color: ui2C027Color, label: ui2C027Label),
             // OQ-PB-1: C-027 §3b — "Width is not a variant": the row hugs its label, so
             // the component states its own footprint and the call site fixes no width; it
             // supplies the outer margin and the ground only.
@@ -3214,7 +3214,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-022: missing props.label")
         }
         guard let ui2C022LayoutRaw = c.layout,
-              let ui2C022Layout = UI2Preview.MetaPair.Layout(rawValue: ui2C022LayoutRaw) else {
+              let ui2C022Layout = MakeReadyUI.MetaPair.Layout(rawValue: ui2C022LayoutRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-022: props.layout must be inline|stacked")
         }
         // C-022 §4: "`align` is inert under `layout=stacked`. That is a sparse matrix, not a
@@ -3222,19 +3222,19 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // the unread placeholder — `stackedColumn` never reads it, and §3d declines to propose a
         // stacked `align` rather than inventing one. Under `inline` the key is required: both
         // orders are designed (§3a), so a nil there IS a fixture bug.
-        let ui2C022Align: UI2Preview.MetaPair.Align
+        let ui2C022Align: MakeReadyUI.MetaPair.Align
         switch ui2C022Layout {
         case .stacked:
             ui2C022Align = .left
         case .inline:
-            guard let raw = c.align, let parsed = UI2Preview.MetaPair.Align(rawValue: raw) else {
+            guard let raw = c.align, let parsed = MakeReadyUI.MetaPair.Align(rawValue: raw) else {
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-022: props.align must be Left|Right when layout=inline")
             }
             ui2C022Align = parsed
         }
         return declareCase(
-            UI2Preview.MetaPair(
+            MakeReadyUI.MetaPair(
                 value: ui2C022Value,
                 label: ui2C022Label,
                 layout: ui2C022Layout,
@@ -3256,7 +3256,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // not a value to guess. `content` decodes C-052's `DayChip.Content` object through the
         // either-shape `CaptureContentOrChildren` (C-091's slot is the other shape); `state`
         // reuses the existing `String?` field under the contract's own name.
-        let ui2C052Content: UI2Preview.DayChip.Content
+        let ui2C052Content: MakeReadyUI.DayChip.Content
         switch (c.content?.dayChip?.day, c.content?.dayChip?.weekday) {
         case let (day?, nil):
             ui2C052Content = .day(day)
@@ -3268,11 +3268,11 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             )
         }
         guard let ui2C052Raw = c.state,
-              let ui2C052State = UI2Preview.DayChip.State(rawValue: ui2C052Raw) else {
+              let ui2C052State = MakeReadyUI.DayChip.State(rawValue: ui2C052Raw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-052: props.state must be Default|Active")
         }
         return declareCase(
-            UI2Preview.DayChip(content: ui2C052Content, state: ui2C052State),
+            MakeReadyUI.DayChip(content: ui2C052Content, state: ui2C052State),
             // C-052 §2 fixes the component's own footprint (32×40 day, 32×32 weekday), so the
             // call site fixes no width — it supplies the outer margin and the ground only.
             PreviewFrame(alignment: .leading, intrinsic: true)
@@ -3289,17 +3289,17 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // the fixture carries lg/sm, which are the note's names for the two DESIGNED heights.
         // `md` and `xs` (OQ-C-125-001) are §3 rows of their own.
         guard let ui2C057SizeRaw = c.size?.stringValue,
-              let ui2C057Size = UI2Preview.PercentBar.Size(rawValue: ui2C057SizeRaw) else {
+              let ui2C057Size = MakeReadyUI.PercentBar.Size(rawValue: ui2C057SizeRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-057: props.size must be xs|sm|md|lg")
         }
         guard let ui2C057AlignedRaw = c.aligned,
-              let ui2C057Aligned = UI2Preview.PercentBar.Aligned(rawValue: ui2C057AlignedRaw) else {
+              let ui2C057Aligned = MakeReadyUI.PercentBar.Aligned(rawValue: ui2C057AlignedRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-057: props.aligned must be Right|Left")
         }
         // note 2026-09-12T02:28:29.097Z: solid is the default fill.
-        let ui2C057FillStyle: UI2Preview.PercentBar.FillStyle
+        let ui2C057FillStyle: MakeReadyUI.PercentBar.FillStyle
         if let raw = c.fillStyle {
-            guard let parsed = UI2Preview.PercentBar.FillStyle(rawValue: raw) else {
+            guard let parsed = MakeReadyUI.PercentBar.FillStyle(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-057: props.fillStyle must be solid|gradient")
             }
             ui2C057FillStyle = parsed
@@ -3313,10 +3313,10 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         var ui2C057FillColor: Color?
         if let name = c.fillColor {
             switch name {
-            case "color-positive": ui2C057FillColor = UI2Preview.Token.positive
-            case "color-warning":  ui2C057FillColor = UI2Preview.Token.warning
-            case "color-negative": ui2C057FillColor = UI2Preview.Token.negative
-            case "color-accent":   ui2C057FillColor = UI2Preview.Token.accent
+            case "color-positive": ui2C057FillColor = MakeReadyUI.Token.positive
+            case "color-warning":  ui2C057FillColor = MakeReadyUI.Token.warning
+            case "color-negative": ui2C057FillColor = MakeReadyUI.Token.negative
+            case "color-accent":   ui2C057FillColor = MakeReadyUI.Token.accent
             default:
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-057: props.fillColor '\(name)' is not a tokens.md colour this case resolves")
@@ -3325,19 +3325,19 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // note 2026-09-12T02:28:29.097Z: "there should be a default applied 0.2 red, 0.4 yellow
         // 0.7 green" — supplied by the view, so a missing key is the note's own value.
         let ui2C057Thresholds = c.thresholds.map {
-            UI2Preview.PercentBar.Thresholds(red: $0.red, yellow: $0.yellow, green: $0.green)
+            MakeReadyUI.PercentBar.Thresholds(red: $0.red, yellow: $0.yellow, green: $0.green)
         } ?? .standard
         // Omitted by every fixture on purpose: an animating fill would race the capture.
-        var ui2C057Animation: UI2Preview.PercentBar.FillAnimation?
+        var ui2C057Animation: MakeReadyUI.PercentBar.FillAnimation?
         if let a = c.fillAnimation {
-            guard let easing = UI2Preview.PercentBar.Easing(rawValue: a.easing) else {
+            guard let easing = MakeReadyUI.PercentBar.Easing(rawValue: a.easing) else {
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-057: props.fillAnimation.easing must be linear|easeIn|easeOut|easeInOut")
             }
-            ui2C057Animation = UI2Preview.PercentBar.FillAnimation(duration: a.duration, easing: easing)
+            ui2C057Animation = MakeReadyUI.PercentBar.FillAnimation(duration: a.duration, easing: easing)
         }
         return declareCase(
-            UI2Preview.PercentBar(
+            MakeReadyUI.PercentBar(
                 progress: ui2C057Progress,
                 fillColor: ui2C057FillColor,
                 size: ui2C057Size,
@@ -3359,7 +3359,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // C-035 §4 `type` enumerates its values, so an unrecognised one must throw rather than
         // fall back to a plausible presentation.
         guard let ui2C035TypeRaw = c.type,
-              let ui2C035Type = UI2Preview.FilterChip.ChipType(rawValue: ui2C035TypeRaw) else {
+              let ui2C035Type = MakeReadyUI.FilterChip.ChipType(rawValue: ui2C035TypeRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-035: props.type must be Menu|Button|Font")
         }
         // §4 gives `active` and `label` no default (R-07) — a nil is a fixture bug.
@@ -3371,7 +3371,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         }
         // §4: "`font` is required in `type=Font`" and ignored by the other types. The value set is
         // C-092's (`CanvasTextObject.Font`), decoded exactly as C-092's own case decodes it.
-        var ui2C035Font: UI2Preview.CanvasTextObject.Font?
+        var ui2C035Font: MakeReadyUI.CanvasTextObject.Font?
         switch c.font {
         case "poppins": ui2C035Font = .poppins
         case "sfPro": ui2C035Font = .sfPro
@@ -3387,7 +3387,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // NO width frame: C-035 §3b — every type hugs its label, so the preview fills the device
         // width leading-aligned and a bare capture is the chip at its own size.
         return declareCase(
-            UI2Preview.FilterChip(
+            MakeReadyUI.FilterChip(
                 type: ui2C035Type,
                 active: ui2C035Active,
                 label: ui2C035Label,
@@ -3411,7 +3411,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-064: props.days must be an Int")
         }
         return declareCase(
-            UI2Preview.DateSpanIndicator(months: ui2C064Months, days: ui2C064Days),
+            MakeReadyUI.DateSpanIndicator(months: ui2C064Months, days: ui2C064Days),
             // OQ-PB-1: C-064 §2 fixes the component's own footprint at 184×88 (§1 deviation
             // 5: "The 88 and the 184 **are** set"), so the call site fixes no width — it
             // supplies the outer margin and the ground only, as C-052's and C-053's do.
@@ -3436,7 +3436,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-047: props.selected is required")
         }
         return declareCase(
-            UI2Preview.RadioOptionRow(
+            MakeReadyUI.RadioOptionRow(
                 title: ui2C047Title,
                 description: c.description,
                 selected: ui2C047Selected,
@@ -3461,44 +3461,44 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-048: props.label is required")
         }
         guard let ui2C048RoleRaw = c.role,
-              let ui2C048Role = UI2Preview.PageActionButton.Role(rawValue: ui2C048RoleRaw) else {
+              let ui2C048Role = MakeReadyUI.PageActionButton.Role(rawValue: ui2C048RoleRaw) else {
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-048: props.role must be affirmative|destructive|prominent|secondary|accent")
         }
         // C-048 §4 #3: `size` defaults to `.md`. It reuses the existing `size` field
         // (CaptureDoubleOrString, read as its string — the C-092 / card precedent).
-        var ui2C048Size = UI2Preview.PageActionButton.Size.md
+        var ui2C048Size = MakeReadyUI.PageActionButton.Size.md
         if let raw = c.size?.stringValue {
-            guard let s = UI2Preview.PageActionButton.Size(rawValue: raw) else {
+            guard let s = MakeReadyUI.PageActionButton.Size(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-048: props.size must be md|lg")
             }
             ui2C048Size = s
         }
         // C-048 §4 #3–#5: `glyph` is any library glyph (nil = label-only); `glyphPosition` and
         // `layout` default to `.trailing` / `.spread`. A value outside a closed set throws.
-        var ui2C048Glyph: UI2Preview.GlyphName?
+        var ui2C048Glyph: MakeReadyUI.GlyphName?
         if let raw = c.glyph {
-            guard let g = UI2Preview.GlyphName(rawValue: raw) else {
+            guard let g = MakeReadyUI.GlyphName(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-048: props.glyph '\(raw)' is not a library glyph")
             }
             ui2C048Glyph = g
         }
-        var ui2C048GlyphPosition = UI2Preview.PageActionButton.GlyphPosition.trailing
+        var ui2C048GlyphPosition = MakeReadyUI.PageActionButton.GlyphPosition.trailing
         if let raw = c.glyphPosition {
-            guard let p = UI2Preview.PageActionButton.GlyphPosition(rawValue: raw) else {
+            guard let p = MakeReadyUI.PageActionButton.GlyphPosition(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-048: props.glyphPosition must be leading|trailing")
             }
             ui2C048GlyphPosition = p
         }
-        var ui2C048Layout = UI2Preview.PageActionButton.Layout.spread
+        var ui2C048Layout = MakeReadyUI.PageActionButton.Layout.spread
         if let raw = c.layout {
-            guard let l = UI2Preview.PageActionButton.Layout(rawValue: raw) else {
+            guard let l = MakeReadyUI.PageActionButton.Layout(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-048: props.layout must be spread|centered")
             }
             ui2C048Layout = l
         }
         return declareCase(
-            UI2Preview.PageActionButton(
+            MakeReadyUI.PageActionButton(
                 label: ui2C048Label,
                 role: ui2C048Role,
                 size: ui2C048Size,
@@ -3525,7 +3525,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         // to a no-op in the view — so the `default` state's prop bag is authored empty and
         // nothing on `c` is read. §1 deviation 1: there is no variant prop to decode.
         return declareCase(
-            UI2Preview.ClearSearchButton(),
+            MakeReadyUI.ClearSearchButton(),
             // No master width to pin (OQ-PB-1): like C-021 this component states its own
             // footprint — §2's 32×32 frame — so the call site adds only the page margin
             // and the ground. §1 deviation 2: the frozen snapshot is framed over the design
@@ -3548,7 +3548,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-028: props.selected (String) is required")
         }
         return declareCase(
-            UI2Preview.InlineDropdown(options: ui2C028Options, selected: ui2C028Selected),
+            MakeReadyUI.InlineDropdown(options: ui2C028Options, selected: ui2C028Selected),
             // OQ-PB-1: C-028 §3b — "Width is not a variant": the row hugs its label, so the
             // component states its own footprint (61×24 at "All time") and the call site
             // fixes no width; it supplies the outer margin and the ground only. §2:
@@ -3565,9 +3565,9 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C049Label = c.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-049: props.label is required")
         }
-        let ui2C049Style: UI2Preview.LinkButton.Style
+        let ui2C049Style: MakeReadyUI.LinkButton.Style
         if let raw = c.style {
-            guard let parsed = UI2Preview.LinkButton.Style(rawValue: raw) else {
+            guard let parsed = MakeReadyUI.LinkButton.Style(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-049: props.style must be default|muted")
             }
             ui2C049Style = parsed
@@ -3575,7 +3575,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             ui2C049Style = .default
         }
         return declareCase(
-            UI2Preview.LinkButton(
+            MakeReadyUI.LinkButton(
                 label: ui2C049Label,
                 style: ui2C049Style,
                 // C-049 §4 gives `isEnabled` a default — `true` — so a missing key is the
@@ -3600,7 +3600,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C077DirectionRaw = c.direction else {
             throw ViewRegistryError.unknownView("component.ui2.C-077: props.direction is required")
         }
-        guard let ui2C077Direction = UI2Preview.TrendIndicator.Direction(rawValue: ui2C077DirectionRaw) else {
+        guard let ui2C077Direction = MakeReadyUI.TrendIndicator.Direction(rawValue: ui2C077DirectionRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-077: props.direction must be up|down|neutral")
         }
         // `polarity` (owner note 2026-09-17 04:23, assimilated) enumerates its values the same
@@ -3609,14 +3609,14 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C077PolarityRaw = c.polarity else {
             throw ViewRegistryError.unknownView("component.ui2.C-077: props.polarity is required")
         }
-        guard let ui2C077Polarity = UI2Preview.TrendIndicator.Polarity(rawValue: ui2C077PolarityRaw) else {
+        guard let ui2C077Polarity = MakeReadyUI.TrendIndicator.Polarity(rawValue: ui2C077PolarityRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-077: props.polarity must be positive|negative|neutral")
         }
         guard let ui2C077Label = c.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-077: props.label is required")
         }
         return declareCase(
-            UI2Preview.TrendIndicator(direction: ui2C077Direction, polarity: ui2C077Polarity, label: ui2C077Label),
+            MakeReadyUI.TrendIndicator(direction: ui2C077Direction, polarity: ui2C077Polarity, label: ui2C077Label),
             // OQ-PB-1: C-077 §3b — "Width is not a variant": the row hugs its label, so
             // the component states its own footprint and the call site fixes no width; it
             // supplies the outer margin and the ground only, as C-027's does.
@@ -3642,7 +3642,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C051StateRaw = c.state else {
             throw ViewRegistryError.unknownView("component.ui2.C-051: props.state is required")
         }
-        guard let ui2C051State = UI2Preview.AISuggestionsBlock.State(rawValue: ui2C051StateRaw) else {
+        guard let ui2C051State = MakeReadyUI.AISuggestionsBlock.State(rawValue: ui2C051StateRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-051: props.state must be prompt|generating|list|regenerating")
         }
         guard let ui2C051PromptCopy = c.promptCopy else {
@@ -3652,7 +3652,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-051: props.suggestions is required")
         }
         return declareCase(
-            UI2Preview.AISuggestionsBlock(
+            MakeReadyUI.AISuggestionsBlock(
                 state: ui2C051State,
                 promptCopy: ui2C051PromptCopy,
                 suggestions: ui2C051Suggestions
@@ -3673,7 +3673,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-050: props.title is required")
         }
         return declareCase(
-            UI2Preview.SuggestionRow(title: ui2C050Title),
+            MakeReadyUI.SuggestionRow(title: ui2C050Title),
             // OQ-PB-1: C-050 §1 deviation 1 — "Width is container-driven … the three consumed
             // instances in `3860:8334` are 408 (the page's content width)". The sheet symbol
             // is 304, but the consumer is what the row is for, so the call site fixes the
@@ -3691,7 +3691,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-078: props.suggestions is required")
         }
         return declareCase(
-            UI2Preview.SuggestionRows(suggestions: ui2C078Suggestions),
+            MakeReadyUI.SuggestionRows(suggestions: ui2C078Suggestions),
             // OQ-PB-1: C-078 §1 deviation 1 — "Width is container-driven. Both designed
             // instances are 408 wide — the page's content width." The call site fixes that
             // master width (C-051's own) and supplies the margin and the ground (R-16).
@@ -3714,7 +3714,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C070Day = c.day?.stringValue else {
             throw ViewRegistryError.unknownView("component.ui2.C-070: props.day (String) is required")
         }
-        let ui2C070State: UI2Preview.DateBlock.State
+        let ui2C070State: MakeReadyUI.DateBlock.State
         switch c.state {
         case "default": ui2C070State = .default
         case "today": ui2C070State = .today
@@ -3722,7 +3722,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-070: props.state must be default|today")
         }
         return declareCase(
-            UI2Preview.DateBlock(
+            MakeReadyUI.DateBlock(
                 month: ui2C070Month,
                 weekday: ui2C070Weekday,
                 day: ui2C070Day,
@@ -3743,7 +3743,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C071Line1 = c.line1 else {
             throw ViewRegistryError.unknownView("component.ui2.C-071: props.line1 is required")
         }
-        let ui2C071State: UI2Preview.ValuePair.State
+        let ui2C071State: MakeReadyUI.ValuePair.State
         switch c.state {
         case "default": ui2C071State = .default
         case "nothing": ui2C071State = .nothing
@@ -3758,7 +3758,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             )
         }
         return declareCase(
-            UI2Preview.ValuePair(
+            MakeReadyUI.ValuePair(
                 line1: ui2C071Line1,
                 line2: c.line2,
                 state: ui2C071State
@@ -3777,14 +3777,14 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         // defect, not a default" — so each kind guards its own required props and throws. The
         // genuinely optional ones read straight through: `averageLabel` (nil = line only),
         // `percent` (only `percentCircle`), `line2` (C-071's single-line states).
-        let ui2C023Kind: UI2Preview.RailCard.Kind
+        let ui2C023Kind: MakeReadyUI.RailCard.Kind
         switch c.kind {
         case "metric": ui2C023Kind = .metric
         case "day": ui2C023Kind = .day
         default:
             throw ViewRegistryError.unknownView("component.ui2.C-023: props.kind must be metric|day")
         }
-        let ui2C023Card: UI2Preview.RailCard
+        let ui2C023Card: MakeReadyUI.RailCard
         let ui2C023Width: CGFloat
         switch ui2C023Kind {
         case .metric:
@@ -3801,11 +3801,11 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             // rule): an unrecognised value throws rather than rendering a plausible arrow, and
             // the pair is never validated together — all nine cells are legal (OQ-C-077-4).
             guard let directionRaw = c.trendDirection,
-                  let direction = UI2Preview.TrendIndicator.Direction(rawValue: directionRaw) else {
+                  let direction = MakeReadyUI.TrendIndicator.Direction(rawValue: directionRaw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-023: metric — props.trendDirection must be up|down|neutral")
             }
             guard let polarityRaw = c.trendPolarity,
-                  let polarity = UI2Preview.TrendIndicator.Polarity(rawValue: polarityRaw) else {
+                  let polarity = MakeReadyUI.TrendIndicator.Polarity(rawValue: polarityRaw) else {
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-023: metric — props.trendPolarity must be positive|negative|neutral"
                 )
@@ -3813,7 +3813,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             guard let trendLabel = c.trendLabel else {
                 throw ViewRegistryError.unknownView("component.ui2.C-023: metric — props.trendLabel is required")
             }
-            ui2C023Card = UI2Preview.RailCard(
+            ui2C023Card = MakeReadyUI.RailCard(
                 kind: .metric,
                 title: title,
                 series: series,
@@ -3827,7 +3827,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             // prop, so the call site fixes the kind's master width (R-16).
             ui2C023Width = 140
         case .day:
-            let dayState: UI2Preview.RailCard.DayState
+            let dayState: MakeReadyUI.RailCard.DayState
             switch c.state {
             case "standard": dayState = .standard
             case "transparent": dayState = .transparent
@@ -3848,7 +3848,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             guard let day = c.day?.stringValue else {
                 throw ViewRegistryError.unknownView("component.ui2.C-023: day — props.day (String) is required")
             }
-            let dateState: UI2Preview.DateBlock.State
+            let dateState: MakeReadyUI.DateBlock.State
             switch c.dateState {
             case "default": dateState = .default
             case "today": dateState = .today
@@ -3867,7 +3867,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             guard let line1 = c.line1 else {
                 throw ViewRegistryError.unknownView("component.ui2.C-023: day — props.line1 is required")
             }
-            let detailsState: UI2Preview.ValuePair.State
+            let detailsState: MakeReadyUI.ValuePair.State
             switch c.detailsState {
             case "default": detailsState = .default
             case "nothing": detailsState = .nothing
@@ -3881,7 +3881,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
                     "component.ui2.C-023: day — props.detailsState must be default|nothing|muted|lessonDay|highlighted|single|singleMuted"
                 )
             }
-            ui2C023Card = UI2Preview.RailCard(
+            ui2C023Card = MakeReadyUI.RailCard(
                 kind: .day,
                 series: c.series,
                 state: dayState,
@@ -3928,11 +3928,11 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         // OQ-C-031-1: the closed set C-033 §3b reads from its own `color` field; C-031's
         // prop is `statusColor`, so it is carried under that name (rule 3's second bound).
         guard let ui2C031Raw = c.statusColor,
-              let ui2C031Color = UI2Preview.EnrollmentStatusRow.StatusColor(rawValue: ui2C031Raw) else {
+              let ui2C031Color = MakeReadyUI.EnrollmentStatusRow.StatusColor(rawValue: ui2C031Raw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-031: props.statusColor must be green|yellow|red")
         }
         return declareCase(
-            UI2Preview.EnrollmentStatusRow(
+            MakeReadyUI.EnrollmentStatusRow(
                 percent: ui2C031Percent,
                 label: ui2C031Label,
                 count: ui2C031Count,
@@ -3956,11 +3956,11 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C068Label = c.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-068: missing props.label")
         }
-        guard let ui2C068Style = UI2Preview.TagChip.Style(rawValue: c.style ?? "default") else {
+        guard let ui2C068Style = MakeReadyUI.TagChip.Style(rawValue: c.style ?? "default") else {
             throw ViewRegistryError.unknownView("component.ui2.C-068: props.style must be default|solid")
         }
         return declareCase(
-            UI2Preview.TagChip(label: ui2C068Label, style: ui2C068Style),
+            MakeReadyUI.TagChip(label: ui2C068Label, style: ui2C068Style),
             // OQ-PB-1: C-068 §1 deviation 2 — the chip is content-width (hug), "a consumer
             // never sets its width", so the component states its own footprint and the
             // call site fixes no width; it supplies the outer margin and the ground only.
@@ -3978,16 +3978,16 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C043Value = c.value else {
             throw ViewRegistryError.unknownView("component.ui2.C-043: missing props.value")
         }
-        guard let ui2C043State = UI2Preview.MetaChip.State(rawValue: c.state ?? "default") else {
+        guard let ui2C043State = MakeReadyUI.MetaChip.State(rawValue: c.state ?? "default") else {
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-043: props.state must be default|accent|complete|highlighted|muted")
         }
-        guard let ui2C043LabelPosition = UI2Preview.MetaChip.LabelPosition(
+        guard let ui2C043LabelPosition = MakeReadyUI.MetaChip.LabelPosition(
             rawValue: c.labelPosition ?? "trailing") else {
             throw ViewRegistryError.unknownView("component.ui2.C-043: props.labelPosition must be trailing|leading")
         }
         return declareCase(
-            UI2Preview.MetaChip(
+            MakeReadyUI.MetaChip(
                 value: ui2C043Value,
                 label: c.label,
                 state: ui2C043State,
@@ -4006,20 +4006,20 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         // C-076 §4 defaults every prop to the designed value, so a missing key is the
         // contract's own default, never a guess. `period` is not read: the shared `period`
         // field is a String (CaptureComponent), and a static capture is phase 0 at any period.
-        var ui2C076Color = UI2Preview.Token.accent
+        var ui2C076Color = MakeReadyUI.Token.accent
         if let name = c.color {
             switch name {
-            case "color-accent":        ui2C076Color = UI2Preview.Token.accent
-            case "color-text-primary":  ui2C076Color = UI2Preview.Token.textPrimary
-            case "color-positive":      ui2C076Color = UI2Preview.Token.positive
-            case "color-negative":      ui2C076Color = UI2Preview.Token.negative
-            case "color-highlight":     ui2C076Color = UI2Preview.Token.highlight
+            case "color-accent":        ui2C076Color = MakeReadyUI.Token.accent
+            case "color-text-primary":  ui2C076Color = MakeReadyUI.Token.textPrimary
+            case "color-positive":      ui2C076Color = MakeReadyUI.Token.positive
+            case "color-negative":      ui2C076Color = MakeReadyUI.Token.negative
+            case "color-highlight":     ui2C076Color = MakeReadyUI.Token.highlight
             default:
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-076: props.color '\(name)' is not a colour token this case resolves")
             }
         }
-        var ui2C076Direction = UI2Preview.ActivitySpinner.RotationDirection.clockwise
+        var ui2C076Direction = MakeReadyUI.ActivitySpinner.RotationDirection.clockwise
         if let raw = c.direction {
             switch raw {
             case "clockwise":        ui2C076Direction = .clockwise
@@ -4030,7 +4030,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             }
         }
         return declareCase(
-            UI2Preview.ActivitySpinner(
+            MakeReadyUI.ActivitySpinner(
                 size: CGFloat(c.size?.doubleValue ?? 24),
                 strokeWidth: CGFloat(c.strokeWidth ?? 2),
                 color: ui2C076Color,
@@ -4054,24 +4054,24 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C020Title = c.title else {
             throw ViewRegistryError.unknownView("component.ui2.C-020: props.title is required")
         }
-        guard let ui2C020Style = UI2Preview.SectionHeader.Style(rawValue: c.style ?? "section") else {
+        guard let ui2C020Style = MakeReadyUI.SectionHeader.Style(rawValue: c.style ?? "section") else {
             throw ViewRegistryError.unknownView("component.ui2.C-020: props.style must be section|block")
         }
-        let ui2C020Accessory: UI2Preview.SectionHeader.Accessory
+        let ui2C020Accessory: MakeReadyUI.SectionHeader.Accessory
         if let a = c.accessory?.meta {
-            guard let glyph = UI2Preview.GlyphButton.Glyph(rawValue: a.glyph) else {
+            guard let glyph = MakeReadyUI.GlyphButton.Glyph(rawValue: a.glyph) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-020: accessory.meta.glyph is not a C-021 glyph")
             }
             ui2C020Accessory = .meta(value: a.value, label: a.label, glyph: glyph)
         } else if let a = c.accessory?.link {
-            guard let linkStyle = UI2Preview.LinkButton.Style(rawValue: a.style) else {
+            guard let linkStyle = MakeReadyUI.LinkButton.Style(rawValue: a.style) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-020: accessory.link.style must be default|muted")
             }
             ui2C020Accessory = .link(label: a.label, style: linkStyle)
         } else if let a = c.accessory?.dropdown {
             ui2C020Accessory = .dropdown(label: a.label)
         } else if let a = c.accessory?.caption {
-            guard let glyph = UI2Preview.GlyphButton.Glyph(rawValue: a.glyph) else {
+            guard let glyph = MakeReadyUI.GlyphButton.Glyph(rawValue: a.glyph) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-020: accessory.caption.glyph is not a C-021 glyph")
             }
             ui2C020Accessory = .caption(label: a.label, glyph: glyph)
@@ -4079,7 +4079,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             ui2C020Accessory = .none
         }
         return declareCase(
-            UI2Preview.SectionHeader(title: ui2C020Title, style: ui2C020Style, accessory: ui2C020Accessory),
+            MakeReadyUI.SectionHeader(title: ui2C020Title, style: ui2C020Style, accessory: ui2C020Accessory),
             // OQ-PB-1: C-020 §2 — width-driven (R-16); every live instance's content width is
             // 408 (440 with px16, or 408 at x16 — §1 deviation 1), so the call site fixes that
             // master width and supplies the outer margin and the ground.
@@ -4090,7 +4090,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("screen.2.0.edit-text-single-field: missing state.component")
         }
         // A missing field takes this build's `clean` sample (§2's Group name content table).
-        let screen = UI2Preview.EditTextSingleFieldScreen(
+        let screen = MakeReadyUI.EditTextSingleFieldScreen(
             state: .init(
                 title: c.title ?? "Group name",
                 description: c.description ?? "The group name is the primary title for your group that will be surfaced anytime the group is displayed in a MakeReady app",
@@ -4115,7 +4115,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("screen.2.0.edit-option-field: missing state.component")
         }
         // A missing field takes this build's `clean` sample (the Visibility Use, frozen frame).
-        let screen = UI2Preview.EditOptionFieldScreen(
+        let screen = MakeReadyUI.EditOptionFieldScreen(
             state: .init(
                 title: c.title ?? "Visibility",
                 description: c.description ?? "Visibility determines who is able to view the group",
@@ -4140,7 +4140,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("screen.2.0.edit-options-custom-field: missing state.component")
         }
         // A missing field takes this build's `clean` sample (the Age-range instance, frozen frame).
-        let screen = UI2Preview.EditOptionsCustomFieldScreen(
+        let screen = MakeReadyUI.EditOptionsCustomFieldScreen(
             state: .init(
                 title: c.title ?? "Age range",
                 description: c.description ?? "If an age range is specified, then every member who joins must fall within the specified range.",
@@ -4171,7 +4171,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         }
         // A missing field takes this build's `clean` sample (§2's Group description content table;
         // the label is OQ-edit-text-multi-field-1's proposed default).
-        let screen = UI2Preview.EditTextMultiFieldScreen(
+        let screen = MakeReadyUI.EditTextMultiFieldScreen(
             state: .init(
                 title: c.title ?? "Description",
                 description: c.description ?? "The group description is used to help others understand the purpose of your group at a glance.",
@@ -4207,7 +4207,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-032: props.createdLabel is required")
         }
         return declareCase(
-            UI2Preview.FollowedProgramHeader(title: ui2C032Title, author: ui2C032Author, createdLabel: ui2C032Created),
+            MakeReadyUI.FollowedProgramHeader(title: ui2C032Title, author: ui2C032Author, createdLabel: ui2C032Created),
             // C-032 §2: "At the designed width of 408, the call site's `space-page-margin` inset
             // sits outside this row" — the master width, margin and ground live here (R-16).
             PreviewFrame(width: 408)
@@ -4235,12 +4235,12 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         // names — `state: accent` (OQ-C-043-5) and `labelPosition: leading | trailing`
         // (OQ-C-043-1), which C-043 §4 and its build carry since 2026-10-24; `purple` is still
         // read as `accent` for older fixtures. An unrecognised value throws.
-        var ui2C054Chips: [UI2Preview.AvatarProgressRow.Chip] = []
+        var ui2C054Chips: [MakeReadyUI.AvatarProgressRow.Chip] = []
         for (index, item) in ui2C054Metadata.enumerated() {
             guard let value = item.value else {
                 throw ViewRegistryError.unknownView("component.ui2.C-054: metadata[\(index)].value is required")
             }
-            let state: UI2Preview.MetaChip.State
+            let state: MakeReadyUI.MetaChip.State
             switch item.state ?? "default" {
             case "accent", "purple": state = .accent
             case "default": state = .default
@@ -4249,7 +4249,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-054: metadata[\(index)].state must be default|accent|complete")
             }
-            let labelPosition: UI2Preview.MetaChip.LabelPosition
+            let labelPosition: MakeReadyUI.MetaChip.LabelPosition
             switch item.labelPosition ?? "trailing" {
             case "trailing": labelPosition = .trailing
             case "leading": labelPosition = .leading
@@ -4264,10 +4264,10 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         let ui2C054ImageURL = c.imageURL.flatMap(URL.init(string:))
         if let photoURL = ui2C054ImageURL, photoURL.scheme?.hasPrefix("http") == true,
            let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
         }
         return declareCase(
-            UI2Preview.AvatarProgressRow(
+            MakeReadyUI.AvatarProgressRow(
                 title: ui2C054Title,
                 imageURL: ui2C054ImageURL,
                 initials: c.initials,
@@ -4295,7 +4295,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-060: props.day (String) is required")
         }
         return declareCase(
-            UI2Preview.CalendarDateCard(month: ui2C060Month, weekday: ui2C060Weekday, day: ui2C060Day),
+            MakeReadyUI.CalendarDateCard(month: ui2C060Month, weekday: ui2C060Weekday, day: ui2C060Day),
             // C-060 §1 deviation 4: "Width is the call site's (R-16); 96 is what every known call
             // site gives" — the master width, margin and ground live here.
             PreviewFrame(width: 96)
@@ -4317,7 +4317,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             ui2C079Image = Image(uiImage: uiImage)
         }
         return declareCase(
-            UI2Preview.ActivityScreenshot(image: ui2C079Image),
+            MakeReadyUI.ActivityScreenshot(image: ui2C079Image),
             // C-079 §2: "The design instance is 112×244" — the master width, margin and
             // ground live here (R-16); the height follows from the width.
             PreviewFrame(width: 112)
@@ -4334,7 +4334,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let label = c.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-067: missing props.label")
         }
-        let ui2C067Tone: UI2Preview.ActionMenuRow.Tone
+        let ui2C067Tone: MakeReadyUI.ActionMenuRow.Tone
         switch c.tone ?? "standard" {
         case "standard": ui2C067Tone = .standard
         case "destructive": ui2C067Tone = .destructive
@@ -4342,7 +4342,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-067: props.tone \"\(other)\" must be standard|destructive")
         }
         return declareCase(
-            UI2Preview.ActionMenuRow(glyph: glyph, label: label, tone: ui2C067Tone),
+            MakeReadyUI.ActionMenuRow(glyph: glyph, label: label, tone: ui2C067Tone),
             // C-067 §1: the symbol is 369×56 — the master width; margin and ground live
             // here (R-16).
             PreviewFrame(width: 369)
@@ -4357,7 +4357,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C080GlyphRaw = c.glyph else {
             throw ViewRegistryError.unknownView("component.ui2.C-080: missing props.glyph")
         }
-        guard let ui2C080Glyph = UI2Preview.GlyphName(rawValue: ui2C080GlyphRaw) else {
+        guard let ui2C080Glyph = MakeReadyUI.GlyphName(rawValue: ui2C080GlyphRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-080: props.glyph \"\(ui2C080GlyphRaw)\" is not a library glyph")
         }
         guard let ui2C080Title = c.title else {
@@ -4367,7 +4367,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-080: missing props.description")
         }
         return declareCase(
-            UI2Preview.ActivityTypeCard(
+            MakeReadyUI.ActivityTypeCard(
                 glyph: ui2C080Glyph,
                 title: ui2C080Title,
                 description: ui2C080Description
@@ -4383,19 +4383,19 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         // A missing field takes this build's `populated` sample (the frozen frame `default`),
         // single-sourced on the screen's State so the props, the #Preview blocks and this case
         // cannot drift apart.
-        let sample = UI2Preview.HomeDashboardScreen.State.populated
+        let sample = MakeReadyUI.HomeDashboardScreen.State.populated
         // C-033's avatars: the fixture names each photo by URL and the harness resolves the
         // bytes (the same seam the C-033 case uses) — the view itself performs no network.
         for photo in c.groupPhotoURLs ?? sample.groupPhotoURLs {
             if let photoURL = URL(string: photo), photoURL.scheme?.hasPrefix("http") == true,
-               UI2Preview.Ui2ImageCache.shared.image(for: photoURL) == nil,
+               MakeReadyUI.Ui2ImageCache.shared.image(for: photoURL) == nil,
                let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-                UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+                MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
             }
         }
         // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
         // max(its height, the content's length), under the top safe area — the bare screen here.
-        return AnyView(UI2Preview.HomeDashboardScreen(
+        return AnyView(MakeReadyUI.HomeDashboardScreen(
             state: .init(
                 metricCount: c.metricCount ?? sample.metricCount,
                 kpiTitles: c.kpiTitles ?? sample.kpiTitles,
@@ -4465,7 +4465,7 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-061: props.label is required")
         }
         return declareCase(
-            UI2Preview.ActivitySlide(active: ui2C061Active, label: ui2C061Label),
+            MakeReadyUI.ActivitySlide(active: ui2C061Active, label: ui2C061Label),
             // C-061 §2: "Fixed 33×44, its intrinsic size. The host places it and does not
             // stretch it." — no master width; margin and ground live here (R-16).
             PreviewFrame(intrinsic: true)
@@ -4476,10 +4476,10 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         }
         // A missing field takes this build's `empty` sample (the preview linked to the frozen
         // frame `default`), single-sourced on the screen's State.
-        let sample = UI2Preview.CreateStudyProgramScreen.State.empty
+        let sample = MakeReadyUI.CreateStudyProgramScreen.State.empty
         // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
         // max(its height, the content's length), under the top safe area — the bare screen here.
-        return AnyView(UI2Preview.CreateStudyProgramScreen(
+        return AnyView(MakeReadyUI.CreateStudyProgramScreen(
             state: .init(
                 text: c.text ?? sample.text,
                 creating: c.creating ?? sample.creating,
@@ -4492,9 +4492,9 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         }
         // A missing field takes this build's `empty` sample (the preview linked to the frozen
         // frame `default`), single-sourced on the screen's State.
-        let sample = UI2Preview.CreateGroupScreen.State.empty
+        let sample = MakeReadyUI.CreateGroupScreen.State.empty
         // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
-        return AnyView(UI2Preview.CreateGroupScreen(
+        return AnyView(MakeReadyUI.CreateGroupScreen(
             state: .init(
                 text: c.text ?? sample.text,
                 focused: c.focused ?? sample.focused,
@@ -4507,9 +4507,9 @@ private func buildCaptureViewPart7(_ fixture: CaptureFixture, authManager: AuthM
         }
         // A missing field takes this build's `name-empty` sample (§3's initial state),
         // single-sourced on the screen's State.
-        let sample = UI2Preview.InviteMemberScreen.State.nameEmpty
+        let sample = MakeReadyUI.InviteMemberScreen.State.nameEmpty
         // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
-        return AnyView(UI2Preview.InviteMemberScreen(
+        return AnyView(MakeReadyUI.InviteMemberScreen(
             state: .init(
                 step: c.step ?? sample.step,
                 inviteeName: c.inviteeName ?? sample.inviteeName,
@@ -4538,7 +4538,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         guard let text = c.text else {
             throw ViewRegistryError.unknownView("component.ui2.C-065: missing props.text")
         }
-        let ui2C065Tone: UI2Preview.TimelineEventRow.Tone
+        let ui2C065Tone: MakeReadyUI.TimelineEventRow.Tone
         switch c.tone ?? "neutral" {
         case "neutral": ui2C065Tone = .neutral
         case "positive": ui2C065Tone = .positive
@@ -4547,7 +4547,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-065: props.tone \"\(other)\" must be neutral|positive|accent")
         }
         return declareCase(
-            UI2Preview.TimelineEventRow(dateLabel: dateLabel, text: text, highlight: c.highlight, tone: ui2C065Tone),
+            MakeReadyUI.TimelineEventRow(dateLabel: dateLabel, text: text, highlight: c.highlight, tone: ui2C065Tone),
             // C-065 §2: the symbols are 408 wide (440 − 2 × `space-page-margin`) — the master
             // width; margin and ground live here (R-16).
             PreviewFrame(width: 408)
@@ -4560,7 +4560,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         // to a no-op in the view — so each state's prop bag is authored empty and nothing on
         // `c` is read. §3 `pressed` is ephemeral (R-02, OQ-C-036-8) and has no prop to set.
         return declareCase(
-            UI2Preview.ModalCloseButton(),
+            MakeReadyUI.ModalCloseButton(),
             // No master width: §2 fixes the control at 44×44 and the host positions it,
             // so the call site adds only the page margin and the ground (R-16).
             PreviewFrame(intrinsic: true)
@@ -4582,7 +4582,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C055RawRows = c.rows else {
             throw ViewRegistryError.unknownView("component.ui2.C-055: props.rows is required (may be [])")
         }
-        var ui2C055Rows: [UI2Preview.CategoryBarTable.Row] = []
+        var ui2C055Rows: [MakeReadyUI.CategoryBarTable.Row] = []
         for (index, row) in ui2C055RawRows.enumerated() {
             guard let label = row.label, let progress = row.progress, let countLabel = row.countLabel else {
                 throw ViewRegistryError.unknownView(
@@ -4591,7 +4591,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
             ui2C055Rows.append(.init(label: label, progress: progress, countLabel: countLabel))
         }
         return declareCase(
-            UI2Preview.CategoryBarTable(
+            MakeReadyUI.CategoryBarTable(
                 valueColumnTitle: ui2C055ValueTitle,
                 countColumnTitle: ui2C055CountTitle,
                 rows: ui2C055Rows
@@ -4606,7 +4606,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         // C-059 §4: `state`, `title`, `progress` and `metaChips` are required (no contract
         // default), so a nil is a fixture bug. `description`, `caption` and `cover` default to nil;
         // `onTap` is §4's no-op default (the initializer without it) — no render effect.
-        guard let ui2C059State = c.state.flatMap(UI2Preview.StudyProgramRow.State.init(rawValue:)) else {
+        guard let ui2C059State = c.state.flatMap(MakeReadyUI.StudyProgramRow.State.init(rawValue:)) else {
             throw ViewRegistryError.unknownView("component.ui2.C-059: props.state must be Condensed|Progress|Complete|Enrolled|Program")
         }
         guard let ui2C059Title = c.title else {
@@ -4620,7 +4620,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         }
         // Each entry is a C-043 MetaChip's own §4 props, spelled as C-043 §4 spells them
         // (`state`, and `align` → C-043 `labelPosition`) with C-043's defaults.
-        var ui2C059Chips: [UI2Preview.StudyProgramRow.Chip] = []
+        var ui2C059Chips: [MakeReadyUI.StudyProgramRow.Chip] = []
         for (index, item) in ui2C059MetaChips.enumerated() {
             guard let value = item.value else {
                 throw ViewRegistryError.unknownView("component.ui2.C-059: metaChips[\(index)].value is required")
@@ -4628,7 +4628,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
             // C-043 §4 renamed `purple` → `accent` (OQ-C-043-5) and `align: left|right` →
             // `labelPosition: trailing|leading` (OQ-C-043-1); this row's own §4 still spells the tuple
             // `align`, so both spellings are read.
-            let state: UI2Preview.MetaChip.State
+            let state: MakeReadyUI.MetaChip.State
             switch item.state ?? "default" {
             case "default": state = .default
             case "accent", "purple": state = .accent
@@ -4639,7 +4639,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 throw ViewRegistryError.unknownView(
                     "component.ui2.C-059: metaChips[\(index)].state must be default|accent|complete|highlighted|muted")
             }
-            let align: UI2Preview.MetaChip.LabelPosition
+            let align: MakeReadyUI.MetaChip.LabelPosition
             switch item.align ?? "left" {
             case "left", "trailing": align = .trailing
             case "right", "leading": align = .leading
@@ -4660,7 +4660,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
             ui2C059Cover = Image(uiImage: uiImage)
         }
         return declareCase(
-            UI2Preview.StudyProgramRow(
+            MakeReadyUI.StudyProgramRow(
                 state: ui2C059State,
                 title: ui2C059Title,
                 description: c.description,
@@ -4680,7 +4680,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         // C-063 §4: `header`, `title`, `metaLabel` and `slides` are required (R-07 — no
         // designed default), so a nil is a fixture bug. `progress` is `Double?` (nil = none).
         // `onOpen` / `onSelectSlide` are §4's no-op defaults — no render effect.
-        let ui2C063Header: UI2Preview.LessonCard.Header
+        let ui2C063Header: MakeReadyUI.LessonCard.Header
         if let numbered = c.header?.numbered, c.header?.linked == nil {
             ui2C063Header = .numbered(lessonNumber: numbered.lessonNumber)
         } else if let linked = c.header?.linked, c.header?.numbered == nil {
@@ -4701,7 +4701,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         // Each slide's `image` is named by URL and resolved here, playing the caller (R-19 /
         // R-32; the C-079 precedent). Absent is `nil` (C-079 `empty`); a URL that is present
         // but unreadable is a fixture bug.
-        var ui2C063Slides: [UI2Preview.LessonCard.Slide] = []
+        var ui2C063Slides: [MakeReadyUI.LessonCard.Slide] = []
         for (index, item) in ui2C063RawSlides.enumerated() {
             guard let label = item.label else {
                 throw ViewRegistryError.unknownView("component.ui2.C-063: slides[\(index)].label is required")
@@ -4718,7 +4718,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
             ui2C063Slides.append(.init(image: image, label: label))
         }
         return declareCase(
-            UI2Preview.LessonCard(
+            MakeReadyUI.LessonCard(
                 header: ui2C063Header,
                 title: ui2C063Title,
                 metaLabel: ui2C063MetaLabel,
@@ -4744,7 +4744,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         // Each slide's `image` is named by URL and resolved here, playing the caller (R-19 /
         // R-32; the C-079 / C-063 precedent). Absent is `nil` (→ C-061); a URL that is present
         // but unreadable is a fixture bug.
-        var ui2C081Slides: [UI2Preview.ActivityNavBar.Slide] = []
+        var ui2C081Slides: [MakeReadyUI.ActivityNavBar.Slide] = []
         for (index, item) in ui2C081RawSlides.enumerated() {
             guard let id = item.id else {
                 throw ViewRegistryError.unknownView("component.ui2.C-081: slides[\(index)].id is required")
@@ -4764,12 +4764,12 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
             ui2C081Slides.append(.init(id: id, image: image, label: label))
         }
         return AnyView(
-            UI2Preview.ActivityNavBar(slides: ui2C081Slides, activeID: c.activeID)
+            MakeReadyUI.ActivityNavBar(slides: ui2C081Slides, activeID: c.activeID)
             // C-081 §1: symbol 440×76 — the master width. The four-side 16 inset is the bar's
             // own (§2 Padding), so the call site adds no margin, only the ground (R-16).
             .frame(width: 440)
             .frame(maxWidth: .infinity)
-            .background(UI2Preview.Token.layoutBackground)
+            .background(MakeReadyUI.Token.layoutBackground)
         )
     case "screen.2.0.members-profile":
         guard let c = fixture.state?.component else {
@@ -4777,7 +4777,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         }
         // A missing field takes this build's `populated` sample (the preview linked to the frozen
         // frame `default`), single-sourced on the screen's State.
-        let sample = UI2Preview.MembersProfileScreen.State.populated
+        let sample = MakeReadyUI.MembersProfileScreen.State.populated
         // C-038 / C-037 photos and C-059 covers: the fixture names each image by URL and the
         // harness resolves the bytes into the preview module's cache (the home-dashboard seam) —
         // the view itself performs no network.
@@ -4786,14 +4786,14 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
             + (c.programCoverURLs ?? sample.programCoverURLs)
         for raw in ui2MembersProfileImages {
             if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
-               UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+               MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
                let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-                UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+                MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
             }
         }
         // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
         // max(its height, the content's length), under the top safe area — the bare screen here.
-        return AnyView(UI2Preview.MembersProfileScreen(
+        return AnyView(MakeReadyUI.MembersProfileScreen(
             state: .init(
                 memberName: c.memberName ?? sample.memberName,
                 email: c.email ?? sample.email,
@@ -4841,7 +4841,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         }
         // OQ-C-036-009's selection API: `selectionMode` and `selectedIDs` are both required
         // (R-07); an empty `selectedIDs` is legal (a plain option menu with no checkmark).
-        let ui2C036Mode: UI2Preview.FilterMenuOverlay.SelectionMode
+        let ui2C036Mode: MakeReadyUI.FilterMenuOverlay.SelectionMode
         switch c.selectionMode {
         case "single": ui2C036Mode = .single
         case "multiple": ui2C036Mode = .multiple
@@ -4851,9 +4851,9 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C036Selected = c.selectedIDs else {
             throw ViewRegistryError.unknownView("component.ui2.C-036: props.selectedIDs is required (may be [])")
         }
-        let ui2C036View = UI2Preview.FilterMenuOverlay(
+        let ui2C036View = MakeReadyUI.FilterMenuOverlay(
             options: ui2C036Options.map {
-                UI2Preview.FilterMenuOverlay.Option(id: $0.id, label: $0.label, glyph: $0.glyph)
+                MakeReadyUI.FilterMenuOverlay.Option(id: $0.id, label: $0.label, glyph: $0.glyph)
             },
             selectionMode: ui2C036Mode,
             selectedIDs: Set(ui2C036Selected)
@@ -4872,7 +4872,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 53) }
                 .frame(width: 440, height: 893)
                 .frame(maxWidth: .infinity)
-                .background(UI2Preview.Token.layoutBackground)  // OQ-PB-2 default
+                .background(MakeReadyUI.Token.layoutBackground)  // OQ-PB-2 default
         )
     case "screen.2.0.members-home":
         guard let c = fixture.state?.component else {
@@ -4880,20 +4880,20 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         }
         // A missing field takes this build's `populated` sample (the preview linked to the frozen
         // frame `default`), single-sourced on the screen's State.
-        let sample = UI2Preview.MembersHomeScreen.State.populated
+        let sample = MakeReadyUI.MembersHomeScreen.State.populated
         // C-038 photos inside C-037: the fixture names each image by URL and the harness resolves
         // the bytes into the preview module's cache (the home-dashboard seam) — the view itself
         // performs no network.
         for raw in c.memberPhotoURLs ?? sample.memberPhotoURLs {
             if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
-               UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+               MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
                let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-                UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+                MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
             }
         }
         // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
         // max(its height, the content's length), under the top safe area — the bare screen here.
-        return AnyView(UI2Preview.MembersHomeScreen(
+        return AnyView(MakeReadyUI.MembersHomeScreen(
             state: .init(
                 searchText: c.searchText ?? sample.searchText,
                 groupFilterLabel: c.groupFilterLabel ?? sample.groupFilterLabel,
@@ -4912,20 +4912,20 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         }
         // A missing field takes this build's `populated` sample (the preview linked to the frozen
         // frame `default`), single-sourced on the screen's State.
-        let sample = UI2Preview.GroupsHomeScreen.State.populated
+        let sample = MakeReadyUI.GroupsHomeScreen.State.populated
         // C-038 photos inside C-037: the fixture names each image by URL and the harness resolves
         // the bytes into the preview module's cache (the home-dashboard seam) — the view itself
         // performs no network.
         for raw in c.groupPhotoURLs ?? sample.groupPhotoURLs {
             if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
-               UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+               MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
                let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-                UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+                MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
             }
         }
         // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
         // max(its height, the content's length), under the top safe area — the bare screen here.
-        return AnyView(UI2Preview.GroupsHomeScreen(
+        return AnyView(MakeReadyUI.GroupsHomeScreen(
             state: .init(
                 searchText: c.searchText ?? sample.searchText,
                 orgFilterVisible: c.orgFilterVisible ?? sample.orgFilterVisible,
@@ -4957,10 +4957,10 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         let ui2C058ImageURL = c.imageURL.flatMap(URL.init(string:))
         if let photoURL = ui2C058ImageURL, photoURL.scheme?.hasPrefix("http") == true,
            let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
         }
         return declareCase(
-            UI2Preview.GroupSectionHeader(
+            MakeReadyUI.GroupSectionHeader(
                 groupName: ui2C058GroupName,
                 leaderName: ui2C058LeaderName,
                 imageURL: ui2C058ImageURL,
@@ -5030,20 +5030,20 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C105Label = c.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-105: props.label is required")
         }
-        let ui2C105Leading = try c.leadingGlyph.map { raw -> UI2Preview.GlyphName in
-            guard let name = UI2Preview.GlyphName(rawValue: raw) else {
+        let ui2C105Leading = try c.leadingGlyph.map { raw -> MakeReadyUI.GlyphName in
+            guard let name = MakeReadyUI.GlyphName(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-105: props.leadingGlyph \"\(raw)\" is not a library glyph")
             }
             return name
         }
-        let ui2C105Trailing = try c.trailingGlyph.map { raw -> UI2Preview.GlyphName in
-            guard let name = UI2Preview.GlyphName(rawValue: raw) else {
+        let ui2C105Trailing = try c.trailingGlyph.map { raw -> MakeReadyUI.GlyphName in
+            guard let name = MakeReadyUI.GlyphName(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-105: props.trailingGlyph \"\(raw)\" is not a library glyph")
             }
             return name
         }
         return declareCase(
-            UI2Preview.Button(label: ui2C105Label, leadingGlyph: ui2C105Leading, trailingGlyph: ui2C105Trailing),
+            MakeReadyUI.Button(label: ui2C105Label, leadingGlyph: ui2C105Leading, trailingGlyph: ui2C105Trailing),
             // No master width: §2 hugs its content at a fixed 36pt height and the host positions
             // it, so the call site adds only the page margin and the ground (R-16).
             PreviewFrame(intrinsic: true)
@@ -5061,7 +5061,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-095: props.color must be #rrggbb")
         }
         return declareCase(
-            UI2Preview.ColorPickerWell(color: ui2C095Color, armed: c.armed ?? false),
+            MakeReadyUI.ColorPickerWell(color: ui2C095Color, armed: c.armed ?? false),
             // §2: fixed 34×34, no master width — the well hugs its own disc.
             PreviewFrame(intrinsic: true)
         )
@@ -5079,7 +5079,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-096: props.label is required")
         }
         return declareCase(
-            UI2Preview.ColorSwatch(
+            MakeReadyUI.ColorSwatch(
                 color: ui2C096Color,
                 label: ui2C096Label,
                 selected: c.selected?.boolValue ?? false
@@ -5097,7 +5097,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-097: props.pageCount is required")
         }
         return declareCase(
-            UI2Preview.PageIndicator(pageCount: ui2C097PageCount, page: c.page ?? 0),
+            MakeReadyUI.PageIndicator(pageCount: ui2C097PageCount, page: c.page ?? 0),
             // §2 / §5: centred in the width its consumer hands it — C-094's 440pt panel, the
             // device width, so no page margin (the C-091 precedent).
             PreviewFrame(width: 440, margin: 0)
@@ -5116,7 +5116,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-094: props.swatches is required")
         }
         let ui2C094Pages = try ui2C094RawPages.map { rawPage in
-            try rawPage.map { swatch -> UI2Preview.TextColorPalette.NamedColor in
+            try rawPage.map { swatch -> MakeReadyUI.TextColorPalette.NamedColor in
                 guard let color = ui2C091Hex(swatch.color) else {
                     throw ViewRegistryError.unknownView("component.ui2.C-094: swatch \"\(swatch.name)\" color must be #rrggbb")
                 }
@@ -5124,7 +5124,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             }
         }
         return declareCase(
-            UI2Preview.TextColorPalette(currentColor: ui2C094Color, swatches: ui2C094Pages, page: c.page ?? 0),
+            MakeReadyUI.TextColorPalette(currentColor: ui2C094Color, swatches: ui2C094Pages, page: c.page ?? 0),
             // §2: 440 × 66 — the panel fills the device width, so no page margin (the C-097 /
             // C-091 precedent).
             PreviewFrame(width: 440, margin: 0)
@@ -5141,12 +5141,12 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C106Selected = c.selectedID else {
             throw ViewRegistryError.unknownView("component.ui2.C-106: props.selectedID is required")
         }
-        let ui2C106Items: [UI2Preview.ChipStrip.Item] = try ui2C106Raw.enumerated().map { index, raw in
+        let ui2C106Items: [MakeReadyUI.ChipStrip.Item] = try ui2C106Raw.enumerated().map { index, raw in
             guard let id = raw.id, let label = raw.label else {
                 throw ViewRegistryError.unknownView("component.ui2.C-106: items[\(index)] needs id and label")
             }
             // `font` is C-092's value set, decoded exactly as C-092's and C-035's cases decode it.
-            let font: UI2Preview.CanvasTextObject.Font?
+            let font: MakeReadyUI.CanvasTextObject.Font?
             switch raw.font {
             case "poppins": font = .poppins
             case "sfPro": font = .sfPro
@@ -5162,7 +5162,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
         // insets, so it is captured full-bleed (no horizontal page margin; the C-081 / C-094
         // precedent). `__frameWidth` (harness key) narrows it to reach §3 `overflow`.
         return declareCase(
-            UI2Preview.ChipStrip(items: ui2C106Items, selectedID: ui2C106Selected),
+            MakeReadyUI.ChipStrip(items: ui2C106Items, selectedID: ui2C106Selected),
             PreviewFrame(width: CGFloat(c.__frameWidth ?? 440), marginEdges: .vertical, alignment: .leading)
         )
     case "component.ui2.C-108":
@@ -5176,7 +5176,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C108KeyRaw = c.key else {
             throw ViewRegistryError.unknownView("component.ui2.C-108: props.key is required")
         }
-        let ui2C108Key: UI2Preview.KeypadKey.Key
+        let ui2C108Key: MakeReadyUI.KeypadKey.Key
         if ui2C108KeyRaw == "delete" {
             ui2C108Key = .delete
         } else if ui2C108KeyRaw.hasPrefix("digit("), ui2C108KeyRaw.hasSuffix(")"),
@@ -5186,7 +5186,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-108: props.key must be digit(0)…digit(9) | delete")
         }
         return declareCase(
-            UI2Preview.KeypadKey(key: ui2C108Key, enabled: c.enabled ?? true),
+            MakeReadyUI.KeypadKey(key: ui2C108Key, enabled: c.enabled ?? true),
             // No master width: §2 fixes the key at 64×64 and C-107 places it, so the call site
             // adds only the page margin and the ground (R-16).
             PreviewFrame(intrinsic: true)
@@ -5198,7 +5198,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
         // C-107 §4: `enabled` and `deleteEnabled` default to true. `onDigit`, `onDelete` and
         // `onClear` are the view's no-op defaults.
         return declareCase(
-            UI2Preview.NumberKeypad(enabled: c.enabled ?? true, deleteEnabled: c.deleteEnabled ?? true),
+            MakeReadyUI.NumberKeypad(enabled: c.enabled ?? true, deleteEnabled: c.deleteEnabled ?? true),
             // §2: the designed footprint is 320 wide, the master width. The keypad centres its 256pt
             // grid in that width (OQ-C-107-002), so the frame alone sets the 32pt side inset.
             PreviewFrame(width: 320)
@@ -5208,14 +5208,14 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-109: missing state.component")
         }
         // C-109 §4 (R-07): `tone` and `animated` are both required — a nil is a fixture bug.
-        guard let ui2C109Tone = c.tone.flatMap(UI2Preview.ConfirmationMark.Tone.init(rawValue:)) else {
+        guard let ui2C109Tone = c.tone.flatMap(MakeReadyUI.ConfirmationMark.Tone.init(rawValue:)) else {
             throw ViewRegistryError.unknownView("component.ui2.C-109: props.tone must be success|warning|error")
         }
         guard let ui2C109Animated = c.animated else {
             throw ViewRegistryError.unknownView("component.ui2.C-109: props.animated is required")
         }
         return declareCase(
-            UI2Preview.ConfirmationMark(tone: ui2C109Tone, animated: ui2C109Animated),
+            MakeReadyUI.ConfirmationMark(tone: ui2C109Tone, animated: ui2C109Animated),
             // §2: designed at 100×100 (invite-member's frame); width-driven and square (R-16).
             PreviewFrame(width: 100)
         )
@@ -5237,7 +5237,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-069: props.active is required")
         }
         return declareCase(
-            UI2Preview.NavTabButton(
+            MakeReadyUI.NavTabButton(
                 label: ui2C069Label,
                 expansion: CGFloat(ui2C069Expansion),
                 active: ui2C069Active,
@@ -5260,7 +5260,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-110: props.copied is required")
         }
         return declareCase(
-            UI2Preview.CopyableCodeCard(code: ui2C110Code, copied: ui2C110Copied),
+            MakeReadyUI.CopyableCodeCard(code: ui2C110Code, copied: ui2C110Copied),
             // §2: designed at 408 wide (invite-qr's code card, 16,119 · 408×56); width-driven (R-16).
             PreviewFrame(width: 408)
         )
@@ -5282,7 +5282,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-114: props.hairline is required")
         }
         return declareCase(
-            UI2Preview.WeekdayHeader(hairline: ui2C114Hairline),
+            MakeReadyUI.WeekdayHeader(hairline: ui2C114Hairline),
             // §2: the full screen width, no side margin (02-design §4.1) — the C-091 precedent.
             PreviewFrame(width: 440, margin: 0)
         )
@@ -5294,14 +5294,14 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C112Raw = c.eventTypes else {
             throw ViewRegistryError.unknownView("component.ui2.C-112: props.eventTypes is required ([] renders nothing)")
         }
-        let ui2C112Types = try ui2C112Raw.map { raw -> UI2Preview.EventIndicator.EventType in
-            guard let type = UI2Preview.EventIndicator.EventType(rawValue: raw) else {
+        let ui2C112Types = try ui2C112Raw.map { raw -> MakeReadyUI.EventIndicator.EventType in
+            guard let type = MakeReadyUI.EventIndicator.EventType(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-112: props.eventTypes \"\(raw)\" must be lesson|meeting|online|deadline|social|other")
             }
             return type
         }
         return declareCase(
-            UI2Preview.EventIndicator(eventTypes: ui2C112Types),
+            MakeReadyUI.EventIndicator(eventTypes: ui2C112Types),
             // §2: sized by its count (5/14/22/30 × 4), centred by its parent — it hugs its content.
             PreviewFrame(intrinsic: true)
         )
@@ -5322,14 +5322,14 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
         guard let ui2C113TypesRaw = c.eventTypes else {
             throw ViewRegistryError.unknownView("component.ui2.C-113: props.eventTypes is required ([] = no indicator)")
         }
-        let ui2C113Types = try ui2C113TypesRaw.map { raw -> UI2Preview.EventIndicator.EventType in
-            guard let type = UI2Preview.EventIndicator.EventType(rawValue: raw) else {
+        let ui2C113Types = try ui2C113TypesRaw.map { raw -> MakeReadyUI.EventIndicator.EventType in
+            guard let type = MakeReadyUI.EventIndicator.EventType(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-113: props.eventTypes \"\(raw)\" must be lesson|meeting|online|deadline|social|other")
             }
             return type
         }
         return declareCase(
-            UI2Preview.MonthDayCell(date: ui2C113Date, today: ui2C113Today, eventTypes: ui2C113Types),
+            MakeReadyUI.MonthDayCell(date: ui2C113Date, today: ui2C113Today, eventTypes: ui2C113Types),
             // §2: colW × 69, colW = 440 / 7 in C-115 (§1 snapshot: "Columns are 440/7 = 62.86 pt").
             PreviewFrame(width: 440.0 / 7.0)
         )
@@ -5357,7 +5357,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-116: props.today is required (yyyy-MM-ddTHH:mm:ss)")
         }
         return declareCase(
-            UI2Preview.WeekStrip(week: ui2C116Week, selected: ui2C116Selected, today: ui2C116Today),
+            MakeReadyUI.WeekStrip(week: ui2C116Week, selected: ui2C116Selected, today: ui2C116Today),
             // §2: "the full screen width … 7 equal columns of width / 7" — the C-114/C-115 precedent.
             PreviewFrame(width: 440, margin: 0)
         )
@@ -5375,11 +5375,11 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-118: props.title is required")
         }
         guard let ui2C118TypeRaw = c.eventType,
-              let ui2C118Type = UI2Preview.EventIndicator.EventType(rawValue: ui2C118TypeRaw) else {
+              let ui2C118Type = MakeReadyUI.EventIndicator.EventType(rawValue: ui2C118TypeRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-118: props.eventType is required (lesson|meeting|online|deadline|social|other)")
         }
         return declareCase(
-            UI2Preview.AllDayEventChip(title: ui2C118Title, eventType: ui2C118Type),
+            MakeReadyUI.AllDayEventChip(title: ui2C118Title, eventType: ui2C118Type),
             // §3 Preview frame "372×20": the C-120 all-day row's span (x 66 → trailing − 2); the
             // chip states its own 20 pt height.
             PreviewFrame(width: 372, alignment: .leading)
@@ -5393,7 +5393,7 @@ private func buildCaptureViewPart9(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-119: props.label is required")
         }
         return declareCase(
-            UI2Preview.NowIndicator(label: ui2C119Label),
+            MakeReadyUI.NowIndicator(label: ui2C119Label),
             // §3 Preview frame "440×14": the full timeline width; the row states its own 14 pt
             // height. Edge to edge so x 60 is measured from the frame's leading edge.
             PreviewFrame(width: 440, margin: 0)
@@ -5417,14 +5417,14 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
         guard let ui2C120TimedRaw = c.timedEvents else {
             throw ViewRegistryError.unknownView("component.ui2.C-120: props.timedEvents is required")
         }
-        let ui2C120Timed = try ui2C120TimedRaw.map { e -> UI2Preview.DayTimeline.TimedEvent in
-            guard let kind = UI2Preview.CalendarEventBlock.DetailKind(rawValue: e.detailKind) else {
+        let ui2C120Timed = try ui2C120TimedRaw.map { e -> MakeReadyUI.DayTimeline.TimedEvent in
+            guard let kind = MakeReadyUI.CalendarEventBlock.DetailKind(rawValue: e.detailKind) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-120: timedEvents[].detailKind must be location|online|group")
             }
-            guard let type = UI2Preview.EventIndicator.EventType(rawValue: e.eventType) else {
+            guard let type = MakeReadyUI.EventIndicator.EventType(rawValue: e.eventType) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-120: timedEvents[].eventType must be lesson|meeting|online|deadline|social|other")
             }
-            return UI2Preview.DayTimeline.TimedEvent(
+            return MakeReadyUI.DayTimeline.TimedEvent(
                 id: e.id, title: e.title, detail: e.detail, detailKind: kind, eventType: type,
                 recurring: e.recurring, startMinute: e.startMinute, endMinute: e.endMinute,
                 timeRangeText: e.timeRangeText
@@ -5433,11 +5433,11 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
         guard let ui2C120AllDayRaw = c.allDayEvents else {
             throw ViewRegistryError.unknownView("component.ui2.C-120: props.allDayEvents is required")
         }
-        let ui2C120AllDay = try ui2C120AllDayRaw.map { e -> UI2Preview.DayTimeline.AllDayEvent in
-            guard let type = UI2Preview.EventIndicator.EventType(rawValue: e.eventType) else {
+        let ui2C120AllDay = try ui2C120AllDayRaw.map { e -> MakeReadyUI.DayTimeline.AllDayEvent in
+            guard let type = MakeReadyUI.EventIndicator.EventType(rawValue: e.eventType) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-120: allDayEvents[].eventType must be lesson|meeting|online|deadline|social|other")
             }
-            return UI2Preview.DayTimeline.AllDayEvent(id: e.id, title: e.title, eventType: type)
+            return MakeReadyUI.DayTimeline.AllDayEvent(id: e.id, title: e.title, eventType: type)
         }
         guard let ui2C120Expanded = c.allDayExpanded else {
             throw ViewRegistryError.unknownView("component.ui2.C-120: props.allDayExpanded is required")
@@ -5446,7 +5446,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-120: props.topMinute is required")
         }
         return declareCase(
-            UI2Preview.DayTimeline(
+            MakeReadyUI.DayTimeline(
                 timedEvents: ui2C120Timed,
                 allDayEvents: ui2C120AllDay,
                 allDayExpanded: ui2C120Expanded,
@@ -5469,22 +5469,22 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-121: props.title is required")
         }
         guard let ui2C121KindRaw = c.detailKind,
-              let ui2C121Kind = UI2Preview.CalendarEventBlock.DetailKind(rawValue: ui2C121KindRaw) else {
+              let ui2C121Kind = MakeReadyUI.CalendarEventBlock.DetailKind(rawValue: ui2C121KindRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-121: props.detailKind is required (location|online|group)")
         }
         guard let ui2C121TypeRaw = c.eventType,
-              let ui2C121Type = UI2Preview.EventIndicator.EventType(rawValue: ui2C121TypeRaw) else {
+              let ui2C121Type = MakeReadyUI.EventIndicator.EventType(rawValue: ui2C121TypeRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-121: props.eventType is required (lesson|meeting|online|deadline|social|other)")
         }
         guard let ui2C121TimingRaw = c.timing,
-              let ui2C121Timing = UI2Preview.CalendarEventRow.Timing(rawValue: ui2C121TimingRaw) else {
+              let ui2C121Timing = MakeReadyUI.CalendarEventRow.Timing(rawValue: ui2C121TimingRaw) else {
             throw ViewRegistryError.unknownView("component.ui2.C-121: props.timing is required (timed|continues|ends|allDay)")
         }
         guard let ui2C121Past = c.past else {
             throw ViewRegistryError.unknownView("component.ui2.C-121: props.past is required")
         }
         return declareCase(
-            UI2Preview.CalendarEventRow(
+            MakeReadyUI.CalendarEventRow(
                 title: ui2C121Title,
                 detail: c.detail,
                 detailKind: ui2C121Kind,
@@ -5511,7 +5511,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-122: props.message is required")
         }
         return declareCase(
-            UI2Preview.CalendarEmptyState(title: ui2C122Title, message: ui2C122Message),
+            MakeReadyUI.CalendarEmptyState(title: ui2C122Title, message: ui2C122Message),
             // §3 "preview frame 320 wide" — the frozen crop's width.
             PreviewFrame(width: 320)
         )
@@ -5528,7 +5528,7 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
             throw ViewRegistryError.unknownView("component.ui2.C-126: props.value (HH:mm) is required")
         }
         return declareCase(
-            UI2Preview.TimeDialPicker(value: ui2C126Value),
+            MakeReadyUI.TimeDialPicker(value: ui2C126Value),
             // C-126 §2: the dial block is 357 wide (the labels overhang it); height is intrinsic.
             PreviewFrame(width: 357)
         )
@@ -5582,9 +5582,9 @@ private func buildScreenCalendarHome(_ fixture: CaptureFixture) throws -> AnyVie
     }
     // A missing field takes this build's `month-current` sample (§3 state 1; the screen has no
     // frozen frame), single-sourced on the screen's State.
-    let sample = UI2Preview.CalendarHomeScreen.State.monthCurrent
+    let sample = MakeReadyUI.CalendarHomeScreen.State.monthCurrent
     // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
-    return AnyView(UI2Preview.CalendarHomeScreen(
+    return AnyView(MakeReadyUI.CalendarHomeScreen(
         state: .init(
             mode: c.mode ?? sample.mode,
             origin: c.origin ?? sample.origin,
@@ -5644,7 +5644,7 @@ private func buildUI2C128(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-128: props.prompt is required (none|override(d)|overlap(d))")
     }
     // §3 writes the prompt as `none`, `override(yyyy-MM-dd)` or `overlap(yyyy-MM-dd)`.
-    let prompt: UI2Preview.DateRangePicker.Prompt
+    let prompt: MakeReadyUI.DateRangePicker.Prompt
     if promptRaw == "none" {
         prompt = .none
     } else if promptRaw.hasPrefix("override("), promptRaw.hasSuffix(")") {
@@ -5655,7 +5655,7 @@ private func buildUI2C128(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-128: props.prompt \"\(promptRaw)\" must be none|override(d)|overlap(d)")
     }
     return declareCase(
-        UI2Preview.DateRangePicker(
+        MakeReadyUI.DateRangePicker(
             lessonCount: lessonCount,
             today: try day(todayRaw, "today"),
             startDate: try c.startDate.map { try day($0, "startDate") },
@@ -5684,11 +5684,11 @@ private func buildUI2C117(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-117: props.title is required")
     }
     guard let ui2C117KindRaw = c.detailKind,
-          let ui2C117Kind = UI2Preview.CalendarEventBlock.DetailKind(rawValue: ui2C117KindRaw) else {
+          let ui2C117Kind = MakeReadyUI.CalendarEventBlock.DetailKind(rawValue: ui2C117KindRaw) else {
         throw ViewRegistryError.unknownView("component.ui2.C-117: props.detailKind is required (location|online|group)")
     }
     guard let ui2C117TypeRaw = c.eventType,
-          let ui2C117Type = UI2Preview.EventIndicator.EventType(rawValue: ui2C117TypeRaw) else {
+          let ui2C117Type = MakeReadyUI.EventIndicator.EventType(rawValue: ui2C117TypeRaw) else {
         throw ViewRegistryError.unknownView("component.ui2.C-117: props.eventType is required (lesson|meeting|online|deadline|social|other)")
     }
     guard let ui2C117Recurring = c.recurring else {
@@ -5704,7 +5704,7 @@ private func buildUI2C117(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-117: __frameWidth / __frameHeight (the §3 preview frame) are required")
     }
     return declareCase(
-        UI2Preview.CalendarEventBlock(
+        MakeReadyUI.CalendarEventBlock(
             title: ui2C117Title,
             detail: c.detail,
             detailKind: ui2C117Kind,
@@ -5737,17 +5737,17 @@ private func buildUI2C115(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C115DaysRaw = c.days else {
         throw ViewRegistryError.unknownView("component.ui2.C-115: props.days is required ([] = no indicators)")
     }
-    let ui2C115Days = try (ui2C115DaysRaw.monthDays ?? []).map { entry -> UI2Preview.MonthGrid.DayEvents in
-        let types = try entry.eventTypes.map { raw -> UI2Preview.EventIndicator.EventType in
-            guard let type = UI2Preview.EventIndicator.EventType(rawValue: raw) else {
+    let ui2C115Days = try (ui2C115DaysRaw.monthDays ?? []).map { entry -> MakeReadyUI.MonthGrid.DayEvents in
+        let types = try entry.eventTypes.map { raw -> MakeReadyUI.EventIndicator.EventType in
+            guard let type = MakeReadyUI.EventIndicator.EventType(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-115: props.days eventTypes \"\(raw)\" must be lesson|meeting|online|deadline|social|other")
             }
             return type
         }
-        return UI2Preview.MonthGrid.DayEvents(day: entry.day, eventTypes: types)
+        return MakeReadyUI.MonthGrid.DayEvents(day: entry.day, eventTypes: types)
     }
     return declareCase(
-        UI2Preview.MonthGrid(month: ui2C115Month, today: ui2C115Today, days: ui2C115Days),
+        MakeReadyUI.MonthGrid(month: ui2C115Month, today: ui2C115Today, days: ui2C115Days),
         // §2: "the full screen width, no side margin" — the C-114 precedent.
         PreviewFrame(width: 440, margin: 0)
     )
@@ -5781,9 +5781,9 @@ private func buildScreenInviteQr(_ fixture: CaptureFixture) throws -> AnyView {
     }
     // A missing field takes this build's `Populated` sample, single-sourced on the screen's
     // State — except `qrCode`, whose absence IS the blank plate (§3 Loading / failed).
-    let sample = UI2Preview.InviteQrScreen.State.populated
+    let sample = MakeReadyUI.InviteQrScreen.State.populated
     // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
-    return AnyView(UI2Preview.InviteQrScreen(
+    return AnyView(MakeReadyUI.InviteQrScreen(
         state: .init(
             code: c.code ?? sample.code,
             hintURL: c.hintURL ?? sample.hintURL,
@@ -5825,7 +5825,7 @@ private func buildUI2C111(_ fixture: CaptureFixture) throws -> AnyView {
         ui2C111Image = Image(uiImage: uiImage)
     }
     return declareCase(
-        UI2Preview.QRCodeImage(image: ui2C111Image),
+        MakeReadyUI.QRCodeImage(image: ui2C111Image),
         // C-111 §2: "At the designed size the caller gives it 280pt (invite-qr §2)" — the
         // master width; the view keeps itself square (R-16).
         PreviewFrame(width: 280)
@@ -5841,20 +5841,20 @@ private func buildScreenStudyPrograms(_ fixture: CaptureFixture) throws -> AnyVi
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.StudyProgramsScreen.State.populated
+    let sample = MakeReadyUI.StudyProgramsScreen.State.populated
     let programCoverURLs = c.programCoverURLs ?? sample.programCoverURLs
     // C-059 covers: the fixture names each image by URL and the harness resolves the bytes into
     // the preview module's cache (the home-dashboard seam) — the view performs no I/O.
     for raw in programCoverURLs {
         if let url = URL(string: raw), url.scheme != nil,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.StudyProgramsScreen(
+    return AnyView(MakeReadyUI.StudyProgramsScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
             orgFilterLabel: c.orgFilterLabel ?? sample.orgFilterLabel,
@@ -5878,17 +5878,17 @@ private func buildScreenActivitiesEditor(_ fixture: CaptureFixture) throws -> An
     }
     // A missing field takes this build's `idleEmpty` sample (the frozen frame `blank-canvas`),
     // single-sourced on the screen's State.
-    let sample = UI2Preview.ActivitiesEditorScreen.State.idleEmpty
+    let sample = MakeReadyUI.ActivitiesEditorScreen.State.idleEmpty
     let pageImageURL = c.pageImageURL ?? sample.pageImageURL
     // Seed the page image synchronously so the snapshot's single layout pass can render it — the
     // C-091 case's mechanism. An unreachable URL leaves C-091 on its §2 placeholder base.
     if let url = URL(string: pageImageURL), url.scheme?.hasPrefix("http") == true,
        let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
-        UI2Preview.Ui2ImageCache.shared.seed(picture, for: url)
+        MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.ActivitiesEditorScreen(
+    return AnyView(MakeReadyUI.ActivitiesEditorScreen(
         state: .init(
             editorMode: c.editorMode ?? sample.editorMode,
             openTool: c.openTool ?? sample.openTool,
@@ -5935,9 +5935,9 @@ private func buildScreenSearchHome(_ fixture: CaptureFixture) throws -> AnyView 
     }
     // A missing field takes this build's `recents-populated` sample (the preview linked to the
     // frozen frame `search-home`), single-sourced on the screen's State.
-    let sample = UI2Preview.SearchHomeScreen.State.recentsPopulated
+    let sample = MakeReadyUI.SearchHomeScreen.State.recentsPopulated
     // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
-    return AnyView(UI2Preview.SearchHomeScreen(
+    return AnyView(MakeReadyUI.SearchHomeScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
             activeChip: c.activeChip ?? sample.activeChip,
@@ -5960,7 +5960,7 @@ private func buildScreenEnrollmentsHome(_ fixture: CaptureFixture) throws -> Any
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentsHomeScreen.State.populated
+    let sample = MakeReadyUI.EnrollmentsHomeScreen.State.populated
     let groupPhotoURLs = c.groupPhotoURLs ?? sample.groupPhotoURLs
     let programCoverURLs = c.programCoverURLs ?? sample.programCoverURLs
     // C-038 photos inside C-058 and C-059 covers: the fixture names each image by URL and the
@@ -5968,14 +5968,14 @@ private func buildScreenEnrollmentsHome(_ fixture: CaptureFixture) throws -> Any
     // the view performs no I/O.
     for raw in groupPhotoURLs + programCoverURLs {
         if let url = URL(string: raw), url.scheme != nil,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentsHomeScreen(
+    return AnyView(MakeReadyUI.EnrollmentsHomeScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
             orgFilterLabel: c.orgFilterLabel ?? sample.orgFilterLabel,
@@ -6007,7 +6007,7 @@ private func buildScreenGroupsDetail(_ fixture: CaptureFixture) throws -> AnyVie
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.GroupsDetailScreen.State.populated
+    let sample = MakeReadyUI.GroupsDetailScreen.State.populated
     let coverURL = c.coverURL ?? sample.coverURL
     let lessonSlideImages = c.lessonSlideImages ?? sample.lessonSlideImages
     let memberPhotoURLs = c.memberPhotoURLs ?? sample.memberPhotoURLs
@@ -6017,14 +6017,14 @@ private func buildScreenGroupsDetail(_ fixture: CaptureFixture) throws -> AnyVie
     // bytes into the preview module's cache (the home-dashboard seam) — the view performs no I/O.
     for raw in [coverURL] + lessonSlideImages.flatMap({ $0 }) + memberPhotoURLs + programCoverURLs {
         if let url = URL(string: raw), url.scheme != nil,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.GroupsDetailScreen(
+    return AnyView(MakeReadyUI.GroupsDetailScreen(
         state: .init(
             groupName: c.groupName ?? sample.groupName,
             coverURL: coverURL,
@@ -6080,10 +6080,10 @@ private func buildScreenInvitesHome(_ fixture: CaptureFixture) throws -> AnyView
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.InvitesHomeScreen.State.populated
+    let sample = MakeReadyUI.InvitesHomeScreen.State.populated
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.InvitesHomeScreen(
+    return AnyView(MakeReadyUI.InvitesHomeScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
             orgFilterLabel: c.orgFilterLabel ?? sample.orgFilterLabel,
@@ -6108,7 +6108,7 @@ private func buildScreenEnrollmentHome(_ fixture: CaptureFixture) throws -> AnyV
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentHomeScreen.State.populated
+    let sample = MakeReadyUI.EnrollmentHomeScreen.State.populated
     let coverURL = c.coverURL ?? sample.coverURL
     let lessonSlideImages = c.lessonSlideImages ?? sample.lessonSlideImages
     // C-087 cover and C-079 screenshots inside C-063: the fixture names each image by URL
@@ -6116,14 +6116,14 @@ private func buildScreenEnrollmentHome(_ fixture: CaptureFixture) throws -> AnyV
     // (the home-dashboard seam) — the view itself performs no I/O.
     for raw in [coverURL] + lessonSlideImages.flatMap({ $0 }) {
         if let url = URL(string: raw), url.scheme != nil,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentHomeScreen(
+    return AnyView(MakeReadyUI.EnrollmentHomeScreen(
         state: .init(
             coverURL: coverURL,
             programName: c.programName ?? sample.programName,
@@ -6167,7 +6167,7 @@ private func buildScreenInviteHome(_ fixture: CaptureFixture) throws -> AnyView 
     }
     // A missing field takes this build's `unlinked` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.InviteHomeScreen.State.unlinked
+    let sample = MakeReadyUI.InviteHomeScreen.State.unlinked
     let avatarURL = c.avatarURL ?? sample.avatarURL
     let groupPhotoURLs = c.groupPhotoURLs ?? sample.groupPhotoURLs
     // C-038 photos (the member block, and inside C-037): the fixture names each image by URL and
@@ -6175,14 +6175,14 @@ private func buildScreenInviteHome(_ fixture: CaptureFixture) throws -> AnyView 
     // the view itself performs no network.
     for raw in [avatarURL] + groupPhotoURLs {
         if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.InviteHomeScreen(
+    return AnyView(MakeReadyUI.InviteHomeScreen(
         state: .init(
             phone: c.phone ?? sample.phone,
             memberLinked: c.memberLinked ?? sample.memberLinked,
@@ -6216,7 +6216,7 @@ private func buildScreenStudyProgramHome(_ fixture: CaptureFixture) throws -> An
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.StudyProgramHomeScreen.State.populated
+    let sample = MakeReadyUI.StudyProgramHomeScreen.State.populated
     let coverURL = c.coverURL ?? sample.coverURL
     let enrollmentPhotoURLs = c.enrollmentPhotoURLs ?? sample.enrollmentPhotoURLs
     let lessonSlideImages = c.lessonSlideImages ?? sample.lessonSlideImages
@@ -6225,14 +6225,14 @@ private func buildScreenStudyProgramHome(_ fixture: CaptureFixture) throws -> An
     // preview module's cache (the home-dashboard seam) — the view itself performs no I/O.
     for raw in [coverURL] + enrollmentPhotoURLs + lessonSlideImages.flatMap({ $0 }) {
         if let url = URL(string: raw), url.scheme != nil,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.StudyProgramHomeScreen(
+    return AnyView(MakeReadyUI.StudyProgramHomeScreen(
         state: .init(
             coverURL: coverURL,
             createdLabel: c.createdLabel ?? sample.createdLabel,
@@ -6278,7 +6278,7 @@ private func buildUI2C087(_ fixture: CaptureFixture) throws -> AnyView {
         ui2C087Image = Image(uiImage: uiImage)
     }
     return declareCase(
-        UI2Preview.CoverImage(image: ui2C087Image),
+        MakeReadyUI.CoverImage(image: ui2C087Image),
         // C-087 §2: "408 on the 440 frame" — the master width. Margin and ground live
         // here (R-16).
         PreviewFrame(width: 408)
@@ -6292,10 +6292,10 @@ private func buildScreenActivityNew(_ fixture: CaptureFixture) throws -> AnyView
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.ActivityNewScreen.State.populated
+    let sample = MakeReadyUI.ActivityNewScreen.State.populated
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.ActivityNewScreen(
+    return AnyView(MakeReadyUI.ActivityNewScreen(
         state: .init(
             slideIDs: c.slideIDs ?? sample.slideIDs,
             slideLabels: c.slideLabels ?? sample.slideLabels,
@@ -6327,7 +6327,7 @@ private func buildUI2C083(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C083GlyphRaw = c.glyph else {
         throw ViewRegistryError.unknownView("component.ui2.C-083: missing props.glyph")
     }
-    guard let ui2C083Glyph = UI2Preview.GlyphName(rawValue: ui2C083GlyphRaw) else {
+    guard let ui2C083Glyph = MakeReadyUI.GlyphName(rawValue: ui2C083GlyphRaw) else {
         throw ViewRegistryError.unknownView("component.ui2.C-083: props.glyph \"\(ui2C083GlyphRaw)\" is not a library glyph")
     }
     guard let ui2C083Label = c.accessibilityLabel else {
@@ -6337,7 +6337,7 @@ private func buildUI2C083(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-083: missing props.active")
     }
     return declareCase(
-        UI2Preview.TabBarButton(
+        MakeReadyUI.TabBarButton(
             glyph: ui2C083Glyph,
             accessibilityLabel: ui2C083Label,
             active: ui2C083Active
@@ -6355,18 +6355,18 @@ private func buildUI2C085(_ fixture: CaptureFixture) throws -> AnyView {
     }
     // C-085 §4: `kind`, `title` and `trailing` are required (R-07), so a nil is a fixture bug;
     // `description` defaults to nil. `onTap` / `onRemove` are no-ops in a still capture.
-    guard let ui2C085Kind = c.kind.flatMap(UI2Preview.SearchResultRow.Kind.init(rawValue:)) else {
+    guard let ui2C085Kind = c.kind.flatMap(MakeReadyUI.SearchResultRow.Kind.init(rawValue:)) else {
         throw ViewRegistryError.unknownView(
             "component.ui2.C-085: props.kind must be member|media|program|group|lesson|event|post")
     }
     guard let ui2C085Title = c.title else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.title is required")
     }
-    guard let ui2C085Trailing = c.trailing.flatMap(UI2Preview.SearchResultRow.Trailing.init(rawValue:)) else {
+    guard let ui2C085Trailing = c.trailing.flatMap(MakeReadyUI.SearchResultRow.Trailing.init(rawValue:)) else {
         throw ViewRegistryError.unknownView("component.ui2.C-085: props.trailing must be remove|none")
     }
     return declareCase(
-        UI2Preview.SearchResultRow(
+        MakeReadyUI.SearchResultRow(
             kind: ui2C085Kind,
             title: ui2C085Title,
             description: c.description,
@@ -6386,9 +6386,9 @@ private func buildUI2C086(_ fixture: CaptureFixture) throws -> AnyView {
     // C-086 §4: `pendingType` is required but optional-typed — a missing key is `nil`
     // (interactive, §3 default); a present one must be an ActivityType case. `onSelect` is a
     // no-op in a still capture. Out of line for the same stack-frame reason as C-083.
-    let ui2C086Pending: UI2Preview.ActivityTypeGrid.ActivityType?
+    let ui2C086Pending: MakeReadyUI.ActivityTypeGrid.ActivityType?
     if let raw = c.pendingType {
-        guard let type = UI2Preview.ActivityTypeGrid.ActivityType(rawValue: raw) else {
+        guard let type = MakeReadyUI.ActivityTypeGrid.ActivityType(rawValue: raw) else {
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-086: props.pendingType must be bibleVerse|text|video|youtube|write|poll")
         }
@@ -6397,7 +6397,7 @@ private func buildUI2C086(_ fixture: CaptureFixture) throws -> AnyView {
         ui2C086Pending = nil
     }
     return declareCase(
-        UI2Preview.ActivityTypeGrid(pendingType: ui2C086Pending),
+        MakeReadyUI.ActivityTypeGrid(pendingType: ui2C086Pending),
         // C-086 §2: "Designed at 408 wide" — the master width; the height (556) follows from
         // it. Margin and ground live here (R-16).
         PreviewFrame(width: 408)
@@ -6410,7 +6410,7 @@ private func buildUI2C088(_ fixture: CaptureFixture) throws -> AnyView {
     // C-088 §4: no props, so `state.component` carries nothing to decode and is not required.
     // Out of line for the same stack-frame reason as C-083.
     declareCase(
-        UI2Preview.SectionDivider(),
+        MakeReadyUI.SectionDivider(),
         // C-088 §2: "408 pt on study-program-home" — the master width. Margin and ground live
         // here (R-16).
         PreviewFrame(width: 408)
@@ -6430,7 +6430,7 @@ private func buildUI2C089(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-089: props.recipient is required")
     }
     guard let ui2C089StatusRaw = c.status,
-          let ui2C089Status = UI2Preview.InviteStatusRow.Status(rawValue: ui2C089StatusRaw) else {
+          let ui2C089Status = MakeReadyUI.InviteStatusRow.Status(rawValue: ui2C089StatusRaw) else {
         throw ViewRegistryError.unknownView("component.ui2.C-089: props.status must be sent|requested|accepted|rejected|expired")
     }
     guard let ui2C089GroupName = c.groupName else {
@@ -6440,7 +6440,7 @@ private func buildUI2C089(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-089: props.date is required")
     }
     return declareCase(
-        UI2Preview.InviteStatusRow(
+        MakeReadyUI.InviteStatusRow(
             recipient: ui2C089Recipient,
             status: ui2C089Status,
             groupName: ui2C089GroupName,
@@ -6461,9 +6461,9 @@ private func buildScreenHomeKpiPicker(_ fixture: CaptureFixture) throws -> AnyVi
     }
     // A missing field takes this build's `populated` sample (the preview linked to the frozen
     // frame `design-14`), single-sourced on the screen's State.
-    let sample = UI2Preview.HomeKpiPickerScreen.State.populated
+    let sample = MakeReadyUI.HomeKpiPickerScreen.State.populated
     // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
-    return AnyView(UI2Preview.HomeKpiPickerScreen(
+    return AnyView(MakeReadyUI.HomeKpiPickerScreen(
         state: .init(
             kpiNames: c.kpiNames ?? sample.kpiNames,
             kpiDescriptions: c.kpiDescriptions ?? sample.kpiDescriptions,
@@ -6487,9 +6487,9 @@ private func buildScreenLogin(_ fixture: CaptureFixture) throws -> AnyView {
     }
     // A missing field takes this build's `idle` sample (the preview linked to the frozen frame
     // `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.LoginScreen.State.idle
+    let sample = MakeReadyUI.LoginScreen.State.idle
     // The canvas is the harness's (CaptureRunner's `screen.*` branch) — the bare screen here.
-    return AnyView(UI2Preview.LoginScreen(
+    return AnyView(MakeReadyUI.LoginScreen(
         state: .init(
             authenticating: c.authenticating ?? sample.authenticating,
             errorMessage: c.errorMessage ?? sample.errorMessage
@@ -6523,11 +6523,11 @@ private func buildUI2C090(_ fixture: CaptureFixture) throws -> AnyView {
     // `trendDirection` / `trendPolarity` take C-077's value sets, cited by §4: an unknown
     // value throws rather than rendering a plausible arrow.
     guard let ui2C090DirectionRaw = c.trendDirection,
-          let ui2C090Direction = UI2Preview.TrendIndicator.Direction(rawValue: ui2C090DirectionRaw) else {
+          let ui2C090Direction = MakeReadyUI.TrendIndicator.Direction(rawValue: ui2C090DirectionRaw) else {
         throw ViewRegistryError.unknownView("component.ui2.C-090: props.trendDirection must be up|down|neutral")
     }
     guard let ui2C090PolarityRaw = c.trendPolarity,
-          let ui2C090Polarity = UI2Preview.TrendIndicator.Polarity(rawValue: ui2C090PolarityRaw) else {
+          let ui2C090Polarity = MakeReadyUI.TrendIndicator.Polarity(rawValue: ui2C090PolarityRaw) else {
         throw ViewRegistryError.unknownView(
             "component.ui2.C-090: props.trendPolarity must be positive|negative|neutral"
         )
@@ -6536,7 +6536,7 @@ private func buildUI2C090(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-090: props.trendLabel is required")
     }
     return declareCase(
-        UI2Preview.KPIPickerRow(
+        MakeReadyUI.KPIPickerRow(
             name: ui2C090Name,
             description: ui2C090Description,
             series: ui2C090Series,
@@ -6567,14 +6567,14 @@ private func buildUI2C104(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C104ProviderRaw = c.provider else {
         throw ViewRegistryError.unknownView("component.ui2.C-104: props.provider is required")
     }
-    let ui2C104Provider: UI2Preview.AuthProviderButton.Provider
+    let ui2C104Provider: MakeReadyUI.AuthProviderButton.Provider
     switch ui2C104ProviderRaw {
     case "google": ui2C104Provider = .google
     default:
         throw ViewRegistryError.unknownView("component.ui2.C-104: props.provider must be google")
     }
     return declareCase(
-        UI2Preview.AuthProviderButton(provider: ui2C104Provider, loading: c.loading ?? false)
+        MakeReadyUI.AuthProviderButton(provider: ui2C104Provider, loading: c.loading ?? false)
             // C-076 inside: the drawn frame is phase 0; with animations off its spin lands
             // back on phase 0, as C-076's own case does.
             .transaction { $0.disablesAnimations = true },
@@ -6598,13 +6598,13 @@ private func buildUI2C102(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C102GlyphRaw = c.glyph else {
         throw ViewRegistryError.unknownView("component.ui2.C-102: props.glyph is required")
     }
-    guard let ui2C102Glyph = UI2Preview.GlyphName(rawValue: ui2C102GlyphRaw) else {
+    guard let ui2C102Glyph = MakeReadyUI.GlyphName(rawValue: ui2C102GlyphRaw) else {
         throw ViewRegistryError.unknownView("component.ui2.C-102: props.glyph \"\(ui2C102GlyphRaw)\" is not a library glyph")
     }
-    guard let ui2C102Tone = c.tone.flatMap(UI2Preview.IconButton.Tone.init(rawValue:)) else {
+    guard let ui2C102Tone = c.tone.flatMap(MakeReadyUI.IconButton.Tone.init(rawValue:)) else {
         throw ViewRegistryError.unknownView("component.ui2.C-102: props.tone must be default|destructive")
     }
-    guard let ui2C102Style = c.style.flatMap(UI2Preview.IconButton.Style.init(rawValue:)) else {
+    guard let ui2C102Style = c.style.flatMap(MakeReadyUI.IconButton.Style.init(rawValue:)) else {
         throw ViewRegistryError.unknownView("component.ui2.C-102: props.style must be outlined|plain")
     }
     guard let ui2C102Selected = c.selected?.boolValue else {
@@ -6614,7 +6614,7 @@ private func buildUI2C102(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-102: props.accessibilityLabel is required")
     }
     return declareCase(
-        UI2Preview.IconButton(
+        MakeReadyUI.IconButton(
             glyph: ui2C102Glyph,
             tone: ui2C102Tone,
             style: ui2C102Style,
@@ -6640,7 +6640,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C092Text = c.text else {
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.text is required")
     }
-    let ui2C092Font: UI2Preview.CanvasTextObject.Font
+    let ui2C092Font: MakeReadyUI.CanvasTextObject.Font
     switch c.font {
     case "poppins": ui2C092Font = .poppins
     case "sfPro": ui2C092Font = .sfPro
@@ -6659,7 +6659,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     // swatch value (C-096's per-screen literals); absent = the contract's `Token.textPrimary`.
     let ui2C092Color: Color
     switch c.color {
-    case nil, "color-text-primary": ui2C092Color = UI2Preview.Token.textPrimary
+    case nil, "color-text-primary": ui2C092Color = MakeReadyUI.Token.textPrimary
     case let raw?:
         let hex = raw.hasPrefix("#") ? String(raw.dropFirst()) : raw
         guard hex.count == 6, let rgb = UInt32(hex, radix: 16) else {
@@ -6671,7 +6671,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
             blue: Double(rgb & 0xff) / 255
         )
     }
-    let ui2C092Alignment: UI2Preview.CanvasTextObject.Alignment
+    let ui2C092Alignment: MakeReadyUI.CanvasTextObject.Alignment
     switch c.alignment {
     case nil, "center": ui2C092Alignment = .center
     case "left": ui2C092Alignment = .left
@@ -6679,7 +6679,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.alignment \"\(other)\" must be center|left|right")
     }
-    let ui2C092Label: UI2Preview.CanvasTextObject.Label
+    let ui2C092Label: MakeReadyUI.CanvasTextObject.Label
     switch c.label {
     case nil, "none": ui2C092Label = .none
     case "solidDark": ui2C092Label = .solidDark
@@ -6687,7 +6687,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.label \"\(other)\" must be none|solidDark|solidLight")
     }
-    let ui2C092ListStyle: UI2Preview.CanvasTextObject.ListStyle
+    let ui2C092ListStyle: MakeReadyUI.CanvasTextObject.ListStyle
     switch c.listStyle {
     case nil, "none": ui2C092ListStyle = .none
     case "bullet": ui2C092ListStyle = .bullet
@@ -6696,7 +6696,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.listStyle \"\(other)\" must be none|bullet|numbered|bibleVerse")
     }
-    let ui2C092Animation: UI2Preview.CanvasTextObject.Animation
+    let ui2C092Animation: MakeReadyUI.CanvasTextObject.Animation
     switch c.animation {
     case nil, "none": ui2C092Animation = .none
     case "typewriter": ui2C092Animation = .typewriter
@@ -6705,7 +6705,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     case let other?:
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.animation \"\(other)\" must be none|typewriter|pop|jump")
     }
-    let ui2C092Effect: UI2Preview.CanvasTextObject.Effect
+    let ui2C092Effect: MakeReadyUI.CanvasTextObject.Effect
     switch c.effect {
     case nil, "none": ui2C092Effect = .none
     case "sparkle": ui2C092Effect = .sparkle
@@ -6716,12 +6716,12 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-092: props.effect \"\(other)\" must be none|sparkle|neon|shimmer|pixel")
     }
     let ui2C092Reference = c.reference.map { r in
-        UI2Preview.CanvasTextObject.Reference(
+        MakeReadyUI.CanvasTextObject.Reference(
             start: .init(book: r.start.book, chapter: r.start.chapter, verse: r.start.verse),
             end: r.end.map { .init(book: $0.book, chapter: $0.chapter, verse: $0.verse) }
         )
     }
-    var ui2C092Transform = UI2Preview.CanvasTextObject.Transform.identity
+    var ui2C092Transform = MakeReadyUI.CanvasTextObject.Transform.identity
     if let t = c.transform {
         if let p = t.position { ui2C092Transform.position = CGPoint(x: p.x, y: p.y) }
         if let scale = t.scale { ui2C092Transform.scale = scale }
@@ -6729,7 +6729,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
         ui2C092Transform.width = t.width.map { CGFloat($0) }
     }
     // §4 `highlights` ranges index into `text`; the fixture carries them as character offsets.
-    let ui2C092Highlights: [UI2Preview.CanvasTextObject.TextRange] = try (c.highlights ?? []).map { h in
+    let ui2C092Highlights: [MakeReadyUI.CanvasTextObject.TextRange] = try (c.highlights ?? []).map { h in
         guard h.start >= 0, h.start <= h.end, h.end <= ui2C092Text.count else {
             throw ViewRegistryError.unknownView("component.ui2.C-092: highlight \(h.start)..<\(h.end) is outside props.text")
         }
@@ -6741,7 +6741,7 @@ private func buildUI2C092(_ fixture: CaptureFixture) throws -> AnyView {
     // call site gives the turned block room so the capture does not clip it.
     let ui2C092Turned = !ui2C092Editing && ui2C092Transform != .identity
     return declareCase(
-        UI2Preview.CanvasTextObject(
+        MakeReadyUI.CanvasTextObject(
             text: ui2C092Text,
             font: ui2C092Font,
             size: CGFloat(ui2C092Size),
@@ -6782,7 +6782,7 @@ private func buildUI2C093(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-093: props.value (0…1) is required")
     }
     return declareCase(
-        UI2Preview.TextSizeSlider(value: CGFloat(ui2C093Value)),
+        MakeReadyUI.TextSizeSlider(value: CGFloat(ui2C093Value)),
         // C-093 §2: the frame is 20 × 263.5pt, intrinsic — the master width is the track's own.
         PreviewFrame(width: 20, height: 263.5)
     )
@@ -6798,7 +6798,7 @@ private func buildUI2C084(_ fixture: CaptureFixture) throws -> AnyView {
     // C-084 §4: `selected` is required but optional-typed. A missing or null value is `nil`,
     // the none-selected state. Any other value must be a `Tab` case. `onSelect` and `onAdd`
     // are no-ops in the view.
-    let ui2C084Selected: UI2Preview.TabBar.Tab?
+    let ui2C084Selected: MakeReadyUI.TabBar.Tab?
     switch c.selected?.stringValue {
     case nil: ui2C084Selected = nil
     case "home": ui2C084Selected = .home
@@ -6809,13 +6809,13 @@ private func buildUI2C084(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-084: props.selected \"\(other)\" must be home|calendar|search|profile|null")
     }
     return AnyView(
-        UI2Preview.TabBar(selected: ui2C084Selected)
+        MakeReadyUI.TabBar(selected: ui2C084Selected)
         // C-084 §2: 440 on the capture device, the master width. OQ-C-084-003: the bar owns
         // its own pageMargin insets and fill, so there is no extra call-site margin. A 440 bar
         // plus a 16pt margin would overflow the 440pt device.
         .frame(width: 440)
         .frame(maxWidth: .infinity)
-        .background(UI2Preview.Token.layoutBackground)
+        .background(MakeReadyUI.Token.layoutBackground)
     )
 }
 
@@ -6828,7 +6828,7 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
     // default), so a nil is a fixture bug. `description`/`count`/`imageURL`/`initials`
     // default to nil and `chips` to []; `onTap` (nil = inert) and `onCancel` (no-op) have no
     // render effect in a still capture.
-    let ui2C037Subject: UI2Preview.ListResultRow.Subject
+    let ui2C037Subject: MakeReadyUI.ListResultRow.Subject
     switch c.subject {
     case "member": ui2C037Subject = .member
     case "group": ui2C037Subject = .group
@@ -6839,14 +6839,14 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
     guard let ui2C037Title = c.title else {
         throw ViewRegistryError.unknownView("component.ui2.C-037: props.title is required")
     }
-    let ui2C037Detail: UI2Preview.ListResultRow.Detail
+    let ui2C037Detail: MakeReadyUI.ListResultRow.Detail
     switch c.detail {
     case "text": ui2C037Detail = .text
     case "chips": ui2C037Detail = .chips
     default:
         throw ViewRegistryError.unknownView("component.ui2.C-037: props.detail must be text|chips")
     }
-    let ui2C037Trailing: UI2Preview.ListResultRow.Trailing
+    let ui2C037Trailing: MakeReadyUI.ListResultRow.Trailing
     switch c.trailing {
     case "chevron": ui2C037Trailing = .chevron
     case "cancel": ui2C037Trailing = .cancel
@@ -6856,7 +6856,7 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
     }
     // C-037 §4 `selection` defaults to `.none` (the list form); "`trailing` must be `none` when
     // `selection ≠ none`", so any other pairing is a fixture bug.
-    let ui2C037Selection: UI2Preview.ListResultRow.Selection
+    let ui2C037Selection: MakeReadyUI.ListResultRow.Selection
     switch c.selection ?? "none" {
     case "none": ui2C037Selection = .none
     case "unselected": ui2C037Selection = .unselected
@@ -6869,14 +6869,14 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
     }
     // Each `chips` entry is a C-043 MetaChip's own §4 props, spelled as C-043 §4 spells them
     // (`state`, `labelPosition`) with C-043's defaults (C-037 §4; OQ-C-037-002).
-    var ui2C037Chips: [UI2Preview.ListResultRow.Chip] = []
+    var ui2C037Chips: [MakeReadyUI.ListResultRow.Chip] = []
     for (index, item) in (c.chips ?? []).enumerated() {
         guard let value = item.value else {
             throw ViewRegistryError.unknownView("component.ui2.C-037: chips[\(index)].value is required")
         }
         // C-043 §4 renamed `purple` → `accent` (OQ-C-043-5) and `align: left|right` →
         // `labelPosition: trailing|leading` (OQ-C-043-1); C-037 §4 now spells it `labelPosition`.
-        let state: UI2Preview.MetaChip.State
+        let state: MakeReadyUI.MetaChip.State
         switch item.state ?? "default" {
         case "default": state = .default
         case "accent", "purple": state = .accent
@@ -6887,7 +6887,7 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
             throw ViewRegistryError.unknownView(
                 "component.ui2.C-037: chips[\(index)].state must be default|accent|complete|highlighted|muted")
         }
-        let labelPosition: UI2Preview.MetaChip.LabelPosition
+        let labelPosition: MakeReadyUI.MetaChip.LabelPosition
         switch item.labelPosition ?? "trailing" {
         case "trailing": labelPosition = .trailing
         case "leading": labelPosition = .leading
@@ -6902,10 +6902,10 @@ private func buildUI2C037(_ fixture: CaptureFixture) throws -> AnyView {
     let ui2C037ImageURL = c.imageURL.flatMap(URL.init(string:))
     if let photoURL = ui2C037ImageURL, photoURL.scheme?.hasPrefix("http") == true,
        let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-        UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+        MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
     }
     return declareCase(
-        UI2Preview.ListResultRow(
+        MakeReadyUI.ListResultRow(
             subject: ui2C037Subject,
             title: ui2C037Title,
             detail: ui2C037Detail,
@@ -6935,7 +6935,7 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
     // C-091 §4 (R-07): `background`, `mode` and `content` are required — a nil is a fixture bug,
     // not a value to guess. `passage` / `selectedHighlightID` / `deleteTarget` default to nil,
     // `centerGuide` to false; the three callbacks are the view's no-ops.
-    let ui2C091Background: UI2Preview.ActivityCanvas<AnyView>.Background
+    let ui2C091Background: MakeReadyUI.ActivityCanvas<AnyView>.Background
     if c.background?.plain != nil {
         ui2C091Background = .plain
     } else if let image = c.background?.image, let url = URL(string: image.imageURL),
@@ -6945,13 +6945,13 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
         // canvas on its §2 placeholder base, which is the contract's own until-resolved look.
         if url.scheme?.hasPrefix("http") == true,
            let data = try? Data(contentsOf: url), let picture = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(picture, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(picture, for: url)
         }
         ui2C091Background = .image(imageURL: url, washColor: wash, washOpacity: image.washOpacity)
     } else {
         throw ViewRegistryError.unknownView("component.ui2.C-091: props.background must be {plain:{}} or {image:{imageURL, washColor #rrggbb, washOpacity}}")
     }
-    let ui2C091Mode: UI2Preview.ActivityCanvas<AnyView>.Mode
+    let ui2C091Mode: MakeReadyUI.ActivityCanvas<AnyView>.Mode
     switch c.mode {
     case "idle": ui2C091Mode = .idle
     case "editing": ui2C091Mode = .editing
@@ -6960,7 +6960,7 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
     default:
         throw ViewRegistryError.unknownView("component.ui2.C-091: props.mode must be idle|editing|highlighting|manipulating")
     }
-    var ui2C091Passage: UI2Preview.ActivityCanvas<AnyView>.Passage?
+    var ui2C091Passage: MakeReadyUI.ActivityCanvas<AnyView>.Passage?
     if let raw = c.passage {
         guard let decoded = try? JSONDecoder().decode(CaptureUI2CanvasPassage.self, from: Data(raw.utf8)) else {
             throw ViewRegistryError.unknownView("component.ui2.C-091: props.passage is not a {verses, highlights} JSON string")
@@ -6975,7 +6975,7 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
             }
         )
     }
-    let ui2C091DeleteTarget: UI2Preview.ActivityCanvas<AnyView>.DeleteTarget?
+    let ui2C091DeleteTarget: MakeReadyUI.ActivityCanvas<AnyView>.DeleteTarget?
     switch c.deleteTarget {
     case nil: ui2C091DeleteTarget = nil
     case "visible": ui2C091DeleteTarget = .visible
@@ -6995,7 +6995,7 @@ private func buildUI2C091(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-091: __frameHeight (the canvas height) is required")
     }
     return declareCase(
-        UI2Preview.ActivityCanvas<AnyView>(
+        MakeReadyUI.ActivityCanvas<AnyView>(
             background: ui2C091Background,
             mode: ui2C091Mode,
             passage: ui2C091Passage,
@@ -7026,7 +7026,7 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
         guard let text = child.text, let size = child.size, let editing = child.editing else {
             throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 needs text, size, editing")
         }
-        let font: UI2Preview.CanvasTextObject.Font
+        let font: MakeReadyUI.CanvasTextObject.Font
         switch child.font {
         case "poppins": font = .poppins
         case "sfPro": font = .sfPro
@@ -7035,14 +7035,14 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
         default:
             throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-092 font must be poppins|sfPro|georgia|typewriter")
         }
-        var transform = UI2Preview.CanvasTextObject.Transform.identity
+        var transform = MakeReadyUI.CanvasTextObject.Transform.identity
         if let t = child.transform {
             if let p = t.position { transform.position = CGPoint(x: p.x, y: p.y) }
             if let scale = t.scale { transform.scale = scale }
             if let rotation = t.rotation { transform.rotation = .degrees(rotation) }
             transform.width = t.width.map { CGFloat($0) }
         }
-        let object = UI2Preview.CanvasTextObject(text: text, font: font, size: CGFloat(size), transform: transform, editing: editing)
+        let object = MakeReadyUI.CanvasTextObject(text: text, font: font, size: CGFloat(size), transform: transform, editing: editing)
         if editing {
             // The edit slot: the screen's x / y / width (§2 layer 4).
             return AnyView(object.frame(width: child.width.map { CGFloat($0) }).offset(x: at.x, y: at.y))
@@ -7053,29 +7053,29 @@ private func ui2C091Child(_ child: CaptureUI2CanvasChild, index: Int) throws -> 
         guard let value = child.value else {
             throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-093 needs value")
         }
-        return AnyView(UI2Preview.TextSizeSlider(value: CGFloat(value)).offset(x: at.x, y: at.y))
+        return AnyView(MakeReadyUI.TextSizeSlider(value: CGFloat(value)).offset(x: at.x, y: at.y))
     case "C-102":
-        guard let raw = child.glyph, let glyph = UI2Preview.GlyphName(rawValue: raw),
-              let tone = child.tone.flatMap(UI2Preview.IconButton.Tone.init(rawValue:)),
-              let style = child.style.flatMap(UI2Preview.IconButton.Style.init(rawValue:)),
+        guard let raw = child.glyph, let glyph = MakeReadyUI.GlyphName(rawValue: raw),
+              let tone = child.tone.flatMap(MakeReadyUI.IconButton.Tone.init(rawValue:)),
+              let style = child.style.flatMap(MakeReadyUI.IconButton.Style.init(rawValue:)),
               let selected = child.selected, let label = child.accessibilityLabel else {
             throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-102 needs glyph, tone, style, selected, accessibilityLabel")
         }
         return AnyView(
-            UI2Preview.IconButton(glyph: glyph, tone: tone, style: style, selected: selected, accessibilityLabel: label)
+            MakeReadyUI.IconButton(glyph: glyph, tone: tone, style: style, selected: selected, accessibilityLabel: label)
                 .offset(x: at.x, y: at.y)
         )
     case "C-105":
         guard let label = child.label else {
             throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-105 needs label")
         }
-        let leading = try child.leadingGlyph.map { raw -> UI2Preview.GlyphName in
-            guard let name = UI2Preview.GlyphName(rawValue: raw) else {
+        let leading = try child.leadingGlyph.map { raw -> MakeReadyUI.GlyphName in
+            guard let name = MakeReadyUI.GlyphName(rawValue: raw) else {
                 throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)] C-105 leadingGlyph \"\(raw)\" is not a library glyph")
             }
             return name
         }
-        return AnyView(UI2Preview.Button(label: label, leadingGlyph: leading).offset(x: at.x, y: at.y))
+        return AnyView(MakeReadyUI.Button(label: label, leadingGlyph: leading).offset(x: at.x, y: at.y))
     default:
         throw ViewRegistryError.unknownView("component.ui2.C-091: content[\(index)].component must be C-092|C-093|C-102|C-105")
     }
@@ -7138,18 +7138,18 @@ private func buildScreenRequestDetail(_ fixture: CaptureFixture) throws -> AnyVi
     }
     // A missing field takes this build's `pending` sample (the preview linked to the frozen
     // frame `default`), single-sourced on the screen's State.
-    let sample = UI2Preview.RequestDetailScreen.State.pending
+    let sample = MakeReadyUI.RequestDetailScreen.State.pending
     let groupPhotoURL = c.groupPhotoURL ?? sample.groupPhotoURL
     // C-038 photo inside C-037: the fixture names the image by URL and the harness resolves the
     // bytes into the preview module's cache (the home-dashboard seam) — the view performs no I/O.
     if let url = URL(string: groupPhotoURL), url.scheme?.hasPrefix("http") == true,
-       UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+       MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
        let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-        UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+        MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.RequestDetailScreen(
+    return AnyView(MakeReadyUI.RequestDetailScreen(
         state: .init(
             phone: c.phone ?? sample.phone,
             requestDate: c.requestDate ?? sample.requestDate,
@@ -7176,20 +7176,20 @@ private func buildScreenEnrollmentSelectGroup(_ fixture: CaptureFixture) throws 
     }
     // A missing field takes this build's `selected` sample (the preview linked to the frozen
     // frame `group-selected`), single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentSelectGroupScreen.State.selected
+    let sample = MakeReadyUI.EnrollmentSelectGroupScreen.State.selected
     let photoURLs = c.groupPhotoURLs ?? sample.groupPhotoURLs
     // C-038 photos inside C-037: the fixture names each image by URL and the harness resolves the
     // bytes into the preview module's cache (the home-dashboard seam) — the view performs no I/O.
     for raw in photoURLs {
         if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentSelectGroupScreen(
+    return AnyView(MakeReadyUI.EnrollmentSelectGroupScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
             orgFilterVisible: c.orgFilterVisible ?? sample.orgFilterVisible,
@@ -7215,20 +7215,20 @@ private func buildScreenEnrollmentSelectProgram(_ fixture: CaptureFixture) throw
     }
     // A missing field takes this build's `selected` sample (the preview linked to the frozen
     // frame `program-selected`), single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentSelectProgramScreen.State.selected
+    let sample = MakeReadyUI.EnrollmentSelectProgramScreen.State.selected
     let coverURLs = c.programCoverURLs ?? sample.programCoverURLs
     // C-038 covers inside C-037: the fixture names each image by URL and the harness resolves the
     // bytes into the preview module's cache (the home-dashboard seam) — the view performs no I/O.
     for raw in coverURLs {
         if let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
-           UI2Preview.Ui2ImageCache.shared.image(for: url) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
            let data = try? Data(contentsOf: url), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: url)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
         }
     }
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentSelectProgramScreen(
+    return AnyView(MakeReadyUI.EnrollmentSelectProgramScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
             orgFilterVisible: c.orgFilterVisible ?? sample.orgFilterVisible,
@@ -7253,10 +7253,10 @@ private func buildScreenEnrollmentSelectInviteTime(_ fixture: CaptureFixture) th
     }
     // A missing field takes this build's `set` sample (§3 state 2, the frame `default`'s 07:00),
     // single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentSelectInviteTimeScreen.State.set
+    let sample = MakeReadyUI.EnrollmentSelectInviteTimeScreen.State.set
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentSelectInviteTimeScreen(
+    return AnyView(MakeReadyUI.EnrollmentSelectInviteTimeScreen(
         state: .init(smsTime: c.smsTime ?? sample.smsTime)
     ))
 }
@@ -7270,10 +7270,10 @@ private func buildScreenEnrollmentSelectSync(_ fixture: CaptureFixture) throws -
     }
     // A missing field takes this build's `stay-in-sync` sample (the preview linked to the frozen
     // frame `stay-in-sync`), single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentSelectSyncScreen.State.stayInSync
+    let sample = MakeReadyUI.EnrollmentSelectSyncScreen.State.stayInSync
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentSelectSyncScreen(
+    return AnyView(MakeReadyUI.EnrollmentSelectSyncScreen(
         state: .init(syncMode: c.syncMode ?? sample.syncMode)
     ))
 }
@@ -7287,10 +7287,10 @@ private func buildScreenEnrollmentSelectAccess(_ fixture: CaptureFixture) throws
     }
     // A missing field takes this build's `one-at-a-time` sample (the preview linked to the frozen
     // frame `one-at-a-time`), single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentSelectAccessScreen.State.oneAtATime
+    let sample = MakeReadyUI.EnrollmentSelectAccessScreen.State.oneAtATime
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentSelectAccessScreen(
+    return AnyView(MakeReadyUI.EnrollmentSelectAccessScreen(
         state: .init(lessonAccess: c.lessonAccess ?? sample.lessonAccess)
     ))
 }
@@ -7304,10 +7304,10 @@ private func buildScreenEnrollmentSelectSchedule(_ fixture: CaptureFixture) thro
     }
     // A missing field takes this build's `no-start` sample (the preview linked to the frozen
     // frame `date-range`), single-sourced on the screen's State.
-    let sample = UI2Preview.EnrollmentSelectScheduleScreen.State.noStart
+    let sample = MakeReadyUI.EnrollmentSelectScheduleScreen.State.noStart
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
-    return AnyView(UI2Preview.EnrollmentSelectScheduleScreen(
+    return AnyView(MakeReadyUI.EnrollmentSelectScheduleScreen(
         state: .init(
             programChosen: c.programChosen ?? sample.programChosen,
             lessonCount: c.lessonCount ?? sample.lessonCount,
@@ -7346,15 +7346,15 @@ private func buildUI2C127(_ fixture: CaptureFixture) throws -> AnyView {
     guard let enabledRaw = c.enabledDays else {
         throw ViewRegistryError.unknownView("component.ui2.C-127: props.enabledDays is required (weekday names)")
     }
-    let weekdays = UI2Preview.ScheduleSummaryFooter.Weekday.allCases
-    let enabledDays = Set(try enabledRaw.map { index -> UI2Preview.ScheduleSummaryFooter.Weekday in
+    let weekdays = MakeReadyUI.ScheduleSummaryFooter.Weekday.allCases
+    let enabledDays = Set(try enabledRaw.map { index -> MakeReadyUI.ScheduleSummaryFooter.Weekday in
         guard weekdays.indices.contains(index) else {
             throw ViewRegistryError.unknownView("component.ui2.C-127: props.enabledDays has an index outside 0…6")
         }
         return weekdays[index]
     })
     return declareCase(
-        UI2Preview.ScheduleSummaryFooter(dateRange: dateRange, enabledDays: enabledDays),
+        MakeReadyUI.ScheduleSummaryFooter(dateRange: dateRange, enabledDays: enabledDays),
         // C-127 §1: the frozen raster is 440×94 — the footer's 320-wide row centred in the full
         // device width, with the screen's 16pt inset (page margin) on every side.
         PreviewFrame(width: 408)
@@ -7380,12 +7380,12 @@ private func buildUI2C125(_ fixture: CaptureFixture) throws -> AnyView {
     // Seed the photo synchronously so the snapshot's single layout pass can render it —
     // same mechanism and same reason as the C-038 case.
     if let photoURL = groupImageURL, photoURL.scheme?.hasPrefix("http") == true,
-       UI2Preview.Ui2ImageCache.shared.image(for: photoURL) == nil,
+       MakeReadyUI.Ui2ImageCache.shared.image(for: photoURL) == nil,
        let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-        UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+        MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
     }
     return declareCase(
-        UI2Preview.EnrollmentProgressHeader(
+        MakeReadyUI.EnrollmentProgressHeader(
             groupName: c.groupName,
             groupImageURL: groupImageURL,
             groupInitials: c.groupInitials,
@@ -7415,11 +7415,11 @@ private func buildUI2C123(_ fixture: CaptureFixture) throws -> AnyView {
         }
         return value
     }
-    let look: UI2Preview.TaskDisc.Look
+    let look: MakeReadyUI.TaskDisc.Look
     switch raw.kind {
     case "glyph":
         let name = try need(raw.glyph, "glyph")
-        guard let glyph = UI2Preview.GlyphName(rawValue: name) else {
+        guard let glyph = MakeReadyUI.GlyphName(rawValue: name) else {
             throw ViewRegistryError.unknownView("component.ui2.C-123: look.glyph \"\(name)\" is not a library glyph")
         }
         look = .glyph(glyph)
@@ -7430,9 +7430,9 @@ private func buildUI2C123(_ fixture: CaptureFixture) throws -> AnyView {
         // Seed the photo synchronously so the snapshot's single layout pass can render it —
         // same mechanism and same reason as the C-038 case.
         if let photoURL = imageURL, photoURL.scheme?.hasPrefix("http") == true,
-           UI2Preview.Ui2ImageCache.shared.image(for: photoURL) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: photoURL) == nil,
            let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
         }
         look = .photo(imageURL: imageURL)
     case "date":
@@ -7455,7 +7455,7 @@ private func buildUI2C123(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-123: look.kind \"\(raw.kind)\" is not a §4 case")
     }
     return declareCase(
-        UI2Preview.TaskDisc(look: look),
+        MakeReadyUI.TaskDisc(look: look),
         // C-123 §2: the disc states its own 64×64 size — it hugs its content, no master width.
         PreviewFrame(alignment: .leading, intrinsic: true)
     )
@@ -7478,11 +7478,11 @@ private func buildUI2C124(_ fixture: CaptureFixture) throws -> AnyView {
     guard let description = c.description else {
         throw ViewRegistryError.unknownView("component.ui2.C-124: props.description is required")
     }
-    guard let rawStatus = c.status, let status = UI2Preview.ChecklistStepRow.Status(rawValue: rawStatus) else {
+    guard let rawStatus = c.status, let status = MakeReadyUI.ChecklistStepRow.Status(rawValue: rawStatus) else {
         throw ViewRegistryError.unknownView("component.ui2.C-124: props.status must be todo | done")
     }
     return declareCase(
-        UI2Preview.ChecklistStepRow(
+        MakeReadyUI.ChecklistStepRow(
             disc: try decodeUI2TaskDiscLook(raw, key: "component.ui2.C-124", prop: "disc"),
             title: title,
             description: description,
@@ -7498,7 +7498,7 @@ private func buildUI2C124(_ fixture: CaptureFixture) throws -> AnyView {
 /// C-123 §4 `TaskDisc.Look` from its fixture encoding (`{"kind": "<case>", …}`) — the same
 /// decoding `buildUI2C123` does inline, for a consumer that passes the look through (C-124 `disc`).
 @MainActor
-private func decodeUI2TaskDiscLook(_ raw: CaptureUI2TaskDiscLook, key: String, prop: String) throws -> UI2Preview.TaskDisc.Look {
+private func decodeUI2TaskDiscLook(_ raw: CaptureUI2TaskDiscLook, key: String, prop: String) throws -> MakeReadyUI.TaskDisc.Look {
     func need(_ value: String?, _ label: String) throws -> String {
         guard let value else {
             throw ViewRegistryError.unknownView("\(key): \(prop).\(label) is required for kind \(raw.kind)")
@@ -7508,7 +7508,7 @@ private func decodeUI2TaskDiscLook(_ raw: CaptureUI2TaskDiscLook, key: String, p
     switch raw.kind {
     case "glyph":
         let name = try need(raw.glyph, "glyph")
-        guard let glyph = UI2Preview.GlyphName(rawValue: name) else {
+        guard let glyph = MakeReadyUI.GlyphName(rawValue: name) else {
             throw ViewRegistryError.unknownView("\(key): \(prop).glyph \"\(name)\" is not a library glyph")
         }
         return .glyph(glyph)
@@ -7519,9 +7519,9 @@ private func decodeUI2TaskDiscLook(_ raw: CaptureUI2TaskDiscLook, key: String, p
         // Seed the photo synchronously so the snapshot's single layout pass can render it —
         // same mechanism and same reason as the C-038 / C-123 cases.
         if let photoURL = imageURL, photoURL.scheme?.hasPrefix("http") == true,
-           UI2Preview.Ui2ImageCache.shared.image(for: photoURL) == nil,
+           MakeReadyUI.Ui2ImageCache.shared.image(for: photoURL) == nil,
            let data = try? Data(contentsOf: photoURL), let image = UIImage(data: data) {
-            UI2Preview.Ui2ImageCache.shared.seed(image, for: photoURL)
+            MakeReadyUI.Ui2ImageCache.shared.seed(image, for: photoURL)
         }
         return .photo(imageURL: imageURL)
     case "date":
@@ -7554,11 +7554,11 @@ private func buildScreenGroupsEnrollProgram(_ fixture: CaptureFixture) throws ->
     }
     // A missing field takes this build's `empty` sample (§3's first state, 0/6), single-sourced
     // on the screen's State.
-    let sample = UI2Preview.GroupsEnrollProgramScreen.State.empty
+    let sample = MakeReadyUI.GroupsEnrollProgramScreen.State.empty
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
     // max(its height, the content's length), under the top safe area — the bare screen here.
     // C-109 renders settled in captures (§4: `animated` false in capture).
-    return AnyView(UI2Preview.GroupsEnrollProgramScreen(
+    return AnyView(MakeReadyUI.GroupsEnrollProgramScreen(
         state: .init(
             phase: c.phase ?? sample.phase,
             groupName: c.groupName ?? sample.groupName,

@@ -10,7 +10,7 @@ import XCTest
 import SnapshotTesting
 import SwiftUI
 @testable import MakeReady
-@testable import UI2Preview
+@testable import MakeReadyUI
 
 final class CaptureRunner: XCTestCase {
 
@@ -80,14 +80,14 @@ final class CaptureRunner: XCTestCase {
                         let rooted: AnyView = frame.intrinsic
                             ? AnyView(built.view.fixedSize().ui2Element("__root").frame(width: width, alignment: .leading))
                             : AnyView(built.view.frame(width: width).ui2Element("__root"))
-                        view = AnyView(rooted.background(UI2Preview.Token.layoutBackground).ui2ElementMap(elementMap))
+                        view = AnyView(rooted.background(MakeReadyUI.Token.layoutBackground).ui2ElementMap(elementMap))
                     } else {
                         view = AnyView(
                             baseView
                                 .frame(width: width)
                                 // The 2.0 app background (`color-layout-background`, #030405) —
                                 // not the 1.x `Color.appBackground` (#0d101a).
-                                .background(UI2Preview.Token.layoutBackground)
+                                .background(MakeReadyUI.Token.layoutBackground)
                                 .ui2ElementMap(elementMap)
                         )
                     }
@@ -110,7 +110,7 @@ final class CaptureRunner: XCTestCase {
                             // Every page sits on `color-layout-background` (#030405) unless the
                             // screen paints its own — including the status bar and whatever
                             // length the content leaves below itself.
-                            .background(UI2Preview.Token.layoutBackground)
+                            .background(MakeReadyUI.Token.layoutBackground)
                             .overlay(alignment: .top) { StatusBarView(style: device.statusBarStyle) }
                             .ui2ElementMap(elementMap)
                     )
@@ -319,7 +319,7 @@ final class CaptureCaseTests: XCTestCase {
         // A case that cannot be bare goes here WITH its reason; nothing else does.
         let framedOnPurpose: [String: String] = [:]
         let inline = bodies.filter { view, body in
-            framedOnPurpose[view] == nil && !body.contains("declareCase(") && body.contains("UI2Preview.Token.Space.pageMargin")
+            framedOnPurpose[view] == nil && !body.contains("declareCase(") && body.contains("MakeReadyUI.Token.Space.pageMargin")
         }.keys.sorted()
         XCTAssertEqual(inline, [], "these cases still frame inline — convert each to declareCase(…), or name it in framedOnPurpose with its reason")
     }

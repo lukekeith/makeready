@@ -11,7 +11,7 @@
 //
 
 import SwiftUI
-@testable import UI2Preview
+@testable import MakeReadyUI
 
 @main
 struct MakeReadyCaptureApp: App {
@@ -101,7 +101,7 @@ func buildCaptureRoot(view: String, device: String, title: String, state: Any) t
     return AnyView(
         content
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-            .background(UI2Preview.Token.layoutBackground.ignoresSafeArea())
+            .background(MakeReadyUI.Token.layoutBackground.ignoresSafeArea())
     )
 }
 
