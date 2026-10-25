@@ -4,22 +4,12 @@ import { prisma } from '../lib/prisma.js'
 import { createVerifyService } from '../services/twilio.js'
 import type { User } from '../generated/prisma/index.js'
 
-// Outside production, missing Google credentials get placeholders so a secret-less
-// environment (an isolated walk env, a fresh worktree) still boots; Google sign-in
-// then fails at Google, and phone/fixture sign-in keeps working.
-const googleConfigured = !!process.env.GOOGLE_CLIENT_ID && !!process.env.GOOGLE_CLIENT_SECRET
-if (!googleConfigured && process.env.NODE_ENV !== 'production') {
-  console.warn('[Passport] GOOGLE_CLIENT_ID/SECRET not set — Google sign-in is disabled')
-}
-const googleFallback = (value: string | undefined, placeholder: string) =>
-  value || (process.env.NODE_ENV === 'production' ? value! : placeholder)
-
 passport.use(
   new GoogleStrategy(
     {
-      clientID: googleFallback(process.env.GOOGLE_CLIENT_ID, 'unconfigured-google-client-id'),
-      clientSecret: googleFallback(process.env.GOOGLE_CLIENT_SECRET, 'unconfigured-google-client-secret'),
-      callbackURL: googleFallback(process.env.GOOGLE_CALLBACK_URL, '/auth/google/callback'),
+      clientID: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL!,
     },
     async (_accessToken, _refreshToken, profile, done) => {
       try {
