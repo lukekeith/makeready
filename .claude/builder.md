@@ -82,6 +82,7 @@ headless `builder-walk-*` simulator it creates and deletes itself, per `agent_wa
 
 ```
 cd server && npx tsc --noEmit          # typecheck; needs `npx prisma generate` on a clean checkout
+cd server && npx tsc --noEmit -p fixtures   # typechecks server/fixtures/ (its own tsconfig — ui2-fixtures D17)
 cd server && npm run test:run          # vitest
 cd server && npm run schema:validate   # when server/schema/*.yaml changed
 cd server && npm run schema:diff       # generates the Atlas migration
@@ -141,11 +142,14 @@ apply_mode: ask                                        # ask before applying —
 regenerate: cd server && npx prisma generate
 start:      docker compose up -d --build               # the full stack, as /dev-start does; the human's own dev env
 smoke:      curl -sf -A 'Mozilla/5.0' localhost:3010/health   # non-bot User-Agent (bot guard)
+fixtures:   docker exec makeready-server npm run fixtures:reset   # the dev env, before every walk (ui2-fixtures D5)
+fixtures_agent_walk: cd server && env NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" npm run fixtures:reset   # the agent walk env: its server is a native process, so the host form (F18)
 ```
 
 - `docker restart makeready-server` after any `server/src` change — the container does not hot-reload.
 - Rebuild the client (`cd client && npm run build`) before any web walk or `/compare` web capture.
 - iPhone: the human's walk runs a fresh Debug build in the simulator — launching it is the human's call. An agent walk builds and drives its own headless `builder-walk-*` simulator instead (`agent_walk.driver`).
+- Run `fixtures:` before every walk of a UI 2.0 screen; under `--agent-walk` run `fixtures_agent_walk:` instead, after the walk env's `reset`. Then sign in as the Fixtures identity (iPhone dev build on Local → Profile → Local identity).
 
 ## Global constraints
 
@@ -191,6 +195,12 @@ deliberately (`/ios-error-surface`), never swallowed into `NSLog`.
 
 **capture** — manifest-driven fixtures; twins additive-only; register in the component-capture map;
 a twin's BEM root is checked for collision with a legacy web component before it is named.
+
+**fixtures** — a feature that wires a UI 2.0 screen into the iPhone app adds
+`server/fixtures/screens/<screen-id>.ts` (the screen id as in `docs/ui2/screens/`), whose `full`
+scenario makes every section the feature wires non-empty; the audit flags a feature that wires a
+screen without one. Layers read base entities and never create orgs, users or groups; dates come
+from `ctx.now`. Guide: `server/fixtures/README.md`.
 
 **Cross-cutting** — conventional commits `<type>(<feature-or-ticket>): subject`, no `--amend`, PR
 base `main`; docker-first local stack; local SMS verification codes come from the **api container

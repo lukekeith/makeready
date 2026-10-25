@@ -1,11 +1,18 @@
 import SwiftUI
 
 /// SPEC D15/D16: a stopgap until profile-home is designed.
+/// ui2-fixtures D13: in a dev build on Local it also picks the dev-login identity.
 struct ProfileStopgapContainer: View {
     static func showsEnvironmentSwitcher(devMode: Bool) -> Bool { devMode }
 
+    /// ui2-fixtures D13: the "Local identity" group shows only in a dev build pointed at Local.
+    static func showsIdentityPicker(devMode: Bool, env: AppConfiguration.SelectedEnvironment) -> Bool {
+        devMode && env == .local
+    }
+
     @Environment(AuthManager.self) private var authManager
     @State private var current = AppConfiguration.selectedEnvironment
+    @State private var identity = DevLoginIdentity.current
     @State private var health: [AppConfiguration.SelectedEnvironment: EnvironmentHealth] = [:]
     @State private var switchError = ""
     @State private var isSwitching = false
@@ -25,6 +32,9 @@ struct ProfileStopgapContainer: View {
                         )
                     }
                 }
+                if Self.showsIdentityPicker(devMode: AppConfiguration.devMode, env: current) {
+                    identityPicker
+                }
                 if !switchError.isEmpty {
                     Text(switchError)
                         .designTextStyle(Token.TypeStyle.body)
@@ -37,6 +47,23 @@ struct ProfileStopgapContainer: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Token.layoutBackground)
         .task { await refreshHealth() }
+    }
+
+    /// ui2-fixtures D13: You · Fixtures, each row described by the email it dev-logs in with.
+    private var identityPicker: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text("Local identity")
+                .designTextStyle(Token.TypeStyle.body)
+                .foregroundStyle(Token.textSecondary)
+            ForEach(DevLoginIdentity.allCases, id: \.self) { option in
+                RadioOptionRow(
+                    title: option.title,
+                    description: option.email,
+                    selected: option == identity,
+                    onSelect: { selectIdentity(option) }
+                )
+            }
+        }
     }
 
     private func signOut() {
@@ -64,7 +91,26 @@ struct ProfileStopgapContainer: View {
                 AppState.shared.recordError(error, context: "ProfileStopgapContainer.select", surface: false)
             }
             current = AppConfiguration.selectedEnvironment
+            identity = DevLoginIdentity.current
             await refreshHealth()
+        }
+    }
+
+    /// ui2-fixtures D13: sign out, then back in as `option`. Profile unmounts on the sign-out,
+    /// so a failure is shown on Login (`AuthManager.loginNotice`) and only logged here.
+    private func selectIdentity(_ option: DevLoginIdentity) {
+        guard !isSwitching, option != identity else { return }
+        isSwitching = true
+        switchError = ""
+        identity = option
+        Task { @MainActor in
+            defer { isSwitching = false }
+            do {
+                try await EnvironmentActions().switchIdentity(option, auth: authManager)
+            } catch {
+                AppState.shared.recordError(error, context: "ProfileStopgapContainer.selectIdentity", surface: false)
+            }
+            identity = DevLoginIdentity.current
         }
     }
 
