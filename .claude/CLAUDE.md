@@ -137,7 +137,10 @@ it enforces, and that nothing else in this repo does:
    other.
 4. **The walk comes before the deep verify pass**, and the iPhone half of the PR lock is stricter:
    committing iPhone code, launching the simulator and archiving are explicit user calls at every
-   size and under every flag.
+   size and under every flag. **One carve-out:** an agent walk (`/builder:agent-walk`, run by
+   `/builder:agent` and `/builder:fleet`) builds, installs and drives the app on a headless
+   `builder-walk-*` simulator it creates and deletes itself, exactly as `.claude/builder.md`'s
+   `agent_walk.driver` says — never the user's simulator, never Simulator.app, never a commit.
 
 **It is self-contained and project-agnostic.** The plugin names no app, language or command: it
 reads every fact about this repo from **`.claude/builder.md`** — the four apps and their roles, the

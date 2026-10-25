@@ -35,17 +35,17 @@ design:
   owned_by: /ui2-* and /d2m-*
 
 agent_walk:
-  driver: throwaway Playwright scripts run with the playwright already installed in client/ (headless Chromium against the walk env on :8102, screenshots saved as evidence); iPhone walk items are never driven by an agent — record each as a human step (root CLAUDE.md rule 4)
+  driver: WEB items — throwaway Playwright scripts run with the playwright already installed in client/ (headless Chromium against the walk env on :8102, screenshots saved as evidence). IPHONE items — driven on a headless simulator of your own, never the human's (never `open -a Simulator`, never a device you did not create; root CLAUDE.md rule 4 + iphone/.claude/CLAUDE.md carve-out). DD=${TMPDIR:-/tmp}/builder-walk-{feature}. (1) `xcrun simctl create builder-walk-{feature} "iPhone 17 Pro Max"` → `xcrun simctl boot <udid>`. (2) Build the app for it, pointed at the walk server — `xcodebuild -project iphone/MakeReady.xcodeproj -scheme MakeReady -configuration Debug -destination id=<udid> -derivedDataPath $DD API_BASE_URL=http://127.0.0.1:3110 build` (in the simulator the app ignores the Profile port and uses API_BASE_URL, so this override is what points it at :3110) → `git checkout -- iphone/MakeReady/Info.plist` (the build bumps CFBundleVersion). (3) `xcrun simctl install <udid> $DD/Build/Products/Debug-iphonesimulator/MakeReady.app`. (4) Drive it with a throwaway XCUITest — write iphone/MakeReadyCaptureUITests/AgentWalk.swift, one test per walk item, using `XCUIApplication(bundleIdentifier: "com.makeready.app")` with launchArguments ["-selectedEnvironment", "Local"] plus any UserDefaults the item needs as `-<key> <value>` pairs (e.g. "-devLoginIdentity", "fixtures"); register it with `ruby iphone/scripts/capture-targets.rb`; run `xcodebuild test -project iphone/MakeReady.xcodeproj -scheme MakeReadyCapture -destination id=<udid> -derivedDataPath $DD -resultBundlePath $DD/walk.xcresult -only-testing:MakeReadyCaptureUITests/AgentWalk`. Evidence is an `XCTAttachment(screenshot: app.screenshot())` (lifetime .keepAlways) taken INSIDE each test at the moment it asserts, plus `print(app.debugDescription)` for the element tree — export them with `xcrun xcresulttool export attachments --path $DD/walk.xcresult --output-path <evidence dir>`. Never use `simctl io screenshot` after the test as evidence: XCUITest terminates the app when the test ends, so it captures the home screen. Find elements by accessibility identifier first, then label; dump `app.debugDescription` before calling an element missing. (5) Afterwards `rm iphone/MakeReadyCaptureUITests/AgentWalk.swift && git checkout -- iphone/MakeReady.xcodeproj` — the walk harness is never committed. (6) `xcrun simctl shutdown <udid>; xcrun simctl delete <udid>` even when a step failed (agent_walk.stop sweeps any builder-walk-* left behind). An iPhone item FAILS on a wrong screen or a failed assertion; it is UNVERIFIABLE only when the simulator or the build itself will not come up after one retry — say which and quote the error.
   claude_args: --permission-mode bypassPermissions
   parallel: 1
-  copy: client/.env, capture/.env
-  setup: (cd server && npm ci && npx prisma generate) && (cd client && npm ci && composer install --no-interaction)
-  sync: (cd server && npm ci && npx prisma generate) && (cd client && npm ci && composer install --no-interaction)
-  env: PORT=3110 NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" CLIENT_URL="http://localhost:8102" API_URL="http://localhost:3110"
-  reset: docker exec makeready-postgres dropdb -U postgres --if-exists --force makeready_walk && docker exec makeready-postgres createdb -U postgres makeready_walk && (cd server && npm run migrate:apply && npm run db:seed)
+  copy: client/.env, capture/.env, server/bin/atlas
+  setup: npm ci && (cd server && npx prisma generate) && (cd client && composer install --no-interaction)
+  sync: npm ci && (cd server && npx prisma generate) && (cd client && composer install --no-interaction)
+  env: PORT=3110 NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" CLIENT_URL="http://localhost:8102" API_URL="http://localhost:3110" TEST_VERIFICATION_CODES="123456,000000" GOOGLE_CLIENT_ID="walk-unconfigured" GOOGLE_CLIENT_SECRET="walk-unconfigured" GOOGLE_CALLBACK_URL="http://localhost:3110/auth/google/callback" SESSION_SECRET="walk-session-secret"
+  reset: docker exec makeready-postgres dropdb -U postgres --if-exists --force makeready_walk && docker exec makeready-postgres createdb -U postgres makeready_walk && (cd server && npm run migrate:apply && npm run db:seed) && if [ -f server/fixtures/index.ts ]; then (cd server && env NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" npm run fixtures:reset); fi
   start: mkdir -p .builder && (cd server && nohup npx tsx src/index.ts > ../.builder/walk-server.log 2>&1 &) && (cd client && npm run build && nohup php artisan serve --port=8102 > ../.builder/walk-client.log 2>&1 &)
   smoke: curl -sf -A 'Mozilla/5.0' localhost:3110/health && curl -sf -o /dev/null localhost:8102
-  stop: lsof -ti tcp:3110 -sTCP:LISTEN | xargs kill 2>/dev/null; lsof -ti tcp:8102 -sTCP:LISTEN | xargs kill 2>/dev/null; exit 0
+  stop: lsof -ti tcp:3110 -sTCP:LISTEN | xargs kill 2>/dev/null; lsof -ti tcp:8102 -sTCP:LISTEN | xargs kill 2>/dev/null; for u in $(xcrun simctl list devices | sed -n 's/.*builder-walk-[^ ]* (\([0-9A-F-]*\)).*/\1/p'); do xcrun simctl shutdown "$u" 2>/dev/null; xcrun simctl delete "$u"; done; exit 0
 ---
 
 # MakeReady — builder config
@@ -61,7 +61,9 @@ consumers; it ships to nobody.
 🔴 **The iPhone app is a released artifact.** A shipped build cannot be hot-fixed, so any
 rename, removal, type change, nullability change or enum narrowing on a field it reads is a
 breaking change until §Apps states the transition. It is also the one app whose commits, whose
-simulator launches and whose archives are explicit user calls — at every size, under every flag.
+simulator launches and whose archives are explicit user calls — at every size, under every flag —
+with ONE carve-out: an agent walk (`/builder:agent-walk`) builds, installs and drives the app on a
+headless `builder-walk-*` simulator it creates and deletes itself, per `agent_walk.driver`.
 
 ## Quality gates
 
@@ -143,7 +145,7 @@ smoke:      curl -sf -A 'Mozilla/5.0' localhost:3010/health   # non-bot User-Age
 
 - `docker restart makeready-server` after any `server/src` change — the container does not hot-reload.
 - Rebuild the client (`cd client && npm run build`) before any web walk or `/compare` web capture.
-- iPhone: the walk runs a fresh Debug build in the simulator — launching it is the human's call.
+- iPhone: the human's walk runs a fresh Debug build in the simulator — launching it is the human's call. An agent walk builds and drives its own headless `builder-walk-*` simulator instead (`agent_walk.driver`).
 
 ## Global constraints
 

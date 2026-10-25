@@ -97,6 +97,17 @@ is unchanged and still requires an explicit "yes": `/rebuild-iphone`, a bare `xc
 `xcrun simctl install`/`launch` run directly, opening Simulator, and building "to check if it
 compiles".
 
+**Named carve-out — the builder agent walk (owner ruling 2026-10-25).** `/builder:agent-walk`
+(run unattended by `/builder:agent` and `/builder:fleet`) may, without asking, `xcrun simctl
+create`/`boot`/`install`/`launch`/`io screenshot`/`shutdown`/`delete` a simulator **it created
+itself, named `builder-walk-<feature>`**, run `xcodebuild build` and `xcodebuild test` against it
+with a DerivedData path outside the repo, and write a throwaway
+`MakeReadyCaptureUITests/AgentWalk.swift` (registered via `ruby iphone/scripts/capture-targets.rb`)
+— the exact procedure is `agent_walk.driver` in `.claude/builder.md`. Handing the feature to agents
+IS the permission. It never touches a simulator it did not create, never opens Simulator.app, never
+commits the walk harness or the `Info.plist` version bump, and deletes its simulator when done.
+Everything else above still needs an explicit "yes".
+
 ---
 
 **NEVER create custom UI elements without checking for existing components first.**
