@@ -15,7 +15,9 @@
 import SwiftUI
 
 /// Home (leader dashboard) — the Home tab root (§6). Five sections on the page background,
-/// separated by hairlines, under the collapsed C-019 nav row (§2). Composed only of §4's
+/// separated by hairlines, on the page background.
+/// App chrome (C-019 TopNav, C-084 TabBar) is the shell's — ui2-shell D11; this screen renders
+/// content only. Composed only of §4's
 /// C-019, C-020, C-023, C-026, C-027, C-029, C-030, C-031, C-032 and C-033; C-021, C-022,
 /// C-024, C-028, C-062 and C-077 render only inside those (§4).
 ///
@@ -107,8 +109,6 @@ struct HomeDashboardScreen: View {
     let state: State
     // §3 interactions — every one leaves the screen, so each is an on<Verb> closure with
     // R-03's no-op default. The screen never decides what an action means.
-    var onSelectTab: (String) -> Void = { _ in }       // C-019 tab switch (owned by shell-tabs)
-    var onToggleNav: () -> Void = {}                   // C-019 morph (owned by shell-topnav)
     var onPickMetrics: () -> Void = {}                 // Overview plus → home-kpi-picker
     var onJumpToToday: () -> Void = {}                 // "Jump to today" recenters both timelines
     var onSelectSessionRange: (String) -> Void = { _ in } // C-028 time range → re-scopes §2.3
@@ -119,8 +119,6 @@ struct HomeDashboardScreen: View {
 
     init(
         state: State,
-        onSelectTab: @escaping (String) -> Void = { _ in },
-        onToggleNav: @escaping () -> Void = {},
         onPickMetrics: @escaping () -> Void = {},
         onJumpToToday: @escaping () -> Void = {},
         onSelectSessionRange: @escaping (String) -> Void = { _ in },
@@ -130,8 +128,6 @@ struct HomeDashboardScreen: View {
         onOpenGroup: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
-        self.onSelectTab = onSelectTab
-        self.onToggleNav = onToggleNav
         self.onPickMetrics = onPickMetrics
         self.onJumpToToday = onJumpToToday
         self.onSelectSessionRange = onSelectSessionRange
@@ -141,7 +137,7 @@ struct HomeDashboardScreen: View {
         self.onOpenGroup = onOpenGroup
     }
 
-    // The nav morph is shell-topnav's and the Sessions range re-scopes data through
+    // The Sessions range re-scopes data through
     // `onSelectSessionRange`. The one UI-only state is the shared day-rail ⇄ chart timeline
     // (C-026 §4 `onPan`: "the consumer syncs the shared timeline"; Luke 2026-10-15: synced
     // both ways). The rail's leading card is the chart window's last day but two — the three
@@ -194,8 +190,7 @@ struct HomeDashboardScreen: View {
     private static let timeChartWidth: CGFloat = 438
     private static let timeChartHeight: CGFloat = 140
     // GAP — home-dashboard §2.3: "→ 16pt → TimeActivityChart"; the frozen frame `default`
-    // draws the same 16 between the Sessions header and the radial clock, and between the nav
-    // row and the Overview header. No 16pt vertical-spacing token (page-margin and
+    // draws the same 16 between the Sessions header and the radial clock. No 16pt vertical-spacing token (page-margin and
     // card-padding are horizontal roles).
     private static let chartGap: CGFloat = 16
     // GAP — home-dashboard frame `default` (element map 2026-09-26): every section header
@@ -203,10 +198,6 @@ struct HomeDashboardScreen: View {
     // 1562→1593, Following 1745→1777). §2.1 writes "→ 8pt →" for the Overview rail; the frame
     // measures 32, so the build follows the frame and the §2 line is reported.
     private static let headerGap: CGFloat = Token.Space.sectionGap
-    // GAP — C-019 OQ-C-019-1: the component's collapsed row inset is 8 as the set designs it,
-    // and "the home-dashboard instance adds 16"; the frozen frame draws the first tab at x=16,
-    // so the screen adds the 8 that closes the difference.
-    private static let navInsetAdjustment: CGFloat = 8
     // GAP — home-dashboard §2: "1px `color-layout-border` hairlines" — no stroke-width token.
     private static let hairline: CGFloat = 1
 
@@ -216,8 +207,6 @@ struct HomeDashboardScreen: View {
         // D22: no ScrollView at the root — the canvas is the device width × the content's
         // full length, so the page lays out top to bottom at full height.
         VStack(alignment: .leading, spacing: 0) {
-            navRow
-            Spacer().frame(height: Self.chartGap)
             // Owner ruling OQ-spreview-home-dashboard-populated-1 (2026-10-19): the Following
             // section (the group cards) moves to the top of the page, ahead of §2's order.
             followingSection
@@ -232,21 +221,6 @@ struct HomeDashboardScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
-    }
-
-    /// §2: "Status bar (system) → collapsed nav row (32pt, C-019) pinned at top" — the status
-    /// bar is the harness's (D22); the row is C-019 in its `collapsed` state (`expansion` 0).
-    private var navRow: some View {
-        TopNav(
-            tabs: TopNav.designedTabs,
-            selectedTab: TopNav.designedTabs[0],
-            expansion: 0,
-            scrollOffset: 0,
-            onSelect: onSelectTab,
-            onToggleExpansion: onToggleNav
-        )
-        .padding(.horizontal, Self.navInsetAdjustment)
-        .ui2Element("C-019 TopNav")
     }
 
     /// §2: "Five sections separated by 1px `color-layout-border` hairlines with
