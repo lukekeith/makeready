@@ -27,6 +27,8 @@ services:
       - ./server/src:/app/src
       - ./server/prisma:/app/prisma
       - ./server/atlas:/app/atlas
+      - ./server/fixtures:/app/fixtures
+      - ./server/package.json:/app/package.json
       - /app/src/generated/prisma
     env_file:
       - ./server/.env

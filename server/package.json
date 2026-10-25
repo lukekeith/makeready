@@ -23,6 +23,8 @@
     "db:local:stop": "docker-compose -f docker-compose.local.yml down",
     "db:setup:local": "npm run db:local:start && sleep 3 && npx prisma migrate deploy && npm run db:seed:dev",
     "db:seed:dev": "npx tsx prisma/seed-dev.ts",
+    "fixtures:reset": "tsx fixtures/index.ts reset",
+    "fixtures:seed": "tsx fixtures/index.ts seed",
     "postmigrate": "npm run db:ensure-session",
     "docs:validate": "tsx scripts/validate-openapi.ts",
     "schema:validate": "tsx scripts/schema/validate-schema.ts",
