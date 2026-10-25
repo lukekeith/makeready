@@ -151,7 +151,7 @@ class BibleSearchService {
             return .empty
         }
 
-        guard let url = URL(string: "\(Configuration.baseURL)/api/search/smart") else {
+        guard let url = URL(string: "\(AppConfiguration.baseURL)/api/search/smart") else {
             throw URLError(.badURL)
         }
 
@@ -228,7 +228,7 @@ class BibleSearchService {
             return []
         }
 
-        var components = URLComponents(string: "\(Configuration.baseURL)/api/search/suggestions")
+        var components = URLComponents(string: "\(AppConfiguration.baseURL)/api/search/suggestions")
         components?.queryItems = [
             URLQueryItem(name: "q", value: query),
             URLQueryItem(name: "translation", value: translation)
@@ -282,7 +282,7 @@ class BibleSearchService {
 
     /// Get recent Bible searches for the authenticated user
     func getRecentSearches(limit: Int = 10) async throws -> [RecentSearch] {
-        var components = URLComponents(string: "\(Configuration.baseURL)/api/search/recent")
+        var components = URLComponents(string: "\(AppConfiguration.baseURL)/api/search/recent")
         components?.queryItems = [
             URLQueryItem(name: "limit", value: "\(limit)"),
             URLQueryItem(name: "type", value: "bible")

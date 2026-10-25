@@ -29,7 +29,7 @@ enum SessionCredentialStore {
     /// Production keeps the original account name so existing sessions
     /// survive this change.
     private static var account: String {
-        switch Configuration.selectedEnvironment {
+        switch AppConfiguration.selectedEnvironment {
         case .production: return "session_cookie"
         case .local: return "session_cookie_local"
         case .staging: return "session_cookie_staging"

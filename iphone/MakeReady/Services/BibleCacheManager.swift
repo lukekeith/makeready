@@ -285,7 +285,7 @@ class BibleCacheManager {
     // MARK: - API Fetching
 
     private func fetchChapter(bookNumber: Int, chapter: Int, translation: String) async -> [VerseCompact]? {
-        let urlString = "\(Configuration.baseURL)/api/bible/\(translation)/\(bookNumber)/\(chapter)"
+        let urlString = "\(AppConfiguration.baseURL)/api/bible/\(translation)/\(bookNumber)/\(chapter)"
         guard let url = URL(string: urlString) else {
             print("BibleCacheManager: Invalid URL: \(urlString)")
             return nil

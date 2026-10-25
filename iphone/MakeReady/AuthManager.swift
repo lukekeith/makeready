@@ -101,7 +101,7 @@ class AuthManager: NSObject {
     func signIn() async throws {
         await resolveLoginEnvironment()
 
-        if Configuration.isLocalDevelopment {
+        if AppConfiguration.isLocalDevelopment {
             try await devLogin(email: Self.devLoginEmail)
         } else {
             try await signInWithGoogle()
@@ -117,7 +117,7 @@ class AuthManager: NSObject {
     /// No-op for non-dev builds and non-Local selections.
     @MainActor
     private func resolveLoginEnvironment() async {
-        guard Configuration.devMode, Configuration.selectedEnvironment == .local else {
+        guard AppConfiguration.devMode, AppConfiguration.selectedEnvironment == .local else {
             return
         }
 
@@ -126,9 +126,9 @@ class AuthManager: NSObject {
             // Local is reachable (port healed if it had moved) — stay on Local.
             return
         case .notFound, .skipped:
-            let host = Configuration.localServerIP ?? Configuration.defaultLocalIP
-            Log.auth.info("Local server unreachable at \(host, privacy: .public):\(Configuration.localAPIPort, privacy: .public) — falling back to Production for login")
-            Configuration.selectedEnvironment = .production
+            let host = AppConfiguration.localServerIP ?? AppConfiguration.defaultLocalIP
+            Log.auth.info("Local server unreachable at \(host, privacy: .public):\(AppConfiguration.localAPIPort, privacy: .public) — falling back to Production for login")
+            AppConfiguration.selectedEnvironment = .production
         }
     }
 
@@ -136,7 +136,7 @@ class AuthManager: NSObject {
     @MainActor
     func signInWithGoogle() async throws {
         print("🚀 Starting Google Sign In...")
-        let authURL = URL(string: "\(Configuration.baseURL)/auth/google?platform=ios")!
+        let authURL = URL(string: "\(AppConfiguration.baseURL)/auth/google?platform=ios")!
         let callbackURLScheme = "makeready"
         print("🔗 Auth URL: \(authURL)")
         print("📱 Callback URL scheme: \(callbackURLScheme)")
@@ -247,7 +247,7 @@ class AuthManager: NSObject {
 
     // MARK: - Exchange Auth Code
     func exchangeAuthCode(_ code: String) async throws {
-        guard let url = URL(string: "\(Configuration.baseURL)/auth/exchange") else {
+        guard let url = URL(string: "\(AppConfiguration.baseURL)/auth/exchange") else {
             throw URLError(.badURL)
         }
 
@@ -301,7 +301,7 @@ class AuthManager: NSObject {
             throw NSError(domain: "AuthError", code: 401, userInfo: [NSLocalizedDescriptionKey: "Not authenticated"])
         }
 
-        guard let url = URL(string: "\(Configuration.baseURL)/auth/me") else {
+        guard let url = URL(string: "\(AppConfiguration.baseURL)/auth/me") else {
             throw URLError(.badURL)
         }
 
@@ -364,7 +364,7 @@ class AuthManager: NSObject {
         await PushNotificationManager.shared.removeTokenFromServer()
 
         // Try to notify server, but always clear local state regardless of result
-        if let url = URL(string: "\(Configuration.baseURL)/auth/logout") {
+        if let url = URL(string: "\(AppConfiguration.baseURL)/auth/logout") {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -404,9 +404,9 @@ class AuthManager: NSObject {
     /// Only works when the server is running in NODE_ENV=development.
     @MainActor
     func devLogin(email: String) async throws {
-        print("🔓 Dev login: \(email) → \(Configuration.baseURL)")
+        print("🔓 Dev login: \(email) → \(AppConfiguration.baseURL)")
 
-        guard let url = URL(string: "\(Configuration.baseURL)/auth/dev-login") else {
+        guard let url = URL(string: "\(AppConfiguration.baseURL)/auth/dev-login") else {
             throw URLError(.badURL)
         }
 

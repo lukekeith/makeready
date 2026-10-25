@@ -85,7 +85,7 @@ func buildCaptureRoot(view: String, device: String, title: String, state: Any) t
     // job names (D26) — and always named `__root`; the still runner sizes components the same way.
     let content: AnyView
     if view.hasPrefix("component.") {
-        content = AnyView(built.frame(maxWidth: .infinity, alignment: .leading).ui2Element("__root"))
+        content = AnyView(built.frame(maxWidth: .infinity, alignment: .leading).MakeReadyUI::ui2Element("__root"))
     } else {
         // A screen scrolls, top first, as the real app's shell shows it (d2m 2026-10-14): hosted at
         // its full height it was centred in the window, its top cut off and unreachable — a card

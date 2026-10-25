@@ -2453,7 +2453,7 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
         // The Presented state (§3) is the same view through the §4 modifier; the other states
         // are the bare view, which paints no dim (OQ-C-036-4).
         let ui2C036Content: AnyView = c.isPresented.map {
-            AnyView(ui2C036View.filterMenuPresentation(isPresented: $0))
+            AnyView(ui2C036View.MakeReadyUI::filterMenuPresentation(isPresented: $0))
         } ?? AnyView(ui2C036View)
         return AnyView(
             ui2C036Content

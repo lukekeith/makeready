@@ -117,6 +117,16 @@ extension View {
 // MARK: - UIView helpers
 
 private extension UIView {
+    /// Moved here from the legacy `Components/Input/KeyboardToolbar.swift` (out of the
+    /// target per ui2-shell D5); this manager is its only remaining caller.
+    func findFirstResponder() -> UIView? {
+        if isFirstResponder { return self }
+        for sub in subviews {
+            if let found = sub.findFirstResponder() { return found }
+        }
+        return nil
+    }
+
     func findEnclosingScrollView() -> UIScrollView? {
         var current: UIView? = superview
         while let view = current {

@@ -7,8 +7,11 @@
 #
 # MakeReadyUI is its own Swift module, so its types carry no prefix. The sources
 # sit in iphone/MakeReadyUI/, beside iphone/MakeReady/ (D23), and the group is
-# parented under the project's main group. This script touches the MakeReadyUI
-# target only; the MakeReady app target's second membership (D29) is added later.
+# parented under the project's main group. Every source and catalog is ALSO a
+# member of the MakeReady app target (D29): the app compiles the 2.0 views into
+# its own module and never links the framework (a Release archive cannot use
+# `@testable import`). Run `ruby iphone/scripts/capture-targets.rb` afterwards so
+# the MakeReadyCapture target picks up the app target's new files.
 #
 # The project has no file-system-synchronised groups (objectVersion 56), so a
 # generated file is invisible to the compiler until it is referenced here. This
@@ -28,6 +31,7 @@ abort("no MakeReadyUI directory at #{preview_dir}") unless preview_dir.directory
 project = Xcodeproj::Project.open(project_path.to_s)
 target  = project.targets.find { |t| t.name == 'MakeReadyUI' }
 abort('MakeReadyUI target not found') if target.nil?
+app = project.targets.find { |t| t.name == 'MakeReady' } || abort('MakeReady target not found')
 
 # The group sits under the MAIN group (iphone/MakeReadyUI beside iphone/MakeReady),
 # recorded with a relative path.
@@ -51,10 +55,14 @@ on_disk_relative = on_disk.map { |path| Pathname.new(path).relative_path_from(pr
 
 on_disk_relative.each do |rel_path|
   ref = existing[rel_path] || group.new_reference(rel_path)
-  next if target.source_build_phase.files_references.include?(ref)
-
-  target.add_file_references([ref])
-  added << rel_path
+  unless target.source_build_phase.files_references.include?(ref)
+    target.add_file_references([ref])
+    added << rel_path
+  end
+  unless app.source_build_phase.files_references.include?(ref)
+    app.add_file_references([ref])
+    added << "#{rel_path} (MakeReady)"
+  end
 end
 
 # Asset catalogs are RESOURCES, not sources: they carry the 2.0 glyph vectors
@@ -66,10 +74,14 @@ catalogs_relative = catalogs.map { |path| Pathname.new(path).relative_path_from(
 
 catalogs_relative.each do |rel_path|
   ref = existing[rel_path] || group.new_reference(rel_path)
-  next if target.resources_build_phase.files_references.include?(ref)
-
-  target.resources_build_phase.add_file_reference(ref)
-  added << "#{rel_path} (resource)"
+  unless target.resources_build_phase.files_references.include?(ref)
+    target.resources_build_phase.add_file_reference(ref)
+    added << "#{rel_path} (resource)"
+  end
+  unless app.resources_build_phase.files_references.include?(ref)
+    app.resources_build_phase.add_file_reference(ref)
+    added << "#{rel_path} (MakeReady resource)"
+  end
 end
 
 # Drop references to files that no longer exist on disk, so a deleted preview
@@ -78,6 +90,6 @@ removed = group.files.reject { |f| File.exist?(preview_dir.join(f.path)) }  # a 
 removed.each(&:remove_from_project)
 
 project.save
-puts "MakeReadyUI: #{group.files.count} file(s) in target MakeReadyUI"
+puts "MakeReadyUI: #{group.files.count} file(s) in targets MakeReadyUI + MakeReady"
 puts "  added:   #{added.empty? ? '(none)' : added.join(', ')}"
 puts "  removed: #{removed.empty? ? '(none)' : removed.map(&:path).join(', ')}"

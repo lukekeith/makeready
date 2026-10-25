@@ -32,11 +32,11 @@ enum LocalPortHealer {
     /// surrounding range. Safe to call repeatedly.
     @discardableResult
     static func heal() async -> Outcome {
-        guard Configuration.devMode, Configuration.selectedEnvironment == .local else {
+        guard AppConfiguration.devMode, AppConfiguration.selectedEnvironment == .local else {
             return .skipped
         }
         guard let host = localHost() else { return .skipped }
-        guard let base = Int(Configuration.localAPIPort) else { return .skipped }
+        guard let base = Int(AppConfiguration.localAPIPort) else { return .skipped }
 
         // Fast path: configured port is already a MakeReady server.
         if await isMakeReady(host: host, port: base) {
@@ -46,7 +46,7 @@ enum LocalPortHealer {
         // Probe the rest of the window concurrently and adopt the lowest match.
         let candidates = ((base + 1)...(base + rangeSize)).map { $0 }
         if let port = await firstMakeReadyPort(host: host, ports: candidates) {
-            Configuration.localAPIPort = String(port)
+            AppConfiguration.localAPIPort = String(port)
             print("🔌 LocalPortHealer: API port healed \(base) → \(port) on \(host)")
             return .healed(port)
         }
@@ -63,7 +63,7 @@ enum LocalPortHealer {
         #if targetEnvironment(simulator)
         return "127.0.0.1"
         #else
-        if let ip = Configuration.localServerIP, !ip.isEmpty { return ip }
+        if let ip = AppConfiguration.localServerIP, !ip.isEmpty { return ip }
         return nil
         #endif
     }

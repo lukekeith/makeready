@@ -25,7 +25,7 @@ final class StatePersistence {
     /// Production keeps the legacy filename so existing installs keep
     /// their cache.
     private var fileName: String {
-        switch Configuration.selectedEnvironment {
+        switch AppConfiguration.selectedEnvironment {
         case .production: return "app_state.json"
         case .local: return "app_state_local.json"
         case .staging: return "app_state_staging.json"

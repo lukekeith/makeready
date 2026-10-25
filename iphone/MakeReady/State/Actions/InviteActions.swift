@@ -84,7 +84,7 @@ struct InviteActions {
         errorCorrectionLevel: String = "M",
         includeLogo: Bool = true
     ) async throws -> UIImage {
-        guard let url = URL(string: "\(Configuration.baseURL)/api/qrcode/generate") else {
+        guard let url = URL(string: "\(AppConfiguration.baseURL)/api/qrcode/generate") else {
             throw URLError(.badURL)
         }
 

@@ -17,22 +17,16 @@ struct MakeReadyApp: App {
     @Environment(\.scenePhase) private var scenePhase
 
     init() {
-        Configuration.migrateLocalServerIP()
-        Configuration.printConfiguration()
-        KeyboardToolbarInstaller.install()
+        AppConfiguration.migrateLocalServerIP()
+        AppConfiguration.printConfiguration()
         KeyboardScrollManager.shared.activate()
     }
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if authManager.isAuthenticated {
-                    MainView()
-                        .environment(authManager)
-                } else {
-                    LoginView()
-                        .environment(authManager)
-                }
+                UI2Root()
+                    .environment(authManager)
             }
             .onOpenURL { url in
                 NSLog("🔗 App received URL: %@", url.absoluteString)

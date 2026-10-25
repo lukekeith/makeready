@@ -1,5 +1,5 @@
 //
-//  Configuration.swift
+//  AppConfiguration.swift
 //  MakeReady
 //
 //  Environment configuration for local development, staging, and production.
@@ -9,7 +9,7 @@
 
 import Foundation
 
-struct Configuration {
+struct AppConfiguration {
 
     // MARK: - Developer Mode
 

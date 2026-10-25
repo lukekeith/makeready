@@ -284,8 +284,8 @@ class PhotoLibraryManager: ObservableObject {
             options.isNetworkAccessAllowed = true
 
             let targetSize = CGSize(
-                width: size.width * Screen.scale,
-                height: size.height * Screen.scale
+                width: size.width * Self.screenScale,
+                height: size.height * Self.screenScale
             )
 
             imageManager.requestImage(
@@ -347,6 +347,14 @@ class PhotoLibraryManager: ObservableObject {
         }
     }
 
+    // MARK: - Display scale
+
+    /// The key scene's display scale (was legacy `Screen.scale`, which left the target with
+    /// `Colors.swift` per ui2-shell D5). Avoids the deprecated `UIScreen.main`.
+    private static var screenScale: CGFloat {
+        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.scale ?? 3.0
+    }
+
     // MARK: - Cache Management
 
     func clearThumbnailCache() {
@@ -355,8 +363,8 @@ class PhotoLibraryManager: ObservableObject {
 
     func prefetchThumbnails(for assets: [PHAsset], size: CGSize) {
         let targetSize = CGSize(
-            width: size.width * Screen.scale,
-            height: size.height * Screen.scale
+            width: size.width * Self.screenScale,
+            height: size.height * Self.screenScale
         )
 
         imageManager.startCachingImages(
@@ -369,8 +377,8 @@ class PhotoLibraryManager: ObservableObject {
 
     func stopPrefetching(for assets: [PHAsset], size: CGSize) {
         let targetSize = CGSize(
-            width: size.width * Screen.scale,
-            height: size.height * Screen.scale
+            width: size.width * Self.screenScale,
+            height: size.height * Self.screenScale
         )
 
         imageManager.stopCachingImages(

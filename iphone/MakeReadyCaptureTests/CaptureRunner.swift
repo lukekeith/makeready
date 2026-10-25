@@ -76,7 +76,7 @@ final class CaptureRunner: XCTestCase {
                 // Collects the component's annotated parts (UI2Element.swift) DURING the
                 // snapshot's own layout pass — see writeElementMap for why it has to be
                 // that pass and not one of our own.
-                let elementMap = UI2ElementMap()
+                let elementMap = MakeReadyUI.UI2ElementMap()
                 if isComponent {
                     // A fill capture (d2m designer-pick-width) lays out at the page's width.
                     let width = fixture.fill.map { CGFloat($0) } ?? device.config.size?.width ?? 393
@@ -85,9 +85,9 @@ final class CaptureRunner: XCTestCase {
                         // offered `width` (hugging only where the case declares it intrinsic), with `__root`
                         // naming exactly its bounds: the server crops the design capture to it.
                         let rooted: AnyView = frame.intrinsic
-                            ? AnyView(built.view.fixedSize().ui2Element("__root").frame(width: width, alignment: .leading))
-                            : AnyView(built.view.frame(width: width).ui2Element("__root"))
-                        view = AnyView(rooted.background(MakeReadyUI.Token.layoutBackground).ui2ElementMap(elementMap))
+                            ? AnyView(built.view.fixedSize().MakeReadyUI::ui2Element("__root").frame(width: width, alignment: .leading))
+                            : AnyView(built.view.frame(width: width).MakeReadyUI::ui2Element("__root"))
+                        view = AnyView(rooted.background(MakeReadyUI.Token.layoutBackground).MakeReadyUI::ui2ElementMap(elementMap))
                     } else {
                         view = AnyView(
                             baseView
@@ -95,7 +95,7 @@ final class CaptureRunner: XCTestCase {
                                 // The 2.0 app background (`color-layout-background`, #030405) —
                                 // not the 1.x `Color.appBackground` (#0d101a).
                                 .background(MakeReadyUI.Token.layoutBackground)
-                                .ui2ElementMap(elementMap)
+                                .MakeReadyUI::ui2ElementMap(elementMap)
                         )
                     }
                     snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
@@ -119,7 +119,7 @@ final class CaptureRunner: XCTestCase {
                             // length the content leaves below itself.
                             .background(MakeReadyUI.Token.layoutBackground)
                             .overlay(alignment: .top) { StatusBarView(style: device.statusBarStyle) }
-                            .ui2ElementMap(elementMap)
+                            .MakeReadyUI::ui2ElementMap(elementMap)
                     )
                     snapshotting = .image(layout: .sizeThatFits, traits: device.config.traits)
                 } else if let captureHeight = fixture.captureHeight {
@@ -225,7 +225,7 @@ final class CaptureRunner: XCTestCase {
     /// built before UI2Element.swift) means no file, which the browser reads as "no
     /// element highlights here" rather than an error.
     @MainActor
-    private func writeElementMap(_ map: UI2ElementMap, to filePath: String) {
+    private func writeElementMap(_ map: MakeReadyUI.UI2ElementMap, to filePath: String) {
         let size = map.size
         guard size.width > 0, size.height > 0, !map.elements.isEmpty else {
             print("CAPTURE: (no element map for \((filePath as NSString).lastPathComponent))")
