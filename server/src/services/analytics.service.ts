@@ -435,7 +435,7 @@ function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-function assertValidTimezone(tz: string): void {
+export function assertValidTimezone(tz: string): void {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz })
   } catch {

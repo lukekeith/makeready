@@ -39,6 +39,7 @@ import activityLogsRoutes from './routes/activity-logs.js'
 import engagementRoutes from './routes/engagement.js'
 import analyticsRoutes from './routes/analytics.js'
 import programAnalyticsRoutes from './routes/program-analytics.js'
+import homeRoutes from './routes/home.js'
 import notesRoutes from './routes/notes.js'
 import activityProgressRoutes from './routes/activity-progress.js'
 import memberLessonsRoutes from './routes/member-lessons.js'
@@ -482,6 +483,9 @@ app.use('/api/analytics', analyticsRoutes)
 
 // Program Analytics tab wrapper (assembled payload for the iPhone tab)
 app.use('/api', programAnalyticsRoutes)
+
+// UI 2.0 Home dashboard (iPhone): sessions, day minutes, engagement, following
+app.use('/api/home', homeRoutes)
 
 // API keys routes (CRUD for API key management)
 app.use('/api/api-keys', apiKeysRoutes)
