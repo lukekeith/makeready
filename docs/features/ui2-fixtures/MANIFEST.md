@@ -1,7 +1,7 @@
 size: lg
-state: signed-off
-next: /builder:verify --path docs/features/ui2-fixtures
-head: 160f5e9
+state: verified
+next: /builder:resume --path docs/features/ui2-fixtures
+head: 96a795f
 ticket: none
 branch: builder/ui2-fixtures
 pr: none
@@ -12,7 +12,7 @@ go-ahead: auto (recommended) 2026-10-25
 tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: agent-pass 2026-10-25 4352eac
-verify: none
+verify: READY 2026-10-25
 ready: yes 2026-10-25 fdcb089
 ui2: none
 auto: on 2026-10-25
