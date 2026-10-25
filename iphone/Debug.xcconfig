@@ -4,6 +4,13 @@
 // Server Configuration
 API_BASE_URL = http:/$()/127.0.0.1:3010
 
+// Dev machine address for physical-device Local testing: its Tailscale MagicDNS name, which
+// follows the Mac across networks (a LAN IP went stale). An unqualified host name, because ATS's
+// NSAllowsLocalNetworking exempts unqualified names but not Tailscale's 100.x addresses.
+// Debug-only so it never ships. The app resets any saved Local IP to this on launch
+// (Configuration.migrateLocalServerIP).
+LOCAL_SERVER_URL = lukes-macbook-pro
+
 // App Configuration
 PRODUCT_BUNDLE_IDENTIFIER = com.makeready.app.debug
 PRODUCT_NAME = MakeReady-Debug
