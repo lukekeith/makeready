@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: none
 auto: on 2026-10-25
-blocked: "the iPhone half (the Local identity picker) needs your OK to commit iPhone code — next: /builder:resume --path docs/features/ui2-fixtures, approving the iPhone commits as they are staged"
+blocked: none
 agent-walk: on 2026-10-25
