@@ -37,6 +37,11 @@ final class CaptureRunner: XCTestCase {
         print("CAPTURE: Found \(fixtures.count) fixture(s)")
 
         for (workflow, fixture) in fixtures {
+            // SPEC D30: 1.0 fixtures stay on disk as reference but are no longer re-captured.
+            guard ViewRegistry.registeredKeys.contains(fixture.view) else {
+                print("CAPTURE: - skipped 1.0 fixture \(workflow)/\(fixture.output) (\(fixture.view))")
+                continue
+            }
             // Set up mock state
             setupCaptureState(from: fixture)
 

@@ -103,6 +103,7 @@
 		2AEA51F0A61F1A73B9719C4B /* ColorPickerWell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 679B147467507A4B69BF0D70 /* ColorPickerWell.swift */; };
 		2B433A8005FCA3702DD9B42A /* EditYouTubeActivityPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */; };
 		2BD5823CB9BFAB2652CDD731 /* AddActivityMenu.swift in Sources */ = {isa = PBXBuildFile; fileRef = E385B05771AF0FF8FBAF795B /* AddActivityMenu.swift */; };
+		2C43784A0AF6F2A6068916B5 /* ViewRegistryKeysTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3DDACB6F789C9E6425207CC /* ViewRegistryKeysTests.swift */; };
 		2C68F621E72096A764558E9C /* FullScreenImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3558B3DA7CB229771AFC92B /* FullScreenImageViewer.swift */; };
 		2D18A565300B78112B246F19 /* CardLesson.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFF2DBC59EB740E8A718B4AB /* CardLesson.swift */; };
 		2D73447E2473C997C172720A /* HighlightDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = HDST000100000000000001 /* HighlightDraftStore.swift */; };
@@ -1052,6 +1053,7 @@
 		BVT0002000000000000001 /* BibleVerseTextLayout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleVerseTextLayout.swift; sourceTree = "<group>"; };
 		C0L0R5SW1FT00000001 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Colors.swift; sourceTree = "<group>"; };
 		C2780A1BB08D02ABED282624 /* EditEnrollmentFlowModal.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EditEnrollmentFlowModal.swift; sourceTree = "<group>"; };
+		C3DDACB6F789C9E6425207CC /* ViewRegistryKeysTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ViewRegistryKeysTests.swift; sourceTree = "<group>"; };
 		C8317984007B14F8F31FC56D /* TaskDisc.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskDisc.swift; sourceTree = "<group>"; };
 		C91B1CE3E660CE68CA31F598 /* AISuggestionsBlock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AISuggestionsBlock.swift; sourceTree = "<group>"; };
 		CACHIMG0002000000000001 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
@@ -1604,6 +1606,7 @@
 				VTPT000100000000000001 /* VerseTapPolicyTests.swift */,
 				HDTT000100000000000001 /* HighlightDraftStoreTests.swift */,
 				HACT000100000000000001 /* HighlightActionsTests.swift */,
+				C3DDACB6F789C9E6425207CC /* ViewRegistryKeysTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -2639,6 +2642,7 @@
 				VTPT000200000000000001 /* VerseTapPolicyTests.swift in Sources */,
 				HDTT000200000000000001 /* HighlightDraftStoreTests.swift in Sources */,
 				HACT000200000000000001 /* HighlightActionsTests.swift in Sources */,
+				2C43784A0AF6F2A6068916B5 /* ViewRegistryKeysTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
