@@ -8,7 +8,7 @@ pr: none
 apps: iphone+capture
 contract: none
 hold: none
-go-ahead: none
+go-ahead: luke 2026-10-25
 walk: none
 verify: none
 ready: none
