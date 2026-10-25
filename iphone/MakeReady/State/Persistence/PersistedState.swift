@@ -60,6 +60,9 @@ struct PersistedState: Codable {
     /// Organization ID
     var organizationId: String?
 
+    /// Home dashboard analytics cache
+    var dashboard: DashboardSnapshot
+
     // MARK: - Relationship Indexes
 
     /// Program ID → Enrollment IDs
@@ -122,6 +125,7 @@ struct PersistedState: Codable {
         self.mediaLibrary = []
         self.textThemes = []
         self.organizationId = nil
+        self.dashboard = DashboardSnapshot()
         self.programEnrollmentIndex = [:]
         self.groupEnrollmentIndex = [:]
         self.programLessonIndex = [:]
@@ -209,6 +213,7 @@ struct PersistedState: Codable {
         )
         self.textThemes = appState.textThemes
         self.organizationId = appState.organizationId
+        self.dashboard = appState.dashboard
 
         // Serialize relationship indexes
         self.programEnrollmentIndex = appState.programEnrollmentIndex.toDictionary()
@@ -245,6 +250,7 @@ struct PersistedState: Codable {
         case mediaLibrary
         case textThemes
         case organizationId
+        case dashboard
         case programEnrollmentIndex
         case groupEnrollmentIndex
         case programLessonIndex
@@ -290,6 +296,7 @@ struct PersistedState: Codable {
         self.mediaLibrary = try container.decodeIfPresent([MediaLibraryItem].self, forKey: .mediaLibrary) ?? []
         self.textThemes = try container.decodeIfPresent([TextTheme].self, forKey: .textThemes) ?? []
         self.organizationId = try container.decodeIfPresent(String.self, forKey: .organizationId)
+        self.dashboard = try container.decodeIfPresent(DashboardSnapshot.self, forKey: .dashboard) ?? DashboardSnapshot()
 
         // Home stats (optional for backwards compatibility)
         self.homeHeatmapData = try container.decodeIfPresent([HeatmapBucket].self, forKey: .homeHeatmapData) ?? []

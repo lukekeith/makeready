@@ -135,6 +135,9 @@ final class AppState {
     /// entry of `userOrganizations` for callers that only need the primary org.
     var organizationId: String?
 
+    /// Home dashboard analytics cache (ui2-shell D20)
+    var dashboard = DashboardSnapshot()
+
     /// All organizations the user belongs to. Drives the per-org buttons in
     /// UserMenu and the Org Home page. Loaded by `loadOrganization()`. Today
     /// the server only exposes the org the user owns; when multi-org listing
@@ -711,6 +714,7 @@ final class AppState {
         mediaLibrary.replaceAll(persisted.mediaLibrary)
         textThemes = persisted.textThemes
         organizationId = persisted.organizationId
+        dashboard = persisted.dashboard
 
         // Restore relationship indexes
         programEnrollmentIndex.loadFromDictionary(persisted.programEnrollmentIndex)
@@ -799,6 +803,7 @@ final class AppState {
         memberGroupCardsById = [:]
         nonMembersByOrgId = [:]
         organizationId = nil
+        dashboard = DashboardSnapshot()
         userOrganizations = []
         mediaLibraryTotal = 0
         mediaLibraryNextCursor = nil
