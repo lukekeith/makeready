@@ -1,7 +1,7 @@
 size: lg
-state: planned
+state: building
 next: /builder:resume --path docs/features/ui2-fixtures
-head: 9823ce7
+head: 2496e52
 ticket: none
 branch: builder/ui2-fixtures
 pr: none
@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: none
 auto: on 2026-10-25
-blocked: none
+blocked: "the iPhone half (the Local identity picker) needs your OK to commit iPhone code — next: /builder:resume --path docs/features/ui2-fixtures, approving the iPhone commits as they are staged"
 agent-walk: on 2026-10-25
