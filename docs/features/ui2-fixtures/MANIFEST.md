@@ -6,7 +6,7 @@ ticket: none
 branch: builder/ui2-fixtures
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-10-25
 hold: none
 go-ahead: auto (recommended) 2026-10-25
 tests: slice=own+app end=risk review=slice
