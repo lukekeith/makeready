@@ -32,7 +32,7 @@ struct UI2Shell: View {
         switch model.tab {
         case .home: sectionContent
         case .calendar, .search: EmptyPage()
-        case .profile: EmptyPage()            // Task 15 replaces this
+        case .profile: ProfileStopgapContainer()
         }
     }
 
