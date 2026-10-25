@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: 🔒 your walk → /builder:signoff --path docs/features/ui2-fixtures
-head: c35edb4
+next: /builder:agent-walk --path docs/features/ui2-fixtures
+head: fdcb089
 ticket: none
 branch: builder/ui2-fixtures
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
 verify: none
-ready: yes 2026-10-25 c35edb4
+ready: yes 2026-10-25 fdcb089
 ui2: none
 auto: on 2026-10-25
 blocked: none
