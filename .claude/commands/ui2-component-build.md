@@ -118,12 +118,12 @@ presence (`preview-build.md` §6), so a successful run needs no registry edit at
   written under `iphone/MakeReadyUI/`; this command never wires them into a screen, route or
   tab — the app wires these from `iphone/MakeReady/UI2/`. A step that would need a hand-wire
   stops and says so.
-- **Stay inside the module** (rule 2, updated for ui2-shell D5). A d2m build never edits files
-  outside `iphone/MakeReadyUI/`, the fixture and `ViewRegistry.swift`. Outside `MakeReadyUI/`
-  and `capture/fixtures/ui2/` this command writes exactly three files: the two **test-target** files of phase 4
-  (`ViewRegistry.swift`, `CaptureFixture.swift` — rule 3, amended 2026-09-06), and
-  `iphone/MakeReady.xcodeproj/project.pbxproj`, rewritten by the sync script in phase 5
-  because the target membership is what makes the view compile at all.
+- **Stay inside the module** (rule 2, updated for ui2-shell D5). A d2m build writes only: files
+  under `iphone/MakeReadyUI/`, the fixture under `capture/fixtures/ui2/`,
+  `iphone/MakeReadyCaptureTests/ViewRegistry.swift`, `iphone/MakeReadyCaptureTests/CaptureFixture.swift`
+  (additive, rule 3 as amended 2026-09-06), and `iphone/MakeReady.xcodeproj/project.pbxproj`
+  (via `makereadyui-sync.rb` only, phase 5 — target membership is what makes the view compile
+  at all). Nothing else is edited.
 - **Tokens by name** (rule 4). Every colour, type, spacing and radius value resolves to a
   `Token` member generated from `tokens.md`. A contract's **flagged literal** stays a
   literal with the contract's flag repeated as a Swift comment — never silently promoted to
@@ -227,7 +227,9 @@ Resolve each consumed row by `preview-build.md` §4's order, and print the table
   which defeats the lane): correct size and layout slot, obviously unfinished fill, and the
   comment `// STUB — C-###, no prop-level contract`. A stub is **recorded for the build
   report**, naming the `/ui2-component <name> <figma-url>` run that would spec it — never
-  silently emitted. the view ships, so a stub must be resolved or flagged.
+  silently emitted. The view ships, so every prop must resolve to a `Token` member or carry a
+  `// GAP —` / `// FLAGGED LITERAL —` comment (phase 2); a stub is only the fill, never an
+  uncommented value.
 
 **Exit checklist 1:** §5 Consumes read (not Consumed-by) ✓ · every consumed row resolved to a
 level with its source path ✓ · level-1 dependencies ordered (built first, or inline with a
@@ -329,8 +331,9 @@ One SwiftUI view in that file:
   background and padding belong to the ViewRegistry call site (phase 4d), so OQ-PB-1's
   master width and OQ-PB-2's `color-layout-background` are one line each to change when the
   owner rules, and the file itself ships unchanged.
-- **Tokens only**, per phase 2. No `Color(hex:)`, no `.system(size:)`, no legacy
-  `Color.brand*` / `Typography.*` — those are rule-2 files.
+- **Tokens only**, per phase 2. No `Color(hex:)`, no `.system(size:)`; never reference legacy
+  `Color.brand*` / `Typography.*` (the app's legacy design system, leaving the target in
+  ui2-shell D5) — use generated `Token` members only.
 - **No `#if DEBUG`, no `#Preview`, no lazy containers, no `print`/`NSLog`.**
 - **Name the anatomy** with `.ui2Element("<part>")` (`MakeReadyUI/UI2Element.swift`). The 2.0
   browser has no web twin to hit-test, so a comment gets its element context from the parts
