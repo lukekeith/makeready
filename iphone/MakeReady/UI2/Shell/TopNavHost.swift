@@ -17,6 +17,12 @@ enum TopNavDrag {
         return min(1, max(0, start + Double(translation / travel)))
     }
 
+    /// The drag's axis: `true` = vertical (scrubs the morph). Decided by the first movement and
+    /// never re-decided — once `current` is set it wins (review I-1).
+    static func lockAxis(_ current: Bool?, translation: CGSize) -> Bool {
+        current ?? (abs(translation.height) > abs(translation.width))
+    }
+
     /// Flick wins over position past `flickVelocity`; otherwise the nearer end.
     static func settle(_ value: Double, velocity: CGFloat) -> Double {
         if velocity > flickVelocity { return 1 }
@@ -38,6 +44,9 @@ struct TopNavHost: View {
 
     /// The live drag (transition-review C1: `@GestureState`, reset without animation).
     @GestureState private var drag = DragTrack()
+    /// The same lock, kept where `onEnded` can read it (`@GestureState` has already reset by
+    /// then). Ephemeral gesture state (D43); cleared on every release.
+    @State private var lockedVertical: Bool?
 
     var body: some View {
         TopNav(
@@ -61,17 +70,25 @@ struct TopNavHost: View {
     }
 
     private var morphDrag: some Gesture {
+        // GAP — no drag-start distance in C-019 §4 or analysis §6 ("Vertical drag | nav row |
+        // scrubs the morph"): 8pt so a tap on a tab is not read as a drag, no token.
         DragGesture(minimumDistance: 8, coordinateSpace: .global)
             .updating($drag) { value, state, transaction in
                 transaction.animation = nil
-                if state.isVertical == nil {
-                    state.isVertical = abs(value.translation.height) > abs(value.translation.width)
-                }
+                state.isVertical = TopNavDrag.lockAxis(state.isVertical, translation: value.translation)
                 state.translation = state.isVertical == true ? value.translation.height : 0
             }
+            .onChanged { value in
+                if lockedVertical == nil {
+                    lockedVertical = TopNavDrag.lockAxis(nil, translation: value.translation)
+                }
+            }
             .onEnded { value in
-                let vertical = abs(value.translation.height) > abs(value.translation.width)
+                let vertical = TopNavDrag.lockAxis(lockedVertical, translation: value.translation)
+                lockedVertical = nil
+                // A drag that began horizontal scrolled the row and never scrubbed: no morph.
                 guard vertical else { return }
+                // A drag that began vertical always settles with the spring, however it ends.
                 let released = TopNavDrag.expansion(
                     from: model.expansion, translation: value.translation.height, travel: TopNavDrag.travel
                 )

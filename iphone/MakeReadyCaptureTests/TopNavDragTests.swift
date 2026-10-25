@@ -19,4 +19,12 @@ final class TopNavDragTests: XCTestCase {
     func testTravelIsTheRowHeightDelta() {
         XCTAssertEqual(TopNavDrag.travel, 64)
     }
+    /// Review I-1: the axis is decided by the first movement and kept for the whole gesture.
+    func testAxisLocksOnFirstMovement() {
+        XCTAssertTrue(TopNavDrag.lockAxis(nil, translation: CGSize(width: 2, height: 9)))
+        XCTAssertFalse(TopNavDrag.lockAxis(nil, translation: CGSize(width: 9, height: 2)))
+        // Once locked, later movement never flips it.
+        XCTAssertTrue(TopNavDrag.lockAxis(true, translation: CGSize(width: 300, height: 1)))
+        XCTAssertFalse(TopNavDrag.lockAxis(false, translation: CGSize(width: 1, height: 300)))
+    }
 }
