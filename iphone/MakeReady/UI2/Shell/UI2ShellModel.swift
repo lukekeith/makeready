@@ -27,8 +27,8 @@ struct UI2ShellModel {
             if next == .home && tab == .home { section = .home }
             tab = next
         case .section(let next):
+            // SPEC D14(b), revised 2026-10-25: selecting leaves `expansion` as it is.
             section = next
-            expansion = 0
         }
     }
 }

@@ -60,7 +60,10 @@ struct TopNav: View {
     // only 8 is `space-element-gap`, which §2 already spends on this row's GAP — a different
     // role. Emitted as C-019 §2's own literal; reported by the run.
     private static let collapsedInset: CGFloat = 8
-    private static let expandedInset: CGFloat = 0
+    // Owner ruling 2026-10-25 (ui2-shell): the expanded row keeps the first and last cards off
+    // the screen edge by the same gap as between cards — `space-element-gap`, the row's GAP —
+    // instead of §2's "none in the component". The first label drifts 16 → 25 over the morph.
+    private static let expandedInset: CGFloat = Token.Space.elementGap
 
     var body: some View {
         // §2: "the row is horizontally scrollable and clips at the raw edges — no fade
@@ -119,9 +122,8 @@ struct TopNav: View {
     /// between renders the §2c choreography" (OQ-C-019-5), which C-069 owns per tab.
     private var progress: CGFloat { min(max(CGFloat(expansion), 0), 1) }
 
-    /// The row inset sheds 8 → 0 over C-069's growth window, while each tab's own padding
-    /// grows 8 → 16, so the first label stays put through the morph (OQ-C-019-1: "labels
-    /// morph in place with no lateral jump").
+    /// The row inset moves collapsed → expanded over C-069's growth window, while each tab's
+    /// own padding grows 8 → 16, so the first label moves continuously through the morph.
     private var inset: CGFloat {
         let growth = NavTabButton.growth(at: progress)
         return Self.collapsedInset + (Self.expandedInset - Self.collapsedInset) * growth

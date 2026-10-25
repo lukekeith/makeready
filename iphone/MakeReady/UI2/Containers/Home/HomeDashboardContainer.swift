@@ -14,24 +14,22 @@ struct HomeDashboardContainer: View {
 
     var body: some View {
         // The screen has no root ScrollView by design (its canvas is the content's full
-        // length); the container scrolls it vertically.
-        ScrollView(.vertical) {
-            HomeDashboardScreen(
-                state: HomeDashboardMapper.state(
-                    from: AppState.shared.dashboard, today: Date(),
-                    timeZone: .current, sessionRange: sessionRange
-                ),
-                onPickMetrics: {},                                   // D9 no-op
-                onJumpToToday: { jumpToken += 1 },
-                onSelectSessionRange: { sessionRange = $0 },         // D9: relabels an empty section
-                onOpenEngagement: {},                                // D9 no-op
-                onFollowEnrollment: {},                              // D9 no-op
-                onProgramMenu: { _ in },                             // D9 no-op
-                onOpenGroup: { _ in }                                // D9 no-op
-            )
-            .id(jumpToken)
-        }
-        .scrollIndicators(.hidden)
+        // length); the shell's page scroll (HomeSectionLayout, SPEC D14 revised 2026-10-25)
+        // scrolls it vertically.
+        HomeDashboardScreen(
+            state: HomeDashboardMapper.state(
+                from: AppState.shared.dashboard, today: Date(),
+                timeZone: .current, sessionRange: sessionRange
+            ),
+            onPickMetrics: {},                                   // D9 no-op
+            onJumpToToday: { jumpToken += 1 },
+            onSelectSessionRange: { sessionRange = $0 },         // D9: relabels an empty section
+            onOpenEngagement: {},                                // D9 no-op
+            onFollowEnrollment: {},                              // D9 no-op
+            onProgramMenu: { _ in },                             // D9 no-op
+            onOpenGroup: { _ in }                                // D9 no-op
+        )
+        .id(jumpToken)
         .task { await refresh() }
     }
 

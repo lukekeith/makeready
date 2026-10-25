@@ -24,9 +24,14 @@ final class UI2ShellModelTests: XCTestCase {
         m.apply(.section(.members)); m.apply(.tab(.home))
         XCTAssertEqual(m.section, .home)
     }
-    func testSelectingSectionCollapses() {
+    /// SPEC D14 (revised 2026-10-25): selecting a tab leaves the row as it is — an expanded
+    /// row stays expanded (analysis §5.4).
+    func testSelectingSectionKeepsExpansion() {
         var m = UI2ShellModel(); m.expansion = 1
         m.apply(.section(.invites))
+        XCTAssertEqual(m.section, .invites); XCTAssertEqual(m.expansion, 1)
+        m.expansion = 0
+        m.apply(.section(.home))
         XCTAssertEqual(m.expansion, 0)
     }
 }

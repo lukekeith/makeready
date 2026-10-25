@@ -90,6 +90,9 @@ struct TopNavHost: View {
         // first movement is vertical scrubs the morph (analysis §6: horizontal pan scrolls,
         // vertical drag morphs).
         .simultaneousGesture(morphDrag)
+        // The live drag's share of the morph, so the page below follows the finger too (D14,
+        // revised 2026-10-25). Springs move `model.expansion` itself and animate on their own.
+        .preference(key: TopNavDragDelta.self, value: liveExpansion - model.expansion)
     }
 
     /// The committed value plus the finger's contribution while a vertical drag is live.
@@ -125,13 +128,19 @@ struct TopNavHost: View {
 
     private func select(_ label: String) {
         guard let section = UI2Section(rawValue: label) else { return }
-        // SPEC D14: "Selecting a card collapses the row" — `apply(.section)` zeroes expansion.
+        // SPEC D14(b), revised 2026-10-25: the row keeps its expansion across a switch.
         withAnimation(Self.morphSpring) { model.apply(.section(section)) }
     }
 
     private func toggle() {
         withAnimation(Self.morphSpring) { model.expansion = model.expansion < 0.5 ? 1 : 0 }
     }
+}
+
+/// How far a live row drag has moved the morph past `model.expansion` (0 when no drag runs).
+struct TopNavDragDelta: PreferenceKey {
+    static let defaultValue: Double = 0
+    static func reduce(value: inout Double, nextValue: () -> Double) { value += nextValue() }
 }
 
 /// The in-flight drag: its axis is decided by the first movement and kept for the gesture.

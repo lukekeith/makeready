@@ -75,10 +75,10 @@ final class HomeSectionLayoutTests: XCTestCase {
         XCTAssertEqual(try firstLabelInkX(expansion: 0), 16 + 2, accuracy: 1)
     }
 
-    func testExpandedLabelSitsOneFurtherInsideTheCardBorder() throws {
-        // C-069: expanded label = 16 padding inside the card's 1px border (component-owned),
-        // so the expanded label is the collapsed one + 1 — no lateral jump from the host.
-        XCTAssertEqual(try firstLabelInkX(expansion: 1), try firstLabelInkX(expansion: 0) + 1)
+    func testExpandedLabelSitsInsideTheInsetCard() throws {
+        // Owner ruling 2026-10-25: the expanded row is inset by the card gap (8), and C-069
+        // puts the label 16 inside the card's 1px border — the collapsed label (16) + 9.
+        XCTAssertEqual(try firstLabelInkX(expansion: 1), try firstLabelInkX(expansion: 0) + 9)
     }
 
     func testContentStartsSixteenBelowTheCollapsedRow() throws {
