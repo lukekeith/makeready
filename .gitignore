@@ -10,6 +10,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 
+# Local Bible art assets; concepts and prompts remain in docs/library/
+/library/
+
 # IDE
 .fleet/
 .idea/

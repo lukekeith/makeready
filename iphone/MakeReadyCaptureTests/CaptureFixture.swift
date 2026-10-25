@@ -1208,7 +1208,7 @@ struct CaptureComponent: Codable {
     // C-123 TaskDisc build 2026-10-24.
     let look: CaptureUI2TaskDiscLook?          // C-123 — `TaskDisc.Look` as {"kind": "<case>", …}
     // C-124 ChecklistStepRow build 2026-10-24. Reuses `title`, `description` and `status`
-    // (`String?`) as-is — same names.
+    // (`String?`) and `disabled` (`Bool?`, C-047's) as-is — same names.
     let disc: CaptureUI2TaskDiscLook?          // C-124 — C-123 `TaskDisc.Look`, same encoding as `look`
     // ── screen groups-enroll-program ──
     // Additive; reuses `groupName`, `groupInitials`, `groupImageURL`, `programName`,

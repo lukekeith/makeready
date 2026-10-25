@@ -5787,7 +5787,9 @@ private func buildScreenInviteQr(_ fixture: CaptureFixture) throws -> AnyView {
         state: .init(
             code: c.code ?? sample.code,
             hintURL: c.hintURL ?? sample.hintURL,
-            qrCode: c.qrCode,
+            // A present `qrCode` is drawn as a real QR of the MakeReady site (CaptureQR); the
+            // fixture's sample bitmap is too small to stay sharp at 280pt.
+            qrCode: c.qrCode == nil ? nil : CaptureQR.dataURL(),
             copiedTarget: c.copiedTarget ?? sample.copiedTarget
         )
     ))
@@ -5804,7 +5806,11 @@ private func buildUI2C111(_ fixture: CaptureFixture) throws -> AnyView {
     // playing the caller (R-04 / R-19; the C-087 precedent). Absent is `nil`, the `empty`
     // state. A value that is present but unreadable is a fixture bug.
     var ui2C111Image: Image?
-    if let raw = c.image {
+    // Any sample is drawn as a real QR of the MakeReady site (CaptureQR), so every capture's
+    // QR is sharp and scans to the same place.
+    if c.image != nil, let qr = CaptureQR.image() {
+        ui2C111Image = Image(uiImage: qr)
+    } else if let raw = c.image {
         let data: Data?
         if raw.hasPrefix("data:"), let comma = raw.firstIndex(of: ",") {
             data = Data(base64Encoded: String(raw[raw.index(after: comma)...]))
@@ -7462,7 +7468,7 @@ private func buildUI2C124(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-124: missing state.component")
     }
     // C-124 §4: `disc`, `title`, `description` and `status` are required — a nil is a fixture
-    // bug, not a value to guess. `onTap` takes R-03's no-op default.
+    // bug, not a value to guess. `disabled` and `onTap` take R-03's defaults.
     guard let raw = c.disc else {
         throw ViewRegistryError.unknownView("component.ui2.C-124: props.disc is required")
     }
@@ -7480,7 +7486,9 @@ private func buildUI2C124(_ fixture: CaptureFixture) throws -> AnyView {
             disc: try decodeUI2TaskDiscLook(raw, key: "component.ui2.C-124", prop: "disc"),
             title: title,
             description: description,
-            status: status
+            status: status,
+            // C-124 §4 `disabled`: R-03's `false` default when absent (CaptureFixture's C-047 field).
+            disabled: c.disabled ?? false
         ),
         // C-124 §2: "fills the width it is given (408 in the frame)".
         PreviewFrame(width: 408)

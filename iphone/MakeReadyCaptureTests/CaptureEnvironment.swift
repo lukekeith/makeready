@@ -347,18 +347,9 @@ func setupCaptureState(from fixture: CaptureFixture) {
     }
 
     // Study invite page — loads from GET /api/lesson-schedules/:id/invite.
-    // The QR is a real scannable code (CIQRCodeGenerator → PNG → base64).
+    // The QR is a real scannable code (CaptureQR → PNG → base64).
     if let invite = fixtureState.studyInvite {
-        var qrDataURL = ""
-        if let filter = CIFilter(name: "CIQRCodeGenerator") {
-            filter.setValue(Data(invite.inviteUrl.utf8), forKey: "inputMessage")
-            filter.setValue("M", forKey: "inputCorrectionLevel")
-            if let out = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
-               let cg = CIContext().createCGImage(out, from: out.extent),
-               let png = UIImage(cgImage: cg).pngData() {
-                qrDataURL = "data:image/png;base64," + png.base64EncodedString()
-            }
-        }
+        let qrDataURL = CaptureQR.dataURL(for: invite.inviteUrl) ?? ""
         var inviteJSON: [String: Any] = [
             "lessonScheduleId": invite.scheduleId,
             "code": invite.code,
@@ -496,9 +487,24 @@ final class MockURLProtocol: URLProtocol {
 
     static func reset() { responses = [:] }
 
-    private static func match(_ url: URL?) -> Data? {
+    private static func match(_ url: URL?) -> (body: Data, contentType: String)? {
         guard let s = url?.absoluteString else { return nil }
-        for (key, data) in responses where s.contains(key) { return data }
+        for (key, data) in responses where s.contains(key) { return (data, "application/json") }
+        return qrDefault(s)
+    }
+
+    /// Every capture: the app's QR endpoints answer with CaptureQR (a real code for the site), so
+    /// no screen ever shows a server-made, missing or blurred QR. A fixture's own entry wins.
+    /// `/api/qrcode/test` returns the PNG itself; `/api/qrcode/generate` returns
+    /// `{ success, qrCode }` with a data URL (InviteActions.generateQRCode).
+    private static func qrDefault(_ s: String) -> (body: Data, contentType: String)? {
+        if s.contains("/api/qrcode/test"), let png = CaptureQR.image()?.pngData() {
+            return (png, "image/png")
+        }
+        if s.contains("/api/qrcode/generate"), let url = CaptureQR.dataURL(),
+           let json = try? JSONSerialization.data(withJSONObject: ["success": true, "qrCode": url]) {
+            return (json, "application/json")
+        }
         return nil
     }
 
@@ -509,10 +515,11 @@ final class MockURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
 
     override func startLoading() {
-        let body = MockURLProtocol.match(request.url) ?? Data()
+        let hit = MockURLProtocol.match(request.url)
+        let body = hit?.body ?? Data()
         if let url = request.url,
            let response = HTTPURLResponse(url: url, statusCode: 200, httpVersion: "HTTP/1.1",
-                                          headerFields: ["Content-Type": "application/json"]) {
+                                          headerFields: ["Content-Type": hit?.contentType ?? "application/json"]) {
             client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         }
         client?.urlProtocol(self, didLoad: body)
@@ -520,4 +527,27 @@ final class MockURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+}
+
+/// A real, scannable QR for captures — CIQRCodeGenerator, enlarged nearest-neighbour by a whole
+/// number to at least 1024px so its modules stay hard-edged however the view scales it down.
+/// Luke 2026-10-24: a fixture's tiny sample bitmap blurred when SwiftUI enlarged it.
+enum CaptureQR {
+    /// What a capture's QR encodes when the fixture only says "a QR is here".
+    static let sampleURL = "https://app.makeready.org"
+
+    static func image(for text: String = sampleURL) -> UIImage? {
+        guard let filter = CIFilter(name: "CIQRCodeGenerator") else { return nil }
+        filter.setValue(Data(text.utf8), forKey: "inputMessage")
+        filter.setValue("M", forKey: "inputCorrectionLevel")
+        guard let qr = filter.outputImage?.samplingNearest() else { return nil }
+        let scale = (1024 / qr.extent.width).rounded(.up)
+        let out = qr.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        guard let cg = CIContext().createCGImage(out, from: out.extent) else { return nil }
+        return UIImage(cgImage: cg)
+    }
+
+    static func dataURL(for text: String = sampleURL) -> String? {
+        image(for: text)?.pngData().map { "data:image/png;base64," + $0.base64EncodedString() }
+    }
 }

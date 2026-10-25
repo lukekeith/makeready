@@ -207,13 +207,14 @@ struct GroupsEnrollProgramScreen: View {
                         title: row.title,
                         description: row.description,
                         status: isDone(step) ? .done : .todo,
+                        disabled: isDisabled(step),
                         onTap: { onSelectStep(step) }
                     )
                     .ui2Element(index == 0 ? "C-124 ChecklistStepRow" : "C-124 ChecklistStepRow \(index + 1)")
                 }
             }
-            // §3 `processing`: "every row ignore[s] taps" — no visual change (C-124 has no
-            // disabled state).
+            // §3 `processing`: "every row ignore[s] taps" — no visual change (C-124's dimmed
+            // `disabled` look is for the Row prerequisite only).
             .allowsHitTesting(phase == .checklist)
         }
     }
@@ -290,6 +291,12 @@ struct GroupsEnrollProgramScreen: View {
         case .sync: return state.syncMode == "AUTO" || state.syncMode == "OFF"
         case .accessibility: return state.lessonAccess == "all-at-once" || state.lessonAccess == "one-at-a-time"
         }
+    }
+
+    /// §3 Row prerequisite: "The **Schedule** row (row 3) is the only row with a prerequisite: it
+    /// needs the **Study program** row done" — derived on read from the draft (R-30).
+    private func isDisabled(_ step: Step) -> Bool {
+        step == .schedule && !isDone(.studyProgram)
     }
 
     private var completedSteps: Int { Step.allCases.filter(isDone).count }

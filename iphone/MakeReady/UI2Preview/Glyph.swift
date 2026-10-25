@@ -192,6 +192,7 @@ enum GlyphName: String, CaseIterable {
     case star = "star"
     case starFilledCarbon = "star-filled-carbon"
     case starList = "star-list"
+    case stopSign = "stop-sign"
     case tag = "tag"
     case tags = "tags"
     case target = "target"

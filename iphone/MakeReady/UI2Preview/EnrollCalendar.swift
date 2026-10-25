@@ -365,8 +365,8 @@ enum EnrollDayCellState {
     case endDate
     case inRange
     case inRangeDimmed       // In range but disabled weekday (dimmed text, has highlight)
-    case overrideAdded       // Manually added to schedule (yellow text/circle)
-    case overrideRemoved     // Manually removed from schedule (red text/circle)
+    case overrideAdded       // Manually added to schedule (filled green circle)
+    case overrideRemoved     // Manually removed from schedule (filled pink circle)
 }
 
 enum BlackoutDragMode {
@@ -777,9 +777,9 @@ class EnrollDayCell: UICollectionViewCell {
 
     private let overrideAddedCircle: UIView = {
         let view = UIView()
-        view.backgroundColor = .clear
-        view.layer.borderColor = UIColor(EnrollCalendarStyle.hex("#57DB8C")).cgColor
-        view.layer.borderWidth = 1
+        // C-128 §2 owner ruling (Luke 2026-10-24): a solid filled circle, no stroke.
+        // FLAGGED LITERAL #57DB8C (override mark fill), no token.
+        view.backgroundColor = UIColor(EnrollCalendarStyle.hex("#57DB8C"))
         view.translatesAutoresizingMaskIntoConstraints = false
         view.isHidden = true
         return view
@@ -787,9 +787,9 @@ class EnrollDayCell: UICollectionViewCell {
 
     private let overrideRemovedCircle: UIView = {
         let view = UIView()
-        view.backgroundColor = .clear
-        view.layer.borderColor = UIColor(EnrollCalendarStyle.hex("#DE3F87")).cgColor
-        view.layer.borderWidth = 1
+        // C-128 §2 owner ruling (Luke 2026-10-24): a solid filled circle, no stroke.
+        // FLAGGED LITERAL #DE3F87 (override mark fill), no token.
+        view.backgroundColor = UIColor(EnrollCalendarStyle.hex("#DE3F87"))
         view.translatesAutoresizingMaskIntoConstraints = false
         view.isHidden = true
         return view
@@ -871,13 +871,13 @@ class EnrollDayCell: UICollectionViewCell {
             circleView.widthAnchor.constraint(equalToConstant: circleSize),
             circleView.heightAnchor.constraint(equalToConstant: circleSize),
 
-            // Override added circle (green) - smaller with border
+            // Override added circle (green) - solid fill
             overrideAddedCircle.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             overrideAddedCircle.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
             overrideAddedCircle.widthAnchor.constraint(equalToConstant: overrideCircleSize),
             overrideAddedCircle.heightAnchor.constraint(equalToConstant: overrideCircleSize),
 
-            // Override removed circle (pink) - smaller with border
+            // Override removed circle (pink) - solid fill
             overrideRemovedCircle.centerXAnchor.constraint(equalTo: contentView.centerXAnchor),
             overrideRemovedCircle.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
             overrideRemovedCircle.widthAnchor.constraint(equalToConstant: overrideCircleSize),
@@ -961,15 +961,15 @@ class EnrollDayCell: UICollectionViewCell {
             overrideRemovedCircle.isHidden = true
 
         case .overrideAdded:
-            // Manually added to schedule - green text with green border circle
-            dayLabel.textColor = UIColor(EnrollCalendarStyle.hex("#57DB8C"))
+            // Manually added to schedule - primary text on a filled green circle (C-128 §3)
+            dayLabel.textColor = .white
             circleView.isHidden = true
             overrideAddedCircle.isHidden = false
             overrideRemovedCircle.isHidden = true
 
         case .overrideRemoved:
-            // Manually removed from schedule - pink text with pink border circle
-            dayLabel.textColor = UIColor(EnrollCalendarStyle.hex("#DE3F87"))
+            // Manually removed from schedule - primary text on a filled pink circle (C-128 §3)
+            dayLabel.textColor = .white
             circleView.isHidden = true
             overrideAddedCircle.isHidden = true
             overrideRemovedCircle.isHidden = false

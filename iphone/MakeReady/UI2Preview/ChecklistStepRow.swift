@@ -35,8 +35,15 @@ struct ChecklistStepRow: View {
     let description: String
     /// §4 `status` — required.
     let status: Status
-    /// §4 `onTap` — "The row was tapped — the caller opens that step's picker." R-03's no-op default.
+    /// §4 `disabled` — "Dims the row content to 50% and makes the row inert … Only meaningful with
+    /// `status == .todo`; ignored when `.done`." R-03's `false` default.
+    var disabled: Bool = false
+    /// §4 `onTap` — "The row was tapped — the caller opens that step's picker. Never called while
+    /// `disabled`." R-03's no-op default.
     var onTap: () -> Void = {}
+
+    /// §3 Disabled: "`disabled` is ignored (treated false) when `status == .done`."
+    private var isDisabled: Bool { disabled && status == .todo }
 
     var body: some View {
         // OQ-C-124-001 (closed): "The system highlight over the whole row, no geometry change; the
@@ -45,6 +52,9 @@ struct ChecklistStepRow: View {
             content
         }
         .buttonStyle(SystemHighlightStyle())
+        // §3 Disabled: "No tap: no press highlight … `onTap` is never called" and "reported not
+        // enabled (SwiftUI `.disabled(true)`), so VoiceOver reads it dimmed".
+        .disabled(isDisabled)
         // §2 / R-17: "the whole row is one button: label = \"<title>, <description>\", value
         // \"Done\" / \"Not done\", trait `.isButton`".
         .accessibilityElement(children: .ignore)
@@ -61,6 +71,10 @@ struct ChecklistStepRow: View {
             step
             trailingCue
         }
+        // §3 Disabled: "disc, title, description and trailing chevron — renders at **50%
+        // opacity**, applied once to the whole content group … The top and bottom hairlines are
+        // not content and stay at full strength."
+        .opacity(isDisabled ? Self.disabledOpacity : 1)
         .padding(.vertical, Token.Space.rowGap)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -152,6 +166,9 @@ struct ChecklistStepRow: View {
 
     // FLAGGED LITERAL — C-124 §2: 1px, the program-wide hairline; no stroke token (OQ-C-124-2).
     private static let hairlineWidth: CGFloat = 1
+
+    // FLAGGED LITERAL — C-124 §3 Disabled: "50% opacity" (owner ruling 2026-10-24); no opacity token.
+    private static let disabledOpacity: Double = 0.5
 
     /// `type-step-description`'s 20pt line box less SF Pro's natural line height.
     private static let descriptionLeading: CGFloat = {

@@ -14,8 +14,9 @@ import SwiftUI
 /// Select schedule — step "Choose a schedule" of the enrollment checklist
 /// (`groups-enroll-program`, §3): the leader picks a start date, the weekdays lessons fall on and
 /// any one-off overrides; the end date is derived. Only Select commits. C-040 header, the C-128
-/// calendar body on its #0D101A fill, then a pinned footer holding C-127 (§2). With no program on
-/// the checklist (§3 state 6) the body and footer are replaced by a centred line over C-048.
+/// calendar body on the page background, then a pinned footer holding C-127 (§2). With no program on
+/// the checklist (§3 state 6) the body and footer are replaced by a stop-sign guard block, laid out
+/// like `groups-enroll-program`'s `enrolled` completion state, with no button.
 ///
 /// The picker's draft — `startDate`, `enabledDays`, `overriddenDates`, `prompt` — is screen-local
 /// (§3 "Screen-local draft (D43)"): Back discards it, Select hands it to the checklist.
@@ -46,7 +47,6 @@ struct EnrollmentSelectScheduleScreen: View {
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op default.
     var onBack: () -> Void = {}                                              // §3 Back: discard + pop
     var onSelect: (Date, Date, Set<Int>, Set<Date>) -> Void = { _, _, _, _ in } // §3 Select: commit + pop
-    var onChooseProgram: () -> Void = {}                                     // §3 state 6: push the program picker
 
     // §3 "Screen-local draft (D43): startDate, enabledDays, overriddenDates, prompt."
     @SwiftUI.State private var startDate: Date?
@@ -57,13 +57,11 @@ struct EnrollmentSelectScheduleScreen: View {
     init(
         state: State,
         onBack: @escaping () -> Void = {},
-        onSelect: @escaping (Date, Date, Set<Int>, Set<Date>) -> Void = { _, _, _, _ in },
-        onChooseProgram: @escaping () -> Void = {}
+        onSelect: @escaping (Date, Date, Set<Int>, Set<Date>) -> Void = { _, _, _, _ in }
     ) {
         self.state = state
         self.onBack = onBack
         self.onSelect = onSelect
-        self.onChooseProgram = onChooseProgram
         let days = state.enabledDays.isEmpty ? Self.defaultDays : Set(state.enabledDays)
         let overrides = Set(state.overriddenDates.compactMap(Self.day))
         // §3 cascades: a seeded start that fails the §5 check (before `today`, or not on an
@@ -84,26 +82,38 @@ struct EnrollmentSelectScheduleScreen: View {
     private static let pageTitle = "Select schedule"
     /// §2 L1 / §4: trailing action "Select".
     private static let selectLabel = "Select"
-    /// §2 *needs-program body* 1.
-    private static let needsProgramLine = "Choose a study program first to set the schedule"
-    /// §2 *needs-program body* 3 / §4 C-048 `label`.
-    private static let chooseProgramLabel = "Choose a study program"
+    /// §2 *needs-program body* 3: the title.
+    private static let needsProgramTitle = "Choose a study program first"
+    /// §2 *needs-program body* 5: the description.
+    private static let needsProgramBody =
+        "The schedule is built from the study program's lessons. Go back and choose a study program before setting the schedule."
     /// §3: "Seeded … else `enabledDays = {Mon…Fri}`".
     private static let defaultDays: Set<Int> = [1, 2, 3, 4, 5]
 
     // MARK: - §2 geometry the screen owns
 
-    // FLAGGED LITERAL — enrollment-select-schedule §2: #0D101A body fill behind C-128, no token
-    // (OQ-enrollment-select-schedule-001, owner 2026-10-24).
-    private static let calendarFill = Color(red: 13 / 255, green: 16 / 255, blue: 26 / 255)
     // GAP — enrollment-select-schedule §2 L2: the body "fills everything between the header and the
     // footer (713 pt on this frame)", no sizing token. A floor so the footer sits above the bottom
     // safe area when the harness proposes no height; flexible above it.
     private static let calendarHeight: CGFloat = 713
-    // GAP — enrollment-select-schedule §2 *needs-program body*: "vertically centred in the body
-    // area — everything between the header's bottom edge (y 103) and the bottom safe area" (y 910
-    // → 807 pt), no sizing token. A floor, flexible above it.
+    // GAP — enrollment-select-schedule §2 *needs-program body*: the area below the block is
+    // `color-layout-background` down to the bottom safe area (y 103 → 910 = 807 pt), no sizing
+    // token. A floor so the page is painted when the harness proposes no height.
     private static let bodyAreaHeight: CGFloat = 807
+    // GAP — enrollment-select-schedule §2 *needs-program body* 1: the stop mark is 100×100, no size
+    // token (the groups-enroll-program / invite-member precedent).
+    private static let markSize: CGFloat = 100
+    // FLAGGED LITERAL — enrollment-select-schedule §2: the glyph is 40% of the diameter (C-109's ratio).
+    private static let glyphRatio: CGFloat = 0.4
+    // FLAGGED LITERAL — enrollment-select-schedule §2 FL-3: 64, mark-to-title gap (shared with
+    // groups-enroll-program's completion state).
+    private static let resultGap: CGFloat = 64
+    // FLAGGED LITERAL — enrollment-select-schedule §2 FL-1: title SF Pro Regular 24 / 28, no token
+    // (shared with groups-enroll-program's completion title).
+    private static let titleStyle = DesignTextStyle(weight: .regular, size: 24, lineHeight: 28, tracking: 0)
+    // FLAGGED LITERAL — enrollment-select-schedule §2 FL-2: body SF Pro Regular 14 / 28, no token
+    // (shared with groups-enroll-program's completion body).
+    private static let bodyStyle = DesignTextStyle(weight: .regular, size: 14, lineHeight: 28, tracking: 0)
 
     // MARK: - Body (§2 top → bottom)
 
@@ -157,7 +167,7 @@ struct EnrollmentSelectScheduleScreen: View {
             onPromptChange: { prompt = $0 }
         )
         .frame(maxWidth: .infinity, minHeight: Self.calendarHeight, maxHeight: .infinity)
-        .background(Self.calendarFill)                           // §2: painted by the screen
+        // §2 L2: no body fill — C-128 sits on the page's `color-layout-background` (OQ-001, reversed)
         .ui2Element("C-128 DateRangePicker")
     }
 
@@ -177,29 +187,68 @@ struct EnrollmentSelectScheduleScreen: View {
         .background(Token.layoutBackground)
     }
 
-    /// §2 *needs-program body*: the line, `space-stack-gap`, then a full-width C-048 — inset
-    /// `space-page-margin` left and right, vertically centred in the body area.
+    /// §2 *needs-program body*: `groups-enroll-program`'s completion layout with no button — the
+    /// content column (padding `space-page-margin`) holds a block padded 32 (`space-section-gap`
+    /// value), at the top of the body: stop mark, FL-3, then title and description 16 apart.
     private var needsProgram: some View {
-        VStack(spacing: Token.Space.stackGap) {
-            Text(Self.needsProgramLine)
-                .designTextStyle(Token.TypeStyle.bodySm)
-                .foregroundColor(Token.textSecondary)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity)
-            PageActionButton(
-                label: Self.chooseProgramLabel,
-                role: .affirmative,
-                size: .md,
-                glyph: nil,
-                layout: .centered,
-                enabled: true,
-                onTap: onChooseProgram
-            )
-            .ui2Element("C-048 PageActionButton")
+        VStack(spacing: Self.resultGap) {
+            stopMark
+
+            // §2 4: gap 16 (`space-stack-gap`).
+            VStack(spacing: Token.Space.stackGap) {
+                Text(Self.needsProgramTitle)
+                    .designTextStyle(Self.titleStyle)
+                    .foregroundStyle(Token.textPrimary)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: Self.titleStyle.lineHeight)
+                needsProgramDescription
+            }
         }
-        .padding(.horizontal, Token.Space.pageMargin)
-        .frame(maxWidth: .infinity, minHeight: Self.bodyAreaHeight, maxHeight: .infinity)
+        .padding(Token.Space.sectionGap)
+        .frame(maxWidth: .infinity)
+        .padding(Token.Space.pageMargin)
+        .frame(maxWidth: .infinity, minHeight: Self.bodyAreaHeight, maxHeight: .infinity, alignment: .top)
+    }
+
+    /// §2 *needs-program body* 1: screen-owned (not C-109) — a `color-negative` circle carrying the
+    /// library `stop-sign` tinted `color-text-primary` at 40% of the diameter. No border, shadow or
+    /// animation (§3 Motion).
+    private var stopMark: some View {
+        // `radius-circle` is NOT PARSED ("50%"), so the Circle shape is what names it.
+        Circle()
+            .fill(Token.negative)
+            .frame(width: Self.markSize, height: Self.markSize)
+            .overlay {
+                Image(GlyphName.stopSign.rawValue, bundle: .ui2Preview)
+                    .renderingMode(.template)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: Self.markSize * Self.glyphRatio, height: Self.markSize * Self.glyphRatio)
+                    .foregroundStyle(Token.textPrimary)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Stop")
+            .accessibilityAddTraits(.isImage)
+            .ui2Element("Stop mark")
+    }
+
+    /// §2 *needs-program body* 5: FL-2, `color-text-secondary`, centred, wrapping. FL-2's 28pt pitch
+    /// is spent as the line box less SF Pro's natural line (groups-enroll-program's completion body
+    /// construction), so n lines are exactly n × 28.
+    private var needsProgramDescription: some View {
+        let style = Self.bodyStyle
+        let natural = UIFont.systemFont(ofSize: style.size, weight: .regular).lineHeight
+        let leading = max((style.lineHeight ?? style.size) - natural, 0)
+        return Text(Self.needsProgramBody)
+            .font(style.font)
+            .tracking(style.tracking)
+            .lineSpacing(leading)
+            .padding(.vertical, leading / 2)
+            .foregroundStyle(Token.textSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
+            .fixedSize(horizontal: false, vertical: true)
     }
 
     // MARK: - Derived (R-30: computed on read, through C-128's ported rules)
