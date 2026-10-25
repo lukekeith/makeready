@@ -130,8 +130,8 @@ else is read-only.
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `analytics_events` **materialized** view arm `ls:` (`LESSON_SCHEDULED`) | `scheduled_lessons` metric | D10 — scheduled side of Activity | ⬜ |
-| SC2 | ADD | `/api/home/*` route module (4 GETs) | §Contract | D2, D3, D6, D8, D11 | ⬜ |
+| SC1 | ADD | `analytics_events` **materialized** view arm `ls:` (`LESSON_SCHEDULED`) | `scheduled_lessons` metric | D10 — scheduled side of Activity | ✅ `20261025120000.sql` (54168ac) |
+| SC2 | ADD | `/api/home/*` route module (4 GETs) | §Contract | D2, D3, D6, D8, D11 | ✅ `routes/home.ts` (a4bcd88) |
 
 **Data plan:** SC1 is a new **hand-written** Atlas migration — the recorded exception to the schema:diff
 rule, because `analytics_events` is a materialized view whose schema of record is its migration
