@@ -39,3 +39,4 @@ path.
 ## History
 - 2026-10-25 parked — iPhone is commit: manual; server half built and contract frozen
 - 2026-10-25 unparked by luke — building phase 3 here with per-task iPhone commit approval
+- 2026-10-25 unparked by a person — named to /builder:agent or /builder:fleet
