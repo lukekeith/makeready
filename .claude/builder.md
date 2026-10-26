@@ -17,7 +17,7 @@ apps:
   - name: iphone
     path: iphone/
     role: consumer
-    commit: manual
+    commit: auto        # owner 2026-10-26: builder agents commit iPhone tasks and merge into the branch the work started from, no approval stop (released_artifact still governs compatibility checks)
     released_artifact: true
   - name: capture
     path: capture/
