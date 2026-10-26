@@ -163,6 +163,7 @@
 		3A24CFC3363B914E9877C674 /* WeekdayHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464C09F1DDDAEB03E329151F /* WeekdayHeader.swift */; };
 		3A4118210A31A6781B806B79 /* DateRangePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10FFC8629C46C7F51F5D33B /* DateRangePicker.swift */; };
 		3AFCB5D1427DC4853C062023 /* ValuePair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E14CE4E15C37FB21E78616 /* ValuePair.swift */; };
+		3B6B0370F9278DF5793C0750 /* EditDateFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C649E10E537D35651E00E98 /* EditDateFieldScreen.swift */; };
 		3C08B59733F3B455D53986BC /* SharedEditFieldTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 308350C32C1F0B4373C3C40C /* SharedEditFieldTemplate.swift */; };
 		3D2005DB297EE2498DEA8E65 /* InviteMemberScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE698C12540E4C979111EFA4 /* InviteMemberScreen.swift */; };
 		3DDA485F0182DFC996351BBB /* LocalPortHealer.swift in Sources */ = {isa = PBXBuildFile; fileRef = LPHL0002000000000000001 /* LocalPortHealer.swift */; };
@@ -278,6 +279,7 @@
 		6A08BA9A8229E97A2B3D7ACD /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 280805AC8E1F4024BA7D665C /* Foundation.framework */; };
 		6AB26B820CCBFCBC313836D9 /* CanvasTextObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E2FBC04A6DD8E9B873FAA5 /* CanvasTextObject.swift */; };
 		6B411A460D0C12CB2075F9AC /* LoginOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0861A5A9123E5C6F3093FF0D /* LoginOutcome.swift */; };
+		6BBD1AB1985FCCB087AD3FDA /* EditDateFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C649E10E537D35651E00E98 /* EditDateFieldScreen.swift */; };
 		6C366F99DDD04D86AFE698C0 /* ScheduleSummaryFooter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DB72DDA04CB5BBBF5F045A /* ScheduleSummaryFooter.swift */; };
 		6C5439AC8DC1A09DC5EC2685 /* MemberProfileMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F65125EF21DADBF7C1D423 /* MemberProfileMapper.swift */; };
 		6C5A8DD5D8C7CE3123E8C6E6 /* ChipStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC599075F8870C376CC3475B /* ChipStrip.swift */; };
@@ -437,6 +439,7 @@
 		APPDEL0001000000000001 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPDEL0002000000000001 /* AppDelegate.swift */; };
 		ASTB000100000000000001 /* ActionStubTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = ASTB000200000000000001 /* ActionStubTests.swift */; };
 		B03D901C4E59EB69994115A8 /* FilterState.swift in Sources */ = {isa = PBXBuildFile; fileRef = FLST0002000000000000001 /* FilterState.swift */; };
+		B04A587A71655BA49D7C6ED5 /* EditDateFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C649E10E537D35651E00E98 /* EditDateFieldScreen.swift */; };
 		B0690B7DABFFF705D00F34C1 /* RecordingJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 767367FED5DCEA1D9A73501A /* RecordingJob.swift */; };
 		B06C7A4B7B32F9EC7C3A36B3 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCFB3D644DD58EA773FF50B3 /* SectionHeader.swift */; };
 		B0B9A143BDD8D01A200010CD /* AllDayEventChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FCF28B58C2A0FB50DD2A838 /* AllDayEventChip.swift */; };
@@ -895,6 +898,7 @@
 		793AE2E54A40CA1145F94725 /* EventIndicator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EventIndicator.swift; sourceTree = "<group>"; };
 		793BF9462EB0C66EF0EAF8AD /* AuthCallbackParser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthCallbackParser.swift; sourceTree = "<group>"; };
 		7975721ABB14E105D0754A64 /* ColorSwatch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ColorSwatch.swift; sourceTree = "<group>"; };
+		7C649E10E537D35651E00E98 /* EditDateFieldScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditDateFieldScreen.swift; path = Screens/Fields/EditDateFieldScreen.swift; sourceTree = "<group>"; };
 		7CF5FCCA1E4B00460E8794A2 /* InviteHomeScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InviteHomeScreen.swift; path = Screens/Enrollments/InviteHomeScreen.swift; sourceTree = "<group>"; };
 		7D3337851DF02E5CCBFF9F59 /* ActionMenuRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActionMenuRow.swift; sourceTree = "<group>"; };
 		7DC25844EE9723543664D85D /* EditTextSingleFieldScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditTextSingleFieldScreen.swift; path = Screens/Fields/EditTextSingleFieldScreen.swift; sourceTree = "<group>"; };
@@ -1973,6 +1977,7 @@
 				31183EC63408B733B58CC816 /* GroupsEnrollProgramScreen.swift */,
 				FDE2917CCA2C5196A802AAF6 /* EnrollmentSelectScheduleScreen.swift */,
 				1843BAB9D354987CEAF3BDE6 /* HorizontalScrolling.swift */,
+				7C649E10E537D35651E00E98 /* EditDateFieldScreen.swift */,
 			);
 			name = MakeReadyUI;
 			path = MakeReadyUI;
@@ -2944,6 +2949,7 @@
 				6D90975D960EA7436A71C57E /* MembersHomeContainer.swift in Sources */,
 				9C5D2A595E7E3EC44BAFD70B /* MemberProfileMapper.swift in Sources */,
 				CF5F839C0F376EB1920FE169 /* MemberProfileContainer.swift in Sources */,
+				6BBD1AB1985FCCB087AD3FDA /* EditDateFieldScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3089,6 +3095,7 @@
 				6132DE1E1FA29BAF1DA742BF /* GroupsEnrollProgramScreen.swift in Sources */,
 				1D67F96D31CCFF44ABC9B710 /* EnrollmentSelectScheduleScreen.swift in Sources */,
 				DC0E6641699E478A918188BD /* HorizontalScrolling.swift in Sources */,
+				3B6B0370F9278DF5793C0750 /* EditDateFieldScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3336,6 +3343,7 @@
 				25C476CF90BCF0078BA89AC0 /* MembersHomeContainer.swift in Sources */,
 				6C5439AC8DC1A09DC5EC2685 /* MemberProfileMapper.swift in Sources */,
 				820833CEAA08DFDCE200EC90 /* MemberProfileContainer.swift in Sources */,
+				B04A587A71655BA49D7C6ED5 /* EditDateFieldScreen.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

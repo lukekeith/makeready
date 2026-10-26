@@ -119,4 +119,49 @@ final class UI2MembersEditComponentTests: XCTestCase {
             "Phone number", "Email address", "Birthday", "Gender", "Address", "Emergency contact", "Emergency phone"
         ])
     }
+
+    // MARK: - Task 7: EditDateFieldScreen (D3, D9, D13, D26)
+
+    private var june25: DateComponents { DateComponents(year: 1974, month: 6, day: 25) }
+
+    /// D9 / D13: dirty compares the calendar day only; Clear on a set value is dirty; any wheel
+    /// value over a stored null is dirty; null over null is clean.
+    func testDateDirtyRuleComparesTheCalendarDayOnly() {
+        XCTAssertFalse(EditDateFieldScreen.isDirty(value: june25, loaded: june25))
+        XCTAssertFalse(EditDateFieldScreen.isDirty(value: DateComponents(year: 1974, month: 6, day: 25, hour: 9), loaded: june25))
+        XCTAssertTrue(EditDateFieldScreen.isDirty(value: DateComponents(year: 1974, month: 6, day: 26), loaded: june25))
+        XCTAssertTrue(EditDateFieldScreen.isDirty(value: nil, loaded: june25))
+        XCTAssertTrue(EditDateFieldScreen.isDirty(value: june25, loaded: nil))
+        XCTAssertFalse(EditDateFieldScreen.isDirty(value: nil, loaded: nil))
+    }
+
+    /// D13 / D26: `saving` disables Save and Clear; D9: Clear is disabled when already "Not set".
+    func testDateSaveAndClearEnablement() {
+        XCTAssertTrue(EditDateFieldScreen.saveEnabled(value: nil, loaded: june25, saving: false))
+        XCTAssertFalse(EditDateFieldScreen.saveEnabled(value: june25, loaded: june25, saving: false))
+        XCTAssertFalse(EditDateFieldScreen.saveEnabled(value: nil, loaded: june25, saving: true))
+        XCTAssertFalse(EditDateFieldScreen.clearEnabled(value: nil, saving: false))
+        XCTAssertTrue(EditDateFieldScreen.clearEnabled(value: june25, saving: false))
+        XCTAssertFalse(EditDateFieldScreen.clearEnabled(value: june25, saving: true))
+    }
+
+    /// D9: the wheel opens on the value, or on 2000-01-01 when "Not set", and never outside its range.
+    func testDateWheelStartsAtTheValueOr2000AndStaysInRange() {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Denver")!
+        let min = cal.date(from: DateComponents(year: 1900, month: 1, day: 1))!
+        let max = cal.date(from: DateComponents(year: 2026, month: 10, day: 26))!
+        let unset = EditDateFieldScreen.wheelStart(loaded: nil, min: min, max: max, calendar: cal)
+        XCTAssertEqual(EditDateFieldScreen.components(of: unset, calendar: cal), DateComponents(year: 2000, month: 1, day: 1))
+        let set = EditDateFieldScreen.wheelStart(loaded: june25, min: min, max: max, calendar: cal)
+        XCTAssertEqual(EditDateFieldScreen.components(of: set, calendar: cal), june25)
+        XCTAssertEqual(EditDateFieldScreen.wheelStart(loaded: DateComponents(year: 2030, month: 1, day: 1), min: min, max: max, calendar: cal), max)
+        XCTAssertEqual(EditDateFieldScreen.wheelStart(loaded: DateComponents(year: 1850, month: 1, day: 1), min: min, max: max, calendar: cal), min)
+    }
+
+    func testDateDayDropsEverythingButTheCalendarDay() {
+        XCTAssertEqual(EditDateFieldScreen.day(DateComponents(year: 1974, month: 6, day: 25, hour: 3, minute: 4)), june25)
+        XCTAssertNil(EditDateFieldScreen.day(DateComponents(year: 1974, month: 6)))
+        XCTAssertNil(EditDateFieldScreen.day(nil))
+    }
 }
