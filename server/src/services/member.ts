@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma.js'
 import type { Member, Group, Prisma } from '../generated/prisma/index.js'
 import { type MemberViewer, visibleMemberOrgIds } from './member-access.js'
+import { normalizePhone } from './member-fields.js'
 
 /**
  * Member Service
@@ -11,6 +12,10 @@ export interface MemberResult {
   success: boolean
   data?: Member
   error?: string
+  /** ui2-members-edit SC3/D12: an HTTP status the route should answer with (absent → 500). */
+  status?: number
+  /** ui2-members-edit D5: a machine-readable error code, e.g. 'PHONE_TAKEN'. */
+  code?: string
 }
 
 export interface MembersResult {
@@ -60,15 +65,22 @@ export interface CreateMemberData {
 export interface UpdateMemberData {
   firstName?: string
   lastName?: string
-  email?: string
+  email?: string | null
+  phoneNumber?: string
   gender?: string | null
   birthday?: Date | null
+  address?: string | null
+  emergencyContactName?: string | null
+  emergencyContactPhone?: string | null
   profilePicture?: string | null
   phoneVerified?: boolean
-  lastVerifiedAt?: Date
+  lastVerifiedAt?: Date | null
   smsConsent?: boolean
   smsConsentAt?: Date | null
 }
+
+/** ui2-members-edit D12: who is calling updateMember — the member's own session, or a user. */
+export type MemberUpdateViewerKind = 'self' | 'user'
 
 /**
  * Find member by phone number
@@ -244,21 +256,59 @@ export async function createMember(
   }
 }
 
+/** A Prisma unique-constraint violation; phoneNumber is the only writable unique key here (SC3). */
+function isUniqueViolation(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'P2002'
+}
+
 /**
  * Update member profile
+ * ui2-members-edit D5/D17: a changed (normalized) phone resets phoneVerified, lastVerifiedAt and SMS
+ * consent; the same number in another format is dropped. D12/D23: a member session may not change
+ * its own number. SC3: a unique violation is 409 PHONE_TAKEN.
  * @param memberId - Member ID
  * @param data - Update data
- * @returns Updated member or error
+ * @param viewerKind - 'self' for the member's own session, 'user' otherwise (default)
+ * @returns Updated member or error (status/code set when the route should not answer 500)
  */
 export async function updateMember(
   memberId: string,
-  data: UpdateMemberData
+  data: UpdateMemberData,
+  viewerKind: MemberUpdateViewerKind = 'user'
 ): Promise<MemberResult> {
   try {
+    const update: UpdateMemberData = { ...data }
+
+    if (data.phoneNumber !== undefined) {
+      const next = normalizePhone(data.phoneNumber)
+      if (!next) return { success: false, error: 'Enter a valid phone number', status: 400 }
+
+      const current = await prisma.member.findUnique({
+        where: { id: memberId },
+        select: { phoneNumber: true },
+      })
+      if (!current) return { success: false, error: 'Member not found', status: 404 }
+
+      if (next === current.phoneNumber) {
+        delete update.phoneNumber
+      } else {
+        if (viewerKind === 'self') {
+          return { success: false, error: 'Phone changes go through sign-in', status: 403 }
+        }
+        Object.assign(update, {
+          phoneNumber: next,
+          phoneVerified: false,
+          lastVerifiedAt: null,
+          smsConsent: false,
+          smsConsentAt: new Date(),
+        })
+      }
+    }
+
     const member = await prisma.member.update({
       where: { id: memberId },
       data: {
-        ...data,
+        ...update,
         updatedAt: new Date(),
       },
     })
@@ -268,6 +318,14 @@ export async function updateMember(
       data: member,
     }
   } catch (error) {
+    if (isUniqueViolation(error)) {
+      return {
+        success: false,
+        error: 'That number belongs to another member',
+        code: 'PHONE_TAKEN',
+        status: 409,
+      }
+    }
     console.error('Error updating member:', error)
     return {
       success: false,
