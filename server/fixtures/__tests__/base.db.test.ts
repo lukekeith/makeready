@@ -79,6 +79,8 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
       member_video_progress: 0,
       membership_events: 0,
       client_events: 0,
+      media: 0, // D22: images are off under vitest (FIXTURE_IMAGES=on turns them on)
+      media_usages: 0,
     })
   }, 120_000)
 

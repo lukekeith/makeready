@@ -6,6 +6,7 @@
  * fixture user, so deleting that user cascades the graph (D7).
  */
 import { FIXTURE_TZ, FixtureError, type ScenarioFn, addDays, weekdayOf } from './context.js'
+import { seedImages } from './images.js'
 import {
   FIXTURE_ENROLLMENT_IDS,
   FIXTURE_GROUP_IDS,
@@ -250,4 +251,6 @@ export const seedBase: ScenarioFn = async (ctx) => {
     where: { enrollmentId: { in: FIXTURE_ENROLLMENT_IDS } },
     orderBy: { id: 'asc' },
   })
+  // D22: covers and the media library, from the d2m image set.
+  await seedImages(ctx)
 }

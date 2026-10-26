@@ -31,7 +31,7 @@
 |---|---|---|---|---|
 | 1 | server | 1 | `scheduled_lessons` is queryable through `/api/analytics/query`, from a new `ls:` matview arm | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 2 | server | 2–6 | `/api/home/{sessions,days,engagement,following}` answer per §Contract, scoped like analytics | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
-| 3 | server | 7, 13, 15 | `fixtures:reset` makes every Home section non-zero; the contract freezes (re-closes after Task 13) | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
+| 3 | server | 7, 13, 15, 16 | `fixtures:reset` makes every Home section non-zero; the contract freezes (re-closes after Task 13) | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 4 | iphone | 8–9 | `DashboardSnapshot` carries and caches every new section; `refresh()` fetches them, non-fatally | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 | 5 | iphone | 10–12, 14 | `HomeDashboardMapper` fills Activity, day cards, Sessions (per range), Engagement and Following; Task 14 lands D18–D20 on the device build | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 
@@ -3856,4 +3856,18 @@ Recipe: /api (server) — fixtures layer
   Engagement 10/24), `base.db.test.ts` (E1–E4 on their enabled days), `scheduled-lessons.db.test.ts` (probe at +30).
 
 **Done when:** `FIXTURES_TEST_DATABASE_URL=<throwaway> npx vitest run fixtures` green; walk env re-seeded.
+
+### Task 16: Fixture images from d2m (D22, owner 2026-10-25)
+App: server
+Phase: 3
+Recipe: /api (server) — fixtures layer
+
+**Files:**
+- Create: `server/fixtures/images.ts` — `selectImages()` (slots by preferred slug → tag pool; library round-robin by Book),
+  d2m catalog fetch + cache, sharp resize to 1200/400 JPEG, `imageBaseUrl()`, `seedImages()` (media, media_usages, covers).
+- Modify: `server/fixtures/base.ts` (calls `seedImages`), `ids.ts` (`media`, `mediaUsage` kinds), `counts.ts` +
+  `__tests__/db-harness.ts` (media tables), `README.md`; root `.gitignore` (`server/public/fixture-images/`).
+- Tests: `__tests__/images.test.ts` (preferred/pool picks, library spread, determinism, base URL); `base.db.test.ts` (e) media 0 under vitest.
+
+**Done when:** fixtures suite green on a throwaway DB; a walk-env reset stores reachable covers (HTTP 200 via the Local host).
 
