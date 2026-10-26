@@ -13,6 +13,15 @@ import SwiftUI
 struct UI2Shell: View {
     @State private var model = UI2ShellModel()
     @Environment(AuthManager.self) private var authManager
+    /// members-search-pinned: the keyboard's height and the TabBar's, so the page is padded by
+    /// only the part of the keyboard that rises past the TabBar it covers.
+    @State private var keyboardHeight: CGFloat = 0
+    @State private var tabBarHeight: CGFloat = 0
+
+    /// members-search-pinned: the keyboard covers the TabBar instead of lifting it.
+    static func keyboardOverlap(keyboardHeight: CGFloat, tabBarHeight: CGFloat) -> CGFloat {
+        max(0, keyboardHeight - tabBarHeight)
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,11 +38,22 @@ struct UI2Shell: View {
                     }
                 }
             }
+            .safeAreaPadding(.bottom, Self.keyboardOverlap(keyboardHeight: keyboardHeight, tabBarHeight: tabBarHeight))
             // C-084 §2 Motion: "the selection switches instantly with no animation"; a re-tap
             // with a page pushed pops it (D20, the system pop).
             TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: {})
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabBarHeight = $0 }
         }
         .ignoresSafeArea(.container, edges: .bottom)
+        // members-search-pinned: the keyboard never lifts the TabBar (it squeezed the Members
+        // list); the pages above it get the keyboard's overlap as safe area instead.
+        .ignoresSafeArea(.keyboard, edges: .bottom)
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillChangeFrameNotification)) { note in
+            followKeyboard(note)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { note in
+            followKeyboard(note, hiding: true)
+        }
         .background(Token.layoutBackground.ignoresSafeArea())
         .task {
             PushNotificationManager.shared.clearPendingDeepLink()  // SPEC D17
@@ -45,6 +65,16 @@ struct UI2Shell: View {
         .onChange(of: PushNotificationManager.shared.pendingDeepLink) { _, link in
             if link != .none { PushNotificationManager.shared.clearPendingDeepLink() }
         }
+    }
+
+    /// members-search-pinned: track the keyboard on its own animation timing.
+    private func followKeyboard(_ note: Notification, hiding: Bool = false) {
+        let info = note.userInfo
+        let frame = (info?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect) ?? .zero
+        let screenHeight = (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.screen.bounds.height ?? frame.maxY
+        let height = hiding ? 0 : max(0, screenHeight - frame.minY)
+        let duration = (info?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+        withAnimation(.easeOut(duration: duration)) { keyboardHeight = height }
     }
 
     /// D1: the system bar is hidden on every page (pushed pages draw C-040); the interactive

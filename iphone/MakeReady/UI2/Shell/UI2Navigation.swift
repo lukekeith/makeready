@@ -21,6 +21,13 @@ extension EnvironmentValues {
     }
 }
 
+/// members-search-pinned: a section page asks the shell to push its TopNav off screen (Members'
+/// active search). Any page saying `true` wins; a page that says nothing leaves the row in place.
+struct UI2HidesTopNavKey: PreferenceKey {
+    static let defaultValue = false
+    static func reduce(value: inout Bool, nextValue: () -> Bool) { value = value || nextValue() }
+}
+
 /// SPEC D1 / F2: `.toolbar(.hidden, for: .navigationBar)` disables the stack's interactive
 /// left-edge pop. Placed in a page of the stack, this re-arms THAT stack's recognizer with a
 /// delegate that begins only above the root — scoped to the UI2 stacks, so the 1.0 screens'

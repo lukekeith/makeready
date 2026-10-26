@@ -20,7 +20,30 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertTrue(SearchField(text: "", placeholder: "Search members", focused: false, editable: true).editable)
     }
 
+    /// members-search-pinned: an active search's x dismisses it rather than refocusing.
+    func testSearchFieldClearRefocusesUnlessItDismisses() {
+        XCTAssertFalse(SearchField(text: "", placeholder: "Search members", focused: false).clearDismisses)
+        XCTAssertTrue(SearchField(text: "", placeholder: "Search members", focused: false,
+                                  clearDismisses: true, editable: true).clearDismisses)
+    }
+
     // MARK: - Task 13: MembersHomeScreen (D4, D7/D15, T11)
+
+    /// members-search-pinned: search is active while focused or holding a query — a typed query
+    /// keeps the results up after the keyboard drops; only the x ends it.
+    func testMembersSearchIsActiveWhileFocusedOrHoldingAQuery() {
+        XCTAssertFalse(MembersHomeScreen.isSearchActive(query: "", focused: false))
+        XCTAssertTrue(MembersHomeScreen.isSearchActive(query: "", focused: true))
+        XCTAssertTrue(MembersHomeScreen.isSearchActive(query: "ke", focused: false))
+    }
+
+    /// members-search-pinned: the keyboard covers the TabBar; the page is padded only by the
+    /// part of the keyboard that rises past it.
+    func testKeyboardPadsThePageOnlyPastTheTabBar() {
+        XCTAssertEqual(UI2Shell.keyboardOverlap(keyboardHeight: 0, tabBarHeight: 84), 0)
+        XCTAssertEqual(UI2Shell.keyboardOverlap(keyboardHeight: 50, tabBarHeight: 84), 0)
+        XCTAssertEqual(UI2Shell.keyboardOverlap(keyboardHeight: 336, tabBarHeight: 84), 252)
+    }
 
     func testMembersHomeSampleCarriesTheLeaderChipAndInitials() {
         let s = MembersHomeScreen.State.populated

@@ -71,24 +71,31 @@ struct MembersHomeScreen: View {
     var onSelectGroup: (String) -> Void = { _ in }  // §3: a Groups option applies that filter
     var onSelectLeader: (String) -> Void = { _ in } // §3: a Leaders option applies that filter
     var onOpenMember: (Int) -> Void = { _ in }      // §3: MemberRow tap → members-profile, by row
+    /// members-search-pinned (routed to /ui2-resolve): search became active / ended — the shell
+    /// pushes its TopNav off screen while it is active. The screen only reports it.
+    var onSearchActiveChange: (Bool) -> Void = { _ in }
 
     // R-31 ephemeral UI: the query as typed (§3 "typing in C-034 filters the list live") and the
     // presented menu (§3 "Tap a chip → FilterMenuOverlay (C-036) opens").
     @SwiftUI.State private var query: String
     @SwiftUI.State private var presentedMenu: FilterMenu?
+    /// members-search-pinned: the editable C-034's focus, as it reports it.
+    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
         onSearch: @escaping (String) -> Void = { _ in },
         onSelectGroup: @escaping (String) -> Void = { _ in },
         onSelectLeader: @escaping (String) -> Void = { _ in },
-        onOpenMember: @escaping (Int) -> Void = { _ in }
+        onOpenMember: @escaping (Int) -> Void = { _ in },
+        onSearchActiveChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.state = state
         self.onSearch = onSearch
         self.onSelectGroup = onSelectGroup
         self.onSelectLeader = onSelectLeader
         self.onOpenMember = onOpenMember
+        self.onSearchActiveChange = onSearchActiveChange
         _query = SwiftUI.State(initialValue: state.searchText)
         _presentedMenu = SwiftUI.State(initialValue: nil)
     }
@@ -109,18 +116,43 @@ struct MembersHomeScreen: View {
     // token.
     private static let hairline: CGFloat = 1
 
+    /// members-search-pinned: search is active while the field is focused or holds a query, so
+    /// typed results stay up after the keyboard drops; only C-039 (the x) ends it.
+    static func isSearchActive(query: String, focused: Bool) -> Bool {
+        focused || !query.isEmpty
+    }
+
+    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
+
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
         // D22: no ScrollView at the root — in the app the shell's page scroll scrolls it
         // (HomeSectionLayout); the capture canvas lays it out at its full length.
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            memberList
+        // members-search-pinned: the header is a pinned section header, so inside the shell's
+        // scroll it stays put and the rows scroll beneath it.
+        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+            Section {
+                memberList
+            } header: {
+                header.background { Self.headerMaterial }
+            }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
         .overlay { filterMenu }
+        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
+    }
+
+    // GAP — members-search-pinned: no material token. A blur under a mostly-opaque page
+    // background, so the rows behind the pinned header are barely visible.
+    private static let headerScrimOpacity: Double = 0.8
+
+    private static var headerMaterial: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            Token.layoutBackground.opacity(headerScrimOpacity)
+        }
     }
 
     // MARK: §2 Header
@@ -146,6 +178,10 @@ struct MembersHomeScreen: View {
                     query = ""
                     onSearch("")
                 },
+                // members-search-pinned: while active the x is always there and ends the search.
+                showsClearWhenEmpty: searchActive,
+                onFocusChange: { searchFocused = $0 },
+                clearDismisses: true,
                 editable: true
             )
             .ui2Element("C-034 SearchField")

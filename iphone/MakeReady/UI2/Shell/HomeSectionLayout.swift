@@ -12,6 +12,10 @@ struct HomeSectionLayout<Content: View>: View {
     var onRefresh: (@MainActor () async -> Void)?
     @ViewBuilder var content: Content
 
+    /// members-search-pinned: the page asked for the row to leave (Members' active search,
+    /// `UI2HidesTopNavKey`) — the row slides up off screen and the page rises into its place.
+    @State private var hidesNav = false
+
     /// The host's horizontal inset around C-019 TopNav: none.
     ///
     /// The frozen home-dashboard frame (440pt wide) draws the first tab label's ink at x=16.
@@ -39,10 +43,25 @@ struct HomeSectionLayout<Content: View>: View {
             // row's growth instead. One section, one scroll: a switch starts the new page at its
             // top (the row is outside the `id`, so it keeps its own scroll position, D12).
             ZStack(alignment: .top) {
-                SectionPageScroll(model: $model, growth: growth, onRefresh: onRefresh) { content }
+                SectionPageScroll(model: $model, growth: growth, morphs: !hidesNav, onRefresh: onRefresh) { content }
                     .id(model.section)
-                    .padding(.top, Self.collapsedFootprint)
+                    .padding(.top, hidesNav ? 0 : Self.collapsedFootprint)
                 navRow.background(Token.layoutBackground)
+                    .offset(y: hidesNav ? -Self.collapsedFootprint : 0)
+                // members-search-pinned: the status-bar strip stays page background, so the row
+                // vanishes under it as it leaves and no row scrolls through it.
+                Color.clear.frame(height: 0)
+                    .background(alignment: .bottom) { Token.layoutBackground.ignoresSafeArea(edges: .top) }
+                    .allowsHitTesting(false)
+            }
+            // members-search-pinned: the search pushes the row out — the row collapses and both
+            // move on the row's own spring.
+            .onPreferenceChange(UI2HidesTopNavKey.self) { hides in
+                guard hides != hidesNav else { return }
+                withAnimation(TopNavHost.morphSpring) {
+                    hidesNav = hides
+                    if hides { model.expansion = 0 }
+                }
             }
         } else {
             VStack(spacing: 0) {
@@ -87,6 +106,9 @@ struct HomeSectionLayout<Content: View>: View {
 private struct SectionPageScroll<Content: View>: View {
     @Binding var model: UI2ShellModel
     let growth: CGFloat
+    /// members-search-pinned: false while the row is pushed off screen — the page's pull and
+    /// scroll leave `expansion` alone.
+    let morphs: Bool
     let onRefresh: (@MainActor () async -> Void)?
     @ViewBuilder var content: Content
 
@@ -159,6 +181,7 @@ private struct SectionPageScroll<Content: View>: View {
         if onRefresh != nil, !refreshing, phase == .interacting, offset <= -Self.refreshPull, !refreshArmed {
             withAnimation(.easeOut(duration: 0.15)) { refreshArmed = true }
         }
+        guard morphs else { return }
         if model.expansion == 0, phase == .interacting, offset <= -Self.expandPull {
             withAnimation(Self.triggerSpring) { model.expansion = 1 }
         } else if model.expansion == 1, offset >= Self.collapseScroll {

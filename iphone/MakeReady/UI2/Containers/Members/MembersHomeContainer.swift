@@ -14,6 +14,8 @@ struct MembersHomeContainer: View {
     /// The one in-flight directory load; a newer keystroke or pick cancels it (T13: Task cancel +
     /// `Task.sleep`, never `asyncAfter`).
     @State private var loadTask: Task<Void, Never>?
+    /// members-search-pinned: while search is active the shell's TopNav moves off screen.
+    @State private var searchActive = false
 
     var body: some View {
         let app = AppState.shared
@@ -54,8 +56,10 @@ struct MembersHomeContainer: View {
             onOpenMember: { row in
                 guard let id = output.memberId(atRow: row) else { return }
                 navigator.push(.memberDetail(id: id, name: output.state.memberNames[row]))
-            }
+            },
+            onSearchActiveChange: { searchActive = $0 }
         )
+        .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .task {
             reload(selection, after: nil)
             await actions.loadFilterOptions()

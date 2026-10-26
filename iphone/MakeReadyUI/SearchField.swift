@@ -46,6 +46,12 @@ struct SearchField: View {
     /// own focus driving `focused` (the prop is then ignored). `false` keeps the display-only
     /// render every preview and capture case uses, so every §3 state stays reachable by props.
     let editable: Bool
+    /// members-search-pinned (routed to /ui2-resolve): the editable form's focus, reported out so
+    /// a consumer can tell when search is active. No render effect.
+    let onFocusChange: (Bool) -> Void
+    /// members-search-pinned (routed to /ui2-resolve): C-039 ENDS the search instead of §4's
+    /// "field stays focused" — `onClear` runs and the editable form drops focus. Defaults off.
+    let clearDismisses: Bool
 
     /// The editable form's focus — ephemeral UI state (R-02), never a prop.
     @FocusState private var inputFocused: Bool
@@ -57,6 +63,8 @@ struct SearchField: View {
         onChange: @escaping (String) -> Void = { _ in },
         onClear: @escaping () -> Void = {},
         showsClearWhenEmpty: Bool = false,
+        onFocusChange: @escaping (Bool) -> Void = { _ in },
+        clearDismisses: Bool = false,
         editable: Bool = false
     ) {
         self.text = text
@@ -65,6 +73,8 @@ struct SearchField: View {
         self.onChange = onChange
         self.onClear = onClear
         self.showsClearWhenEmpty = showsClearWhenEmpty
+        self.onFocusChange = onFocusChange
+        self.clearDismisses = clearDismisses
         self.editable = editable
     }
 
@@ -151,6 +161,7 @@ struct SearchField: View {
         .contentShape(Rectangle())
         // D19: a tap anywhere on the field (the glyph, the inset) focuses the editable form.
         .simultaneousGesture(TapGesture().onEnded { if editable { inputFocused = true } })
+        .onChange(of: inputFocused) { _, focused in onFocusChange(focused) }
         .ui2Element("SearchField")
     }
 
@@ -252,7 +263,9 @@ struct SearchField: View {
     private var clearButton: some View {
         ClearSearchButton(action: {
             onClear()
-            if editable { inputFocused = true }     // §4: clears `text`, field **stays focused**
+            // §4: clears `text`, field **stays focused** — unless the consumer asked the x to end
+            // the search (members-search-pinned).
+            if editable { inputFocused = !clearDismisses }
         })
             .padding(.trailing, Geometry.clearTrailing)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
