@@ -34,6 +34,8 @@ export interface HomeDay {
   day: string
   sessionSeconds: number
   blocks: number[]
+  /** ui2-members-browse SC7/D12: ISO end of the day's last session; null on a day with none. */
+  lastActivityAt: string | null
 }
 export interface HomeEngagement {
   currentCount: number
@@ -219,15 +221,24 @@ export function bucketDays(sessions: Session[], from: string, to: string, tz: st
   const days: HomeDay[] = []
   const byDay = new Map<string, HomeDay>()
   for (let d = from; d <= to; d = addDays(d, 1)) {
-    const day: HomeDay = { day: d, sessionSeconds: 0, blocks: Array(DAY_BLOCKS).fill(0) }
+    const day: HomeDay = { day: d, sessionSeconds: 0, blocks: Array(DAY_BLOCKS).fill(0), lastActivityAt: null }
     days.push(day)
     byDay.set(d, day)
   }
+  const lastEnd = new Map<string, number>()
   for (const s of sessions) {
-    const day = byDay.get(localDateOf(s.start, tz))
+    const key = localDateOf(s.start, tz)
+    const day = byDay.get(key)
     if (!day) continue
     day.blocks[Math.floor(localHourOf(s.start, tz) / 2)] += s.seconds
     day.sessionSeconds += s.seconds
+    // A session belongs to the day it STARTS (F8): one crossing local midnight
+    // reports the next day's end time here — accepted (SPEC F8).
+    const end = s.end.getTime()
+    if (end > (lastEnd.get(key) ?? Number.NEGATIVE_INFINITY)) {
+      lastEnd.set(key, end)
+      day.lastActivityAt = s.end.toISOString()
+    }
   }
   return days
 }
@@ -236,10 +247,14 @@ export async function getHomeDays(
   scope: AnalyticsScope,
   from: string,
   to: string,
-  tz: string
+  tz: string,
+  opts: { memberId?: string } = {}
 ): Promise<{ days: HomeDay[] }> {
   const window = { from: zonedMidnight(from, tz), to: zonedMidnight(addDays(to, 1), tz) }
-  return { days: bucketDays(await loadSessions(scope, window), from, to, tz) }
+  const sessions = opts.memberId
+    ? await loadSessions(scope, window, { memberId: opts.memberId })
+    : await loadSessions(scope, window)
+  return { days: bucketDays(sessions, from, to, tz) }
 }
 
 // ── Engagement (D3, D14, D15) ────────────────────────────────────────────────

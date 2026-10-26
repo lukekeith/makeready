@@ -2,7 +2,9 @@
 
 A resettable fixture world for walking UI 2.0 screens locally (SPEC:
 `docs/features/ui2-fixtures/SPEC.md`). One org, **MakeReady Fixtures**, owned by
-**Fixture Leader** (`fixtures@makeready.local`). Your own local org and data are never read
+**Fixture Leader** (`fixtures@makeready.local`).
+A second user, **Nathan Hughes** (`fixtures-leader@makeready.local`), holds the system Group Leader
+role and created one group, **Prayer Team**. Your own local org and data are never read
 or touched: reset deletes only rows under the fixed IDs below.
 
 ## Run it
@@ -54,6 +56,20 @@ Overview's previous 24-day window (−47…−24), that window now holds 547 com
 the 24-day trend is no longer positive. History ids: enrollments `enrollment` n 10…, schedules
 `schedule` n = enrollment n × 1000 + day, progress/events `lessonProgress`/`clientEvent` n ≥ 1,000,000.
 
+### What `full` makes non-empty on Members
+
+`base.ts` + `screens/members-home.ts` + `screens/members-profile.ts` (ui2-members-browse D13, T7):
+every member has an email (`first.last@example.org`), a birthday (ages 19–67), a gender, a
+two-line city address and an emergency contact name and phone; 13 of 24 have a d2m avatar photo
+when images are on (the set's avatars are all men, so 5 women carry one), the rest show initials.
+The list leads with joins of today, yesterday, 4 days, 1 and 2 weeks and 40 days ago; James
+Carter, Emily Price and Sarah Griffin are in two groups (their base group + Prayer Team). Nathan
+Hughes (member 7) is linked to the Group-Leader user, so his Role reads "Group leader".
+
+Group-Leader session for the walk (the iPhone's Local identity offers only Fixtures):
+`curl -s -X POST http://localhost:3010/auth/dev-login -H 'Content-Type: application/json' -d '{"email":"fixtures-leader@makeready.local"}'`
+— it lists exactly the three Prayer Team members and gets 404 for anyone else.
+
 ## Layers
 
 `index.ts` → `base.ts` → every file in `screens/`, in filename order, all sharing one
@@ -88,7 +104,8 @@ activity in the 07:00–21:00 Chicago band so it lands on the same calendar day 
 membership events, `000d` client events, `000e` user roles, `000f` group members, `0010` member
 orgs, `0011` user preferences. A new kind gets the next free code. Rows that hang off a fixture
 member, group, program or the fixture user are deleted by reset's cascade; anything else needs a
-line in `wipe.ts`.
+line in `wipe.ts`. The Group-Leader user is `user` n 2 and its group `group` n 4; the members-home
+memberships are `groupMember` n 25–27. Reset deletes both users (`FIXTURE_USER_IDS`).
 
 ## A new screen layer
 

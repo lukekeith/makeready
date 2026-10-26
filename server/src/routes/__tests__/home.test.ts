@@ -32,6 +32,9 @@ vi.mock('../../services/home-following.js', async (importOriginal) => ({
   getHomeFollowing: vi.fn(),
 }))
 
+vi.mock('../../services/member-access.js', () => ({ canViewMember: vi.fn(), visibleMemberOrgIds: vi.fn() }))
+
+import { canViewMember, visibleMemberOrgIds } from '../../services/member-access.js'
 import { deriveAnalyticsScope } from '../../services/analytics-scope.js'
 import { getHomeDays, getHomeEngagement, getHomeSessions } from '../../services/home-dashboard.js'
 import { getHomeFollowing } from '../../services/home-following.js'
@@ -56,7 +59,11 @@ beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(deriveAnalyticsScope).mockResolvedValue(SCOPE)
   vi.mocked(getHomeSessions).mockResolvedValue(SESSIONS)
-  vi.mocked(getHomeDays).mockResolvedValue({ days: [{ day: '2026-10-25', sessionSeconds: 60, blocks: [60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] }] })
+  vi.mocked(getHomeDays).mockResolvedValue({
+    days: [{ day: '2026-10-25', sessionSeconds: 60, blocks: [60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], lastActivityAt: '2026-10-25T14:05:00.000Z' }],
+  })
+  vi.mocked(canViewMember).mockResolvedValue(true)
+  vi.mocked(visibleMemberOrgIds).mockResolvedValue(['org-1'])
   vi.mocked(getHomeEngagement).mockResolvedValue(ENGAGEMENT)
   vi.mocked(getHomeFollowing).mockResolvedValue({ programs: [] })
 })
@@ -166,5 +173,56 @@ describe('mounting', () => {
   it('serves /api/home behind requireAuth', async () => {
     const res = await request(app).get('/api/home/engagement').set('User-Agent', 'Mozilla/5.0 MakeReadyTest')
     expect(res.status).toBe(401)
+  })
+})
+
+describe('GET /api/home/days?memberId (ui2-members-browse D12, D7)', () => {
+  it('keeps Home’s call exactly as it was when memberId is absent', async () => {
+    const res = await request(appAs('u1')).get('/api/home/days?from=2026-10-01&to=2026-10-31&organizationId=org-1')
+    expect(res.status).toBe(200)
+    expect(getHomeDays).toHaveBeenCalledWith(SCOPE, '2026-10-01', '2026-10-31', 'UTC')
+    expect(vi.mocked(getHomeDays).mock.calls[0]).toHaveLength(4)
+    expect(canViewMember).not.toHaveBeenCalled()
+  })
+
+  it('filters to a member the caller may see and returns lastActivityAt per day', async () => {
+    const res = await request(appAs('u1')).get(
+      '/api/home/days?from=2026-09-26&to=2026-10-25&tz=America%2FChicago&organizationId=org-1&memberId=m1'
+    )
+    expect(res.status).toBe(200)
+    expect(canViewMember).toHaveBeenCalledWith('u1', 'm1', 'org-1')
+    expect(getHomeDays).toHaveBeenCalledWith(SCOPE, '2026-09-26', '2026-10-25', 'America/Chicago', { memberId: 'm1' })
+    expect(res.body.days[0].lastActivityAt).toBe('2026-10-25T14:05:00.000Z')
+  })
+
+  it('limits the scope to the orgs where the caller sees the member when organizationId is absent', async () => {
+    // member is in orgs A and B; the caller sees them only via A
+    vi.mocked(deriveAnalyticsScope).mockResolvedValue({ all: false, orgIds: ['org-a', 'org-b'], groupIds: ['g-b'] })
+    vi.mocked(visibleMemberOrgIds).mockResolvedValue(['org-a'])
+    const res = await request(appAs('u1')).get('/api/home/days?from=2026-10-01&to=2026-10-02&memberId=m1')
+    expect(res.status).toBe(200)
+    expect(visibleMemberOrgIds).toHaveBeenCalledWith({ kind: 'user', userId: 'u1' }, 'm1')
+    expect(canViewMember).not.toHaveBeenCalled()
+    expect(getHomeDays).toHaveBeenCalledWith({ all: false, orgIds: ['org-a'], groupIds: [] }, '2026-10-01', '2026-10-02', 'UTC', { memberId: 'm1' })
+  })
+
+  it('404s without organizationId when the caller sees the member in no org', async () => {
+    vi.mocked(visibleMemberOrgIds).mockResolvedValue([])
+    const res = await request(appAs('u1')).get('/api/home/days?from=2026-10-01&to=2026-10-02&memberId=m1')
+    expect(res.status).toBe(404)
+    expect(getHomeDays).not.toHaveBeenCalled()
+  })
+
+  it('404s a member outside the caller’s D7 scope, before reading sessions', async () => {
+    vi.mocked(canViewMember).mockResolvedValue(false)
+    const res = await request(appAs('u1')).get('/api/home/days?from=2026-10-01&to=2026-10-02&organizationId=org-1&memberId=m-other')
+    expect(res.status).toBe(404)
+    expect(res.body).toEqual({ success: false, error: 'Not found' })
+    expect(getHomeDays).not.toHaveBeenCalled()
+  })
+
+  it('400s an empty memberId (it is declared, never stripped)', async () => {
+    expect((await request(appAs('u1')).get('/api/home/days?from=2026-10-01&to=2026-10-02&memberId=')).status).toBe(400)
+    expect(getHomeDays).not.toHaveBeenCalled()
   })
 })

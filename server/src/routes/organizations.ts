@@ -5,6 +5,7 @@ import {
   getOrganizationByOwner,
   updateOrganizationName,
   getOrganizationMembers,
+  getUserOrganizations,
 } from '../services/organization.js'
 import { requireAuth, requirePermission } from '../middleware/auth.js'
 import { recordMembershipEvent } from '../services/membership-event.js'
@@ -484,6 +485,38 @@ router.get('/my/organization', requireAuth, async (req, res) => {
 
 /**
  * @openapi
+ * /api/organizations/my/organizations:
+ *   get:
+ *     tags: [Organizations]
+ *     summary: List every organization the user owns or holds a role in
+ *     description: Owned organization first, then role-held organizations by name. Active organizations only. Used by the iPhone UI 2.0 shell when /my/organization has none (a non-owner Admin or Group Leader).
+ *     security:
+ *       - userSession: []
+ *     responses:
+ *       200:
+ *         description: "{ success, data: Organization[] } — empty when the user has none"
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/my/organizations', requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as { id?: string } | undefined)?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' })
+    }
+    const result = await getUserOrganizations(userId)
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: 'Internal server error' })
+    }
+    res.json({ success: true, data: result.data ?? [] })
+  } catch (error) {
+    console.error('Error fetching user organizations:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+/**
+ * @openapi
  * /api/organizations/{organizationId}:
  *   patch:
  *     tags: [Organizations]
@@ -641,7 +674,7 @@ router.patch(
  *         required: false
  *         schema:
  *           type: string
- *         description: Search query to filter members by name or other attributes
+ *         description: Whitespace-separated tokens; each matches first name, last name, email or phone, and all must match
  *         example: "john"
  *       - in: query
  *         name: includeInactive
@@ -651,6 +684,18 @@ router.patch(
  *           enum: ["true", "false"]
  *         description: Whether to include inactive members in the results (default is false)
  *         example: "true"
+ *       - in: query
+ *         name: groupId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Only members active in this group of the organization (empty list when outside the org or the caller's scope)
+ *       - in: query
+ *         name: leaderId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: A User.id from /api/group-leaders — only members of groups that user created
  *     responses:
  *       200:
  *         description: Organization members retrieved successfully
@@ -727,11 +772,14 @@ router.get(
   async (req, res) => {
     try {
       const { organizationId } = req.params
-      const { search, includeInactive } = req.query
+      const userId = (req.user as { id: string }).id // requirePermission has already 401'd a missing user
+      const text = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : undefined)
 
-      const result = await getOrganizationMembers(organizationId, {
-        search: search as string | undefined,
-        includeInactive: includeInactive === 'true',
+      const result = await getOrganizationMembers(organizationId, userId, {
+        search: text(req.query.search),
+        groupId: text(req.query.groupId),
+        leaderId: text(req.query.leaderId),
+        includeInactive: req.query.includeInactive === 'true',
       })
 
       if (!result.success) {
@@ -745,6 +793,7 @@ router.get(
         success: true,
         data: result.data,
         count: result.data?.length || 0,
+        viewerScope: result.viewerScope,
       })
     } catch (error) {
       console.error('Error fetching organization members:', error)

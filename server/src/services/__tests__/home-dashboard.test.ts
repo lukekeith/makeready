@@ -57,41 +57,76 @@ describe('validateDayRange (≤ 62 days)', () => {
   })
 })
 
-describe('bucketDays (D6)', () => {
-  it('zero-fills every day with 12 blocks summing to sessionSeconds', () => {
+describe('bucketDays (D6, SC7)', () => {
+  it('zero-fills every day with 12 blocks summing to sessionSeconds and no last activity', () => {
     const days = bucketDays([], '2026-10-30', '2026-11-02', CHI)
     expect(days.map((d) => d.day)).toEqual(['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02'])
     for (const d of days) {
       expect(d.blocks).toEqual(Array(12).fill(0))
       expect(d.sessionSeconds).toBe(0)
+      expect(d.lastActivityAt).toBeNull()
     }
   })
 
-  it('puts sessions in the caller-tz block they start in across the DST boundary', () => {
+  it('puts sessions in the caller-tz block they start in across the DST boundary, and ends each day at its last session', () => {
     const days = bucketDays(
       [
         session('a', '2026-11-01T05:30:00Z', 600), // 00:30 CDT → Nov 1 block 0
         session('b', '2026-11-01T07:30:00Z', 300), // 01:30 CST (the repeated hour) → block 0
         session('c', '2026-11-01T08:30:00Z', 120), // 02:30 CST → block 1
-        session('d', '2026-11-02T05:30:00Z', 60), // 23:30 CST, still Nov 1 → block 11
-        session('e', '2026-11-02T06:30:00Z', 90), // 00:30 CST Nov 2 → block 0
+        session('d', '2026-11-02T05:30:00Z', 60), // 23:30 CST, still Nov 1 → block 11, ends 05:31Z
+        session('e', '2026-11-02T06:30:00Z', 90), // 00:30 CST Nov 2 → block 0, ends 06:31:30Z
       ],
       '2026-11-01',
       '2026-11-02',
       CHI
     )
-    expect(days[0]).toEqual({ day: '2026-11-01', sessionSeconds: 1080, blocks: [900, 120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 60] })
-    expect(days[1]).toEqual({ day: '2026-11-02', sessionSeconds: 90, blocks: [90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] })
+    expect(days[0]).toEqual({
+      day: '2026-11-01',
+      sessionSeconds: 1080,
+      blocks: [900, 120, 0, 0, 0, 0, 0, 0, 0, 0, 0, 60],
+      lastActivityAt: '2026-11-02T05:31:00.000Z',
+    })
+    expect(days[1]).toEqual({
+      day: '2026-11-02',
+      sessionSeconds: 90,
+      blocks: [90, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+      lastActivityAt: '2026-11-02T06:31:30.000Z',
+    })
+  })
+
+  it('F8 (accepted): a session crossing local midnight stays on its start day and reports the next day’s end time', () => {
+    // 23:50 CDT Oct 24 → 00:20 CDT Oct 25
+    const days = bucketDays([session('a', '2026-10-25T04:50:00Z', 1800)], '2026-10-24', '2026-10-25', CHI)
+    expect(days[0]).toEqual({
+      day: '2026-10-24',
+      sessionSeconds: 1800,
+      blocks: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1800],
+      lastActivityAt: '2026-10-25T05:20:00.000Z',
+    })
+    expect(days[1]).toMatchObject({ day: '2026-10-25', sessionSeconds: 0, lastActivityAt: null })
   })
 })
 
 describe('getHomeDays', () => {
-  it('loads exactly the local days [from 00:00, to + 1 00:00)', async () => {
+  it('loads exactly the local days [from 00:00, to + 1 00:00) — Home’s call, two arguments', async () => {
     vi.mocked(loadSessions).mockResolvedValue([session('a', '2026-11-01T05:30:00Z', 600)])
     const result = await getHomeDays(SCOPE, '2026-11-01', '2026-11-02', CHI)
     expect(loadSessions).toHaveBeenCalledWith(SCOPE, { from: at('2026-11-01T05:00:00Z'), to: at('2026-11-03T06:00:00Z') })
+    expect(vi.mocked(loadSessions).mock.calls[0]).toHaveLength(2)
     expect(result.days).toHaveLength(2)
     expect(result.days[0].sessionSeconds).toBe(600)
+    expect(result.days[0].lastActivityAt).toBe('2026-11-01T05:40:00.000Z')
+  })
+
+  it('passes memberId through to loadSessions (ui2-members-browse D12)', async () => {
+    vi.mocked(loadSessions).mockResolvedValue([])
+    await getHomeDays(SCOPE, '2026-11-01', '2026-11-02', CHI, { memberId: 'm1' })
+    expect(loadSessions).toHaveBeenCalledWith(
+      SCOPE,
+      { from: at('2026-11-01T05:00:00Z'), to: at('2026-11-03T06:00:00Z') },
+      { memberId: 'm1' }
+    )
   })
 })
 

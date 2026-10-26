@@ -835,6 +835,9 @@ struct CaptureComponent: Codable {
     let gender: String?
     let address: String?
     let emergencyContact: String?
+    // ui2-members-browse P6: `emergencyContact` feeds the "Emergency contact" (name) row; the new
+    // "Emergency phone" row reads this — additive.
+    let emergencyContactPhone: String?
     let groupLeaders: [String]?
     let groupJoinedDates: [String]?
     let programStates: [String]?
@@ -859,6 +862,9 @@ struct CaptureComponent: Codable {
     let memberPhotoURLs: [String]?
     let memberJoinedLabels: [String]?
     let memberGroupCounts: [Int]?
+    // ui2-members-browse T11 (D7/D15; C-038 initials inside C-037) — additive.
+    let showsLeaderFilter: Bool?
+    let memberInitials: [String]?
     // ── preview props ──
     // C-058 GroupSectionHeader build 2026-09-30. `groupName`, `imageURL` and `initials` already
     // exist above under the contract's own names and types; `leaderName` is additive.

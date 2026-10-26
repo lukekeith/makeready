@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
-import type { Organization, Member } from '../generated/prisma/index.js'
+import type { Organization, Member, Prisma } from '../generated/prisma/index.js'
+import { memberAccessScope } from './member-access.js'
 
 /**
  * Organization Service
@@ -15,6 +16,12 @@ export interface OrganizationResult {
 export interface MembersResult {
   success: boolean
   data?: Member[]
+  error?: string
+}
+
+export interface OrganizationsResult {
+  success: boolean
+  data?: Organization[]
   error?: string
 }
 
@@ -129,6 +136,34 @@ export async function resolveUserOrganizationId(
 }
 
 /**
+ * Every active organization a user owns or holds a role in — the owned one
+ * first (ownerId is unique, so at most one), then role-held orgs by name
+ * (ui2-members-browse D18: a non-owner Admin or Group Leader needs an org id
+ * that the owner-only /my/organization cannot give them).
+ */
+export async function getUserOrganizations(userId: string): Promise<OrganizationsResult> {
+  try {
+    const [owned, roles] = await Promise.all([
+      prisma.organization.findMany({ where: { ownerId: userId, isActive: true } }),
+      prisma.userRole.findMany({ where: { userId }, select: { organizationId: true } }),
+    ])
+    const ownedIds = new Set(owned.map((o) => o.id))
+    const roleOrgIds = [...new Set(roles.map((r) => r.organizationId))].filter((id) => !ownedIds.has(id))
+    const roleHeld =
+      roleOrgIds.length > 0
+        ? await prisma.organization.findMany({
+            where: { id: { in: roleOrgIds }, isActive: true },
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+          })
+        : []
+    return { success: true, data: [...owned, ...roleHeld] }
+  } catch (error) {
+    console.error('Error fetching user organizations:', error)
+    return { success: false, error: 'Failed to fetch organizations' }
+  }
+}
+
+/**
  * Update organization name
  * @param organizationId - Organization ID
  * @param name - New organization name
@@ -157,58 +192,121 @@ export async function updateOrganizationName(
   }
 }
 
+export interface OrgMemberListItem {
+  id: string
+  firstName: string | null
+  lastName: string | null
+  profilePicture: string | null
+  googlePicture: string | null
+  /** This org's MemberOrganization.joinedAt (D6). */
+  joinedAt: Date
+  /** Active memberships in active groups of this org (SC4). */
+  groupCount: number
+}
+
+export interface OrgMembersQuery {
+  includeInactive?: boolean
+  search?: string
+  groupId?: string
+  /** A User.id from /api/group-leaders → members of groups with that creatorId. */
+  leaderId?: string
+}
+
+export interface OrgMembersResult {
+  success: boolean
+  data?: OrgMemberListItem[]
+  /** D15: how the iPhone learns the caller's D7 scope. groupIds is [] when all. */
+  viewerScope?: { all: boolean; groupIds: string[] }
+  error?: string
+}
+
+/** D6 search: whitespace-separated tokens, each matched on its own and AND-combined. */
+export function searchTokens(search: string | undefined): string[] {
+  return (search ?? '').split(/\s+/).filter((t) => t.length > 0)
+}
+
 /**
- * Get all members for an organization
- * @param organizationId - Organization ID
- * @param options - Query options (includeInactive, search)
- * @returns Array of members or error
+ * The org's member directory (ui2-members-browse SC4, SC9, D6, D7, D15).
+ * Queried through member_organizations because Prisma cannot order Member by a
+ * filtered to-many (the joinedAt of THIS org). An explicit select keeps the
+ * payload to the contract's keys (F9 — no pagination in this child). A narrowed
+ * caller (memberAccessScope → groups) sees only members of the groups they
+ * created; a groupId or leaderId outside that scope answers an empty list.
  */
 export async function getOrganizationMembers(
   organizationId: string,
-  options: {
-    includeInactive?: boolean
-    search?: string
-  } = {}
-): Promise<MembersResult> {
+  viewerUserId: string,
+  options: OrgMembersQuery = {}
+): Promise<OrgMembersResult> {
   try {
-    const { includeInactive = false, search } = options
+    const { includeInactive = false, search, groupId, leaderId } = options
+    const scope = await memberAccessScope(viewerUserId, organizationId)
+    const viewerScope = { all: scope.all, groupIds: scope.all ? [] : scope.groupIds }
+    if (!scope.all) {
+      const outside =
+        scope.groupIds.length === 0 ||
+        (groupId !== undefined && !scope.groupIds.includes(groupId)) ||
+        (leaderId !== undefined && leaderId !== viewerUserId)
+      if (outside) return { success: true, data: [], viewerScope }
+    }
 
-    const where: any = {
-      organizations: {
-        some: {
-          organizationId,
+    const activeIn = (group: Prisma.GroupWhereInput): Prisma.MemberWhereInput => ({
+      groupMemberships: { some: { isActive: true, group: { isActive: true, organizationId, ...group } } },
+    })
+    const and: Prisma.MemberWhereInput[] = []
+    if (!includeInactive) and.push({ isActive: true })
+    for (const token of searchTokens(search)) {
+      and.push({
+        OR: [
+          { firstName: { contains: token, mode: 'insensitive' } },
+          { lastName: { contains: token, mode: 'insensitive' } },
+          { email: { contains: token, mode: 'insensitive' } },
+          { phoneNumber: { contains: token } },
+        ],
+      })
+    }
+    if (groupId !== undefined) and.push(activeIn({ id: groupId }))
+    if (leaderId !== undefined) and.push(activeIn({ creatorId: leaderId }))
+    if (!scope.all) and.push(activeIn({ id: { in: scope.groupIds } }))
+
+    const rows = await prisma.memberOrganization.findMany({
+      where: { organizationId, member: { AND: and } },
+      orderBy: [{ joinedAt: 'desc' }, { memberId: 'asc' }],
+      select: {
+        joinedAt: true,
+        member: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            profilePicture: true,
+            googlePicture: true,
+            _count: {
+              select: {
+                groupMemberships: { where: { isActive: true, group: { isActive: true, organizationId } } },
+              },
+            },
+          },
         },
       },
-    }
-
-    if (!includeInactive) {
-      where.isActive = true
-    }
-
-    if (search) {
-      where.OR = [
-        { firstName: { contains: search, mode: 'insensitive' } },
-        { lastName: { contains: search, mode: 'insensitive' } },
-        { phoneNumber: { contains: search } },
-        { email: { contains: search, mode: 'insensitive' } },
-      ]
-    }
-
-    const members = await prisma.member.findMany({
-      where,
-      orderBy: [{ lastName: 'asc' }, { firstName: 'asc' }],
     })
 
     return {
       success: true,
-      data: members,
+      viewerScope,
+      data: rows.map(({ joinedAt, member }) => ({
+        id: member.id,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        profilePicture: member.profilePicture,
+        googlePicture: member.googlePicture,
+        joinedAt,
+        groupCount: member._count.groupMemberships,
+      })),
     }
   } catch (error) {
     console.error('Error fetching organization members:', error)
-    return {
-      success: false,
-      error: 'Failed to fetch members',
-    }
+    return { success: false, error: 'Failed to fetch members' }
   }
 }
 

@@ -138,6 +138,27 @@ final class AppState {
     /// Home dashboard analytics cache (ui2-shell D20)
     var dashboard = DashboardSnapshot()
 
+    // MARK: ui2-members-browse — member stores (D21: in memory only)
+    // Personal data: `PersistedState` never encodes these, they are cache-first within the
+    // session only, and `clearInMemory()` empties them on sign-out and environment switch.
+
+    /// T10: the last Members directory load per org — the list, the query it answered, and the
+    /// caller's D15 scope.
+    var orgMembersByOrgId: [String: OrgMemberDirectory] = [:]
+
+    /// T10: `GET /api/members/:id` payloads. Identity → an EntityStore. Not `members`
+    /// (`EntityStore<GroupMember>`) and not `memberDirectory` (an unrelated Group flag).
+    let memberDetails = EntityStore<MemberDetail>()
+
+    /// `GET /api/members/:id/groups`, by member id.
+    var memberGroupsById: [String: [MemberGroupItem]] = [:]
+
+    /// `GET /api/members/:id/engagement`, by member id.
+    var memberEngagementById: [String: MemberEngagement] = [:]
+
+    /// `GET /api/home/days?memberId=` — the member page's D12 rail, by member id.
+    var memberDaysById: [String: [HomeDay]] = [:]
+
     /// All organizations the user belongs to. Drives the per-org buttons in
     /// UserMenu and the Org Home page. Loaded by `loadOrganization()`. Today
     /// the server only exposes the org the user owns; when multi-org listing
@@ -807,6 +828,11 @@ final class AppState {
         nonMembersByOrgId = [:]
         organizationId = nil
         dashboard = DashboardSnapshot()
+        orgMembersByOrgId = [:]
+        memberDetails.clear()
+        memberGroupsById = [:]
+        memberEngagementById = [:]
+        memberDaysById = [:]
         userOrganizations = []
         mediaLibraryTotal = 0
         mediaLibraryNextCursor = nil
@@ -898,15 +924,32 @@ final class AppState {
         }
     }
 
-    private func loadOrganization(generation: Int) async {
+    /// The org the shell scopes to. An owner gets the org they own; anyone else — an Admin or a
+    /// Group Leader, whom `/my/organization` answers 404 (organization.ts:73) — gets the first
+    /// org they hold a role in (ui2-members-browse D18).
+    func loadOrganization(api: APIClientProtocol = APIClient.shared, generation: Int) async {
         do {
-            let response: OrganizationResponse = try await APIClient.shared.get(
+            let response: OrganizationResponse = try await api.get(
                 "/api/organizations/my/organization",
                 responseType: OrganizationResponse.self
             )
-            adoptOrganization(response.data, generation: generation)
+            if let owned = response.data {
+                adoptOrganization(owned, generation: generation)
+                return
+            }
         } catch {
-            recordError(error, context: "AppState.loadOrganization")
+            // D18: routed deliberately — for a non-owner this 404 is the expected signal to use
+            // the fallback below, which records its own failure; a 401 is AuthManager's.
+            Log.state.info("no owned organization (\(error.localizedDescription, privacy: .public)) — trying role-held orgs")
+        }
+        do {
+            let response = try await api.get(
+                "/api/organizations/my/organizations",
+                responseType: MyOrganizationsResponse.self
+            )
+            adoptOrganizations(response.data, generation: generation)
+        } catch {
+            recordError(error, context: "AppState.loadOrganization.myOrganizations")
         }
     }
 
@@ -922,6 +965,15 @@ final class AppState {
         } else {
             userOrganizations = []
         }
+    }
+
+    /// D18: the role-held orgs, owned first (server order); the first scopes the shell. Ignored
+    /// when its load was retired by a sign-out or environment switch (T16, as above).
+    func adoptOrganizations(_ orgs: [OrganizationData], generation: Int) {
+        guard initialLoad.isCurrent(generation) else { return }
+        organizationId = orgs.first?.id
+        userOrganizations = orgs
+        if let id = orgs.first?.id { Log.state.info("adopted role-held organization \(id, privacy: .public)") }
     }
 
     private func loadTextThemes() async {

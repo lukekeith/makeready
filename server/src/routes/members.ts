@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type Request } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
 import sharp from 'sharp'
@@ -8,7 +8,8 @@ import {
   createMember,
   updateMember,
   deleteMember,
-  getMemberGroups,
+  getScopedMember,
+  getScopedMemberGroups,
   addMemberToOrganization,
 } from '../services/member.js'
 import {
@@ -26,6 +27,9 @@ import {
   requireMemberOrOrgOwner,
   requireMemberAuth,
 } from '../middleware/auth.js'
+import { canViewMember, type MemberViewer } from '../services/member-access.js'
+import { getMemberEngagement } from '../services/member-engagement.js'
+import { AnalyticsQueryError, assertValidTimezone } from '../services/analytics.service.js'
 import { groupManageFilter } from '../services/permission.js'
 import { sendVerificationCode, verifyCode } from '../services/twilio.js'
 import { uploadMemberAvatar, deleteMemberAvatar } from '../services/storage.js'
@@ -50,6 +54,17 @@ const upload = multer({
 })
 
 const router = Router()
+
+/**
+ * ui2-members-browse D7: a member session reading its own record is unscoped;
+ * any other caller is a user, scoped in the service by memberAccessScope.
+ * null = neither (requireMemberOrOrgOwner normally 403s that first).
+ */
+function viewerOf(req: Request, memberId: string): MemberViewer | null {
+  if (req.session?.memberId === memberId) return { kind: 'self' }
+  const userId = (req.user as { id?: string } | undefined)?.id
+  return userId ? { kind: 'user', userId } : null
+}
 
 /**
  * @openapi
@@ -1087,7 +1102,7 @@ router.get('/:memberId/profile', requireAuth, async (req, res) => {
  *                 data:
  *                   $ref: '#/components/schemas/Member'
  *       404:
- *         description: Member not found
+ *         description: Member not found, or outside the caller's D7 scope (owners/admins see every member; other leaders only members of groups they created)
  *         content:
  *           application/json:
  *             schema:
@@ -1096,8 +1111,15 @@ router.get('/:memberId/profile', requireAuth, async (req, res) => {
 router.get('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
   try {
     const { memberId } = req.params
+    const viewer = viewerOf(req, memberId)
+    if (!viewer) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to access this member',
+      })
+    }
 
-    const result = await getMember(memberId)
+    const result = await getScopedMember(memberId, viewer)
 
     if (!result.success) {
       return res.status(404).json({
@@ -1189,6 +1211,13 @@ const updateMemberSchema = z.object({
 router.patch('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
   try {
     const { memberId } = req.params
+
+    // D7: the response carries SC1-SC3, so a user the member is hidden from gets
+    // the same 404 as GET /:memberId, before anything is written.
+    const viewer = viewerOf(req, memberId)
+    if (viewer?.kind === 'user' && !(await canViewMember(viewer.userId, memberId))) {
+      return res.status(404).json({ success: false, error: 'Member not found' })
+    }
 
     const validation = updateMemberSchema.safeParse(req.body)
     if (!validation.success) {
@@ -1604,16 +1633,29 @@ router.post(
  *                     $ref: '#/components/schemas/Group'
  *                 count:
  *                   type: integer
+ *       404:
+ *         description: Member not found, or outside the caller's D7 scope (owners/admins see every member; other leaders only members of groups they created)
  */
 router.get('/:memberId/groups', requireMemberOrOrgOwner, async (req, res) => {
   try {
     const { memberId } = req.params
     const { includeInactive } = req.query
+    const viewer = viewerOf(req, memberId)
+    if (!viewer) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to access this member',
+      })
+    }
 
-    const result = await getMemberGroups(
-      memberId,
-      includeInactive === 'true'
-    )
+    const result = await getScopedMemberGroups(memberId, viewer, includeInactive === 'true')
+
+    if (result.notFound) {
+      return res.status(404).json({
+        success: false,
+        error: result.error,
+      })
+    }
 
     if (!result.success) {
       return res.status(500).json({
@@ -1633,6 +1675,56 @@ router.get('/:memberId/groups', requireMemberOrOrgOwner, async (req, res) => {
       success: false,
       error: 'Internal server error',
     })
+  }
+})
+
+const engagementQuery = z.object({ tz: z.string().min(1).max(64).default('UTC') })
+
+/**
+ * @openapi
+ * /api/members/{memberId}/engagement:
+ *   get:
+ *     tags: [Members]
+ *     summary: The member's programs with progress and hours (UI 2.0 member page, iPhone)
+ *     description: One row per enrollment of an active group the member is in, inside the orgs the caller may see the member in (owners/admins every member; other leaders only members of groups they created).
+ *     security:
+ *       - memberSession: []
+ *       - userSession: []
+ *     parameters:
+ *       - { in: path, name: memberId, required: true, schema: { type: string } }
+ *       - { in: query, name: tz, schema: { type: string, example: America/Chicago } }
+ *     responses:
+ *       200: { description: "{ programs: [{ enrollmentId, programId, title, coverImageUrl, completedCount, totalCount, hours, percent }] }" }
+ *       400: { description: Bad timezone }
+ *       404: { description: Member not found, or outside the caller's scope }
+ */
+router.get('/:memberId/engagement', requireMemberOrOrgOwner, async (req, res) => {
+  try {
+    const { memberId } = req.params
+    const parsed = engagementQuery.safeParse(req.query)
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: 'Invalid query' })
+    }
+    assertValidTimezone(parsed.data.tz)
+    const viewer = viewerOf(req, memberId)
+    if (!viewer) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to access this member',
+      })
+    }
+
+    const engagement = await getMemberEngagement(memberId, viewer, parsed.data.tz, new Date())
+    if (!engagement) {
+      return res.status(404).json({ success: false, error: 'Member not found' })
+    }
+    res.json(engagement)
+  } catch (error) {
+    if (error instanceof AnalyticsQueryError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
+    console.error('Error fetching member engagement:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })
 

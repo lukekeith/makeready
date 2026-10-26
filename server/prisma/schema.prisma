@@ -346,6 +346,9 @@ model Member {
   googleLinkedAt       DateTime? // When Google profile was linked
   userId               String? @unique // Links Member to User account for bidirectional access
   userLinkedAt         DateTime? // When account was linked to User
+  address              String? @db.Text // Postal address as entered; may span lines
+  emergencyContactName String? @db.Text // Emergency contact's name
+  emergencyContactPhone String? @db.Text // Emergency contact's phone, as entered
 
   groupMemberships     GroupMember[]
   organizations        MemberOrganization[]

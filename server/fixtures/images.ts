@@ -5,6 +5,7 @@
  *
  * - Source: `GET <d2m>/api/projects/makeready/images` — d2m listens on 127.0.0.1 and serves only the
  *   full-size originals, so the files are copied here; a later reset reuses them without d2m.
+ * - Avatars (ui2-members-browse D13): the set's `Use: avatar` images, square-cropped to AVATAR_SIZE, become 13 members' profilePicture (not library media).
  * - URLs: `<FIXTURE_IMAGE_BASE_URL>/fixture-images/<file>`. The default base is the host the iPhone
  *   uses for Local (`LOCAL_SERVER_URL` in iphone/Debug.xcconfig) on this server's PORT, so the
  *   simulator, a device over Tailscale and the web all load them. No base, or d2m down with no
@@ -18,7 +19,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 import { type FixtureContext } from './context.js'
-import { FIXTURE_GROUP_IDS, FIXTURE_ORG_ID, FIXTURE_PROGRAM_IDS, FIXTURE_USER_ID, fixtureId } from './ids.js'
+import { FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_PROGRAM_IDS, FIXTURE_USER_ID, fixtureId } from './ids.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(here, '../..')
@@ -27,6 +28,13 @@ const CATALOG_CACHE = path.join(IMAGE_DIR, 'catalog.json')
 export const COVER_WIDTH = 1200
 export const THUMB_WIDTH = 400
 export const LIBRARY_SIZE = 12
+export const AVATAR_COUNT = 13
+export const AVATAR_SIZE = 200
+/**
+ * D13: the members who get an avatar, by base index — the 8 men first, because the d2m set's 13
+ * `Use: avatar` faces are all men; the other 11 members fall back to initials.
+ */
+export const AVATAR_MEMBER_INDICES: readonly number[] = [0, 1, 2, 3, 4, 5, 6, 7, 9, 12, 15, 18, 21]
 
 /** One d2m image, as `GET /api/projects/<project>/images` lists it. */
 export interface D2mImage {
@@ -67,6 +75,8 @@ export interface Selection {
   programs: Record<string, D2mImage | null>
   /** Library-only images (the covers join the library too). */
   library: D2mImage[]
+  /** D13: up to AVATAR_COUNT live `Use: avatar` images, by slug — member photos, not library media. */
+  avatars: D2mImage[]
 }
 
 /**
@@ -99,7 +109,8 @@ export function selectImages(catalog: readonly D2mImage[]): Selection {
       if (image && library.length < LIBRARY_SIZE) library.push(image)
     }
   }
-  return { groups, programs, library }
+  const avatars = live.filter((i) => has(i, 'Use', 'avatar') && !used.has(i.slug)).slice(0, AVATAR_COUNT)
+  return { groups, programs, library, avatars }
 }
 
 function d2mApi(): string {
@@ -183,6 +194,27 @@ async function store(image: D2mImage): Promise<Stored | null> {
   }
 }
 
+/** D13: a square AVATAR_SIZE JPEG (centre crop), from the cache or d2m; the file name, or null. */
+async function storeAvatar(image: D2mImage): Promise<string | null> {
+  const file = `${image.slug}-${(image.sha256 ?? 'x').slice(0, 8)}-avatar-${AVATAR_SIZE}.jpg`
+  const filePath = path.join(IMAGE_DIR, file)
+  try {
+    if (!existsSync(filePath)) {
+      const res = await fetch(image.url, { signal: AbortSignal.timeout(30_000) })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const original = Buffer.from(await res.arrayBuffer())
+      await writeFile(
+        filePath,
+        await sharp(original).resize({ width: AVATAR_SIZE, height: AVATAR_SIZE, fit: 'cover' }).jpeg({ quality: 80 }).toBuffer()
+      )
+    }
+    return file
+  } catch (error) {
+    console.warn(`fixtures: avatar ${image.slug} skipped (${(error as Error).message})`)
+    return null
+  }
+}
+
 const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
 
 /** Run after the base graph exists: covers on groups and programs, the media library, its usages. */
@@ -258,4 +290,13 @@ export async function seedImages(ctx: FixtureContext): Promise<void> {
     usages.push({ mediaId: mediaId.get(image.slug)!, usageType: 'PROGRAM_COVER', resourceId: programId, resourceName: program?.name ?? '' })
   }
   await prisma.mediaUsage.createMany({ data: usages.map((u, n) => ({ id: fixtureId('mediaUsage', n + 1), ...u })) })
+
+  // D13 (ui2-members-browse): avatars are Member.profilePicture only, never library media.
+  for (const [n, image] of selection.avatars.entries()) {
+    const memberIndex = AVATAR_MEMBER_INDICES[n]
+    if (memberIndex === undefined) break
+    const file = await storeAvatar(image)
+    if (!file) continue
+    await prisma.member.update({ where: { id: FIXTURE_MEMBER_IDS[memberIndex] }, data: { profilePicture: urlOf(file) } })
+  }
 }

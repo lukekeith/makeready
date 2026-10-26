@@ -294,7 +294,7 @@ final class CaptureCaseTests: XCTestCase {
     }
 
     @MainActor func testPageHeaderDeclaresItsFrame() throws {
-        let built = try buildCaptureCase(for: try fixture(#"{"view":"component.ui2.C-040","output":"k.png","devices":["iphone-16-pro-max"],"state":{"component":{"style":"default","showTitle":true,"title":"Media"}}}"#))
+        let built = try buildCaptureCase(for: try fixture(#"{"view":"component.ui2.C-040","output":"k.png","devices":["iphone-16-pro-max"],"state":{"component":{"style":"default","showTitle":true,"title":"Media","rightButtons":[]}}}"#))
         XCTAssertEqual(built.previewFrame?.width, 398)
     }
 
