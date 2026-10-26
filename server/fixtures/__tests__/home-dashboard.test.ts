@@ -1,11 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { FIXTURES_DIR, availableScenarios, loadLayers } from '../runner.js'
 import {
-  DAY_PARTS,
+  BAD_WEEK_FACTOR,
+  FATIGUE_AT_END,
   FOLLOWED_ENROLLMENT_IDS,
-  SITTING_MAX_MINUTES,
+  HABITS,
+  HISTORY_CADENCE,
+  POP_CURVE,
   apportion,
+  badWeekFactor,
   behindBy,
+  fatigue,
+  habitOf,
+  memberRate,
 } from '../screens/home-dashboard.js'
 import { FIXTURE_ENROLLMENT_IDS } from '../ids.js'
 
@@ -45,12 +52,46 @@ describe('behindBy (home-dashboard-data D12, D17)', () => {
   })
 })
 
-describe('sittings stay in the 07:00–21:00 band (D11 of ui2-fixtures)', () => {
-  it('opens no earlier than 07:00 and finishes by 21:00 even at the longest length', () => {
-    for (const part of DAY_PARTS) {
-      expect(part.start).toBeGreaterThanOrEqual(7)
-      expect(part.end + SITTING_MAX_MINUTES / 60).toBeLessThanOrEqual(21)
+describe('realistic usage model (home-dashboard-data D21)', () => {
+  const indices = Array.from({ length: 24 }, (_, i) => i)
+
+  it('gives 9 early, 3 lunch, 9 evening and 3 night-owl habits', () => {
+    const count = (h: string) => indices.filter((i) => habitOf(i) === h).length
+    expect([count('early'), count('lunch'), count('evening'), count('night')]).toEqual([9, 3, 9, 3])
+  })
+
+  it('opens every habit window before midnight', () => {
+    for (const w of Object.values(HABITS)) expect(w.end).toBeLessThan(24)
+  })
+
+  it('keeps off-habit opens near zero between 1 and 5 AM', () => {
+    const total = POP_CURVE.reduce((s, v) => s + v, 0)
+    const night = POP_CURVE.slice(1, 5).reduce((s, v) => s + v, 0)
+    expect(POP_CURVE).toHaveLength(24)
+    expect(night / total).toBeLessThan(0.01)
+  })
+
+  it('rates members 55–90% (caught-up 100%), fading to 55% of that by the last lesson', () => {
+    for (const i of indices) {
+      const r = memberRate(i)
+      if (behindBy(i) === 0) expect(r).toBe(1)
+      else {
+        expect(r).toBeGreaterThanOrEqual(0.55)
+        expect(r).toBeLessThanOrEqual(0.9)
+      }
     }
+    expect(fatigue(1, 30)).toBe(1)
+    expect(fatigue(30, 30)).toBeCloseTo(FATIGUE_AT_END)
+  })
+
+  it('cuts the three bad weeks to 30%', () => {
+    expect(badWeekFactor(-121)).toBe(BAD_WEEK_FACTOR)
+    expect(badWeekFactor(-22)).toBe(BAD_WEEK_FACTOR)
+    expect(badWeekFactor(-50)).toBe(1)
+  })
+
+  it("meets Men's Mon/Wed/Fri, Young Adults daily, Women's Mon–Fri", () => {
+    expect(HISTORY_CADENCE.map((c) => c.length)).toEqual([3, 7, 5])
   })
 })
 

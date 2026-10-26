@@ -23,7 +23,7 @@ describe.skipIf(!TEST_DB_URL)('scheduled_lessons metric against the test databas
     await db.run('reset', 'full')
     const { refreshAnalytics, todayInTimezone } = await import('../../src/services/analytics.service.js')
     today = todayInTimezone(TZ)
-    target = addDays(today, 10) // clear of every base schedule (the latest is today + 7)
+    target = addDays(today, 30) // clear of every base schedule (Women's Mon–Fri reaches ~today + 10, D21)
     // Under the fixture enrollment 4, so reset's cascade removes them too. lessonId stays null
     // (@@unique([enrollmentId, lessonId]) admits several nulls).
     await db.prisma.lessonSchedule.createMany({
@@ -69,7 +69,7 @@ describe.skipIf(!TEST_DB_URL)('scheduled_lessons metric against the test databas
       {
         metrics: ['scheduled_lessons'],
         dimensions: ['day'],
-        filters: { organizationId: FIXTURE_ORG_ID, from: addDays(today, -200), to: addDays(today, 7) },
+        filters: { organizationId: FIXTURE_ORG_ID, from: addDays(today, -200), to: addDays(today, 20) }, // Women's Mon–Fri runs past +7 (D21); the probe sits at +30
         timezone: TZ,
       },
       scope

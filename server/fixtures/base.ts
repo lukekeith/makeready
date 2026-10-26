@@ -5,7 +5,7 @@
  * every date comes from ctx (D9). Every group's and program's creatorId is the
  * fixture user, so deleting that user cascades the graph (D7).
  */
-import { FIXTURE_TZ, FixtureError, type ScenarioFn } from './context.js'
+import { FIXTURE_TZ, FixtureError, type ScenarioFn, addDays, weekdayOf } from './context.js'
 import {
   FIXTURE_ENROLLMENT_IDS,
   FIXTURE_GROUP_IDS,
@@ -22,6 +22,8 @@ export const FIXTURE_ORG_NAME = 'MakeReady Fixtures'
 export const GROUP_NAMES = ["Tuesday Men's Group", 'Young Adults', "Women's Bible Study"] as const
 export const MEMBERS_PER_GROUP = 8
 export const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+/** Weekdays only, Mon–Fri (home-dashboard-data D21: not every group meets every day). */
+export const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const
 /** Every lesson's VIDEO activity runs 20 minutes. */
 export const VIDEO_SECONDS = 1200
 
@@ -43,13 +45,31 @@ export const PROGRAMS = [
 
 const PROGRAM_BY_KEY = { days21: PROGRAMS[0], days30: PROGRAMS[1] }
 
-/** D11 stagger: day k of enrollment e is scheduled on today + startOffset + (k − 1). */
+/**
+ * D11 stagger: day k of enrollment e is the k-th day on or after today + startOffset whose weekday
+ * is in `days`. Daily enrollments run startOffset … startOffset + days − 1; Women's (D21) meets
+ * Mon–Fri, so its 21 lessons reach about a week further.
+ */
 export const ENROLLMENT_PLAN = [
-  { index: 1, groupIndex: 0, program: 'days30', startOffset: -48 }, // −48 … −19
-  { index: 2, groupIndex: 1, program: 'days30', startOffset: -29 }, // −29 … 0
-  { index: 3, groupIndex: 2, program: 'days21', startOffset: -20 }, // −20 … 0
-  { index: 4, groupIndex: 0, program: 'days21', startOffset: -13 }, // −13 … +7
+  { index: 1, groupIndex: 0, program: 'days30', startOffset: -48, days: ALL_DAYS }, // −48 … −19
+  { index: 2, groupIndex: 1, program: 'days30', startOffset: -29, days: ALL_DAYS }, // −29 … 0
+  { index: 3, groupIndex: 2, program: 'days21', startOffset: -20, days: WEEKDAYS }, // −20 … ~+8, weekdays
+  { index: 4, groupIndex: 0, program: 'days21', startOffset: -13, days: ALL_DAYS }, // −13 … +7
 ] as const
+
+/** Day offsets (from today) of `count` lessons from `startOffset`, on `days` only. */
+export function lessonOffsets(
+  today: string,
+  startOffset: number,
+  count: number,
+  days: readonly string[]
+): number[] {
+  const out: number[] = []
+  for (let o = startOffset; out.length < count; o++) {
+    if (days.includes(ALL_DAYS[weekdayOf(addDays(today, o))])) out.push(o)
+  }
+  return out
+}
 
 export const lessonId = (programIndex: number, day: number) => fixtureId('lesson', programIndex * 1000 + day)
 export const activityId = (programIndex: number, day: number, order: number) =>
@@ -191,17 +211,19 @@ export const seedBase: ScenarioFn = async (ctx) => {
     orderBy: { id: 'asc' },
   })
 
-  const enabledDays = JSON.stringify(ALL_DAYS)
+  const offsetsOf = (e: (typeof ENROLLMENT_PLAN)[number]) =>
+    lessonOffsets(ctx.today, e.startOffset, PROGRAM_BY_KEY[e.program].days, e.days)
   await prisma.enrollment.createMany({
     data: ENROLLMENT_PLAN.map((e) => {
       const p = PROGRAM_BY_KEY[e.program]
+      const offsets = offsetsOf(e)
       return {
         id: FIXTURE_ENROLLMENT_IDS[e.index - 1],
         groupId: FIXTURE_GROUP_IDS[e.groupIndex],
         studyProgramId: p.id,
         startDate: ctx.at(e.startOffset, 12),
-        endDate: ctx.at(e.startOffset + p.days - 1, 12),
-        enabledDays,
+        endDate: ctx.at(offsets[offsets.length - 1], 12),
+        enabledDays: JSON.stringify(e.days),
         smsTime: '08:00',
         timezone: FIXTURE_TZ,
         createdById: FIXTURE_USER_ID,
@@ -212,11 +234,12 @@ export const seedBase: ScenarioFn = async (ctx) => {
   await prisma.lessonSchedule.createMany({
     data: ENROLLMENT_PLAN.flatMap((e) => {
       const p = PROGRAM_BY_KEY[e.program]
+      const offsets = offsetsOf(e)
       return dayNumbers(p.days).map((day) => ({
         id: scheduleId(e.index, day),
         enrollmentId: FIXTURE_ENROLLMENT_IDS[e.index - 1],
         lessonId: lessonId(p.index, day),
-        scheduledDate: ctx.at(e.startOffset + day - 1, 12),
+        scheduledDate: ctx.at(offsets[day - 1], 12),
         title: `Day ${day}`,
         estimatedMinutes: 25,
       }))

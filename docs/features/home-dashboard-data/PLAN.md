@@ -31,7 +31,7 @@
 |---|---|---|---|---|
 | 1 | server | 1 | `scheduled_lessons` is queryable through `/api/analytics/query`, from a new `ls:` matview arm | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 2 | server | 2–6 | `/api/home/{sessions,days,engagement,following}` answer per §Contract, scoped like analytics | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
-| 3 | server | 7, 13 | `fixtures:reset` makes every Home section non-zero; the contract freezes (re-closes after Task 13) | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
+| 3 | server | 7, 13, 15 | `fixtures:reset` makes every Home section non-zero; the contract freezes (re-closes after Task 13) | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 4 | iphone | 8–9 | `DashboardSnapshot` carries and caches every new section; `refresh()` fetches them, non-fatally | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 | 5 | iphone | 10–12, 14 | `HomeDashboardMapper` fills Activity, day cards, Sessions (per range), Engagement and Following; Task 14 lands D18–D20 on the device build | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 
@@ -3841,4 +3841,19 @@ Owed rework on built consumer code, per SPEC D18, D19, D20 — re-checked agains
 
 **Done when:** `npm run ios:build-check -- --test` green but the known `testPageHeaderDeclaresItsFrame`;
 swiftlint clean; staged for the owner (`commit: manual`).
+
+### Task 15: Realistic fixtures (D21, owner 2026-10-25)
+App: server
+Phase: 3
+Recipe: /api (server) — fixtures layer
+
+**Files:**
+- Modify: `server/fixtures/base.ts` — `WEEKDAYS`, `ENROLLMENT_PLAN[].days` (E3 Mon–Fri), `lessonOffsets()`; schedules land on enabled days.
+- Modify: `server/fixtures/screens/home-dashboard.ts` — one member-lesson model over base + history; D21 completion,
+  lateness with per-day capacity, habits, log-normal lengths, resume opens every 20 min; history cadence + breaks.
+- Tests: `fixtures/__tests__/home-dashboard.test.ts` (habit mix, POP_CURVE night share, rates, fatigue, bad weeks, cadence),
+  `home-dashboard.db.test.ts` (breaks, scheduled heights, < 40% / ≥ 90% days, weekend sag, hour shares, session spread,
+  Engagement 10/24), `base.db.test.ts` (E1–E4 on their enabled days), `scheduled-lessons.db.test.ts` (probe at +30).
+
+**Done when:** `FIXTURES_TEST_DATABASE_URL=<throwaway> npx vitest run fixtures` green; walk env re-seeded.
 

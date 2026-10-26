@@ -25,10 +25,9 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     const first = await db.run('reset', 'full')
     const second = await db.run('reset', 'full')
     expect(second).toEqual(first)
-    expect(first.member_lesson_progress).toBeGreaterThanOrEqual(696 + 3000)
     // Base sittings carry video progress; the ~6-month history sittings (owner ruling 2026-10-25) do not.
-    expect(first.member_video_progress).toBe(706)
-    expect(first.member_lesson_progress).toBeGreaterThan(first.member_video_progress + 3000)
+    expect(first.member_video_progress).toBeGreaterThan(300)
+    expect(first.member_lesson_progress).toBeGreaterThan(first.member_video_progress + 1000)
     expect(first.client_events).toBeGreaterThanOrEqual(first.member_lesson_progress) // + mid-sitting resume opens
     expect(first.membership_events).toBe(24)
   }, 180_000)
@@ -55,11 +54,8 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     expect(nonEmpty).toBeGreaterThanOrEqual(18)
     const current = total(series.rows, 'lesson_completions')
     const previous = total(series.previousRows, 'lesson_completions')
-    // D17: E1 −47…−24 (8 × 24) + E2 −29…−24 (8 × 6) = 240 base completions, plus the history
-    // enrollments' completions in the same window (group 1's history ends −30, group 2's −21).
-    expect(previous).toBe(547)
-    // The history overlaps the previous window more than the current one (group 1's ends −30, group 2's
-    // −21), so the 24-day trend is no longer positive; both windows just have to be populated.
+    // D21: completion varies by member, day and week, so the windows are populated, not pinned.
+    expect(previous).toBeGreaterThan(0)
     expect(current).toBeGreaterThan(0)
 
     // watch_seconds is a snapshot metric: no range (the service 400s on one), as Home queries it.
@@ -79,21 +75,24 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     expect(watched._max.lastWatchedAt).not.toBeNull()
     expect(watched._max.lastWatchedAt!.getTime()).toBeLessThan(before - 60_000)
 
-    // D11: completions, watches and opens all sit in the 07:00–21:00 Chicago band.
+    // D21: a sitting never crosses local midnight (it completes on the day it opened), and the
+    // opens follow the habits — busy mornings and evenings, near-silent 1–4 AM.
     const progress = await db.prisma.memberLessonProgress.findMany({ where: { memberId: { in: FIXTURE_MEMBER_IDS } } })
     for (const p of progress) {
-      const date = localDate(p.completedAt!)
-      expect(p.completedAt!.getTime()).toBeGreaterThanOrEqual(zonedTime(date, 7).getTime())
-      expect(p.completedAt!.getTime()).toBeLessThanOrEqual(zonedTime(date, 21).getTime())
+      expect(localDate(p.completedAt!)).toBe(localDate(p.startedAt!))
       expect(p.pinnedVersionId).toBeNull()
     }
     const opens = await db.prisma.clientEvent.findMany({ where: { organizationId: FIXTURE_ORG_ID } })
+    const byHour = Array(24).fill(0)
     for (const e of opens) {
       expect(e.eventType).toBe('LESSON_OPENED')
-      const date = localDate(e.occurredAt)
-      expect(e.occurredAt.getTime()).toBeGreaterThanOrEqual(zonedTime(date, 7).getTime())
-      expect(e.occurredAt.getTime()).toBeLessThanOrEqual(zonedTime(date, 21).getTime())
+      byHour[chicagoHour(e.occurredAt)] += 1
     }
+    const share = (from: number, to: number) => byHour.slice(from, to).reduce((a, b) => a + b, 0) / opens.length
+    expect(share(1, 5)).toBeLessThan(0.01)
+    expect(share(6, 9)).toBeGreaterThan(0.2)
+    expect(share(19, 23)).toBeGreaterThan(0.25)
+    expect(share(14, 17)).toBeLessThan(0.05)
     const joins = await db.prisma.membershipEvent.findMany({ where: { memberId: { in: FIXTURE_MEMBER_IDS } } })
     expect(joins).toHaveLength(24)
     for (const j of joins) {
@@ -102,7 +101,7 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     }
   }, 180_000)
 
-  it('(h) history: every day today−182 … today has schedules, completions never exceed member-lessons', async () => {
+  it('(h) history: uneven schedules with breaks, uneven completion, never above member-lessons (D10, D21)', async () => {
     await db.run('reset', 'full')
     const { runAnalyticsQuery, todayInTimezone } = await import('../../src/services/analytics.service.js')
     const today = todayInTimezone(TZ)
@@ -131,23 +130,35 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     const memberLessons = new Map<string, number>()
     for (const s of schedules) memberLessons.set(localDate(s.scheduledDate), (memberLessons.get(localDate(s.scheduledDate)) ?? 0) + 8)
 
-    // Each of the 3 groups is scheduled on every one of those days (group 0's −18 … −14 gap included).
-    for (const groupId of FIXTURE_GROUP_IDS) {
-      const days = new Set(
-        schedules.filter((x) => x.enrollmentId && enrollmentGroup.get(x.enrollmentId) === groupId).map((x) => localDate(x.scheduledDate))
+    // D21 cadence: Men's history meets Mon/Wed/Fri only, Women's never on a weekend.
+    const weekdaysOf = (groupId: string) =>
+      new Set(
+        schedules
+          .filter((x) => x.enrollmentId && enrollmentGroup.get(x.enrollmentId) === groupId)
+          .map((x) => new Date(`${localDate(x.scheduledDate)}T12:00:00Z`).getUTCDay())
       )
-      for (let o = -182; o <= 0; o++) expect(days.has(addDays(today, o)), `${groupId} on ${o}`).toBe(true)
-    }
+    expect([...weekdaysOf(FIXTURE_GROUP_IDS[2])].some((d) => d === 0 || d === 6)).toBe(false)
 
-    scheduled.rows.forEach((row, i) => {
+    const counts = scheduled.rows.map((row, i) => {
       const day = String(row.day)
-      expect(Number(row.scheduled_lessons), `scheduled on ${day}`).toBeGreaterThan(0)
-      expect(Number(completed.rows[i].lesson_completions), `completed on ${day}`).toBeLessThanOrEqual(memberLessons.get(day) ?? 0)
+      const done = Number(completed.rows[i].lesson_completions)
+      expect(done, `completed on ${day}`).toBeLessThanOrEqual(memberLessons.get(day) ?? 0)
+      return { day, scheduled: Number(row.scheduled_lessons), done }
     })
-    // History days (before the earliest base enrollment, −48) hold completions, some partial.
-    const historyDays = completed.rows.filter((r) => String(r.day) < addDays(today, -48))
-    expect(historyDays.every((r) => Number(r.lesson_completions) > 0)).toBe(true)
-    expect(historyDays.some((r) => Number(r.lesson_completions) < (memberLessons.get(String(r.day)) ?? 0))).toBe(true)
+    // Breaks: some days have nothing scheduled; the grey column varies.
+    expect(counts.some((c) => c.scheduled === 0)).toBe(true)
+    expect(new Set(counts.map((c) => c.scheduled)).size).toBeGreaterThanOrEqual(3)
+    // Uneven completion: ≥ 5 days under 40% and ≥ 5 days at 90% or more.
+    const rates = counts.filter((c) => c.scheduled > 0 && c.day < today).map((c) => c.done / c.scheduled)
+    expect(rates.filter((r) => r < 0.4).length).toBeGreaterThanOrEqual(5)
+    expect(rates.filter((r) => r >= 0.9).length).toBeGreaterThanOrEqual(5)
+    // Weekends sag: the mean weekend rate is below the mean weekday rate.
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / Math.max(xs.length, 1)
+    const isWeekend = (day: string) => [0, 6].includes(new Date(`${day}T12:00:00Z`).getUTCDay())
+    const rated = counts.filter((c) => c.scheduled > 0 && c.day < today)
+    expect(mean(rated.filter((c) => isWeekend(c.day)).map((c) => c.done / c.scheduled))).toBeLessThan(
+      mean(rated.filter((c) => !isWeekend(c.day)).map((c) => c.done / c.scheduled))
+    )
 
     // Video time is untouched by history sittings: exactly 40 h.
     const video = await db.prisma.memberVideoProgress.aggregate({
@@ -165,8 +176,8 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     const { FOLLOWED_ENROLLMENTS_KEY, getHomeFollowing } = await import('../../src/services/home-following.js')
     const { loadSessions } = await import('../../src/services/home-sessions.js')
     const today = todayInTimezone(TZ)
-    // The layer places today's sittings only when ≥ 10 min fit between 07:00 and now − 5 min.
-    const todayHasSittings = before - 5 * 60_000 - zonedTime(today, 7).getTime() >= 10 * 60_000
+    // The layer places today's sittings only when ≥ 10 min fit between 05:00 and now − 5 min.
+    const todayHasSittings = before - 5 * 60_000 - zonedTime(today, 5).getTime() >= 10 * 60_000
 
     // Activity: scheduled column over the chart's 36 days (today − 28 … today + 7).
     const scheduled = await runAnalyticsQuery(
@@ -218,15 +229,20 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
       expect(s.ticks[s.ticks.length - 1]).toBe(s.axisMinutes)
     }
 
-    // D12: sittings last 5–40 min, across morning, midday and evening.
+    // D21: sessions run from a 2-min check-in to about an hour, across morning, midday and evening.
     const now = new Date()
     const sessions = await loadSessions(scope, { from: new Date(now.getTime() - 60 * 86_400_000), to: now })
     // History reaches past the window's left edge, which clips a sitting's opening event (floor 60 s):
     // check sessions that start a day or more inside the window.
     for (const s of sessions.filter((x) => x.start.getTime() >= now.getTime() - 59 * 86_400_000)) {
-      expect(s.seconds).toBeGreaterThanOrEqual(5 * 60)
-      expect(s.seconds).toBeLessThanOrEqual(40 * 60)
+      expect(s.seconds).toBeGreaterThanOrEqual(60)
+      expect(s.seconds).toBeLessThanOrEqual(2 * 3600) // two sittings < 30 min apart merge
     }
+    const minutes = sessions.map((s) => s.seconds / 60).sort((a, b) => a - b)
+    expect(minutes[Math.floor(minutes.length / 2)]).toBeGreaterThan(8)
+    expect(minutes[Math.floor(minutes.length / 2)]).toBeLessThan(25)
+    expect(minutes.some((m) => m < 5)).toBe(true)
+    expect(minutes.some((m) => m > 45)).toBe(true)
     const hours = sessions.map((s) => chicagoHour(s.start))
     expect(hours.some((h) => h < 10)).toBe(true)
     expect(hours.some((h) => h >= 11 && h < 14)).toBe(true)
