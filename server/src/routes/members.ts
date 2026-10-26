@@ -28,6 +28,8 @@ import {
   requireMemberAuth,
 } from '../middleware/auth.js'
 import type { MemberViewer } from '../services/member-access.js'
+import { getMemberEngagement } from '../services/member-engagement.js'
+import { AnalyticsQueryError, assertValidTimezone } from '../services/analytics.service.js'
 import { groupManageFilter } from '../services/permission.js'
 import { sendVerificationCode, verifyCode } from '../services/twilio.js'
 import { uploadMemberAvatar, deleteMemberAvatar } from '../services/storage.js'
@@ -1666,6 +1668,56 @@ router.get('/:memberId/groups', requireMemberOrOrgOwner, async (req, res) => {
       success: false,
       error: 'Internal server error',
     })
+  }
+})
+
+const engagementQuery = z.object({ tz: z.string().min(1).max(64).default('UTC') })
+
+/**
+ * @openapi
+ * /api/members/{memberId}/engagement:
+ *   get:
+ *     tags: [Members]
+ *     summary: The member's programs with progress and hours (UI 2.0 member page, iPhone)
+ *     description: One row per enrollment of an active group the member is in, inside the orgs the caller may see the member in (owners/admins every member; other leaders only members of groups they created).
+ *     security:
+ *       - memberSession: []
+ *       - userSession: []
+ *     parameters:
+ *       - { in: path, name: memberId, required: true, schema: { type: string } }
+ *       - { in: query, name: tz, schema: { type: string, example: America/Chicago } }
+ *     responses:
+ *       200: { description: "{ programs: [{ enrollmentId, programId, title, coverImageUrl, completedCount, totalCount, hours, percent }] }" }
+ *       400: { description: Bad timezone }
+ *       404: { description: Member not found, or outside the caller's scope }
+ */
+router.get('/:memberId/engagement', requireMemberOrOrgOwner, async (req, res) => {
+  try {
+    const { memberId } = req.params
+    const parsed = engagementQuery.safeParse(req.query)
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: 'Invalid query' })
+    }
+    assertValidTimezone(parsed.data.tz)
+    const viewer = viewerOf(req, memberId)
+    if (!viewer) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to access this member',
+      })
+    }
+
+    const engagement = await getMemberEngagement(memberId, viewer, parsed.data.tz, new Date())
+    if (!engagement) {
+      return res.status(404).json({ success: false, error: 'Member not found' })
+    }
+    res.json(engagement)
+  } catch (error) {
+    if (error instanceof AnalyticsQueryError) {
+      return res.status(error.status).json({ success: false, error: error.message })
+    }
+    console.error('Error fetching member engagement:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })
 
