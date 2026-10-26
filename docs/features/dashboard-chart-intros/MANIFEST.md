@@ -9,6 +9,8 @@ apps: iphone
 contract: none                                  # server ⬜ — no endpoint or schema change
 hold: none
 go-ahead: none
+tests: slice=own+app end=risk review=slice
+target: ui2-preview-build
 walk: none
 verify: none
 ready: none
