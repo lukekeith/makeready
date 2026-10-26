@@ -7,6 +7,7 @@ import { acceptInvite } from '../services/invite.js';
 import type { User } from '../generated/prisma/index.js';
 import { logSuccess, logFailure } from '../lib/activity-log.js';
 import { ActivityTypes } from '../lib/activity-types.js';
+import { E164 } from '../services/member-fields.js';
 
 const router = Router();
 
@@ -47,9 +48,10 @@ const verifyCodeLimiter = rateLimit({
 });
 
 /**
- * Phone number validation schema (E.164 format)
+ * Phone number validation schema (E.164 format) — the regex is shared with the member PATCH
+ * (services/member-fields.ts, ui2-members-edit D4).
  */
-const phoneNumberSchema = z.string().regex(/^\+[1-9]\d{1,14}$/, {
+const phoneNumberSchema = z.string().regex(E164, {
   message: 'Phone number must be in E.164 format (e.g., +1234567890)',
 });
 
