@@ -1,7 +1,7 @@
 size: lg
-state: aligned
+state: audited
 next: /builder:resume --path docs/features/ui2-members-browse
-head: f34ce53
+head: 3af61e2
 ticket: none
 branch: builder/ui2-members-browse
 pr: none
