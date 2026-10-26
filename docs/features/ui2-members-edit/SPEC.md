@@ -1,4 +1,5 @@
 # ui2-members-edit — spec
+> 🤖 AGENT SIGNED OFF 2026-10-26 — b184109 · agent walk round 1 · not human-tested · evidence: .builder/ui2-members-edit/agent-walk/round-1/
 > lg · child 2 of program `ui2-members` (docs/features/ui2-members/PROGRAM.md) · no ticket
 
 ## Idea
@@ -263,19 +264,3 @@ previous number (no history kept — the member's `updatedAt` moves).
 | F4 | Render diff (audit item 8) not run: the capture server was down (`:5951` refused) and this step never starts one. The three edit screens and members-profile are BUILT; `EditDateFieldScreen` is UNBUILT, its states never seen. T9–T11 change or add MakeReadyUI views | build-time risk on T9–T11: each re-renders through the d2m harness and is diffed against its frozen snapshot via `/ui2-resolve` after the build; the agent walk exercises every edit page live |
 | F5 | The post-save `loadMember` overlaps the member page's `.task` reload on reappear (`MemberProfileContainer.swift:54`); the GET coalescer (`APIClient.swift:137`) dedupes them | no change; noted on T8 |
 | F6 | Audit pass 2 (scoped to D18, D19, D23 — the contract rows pass 1 moved): D18 only widens accepted input; D19 accepts every body today's callers send (web `YYYY-MM-DD`/null via `ProfileController.php`, iPhone local `YYYY-MM-DD`); D23 narrows a 403 no current caller can reach. No consumer re-check owed | settled 2026-10-26 |
-
-## Plan
-
-The plan, with its code: `docs/features/ui2-members-edit/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Member field helpers — phone normalization, contact-phone, birthday (member-fields.ts)
-- Phase 1 · Task 2 · updateMember — phone change effects, member-session guard, 409 PHONE_TAKEN
-- Phase 1 · Task 3 · PATCH /api/members/:memberId — strict schema, new keys, viewer kind, status mapping
-- Phase 1 · Task 4 · Fixtures — `sparse` scenario for the edit pages' "Not set" states, then freeze the contract
-- Phase 2 · Task 5 · Live text editing through C-045 → C-046 → SharedEditFieldTemplate (T9 a–f)
-- Phase 2 · Task 6 · MembersProfileScreen reports a MemberField key, per-row tappability (T10)
-- Phase 2 · Task 7 · New EditDateFieldScreen (T11 — D3, D9, D13, D26, D28)
-- Phase 3 · Task 8 · Status-bearing PATCH + MemberActions.updateMember (T6, T7 — D13, D15, D21)
-- Phase 3 · Task 9 · MemberFieldEditor — field rules, page states, validation and the patch (D3, D4, D7, D9–D11, D14, D16, D18, D22, D24)
-- Phase 4 · Task 10 · The editMemberField push, the edit container and popIfTop (T8 — D2, D13, D27)
-- Phase 4 · Task 11 · Emergency phone display per D7 (T12)
