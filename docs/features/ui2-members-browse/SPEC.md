@@ -99,31 +99,34 @@ endpoint and the two member read endpoints (F1).
 | D11 | Engagement payload (P13) | `GET /api/members/:id/engagement` → `{programs:[{enrollmentId, programId, title, coverImageUrl|null, completedCount, hoursLabel, percent}]}` for every non-removed enrollment of a group the member is active in; `completedCount` = the member's completed lessons in that enrollment; hours = Σ the member's sessions (D2 of home-dashboard-data) on those lessons, rounded to whole hours; `percent` = round(completed ÷ the enrollment's lessons scheduled to date × 100), capped at 100 | (assumed at spec) 2026-10-25 |
 | D12 | Activity rail (P14) | The member page's day rail calls `GET /api/home/days` with `memberId`, last 30 days to today; card line 1 = minutes, line 2 = last activity time that day (C-071 `Muted`) or the `Nothing` state on zero days | (assumed at spec) 2026-10-25 |
 | D13 | Fixtures (P8) | Every fixture member gets email (`first.last@example.org`), birthday (ages 19–67), gender, a city address, emergency name/phone; 13 of 24 members get photos from the d2m `avatar`-tagged images through the D22 image path, the rest fall back to initials | Luke 2026-10-25 (fill) · (assumed at spec) 2026-10-25 (values) |
+| D14 | Engagement row `Complete` state (C-059 `state`) | OPEN — recommended: D11's payload gains `totalCount` (all LessonSchedule rows of the enrollment); the row renders `Complete` iff `totalCount > 0` and `completedCount ≥ totalCount`, else `Progress` with D11's `percent`. Why: `percent` is against lessons scheduled *to date*, so 100% mid-program would wrongly read as finished. Rejected: `Complete` when `percent == 100` (mislabels an up-to-date member as done) | align 2026-10-25 |
 
 ## Contract
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `GET /api/organizations/:organizationId/members` (extended) | server | iphone | `requireAuth` + `member.read`; D7 scoping | `search?`, `groupId?`, `leaderId?`, `includeInactive?` | `{success, data:[{id, firstName, lastName, profilePicture|null, googlePicture|null, joinedAt (ISO), groupCount:int}], count}` — existing fields kept | 403 · 404 org |
-| `GET /api/members/:memberId` (scoped) | server | iphone | `requireMemberOrOrgOwner` + D7 | — | existing payload + `address`, `emergencyContactName`, `emergencyContactPhone` (string|null) | 401 · 403 · 404 (incl. outside D7 scope) |
+| `GET /api/organizations/:organizationId/members` (extended) | server | iphone | `requireAuth` + `member.read`; D7 scoping | `search?`, `groupId?`, `leaderId?`, `includeInactive?` | `{success, data:[{id, firstName, lastName, profilePicture|null, googlePicture|null, joinedAt (ISO), groupCount:int}], count}` — existing fields kept; `joinedAt` = this org's `MemberOrganization.joinedAt`; ordered `joinedAt` desc (D6); `search` keeps its name (the design's `q` is the app's `search`); `leaderId` is a `User.id` from `/api/group-leaders` → members of groups with that `creatorId` | 403 · 404 org |
+| `GET /api/members/:memberId` (scoped) | server | iphone | `requireMemberOrOrgOwner` + D7 | — | existing payload + `address`, `emergencyContactName`, `emergencyContactPhone` (string|null) + `isGroupLeader:boolean` (D8, derived: `userId` non-null and that user created ≥1 active group in a caller-scoped org); `organizations[]` filtered to the caller's D7 orgs (D8) | 401 · 403 · 404 (incl. outside D7 scope) |
 | `GET /api/members/:memberId/groups` (scoped) | server | iphone | as above + D7 | — | existing payload | 401 · 403 · 404 |
-| `GET /api/members/:memberId/engagement` (new) | server | iphone | as above + D7 | — | D11 | 401 · 403 · 404 |
-| `GET /api/home/days` (+ `memberId`) | server | iphone | `requireAuth` + D9 scope of home-dashboard-data + D7 | existing + `memberId?` | existing `{days:[…]}`, filtered to that member's sessions | 400 · 401 · 404 |
+| `GET /api/members/:memberId/engagement` (new) | server | iphone | as above + D7 | — | D11, keys verbatim (`title` ← `StudyProgram.name`, `coverImageUrl` ← `StudyProgram.coverImageUrl`) + `totalCount:int` (D14) | 401 · 403 · 404 |
+| `GET /api/home/days` (+ `memberId`) | server | iphone | `requireAuth` + D9 scope of home-dashboard-data + D7 | existing + `memberId?` (declared in `daysQuery` — zod `z.object` strips undeclared keys) | existing `{days:[{day, sessionSeconds, blocks[12]}]}` + per day `lastActivityAt` (ISO|null — end of the day's last session; D12 line 2), filtered to that member's sessions when `memberId` is set | 400 · 401 · 404 |
 | `GET /api/groups`, `GET /api/group-leaders` (unchanged) | server | iphone | `requireAuth` | — | existing (chip options) | existing |
 
 ## Schema & API changes
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Member.address` (text, null) | member payload | P7 | open |
-| SC2 | ADD | `Member.emergencyContactName` (text, null) | member payload | P6 | open |
-| SC3 | ADD | `Member.emergencyContactPhone` (text, null) | member payload | P6 | open |
-| SC4 | EDIT | members list response | `groupCount`, `joinedAt`, filters | P12 | open |
-| SC5 | ADD | `GET /api/members/:id/engagement` | §Contract | P13 | open |
-| SC6 | EDIT | `/api/home/days` `memberId` param | §Contract | P14 | open |
+| SC1 | ADD | `Member.address` (text, null) | member payload | P7 | open (T1) |
+| SC2 | ADD | `Member.emergencyContactName` (text, null) | member payload | P6 | open (T1) |
+| SC3 | ADD | `Member.emergencyContactPhone` (text, null) | member payload | P6 | open (T1) |
+| SC4 | EDIT | members list response | `groupCount`, `joinedAt`, filters | P12 | open (T2) |
+| SC5 | ADD | `GET /api/members/:id/engagement` | §Contract | P13 | open (T4) |
+| SC6 | EDIT | `/api/home/days` `memberId` param | §Contract | P14 | open (T5) |
+| SC7 | EDIT | `HomeDay.lastActivityAt` (wire only, derived from sessions) | `/api/home/days` days[] | members-profile §3: day rail line 2 = time of last activity; D12 | open (T5) |
+| SC8 | EDIT | member payload `isGroupLeader` (wire only, derived) + `organizations[]` scope filter | `GET /api/members/:id` | members-profile §2.2/§2.4 Role + Organization; D8 | open (T6) |
 
 **Data plan:** SC1–SC3 are nullable adds through `server/schema/*.yaml` → `schema:diff` → one Atlas
-migration; no backfill, existing rows read null. SC4–SC6 are additive API changes. Independent ordering.
+migration; no backfill, existing rows read null. SC4–SC8 are additive API changes (SC7 is additive on a payload the Home screen already decodes — `HomeDay` decodes with `decodeIfPresent`, so released and current builds ignore it). Independent ordering.
 
 ## server
 
@@ -176,4 +179,22 @@ migration; no backfill, existing rows read null. SC4–SC6 are additive API chan
 |---|---|---|
 | F1 | D7 narrows `GET /api/members/:id` and `/:id/groups` for non-owner/admin leaders — a released 1.0 build calling them as a Group Leader for a member outside their groups would now get 404 | audit: list every 1.0 caller of both; if any is a leader-side read, scope only the list + engagement and record the transition |
 | F2 | Hiding the system nav bar disables the interactive pop gesture by default | build-time risk on the shell task: re-enable it and verify on device |
-| F3 | `MakeReadyUI/` is d2m-owned; D4 and D3 change two built components/screens | route both to `/ui2-resolve` after the build so the design records them |
+| F3 | `MakeReadyUI/` is d2m-owned; D3, D4, D7 (Leaders chip), P5/D9 (no email indicator) and P6 (Emergency phone row) change two built screens and one component | route all five to `/ui2-resolve` after the build so the design records them (T11, T12) |
+| F4 | `GET /api/members/:id/profile` (`requireAuth` + `groupManageFilter`) is a third leader-side member read that D7 does not list; it is the one the released 1.0 iPhone build calls (`GroupActions.swift:456`) — it does **not** call `/:id` or `/:id/groups` | audit: decide whether D7 must also cover `/profile` (else a Group Leader reads an out-of-scope member there); settles the iPhone half of F1 |
+| F5 | Unbuilt design states: `MembersHomeScreen.State` has no `loading`/`empty`/`error`; `MembersProfileScreen` builds `populated` + `partial` only (`loading`/`error` named, unbuilt) | build-time risk on T12/T13: containers render them with the shell's existing loading/error surfaces; the unbuilt states go to `/ui2-component-build` — never built here to make a check pass |
+| F6 | D7 scopes non-admin leaders by `Group.creatorId`; the house rule warns that creator-identity checks lock out org leaders | audit: confirm D7 is the deliberate exception (it narrows *visibility* for non-admin roles, it does not gate org managers), and that Owner/Admin take the `canManageOrgContent` path |
+| T1 | server: `Member.address`, `emergencyContactName`, `emergencyContactPhone` in `server/schema/*.yaml` → `schema:diff` → Atlas migration (SC1–SC3) | blocking |
+| T2 | server: `getOrganizationMembers` — `groupId`/`leaderId` filters, `groupCount`, `joinedAt`, `joinedAt`-desc order; route passes the two new query params (SC4) | blocking |
+| T3 | server: `memberAccessScope(userId, orgId)` service (all · groupIds) applied to the list, `/:id`, `/:id/groups`, `/:id/engagement` and `/api/home/days?memberId` — out of scope → 404 (D7) | blocking |
+| T4 | server: `GET /api/members/:id/engagement` per D11 + D14 `totalCount` (SC5) | blocking |
+| T5 | server: `/api/home/days` — `memberId` in `daysQuery`, member-filtered `loadSessions`, per-day `lastActivityAt` in `bucketDays` (SC6, SC7) | blocking |
+| T6 | server: `getMember` — `isGroupLeader` and the caller-scoped `organizations[]` (SC8) | blocking |
+| T7 | server: fixtures D13 on the base members + `server/fixtures/screens/members-home.ts` and `members-profile.ts` whose `full` scenario fills every wired section (house rule: fixtures) | blocking |
+| T8 | iphone: shell push — `UI2ShellModel.paths`, `UI2Destination.memberDetail(id)`, per-tab `NavigationStack`, TopNav hide, re-tap pop (D1, D2, F2) | trailing |
+| T9 | iphone: models — org-member list item, member detail (+ `address`, `emergencyContactName`, `emergencyContactPhone`, `isGroupLeader`), engagement, `HomeDay.lastActivityAt` (optional, `decodeIfPresent`); every new key decoded with `decodeIfPresent` | trailing |
+| T10 | iphone: `MemberActions` + `AppState` stores — name them `orgMembersByOrgId` / `memberDetailsById` (not `memberDirectory`: `Group.memberDirectory` is an unrelated Bool and the subject of a past strip bug); cleared in `clearInMemory()` | trailing |
+| T11 | iphone: `MembersHomeScreen` — drop C-019 + `onSelectTab`/`onToggleNav` (D4); `showsLeaderFilter` flag hiding the Leaders chip (D7) | trailing |
+| T12 | iphone: `MembersProfileScreen` — email indicator optional and off (P5/D9); `emergencyContact` splits into "Emergency contact" + "Emergency phone" rows (P6, 9 rows); C-042 non-tappable form, chevron hidden (D3); Address row `multiline` (P7) | trailing |
+| T13 | iphone: `MembersHomeContainer`/`Mapper` + `MemberProfileContainer`/`Mapper` — D6 labels, D8 Role/Org (from `isGroupLeader`, `organizations[].organization.name`), D9, D10, D12 rail (line 1 = `sessionSeconds`→minutes, line 2 = `lastActivityAt` local time), D14 state; email = `email ?? googleEmail` (the `MemberProfile.displayEmail` precedent); gender capitalized (stored lowercase) | trailing |
+
+**Alignment (2026-10-25)** — 16 persisted fields ALIGNED (name ×2, profilePicture/googlePicture, email, phoneNumber, phoneVerified, birthday, gender, org name, org joinedAt, group name/cover/leader `creator.name`/joinedAt, day `sessionSeconds`/`blocks`); MISSING: list `joinedAt` + `groupCount` (SC4), `address` (SC1), emergency name/phone (SC2/SC3, RESHAPE of the design's one `emergencyContact`), Role (SC8), day `lastActivityAt` (SC7), the five engagement values (SC5); RESHAPE: list sort (server `lastName` asc → D6), C-059 state (D14); DESIGN-ONLY: `emailVerified` (P5); RENAME resolved app-side: `q` → `search`, `title` ← `StudyProgram.name`. Released iPhone build: caches none of these fields (1.0 reads `/profile` into `MemberProfile`, untouched) — no on-device migration.
