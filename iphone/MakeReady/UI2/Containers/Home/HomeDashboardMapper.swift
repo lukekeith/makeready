@@ -65,10 +65,64 @@ enum HomeDashboardMapper {
             st.sessionTickValues = r.ticks.map(tickLabel)
             st.sessionTickUnits = r.ticks.map { _ in "" }
         }
+
+        // Engagement (D3/D7). Never fetched → `.empty`'s zeroed section.
+        if let e = s.engagement {
+            st.activeCount = "\(e.activeCount)"
+            st.engagementPercent = e.percent
+            st.engagementLabel = "Members current"
+            st.engagementCount = e.currentCount
+            st.engagementProgress = Double(e.percent) / 100
+            st.engagementSubtitle = "\(e.enrolledCount) total members enrolled across \(e.groupCount) groups"
+            st.engagementColor = bandColor(percent: e.percent)
+        }
+
+        // Following (D4/D11): program blocks in server order; group cards flattened, each pointing
+        // back at its program by index.
+        if let f = s.following {
+            let cards: [(program: Int, group: HomeFollowedGroup)] = f.programs.enumerated().flatMap { index, program in
+                program.groups.map { (program: index, group: $0) }
+            }
+            st.followedCount = "\(cards.count)"
+            st.programTitles = f.programs.map { $0.title }
+            st.programAuthors = f.programs.map { $0.author }
+            st.programCreatedLabels = f.programs.map { createdLabel($0.createdAt, tz: timeZone) }
+            st.groupProgramIndices = cards.map { $0.program }
+            st.groupTitles = cards.map { $0.group.groupName }
+            st.groupPhotoURLs = cards.map { $0.group.photoUrl ?? "" }
+            st.groupMembers = cards.map { "\($0.group.memberCount)" }          // the card adds "members"
+            st.groupPercents = cards.map { "\($0.group.percent)%" }
+            st.groupColors = cards.map { bandColor(percent: $0.group.percent) }
+            st.groupShowLinks = cards.map { $0.group.synced }
+        }
         return st
     }
 
     // MARK: - Helpers
+
+    /// D7: C-031 / C-033 colour bands — green ≥ 50, yellow 20–49, red < 20.
+    static func bandColor(percent: Int) -> String {
+        if percent >= 50 { return "green" }
+        if percent >= 20 { return "yellow" }
+        return "red"
+    }
+
+    private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let isoPlain = ISO8601DateFormatter()
+
+    /// D11: "Created MMM d, yyyy" in the caller's tz from the server's ISO 8601 string (Prisma
+    /// writes fractional seconds); "" when it doesn't parse.
+    static func createdLabel(_ iso: String, tz: TimeZone) -> String {
+        guard let date = isoFractional.date(from: iso) ?? isoPlain.date(from: iso) else { return "" }
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = tz
+        let c = cal.dateComponents([.year, .month, .day], from: date)
+        guard let y = c.year, let m = c.month, let d = c.day else { return "" }
+        return "Created \(shortMonths[m - 1]) \(d), \(y)"
+    }
 
     /// D13: the C-028 label → the snapshot's `sessions` key (`DashboardActions.sessionRangeKeys`).
     static func sessionKey(for label: String) -> String {

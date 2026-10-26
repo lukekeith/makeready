@@ -281,4 +281,81 @@ final class HomeDashboardMapperTests: XCTestCase {
         XCTAssertEqual(HomeDashboardMapper.tickLabel("2026-12-31"), "Dec 31")
         XCTAssertEqual(HomeDashboardMapper.tickLabel("garbage"), "garbage")
     }
+
+    // MARK: - Task 12: Engagement, Following, bands (D3, D7, D11)
+
+    func testBandsAtTheirEdges() {
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 0), "red")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 19), "red")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 20), "yellow")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 49), "yellow")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 50), "green")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 100), "green")
+    }
+
+    func testEngagementFields() {
+        var s = snapshot()
+        s.engagement = HomeEngagementResponse(currentCount: 52, enrolledCount: 178, groupCount: 15, percent: 29, activeCount: 15)
+        let st = map(s)
+        XCTAssertEqual(st.engagementPercent, 29)
+        XCTAssertEqual(st.engagementCount, 52)
+        XCTAssertEqual(st.engagementProgress, 0.29, accuracy: 0.0001)
+        XCTAssertEqual(st.engagementSubtitle, "178 total members enrolled across 15 groups")
+        XCTAssertEqual(st.engagementColor, "yellow")
+        XCTAssertEqual(st.engagementLabel, "Members current")
+        XCTAssertEqual(st.activeCount, "15")
+    }
+
+    func testEngagementColourFollowsTheBand() {
+        var s = snapshot()
+        s.engagement = HomeEngagementResponse(currentCount: 1, enrolledCount: 10, groupCount: 1, percent: 10, activeCount: 0)
+        XCTAssertEqual(map(s).engagementColor, "red")
+        s.engagement?.percent = 50
+        XCTAssertEqual(map(s).engagementColor, "green")
+    }
+
+    func testFollowingFields() {
+        var s = snapshot()
+        s.following = HomeFollowingResponse(programs: [
+            HomeFollowedProgram(id: "p1", title: "Daily inspiration", author: "Scott Stickane",
+                                createdAt: "2026-04-13T15:02:11.123Z", groups: [
+                HomeFollowedGroup(enrollmentId: "e1", groupName: "Young professionals",
+                                  photoUrl: "https://cdn.example/g.jpg", memberCount: 9, percent: 55, synced: true),
+                HomeFollowedGroup(enrollmentId: "e2", groupName: "The kids", photoUrl: nil,
+                                  memberCount: 2, percent: 13, synced: false)
+            ]),
+            HomeFollowedProgram(id: "p2", title: "Romans in 30 days", author: "",
+                                createdAt: "2026-07-08T03:00:00Z", groups: [
+                HomeFollowedGroup(enrollmentId: "e3", groupName: "Grandparents and their kids", photoUrl: nil,
+                                  memberCount: 15, percent: 21, synced: true)
+            ])
+        ])
+        let st = map(s)
+        XCTAssertEqual(st.followedCount, "3")
+        XCTAssertEqual(st.programTitles, ["Daily inspiration", "Romans in 30 days"])
+        XCTAssertEqual(st.programAuthors, ["Scott Stickane", ""])
+        // 2026-07-08T03:00Z is still July 7 in Denver — the label uses the caller's tz.
+        XCTAssertEqual(st.programCreatedLabels, ["Created Apr 13, 2026", "Created Jul 7, 2026"])
+        XCTAssertEqual(st.groupProgramIndices, [0, 0, 1])
+        XCTAssertEqual(st.groupTitles, ["Young professionals", "The kids", "Grandparents and their kids"])
+        XCTAssertEqual(st.groupPhotoURLs, ["https://cdn.example/g.jpg", "", ""])
+        XCTAssertEqual(st.groupMembers, ["9", "2", "15"])
+        XCTAssertEqual(st.groupPercents, ["55%", "13%", "21%"])
+        XCTAssertEqual(st.groupColors, ["green", "red", "yellow"])
+        XCTAssertEqual(st.groupShowLinks, [true, false, true])
+    }
+
+    func testNoFollowsIsTheEmptyState() {
+        var s = snapshot()
+        s.following = HomeFollowingResponse(programs: [])
+        let st = map(s)
+        XCTAssertEqual(st.followedCount, "0")
+        XCTAssertEqual(st.programTitles, [])
+        XCTAssertEqual(st.groupTitles, [])
+    }
+
+    func testCreatedLabelRejectsGarbage() {
+        XCTAssertEqual(HomeDashboardMapper.createdLabel("not a date", tz: tz), "")
+        XCTAssertEqual(HomeDashboardMapper.createdLabel("2026-04-13T15:02:11Z", tz: tz), "Created Apr 13, 2026")
+    }
 }
