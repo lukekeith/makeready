@@ -11,7 +11,14 @@ import {
   getScopedMember,
   getScopedMemberGroups,
   addMemberToOrganization,
+  type UpdateMemberData,
 } from '../services/member.js'
+import {
+  birthdayInRange,
+  isValidContactPhone,
+  normalizePhone,
+  parseBirthday,
+} from '../services/member-fields.js'
 import {
   unlinkGoogleProfile,
   syncGoogleProfile,
@@ -1198,15 +1205,66 @@ router.get('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-const updateMemberSchema = z.object({
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  email: z.string().email().optional(),
-  gender: z.enum(['male', 'female']).optional().nullable(),
-  birthday: z.string().optional().nullable(), // Allow ISO date string or null
-  profilePicture: z.string().url().optional().nullable(),
-  smsConsent: z.boolean().optional(),
-})
+// ui2-members-edit SC1 / §Contract. Strings are trimmed; "" on a clearable key is null (D8, D11);
+// unknown keys are a 400, never silently dropped (.strict()).
+const PHONE_MESSAGE = 'Enter a valid phone number'
+const BIRTHDAY_MESSAGE = 'Birthday must be between 1900 and today'
+const emptyToNull = (value: unknown) => {
+  const trimmed = typeof value === 'string' ? value.trim() : value
+  return trimmed === '' ? null : trimmed
+}
+const clearableText = () => z.preprocess(emptyToNull, z.string().nullable().optional())
+
+const updateMemberSchema = z
+  .object({
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    email: z.preprocess(emptyToNull, z.string().email('Enter a valid email').nullable().optional()),
+    // D4/D18: normalized to E.164; "" / whitespace normalizes to null → 400 (D8: phone is required).
+    phoneNumber: z
+      .string({ invalid_type_error: PHONE_MESSAGE, required_error: PHONE_MESSAGE })
+      .transform((raw, ctx) => {
+        const phone = normalizePhone(raw)
+        if (!phone) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: PHONE_MESSAGE })
+          return z.NEVER
+        }
+        return phone
+      })
+      .optional(),
+    gender: z.preprocess(emptyToNull, z.enum(['male', 'female']).nullable().optional()),
+    // D9/D19: YYYY-MM-DD or ISO → its UTC calendar date at 00:00Z, 1900-01-01 … UTC today + 1 day.
+    birthday: z
+      .preprocess(emptyToNull, z.string({ invalid_type_error: BIRTHDAY_MESSAGE }).nullable().optional())
+      .transform((raw, ctx): Date | null | undefined => {
+        if (raw === undefined || raw === null) return raw
+        const date = parseBirthday(raw)
+        if (!date || !birthdayInRange(date, new Date())) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: BIRTHDAY_MESSAGE })
+          return z.NEVER
+        }
+        return date
+      }),
+    address: clearableText(),
+    emergencyContactName: clearableText(),
+    // D7: stored as typed (trimmed); not unique, not verified.
+    emergencyContactPhone: z.preprocess(
+      emptyToNull,
+      z
+        .string({ invalid_type_error: PHONE_MESSAGE })
+        .nullable()
+        .optional()
+        // Length check first: keeps the regex off pathological input.
+        .refine(
+          (value) =>
+            value === undefined || value === null || (value.length <= 40 && isValidContactPhone(value)),
+          PHONE_MESSAGE
+        )
+    ),
+    profilePicture: z.string().url().optional().nullable(),
+    smsConsent: z.boolean().optional(),
+  })
+  .strict()
 
 router.patch('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
   try {
@@ -1227,24 +1285,23 @@ router.patch('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
       })
     }
 
-    const { birthday, gender, profilePicture, smsConsent, ...rest } = validation.data
-    const updateData = {
+    const { smsConsent, ...rest } = validation.data
+    const updateData: UpdateMemberData = {
       ...rest,
-      gender: gender === null ? null : gender,
-      birthday: birthday ? new Date(birthday) : birthday === null ? null : undefined,
-      profilePicture: profilePicture === null ? null : profilePicture,
       ...(smsConsent !== undefined && {
         smsConsent,
         smsConsentAt: smsConsent ? new Date() : null,
       }),
     }
 
-    const result = await updateMember(memberId, updateData)
+    // D12/D23: the member-session phone guard runs in the service; the route only says who is asking.
+    const result = await updateMember(memberId, updateData, viewer?.kind === 'self' ? 'self' : 'user')
 
     if (!result.success) {
-      return res.status(500).json({
+      return res.status(result.status ?? 500).json({
         success: false,
         error: result.error,
+        ...(result.code && { code: result.code }),
       })
     }
 
