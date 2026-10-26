@@ -150,7 +150,11 @@ final class DashboardActionsTests: XCTestCase {
     private func stubHome(org: String = "org1") {
         let q = "tz=America/Denver&organizationId=\(org)"
         api.stub("POST", "/api/analytics/query", json: #"{"success":true,"rows":[{"day":"2026-10-24","lesson_completions":3,"scheduled_lessons":5},{"day":"2026-10-25","lesson_completions":2,"scheduled_lessons":4}],"previousRows":[{"lesson_completions":4}]}"#)
-        api.stub("GET", "/api/home/days?from=2026-09-27&to=2026-11-01&\(q)", json: #"{"days":[{"day":"2026-10-24","sessionSeconds":1530,"blocks":[0,0,0,0,600,0,930,0,0,0,0,0]},{"day":"2026-10-25","sessionSeconds":0,"blocks":[0,0,0,0,0,0,0,0,0,0,0,0]}]}"#)
+        // ~6 months of day minutes, fetched as ≤ 62-day ranges (DashboardActions.daysPerCall).
+        api.stub("GET", "/api/home/days?from=2026-04-26&to=2026-06-26&\(q)", json: #"{"days":[]}"#)
+        api.stub("GET", "/api/home/days?from=2026-06-27&to=2026-08-27&\(q)", json: #"{"days":[]}"#)
+        api.stub("GET", "/api/home/days?from=2026-08-28&to=2026-10-28&\(q)", json: #"{"days":[{"day":"2026-10-24","sessionSeconds":1530,"blocks":[0,0,0,0,600,0,930,0,0,0,0,0]},{"day":"2026-10-25","sessionSeconds":0,"blocks":[0,0,0,0,0,0,0,0,0,0,0,0]}]}"#)
+        api.stub("GET", "/api/home/days?from=2026-10-29&to=2026-11-01&\(q)", json: #"{"days":[]}"#)
         api.stub("GET", "/api/home/engagement?\(q)", json: #"{"currentCount":7,"enrolledCount":12,"groupCount":3,"percent":58,"activeCount":9}"#)
         api.stub("GET", "/api/home/following?organizationId=\(org)", json: #"{"programs":[{"id":"p1","title":"Romans in 30 days","author":"Luke Keith","createdAt":"2026-07-08T18:00:00.123Z","groups":[{"enrollmentId":"e1","groupName":"Young professionals","photoUrl":null,"memberCount":9,"percent":55,"synced":true}]}]}"#)
         for (range, average) in [("all", 1920), ("year", 1500), ("month", 900), ("week", 630)] {
@@ -162,7 +166,7 @@ final class DashboardActionsTests: XCTestCase {
         let hourly = Array(repeating: "0", count: 24).joined(separator: ",")
         let bins = Array(repeating: "0", count: 88).joined(separator: ",")
         return "{\"averageSeconds\":\(average),\"sessionCount\":4,\"hourly\":[\(hourly)],\"bins\":[\(bins)],"
-            + "\"ticks\":[\"2026-10-19\",\"2026-10-21\",\"2026-10-23\",\"2026-10-25\"]}"
+            + "\"ticks\":[0,15,30,45],\"axisMinutes\":45}"
     }
 
     func testRefreshFillsEveryHomeSection() async {
@@ -190,11 +194,14 @@ final class DashboardActionsTests: XCTestCase {
         let body = api.calls.compactMap(\.body).first { ($0["metrics"] as? [String]) == ["scheduled_lessons"] }
         let filters = body?["filters"] as? [String: Any]
         XCTAssertEqual(body?["dimensions"] as? [String], ["day"])
-        XCTAssertEqual(filters?["from"] as? String, "2026-09-27")
+        XCTAssertEqual(filters?["from"] as? String, "2026-04-26")         // 182 days of history
         XCTAssertEqual(filters?["to"] as? String, "2026-11-01")
         XCTAssertEqual(filters?["organizationId"] as? String, "org1")
         XCTAssertEqual(body?["timezone"] as? String, "America/Denver")
-        XCTAssertEqual(api.callCount("GET", "/api/home/days?from=2026-09-27&to=2026-11-01&tz=America/Denver&organizationId=org1"), 1)
+        XCTAssertEqual(api.callCount("GET", "/api/home/days?from=2026-04-26&to=2026-06-26&tz=America/Denver&organizationId=org1"), 1)
+        XCTAssertEqual(api.callCount("GET", "/api/home/days?from=2026-06-27&to=2026-08-27&tz=America/Denver&organizationId=org1"), 1)
+        XCTAssertEqual(api.callCount("GET", "/api/home/days?from=2026-08-28&to=2026-10-28&tz=America/Denver&organizationId=org1"), 1)
+        XCTAssertEqual(api.callCount("GET", "/api/home/days?from=2026-10-29&to=2026-11-01&tz=America/Denver&organizationId=org1"), 1)
         for range in DashboardActions.sessionRangeKeys {
             XCTAssertEqual(api.callCount("GET", "/api/home/sessions?range=\(range)&tz=America/Denver&organizationId=org1"), 1)
         }
@@ -292,7 +299,7 @@ final class DashboardActionsTests: XCTestCase {
         state.organizationId = nil
         await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
         let home = api.calls.filter { $0.endpoint.hasPrefix("/api/home/") }.map(\.endpoint)
-        XCTAssertEqual(home.count, 7)                                        // days, engagement, following, 4 × sessions
+        XCTAssertEqual(home.count, 10)                                       // 4 × days, engagement, following, 4 × sessions
         XCTAssertTrue(home.allSatisfy { !$0.contains("organizationId") })
         XCTAssertTrue(home.contains("/api/home/following"))
     }

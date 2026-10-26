@@ -87,8 +87,9 @@ struct HomeSessionsResponse: Codable, Equatable {
     var averageSeconds: Int = 0
     var sessionCount: Int = 0          // unread by the mapper today (§Contract)
     var hourly: [Double] = []          // 24, index 0 = 12 AM, caller tz — mean session seconds per start hour
-    var bins: [Double] = []            // 88, normalised 0–1, oldest first
-    var ticks: [String] = []           // 4 × yyyy-MM-dd, at bins 0 / 29 / 58 / 87 (D16)
+    var bins: [Double] = []            // 88 session-length bands over 0 … axisMinutes, normalised 0–1 (D18)
+    var ticks: [Int] = []              // ≤ 4 axis labels in minutes, 0 first, axisMinutes last (D18)
+    var axisMinutes: Int = 0
 }
 
 extension HomeSessionsResponse {
@@ -98,7 +99,9 @@ extension HomeSessionsResponse {
         sessionCount = try c.decodeIfPresent(Int.self, forKey: .sessionCount) ?? 0
         hourly = try c.decodeIfPresent([Double].self, forKey: .hourly) ?? []
         bins = try c.decodeIfPresent([Double].self, forKey: .bins) ?? []
-        ticks = try c.decodeIfPresent([String].self, forKey: .ticks) ?? []
+        // A cache written before D18 holds date strings here: it decodes as no ticks, not a failure.
+        ticks = (try? c.decodeIfPresent([Int].self, forKey: .ticks)) ?? []
+        axisMinutes = try c.decodeIfPresent(Int.self, forKey: .axisMinutes) ?? 0
     }
 }
 

@@ -28,10 +28,10 @@ enum HomeDashboardMapper {
         st.metricCount = "\(titles.count)"
 
         // Activity (D22/D25)
-        let window = days(endingAt: today, back: 28, ahead: 7, tz: timeZone)
+        let window = days(endingAt: today, back: DashboardActions.historyDays, ahead: 7, tz: timeZone)
         let keys = window.map(\.key)
         let todayKey = key(today, tz: timeZone)
-        let todayIndex = keys.firstIndex(of: todayKey) ?? 28
+        let todayIndex = keys.firstIndex(of: todayKey) ?? DashboardActions.historyDays
         st.chartDates = keys
         st.chartCompleted = keys.map { s.activityDays[$0] ?? 0 }
         st.chartScheduled = keys.map { s.scheduledDays[$0] ?? 0 }                    // D10
@@ -55,15 +55,16 @@ enum HomeDashboardMapper {
             return hasActivity ? "default" : "nothing"
         }
 
-        // Sessions (D8/D13/D16): the container's selected range, re-mapped from the snapshot.
+        // Sessions (D8/D13/D18): the container's selected range, re-mapped from the snapshot.
         // A range the snapshot has never held keeps `.empty`'s zeroed section.
         if let r = s.sessions[sessionKey(for: sessionRange)] {
             st.hourValues = fixed(r.hourly, count: 24)
             st.centerValue = "\(Int((Double(r.averageSeconds) / 60).rounded()))"
             st.centerUnit = "min"
             st.bins = fixed(r.bins, count: 88)
-            st.sessionTickValues = r.ticks.map(tickLabel)
-            st.sessionTickUnits = r.ticks.map { _ in "" }
+            // D18: the strip is a session-LENGTH histogram — its ticks are minutes.
+            st.sessionTickValues = r.ticks.map(String.init)
+            st.sessionTickUnits = r.ticks.map { _ in "min" }
         }
 
         // Engagement (D3/D7). Never fetched → `.empty`'s zeroed section.
@@ -138,14 +139,6 @@ enum HomeDashboardMapper {
     static func fixed(_ values: [Double], count: Int) -> [Double] {
         let head = Array(values.prefix(count))
         return head + Array(repeating: 0, count: count - head.count)
-    }
-
-    /// D16: a server tick (yyyy-MM-dd, a calendar date — no tz shift) as "MMM d".
-    static func tickLabel(_ day: String) -> String {
-        let parts = day.split(separator: "-")
-        guard parts.count == 3, let month = Int(parts[1]), let date = Int(parts[2]), (1...12).contains(month)
-        else { return day }
-        return "\(shortMonths[month - 1]) \(date)"
     }
 
     /// D6: the 12 two-hour blocks (server seconds) as minutes — always 12 long, zero-filled.

@@ -28,9 +28,9 @@ final class HomeDashboardMapperTests: XCTestCase {
 
     func testActivityWindowAndZeros() {
         let st = HomeDashboardMapper.state(from: snapshot(), today: today, timeZone: tz, sessionRange: "All time")
-        XCTAssertEqual(st.chartDates.count, 36)                                       // 28 + today + 7
+        XCTAssertEqual(st.chartDates.count, 190)                                      // 182 + today + 7
         XCTAssertEqual(st.chartToday, "2026-10-25")
-        XCTAssertEqual(st.chartScheduled, Array(repeating: 0, count: 36))             // D25
+        XCTAssertEqual(st.chartScheduled, Array(repeating: 0, count: 190))            // D25
         XCTAssertEqual(st.chartCompleted[st.chartDates.firstIndex(of: "2026-10-24")!], 3)
         XCTAssertTrue(st.dayLine1s.allSatisfy { $0 == "0 mins" })
     }
@@ -98,7 +98,7 @@ final class HomeDashboardMapperTests: XCTestCase {
         s.dayMinutes = ["2026-10-24": 26]
         s.dayBlocks = ["2026-10-24": [0, 0, 0, 0, 600, 0, 930, 0, 0, 0, 0, 0]]
         s.sessions = ["week": HomeSessionsResponse(averageSeconds: 600, sessionCount: 2, hourly: [1, 2],
-                                                   bins: [0.5, 1], ticks: ["2026-10-19"])]
+                                                   bins: [0.5, 1], ticks: [0, 15])]
         s.engagement = HomeEngagementResponse(currentCount: 7, enrolledCount: 12, groupCount: 3, percent: 58, activeCount: 9)
         s.following = HomeFollowingResponse(programs: [
             HomeFollowedProgram(id: "p1", title: "Romans in 30 days", author: "", createdAt: "2026-07-08T18:00:00.000Z",
@@ -148,7 +148,7 @@ final class HomeDashboardMapperTests: XCTestCase {
         let e = try JSONDecoder.apiDecoder.decode(HomeEngagementResponse.self, from: Data(engagement.utf8))
         XCTAssertEqual(e, HomeEngagementResponse(currentCount: 52, enrolledCount: 178, groupCount: 15, percent: 29, activeCount: 15))
 
-        let sessions = #"{"averageSeconds":1920,"sessionCount":40,"hourly":[0,0,0,0,0,0,0,0,0,600.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"bins":[0,0.25,1],"ticks":["2025-10-26","2026-02-23","2026-06-24","2026-10-25"]}"#
+        let sessions = #"{"averageSeconds":1920,"sessionCount":40,"hourly":[0,0,0,0,0,0,0,0,0,600.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"bins":[0,0.25,1],"ticks":[0,15,30,45],"axisMinutes":45}"#
         let r = try JSONDecoder.apiDecoder.decode(HomeSessionsResponse.self, from: Data(sessions.utf8))
         XCTAssertEqual(r.averageSeconds, 1920)
         XCTAssertEqual(r.hourly.count, 24)
@@ -167,7 +167,7 @@ final class HomeDashboardMapperTests: XCTestCase {
         var s = snapshot()
         s.scheduledDays = ["2026-10-24": 5, "2026-11-01": 4]
         let st = map(s)
-        XCTAssertEqual(st.chartScheduled.count, 36)
+        XCTAssertEqual(st.chartScheduled.count, 190)
         XCTAssertEqual(st.chartScheduled[st.chartDates.firstIndex(of: "2026-10-24")!], 5)
         XCTAssertEqual(st.chartScheduled[st.chartDates.firstIndex(of: "2026-11-01")!], 4)   // today + 7
         XCTAssertEqual(st.chartScheduled.reduce(0, +), 9)
@@ -218,7 +218,7 @@ final class HomeDashboardMapperTests: XCTestCase {
         var bins = Array(repeating: 0.0, count: 88)
         bins[87] = 1
         return HomeSessionsResponse(averageSeconds: average, sessionCount: 3, hourly: hourly, bins: bins,
-                                    ticks: ["2025-10-26", "2026-02-23", "2026-06-24", "2026-10-25"])
+                                    ticks: [0, 15, 30, 45], axisMinutes: 45)
     }
 
     private func sessionsSnapshot() -> DashboardSnapshot {
@@ -237,8 +237,8 @@ final class HomeDashboardMapperTests: XCTestCase {
         XCTAssertEqual(st.centerCaption, "Average session")                       // unchanged (D8)
         XCTAssertEqual(st.bins.count, 88)
         XCTAssertEqual(st.bins[87], 1)
-        XCTAssertEqual(st.sessionTickValues, ["Oct 26", "Feb 23", "Jun 24", "Oct 25"])   // D16 "MMM d"
-        XCTAssertEqual(st.sessionTickUnits, ["", "", "", ""])
+        XCTAssertEqual(st.sessionTickValues, ["0", "15", "30", "45"])   // D18: session length in minutes
+        XCTAssertEqual(st.sessionTickUnits, ["min", "min", "min", "min"])
     }
 
     /// D13: one snapshot holds all four ranges; changing the label is a pure re-map.
@@ -276,10 +276,12 @@ final class HomeDashboardMapperTests: XCTestCase {
         XCTAssertEqual(st.sessionTickUnits, [])
     }
 
-    func testTickLabelFormatsAStoredDate() {
-        XCTAssertEqual(HomeDashboardMapper.tickLabel("2026-01-05"), "Jan 5")
-        XCTAssertEqual(HomeDashboardMapper.tickLabel("2026-12-31"), "Dec 31")
-        XCTAssertEqual(HomeDashboardMapper.tickLabel("garbage"), "garbage")
+    /// D18: a cache written before the session-length strip holds date ticks — it still loads.
+    func testOldDateTicksDecodeAsNoTicks() throws {
+        let old = #"{"averageSeconds":60,"sessionCount":1,"hourly":[],"bins":[],"ticks":["2026-10-19"]}"#
+        let r = try JSONDecoder().decode(HomeSessionsResponse.self, from: Data(old.utf8))
+        XCTAssertEqual(r.ticks, [])
+        XCTAssertEqual(r.averageSeconds, 60)
     }
 
     // MARK: - Task 12: Engagement, Following, bands (D3, D7, D11)

@@ -37,11 +37,11 @@ struct DashboardActions {
         let generation = state.initialLoad.generation
         do {
             let today = day(now())
-            let from24 = day(offset: -23), from28 = day(offset: -28), ahead7 = day(offset: 7)
+            let from24 = day(offset: -23), fromHistory = day(offset: -Self.historyDays), ahead7 = day(offset: 7)
 
             // The extra sections start now and run alongside the core fetches below, so neither
             // waits on the other — Overview/Activity never wait on the heavy Sessions ranges.
-            async let extras = fetchExtras(from: from28, to: ahead7)
+            async let extras = fetchExtras(from: fromHistory, to: ahead7, dayRanges: dayRanges(fromOffset: -Self.historyDays, toOffset: 7))
 
             var next = state.dashboard
             next.kpiNames = try await kpiNames()
@@ -51,7 +51,7 @@ struct DashboardActions {
             next.completedTotal = next.completedSeries.values.reduce(0, +)
             next.completedPrevious = series.previousRows?.compactMap { $0["lesson_completions"]?.int }.reduce(0, +)
 
-            let activity = try await query(["lesson_completions"], dimension: "day", from: from28, to: today, compare: false)
+            let activity = try await query(["lesson_completions"], dimension: "day", from: fromHistory, to: today, compare: false)
             next.activityDays = byDay(activity.rows, metric: "lesson_completions")
 
             if next.kpiNames.contains("watch_seconds") {
@@ -93,12 +93,36 @@ struct DashboardActions {
     /// home-dashboard-data: every call is non-fatal (a failure keeps that cached section) and all of
     /// them run at once. A 401 from any of them rethrows, so the caller signs out.
     @MainActor
-    private func fetchExtras(from: String, to: String) async throws -> ExtraSections {
+    /// Owner ruling 2026-10-25: Activity (chart + day cards) carries ~6 months of history.
+    static let historyDays = 182
+    /// `/api/home/days` serves at most 62 days per call (frozen contract), so the history is
+    /// fetched as consecutive ≤ 62-day ranges, in parallel.
+    static let daysPerCall = 62
+
+    private func dayRanges(fromOffset: Int, toOffset: Int) -> [(from: String, to: String)] {
+        stride(from: fromOffset, through: toOffset, by: Self.daysPerCall).map { start in
+            (day(offset: start), day(offset: min(start + Self.daysPerCall - 1, toOffset)))
+        }
+    }
+
+    private func fetchExtras(from: String, to: String, dayRanges: [(from: String, to: String)]) async throws -> ExtraSections {
         async let scheduled = nonFatal("scheduledLessons", {
             try await query(["scheduled_lessons"], dimension: "day", from: from, to: to, compare: false)
         })
         async let days = nonFatal("days", {
-            try await api.get(homePath("/api/home/days", [("from", from), ("to", to)]), responseType: HomeDaysResponse.self)
+            try await withThrowingTaskGroup(of: [HomeDay].self) { group in
+                for range in dayRanges {
+                    group.addTask {
+                        try await self.api.get(
+                            self.homePath("/api/home/days", [("from", range.from), ("to", range.to)]),
+                            responseType: HomeDaysResponse.self
+                        ).days
+                    }
+                }
+                var all: [HomeDay] = []
+                for try await chunk in group { all += chunk }
+                return HomeDaysResponse(days: all.sorted { $0.day < $1.day })
+            }
         })
         async let engagement = nonFatal("engagement", {
             try await api.get(homePath("/api/home/engagement", []), responseType: HomeEngagementResponse.self)
