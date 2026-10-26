@@ -1,5 +1,5 @@
 # dashboard-chart-intros — spec
-> 🤖 AGENT SIGNED OFF 2026-10-26 — 361bb85 · agent walk round 3 · not human-tested · evidence: .builder/dashboard-chart-intros/agent-walk/round-3/
+> ✅ SHIPPED 2026-10-26 — merged into ui2-preview-build · no ticket · 🤖 agent signed off (walk round 3), not human-tested
 > md · no ticket
 
 ## Idea
