@@ -232,7 +232,12 @@ struct HomeDashboardScreen: View {
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
         // D6/D15: cleared while Home sits hidden under another tab; visible sections replay on return.
-        .onChange(of: introActive) { _, active in introLedger.setActive(active) }
+        .onChange(of: introActive) { _, active in
+            // D15: leaving Home drops the charts to their start pose unseen; only the return animates.
+            var t = Transaction()
+            t.disablesAnimations = active == false
+            withTransaction(t) { introLedger.setActive(active) }
+        }
     }
 
     /// §2: "Five sections separated by 1px `color-layout-border` hairlines with

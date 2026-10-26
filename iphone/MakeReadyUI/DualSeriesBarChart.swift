@@ -239,6 +239,9 @@ struct DualSeriesBarChart: View {
         ChartIntro.scaled(columnHeight(value, max: maxScheduled), by: progress)
     }
 
+    /// D3: the completed fill's delay — 0.15 s behind its column, capped so it ends by 1.2 s.
+    static func introFillDelay(wave: Double) -> Double { min(wave + 0.15, 0.7) }
+
     /// D3: when the today rule starts — after the sweep reaches the window's right edge, capped
     /// at 0.4 s so the badge's 0.6 s rise ends by 1.1 s.
     static func introSettle(windowLength: Int) -> Double {
@@ -415,7 +418,7 @@ struct DualSeriesBarChart: View {
                 // Completed is drawn INSIDE scheduled: a day reporting more completions than
                 // it scheduled fills its column and never grows past it.
                 .frame(height: Self.introColumnHeight(completed, max: maxScheduled, progress: progress))
-                .animation(intro?.animation(ChartIntroMotion.draw, after: wave + 0.15), value: intro?.played)
+                .animation(intro?.animation(ChartIntroMotion.draw, after: Self.introFillDelay(wave: wave)), value: intro?.played)
         }
         .frame(height: Self.introColumnHeight(day?.scheduled ?? 0, max: maxScheduled, progress: progress))
         .clipped()

@@ -85,8 +85,9 @@ extension View {
     }
 
     /// D9: the morph when the data behind a chart changes. No animation with no intro.
+    @ViewBuilder
     func chartIntroMorph<V: Equatable>(_ intro: ChartIntro?, value: V) -> some View {
-        animation(intro?.morph, value: value)
+        if let intro { animation(intro.morph, value: value) } else { self }
     }
 }
 

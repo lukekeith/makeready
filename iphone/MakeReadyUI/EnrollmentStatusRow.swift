@@ -109,7 +109,7 @@ struct EnrollmentStatusRow: View {
         .chartIntroMorph(intro, value: percent)
         // D2: one pulse after the fill settles; never under Reduce Motion (D10) or with no intro.
         .keyframeAnimator(initialValue: CGFloat(1), trigger: intro?.reduceMotion == false ? intro?.played : nil) { content, scale in
-            content.scaleEffect(scale)
+            content.scaleEffect(intro?.played == true ? scale : 1)
         } keyframes: { _ in
             LinearKeyframe(CGFloat(1), duration: 0.6)
             CubicKeyframe(Self.pulsePeak, duration: 0.15)

@@ -164,6 +164,13 @@ final class ChartIntroTests: XCTestCase {
         XCTAssertEqual(DualSeriesBarChart.introColumnHeight(5, max: 0, progress: 1), 0)
     }
 
+    /// D3: the completed fill starts 0.15 s after its column, never past 0.7 s, so its 0.5 s
+    /// draw ends inside 1.2 s on the widest windows.
+    func testDualSeriesCompletedFillDelayIsCapped() {
+        XCTAssertEqual(DualSeriesBarChart.introFillDelay(wave: 0.1), 0.25, accuracy: 1e-9)
+        XCTAssertEqual(DualSeriesBarChart.introFillDelay(wave: 0.6), 0.7, accuracy: 1e-9)
+    }
+
     /// D3: the today rule and badge wait for the sweep, but never past 0.4 s, so the badge's
     /// rise still lands inside 1.2 s however long the window is.
     func testDualSeriesTodayWaitsForTheSweepWithinTheBudget() {
