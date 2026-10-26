@@ -2502,8 +2502,10 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 leaderFilterLabel: c.leaderFilterLabel ?? sample.leaderFilterLabel,
                 groupOptions: c.groupOptions ?? sample.groupOptions,
                 leaderOptions: c.leaderOptions ?? sample.leaderOptions,
+                showsLeaderFilter: c.showsLeaderFilter ?? sample.showsLeaderFilter,
                 memberNames: c.memberNames ?? sample.memberNames,
                 memberPhotoURLs: c.memberPhotoURLs ?? sample.memberPhotoURLs,
+                memberInitials: c.memberInitials ?? sample.memberInitials,
                 memberJoinedLabels: c.memberJoinedLabels ?? sample.memberJoinedLabels,
                 memberGroupCounts: c.memberGroupCounts ?? sample.memberGroupCounts
             )

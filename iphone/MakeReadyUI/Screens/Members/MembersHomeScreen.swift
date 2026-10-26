@@ -5,17 +5,19 @@
 //  Built from screen members-home in d2m (§2 layout, §3 states, §4 components).
 //  §5 endpoints, cited only — this view calls none: GET /api/organizations/{organizationId}/members ·
 //  GET /api/groups · GET /api/group-leaders
-//  (search `q`, `groupId` / `leaderId` filters and a per-member `groupCount` are a probable
-//  additive API-GAP in §5).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Wired by MakeReady/UI2/Containers/Members/MembersHomeContainer.swift (ui2-members-browse).
+//  ui2-members-browse edits, routed to /ui2-resolve (F3): no C-019 row of its own (D4 — the
+//  shell's TopNav is the only one), `showsLeaderFilter` (D7/D15), `memberInitials` (T11), and an
+//  editable C-034 (D19).
 //
 
 import SwiftUI
 
-/// Members (leader directory) — the Members tab root (§6): the org-wide member directory. The
-/// collapsed C-019 nav row, a header of C-034 search over two C-035 filter chips, then the
-/// member list of C-037 rows separated by hairlines (§2). Composed only of §4's C-019, C-034,
-/// C-035, C-036 and C-037; C-038 renders only inside C-037 (§4).
+/// Members (leader directory) — the Home tab's Members section (§6): the org-wide member
+/// directory. A header of C-034 search over the C-035 filter chips, then the member list of
+/// C-037 rows separated by hairlines (§2). §2's collapsed C-019 nav row is the shell's TopNav
+/// (D4), so this screen starts at the header. Composed only of §4's C-034, C-035, C-036 and
+/// C-037; C-038 renders only inside C-037 (§4).
 ///
 /// §3 names four states — `loading`, `populated`, `empty`, `error`. This build renders
 /// `populated`; `loading` (row skeletons), `empty` (an empty message) and `error` (an inline
@@ -39,10 +41,16 @@ struct MembersHomeScreen: View {
         var groupOptions: [String]
         /// C-036 options of the Leaders menu — §3: "All Leaders" + each leader in the org.
         var leaderOptions: [String]
+        /// D7/D15: the Leaders chip shows only for a caller who sees every member of the org;
+        /// a Group Leader's directory is already their own groups.
+        var showsLeaderFilter: Bool
         // ── List (§2) — C-037 `subject=member, detail=text, trailing=chevron`, one per row ──
         var memberNames: [String]
         /// C-038's photo inside C-037; "" = no photo → C-038's own fallback.
         var memberPhotoURLs: [String]
+        /// C-038's initials inside C-037 — the fallback when the photo is "" (T11; the row
+        /// passes them straight through).
+        var memberInitials: [String]
         /// C-037 `description` — "Joined …" (formatting per OQ-members-home-1).
         var memberJoinedLabels: [String]
         /// C-037 `count` — the member's group count; 0 → not rendered (§4: "nil/0 not rendered").
@@ -57,9 +65,8 @@ struct MembersHomeScreen: View {
 
     let state: State
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op default.
-    // The screen never decides what an action means.
-    var onSelectTab: (String) -> Void = { _ in }    // C-019 tab tap → that tab's root (§6)
-    var onToggleNav: () -> Void = {}                // C-019 collapse ⇄ expand
+    // The screen never decides what an action means. (D4: no tab / nav-toggle callbacks — the
+    // shell's TopNav owns them.)
     var onSearch: (String) -> Void = { _ in }       // §3: typing filters the list live (debounced)
     var onSelectGroup: (String) -> Void = { _ in }  // §3: a Groups option applies that filter
     var onSelectLeader: (String) -> Void = { _ in } // §3: a Leaders option applies that filter
@@ -72,16 +79,12 @@ struct MembersHomeScreen: View {
 
     init(
         state: State,
-        onSelectTab: @escaping (String) -> Void = { _ in },
-        onToggleNav: @escaping () -> Void = {},
         onSearch: @escaping (String) -> Void = { _ in },
         onSelectGroup: @escaping (String) -> Void = { _ in },
         onSelectLeader: @escaping (String) -> Void = { _ in },
         onOpenMember: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
-        self.onSelectTab = onSelectTab
-        self.onToggleNav = onToggleNav
         self.onSearch = onSearch
         self.onSelectGroup = onSelectGroup
         self.onSelectLeader = onSelectLeader
@@ -92,8 +95,6 @@ struct MembersHomeScreen: View {
 
     // MARK: - §2 / §4 constants (values that no §3 state changes)
 
-    /// §4 (C-019): "collapsed, Members active".
-    private static let selectedTab = "Members"
     /// §4 (C-034): "placeholder \"Search members\"".
     private static let searchPlaceholder = "Search members"
 
@@ -111,33 +112,15 @@ struct MembersHomeScreen: View {
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
-        // D22: no ScrollView at the root — the canvas is the device width × the content's full
-        // length, so the page lays out top to bottom at full height. The status bar (§1
-        // deviation 2) is the harness's.
+        // D22: no ScrollView at the root — in the app the shell's page scroll scrolls it
+        // (HomeSectionLayout); the capture canvas lays it out at its full length.
         VStack(alignment: .leading, spacing: 0) {
-            navRow
             header
             memberList
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
         .overlay { filterMenu }
-    }
-
-    /// §2: "Status bar → collapsed nav (C-019, Members active)" — C-019 in its `collapsed` state
-    /// (`expansion` 0), full width with no screen inset: C-019's own 8pt row inset plus its tabs'
-    /// 8pt padding already put the "Home" label at x=16, where the frozen frame draws it
-    /// (measured, refine round 1 — an added 8 put it at 24).
-    private var navRow: some View {
-        TopNav(
-            tabs: TopNav.designedTabs,
-            selectedTab: Self.selectedTab,
-            expansion: 0,
-            scrollOffset: 0,
-            onSelect: onSelectTab,
-            onToggleExpansion: onToggleNav
-        )
-        .ui2Element("C-019 TopNav")
     }
 
     // MARK: §2 Header
@@ -147,9 +130,10 @@ struct MembersHomeScreen: View {
     /// gap, left-aligned."
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Spacer().frame(height: Self.headerGap)
-            // §4: C-034 `state=Default` — derived by C-034 from `text.isEmpty × focused`; this
-            // presentational screen owns no focus, so `focused` is false.
+            // §2's "16pt top inset" is the gap between the nav row and the field. The row is now
+            // the shell's (D4) and `HomeSectionLayout.navGap` (16) already is that gap, so the
+            // screen adds none of its own (routed to /ui2-resolve with D4, F3).
+            // §4: C-034, its editable form (D19) — focus is the field's own.
             SearchField(
                 text: query,
                 placeholder: Self.searchPlaceholder,
@@ -161,7 +145,8 @@ struct MembersHomeScreen: View {
                 onClear: {
                     query = ""
                     onSearch("")
-                }
+                },
+                editable: true
             )
             .ui2Element("C-034 SearchField")
             Spacer().frame(height: Self.headerGap)
@@ -173,10 +158,12 @@ struct MembersHomeScreen: View {
                     presentedMenu = .groups
                 }
                 .ui2Element("C-035 FilterChip")
-                FilterChip(type: .menu, active: false, label: state.leaderFilterLabel) {
-                    presentedMenu = .leaders
+                if state.showsLeaderFilter {                         // D7/D15
+                    FilterChip(type: .menu, active: false, label: state.leaderFilterLabel) {
+                        presentedMenu = .leaders
+                    }
+                    .ui2Element("C-035 FilterChip 2")
                 }
-                .ui2Element("C-035 FilterChip 2")
             }
             Spacer().frame(height: Self.headerGap)
         }
@@ -209,6 +196,7 @@ struct MembersHomeScreen: View {
     /// "Joined …" → optional accent count → chevron.
     private func memberRow(at index: Int) -> some View {
         let photo = state.memberPhotoURLs[safe: index] ?? ""
+        let initials = state.memberInitials[safe: index] ?? ""
         let count = state.memberGroupCounts[safe: index] ?? 0
         return ListResultRow(
             subject: .member,
@@ -218,6 +206,7 @@ struct MembersHomeScreen: View {
             count: count > 0 ? count : nil,
             trailing: .chevron,
             imageURL: photo.isEmpty ? nil : URL(string: photo),
+            initials: initials.isEmpty ? nil : initials,             // T11: C-038's fallback
             onTap: { onOpenMember(index) }
         )
         .ui2Element(Self.partName("C-037 ListResultRow", ordinal: index + 1))
@@ -277,6 +266,7 @@ extension MembersHomeScreen.State {
         leaderFilterLabel: "All Leaders",
         groupOptions: ["All Groups", "Young professionals"],
         leaderOptions: ["All Leaders"],
+        showsLeaderFilter: true,
         memberNames: ["Barry Allen", "Clark Kent", "Incredible Hulk", "Donald Trump", "Bruce Wayne"],
         memberPhotoURLs: [
             "https://picsum.photos/seed/members-home-1/256",
@@ -285,6 +275,7 @@ extension MembersHomeScreen.State {
             "https://picsum.photos/seed/members-home-4/256",
             "https://picsum.photos/seed/members-home-5/256"
         ],
+        memberInitials: ["BA", "CK", "IH", "DT", "BW"],
         memberJoinedLabels: [
             "Joined 5 milliseconds ago",
             "Joined 3 months ago",

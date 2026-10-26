@@ -19,4 +19,21 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertFalse(SearchField(text: "", placeholder: "Search members", focused: false).editable)
         XCTAssertTrue(SearchField(text: "", placeholder: "Search members", focused: false, editable: true).editable)
     }
+
+    // MARK: - Task 13: MembersHomeScreen (D4, D7/D15, T11)
+
+    func testMembersHomeSampleCarriesTheLeaderChipAndInitials() {
+        let s = MembersHomeScreen.State.populated
+        XCTAssertTrue(s.showsLeaderFilter)
+        XCTAssertEqual(s.memberInitials, ["BA", "CK", "IH", "DT", "BW"])
+        XCTAssertEqual(s.memberInitials.count, s.memberNames.count)
+    }
+
+    /// D4: the screen is built from its State and its four outward actions alone.
+    func testMembersHomeTakesNoNavCallbacks() {
+        var opened: [Int] = []
+        let screen = MembersHomeScreen(state: .populated, onOpenMember: { opened.append($0) })
+        screen.onOpenMember(2)
+        XCTAssertEqual(opened, [2])
+    }
 }

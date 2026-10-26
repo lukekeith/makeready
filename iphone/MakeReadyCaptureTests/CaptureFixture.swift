@@ -859,6 +859,9 @@ struct CaptureComponent: Codable {
     let memberPhotoURLs: [String]?
     let memberJoinedLabels: [String]?
     let memberGroupCounts: [Int]?
+    // ui2-members-browse T11 (D7/D15; C-038 initials inside C-037) — additive.
+    let showsLeaderFilter: Bool?
+    let memberInitials: [String]?
     // ── preview props ──
     // C-058 GroupSectionHeader build 2026-09-30. `groupName`, `imageURL` and `initials` already
     // exist above under the contract's own names and types; `leaderName` is additive.
