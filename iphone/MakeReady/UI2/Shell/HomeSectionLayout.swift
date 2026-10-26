@@ -45,6 +45,8 @@ struct HomeSectionLayout<Content: View>: View {
             ZStack(alignment: .top) {
                 SectionPageScroll(model: $model, growth: growth, morphs: !hidesNav, onRefresh: onRefresh) { content }
                     .id(model.section)
+                    // topnav-height-env: the row's live growth, for the page's pinned elements.
+                    .environment(\.topNavInset, hidesNav ? 0 : growth)
                     .padding(.top, hidesNav ? 0 : Self.collapsedFootprint)
                 navRow.background(Token.layoutBackground)
                     .offset(y: hidesNav ? -Self.collapsedFootprint : 0)

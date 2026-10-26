@@ -136,6 +136,8 @@ struct MembersHomeScreen: View {
                 memberList
             } header: {
                 header.background { Self.headerMaterial }
+                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
+                    .pinnedBelowTopNav()
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
