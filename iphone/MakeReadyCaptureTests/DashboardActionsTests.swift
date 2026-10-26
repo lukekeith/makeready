@@ -129,4 +129,17 @@ final class DashboardActionsTests: XCTestCase {
         await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
         XCTAssertEqual(state.dashboard, DashboardSnapshot())
     }
+
+    /// The new sections persist with the rest of the app snapshot (cache-first, ui2-shell D20).
+    func testNewDashboardSectionsPersist() throws {
+        state.dashboard.scheduledDays = ["2026-10-24": 5]
+        state.dashboard.sessions["all"] = HomeSessionsResponse(averageSeconds: 1920, sessionCount: 4, hourly: [], bins: [], ticks: [])
+        state.dashboard.engagement = HomeEngagementResponse(currentCount: 7, enrolledCount: 12, groupCount: 3, percent: 58, activeCount: 9)
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(PersistedState.self, from: try encoder.encode(PersistedState(from: state)))
+        XCTAssertEqual(decoded.dashboard, state.dashboard)
+    }
 }
