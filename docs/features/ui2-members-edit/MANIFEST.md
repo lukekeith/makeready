@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/ui2-members-edit
-head: 3f3e0bb
+head: de6dfc1
 ticket: none
 branch: builder/ui2-members-edit
 pr: none

@@ -108,7 +108,7 @@ invites matched by number — `services/invite.ts:203`, member lists).
 | D19 | Birthday parsing | Folded into D9: only `YYYY-MM-DD` or an ISO string; its UTC calendar date is stored at 00:00Z; unparseable → 400; `""` → null. Rejected: today's `new Date(birthday)` (an offset becomes a stored instant; an invalid string reaches Prisma as a 500) | auto (recommended) 2026-10-26 (audit S9) |
 | D20 | Multi-org members | A leader authorized through any one of the member's orgs may change the member's phone and email, which are one global value seen in every org. Accepted (F1). Rejected: requiring every org (no UI to ask the other org) | auto (recommended) 2026-10-26 (audit S3) |
 | D21 | Value after a save | After a 2xx the container writes the sent key into `AppState.memberDetails[id]` (and `phoneVerified=false` on a changed phone, D5) before `loadMember`, so a failed reload still shows the new value. Rejected: reload-only (a failed GET leaves the old value showing after a successful save) | auto (recommended) 2026-10-26 (audit I4) |
-| D22 | Keyboard | Each text page focuses its field on appear. Single-line pages: return key does nothing (Save stays a tap). Address: return inserts a newline. Keyboard types: Email `.emailAddress`, no autocapitalize/autocorrect; Phone and Emergency phone `.phonePad` with C-046 `field: .text` (the `.phone` variant's fixed "+1" prefix contradicts D4); Emergency contact `.default` with words capitalized. Length caps (iPhone only; the server columns are Text): Email 254, Phone 20, Emergency phone 40, Emergency contact 200, Address 2000 | auto (recommended) 2026-10-26 (audit I11, I12, I18) |
+| D22 | Keyboard | Each text page focuses its field on appear. Single-line pages: return key does nothing (Save stays a tap). Address: return inserts a newline. Keyboard types: Email `.emailAddress`, no autocapitalize/autocorrect; Phone `.phonePad` and Emergency phone `.numbersAndPunctuation` (its ABC key reaches D7's "x"/"ext"; superseded at plan 2026-10-26 from `.phonePad`, which has no letters), both with C-046 `field: .text` (the `.phone` variant's fixed "+1" prefix contradicts D4); Emergency contact `.default` with words capitalized. Length caps (iPhone only; the server columns are Text): Email 254, Phone 20, Emergency phone 40, Emergency contact 200, Address 2000 | auto (recommended) 2026-10-26 (audit I11, I12, I18) |
 | D23 | Member-session phone guard | Folded into D12: the 403 fires only when the normalized number differs from the stored one. Rejected: 403 on any `phoneNumber` key (a form echoing the current number would fail every save) | auto (recommended) 2026-10-26 (audit S4) |
 | D24 | Phone pre-fill and dirty rule | Folded into D4: pre-fill the D23 label; dirty = normalized(typed) ≠ stored. The text template takes a container-supplied `canSave` for this (T9). Rejected: trimmed string equality (shows dirty for a reformatted same number) | auto (recommended) 2026-10-26 (audit I10) |
 | D25 | Email vs Google email | Folded into D11. Rejected: hiding the googleEmail fallback after a clear (re-opens browse T13) | auto (recommended) 2026-10-26 (audit I14) |
@@ -236,3 +236,19 @@ previous number (no history kept — the member's `updatedAt` moves).
 | F4 | Render diff (audit item 8) not run: the capture server was down (`:5951` refused) and this step never starts one. The three edit screens and members-profile are BUILT; `EditDateFieldScreen` is UNBUILT, its states never seen. T9–T11 change or add MakeReadyUI views | build-time risk on T9–T11: each re-renders through the d2m harness and is diffed against its frozen snapshot via `/ui2-resolve` after the build; the agent walk exercises every edit page live |
 | F5 | The post-save `loadMember` overlaps the member page's `.task` reload on reappear (`MemberProfileContainer.swift:54`); the GET coalescer (`APIClient.swift:137`) dedupes them | no change; noted on T8 |
 | F6 | Audit pass 2 (scoped to D18, D19, D23 — the contract rows pass 1 moved): D18 only widens accepted input; D19 accepts every body today's callers send (web `YYYY-MM-DD`/null via `ProfileController.php`, iPhone local `YYYY-MM-DD`); D23 narrows a 403 no current caller can reach. No consumer re-check owed | settled 2026-10-26 |
+
+## Plan
+
+The plan, with its code: `docs/features/ui2-members-edit/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Member field helpers — phone normalization, contact-phone, birthday (member-fields.ts)
+- Phase 1 · Task 2 · updateMember — phone change effects, member-session guard, 409 PHONE_TAKEN
+- Phase 1 · Task 3 · PATCH /api/members/:memberId — strict schema, new keys, viewer kind, status mapping
+- Phase 1 · Task 4 · Fixtures — `sparse` scenario for the edit pages' "Not set" states, then freeze the contract
+- Phase 2 · Task 5 · Live text editing through C-045 → C-046 → SharedEditFieldTemplate (T9 a–f)
+- Phase 2 · Task 6 · MembersProfileScreen reports a MemberField key, per-row tappability (T10)
+- Phase 2 · Task 7 · New EditDateFieldScreen (T11 — D3, D9, D13, D26, D28)
+- Phase 3 · Task 8 · Status-bearing PATCH + MemberActions.updateMember (T6, T7 — D13, D15, D21)
+- Phase 3 · Task 9 · MemberFieldEditor — field rules, page states, validation and the patch (D3, D4, D7, D9–D11, D14, D16, D18, D22, D24)
+- Phase 4 · Task 10 · The editMemberField push, the edit container and popIfTop (T8 — D2, D13, D27)
+- Phase 4 · Task 11 · Emergency phone display per D7 (T12)
