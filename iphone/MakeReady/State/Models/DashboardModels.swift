@@ -110,6 +110,9 @@ struct HomeDay: Codable, Equatable {
     var day: String = ""               // yyyy-MM-dd
     var sessionSeconds: Int = 0
     var blocks: [Int] = []             // 12 two-hour blocks, seconds, index 0 = 12–2 AM
+    /// ui2-members-browse SC7/D12: ISO end of the day's last session (nil on a zero day). A
+    /// String, never a Date (F7); read only by the member page's rail.
+    var lastActivityAt: String? = nil
 }
 
 extension HomeDay {
@@ -118,6 +121,7 @@ extension HomeDay {
         day = try c.decodeIfPresent(String.self, forKey: .day) ?? ""
         sessionSeconds = try c.decodeIfPresent(Int.self, forKey: .sessionSeconds) ?? 0
         blocks = try c.decodeIfPresent([Int].self, forKey: .blocks) ?? []
+        lastActivityAt = try c.decodeIfPresent(String.self, forKey: .lastActivityAt)
     }
 }
 
