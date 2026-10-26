@@ -171,7 +171,9 @@ selection and each image's d2m title, alt and colour), committed — a reset nev
 works in the container, on the host and in agent walks. `npm run fixtures:images:refresh` (on the
 host, d2m running) re-pulls the selection from the d2m `makeready` image set; commit the result.
 
-**Failure is loud.** No R2 settings (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+**Failure is loud.** Missing R2 settings (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
 `R2_BUCKET_NAME`, `R2_PUBLIC_URL`), an upload error or a missing file fails the reset. It refuses the
 production bucket (`makeready-media` / `images.makeready.org`). `FIXTURE_IMAGES=off` skips images on
-purpose; images are off under vitest unless `FIXTURE_IMAGES=on`.
+purpose; images are off under vitest unless `FIXTURE_IMAGES=on`. The one exception: with **no** R2
+setting at all — the agent walk env, which never sees `server/.env` — images are skipped with a
+warning and the rest of the graph seeds; `FIXTURE_IMAGES=on` turns that back into a failure.

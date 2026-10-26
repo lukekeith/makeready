@@ -93,6 +93,24 @@ describe('fixture images as real uploads (fixture-real-uploads)', () => {
     await expect(seedImages({} as FixtureContext)).rejects.toThrow(/fixture images need R2/)
   })
 
+  it('skips images with a warning when no R2 setting exists and images are not forced on', async () => {
+    vi.stubEnv('FIXTURE_IMAGES', '')
+    vi.stubEnv('VITEST', '')
+    for (const k of Object.keys(r2)) vi.stubEnv(k, '')
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await expect(seedImages({} as FixtureContext)).resolves.toBeUndefined()
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/no R2 settings/))
+    warn.mockRestore()
+  })
+
+  it('still fails on a partial R2 config', async () => {
+    vi.stubEnv('FIXTURE_IMAGES', '')
+    vi.stubEnv('VITEST', '')
+    for (const [k, v] of Object.entries(r2)) vi.stubEnv(k, v)
+    vi.stubEnv('R2_SECRET_ACCESS_KEY', '')
+    await expect(seedImages({} as FixtureContext)).rejects.toThrow(/R2_SECRET_ACCESS_KEY not set/)
+  })
+
   it('skips images on purpose with FIXTURE_IMAGES=off', async () => {
     vi.stubEnv('FIXTURE_IMAGES', 'off')
     await expect(seedImages({} as FixtureContext)).resolves.toBeUndefined()
