@@ -26,7 +26,7 @@ export const DERIVED_EVENT_TYPES = [
   'NOTE_CREATED',
   'ENROLLMENT_CREATED',
   'MEMBER_JOINED',
-  // ls: arm — one row per lesson schedule on its scheduled date (home-dashboard-data D10).
+  // ls: arm — one row per lesson schedule × active group member on its scheduled date (home-dashboard-data D10, corrected 2026-10-25).
   'LESSON_SCHEDULED',
 ] as const
 
@@ -303,7 +303,7 @@ export const METRICS: MetricDef[] = [
     name: 'scheduled_lessons',
     label: 'Lessons scheduled',
     description:
-      'Lesson schedules (one per enrollment × lesson) on their scheduled calendar date — the scheduled side of Home Activity. Buckets by the stored date, not the query timezone.',
+      'Expected member-lessons (one per lesson schedule × active group member) on their scheduled calendar date — the scheduled side of Home Activity. Buckets by the stored date, not the query timezone.',
     format: 'count',
     type: 'simple',
     class: 'flow',
