@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: members-home, members-profile (via program ui2-members)
 auto: on 2026-10-25
-blocked: "iPhone commits are yours to approve (commit: manual); the server half is built and its contract frozen — next: /builder:resume --path docs/features/ui2-members-browse, approving each staged iPhone task"
+blocked: none
 agent-walk: on 2026-10-25
