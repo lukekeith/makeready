@@ -1,5 +1,5 @@
 # ui2-members-edit — spec
-> 🤖 AGENT SIGNED OFF 2026-10-26 — b184109 · agent walk round 1 · not human-tested · evidence: .builder/ui2-members-edit/agent-walk/round-1/
+> ✅ SHIPPED 2026-10-26 — merged into ui2-preview-build · no ticket · 🤖 agent signed off (walk round 1), not human-tested
 > lg · child 2 of program `ui2-members` (docs/features/ui2-members/PROGRAM.md) · no ticket
 
 ## Idea
