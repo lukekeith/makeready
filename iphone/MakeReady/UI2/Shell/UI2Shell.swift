@@ -64,7 +64,8 @@ struct UI2Shell: View {
         }
         .environment(\.ui2Navigator, UI2Navigator(
             push: { model.push($0, on: tab) },
-            pop: { model.pop(on: tab) }
+            pop: { model.pop(on: tab) },
+            popIfTop: { model.popIfTop($0, on: tab) }
         ))
     }
 
@@ -85,6 +86,7 @@ struct UI2Shell: View {
     @ViewBuilder private func page(for destination: UI2Destination) -> some View {
         switch destination {
         case let .memberDetail(id, name): MemberDetailHost(id: id, name: name)
+        case let .editMemberField(memberId, field): MemberFieldEditContainer(memberId: memberId, field: field)  // ui2-members-edit D2
         }
     }
 

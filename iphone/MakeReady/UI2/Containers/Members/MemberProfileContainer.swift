@@ -27,6 +27,7 @@ struct MemberProfileContainer: View {
         let state = {
             var state = mapped
             state.programCoverURLs = Self.cachedCoverURLs(mapped.programCoverURLs)
+            state.fieldsEditable = app.memberDetails[memberId] != nil     // ui2-members-edit D27
             return state
         }()
         // D22: C-040 stays pinned above the scroll; the screen is told not to draw it again.
@@ -43,9 +44,10 @@ struct MemberProfileContainer: View {
             ScrollView(.vertical) {
                 MembersProfileScreen(
                     state: state,
-                    showsHeader: false
-                    // D3/D5: field rows, group rows, program rows, both `add`s and the day cards do
-                    // nothing in this child — the screen's no-op defaults.
+                    showsHeader: false,
+                    // ui2-members-edit D2: a field row pushes its edit page on this tab's stack.
+                    // Group rows, program rows, both `add`s and the day cards stay no-ops (browse D5).
+                    onEditField: { navigator.push(.editMemberField(memberId: memberId, field: $0)) }
                 )
             }
             .scrollIndicators(.hidden)
