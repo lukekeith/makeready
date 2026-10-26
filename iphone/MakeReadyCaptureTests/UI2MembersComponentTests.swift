@@ -38,6 +38,16 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertTrue(tapped)
     }
 
+    /// Agent walk round 1: program covers stayed grey. The screen reads Ui2ImageCache, which
+    /// SwiftUI does not observe, so the container passes a cover only once it is cached.
+    @MainActor
+    func testMemberPagePassesOnlyCachedProgramCovers() {
+        let cached = "https://example.test/cover-cached-\(UUID().uuidString).jpg"
+        let pending = "https://example.test/cover-pending-\(UUID().uuidString).jpg"
+        Ui2ImageCache.shared.seed(UIImage(), for: URL(string: cached)!)
+        XCTAssertEqual(MemberProfileContainer.cachedCoverURLs([cached, pending, ""]), [cached, "", ""])
+    }
+
     func testMembersHomeTakesNoNavCallbacks() {
         var opened: [Int] = []
         let screen = MembersHomeScreen(state: .populated, onOpenMember: { opened.append($0) })

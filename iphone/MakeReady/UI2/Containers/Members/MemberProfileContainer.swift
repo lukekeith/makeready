@@ -15,13 +15,20 @@ struct MemberProfileContainer: View {
 
     var body: some View {
         let app = AppState.shared
-        let state = MemberProfileMapper.state(
+        let mapped = MemberProfileMapper.state(
             .init(name: name, detail: app.memberDetails[memberId], groups: app.memberGroupsById[memberId],
                   engagement: app.memberEngagementById[memberId], days: app.memberDaysById[memberId],
                   organizationId: app.organizationId),
             today: Date(), timeZone: .current
         )
         let _ = coversSeeded
+        // The screen reads covers from Ui2ImageCache, which SwiftUI does not observe — so a cover
+        // reaches it only once cached, and its arrival changes the screen's input (round 1).
+        let state = {
+            var state = mapped
+            state.programCoverURLs = Self.cachedCoverURLs(mapped.programCoverURLs)
+            return state
+        }()
         // D22: C-040 stays pinned above the scroll; the screen is told not to draw it again.
         VStack(spacing: 0) {
             PageHeader(
@@ -45,8 +52,8 @@ struct MemberProfileContainer: View {
         }
         .background(Token.layoutBackground.ignoresSafeArea())
         .task { await Self.load(memberId: memberId, authManager: authManager) }
-        .task(id: state.programCoverURLs) {
-            if await Self.seedCovers(state.programCoverURLs) { coversSeeded += 1 }
+        .task(id: mapped.programCoverURLs) {
+            if await Self.seedCovers(mapped.programCoverURLs) { coversSeeded += 1 }
         }
     }
 
@@ -64,6 +71,15 @@ struct MemberProfileContainer: View {
         async let engagement: () = actions.loadEngagement(memberId)
         async let days: () = actions.loadMemberDays(memberId)
         _ = await (detail, groups, engagement, days)
+    }
+
+    /// Each URL already in Ui2ImageCache, else "" (C-059's missing-cover box until it lands).
+    @MainActor
+    static func cachedCoverURLs(_ urls: [String]) -> [String] {
+        urls.map { raw in
+            guard let url = URL(string: raw), Ui2ImageCache.shared.image(for: url) != nil else { return "" }
+            return raw
+        }
     }
 
     /// C-059 §4 `cover: Image?` is caller-resolved: the screen reads Ui2ImageCache only
