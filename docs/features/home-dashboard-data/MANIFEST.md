@@ -1,7 +1,7 @@
 size: lg
-state: built
-next: 🔒 walk it, then /builder:signoff --path docs/features/home-dashboard-data
-head: 1c4a7ee
+state: signed-off
+next: /builder:verify --path docs/features/home-dashboard-data
+head: a057fa5
 ticket: none
 branch: builder/home-dashboard-data
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-10-25
 tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
-walk: none
+walk: Luke 2026-10-25
 verify: none
 ready: yes 2026-10-25 1c4a7ee
 ui2: none
