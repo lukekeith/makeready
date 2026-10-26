@@ -1,7 +1,7 @@
 size: md
-state: audited
+state: planned
 next: /builder:resume --path docs/features/dashboard-chart-intros
-head: 9d794de
+head: d148d3f
 ticket: none
 branch: builder/dashboard-chart-intros
 pr: none
