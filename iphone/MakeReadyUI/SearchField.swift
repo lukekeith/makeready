@@ -3,7 +3,7 @@
 //  MakeReadyUI — the UI 2.0 module
 //
 //  Built from C-034-search-field in d2m (§2 geometry, §3 states, §4 props).
-//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
+//  Consumed by MembersHomeScreen (editable form, ui2-members-browse D19 — routed to /ui2-resolve, F3).
 //
 
 import SwiftUI
@@ -42,6 +42,13 @@ struct SearchField: View {
     /// C-039 clear x visible with an empty query. Defaults off, so every other consumer
     /// renders as before; calendar-home passes true (its empty-query x dismisses search).
     let showsClearWhenEmpty: Bool
+    /// D19 (ui2-members-browse): the editable form — a `TextField` drawn as §2's text run, its
+    /// own focus driving `focused` (the prop is then ignored). `false` keeps the display-only
+    /// render every preview and capture case uses, so every §3 state stays reachable by props.
+    let editable: Bool
+
+    /// The editable form's focus — ephemeral UI state (R-02), never a prop.
+    @FocusState private var inputFocused: Bool
 
     init(
         text: String,
@@ -49,7 +56,8 @@ struct SearchField: View {
         focused: Bool,
         onChange: @escaping (String) -> Void = { _ in },
         onClear: @escaping () -> Void = {},
-        showsClearWhenEmpty: Bool = false
+        showsClearWhenEmpty: Bool = false,
+        editable: Bool = false
     ) {
         self.text = text
         self.placeholder = placeholder
@@ -57,6 +65,7 @@ struct SearchField: View {
         self.onChange = onChange
         self.onClear = onClear
         self.showsClearWhenEmpty = showsClearWhenEmpty
+        self.editable = editable
     }
 
     /// C-034 §2's placed geometry. §3 is explicit that `state` "is **not** a free variant: it is
@@ -82,8 +91,21 @@ struct SearchField: View {
     // `Has value` = `!text.isEmpty`". The undesigned "Has value + focused" row is OQ-C-034-1's
     // ruling: `Has value` as designed plus a caret TRAILING the value — so the caret follows
     // `focused` alone, and leads the placeholder or trails the value.
-    private var isDefault: Bool { text.isEmpty && !focused }
-    private var hasValue: Bool { !text.isEmpty }
+    /// §4's derived `state`, computed in one place for both forms.
+    enum Appearance: Equatable {
+        case `default`, focus, hasValue
+    }
+
+    static func appearance(text: String, focused: Bool) -> Appearance {
+        if !text.isEmpty { return .hasValue }
+        return focused ? .focus : .default
+    }
+
+    /// The `focused` §4 derives from: the prop when display-only, the field's own focus when
+    /// editable (D19).
+    private var isFocused: Bool { editable ? inputFocused : focused }
+    private var isDefault: Bool { Self.appearance(text: text, focused: isFocused) == .default }
+    private var hasValue: Bool { Self.appearance(text: text, focused: isFocused) == .hasValue }
 
     // §2: "**Fill** — `color-card-background` in `Default` only; `Focus` and `Has value` have
     // **no fill** (the page ground shows through)."
@@ -121,11 +143,14 @@ struct SearchField: View {
                 )
 
             searchGlyph
-            contentRow
+            if editable { editableRow } else { contentRow }
             if hasValue || showsClearWhenEmpty { clearButton }
         }
         .frame(maxWidth: .infinity, minHeight: Geometry.height, maxHeight: Geometry.height)
         .clipped()                                  // §2: "content clipped"
+        .contentShape(Rectangle())
+        // D19: a tap anywhere on the field (the glyph, the inset) focuses the editable form.
+        .simultaneousGesture(TapGesture().onEnded { if editable { inputFocused = true } })
         .ui2Element("SearchField")
     }
 
@@ -169,7 +194,7 @@ struct SearchField: View {
     // displaces the text, not an overlay on top of it. With a value (OQ-C-034-1) it trails.
     private var contentRow: some View {
         HStack(spacing: 0) {
-            if focused && !hasValue { caret }
+            if isFocused && !hasValue { caret }
             Text(hasValue ? text : placeholder)
                 .designTextStyle(Token.TypeStyle.input)
                 .foregroundColor(textColor)
@@ -177,13 +202,40 @@ struct SearchField: View {
                 // §2 draws one text run whose ROLE changes with `text` — the element map says
                 // which, so a comment on it lands on the state it was made about.
                 .ui2Element(hasValue ? "Value" : "Placeholder")
-            if focused && hasValue { caret }
+            if isFocused && hasValue { caret }
             Spacer(minLength: 0)
         }
         .padding(.leading, Geometry.contentLeft)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .ui2Element("Content row")
     }
+
+    /// D19: the editable form of the content row — the same §2 placement (left edge 36,
+    /// vertically centred, `type-input`) with a `TextField` in place of the drawn text. The
+    /// system caret, tinted `color-accent`, stands in for the drawn 2×24 caret.
+    private var editableRow: some View {
+        TextField(
+            "",
+            text: Binding(get: { text }, set: { onChange($0) }),
+            prompt: Text(placeholder).foregroundColor(Token.inputPlaceholder)
+        )
+        .designTextStyle(Token.TypeStyle.input)
+        .foregroundColor(Token.inputValue)
+        .tint(Token.accent)
+        .focused($inputFocused)
+        .textInputAutocapitalization(.never)
+        .autocorrectionDisabled()
+        .submitLabel(.search)
+        .ui2Element(hasValue ? "Value" : "Placeholder")
+        .padding(.leading, Geometry.contentLeft)
+        .padding(.trailing, hasValue || showsClearWhenEmpty ? Self.clearReserve : 0)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .ui2Element("Content row")
+    }
+
+    // GAP — C-034 §2 draws no typed text long enough to reach C-039; the editable form keeps a
+    // value clear of it: C-039's 32 + its trailing inset 7.
+    private static let clearReserve: CGFloat = 39
 
     // §2: "**Caret** (`Focus` only) — 2×24, `radius-bar` (2), `color-accent`, leading the
     // content row." §2 states no caret↔text gap, so there is none on either side.
@@ -198,7 +250,10 @@ struct SearchField: View {
     // C-039 registry view (§5 Consumes, R-15), which owns its 32pt frame, tint, pressed dip and
     // accessibility label; `onClear` is its action. Centred vertically per OQ-C-034-4.
     private var clearButton: some View {
-        ClearSearchButton(action: onClear)
+        ClearSearchButton(action: {
+            onClear()
+            if editable { inputFocused = true }     // §4: clears `text`, field **stays focused**
+        })
             .padding(.trailing, Geometry.clearTrailing)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .trailing)
             .ui2Element("Clear button")
