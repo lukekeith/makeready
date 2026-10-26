@@ -78,7 +78,7 @@ struct TopNav: View {
         // (undesigned, OQ-C-019-6); owner ruling 2026-10-25: the row shows no scroll
         // indicator, so it is hidden.
         ScrollViewReader { proxy in
-            ScrollView(.horizontal) {
+            HorizontalRail {
                 HStack(spacing: Token.Space.elementGap) {      // §2: gap = `space-element-gap` (8)
                     ForEach(tabs, id: \.self) { tab in
                         // C-069 §4: every tab takes the row's `expansion` unchanged — §2c "one

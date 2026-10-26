@@ -472,7 +472,7 @@ struct CalendarHomeScreen: View {
             .offset(x: stripDrag)
             .ui2Element("C-116 WeekStrip")
             .padding(.top, Geometry.dayStripTop)
-            .simultaneousGesture(stripGesture)
+            .horizontalPan(onChanged: { stripDrag = $0.translation }, onEnded: stripEnded)
             hairline
                 .padding(.top, Geometry.dayHairline1)
             // §2.3: subtitle "EEEE – MMM d, yyyy", centred y 201, between the hairlines.
@@ -508,7 +508,7 @@ struct CalendarHomeScreen: View {
         )
         .ui2Element("C-120 DayTimeline")
         .offset(x: pageDrag)
-        .simultaneousGesture(pageGesture)
+        .horizontalPan(onChanged: { pageDrag = $0.translation }, onEnded: pageEnded)
     }
 
     private func timedEvents(on day: Date) -> [DayTimeline.TimedEvent] {
@@ -712,38 +712,29 @@ struct CalendarHomeScreen: View {
         }
     }
 
-    private var pageGesture: some Gesture {
-        DragGesture(minimumDistance: 10)
-            .onChanged { value in
-                guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                pageDrag = value.translation.width
-            }
-            .onEnded { value in
-                switch commit(value) {
-                case 1: page(by: 1)        // §3.2: "Left = next day."
-                case -1: page(by: -1)
-                default: withAnimation(motion(Motion.page)) { pageDrag = 0 }
-                }
-            }
+    // Both strips are sideways only, so a vertical drag on them scrolls the page
+    // (HorizontalScrolling.swift).
+    private func pageEnded(_ value: HorizontalPanValue) {
+        switch commit(value) {
+        case 1: page(by: 1)        // §3.2: "Left = next day."
+        case -1: page(by: -1)
+        default: withAnimation(motion(Motion.page)) { pageDrag = 0 }
+        }
     }
 
-    private var stripGesture: some Gesture {
-        DragGesture(minimumDistance: 10)
-            .onChanged { stripDrag = $0.translation.width }
-            .onEnded { value in
-                switch commit(value) {
-                case 1: pageWeek(by: 1)
-                case -1: pageWeek(by: -1)
-                default: withAnimation(motion(Motion.page)) { stripDrag = 0 }
-                }
-            }
+    private func stripEnded(_ value: HorizontalPanValue) {
+        switch commit(value) {
+        case 1: pageWeek(by: 1)
+        case -1: pageWeek(by: -1)
+        default: withAnimation(motion(Motion.page)) { stripDrag = 0 }
+        }
     }
 
     /// §3.2: "commits past 35 % of the width or at > 300 pt/s" — 1 next, −1 previous, 0 none.
-    private func commit(_ value: DragGesture.Value) -> Int {
+    private func commit(_ value: HorizontalPanValue) -> Int {
         let width = pageWidth
-        let dx = value.translation.width
-        let velocity = value.velocity.width
+        let dx = value.translation
+        let velocity = value.velocity
         if dx < -width * Geometry.commitFraction || velocity < -Geometry.commitVelocity { return 1 }
         if dx > width * Geometry.commitFraction || velocity > Geometry.commitVelocity { return -1 }
         return 0

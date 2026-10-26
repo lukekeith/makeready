@@ -37,6 +37,21 @@ custom_rules:
     message: "New logging goes through the Log wrappers (os.Logger — audit 5.2). Existing call sites are baselined; don't add more."
     severity: error
 
+  raw_horizontal_scrollview:
+    name: "Raw horizontal ScrollView in the UI 2.0 module"
+    regex: 'ScrollView\(\.horizontal'
+    included: '.*/MakeReadyUI/.*'
+    excluded: '.*/MakeReadyUI/HorizontalScrolling\.swift'
+    message: "Use HorizontalRail — a raw horizontal ScrollView traps vertical swipes while it coasts (MakeReadyUI/HorizontalScrolling.swift, horizontal-scroll-yield)."
+    severity: error
+
+  sideways_drag_gesture:
+    name: "DragGesture in the UI 2.0 module"
+    regex: '(?<!// pan-ok: [^\n]{0,200}\n[ \t]{0,40})DragGesture\('
+    included: '.*/MakeReadyUI/.*'
+    message: "A DragGesture holds the touch so the page cannot scroll. A sideways drag uses .horizontalPan (HorizontalScrolling.swift); any other drag gets a `// pan-ok: <why>` comment on the line above."
+    severity: error
+
   color_hex_outside_tokens:
     name: "Inline Color(hex:) outside Colors.swift"
     regex: 'Color\(hex:'

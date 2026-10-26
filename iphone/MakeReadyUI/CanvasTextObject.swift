@@ -324,6 +324,7 @@ struct CanvasTextObject: View {
     /// The width handles are C-091's.
     private var manipulation: some Gesture {
         SimultaneousGesture(
+            // pan-ok: free 2-D move on the canvas
             DragGesture().onChanged { drag in
                 let base = gestureBase ?? transform
                 gestureBase = base

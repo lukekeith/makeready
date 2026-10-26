@@ -304,7 +304,7 @@ struct StudyProgramHomeScreen: View {
     /// `space-chip-gap` (2), exactly one `Active`; N = program day count". A horizontal
     /// carousel keeps its own ScrollView (D22); §1 deviation 3.
     private var dayRail: some View {
-        ScrollView(.horizontal) {
+        HorizontalRail {
             HStack(spacing: Token.Space.chipGap) {
                 ForEach(Array(1...max(state.dayCount, 1)), id: \.self) { day in
                     DayChip(

@@ -101,6 +101,7 @@
 		2275BDF6D06BCD9E5B568509 /* RadioOptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA76AA758C8BAE03036A7242 /* RadioOptionRow.swift */; };
 		232A2B48B7622CF646CB1911 /* CaptureEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFA85A3C1CB013F77883FEC /* CaptureEnvironment.swift */; };
 		237E70D5E81CA0ACDAE9A586 /* ModalCloseButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 721A967F0DC28BD1492659F1 /* ModalCloseButton.swift */; };
+		2398D966A99CD324E8BB3EEA /* HorizontalScrolling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1843BAB9D354987CEAF3BDE6 /* HorizontalScrolling.swift */; };
 		239DFFACE47FE3D7C7FD0488 /* FollowedProgramHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BB3B6A000E676056325CB1C /* FollowedProgramHeader.swift */; };
 		2407C38A48B6B970E61016BB /* CalendarEmptyState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E8B672C41C1922CC793EB5E /* CalendarEmptyState.swift */; };
 		255974AB80BE5B16AFA9CDCC /* EnrollmentsHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A140CA4833A6C31E514213 /* EnrollmentsHomeScreen.swift */; };
@@ -481,6 +482,7 @@
 		C7B8DEE6DF0905BA1065A22B /* ActivityCanvas.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC46E2108C5EB2210D78735E /* ActivityCanvas.swift */; };
 		C7C4A7901865D0A5C3B84446 /* HomeDashboardContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7A4D695AE2ACBC8DD649960 /* HomeDashboardContainer.swift */; };
 		C82E3899F16A3DA9AAE3CBF8 /* PhotoLibraryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = VSEL0002000000000000001 /* PhotoLibraryManager.swift */; };
+		C884C14DB68ED94DDE56F7C3 /* HorizontalScrolling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1843BAB9D354987CEAF3BDE6 /* HorizontalScrolling.swift */; };
 		C88DE498636BCFD382850EEC /* CalendarHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F39EE6699A87B0DF8F4063A7 /* CalendarHomeScreen.swift */; };
 		C910751221E80C854DFB6E9A /* AuthProviderButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABE456513DA5161589D04FB9 /* AuthProviderButton.swift */; };
 		CAC675AF3B9410CAFC06C5DD /* MetaPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D91FF0005F3180CBFFEDAC5 /* MetaPair.swift */; };
@@ -527,6 +529,7 @@
 		DATEFMT0001000000000001 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DATEFMT0002000000000001 /* Date+Formatting.swift */; };
 		DB400460D3E3552BEBBBAA93 /* Glyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4499FC1ED2B1F999613281DA /* Glyph.swift */; };
 		DB5F6BAFCBB1E9DBB5317AC5 /* EmptyPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3D93499CD42C4938E074090 /* EmptyPage.swift */; };
+		DC0E6641699E478A918188BD /* HorizontalScrolling.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1843BAB9D354987CEAF3BDE6 /* HorizontalScrolling.swift */; };
 		DD6E2910D13C1924D713BA4B /* FilterChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3180BFA78CF6854FCC37AA39 /* FilterChip.swift */; };
 		DD709EBFD238B063C7DACE99 /* EnrollmentSelectSyncScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 529AAFFC91A665BA979EF534 /* EnrollmentSelectSyncScreen.swift */; };
 		DEDD112B2211DA9290C977D9 /* FieldGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FBFFCF0CE689B47ED83F93C /* FieldGroup.swift */; };
@@ -596,6 +599,7 @@
 		F9E54A073769111671232C47 /* EnrollmentProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E914735F357B49E183769E8C /* EnrollmentProgressHeader.swift */; };
 		F9F1A4FC3A16A678816CC4CD /* DateBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1EB4FEB9DAE2C0BA10EDFD4 /* DateBlock.swift */; };
 		F9FA1799E578B341B468B243 /* ListResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5738326FD46C04DAFBC4E57D /* ListResultRow.swift */; };
+		FA52399E379592CF65ED5F33 /* HorizontalScrollingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A5B2C852537A71791E0E8FD /* HorizontalScrollingTests.swift */; };
 		FB803692964DA784FB0B7103 /* SparkBarChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5431693D542F6ED5C8D83920 /* SparkBarChart.swift */; };
 		FBA761965D756D7E1B8A4EAC /* CaptureEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DFA85A3C1CB013F77883FEC /* CaptureEnvironment.swift */; };
 		FC0B153DD98D65604F2183AB /* MetaChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD9A6E4818D0A7A69950EC83 /* MetaChip.swift */; };
@@ -747,6 +751,7 @@
 		1445544F24204DA3BFDCA27F /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
 		14FCE9C9E36A49CE8967416E /* CardData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardData.swift; sourceTree = "<group>"; };
 		173CED3454416327E4C67B17 /* ShimmerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShimmerView.swift; sourceTree = "<group>"; };
+		1843BAB9D354987CEAF3BDE6 /* HorizontalScrolling.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HorizontalScrolling.swift; sourceTree = "<group>"; };
 		186E12BE711D48FC9FFFF7B1 /* CardGroupMini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardGroupMini.swift; sourceTree = "<group>"; };
 		188241DBAEB2FC57C1FC4856 /* PageHeader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PageHeader.swift; sourceTree = "<group>"; };
 		1919977929231856F89E8CE1 /* CalendarDateCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalendarDateCard.swift; sourceTree = "<group>"; };
@@ -821,6 +826,7 @@
 		58185043130519BCAA3EBF7A /* EnrollmentEditModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentEditModelTests.swift; sourceTree = "<group>"; };
 		5894F1F64920548F48139E4E /* ProfileStopgapTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProfileStopgapTests.swift; sourceTree = "<group>"; };
 		58DC32C1218C90578DE0ECEE /* CardSpinnerOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardSpinnerOverlay.swift; sourceTree = "<group>"; };
+		5A5B2C852537A71791E0E8FD /* HorizontalScrollingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HorizontalScrollingTests.swift; sourceTree = "<group>"; };
 		5A71DB0FB8D244088B8FFAFE /* CardStudy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardStudy.swift; sourceTree = "<group>"; };
 		5B23AA06F46CCC92550A6C28 /* InvitesHomeScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InvitesHomeScreen.swift; path = Screens/Enrollments/InvitesHomeScreen.swift; sourceTree = "<group>"; };
 		5D4D8F64660C1B2450DC5EE5 /* DirectionalPanGesture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DirectionalPanGesture.swift; sourceTree = "<group>"; };
@@ -1578,6 +1584,7 @@
 				4AD886CF6C384AB68DD9175F /* EnvironmentActionsTests.swift */,
 				5894F1F64920548F48139E4E /* ProfileStopgapTests.swift */,
 				AD3BCF3A8A02BB93C8528AF5 /* AuthManagerLaunchTests.swift */,
+				5A5B2C852537A71791E0E8FD /* HorizontalScrollingTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -1917,6 +1924,7 @@
 				43DB3778F0ED3889F1EAC471 /* ChecklistStepRow.swift */,
 				31183EC63408B733B58CC816 /* GroupsEnrollProgramScreen.swift */,
 				FDE2917CCA2C5196A802AAF6 /* EnrollmentSelectScheduleScreen.swift */,
+				1843BAB9D354987CEAF3BDE6 /* HorizontalScrolling.swift */,
 			);
 			name = MakeReadyUI;
 			path = MakeReadyUI;
@@ -2629,6 +2637,7 @@
 				50E0DAF5AA03305369C91AA1 /* EnvironmentActionsTests.swift in Sources */,
 				FE58414A3DD6D1B2E0D24D45 /* ProfileStopgapTests.swift in Sources */,
 				E3060889028DDE0CCCE1A679 /* AuthManagerLaunchTests.swift in Sources */,
+				FA52399E379592CF65ED5F33 /* HorizontalScrollingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -2870,6 +2879,7 @@
 				8A9E0F54CB22EEEF647FFA30 /* SharedOnceTask.swift in Sources */,
 				69311BB53C6BD4D59149E4DE /* EnvironmentActions.swift in Sources */,
 				37AC08685D0A29D1E4B4094C /* ProfileStopgapContainer.swift in Sources */,
+				C884C14DB68ED94DDE56F7C3 /* HorizontalScrolling.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3014,6 +3024,7 @@
 				E94B74528DEAB8190CA5D523 /* ChecklistStepRow.swift in Sources */,
 				6132DE1E1FA29BAF1DA742BF /* GroupsEnrollProgramScreen.swift in Sources */,
 				1D67F96D31CCFF44ABC9B710 /* EnrollmentSelectScheduleScreen.swift in Sources */,
+				DC0E6641699E478A918188BD /* HorizontalScrolling.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3252,6 +3263,7 @@
 				B26F2528CD90FDAD57BA76EA /* SharedOnceTask.swift in Sources */,
 				50B7DC80DBE3258110646029 /* EnvironmentActions.swift in Sources */,
 				4A9926729F2C017C519E2D3B /* ProfileStopgapContainer.swift in Sources */,
+				2398D966A99CD324E8BB3EEA /* HorizontalScrolling.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

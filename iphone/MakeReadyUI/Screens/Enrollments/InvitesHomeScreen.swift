@@ -164,7 +164,7 @@ struct InvitesHomeScreen: View {
     /// the screen and scrolls horizontally, with the leading inset 16." A horizontal carousel
     /// keeps its own ScrollView (D22).
     private var chipRow: some View {
-        ScrollView(.horizontal) {
+        HorizontalRail {
             HStack(spacing: Token.Space.elementGap) {
                 ForEach(chipLabels.indices, id: \.self) { index in
                     let label = chipLabels[index]

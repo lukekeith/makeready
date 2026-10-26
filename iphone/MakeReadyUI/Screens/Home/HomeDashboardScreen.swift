@@ -252,7 +252,7 @@ struct HomeDashboardScreen: View {
             Spacer().frame(height: Self.headerGap)
             // §2.1: "horizontally scrolling KPI rail … gap 8, leading inset 16, rail overflows
             // the viewport." A horizontal carousel keeps its own ScrollView (D22).
-            ScrollView(.horizontal) {
+            HorizontalRail {
                 HStack(alignment: .top, spacing: Token.Space.elementGap) {
                     ForEach(state.kpiTitles.indices, id: \.self) { index in
                         RailCard(
@@ -298,7 +298,7 @@ struct HomeDashboardScreen: View {
                 Spacer().frame(height: Self.headerGap)
                 // §2.2: "day rail … 131×192, cards butt together with shared 1px vertical borders
                 // (−1 overlap), leading inset 16, horizontal scroll".
-                ScrollView(.horizontal) {
+                HorizontalRail {
                     HStack(alignment: .top, spacing: Self.dayCardOverlap) {
                         ForEach(state.dayNumbers.indices, id: \.self) { index in
                             RailCard(
@@ -453,7 +453,7 @@ struct HomeDashboardScreen: View {
             .padding(.horizontal, Token.Space.pageMargin)
             .ui2Element(Self.partName("C-032 FollowedProgramHeader", ordinal: programIndex + 1))
             Spacer().frame(height: Token.Space.sectionGap)           // §2.5: "→ 32pt →"
-            ScrollView(.horizontal) {
+            HorizontalRail {
                 HStack(alignment: .top, spacing: Token.Space.elementGap) {
                     ForEach(groupIndices(for: programIndex), id: \.self) { groupIndex in
                         GroupFollowCard(

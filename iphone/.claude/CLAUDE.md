@@ -227,6 +227,18 @@ This prevents flickering, z-order bugs, missing drag indicators, and inconsisten
 
 ---
 
+## ↔️ Sideways scrolling inside a page (UI 2.0 — horizontal-scroll-yield, 2026-10-25)
+
+In `MakeReadyUI`, a sideways-scrolling row is **`HorizontalRail { … }`** (never a raw
+`ScrollView(.horizontal)`), and a sideways drag is **`.horizontalPan(onChanged:onEnded:)`** (never a
+`DragGesture`). Both live in `MakeReadyUI/HorizontalScrolling.swift` and exist so a vertical swipe
+always scrolls the page: a raw coasting rail catches the next touch, and a SwiftUI `DragGesture`
+holds it. Scroll modifiers (`scrollPosition`, `contentMargins`, `scrollIndicators`, …) go on
+`HorizontalRail` as they did on the ScrollView. A drag that is not sideways (a slider, a dial, a
+canvas move) keeps its `DragGesture` with a `// pan-ok: <why>` comment on the line above.
+SwiftLint enforces both (`raw_horizontal_scrollview`, `sideways_drag_gesture`) — d2m-generated
+components included.
+
 ## 🏛️ State Management Architecture (CRITICAL)
 
 **This app uses a centralized observable state pattern. ALL new views MUST follow this pattern.**

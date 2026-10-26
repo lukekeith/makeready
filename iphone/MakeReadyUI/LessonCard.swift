@@ -165,7 +165,7 @@ struct LessonCard: View {
     /// entry, 112 wide, height from C-079's aspect … and the rail is that tall; each slide is
     /// a button (0.6 press feedback) calling `onSelectSlide(i)`; clipped at the card's edges".
     private var rail: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        HorizontalRail(showsIndicators: false) {
             HStack(alignment: .top, spacing: Token.Space.metaGap) {
                 ForEach(slides.indices, id: \.self) { index in
                     SwiftUI.Button { onSelectSlide(index) } label: {

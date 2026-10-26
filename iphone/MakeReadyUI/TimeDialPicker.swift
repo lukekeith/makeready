@@ -115,6 +115,7 @@ struct TimeDialPicker: View {
         .frame(width: Geometry.blockWidth, height: Geometry.blockHeight, alignment: .topLeading)
         .contentShape(RingBand(), eoFill: true)
         .gesture(
+            // pan-ok: circular dial — any direction selects
             DragGesture(minimumDistance: 0)
                 .onChanged { drag in select(at: drag.location) }
         )

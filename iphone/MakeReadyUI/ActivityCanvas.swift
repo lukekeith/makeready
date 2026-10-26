@@ -225,6 +225,7 @@ struct ActivityCanvas<Content: View>: View {
                 Color.clear
                     .contentShape(Rectangle())
                     .gesture(
+                        // pan-ok: text-range highlight across lines
                         DragGesture(minimumDistance: 4).onEnded { drag in
                             let hit = PassageHitTester(text: verse.text, width: textProxy.size.width)
                             guard let start = hit.index(at: drag.startLocation),

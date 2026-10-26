@@ -44,7 +44,7 @@ struct ChipStrip: View {
 
     var body: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
+            HorizontalRail(showsIndicators: false) {
                 // §2 Chip row: leading-aligned (deviation 2), gap `space-element-gap`, chips
                 // vertically centred on the row's line (a 34pt filled chip centres in the 36 line).
                 HStack(alignment: .center, spacing: Token.Space.elementGap) {
