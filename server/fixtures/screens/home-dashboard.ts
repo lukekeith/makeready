@@ -12,11 +12,18 @@
  * Caught-up members also finish today's lesson in a sitting ending ≥ 5 min before ctx.now (skipped
  * before ~07:15 Chicago). Video seconds are apportioned to exactly 40 h. The fixture user follows
  * enrollments 2–4 through the `dashboard.followedEnrollments` preference (D4, D12).
+ *
+ * History (owner ruling 2026-10-25): each group also gets back-to-back past enrollments of the base
+ * programs, one lesson per day, covering every day from today−182 that its base enrollments leave
+ * uncovered (everything before its earliest one, plus group 0's −18 … −14 gap), so Activity and the day cards have ~6 months of data. Caught-up members complete every
+ * history lesson on its day (the Engagement count is unchanged); everyone else skips ~10–25% of
+ * them. History sittings are LESSON_OPENED + completion only — no video progress, so the 40 h
+ * total is untouched. Ids: enrollment n 10…, schedule (n)*1000+day, progress/event n ≥ 1_000_000.
  */
-import type { LessonSchedule } from '../../src/generated/prisma/index.js'
-import { VIDEO_SECONDS } from '../base.js'
-import { type FixtureContext, FixtureError, localDate, zonedTime } from '../context.js'
-import { FIXTURE_ENROLLMENT_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
+import type { LessonSchedule, Prisma } from '../../src/generated/prisma/index.js'
+import { ALL_DAYS, ENROLLMENT_PLAN, PROGRAMS, VIDEO_SECONDS, lessonId } from '../base.js'
+import { FIXTURE_TZ, type FixtureContext, FixtureError, localDate, zonedTime } from '../context.js'
+import { FIXTURE_ENROLLMENT_IDS, FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
 export const VIDEO_TOTAL_SECONDS = 40 * 3600
 /** Member indices (into FIXTURE_MEMBER_IDS) who are caught up: 5 + 3 + 2 across the three groups. */
@@ -32,6 +39,11 @@ export const DAY_PARTS = [
 export const FOLLOWED_ENROLLMENTS_PREFERENCE = 'dashboard.followedEnrollments'
 /** Enrollments 2, 3, 4: Walking Through John (Young Adults) + Foundations of Faith (Women's, Tuesday Men's). */
 export const FOLLOWED_ENROLLMENT_IDS = [FIXTURE_ENROLLMENT_IDS[1], FIXTURE_ENROLLMENT_IDS[2], FIXTURE_ENROLLMENT_IDS[3]]
+/** How many days back the history reaches (inclusive). */
+export const HISTORY_DAYS = 182
+const HISTORY_ID_BASE = 1_000_000
+/** Resume events (a long sitting's mid-point re-open) take n from here. */
+const HISTORY_RESUME_ID_BASE = 2_000_000
 const TODAY_MARGIN_MS = 5 * 60_000
 const TODAY_MIN_WINDOW_MS = 10 * 60_000
 
@@ -87,6 +99,11 @@ interface Sitting {
   pair: Pair
   openedAt: Date
   minutes: number
+}
+
+/** Share of history lessons a member leaves undone: 10–25%, fixed per member. */
+export function historySkipRate(memberIndex: number): number {
+  return CAUGHT_UP_INDICES.has(memberIndex) ? 0 : 0.1 + 0.15 * (((memberIndex * 7) % 10) / 9)
 }
 
 export async function full(ctx: FixtureContext): Promise<void> {
@@ -202,6 +219,8 @@ export async function full(ctx: FixtureContext): Promise<void> {
     }),
   })
 
+  await seedHistory(ctx)
+
   await prisma.membershipEvent.createMany({
     data: created.groupMembers.map((gm, i) => {
       if (!gm.memberId) throw new FixtureError(`group member ${gm.id} has no member`)
@@ -228,4 +247,146 @@ export async function full(ctx: FixtureContext): Promise<void> {
       createdAt: ctx.now,
     },
   })
+}
+
+interface HistoryPair {
+  memberId: string
+  memberIndex: number
+  groupId: string
+  enrollmentId: string
+  studyProgramId: string
+  scheduleId: string
+  lessonId: string
+  dayNumber: number
+  date: string
+}
+
+/** Past enrollments + schedules + sittings for every group (see the file header). */
+async function seedHistory(ctx: FixtureContext): Promise<void> {
+  const { prisma, created } = ctx
+  const enrollments: Prisma.EnrollmentCreateManyInput[] = []
+  const schedules: Prisma.LessonScheduleCreateManyInput[] = []
+  const pairs: HistoryPair[] = []
+  const enabledDays = JSON.stringify(ALL_DAYS)
+  let counter = 0
+
+  FIXTURE_GROUP_IDS.forEach((groupId, groupIndex) => {
+    // Offsets in [−182, 0] no base enrollment of this group covers: everything before its earliest
+    // one, plus any gap between base enrollments (group 0 has −18 … −14).
+    const covered = new Set<number>()
+    for (const e of ENROLLMENT_PLAN) {
+      if (e.groupIndex !== groupIndex) continue
+      const days = PROGRAMS.find((p) => p.key === e.program)!.days
+      for (let o = e.startOffset; o < e.startOffset + days; o++) covered.add(o)
+    }
+    const runs: Array<[number, number]> = []
+    for (let o = -HISTORY_DAYS; o <= 0; o++) {
+      if (covered.has(o)) continue
+      const last = runs[runs.length - 1]
+      if (last && last[1] === o - 1) last[1] = o
+      else runs.push([o, o])
+    }
+    const members = created.groupMembers.filter((gm) => gm.groupId === groupId && gm.memberId)
+    let turn = groupIndex
+    for (const [floor, top] of runs) {
+      let end = top
+      while (end >= floor) {
+        const program = PROGRAMS[turn++ % PROGRAMS.length]
+        const fullStart = end - program.days + 1
+        const start = Math.max(fullStart, floor) // the oldest enrollment of a run is clipped at its edge
+        counter += 1
+        const enrollmentId = fixtureId('enrollment', 9 + counter)
+        enrollments.push({
+          id: enrollmentId,
+          groupId,
+          studyProgramId: program.id,
+          startDate: ctx.at(start, 12),
+          endDate: ctx.at(end, 12),
+          enabledDays,
+          smsTime: '08:00',
+          timezone: FIXTURE_TZ,
+          createdById: FIXTURE_USER_ID,
+          createdAt: ctx.daysAgo(3 - start),
+        })
+        for (let offset = start; offset <= end; offset++) {
+          const day = offset - fullStart + 1
+          const scheduleId = fixtureId('schedule', (9 + counter) * 1000 + day)
+          schedules.push({
+            id: scheduleId,
+            enrollmentId,
+            lessonId: lessonId(program.index, day),
+            scheduledDate: ctx.at(offset, 12),
+            title: `Day ${day}`,
+            estimatedMinutes: 25,
+          })
+          for (const gm of members) {
+            pairs.push({
+              memberId: gm.memberId!,
+              memberIndex: FIXTURE_MEMBER_IDS.indexOf(gm.memberId!),
+              groupId,
+              enrollmentId,
+              studyProgramId: program.id,
+              scheduleId,
+              lessonId: lessonId(program.index, day),
+              dayNumber: day,
+              date: ctx.dateOf(offset),
+            })
+          }
+        }
+        end = start - 1
+      }
+    }
+  })
+
+  await prisma.enrollment.createMany({ data: enrollments })
+  await prisma.lessonSchedule.createMany({ data: schedules })
+
+  // One sitting per completed (member, lesson): caught-up members finish all, the rest skip some.
+  const done = pairs.filter((p) => ctx.rand.next() >= historySkipRate(p.memberIndex))
+  const sittings = done.map((p) => {
+    const part = DAY_PARTS[ctx.rand.int(0, DAY_PARTS.length - 1)]
+    const hour = part.start + (part.end - part.start) * ctx.rand.next()
+    const minutes = SITTING_MIN_MINUTES + (SITTING_MAX_MINUTES - SITTING_MIN_MINUTES) * ctx.rand.next()
+    const openedAt = zonedTime(p.date, hour)
+    return { p, openedAt, minutes, completedAt: new Date(openedAt.getTime() + Math.round(minutes * 60_000)) }
+  })
+  const CHUNK = 5000
+  for (let i = 0; i < sittings.length; i += CHUNK) {
+    const part = sittings.slice(i, i + CHUNK)
+    await prisma.memberLessonProgress.createMany({
+      data: part.map((s, j) => ({
+        id: fixtureId('lessonProgress', HISTORY_ID_BASE + i + j + 1),
+        memberId: s.p.memberId,
+        lessonScheduleId: s.p.scheduleId,
+        startedAt: s.openedAt,
+        completedAt: s.completedAt,
+        lastUpdatedAt: s.completedAt,
+      })),
+    })
+    // Sessions split at a 30-min gap and history has no video moments, so a sitting longer than 30 min
+    // gets a second LESSON_OPENED (a resume) at its mid-point to keep it one session.
+    const events = part.flatMap((s, j) => [
+      { s, at: s.openedAt, id: HISTORY_ID_BASE + i + j + 1 },
+      ...(s.minutes > 28
+        ? [{ s, at: new Date((s.openedAt.getTime() + s.completedAt.getTime()) / 2), id: HISTORY_RESUME_ID_BASE + i + j + 1 }]
+        : []),
+    ])
+    await prisma.clientEvent.createMany({
+      data: events.map(({ s, at, id }) => ({
+        id: fixtureId('clientEvent', id),
+        eventType: 'LESSON_OPENED',
+        occurredAt: at,
+        receivedAt: at,
+        memberId: s.p.memberId,
+        organizationId: FIXTURE_ORG_ID,
+        groupId: s.p.groupId,
+        enrollmentId: s.p.enrollmentId,
+        studyProgramId: s.p.studyProgramId,
+        lessonScheduleId: s.p.scheduleId,
+        lessonId: s.p.lessonId,
+        dayNumber: s.p.dayNumber,
+        scheduledDate: zonedTime(s.p.date, 12),
+      })),
+    })
+  }
 }

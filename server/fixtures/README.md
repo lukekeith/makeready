@@ -42,6 +42,18 @@ for the past 7 days (5–40 min sittings in morning, midday and evening bands; t
 1–5 lessons behind) and Following (the fixture user's `dashboard.followedEnrollments` preference =
 enrollments 2–4, two programs). The preference row cascades with the fixture user.
 
+**Six months of history** (owner ruling 2026-10-25): each group also has back-to-back past
+enrollments of the two base programs (one lesson per day) from today−182 up to the day before its
+earliest base enrollment (−48 / −29 / −20), so Activity's scheduled and completed columns and the
+day cards have data on every day from today−182 through today. Caught-up members complete every
+history lesson on its day (Engagement stays 10 of 24, 42%); the other 14 skip a fixed 10–25% of
+them. History sittings are 5–40 min (a LESSON_OPENED, plus a resume open at the mid-point when
+longer than 28 min so the session stays whole, and the completion) and carry **no video progress**,
+so total video time stays exactly 40 h. Because group 1's and 2's history reaches into
+Overview's previous 24-day window (−47…−24), that window now holds 547 completions (was 240) and
+the 24-day trend is no longer positive. History ids: enrollments `enrollment` n 10…, schedules
+`schedule` n = enrollment n × 1000 + day, progress/events `lessonProgress`/`clientEvent` n ≥ 1,000,000.
+
 ## Layers
 
 `index.ts` → `base.ts` → every file in `screens/`, in filename order, all sharing one

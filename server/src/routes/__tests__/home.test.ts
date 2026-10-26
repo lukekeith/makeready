@@ -38,7 +38,7 @@ import { getHomeFollowing } from '../../services/home-following.js'
 import homeRoutes from '../home.js'
 
 const SCOPE = { all: false as const, orgIds: ['org-1'], groupIds: [] as string[] }
-const SESSIONS = { averageSeconds: 840, sessionCount: 12, hourly: Array(24).fill(0), bins: Array(88).fill(0), ticks: ['2026-10-19', '2026-10-21', '2026-10-23', '2026-10-25'] }
+const SESSIONS = { averageSeconds: 840, sessionCount: 12, hourly: Array(24).fill(0), bins: Array(88).fill(0), ticks: [0, 15, 30, 45], axisMinutes: 45 }
 const ENGAGEMENT = { currentCount: 10, enrolledCount: 24, groupCount: 3, percent: 42, activeCount: 18 }
 
 /** requireAuth passes when req.user and req.apiKeyId are set (middleware/auth.ts:27). */

@@ -12,7 +12,9 @@ export type SessionRange = 'all' | 'year' | 'month' | 'week'
 export const RANGE_DAYS: Record<Exclude<SessionRange, 'all'>, number> = { year: 365, month: 30, week: 7 }
 export const ALL_TIME_CAP_DAYS = 730
 export const STRIP_BINS = 88
-export const TICK_BINS = [0, 29, 58, 87] as const
+/** Readable minute steps for the session-length axis; the axis carries at most 4 ticks. */
+export const TICK_STEPS_MINUTES = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120, 180, 240, 360, 480, 720] as const
+export const MAX_TICKS = 4
 export const DAY_BLOCKS = 12
 export const MAX_DAY_SPAN = 62
 export const ACTIVE_DAYS = 7
@@ -21,8 +23,11 @@ export interface HomeSessions {
   averageSeconds: number
   sessionCount: number
   hourly: number[]
+  /** D18: sessions per session-length band — STRIP_BINS equal bands over 0 … axisMinutes, max band = 1. */
   bins: number[]
-  ticks: string[]
+  /** D18: the axis labels in minutes, 0 first and axisMinutes last, at most MAX_TICKS. */
+  ticks: number[]
+  axisMinutes: number
 }
 export interface HomeDay {
   day: string
@@ -128,23 +133,44 @@ export function validateDayRange(from: string, to: string): string | null {
   return null
 }
 
-// ── Sessions by range (D8, D16) ──────────────────────────────────────────────
+// ── Sessions by range (D8, D18) ──────────────────────────────────────────────
+
+/**
+ * D18: the session-length axis for a longest session of `longestMinutes` — 0 to a readable end in a
+ * readable step, at most MAX_TICKS labels, ending as close to the longest session as the steps
+ * allow (40 → 0·20·40; 45 → 0·15·30·45).
+ */
+export function sessionLengthAxis(longestMinutes: number): { axisMinutes: number; ticks: number[] } {
+  const longest = Math.max(1, Math.ceil(longestMinutes))
+  let best: { step: number; count: number; axis: number } | null = null
+  for (const step of TICK_STEPS_MINUTES) {
+    const count = Math.ceil(longest / step)
+    if (count + 1 > MAX_TICKS) continue
+    const axis = step * count
+    if (!best || axis < best.axis || (axis === best.axis && count > best.count)) best = { step, count, axis }
+  }
+  const pick = best ?? { step: TICK_STEPS_MINUTES[TICK_STEPS_MINUTES.length - 1], count: Math.ceil(longest / 720), axis: 720 * Math.ceil(longest / 720) }
+  return { axisMinutes: pick.axis, ticks: Array.from({ length: pick.count + 1 }, (_, i) => i * pick.step) }
+}
 
 export function summarizeSessions(sessions: Session[], window: { from: Date; to: Date }, tz: string): HomeSessions {
   const inWindow = sessions.filter((s) => s.start >= window.from && s.start < window.to)
   const hourSums: number[] = Array(24).fill(0)
   const hourCounts: number[] = Array(24).fill(0)
   const binSums: number[] = Array(STRIP_BINS).fill(0)
-  const fromMs = window.from.getTime()
-  const span = Math.max(1, window.to.getTime() - fromMs)
   let total = 0
   for (const s of inWindow) {
     const hour = localHourOf(s.start, tz)
     hourSums[hour] += s.seconds
     hourCounts[hour] += 1
-    const bin = Math.min(STRIP_BINS - 1, Math.floor(((s.start.getTime() - fromMs) / span) * STRIP_BINS))
-    binSums[bin] += s.seconds
     total += s.seconds
+  }
+  // D18: a histogram of session LENGTH (end − start): how many sessions fall in each band.
+  const longestMinutes = inWindow.reduce((m, s) => Math.max(m, s.seconds / 60), 0)
+  const axis = sessionLengthAxis(longestMinutes)
+  for (const s of inWindow) {
+    const bin = Math.min(STRIP_BINS - 1, Math.floor((s.seconds / 60 / axis.axisMinutes) * STRIP_BINS))
+    binSums[bin] += 1
   }
   const maxBin = Math.max(0, ...binSums)
   return {
@@ -152,7 +178,8 @@ export function summarizeSessions(sessions: Session[], window: { from: Date; to:
     sessionCount: inWindow.length,
     hourly: hourSums.map((sum, h) => (hourCounts[h] > 0 ? Math.round(sum / hourCounts[h]) : 0)),
     bins: binSums.map((v) => (maxBin > 0 ? Math.round((v / maxBin) * 1000) / 1000 : 0)),
-    ticks: TICK_BINS.map((i) => localDateOf(new Date(fromMs + (i * span) / STRIP_BINS), tz)),
+    ticks: inWindow.length > 0 ? axis.ticks : [0],
+    axisMinutes: inWindow.length > 0 ? axis.axisMinutes : 0,
   }
 }
 

@@ -275,10 +275,12 @@ async function runQualityChecks(client: pg.PoolClient): Promise<void> {
       },
       {
         prefix: 'ls',
+        // One row per schedule × active member of its group (migration 20261025200000, D10 corrected).
         sourceSql: `SELECT COUNT(*)::int AS n
           FROM lesson_schedules ls
           JOIN enrollments e ON e.id = ls."enrollmentId"
-          JOIN groups g ON g.id = e."groupId"`,
+          JOIN groups g ON g.id = e."groupId"
+          JOIN group_members gm ON gm."groupId" = e."groupId" AND gm."isActive" AND gm."memberId" IS NOT NULL`,
       },
     ]
 

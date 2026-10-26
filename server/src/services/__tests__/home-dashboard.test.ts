@@ -20,6 +20,7 @@ import {
   getHomeEngagement,
   getHomeSessions,
   summarizeSessions,
+  sessionLengthAxis,
   validateDayRange,
   zonedMidnight,
 } from '../home-dashboard.js'
@@ -94,7 +95,7 @@ describe('getHomeDays', () => {
   })
 })
 
-describe('summarizeSessions (D8, D16)', () => {
+describe('summarizeSessions (D8, D18)', () => {
   const window = { from: at('2026-10-19T05:00:00Z'), to: NOW } // 154 h → 1.75 h per bin
   const sessions = [
     session('a', '2026-10-20T14:00:00Z', 600), // 09:00 CDT, bin 18
@@ -113,14 +114,28 @@ describe('summarizeSessions (D8, D16)', () => {
     expect(s.hourly.filter((v) => v > 0)).toHaveLength(2)
   })
 
-  it('normalises 88 bins to the largest and ticks bins 0/29/58/87 as local dates', () => {
+  it('histograms session LENGTH into 88 bands over a readable 0 … longest axis (D18)', () => {
     const s = summarizeSessions(sessions, window, CHI)
+    // Lengths 10, 20 and 5 min → longest 20 → axis 0·10·20.
+    expect(s.axisMinutes).toBe(20)
+    expect(s.ticks).toEqual([0, 10, 20])
     expect(s.bins).toHaveLength(88)
-    expect(s.bins[18]).toBe(0.5)
-    expect(s.bins[19]).toBe(1)
-    expect(s.bins[78]).toBe(0.25)
+    expect(s.bins[22]).toBe(1) // 5 min
+    expect(s.bins[44]).toBe(1) // 10 min
+    expect(s.bins[87]).toBe(1) // 20 min — the longest lands in the last band
     expect(s.bins.filter((v) => v > 0)).toHaveLength(3)
-    expect(s.ticks).toEqual(['2026-10-19', '2026-10-21', '2026-10-23', '2026-10-25'])
+  })
+
+  it('counts sessions, not seconds, per band and normalises to the busiest band', () => {
+    const many = [
+      session('a', '2026-10-20T14:00:00Z', 600),
+      session('b', '2026-10-20T16:00:00Z', 610),
+      session('c', '2026-10-21T14:00:00Z', 1800),
+    ]
+    const s = summarizeSessions(many, window, CHI)
+    expect(s.ticks).toEqual([0, 10, 20, 30]) // 30 fits 10 and 15 equally; the finer, 4-tick axis wins
+    expect(s.bins[29]).toBe(1)   // 10:00 and 10:10 share a band → 2 sessions, the busiest
+    expect(s.bins[87]).toBe(0.5) // the one 30-min session
   })
 
   it('is all zeros with no sessions', () => {
@@ -128,6 +143,24 @@ describe('summarizeSessions (D8, D16)', () => {
     expect(s).toMatchObject({ averageSeconds: 0, sessionCount: 0 })
     expect(s.hourly).toEqual(Array(24).fill(0))
     expect(s.bins).toEqual(Array(88).fill(0))
+    expect(s.ticks).toEqual([0])
+    expect(s.axisMinutes).toBe(0)
+  })
+})
+
+describe('sessionLengthAxis (D18)', () => {
+  it.each([
+    [45, 45, [0, 15, 30, 45]],
+    [40, 40, [0, 20, 40]],
+    [37, 40, [0, 20, 40]],
+    [8, 10, [0, 5, 10]],
+    [1, 1, [0, 1]],
+    [130, 135, [0, 45, 90, 135]],
+  ] as [number, number, number[]][])('longest %d min → axis %d, ticks %j', (longest, axis, ticks) => {
+    const a = sessionLengthAxis(longest)
+    expect(a.axisMinutes).toBe(axis)
+    expect(a.ticks).toEqual(ticks)
+    expect(a.ticks.length).toBeLessThanOrEqual(4)
   })
 })
 
@@ -142,12 +175,13 @@ describe('getHomeSessions windows (D8)', () => {
     expect(loadSessions).toHaveBeenCalledWith(SCOPE, { from: at(from), to: NOW })
   })
 
-  it('all loads the 730-day cap and starts the strip at the first session', async () => {
+  it('all loads the 730-day cap and histograms every session in it (D18)', async () => {
     vi.mocked(loadSessions).mockResolvedValue([session('a', '2025-01-10T15:00:00Z', 600), session('a', '2026-10-20T15:00:00Z', 300)])
     const s = await getHomeSessions(SCOPE, 'all', CHI, NOW)
     expect(loadSessions).toHaveBeenCalledWith(SCOPE, { from: at('2024-10-26T05:00:00Z'), to: NOW })
-    expect(s.ticks[0]).toBe('2025-01-10')
-    expect(s.bins[0]).toBe(1)
+    expect(s.ticks).toEqual([0, 5, 10]) // longest 10 min
+    expect(s.bins[44]).toBe(1)          // the 5-min session
+    expect(s.bins[87]).toBe(1)          // the 10-min session
     expect(s.sessionCount).toBe(2)
   })
 })

@@ -45,6 +45,9 @@ describe.skipIf(!TEST_DB_URL)('scheduled_lessons metric against the test databas
 
   it('counts a UTC-midnight schedule on its stored date under America/Chicago, and skips a removed one (F8)', async () => {
     const { runAnalyticsQuery } = await import('../../src/services/analytics.service.js')
+    // D10 (corrected): one expected member-lesson per active member of the schedule's group.
+    const enrollment = await db.prisma.enrollment.findUniqueOrThrow({ where: { id: FIXTURE_ENROLLMENT_IDS[3] } })
+    const members = await db.prisma.groupMember.count({ where: { groupId: enrollment.groupId, isActive: true, memberId: { not: null } } })
     const result = await runAnalyticsQuery(
       {
         metrics: ['scheduled_lessons'],
@@ -56,26 +59,38 @@ describe.skipIf(!TEST_DB_URL)('scheduled_lessons metric against the test databas
     )
     expect(result.rows).toEqual([
       { day: addDays(target, -1), scheduled_lessons: 0 },
-      { day: target, scheduled_lessons: 1 },
+      { day: target, scheduled_lessons: members },
     ])
   })
 
-  it('counts every non-removed fixture schedule exactly once over the base span', async () => {
+  it('counts every non-removed fixture schedule once per active group member over the history + base span', async () => {
     const { runAnalyticsQuery } = await import('../../src/services/analytics.service.js')
     const result = await runAnalyticsQuery(
       {
         metrics: ['scheduled_lessons'],
         dimensions: ['day'],
-        filters: { organizationId: FIXTURE_ORG_ID, from: addDays(today, -48), to: addDays(today, 7) },
+        filters: { organizationId: FIXTURE_ORG_ID, from: addDays(today, -200), to: addDays(today, 7) },
         timezone: TZ,
       },
       scope
     )
-    const expected = await db.prisma.lessonSchedule.count({
+    const base = await db.prisma.lessonSchedule.count({
       where: { enrollmentId: { in: FIXTURE_ENROLLMENT_IDS }, removedAt: null, id: { not: MIDNIGHT_ID } },
     })
-    expect(expected).toBe(102) // 30 + 30 + 21 + 21 (base.ts ENROLLMENT_PLAN)
-    expect(total(result.rows, 'scheduled_lessons')).toBe(expected)
+    expect(base).toBe(102) // 30 + 30 + 21 + 21 (base.ts ENROLLMENT_PLAN)
+    // plus the home-dashboard layer's history enrollments (every other org schedule)
+    const expected = await db.prisma.lessonSchedule.count({
+      where: { enrollment: { group: { organizationId: FIXTURE_ORG_ID } }, removedAt: null, id: { not: MIDNIGHT_ID } },
+    })
+    expect(expected).toBeGreaterThan(base)
+    const [memberLessons] = await db.prisma.$queryRaw<{ n: number }[]>`
+      SELECT COUNT(*)::int AS n
+        FROM lesson_schedules ls
+        JOIN enrollments e ON e.id = ls."enrollmentId"
+        JOIN groups g ON g.id = e."groupId"
+        JOIN group_members gm ON gm."groupId" = e."groupId" AND gm."isActive" AND gm."memberId" IS NOT NULL
+       WHERE g."organizationId"::text = ${FIXTURE_ORG_ID} AND ls."removedAt" IS NULL AND ls.id::text <> ${MIDNIGHT_ID}`
+    expect(total(result.rows, 'scheduled_lessons')).toBe(memberLessons.n)
   })
 
   it('leaves lesson_completions totals unchanged by the new arm', async () => {
@@ -97,11 +112,12 @@ describe.skipIf(!TEST_DB_URL)('scheduled_lessons metric against the test databas
       SELECT COUNT(*)::int AS n
         FROM lesson_schedules ls
         JOIN enrollments e ON e.id = ls."enrollmentId"
-        JOIN groups g ON g.id = e."groupId"`
+        JOIN groups g ON g.id = e."groupId"
+        JOIN group_members gm ON gm."groupId" = e."groupId" AND gm."isActive" AND gm."memberId" IS NOT NULL`
     expect(view.n).toBe(source.n)
     const [nulls] = await db.prisma.$queryRaw<{ n: number }[]>`
       SELECT COUNT(*)::int AS n FROM analytics_events
-       WHERE event_type = 'LESSON_SCHEDULED' AND (event_id IS NULL OR entity_id IS NULL OR member_id IS NOT NULL)`
+       WHERE event_type = 'LESSON_SCHEDULED' AND (event_id IS NULL OR entity_id IS NULL OR member_id IS NULL)`
     expect(nulls.n).toBe(0)
   })
 })
