@@ -1,4 +1,4 @@
-import { Router } from 'express'
+import { Router, type Request } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
 import sharp from 'sharp'
@@ -8,7 +8,8 @@ import {
   createMember,
   updateMember,
   deleteMember,
-  getMemberGroups,
+  getScopedMember,
+  getScopedMemberGroups,
   addMemberToOrganization,
 } from '../services/member.js'
 import {
@@ -26,6 +27,7 @@ import {
   requireMemberOrOrgOwner,
   requireMemberAuth,
 } from '../middleware/auth.js'
+import type { MemberViewer } from '../services/member-access.js'
 import { groupManageFilter } from '../services/permission.js'
 import { sendVerificationCode, verifyCode } from '../services/twilio.js'
 import { uploadMemberAvatar, deleteMemberAvatar } from '../services/storage.js'
@@ -50,6 +52,17 @@ const upload = multer({
 })
 
 const router = Router()
+
+/**
+ * ui2-members-browse D7: a member session reading its own record is unscoped;
+ * any other caller is a user, scoped in the service by memberAccessScope.
+ * null = neither (requireMemberOrOrgOwner normally 403s that first).
+ */
+function viewerOf(req: Request, memberId: string): MemberViewer | null {
+  if (req.session?.memberId === memberId) return { kind: 'self' }
+  const userId = (req.user as { id?: string } | undefined)?.id
+  return userId ? { kind: 'user', userId } : null
+}
 
 /**
  * @openapi
@@ -1087,7 +1100,7 @@ router.get('/:memberId/profile', requireAuth, async (req, res) => {
  *                 data:
  *                   $ref: '#/components/schemas/Member'
  *       404:
- *         description: Member not found
+ *         description: Member not found, or outside the caller's D7 scope (owners/admins see every member; other leaders only members of groups they created)
  *         content:
  *           application/json:
  *             schema:
@@ -1096,8 +1109,15 @@ router.get('/:memberId/profile', requireAuth, async (req, res) => {
 router.get('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
   try {
     const { memberId } = req.params
+    const viewer = viewerOf(req, memberId)
+    if (!viewer) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to access this member',
+      })
+    }
 
-    const result = await getMember(memberId)
+    const result = await getScopedMember(memberId, viewer)
 
     if (!result.success) {
       return res.status(404).json({
@@ -1604,16 +1624,29 @@ router.post(
  *                     $ref: '#/components/schemas/Group'
  *                 count:
  *                   type: integer
+ *       404:
+ *         description: Member not found, or outside the caller's D7 scope (owners/admins see every member; other leaders only members of groups they created)
  */
 router.get('/:memberId/groups', requireMemberOrOrgOwner, async (req, res) => {
   try {
     const { memberId } = req.params
     const { includeInactive } = req.query
+    const viewer = viewerOf(req, memberId)
+    if (!viewer) {
+      return res.status(403).json({
+        success: false,
+        error: 'You do not have permission to access this member',
+      })
+    }
 
-    const result = await getMemberGroups(
-      memberId,
-      includeInactive === 'true'
-    )
+    const result = await getScopedMemberGroups(memberId, viewer, includeInactive === 'true')
+
+    if (result.notFound) {
+      return res.status(404).json({
+        success: false,
+        error: result.error,
+      })
+    }
 
     if (!result.success) {
       return res.status(500).json({

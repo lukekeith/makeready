@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
-import type { Member, Group } from '../generated/prisma/index.js'
+import type { Member, Group, Prisma } from '../generated/prisma/index.js'
+import { type MemberViewer, visibleMemberOrgIds } from './member-access.js'
 
 /**
  * Member Service
@@ -21,6 +22,25 @@ export interface MembersResult {
 export interface GroupsResult {
   success: boolean
   data?: Group[]
+  error?: string
+}
+
+export interface ScopedGroupsResult extends GroupsResult {
+  /** The member is outside the caller's D7 scope in every org → 404. */
+  notFound?: boolean
+}
+
+const memberWithOrganizations = {
+  include: {
+    organizations: { include: { organization: { select: { id: true, name: true, ownerId: true } } } },
+  },
+} satisfies Prisma.MemberDefaultArgs
+
+export type MemberWithOrganizations = Prisma.MemberGetPayload<typeof memberWithOrganizations>
+
+export interface ScopedMemberResult {
+  success: boolean
+  data?: MemberWithOrganizations & { isGroupLeader: boolean }
   error?: string
 }
 
@@ -315,7 +335,8 @@ export async function deleteMember(memberId: string): Promise<MemberResult> {
  */
 export async function getMemberGroups(
   memberId: string,
-  includeInactive: boolean = false
+  includeInactive: boolean = false,
+  organizationIds?: string[]
 ): Promise<GroupsResult> {
   try {
     const where: any = {
@@ -325,6 +346,11 @@ export async function getMemberGroups(
     if (!includeInactive) {
       where.isActive = true
       where.group = { isActive: true }
+    }
+
+    // D16: a scoped caller sees only the member's groups in the orgs it sees the member in.
+    if (organizationIds) {
+      where.group = { ...(where.group ?? {}), organizationId: { in: organizationIds } }
     }
 
     const memberships = await prisma.groupMember.findMany({
@@ -367,6 +393,52 @@ export async function getMemberGroups(
       success: false,
       error: 'Failed to fetch groups',
     }
+  }
+}
+
+/**
+ * GET /api/members/:id for the UI 2.0 member page (ui2-members-browse D7, D8,
+ * SC8). A user sees the member only through orgs memberAccessScope covers;
+ * outside every one -> "Member not found" (the route answers 404). The payload
+ * keeps only those orgs in organizations[], and isGroupLeader = the linked user
+ * created an active group in one of them. A member reading itself is unscoped.
+ */
+export async function getScopedMember(memberId: string, viewer: MemberViewer): Promise<ScopedMemberResult> {
+  try {
+    const member = await prisma.member.findUnique({ where: { id: memberId }, ...memberWithOrganizations })
+    if (!member) return { success: false, error: 'Member not found' }
+    const visible = await visibleMemberOrgIds(viewer, memberId)
+    if (viewer.kind === 'user' && visible.length === 0) return { success: false, error: 'Member not found' }
+
+    const organizations = member.organizations.filter((mo) => visible.includes(mo.organizationId))
+    const isGroupLeader =
+      member.userId !== null &&
+      visible.length > 0 &&
+      (await prisma.group.count({
+        where: { creatorId: member.userId, isActive: true, organizationId: { in: visible } },
+      })) > 0
+
+    return { success: true, data: { ...member, organizations, isGroupLeader } }
+  } catch (error) {
+    console.error('Error fetching scoped member:', error)
+    return { success: false, error: 'Failed to fetch member' }
+  }
+}
+
+/** GET /api/members/:id/groups under D7 + D16; a member reading itself is unchanged. */
+export async function getScopedMemberGroups(
+  memberId: string,
+  viewer: MemberViewer,
+  includeInactive: boolean = false
+): Promise<ScopedGroupsResult> {
+  if (viewer.kind === 'self') return getMemberGroups(memberId, includeInactive)
+  try {
+    const visible = await visibleMemberOrgIds(viewer, memberId)
+    if (visible.length === 0) return { success: false, error: 'Member not found', notFound: true }
+    return getMemberGroups(memberId, includeInactive, visible)
+  } catch (error) {
+    console.error('Error fetching scoped member groups:', error)
+    return { success: false, error: 'Failed to fetch groups' }
   }
 }
 
