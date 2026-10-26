@@ -1,6 +1,20 @@
-import { describe, expect, it } from 'vitest'
+import { existsSync, readFileSync } from 'node:fs'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { FixtureContext } from '../context.js'
 import { FIXTURE_PROGRAM_IDS } from '../ids.js'
-import { AVATAR_COUNT, type D2mImage, LIBRARY_SIZE, imageBaseUrl, selectImages } from '../images.js'
+import {
+  AVATAR_COUNT,
+  type D2mImage,
+  type ImageManifest,
+  LIBRARY_SIZE,
+  MANIFEST_PATH,
+  assertFixtureBucket,
+  keyStamp,
+  manifestOf,
+  seedImages,
+  selectImages,
+  sourceFile,
+} from '../images.js'
 
 const img = (slug: string, terms: Array<[string, string]>, retired = false): D2mImage => ({
   slug,
@@ -48,10 +62,55 @@ describe('fixture image selection (home-dashboard-data D22)', () => {
   })
 })
 
-describe('fixture image base URL', () => {
-  it('prefers FIXTURE_IMAGE_BASE_URL, else the iPhone Local host on PORT', () => {
-    expect(imageBaseUrl({ FIXTURE_IMAGE_BASE_URL: 'http://h:1/' })).toBe('http://h:1')
-    expect(imageBaseUrl({ PORT: '3110' })).toMatch(/^http:\/\/[^/:]+:3110$/)
+const r2 = {
+  R2_ACCOUNT_ID: 'a',
+  R2_ACCESS_KEY_ID: 'k',
+  R2_SECRET_ACCESS_KEY: 's',
+  R2_BUCKET_NAME: 'makeready',
+  R2_PUBLIC_URL: 'https://pub-x.r2.dev',
+}
+
+describe('fixture images as real uploads (fixture-real-uploads)', () => {
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('stamps keys with a 13-digit number that is stable per image and new per change', () => {
+    const a = keyStamp(Buffer.from('one'))
+    expect(a).toMatch(/^\d{13}$/)
+    expect(keyStamp(Buffer.from('one'))).toBe(a)
+    expect(keyStamp(Buffer.from('two'))).not.toBe(a)
+  })
+
+  it('needs every R2 setting, and refuses the production bucket', () => {
+    expect(() => assertFixtureBucket(r2)).not.toThrow()
+    expect(() => assertFixtureBucket({ ...r2, R2_PUBLIC_URL: '' })).toThrow(/R2_PUBLIC_URL not set/)
+    expect(() => assertFixtureBucket({ ...r2, R2_BUCKET_NAME: 'makeready-media' })).toThrow(/production bucket/)
+    expect(() => assertFixtureBucket({ ...r2, R2_PUBLIC_URL: 'https://images.makeready.org' })).toThrow(/production bucket/)
+  })
+
+  it('fails the reset when images are on and R2 is not configured', async () => {
+    vi.stubEnv('FIXTURE_IMAGES', 'on')
+    vi.stubEnv('R2_BUCKET_NAME', '')
+    await expect(seedImages({} as FixtureContext)).rejects.toThrow(/fixture images need R2/)
+  })
+
+  it('skips images on purpose with FIXTURE_IMAGES=off', async () => {
+    vi.stubEnv('FIXTURE_IMAGES', 'off')
+    await expect(seedImages({} as FixtureContext)).resolves.toBeUndefined()
+  })
+
+  it('records the selection by slug with each image\'s d2m metadata', () => {
+    const m = manifestOf(selectImages(catalog))
+    expect(m.groups).toEqual(['image-9', 'image-11', 'image-10'])
+    expect(m.library).toHaveLength(LIBRARY_SIZE)
+    expect(m.images['image-9']).toEqual({ title: 'image-9', alt: null, mainColor: null })
+  })
+
+  it('has every image the committed manifest names in the repo', () => {
+    expect(existsSync(MANIFEST_PATH)).toBe(true)
+    const m = JSON.parse(readFileSync(MANIFEST_PATH, 'utf8')) as ImageManifest
+    expect(m.groups.every(Boolean)).toBe(true)
+    expect(m.avatars).toHaveLength(AVATAR_COUNT)
+    for (const slug of Object.keys(m.images)) expect(existsSync(sourceFile(slug)), slug).toBe(true)
   })
 })
 

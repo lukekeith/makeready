@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
 
 /**
@@ -36,12 +36,29 @@ function getBucket(): string {
   return process.env.R2_BUCKET_NAME || 'makeready-media'
 }
 
-function getPublicUrl(key: string): string {
+export function getPublicUrl(key: string): string {
   const baseUrl = process.env.R2_PUBLIC_URL
   if (!baseUrl) {
     throw new Error('R2_PUBLIC_URL not configured')
   }
   return `${baseUrl.replace(/\/$/, '')}/${key}`
+}
+
+/** The bucket uploads go to (R2_BUCKET_NAME, else the production default). */
+export function r2BucketName(): string {
+  return getBucket()
+}
+
+/** True when `key` is already in the bucket; any error other than not-found propagates. */
+export async function objectExists(key: string): Promise<boolean> {
+  try {
+    await getR2Client().send(new HeadObjectCommand({ Bucket: getBucket(), Key: key }))
+    return true
+  } catch (error) {
+    const status = (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode
+    if (status === 404 || (error as { name?: string }).name === 'NotFound') return false
+    throw error
+  }
 }
 
 /**

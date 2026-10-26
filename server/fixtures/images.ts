@@ -1,35 +1,41 @@
 /**
- * Fixture images (home-dashboard-data D22, owner 2026-10-25): group covers, program covers and a
- * media library, pulled from the d2m `makeready` image set by its tags, resized to JPEG and served
- * by this server's static route from `public/fixture-images/` (gitignored).
+ * Fixture images (home-dashboard-data D22, ui2-members-browse D13, fixture-real-uploads): group
+ * covers, program covers, a media library and member avatars seeded as REAL content — the files in
+ * the server's R2 bucket under the keys a real upload uses, the rows shaped as that upload writes
+ * them. Only the way they got there differs.
  *
- * - Source: `GET <d2m>/api/projects/makeready/images` — d2m listens on 127.0.0.1 and serves only the
- *   full-size originals, so the files are copied here; a later reset reuses them without d2m.
- * - Avatars (ui2-members-browse D13): the set's `Use: avatar` images, square-cropped to AVATAR_SIZE, become 13 members' profilePicture (not library media).
- * - URLs: `<FIXTURE_IMAGE_BASE_URL>/fixture-images/<file>`. The default base is the host the iPhone
- *   uses for Local (`LOCAL_SERVER_URL` in iphone/Debug.xcconfig) on this server's PORT, so the
- *   simulator, a device over Tailscale and the web all load them. No base, or d2m down with no
- *   cached copy → covers stay null and the library empty, with one line saying why.
- * - Off under vitest unless FIXTURE_IMAGES=on; FIXTURE_IMAGES=off turns it off anywhere.
+ * - Source: the originals committed under `fixtures/images/` with `manifest.json` (the selection and
+ *   each image's d2m title, alt and colour). A reset never contacts d2m;
+ *   `npm run fixtures:images:refresh` re-pulls the selection from d2m on purpose.
+ * - Covers: as `POST /api/groups/:id/cover-image` / `/api/programs/:id/cover-image` leave them —
+ *   `groups/group-<id>-<stamp>` (and `programs/program-<id>-<stamp>`) JPEG + WebP ladder, the cover
+ *   URL on the row, a Media row "<name> - Cover Image" (source auto_capture) + its usage.
+ * - Library photos: as `POST /api/media` leaves them — `library/library-<userId>-<stamp>` ladder,
+ *   source direct. Avatars: as `POST /api/members/:id/avatar` — a 512px WebP at
+ *   `avatars/members/<id>/<stamp>.webp`, no Media row.
+ * - `<stamp>` is a 13-digit number derived from the image's bytes, so keys are stable across resets
+ *   (a reset uploads only what the bucket lacks) and change when a refresh changes the image.
+ * - Anything that keeps an image from being placed fails the reset; FIXTURE_IMAGES=off skips images
+ *   on purpose. Off under vitest unless FIXTURE_IMAGES=on.
  */
 import { createHash } from 'node:crypto'
-import { existsSync, readFileSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
-import { type FixtureContext } from './context.js'
+import { extractImageMetadata } from '../src/services/media-metadata.js'
+import { getPublicUrl, objectExists, r2BucketName, uploadImageVariants, uploadToR2 } from '../src/services/storage.js'
+import { type FixtureContext, FixtureError } from './context.js'
 import { FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_PROGRAM_IDS, FIXTURE_USER_ID, fixtureId } from './ids.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const REPO_ROOT = path.resolve(here, '../..')
-export const IMAGE_DIR = path.resolve(here, '../public/fixture-images')
-const CATALOG_CACHE = path.join(IMAGE_DIR, 'catalog.json')
-export const COVER_WIDTH = 1200
-export const THUMB_WIDTH = 400
+export const IMAGE_DIR = path.join(here, 'images')
+export const MANIFEST_PATH = path.join(IMAGE_DIR, 'manifest.json')
 export const LIBRARY_SIZE = 12
 export const AVATAR_COUNT = 13
-export const AVATAR_SIZE = 200
+/** The longest side a committed original keeps — the widest size any upload produces. */
+export const SOURCE_WIDTH = 1200
 /**
  * D13: the members who get an avatar, by base index — the 8 men first, because the d2m set's 13
  * `Use: avatar` faces are all men; the other 11 members fall back to initials.
@@ -113,190 +119,159 @@ export function selectImages(catalog: readonly D2mImage[]): Selection {
   return { groups, programs, library, avatars }
 }
 
-function d2mApi(): string {
-  if (process.env.D2M_API_URL) return process.env.D2M_API_URL.replace(/\/$/, '')
-  try {
-    const config = JSON.parse(readFileSync(path.join(REPO_ROOT, '.d2m.json'), 'utf8')) as { api?: string }
-    if (config.api) return config.api.replace(/\/$/, '')
-  } catch {
-    // no .d2m.json: fall through to d2m's default port
-  }
-  return 'http://localhost:5961'
+/** What `fixtures/images/` holds: the selection by slug, and each image's d2m metadata. */
+export interface ImageManifest {
+  groups: Array<string | null>
+  programs: Record<string, string | null>
+  library: string[]
+  avatars: string[]
+  images: Record<string, { title: string; alt: string | null; mainColor: string | null }>
 }
 
-/** The base every stored URL starts with; null when nothing names a host devices can reach. */
-export function imageBaseUrl(env: NodeJS.ProcessEnv = process.env): string | null {
-  if (env.FIXTURE_IMAGE_BASE_URL) return env.FIXTURE_IMAGE_BASE_URL.replace(/\/$/, '')
-  const xcconfig = path.join(REPO_ROOT, 'iphone/Debug.xcconfig')
-  if (!existsSync(xcconfig)) return null
-  const host = /^\s*LOCAL_SERVER_URL\s*=\s*(\S+)/m.exec(readFileSync(xcconfig, 'utf8'))?.[1]
-  return host ? `http://${host}:${env.PORT ?? '3010'}` : null
-}
-
-async function loadCatalog(): Promise<D2mImage[] | null> {
-  const api = d2mApi()
-  try {
-    const res = await fetch(`${api}/api/projects/makeready/images`, { signal: AbortSignal.timeout(10_000) })
-    if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const items = ((await res.json()) as { items: D2mImage[] }).items
-    await mkdir(IMAGE_DIR, { recursive: true })
-    await writeFile(CATALOG_CACHE, JSON.stringify(items))
-    return items
-  } catch (error) {
-    if (existsSync(CATALOG_CACHE)) {
-      console.warn(`fixtures: d2m unreachable at ${api} (${(error as Error).message}) — using the cached image catalog`)
-      return JSON.parse(await readFile(CATALOG_CACHE, 'utf8')) as D2mImage[]
-    }
-    console.warn(`fixtures: d2m unreachable at ${api} (${(error as Error).message}) and no cached images — fixtures carry no images`)
-    return null
+export function manifestOf(selection: Selection): ImageManifest {
+  const all = [...selection.groups, ...Object.values(selection.programs), ...selection.library, ...selection.avatars]
+  return {
+    groups: selection.groups.map((i) => i?.slug ?? null),
+    programs: Object.fromEntries(Object.entries(selection.programs).map(([id, i]) => [id, i?.slug ?? null])),
+    library: selection.library.map((i) => i.slug),
+    avatars: selection.avatars.map((i) => i.slug),
+    images: Object.fromEntries(
+      all.filter((i): i is D2mImage => i !== null).map((i) => [i.slug, { title: i.title, alt: i.alt ?? null, mainColor: i.mainColor ?? null }])
+    ),
   }
 }
 
-interface Stored {
-  image: D2mImage
-  file: string
-  thumb: string
-  width: number
-  height: number
-  bytes: number
-  sha256: string
+export const sourceFile = (slug: string) => path.join(IMAGE_DIR, `${slug}.jpg`)
+
+/** A 13-digit, upload-timestamp-shaped number from the image bytes: stable per image, new per change. */
+export function keyStamp(bytes: Buffer): string {
+  const n = parseInt(createHash('sha256').update(bytes).digest('hex').slice(0, 8), 16)
+  return String(1_700_000_000_000 + n)
 }
 
-/** The image as a COVER_WIDTH JPEG + a THUMB_WIDTH thumbnail, from the cache or d2m. */
-async function store(image: D2mImage): Promise<Stored | null> {
-  const key = `${image.slug}-${(image.sha256 ?? 'x').slice(0, 8)}`
-  const file = `${key}-${COVER_WIDTH}.jpg`
-  const thumb = `${key}-${THUMB_WIDTH}.jpg`
-  const filePath = path.join(IMAGE_DIR, file)
-  const thumbPath = path.join(IMAGE_DIR, thumb)
-  try {
-    if (!existsSync(filePath) || !existsSync(thumbPath)) {
-      const res = await fetch(image.url, { signal: AbortSignal.timeout(30_000) })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const original = Buffer.from(await res.arrayBuffer())
-      await writeFile(filePath, await sharp(original).resize({ width: COVER_WIDTH, withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer())
-      await writeFile(thumbPath, await sharp(original).resize({ width: THUMB_WIDTH, withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer())
-    }
-    const buffer = await readFile(filePath)
-    const meta = await sharp(buffer).metadata()
-    return {
-      image,
-      file,
-      thumb,
-      width: meta.width ?? image.width,
-      height: meta.height ?? image.height,
-      bytes: buffer.length,
-      sha256: createHash('sha256').update(buffer).digest('hex'),
-    }
-  } catch (error) {
-    console.warn(`fixtures: image ${image.slug} skipped (${(error as Error).message})`)
-    return null
+/** Refuses a bucket that is, or may be, production — fixtures never write there. */
+export function assertFixtureBucket(env: NodeJS.ProcessEnv = process.env): void {
+  const missing = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME', 'R2_PUBLIC_URL'].filter((k) => !env[k])
+  if (missing.length) {
+    throw new FixtureError(`fixture images need R2 — ${missing.join(', ')} not set (FIXTURE_IMAGES=off skips images)`)
+  }
+  if (env.R2_BUCKET_NAME === 'makeready-media' || /images\.makeready\.org/.test(env.R2_PUBLIC_URL ?? '')) {
+    throw new FixtureError(`refusing to seed fixture images into the production bucket (${env.R2_BUCKET_NAME}, ${env.R2_PUBLIC_URL})`)
   }
 }
 
-/** D13: a square AVATAR_SIZE JPEG (centre crop), from the cache or d2m; the file name, or null. */
-async function storeAvatar(image: D2mImage): Promise<string | null> {
-  const file = `${image.slug}-${(image.sha256 ?? 'x').slice(0, 8)}-avatar-${AVATAR_SIZE}.jpg`
-  const filePath = path.join(IMAGE_DIR, file)
-  try {
-    if (!existsSync(filePath)) {
-      const res = await fetch(image.url, { signal: AbortSignal.timeout(30_000) })
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const original = Buffer.from(await res.arrayBuffer())
-      await writeFile(
-        filePath,
-        await sharp(original).resize({ width: AVATAR_SIZE, height: AVATAR_SIZE, fit: 'cover' }).jpeg({ quality: 80 }).toBuffer()
-      )
-    }
-    return file
-  } catch (error) {
-    console.warn(`fixtures: avatar ${image.slug} skipped (${(error as Error).message})`)
-    return null
-  }
+/** The JPEG ladder every cover and library upload writes (groups.ts, programs.ts, media.ts). */
+async function ladder(source: Buffer): Promise<[Buffer, Buffer, Buffer]> {
+  return Promise.all([
+    sharp(source).resize(1200, null, { withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer(),
+    sharp(source).resize(400, null, { withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer(),
+    sharp(source).resize(150, null, { withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer(),
+  ])
 }
 
-const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
+interface Placed {
+  url: string
+  thumbnailUrl: string
+  fileSize: number
+  meta: Awaited<ReturnType<typeof extractImageMetadata>>
+}
 
-/** Run after the base graph exists: covers on groups and programs, the media library, its usages. */
+/** Uploads `<prefix>/<baseName>` (JPEG + WebP ladder) unless the bucket has it; its public URL. */
+async function placeLadder(prefix: string, baseName: string, source: Buffer): Promise<Placed> {
+  const [original, medium, thumb] = await ladder(source)
+  const key = `${prefix}/${baseName}.jpeg`
+  if (!(await objectExists(key))) await uploadImageVariants(prefix, baseName, 'jpeg', original, medium, thumb)
+  const url = getPublicUrl(key)
+  return { url, thumbnailUrl: url.replace('.jpeg', '-thumb.jpeg'), fileSize: original.length, meta: await extractImageMetadata(source) }
+}
+
+async function readSource(slug: string): Promise<Buffer> {
+  const file = sourceFile(slug)
+  if (!existsSync(file)) throw new FixtureError(`fixture image ${slug} missing at ${file} — run npm run fixtures:images:refresh`)
+  return readFile(file)
+}
+
+/** Run after the base graph exists: covers on groups and programs, the media library, avatars. */
 export async function seedImages(ctx: FixtureContext): Promise<void> {
   const flag = process.env.FIXTURE_IMAGES
   if (flag === 'off' || (process.env.VITEST && flag !== 'on')) return
-  const base = imageBaseUrl()
-  if (!base) {
-    console.warn('fixtures: no FIXTURE_IMAGE_BASE_URL and no LOCAL_SERVER_URL in iphone/Debug.xcconfig — fixtures carry no images')
-    return
-  }
-  const catalog = await loadCatalog()
-  if (!catalog) return
-  const selection = selectImages(catalog)
-  await mkdir(IMAGE_DIR, { recursive: true })
-
-  const all = [...selection.groups, ...Object.values(selection.programs), ...selection.library].filter((i): i is D2mImage => i !== null)
-  const stored = new Map<string, Stored>()
-  for (const image of all) {
-    const s = await store(image)
-    if (s) stored.set(image.slug, s)
-  }
-  const urlOf = (file: string) => `${base}/fixture-images/${file}`
+  assertFixtureBucket()
+  if (!existsSync(MANIFEST_PATH)) throw new FixtureError(`no ${MANIFEST_PATH} — run npm run fixtures:images:refresh`)
+  const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8')) as ImageManifest
   const { prisma } = ctx
+  console.log(`fixtures: placing images in R2 bucket ${r2BucketName()}`)
 
-  // Media rows: every stored image, oldest first, added over the last ~10 weeks.
-  const ordered = all.filter((i) => stored.has(i.slug))
-  const mediaId = new Map<string, string>()
-  await prisma.media.createMany({
-    data: ordered.map((image, n) => {
-      const s = stored.get(image.slug)!
-      const id = fixtureId('media', n + 1)
-      mediaId.set(image.slug, id)
-      const d = gcd(s.width, s.height) || 1
-      return {
-        id,
-        title: image.title,
-        description: null,
-        url: urlOf(s.file),
-        type: 'photo',
-        mimeType: 'image/jpeg',
-        fileSize: s.bytes,
-        organizationId: FIXTURE_ORG_ID,
-        uploadedBy: FIXTURE_USER_ID,
-        visibility: 'members',
-        thumbnailUrl: urlOf(s.thumb),
-        uploadStatus: 'ready',
-        source: 'import',
-        width: s.width,
-        height: s.height,
-        aspectRatio: `${s.width / d}:${s.height / d}`,
-        dominantColor: image.mainColor ?? null,
-        altText: image.alt ?? null,
-        fileHash: s.sha256,
-        createdAt: ctx.daysAgo(70 - n * 3),
-      }
-    }),
-  })
-
-  const usages: Array<{ mediaId: string; usageType: string; resourceId: string; resourceName: string }> = []
-  for (const [i, image] of selection.groups.entries()) {
-    const s = image && stored.get(image.slug)
-    if (!s) continue
-    const group = ctx.created.groups.find((g) => g.id === FIXTURE_GROUP_IDS[i])
-    await prisma.group.update({ where: { id: FIXTURE_GROUP_IDS[i] }, data: { coverImageUrl: urlOf(s.file) } })
-    usages.push({ mediaId: mediaId.get(image.slug)!, usageType: 'GROUP_COVER', resourceId: FIXTURE_GROUP_IDS[i], resourceName: group?.name ?? '' })
+  let n = 0
+  const mediaRow = (p: Placed, title: string, slug: string, source: 'auto_capture' | 'direct') => {
+    n += 1
+    const info = manifest.images[slug]
+    return {
+      id: fixtureId('media', n),
+      title,
+      url: p.url,
+      type: 'photo',
+      mimeType: 'image/jpeg',
+      fileSize: p.fileSize,
+      thumbnailUrl: p.thumbnailUrl,
+      organizationId: FIXTURE_ORG_ID,
+      uploadedBy: FIXTURE_USER_ID,
+      visibility: 'members',
+      uploadStatus: 'ready',
+      source,
+      width: p.meta.width,
+      height: p.meta.height,
+      aspectRatio: p.meta.aspectRatio,
+      dominantColor: p.meta.dominantColor ?? info?.mainColor ?? null,
+      altText: info?.alt ?? null,
+      // media.ts stores the hash on a direct upload; a cover's capture does not.
+      fileHash: source === 'direct' ? p.meta.fileHash : null,
+      createdAt: ctx.daysAgo(70 - n * 3),
+    }
   }
-  for (const [programId, image] of Object.entries(selection.programs)) {
-    const s = image && stored.get(image.slug)
-    if (!s) continue
-    const program = ctx.created.programs.find((p) => p.id === programId)
-    await prisma.studyProgram.update({ where: { id: programId }, data: { coverImageUrl: urlOf(s.file) } })
-    usages.push({ mediaId: mediaId.get(image.slug)!, usageType: 'PROGRAM_COVER', resourceId: programId, resourceName: program?.name ?? '' })
-  }
-  await prisma.mediaUsage.createMany({ data: usages.map((u, n) => ({ id: fixtureId('mediaUsage', n + 1), ...u })) })
 
-  // D13 (ui2-members-browse): avatars are Member.profilePicture only, never library media.
-  for (const [n, image] of selection.avatars.entries()) {
-    const memberIndex = AVATAR_MEMBER_INDICES[n]
+  // Covers: as the cover-image endpoints leave them, captured to the library with their usage.
+  const covers: Array<{ kind: 'GROUP_COVER' | 'PROGRAM_COVER'; id: string; name: string; slug: string }> = []
+  for (const [i, slug] of manifest.groups.entries()) {
+    const id = FIXTURE_GROUP_IDS[i]
+    const group = ctx.created.groups.find((g) => g.id === id)
+    if (slug && id) covers.push({ kind: 'GROUP_COVER', id, name: group?.name ?? '', slug })
+  }
+  for (const [id, slug] of Object.entries(manifest.programs)) {
+    const program = ctx.created.programs.find((p) => p.id === id)
+    if (slug) covers.push({ kind: 'PROGRAM_COVER', id, name: program?.name ?? '', slug })
+  }
+  const rows = []
+  const usages = []
+  for (const c of covers) {
+    const source = await readSource(c.slug)
+    const isGroup = c.kind === 'GROUP_COVER'
+    const placed = await placeLadder(isGroup ? 'groups' : 'programs', `${isGroup ? 'group' : 'program'}-${c.id}-${keyStamp(source)}`, source)
+    if (isGroup) await prisma.group.update({ where: { id: c.id }, data: { coverImageUrl: placed.url } })
+    else await prisma.studyProgram.update({ where: { id: c.id }, data: { coverImageUrl: placed.url } })
+    const row = mediaRow(placed, `${c.name} - Cover Image`, c.slug, 'auto_capture')
+    rows.push(row)
+    usages.push({ id: fixtureId('mediaUsage', usages.length + 1), mediaId: row.id, usageType: c.kind, resourceId: c.id, resourceName: c.name })
+  }
+
+  // Library photos: as a direct library upload leaves them.
+  for (const slug of manifest.library) {
+    const source = await readSource(slug)
+    const placed = await placeLadder('library', `library-${FIXTURE_USER_ID}-${keyStamp(source)}`, source)
+    rows.push(mediaRow(placed, manifest.images[slug]?.title ?? slug, slug, 'direct'))
+  }
+  await prisma.media.createMany({ data: rows })
+  await prisma.mediaUsage.createMany({ data: usages })
+
+  // D13: avatars as the avatar endpoint leaves them — Member.profilePicture only, never library media.
+  for (const [i, slug] of manifest.avatars.entries()) {
+    const memberIndex = AVATAR_MEMBER_INDICES[i]
     if (memberIndex === undefined) break
-    const file = await storeAvatar(image)
-    if (!file) continue
-    await prisma.member.update({ where: { id: FIXTURE_MEMBER_IDS[memberIndex] }, data: { profilePicture: urlOf(file) } })
+    const memberId = FIXTURE_MEMBER_IDS[memberIndex]
+    const source = await readSource(slug)
+    const webp = await sharp(source).resize(512, 512, { fit: 'cover', withoutEnlargement: true }).webp({ quality: 85 }).toBuffer()
+    const key = `avatars/members/${memberId}/${keyStamp(source)}.webp`
+    if (!(await objectExists(key))) await uploadToR2(key, webp, 'image/webp')
+    await prisma.member.update({ where: { id: memberId }, data: { profilePicture: getPublicUrl(key) } })
   }
+  console.log(`fixtures: ${covers.length} covers, ${manifest.library.length} library photos, ${manifest.avatars.length} avatars in R2`)
 }

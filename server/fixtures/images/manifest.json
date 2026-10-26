@@ -1,0 +1,192 @@
+{
+  "groups": [
+    "image-9",
+    "image-11",
+    "image-6"
+  ],
+  "programs": {
+    "f1f1f1f1-0005-4000-8000-000000000001": "genesis-abram-stars",
+    "f1f1f1f1-0005-4000-8000-000000000002": "john-well-conversation"
+  },
+  "library": [
+    "1-chronicles-ark-musicians",
+    "1-corinthians-love-in-practice",
+    "1-john-love-deed",
+    "1-kings-divided-kingdom",
+    "1-peter-exiles-hope",
+    "1-samuel-david-goliath",
+    "1-thessalonians-awake-dawn",
+    "1-timothy-care-vulnerable",
+    "2-chronicles-passover-restored",
+    "2-corinthians-comfort-shared",
+    "2-john-truth-and-love",
+    "2-kings-exile-city"
+  ],
+  "avatars": [
+    "barry-allen",
+    "bruce-banner",
+    "bruce-wayne",
+    "clark-kent",
+    "guy-gardner",
+    "hal-jordan",
+    "logan",
+    "luke-cage",
+    "matt-murdock",
+    "peter-parker",
+    "steven-strange",
+    "tony-stark",
+    "wade-wilson"
+  ],
+  "images": {
+    "image-9": {
+      "title": "Men's Bible study around a round table",
+      "alt": "Five men laughing together around a round table with open Bibles in a sunlit fellowship hall",
+      "mainColor": "#695f55"
+    },
+    "image-11": {
+      "title": "Small group reading Bibles around a coffee table",
+      "alt": "Overhead view of four men reading open Bibles around a rustic wooden coffee table with mugs of coffee",
+      "mainColor": "#594e42"
+    },
+    "image-6": {
+      "title": "Open Bibles and lattes on a wooden table",
+      "alt": "Open Bibles and cups of latte art spread across a rustic wooden table during a group study",
+      "mainColor": "#695543"
+    },
+    "genesis-abram-stars": {
+      "title": "Genesis — Abram counts the stars (Genesis 15)",
+      "alt": "Night engraving of an old bearded Abram with a hand on his chest gazing up at a sky full of stars, his tent behind him on the hills",
+      "mainColor": "#302d29"
+    },
+    "john-well-conversation": {
+      "title": "John — Jesus and the woman at the well (John 4)",
+      "alt": "Engraving of Jesus gesturing as he talks with a veiled woman seated beside a stone well and a water jar, a hill town and olive trees behind them",
+      "mainColor": "#7d776d"
+    },
+    "1-chronicles-ark-musicians": {
+      "title": "1 Chronicles — Bringing the ark with music (1 Chronicles 15–16)",
+      "alt": "Engraving of a bearded man's hands playing a lyre in the foreground while priests carry the winged ark on poles, blowing trumpets and shaking a tambourine before a walled city gate",
+      "mainColor": "#787269"
+    },
+    "1-corinthians-love-in-practice": {
+      "title": "1 Corinthians — Washing a brother’s feet (1 Corinthians 13)",
+      "alt": "Engraving of a man kneeling to dry another man’s foot over a wash basin, while a woman with a water jar and two men watch beneath a stone arch",
+      "mainColor": "#676057"
+    },
+    "1-john-love-deed": {
+      "title": "1 John — Love in deed, sharing bread (1 John 3:16–18; 4:7–12)",
+      "alt": "Sepia engraving of a bearded man in a turban handing a loaf of bread to a ragged old man seated by a doorway, with a smiling woman and a boy holding bread behind",
+      "mainColor": "#696258"
+    },
+    "1-kings-divided-kingdom": {
+      "title": "1 Kings — Broken crown at the fork in the road (1 Kings 12)",
+      "alt": "Engraving of a broken royal crown on a rocky ledge between two diverging roads, each leading uphill to a walled city, with a valley and lake in the distance",
+      "mainColor": "#7c766d"
+    },
+    "1-peter-exiles-hope": {
+      "title": "1 Peter — Exiles walking toward the dawn (1 Peter 1:1–9; 2:11–12)",
+      "alt": "Sepia engraving of travelers with packs and staves and a lamb seen from behind on a rocky path, looking toward a rising sun over a river valley and a walled town",
+      "mainColor": "#766f65"
+    },
+    "1-samuel-david-goliath": {
+      "title": "1 Samuel — David faces Goliath (1 Samuel 17)",
+      "alt": "Light engraving of a young David with a sling seen from behind facing a tall armored Goliath with spear and shield across a rocky valley, with armies on both ridges",
+      "mainColor": "#b9afa0"
+    },
+    "1-thessalonians-awake-dawn": {
+      "title": "1 Thessalonians — Watching for the dawn (1 Thessalonians 5)",
+      "alt": "Engraving of a watchman with a staff standing on a rocky wall at left, looking over a walled town with lit windows toward a sunrise over distant mountains",
+      "mainColor": "#6a655e"
+    },
+    "1-timothy-care-vulnerable": {
+      "title": "1 Timothy — Bringing a basket to a widow (1 Timothy 5)",
+      "alt": "Engraving of a woman handing a basket of bread and grapes to a smiling elderly woman at her doorway, a man with a jug and a boy with a fruit basket beside her",
+      "mainColor": "#635d55"
+    },
+    "2-chronicles-passover-restored": {
+      "title": "2 Chronicles — Hezekiah’s Passover meal (2 Chronicles 30)",
+      "alt": "Engraving of smiling men, women and children sharing bread, grapes and wine at a laden table, with pilgrims climbing the steps toward a large temple gate behind them",
+      "mainColor": "#6a635c"
+    },
+    "2-corinthians-comfort-shared": {
+      "title": "2 Corinthians — Comforting a grieving friend (2 Corinthians 1)",
+      "alt": "Engraving of a distressed man holding his head while an older bearded man puts an arm around his shoulder and speaks to him, two friends sitting close",
+      "mainColor": "#4f4b45"
+    },
+    "2-john-truth-and-love": {
+      "title": "2 John — Walking in truth and love as a family (2 John 1:1–6)",
+      "alt": "Sepia engraving of a white-bearded old man with a staff walking with a woman, a boy, a girl holding flowers and two younger men along a garden path, all smiling",
+      "mainColor": "#767066"
+    },
+    "2-kings-exile-city": {
+      "title": "2 Kings — Led into exile from the burning city (2 Kings 25)",
+      "alt": "Engraving of Judean exiles with bundles walking away from a smoking, ruined walled city, an old man with a staff and a mother carrying a baby in front, armed guards following",
+      "mainColor": "#69635b"
+    },
+    "barry-allen": {
+      "title": "Young man with swept-back hair, maroon jacket",
+      "alt": "Young man with swept-back brown hair and a maroon jacket, looking to the side",
+      "mainColor": "#6d554b"
+    },
+    "bruce-banner": {
+      "title": "Man with glasses and green-tinted skin",
+      "alt": "Man with graying hair, dark-rimmed glasses and green-tinted skin, in a blue sweater",
+      "mainColor": "#65655b"
+    },
+    "bruce-wayne": {
+      "title": "Serious man with dark hair over his forehead",
+      "alt": "Serious-looking man with dark hair falling over his forehead, wearing a dark sweater",
+      "mainColor": "#4f5a57"
+    },
+    "clark-kent": {
+      "title": "Smiling man in large glasses and a suit",
+      "alt": "Smiling man with slicked dark hair and large glasses, in a suit and tie",
+      "mainColor": "#656167"
+    },
+    "guy-gardner": {
+      "title": "Man with blond bowl cut in warm light",
+      "alt": "Man with a blond bowl haircut, backlit by warm orange light",
+      "mainColor": "#a57859"
+    },
+    "hal-jordan": {
+      "title": "Man wearing a green eye mask",
+      "alt": "Man in a green eye mask and green suit against a cloudy sky",
+      "mainColor": "#656c70"
+    },
+    "logan": {
+      "title": "Bearded man with tousled hair, intense look",
+      "alt": "Man with tousled dark hair and thick sideburn beard, frowning at the camera",
+      "mainColor": "#6f5449"
+    },
+    "luke-cage": {
+      "title": "Bald bearded man on a dark background",
+      "alt": "Bald man with a short beard looking straight at the camera against a dark background",
+      "mainColor": "#4a3823"
+    },
+    "matt-murdock": {
+      "title": "Man in red sunglasses against a night city",
+      "alt": "Man with short hair and round red-lensed sunglasses, dark suit, city skyline at night behind him",
+      "mainColor": "#524750"
+    },
+    "peter-parker": {
+      "title": "Young man with a worried expression",
+      "alt": "Young man with tousled brown hair and a concerned look, red collar visible, dark background",
+      "mainColor": "#684f4f"
+    },
+    "steven-strange": {
+      "title": "Man with goatee and graying temples, red collar",
+      "alt": "Man with swept-back dark hair, graying temples and a goatee, wearing a high red collar, frowning slightly",
+      "mainColor": "#7f534a"
+    },
+    "tony-stark": {
+      "title": "Man with styled goatee in a dark suit",
+      "alt": "Man with dark hair and a trimmed goatee in a dark suit jacket, plain gray studio background",
+      "mainColor": "#6e5e57"
+    },
+    "wade-wilson": {
+      "title": "Bald man with heavily scarred skin",
+      "alt": "Bald man with heavily textured, scarred skin, white T-shirt, a small furry animal beside his face",
+      "mainColor": "#7e5144"
+    }
+  }
+}

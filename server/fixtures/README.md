@@ -151,21 +151,27 @@ Run `cd server && npx tsc --noEmit -p fixtures` and `npm run fixtures:reset`; ad
 `server/bin/atlas` is absent in git worktrees; use a global `atlas`. `npm run db:seed` and
 `migrate:*` go through dotenv and read `server/.env`.
 
-## Images (home-dashboard-data D22)
+## Images (home-dashboard-data D22, fixture-real-uploads)
 
-`fixtures:reset` gives the three groups and two programs cover images and fills the media library
-(17 photos, 5 of them linked as covers through `media_usages`). The images come from the d2m
-`makeready` image set (`GET <d2m>/api/projects/makeready/images`, d2m from `.d2m.json` or
-`D2M_API_URL`), picked by their tags (Subject `group`, Book `genesis`/`john`, Use `cover`),
-resized to 1200 px + 400 px JPEGs in `server/public/fixture-images/` (gitignored) and served by the
-server's static route.
+`fixtures:reset` seeds images as **real content**: the files go to the server's R2 bucket under the
+keys a real upload uses, and the rows are shaped as that upload writes them — only the way they got
+there differs.
 
-Stored URLs are `<FIXTURE_IMAGE_BASE_URL>/fixture-images/<file>`. The default base is the iPhone's
-Local host (`LOCAL_SERVER_URL` in `iphone/Debug.xcconfig`) on this server's `PORT`, so the
-simulator, a device over Tailscale and the web all load them. Set `FIXTURE_IMAGE_BASE_URL` when
-resetting from somewhere that default doesn't fit — e.g. inside the docker server container, where
-`iphone/` isn't mounted: `FIXTURE_IMAGE_BASE_URL=http://lukes-macbook-pro:3010`.
+| What | Stored as (the endpoint it mirrors) |
+|---|---|
+| 3 group covers, 2 program covers | `groups/group-<id>-<stamp>` / `programs/program-<id>-<stamp>` JPEG + WebP ladder; `coverImageUrl` = its R2 URL; a Media row "<name> - Cover Image" (source `auto_capture`) + its `GROUP_COVER`/`PROGRAM_COVER` usage (`POST /api/groups/:id/cover-image`, `/api/programs/:id/cover-image`) |
+| 12 library photos | `library/library-<fixtureUserId>-<stamp>` ladder, Media row source `direct` (`POST /api/media`) |
+| 13 member avatars | a 512px WebP at `avatars/members/<id>/<stamp>.webp` → `Member.profilePicture`, no Media row (`POST /api/members/:id/avatar`) |
 
-d2m is only needed for the first pull; later resets reuse the files and a cached catalog. With
-neither, the reset still succeeds with no images and says so. Images are off under vitest unless
-`FIXTURE_IMAGES=on`; `FIXTURE_IMAGES=off` turns them off anywhere.
+`<stamp>` is a 13-digit number derived from the image's bytes, so a reset uploads only what the
+bucket lacks, and a refreshed image gets a new key.
+
+**Source.** The 30 originals live in `fixtures/images/` (≤1200px JPEGs + `manifest.json`: the
+selection and each image's d2m title, alt and colour), committed — a reset never contacts d2m and
+works in the container, on the host and in agent walks. `npm run fixtures:images:refresh` (on the
+host, d2m running) re-pulls the selection from the d2m `makeready` image set; commit the result.
+
+**Failure is loud.** No R2 settings (`R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`,
+`R2_BUCKET_NAME`, `R2_PUBLIC_URL`), an upload error or a missing file fails the reset. It refuses the
+production bucket (`makeready-media` / `images.makeready.org`). `FIXTURE_IMAGES=off` skips images on
+purpose; images are off under vitest unless `FIXTURE_IMAGES=on`.

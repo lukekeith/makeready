@@ -105,4 +105,3 @@ capture/node_modules/
 .#*
 
 # Fixture images pulled from d2m by fixtures:reset (home-dashboard-data D22)
-server/public/fixture-images/
