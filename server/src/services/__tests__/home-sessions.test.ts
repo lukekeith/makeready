@@ -111,4 +111,22 @@ describe('loadSessions (D2 sources)', () => {
       select: { id: true },
     })
   })
+
+  it('narrows every source to one member when memberId is set (ui2-members-browse D12)', async () => {
+    await loadSessions(scope, window, { memberId: 'm1' })
+    const padded = { gte: at('2026-10-20T04:00:00Z'), lt: at('2026-10-20T18:00:00Z') }
+    const scheduleWhere = { enrollment: { group: { OR: [{ organizationId: { in: ['o1'] } }, { id: { in: [] } }] } } }
+    expect(prismaMock.clientEvent.findMany).toHaveBeenCalledWith({
+      where: { memberId: 'm1', occurredAt: padded, OR: [{ organizationId: { in: ['o1'] } }, { groupId: { in: [] } }] },
+      select: { memberId: true, occurredAt: true },
+    })
+    expect(prismaMock.memberLessonProgress.findMany).toHaveBeenCalledWith({
+      where: { completedAt: padded, lessonSchedule: scheduleWhere, memberId: 'm1' },
+      select: { memberId: true, completedAt: true },
+    })
+    expect(prismaMock.memberVideoProgress.findMany).toHaveBeenCalledWith({
+      where: { OR: [{ startedAt: padded }, { lastWatchedAt: padded }], lessonSchedule: scheduleWhere, memberId: 'm1' },
+      select: { memberId: true, startedAt: true, lastWatchedAt: true },
+    })
+  })
 })

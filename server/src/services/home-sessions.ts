@@ -61,24 +61,30 @@ function clientEventScope(scope: AnalyticsScope): Prisma.ClientEventWhereInput {
   return { OR: [{ organizationId: { in: scope.orgIds } }, { groupId: { in: scope.groupIds } }] }
 }
 
-export async function loadSessions(scope: AnalyticsScope, window: { from: Date; to: Date }): Promise<Session[]> {
+export async function loadSessions(
+  scope: AnalyticsScope,
+  window: { from: Date; to: Date },
+  opts: { memberId?: string } = {}
+): Promise<Session[]> {
   const from = new Date(window.from.getTime() - LOAD_PAD_MS)
   const to = new Date(window.to.getTime() + LOAD_PAD_MS)
   const range = { gte: from, lt: to }
   const inRange = (d: Date) => d >= from && d < to
   const scheduleWhere = { enrollment: { group: scopeGroupWhere(scope) } }
+  // ui2-members-browse D12: the member page's day rail reads one member's sessions.
+  const member = opts.memberId ? { memberId: opts.memberId } : {}
 
   const [events, lessons, videos] = await Promise.all([
     prisma.clientEvent.findMany({
-      where: { memberId: { not: null }, occurredAt: range, ...clientEventScope(scope) },
+      where: { memberId: { not: null }, occurredAt: range, ...clientEventScope(scope), ...member },
       select: { memberId: true, occurredAt: true },
     }),
     prisma.memberLessonProgress.findMany({
-      where: { completedAt: range, lessonSchedule: scheduleWhere },
+      where: { completedAt: range, lessonSchedule: scheduleWhere, ...member },
       select: { memberId: true, completedAt: true },
     }),
     prisma.memberVideoProgress.findMany({
-      where: { OR: [{ startedAt: range }, { lastWatchedAt: range }], lessonSchedule: scheduleWhere },
+      where: { OR: [{ startedAt: range }, { lastWatchedAt: range }], lessonSchedule: scheduleWhere, ...member },
       select: { memberId: true, startedAt: true, lastWatchedAt: true },
     }),
   ])
