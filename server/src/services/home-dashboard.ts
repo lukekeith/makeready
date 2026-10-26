@@ -22,6 +22,7 @@ export const ACTIVE_DAYS = 7
 export interface HomeSessions {
   averageSeconds: number
   sessionCount: number
+  /** D23: sessions active during each local hour 0–23 (a session counts in every hour it spans). */
   hourly: number[]
   /** D18: sessions per session-length band — STRIP_BINS equal bands over 0 … axisMinutes, max band = 1. */
   bins: number[]
@@ -153,16 +154,28 @@ export function sessionLengthAxis(longestMinutes: number): { axisMinutes: number
   return { axisMinutes: pick.axis, ticks: Array.from({ length: pick.count + 1 }, (_, i) => i * pick.step) }
 }
 
+/** D23: the step the dial walks a session at to find every local hour it overlaps. */
+const HOUR_PROBE_MS = 5 * 60_000
+
+/** D23: the local hours (0–23) a session is active in — its start, every probe inside it, its end. */
+export function hoursActive(session: Session, tz: string): Set<number> {
+  const start = session.start.getTime()
+  const end = start + session.seconds * 1000
+  const hours = new Set<number>([localHourOf(session.start, tz)])
+  for (let t = start + HOUR_PROBE_MS; t < end; t += HOUR_PROBE_MS) hours.add(localHourOf(new Date(t), tz))
+  if (end > start) hours.add(localHourOf(new Date(end - 1), tz))
+  return hours
+}
+
 export function summarizeSessions(sessions: Session[], window: { from: Date; to: Date }, tz: string): HomeSessions {
   const inWindow = sessions.filter((s) => s.start >= window.from && s.start < window.to)
-  const hourSums: number[] = Array(24).fill(0)
-  const hourCounts: number[] = Array(24).fill(0)
+  // D23 (supersedes D8's mean length per start hour): activity concentration — how many
+  // sessions are active during each local hour, a session counting once in every hour it spans.
+  const hourly: number[] = Array(24).fill(0)
   const binSums: number[] = Array(STRIP_BINS).fill(0)
   let total = 0
   for (const s of inWindow) {
-    const hour = localHourOf(s.start, tz)
-    hourSums[hour] += s.seconds
-    hourCounts[hour] += 1
+    for (const hour of hoursActive(s, tz)) hourly[hour] += 1
     total += s.seconds
   }
   // D18: a histogram of session LENGTH (end − start): how many sessions fall in each band.
@@ -176,7 +189,7 @@ export function summarizeSessions(sessions: Session[], window: { from: Date; to:
   return {
     averageSeconds: inWindow.length > 0 ? Math.round(total / inWindow.length) : 0,
     sessionCount: inWindow.length,
-    hourly: hourSums.map((sum, h) => (hourCounts[h] > 0 ? Math.round(sum / hourCounts[h]) : 0)),
+    hourly,
     bins: binSums.map((v) => (maxBin > 0 ? Math.round((v / maxBin) * 1000) / 1000 : 0)),
     ticks: inWindow.length > 0 ? axis.ticks : [0],
     axisMinutes: inWindow.length > 0 ? axis.axisMinutes : 0,

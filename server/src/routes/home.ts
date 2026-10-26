@@ -70,7 +70,7 @@ function failed(res: Response, error: unknown, what: string) {
  *       - { in: query, name: tz, schema: { type: string, example: America/Chicago } }
  *       - { in: query, name: organizationId, schema: { type: string } }
  *     responses:
- *       200: { description: "{ averageSeconds, sessionCount, hourly[24], bins[88] (sessions per length band), ticks[≤4 minutes], axisMinutes }" }
+ *       200: { description: "{ averageSeconds, sessionCount, hourly[24] (sessions active per local hour), bins[88] (sessions per length band), ticks[≤4 minutes], axisMinutes }" }
  *       400: { description: Bad range or timezone }
  *       404: { description: Empty scope }
  */

@@ -31,9 +31,9 @@
 |---|---|---|---|---|
 | 1 | server | 1 | `scheduled_lessons` is queryable through `/api/analytics/query`, from a new `ls:` matview arm | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 2 | server | 2–6 | `/api/home/{sessions,days,engagement,following}` answer per §Contract, scoped like analytics | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
-| 3 | server | 7, 13, 15, 16 | `fixtures:reset` makes every Home section non-zero; the contract freezes (re-closes after Task 13) | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
+| 3 | server | 7, 13, 15, 16, 17 | `fixtures:reset` makes every Home section non-zero; the contract freezes (re-closes after Task 13) | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 4 | iphone | 8–9 | `DashboardSnapshot` carries and caches every new section; `refresh()` fetches them, non-fatally | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
-| 5 | iphone | 10–12, 14 | `HomeDashboardMapper` fills Activity, day cards, Sessions (per range), Engagement and Following; Task 14 lands D18–D20 on the device build | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
+| 5 | iphone | 10–12, 14, 18 | `HomeDashboardMapper` fills Activity, day cards, Sessions (per range), Engagement and Following; Task 14 lands D18–D20 on the device build | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 
 ---
 
@@ -3870,4 +3870,20 @@ Recipe: /api (server) — fixtures layer
 - Tests: `__tests__/images.test.ts` (preferred/pool picks, library spread, determinism, base URL); `base.db.test.ts` (e) media 0 under vitest.
 
 **Done when:** fixtures suite green on a throwaway DB; a walk-env reset stores reachable covers (HTTP 200 via the Local host).
+
+### Task 17: Sessions dial = activity concentration (D23, owner 2026-10-25)
+App: server
+Phase: 3
+
+**Files:** `server/src/services/home-dashboard.ts` (`hoursActive()`, `summarizeSessions` hourly = sessions active per local hour),
+`server/src/routes/home.ts` (OpenAPI line). Tests: `home-dashboard.test.ts` (two sessions in hour 9 → 2; 06:50–07:20 → hours 6 and 7).
+Contract shape unchanged (`hourly: [24 number]`); its meaning changed — consumer iphone maps it straight to C-029 `hourValues`.
+
+### Task 18: Pull-to-refresh on Home (D24, owner 2026-10-25)
+App: iphone
+Phase: 5
+
+**Files:** `MakeReady/UI2/Shell/HomeSectionLayout.swift` (`SectionPageScroll` arms at 72 pt, haptic, ActivitySpinner, 48 pt gap while refreshing),
+`MakeReady/UI2/Shell/UI2Shell.swift` (`refreshAction`, Home only), `MakeReady/UI2/Containers/Home/HomeDashboardContainer.swift`
+(`static refresh(authManager:)`), `MakeReady/State/Models/DashboardModels.swift` (D23 comment).
 

@@ -104,14 +104,26 @@ describe('summarizeSessions (D8, D18)', () => {
     session('x', '2026-10-19T04:00:00Z', 9999), // before the window: ignored
   ]
 
-  it('averages, counts, and builds the 24-hour dial from start hours', () => {
+  it('averages and counts sessions', () => {
     const s = summarizeSessions(sessions, window, CHI)
     expect(s.averageSeconds).toBe(700)
     expect(s.sessionCount).toBe(3)
+  })
+
+  it('makes the dial activity concentration: sessions active during each local hour (D23)', () => {
+    const s = summarizeSessions(sessions, window, CHI)
     expect(s.hourly).toHaveLength(24)
-    expect(s.hourly[9]).toBe(900)
-    expect(s.hourly[18]).toBe(300)
+    expect(s.hourly[9]).toBe(2) // a 09:00–09:10 and b 09:30–09:50
+    expect(s.hourly[18]).toBe(1)
     expect(s.hourly.filter((v) => v > 0)).toHaveLength(2)
+  })
+
+  it('counts a session in every hour it overlaps (D23)', () => {
+    // 06:50–07:20 CDT
+    const s = summarizeSessions([session('d', '2026-10-21T11:50:00Z', 1800)], window, CHI)
+    expect(s.hourly[6]).toBe(1)
+    expect(s.hourly[7]).toBe(1)
+    expect(s.hourly.reduce((a, b) => a + b, 0)).toBe(2)
   })
 
   it('histograms session LENGTH into 88 bands over a readable 0 … longest axis (D18)', () => {
