@@ -1,5 +1,5 @@
 # ui2-members-browse — spec
-> 🤖 AGENT SIGNED OFF 2026-10-26 — e25698c · agent walk round 3 · not human-tested · evidence: .builder/ui2-members-browse/agent-walk/round-3/
+> ✅ SHIPPED 2026-10-26 — merged into ui2-preview-build · no ticket · 🤖 agent signed off (walk round 3), not human-tested
 > lg · child 1 of program `ui2-members` (docs/features/ui2-members/PROGRAM.md)
 
 ## Idea
