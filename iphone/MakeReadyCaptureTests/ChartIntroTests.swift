@@ -210,4 +210,16 @@ final class ChartIntroTests: XCTestCase {
     func testStatusDiscPulsesToSpecScale() {
         XCTAssertEqual(EnrollmentStatusRow.pulsePeak, 1.3)
     }
+
+    // MARK: - Task 7: HomeDashboardScreen
+
+    /// D8: the cards on screen when a rail reveals cascade by their place from its leading
+    /// card; a card past the fourth waits no longer, and one before the lead does not wait.
+    func testRailCascadeDelay() {
+        XCTAssertEqual(HomeDashboardScreen.cascadeDelay(index: 0, lead: 0), 0)
+        XCTAssertEqual(HomeDashboardScreen.cascadeDelay(index: 2, lead: 0), 0.12, accuracy: 1e-9)
+        XCTAssertEqual(HomeDashboardScreen.cascadeDelay(index: 9, lead: 0), 0.18, accuracy: 1e-9)
+        XCTAssertEqual(HomeDashboardScreen.cascadeDelay(index: 182, lead: 181), 0.06, accuracy: 1e-9)
+        XCTAssertEqual(HomeDashboardScreen.cascadeDelay(index: 3, lead: 5), 0)
+    }
 }

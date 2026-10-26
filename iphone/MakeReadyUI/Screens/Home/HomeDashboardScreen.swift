@@ -116,6 +116,9 @@ struct HomeDashboardScreen: View {
     var onFollowEnrollment: () -> Void = {}            // Following plus → home-follow-picker
     var onProgramMenu: (Int) -> Void = { _ in }        // C-032 ellipsis → OQ-home-dashboard-4
     var onOpenGroup: (Int) -> Void = { _ in }          // C-033 tap → OQ-home-dashboard-4
+    /// dashboard-chart-intros D7: only the live app (HomeDashboardContainer) passes true; every
+    /// capture, fixture and preview leaves the charts still.
+    let introsEnabled: Bool
 
     init(
         state: State,
@@ -125,7 +128,8 @@ struct HomeDashboardScreen: View {
         onOpenEngagement: @escaping () -> Void = {},
         onFollowEnrollment: @escaping () -> Void = {},
         onProgramMenu: @escaping (Int) -> Void = { _ in },
-        onOpenGroup: @escaping (Int) -> Void = { _ in }
+        onOpenGroup: @escaping (Int) -> Void = { _ in },
+        introsEnabled: Bool = false
     ) {
         self.state = state
         self.onPickMetrics = onPickMetrics
@@ -135,6 +139,7 @@ struct HomeDashboardScreen: View {
         self.onFollowEnrollment = onFollowEnrollment
         self.onProgramMenu = onProgramMenu
         self.onOpenGroup = onOpenGroup
+        self.introsEnabled = introsEnabled
     }
 
     // The Sessions range re-scopes data through
@@ -152,6 +157,10 @@ struct HomeDashboardScreen: View {
     /// scrolling rail does not re-render the whole screen every frame.
     @SwiftUI.State private var todayCardOnScreen = true
     private static let railWindowLead = 2
+    /// dashboard-chart-intros D5/D15: which sections have played this visit.
+    @SwiftUI.State private var introLedger = ChartIntroLedger()
+    @Environment(\.chartIntroActive) private var introActive
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     // MARK: - §2 constants (values that no §3 state changes)
 
@@ -212,16 +221,18 @@ struct HomeDashboardScreen: View {
             // section (the group cards) moves to the top of the page, ahead of §2's order.
             followingSection
             sectionDivider
-            overviewSection
+            overviewSection.modifier(revealsIntro(.overview))
             sectionDivider
-            activitySection
+            activitySection.modifier(revealsIntro(.activity))
             sectionDivider
-            sessionsSection
+            sessionsSection.modifier(revealsIntro(.sessions))
             sectionDivider
-            engagementSection
+            engagementSection.modifier(revealsIntro(.engagement))
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
+        // D6/D15: cleared while Home sits hidden under another tab; visible sections replay on return.
+        .onChange(of: introActive) { _, active in introLedger.setActive(active) }
     }
 
     /// §2: "Five sections separated by 1px `color-layout-border` hairlines with
@@ -263,7 +274,8 @@ struct HomeDashboardScreen: View {
                             trendPolarity: TrendIndicator.Polarity(
                                 rawValue: state.kpiTrendPolarities[safe: index] ?? ""
                             ) ?? .neutral,
-                            trendLabel: state.kpiTrendLabels[safe: index] ?? ""
+                            trendLabel: state.kpiTrendLabels[safe: index] ?? "",
+                            intro: intro(.overview, delay: Self.cascadeDelay(index: index, lead: 0))
                         )
                         .frame(width: Self.metricCardWidth)
                         .ui2Element(Self.partName("C-023 RailCard", ordinal: index + 1))
@@ -308,7 +320,8 @@ struct HomeDashboardScreen: View {
                                 dateState: Self.dateState(state.dayDateStates[safe: index]),
                                 line1: state.dayLine1s[safe: index] ?? "",
                                 line2: Self.optionalText(state.dayLine2s[safe: index]),
-                                detailsState: Self.detailsState(state.dayDetailsStates[safe: index])
+                                detailsState: Self.detailsState(state.dayDetailsStates[safe: index]),
+                                intro: intro(.activity, delay: Self.cascadeDelay(index: index, lead: railDay ?? 0))
                             )
                             .frame(width: Self.dayCardWidth)
                             .ui2Element(Self.partName("C-023 RailCard", ordinal: state.kpiTitles.count + index + 1))
@@ -342,7 +355,8 @@ struct HomeDashboardScreen: View {
                         if off != chartOffToday { chartOffToday = off }
                     },
                     recenterRequest: chartRecenter,
-                    recenterAnimation: Self.jumpAnimation
+                    recenterAnimation: Self.jumpAnimation,
+                    intro: intro(.activity)
                 )
                 .frame(width: Self.dualChartWidth, height: Self.dualChartHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -381,13 +395,14 @@ struct HomeDashboardScreen: View {
                 hourValues: state.hourValues,
                 centerValue: state.centerValue,
                 centerUnit: state.centerUnit,
-                centerCaption: state.centerCaption
+                centerCaption: state.centerCaption,
+                intro: intro(.sessions)
             )
             .frame(maxWidth: .infinity, alignment: .center)
             .ui2Element("C-029 RadialDayClock")
             Spacer().frame(height: Self.chartGap)                    // §2.3: "→ 16pt →"
             // §2.3: "TimeActivityChart 438×140" — at x=0 on the frame `default`.
-            TimeActivityChart(bins: state.bins, tickLabels: sessionTickLabels)
+            TimeActivityChart(bins: state.bins, tickLabels: sessionTickLabels, intro: intro(.sessions))
                 .frame(width: Self.timeChartWidth, height: Self.timeChartHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .ui2Element("C-030 TimeActivityChart")
@@ -413,7 +428,8 @@ struct HomeDashboardScreen: View {
                 count: state.engagementCount,
                 progress: state.engagementProgress,
                 subtitle: state.engagementSubtitle,
-                statusColor: EnrollmentStatusRow.StatusColor(rawValue: state.engagementColor) ?? .green
+                statusColor: EnrollmentStatusRow.StatusColor(rawValue: state.engagementColor) ?? .green,
+                intro: intro(.engagement)
             )
             .padding(.horizontal, Token.Space.pageMargin)
             .ui2Element("C-031 EnrollmentStatusRow")
@@ -482,6 +498,23 @@ struct HomeDashboardScreen: View {
     private static let completeLabel = "complete"
 
     // MARK: - Derived (JSON-native props → the §4 views' types)
+
+    /// D7: nil unless the live app turned intros on.
+    private func intro(_ section: ChartIntroLedger.Section, delay: Double = 0) -> ChartIntro? {
+        guard introsEnabled else { return nil }
+        return ChartIntro(played: introLedger.hasPlayed(section), reduceMotion: reduceMotion, delay: delay)
+    }
+
+    /// D8: a rail card's cascade delay — its place from the rail's leading card, capped at the
+    /// fourth. A lazy day card built later by a swipe is created already played, so it draws final.
+    static func cascadeDelay(index: Int, lead: Int) -> Double {
+        Double(min(max(index - lead, 0), 3)) * ChartIntroMotion.cascadeStep
+    }
+
+    /// D4: a section starts its intro when ≥ 50 % of it is in the Home page scroll.
+    private func revealsIntro(_ section: ChartIntroLedger.Section) -> some ViewModifier {
+        IntroReveal(enabled: introsEnabled) { introLedger.setVisible(section, $0) }
+    }
 
     private func groupIndices(for programIndex: Int) -> [Int] {
         state.groupTitles.indices.filter { (state.groupProgramIndices[safe: $0] ?? 0) == programIndex }
@@ -798,4 +831,16 @@ extension HomeDashboardScreen.State {
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
+}
+
+/// dashboard-chart-intros D4: reports a section crossing the 50 % line of the page scroll.
+private struct IntroReveal: ViewModifier {
+    let enabled: Bool
+    let onChange: (Bool) -> Void
+
+    func body(content: Content) -> some View {
+        content.onScrollVisibilityChange(threshold: 0.5) { visible in
+            if enabled { onChange(visible) }
+        }
+    }
 }

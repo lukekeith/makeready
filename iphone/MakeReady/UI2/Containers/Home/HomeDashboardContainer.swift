@@ -24,7 +24,8 @@ struct HomeDashboardContainer: View {
             onOpenEngagement: {},                                // D9 no-op
             onFollowEnrollment: {},                              // D9 no-op
             onProgramMenu: { _ in },                             // D9 no-op
-            onOpenGroup: { _ in }                                // D9 no-op
+            onOpenGroup: { _ in },                               // D9 no-op
+            introsEnabled: true                                  // dashboard-chart-intros D7
         )
         .task { await Self.refresh(authManager: authManager) }
     }
