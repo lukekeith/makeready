@@ -110,6 +110,6 @@ describe('layer discovery (D2, D6)', () => {
       'members-profile',
       'shared-edit-field',
     ])
-    expect(availableScenarios(layers.screens)).toEqual(['full', 'empty', 'sparse'])
+    expect(availableScenarios(layers.screens)).toEqual(['full', 'sparse', 'empty'])
   })
 })
