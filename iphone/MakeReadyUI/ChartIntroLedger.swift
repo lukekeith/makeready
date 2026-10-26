@@ -15,6 +15,15 @@ struct ChartIntroLedger: Equatable {
 
     func hasPlayed(_ section: Section) -> Bool { played.contains(section) }
 
+    /// D4: at least half of the section's height is inside the page scroll's visible bounds.
+    /// Measured, not `onScrollVisibilityChange`: on a section holding its own horizontal rail
+    /// (Overview, Activity) that reported a reveal at ~22 % (agent walk round 1).
+    static func isRevealed(_ section: CGRect, in visible: CGRect, threshold: CGFloat = 0.5) -> Bool {
+        guard section.height > 0 else { return false }
+        let shown = section.intersection(visible)
+        return !shown.isNull && shown.height >= section.height * threshold
+    }
+
     /// D4/D5: a section crossed the 50 % line. It plays the first time it is seen this visit.
     mutating func setVisible(_ section: Section, _ isVisible: Bool) {
         if isVisible {

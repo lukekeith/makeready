@@ -844,7 +844,13 @@ private struct IntroReveal: ViewModifier {
     let onChange: (Bool) -> Void
 
     func body(content: Content) -> some View {
-        content.onScrollVisibilityChange(threshold: 0.5) { visible in
+        // The page scroll's visible bounds, converted into this section's own space.
+        content.onGeometryChange(for: Bool.self) { proxy in
+            ChartIntroLedger.isRevealed(
+                CGRect(origin: .zero, size: proxy.size),
+                in: proxy.bounds(of: .scrollView) ?? .null
+            )
+        } action: { visible in
             if enabled { onChange(visible) }
         }
     }

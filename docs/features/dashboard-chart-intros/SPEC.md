@@ -130,8 +130,8 @@ No schema change (established 2026-10-26).
 All in the `MakeReadyUI` module except the visit signal. Recipe: `/transition-review` (motion) and
 `/animation-debug` when something stutters.
 
-**Reveal modifier (new, MakeReadyUI).** `.chartIntro(id:)`-style modifier on each section: watches
-`onScrollVisibilityChange(threshold: 0.5)`, consults/sets the screen's played set (D5, D15), and
+**Reveal modifier (new, MakeReadyUI).** `.chartIntro(id:)`-style modifier on each section: measures
+its own height against the page scroll's visible bounds (`onGeometryChange` + `bounds(of: .scrollView)`, ≥ 50 % = revealed — `onScrollVisibilityChange` misfired on the rail sections, agent walk round 1), consults/sets the screen's played set (D5, D15), and
 hands each chart a `ChartIntro?` whose `played` flips false → true once (start pose → final
 pose, the final pose identical to the `nil` render). Resets on the visit signal (D6, D15).
 Honours Reduce Motion (D10).
@@ -235,4 +235,4 @@ The plan, with its code: `docs/features/dashboard-chart-intros/PLAN.md` (§PLAN.
 
 ## Fixes
 
-- [ ] iphone: Overview intro (item 1 / E1) — expected the metric cards to hold their start pose until Overview is ≥ 50 % visible, then cascade, wave and count up; saw a ~38 pt first scroll (cards still below the scroll view's bottom edge) use up the intro, so the cards were already final when they came into view (agent walk round 1)
+- [x] iphone: Overview intro (item 1 / E1) — expected the metric cards to hold their start pose until Overview is ≥ 50 % visible, then cascade, wave and count up; saw a ~38 pt first scroll (cards still below the scroll view's bottom edge) use up the intro, so the cards were already final when they came into view (agent walk round 1)

@@ -82,6 +82,27 @@ final class ChartIntroTests: XCTestCase {
         XCTAssertEqual(ChartIntro.scaled(98, by: 1), 98)
     }
 
+    // MARK: - D4 the 50 % line
+
+    /// Agent walk round 1: a 38 pt nudge left Overview's header at y 815 and its 192 pt cards at
+    /// 881, below the page scroll's bottom edge (872) — 57 of its 258 pt on screen, ~22 %. That
+    /// is not a reveal, though `onScrollVisibilityChange` reported one.
+    func testASectionMostlyBelowThePageEdgeHasNotRevealed() {
+        let section = CGRect(x: 0, y: 815, width: 440, height: 258)
+        let page = CGRect(x: 0, y: 110, width: 440, height: 762)
+        XCTAssertFalse(ChartIntroLedger.isRevealed(section, in: page))
+    }
+
+    func testASectionRevealsAtHalfVisible() {
+        let page = CGRect(x: 0, y: 0, width: 440, height: 762)
+        XCTAssertTrue(ChartIntroLedger.isRevealed(CGRect(x: 0, y: 633, width: 440, height: 258), in: page))
+        XCTAssertFalse(ChartIntroLedger.isRevealed(CGRect(x: 0, y: 634, width: 440, height: 258), in: page))
+        // scrolled up past the top edge: the same line, from above
+        XCTAssertTrue(ChartIntroLedger.isRevealed(CGRect(x: 0, y: -129, width: 440, height: 258), in: page))
+        XCTAssertFalse(ChartIntroLedger.isRevealed(CGRect(x: 0, y: -200, width: 440, height: 258), in: page))
+        XCTAssertFalse(ChartIntroLedger.isRevealed(.zero, in: page))
+    }
+
     // MARK: - D5 / D6 / D15 the played ledger
 
     func testASectionPlaysOnceAndNotAgainOnScrollBack() {
