@@ -1,14 +1,14 @@
 size: md
 state: planned
 next: /builder:resume --path docs/features/dashboard-chart-intros
-head: d148d3f
+head: 3d34caa
 ticket: none
 branch: builder/dashboard-chart-intros
 pr: none
 apps: iphone
 contract: none                                  # server ⬜ — no endpoint or schema change
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-10-26
 tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
