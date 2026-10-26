@@ -62,7 +62,7 @@ struct RadialDayClock: View {
     /// 4pt dots, r135/r150 radii, the `text/navigation` binding, and the Inter typography".
     /// Rule 4's flagged-literal path therefore covers the stroke, the dot size and both radii:
     /// they stay literals carrying the flag rather than being promoted into `tokens.md`.
-    private enum Geometry {
+    fileprivate enum Geometry {
         static let footprintWidth: CGFloat = 357        // §2: "Footprint 357×326"
         static let footprintHeight: CGFloat = 326
         static let ringRadius: CGFloat = 135            // §2: "circle r=135 (centerline)"
@@ -237,7 +237,7 @@ struct RadialDayClock: View {
     private var activityArcs: some View {
         ZStack {
             ForEach(Array(arcRuns.enumerated()), id: \.offset) { index, run in
-                arcShape(run)
+                ArcSpan(startHour: Double(run.startHour), endHour: Double(run.endHour))
                     .trim(from: 0, to: introProgress)
                     .stroke(
                         run.band.color,
@@ -257,24 +257,34 @@ struct RadialDayClock: View {
         )
     }
 
-    private func arcShape(_ run: ArcRun) -> Path {
-        let box = Geometry.ringRadius * 2 + Geometry.ringStroke
-        let center = CGPoint(x: box / 2, y: box / 2)
-        var path = Path()
-        path.addArc(
-            center: center,
-            radius: Geometry.ringRadius,
-            startAngle: Self.ringAngle(hour: CGFloat(run.startHour)),
-            endAngle: Self.ringAngle(hour: CGFloat(run.endHour)),
-            clockwise: false
-        )
-        return path
+    /// One arc as an animatable span of hours, so a data change after reveal moves its ends from
+    /// old to new rather than snapping (D9). At rest it draws what the still render always drew.
+    struct ArcSpan: Shape {
+        var startHour: Double
+        var endHour: Double
+
+        var animatableData: AnimatablePair<Double, Double> {
+            get { AnimatablePair(startHour, endHour) }
+            set { (startHour, endHour) = (newValue.first, newValue.second) }
+        }
+
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.addArc(
+                center: CGPoint(x: rect.midX, y: rect.midY),
+                radius: Geometry.ringRadius,
+                startAngle: RadialDayClock.ringAngle(hour: CGFloat(startHour)),
+                endAngle: RadialDayClock.ringAngle(hour: CGFloat(endHour)),
+                clockwise: false
+            )
+            return path
+        }
     }
 
     /// §2: hour 0 sits at the top and the day runs clockwise ("12 AM top, then clockwise 3 AM …").
     /// SwiftUI's angles start at +x and increase clockwise on screen, so the hour ray is
     /// `hour × 15° − 90°`.
-    private static func ringAngle(hour: CGFloat) -> Angle {
+    fileprivate static func ringAngle(hour: CGFloat) -> Angle {
         .degrees(Double(hour * Geometry.degreesPerHour - 90))
     }
 

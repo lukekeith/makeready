@@ -184,4 +184,17 @@ final class ChartIntroTests: XCTestCase {
     func testTimeActivityWaveEndsWithTheClockSweep() {
         XCTAssertEqual(ChartIntroMotion.stagger(87, of: 88), ChartIntroMotion.sweepDelay(hour: 24), accuracy: 1e-9)
     }
+
+    /// D9: an arc is an animatable span; at rest it ends exactly where the still arc did.
+    func testRadialArcSpanEndsAtItsEndHour() {
+        let rect = CGRect(x: 0, y: 0, width: 290, height: 290)
+        // 6 AM sits at 3 o'clock: centre + ring radius on x, centre on y.
+        let end = RadialDayClock.ArcSpan(startHour: 0, endHour: 6).path(in: rect).currentPoint
+        XCTAssertEqual(end?.x ?? 0, 145 + 135, accuracy: 1e-6)
+        XCTAssertEqual(end?.y ?? 0, 145, accuracy: 1e-6)
+        var span = RadialDayClock.ArcSpan(startHour: 0, endHour: 6)
+        span.animatableData = .init(3, 9)
+        XCTAssertEqual(span.startHour, 3)
+        XCTAssertEqual(span.endHour, 9)
+    }
 }
