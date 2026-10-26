@@ -22,14 +22,29 @@ struct DashboardActions {
         self.onUnauthorized = onUnauthorized
     }
 
+    /// The independent home-dashboard-data sections, fetched concurrently. A nil is a failed (or
+    /// cancelled) fetch whose cached section stays.
+    private struct ExtraSections {
+        var scheduled: AnalyticsQueryResponse?
+        var days: HomeDaysResponse?
+        var engagement: HomeEngagementResponse?
+        var following: HomeFollowingResponse?
+        var sessions: [String: HomeSessionsResponse] = [:]
+    }
+
     @MainActor
     func refresh() async {
         let generation = state.initialLoad.generation
         do {
-            var next = state.dashboard
-            next.kpiNames = try await kpiNames()
             let today = day(now())
             let from24 = day(offset: -23), from28 = day(offset: -28), ahead7 = day(offset: 7)
+
+            // The extra sections start now and run alongside the core fetches below, so neither
+            // waits on the other — Overview/Activity never wait on the heavy Sessions ranges.
+            async let extras = fetchExtras(from: from28, to: ahead7)
+
+            var next = state.dashboard
+            next.kpiNames = try await kpiNames()
 
             let series = try await query(["lesson_completions"], dimension: "day", from: from24, to: today, compare: true)
             next.completedSeries = byDay(series.rows, metric: "lesson_completions")
@@ -40,58 +55,90 @@ struct DashboardActions {
             next.activityDays = byDay(activity.rows, metric: "lesson_completions")
 
             if next.kpiNames.contains("watch_seconds") {
-                do {
-                    let watch = try await query(["watch_seconds"], dimension: nil, from: nil, to: nil, compare: false)
-                    next.watchSeconds = watch.rows.first?["watch_seconds"]?.int
-                } catch {
-                    // A 401 still signs out; any other failure leaves watchSeconds as cached.
-                    if AuthStatusPolicy.shouldSignOut(after: error) { throw error }
-                    state.recordError(error, context: "DashboardActions.refresh.watchSeconds", surface: false)
-                }
-            }
-
-            // home-dashboard-data: each call below is non-fatal — a failure keeps that cached section.
-            let scheduled = try await nonFatal("scheduledLessons", {
-                try await query(["scheduled_lessons"], dimension: "day", from: from28, to: ahead7, compare: false)
-            })
-            if let scheduled { next.scheduledDays = byDay(scheduled.rows, metric: "scheduled_lessons") }   // D10
-
-            let days = try await nonFatal("days", {
-                try await api.get(homePath("/api/home/days", [("from", from28), ("to", ahead7)]),
-                                  responseType: HomeDaysResponse.self)
-            })
-            if let days {                                                                              // D6
-                next.dayMinutes = Dictionary(days.days.map { ($0.day, Int((Double($0.sessionSeconds) / 60).rounded())) },
-                                             uniquingKeysWith: { $1 })
-                next.dayBlocks = Dictionary(days.days.map { ($0.day, $0.blocks) }, uniquingKeysWith: { $1 })
-            }
-
-            let engagement = try await nonFatal("engagement", {
-                try await api.get(homePath("/api/home/engagement", []), responseType: HomeEngagementResponse.self)
-            })
-            if let engagement { next.engagement = engagement }                                         // D3
-
-            let following = try await nonFatal("following", {
-                try await api.get(homePath("/api/home/following", [], timezone: false), responseType: HomeFollowingResponse.self)
-            })
-            if let following { next.following = following }                                           // D4, D11
-
-            for range in Self.sessionRangeKeys {                                                      // D8, D13
-                let sessions = try await nonFatal("sessions.\(range)", {
-                    try await api.get(homePath("/api/home/sessions", [("range", range)]), responseType: HomeSessionsResponse.self)
+                let watch = try await nonFatal("watchSeconds", {
+                    try await query(["watch_seconds"], dimension: nil, from: nil, to: nil, compare: false)
                 })
-                if let sessions { next.sessions[range] = sessions }
+                if let watch { next.watchSeconds = watch.rows.first?["watch_seconds"]?.int }
             }
 
+            // First write: the core sections land as soon as they are fetched.
             next.refreshedAt = now()
             // A sign-out during the awaits re-armed the load: this is the old session's data.
             guard state.initialLoad.isCurrent(generation) else { return }
             state.dashboard = next
             state.persist()
+
+            // Second write: the extra sections, merged onto what is now in state.
+            let sections = try await extras
+            guard state.initialLoad.isCurrent(generation) else { return }
+            var merged = state.dashboard
+            if let scheduled = sections.scheduled { merged.scheduledDays = byDay(scheduled.rows, metric: "scheduled_lessons") }   // D10
+            if let days = sections.days {                                                                                        // D6
+                merged.dayMinutes = Dictionary(days.days.map { ($0.day, Int((Double($0.sessionSeconds) / 60).rounded())) },
+                                               uniquingKeysWith: { $1 })
+                merged.dayBlocks = Dictionary(days.days.map { ($0.day, $0.blocks) }, uniquingKeysWith: { $1 })
+            }
+            if let engagement = sections.engagement { merged.engagement = engagement }                                          // D3
+            if let following = sections.following { merged.following = following }                                              // D4, D11
+            for (range, sessions) in sections.sessions { merged.sessions[range] = sessions }                                    // D8, D13
+            state.dashboard = merged
+            state.persist()
         } catch {
             if AuthStatusPolicy.shouldSignOut(after: error) { await onUnauthorized(); return }
+            if Self.isCancellation(error) { return }   // leaving Home mid-refresh is not an error
             state.recordError(error, context: "DashboardActions.refresh", surface: false)   // D28: logged, cache kept
         }
+    }
+
+    /// home-dashboard-data: every call is non-fatal (a failure keeps that cached section) and all of
+    /// them run at once. A 401 from any of them rethrows, so the caller signs out.
+    @MainActor
+    private func fetchExtras(from: String, to: String) async throws -> ExtraSections {
+        async let scheduled = nonFatal("scheduledLessons", {
+            try await query(["scheduled_lessons"], dimension: "day", from: from, to: to, compare: false)
+        })
+        async let days = nonFatal("days", {
+            try await api.get(homePath("/api/home/days", [("from", from), ("to", to)]), responseType: HomeDaysResponse.self)
+        })
+        async let engagement = nonFatal("engagement", {
+            try await api.get(homePath("/api/home/engagement", []), responseType: HomeEngagementResponse.self)
+        })
+        async let following = nonFatal("following", {
+            try await api.get(homePath("/api/home/following", [], timezone: false), responseType: HomeFollowingResponse.self)
+        })
+        async let sessions = fetchSessions()
+
+        var sections = ExtraSections()
+        // Await every child before throwing, so a 401 does not leave siblings running un-awaited.
+        var failure: Error?
+        do { sections.scheduled = try await scheduled } catch { failure = failure ?? error }
+        do { sections.days = try await days } catch { failure = failure ?? error }
+        do { sections.engagement = try await engagement } catch { failure = failure ?? error }
+        do { sections.following = try await following } catch { failure = failure ?? error }
+        do { sections.sessions = try await sessions } catch { failure = failure ?? error }
+        if let failure { throw failure }
+        return sections
+    }
+
+    /// D8/D13: all four ranges at once; a failed range is simply absent (its cache stays).
+    @MainActor
+    private func fetchSessions() async throws -> [String: HomeSessionsResponse] {
+        try await withThrowingTaskGroup(of: (String, HomeSessionsResponse?).self) { group in
+            for range in Self.sessionRangeKeys {
+                group.addTask { @MainActor in
+                    (range, try await nonFatal("sessions.\(range)", {
+                        try await api.get(homePath("/api/home/sessions", [("range", range)]), responseType: HomeSessionsResponse.self)
+                    }))
+                }
+            }
+            var result: [String: HomeSessionsResponse] = [:]
+            for try await (range, sessions) in group { if let sessions { result[range] = sessions } }
+            return result
+        }
+    }
+
+    private static func isCancellation(_ error: Error) -> Bool {
+        error is CancellationError || (error as? URLError)?.code == .cancelled
     }
 
     // MARK: - Helpers
@@ -117,6 +164,7 @@ struct DashboardActions {
             return try await work()
         } catch {
             if AuthStatusPolicy.shouldSignOut(after: error) { throw error }
+            if Self.isCancellation(error) { return nil }   // Home was left mid-refresh: not an error
             state.recordError(error, context: "DashboardActions.refresh.\(context)", surface: false)
             return nil
         }

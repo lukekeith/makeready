@@ -233,7 +233,49 @@ final class DashboardActionsTests: XCTestCase {
         var signedOut = false
         await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz, onUnauthorized: { signedOut = true }).refresh()
         XCTAssertTrue(signedOut)
-        XCTAssertNil(state.dashboard.refreshedAt)                            // nothing written
+    }
+
+    /// Review round 1: the extra sections run concurrently — 7 calls each held 0.3 s finish in
+    /// about one hold, not seven.
+    func testExtraSectionsRunConcurrently() async {
+        state.organizationId = "org1"
+        stubHome()
+        api.delayFor = { $0.hasPrefix("/api/home/") ? 0.3 : 0 }
+        let started = Date()
+        await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
+        XCTAssertLessThan(Date().timeIntervalSince(started), 1.2)            // serial would be >= 2.1 s
+        XCTAssertEqual(state.dashboard.sessions.count, 4)
+        XCTAssertNotNil(state.dashboard.engagement)
+    }
+
+    /// Review round 1: Overview + Activity land without waiting on the slow Sessions "all" call.
+    func testCoreSectionsLandBeforeSlowSessionsRange() async throws {
+        state.organizationId = "org1"
+        stubHome()
+        api.delayFor = { $0.hasPrefix("/api/home/sessions?range=all") ? 0.8 : 0 }
+        let actions = DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz)
+        let refresh = Task { await actions.refresh() }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(state.dashboard.activityDays["2026-10-24"], 3)        // core already written
+        XCTAssertNotNil(state.dashboard.refreshedAt)
+        XCTAssertNil(state.dashboard.sessions["all"])                        // the slow call is still out
+        await refresh.value
+        XCTAssertEqual(state.dashboard.sessions["all"]?.averageSeconds, 1920)
+        XCTAssertEqual(state.dashboard.activityDays["2026-10-24"], 3)        // the second write kept the first
+    }
+
+    /// Review round 1: a cancelled call (Home left mid-refresh) is not an error worth recording.
+    func testCancelledExtraCallsAreNotRecordedAsErrors() async {
+        state.organizationId = "org1"
+        stubHome()
+        api.errorFor = { endpoint, _ in
+            if endpoint.hasPrefix("/api/home/days") { return CancellationError() }
+            if endpoint.hasPrefix("/api/home/engagement") { return URLError(.cancelled) }
+            return nil
+        }
+        await DashboardActions(api: api, state: state, now: { self.now }, timeZone: tz).refresh()
+        XCTAssertTrue(state.errors.isEmpty)
+        XCTAssertEqual(state.dashboard.sessions.count, 4)                    // the rest still landed
     }
 
     func testTimezoneIsPercentEncoded() async {
