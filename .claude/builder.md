@@ -3,6 +3,8 @@ project: MakeReady
 
 registry: docs/features
 base_branch: main
+# Merge policy (owner 2026-10-26): a fleet/agent run merges into the branch the work started from (pass --into <that branch>) with
+# no approval — EXCEPT main: never launch a run whose target is main without asking the owner first.
 build_profile_default: standard   # the test plan pre-selected at the go-ahead: each slice's own tests, touched apps' suites once at the end, one review at the end
 
 apps:
