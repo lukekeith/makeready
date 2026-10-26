@@ -10,7 +10,7 @@ struct DashboardSnapshot: Codable, Equatable {
     var kpiNames: [String] = ["lesson_completions", "watch_seconds"]
     var refreshedAt: Date?
     // home-dashboard-data (SPEC §iphone)
-    var scheduledDays: [String: Int] = [:]        // yyyy-MM-dd → scheduled_lessons, 28 back … 7 ahead (D10)
+    var scheduledDays: [String: Int] = [:]        // yyyy-MM-dd → scheduled_lessons, 182 back … 7 ahead (D10, D19)
     var dayMinutes: [String: Int] = [:]           // yyyy-MM-dd → Σ session minutes, rounded (D6)
     var dayBlocks: [String: [Int]] = [:]          // yyyy-MM-dd → 12 two-hour blocks, in SECONDS (D6)
     var sessions: [String: HomeSessionsResponse] = [:]   // "all" | "year" | "month" | "week" (D8, D13)

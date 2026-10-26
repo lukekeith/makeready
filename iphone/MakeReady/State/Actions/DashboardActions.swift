@@ -90,9 +90,6 @@ struct DashboardActions {
         }
     }
 
-    /// home-dashboard-data: every call is non-fatal (a failure keeps that cached section) and all of
-    /// them run at once. A 401 from any of them rethrows, so the caller signs out.
-    @MainActor
     /// Owner ruling 2026-10-25: Activity (chart + day cards) carries ~6 months of history.
     static let historyDays = 182
     /// `/api/home/days` serves at most 62 days per call (frozen contract), so the history is
@@ -105,6 +102,9 @@ struct DashboardActions {
         }
     }
 
+    /// home-dashboard-data: every call is non-fatal (a failure keeps that cached section) and all of
+    /// them run at once. A 401 from any of them rethrows, so the caller signs out.
+    @MainActor
     private func fetchExtras(from: String, to: String, dayRanges: [(from: String, to: String)]) async throws -> ExtraSections {
         async let scheduled = nonFatal("scheduledLessons", {
             try await query(["scheduled_lessons"], dimension: "day", from: from, to: to, compare: false)
