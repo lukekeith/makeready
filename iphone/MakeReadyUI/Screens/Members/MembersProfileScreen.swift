@@ -82,6 +82,9 @@ struct MembersProfileScreen: View {
     }
 
     let state: State
+    /// D22: false when the container pins C-040 above its own ScrollView, so the header is not
+    /// drawn twice. True (the default) keeps the capture / ViewRegistry render whole.
+    let showsHeader: Bool
     // §3 interactions — every one leaves the screen, so each is an on<Verb> closure with R-03's
     // no-op default. The screen never decides what an action means.
     var onBack: () -> Void = {}                     // C-040 back — pops to the presenter
@@ -93,6 +96,7 @@ struct MembersProfileScreen: View {
 
     init(
         state: State,
+        showsHeader: Bool = true,
         onBack: @escaping () -> Void = {},
         onEditField: @escaping (String) -> Void = { _ in },
         onJumpToToday: @escaping () -> Void = {},
@@ -101,6 +105,7 @@ struct MembersProfileScreen: View {
         onEnroll: @escaping () -> Void = {}
     ) {
         self.state = state
+        self.showsHeader = showsHeader
         self.onBack = onBack
         self.onEditField = onEditField
         self.onJumpToToday = onJumpToToday
@@ -181,16 +186,18 @@ struct MembersProfileScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             // §2: "PageHeader (C-040, 56pt: back chevron left, member name centered, no right
             // icons)" — `style=Two icons`, `showTitle=true`, `showIcons=false` (§4).
-            PageHeader(
-                style: .twoIcons,
-                title: state.memberName,
-                showTitle: true,
-                showIcons: false,
-                leadingGlyph: .back,
-                rightButtons: [],
-                onLeading: onBack
-            )
-            .ui2Element("C-040 PageHeader")
+            if showsHeader {
+                PageHeader(
+                    style: .twoIcons,
+                    title: state.memberName,
+                    showTitle: true,
+                    showIcons: false,
+                    leadingGlyph: .back,
+                    rightButtons: [],
+                    onLeading: onBack
+                )
+                .ui2Element("C-040 PageHeader")
+            }
 
             VStack(alignment: .leading, spacing: 0) {
                 identityBlock

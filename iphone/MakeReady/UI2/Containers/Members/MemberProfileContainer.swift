@@ -22,15 +22,27 @@ struct MemberProfileContainer: View {
             today: Date(), timeZone: .current
         )
         let _ = coversSeeded
-        ScrollView(.vertical) {
-            MembersProfileScreen(
-                state: state,
-                onBack: { navigator.pop() }       // members-profile §3: back pops to the presenter
-                // D3/D5: field rows, group rows, program rows, both `add`s and the day cards do
-                // nothing in this child — the screen's no-op defaults.
+        // D22: C-040 stays pinned above the scroll; the screen is told not to draw it again.
+        VStack(spacing: 0) {
+            PageHeader(
+                style: .twoIcons,
+                title: state.memberName,
+                showTitle: true,
+                showIcons: false,
+                leadingGlyph: .back,
+                rightButtons: [],
+                onLeading: { navigator.pop() }    // members-profile §3: back pops to the presenter
             )
+            ScrollView(.vertical) {
+                MembersProfileScreen(
+                    state: state,
+                    showsHeader: false
+                    // D3/D5: field rows, group rows, program rows, both `add`s and the day cards do
+                    // nothing in this child — the screen's no-op defaults.
+                )
+            }
+            .scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
         .background(Token.layoutBackground.ignoresSafeArea())
         .task { await Self.load(memberId: memberId, authManager: authManager) }
         .task(id: state.programCoverURLs) {

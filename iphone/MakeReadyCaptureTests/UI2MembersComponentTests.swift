@@ -44,6 +44,12 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertFalse(EditableFieldRow(label: "Role", value: "Member", isTappable: false).isTappable)
     }
 
+    /// D22: the screen draws its own C-040 unless the container pins it (capture render stays whole).
+    func testMemberPageDrawsItsHeaderByDefault() {
+        XCTAssertTrue(MembersProfileScreen(state: .populated).showsHeader)
+        XCTAssertFalse(MembersProfileScreen(state: .populated, showsHeader: false).showsHeader)
+    }
+
     /// P6: nine rows, "Emergency phone" last; D3: none of them tappable in this child.
     func testMemberPageDrawsNineDisplayOnlyFields() {
         XCTAssertEqual(MembersProfileScreen.fieldLabels, [
