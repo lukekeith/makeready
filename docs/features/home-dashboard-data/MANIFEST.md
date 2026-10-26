@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/home-dashboard-data
-head: 7ddddd4
+state: built
+next: 🔒 walk it, then /builder:signoff --path docs/features/home-dashboard-data
+head: 50ecba1
 ticket: none
 branch: builder/home-dashboard-data
 pr: none
@@ -13,6 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
 verify: none
+ready: yes 2026-10-25 50ecba1
 ui2: none
 auto: on 2026-10-25
 blocked: none
