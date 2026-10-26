@@ -62,6 +62,16 @@ struct EnrollmentStatusRow: View {
     /// fill).
     let statusColor: StatusColor
 
+    // GAP — C-031: no contract prop for the intro (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: nil = the still render (D7, OQ-C-031-001). The bar fills from 0
+    /// with a spring overshoot, the disc's percent counts up, then the disc pulses once.
+    var intro: ChartIntro? = nil
+
+    // GAP — no motion token for the status pulse (dashboard-chart-intros §iphone C-031).
+    static let pulsePeak: CGFloat = 1.3
+
+    private var introProgress: Double { intro?.progress(fadeOnly: false) ?? 1 }
+
     var body: some View {
         // §2: "Root: a horizontal pair, vertically centred, gap 16".
         HStack(alignment: .center, spacing: Self.rootGap) {
@@ -69,6 +79,7 @@ struct EnrollmentStatusRow: View {
             info
         }
         .frame(maxWidth: .infinity, alignment: .leading)   // fills the width it's given (R-16)
+        .chartIntroFade(intro)
         .ui2Element("EnrollmentStatusRow")                 // capture element map — UI2Element.swift
     }
 
@@ -90,9 +101,22 @@ struct EnrollmentStatusRow: View {
     /// circle than a 100% completion". Not drawn in Figma — the set's one symbol draws 78% at
     /// 64, which §2's table renders at 56; that difference is expected, not a defect.
     private var disc: some View {
-        PercentDisc(percent: percent, size: Self.discSize(for: percent), statusColor: statusColor.token)
-            .frame(width: Self.discSlot, height: Self.discSlot)
-            .ui2Element("Disc")
+        // D14: the percent counts up; the disc keeps its final size so nothing reflows.
+        CountUpNumber(value: Double(percent) * introProgress) { shown in
+            PercentDisc(percent: shown, size: Self.discSize(for: percent), statusColor: statusColor.token)
+        }
+        .animation(intro?.animation(ChartIntroMotion.countUp), value: intro?.played)
+        .chartIntroMorph(intro, value: percent)
+        // D2: one pulse after the fill settles; never under Reduce Motion (D10) or with no intro.
+        .keyframeAnimator(initialValue: CGFloat(1), trigger: intro?.reduceMotion == false ? intro?.played : nil) { content, scale in
+            content.scaleEffect(intro?.played == true ? scale : 1)
+        } keyframes: { _ in
+            LinearKeyframe(CGFloat(1), duration: 0.6)
+            CubicKeyframe(Self.pulsePeak, duration: 0.15)
+            CubicKeyframe(CGFloat(1), duration: 0.25)
+        }
+        .frame(width: Self.discSlot, height: Self.discSlot)
+        .ui2Element("Disc")
     }
 
     // MARK: - §2.2 Info
@@ -139,8 +163,11 @@ struct EnrollmentStatusRow: View {
                 size: .lg,
                 aligned: .right,
                 fillStyle: .solid,
-                fillAnimation: nil
+                fillAnimation: nil,
+                reveal: intro.map { $0.progress(fadeOnly: false) }
             )
+            .animation(intro?.animation(ChartIntroMotion.overshoot), value: intro?.played)
+            .chartIntroMorph(intro, value: progress)
             .frame(maxWidth: .infinity)
         }
         .frame(height: Self.metricsRowHeight)

@@ -50,6 +50,11 @@ struct DualSeriesBarChart: View {
     let recenterRequest: Int
     let recenterAnimation: Animation
 
+    // GAP — C-026: no contract prop for the intro (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: nil = the still render (D7). Columns sweep in toward today, the
+    /// completed fill climbs after, then the today rule drops and its badge pops.
+    let intro: ChartIntro?
+
     /// The timeline index of the column at the leading edge — the scroll view's own position, so
     /// the chart pans even for a consumer that does not feed `onWindowChange` back.
     @SwiftUI.State private var leadingColumn: ColumnID?
@@ -77,7 +82,8 @@ struct DualSeriesBarChart: View {
         today: Date,
         onWindowChange: @escaping (ClosedRange<Date>) -> Void = { _ in },
         recenterRequest: Int = 0,
-        recenterAnimation: Animation = .easeInOut(duration: 0.45)
+        recenterAnimation: Animation = .easeInOut(duration: 0.45),
+        intro: ChartIntro? = nil
     ) {
         self.days = days
         self.window = window
@@ -85,6 +91,7 @@ struct DualSeriesBarChart: View {
         self.onWindowChange = onWindowChange
         self.recenterRequest = recenterRequest
         self.recenterAnimation = recenterAnimation
+        self.intro = intro
     }
 
     // MARK: - §2 geometry
@@ -227,6 +234,20 @@ struct DualSeriesBarChart: View {
         return CGFloat(value) / CGFloat(maxScheduled) * Geometry.tallestColumn
     }
 
+    /// A column's height at intro progress `progress` — the still height at 1.
+    static func introColumnHeight(_ value: Int, max maxScheduled: Int, progress: Double) -> CGFloat {
+        ChartIntro.scaled(columnHeight(value, max: maxScheduled), by: progress)
+    }
+
+    /// D3: the completed fill's delay — 0.15 s behind its column, capped so it ends by 1.2 s.
+    static func introFillDelay(wave: Double) -> Double { min(wave + 0.15, 0.7) }
+
+    /// D3: when the today rule starts — after the sweep reaches the window's right edge, capped
+    /// at 0.4 s so the badge's 0.6 s rise ends by 1.1 s.
+    static func introSettle(windowLength: Int) -> Double {
+        min(ChartIntroMotion.stagger(windowLength - 1, of: windowLength), 0.4)
+    }
+
     /// OQ-C-026-001: the value "summarises the visible window (\"Jul 3 to Jul 31, today Jul 26\")".
     private func accessibilitySummary(_ shown: ClosedRange<Date>) -> String {
         let range = "\(Self.tickFormatter.string(from: shown.lowerBound)) to "
@@ -241,6 +262,7 @@ struct DualSeriesBarChart: View {
         let line = timeline()
         let leading = line.clampedLeading(leadingDay ?? line.windowStart)
         let shown = line.window(leading: leading) ?? window
+        let progress = intro?.progress(fadeOnly: !line.hasData) ?? 1
         return GeometryReader { proxy in
             let width = proxy.size.width
             let column = Self.columnWidth(in: width, count: line.windowLength)
@@ -249,7 +271,7 @@ struct DualSeriesBarChart: View {
                     // Luke 2026-10-15: a free pan that settles on whole days, and a fling carries
                     // on — a real scroll view, so the coast is UIKit's own (HorizontalScrolling.swift).
                     HorizontalRail(showsIndicators: false) {
-                        columns(line, column: column)
+                        columns(line, column: column, progress: progress)
                     }
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
                     .scrollPosition(id: $leadingColumn, anchor: .leading)
@@ -261,14 +283,18 @@ struct DualSeriesBarChart: View {
                         if userScrolling { emitIfMoved(line) }
                     }
                     if line.hasData {
-                        gridline(Token.highlight, width: width)
-                            .offset(y: Geometry.highGridlineY)
-                            .ui2Element("High gridline")
-                        gridline(Token.white50, width: width)
-                            .offset(y: Geometry.lowGridlineY)
-                            .ui2Element("Low gridline")
-                        maxBadge(line.maxScheduled, width: width)
-                        minBadge(line.minScheduled, width: width)
+                        Group {
+                            gridline(Token.highlight, width: width)
+                                .offset(y: Geometry.highGridlineY)
+                                .ui2Element("High gridline")
+                            gridline(Token.white50, width: width)
+                                .offset(y: Geometry.lowGridlineY)
+                                .ui2Element("Low gridline")
+                            maxBadge(line.maxScheduled, width: width)
+                            minBadge(line.minScheduled, width: width)
+                        }
+                        .opacity(progress)
+                        .animation(intro?.animation(ChartIntroMotion.draw), value: intro?.played)
                     }
                 }
                 .frame(width: width, height: Geometry.height, alignment: .topLeading)
@@ -315,6 +341,8 @@ struct DualSeriesBarChart: View {
             @unknown default: break
             }
         }
+        .chartIntroMorph(intro, value: days)              // D9
+        .chartIntroFade(intro, fadeOnly: !line.hasData)   // D16
         .ui2Element("DualSeriesBarChart")
     }
 
@@ -341,13 +369,16 @@ struct DualSeriesBarChart: View {
     /// §2: "23–129 | Column plot area (baseline y=129; columns bottom-anchored)" — one column per
     /// day of the whole timeline, each a scroll target so a pan settles on a whole day. The tick
     /// labels and the Today overlay ride on the columns, so they scroll with their days.
-    private func columns(_ line: Timeline, column: CGFloat) -> some View {
+    private func columns(_ line: Timeline, column: CGFloat, progress: Double) -> some View {
         let pitch = column + Token.Space.chipGap
         return HStack(alignment: .bottom, spacing: Token.Space.chipGap) {
             ForEach(line.dates.indices, id: \.self) { index in
+                // D2: the sweep runs left to right across the window and ends at today.
+                let wave = ChartIntroMotion.stagger(max(index - line.windowStart, 0), of: line.windowLength)
                 Group {
                     if line.hasData {
-                        bar(line.entries[index], isFuture: line.dates[index] > today, max: line.maxScheduled)
+                        bar(line.entries[index], isFuture: line.dates[index] > today, max: line.maxScheduled,
+                            progress: progress, wave: wave)
                     } else {
                         // Owner ruling 2026-10-25: the empty timeline's baseline — one
                         // track-coloured stub per day column, as C-030's empty strip does.
@@ -367,7 +398,7 @@ struct DualSeriesBarChart: View {
         .overlay(alignment: .topLeading) {
             ZStack(alignment: .topLeading) {
                 tickLabels(line, pitch: pitch)
-                if line.hasData { todayOverlay(line, column: column, pitch: pitch) }
+                if line.hasData { todayOverlay(line, column: column, pitch: pitch, progress: progress) }
             }
         }
         .ui2Element("Column plot area")
@@ -378,17 +409,20 @@ struct DualSeriesBarChart: View {
     /// §2: "**Every column dated after `today` renders track-only** — its fill is not drawn
     /// whatever `completed` holds" — compared by date, so a fully-future window (Default
     /// rendering) is track-only too (§3). Today's own column keeps its fill.
-    private func bar(_ day: Day?, isFuture: Bool, max maxScheduled: Int) -> some View {
-        ZStack(alignment: .bottom) {
+    private func bar(_ day: Day?, isFuture: Bool, max maxScheduled: Int, progress: Double, wave: Double) -> some View {
+        let completed = isFuture ? 0 : min(day?.completed ?? 0, day?.scheduled ?? 0)
+        return ZStack(alignment: .bottom) {
             Rectangle().fill(Token.white20)
             Rectangle()
                 .fill(Token.accent)
                 // Completed is drawn INSIDE scheduled: a day reporting more completions than
                 // it scheduled fills its column and never grows past it.
-                .frame(height: isFuture ? 0 : Self.columnHeight(min(day?.completed ?? 0, day?.scheduled ?? 0), max: maxScheduled))
+                .frame(height: Self.introColumnHeight(completed, max: maxScheduled, progress: progress))
+                .animation(intro?.animation(ChartIntroMotion.draw, after: Self.introFillDelay(wave: wave)), value: intro?.played)
         }
-        .frame(height: Self.columnHeight(day?.scheduled ?? 0, max: maxScheduled))
+        .frame(height: Self.introColumnHeight(day?.scheduled ?? 0, max: maxScheduled, progress: progress))
         .clipped()
+        .animation(intro?.animation(ChartIntroMotion.rise, after: wave), value: intro?.played)
     }
 
     /// §2: "137–152 | Tick row … ~5 date labels at data-driven x offsets … Regular 12
@@ -415,12 +449,15 @@ struct DualSeriesBarChart: View {
     /// the rule". It scrolls with today's column, so it shows exactly when `today` ∈ the shown
     /// window (§3's derived Today rendering).
     @ViewBuilder
-    private func todayOverlay(_ line: Timeline, column: CGFloat, pitch: CGFloat) -> some View {
+    private func todayOverlay(_ line: Timeline, column: CGFloat, pitch: CGFloat, progress: Double) -> some View {
         if let index = line.todayIndex {
             let ruleX = CGFloat(index) * pitch + column + (Token.Space.chipGap - Geometry.todayRuleWidth) / 2
+            let settle = Self.introSettle(windowLength: line.windowLength)
             Rectangle()
                 .fill(Token.highlight)
                 .frame(width: Geometry.todayRuleWidth, height: Geometry.plotHeight)
+                .scaleEffect(x: 1, y: progress, anchor: .top)
+                .animation(intro?.animation(ChartIntroMotion.draw, after: settle), value: intro?.played)
                 .offset(x: ruleX, y: Geometry.highGridlineY)
                 .ui2Element("Today rule")
             // §2 samples the label container at x=331; the normative statement is "ending at
@@ -429,6 +466,9 @@ struct DualSeriesBarChart: View {
                 .designTextStyle(Self.todayLabelStyle)
                 .foregroundStyle(Token.highlight)
                 .fixedSize()
+                .scaleEffect(0.6 + 0.4 * progress, anchor: .trailing)
+                .opacity(progress)
+                .animation(intro?.animation(ChartIntroMotion.rise, after: settle + 0.1), value: intro?.played)
                 .frame(width: ruleX, height: Geometry.badgeHeight, alignment: .trailing)
                 .offset(y: Geometry.todayLabelY)
                 .ui2Element("TODAY label")

@@ -32,10 +32,19 @@ struct TimeActivityChart: View {
     /// C-030 §4: `tickLabels: [(value: String, unit: String)]` — "4 justified C-022 MetaPairs
     /// under the chart". §4's tuple type verbatim.
     let tickLabels: [(value: String, unit: String)]
+    // GAP — C-030: no contract prop for the intro (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: nil = the still render (D7). Bars rise left to right across the
+    /// same 0.6 s the RadialDayClock's sweep takes (D2).
+    let intro: ChartIntro?
 
-    init(bins: [Double], tickLabels: [(value: String, unit: String)]) {
+    private var introProgress: Double {
+        intro?.progress(fadeOnly: !bins.contains { $0 > 0 }) ?? 1
+    }
+
+    init(bins: [Double], tickLabels: [(value: String, unit: String)], intro: ChartIntro? = nil) {
         self.bins = bins
         self.tickLabels = tickLabels
+        self.intro = intro
     }
 
     // MARK: - §2 geometry
@@ -116,6 +125,8 @@ struct TimeActivityChart: View {
             tickRow
         }
         .frame(width: Geometry.width)
+        .chartIntroMorph(intro, value: bins)                         // D9
+        .chartIntroFade(intro, fadeOnly: !bins.contains { $0 > 0 })  // D16
         .ui2Element("TimeActivityChart")
     }
 
@@ -144,7 +155,11 @@ struct TimeActivityChart: View {
         HStack(alignment: .bottom, spacing: Geometry.barGap) {
             ForEach(Array(barHeights.enumerated()), id: \.offset) { index, height in
                 RoundedRectangle(cornerRadius: Geometry.barRadius, style: .continuous)
-                    .frame(width: Geometry.barWidth, height: height)
+                    .frame(width: Geometry.barWidth, height: ChartIntro.scaled(height, by: introProgress))
+                    .animation(
+                        intro?.animation(ChartIntroMotion.rise, after: ChartIntroMotion.stagger(index, of: barHeights.count)),
+                        value: intro?.played
+                    )
                     .ui2Element("Bar \(index + 1)")
             }
         }

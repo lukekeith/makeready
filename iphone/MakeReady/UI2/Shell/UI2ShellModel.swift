@@ -27,6 +27,9 @@ struct UI2ShellModel {
 
     var tab: TabBar.Tab = .home
     var section: UI2Section = .home
+    /// dashboard-chart-intros D6/D15: Home is the selected tab. A push or a Home re-tap keeps it
+    /// true; selecting another tab makes it false, which resets the dashboard's chart intros.
+    var homeActive: Bool { tab == .home }
     var expansion: Double = 0
     var scrollOffset: CGFloat = 0
     /// D1/D2: each tab's push path; a tab missing from the map is at its root.

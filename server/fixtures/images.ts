@@ -16,7 +16,9 @@
  * - `<stamp>` is a 13-digit number derived from the image's bytes, so keys are stable across resets
  *   (a reset uploads only what the bucket lacks) and change when a refresh changes the image.
  * - Anything that keeps an image from being placed fails the reset; FIXTURE_IMAGES=off skips images
- *   on purpose. Off under vitest unless FIXTURE_IMAGES=on.
+ *   on purpose. Off under vitest unless FIXTURE_IMAGES=on. With NO R2 setting at all (the agent walk
+ *   env, which never sees server/.env) images are skipped with a warning; a partial R2 config, or
+ *   FIXTURE_IMAGES=on without R2, still fails.
  */
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
@@ -149,9 +151,16 @@ export function keyStamp(bytes: Buffer): string {
   return String(1_700_000_000_000 + n)
 }
 
+const R2_KEYS = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME', 'R2_PUBLIC_URL']
+
+/** True when not one R2 setting is present — an env with no storage, not a misconfigured one. */
+export function r2Unconfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  return R2_KEYS.every((k) => !env[k])
+}
+
 /** Refuses a bucket that is, or may be, production — fixtures never write there. */
 export function assertFixtureBucket(env: NodeJS.ProcessEnv = process.env): void {
-  const missing = ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME', 'R2_PUBLIC_URL'].filter((k) => !env[k])
+  const missing = R2_KEYS.filter((k) => !env[k])
   if (missing.length) {
     throw new FixtureError(`fixture images need R2 — ${missing.join(', ')} not set (FIXTURE_IMAGES=off skips images)`)
   }
@@ -195,6 +204,10 @@ async function readSource(slug: string): Promise<Buffer> {
 export async function seedImages(ctx: FixtureContext): Promise<void> {
   const flag = process.env.FIXTURE_IMAGES
   if (flag === 'off' || (process.env.VITEST && flag !== 'on')) return
+  if (flag !== 'on' && r2Unconfigured()) {
+    console.warn('fixtures: ⚠️  no R2 settings — skipping fixture images (covers, library, avatars); FIXTURE_IMAGES=on makes this an error')
+    return
+  }
   assertFixtureBucket()
   if (!existsSync(MANIFEST_PATH)) throw new FixtureError(`no ${MANIFEST_PATH} — run npm run fixtures:images:refresh`)
   const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8')) as ImageManifest

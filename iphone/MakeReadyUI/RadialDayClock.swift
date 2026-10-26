@@ -27,17 +27,31 @@ struct RadialDayClock: View {
     let centerUnit: String
     /// C-029 §4: `centerCaption: String` — "caption under the value (sample \"Average session\")".
     let centerCaption: String
+    // GAP — C-029: no contract prop for the intro (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: nil = the still render (D7). A clockwise sweep from midnight: each
+    /// arc trims in and blooms as the sweep reaches its start hour, each hour dot lights as it is
+    /// passed, and the centre value counts up.
+    let intro: ChartIntro?
+
+    /// An arc's scale at intro progress `progress` (D2's bloom).
+    static func bloomScale(progress: Double) -> CGFloat { 0.85 + 0.15 * CGFloat(progress) }
+
+    private var introProgress: Double {
+        intro?.progress(fadeOnly: !hourValues.contains { $0 > 0 }) ?? 1
+    }
 
     init(
         hourValues: [Double],
         centerValue: String,
         centerUnit: String,
-        centerCaption: String
+        centerCaption: String,
+        intro: ChartIntro? = nil
     ) {
         self.hourValues = hourValues
         self.centerValue = centerValue
         self.centerUnit = centerUnit
         self.centerCaption = centerCaption
+        self.intro = intro
     }
 
     // MARK: - §2 geometry
@@ -48,7 +62,7 @@ struct RadialDayClock: View {
     /// 4pt dots, r135/r150 radii, the `text/navigation` binding, and the Inter typography".
     /// Rule 4's flagged-literal path therefore covers the stroke, the dot size and both radii:
     /// they stay literals carrying the flag rather than being promoted into `tokens.md`.
-    private enum Geometry {
+    fileprivate enum Geometry {
         static let footprintWidth: CGFloat = 357        // §2: "Footprint 357×326"
         static let footprintHeight: CGFloat = 326
         static let ringRadius: CGFloat = 135            // §2: "circle r=135 (centerline)"
@@ -199,6 +213,8 @@ struct RadialDayClock: View {
             centerKeyValue
         }
         .frame(width: Geometry.footprintWidth, height: Geometry.footprintHeight)
+        .chartIntroMorph(intro, value: hourValues)                         // D9
+        .chartIntroFade(intro, fadeOnly: !hourValues.contains { $0 > 0 })  // D16
         .ui2Element("RadialDayClock")
     }
 
@@ -221,10 +237,16 @@ struct RadialDayClock: View {
     private var activityArcs: some View {
         ZStack {
             ForEach(Array(arcRuns.enumerated()), id: \.offset) { index, run in
-                arcShape(run)
+                ArcSpan(startHour: Double(run.startHour), endHour: Double(run.endHour))
+                    .trim(from: 0, to: introProgress)
                     .stroke(
                         run.band.color,
                         style: StrokeStyle(lineWidth: Geometry.ringStroke, lineCap: .butt)
+                    )
+                    .scaleEffect(Self.bloomScale(progress: introProgress))
+                    .animation(
+                        intro?.animation(ChartIntroMotion.draw, after: ChartIntroMotion.sweepDelay(hour: run.startHour)),
+                        value: intro?.played
                     )
                     .ui2Element("Arc \(index + 1)")
             }
@@ -235,24 +257,34 @@ struct RadialDayClock: View {
         )
     }
 
-    private func arcShape(_ run: ArcRun) -> Path {
-        let box = Geometry.ringRadius * 2 + Geometry.ringStroke
-        let center = CGPoint(x: box / 2, y: box / 2)
-        var path = Path()
-        path.addArc(
-            center: center,
-            radius: Geometry.ringRadius,
-            startAngle: Self.ringAngle(hour: CGFloat(run.startHour)),
-            endAngle: Self.ringAngle(hour: CGFloat(run.endHour)),
-            clockwise: false
-        )
-        return path
+    /// One arc as an animatable span of hours, so a data change after reveal moves its ends from
+    /// old to new rather than snapping (D9). At rest it draws what the still render always drew.
+    struct ArcSpan: Shape {
+        var startHour: Double
+        var endHour: Double
+
+        var animatableData: AnimatablePair<Double, Double> {
+            get { AnimatablePair(startHour, endHour) }
+            set { (startHour, endHour) = (newValue.first, newValue.second) }
+        }
+
+        func path(in rect: CGRect) -> Path {
+            var path = Path()
+            path.addArc(
+                center: CGPoint(x: rect.midX, y: rect.midY),
+                radius: Geometry.ringRadius,
+                startAngle: RadialDayClock.ringAngle(hour: CGFloat(startHour)),
+                endAngle: RadialDayClock.ringAngle(hour: CGFloat(endHour)),
+                clockwise: false
+            )
+            return path
+        }
     }
 
     /// §2: hour 0 sits at the top and the day runs clockwise ("12 AM top, then clockwise 3 AM …").
     /// SwiftUI's angles start at +x and increase clockwise on screen, so the hour ray is
     /// `hour × 15° − 90°`.
-    private static func ringAngle(hour: CGFloat) -> Angle {
+    fileprivate static func ringAngle(hour: CGFloat) -> Angle {
         .degrees(Double(hour * Geometry.degreesPerHour - 90))
     }
 
@@ -265,6 +297,11 @@ struct RadialDayClock: View {
                     .fill(Token.white20)
                     .frame(width: Geometry.tickDiameter, height: Geometry.tickDiameter)
                     .offset(Self.rayOffset(hour: CGFloat(hour), radius: Geometry.tickRadius))
+                    .opacity(introProgress)
+                    .animation(
+                        intro?.animation(ChartIntroMotion.draw, after: ChartIntroMotion.sweepDelay(hour: hour)),
+                        value: intro?.played
+                    )
             }
         }
         .ui2Element("Tick dots")
@@ -335,7 +372,7 @@ struct RadialDayClock: View {
     private var centerKeyValue: some View {
         VStack(spacing: Token.Space.metaGap) {
             HStack(alignment: .bottom, spacing: Token.Space.chipGap) {
-                Text(centerValue)
+                CountUpText(text: centerValue, intro: intro)
                     .designTextStyle(Self.valueStyle)
                     .foregroundColor(Token.textPrimary)
                     .ui2Element("Value")
