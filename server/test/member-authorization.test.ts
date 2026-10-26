@@ -134,13 +134,29 @@ describe('Member access authorization (org-scoped management)', () => {
     expect(res.status).toBe(404)
   })
 
-  it('lets a NON-owner org leader EDIT the member (the fix — was 403)', async () => {
+  // D7: PATCH answers 404 outside the caller's scope too (its response carries SC1-SC3),
+  // and must not change the row.
+  it('404s a NON-owner org leader EDITing a member outside their D7 scope, leaving the row untouched', async () => {
     const res = await request(app)
       .patch(`/api/members/${memberId}`)
       .set('Authorization', bearer(leader.token))
       .send({ firstName: `Edited${stamp}` })
-    expect(res.status).toBe(200)
-    expect(res.body.success).toBe(true)
+    expect(res.status).toBe(404)
+    const row = await prisma.member.findUnique({ where: { id: memberId } })
+    expect(row?.firstName).toBe('Pat')
+  })
+
+  it('lets the org OWNER and a system Admin EDIT the member (all members in scope)', async () => {
+    const byAdmin = await request(app)
+      .patch(`/api/members/${memberId}`)
+      .set('Authorization', bearer(admin.token))
+      .send({ lastName: 'Member' })
+    expect(byAdmin.status).toBe(200)
+    const byOwner = await request(app)
+      .patch(`/api/members/${memberId}`)
+      .set('Authorization', bearer(owner.token))
+      .send({ lastName: 'Member' })
+    expect(byOwner.status).toBe(200)
   })
 
   it('404s the member groups for that custom-role leader (D7/F6)', async () => {
@@ -166,6 +182,11 @@ describe('Member access authorization (org-scoped management)', () => {
     expect(one.status).toBe(200)
     const groups = await request(app).get(`/api/members/${memberId}/groups`).set('Authorization', bearer(leader.token))
     expect(groups.status).toBe(200)
+    const edit = await request(app)
+      .patch(`/api/members/${memberId}`)
+      .set('Authorization', bearer(leader.token))
+      .send({ firstName: `Edited${stamp}` })
+    expect(edit.status).toBe(200)
   })
 
   it('denies a stranger getting the member (403)', async () => {

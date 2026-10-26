@@ -27,7 +27,7 @@ import {
   requireMemberOrOrgOwner,
   requireMemberAuth,
 } from '../middleware/auth.js'
-import type { MemberViewer } from '../services/member-access.js'
+import { canViewMember, type MemberViewer } from '../services/member-access.js'
 import { getMemberEngagement } from '../services/member-engagement.js'
 import { AnalyticsQueryError, assertValidTimezone } from '../services/analytics.service.js'
 import { groupManageFilter } from '../services/permission.js'
@@ -1211,6 +1211,13 @@ const updateMemberSchema = z.object({
 router.patch('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
   try {
     const { memberId } = req.params
+
+    // D7: the response carries SC1-SC3, so a user the member is hidden from gets
+    // the same 404 as GET /:memberId, before anything is written.
+    const viewer = viewerOf(req, memberId)
+    if (viewer?.kind === 'user' && !(await canViewMember(viewer.userId, memberId))) {
+      return res.status(404).json({ success: false, error: 'Member not found' })
+    }
 
     const validation = updateMemberSchema.safeParse(req.body)
     if (!validation.success) {
