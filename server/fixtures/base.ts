@@ -3,13 +3,17 @@
  * members, programs, enrollments and lesson schedules every screen layer
  * reads. Runs for every scenario, `empty` included. Every row has a fixed ID;
  * every date comes from ctx (D9). Every group's and program's creatorId is the
- * fixture user, so deleting that user cascades the graph (D7).
+ * fixture user, so deleting that user cascades the graph (D7); the Group-Leader
+ * user (ui2-members-browse T7) and its one group are deleted with it by reset (wipe.ts).
  */
 import { FIXTURE_TZ, FixtureError, type ScenarioFn, addDays, weekdayOf } from './context.js'
 import { seedImages } from './images.js'
 import {
   FIXTURE_ENROLLMENT_IDS,
   FIXTURE_GROUP_IDS,
+  FIXTURE_LEADER_EMAIL,
+  FIXTURE_LEADER_GROUP_ID,
+  FIXTURE_LEADER_USER_ID,
   FIXTURE_MEMBER_IDS,
   FIXTURE_ORG_ID,
   FIXTURE_PROGRAM_IDS,
@@ -20,6 +24,9 @@ import {
 
 export const FIXTURE_USER_NAME = 'Fixture Leader'
 export const FIXTURE_ORG_NAME = 'MakeReady Fixtures'
+/** ui2-members-browse T7: the Group-Leader fixture user — the same person as member 7 (members-profile links them, D8). */
+export const FIXTURE_LEADER_NAME = 'Nathan Hughes'
+export const LEADER_GROUP_NAME = 'Prayer Team'
 export const GROUP_NAMES = ["Tuesday Men's Group", 'Young Adults', "Women's Bible Study"] as const
 export const MEMBERS_PER_GROUP = 8
 export const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
@@ -38,6 +45,27 @@ const LAST_NAMES = [
   'Price', 'Coleman', 'Jenkins', 'Perry', 'Powell', 'Long', 'Patterson', 'Russell',
   'Griffin', 'Diaz', 'Myers', 'Ford', 'Hamilton', 'Graham', 'Sullivan', 'Wallace',
 ]
+
+/** FIRST_NAMES 0–7 are men's names (Tuesday Men's Group), 8–23 women's. */
+export const MALE_MEMBER_COUNT = 8
+const STREETS = ['Maple Ave', 'Oak St', 'Cedar Ln', 'Elm St', 'Willow Dr', 'Birch Rd', 'Pine St', 'Lakeview Ave'] as const
+const CITY_LINES = ['Chicago, IL 60614', 'Evanston, IL 60201', 'Oak Park, IL 60302', 'Naperville, IL 60540'] as const
+
+/** D13: nominal age 20–66; when the birthday has not come yet this year the true age is one less, so 19–66. */
+export const memberNominalAge = (i: number): number => 20 + ((i * 17) % 47)
+
+/** ui2-members-browse D13: every fixture member's personal fields, derived from its index and ctx.today. */
+export function memberProfile(i: number, today: string) {
+  const last = LAST_NAMES[i]
+  return {
+    email: `${FIRST_NAMES[i]}.${last}@example.org`.toLowerCase(),
+    birthday: new Date(Date.UTC(Number(today.slice(0, 4)) - memberNominalAge(i), (i * 5) % 12, 1 + ((i * 11) % 28), 12)),
+    gender: (i < MALE_MEMBER_COUNT ? 'male' : 'female') as 'male' | 'female',
+    address: `${100 + i * 37} ${STREETS[i % STREETS.length]}\n${CITY_LINES[i % CITY_LINES.length]}`,
+    emergencyContactName: `${FIRST_NAMES[(i + 12) % FIRST_NAMES.length]} ${last}`,
+    emergencyContactPhone: `+1555020${String(i + 1).padStart(4, '0')}`,
+  }
+}
 
 export const PROGRAMS = [
   { key: 'days21', id: FIXTURE_PROGRAM_IDS.days21, index: 1, name: 'Foundations of Faith', days: 21 },
@@ -85,6 +113,8 @@ export const seedBase: ScenarioFn = async (ctx) => {
   // D12: the system Owner role is looked up, never created.
   const ownerRole = await prisma.role.findFirst({ where: { name: 'Owner', isSystem: true, organizationId: null } })
   if (!ownerRole) throw new FixtureError('the system Owner role is missing — run `npm run db:seed` first')
+  const groupLeaderRole = await prisma.role.findFirst({ where: { name: 'Group Leader', isSystem: true, organizationId: null } })
+  if (!groupLeaderRole) throw new FixtureError('the system Group Leader role is missing — run `npm run db:seed` first')
 
   const seededAt = ctx.daysAgo(75)
   created.user = await prisma.user.create({
@@ -102,6 +132,22 @@ export const seedBase: ScenarioFn = async (ctx) => {
       assignedAt: seededAt,
     },
   })
+  // ui2-members-browse T7: a second leader with the system Group Leader role who created one
+  // group, so a Group-Leader session sees only that group's members (D7). Base, not a screen
+  // layer: screen layers may not create users or groups.
+  await prisma.user.create({
+    data: { id: FIXTURE_LEADER_USER_ID, email: FIXTURE_LEADER_EMAIL, name: FIXTURE_LEADER_NAME, createdAt: seededAt },
+  })
+  await prisma.userRole.create({
+    data: {
+      id: fixtureId('userRole', 2),
+      userId: FIXTURE_LEADER_USER_ID,
+      roleId: groupLeaderRole.id,
+      organizationId: FIXTURE_ORG_ID,
+      assignedAt: seededAt,
+      assignedBy: FIXTURE_USER_ID,
+    },
+  })
 
   await prisma.group.createMany({
     data: GROUP_NAMES.map((name, i) => ({
@@ -113,6 +159,17 @@ export const seedBase: ScenarioFn = async (ctx) => {
     })),
   })
   created.groups = await prisma.group.findMany({ where: { id: { in: FIXTURE_GROUP_IDS } }, orderBy: { id: 'asc' } })
+  // Kept out of created.groups on purpose: home-dashboard walks the three base groups.
+  // Its members are added by screens/members-home.ts.
+  await prisma.group.create({
+    data: {
+      id: FIXTURE_LEADER_GROUP_ID,
+      name: LEADER_GROUP_NAME,
+      creatorId: FIXTURE_LEADER_USER_ID,
+      organizationId: FIXTURE_ORG_ID,
+      createdAt: seededAt,
+    },
+  })
 
   // Members join on −62 … −51, two a day, before the first schedule (−48).
   const joinedAt = (i: number) => ctx.at(-62 + Math.floor(i / 2), 10)
@@ -123,6 +180,7 @@ export const seedBase: ScenarioFn = async (ctx) => {
       phoneVerified: true,
       firstName: FIRST_NAMES[i],
       lastName: LAST_NAMES[i],
+      ...memberProfile(i, ctx.today),
       createdAt: joinedAt(i),
     })),
   })

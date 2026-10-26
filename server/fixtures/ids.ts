@@ -49,6 +49,12 @@ export const FIXTURE_PROGRAM_IDS = {
   days30: fixtureId('program', 2),
 }
 export const FIXTURE_ENROLLMENT_IDS: string[] = [1, 2, 3, 4].map((n) => fixtureId('enrollment', n))
+/** ui2-members-browse T7: the Group-Leader fixture user (system Group Leader role) and the one group it created. */
+export const FIXTURE_LEADER_EMAIL = 'fixtures-leader@makeready.local'
+export const FIXTURE_LEADER_USER_ID = fixtureId('user', 2)
+export const FIXTURE_LEADER_GROUP_ID = fixtureId('group', 4)
+/** Every fixture user — reset deletes exactly these. */
+export const FIXTURE_USER_IDS: string[] = [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID]
 
 export const FIXTURE_IDS = {
   user: FIXTURE_USER_ID,
@@ -57,4 +63,6 @@ export const FIXTURE_IDS = {
   members: FIXTURE_MEMBER_IDS,
   programs: FIXTURE_PROGRAM_IDS,
   enrollments: FIXTURE_ENROLLMENT_IDS,
+  leaderUser: FIXTURE_LEADER_USER_ID,
+  leaderGroup: FIXTURE_LEADER_GROUP_ID,
 }

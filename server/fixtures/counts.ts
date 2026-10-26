@@ -3,7 +3,7 @@
  * (SPEC §Contract) and the idempotence/isolation evidence (§Testing b, c, e).
  */
 import type { PrismaClient } from '../src/generated/prisma/index.js'
-import { FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID } from './ids.js'
+import { FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_IDS } from './ids.js'
 import { FIXTURE_CLIENT_EVENT_WHERE } from './wipe.js'
 
 export const FIXTURE_TABLES = [
@@ -34,9 +34,9 @@ export async function countFixtureRows(prisma: PrismaClient): Promise<RowCounts>
   const org = FIXTURE_ORG_ID
   const members = { in: FIXTURE_MEMBER_IDS }
   return {
-    users: await prisma.user.count({ where: { id: FIXTURE_USER_ID } }),
+    users: await prisma.user.count({ where: { id: { in: FIXTURE_USER_IDS } } }),
     organizations: await prisma.organization.count({ where: { id: org } }),
-    user_roles: await prisma.userRole.count({ where: { userId: FIXTURE_USER_ID } }),
+    user_roles: await prisma.userRole.count({ where: { userId: { in: FIXTURE_USER_IDS } } }),
     groups: await prisma.group.count({ where: { organizationId: org } }),
     members: await prisma.member.count({ where: { id: members } }),
     group_members: await prisma.groupMember.count({ where: { group: { organizationId: org } } }),

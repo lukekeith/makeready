@@ -102,9 +102,9 @@ describe('followed enrollments (D12)', () => {
 })
 
 describe('layer discovery (D2, D6)', () => {
-  it('finds base plus the home-dashboard layer, which offers full only', async () => {
+  it('finds base plus the home-dashboard and members layers, which offer full only', async () => {
     const layers = await loadLayers(FIXTURES_DIR)
-    expect(layers.screens.map((s) => s.name)).toEqual(['home-dashboard'])
+    expect(layers.screens.map((s) => s.name)).toEqual(['home-dashboard', 'members-home', 'members-profile'])
     expect(availableScenarios(layers.screens)).toEqual(['full', 'empty'])
   })
 })
