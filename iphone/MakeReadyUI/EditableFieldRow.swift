@@ -3,7 +3,8 @@
 //  MakeReadyUI — the UI 2.0 module
 //
 //  Built from C-042-editable-field-row in d2m (§2 geometry, §3 states, §4 props).
-//  PREVIEW ONLY: referenced by no screen, route, tab or flag.
+//  Consumed by MembersProfileScreen in its non-tappable form (ui2-members-browse D3 — routed to
+//  /ui2-resolve with OQ-C-042-3, F3).
 //
 //  Rulings honoured (all four C-042 open questions closed 2026-09-21):
 //  • OQ-C-042-1 — `Age` is a zero-delta content exemplar and builds as `Default`.
@@ -70,32 +71,46 @@ struct EditableFieldRow: View {
     /// (preview-build.md OQ-PB-3's proposed default).
     var onTap: () -> Void = {}
 
+    /// D3 (ui2-members-browse): `false` renders the row display-only — no button, no press
+    /// highlight, no chevron — for a host whose field has no edit page yet. It contradicts
+    /// OQ-C-042-3's "no disabled rows (omit instead)", which is routed to /ui2-resolve (F3).
+    var isTappable: Bool = true
+
     var body: some View {
-        SwiftUI.Button(action: onTap) {
-            // §2: "gap 8" — also the measured distance between the indicator and the
-            // chevron, and between the left column and the trailing group.
-            HStack(spacing: Token.Space.elementGap) {
-                leftColumn.ui2Element("Left column")
-                Spacer(minLength: Token.Space.elementGap)
-                trailing.ui2Element("Trailing")
-            }
-            // §2: "py16". No horizontal inset: the row is width-driven and its consumers
-            // own the page margin (§1 deviation 2).
-            .padding(.vertical, Token.Space.pageMargin)
-            // §2: "full-width tappable" — the whole row, not just its ink.
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+        if isTappable {
+            SwiftUI.Button(action: onTap) { row }
+                // OQ-C-042-3 (ruled 2026-09-21): "system highlight on press" — `.plain` is exactly
+                // that: no idle decoration, the system's own pressed feedback, held as ephemeral
+                // button state (R-02), never as a prop.
+                .buttonStyle(.plain)
+                // R-17: the one interactive element carries its label and the button trait. The
+                // label reads what the row shows — label, then value / tags, then indicator.
+                .accessibilityLabel(accessibilityText)
+                .accessibilityAddTraits(.isButton)
+                .ui2Element("EditableFieldRow")           // capture element map — UI2Element.swift
+        } else {
+            // D3: the same row as static content — R-17 still reads it as one element.
+            row
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(accessibilityText)
+                .ui2Element("EditableFieldRow")
         }
-        // OQ-C-042-3 (ruled 2026-09-21): "system highlight on press" — `.plain` is exactly
-        // that: no idle decoration, the system's own pressed feedback, held as ephemeral
-        // button state (R-02), never as a prop. "No disabled rows (omit instead)" — so there
-        // is no `disabled` prop: a host that has nothing editable omits the row.
-        .buttonStyle(.plain)
-        // R-17: the one interactive element carries its label and the button trait. The
-        // label reads what the row shows — label, then value / tags, then indicator.
-        .accessibilityLabel(accessibilityText)
-        .accessibilityAddTraits(.isButton)
-        .ui2Element("EditableFieldRow")               // capture element map — UI2Element.swift
+    }
+
+    private var row: some View {
+        // §2: "gap 8" — also the measured distance between the indicator and the chevron, and
+        // between the left column and the trailing group.
+        HStack(spacing: Token.Space.elementGap) {
+            leftColumn.ui2Element("Left column")
+            Spacer(minLength: Token.Space.elementGap)
+            trailing.ui2Element("Trailing")
+        }
+        // §2: "py16". No horizontal inset: the row is width-driven and its consumers own the
+        // page margin (§1 deviation 2).
+        .padding(.vertical, Token.Space.pageMargin)
+        // §2: "full-width tappable" — the whole row, not just its ink.
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     // §2: "Left column (flex, gap 8): label ... over the state's content".
@@ -177,7 +192,7 @@ struct EditableFieldRow: View {
                     .lineLimit(1)
                     .ui2Element("Indicator")
             }
-            chevron.ui2Element("Chevron")
+            if isTappable { chevron.ui2Element("Chevron") }   // D3: hidden on a display-only row
         }
     }
 

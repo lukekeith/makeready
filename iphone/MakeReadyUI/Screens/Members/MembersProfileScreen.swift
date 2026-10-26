@@ -7,7 +7,10 @@
 //  GET /api/members/{memberId}/groups · POST /api/analytics/query
 //  (address, emergencyContact, emailVerified and the per-member program engagement are
 //  API-GAPs in §5).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Wired by MakeReady/UI2/Containers/Members/MemberProfileContainer.swift (ui2-members-browse).
+//  ui2-members-browse edits, routed to /ui2-resolve (F3): display-only C-042 rows (D3), no Email
+//  indicator (P5/D9), "Emergency contact" + "Emergency phone" (P6), multi-line Address (P7),
+//  `age` as a String (D10), the rail opening on today (D12).
 //
 
 import SwiftUI
@@ -37,17 +40,19 @@ struct MembersProfileScreen: View {
         var initials: String
         // ── Quick stats (§2.2) and fields (§2.4); "" = absent → an empty value line (§3) ──
         /// §5: Age is computed client-side from `birthday` — the caller passes the result.
-        var age: Int
+        /// D10: "" when the birthday is absent → an empty value line.
+        var age: String
         var role: String
         var birthday: String
         var joined: String
         var organization: String
         var phone: String
         var phoneVerified: Bool
-        var emailVerified: Bool
         var gender: String
         var address: String
-        var emergencyContact: String
+        /// P6: two fields, two rows.
+        var emergencyContactName: String
+        var emergencyContactPhone: String
         // ── Activity (§2.5) — C-023 `kind=day · transparent`, one entry per day ──
         var dayMonths: [String]
         var dayWeekdays: [String]
@@ -104,8 +109,9 @@ struct MembersProfileScreen: View {
         self.onEnroll = onEnroll
     }
 
-    // §3 has no UI-only rule on this screen: every interaction leaves it, and the rail's free
-    // scroll is scroll physics. So there is no `@SwiftUI.State` here.
+    // R-31 ephemeral UI: the day rail's scroll position (D12: it opens on today, "Jump to today"
+    // returns there). Everything else leaves the screen.
+    @SwiftUI.State private var railDay: Int?
 
     // MARK: - §2 constants (values that no §3 state changes)
 
@@ -121,6 +127,14 @@ struct MembersProfileScreen: View {
     private static let genderLabel = "Gender"
     private static let addressLabel = "Address"
     private static let emergencyContactLabel = "Emergency contact"
+    private static let emergencyPhoneLabel = "Emergency phone"
+    /// §2.4 + P6: the nine field rows, top → bottom.
+    static let fieldLabels = [
+        organizationLabel, roleLabel, phoneLabel, emailLabel, birthdayLabel,
+        genderLabel, addressLabel, emergencyContactLabel, emergencyPhoneLabel
+    ]
+    /// D3: every C-042 row on this page is display-only in this child (child 2 enables them).
+    static let fieldsTappable = false
     /// §2.4: the Phone / Email indicators — Green "Verified", Red "Unverified".
     private static let verifiedText = "Verified"
     private static let unverifiedText = "Unverified"
@@ -249,7 +263,7 @@ struct MembersProfileScreen: View {
     private var quickStats: some View {
         VStack(alignment: .leading, spacing: Self.gridGap) {
             HStack(alignment: .top, spacing: Self.gridGap) {
-                statCell(label: Self.ageLabel, value: "\(state.age)", ordinal: 1)
+                statCell(label: Self.ageLabel, value: state.age, ordinal: 1)
                 statCell(label: Self.roleLabel, value: state.role, ordinal: 2)
             }
             HStack(alignment: .top, spacing: Self.gridGap) {
@@ -268,90 +282,114 @@ struct MembersProfileScreen: View {
 
     // MARK: §2.4 Fields
 
-    /// §2.4: "8 stacked EditableFieldRow (C-042) rows, 74pt each, no separators". §3 `partial`:
-    /// "any absent field value renders the EditableFieldRow with an empty value line (label
-    /// persists)" — so an absent value is passed as "", never nil (nil drops the line).
+    /// §2.4 + P6: nine stacked EditableFieldRow (C-042) rows, 74pt each, no separators. §3
+    /// `partial`: an absent value is passed as "", never nil (nil drops the value line, D10).
     private var fields: some View {
         VStack(alignment: .leading, spacing: 0) {
-            fieldRow(Self.organizationLabel, state.organization, ordinal: 1)
-            fieldRow(Self.roleLabel, state.role, ordinal: 2)
-            fieldRow(
-                Self.phoneLabel,
-                state.phone,
-                indicator: Self.verification(state.phoneVerified, present: !state.phone.isEmpty),
-                ordinal: 3
-            )
-            fieldRow(
-                Self.emailLabel,
-                state.email,
-                indicator: Self.verification(state.emailVerified, present: !state.email.isEmpty),
-                ordinal: 4
-            )
-            fieldRow(Self.birthdayLabel, state.birthday, ordinal: 5)
-            fieldRow(Self.genderLabel, state.gender, ordinal: 6)
-            fieldRow(Self.addressLabel, state.address, ordinal: 7)
-            fieldRow(Self.emergencyContactLabel, state.emergencyContact, ordinal: 8)
+            ForEach(Array(Self.fieldLabels.enumerated()), id: \.offset) { index, label in
+                EditableFieldRow(
+                    label: label,
+                    value: Self.fieldValue(label, state),
+                    indicator: Self.indicator(forField: label, state: state),
+                    multiline: label == Self.addressLabel,              // P7
+                    onTap: { onEditField(label) },
+                    isTappable: Self.fieldsTappable                     // D3
+                )
+                .ui2Element(Self.partName("C-042 EditableFieldRow", ordinal: index + 1))
+            }
         }
         .padding(.horizontal, Token.Space.pageMargin)
     }
 
-    private func fieldRow(
-        _ label: String,
-        _ value: String,
-        indicator: EditableFieldRow.Indicator? = nil,
-        ordinal: Int
-    ) -> some View {
-        EditableFieldRow(label: label, value: value, indicator: indicator, onTap: { onEditField(label) })
-            .ui2Element(Self.partName("C-042 EditableFieldRow", ordinal: ordinal))
+    static func fieldValue(_ label: String, _ s: State) -> String {
+        switch label {
+        case Self.organizationLabel: return s.organization
+        case Self.roleLabel: return s.role
+        case Self.phoneLabel: return s.phone
+        case Self.emailLabel: return s.email
+        case Self.birthdayLabel: return s.birthday
+        case Self.genderLabel: return s.gender
+        case Self.addressLabel: return s.address
+        case Self.emergencyContactLabel: return s.emergencyContactName
+        case Self.emergencyPhoneLabel: return s.emergencyContactPhone
+        default: return ""
+        }
     }
 
-    /// §2.4: Phone → `Green indicator` "Verified", Email → `Red indicator` "Unverified"; the
-    /// indicator is display-only (§3). No value, no indicator.
-    private static func verification(_ verified: Bool, present: Bool) -> EditableFieldRow.Indicator? {
-        guard present else { return nil }
-        return verified
+    /// P5/D9: only Phone carries an indicator — Green "Verified" / Red "Unverified"; display-only
+    /// (§3). No value, no indicator.
+    static func indicator(forField label: String, state s: State) -> EditableFieldRow.Indicator? {
+        guard label == Self.phoneLabel, !s.phone.isEmpty else { return nil }
+        return s.phoneVerified
             ? .init(text: verifiedText, tone: .positive)
             : .init(text: unverifiedText, tone: .negative)
     }
 
     // MARK: §2.5 Activity
 
+    /// D12: today's card — the rail's trailing card; nil while the rail is empty.
+    static func todayIndex(_ dateStates: [String]) -> Int? { dateStates.lastIndex(of: "today") }
+
+    // GAP — no motion token for the recentre: HomeDashboardScreen's ease-in-out, 0.45s.
+    private static var jumpAnimation: Animation { .easeInOut(duration: 0.45) }
+
     private var activitySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // §2.5: "C-020 SectionHeader (title + `text-link` accessory "Jump to today")".
-            SectionHeader(
-                title: Self.activityTitle,
-                accessory: .link(label: Self.jumpToTodayLabel, style: .muted),
-                onAccessoryTap: onJumpToToday
-            )
-            .padding(.horizontal, Token.Space.pageMargin)
-            .ui2Element("C-020 SectionHeader")
-            Spacer().frame(height: Token.Space.sectionGap)           // frame: 1236→1268
-            // §2.5: "Day rail: C-023 RailCard `kind=day · transparent` ×N, 131×192, shared 1px
-            // borders, horizontal scroll". A horizontal carousel keeps its own ScrollView (D22).
-            HorizontalRail {
-                HStack(alignment: .top, spacing: Self.dayCardOverlap) {
-                    ForEach(state.dayNumbers.indices, id: \.self) { index in
-                        RailCard(
-                            kind: .day,
-                            series: state.daySeries[safe: index] ?? [],
-                            state: .transparent,
-                            month: state.dayMonths[safe: index] ?? "",
-                            weekday: state.dayWeekdays[safe: index] ?? "",
-                            day: state.dayNumbers[index],
-                            dateState: Self.dateState(state.dayDateStates[safe: index]),
-                            line1: state.dayLine1s[safe: index] ?? "",
-                            line2: Self.optionalText(state.dayLine2s[safe: index]),
-                            detailsState: Self.detailsState(state.dayDetailsStates[safe: index])
-                        )
-                        .frame(width: Self.dayCardWidth)
-                        .ui2Element(Self.partName("C-023 RailCard", ordinal: index + 1))
-                    }
-                }
+        // T12: the reader lets "Jump to today" scroll the rail directly (HomeDashboardScreen.swift
+        // pattern) — a binding write the rail already holds would not move it.
+        ScrollViewReader { rail in
+            VStack(alignment: .leading, spacing: 0) {
+                // §2.5: "C-020 SectionHeader (title + `text-link` accessory "Jump to today")".
+                SectionHeader(
+                    title: Self.activityTitle,
+                    accessory: .link(label: Self.jumpToTodayLabel, style: .muted),
+                    onAccessoryTap: { jumpToToday(rail) }
+                )
                 .padding(.horizontal, Token.Space.pageMargin)
+                .ui2Element("C-020 SectionHeader")
+                Spacer().frame(height: Token.Space.sectionGap)           // frame: 1236→1268
+                // §2.5: "Day rail: C-023 RailCard `kind=day · transparent` ×N, 131×192, shared 1px
+                // borders, horizontal scroll". A horizontal carousel keeps its own ScrollView (D22).
+                HorizontalRail {
+                    HStack(alignment: .top, spacing: Self.dayCardOverlap) {
+                        ForEach(state.dayNumbers.indices, id: \.self) { index in
+                            RailCard(
+                                kind: .day,
+                                series: state.daySeries[safe: index] ?? [],
+                                state: .transparent,
+                                month: state.dayMonths[safe: index] ?? "",
+                                weekday: state.dayWeekdays[safe: index] ?? "",
+                                day: state.dayNumbers[index],
+                                dateState: Self.dateState(state.dayDateStates[safe: index]),
+                                line1: state.dayLine1s[safe: index] ?? "",
+                                line2: Self.optionalText(state.dayLine2s[safe: index]),
+                                detailsState: Self.detailsState(state.dayDetailsStates[safe: index])
+                            )
+                            .frame(width: Self.dayCardWidth)
+                            .ui2Element(Self.partName("C-023 RailCard", ordinal: index + 1))
+                        }
+                    }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, Token.Space.pageMargin)
+                }
+                .scrollIndicators(.hidden)
+                // D12: the rail opens with today as its trailing card; days that land after the
+                // page opened (cache-first, F5) re-align it.
+                .scrollPosition(id: $railDay, anchor: .trailing)
+                .onAppear { railDay = Self.todayIndex(state.dayDateStates) }
+                .onChange(of: Self.todayIndex(state.dayDateStates)) { _, today in railDay = today }
             }
-            .scrollIndicators(.hidden)
         }
+    }
+
+    /// members-profile §3: "Jump to today" recentres the rail on today (most recent day trailing).
+    private func jumpToToday(_ rail: ScrollViewProxy) {
+        if let today = Self.todayIndex(state.dayDateStates) {
+            withAnimation(Self.jumpAnimation) {
+                railDay = today
+                rail.scrollTo(today, anchor: .trailing)
+            }
+        }
+        onJumpToToday()
     }
 
     // MARK: §2.6 Membership
@@ -508,17 +546,17 @@ extension MembersProfileScreen.State {
         email: "tstank@starkindustries.com",
         avatarURL: "https://i.pravatar.cc/328?img=12",
         initials: "TS",
-        age: 52,
+        age: "52",
         role: "Member",
         birthday: "Jun 25, 1974",
         joined: "July 5, 2026",
         organization: "MakeReady",
         phone: "+1 (123) 456-7890",
         phoneVerified: true,
-        emailVerified: false,
         gender: "Male",
         address: "123 Stark Tower, NYC NY 12345",
-        emergencyContact: "Pepper Stark",
+        emergencyContactName: "Pepper Stark",
+        emergencyContactPhone: "+1 (123) 456-7891",
         dayMonths: ["JUL", "JUL", "JUL", "JUL"],
         dayWeekdays: ["MON", "MON", "MON", ""],
         dayNumbers: ["24", "25", "26", "27"],
@@ -566,10 +604,10 @@ extension MembersProfileScreen.State {
         organization: populated.organization,
         phone: populated.phone,
         phoneVerified: populated.phoneVerified,
-        emailVerified: populated.emailVerified,
         gender: "",
         address: "",
-        emergencyContact: "",
+        emergencyContactName: "",
+        emergencyContactPhone: "",
         dayMonths: populated.dayMonths,
         dayWeekdays: populated.dayWeekdays,
         dayNumbers: populated.dayNumbers,

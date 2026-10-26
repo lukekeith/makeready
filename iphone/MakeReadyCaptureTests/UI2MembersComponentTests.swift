@@ -36,4 +36,54 @@ final class UI2MembersComponentTests: XCTestCase {
         screen.onOpenMember(2)
         XCTAssertEqual(opened, [2])
     }
+
+    // MARK: - Task 14: C-042 non-tappable form + MembersProfileScreen (D3, P5/D9, P6, P7, D10, D12)
+
+    func testEditableFieldRowIsTappableUnlessToldOtherwise() {
+        XCTAssertTrue(EditableFieldRow(label: "Email address", value: "a@b.example").isTappable)
+        XCTAssertFalse(EditableFieldRow(label: "Role", value: "Member", isTappable: false).isTappable)
+    }
+
+    /// P6: nine rows, "Emergency phone" last; D3: none of them tappable in this child.
+    func testMemberPageDrawsNineDisplayOnlyFields() {
+        XCTAssertEqual(MembersProfileScreen.fieldLabels, [
+            "Organization", "Role", "Phone number", "Email address", "Birthday",
+            "Gender", "Address", "Emergency contact", "Emergency phone"
+        ])
+        XCTAssertFalse(MembersProfileScreen.fieldsTappable)
+    }
+
+    func testFieldValuesComeFromTheirOwnStateFields() {
+        let s = MembersProfileScreen.State.populated
+        XCTAssertEqual(MembersProfileScreen.fieldValue("Emergency contact", s), s.emergencyContactName)
+        XCTAssertEqual(MembersProfileScreen.fieldValue("Emergency phone", s), s.emergencyContactPhone)
+        XCTAssertEqual(MembersProfileScreen.fieldValue("Address", s), s.address)
+        XCTAssertEqual(MembersProfileScreen.fieldValue("Organization", s), s.organization)
+    }
+
+    /// P5/D9: Email carries no indicator; Phone reads Verified / Unverified.
+    func testOnlyPhoneCarriesAVerificationIndicator() {
+        var s = MembersProfileScreen.State.populated
+        XCTAssertNil(MembersProfileScreen.indicator(forField: "Email address", state: s))
+        XCTAssertEqual(MembersProfileScreen.indicator(forField: "Phone number", state: s)?.text, "Verified")
+        s.phoneVerified = false
+        XCTAssertEqual(MembersProfileScreen.indicator(forField: "Phone number", state: s)?.text, "Unverified")
+        s.phone = ""
+        XCTAssertNil(MembersProfileScreen.indicator(forField: "Phone number", state: s))   // D10: no value, no indicator
+    }
+
+    /// D10: Age is a String so a missing birthday renders an empty value line.
+    func testSamplesCarryTheSplitEmergencyContactAndAStringAge() {
+        XCTAssertEqual(MembersProfileScreen.State.populated.age, "52")
+        XCTAssertEqual(MembersProfileScreen.State.populated.emergencyContactName, "Pepper Stark")
+        XCTAssertEqual(MembersProfileScreen.State.populated.emergencyContactPhone, "+1 (123) 456-7891")
+        XCTAssertEqual(MembersProfileScreen.State.partial.emergencyContactPhone, "")
+    }
+
+    /// D12: today is the rail's trailing card.
+    func testRailTodayIndex() {
+        XCTAssertEqual(MembersProfileScreen.todayIndex(["default", "default", "today"]), 2)
+        XCTAssertEqual(MembersProfileScreen.todayIndex(MembersProfileScreen.State.populated.dayDateStates), 3)
+        XCTAssertNil(MembersProfileScreen.todayIndex([]))
+    }
 }

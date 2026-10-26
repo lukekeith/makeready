@@ -835,6 +835,9 @@ struct CaptureComponent: Codable {
     let gender: String?
     let address: String?
     let emergencyContact: String?
+    // ui2-members-browse P6: `emergencyContact` feeds the "Emergency contact" (name) row; the new
+    // "Emergency phone" row reads this — additive.
+    let emergencyContactPhone: String?
     let groupLeaders: [String]?
     let groupJoinedDates: [String]?
     let programStates: [String]?
