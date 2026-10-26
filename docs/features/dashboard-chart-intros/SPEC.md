@@ -1,4 +1,5 @@
 # dashboard-chart-intros — spec
+> 🤖 AGENT SIGNED OFF 2026-10-26 — 361bb85 · agent walk round 3 · not human-tested · evidence: .builder/dashboard-chart-intros/agent-walk/round-3/
 > md · no ticket
 
 ## Idea
@@ -220,18 +221,6 @@ No cross-app E2E walk: no other app changes.
 | F9 | C-031's OQ-C-031-001 ruling ("the bar sits at progress on first paint") stands for every caller that passes no intro (D7); only the live dashboard opts in | disposition: carried by D7 + D12 — the owner files the contract prop afterwards |
 | F10 | build-time risk — whether `onScrollVisibilityChange` reports the sections already above the fold when Home first appears (Following sits first, so Overview may start partly visible), and its behaviour inside the `HomeSectionLayout` `ZStack` with the refresh `offset` | the reveal-modifier task's test + the walk's step 1 settle it; fallback: seed visibility from `onScrollGeometryChange` |
 | F11 | build-time risk — per-frame cost of the count-up and 24-bar waves on the lazy day rail and 88 TimeActivityChart bins | the chart tasks; `/animation-debug` if the walk shows a stutter |
-
-## Plan
-
-The plan, with its code: `docs/features/dashboard-chart-intros/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · ChartIntro, ChartIntroMotion and the count-up
-- Phase 1 · Task 2 · The played ledger and the shell's homeActive signal
-- Phase 2 · Task 3 · C-024 SparkBarChart and C-023 RailCard intros
-- Phase 2 · Task 4 · C-026 DualSeriesBarChart intro
-- Phase 2 · Task 5 · C-029 RadialDayClock and C-030 TimeActivityChart intros
-- Phase 2 · Task 6 · C-031 EnrollmentStatusRow and PercentBar intro
-- Phase 2 · Task 7 · Home dashboard turns the intros on
 
 ## Fixes
 
