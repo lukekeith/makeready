@@ -5,6 +5,7 @@ import {
   getOrganizationByOwner,
   updateOrganizationName,
   getOrganizationMembers,
+  getUserOrganizations,
 } from '../services/organization.js'
 import { requireAuth, requirePermission } from '../middleware/auth.js'
 import { recordMembershipEvent } from '../services/membership-event.js'
@@ -479,6 +480,38 @@ router.get('/my/organization', requireAuth, async (req, res) => {
       success: false,
       error: 'Internal server error',
     })
+  }
+})
+
+/**
+ * @openapi
+ * /api/organizations/my/organizations:
+ *   get:
+ *     tags: [Organizations]
+ *     summary: List every organization the user owns or holds a role in
+ *     description: Owned organization first, then role-held organizations by name. Active organizations only. Used by the iPhone UI 2.0 shell when /my/organization has none (a non-owner Admin or Group Leader).
+ *     security:
+ *       - userSession: []
+ *     responses:
+ *       200:
+ *         description: "{ success, data: Organization[] } — empty when the user has none"
+ *       401:
+ *         description: Not authenticated
+ */
+router.get('/my/organizations', requireAuth, async (req, res) => {
+  try {
+    const userId = (req.user as { id?: string } | undefined)?.id
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' })
+    }
+    const result = await getUserOrganizations(userId)
+    if (!result.success) {
+      return res.status(500).json({ success: false, error: 'Internal server error' })
+    }
+    res.json({ success: true, data: result.data ?? [] })
+  } catch (error) {
+    console.error('Error fetching user organizations:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })
 

@@ -18,6 +18,12 @@ export interface MembersResult {
   error?: string
 }
 
+export interface OrganizationsResult {
+  success: boolean
+  data?: Organization[]
+  error?: string
+}
+
 /**
  * Get organization by ID
  * @param organizationId - Organization ID
@@ -126,6 +132,34 @@ export async function resolveUserOrganizationId(
     select: { organizationId: true },
   })
   return role?.organizationId ?? null
+}
+
+/**
+ * Every active organization a user owns or holds a role in — the owned one
+ * first (ownerId is unique, so at most one), then role-held orgs by name
+ * (ui2-members-browse D18: a non-owner Admin or Group Leader needs an org id
+ * that the owner-only /my/organization cannot give them).
+ */
+export async function getUserOrganizations(userId: string): Promise<OrganizationsResult> {
+  try {
+    const [owned, roles] = await Promise.all([
+      prisma.organization.findMany({ where: { ownerId: userId, isActive: true } }),
+      prisma.userRole.findMany({ where: { userId }, select: { organizationId: true } }),
+    ])
+    const ownedIds = new Set(owned.map((o) => o.id))
+    const roleOrgIds = [...new Set(roles.map((r) => r.organizationId))].filter((id) => !ownedIds.has(id))
+    const roleHeld =
+      roleOrgIds.length > 0
+        ? await prisma.organization.findMany({
+            where: { id: { in: roleOrgIds }, isActive: true },
+            orderBy: [{ name: 'asc' }, { id: 'asc' }],
+          })
+        : []
+    return { success: true, data: [...owned, ...roleHeld] }
+  } catch (error) {
+    console.error('Error fetching user organizations:', error)
+    return { success: false, error: 'Failed to fetch organizations' }
+  }
 }
 
 /**
