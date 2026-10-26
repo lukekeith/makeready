@@ -1,4 +1,5 @@
 # ui2-members-browse — spec
+> 🤖 AGENT SIGNED OFF 2026-10-26 — e25698c · agent walk round 3 · not human-tested · evidence: .builder/ui2-members-browse/agent-walk/round-3/
 > lg · child 1 of program `ui2-members` (docs/features/ui2-members/PROGRAM.md)
 
 ## Idea
@@ -227,27 +228,6 @@ migration; no backfill, existing rows read null. SC4–SC10 are additive API cha
 | T16 | iphone: `AppState` org adoption falls back to `/my/organizations` for a non-owner leader (D18), generation-guarded like `adoptOrganization` | trailing |
 
 **Alignment (2026-10-25)** — 16 persisted fields ALIGNED (name ×2, profilePicture/googlePicture, email, phoneNumber, phoneVerified, birthday, gender, org name, org joinedAt, group name/cover/leader `creator.name`/joinedAt, day `sessionSeconds`/`blocks`); MISSING: list `joinedAt` + `groupCount` (SC4), `address` (SC1), emergency name/phone (SC2/SC3, RESHAPE of the design's one `emergencyContact`), Role (SC8), day `lastActivityAt` (SC7), the five engagement values (SC5); RESHAPE: list sort (server `lastName` asc → D6), C-059 state (D14); DESIGN-ONLY: `emailVerified` (P5); RENAME resolved app-side: `q` → `search`, `title` ← `StudyProgram.name`. Released iPhone build: caches none of these fields (1.0 reads `/profile` into `MemberProfile`, untouched) — no on-device migration.
-
-## Plan
-
-The plan, with its code: `docs/features/ui2-members-browse/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Member columns address / emergencyContactName / emergencyContactPhone
-- Phase 1 · Task 2 · `memberAccessScope` — who sees which members (D7)
-- Phase 1 · Task 3 · `GET /api/organizations/my/organizations` (D18)
-- Phase 2 · Task 4 · Members list — filters, groupCount, joinedAt order, token search, viewerScope (D6, D7, D15)
-- Phase 2 · Task 5 · `GET /api/members/:id` and `/:id/groups` scoped (D7, D8, D16)
-- Phase 2 · Task 6 · `GET /api/members/:id/engagement` (D11, D14, D16, D17)
-- Phase 2 · Task 7 · `/api/home/days` — `memberId` filter + per-day `lastActivityAt` (D12, D7)
-- Phase 2 · Task 8 · Fixtures — every Members section populated, then freeze the contract (D13, T7)
-- Phase 3 · Task 9 · Member payload models — tolerant Codable, every date a String
-- Phase 3 · Task 10 · MemberActions + in-memory member stores + the non-owner org fallback
-- Phase 3 · Task 11 · The shell's push — one NavigationStack per tab, paths in UI2ShellModel
-- Phase 4 · Task 12 · C-034 SearchField gains its editable form
-- Phase 4 · Task 13 · MembersHomeScreen — shell chrome only, scoped Leaders chip, initials, typeable search
-- Phase 4 · Task 14 · C-042 non-tappable form + MembersProfileScreen — nine display-only fields, rail opens on today
-- Phase 5 · Task 15 · MembersHomeContainer + MembersHomeMapper — the Members section, live
-- Phase 5 · Task 16 · MemberProfileContainer + MemberProfileMapper — the member page, live
 
 ## Fixes
 
