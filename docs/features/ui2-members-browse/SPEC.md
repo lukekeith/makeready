@@ -251,6 +251,6 @@ The plan, with its code: `docs/features/ui2-members-browse/PLAN.md` (§PLAN.md).
 
 ## Fixes
 
-- [ ] iphone: Members filter chips (item 3) — expected a tap on the Groups or Leaders chip to open its filter menu, saw no menu, no dim and no options in the element tree (agent walk round 1)
-- [ ] iphone: chip-filtered requests (E2) — expected a chip pick to send `groupId` or `leaderId` and the list to match the server, saw no chip request because the menu never opens (agent walk round 1)
-- [ ] iphone: Engagement program covers — expected each program row to show its `coverImageUrl`, saw the grey missing-cover box on all 4 rows while the group cover from the same host loads (agent walk round 1, observed and not graded)
+- [x] iphone: Members filter chips (item 3) — expected a tap on the Groups or Leaders chip to open its filter menu, saw no menu, no dim and no options in the element tree (agent walk round 1)
+- [x] iphone: chip-filtered requests (E2) — expected a chip pick to send `groupId` or `leaderId` and the list to match the server, saw no chip request because the menu never opens (agent walk round 1)
+- [x] iphone: Engagement program covers — expected each program row to show its `coverImageUrl`, saw the grey missing-cover box on all 4 rows while the group cover from the same host loads (agent walk round 1, observed and not graded)
