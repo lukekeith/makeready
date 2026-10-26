@@ -81,4 +81,63 @@ final class ChartIntroTests: XCTestCase {
         XCTAssertEqual(ChartIntro.scaled(98, by: 0.5), 49)
         XCTAssertEqual(ChartIntro.scaled(98, by: 1), 98)
     }
+
+    // MARK: - D5 / D6 / D15 the played ledger
+
+    func testASectionPlaysOnceAndNotAgainOnScrollBack() {
+        var ledger = ChartIntroLedger()
+        XCTAssertFalse(ledger.hasPlayed(.sessions))
+        ledger.setVisible(.sessions, true)
+        XCTAssertTrue(ledger.hasPlayed(.sessions))
+        ledger.setVisible(.sessions, false)
+        ledger.setVisible(.sessions, true)
+        XCTAssertTrue(ledger.hasPlayed(.sessions))
+        XCTAssertFalse(ledger.hasPlayed(.engagement))
+    }
+
+    /// F4 + D15: Home sits hidden under another tab with its geometry unchanged, so leaving
+    /// clears every flag and returning replays only what is still on screen.
+    func testLeavingHomeClearsAndReturningReplaysTheVisibleSections() {
+        var ledger = ChartIntroLedger()
+        ledger.setVisible(.overview, true)
+        ledger.setVisible(.overview, false)
+        ledger.setVisible(.activity, true)
+        ledger.setActive(false)
+        XCTAssertFalse(ledger.hasPlayed(.overview))
+        XCTAssertFalse(ledger.hasPlayed(.activity))
+        ledger.setActive(true)
+        XCTAssertTrue(ledger.hasPlayed(.activity))
+        XCTAssertFalse(ledger.hasPlayed(.overview))
+    }
+
+    /// D6: a pushed page or a menu over Home never reports Home inactive — a repeated `true`
+    /// changes nothing.
+    func testARepeatedActiveSignalChangesNothing() {
+        var ledger = ChartIntroLedger()
+        ledger.setVisible(.overview, true)
+        ledger.setVisible(.overview, false)
+        ledger.setActive(true)
+        XCTAssertTrue(ledger.hasPlayed(.overview))
+    }
+
+    func testNothingPlaysWhileHomeIsHidden() {
+        var ledger = ChartIntroLedger()
+        ledger.setActive(false)
+        ledger.setVisible(.engagement, true)
+        XCTAssertFalse(ledger.hasPlayed(.engagement))
+        ledger.setActive(true)
+        XCTAssertTrue(ledger.hasPlayed(.engagement))
+    }
+
+    func testHomeActiveFollowsTheSelectedTab() {
+        var model = UI2ShellModel()
+        XCTAssertTrue(model.homeActive)
+        model.apply(.tab(.profile))
+        XCTAssertFalse(model.homeActive)
+        model.apply(.tab(.home))
+        XCTAssertTrue(model.homeActive)
+        model.apply(.section(.members))
+        model.apply(.tab(.home))                // a re-tap of Home
+        XCTAssertTrue(model.homeActive)
+    }
 }

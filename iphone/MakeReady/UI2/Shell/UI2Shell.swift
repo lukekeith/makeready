@@ -97,6 +97,8 @@ struct UI2Shell: View {
             pop: { model.pop(on: tab) },
             popIfTop: { model.popIfTop($0, on: tab) }
         ))
+        // dashboard-chart-intros D15: the dashboard resets its intros while hidden, replays on return.
+        .environment(\.chartIntroActive, model.homeActive)
     }
 
     private func pathBinding(for tab: TabBar.Tab) -> Binding<[UI2Destination]> {
