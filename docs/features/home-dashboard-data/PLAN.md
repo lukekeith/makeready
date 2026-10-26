@@ -31,9 +31,9 @@
 |---|---|---|---|---|
 | 1 | server | 1 | `scheduled_lessons` is queryable through `/api/analytics/query`, from a new `ls:` matview arm | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 2 | server | 2–6 | `/api/home/{sessions,days,engagement,following}` answer per §Contract, scoped like analytics | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
-| 3 | server | 7 | `fixtures:reset` makes every Home section non-zero; the contract freezes | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
+| 3 | server | 7, 13 | `fixtures:reset` makes every Home section non-zero; the contract freezes (re-closes after Task 13) | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` · `cd server && npm run migrate:status` |
 | 4 | iphone | 8–9 | `DashboardSnapshot` carries and caches every new section; `refresh()` fetches them, non-fatally | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
-| 5 | iphone | 10–12 | `HomeDashboardMapper` fills Activity, day cards, Sessions (per range), Engagement and Following | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
+| 5 | iphone | 10–12, 14 | `HomeDashboardMapper` fills Activity, day cards, Sessions (per range), Engagement and Following; Task 14 lands D18–D20 on the device build | `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 
 ---
 
@@ -3798,3 +3798,47 @@ Add under `// MARK: - Helpers`:
 - [ ] **Step 4: Run the tests and watch them pass** — `npm run ios:build-check -- --test` → PASS (new tests plus the existing `testEmptySectionsStayEmpty`: its snapshot has no engagement/following, so `followedCount` "0", `programTitles` [] and `engagementCount` 0 still hold); `cd iphone && swiftlint --baseline .swiftlint-baseline.json` → no new violations (the ISO formatters are `static`).
 
 - [ ] **Step 5: Stage and stop for the owner** — `git add iphone/MakeReady/UI2/Containers/Home/HomeDashboardMapper.swift iphone/MakeReadyCaptureTests/HomeDashboardMapperTests.swift`, then STOP and ask the owner to commit with the proposed message `feat(home-dashboard-data): Home maps Engagement and Following with D7 bands`. Do not run `git commit`.
+
+---
+
+### Task 13: D10 corrected + D18 session-length strip (owner rulings 2026-10-25)
+App: server
+Phase: 3
+Recipe: /api (server)
+
+Owed rework on built producer code, per SPEC D10 (superseded), D18, SC3. Already written in the
+worktree from the owner's on-device session; this block records it.
+
+**Files:**
+- Create: `server/atlas/migrations/20261025200000.sql` — recreate `analytics_events` with the `ls:` arm
+  joined to `group_members` (active, `memberId` not null), `event_id = 'ls:' || ls.id || ':' || gm.id`;
+  everything else copied verbatim from the prior definition; `atlas migrate hash` → `atlas.sum`.
+- Modify: `server/src/services/analytics.service.ts` (the `ls` quality-check join), `server/src/services/home-dashboard.ts`
+  (`TICK_STEPS_MINUTES`, `MAX_TICKS`, `sessionLengthAxis()`, `summarizeSessions` bins = sessions per length band,
+  `ticks: number[]`, `axisMinutes`), `server/src/routes/home.ts` (OpenAPI line).
+- Tests: `home-dashboard.test.ts` (`sessionLengthAxis` 40 → 0·20·40, 45 → 0·15·30·45; bins by length),
+  `home.test.ts`, `scheduled-lessons.db.test.ts` (schedule × member counts), `home-dashboard.db.test.ts`.
+
+**Done when:** server fast gates green for these files; `migrate:status` at `20261025200000`; the contract re-closes.
+
+### Task 14: iPhone consumes D18 and lands D19–D20 (owner rulings 2026-10-25)
+App: iphone
+Phase: 5
+Recipe: iphone (iphone/.claude/CLAUDE.md — HorizontalRail, AppState + Actions)
+
+Owed rework on built consumer code, per SPEC D18, D19, D20 — re-checked against the re-opened
+`/api/home/sessions` row. Already written in the worktree; this block records it.
+
+**Files:**
+- Modify: `DashboardModels.swift` (`HomeSessionsResponse.ticks: [Int]`, `axisMinutes`, tolerant decode of the
+  pre-D18 cache), `DashboardActions.swift` (`historyDays = 182`, `daysPerCall = 62`, parallel day ranges),
+  `HomeDashboardMapper.swift` (182-day window; ticks as minute values with unit "min").
+- Modify: `MakeReadyUI/DualSeriesBarChart.swift` (scroll view over the whole timeline, timeline scale,
+  completed inside scheduled), `MakeReadyUI/Screens/Home/HomeDashboardScreen.swift` (rail and chart unsynced,
+  `LazyHStack` rail, chart re-created by Jump to today), `MakeReadyUI/UI2Element.swift` (bounds only under the
+  capture map), `MakeReadyUI/HorizontalScrolling.swift`, `iphone/.swiftlint.yml`, `project.pbxproj`.
+- Tests: `DashboardActionsTests` (history ranges), `HomeDashboardMapperTests` (minute ticks), `StubAPIClient`.
+
+**Done when:** `npm run ios:build-check -- --test` green but the known `testPageHeaderDeclaresItsFrame`;
+swiftlint clean; staged for the owner (`commit: manual`).
+
