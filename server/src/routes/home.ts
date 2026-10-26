@@ -18,7 +18,7 @@ import { AnalyticsQueryError, assertValidTimezone, type AnalyticsScope } from '.
 import { deriveAnalyticsScope, isEmptyScope } from '../services/analytics-scope.js'
 import { getHomeDays, getHomeEngagement, getHomeSessions, validateDayRange } from '../services/home-dashboard.js'
 import { getHomeFollowing } from '../services/home-following.js'
-import { canViewMember } from '../services/member-access.js'
+import { canViewMember, visibleMemberOrgIds } from '../services/member-access.js'
 
 const router = Router()
 
@@ -128,11 +128,26 @@ router.get('/days', requireAuth, async (req, res) => {
     }
     // D7 is checked here, not taken from the D9 scope (which gives a role-holding Group Leader the whole org).
     const userId = callerOf(req).userId
-    if (!userId || !(await canViewMember(userId, memberId, orgId))) {
+    if (!userId) {
       res.status(404).json({ success: false, error: 'Not found' })
       return
     }
-    res.json(await getHomeDays(scope, from, to, parsed.data.tz, { memberId }))
+    let readScope = scope
+    if (orgId) {
+      if (!(await canViewMember(userId, memberId, orgId))) {
+        res.status(404).json({ success: false, error: 'Not found' })
+        return
+      }
+    } else {
+      // No organizationId: read only the orgs where the caller may see this member, never the whole D9 scope.
+      const visibleOrgIds = await visibleMemberOrgIds({ kind: 'user', userId }, memberId)
+      if (visibleOrgIds.length === 0) {
+        res.status(404).json({ success: false, error: 'Not found' })
+        return
+      }
+      readScope = { all: false, orgIds: visibleOrgIds, groupIds: [] }
+    }
+    res.json(await getHomeDays(readScope, from, to, parsed.data.tz, { memberId }))
   } catch (error) {
     failed(res, error, 'days')
   }
