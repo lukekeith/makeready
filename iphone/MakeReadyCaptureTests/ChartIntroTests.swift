@@ -170,4 +170,18 @@ final class ChartIntroTests: XCTestCase {
         XCTAssertEqual(DualSeriesBarChart.introSettle(windowLength: 7), 0.09, accuracy: 1e-9)
         XCTAssertEqual(DualSeriesBarChart.introSettle(windowLength: 60), 0.4, accuracy: 1e-9)
     }
+
+    // MARK: - Task 5: C-029 / C-030
+
+    func testRadialArcsBloomFromEightyFivePercent() {
+        XCTAssertEqual(RadialDayClock.bloomScale(progress: 0), 0.85, accuracy: 1e-9)
+        XCTAssertEqual(RadialDayClock.bloomScale(progress: 0.5), 0.925, accuracy: 1e-9)
+        XCTAssertEqual(RadialDayClock.bloomScale(progress: 1), 1, accuracy: 1e-9)
+    }
+
+    /// D2: the bar chart grows in step with the clock — its last bin starts when the sweep
+    /// reaches midnight again.
+    func testTimeActivityWaveEndsWithTheClockSweep() {
+        XCTAssertEqual(ChartIntroMotion.stagger(87, of: 88), ChartIntroMotion.sweepDelay(hour: 24), accuracy: 1e-9)
+    }
 }

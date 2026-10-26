@@ -27,17 +27,31 @@ struct RadialDayClock: View {
     let centerUnit: String
     /// C-029 §4: `centerCaption: String` — "caption under the value (sample \"Average session\")".
     let centerCaption: String
+    // GAP — C-029: no contract prop for the intro (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: nil = the still render (D7). A clockwise sweep from midnight: each
+    /// arc trims in and blooms as the sweep reaches its start hour, each hour dot lights as it is
+    /// passed, and the centre value counts up.
+    let intro: ChartIntro?
+
+    /// An arc's scale at intro progress `progress` (D2's bloom).
+    static func bloomScale(progress: Double) -> CGFloat { 0.85 + 0.15 * CGFloat(progress) }
+
+    private var introProgress: Double {
+        intro?.progress(fadeOnly: !hourValues.contains { $0 > 0 }) ?? 1
+    }
 
     init(
         hourValues: [Double],
         centerValue: String,
         centerUnit: String,
-        centerCaption: String
+        centerCaption: String,
+        intro: ChartIntro? = nil
     ) {
         self.hourValues = hourValues
         self.centerValue = centerValue
         self.centerUnit = centerUnit
         self.centerCaption = centerCaption
+        self.intro = intro
     }
 
     // MARK: - §2 geometry
@@ -199,6 +213,8 @@ struct RadialDayClock: View {
             centerKeyValue
         }
         .frame(width: Geometry.footprintWidth, height: Geometry.footprintHeight)
+        .chartIntroMorph(intro, value: hourValues)                         // D9
+        .chartIntroFade(intro, fadeOnly: !hourValues.contains { $0 > 0 })  // D16
         .ui2Element("RadialDayClock")
     }
 
@@ -222,9 +238,15 @@ struct RadialDayClock: View {
         ZStack {
             ForEach(Array(arcRuns.enumerated()), id: \.offset) { index, run in
                 arcShape(run)
+                    .trim(from: 0, to: introProgress)
                     .stroke(
                         run.band.color,
                         style: StrokeStyle(lineWidth: Geometry.ringStroke, lineCap: .butt)
+                    )
+                    .scaleEffect(Self.bloomScale(progress: introProgress))
+                    .animation(
+                        intro?.animation(ChartIntroMotion.draw, after: ChartIntroMotion.sweepDelay(hour: run.startHour)),
+                        value: intro?.played
                     )
                     .ui2Element("Arc \(index + 1)")
             }
@@ -265,6 +287,11 @@ struct RadialDayClock: View {
                     .fill(Token.white20)
                     .frame(width: Geometry.tickDiameter, height: Geometry.tickDiameter)
                     .offset(Self.rayOffset(hour: CGFloat(hour), radius: Geometry.tickRadius))
+                    .opacity(introProgress)
+                    .animation(
+                        intro?.animation(ChartIntroMotion.draw, after: ChartIntroMotion.sweepDelay(hour: hour)),
+                        value: intro?.played
+                    )
             }
         }
         .ui2Element("Tick dots")
@@ -335,7 +362,7 @@ struct RadialDayClock: View {
     private var centerKeyValue: some View {
         VStack(spacing: Token.Space.metaGap) {
             HStack(alignment: .bottom, spacing: Token.Space.chipGap) {
-                Text(centerValue)
+                CountUpText(text: centerValue, intro: intro)
                     .designTextStyle(Self.valueStyle)
                     .foregroundColor(Token.textPrimary)
                     .ui2Element("Value")
