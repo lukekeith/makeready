@@ -197,4 +197,17 @@ final class ChartIntroTests: XCTestCase {
         XCTAssertEqual(span.startHour, 3)
         XCTAssertEqual(span.endHour, 9)
     }
+
+    // MARK: - Task 6: C-031 / PercentBar
+
+    func testPercentBarRevealScalesTheFillAndTheTrackCapsTheOvershoot() {
+        XCTAssertEqual(PercentBar.revealed(0.6, by: 0), 0)
+        XCTAssertEqual(PercentBar.revealed(0.6, by: 0.5), 0.3, accuracy: 1e-9)
+        XCTAssertEqual(PercentBar.revealed(0.6, by: 1), 0.6, accuracy: 1e-9)
+        XCTAssertEqual(PercentBar.revealed(0.9, by: 1.2), 1)
+    }
+
+    func testStatusDiscPulsesToSpecScale() {
+        XCTAssertEqual(EnrollmentStatusRow.pulsePeak, 1.3)
+    }
 }

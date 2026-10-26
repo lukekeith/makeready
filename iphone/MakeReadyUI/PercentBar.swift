@@ -160,6 +160,17 @@ struct PercentBar: View {
     /// **note 2026-09-12T02:28:29.097Z**. Carries no render effect in a still capture.
     var fillAnimation: FillAnimation?
 
+    // GAP — C-057: no contract prop for an intro-driven fill (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: the share of `progress` the fill shows while a caller's intro
+    /// plays (0 → 1, animated by the caller). nil — the default — leaves the fill exactly as
+    /// `fillAnimation` and `progress` draw it.
+    var reveal: Double? = nil
+
+    /// The fill at reveal `reveal`; a spring overshoot past the track's end is capped by it.
+    static func revealed(_ progress: Double, by reveal: Double) -> Double {
+        min(max(progress * reveal, 0), 1)
+    }
+
     /// Only ever read when `fillAnimation != nil` — see `shownProgress`. Keeping the
     /// un-animated path free of state is what makes every captured state reachable through the
     /// parameters alone (preview-build.md phase 3).
@@ -298,7 +309,9 @@ struct PercentBar: View {
 
     /// Prop-driven unless an animation was asked for, so a still capture is deterministic.
     private var shownProgress: Double {
-        fillAnimation == nil ? clampedProgress : animatedProgress
+        let base = fillAnimation == nil ? clampedProgress : animatedProgress
+        guard let reveal else { return base }
+        return Self.revealed(base, by: reveal)
     }
 
     private static func clamp(_ value: Double) -> Double { min(max(value, 0), 1) }
