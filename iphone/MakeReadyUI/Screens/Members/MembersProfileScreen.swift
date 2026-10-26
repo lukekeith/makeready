@@ -11,9 +11,18 @@
 //  ui2-members-browse edits, routed to /ui2-resolve (F3): display-only C-042 rows (D3), no Email
 //  indicator (P5/D9), "Emergency contact" + "Emergency phone" (P6), multi-line Address (P7),
 //  `age` as a String (D10), the rail opening on today (D12).
+//  ui2-members-edit edits, routed to /ui2-resolve (F2): the 7 D1 rows tappable once loaded (D27),
+//  `onEditField` reports a MemberField key (D2); Organization and Role stay display-only (D28).
 //
 
 import SwiftUI
+
+/// ui2-members-edit D2 (P3): the member fields a leader edits from this page — the key a C-042
+/// row reports, never its label. MakeReadyUI compiles into the app module too, so the shell's
+/// `UI2Destination.editMemberField` and the edit container use this same type.
+enum MemberField: String, CaseIterable {
+    case email, phone, birthday, gender, address, emergencyName, emergencyPhone
+}
 
 /// Member detail — the member page that opens when any member is tapped anywhere in the app
 /// (§1 owner scope). A pushed page: C-040 header, then identity, quick stats, fields, Activity,
@@ -79,6 +88,10 @@ struct MembersProfileScreen: View {
         var programHours: [String]
         /// "" = no cover → C-059's missing-cover box.
         var programCoverURLs: [String]
+        // ── ui2-members-edit D27 ──
+        /// The 7 D1 rows are tappable only when the member's detail is loaded. Defaulted false:
+        /// the previews and the capture case render display-only rows, as before.
+        var fieldsEditable: Bool = false
     }
 
     let state: State
@@ -88,7 +101,7 @@ struct MembersProfileScreen: View {
     // §3 interactions — every one leaves the screen, so each is an on<Verb> closure with R-03's
     // no-op default. The screen never decides what an action means.
     var onBack: () -> Void = {}                     // C-040 back — pops to the presenter
-    var onEditField: (String) -> Void = { _ in }    // C-042 tap → shared-edit-field (OQ-1), by label
+    var onEditField: (MemberField) -> Void = { _ in }  // C-042 tap → shared-edit-field (OQ-1), by field key (D2)
     var onJumpToToday: () -> Void = {}              // recenters the day rail on today
     var onAddToGroup: () -> Void = {}               // Membership add → group picker (OQ-2)
     var onOpenGroup: (Int) -> Void = { _ in }       // C-037 tap → the group's screen (OQ-2)
@@ -98,7 +111,7 @@ struct MembersProfileScreen: View {
         state: State,
         showsHeader: Bool = true,
         onBack: @escaping () -> Void = {},
-        onEditField: @escaping (String) -> Void = { _ in },
+        onEditField: @escaping (MemberField) -> Void = { _ in },
         onJumpToToday: @escaping () -> Void = {},
         onAddToGroup: @escaping () -> Void = {},
         onOpenGroup: @escaping (Int) -> Void = { _ in },
@@ -138,8 +151,29 @@ struct MembersProfileScreen: View {
         organizationLabel, roleLabel, phoneLabel, emailLabel, birthdayLabel,
         genderLabel, addressLabel, emergencyContactLabel, emergencyPhoneLabel
     ]
-    /// D3: every C-042 row on this page is display-only in this child (child 2 enables them).
-    static let fieldsTappable = false
+    /// ui2-members-edit D2: the field a row edits — the 7 D1 rows; Organization and Role edit
+    /// nothing (D28 / OQ-C-042-3: they keep `isTappable: false`).
+    static func field(forLabel label: String) -> MemberField? {
+        MemberField.allCases.first { Self.label(for: $0) == label }
+    }
+
+    /// D14: the row label, verbatim — also the edit page's title.
+    static func label(for field: MemberField) -> String {
+        switch field {
+        case .email: return emailLabel
+        case .phone: return phoneLabel
+        case .birthday: return birthdayLabel
+        case .gender: return genderLabel
+        case .address: return addressLabel
+        case .emergencyName: return emergencyContactLabel
+        case .emergencyPhone: return emergencyPhoneLabel
+        }
+    }
+
+    /// D1 + D27: a row is tappable iff it edits a field and the member is loaded.
+    static func isTappable(_ label: String, _ s: State) -> Bool {
+        s.fieldsEditable && field(forLabel: label) != nil
+    }
     /// §2.4: the Phone / Email indicators — Green "Verified", Red "Unverified".
     private static let verifiedText = "Verified"
     private static let unverifiedText = "Unverified"
@@ -299,8 +333,8 @@ struct MembersProfileScreen: View {
                     value: Self.fieldValue(label, state),
                     indicator: Self.indicator(forField: label, state: state),
                     multiline: label == Self.addressLabel,              // P7
-                    onTap: { onEditField(label) },
-                    isTappable: Self.fieldsTappable                     // D3
+                    onTap: { if let field = Self.field(forLabel: label) { onEditField(field) } },   // D2
+                    isTappable: Self.isTappable(label, state)           // D1 + D27
                 )
                 .ui2Element(Self.partName("C-042 EditableFieldRow", ordinal: index + 1))
             }

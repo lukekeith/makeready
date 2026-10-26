@@ -87,4 +87,36 @@ final class UI2MembersEditComponentTests: XCTestCase {
         XCTAssertTrue(editing.autocorrect)
         XCTAssertEqual(editing.accessibilityName, "")
     }
+
+    // MARK: - Task 6: MembersProfileScreen field keys (D1, D2, D27, D28)
+
+    /// D2: a row reports its field KEY, never its label; Organization and Role have none (D28).
+    func testEveryEditableRowMapsToItsFieldKey() {
+        let expected: [String: MemberField] = [
+            "Email address": .email, "Phone number": .phone, "Birthday": .birthday, "Gender": .gender,
+            "Address": .address, "Emergency contact": .emergencyName, "Emergency phone": .emergencyPhone
+        ]
+        for (label, field) in expected {
+            XCTAssertEqual(MembersProfileScreen.field(forLabel: label), field, label)
+            XCTAssertEqual(MembersProfileScreen.label(for: field), label)
+        }
+        XCTAssertNil(MembersProfileScreen.field(forLabel: "Organization"))
+        XCTAssertNil(MembersProfileScreen.field(forLabel: "Role"))
+        XCTAssertEqual(MemberField.allCases.map(\.rawValue),
+                       ["email", "phone", "birthday", "gender", "address", "emergencyName", "emergencyPhone"])
+    }
+
+    /// D1 + D27: exactly the 7 rows are tappable, and only once the member is loaded; the
+    /// previews' samples stay display-only.
+    func testRowsAreTappableOnlyOnceTheMemberLoaded() {
+        var s = MembersProfileScreen.State.populated
+        XCTAssertFalse(s.fieldsEditable)
+        for label in MembersProfileScreen.fieldLabels {
+            XCTAssertFalse(MembersProfileScreen.isTappable(label, s), label)
+        }
+        s.fieldsEditable = true
+        XCTAssertEqual(MembersProfileScreen.fieldLabels.filter { MembersProfileScreen.isTappable($0, s) }, [
+            "Phone number", "Email address", "Birthday", "Gender", "Address", "Emergency contact", "Emergency phone"
+        ])
+    }
 }
