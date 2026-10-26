@@ -1154,7 +1154,11 @@ router.get('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  *   patch:
  *     tags: [Members]
  *     summary: Update member profile
- *     description: Updates a member's profile. Requires member auth (self) or user auth (org owner).
+ *     description: >
+ *       Updates a member's profile. Requires member auth (self) or user auth (org owner).
+ *       Strings are trimmed; an empty string on a clearable key (email, birthday, gender, address,
+ *       emergencyContactName, emergencyContactPhone) is stored as null. Unknown keys are rejected
+ *       with 400. A member session may not change phoneNumber (403) unless the normalized number is unchanged.
  *     security:
  *       - memberSession: []
  *       - userSession: []
@@ -1171,6 +1175,7 @@ router.get('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  *         application/json:
  *           schema:
  *             type: object
+ *             additionalProperties: false
  *             properties:
  *               firstName:
  *                 type: string
@@ -1179,9 +1184,27 @@ router.get('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  *               email:
  *                 type: string
  *                 format: email
+ *                 nullable: true
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Non-empty; normalized to E.164. A changed number resets phoneVerified and SMS consent.
  *               birthday:
  *                 type: string
- *                 format: date-time
+ *                 nullable: true
+ *                 description: YYYY-MM-DD or an ISO string; the UTC calendar date is stored. Between 1900-01-01 and today.
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female]
+ *                 nullable: true
+ *               address:
+ *                 type: string
+ *                 nullable: true
+ *               emergencyContactName:
+ *                 type: string
+ *                 nullable: true
+ *               emergencyContactPhone:
+ *                 type: string
+ *                 nullable: true
  *               profilePicture:
  *                 type: string
  *                 format: uri
@@ -1199,7 +1222,34 @@ router.get('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  *                 data:
  *                   $ref: '#/components/schemas/Member'
  *       400:
- *         description: Invalid request body
+ *         description: Invalid request body, unknown key, or invalid field value
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not permitted, including a member session changing its phone number
+ *       404:
+ *         description: Member not found or not visible to the caller
+ *       409:
+ *         description: The phone number belongs to another member
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                 code:
+ *                   type: string
+ *                   example: PHONE_TAKEN
+ *       500:
+ *         description: Failed to update member
  *         content:
  *           application/json:
  *             schema:
