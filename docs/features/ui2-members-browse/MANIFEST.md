@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:resume --path docs/features/ui2-members-browse
-head: d4faa61
+next: /builder:agent-walk --path docs/features/ui2-members-browse
+head: fc6d9b9
 ticket: none
 branch: builder/ui2-members-browse
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
 verify: none
-ready: yes 2026-10-26 1335e8c
+ready: yes 2026-10-26 fc6d9b9
 ui2: members-home, members-profile (via program ui2-members)
 auto: on 2026-10-25
 blocked: none
