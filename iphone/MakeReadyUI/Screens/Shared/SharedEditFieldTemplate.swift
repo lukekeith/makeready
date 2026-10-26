@@ -68,7 +68,8 @@ struct SharedEditFieldTemplate: View {
     var onBack: () -> Void = {}
     var onGenerate: () -> Void = {}
     var onSave: (String) -> Void = { _ in }
-    /// Every accepted edit (after the cap). No render effect.
+    /// Every accepted change to the field's text, after the cap (typed or picked). No render
+    /// effect.
     var onTextChange: (String) -> Void = { _ in }
 
     // §3 UI-only rule: "picking a suggestion replaces the input's text with it (→ `dirty`, or
@@ -169,13 +170,24 @@ struct SharedEditFieldTemplate: View {
                     text: text,
                     placeholder: placeholder,
                     editing: editable ? liveEditing : nil,
-                    onChange: { typed in
-                        text = Self.capped(typed, maxLength: maxLength)
-                        onTextChange(text)
-                    },
+                    // The state takes the raw keystroke; the cap runs in `.onChange(of: text)`
+                    // below. Clipping here would write back a value equal to the current state,
+                    // so SwiftUI would not resync the UITextField and the over-cap characters
+                    // would stay visible while Save sent the truncated value.
+                    onChange: { text = $0 },
                     onFocusChange: { inputFocused = $0 }
                 )
                 .ui2Element("C-046 FieldGroup")
+                .onChange(of: text) { _, new in
+                    // §3 Length (D22): over-cap text is replaced by its clipped value — a real
+                    // state change, so the field redraws without the extra characters. That
+                    // replacement re-enters here within the cap and is reported then.
+                    if let clipped = Self.overflowReplacement(for: new, maxLength: maxLength) {
+                        text = clipped
+                    } else {
+                        onTextChange(new)
+                    }
+                }
 
                 // §2.3.3: C-051 — `prompt` as drawn; the screen drives its state (§3). T9a: a
                 // caller may hide it (D3).
@@ -256,6 +268,12 @@ struct SharedEditFieldTemplate: View {
 
     /// §3 Length: the silent hard cap — typed or picked text beyond it is dropped.
     static func capped(_ text: String, maxLength: Int) -> String { String(text.prefix(maxLength)) }
+
+    /// The cap as a change handler applies it: the clipped value when `text` is over the cap
+    /// (assign it back to the state), nil when `text` is within it (nothing to replace).
+    static func overflowReplacement(for text: String, maxLength: Int) -> String? {
+        text.count > maxLength ? capped(text, maxLength: maxLength) : nil
+    }
 
     // §2 content tables: the action's copy.
     private static let saveLabel = "Save"

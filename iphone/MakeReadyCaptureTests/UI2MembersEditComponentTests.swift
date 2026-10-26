@@ -40,6 +40,15 @@ final class UI2MembersEditComponentTests: XCTestCase {
         XCTAssertEqual(SharedEditFieldTemplate.capped("ab", maxLength: 3), "ab")
     }
 
+    /// T9d review fix: the cap runs as a change handler on the field's state, not in the binding
+    /// setter — over-cap text yields a replacement (a real state change, so the UITextField
+    /// resyncs and drops the extra characters); text within the cap yields none.
+    func testOverCapTextIsReplacedByTheClippedValue() {
+        XCTAssertEqual(SharedEditFieldTemplate.overflowReplacement(for: "+1 555 0100 0000 00000", maxLength: 20), "+1 555 0100 0000 000")
+        XCTAssertNil(SharedEditFieldTemplate.overflowReplacement(for: "+1 555 0100 0000 000", maxLength: 20))
+        XCTAssertNil(SharedEditFieldTemplate.overflowReplacement(for: "", maxLength: 20))
+    }
+
     /// Every new prop defaults to today's render: AI block shown, no error line, static input,
     /// single-line caps at 200 and forbids empty, multi-line caps at 2000.
     func testTextScreenStatesDefaultToTodaysRender() {
