@@ -11,12 +11,13 @@ import SwiftUI
 ///   the home-indicator clearance (C-084 §2 Placement, OQ-C-083-2).
 struct UI2Shell: View {
     @State private var model = UI2ShellModel()
+    @Environment(AuthManager.self) private var authManager
 
     var body: some View {
         VStack(spacing: 0) {
             // SPEC D12: the TopNav row (+ its gap) shows only on the Home tab; off-tab the
             // layout collapses it to zero height but keeps it mounted (see HomeSectionLayout).
-            HomeSectionLayout(model: $model) { content }
+            HomeSectionLayout(model: $model, onRefresh: refreshAction) { content }
             // C-084 §2 Motion: "the selection switches instantly with no animation".
             TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: {})
         }
@@ -32,6 +33,13 @@ struct UI2Shell: View {
         .onChange(of: PushNotificationManager.shared.pendingDeepLink) { _, link in
             if link != .none { PushNotificationManager.shared.clearPendingDeepLink() }
         }
+    }
+
+    /// home-dashboard-data D24: the pull-to-refresh of the page on screen — Home only (the other
+    /// sections are unwired, D10).
+    private var refreshAction: (@MainActor () async -> Void)? {
+        guard model.tab == .home, model.section == .home else { return nil }
+        return { [authManager] in await HomeDashboardContainer.refresh(authManager: authManager) }
     }
 
     @ViewBuilder private var content: some View {

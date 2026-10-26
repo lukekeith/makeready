@@ -86,7 +86,7 @@ struct DashboardPreferenceResponse: Decodable {
 struct HomeSessionsResponse: Codable, Equatable {
     var averageSeconds: Int = 0
     var sessionCount: Int = 0          // unread by the mapper today (§Contract)
-    var hourly: [Double] = []          // 24, index 0 = 12 AM, caller tz — mean session seconds per start hour
+    var hourly: [Double] = []          // 24, index 0 = 12 AM, caller tz — sessions active during each hour (D23)
     var bins: [Double] = []            // 88 session-length bands over 0 … axisMinutes, normalised 0–1 (D18)
     var ticks: [Int] = []              // ≤ 4 axis labels in minutes, 0 first, axisMinutes last (D18)
     var axisMinutes: Int = 0
