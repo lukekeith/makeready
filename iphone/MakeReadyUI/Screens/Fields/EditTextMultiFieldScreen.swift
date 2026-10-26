@@ -5,7 +5,8 @@
 //  Built from screen edit-text-multi-field in d2m (§2 layout, §3 states, §4 components).
 //  §5 endpoints, cited only — this view calls none: PATCH /api/groups/{id} · GET /api/groups/{id}
 //  (the AI field-suggestion endpoint is an API-GAP in §5).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  ui2-members-edit T9 a, c–e, routed to /ui2-resolve (F2): every addition to State is defaulted
+//  to today's render. Wired by MakeReady/UI2/Containers/Members/MemberFieldEditContainer.swift.
 //
 
 import SwiftUI
@@ -39,23 +40,41 @@ struct EditTextMultiFieldScreen: View {
         var aiState: String
         /// §3: C-051's rows in `list` / `regenerating`.
         var suggestions: [String]
+        /// §3 Length (OQ-edit-text-multi-field-3 proposed default): silent hard cap at the server
+        /// limit — §5: `description: z.string().max(2000)`. T9d: a caller may set its own.
+        var maxLength: Int = 2000
+        /// T9c: §3 `save-failed`'s inline error line above Save; "" renders none.
+        var errorMessage: String = ""
+        /// T9a (D3): false hides C-051.
+        var showsAISuggestions: Bool = true
+        /// T9e: true → a live text field; false → the static render previews and captures use.
+        var editable: Bool = false
+        /// T9d (D22): the live field's focus on appear, keyboard, content type, caps, correction.
+        var focusOnAppear: Bool = false
+        var keyboard: UIKeyboardType = .default
+        var textContentType: UITextContentType? = nil
+        var autocapitalization: TextInputAutocapitalization = .sentences
+        var autocorrect: Bool = true
     }
 
     let state: State
     var onBack: () -> Void = {}
     var onGenerate: () -> Void = {}
     var onSave: (String) -> Void = { _ in }
+    var onTextChange: (String) -> Void = { _ in }
 
     init(
         state: State,
         onBack: @escaping () -> Void = {},
         onGenerate: @escaping () -> Void = {},
-        onSave: @escaping (String) -> Void = { _ in }
+        onSave: @escaping (String) -> Void = { _ in },
+        onTextChange: @escaping (String) -> Void = { _ in }
     ) {
         self.state = state
         self.onBack = onBack
         self.onGenerate = onGenerate
         self.onSave = onSave
+        self.onTextChange = onTextChange
     }
 
     var body: some View {
@@ -74,16 +93,21 @@ struct EditTextMultiFieldScreen: View {
             aiState: state.aiState,
             suggestions: state.suggestions,
             allowsEmpty: true,                              // §3 Empty value (OQ-edit-text-multi-field-2 default)
-            maxLength: Self.maxLength,
+            maxLength: state.maxLength,
+            showsAISuggestions: state.showsAISuggestions,
+            errorMessage: state.errorMessage,
+            editable: state.editable,
+            keyboard: state.keyboard,
+            textContentType: state.textContentType,
+            autocapitalization: state.autocapitalization,
+            autocorrect: state.autocorrect,
+            focusOnAppear: state.focusOnAppear,
             onBack: onBack,
             onGenerate: onGenerate,
-            onSave: onSave
+            onSave: onSave,
+            onTextChange: onTextChange
         )
     }
-
-    // §3 Length (OQ-edit-text-multi-field-3 proposed default): silent hard cap at the server
-    // limit — §5: `description: z.string().max(2000)`. Behaviour, not a design value.
-    private static let maxLength = 2000
 }
 
 private extension EditTextMultiFieldScreen.State {

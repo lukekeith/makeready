@@ -49,8 +49,57 @@ struct TextInput: View {
     /// C-045 §4: focus gained/lost; the caller owns `focused` (R-01). No render effect.
     var onFocusChange: (Bool) -> Void = { _ in }
 
+    /// ui2-members-edit T9e (D22, D26): nil — the default — is the static render every preview
+    /// and capture draws (R-01: `text` is drawn, nothing is typed). Non-nil makes Single and
+    /// Multi a live text field: every edit calls `onChange`, focus calls `onFocusChange`, and the
+    /// caller keeps owning `text` and `focused`. Phone ignores it (no live consumer yet; the
+    /// member Phone page uses `field: .text`, D22). Routed to /ui2-resolve (F2).
+    var editing: Editing? = nil
+
+    /// ui2-members-edit T9d/T9e: the live field's keyboard and focus — behaviour, not design.
+    struct Editing {
+        var keyboard: UIKeyboardType = .default
+        var textContentType: UITextContentType? = nil
+        var autocapitalization: TextInputAutocapitalization = .sentences
+        var autocorrect: Bool = true
+        /// D22: the field takes focus when it appears.
+        var focusOnAppear: Bool = false
+        /// D26: false while a save is in flight — the input is locked.
+        var isEnabled: Bool = true
+        /// R-17: the live field's spoken name (C-046 passes its label); "" falls back to `placeholder`.
+        var accessibilityName: String = ""
+    }
+
     var body: some View {
-        content
+        if let editing, kind != .phone {
+            // T9e: the live form — the same §2 box with a real field inside. The field carries
+            // its own accessibility (R-17), so the box does not flatten it.
+            chrome(
+                LiveField(
+                    text: text,
+                    placeholder: placeholder,
+                    multiline: kind == .multi,
+                    alignment: textAlignment,
+                    editing: editing,
+                    onChange: onChange,
+                    onFocusChange: onFocusChange
+                )
+                .ui2Element(text.isEmpty ? "Placeholder" : "Value")
+            )
+            .ui2Element("TextInput")
+        } else {
+            chrome(content)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(placeholder)          // R-17: §4 names placeholder as the label
+                .accessibilityValue(text)
+                .ui2Element("TextInput")                  // capture element map — UI2Element.swift
+        }
+    }
+
+    /// §2's box around either form — the static render gets exactly the modifiers it always had,
+    /// in the same order.
+    private func chrome(_ inner: some View) -> some View {
+        inner
             // §2: p16 / px16 for every kind — measured INSIDE the 1px border (see
             // `borderWidth`).
             .padding(.horizontal, Self.borderWidth + Token.Space.cardPadding)
@@ -66,15 +115,12 @@ struct TextInput: View {
             .overlay(
                 // §2: Border 1px `color-card-border`; focused: 1px `color-text-primary`.
                 // (Error = `color-negative` is ruled by OQ-C-045-2 but §4 gives it no prop:
-                // "it is not built until a consumer needs it".)
+                // "it is not built until a consumer needs it". ui2-members-edit D28: still no
+                // red border — the inline error line only.)
                 RoundedRectangle(cornerRadius: Token.Radius.cardSm)
                     .strokeBorder(focused ? Token.textPrimary : Token.cardBorder, lineWidth: Self.borderWidth)
             )
             .contentShape(Rectangle())
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(placeholder)          // R-17: §4 names placeholder as the label
-            .accessibilityValue(text)
-            .ui2Element("TextInput")                  // capture element map — UI2Element.swift
     }
 
     // MARK: - Geometry
@@ -191,5 +237,67 @@ struct TextInput: View {
             // GAP — C-045 §2: caret 2×24, no size token.
             .frame(width: 2, height: 24)
             .ui2Element("Caret")
+    }
+}
+
+/// ui2-members-edit T9e: C-045's live text run — a `TextField` drawn in §2's `type-input` and
+/// colours, with the system caret tinted `color-accent` in place of the drawn 2×24 caret (the
+/// C-034 SearchField editable-form precedent). Its own type so the focus state stays private
+/// without touching `TextInput`'s memberwise initializer.
+private struct LiveField: View {
+    let text: String
+    let placeholder: String
+    let multiline: Bool
+    let alignment: TextAlignment
+    let editing: TextInput.Editing
+    let onChange: (String) -> Void
+    let onFocusChange: (Bool) -> Void
+
+    /// Ephemeral UI state (R-02), reported out through `onFocusChange`.
+    @FocusState private var fieldFocused: Bool
+
+    init(
+        text: String,
+        placeholder: String,
+        multiline: Bool,
+        alignment: TextAlignment,
+        editing: TextInput.Editing,
+        onChange: @escaping (String) -> Void,
+        onFocusChange: @escaping (Bool) -> Void
+    ) {
+        self.text = text
+        self.placeholder = placeholder
+        self.multiline = multiline
+        self.alignment = alignment
+        self.editing = editing
+        self.onChange = onChange
+        self.onFocusChange = onFocusChange
+    }
+
+    var body: some View {
+        TextField(
+            editing.accessibilityName.isEmpty ? placeholder : editing.accessibilityName,
+            text: Binding(get: { text }, set: { onChange($0) }),
+            prompt: Text(placeholder).foregroundColor(Token.inputPlaceholder),
+            // D22: Multi — return inserts a newline; Single — one line.
+            axis: multiline ? .vertical : .horizontal
+        )
+        // §2: Single/Multi text — Regular 14/24 `type-input`, value `color-input-value`.
+        .designTextStyle(Token.TypeStyle.input)
+        .foregroundColor(Token.inputValue)
+        .multilineTextAlignment(alignment)
+        .tint(Token.accent)
+        .keyboardType(editing.keyboard)
+        .textContentType(editing.textContentType)
+        .textInputAutocapitalization(editing.autocapitalization)
+        .autocorrectionDisabled(!editing.autocorrect)
+        .focused($fieldFocused)
+        // D26: `saving` locks the input.
+        .disabled(!editing.isEnabled)
+        // D22: on a single-line page the return key does nothing — Save stays a tap — so the
+        // field keeps focus instead of resigning.
+        .onSubmit { if !multiline { fieldFocused = true } }
+        .onChange(of: fieldFocused) { _, now in onFocusChange(now) }
+        .onAppear { if editing.focusOnAppear { fieldFocused = true } }
     }
 }
