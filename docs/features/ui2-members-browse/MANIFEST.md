@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/ui2-members-browse
-head: d10a057
+state: built
+next: /builder:agent-walk --path docs/features/ui2-members-browse
+head: c2b2159
 ticket: none
 branch: builder/ui2-members-browse
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-10-26 c2b2159
 ui2: members-home, members-profile (via program ui2-members)
 auto: on 2026-10-25
 blocked: none

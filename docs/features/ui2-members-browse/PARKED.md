@@ -69,3 +69,4 @@ released-artifact guard).
 - 2026-10-26 unparked by Luke — iPhone phase (tasks 9–16) built in session; owner approved its commits for the whole phase; then handed back to the fleet for the agent walk, verify and merge
 - 2026-10-26 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-10-26 fleet retry — cause no longer holds (iphone commit: auto, 8c5fcae); tasks 10–16 built + reviewed (b77c9a8..0a72e85), final-review PATCH D7 leak fixed (d10a057), handed to the walk lane at 1150e0d
+- 2026-10-26 walk lane — park cause still void (iphone commit: auto); readiness on makeready_walk: 0 pending migrations (at 20261026045033), prisma regenerated, fixtures reset, every §Contract row smoked as Owner + Leader (D7 404s on GET/PATCH/engagement/days), server log clean → state built, on to the agent walk
