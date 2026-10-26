@@ -65,6 +65,12 @@ This includes:
 
 **Exception:** You may still run `git status`, `git diff`, and `git add` commands as needed, but NEVER `git commit` without permission.
 
+**Named carve-out — builder agents (owner ruling 2026-10-26).** Inside the `/builder:*` pipeline
+(`/builder:build`, `/builder:agent`, `/builder:fleet`, and the fix work they run), iPhone task commits
+and the fleet's merge into the branch the work started from need no approval: `.claude/builder.md`
+marks iphone `commit: auto`. Handing a feature to builder IS the permission. Everything else in this
+section still applies outside that pipeline — an ad-hoc edit in chat still asks before committing.
+
 ---
 
 **NEVER NEVER NEVER build the project without explicit permission from the user.**
