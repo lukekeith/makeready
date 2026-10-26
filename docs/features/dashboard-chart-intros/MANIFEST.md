@@ -1,7 +1,7 @@
 size: md
-state: building
-next: /builder:resume --path docs/features/dashboard-chart-intros
-head: 04704bd
+state: built
+next: /builder:agent-walk --path docs/features/dashboard-chart-intros
+head: 40409ca
 ticket: none
 branch: builder/dashboard-chart-intros
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-10-26 40409ca
 ui2: none
 auto: on 2026-10-26
 agent-walk: on 2026-10-26
