@@ -128,9 +128,9 @@ endpoint and the two member read endpoints (F1).
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Member.address` (text, null) | member payload | P7 | landed 20261026045033 (c0b4821) |
-| SC2 | ADD | `Member.emergencyContactName` (text, null) | member payload | P6 | landed 20261026045033 (c0b4821) |
-| SC3 | ADD | `Member.emergencyContactPhone` (text, null) | member payload | P6 | landed 20261026045033 (c0b4821) |
+| SC1 | ADD | `Member.address` (text, null) | member payload | P7 · T1 | landed 20261026045033 (c0b4821) |
+| SC2 | ADD | `Member.emergencyContactName` (text, null) | member payload | P6 · T1 | landed 20261026045033 (c0b4821) |
+| SC3 | ADD | `Member.emergencyContactPhone` (text, null) | member payload | P6 · T1 | landed 20261026045033 (c0b4821) |
 | SC4 | EDIT | members list response | `groupCount`, `joinedAt`, filters | P12 | landed (08ef001) |
 | SC5 | ADD | `GET /api/members/:id/engagement` | §Contract | P13 | landed (c8ba113) |
 | SC6 | EDIT | `/api/home/days` `memberId` param | §Contract | P14 | landed (afa1a9c, 02209e7) |
