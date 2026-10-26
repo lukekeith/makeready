@@ -126,6 +126,9 @@ private struct SectionPageScroll<Content: View>: View {
             }
         }
         .scrollIndicators(.hidden)
+        // A page shorter than the screen (a filtered Members list) must not show the window's
+        // white below its content (agent walk round 2).
+        .background(Token.layoutBackground)
         .scrollBounceBehavior(.always, axes: .vertical)
         // ui2-members-browse D19: a drag on the section page (Members' list) dismisses the
         // keyboard the editable C-034 raised; inert on a page with no text input.
