@@ -71,6 +71,12 @@ final class StubAPIClient: APIClientProtocol {
         return data
     }
 
+    /// Recorded and answered like any call; a test returns an `APIHTTPError` from `errorFor`
+    /// to play a status.
+    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?) async throws -> Data {
+        try await request(endpoint: endpoint, method: method, body: body, timeout: 30)
+    }
+
     func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval, responseType: T.Type) async throws -> T {
         let data = try await request(endpoint: endpoint, method: method, body: body, timeout: timeout)
         return try JSONDecoder.apiDecoder.decode(T.self, from: data)

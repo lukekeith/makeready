@@ -43,6 +43,18 @@ enum APIError: LocalizedError {
     }
 }
 
+/// ui2-members-edit T6: a non-2xx response WITH its status, thrown ONLY by
+/// `APIClient.requestWithStatus`. Every other call keeps throwing `APIError` exactly as before
+/// (`EnrollmentActions` and `UserFacingErrorFormatter` match `.serverError`). A 401 is never this
+/// type — it stays `APIError.unauthorized`, so `AuthStatusPolicy.shouldSignOut` still sees it.
+struct APIHTTPError: LocalizedError, Equatable {
+    let status: Int
+    /// The response body's `error` string, when it carried one.
+    let message: String?
+
+    var errorDescription: String? { message ?? "Server returned status \(status)" }
+}
+
 // MARK: - API Client
 
 /// Centralized HTTP client for making authenticated API requests.
@@ -192,6 +204,31 @@ final class APIClient {
         } catch {
             throw APIError.networkError(error)
         }
+    }
+
+    /// ui2-members-edit T6: an uncoalesced request whose non-2xx failure keeps its HTTP status
+    /// (`APIHTTPError`). Opt-in: only `MemberActions.updateMember` calls it.
+    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?) async throws -> Data {
+        let request = try buildRequest(endpoint: endpoint, method: method, body: body, timeout: 30)
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw APIError.networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if let error = Self.statusError(status: http.statusCode, data: data) { throw error }
+        return data
+    }
+
+    /// T6: nil for a 2xx; `APIError.unauthorized` for a 401 (sign-out policy unchanged);
+    /// otherwise the status with the body's `error` string.
+    static func statusError(status: Int, data: Data) -> Error? {
+        if (200...299).contains(status) { return nil }
+        if status == 401 { return APIError.unauthorized }
+        let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        return APIHTTPError(status: status, message: json?["error"] as? String)
     }
 
     /// Execute a request and decode the response
@@ -410,6 +447,8 @@ private actor GETCoalescer {
 /// see the `init(api:state:)` on each Actions struct.
 protocol APIClientProtocol {
     func request(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data
+    /// ui2-members-edit T6: as `request`, but a non-2xx throws `APIHTTPError` with its status.
+    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?) async throws -> Data
     func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval, responseType: T.Type) async throws -> T
     func get<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T
     func post<T: Decodable>(_ endpoint: String, body: [String: Any]?, responseType: T.Type) async throws -> T

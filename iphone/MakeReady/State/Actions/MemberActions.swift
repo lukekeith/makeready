@@ -94,6 +94,66 @@ struct MemberActions {
         state.memberDaysById[id] = response.days
     }
 
+    // MARK: - Edit one field (ui2-members-edit)
+
+    /// D13: the edit page's line for any failure that is not a 400 / 403 / 409 with a message.
+    static let saveFailedMessage = "Couldn't save. Try again."
+
+    /// D13 / D15 / D21: PATCH one key, write it into `memberDetails` so the page shows it even if
+    /// the reload fails, then re-read the member with GET. A sign-out mid-save (stale generation)
+    /// writes nothing. A 401 signs out; a 400 / 403 / 409 returns the server's text; anything
+    /// else is generic and recorded console-only (UI 2.0 mounts no banner — the inline line is
+    /// the only surface). Never throws: the container shows every failure.
+    @MainActor
+    func updateMember(_ id: String, _ patch: MemberPatch) async -> Result<Void, MemberSaveError> {
+        let generation = state.initialLoad.generation
+        do {
+            _ = try await api.requestWithStatus(endpoint: "/api/members/\(id)", method: "PATCH", body: patch.body)
+        } catch {
+            guard state.initialLoad.isCurrent(generation) else { return .failure(.generic) }
+            return await saveFailure(error)
+        }
+        guard state.initialLoad.isCurrent(generation) else { return .failure(.generic) }
+        state.memberDetails.update(id) { $0 = Self.applying(patch, to: $0) }
+        await loadMember(id)
+        return .success(())
+    }
+
+    /// D21: the sent key written into a member detail. A CHANGED phone also turns
+    /// `phoneVerified` off (D5); the same number changes nothing. A birthday `YYYY-MM-DD` is
+    /// stored as the GET's UTC-midnight ISO string, which `MembersHomeMapper.parseDate` reads.
+    static func applying(_ patch: MemberPatch, to detail: MemberDetail) -> MemberDetail {
+        var d = detail
+        switch patch {
+        case .email(let v): d.email = v
+        case .phoneNumber(let v):
+            guard let v, v != detail.phoneNumber else { return d }
+            d.phoneNumber = v
+            d.phoneVerified = false
+        case .birthday(let v): d.birthday = v.map { "\($0)T00:00:00.000Z" }
+        case .gender(let v): d.gender = v
+        case .address(let v): d.address = v
+        case .emergencyContactName(let v): d.emergencyContactName = v
+        case .emergencyContactPhone(let v): d.emergencyContactPhone = v
+        }
+        return d
+    }
+
+    @MainActor
+    private func saveFailure(_ error: Error) async -> Result<Void, MemberSaveError> {
+        if AuthStatusPolicy.shouldSignOut(after: error) {
+            await onUnauthorized()                                     // ui2-shell D27
+            return .failure(.generic)
+        }
+        if let http = error as? APIHTTPError, [400, 403, 409].contains(http.status) {
+            return .failure(.validation(http.message ?? Self.saveFailedMessage))
+        }
+        if !(error is CancellationError) {
+            state.recordError(error, context: "MemberActions.updateMember", surface: false)
+        }
+        return .failure(.generic)
+    }
+
     // MARK: - Helpers
 
     /// `APIClient.get` takes the raw path, so each value is encoded here
