@@ -39,10 +39,9 @@ struct TextColorPalette: View {
     /// C-094 §4 `onWellTap` — the well was tapped (R-03). No render effect.
     var onWellTap: () -> Void = {}
 
-    /// R-02: the swipe's finger-tracked offset is an animation phase, never a prop. A
-    /// `@GestureState` so it settles back on release with the ruled slide (OQ-C-094-002).
-    @GestureState(resetTransaction: Transaction(animation: .easeOut(duration: Geometry.slide)))
-    private var dragOffset: CGFloat = 0
+    /// R-02: the swipe's finger-tracked offset is an animation phase, never a prop. It settles
+    /// back on release with the ruled slide (OQ-C-094-002).
+    @State private var dragOffset: CGFloat = 0
 
     /// C-094 §2's literal geometry and motion.
     private enum Geometry {
@@ -109,10 +108,13 @@ struct TextColorPalette: View {
         .frame(width: Geometry.pageWidth, alignment: .leading)
         .clipped()
         .contentShape(Rectangle())
-        .gesture(
-            DragGesture(minimumDistance: Geometry.rowGap)
-                .updating($dragOffset) { drag, offset, _ in offset = drag.translation.width }
-                .onEnded { drag in release(drag.predictedEndTranslation.width) }
+        // Sideways only, so a vertical drag on the palette scrolls the page (HorizontalScrolling.swift).
+        .horizontalPan(
+            onChanged: { dragOffset = $0.translation },
+            onEnded: { value in
+                withAnimation(.easeOut(duration: Geometry.slide)) { dragOffset = 0 }
+                release(value.predictedEndTranslation)
+            }
         )
         // §2 Accessibility (R-17): the row pages as an adjustable element; the well and the
         // swatches stay the parts' own buttons.

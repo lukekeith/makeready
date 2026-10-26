@@ -192,7 +192,7 @@ struct EnrollmentsHomeScreen: View {
     /// the rail scrolls horizontally with the 16 leading inset; a horizontal carousel keeps its
     /// own ScrollView (D22).
     private var chipRow: some View {
-        ScrollView(.horizontal) {
+        HorizontalRail {
             HStack(spacing: Token.Space.elementGap) {
                 ForEach(chipLabels.indices, id: \.self) { index in
                     FilterChip(type: .menu, active: false, label: chipLabels[index]) {

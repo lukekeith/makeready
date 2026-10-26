@@ -55,6 +55,7 @@ struct TextSizeSlider: View {
                     .offset(x: (trackWidth - hitWidth) / 2)
             )
             .gesture(
+                // pan-ok: vertical slider — tracks the finger on its own strip
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
                         let next = clamped(1 - drag.location.y / trackHeight)

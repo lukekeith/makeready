@@ -67,7 +67,7 @@ struct ActivityNavBar: View {
     /// scrolls into view whenever `activeID` changes" — view-local scroll, no side effect (R-04).
     private var strip: some View {
         ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
+            HorizontalRail(showsIndicators: false) {
                 HStack(alignment: .center, spacing: Token.Space.metaGap) {
                     ForEach(Array(slides.enumerated()), id: \.element.id) { index, slide in
                         slideView(slide)

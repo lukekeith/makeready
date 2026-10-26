@@ -405,7 +405,7 @@ struct GroupsDetailScreen: View {
     /// side borders (−1pt overlap), horizontal scroll, bleeding past the right margin". A
     /// horizontal carousel keeps its own ScrollView (D22).
     private var dayRail: some View {
-        ScrollView(.horizontal) {
+        HorizontalRail {
             HStack(alignment: .top, spacing: Self.dayCardOverlap) {
                 ForEach(state.dayNumbers.indices, id: \.self) { index in
                     RailCard(

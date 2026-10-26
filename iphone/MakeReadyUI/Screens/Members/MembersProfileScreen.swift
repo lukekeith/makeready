@@ -329,7 +329,7 @@ struct MembersProfileScreen: View {
             Spacer().frame(height: Token.Space.sectionGap)           // frame: 1236→1268
             // §2.5: "Day rail: C-023 RailCard `kind=day · transparent` ×N, 131×192, shared 1px
             // borders, horizontal scroll". A horizontal carousel keeps its own ScrollView (D22).
-            ScrollView(.horizontal) {
+            HorizontalRail {
                 HStack(alignment: .top, spacing: Self.dayCardOverlap) {
                     ForEach(state.dayNumbers.indices, id: \.self) { index in
                         RailCard(

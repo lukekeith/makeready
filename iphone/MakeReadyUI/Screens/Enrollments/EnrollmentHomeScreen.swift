@@ -271,7 +271,7 @@ struct EnrollmentHomeScreen: View {
     /// (shared 1px borders, −1 overlap as on home)". A horizontal carousel keeps its own
     /// ScrollView (D22); §1 deviation 3.
     private var dayRail: some View {
-        ScrollView(.horizontal) {
+        HorizontalRail {
             HStack(alignment: .top, spacing: Self.dayCardOverlap) {
                 ForEach(state.dayNumbers.indices, id: \.self) { index in
                     RailCard(

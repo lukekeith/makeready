@@ -84,6 +84,9 @@ struct DualSeriesBarChart: View {
         static let tickRowTrailingInset: CGFloat = designWidth - 15 - 400
         static let todayLabelY: CGFloat = 2         // §2: today label "y=2"
         static let todayRuleWidth: CGFloat = 1      // §2: "**solid** 1px `color-highlight`"
+        /// Owner ruling 2026-10-25 (ui2-shell): an empty window draws one baseline stub per day,
+        /// as C-030's empty strip does — the same 3pt stub height as C-030 `barMinHeight`.
+        static let emptyStubHeight: CGFloat = 3
 
         /// §2: the plot area runs from the high gridline to the baseline.
         static var plotHeight: CGFloat { baselineY - highGridlineY }
@@ -217,7 +220,11 @@ struct DualSeriesBarChart: View {
         GeometryReader { proxy in
             let width = proxy.size.width
             ZStack(alignment: .topLeading) {
-                // §3 empty window, ruled by OQ-C-026-1/-010: tick row only.
+                // §3 empty window, OQ-C-026-1/-010 as amended by the owner 2026-10-25
+                // (ui2-shell): the tick row plus a baseline stub per day, not a blank plot.
+                if !hasData {
+                    emptyBaseline(width: width)
+                }
                 if hasData {
                     columnPlot(width: width)
                     gridline(Token.highlight, width: width)
@@ -240,9 +247,8 @@ struct DualSeriesBarChart: View {
         .frame(maxWidth: .infinity)
         .frame(height: Geometry.height)
         .contentShape(Rectangle())
-        // Simultaneous, so a vertical drag still scrolls the page the chart sits in; the pan
-        // only claims drags that run more sideways than up/down.
-        .simultaneousGesture(panGesture)
+        // Sideways only, so a vertical drag on the chart scrolls the page (HorizontalScrolling.swift).
+        .horizontalPan(onChanged: { panChanged($0.translation) }, onEnded: panEnded)
         .onChange(of: window) { _, newWindow in
             if newWindow != pannedWindow { pannedWindow = nil }
         }
@@ -268,23 +274,19 @@ struct DualSeriesBarChart: View {
     /// One column's pitch — how far the finger travels to move the window by a day.
     private var dayPitch: CGFloat { max(columnWidth(in: plotWidth) + Token.Space.chipGap, 1) }
 
-    private var panGesture: some Gesture {
-        DragGesture(minimumDistance: 10)
-            .onChanged { value in
-                let start = dragStartWindow ?? shownWindow
-                if dragStartWindow == nil {
-                    guard abs(value.translation.width) > abs(value.translation.height) else { return }
-                    dragStartWindow = start
-                }
-                // Dragging right reveals earlier days.
-                pan(to: shifted(start, byDays: -Int((value.translation.width / dayPitch).rounded())))
-            }
-            .onEnded { value in
-                guard let start = dragStartWindow else { return }
-                dragStartWindow = nil
-                let days = -Int((value.predictedEndTranslation.width / dayPitch).rounded())
-                withAnimation(.snappy) { pan(to: shifted(start, byDays: days)) }
-            }
+    private func panChanged(_ translation: CGFloat) {
+        let start = dragStartWindow ?? shownWindow
+        dragStartWindow = start
+        // Dragging right reveals earlier days.
+        pan(to: shifted(start, byDays: -Int((translation / dayPitch).rounded())))
+    }
+
+    /// A fling carries on: the release goes where the fling would come to rest.
+    private func panEnded(_ value: HorizontalPanValue) {
+        guard let start = dragStartWindow else { return }
+        dragStartWindow = nil
+        let days = -Int((value.predictedEndTranslation / dayPitch).rounded())
+        withAnimation(.snappy) { pan(to: shifted(start, byDays: days)) }
     }
 
     private func pan(to target: ClosedRange<Date>) {
@@ -336,6 +338,22 @@ struct DualSeriesBarChart: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: columnHeight(day?.scheduled ?? 0))
+    }
+
+    /// Owner ruling 2026-10-25: the empty window's baseline — one track-coloured stub per day
+    /// column, bottom-anchored at the baseline like the columns it stands in for.
+    private func emptyBaseline(width: CGFloat) -> some View {
+        HStack(alignment: .bottom, spacing: Token.Space.chipGap) {
+            ForEach(Array(windowDays.enumerated()), id: \.offset) { _, _ in
+                Rectangle()
+                    .fill(Token.white20)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: Geometry.emptyStubHeight)
+            }
+        }
+        .frame(width: width, height: Geometry.plotHeight, alignment: .bottom)
+        .offset(y: Geometry.highGridlineY)
+        .ui2Element("Empty baseline")
     }
 
     /// §2: "full-width hairline, 0.5pt … dash 2/2" — for both gridlines.

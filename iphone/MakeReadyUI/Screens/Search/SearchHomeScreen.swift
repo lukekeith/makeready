@@ -158,7 +158,7 @@ struct SearchHomeScreen: View {
     /// §2: "4 × C-035 `type=Button`, gap `space-element-gap` (8) … scrolls horizontally if it
     /// overflows (C-035 §3c)".
     private var categoryRail: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        HorizontalRail(showsIndicators: false) {
             HStack(spacing: Token.Space.elementGap) {
                 ForEach(Array(Self.chips.enumerated()), id: \.offset) { index, chip in
                     FilterChip(
