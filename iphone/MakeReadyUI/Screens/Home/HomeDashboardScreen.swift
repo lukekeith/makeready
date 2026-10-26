@@ -146,8 +146,8 @@ struct HomeDashboardScreen: View {
     @SwiftUI.State private var railDay: Int?
     /// The chart has been panned off `state`'s window (kept only for the link's state).
     @SwiftUI.State private var chartOffToday = false
-    /// Bumped by "Jump to today": a fresh chart identity drops its own panned window.
-    @SwiftUI.State private var chartEpoch = 0
+    /// Bumped by "Jump to today": the chart eases its columns back to `state`'s window.
+    @SwiftUI.State private var chartRecenter = 0
     /// Whether any part of today's day card is in the rail's view. Only the flip is stored, so a
     /// scrolling rail does not re-render the whole screen every frame.
     @SwiftUI.State private var todayCardOnScreen = true
@@ -340,9 +340,10 @@ struct HomeDashboardScreen: View {
                     onWindowChange: { window in
                         let off = window != chartWindow
                         if off != chartOffToday { chartOffToday = off }
-                    }
+                    },
+                    recenterRequest: chartRecenter,
+                    recenterAnimation: Self.jumpAnimation
                 )
-                .id(chartEpoch)
                 .frame(width: Self.dualChartWidth, height: Self.dualChartHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .ui2Element("C-026 DualSeriesBarChart")
@@ -518,8 +519,8 @@ struct HomeDashboardScreen: View {
     // GAP — no motion token for the recentre: an ease-in-out, 0.45s.
     private static var jumpAnimation: Animation { .easeInOut(duration: 0.45) }
 
-    /// ui2-shell D31: "Jump to today" brings both back to `state`'s window — the rail eases to
-    /// today at the right; the chart is re-created on it — then tells the consumer.
+    /// ui2-shell D31: "Jump to today" eases both back to `state`'s window — the rail to today's
+    /// card at the right, the chart's columns to today at its right edge — then tells the consumer.
     private func jumpToToday(_ rail: ScrollViewProxy) {
         // A direct scroll moves the rail even when the binding already holds the target, and
         // stops a fling still running.
@@ -530,7 +531,7 @@ struct HomeDashboardScreen: View {
                 rail.scrollTo(lead, anchor: .leading)
             }
         }
-        chartEpoch += 1
+        chartRecenter += 1
         chartOffToday = false
         onJumpToToday()
     }

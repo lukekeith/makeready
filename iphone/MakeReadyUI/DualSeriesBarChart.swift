@@ -44,9 +44,23 @@ struct DualSeriesBarChart: View {
     /// adjustable action (OQ-C-026-001).
     let onWindowChange: (ClosedRange<Date>) -> Void
 
+    /// Bumped by the consumer to bring the columns back to `window` — "Jump to today" (D31/D20).
+    /// The chart scrolls there itself with `recenterAnimation`, which also stops a running fling;
+    /// re-creating the chart instead would snap it back with no motion.
+    let recenterRequest: Int
+    let recenterAnimation: Animation
+
     /// The timeline index of the column at the leading edge — the scroll view's own position, so
     /// the chart pans even for a consumer that does not feed `onWindowChange` back.
-    @SwiftUI.State private var leadingDay: Int?
+    @SwiftUI.State private var leadingColumn: ColumnID?
+    /// The leading column's timeline index.
+    private var leadingDay: Int? { leadingColumn?.index }
+
+    /// A column's scroll id. Its own type, so a consumer's ScrollViewReader that scrolls other
+    /// views by Int ids (the day rail beside this chart) can never move these columns.
+    struct ColumnID: Hashable {
+        let index: Int
+    }
     /// The window chart and consumer last agreed on: what the chart emitted, or what the consumer
     /// passed. A `window` equal to it is the consumer echoing a pan and must not scroll the
     /// columns back under a coasting fling.
@@ -61,12 +75,16 @@ struct DualSeriesBarChart: View {
         days: [Day],
         window: ClosedRange<Date>,
         today: Date,
-        onWindowChange: @escaping (ClosedRange<Date>) -> Void = { _ in }
+        onWindowChange: @escaping (ClosedRange<Date>) -> Void = { _ in },
+        recenterRequest: Int = 0,
+        recenterAnimation: Animation = .easeInOut(duration: 0.45)
     ) {
         self.days = days
         self.window = window
         self.today = today
         self.onWindowChange = onWindowChange
+        self.recenterRequest = recenterRequest
+        self.recenterAnimation = recenterAnimation
     }
 
     // MARK: - §2 geometry
@@ -234,12 +252,12 @@ struct DualSeriesBarChart: View {
                         columns(line, column: column)
                     }
                     .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
-                    .scrollPosition(id: $leadingDay, anchor: .leading)
+                    .scrollPosition(id: $leadingColumn, anchor: .leading)
                     .onScrollPhaseChange { _, phase in
                         userScrolling = phase == .interacting || phase == .decelerating
                         if phase == .idle { emitIfMoved(line) }
                     }
-                    .onChange(of: leadingDay) { _, _ in
+                    .onChange(of: leadingColumn) { _, _ in
                         if userScrolling { emitIfMoved(line) }
                     }
                     if line.hasData {
@@ -257,7 +275,7 @@ struct DualSeriesBarChart: View {
                 .onAppear {
                     tickPhase = tickPhase ?? line.windowStart + 1
                     syncedWindow = window
-                    leadingDay = line.clampedLeading(line.windowStart)
+                    leadingColumn = ColumnID(index: line.clampedLeading(line.windowStart))
                 }
                 // The consumer moved the window (Jump to today, the day rail): scroll there. A
                 // direct scroll, so it also stops a fling still coasting. The consumer echoing
@@ -268,8 +286,18 @@ struct DualSeriesBarChart: View {
                     let fresh = timeline()
                     let target = fresh.clampedLeading(fresh.windowStart)
                     userScrolling = false
-                    reader.scrollTo(target, anchor: .leading)
-                    leadingDay = target
+                    reader.scrollTo(ColumnID(index: target), anchor: .leading)
+                    leadingColumn = ColumnID(index: target)
+                }
+                .onChange(of: recenterRequest) { _, _ in
+                    let fresh = timeline()
+                    let target = fresh.clampedLeading(fresh.windowStart)
+                    syncedWindow = window
+                    userScrolling = false
+                    withAnimation(recenterAnimation) {
+                        reader.scrollTo(ColumnID(index: target), anchor: .leading)
+                        leadingColumn = ColumnID(index: target)
+                    }
                 }
             }
         }
@@ -303,7 +331,7 @@ struct DualSeriesBarChart: View {
     private func step(_ line: Timeline, from leading: Int, byDays offset: Int) {
         let target = line.clampedLeading(leading + offset)
         guard target != leading, let moved = line.window(leading: target) else { return }
-        withAnimation(.snappy) { leadingDay = target }
+        withAnimation(.snappy) { leadingColumn = ColumnID(index: target) }
         syncedWindow = moved
         onWindowChange(moved)
     }
@@ -330,7 +358,7 @@ struct DualSeriesBarChart: View {
                 }
                 .frame(width: column, height: Geometry.plotHeight, alignment: .bottom)
                 .ui2Element(line.hasData ? "Column \(index + 1)" : "Empty stub \(index + 1)")
-                .id(index)
+                .id(ColumnID(index: index))
             }
         }
         .scrollTargetLayout()

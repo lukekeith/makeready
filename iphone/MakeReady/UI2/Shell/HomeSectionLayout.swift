@@ -29,9 +29,6 @@ struct HomeSectionLayout<Content: View>: View {
     /// The row's resting footprint: the collapsed row + its gap. The page always starts here.
     static var collapsedFootprint: CGFloat { NavTabButton.height(at: 0) + navGap }
 
-    /// A live row drag's share of the morph (`TopNavDragDelta`).
-    @State private var dragDelta: Double = 0
-
     var body: some View {
         if model.showsTopNav {
             // SPEC D14, revised 2026-10-25: the row floats over the page and the page's scroll
@@ -45,7 +42,6 @@ struct HomeSectionLayout<Content: View>: View {
                     .padding(.top, Self.collapsedFootprint)
                 navRow.background(Token.layoutBackground)
             }
-            .onPreferenceChange(TopNavDragDelta.self) { dragDelta = $0 }
         } else {
             VStack(spacing: 0) {
                 navRow
@@ -54,10 +50,10 @@ struct HomeSectionLayout<Content: View>: View {
         }
     }
 
-    /// How far the row has grown past its collapsed height, live drag included.
+    /// How far the row has grown past its collapsed height. A row drag writes `model.expansion`
+    /// live, so the page follows the finger and the spring from the one value the row draws.
     private var growth: CGFloat {
-        let expansion = min(1, max(0, model.expansion + dragDelta))
-        return NavTabButton.height(at: expansion) - NavTabButton.height(at: 0)
+        NavTabButton.height(at: min(1, max(0, model.expansion))) - NavTabButton.height(at: 0)
     }
 
     private var navRow: some View {
