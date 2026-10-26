@@ -615,6 +615,19 @@ models:
         type: datetime
         nullable: true
         description: "When account was linked to User"
+      # UI 2.0 member page (ui2-members-browse SC1–SC3) — nullable, no backfill
+      address:
+        type: text
+        nullable: true
+        description: "Postal address as entered; may span lines"
+      emergencyContactName:
+        type: text
+        nullable: true
+        description: "Emergency contact's name"
+      emergencyContactPhone:
+        type: text
+        nullable: true
+        description: "Emergency contact's phone, as entered"
     relations:
       groupMemberships:
         type: one_to_many
