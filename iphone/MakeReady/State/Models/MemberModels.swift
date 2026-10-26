@@ -312,7 +312,7 @@ enum MemberPatch: Equatable {
 }
 
 /// ui2-members-edit D13: how a save failed, as the edit page shows it — the server's text for a
-/// 400 / 403 / 409, else the generic line.
+/// 400 / 409, else the generic line.
 enum MemberSaveError: Error, Equatable {
     case validation(String)
     case generic

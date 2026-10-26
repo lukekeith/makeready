@@ -239,15 +239,22 @@ final class MemberActionsTests: XCTestCase {
         XCTAssertTrue(state.errors.isEmpty)
     }
 
-    /// D13: 400 and 403 carry the server's text; a missing one falls back to the generic line.
-    func test400And403CarryTheMessageOrTheFallback() async {
+    /// D13: 400 carries the server's text; a missing one falls back to the generic line.
+    func test400CarriesTheMessageOrTheFallback() async {
         api.errorFor = { _, body in body == nil ? nil : APIHTTPError(status: 400, message: "Enter a valid email") as Error }
         let invalid = await actions().updateMember("m1", .email("a@b"))
         XCTAssertEqual(failure(invalid), .validation("Enter a valid email"))
-        api.errorFor = { _, body in body == nil ? nil : APIHTTPError(status: 403, message: nil) as Error }
-        let refused = await actions().updateMember("m1", .phoneNumber("+15550100001"))
-        XCTAssertEqual(failure(refused), .validation("Couldn't save. Try again."))
+        api.errorFor = { _, body in body == nil ? nil : APIHTTPError(status: 400, message: nil) as Error }
+        let blank = await actions().updateMember("m1", .phoneNumber("+15550100001"))
+        XCTAssertEqual(failure(blank), .validation("Couldn't save. Try again."))
         XCTAssertTrue(state.errors.isEmpty)
+    }
+
+    /// D13: a 403 is "any other failure" — generic, its server text never shown.
+    func test403IsGenericNotTheServerText() async {
+        api.errorFor = { _, body in body == nil ? nil : APIHTTPError(status: 403, message: "Forbidden by role") as Error }
+        let refused = await actions().updateMember("m1", .phoneNumber("+15550100001"))
+        XCTAssertEqual(failure(refused), .generic)
     }
 
     /// D13: anything else — 500, 404, a network failure — is generic, recorded console-only.

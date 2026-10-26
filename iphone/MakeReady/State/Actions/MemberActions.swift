@@ -96,12 +96,12 @@ struct MemberActions {
 
     // MARK: - Edit one field (ui2-members-edit)
 
-    /// D13: the edit page's line for any failure that is not a 400 / 403 / 409 with a message.
+    /// D13: the edit page's line for any failure that is not a 400 / 409 with a message.
     static let saveFailedMessage = "Couldn't save. Try again."
 
     /// D13 / D15 / D21: PATCH one key, write it into `memberDetails` so the page shows it even if
     /// the reload fails, then re-read the member with GET. A sign-out mid-save (stale generation)
-    /// writes nothing. A 401 signs out; a 400 / 403 / 409 returns the server's text; anything
+    /// writes nothing. A 401 signs out; a 400 / 409 returns the server's text; anything
     /// else is generic and recorded console-only (UI 2.0 mounts no banner — the inline line is
     /// the only surface). Never throws: the container shows every failure.
     @MainActor
@@ -145,7 +145,7 @@ struct MemberActions {
             await onUnauthorized()                                     // ui2-shell D27
             return .failure(.generic)
         }
-        if let http = error as? APIHTTPError, [400, 403, 409].contains(http.status) {
+        if let http = error as? APIHTTPError, [400, 409].contains(http.status) {
             return .failure(.validation(http.message ?? Self.saveFailedMessage))
         }
         if !(error is CancellationError) {
