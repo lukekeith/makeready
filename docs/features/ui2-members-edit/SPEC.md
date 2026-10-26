@@ -206,6 +206,33 @@ previous number (no history kept — the member's `updatedAt` moves).
 - **Human walk (on device):** push/pop and swipe-back from an edit page; the date wheel feel; keyboard
   on text pages.
 
+**server** — what a person checks by hand
+
+- Nothing beyond the iPhone walk below: every PATCH rule is pinned by route and service tests, and the cross-app walk exercises the endpoint end to end.
+
+**iphone** — the feel only a device shows (Fixtures leader, `fixtures:reset`, then a Prayer Team member other than Sarah Griffin)
+
+- On the Phone page, type past 20 characters — the field stops at 20 and Save sends the 20.
+- On a single-line page press return — nothing happens, the keyboard stays up without flicker.
+- Open any text page — its field is focused and the keyboard is up when the push finishes.
+- Make a page dirty, then swipe back from the left edge — the member page shows the old value.
+- After a failed save (the 409 below), tap the field again — typing resumes in place.
+- On Birthday, scroll the wheel to a date and Save — the member page shows that date and the Age row updates.
+
+**Cross-app walk (Fixtures walk env, leader signed in as the Fixtures identity)**
+
+1. Home → Members → a Prayer Team member other than Sarah Griffin: Email address, Phone number, Birthday, Gender, Address, Emergency contact and Emergency phone show a chevron; Organization and Role do not.
+2. Tap Email address → the page pushes from the right titled "Email address"; type `abc` → Save → inline "Enter a valid email", no navigation.
+3. Change the email to `walk@example.com` → Save → the page pops and the row shows `walk@example.com`.
+4. Tap Phone number → type `+15550100001` (another member's number) → Save → inline "That number belongs to another member"; the typed value stays.
+5. Type `555 010 9999` → Save → the page pops; the row shows `+1 (555) 010-9999` with the red "Unverified" indicator.
+6. Tap Gender → choose Not set → Save → the Gender row is empty.
+7. Tap Birthday → Clear → Save → the Birthday and Age rows are empty.
+8. Tap Address → type two lines (return inserts a newline) → Save → the row shows both lines.
+9. Tap Emergency contact → `Pat Doe` → Save; tap Emergency phone → `+65 6123 4567` → Save → the row shows `+65 6123 4567` as typed.
+10. Tap Emergency phone → `5551234567` → Save → the row shows `+1 (555) 123-4567`.
+11. Run `fixtures:reset -- sparse` and reopen Sarah Griffin: the Gender page preselects Not set; the Birthday page shows "Not set" with Clear disabled.
+
 ## Out of scope
 
 - Editing name, photo, groups, programs or age-range fields; member self-editing in UI 2.0.
