@@ -25,6 +25,7 @@ describe('Member access authorization (org-scoped management)', () => {
   let owner: TestUserWithToken // org owner (holds no explicit role)
   let leader: TestUserWithToken // org role-holder, NOT the owner/creator
   let stranger: TestUserWithToken // no relationship to the org
+  let admin: TestUserWithToken // holds the SYSTEM Admin role in the org
   let orgId: string
   let groupId: string
   let memberId: string
@@ -34,6 +35,8 @@ describe('Member access authorization (org-scoped management)', () => {
     owner = await createUserWithApiKey({ email: `mbowner-${stamp}@cl.test`, name: 'Member Owner' })
     leader = await createUserWithApiKey({ email: `mbleader-${stamp}@cl.test`, name: 'Member Leader' })
     stranger = await createUserWithApiKey({ email: `mbstranger-${stamp}@cl.test`, name: 'Stranger' })
+
+    admin = await createUserWithApiKey({ email: `mbadmin-${stamp}@cl.test`, name: 'Member Admin' })
 
     const org = await prisma.organization.create({
       data: { name: `Member Org ${stamp}`, ownerId: owner.userId },
@@ -45,6 +48,13 @@ describe('Member access authorization (org-scoped management)', () => {
     })
     await prisma.userRole.create({
       data: { userId: leader.userId, roleId: role.id, organizationId: orgId },
+    })
+
+    const adminRole = await prisma.role.create({
+      data: { name: 'Admin', organizationId: orgId, isSystem: true },
+    })
+    await prisma.userRole.create({
+      data: { userId: admin.userId, roleId: adminRole.id, organizationId: orgId },
     })
 
     const group = await prisma.group.create({
@@ -71,13 +81,13 @@ describe('Member access authorization (org-scoped management)', () => {
   })
 
   afterAll(async () => {
-    await prisma.groupMember.deleteMany({ where: { groupId } })
+    await prisma.groupMember.deleteMany({ where: { group: { organizationId: orgId } } })
     await prisma.memberOrganization.deleteMany({ where: { organizationId: orgId } })
     await prisma.member.deleteMany({ where: { id: memberId } })
     await prisma.group.deleteMany({ where: { organizationId: orgId } })
     await prisma.userRole.deleteMany({ where: { organizationId: orgId } })
     await prisma.role.deleteMany({ where: { organizationId: orgId } })
-    const userIds = [owner.userId, leader.userId, stranger.userId]
+    const userIds = [owner.userId, leader.userId, stranger.userId, admin.userId]
     await prisma.apiKey.deleteMany({ where: { userId: { in: userIds } } })
     await prisma.organization.deleteMany({ where: { id: orgId } })
     await prisma.user.deleteMany({ where: { id: { in: userIds } } })
@@ -115,12 +125,13 @@ describe('Member access authorization (org-scoped management)', () => {
 
   // ─── Member CRUD (requireMemberOrOrgOwner middleware) ───────────────────────────
 
-  it('lets a NON-owner org leader GET the member (the fix — was 403)', async () => {
+  // D7/F6: GET /:id and /:id/groups are VISIBILITY-scoped. A custom-role leader sees
+  // only members of groups they created, so the member (in the owner's group) is 404.
+  it('404s a custom-role org leader who did not create the member\'s group (D7/F6)', async () => {
     const res = await request(app)
       .get(`/api/members/${memberId}`)
       .set('Authorization', bearer(leader.token))
-    expect(res.status).toBe(200)
-    expect(res.body.success).toBe(true)
+    expect(res.status).toBe(404)
   })
 
   it('lets a NON-owner org leader EDIT the member (the fix — was 403)', async () => {
@@ -132,12 +143,29 @@ describe('Member access authorization (org-scoped management)', () => {
     expect(res.body.success).toBe(true)
   })
 
-  it('lets a NON-owner org leader list the member groups (the fix — was 403)', async () => {
+  it('404s the member groups for that custom-role leader (D7/F6)', async () => {
     const res = await request(app)
       .get(`/api/members/${memberId}/groups`)
       .set('Authorization', bearer(leader.token))
-    expect(res.status).toBe(200)
-    expect(res.body.success).toBe(true)
+    expect(res.status).toBe(404)
+  })
+
+  it('lets a SYSTEM Admin GET the member and list the member groups (D7: all members)', async () => {
+    const one = await request(app).get(`/api/members/${memberId}`).set('Authorization', bearer(admin.token))
+    expect(one.status).toBe(200)
+    const groups = await request(app).get(`/api/members/${memberId}/groups`).set('Authorization', bearer(admin.token))
+    expect(groups.status).toBe(200)
+  })
+
+  it('lets the custom-role leader read the member once they created a group the member is in', async () => {
+    const own = await prisma.group.create({
+      data: { name: `Leader Group ${stamp}`, code: `lgrp-${stamp}`, creatorId: leader.userId, organizationId: orgId },
+    })
+    await prisma.groupMember.create({ data: { groupId: own.id, memberId, isActive: true } })
+    const one = await request(app).get(`/api/members/${memberId}`).set('Authorization', bearer(leader.token))
+    expect(one.status).toBe(200)
+    const groups = await request(app).get(`/api/members/${memberId}/groups`).set('Authorization', bearer(leader.token))
+    expect(groups.status).toBe(200)
   })
 
   it('denies a stranger getting the member (403)', async () => {
