@@ -232,3 +232,7 @@ The plan, with its code: `docs/features/dashboard-chart-intros/PLAN.md` (§PLAN.
 - Phase 2 · Task 5 · C-029 RadialDayClock and C-030 TimeActivityChart intros
 - Phase 2 · Task 6 · C-031 EnrollmentStatusRow and PercentBar intro
 - Phase 2 · Task 7 · Home dashboard turns the intros on
+
+## Fixes
+
+- [ ] iphone: Overview intro (item 1 / E1) — expected the metric cards to hold their start pose until Overview is ≥ 50 % visible, then cascade, wave and count up; saw a ~38 pt first scroll (cards still below the scroll view's bottom edge) use up the intro, so the cards were already final when they came into view (agent walk round 1)

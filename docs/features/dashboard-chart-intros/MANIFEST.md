@@ -1,7 +1,7 @@
 size: md
 state: built
-next: /builder:agent-walk --path docs/features/dashboard-chart-intros
-head: 40409ca
+next: /builder:resume --path docs/features/dashboard-chart-intros
+head: be64ee8
 ticket: none
 branch: builder/dashboard-chart-intros
 pr: none
