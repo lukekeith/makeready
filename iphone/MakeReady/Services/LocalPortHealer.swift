@@ -5,8 +5,9 @@
 //  Keeps the app pointed at the right local Express API port when the
 //  environment is set to "Local". Dev server ports often move within a small
 //  range; this validates the configured port and, if it isn't answering as a
-//  MakeReady server, probes the window [base ... base+rangeSize] and adopts the
-//  first port whose /health reports `service == "makeready"`.
+//  MakeReady server, probes the window [base ... base+rangeSize] and the default
+//  port's window, and adopts the lowest port whose /health reports
+//  `service == "makeready"`.
 //
 //  Only meaningful for Local (dev) builds — it's a no-op otherwise.
 //
@@ -43,8 +44,10 @@ enum LocalPortHealer {
             return .healthy(base)
         }
 
-        // Probe the rest of the window concurrently and adopt the lowest match.
-        let candidates = ((base + 1)...(base + rangeSize)).map { $0 }
+        // Probe the rest of the window, plus the default port's window, concurrently and adopt
+        // the lowest match — a port saved from another server (the agent-walk server on 3110)
+        // must not strand the app above the dev server on 3010.
+        let candidates = candidatePorts(base: base, defaultPort: Int(AppConfiguration.defaultAPIPort))
         if let port = await firstMakeReadyPort(host: host, ports: candidates) {
             AppConfiguration.localAPIPort = String(port)
             print("🔌 LocalPortHealer: API port healed \(base) → \(port) on \(host)")
@@ -53,6 +56,15 @@ enum LocalPortHealer {
 
         print("🔌 LocalPortHealer: no MakeReady server found in \(base)…\(base + rangeSize) on \(host)")
         return .notFound(base: base)
+    }
+
+    /// The ports to probe once `base` fails: `base+1 … base+rangeSize`, and the default port's
+    /// window `defaultPort … defaultPort+rangeSize`, ascending, without `base` itself.
+    static func candidatePorts(base: Int, defaultPort: Int?) -> [Int] {
+        var ports = Set((base + 1)...(base + rangeSize))
+        if let defaultPort { ports.formUnion(defaultPort...(defaultPort + rangeSize)) }
+        ports.remove(base)
+        return ports.sorted()
     }
 
     // MARK: - Host resolution
