@@ -15,4 +15,5 @@ walk: none
 verify: none
 ready: none
 ui2: none
-auto: off
+auto: on 2026-10-26
+agent-walk: on 2026-10-26
