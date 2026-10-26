@@ -4,6 +4,7 @@ import Foundation
 /// snapshot has never held keeps `.empty`'s values.
 enum HomeDashboardMapper {
     private static let months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+    static let shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     private static let weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 
     static func state(from s: DashboardSnapshot, today: Date, timeZone: TimeZone, sessionRange: String) -> HomeDashboardScreen.State {
@@ -53,10 +54,45 @@ enum HomeDashboardMapper {
             let hasActivity = sessionSeconds > 0 || (s.dayMinutes[key] ?? 0) > 0 || (s.activityDays[key] ?? 0) > 0
             return hasActivity ? "default" : "nothing"
         }
+
+        // Sessions (D8/D13/D16): the container's selected range, re-mapped from the snapshot.
+        // A range the snapshot has never held keeps `.empty`'s zeroed section.
+        if let r = s.sessions[sessionKey(for: sessionRange)] {
+            st.hourValues = fixed(r.hourly, count: 24)
+            st.centerValue = "\(Int((Double(r.averageSeconds) / 60).rounded()))"
+            st.centerUnit = "min"
+            st.bins = fixed(r.bins, count: 88)
+            st.sessionTickValues = r.ticks.map(tickLabel)
+            st.sessionTickUnits = r.ticks.map { _ in "" }
+        }
         return st
     }
 
     // MARK: - Helpers
+
+    /// D13: the C-028 label → the snapshot's `sessions` key (`DashboardActions.sessionRangeKeys`).
+    static func sessionKey(for label: String) -> String {
+        switch label {
+        case "Year": return "year"
+        case "Month": return "month"
+        case "Week": return "week"
+        default: return "all"
+        }
+    }
+
+    /// Pads with zeros or truncates to the length the component's prop contract states.
+    static func fixed(_ values: [Double], count: Int) -> [Double] {
+        let head = Array(values.prefix(count))
+        return head + Array(repeating: 0, count: count - head.count)
+    }
+
+    /// D16: a server tick (yyyy-MM-dd, a calendar date — no tz shift) as "MMM d".
+    static func tickLabel(_ day: String) -> String {
+        let parts = day.split(separator: "-")
+        guard parts.count == 3, let month = Int(parts[1]), let date = Int(parts[2]), (1...12).contains(month)
+        else { return day }
+        return "\(shortMonths[month - 1]) \(date)"
+    }
 
     /// D6: the 12 two-hour blocks (server seconds) as minutes — always 12 long, zero-filled.
     static func blockMinutes(_ seconds: [Int]?) -> [Double] {

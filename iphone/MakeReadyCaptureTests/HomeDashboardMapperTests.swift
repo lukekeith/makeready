@@ -209,4 +209,76 @@ final class HomeDashboardMapperTests: XCTestCase {
         XCTAssertEqual(HomeDashboardMapper.blockMinutes(nil), Array(repeating: 0, count: 12))
         XCTAssertEqual(HomeDashboardMapper.blockMinutes(Array(repeating: 60, count: 14)).count, 12)
     }
+
+    // MARK: - Task 11: Sessions by range (D8, D13, D16)
+
+    private func sessions(_ average: Int, peakHour: Int) -> HomeSessionsResponse {
+        var hourly = Array(repeating: 0.0, count: 24)
+        hourly[peakHour] = Double(average)
+        var bins = Array(repeating: 0.0, count: 88)
+        bins[87] = 1
+        return HomeSessionsResponse(averageSeconds: average, sessionCount: 3, hourly: hourly, bins: bins,
+                                    ticks: ["2025-10-26", "2026-02-23", "2026-06-24", "2026-10-25"])
+    }
+
+    private func sessionsSnapshot() -> DashboardSnapshot {
+        var s = snapshot()
+        s.sessions = ["all": sessions(1920, peakHour: 9), "year": sessions(1500, peakHour: 12),
+                      "month": sessions(900, peakHour: 18), "week": sessions(630, peakHour: 20)]
+        return s
+    }
+
+    func testSessionsFieldsForTheDefaultRange() {
+        let st = map(sessionsSnapshot(), range: "All time")
+        XCTAssertEqual(st.hourValues.count, 24)
+        XCTAssertEqual(st.hourValues[9], 1920)
+        XCTAssertEqual(st.centerValue, "32")                                      // 1920 s = 32 min
+        XCTAssertEqual(st.centerUnit, "min")
+        XCTAssertEqual(st.centerCaption, "Average session")                       // unchanged (D8)
+        XCTAssertEqual(st.bins.count, 88)
+        XCTAssertEqual(st.bins[87], 1)
+        XCTAssertEqual(st.sessionTickValues, ["Oct 26", "Feb 23", "Jun 24", "Oct 25"])   // D16 "MMM d"
+        XCTAssertEqual(st.sessionTickUnits, ["", "", "", ""])
+    }
+
+    /// D13: one snapshot holds all four ranges; changing the label is a pure re-map.
+    func testFourRangesMapFromOneSnapshot() {
+        let s = sessionsSnapshot()
+        let expected: [(label: String, center: String, peak: Int)] = [
+            ("All time", "32", 9), ("Year", "25", 12), ("Month", "15", 18), ("Week", "11", 20)   // 630 s = 10.5 → 11
+        ]
+        for row in expected {
+            let st = map(s, range: row.label)
+            XCTAssertEqual(st.sessionRange, row.label)
+            XCTAssertEqual(st.centerValue, row.center, row.label)
+            XCTAssertEqual(st.hourValues.firstIndex(where: { $0 > 0 }), row.peak, row.label)
+        }
+    }
+
+    func testRangeNotYetFetchedKeepsTheEmptySection() {
+        var s = snapshot()
+        s.sessions = ["all": sessions(1920, peakHour: 9)]
+        let st = map(s, range: "Week")
+        XCTAssertEqual(st.centerValue, "0")
+        XCTAssertEqual(st.hourValues, Array(repeating: 0, count: 24))
+        XCTAssertEqual(st.sessionTickValues, HomeDashboardScreen.State.empty.sessionTickValues)
+    }
+
+    func testShortSessionArraysAreFixedLength() {
+        var s = snapshot()
+        s.sessions = ["all": HomeSessionsResponse(averageSeconds: 60, sessionCount: 1, hourly: [1, 2], bins: [0.5], ticks: [])]
+        let st = map(s)
+        XCTAssertEqual(st.hourValues.count, 24)
+        XCTAssertEqual(Array(st.hourValues.prefix(2)), [1, 2])
+        XCTAssertEqual(st.bins.count, 88)
+        XCTAssertEqual(st.bins[0], 0.5)
+        XCTAssertEqual(st.sessionTickValues, [])
+        XCTAssertEqual(st.sessionTickUnits, [])
+    }
+
+    func testTickLabelFormatsAStoredDate() {
+        XCTAssertEqual(HomeDashboardMapper.tickLabel("2026-01-05"), "Jan 5")
+        XCTAssertEqual(HomeDashboardMapper.tickLabel("2026-12-31"), "Dec 31")
+        XCTAssertEqual(HomeDashboardMapper.tickLabel("garbage"), "garbage")
+    }
 }

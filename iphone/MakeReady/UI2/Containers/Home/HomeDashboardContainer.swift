@@ -20,7 +20,7 @@ struct HomeDashboardContainer: View {
             ),
             onPickMetrics: {},                                   // D9 no-op
             onJumpToToday: {},                                   // D31: the screen eases back itself
-            onSelectSessionRange: { sessionRange = $0 },         // D9: relabels an empty section
+            onSelectSessionRange: { sessionRange = $0 },         // D13: re-maps Sessions from the snapshot, no fetch
             onOpenEngagement: {},                                // D9 no-op
             onFollowEnrollment: {},                              // D9 no-op
             onProgramMenu: { _ in },                             // D9 no-op
