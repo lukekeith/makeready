@@ -138,23 +138,19 @@ struct HomeDashboardScreen: View {
     }
 
     // The Sessions range re-scopes data through
-    // `onSelectSessionRange`. The one UI-only state is the shared day-rail ⇄ chart timeline
-    // (C-026 §4 `onPan`: "the consumer syncs the shared timeline"; Luke 2026-10-15: synced
-    // both ways). The rail's leading card is the chart window's last day but two — the three
-    // whole cards the rail shows end on the window's last column.
+    // `onSelectSessionRange`. The day rail and the chart scroll INDEPENDENTLY (owner 2026-10-25,
+    // superseding the 2026-10-15 two-way sync: syncing them on every pan step slowed the UI).
+    // Both open on today at the right; "Jump to today" brings both back.
 
-    /// Where a pan of either has moved the chart window; nil = `state`'s window.
-    @SwiftUI.State private var sharedWindow: ClosedRange<Date>?
     /// The day card at the rail's leading edge.
     @SwiftUI.State private var railDay: Int?
-    /// True only while a finger (or its fling) drives the rail, so the rail's own programmatic
-    /// scroll after a chart pan is not read back as a pan of the rail.
-    @SwiftUI.State private var railUserScrolling = false
-    /// A jump to today is easing both timelines: the rail's own scroll (a fling still
-    /// decelerating) must not write the window back over it until the jump lands.
-    @SwiftUI.State private var jumping = false
-    /// The rail's visible rect in its content's space — where today's card is judged on screen.
-    @SwiftUI.State private var railVisible: CGRect?
+    /// The chart has been panned off `state`'s window (kept only for the link's state).
+    @SwiftUI.State private var chartOffToday = false
+    /// Bumped by "Jump to today": the chart eases its columns back to `state`'s window.
+    @SwiftUI.State private var chartRecenter = 0
+    /// Whether any part of today's day card is in the rail's view. Only the flip is stored, so a
+    /// scrolling rail does not re-render the whole screen every frame.
+    @SwiftUI.State private var todayCardOnScreen = true
     private static let railWindowLead = 2
 
     // MARK: - §2 constants (values that no §3 state changes)
@@ -290,7 +286,7 @@ struct HomeDashboardScreen: View {
                     title: Self.activityTitle,
                     // ui2-shell D31: C-049 `default` (`color-accent`) while today's day card is off
                     // screen; the designed `muted` while it shows, where a tap has nowhere to go.
-                    accessory: .link(label: Self.jumpToTodayLabel, style: todayCardOnScreen ? .muted : .default),
+                    accessory: .link(label: Self.jumpToTodayLabel, style: todayCardOnScreen && !chartOffToday ? .muted : .default),
                     onAccessoryTap: { jumpToToday(rail) }
                 )
                 .padding(.horizontal, Token.Space.pageMargin)
@@ -299,7 +295,8 @@ struct HomeDashboardScreen: View {
                 // §2.2: "day rail … 131×192, cards butt together with shared 1px vertical borders
                 // (−1 overlap), leading inset 16, horizontal scroll".
                 HorizontalRail {
-                    HStack(alignment: .top, spacing: Self.dayCardOverlap) {
+                    // Lazy: ~190 days of history (owner 2026-10-25) — only the cards on screen are built.
+                    LazyHStack(alignment: .top, spacing: Self.dayCardOverlap) {
                         ForEach(state.dayNumbers.indices, id: \.self) { index in
                             RailCard(
                                 kind: .day,
@@ -322,26 +319,30 @@ struct HomeDashboardScreen: View {
                 }
                 .scrollIndicators(.hidden)
                 .scrollPosition(id: $railDay, anchor: .leading)
-                .onScrollGeometryChange(for: CGRect.self) { $0.visibleRect } action: { _, rect in
-                    railVisible = rect
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    Self.cardOnScreen(
+                        index: todayDayIndex, visible: geometry.visibleRect,
+                        leadingInset: Token.Space.pageMargin, width: Self.dayCardWidth,
+                        step: Self.dayCardWidth + Self.dayCardOverlap
+                    )
+                } action: { _, onScreen in
+                    todayCardOnScreen = onScreen
                 }
-                .onScrollPhaseChange { _, phase in
-                    railUserScrolling = phase == .interacting || phase == .decelerating
-                }
-                .onChange(of: railDay) { _, day in
-                    guard railUserScrolling, !jumping, let day else { return }
-                    railMoved(to: day)
-                }
-                // The rail opens on the chart window's end, as a pan would leave it.
+                // The rail opens with its three whole cards ending on the window's last day (today).
                 .onAppear { alignRail(to: chartWindow) }
                 Spacer().frame(height: Token.Space.sectionGap)           // §2.2: "→ 32pt →"
                 // §2.2: "DualSeriesBarChart 440×149 full-bleed". C-026 §3 derives Default/Today from
                 // whether `today` ∈ `window`.
                 DualSeriesBarChart(
                     days: chartDays,
-                    window: sharedWindow ?? chartWindow,
+                    window: chartWindow,
                     today: Self.chartDate(state.chartToday) ?? .distantPast,
-                    onWindowChange: chartPanned
+                    onWindowChange: { window in
+                        let off = window != chartWindow
+                        if off != chartOffToday { chartOffToday = off }
+                    },
+                    recenterRequest: chartRecenter,
+                    recenterAnimation: Self.jumpAnimation
                 )
                 .frame(width: Self.dualChartWidth, height: Self.dualChartHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -513,43 +514,26 @@ struct HomeDashboardScreen: View {
         return minX + width > visible.minX && minX < visible.maxX
     }
 
-    private var todayCardOnScreen: Bool {
-        Self.cardOnScreen(
-            index: state.dayDateStates.firstIndex(of: "today"), visible: railVisible,
-            leadingInset: Token.Space.pageMargin, width: Self.dayCardWidth,
-            step: Self.dayCardWidth + Self.dayCardOverlap
-        )
-    }
+    private var todayDayIndex: Int? { state.dayDateStates.firstIndex(of: "today") }
 
     // GAP — no motion token for the recentre: an ease-in-out, 0.45s.
     private static var jumpAnimation: Animation { .easeInOut(duration: 0.45) }
 
-    /// ui2-shell D31: "Jump to today" eases both timelines back to `state`'s window — today at
-    /// the right — then tells the consumer.
+    /// ui2-shell D31: "Jump to today" eases both back to `state`'s window — the rail to today's
+    /// card at the right, the chart's columns to today at its right edge — then tells the consumer.
     private func jumpToToday(_ rail: ScrollViewProxy) {
-        // Tappable whatever the rail is doing: the jump takes the timeline from a fling or a
-        // running animation — the direct scroll stops the rail's deceleration even when the
-        // binding already holds the target, and `jumping` keeps the fling's last positions
-        // from re-moving the window meanwhile.
-        jumping = true
-        railUserScrolling = false
+        // A direct scroll moves the rail even when the binding already holds the target, and
+        // stops a fling still running.
         let lead = railLead(for: chartWindow, nearest: true)
-        withAnimation(Self.jumpAnimation, completionCriteria: .logicallyComplete) {
-            sharedWindow = nil
+        withAnimation(Self.jumpAnimation) {
             if let lead {
                 railDay = lead
                 rail.scrollTo(lead, anchor: .leading)
             }
-        } completion: {
-            jumping = false
         }
+        chartRecenter += 1
+        chartOffToday = false
         onJumpToToday()
-    }
-
-    /// The chart panned: hold its window and bring the rail's matching card to the leading edge.
-    private func chartPanned(_ window: ClosedRange<Date>) {
-        sharedWindow = window
-        withAnimation(.snappy) { alignRail(to: window, nearest: true) }
     }
 
     /// Puts the card two days before `window`'s last day at the rail's leading edge. `nearest`
@@ -570,25 +554,6 @@ struct HomeDashboardScreen: View {
             index = dates.lastIndex { ($0 ?? .distantFuture) <= lead } ?? 0
         }
         return index
-    }
-
-    /// The rail was scrolled: move the chart window, same length, to end two days after the
-    /// leading card — kept inside the loaded timeline.
-    private func railMoved(to index: Int) {
-        guard let cardDate = state.dayDates[safe: index].flatMap(Self.chartDate),
-              let first = chartDays.first?.date, let last = chartDays.last?.date else { return }
-        let cal = Self.utcCalendar
-        let base = sharedWindow ?? chartWindow
-        let length = cal.dateComponents([.day], from: base.lowerBound, to: base.upperBound).day ?? 0
-        guard var upper = cal.date(byAdding: .day, value: Self.railWindowLead, to: cardDate) else { return }
-        upper = min(upper, last)
-        guard var lower = cal.date(byAdding: .day, value: -length, to: upper) else { return }
-        if lower < first {
-            lower = first
-            upper = cal.date(byAdding: .day, value: length, to: first) ?? upper
-        }
-        let window = lower...upper
-        if window != base { sharedWindow = window }
     }
 
     private static let utcCalendar: Calendar = {

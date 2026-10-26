@@ -6,6 +6,13 @@ final class HomeDashboardContainerTests: XCTestCase {
     func testSessionRangesAreTheClosedList() {
         XCTAssertEqual(HomeDashboardContainer.sessionRanges, ["All time", "Year", "Month", "Week"])
     }
+
+    /// D13: the container's labels map one-to-one onto the snapshot's session keys.
+    func testEverySessionRangeLabelHasASnapshotKey() {
+        XCTAssertEqual(HomeDashboardContainer.sessionRanges.map(HomeDashboardMapper.sessionKey(for:)),
+                       DashboardActions.sessionRangeKeys)
+        XCTAssertEqual(HomeDashboardMapper.sessionKey(for: "unknown"), "all")
+    }
 }
 
 /// SPEC D24: the container's first analytics query waits for the shell's initial load.

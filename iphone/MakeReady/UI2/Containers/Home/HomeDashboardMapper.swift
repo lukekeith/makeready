@@ -1,9 +1,10 @@
 import Foundation
 
-/// SPEC D8/D25: Overview + Activity from the snapshot; Sessions, Engagement,
-/// Following keep `.empty`'s values.
+/// SPEC D8/D25 + home-dashboard-data D6–D16: every Home section from the snapshot; a section the
+/// snapshot has never held keeps `.empty`'s values.
 enum HomeDashboardMapper {
     private static let months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
+    static let shortMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     private static let weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 
     static func state(from s: DashboardSnapshot, today: Date, timeZone: TimeZone, sessionRange: String) -> HomeDashboardScreen.State {
@@ -27,13 +28,13 @@ enum HomeDashboardMapper {
         st.metricCount = "\(titles.count)"
 
         // Activity (D22/D25)
-        let window = days(endingAt: today, back: 28, ahead: 7, tz: timeZone)
+        let window = days(endingAt: today, back: DashboardActions.historyDays, ahead: 7, tz: timeZone)
         let keys = window.map(\.key)
         let todayKey = key(today, tz: timeZone)
-        let todayIndex = keys.firstIndex(of: todayKey) ?? 28
+        let todayIndex = keys.firstIndex(of: todayKey) ?? DashboardActions.historyDays
         st.chartDates = keys
         st.chartCompleted = keys.map { s.activityDays[$0] ?? 0 }
-        st.chartScheduled = Array(repeating: 0, count: keys.count)
+        st.chartScheduled = keys.map { s.scheduledDays[$0] ?? 0 }                    // D10
         st.chartToday = todayKey
         // SPEC D31 (owner 2026-10-25): the window opens on the 29 days ending today, so today is
         // the last column and the rail's three cards end on it.
@@ -44,14 +45,107 @@ enum HomeDashboardMapper {
         st.dayWeekdays = window.map { $0.key == todayKey ? "" : weekdays[$0.weekday - 1] }
         st.dayNumbers = window.map { "\($0.day)" }
         st.dayDateStates = keys.map { $0 == todayKey ? "today" : "default" }
-        st.daySeries = keys.map { _ in Array(repeating: 0, count: 12) }
-        st.dayLine1s = keys.map { _ in "0 mins" }
-        st.dayLine2s = keys.map { "\(s.activityDays[$0] ?? 0) lessons" }
-        st.dayDetailsStates = keys.map { (s.activityDays[$0] ?? 0) > 0 ? "default" : "nothing" }
+        // D6: minutes and bars are session time; line 2 is lesson completions.
+        st.daySeries = keys.map { blockMinutes(s.dayBlocks[$0]) }
+        st.dayLine1s = keys.map { "\(s.dayMinutes[$0] ?? 0) mins" }
+        st.dayLine2s = keys.map { "\(s.activityDays[$0] ?? 0) complete" }
+        st.dayDetailsStates = keys.map { key in
+            let sessionSeconds = s.dayBlocks[key]?.reduce(0, +) ?? 0
+            let hasActivity = sessionSeconds > 0 || (s.dayMinutes[key] ?? 0) > 0 || (s.activityDays[key] ?? 0) > 0
+            return hasActivity ? "default" : "nothing"
+        }
+
+        // Sessions (D8/D13/D18): the container's selected range, re-mapped from the snapshot.
+        // A range the snapshot has never held keeps `.empty`'s zeroed section.
+        if let r = s.sessions[sessionKey(for: sessionRange)] {
+            st.hourValues = fixed(r.hourly, count: 24)
+            st.centerValue = "\(Int((Double(r.averageSeconds) / 60).rounded()))"
+            st.centerUnit = "min"
+            st.bins = fixed(r.bins, count: 88)
+            // D18: the strip is a session-LENGTH histogram — its ticks are minutes.
+            st.sessionTickValues = r.ticks.map(String.init)
+            st.sessionTickUnits = r.ticks.map { _ in "min" }
+        }
+
+        // Engagement (D3/D7). Never fetched → `.empty`'s zeroed section.
+        if let e = s.engagement {
+            st.activeCount = "\(e.activeCount)"
+            st.engagementPercent = e.percent
+            st.engagementLabel = "Members current"
+            st.engagementCount = e.currentCount
+            st.engagementProgress = Double(e.percent) / 100
+            st.engagementSubtitle = "\(e.enrolledCount) total members enrolled across \(e.groupCount) groups"
+            st.engagementColor = bandColor(percent: e.percent)
+        }
+
+        // Following (D4/D11): program blocks in server order; group cards flattened, each pointing
+        // back at its program by index.
+        if let f = s.following {
+            let cards: [(program: Int, group: HomeFollowedGroup)] = f.programs.enumerated().flatMap { index, program in
+                program.groups.map { (program: index, group: $0) }
+            }
+            st.followedCount = "\(cards.count)"
+            st.programTitles = f.programs.map { $0.title }
+            st.programAuthors = f.programs.map { $0.author }
+            st.programCreatedLabels = f.programs.map { createdLabel($0.createdAt, tz: timeZone) }
+            st.groupProgramIndices = cards.map { $0.program }
+            st.groupTitles = cards.map { $0.group.groupName }
+            st.groupPhotoURLs = cards.map { $0.group.photoUrl ?? "" }
+            st.groupMembers = cards.map { "\($0.group.memberCount)" }          // the card adds "members"
+            st.groupPercents = cards.map { "\($0.group.percent)%" }
+            st.groupColors = cards.map { bandColor(percent: $0.group.percent) }
+            st.groupShowLinks = cards.map { $0.group.synced }
+        }
         return st
     }
 
     // MARK: - Helpers
+
+    /// D7: C-031 / C-033 colour bands — green ≥ 50, yellow 20–49, red < 20.
+    static func bandColor(percent: Int) -> String {
+        if percent >= 50 { return "green" }
+        if percent >= 20 { return "yellow" }
+        return "red"
+    }
+
+    private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    private static let isoPlain = ISO8601DateFormatter()
+
+    /// D11: "Created MMM d, yyyy" in the caller's tz from the server's ISO 8601 string (Prisma
+    /// writes fractional seconds); "" when it doesn't parse.
+    static func createdLabel(_ iso: String, tz: TimeZone) -> String {
+        guard let date = isoFractional.date(from: iso) ?? isoPlain.date(from: iso) else { return "" }
+        var cal = Calendar(identifier: .gregorian); cal.timeZone = tz
+        let c = cal.dateComponents([.year, .month, .day], from: date)
+        guard let y = c.year, let m = c.month, let d = c.day else { return "" }
+        return "Created \(shortMonths[m - 1]) \(d), \(y)"
+    }
+
+    /// D13: the C-028 label → the snapshot's `sessions` key (`DashboardActions.sessionRangeKeys`).
+    static func sessionKey(for label: String) -> String {
+        switch label {
+        case "Year": return "year"
+        case "Month": return "month"
+        case "Week": return "week"
+        default: return "all"
+        }
+    }
+
+    /// Pads with zeros or truncates to the length the component's prop contract states.
+    static func fixed(_ values: [Double], count: Int) -> [Double] {
+        let head = Array(values.prefix(count))
+        return head + Array(repeating: 0, count: count - head.count)
+    }
+
+    /// D6: the 12 two-hour blocks (server seconds) as minutes — always 12 long, zero-filled.
+    static func blockMinutes(_ seconds: [Int]?) -> [Double] {
+        let values = (seconds ?? []).prefix(12).map { Double($0) / 60 }
+        return values + Array(repeating: 0, count: 12 - values.count)
+    }
 
     struct Trend { let direction: String; let polarity: String; let label: String }
     struct Day { let key: String; let month: Int; let day: Int; let weekday: Int }

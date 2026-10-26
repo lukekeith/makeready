@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { ENROLLMENT_PLAN, PROGRAMS, lessonOffsets } from '../base.js'
 import { addDays, localDate } from '../context.js'
 import { countFixtureRows } from '../counts.js'
 import {
@@ -78,6 +79,8 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
       member_video_progress: 0,
       membership_events: 0,
       client_events: 0,
+      media: 0, // D22: images are off under vitest (FIXTURE_IMAGES=on turns them on)
+      media_usages: 0,
     })
   }, 120_000)
 
@@ -117,20 +120,20 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
     expect(videoActivities).toBe(51)
   }, 120_000)
 
-  it('staggers E1–E4 over now−48 … now+7 (D11), every day enabled, America/Chicago', async () => {
+  it('staggers E1–E4 from now−48 (D11), on their enabled days (D21: Women\'s Mon–Fri), America/Chicago', async () => {
     await db.run('reset', 'empty')
     const today = localDate(new Date())
-    const windows: Array<[number, number]> = [[-48, -19], [-29, 0], [-20, 0], [-13, 7]]
     const enrollments = await db.prisma.enrollment.findMany({ where: { id: { in: FIXTURE_ENROLLMENT_IDS } }, orderBy: { id: 'asc' } })
     expect(enrollments).toHaveLength(4)
     for (const [i, enrollment] of enrollments.entries()) {
-      expect(JSON.parse(enrollment.enabledDays)).toEqual(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])
+      const plan = ENROLLMENT_PLAN[i]
+      const offsets = lessonOffsets(today, plan.startOffset, PROGRAMS.find((p) => p.key === plan.program)!.days, plan.days)
+      expect(JSON.parse(enrollment.enabledDays)).toEqual([...plan.days])
       expect(enrollment.timezone).toBe('America/Chicago')
       expect(enrollment.createdById).toBe(FIXTURE_USER_ID)
       const schedules = await db.prisma.lessonSchedule.findMany({ where: { enrollmentId: enrollment.id } })
       const dates = schedules.map((s) => localDate(s.scheduledDate)).sort()
-      expect(dates[0]).toBe(addDays(today, windows[i][0]))
-      expect(dates[dates.length - 1]).toBe(addDays(today, windows[i][1]))
+      expect(dates).toEqual(offsets.map((o) => addDays(today, o)))
       expect(new Set(dates).size).toBe(dates.length)
     }
     const covered = new Set(

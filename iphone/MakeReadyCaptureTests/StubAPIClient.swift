@@ -31,8 +31,15 @@ final class StubAPIClient: APIClientProtocol {
     /// Runs on the main actor before each call returns (e.g. to land a sign-out mid-Action).
     var beforeReturn: (@MainActor (_ endpoint: String, _ body: [String: Any]?) -> Void)?
 
+    /// Seconds each call waits before returning (to prove calls overlap or that a slow one is not waited on).
+    var delayFor: ((_ endpoint: String) -> TimeInterval)?
+
     /// Every call made through the stub, in order.
-    private(set) var calls: [RecordedCall] = []
+    /// Recorded under a lock: `DashboardActions.refresh()` calls the stub from several tasks at
+    /// once, and an unguarded append raced and crashed the test host.
+    private let callsLock = NSLock()
+    private var recordedCalls: [RecordedCall] = []
+    var calls: [RecordedCall] { callsLock.withLock { recordedCalls } }
 
     func stub(_ method: String, _ endpoint: String, json: String) {
         responses["\(method) \(endpoint)"] = Data(json.utf8)
@@ -45,9 +52,12 @@ final class StubAPIClient: APIClientProtocol {
     // MARK: - APIClientProtocol
 
     func request(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data {
-        calls.append(RecordedCall(method: method, endpoint: endpoint, body: body))
+        callsLock.withLock { recordedCalls.append(RecordedCall(method: method, endpoint: endpoint, body: body)) }
         if let beforeReturn {
             await beforeReturn(endpoint, body)
+        }
+        if let delay = delayFor?(endpoint), delay > 0 {
+            try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
         }
         if let errorToThrow {
             throw errorToThrow

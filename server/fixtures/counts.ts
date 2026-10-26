@@ -23,6 +23,8 @@ export const FIXTURE_TABLES = [
   'member_video_progress',
   'membership_events',
   'client_events',
+  'media',
+  'media_usages',
 ] as const
 
 export type FixtureTable = (typeof FIXTURE_TABLES)[number]
@@ -48,6 +50,8 @@ export async function countFixtureRows(prisma: PrismaClient): Promise<RowCounts>
     member_video_progress: await prisma.memberVideoProgress.count({ where: { memberId: members } }),
     membership_events: await prisma.membershipEvent.count({ where: { memberId: members } }),
     client_events: await prisma.clientEvent.count({ where: FIXTURE_CLIENT_EVENT_WHERE }),
+    media: await prisma.media.count({ where: { organizationId: org } }),
+    media_usages: await prisma.mediaUsage.count({ where: { media: { organizationId: org } } }),
   }
 }
 

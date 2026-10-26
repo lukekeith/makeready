@@ -26,16 +26,16 @@ import UIKit
 /// `ScrollView(.horizontal)`: scroll modifiers applied to it (`scrollPosition`, `scrollIndicators`,
 /// `contentMargins`, `onScrollGeometryChange`, `onScrollPhaseChange`, `scrollTargetBehavior`)
 /// reach the scroll view inside, and scrolling stays free — no paging, no snapping.
-public struct HorizontalRail<Content: View>: View {
+struct HorizontalRail<Content: View>: View {
     private let showsIndicators: Bool
     private let content: Content
 
-    public init(showsIndicators: Bool = true, @ViewBuilder content: () -> Content) {
+    init(showsIndicators: Bool = true, @ViewBuilder content: () -> Content) {
         self.showsIndicators = showsIndicators
         self.content = content()
     }
 
-    public var body: some View {
+    var body: some View {
         ScrollView(.horizontal, showsIndicators: showsIndicators) {
             content.background(CoastBreaker())
         }
@@ -88,19 +88,19 @@ private final class CoastBreakerGesture: UIGestureRecognizer, UIGestureRecognize
 // MARK: - horizontalPan
 
 /// One moment of a sideways pan, in points.
-public struct HorizontalPanValue: Equatable {
-    public var translation: CGFloat
+struct HorizontalPanValue: Equatable {
+    var translation: CGFloat
     /// Points per second; positive is rightwards.
-    public var velocity: CGFloat
+    var velocity: CGFloat
 
-    public init(translation: CGFloat, velocity: CGFloat) {
+    init(translation: CGFloat, velocity: CGFloat) {
         self.translation = translation
         self.velocity = velocity
     }
 
     /// Where a fling would come to rest: the velocity projected the way a UIKit scroll view
     /// decelerates (`.normal` rate 0.998/ms → velocity × 0.499 s).
-    public var predictedEndTranslation: CGFloat { translation + velocity * Self.flingSeconds }
+    var predictedEndTranslation: CGFloat { translation + velocity * Self.flingSeconds }
 
     static let flingSeconds: CGFloat = 0.499
 
@@ -108,7 +108,7 @@ public struct HorizontalPanValue: Equatable {
     static func begins(horizontal: CGFloat, vertical: CGFloat) -> Bool { abs(horizontal) > abs(vertical) }
 }
 
-public extension View {
+extension View {
     /// A sideways drag that leaves vertical drags to the page it sits in. `onEnded` also runs, with
     /// zero velocity, when the system cancels the pan.
     func horizontalPan(onChanged: @escaping (HorizontalPanValue) -> Void,

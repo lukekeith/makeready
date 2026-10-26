@@ -80,12 +80,12 @@ extension View {
     /// the annotated view an accessibility CONTAINER, so the identifier lands on it once instead of
     /// being copied onto each child, and the children keep their own elements (a button inside
     /// stays a button). Nothing renders differently.
+    ///
+    /// The bounds bookkeeping runs only under `ui2ElementMap` (the capture harness): in the app
+    /// nothing reads the map, and hundreds of anchors re-collected on every layout pass slowed
+    /// scrolling and panning on Home. The accessibility identifier is always set.
     func ui2Element(_ name: String) -> some View {
-        accessibilityElement(children: .contain)
-            .accessibilityIdentifier(name)
-            .transformAnchorPreference(key: UI2ElementPreferenceKey.self, value: .bounds) { value, anchor in
-            value.append(UI2ElementAnchor(name: name, anchor: anchor))
-        }
+        modifier(UI2ElementModifier(name: name))
     }
 
     /// Collect every `ui2Element` beneath this view into `map` during the layout pass.
@@ -94,7 +94,8 @@ extension View {
     /// takes no hits and changes no layout — an overlay is sized by its content, so the
     /// measured view is the same view the snapshot renders.
     func ui2ElementMap(_ map: UI2ElementMap) -> some View {
-        overlayPreferenceValue(UI2ElementPreferenceKey.self) { anchors in
+        environment(\.ui2ElementCollecting, true)
+            .overlayPreferenceValue(UI2ElementPreferenceKey.self) { anchors in
             GeometryReader { proxy -> Color in
                 map.record(
                     size: proxy.size,
@@ -103,6 +104,34 @@ extension View {
                 return Color.clear
             }
             .allowsHitTesting(false)
+        }
+    }
+}
+
+private struct UI2ElementCollectingKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// True beneath `ui2ElementMap` — the only place `ui2Element` bounds are collected.
+    var ui2ElementCollecting: Bool {
+        get { self[UI2ElementCollectingKey.self] }
+        set { self[UI2ElementCollectingKey.self] = newValue }
+    }
+}
+
+private struct UI2ElementModifier: ViewModifier {
+    let name: String
+    @Environment(\.ui2ElementCollecting) private var collecting
+
+    func body(content: Content) -> some View {
+        let named = content.accessibilityElement(children: .contain).accessibilityIdentifier(name)
+        if collecting {
+            named.transformAnchorPreference(key: UI2ElementPreferenceKey.self, value: .bounds) { value, anchor in
+                value.append(UI2ElementAnchor(name: name, anchor: anchor))
+            }
+        } else {
+            named
         }
     }
 }

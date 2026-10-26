@@ -70,17 +70,24 @@ struct TopNavHost: View {
     /// expand, collapse, tap toggle and the select-collapse (transition-review E3).
     static let morphSpring = Animation.spring(duration: 0.3, bounce: 0)
 
-    /// The live drag (transition-review C1: `@GestureState`, reset without animation).
-    @GestureState private var drag = DragTrack()
-    /// The same lock, kept where `onEnded` can read it (`@GestureState` has already reset by
-    /// then). Ephemeral gesture state (D43); per-gesture via `startLocation` (see AxisLock).
+    /// A vertical drag writes `model.expansion` itself as the finger moves, and the release
+    /// springs on from that same value. (It used to ride on a `@GestureState` offset over the
+    /// committed value; the offset reset the instant the finger lifted while the spring started
+    /// from the drag's START, so the row snapped back a frame and morphed through its middle
+    /// again, and the page — fed the offset a frame late — split from the row. On-device
+    /// recording 2026-10-25.)
+    /// The expansion when this vertical drag began; nil when no vertical drag runs.
+    @State private var dragStart: Double?
+    /// Per-gesture axis lock (D43), keyed by `startLocation` (see AxisLock).
     @State private var axisLock = TopNavDrag.AxisLock()
+    /// True while the drag gesture is live; its reset without `onEnded` is a cancelled drag.
+    @GestureState private var dragging = false
 
     var body: some View {
         TopNav(
             tabs: UI2Section.allCases.map(\.rawValue),
             selectedTab: model.section.rawValue,
-            expansion: liveExpansion,
+            expansion: model.expansion,
             scrollOffset: model.scrollOffset,
             onSelect: select,
             onToggleExpansion: toggle,
@@ -90,40 +97,47 @@ struct TopNavHost: View {
         // first movement is vertical scrubs the morph (analysis §6: horizontal pan scrolls,
         // vertical drag morphs).
         .simultaneousGesture(morphDrag)
-        // The live drag's share of the morph, so the page below follows the finger too (D14,
-        // revised 2026-10-25). Springs move `model.expansion` itself and animate on their own.
-        .preference(key: TopNavDragDelta.self, value: liveExpansion - model.expansion)
-    }
-
-    /// The committed value plus the finger's contribution while a vertical drag is live.
-    private var liveExpansion: Double {
-        TopNavDrag.expansion(from: model.expansion, translation: drag.translation, travel: TopNavDrag.travel)
+        // A drag the system cancelled (no `onEnded`) still settles, from where it stopped.
+        .onChange(of: dragging) { _, live in
+            if !live, dragStart != nil { settle(velocity: 0) }
+        }
     }
 
     private var morphDrag: some Gesture {
         // GAP — no drag-start distance in C-019 §4 or analysis §6 ("Vertical drag | nav row |
         // scrubs the morph"): 8pt so a tap on a tab is not read as a drag, no token.
         DragGesture(minimumDistance: 8, coordinateSpace: .global)
-            .updating($drag) { value, state, transaction in
-                transaction.animation = nil
-                state.isVertical = TopNavDrag.lockAxis(state.isVertical, translation: value.translation)
-                state.translation = state.isVertical == true ? value.translation.height : 0
-            }
+            .updating($dragging) { _, state, _ in state = true }
             .onChanged { value in
-                _ = axisLock.update(start: value.startLocation, translation: value.translation)
+                // A drag that began horizontal scrolls the row and never scrubs.
+                guard axisLock.update(start: value.startLocation, translation: value.translation) else { return }
+                let start = dragStart ?? model.expansion
+                dragStart = start
+                // Finger-tracked: no animation, so a spring still running from a tap or the page
+                // trigger is taken over at its current value.
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) {
+                    model.expansion = TopNavDrag.expansion(
+                        from: start, translation: value.translation.height, travel: TopNavDrag.travel
+                    )
+                }
             }
             .onEnded { value in
                 let vertical = axisLock.end(start: value.startLocation, translation: value.translation)
                 // A drag that began horizontal scrolled the row and never scrubbed: no morph.
-                guard vertical else { return }
-                // A drag that began vertical always settles with the spring, however it ends.
-                let released = TopNavDrag.expansion(
-                    from: model.expansion, translation: value.translation.height, travel: TopNavDrag.travel
-                )
-                withAnimation(Self.morphSpring) {
-                    model.expansion = TopNavDrag.settle(released, velocity: value.velocity.height)
-                }
+                guard vertical, dragStart != nil else { return }
+                settle(velocity: value.velocity.height)
             }
+    }
+
+    /// A vertical drag ends: spring from the value the finger left to the nearer end, or the
+    /// flick's end (`TopNavDrag.settle`).
+    private func settle(velocity: CGFloat) {
+        dragStart = nil
+        withAnimation(Self.morphSpring) {
+            model.expansion = TopNavDrag.settle(model.expansion, velocity: velocity)
+        }
     }
 
     private func select(_ label: String) {
@@ -137,14 +151,3 @@ struct TopNavHost: View {
     }
 }
 
-/// How far a live row drag has moved the morph past `model.expansion` (0 when no drag runs).
-struct TopNavDragDelta: PreferenceKey {
-    static let defaultValue: Double = 0
-    static func reduce(value: inout Double, nextValue: () -> Double) { value += nextValue() }
-}
-
-/// The in-flight drag: its axis is decided by the first movement and kept for the gesture.
-private struct DragTrack {
-    var isVertical: Bool?
-    var translation: CGFloat = 0
-}

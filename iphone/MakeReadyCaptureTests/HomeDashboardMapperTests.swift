@@ -28,9 +28,9 @@ final class HomeDashboardMapperTests: XCTestCase {
 
     func testActivityWindowAndZeros() {
         let st = HomeDashboardMapper.state(from: snapshot(), today: today, timeZone: tz, sessionRange: "All time")
-        XCTAssertEqual(st.chartDates.count, 36)                                       // 28 + today + 7
+        XCTAssertEqual(st.chartDates.count, 190)                                      // 182 + today + 7
         XCTAssertEqual(st.chartToday, "2026-10-25")
-        XCTAssertEqual(st.chartScheduled, Array(repeating: 0, count: 36))             // D25
+        XCTAssertEqual(st.chartScheduled, Array(repeating: 0, count: 190))            // D25
         XCTAssertEqual(st.chartCompleted[st.chartDates.firstIndex(of: "2026-10-24")!], 3)
         XCTAssertTrue(st.dayLine1s.allSatisfy { $0 == "0 mins" })
     }
@@ -62,5 +62,302 @@ final class HomeDashboardMapperTests: XCTestCase {
         XCTAssertEqual(st.followedCount, "0"); XCTAssertEqual(st.programTitles, [])
         XCTAssertEqual(st.engagementCount, 0); XCTAssertEqual(st.centerValue, "0")
         XCTAssertEqual(st.sessionRange, "Week")
+    }
+
+    // MARK: - Task 8: DashboardSnapshot decoding (SPEC F11)
+
+    private func cacheDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601        // PersistedState's decoder
+        return decoder
+    }
+
+    /// A snapshot cached by the build before this feature keeps every old field and
+    /// defaults every new one — it is never a cache miss.
+    func testOldSnapshotWithoutTheNewKeysKeepsItsFields() throws {
+        let json = #"{"completedSeries":{"2026-10-24":3},"completedTotal":3,"completedPrevious":2,"watchSeconds":120,"activityDays":{"2026-10-24":3},"kpiNames":["lesson_completions"],"refreshedAt":"2026-10-25T18:00:00Z"}"#
+        let s = try cacheDecoder().decode(DashboardSnapshot.self, from: Data(json.utf8))
+        XCTAssertEqual(s.completedSeries, ["2026-10-24": 3])
+        XCTAssertEqual(s.completedTotal, 3)
+        XCTAssertEqual(s.completedPrevious, 2)
+        XCTAssertEqual(s.watchSeconds, 120)
+        XCTAssertEqual(s.activityDays, ["2026-10-24": 3])
+        XCTAssertEqual(s.kpiNames, ["lesson_completions"])
+        XCTAssertNotNil(s.refreshedAt)
+        XCTAssertEqual(s.scheduledDays, [:])
+        XCTAssertEqual(s.dayMinutes, [:])
+        XCTAssertEqual(s.dayBlocks, [:])
+        XCTAssertEqual(s.sessions, [:])
+        XCTAssertNil(s.engagement)
+        XCTAssertNil(s.following)
+    }
+
+    func testNewFieldsRoundTrip() throws {
+        var s = DashboardSnapshot()
+        s.scheduledDays = ["2026-10-24": 5]
+        s.dayMinutes = ["2026-10-24": 26]
+        s.dayBlocks = ["2026-10-24": [0, 0, 0, 0, 600, 0, 930, 0, 0, 0, 0, 0]]
+        s.sessions = ["week": HomeSessionsResponse(averageSeconds: 600, sessionCount: 2, hourly: [1, 2],
+                                                   bins: [0.5, 1], ticks: [0, 15])]
+        s.engagement = HomeEngagementResponse(currentCount: 7, enrolledCount: 12, groupCount: 3, percent: 58, activeCount: 9)
+        s.following = HomeFollowingResponse(programs: [
+            HomeFollowedProgram(id: "p1", title: "Romans in 30 days", author: "", createdAt: "2026-07-08T18:00:00.000Z",
+                                groups: [HomeFollowedGroup(enrollmentId: "e1", groupName: "The kids", photoUrl: nil,
+                                                           memberCount: 2, percent: 13, synced: false)])
+        ])
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let decoded = try cacheDecoder().decode(DashboardSnapshot.self, from: try encoder.encode(s))
+        XCTAssertEqual(decoded, s)
+    }
+
+    /// Every nested type is tolerant too: a missing key inside a cached section defaults
+    /// instead of throwing (which would drop the whole dashboard).
+    func testNestedTypesDefaultTheirMissingKeys() throws {
+        let json = #"{"sessions":{"week":{"averageSeconds":600}},"engagement":{"percent":40},"following":{"programs":[{"title":"Romans","createdAt":"2026-07-08T18:00:00.123Z","groups":[{"groupName":"Kids","photoUrl":null}]}]}}"#
+        let s = try cacheDecoder().decode(DashboardSnapshot.self, from: Data(json.utf8))
+        XCTAssertEqual(s.sessions["week"]?.averageSeconds, 600)
+        XCTAssertEqual(s.sessions["week"]?.hourly, [])
+        XCTAssertEqual(s.sessions["week"]?.ticks, [])
+        XCTAssertEqual(s.engagement?.percent, 40)
+        XCTAssertEqual(s.engagement?.currentCount, 0)
+        let program = try XCTUnwrap(s.following?.programs.first)
+        XCTAssertEqual(program.id, "")
+        XCTAssertEqual(program.author, "")
+        XCTAssertEqual(program.createdAt, "2026-07-08T18:00:00.123Z")
+        XCTAssertEqual(program.groups.first?.groupName, "Kids")
+        XCTAssertNil(program.groups.first?.photoUrl)
+        XCTAssertEqual(program.groups.first?.memberCount, 0)
+        XCTAssertEqual(program.groups.first?.synced, false)
+        XCTAssertEqual(s.completedTotal, 0)
+    }
+
+    /// The wire shapes of SPEC §Contract decode through the app's API decoder.
+    func testHomeResponsesDecodeFromTheContractShapes() throws {
+        let following = #"{"programs":[{"id":"p1","title":"Daily inspiration","author":"Scott Stickane","createdAt":"2026-04-13T15:02:11.123Z","groups":[{"enrollmentId":"e1","groupName":"Young professionals","photoUrl":"https://cdn.example/g.jpg","memberCount":9,"percent":55,"synced":true}]}]}"#
+        let f = try JSONDecoder.apiDecoder.decode(HomeFollowingResponse.self, from: Data(following.utf8))
+        XCTAssertEqual(f.programs.first?.createdAt, "2026-04-13T15:02:11.123Z")
+        XCTAssertEqual(f.programs.first?.groups.first?.photoUrl, "https://cdn.example/g.jpg")
+        XCTAssertEqual(f.programs.first?.groups.first?.synced, true)
+
+        let days = #"{"days":[{"day":"2026-10-24","sessionSeconds":1530,"blocks":[0,0,0,0,600,0,930,0,0,0,0,0]}]}"#
+        let d = try JSONDecoder.apiDecoder.decode(HomeDaysResponse.self, from: Data(days.utf8))
+        XCTAssertEqual(d.days, [HomeDay(day: "2026-10-24", sessionSeconds: 1530, blocks: [0, 0, 0, 0, 600, 0, 930, 0, 0, 0, 0, 0])])
+
+        let engagement = #"{"currentCount":52,"enrolledCount":178,"groupCount":15,"percent":29,"activeCount":15}"#
+        let e = try JSONDecoder.apiDecoder.decode(HomeEngagementResponse.self, from: Data(engagement.utf8))
+        XCTAssertEqual(e, HomeEngagementResponse(currentCount: 52, enrolledCount: 178, groupCount: 15, percent: 29, activeCount: 15))
+
+        let sessions = #"{"averageSeconds":1920,"sessionCount":40,"hourly":[0,0,0,0,0,0,0,0,0,600.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"bins":[0,0.25,1],"ticks":[0,15,30,45],"axisMinutes":45}"#
+        let r = try JSONDecoder.apiDecoder.decode(HomeSessionsResponse.self, from: Data(sessions.utf8))
+        XCTAssertEqual(r.averageSeconds, 1920)
+        XCTAssertEqual(r.hourly.count, 24)
+        XCTAssertEqual(r.hourly[9], 600.5)
+        XCTAssertEqual(r.bins, [0, 0.25, 1])
+        XCTAssertEqual(r.ticks.count, 4)
+    }
+
+    // MARK: - Task 10: Activity + day cards (D6, D10)
+
+    private func map(_ s: DashboardSnapshot, range: String = "All time") -> HomeDashboardScreen.State {
+        HomeDashboardMapper.state(from: s, today: today, timeZone: tz, sessionRange: range)
+    }
+
+    func testScheduledColumnsComeFromTheSnapshot() {
+        var s = snapshot()
+        s.scheduledDays = ["2026-10-24": 5, "2026-11-01": 4]
+        let st = map(s)
+        XCTAssertEqual(st.chartScheduled.count, 190)
+        XCTAssertEqual(st.chartScheduled[st.chartDates.firstIndex(of: "2026-10-24")!], 5)
+        XCTAssertEqual(st.chartScheduled[st.chartDates.firstIndex(of: "2026-11-01")!], 4)   // today + 7
+        XCTAssertEqual(st.chartScheduled.reduce(0, +), 9)
+    }
+
+    func testDayCardMinutesBarsAndCompletions() {
+        var s = snapshot()
+        s.dayMinutes = ["2026-10-24": 26]
+        s.dayBlocks = ["2026-10-24": [0, 0, 0, 0, 600, 0, 930, 0, 0, 0, 0, 0]]
+        let st = map(s)
+        let i = st.dayDates.firstIndex(of: "2026-10-24")!
+        XCTAssertEqual(st.dayLine1s[i], "26 mins")
+        XCTAssertEqual(st.dayLine2s[i], "3 complete")
+        XCTAssertEqual(st.daySeries[i], [0, 0, 0, 0, 10, 0, 15.5, 0, 0, 0, 0, 0])
+        XCTAssertEqual(st.dayDetailsStates[i], "default")
+    }
+
+    func testEmptyDayIsNothing() {
+        let st = map(snapshot())
+        let i = st.dayDates.firstIndex(of: "2026-10-20")!
+        XCTAssertEqual(st.dayLine1s[i], "0 mins")
+        XCTAssertEqual(st.dayLine2s[i], "0 complete")
+        XCTAssertEqual(st.daySeries[i], Array(repeating: 0, count: 12))
+        XCTAssertEqual(st.dayDetailsStates[i], "nothing")
+    }
+
+    func testSessionOnlyDayIsDefault() {
+        var s = snapshot()
+        s.dayMinutes = ["2026-10-22": 1]
+        s.dayBlocks = ["2026-10-22": [60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+        let st = map(s)
+        let i = st.dayDates.firstIndex(of: "2026-10-22")!
+        XCTAssertEqual(st.dayLine2s[i], "0 complete")
+        XCTAssertEqual(st.dayDetailsStates[i], "default")
+    }
+
+    func testBlockMinutesIsAlwaysTwelve() {
+        XCTAssertEqual(HomeDashboardMapper.blockMinutes([120]), [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        XCTAssertEqual(HomeDashboardMapper.blockMinutes(nil), Array(repeating: 0, count: 12))
+        XCTAssertEqual(HomeDashboardMapper.blockMinutes(Array(repeating: 60, count: 14)).count, 12)
+    }
+
+    // MARK: - Task 11: Sessions by range (D8, D13, D16)
+
+    private func sessions(_ average: Int, peakHour: Int) -> HomeSessionsResponse {
+        var hourly = Array(repeating: 0.0, count: 24)
+        hourly[peakHour] = Double(average)
+        var bins = Array(repeating: 0.0, count: 88)
+        bins[87] = 1
+        return HomeSessionsResponse(averageSeconds: average, sessionCount: 3, hourly: hourly, bins: bins,
+                                    ticks: [0, 15, 30, 45], axisMinutes: 45)
+    }
+
+    private func sessionsSnapshot() -> DashboardSnapshot {
+        var s = snapshot()
+        s.sessions = ["all": sessions(1920, peakHour: 9), "year": sessions(1500, peakHour: 12),
+                      "month": sessions(900, peakHour: 18), "week": sessions(630, peakHour: 20)]
+        return s
+    }
+
+    func testSessionsFieldsForTheDefaultRange() {
+        let st = map(sessionsSnapshot(), range: "All time")
+        XCTAssertEqual(st.hourValues.count, 24)
+        XCTAssertEqual(st.hourValues[9], 1920)
+        XCTAssertEqual(st.centerValue, "32")                                      // 1920 s = 32 min
+        XCTAssertEqual(st.centerUnit, "min")
+        XCTAssertEqual(st.centerCaption, "Average session")                       // unchanged (D8)
+        XCTAssertEqual(st.bins.count, 88)
+        XCTAssertEqual(st.bins[87], 1)
+        XCTAssertEqual(st.sessionTickValues, ["0", "15", "30", "45"])   // D18: session length in minutes
+        XCTAssertEqual(st.sessionTickUnits, ["min", "min", "min", "min"])
+    }
+
+    /// D13: one snapshot holds all four ranges; changing the label is a pure re-map.
+    func testFourRangesMapFromOneSnapshot() {
+        let s = sessionsSnapshot()
+        let expected: [(label: String, center: String, peak: Int)] = [
+            ("All time", "32", 9), ("Year", "25", 12), ("Month", "15", 18), ("Week", "11", 20)   // 630 s = 10.5 → 11
+        ]
+        for row in expected {
+            let st = map(s, range: row.label)
+            XCTAssertEqual(st.sessionRange, row.label)
+            XCTAssertEqual(st.centerValue, row.center, row.label)
+            XCTAssertEqual(st.hourValues.firstIndex(where: { $0 > 0 }), row.peak, row.label)
+        }
+    }
+
+    func testRangeNotYetFetchedKeepsTheEmptySection() {
+        var s = snapshot()
+        s.sessions = ["all": sessions(1920, peakHour: 9)]
+        let st = map(s, range: "Week")
+        XCTAssertEqual(st.centerValue, "0")
+        XCTAssertEqual(st.hourValues, Array(repeating: 0, count: 24))
+        XCTAssertEqual(st.sessionTickValues, HomeDashboardScreen.State.empty.sessionTickValues)
+    }
+
+    func testShortSessionArraysAreFixedLength() {
+        var s = snapshot()
+        s.sessions = ["all": HomeSessionsResponse(averageSeconds: 60, sessionCount: 1, hourly: [1, 2], bins: [0.5], ticks: [])]
+        let st = map(s)
+        XCTAssertEqual(st.hourValues.count, 24)
+        XCTAssertEqual(Array(st.hourValues.prefix(2)), [1, 2])
+        XCTAssertEqual(st.bins.count, 88)
+        XCTAssertEqual(st.bins[0], 0.5)
+        XCTAssertEqual(st.sessionTickValues, [])
+        XCTAssertEqual(st.sessionTickUnits, [])
+    }
+
+    /// D18: a cache written before the session-length strip holds date ticks — it still loads.
+    func testOldDateTicksDecodeAsNoTicks() throws {
+        let old = #"{"averageSeconds":60,"sessionCount":1,"hourly":[],"bins":[],"ticks":["2026-10-19"]}"#
+        let r = try JSONDecoder().decode(HomeSessionsResponse.self, from: Data(old.utf8))
+        XCTAssertEqual(r.ticks, [])
+        XCTAssertEqual(r.averageSeconds, 60)
+    }
+
+    // MARK: - Task 12: Engagement, Following, bands (D3, D7, D11)
+
+    func testBandsAtTheirEdges() {
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 0), "red")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 19), "red")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 20), "yellow")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 49), "yellow")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 50), "green")
+        XCTAssertEqual(HomeDashboardMapper.bandColor(percent: 100), "green")
+    }
+
+    func testEngagementFields() {
+        var s = snapshot()
+        s.engagement = HomeEngagementResponse(currentCount: 52, enrolledCount: 178, groupCount: 15, percent: 29, activeCount: 15)
+        let st = map(s)
+        XCTAssertEqual(st.engagementPercent, 29)
+        XCTAssertEqual(st.engagementCount, 52)
+        XCTAssertEqual(st.engagementProgress, 0.29, accuracy: 0.0001)
+        XCTAssertEqual(st.engagementSubtitle, "178 total members enrolled across 15 groups")
+        XCTAssertEqual(st.engagementColor, "yellow")
+        XCTAssertEqual(st.engagementLabel, "Members current")
+        XCTAssertEqual(st.activeCount, "15")
+    }
+
+    func testEngagementColourFollowsTheBand() {
+        var s = snapshot()
+        s.engagement = HomeEngagementResponse(currentCount: 1, enrolledCount: 10, groupCount: 1, percent: 10, activeCount: 0)
+        XCTAssertEqual(map(s).engagementColor, "red")
+        s.engagement?.percent = 50
+        XCTAssertEqual(map(s).engagementColor, "green")
+    }
+
+    func testFollowingFields() {
+        var s = snapshot()
+        s.following = HomeFollowingResponse(programs: [
+            HomeFollowedProgram(id: "p1", title: "Daily inspiration", author: "Scott Stickane",
+                                createdAt: "2026-04-13T15:02:11.123Z", groups: [
+                HomeFollowedGroup(enrollmentId: "e1", groupName: "Young professionals",
+                                  photoUrl: "https://cdn.example/g.jpg", memberCount: 9, percent: 55, synced: true),
+                HomeFollowedGroup(enrollmentId: "e2", groupName: "The kids", photoUrl: nil,
+                                  memberCount: 2, percent: 13, synced: false)
+            ]),
+            HomeFollowedProgram(id: "p2", title: "Romans in 30 days", author: "",
+                                createdAt: "2026-07-08T03:00:00Z", groups: [
+                HomeFollowedGroup(enrollmentId: "e3", groupName: "Grandparents and their kids", photoUrl: nil,
+                                  memberCount: 15, percent: 21, synced: true)
+            ])
+        ])
+        let st = map(s)
+        XCTAssertEqual(st.followedCount, "3")
+        XCTAssertEqual(st.programTitles, ["Daily inspiration", "Romans in 30 days"])
+        XCTAssertEqual(st.programAuthors, ["Scott Stickane", ""])
+        // 2026-07-08T03:00Z is still July 7 in Denver — the label uses the caller's tz.
+        XCTAssertEqual(st.programCreatedLabels, ["Created Apr 13, 2026", "Created Jul 7, 2026"])
+        XCTAssertEqual(st.groupProgramIndices, [0, 0, 1])
+        XCTAssertEqual(st.groupTitles, ["Young professionals", "The kids", "Grandparents and their kids"])
+        XCTAssertEqual(st.groupPhotoURLs, ["https://cdn.example/g.jpg", "", ""])
+        XCTAssertEqual(st.groupMembers, ["9", "2", "15"])
+        XCTAssertEqual(st.groupPercents, ["55%", "13%", "21%"])
+        XCTAssertEqual(st.groupColors, ["green", "red", "yellow"])
+        XCTAssertEqual(st.groupShowLinks, [true, false, true])
+    }
+
+    func testNoFollowsIsTheEmptyState() {
+        var s = snapshot()
+        s.following = HomeFollowingResponse(programs: [])
+        let st = map(s)
+        XCTAssertEqual(st.followedCount, "0")
+        XCTAssertEqual(st.programTitles, [])
+        XCTAssertEqual(st.groupTitles, [])
+    }
+
+    func testCreatedLabelRejectsGarbage() {
+        XCTAssertEqual(HomeDashboardMapper.createdLabel("not a date", tz: tz), "")
+        XCTAssertEqual(HomeDashboardMapper.createdLabel("2026-04-13T15:02:11Z", tz: tz), "Created Apr 13, 2026")
     }
 }

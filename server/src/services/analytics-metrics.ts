@@ -26,6 +26,8 @@ export const DERIVED_EVENT_TYPES = [
   'NOTE_CREATED',
   'ENROLLMENT_CREATED',
   'MEMBER_JOINED',
+  // ls: arm — one row per lesson schedule × active group member on its scheduled date (home-dashboard-data D10, corrected 2026-10-25).
+  'LESSON_SCHEDULED',
 ] as const
 
 /**
@@ -103,6 +105,14 @@ export interface MetricDef {
   ratio?: 'on_time' | 'expected_lesson_completions'
   /** False for ratios whose denominator cannot be grouped (completion_rate). */
   dimensionsAllowed: boolean
+  /**
+   * How time windows and time dimensions bucket this metric (home-dashboard-data D14).
+   * 'local'       — occurred_at in the query timezone (the default; every event metric).
+   * 'stored_date' — the row's stored calendar date (`scheduled_date`, the UTC date part of
+   *                 lesson_schedules.scheduledDate), never shifted by the query timezone.
+   * A query cannot mix the two (400).
+   */
+  dateBucket?: 'local' | 'stored_date'
 }
 
 /** The "total activity" event set — shared by engagement_events/active_members
@@ -288,6 +298,20 @@ export const METRICS: MetricDef[] = [
     eventTypes: ['MEMBER_JOINED'],
     agg: 'count',
     dimensionsAllowed: true,
+  },
+  {
+    name: 'scheduled_lessons',
+    label: 'Lessons scheduled',
+    description:
+      'Expected member-lessons (one per lesson schedule × active group member) on their scheduled calendar date — the scheduled side of Home Activity. Buckets by the stored date, not the query timezone.',
+    format: 'count',
+    type: 'simple',
+    class: 'flow',
+    versionSemantics: 'current-only',
+    eventTypes: ['LESSON_SCHEDULED'],
+    agg: 'count',
+    dimensionsAllowed: true,
+    dateBucket: 'stored_date',
   },
 ]
 

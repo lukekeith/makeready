@@ -8,6 +8,8 @@ import SwiftUI
 /// position (D12: TopNav's position lives in its own ScrollView, not in `scrollOffset`).
 struct HomeSectionLayout<Content: View>: View {
     @Binding var model: UI2ShellModel
+    /// home-dashboard-data D24: the page's pull-to-refresh; nil = the page does not refresh.
+    var onRefresh: (@MainActor () async -> Void)?
     @ViewBuilder var content: Content
 
     /// The host's horizontal inset around C-019 TopNav: none.
@@ -29,9 +31,6 @@ struct HomeSectionLayout<Content: View>: View {
     /// The row's resting footprint: the collapsed row + its gap. The page always starts here.
     static var collapsedFootprint: CGFloat { NavTabButton.height(at: 0) + navGap }
 
-    /// A live row drag's share of the morph (`TopNavDragDelta`).
-    @State private var dragDelta: Double = 0
-
     var body: some View {
         if model.showsTopNav {
             // SPEC D14, revised 2026-10-25: the row floats over the page and the page's scroll
@@ -40,12 +39,11 @@ struct HomeSectionLayout<Content: View>: View {
             // row's growth instead. One section, one scroll: a switch starts the new page at its
             // top (the row is outside the `id`, so it keeps its own scroll position, D12).
             ZStack(alignment: .top) {
-                SectionPageScroll(model: $model, growth: growth) { content }
+                SectionPageScroll(model: $model, growth: growth, onRefresh: onRefresh) { content }
                     .id(model.section)
                     .padding(.top, Self.collapsedFootprint)
                 navRow.background(Token.layoutBackground)
             }
-            .onPreferenceChange(TopNavDragDelta.self) { dragDelta = $0 }
         } else {
             VStack(spacing: 0) {
                 navRow
@@ -54,10 +52,10 @@ struct HomeSectionLayout<Content: View>: View {
         }
     }
 
-    /// How far the row has grown past its collapsed height, live drag included.
+    /// How far the row has grown past its collapsed height. A row drag writes `model.expansion`
+    /// live, so the page follows the finger and the spring from the one value the row draws.
     private var growth: CGFloat {
-        let expansion = min(1, max(0, model.expansion + dragDelta))
-        return NavTabButton.height(at: expansion) - NavTabButton.height(at: 0)
+        NavTabButton.height(at: min(1, max(0, model.expansion))) - NavTabButton.height(at: 0)
     }
 
     private var navRow: some View {
@@ -89,7 +87,18 @@ struct HomeSectionLayout<Content: View>: View {
 private struct SectionPageScroll<Content: View>: View {
     @Binding var model: UI2ShellModel
     let growth: CGFloat
+    let onRefresh: (@MainActor () async -> Void)?
     @ViewBuilder var content: Content
+
+    // GAP — home-dashboard-data D24: no pull-to-refresh in C-019 or the analysis. A pull this far
+    // past the top arms it (well past `expandPull`, so a pull first opens the row, then refreshes);
+    // releasing armed runs it. The system refresh control would sit under the floating row.
+    static var refreshPull: CGFloat { 72 }
+    // GAP — the room the content makes below the row for the spinner while it refreshes.
+    static var refreshGap: CGFloat { 48 }
+
+    @State private var refreshArmed = false
+    @State private var refreshing = false
 
     // GAP — no pull distance in C-019 or the analysis; the reference fires on a short pull
     // (10.62–10.79s shows the page barely moved before the morph): 12pt past the top.
@@ -104,9 +113,17 @@ private struct SectionPageScroll<Content: View>: View {
 
     var body: some View {
         ScrollView(.vertical) {
-            content
-                .frame(maxWidth: .infinity, alignment: .top)
-                .offset(y: growth)
+            ZStack(alignment: .top) {
+                content
+                    .frame(maxWidth: .infinity, alignment: .top)
+                    .offset(y: growth + (refreshing ? Self.refreshGap : 0))
+                if refreshArmed || refreshing {
+                    ActivitySpinner()
+                        .offset(y: growth + (Self.refreshGap - 24) / 2)
+                        .transition(.opacity)
+                        .accessibilityLabel("Refreshing")
+                }
+            }
         }
         .scrollIndicators(.hidden)
         .scrollBounceBehavior(.always, axes: .vertical)
@@ -115,10 +132,27 @@ private struct SectionPageScroll<Content: View>: View {
         } action: { _, offset in
             react(to: offset)
         }
-        .onScrollPhaseChange { _, new in phase = new }
+        .onScrollPhaseChange { _, new in
+            phase = new
+            if new != .interacting, refreshArmed { startRefresh() }
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: refreshArmed) { _, armed in armed }
+    }
+
+    private func startRefresh() {
+        refreshArmed = false
+        guard let onRefresh, !refreshing else { return }
+        withAnimation(TopNavHost.morphSpring) { refreshing = true }
+        Task { @MainActor in
+            await onRefresh()
+            withAnimation(TopNavHost.morphSpring) { refreshing = false }
+        }
     }
 
     private func react(to offset: CGFloat) {
+        if onRefresh != nil, !refreshing, phase == .interacting, offset <= -Self.refreshPull, !refreshArmed {
+            withAnimation(.easeOut(duration: 0.15)) { refreshArmed = true }
+        }
         if model.expansion == 0, phase == .interacting, offset <= -Self.expandPull {
             withAnimation(Self.triggerSpring) { model.expansion = 1 }
         } else if model.expansion == 1, offset >= Self.collapseScroll {

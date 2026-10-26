@@ -273,6 +273,15 @@ async function runQualityChecks(client: pg.PoolClient): Promise<void> {
             AND (ce."memberId" IS NULL OR m.id IS NOT NULL)
             AND (ce."userId" IS NULL OR u.id IS NOT NULL)`,
       },
+      {
+        prefix: 'ls',
+        // One row per schedule × active member of its group (migration 20261025200000, D10 corrected).
+        sourceSql: `SELECT COUNT(*)::int AS n
+          FROM lesson_schedules ls
+          JOIN enrollments e ON e.id = ls."enrollmentId"
+          JOIN groups g ON g.id = e."groupId"
+          JOIN group_members gm ON gm."groupId" = e."groupId" AND gm."isActive" AND gm."memberId" IS NOT NULL`,
+      },
     ]
 
     for (const arm of arms) {
@@ -428,7 +437,7 @@ function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-function assertValidTimezone(tz: string): void {
+export function assertValidTimezone(tz: string): void {
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: tz })
   } catch {
@@ -522,6 +531,17 @@ export async function runAnalyticsQuery(
     return m
   })
   if (metrics.length === 0) throw new AnalyticsQueryError(400, 'At least one metric is required')
+
+  // home-dashboard-data D14: stored-date metrics window and bucket by the row's
+  // stored calendar date, event metrics by occurred_at in the query timezone —
+  // one query cannot do both.
+  const storedDateMetrics = metrics.filter((m) => m.dateBucket === 'stored_date')
+  if (storedDateMetrics.length > 0 && storedDateMetrics.length < metrics.length) {
+    throw new AnalyticsQueryError(
+      400,
+      `Metric(s) ${storedDateMetrics.map((m) => m.name).join(', ')} bucket by stored date and cannot be combined with event-time metrics`
+    )
+  }
 
   const dimensions = input.dimensions.map((name) => {
     const d = DIMENSIONS_BY_NAME.get(name)
@@ -643,6 +663,7 @@ async function executeQuery(
   range: ResolvedRange | null
 ): Promise<{ rows: Record<string, unknown>[]; truncated: boolean }> {
   const p = new Params()
+  const storedDate = metrics.every((m) => m.dateBucket === 'stored_date')
   // The timezone parameter is allocated lazily on first use — a supplied-but-
   // unreferenced parameter makes Postgres fail with "could not determine data
   // type of parameter" (42P18).
@@ -679,8 +700,13 @@ async function executeQuery(
     where.push(`event_type = ANY(${p.add(typeUnion)}::text[])`)
   }
   if (range) {
-    where.push(`occurred_at >= (${p.add(range.fromDate)}::date::timestamp AT TIME ZONE ${tz()})`)
-    where.push(`occurred_at < (${p.add(range.toExclusiveDate)}::date::timestamp AT TIME ZONE ${tz()})`)
+    if (storedDate) {
+      where.push(`scheduled_date >= ${p.add(range.fromDate)}::date`)
+      where.push(`scheduled_date < ${p.add(range.toExclusiveDate)}::date`)
+    } else {
+      where.push(`occurred_at >= (${p.add(range.fromDate)}::date::timestamp AT TIME ZONE ${tz()})`)
+      where.push(`occurred_at < (${p.add(range.toExclusiveDate)}::date::timestamp AT TIME ZONE ${tz()})`)
+    }
   }
   const whereSql = where.length > 0 ? `WHERE ${where.join(' AND ')}` : ''
 
@@ -711,7 +737,9 @@ async function executeQuery(
   let sql: string
   if (timeDim && range) {
     const unit = timeDim.unit as string
-    const bucketExpr = `date_trunc('${unit}', occurred_at AT TIME ZONE ${tz()})::date`
+    const bucketExpr = storedDate
+      ? `date_trunc('${unit}', scheduled_date::timestamp)::date`
+      : `date_trunc('${unit}', occurred_at AT TIME ZONE ${tz()})::date`
     const fromParam = p.add(range.fromDate)
     const toExParam = p.add(range.toExclusiveDate)
     const extraDim = columnDims[0]

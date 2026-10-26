@@ -22,7 +22,8 @@ import { z } from 'zod'
 import rateLimit from 'express-rate-limit'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
-import { getManageableOrgIds, isSuperAdmin, canManageGroupId } from '../services/permission.js'
+import { isSuperAdmin, canManageGroupId } from '../services/permission.js'
+import { deriveAnalyticsScope } from '../services/analytics-scope.js'
 import {
   AnalyticsQueryError,
   ensureFresh,
@@ -60,26 +61,6 @@ const ingestLimiter = rateLimit({
   skip: skipLimiter,
   message: { success: false, error: 'Too many event batches, please slow down' },
 })
-
-// ── Scope derivation ─────────────────────────────────────────────────────────
-
-/**
- * The caller's entitled analytics scope. API keys and super admins see all;
- * everyone else sees orgs they own/hold a role in (getManageableOrgIds) plus
- * groups they personally created (creators can manage their own groups even
- * before an org role exists).
- */
-async function deriveScope(req: Request): Promise<AnalyticsScope | null> {
-  if (req.apiKeyId) return { all: true }
-  const userId = (req.user as { id?: string } | undefined)?.id
-  if (!userId) return null
-  if (await isSuperAdmin(userId)) return { all: true }
-  const [orgIds, ownGroups] = await Promise.all([
-    getManageableOrgIds(userId),
-    prisma.group.findMany({ where: { creatorId: userId, isActive: true }, select: { id: true } }),
-  ])
-  return { all: false, orgIds, groupIds: ownGroups.map((g) => g.id) }
-}
 
 /**
  * 404-style denial when an explicit org/group filter falls wholly outside the
@@ -196,7 +177,10 @@ router.post('/query', requireAuth, queryLimiter, async (req, res) => {
       })
     }
 
-    const scope = await deriveScope(req)
+    const scope = await deriveAnalyticsScope({
+      userId: (req.user as { id?: string } | undefined)?.id,
+      apiKeyId: req.apiKeyId,
+    })
     if (!scope) {
       return res.status(401).json({ success: false, error: 'Not authenticated' })
     }

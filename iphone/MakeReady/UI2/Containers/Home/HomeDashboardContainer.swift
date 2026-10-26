@@ -20,17 +20,19 @@ struct HomeDashboardContainer: View {
             ),
             onPickMetrics: {},                                   // D9 no-op
             onJumpToToday: {},                                   // D31: the screen eases back itself
-            onSelectSessionRange: { sessionRange = $0 },         // D9: relabels an empty section
+            onSelectSessionRange: { sessionRange = $0 },         // D13: re-maps Sessions from the snapshot, no fetch
             onOpenEngagement: {},                                // D9 no-op
             onFollowEnrollment: {},                              // D9 no-op
             onProgramMenu: { _ in },                             // D9 no-op
             onOpenGroup: { _ in }                                // D9 no-op
         )
-        .task { await refresh() }
+        .task { await Self.refresh(authManager: authManager) }
     }
 
+    /// Home's data fetch — on first appearance, and on the page's pull-to-refresh
+    /// (home-dashboard-data D24, wired by UI2Shell).
     @MainActor
-    private func refresh() async {
+    static func refresh(authManager: AuthManager) async {
         await AppState.shared.loadInitialData()                      // D24: waits for the org
         await DashboardActions(onUnauthorized: { [authManager] in
             // D27: a 401 ends the session; UI2Root then shows Login.

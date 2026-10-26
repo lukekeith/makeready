@@ -74,6 +74,8 @@ export async function openFixturesDb(): Promise<FixturesDb> {
       member_video_progress: await prisma.memberVideoProgress.count(),
       membership_events: await prisma.membershipEvent.count(),
       client_events: await prisma.clientEvent.count(),
+      media: await prisma.media.count(),
+      media_usages: await prisma.mediaUsage.count(),
     }),
     close: () => prisma.$disconnect(),
   }

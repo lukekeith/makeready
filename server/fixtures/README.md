@@ -33,6 +33,27 @@ Then, in an iPhone dev build on Local: Profile → Local identity → **Fixtures
 screen adds `sparse` / `extreme` exports when its spec lists those states; the runner offers a
 scenario as soon as one layer implements it.
 
+### What `full` makes non-empty on Home
+
+`screens/home-dashboard.ts` (home-dashboard-data D1, D12, D17): Overview (~700 completions, the
+current 24 days above the previous 24), Activity's scheduled and completed columns, every day card
+for the past 7 days (5–40 min sittings in morning, midday and evening bands; today's only after
+~07:15 Chicago), Sessions for every range, Engagement (10 of 24 members caught up → 42%, the rest
+1–5 lessons behind) and Following (the fixture user's `dashboard.followedEnrollments` preference =
+enrollments 2–4, two programs). The preference row cascades with the fixture user.
+
+**Six months of history** (owner ruling 2026-10-25): each group also has back-to-back past
+enrollments of the two base programs (one lesson per day) from today−182 up to the day before its
+earliest base enrollment (−48 / −29 / −20), so Activity's scheduled and completed columns and the
+day cards have data on every day from today−182 through today. Caught-up members complete every
+history lesson on its day (Engagement stays 10 of 24, 42%); the other 14 skip a fixed 10–25% of
+them. History sittings are 5–40 min (a LESSON_OPENED, plus a resume open at the mid-point when
+longer than 28 min so the session stays whole, and the completion) and carry **no video progress**,
+so total video time stays exactly 40 h. Because group 1's and 2's history reaches into
+Overview's previous 24-day window (−47…−24), that window now holds 547 completions (was 240) and
+the 24-day trend is no longer positive. History ids: enrollments `enrollment` n 10…, schedules
+`schedule` n = enrollment n × 1000 + day, progress/events `lessonProgress`/`clientEvent` n ≥ 1,000,000.
+
 ## Layers
 
 `index.ts` → `base.ts` → every file in `screens/`, in filename order, all sharing one
@@ -65,8 +86,9 @@ activity in the 07:00–21:00 Chicago band so it lands on the same calendar day 
 `0002` org, `0003` groups, `0004` members, `0005` programs, `0006` lessons, `0007` activities,
 `0008` enrollments, `0009` schedules, `000a` lesson progress, `000b` video progress, `000c`
 membership events, `000d` client events, `000e` user roles, `000f` group members, `0010` member
-orgs. A new kind gets the next free code. Rows that hang off a fixture member, group, program or
-the fixture user are deleted by reset's cascade; anything else needs a line in `wipe.ts`.
+orgs, `0011` user preferences. A new kind gets the next free code. Rows that hang off a fixture
+member, group, program or the fixture user are deleted by reset's cascade; anything else needs a
+line in `wipe.ts`.
 
 ## A new screen layer
 
@@ -103,3 +125,22 @@ Run `cd server && npx tsc --noEmit -p fixtures` and `npm run fixtures:reset`; ad
 
 `server/bin/atlas` is absent in git worktrees; use a global `atlas`. `npm run db:seed` and
 `migrate:*` go through dotenv and read `server/.env`.
+
+## Images (home-dashboard-data D22)
+
+`fixtures:reset` gives the three groups and two programs cover images and fills the media library
+(17 photos, 5 of them linked as covers through `media_usages`). The images come from the d2m
+`makeready` image set (`GET <d2m>/api/projects/makeready/images`, d2m from `.d2m.json` or
+`D2M_API_URL`), picked by their tags (Subject `group`, Book `genesis`/`john`, Use `cover`),
+resized to 1200 px + 400 px JPEGs in `server/public/fixture-images/` (gitignored) and served by the
+server's static route.
+
+Stored URLs are `<FIXTURE_IMAGE_BASE_URL>/fixture-images/<file>`. The default base is the iPhone's
+Local host (`LOCAL_SERVER_URL` in `iphone/Debug.xcconfig`) on this server's `PORT`, so the
+simulator, a device over Tailscale and the web all load them. Set `FIXTURE_IMAGE_BASE_URL` when
+resetting from somewhere that default doesn't fit — e.g. inside the docker server container, where
+`iphone/` isn't mounted: `FIXTURE_IMAGE_BASE_URL=http://lukes-macbook-pro:3010`.
+
+d2m is only needed for the first pull; later resets reuse the files and a cached catalog. With
+neither, the reset still succeeds with no images and says so. Images are off under vitest unless
+`FIXTURE_IMAGES=on`; `FIXTURE_IMAGES=off` turns them off anywhere.
