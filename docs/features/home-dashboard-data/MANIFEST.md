@@ -1,9 +1,9 @@
 size: lg
 state: verified
-next: /builder:resume --path docs/features/home-dashboard-data
-head: f0029e9
+next: merged into ui2-preview-build (795ad58) — ships with ui2-preview-build's PR to main; then /builder:ship --path docs/features/home-dashboard-data --pr <N>
+head: 795ad58
 ticket: none
-branch: builder/home-dashboard-data
+branch: ui2-preview-build
 pr: none
 apps: server+iphone
 contract: frozen 2026-10-25 (re-closed after Task 13)
