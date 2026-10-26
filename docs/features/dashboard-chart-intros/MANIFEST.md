@@ -1,9 +1,9 @@
 size: md
-state: spec
+state: audited
 next: /builder:resume --path docs/features/dashboard-chart-intros
-head: 642c9bc
+head: 2445371
 ticket: none
-branch: ui2-preview-build
+branch: builder/dashboard-chart-intros
 pr: none
 apps: iphone
 contract: none                                  # server ⬜ — no endpoint or schema change
