@@ -50,7 +50,7 @@ them. Rejected inside the design: a multi-field edit form (the shared-edit-field
 | App | In scope | What changes | Section |
 |---|---|---|---|
 | server | ✅ | PATCH `/api/members/:id` accepts phone, address and both emergency fields; phone normalized, uniqueness → 409, `phoneVerified` reset; birthday bounds; member-session phone change refused | §server |
-| client | ⬜ | UI 2.0 leader screens are iPhone-only (docs/ui2/README.md); the web's one PATCH caller (`profile.ui.ts:49,73`) sends none of the new keys and its fields keep their rules | — |
+| client | ⬜ | UI 2.0 leader screens are iPhone-only (docs/ui2/README.md). The web has TWO PATCH callers, neither sending a new key: admin `profile.ui.ts:49,73` (`firstName`/`lastName`, `smsConsent`) and the member's own `/profile` form, `ProfileController.php:47` (`firstName`, `lastName`, `gender`, `birthday` — `""` arrives as `null` via Laravel's `ConvertEmptyStringsToNull`). Every key they send stays in the `.strict()` schema; the only rule that tightens is D9's birthday bounds, which a past-date form input never trips | — |
 | iphone | ✅ | Field rows tappable; `editMemberField` destination; one edit container; new `EditDateFieldScreen`; `MemberActions.updateMember` | §iphone |
 | capture | ⬜ | Edit screens capture from ViewRegistry fixtures, not the live API; the new date screen gets its preview through the d2m harness (`/ui2-resolve`), not a capture case | — |
 
@@ -62,7 +62,7 @@ their rules except `birthday`, which now rejects a date after today or before 19
 1.0 build never sends either; the web form's date input is a past date). Released 1.0 iPhone builds
 send none of the new keys. Response shape unchanged.
 
-**Blast radius:** every caller of `PATCH /api/members/:id` (web `profile.ui.ts`, 1.0 iPhone); every
+**Blast radius:** every caller of `PATCH /api/members/:id` (web `profile.ui.ts`, web `ProfileController.php`; the 1.0 iPhone has no caller — it reads `/api/members/:id/profile` only); every
 reader of `Member.phoneNumber` / `phoneVerified` (sign-in, SMS, member lists).
 
 ## Decisions
@@ -106,7 +106,7 @@ reader of `Member.phoneNumber` / `phoneVerified` (sign-in, SMS, member lists).
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `PATCH /api/members/:memberId` (extended) | server | iphone | `requireMemberOrOrgOwner` + browse D7 404 (unchanged); D12 member-session phone guard | existing keys + `phoneNumber?: string` (D4, non-empty), `address?: string\|null`, `emergencyContactName?: string\|null`, `emergencyContactPhone?: string\|null` (D7); `email?: string\|null` (D11 — `null` newly allowed); `birthday?: "YYYY-MM-DD"\|ISO\|null` (D9 bounds); `gender?: "male"\|"female"\|null`. Strings trimmed; `""` on a clearable key = `null`. Unknown keys rejected (`.strict()`) | unchanged `{success, data: Member}` | 400 `{success:false, error}` (D4/D7/D9/D11 messages, empty phone) · 401 · 403 (incl. D12 member phone) · 404 (D7) · 409 `PHONE_TAKEN` (D5) |
+| `PATCH /api/members/:memberId` (extended) | server | iphone | `requireMemberOrOrgOwner` + browse D7 404 (unchanged); D12 member-session phone guard | existing keys + `phoneNumber?: string` (D4, non-empty), `address?: string\|null`, `emergencyContactName?: string\|null`, `emergencyContactPhone?: string\|null` (D7); `email?: string\|null` (D11 — `null` newly allowed); `birthday?: "YYYY-MM-DD"\|ISO\|null` (D9 bounds); `gender?: "male"\|"female"\|null`. Strings trimmed; `""` on a clearable key = `null`. Unknown keys rejected (`.strict()`) | unchanged `{success, data: Member}` | 400 `{success:false, error}` (D4/D7/D9/D11 messages, empty phone) · 401 · 403 (incl. D12 member phone) · 404 (D7) · 409 `PHONE_TAKEN` (D5) · 500 `{success:false, error:"Failed to update member"}` (anything else — the iPhone shows D13's generic line for it, never the text) |
 | `GET /api/members/:memberId` (unchanged) | server | iphone | as today | — | browse contract (incl. `phoneVerified`, `address`, emergency fields) | as today |
 
 ## Schema & API changes
@@ -115,6 +115,29 @@ reader of `Member.phoneNumber` / `phoneVerified` (sign-in, SMS, member lists).
 |---|---|---|---|---|---|
 | SC1 | EDIT | `updateMemberSchema` — `phoneNumber`, `address`, `emergencyContactName`, `emergencyContactPhone` added; `email` nullable; `.strict()` | PATCH body | D3–D11; browse F11 | planned |
 | SC2 | EDIT | `Member.phoneVerified`, `Member.lastVerifiedAt` written on phone change | PATCH effect | D5 | planned |
+| SC3 | ADD | PATCH error status 409 `{success:false, error, code:"PHONE_TAKEN"}` — today a `P2002` on `phoneNumber` surfaces as 500 "Failed to update member" (`services/member.ts:270`) | PATCH response | D5 | planned |
+| SC4 | EDIT | `UpdateMemberData` (`services/member.ts:60`) gains `phoneNumber`, `address`, `emergencyContactName`, `emergencyContactPhone`; `email` becomes `string \| null`; `lastVerifiedAt` becomes `Date \| null` | service type (no wire change) | D5, D8, SC1 | planned |
+
+**Field alignment (2026-10-26)** — each persisted field the edit pages write, traced Prisma → zod →
+wire → write path → the iPhone property (`MemberDetail`, `State/Models/MemberModels.swift:109`):
+
+| Field | Prisma | PATCH zod today | iPhone `MemberDetail` | Verdict |
+|---|---|---|---|---|
+| `email` | `String?` | `z.string().email().optional()` — `null` rejected | `email: String?` (displayed `email ?? googleEmail`) | RESHAPE (SC1: nullable) |
+| `phoneNumber` | `String @unique`, required | absent — silently stripped | `phoneNumber: String` | MISSING (SC1, SC3) |
+| `birthday` | `DateTime?` | `z.string().nullable()`, no bounds | `birthday: String?` (ISO, UTC date) | RESHAPE (SC1: D9 bounds) |
+| `gender` | `String?` | `enum(male,female).nullable()` | `gender: String?` | ALIGNED |
+| `address` | `String? @db.Text` | absent — stripped | `address: String?` | MISSING (SC1) |
+| `emergencyContactName` | `String? @db.Text` | absent — stripped | `emergencyContactName: String?` | MISSING (SC1) |
+| `emergencyContactPhone` | `String? @db.Text` | absent — stripped | `emergencyContactPhone: String?` | MISSING (SC1) |
+| `phoneVerified` | `Boolean @default(false)` | not a request key (written by D5) | `phoneVerified: Bool` | ALIGNED (SC2 write) |
+| `lastVerifiedAt` | `DateTime?` | not a request key (written by D5) | not held — not rendered | ALIGNED (SC2 write) |
+
+Every wire key matches its Prisma and Swift name (camelCase on both sides; no transform). The only
+consumer is the iPhone; it decodes every field already (browse), so nothing changes in the decoder.
+No state persists without being a field: an edit page's draft is discarded on Back (P11, D13) and
+lives only in the container's `@State`; the member directory rows render none of these fields, so
+`AppState.members` needs no refresh after a save (`MembersHomeMapper.swift`).
 
 No schema (database) change — the columns exist since browse SC1–SC3 (established 2026-10-26).
 
@@ -177,5 +200,17 @@ previous number (no history kept — the member's `updatedAt` moves).
 | # | Finding | Resolution |
 |---|---|---|
 | F1 | A wrongly entered phone locks the member out of SMS sign-in until a leader corrects it | accepted with D5/D6 (P9); the Phone page copy warns (D14) |
-| F2 | `MakeReadyUI/` is d2m-owned: D1 (rows tappable), D2 (field-key callback), D10 ("Not set" option), D14 (copy) and the new `EditDateFieldScreen` change or add design items | build-time risk: route all to `/ui2-resolve` after the build; never write a contract or registry row here |
-| F3 | `.strict()` turns any unknown key a current caller sends into a 400 | build-time risk on the server task: list every key the web `profile.ui.ts` and the 1.0 iPhone send and confirm each is in the schema before enabling `.strict()` |
+| F2 | `MakeReadyUI/` is d2m-owned: D1 (rows tappable), D2 (field-key callback), D10 ("Not set" option), D14 (copy) and the new `EditDateFieldScreen` change or add design items; align found four more template gaps (T9) — the build lands T9–T11 in `MakeReadyUI/` | build-time risk: route all to `/ui2-resolve` after the build; never write a contract or registry row here |
+| F3 | `.strict()` turns any unknown key a current caller sends into a 400 | settled at align 2026-10-26: the callers send `firstName`, `lastName`, `smsConsent` (`profile.ui.ts`) and `firstName`, `lastName`, `gender`, `birthday` (`ProfileController.php`) — all in today's schema; the 1.0 iPhone sends no PATCH here. The server task's test pins each of those bodies as 200 |
+| T1 | server: `updateMemberSchema` per SC1, `.strict()`; `""` → `null` on the clearable keys (`email`, `birthday`, `gender`, `address`, `emergencyContactName`, `emergencyContactPhone`); empty `phoneNumber` → 400 | blocking |
+| T2 | server: `services/member-fields.ts` — `normalizePhone` (D4), `isValidContactPhone` (D7), `birthdayInRange` (D9), each with a unit table — service-only, no DDL | blocking |
+| T3 | server: `updateMember` — `UpdateMemberData` per SC4; changed normalized phone → `phoneVerified=false`, `lastVerifiedAt=null` (SC2); `P2002` on `phoneNumber` → 409 `PHONE_TAKEN` (SC3) instead of today's 500 | blocking |
+| T4 | server: route — D12 member-session guard (`viewerOf(...).kind === 'self'` with `phoneNumber` in the body → 403) before validation | blocking |
+| T5 | server: fixtures — `server/fixtures/screens/shared-edit-field.ts` (house rule: a wired UI 2.0 screen adds its layer), its `full` scenario giving the Fixtures leader one visible member with every D1 field set, one with `gender`/`birthday`/`address`/emergency fields null, and a second member whose phone the walk can type for the 409 case — seed data, no DDL | trailing |
+| T6 | iphone: `APIClient` drops the HTTP status — every non-2xx with an `error` field becomes `APIError.serverError(String)` (`State/API/APIClient.swift:272`), and a 500 carries `error` too, so D13's 400/409-vs-other split cannot be made from it. `MemberActions.updateMember` needs the status (a status-bearing error case on `APIError`, additive, or a PATCH variant returning it) — consumer-side, no wire change | trailing |
+| T7 | iphone: `MemberActions.updateMember(_:_:)` + `MemberPatch` (one key; `null` sent as `NSNull()` through `APIClient.patch`'s `[String: Any]` body), then `loadMember(id)`; 401 via `AuthStatusPolicy.shouldSignOut` as the other member actions do | trailing |
+| T8 | iphone: shell — `UI2Destination.editMemberField(memberId:field:)` + `MemberField` (`UI2/Shell/UI2ShellModel.swift:17`), its `.navigationDestination`, and `MemberFieldEditContainer` (D3, D13–D16) — consumer-side, no wire change | trailing |
+| T9 | iphone (MakeReadyUI, F2): `SharedEditFieldTemplate` / text screens lack what D3, D8, D13 and D16 need — (a) C-051 has no hidden state (`prompt, generating, list, regenerating`) but D3 says no AI block; (b) `EditTextSingleFieldScreen` hard-codes `allowsEmpty: false` while D8 clears Email, Emergency contact and Emergency phone; (c) only `EditOptionFieldScreen` has an `errorMessage` line — the two text screens have none for D13/D16; (d) no keyboard type (email / phone pad) | trailing |
+| T10 | iphone (MakeReadyUI, F2): `MembersProfileScreen.onEditField` reports the row LABEL (`MembersProfileScreen.swift:91,302`) and one `fieldsTappable` flag for every row — D2 needs a `MemberField` key and D1 per-row tappability (Organization/Role stay off) | trailing |
+| T11 | iphone (MakeReadyUI, F2): new `EditDateFieldScreen` (D3, D9) | trailing |
+| T12 | iphone: `MemberProfileMapper` — Emergency phone through D7's display rule (today both phones go through the same `phoneLabel`, `MemberProfileMapper.swift:41,46`) | trailing |

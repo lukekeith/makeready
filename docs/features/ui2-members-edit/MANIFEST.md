@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: aligned
 next: /builder:resume --path docs/features/ui2-members-edit
-head: d930a52
+head: 642f34b
 ticket: none
-branch: ui2-preview-build
+branch: builder/ui2-members-edit
 pr: none
 apps: server+iphone
 contract: open
