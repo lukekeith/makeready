@@ -1,12 +1,12 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/ui2-members-edit
-head: 020e2aa
+head: 6dffdb9
 ticket: none
 branch: builder/ui2-members-edit
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-10-26
 hold: none
 go-ahead: auto (recommended) 2026-10-26
 tests: slice=own+app end=risk review=slice
