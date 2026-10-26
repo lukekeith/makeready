@@ -154,4 +154,20 @@ final class ChartIntroTests: XCTestCase {
         XCTAssertEqual(RailCard.introOffset(progress: 0.5), 4)
         XCTAssertEqual(RailCard.introOffset(progress: 1), 0)
     }
+
+    // MARK: - Task 4: C-026
+
+    func testDualSeriesColumnsRiseToTheirStillHeight() {
+        XCTAssertEqual(DualSeriesBarChart.introColumnHeight(10, max: 10, progress: 0), 0)
+        XCTAssertEqual(DualSeriesBarChart.introColumnHeight(10, max: 10, progress: 0.5), 49)
+        XCTAssertEqual(DualSeriesBarChart.introColumnHeight(10, max: 10, progress: 1), 98)
+        XCTAssertEqual(DualSeriesBarChart.introColumnHeight(5, max: 0, progress: 1), 0)
+    }
+
+    /// D3: the today rule and badge wait for the sweep, but never past 0.4 s, so the badge's
+    /// rise still lands inside 1.2 s however long the window is.
+    func testDualSeriesTodayWaitsForTheSweepWithinTheBudget() {
+        XCTAssertEqual(DualSeriesBarChart.introSettle(windowLength: 7), 0.09, accuracy: 1e-9)
+        XCTAssertEqual(DualSeriesBarChart.introSettle(windowLength: 60), 0.4, accuracy: 1e-9)
+    }
 }
