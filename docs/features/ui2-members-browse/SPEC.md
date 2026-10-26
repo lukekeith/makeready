@@ -130,13 +130,13 @@ endpoint and the two member read endpoints (F1).
 | SC1 | ADD | `Member.address` (text, null) | member payload | P7 | landed 20261026045033 (c0b4821) |
 | SC2 | ADD | `Member.emergencyContactName` (text, null) | member payload | P6 | landed 20261026045033 (c0b4821) |
 | SC3 | ADD | `Member.emergencyContactPhone` (text, null) | member payload | P6 | landed 20261026045033 (c0b4821) |
-| SC4 | EDIT | members list response | `groupCount`, `joinedAt`, filters | P12 | open (T2) |
-| SC5 | ADD | `GET /api/members/:id/engagement` | §Contract | P13 | open (T4) |
-| SC6 | EDIT | `/api/home/days` `memberId` param | §Contract | P14 | open (T5) |
-| SC7 | EDIT | `HomeDay.lastActivityAt` (wire only, derived from sessions) | `/api/home/days` days[] | members-profile §3: day rail line 2 = time of last activity; D12 | open (T5) |
-| SC8 | EDIT | member payload `isGroupLeader` (wire only, derived) + `organizations[]` scope filter | `GET /api/members/:id` | members-profile §2.2/§2.4 Role + Organization; D8 | open (T6) |
-| SC9 | EDIT | members list `viewerScope` (wire only) | list response | members-home §3 Leaders menu "primarily useful to owners/admins"; D15 | open (T2) |
-| SC10 | ADD | `GET /api/organizations/my/organizations` | §Contract | members-home §5 list needs an org id for every leader role; D18 | open (T15) |
+| SC4 | EDIT | members list response | `groupCount`, `joinedAt`, filters | P12 | landed (08ef001) |
+| SC5 | ADD | `GET /api/members/:id/engagement` | §Contract | P13 | landed (c8ba113) |
+| SC6 | EDIT | `/api/home/days` `memberId` param | §Contract | P14 | landed (afa1a9c, 02209e7) |
+| SC7 | EDIT | `HomeDay.lastActivityAt` (wire only, derived from sessions) | `/api/home/days` days[] | members-profile §3: day rail line 2 = time of last activity; D12 | landed (afa1a9c) |
+| SC8 | EDIT | member payload `isGroupLeader` (wire only, derived) + `organizations[]` scope filter | `GET /api/members/:id` | members-profile §2.2/§2.4 Role + Organization; D8 | landed (8655dac) |
+| SC9 | EDIT | members list `viewerScope` (wire only) | list response | members-home §3 Leaders menu "primarily useful to owners/admins"; D15 | landed (08ef001) |
+| SC10 | ADD | `GET /api/organizations/my/organizations` | §Contract | members-home §5 list needs an org id for every leader role; D18 | landed (c419bf3) |
 
 **Data plan:** SC1–SC3 are nullable adds through `server/schema/*.yaml` → `schema:diff` → one Atlas
 migration; no backfill, existing rows read null. SC4–SC10 are additive API changes (SC7 is additive on a payload the Home screen already decodes — `HomeDay` decodes with `decodeIfPresent`, so released and current builds ignore it). Independent ordering.
