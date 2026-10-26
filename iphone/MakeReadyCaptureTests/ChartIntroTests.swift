@@ -140,4 +140,18 @@ final class ChartIntroTests: XCTestCase {
         model.apply(.tab(.home))                // a re-tap of Home
         XCTAssertTrue(model.homeActive)
     }
+
+    // MARK: - Task 3: C-024 / C-023
+
+    func testSparkBarChartTreatsAnAllZeroSeriesAsEmpty() {
+        XCTAssertTrue(SparkBarChart.isEmptySeries([]))
+        XCTAssertTrue(SparkBarChart.isEmptySeries([0, 0, 0]))
+        XCTAssertFalse(SparkBarChart.isEmptySeries([0, 2, 0]))
+    }
+
+    func testRailCardRisesEightPointsIntoPlace() {
+        XCTAssertEqual(RailCard.introOffset(progress: 0), 8)
+        XCTAssertEqual(RailCard.introOffset(progress: 0.5), 4)
+        XCTAssertEqual(RailCard.introOffset(progress: 1), 0)
+    }
 }

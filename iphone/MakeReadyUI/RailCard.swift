@@ -92,6 +92,18 @@ struct RailCard: View {
     /// C-023 §4: `detailsState` — → C-071 `state`; C-071's value set (R-36).
     var detailsState: ValuePair.State? = nil
 
+    // GAP — C-023: no contract prop for the intro (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: nil = the still render (D7). `intro.delay` is the card's place in
+    /// its rail's cascade (D8), set by the screen.
+    var intro: ChartIntro? = nil
+
+    // GAP — no spacing token for the cascade's 8pt rise (dashboard-chart-intros §iphone C-023).
+    private static let introRise: CGFloat = 8
+    /// The card's vertical offset at intro progress `progress`.
+    static func introOffset(progress: Double) -> CGFloat { introRise * CGFloat(1 - progress) }
+
+    private var introProgress: Double { intro?.progress(fadeOnly: false) ?? 1 }
+
     var body: some View {
         Group {
             switch kind {
@@ -140,7 +152,8 @@ struct RailCard: View {
                 widthFill: .gaps,
                 showAverage: true,
                 averageLabel: averageLabel,
-                averageLabelSide: .right
+                averageLabelSide: .right,
+                intro: intro?.delayed(by: 0.1)
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .ui2Element("Chart")
@@ -149,7 +162,7 @@ struct RailCard: View {
                 // §2a Value: "`type-title-card` face, `color-text-primary`, `nowrap`; leading
                 // 20 → **20**". Framed to the token's own line box: `designTextStyle` spells
                 // the leading as lineSpacing, which does nothing to a single line.
-                Text(value ?? "")
+                CountUpText(text: value ?? "", intro: intro, after: 0.1)
                     .designTextStyle(Token.TypeStyle.titleCard)
                     .foregroundColor(Token.textPrimary)
                     .lineLimit(1)
@@ -163,6 +176,9 @@ struct RailCard: View {
                     polarity: trendPolarity ?? .neutral,
                     label: trendLabel ?? ""
                 )
+                .scaleEffect(0.6 + 0.4 * introProgress, anchor: .leading)
+                .opacity(introProgress)
+                .animation(intro?.animation(ChartIntroMotion.overshoot, after: 0.3), value: intro?.played)
                 .ui2Element("Trend")
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -184,6 +200,10 @@ struct RailCard: View {
         )
         // §2a: "`overflow: clip`".
         .clipShape(RoundedRectangle(cornerRadius: Token.Radius.cardSm))
+        .offset(y: Self.introOffset(progress: introProgress))
+        .opacity(intro == nil ? 1 : introProgress)
+        .animation(intro?.animation(ChartIntroMotion.rise), value: intro?.played)
+        .chartIntroFade(intro)
     }
 
     // MARK: - §2b `kind=day` — "three slots over a 97pt content column"
@@ -238,7 +258,8 @@ struct RailCard: View {
                 widthFill: .gaps,
                 showAverage: false,
                 averageLabel: nil,
-                averageLabelSide: .right
+                averageLabelSide: .right,
+                intro: intro
             )
         case .percentCircle:
             // §2b: "a 97×86 `Percent` wrapper centring an 80×80 C-062 PercentDisc at (8.5, 3)".

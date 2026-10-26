@@ -61,6 +61,18 @@ struct SparkBarChart: View {
     /// C-024 §4: `averageLabelSide` — label placement.
     let averageLabelSide: LabelSide
 
+    // GAP — C-024: no contract prop for the intro (dashboard-chart-intros D12).
+    /// dashboard-chart-intros: nil = the still render (D7). Bars grow toward their `align` edge in
+    /// a left-to-right wave, then the average line draws across.
+    var intro: ChartIntro? = nil
+
+    /// D16: nothing to wave over — the chart crossfades only.
+    static func isEmptySeries(_ series: [Double]) -> Bool { !series.contains { $0 > 0 } }
+
+    private var introProgress: Double {
+        intro?.progress(fadeOnly: Self.isEmptySeries(series)) ?? 1
+    }
+
     // §2: "Bars: 2pt wide, corner radius 2 (`radius-bar`)… zero values render as 2×2pt dots."
     //
     // FLAGGED LITERAL — C-024 §2: "No new tokens; flagged literals: 2pt bar/dot module and the
@@ -88,6 +100,8 @@ struct SparkBarChart: View {
                 }
             }
         }
+        .chartIntroMorph(intro, value: series)        // D9
+        .chartIntroFade(intro, fadeOnly: Self.isEmptySeries(series))
         .ui2Element("SparkBarChart")                  // capture element map — UI2Element.swift
     }
 
@@ -149,7 +163,14 @@ struct SparkBarChart: View {
                 RoundedRectangle(cornerRadius: Token.Radius.bar)
                     // §2: fill `color-accent`.
                     .fill(Token.accent)
-                    .frame(width: metrics.barWidth, height: barHeight(value, of: bars, in: height))
+                    .frame(
+                        width: metrics.barWidth,
+                        height: ChartIntro.scaled(barHeight(value, of: bars, in: height), by: introProgress)
+                    )
+                    .animation(
+                        intro?.animation(ChartIntroMotion.rise, after: ChartIntroMotion.stagger(index, of: bars.count)),
+                        value: intro?.played
+                    )
                     // Per-bar, so a comment can name the point it is about. A 2pt bar is a
                     // 2pt target; the pointer falling in a gap resolves to `Bars` instead.
                     .ui2Element("Bar \(index + 1)")
@@ -179,26 +200,33 @@ struct SparkBarChart: View {
     @ViewBuilder
     private func averageAnnotation(_ bars: [Double], size: CGSize) -> some View {
         let y = averageY(bars, height: size.height)
-        if align == .top {
-            // §3 `align=top` (owner ruling 2026-09-07, OQ-C-024-1): the exact vertical mirror
-            // of `bottom` — so the stack mirrors too, hairline first with the label BELOW it,
-            // and the stack's TOP edge sits on the average y.
-            VStack(alignment: labelHorizontalAlignment, spacing: Token.Space.metaGap) {
-                hairline(width: size.width)
-                label
+        Group {
+            if align == .top {
+                // §3 `align=top` (owner ruling 2026-09-07, OQ-C-024-1): the exact vertical mirror
+                // of `bottom` — so the stack mirrors too, hairline first with the label BELOW it,
+                // and the stack's TOP edge sits on the average y.
+                VStack(alignment: labelHorizontalAlignment, spacing: Token.Space.metaGap) {
+                    hairline(width: size.width)
+                    label
+                }
+                .frame(width: size.width, height: max(size.height - y, 0), alignment: .top)
+                .offset(y: max(y, 0))
+            } else {
+                VStack(alignment: labelHorizontalAlignment, spacing: Token.Space.metaGap) {
+                    label
+                    hairline(width: size.width)
+                }
+                // The stack's LAST item is the hairline, so bottom-aligning the stack inside a
+                // frame that ends at the average y puts the hairline on the average and the label
+                // above it.
+                .frame(width: size.width, height: max(y, 0) + Self.hairlineWidth, alignment: .bottom)
             }
-            .frame(width: size.width, height: max(size.height - y, 0), alignment: .top)
-            .offset(y: max(y, 0))
-        } else {
-            VStack(alignment: labelHorizontalAlignment, spacing: Token.Space.metaGap) {
-                label
-                hairline(width: size.width)
-            }
-            // The stack's LAST item is the hairline, so bottom-aligning the stack inside a
-            // frame that ends at the average y puts the hairline on the average and the label
-            // above it.
-            .frame(width: size.width, height: max(y, 0) + Self.hairlineWidth, alignment: .bottom)
         }
+        .opacity(introProgress)
+        .animation(
+            intro?.animation(ChartIntroMotion.draw, after: ChartIntroMotion.stagger(bars.count - 1, of: bars.count)),
+            value: intro?.played
+        )
     }
 
     @ViewBuilder
@@ -238,6 +266,7 @@ struct SparkBarChart: View {
             path.move(to: CGPoint(x: 0, y: Self.hairlineWidth / 2))
             path.addLine(to: CGPoint(x: width, y: Self.hairlineWidth / 2))
         }
+        .trim(from: 0, to: introProgress)
         .stroke(
             Token.white50,
             style: StrokeStyle(lineWidth: Self.hairlineWidth, dash: Self.hairlineDash)
