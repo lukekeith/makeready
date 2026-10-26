@@ -118,4 +118,40 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertTrue(delegate.gestureRecognizerShouldBegin(gesture))
         XCTAssertFalse(UI2PopGestureDelegate().gestureRecognizerShouldBegin(gesture))   // no stack known
     }
+
+    // MARK: - ui2-members-edit D2 / D13: the edit page on the member page
+
+    private var editPhone: UI2Destination { .editMemberField(memberId: "m1", field: .phone) }
+
+    /// D2: a field-row tap pushes its edit page above the member page.
+    func testEditFieldPushesAboveTheMemberPage() {
+        var m = UI2ShellModel()
+        m.push(tony, on: .home)
+        m.push(editPhone, on: .home)
+        XCTAssertEqual(m.path(for: .home), [tony, editPhone])
+        XCTAssertNotEqual(editPhone, .editMemberField(memberId: "m1", field: .email))
+        XCTAssertNotEqual(editPhone, .editMemberField(memberId: "m2", field: .phone))
+    }
+
+    /// D13: the success pop fires only while THIS edit page is still the last entry — a
+    /// swipe-back, another page on top or a Home re-tap during the save leaves the stack alone.
+    func testPopIfTopPopsOnlyWhenTheEditPageIsStillOnTop() {
+        var m = UI2ShellModel()
+        m.push(tony, on: .home)
+        m.push(editPhone, on: .home)
+        m.popIfTop(editPhone, on: .home)
+        XCTAssertEqual(m.path(for: .home), [tony])
+        m.popIfTop(editPhone, on: .home)                       // already swiped back: no-op
+        XCTAssertEqual(m.path(for: .home), [tony])
+        m.push(.editMemberField(memberId: "m1", field: .email), on: .home)
+        m.popIfTop(editPhone, on: .home)                       // another page on top: no-op
+        XCTAssertEqual(m.path(for: .home).count, 2)
+        m.push(editPhone, on: .home)
+        m.apply(.tab(.home))                                   // D20 re-tap empties the path
+        m.popIfTop(editPhone, on: .home)
+        XCTAssertEqual(m.path(for: .home), [])
+        m.push(editPhone, on: .home)
+        m.popIfTop(editPhone, on: .profile)                    // another tab: no-op
+        XCTAssertEqual(m.path(for: .home), [editPhone])
+    }
 }

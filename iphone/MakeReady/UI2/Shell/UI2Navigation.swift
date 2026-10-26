@@ -6,6 +6,8 @@ import UIKit
 struct UI2Navigator {
     var push: (UI2Destination) -> Void = { _ in }
     var pop: () -> Void = {}
+    /// ui2-members-edit D13: pop only if `destination` is still on top.
+    var popIfTop: (UI2Destination) -> Void = { _ in }
 }
 
 private struct UI2NavigatorKey: EnvironmentKey {

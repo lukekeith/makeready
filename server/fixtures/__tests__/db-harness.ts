@@ -15,7 +15,7 @@ if (!TEST_DB_URL) console.log(SKIP_LINE)
 
 export interface FixturesDb {
   prisma: PrismaClient
-  run(command: 'reset' | 'seed', scenario: 'full' | 'empty'): Promise<RowCounts>
+  run(command: 'reset' | 'seed', scenario: 'full' | 'sparse' | 'empty'): Promise<RowCounts>
   countAll(): Promise<RowCounts>
   close(): Promise<void>
 }

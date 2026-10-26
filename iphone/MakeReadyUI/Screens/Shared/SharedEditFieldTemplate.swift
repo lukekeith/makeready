@@ -9,7 +9,10 @@
 //  saved, and in the server's length cap — each taken here as a parameter.
 //  §5 endpoints, cited only — this view calls none: PATCH /api/groups/{id} · GET /api/groups/{id}
 //  (the AI field-suggestion endpoint is an API-GAP in both screens' §5).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  ui2-members-edit T9 a–f, routed to /ui2-resolve (F2): C-051 can be hidden (a), the inline
+//  error line above Save (c), keyboard/focus/cap per field (d), a live C-045 field (e), a
+//  caller-supplied save rule (f). Every addition is defaulted to today's render.
+//  Wired by MakeReady/UI2/Containers/Members/MemberFieldEditContainer.swift (ui2-members-edit).
 //
 
 import SwiftUI
@@ -29,9 +32,10 @@ struct SharedEditFieldTemplate: View {
     let placeholder: String
     /// §3: the value the page was loaded with — what `clean` / `dirty` compare against.
     let loadedValue: String
-    /// §3 input sub-state: focused → C-046 `style=Focus`.
+    /// §3 input sub-state: focused → C-046 `style=Focus` (the static render; the live field
+    /// reports its own focus).
     let focused: Bool
-    /// §3 `saving`: a save is in flight.
+    /// §3 `saving`: a save is in flight — Save disabled and the input locked, no spinner (D26).
     let saving: Bool
     /// §2: C-051's per-field prompt copy.
     let promptCopy: String
@@ -43,13 +47,36 @@ struct SharedEditFieldTemplate: View {
     let allowsEmpty: Bool
     /// §3 Length: the silent hard cap at the server limit (§5's zod `max`).
     let maxLength: Int
+    /// ui2-members-edit T9a (D3): false hides C-051 — no member field offers AI suggestions.
+    let showsAISuggestions: Bool
+    /// T9c (D13/D16): §3 `save-failed`'s inline error line directly above Save, drawn as
+    /// edit-option-field draws it; "" renders no line.
+    let errorMessage: String
+    /// T9e: true → a live C-045 text field the user types into; false → the static render the
+    /// previews and captures use.
+    let editable: Bool
+    /// T9d (D22): the live field's keyboard, content type, capitalization and correction.
+    let keyboard: UIKeyboardType
+    let textContentType: UITextContentType?
+    let autocapitalization: TextInputAutocapitalization
+    let autocorrect: Bool
+    /// D22: the live field takes focus on appear.
+    let focusOnAppear: Bool
+    /// T9f (D24): when given, replaces the dirty/empty rule with the caller's (it receives the
+    /// trimmed text); `saving` still disables Save.
+    let canSave: ((String) -> Bool)?
     var onBack: () -> Void = {}
     var onGenerate: () -> Void = {}
     var onSave: (String) -> Void = { _ in }
+    /// Every accepted change to the field's text, after the cap (typed or picked). No render
+    /// effect.
+    var onTextChange: (String) -> Void = { _ in }
 
     // §3 UI-only rule: "picking a suggestion replaces the input's text with it (→ `dirty`, or
     // `clean` if it equals the loaded value)" — the field's local text, seeded by the caller.
     @SwiftUI.State private var text: String
+    /// The live field's focus as C-045 reports it; drives C-046 `style` when `editable`.
+    @SwiftUI.State private var inputFocused = false
 
     init(
         title: String,
@@ -66,9 +93,19 @@ struct SharedEditFieldTemplate: View {
         suggestions: [String],
         allowsEmpty: Bool,
         maxLength: Int,
+        showsAISuggestions: Bool = true,
+        errorMessage: String = "",
+        editable: Bool = false,
+        keyboard: UIKeyboardType = .default,
+        textContentType: UITextContentType? = nil,
+        autocapitalization: TextInputAutocapitalization = .sentences,
+        autocorrect: Bool = true,
+        focusOnAppear: Bool = false,
+        canSave: ((String) -> Bool)? = nil,
         onBack: @escaping () -> Void = {},
         onGenerate: @escaping () -> Void = {},
-        onSave: @escaping (String) -> Void = { _ in }
+        onSave: @escaping (String) -> Void = { _ in },
+        onTextChange: @escaping (String) -> Void = { _ in }
     ) {
         self.title = title
         self.description = description
@@ -83,9 +120,19 @@ struct SharedEditFieldTemplate: View {
         self.suggestions = suggestions
         self.allowsEmpty = allowsEmpty
         self.maxLength = maxLength
+        self.showsAISuggestions = showsAISuggestions
+        self.errorMessage = errorMessage
+        self.editable = editable
+        self.keyboard = keyboard
+        self.textContentType = textContentType
+        self.autocapitalization = autocapitalization
+        self.autocorrect = autocorrect
+        self.focusOnAppear = focusOnAppear
+        self.canSave = canSave
         self.onBack = onBack
         self.onGenerate = onGenerate
         self.onSave = onSave
+        self.onTextChange = onTextChange
         _text = SwiftUI.State(initialValue: text)
     }
 
@@ -118,31 +165,65 @@ struct SharedEditFieldTemplate: View {
                 FieldGroup(
                     label: label,
                     field: field,
-                    style: focused ? .focus : .default,
+                    style: (editable ? inputFocused : focused) ? .focus : .default,
                     layout: .default,
                     text: text,
-                    placeholder: placeholder
+                    placeholder: placeholder,
+                    editing: editable ? liveEditing : nil,
+                    // The state takes the raw keystroke; the cap runs in `.onChange(of: text)`
+                    // below. Clipping here would write back a value equal to the current state,
+                    // so SwiftUI would not resync the UITextField and the over-cap characters
+                    // would stay visible while Save sent the truncated value.
+                    onChange: { text = $0 },
+                    onFocusChange: { inputFocused = $0 }
                 )
                 .ui2Element("C-046 FieldGroup")
+                .onChange(of: text) { _, new in
+                    // §3 Length (D22): over-cap text is replaced by its clipped value — a real
+                    // state change, so the field redraws without the extra characters. That
+                    // replacement re-enters here within the cap and is reported then.
+                    if let clipped = Self.overflowReplacement(for: new, maxLength: maxLength) {
+                        text = clipped
+                    } else {
+                        onTextChange(new)
+                    }
+                }
 
-                // §2.3.3: C-051 — `prompt` as drawn; the screen drives its state (§3).
-                AISuggestionsBlock(
-                    state: AISuggestionsBlock.State(rawValue: aiState) ?? .prompt,
-                    promptCopy: promptCopy,
-                    suggestions: suggestions,
-                    onGenerate: onGenerate,
-                    onPick: { text = String($0.prefix(maxLength)) }
-                )
-                .ui2Element("C-051 AISuggestionsBlock")
+                // §2.3.3: C-051 — `prompt` as drawn; the screen drives its state (§3). T9a: a
+                // caller may hide it (D3).
+                if showsAISuggestions {
+                    AISuggestionsBlock(
+                        state: AISuggestionsBlock.State(rawValue: aiState) ?? .prompt,
+                        promptCopy: promptCopy,
+                        suggestions: suggestions,
+                        onGenerate: onGenerate,
+                        onPick: { text = Self.capped($0, maxLength: maxLength) }
+                    )
+                    .ui2Element("C-051 AISuggestionsBlock")
+                }
 
-                // §2.3.4: C-048 "Save", `role=affirmative`, `isEnabled` per §3.
-                PageActionButton(
-                    label: Self.saveLabel,
-                    role: .affirmative,
-                    enabled: saveEnabled,
-                    onTap: { onSave(trimmed) }
-                )
-                .ui2Element("C-048 PageActionButton")
+                VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+                    // T9c — §3 `save-failed` (edit-option-field's proposed default,
+                    // OQ-edit-option-field-2): "an inline error line sits in `type-page-title`
+                    // `color-error` directly above Save". "" draws nothing, so the column is
+                    // exactly today's.
+                    if !errorMessage.isEmpty {
+                        Text(errorMessage)
+                            .designTextStyle(Token.TypeStyle.pageTitle)
+                            .foregroundStyle(Token.error)
+                            .frame(maxWidth: .infinity, minHeight: Self.lineBox, alignment: .leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    // §2.3.4: C-048 "Save", `role=affirmative`, `isEnabled` per §3.
+                    PageActionButton(
+                        label: Self.saveLabel,
+                        role: .affirmative,
+                        enabled: saveEnabled,
+                        onTap: { onSave(trimmed) }
+                    )
+                    .ui2Element("C-048 PageActionButton")
+                }
             }
             .padding(Token.Space.pageMargin)
         }
@@ -150,17 +231,53 @@ struct SharedEditFieldTemplate: View {
         .background(Token.layoutBackground)                 // §2: background
     }
 
+    private var liveEditing: TextInput.Editing {
+        TextInput.Editing(
+            keyboard: keyboard,
+            textContentType: textContentType,
+            autocapitalization: autocapitalization,
+            autocorrect: autocorrect,
+            focusOnAppear: focusOnAppear,
+            isEnabled: !saving,                              // D26: saving locks the input
+            accessibilityName: label
+        )
+    }
+
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    private var saveEnabled: Bool {
+        Self.saveEnabled(text: text, loaded: loadedValue, allowsEmpty: allowsEmpty, saving: saving, canSave: canSave)
+    }
 
     // §3: `clean` (equal to the loaded value) disables Save, and so does `invalid` (empty) where
     // the screen forbids an empty value; `dirty` enables it; `saving` disables it; `save-failed`
-    // re-enables it.
-    private var saveEnabled: Bool {
-        !saving
-            && (allowsEmpty || !trimmed.isEmpty)
-            && trimmed != loadedValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    // re-enables it. T9f (D24): a caller rule replaces clean/invalid, never `saving`.
+    static func saveEnabled(
+        text: String,
+        loaded: String,
+        allowsEmpty: Bool,
+        saving: Bool,
+        canSave: ((String) -> Bool)?
+    ) -> Bool {
+        guard !saving else { return false }
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let canSave { return canSave(trimmed) }
+        return (allowsEmpty || !trimmed.isEmpty)
+            && trimmed != loaded.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// §3 Length: the silent hard cap — typed or picked text beyond it is dropped.
+    static func capped(_ text: String, maxLength: Int) -> String { String(text.prefix(maxLength)) }
+
+    /// The cap as a change handler applies it: the clipped value when `text` is over the cap
+    /// (assign it back to the state), nil when `text` is within it (nothing to replace).
+    static func overflowReplacement(for text: String, maxLength: Int) -> String? {
+        text.count > maxLength ? capped(text, maxLength: maxLength) : nil
     }
 
     // §2 content tables: the action's copy.
     private static let saveLabel = "Save"
+
+    /// The designed line box of `type-page-title`.
+    private static let lineBox: CGFloat = Token.TypeStyle.pageTitle.lineHeight ?? Token.TypeStyle.pageTitle.size
 }

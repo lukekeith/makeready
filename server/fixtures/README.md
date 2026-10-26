@@ -35,6 +35,14 @@ Then, in an iPhone dev build on Local: Profile → Local identity → **Fixtures
 screen adds `sparse` / `extreme` exports when its spec lists those states; the runner offers a
 scenario as soon as one layer implements it.
 
+`sparse` (ui2-members-edit T5) = base + `screens/shared-edit-field.ts`, the only layer that exports
+it. That layer replays `members-home` and `members-profile` `full` (so the Group-Leader session
+still lists the three Prayer Team members and Nathan Hughes reads "Group leader"), then nulls
+`gender`, `birthday`, `address`, `emergencyContactName` and `emergencyContactPhone` on member 16
+(`SPARSE_MEMBER_INDEX`, one of the Prayer Team three): the edit pages open on their "Not set" /
+empty states. Home's dashboard layer does not run under `sparse`, so Home reads as empty.
+`docker exec makeready-server npm run fixtures:reset -- sparse`.
+
 ### What `full` makes non-empty on Home
 
 `screens/home-dashboard.ts` (home-dashboard-data D1, D12, D17): Overview (~700 completions, the

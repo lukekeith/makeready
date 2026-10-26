@@ -269,3 +269,51 @@ extension MyOrganizationsResponse {
         data = try c.decodeIfPresent([OrganizationData].self, forKey: .data) ?? []
     }
 }
+
+// MARK: - ui2-members-edit: one field's edit
+
+/// ui2-members-edit D15: the ONE key a member edit page PATCHes to `/api/members/:id`. nil clears
+/// (sent as JSON null, D8). Values are already in their wire form: phone normalized (D4),
+/// birthday `YYYY-MM-DD` (D9), gender `male` / `female` (D10), strings trimmed.
+enum MemberPatch: Equatable {
+    case email(String?)
+    case phoneNumber(String?)
+    case birthday(String?)
+    case gender(String?)
+    case address(String?)
+    case emergencyContactName(String?)
+    case emergencyContactPhone(String?)
+
+    /// The wire key (SPEC §Contract — camelCase on both sides, no transform).
+    var key: String {
+        switch self {
+        case .email: return "email"
+        case .phoneNumber: return "phoneNumber"
+        case .birthday: return "birthday"
+        case .gender: return "gender"
+        case .address: return "address"
+        case .emergencyContactName: return "emergencyContactName"
+        case .emergencyContactPhone: return "emergencyContactPhone"
+        }
+    }
+
+    var value: String? {
+        switch self {
+        case .email(let v), .phoneNumber(let v), .birthday(let v), .gender(let v), .address(let v),
+             .emergencyContactName(let v), .emergencyContactPhone(let v):
+            return v
+        }
+    }
+
+    /// `JSONSerialization` writes `NSNull` as `null`.
+    var jsonValue: Any { value ?? NSNull() }
+
+    var body: [String: Any] { [key: jsonValue] }
+}
+
+/// ui2-members-edit D13: how a save failed, as the edit page shows it — the server's text for a
+/// 400 / 409, else the generic line.
+enum MemberSaveError: Error, Equatable {
+    case validation(String)
+    case generic
+}

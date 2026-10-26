@@ -43,7 +43,7 @@ enum MemberProfileMapper {
             gender: capitalized(d?.gender),
             address: d?.address ?? "",
             emergencyContactName: d?.emergencyContactName ?? "",
-            emergencyContactPhone: phoneLabel(d?.emergencyContactPhone ?? ""),
+            emergencyContactPhone: contactPhoneLabel(d?.emergencyContactPhone ?? ""),   // ui2-members-edit D7
             dayMonths: rail.months,
             dayWeekdays: rail.weekdays,
             dayNumbers: rail.numbers,
@@ -105,6 +105,28 @@ enum MemberProfileMapper {
         guard e164.hasPrefix("+1"), digits.count == 11 else { return e164 }
         let n = digits.dropFirst().map { String($0) }
         return "+1 (\(n[0..<3].joined())) \(n[3..<6].joined())-\(n[6..<10].joined())"
+    }
+
+    /// ui2-members-edit D7: the Emergency phone is stored as typed. Only a bare 10 digits, or 11
+    /// digits starting `1` optionally written `+1…`, with nothing else but spaces and `-` `.` `(` `)`,
+    /// shows in browse D23's form; anything else (extensions, any other `+`-led number) as typed.
+    static func contactPhoneLabel(_ typed: String) -> String {
+        let separators: Set<Character> = [" ", "-", ".", "(", ")"]
+        let isDigit: (Character) -> Bool = { ("0"..."9").contains($0) }
+        let trimmed = typed.trimmingCharacters(in: .whitespaces)
+        let plusOne = trimmed.hasPrefix("+")
+        let body = plusOne ? String(trimmed.dropFirst()) : trimmed
+        guard body.allSatisfy({ isDigit($0) || separators.contains($0) }) else { return typed }
+        let digits = body.filter(isDigit)
+        let ten: [String]
+        if digits.count == 10, !plusOne {
+            ten = digits.map { String($0) }
+        } else if digits.count == 11, digits.hasPrefix("1") {
+            ten = digits.dropFirst().map { String($0) }
+        } else {
+            return typed
+        }
+        return "+1 (\(ten[0..<3].joined())) \(ten[3..<6].joined())-\(ten[6..<10].joined())"
     }
 
     private static func capitalized(_ gender: String?) -> String {

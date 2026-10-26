@@ -1,4 +1,5 @@
 # ui2-members — program
+> ✅ SHIPPED 2026-10-26 — every child shipped · last: ui2-members-edit
 > tier: program · design ref `--ui2 members-home,members-profile,shared-edit-field` (intake 2026-10-25)
 
 ## Overview

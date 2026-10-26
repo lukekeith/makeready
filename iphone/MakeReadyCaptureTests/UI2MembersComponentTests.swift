@@ -68,13 +68,14 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertFalse(MembersProfileScreen(state: .populated, showsHeader: false).showsHeader)
     }
 
-    /// P6: nine rows, "Emergency phone" last; D3: none of them tappable in this child.
+    /// P6: nine rows, "Emergency phone" last; the samples stay display-only (ui2-members-edit
+    /// D27 — `fieldsEditable` defaults false; browse D3's blanket flag is gone).
     func testMemberPageDrawsNineDisplayOnlyFields() {
         XCTAssertEqual(MembersProfileScreen.fieldLabels, [
             "Organization", "Role", "Phone number", "Email address", "Birthday",
             "Gender", "Address", "Emergency contact", "Emergency phone"
         ])
-        XCTAssertFalse(MembersProfileScreen.fieldsTappable)
+        XCTAssertFalse(MembersProfileScreen.isTappable("Email address", .populated))
     }
 
     func testFieldValuesComeFromTheirOwnStateFields() {

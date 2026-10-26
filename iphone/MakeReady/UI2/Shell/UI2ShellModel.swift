@@ -14,8 +14,10 @@ enum UI2Route: Equatable {
 
 /// ui2-members-browse D1: a page pushed onto a tab's NavigationStack. `name` is the list-known
 /// title the pushed page's C-040 header shows while it loads (members-profile §3 `loading`).
+/// ui2-members-edit D2: `editMemberField` — one member field's edit page, above the member page.
 enum UI2Destination: Hashable {
     case memberDetail(id: String, name: String)
+    case editMemberField(memberId: String, field: MemberField)
 }
 
 /// Ephemeral shell state (SPEC D19) — held as @State by UI2Shell, never persisted.
@@ -46,6 +48,13 @@ struct UI2ShellModel {
         guard var path = paths[tab], !path.isEmpty else { return }
         path.removeLast()
         paths[tab] = path
+    }
+
+    /// ui2-members-edit D13: the success pop — only while `destination` is still the tab's last
+    /// entry, so a swipe-back or a Home re-tap during the save leaves the stack alone.
+    mutating func popIfTop(_ destination: UI2Destination, on tab: TabBar.Tab) {
+        guard path(for: tab).last == destination else { return }
+        pop(on: tab)
     }
 
     mutating func apply(_ route: UI2Route) {

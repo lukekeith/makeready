@@ -11,4 +11,4 @@ go-ahead: Luke 2026-10-25
 ui2: members-home, members-profile, shared-edit-field (resolved 2026-10-25: 22 component slots, all built)
 auto: off
 child: ui2-members-browse — shipped
-child: ui2-members-edit — spec
+child: ui2-members-edit — shipped

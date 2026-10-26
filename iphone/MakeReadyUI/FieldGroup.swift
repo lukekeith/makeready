@@ -55,6 +55,12 @@ struct FieldGroup: View {
     let text: String
     /// C-046 §4: passed to C-045 `placeholder`.
     let placeholder: String
+    /// ui2-members-edit T9e: passed to C-045 `editing` — nil (the default) keeps the static
+    /// render every preview and capture uses. Routed to /ui2-resolve (F2).
+    var editing: TextInput.Editing? = nil
+    /// ui2-members-edit T9e: C-045's `onChange` / `onFocusChange`, forwarded unchanged.
+    var onChange: (String) -> Void = { _ in }
+    var onFocusChange: (Bool) -> Void = { _ in }
 
     var body: some View {
         // §2: heights are the sum and nothing else — Default 20 + 12 + 44 / 88 (76 / 120,
@@ -68,7 +74,10 @@ struct FieldGroup: View {
                 kind: kind,
                 // §2 / OQ-C-046-004: Centered centres the input text; Phone ignores it.
                 alignment: isCentered ? .center : .leading,
-                focused: style == .focus
+                focused: style == .focus,
+                onChange: onChange,
+                onFocusChange: onFocusChange,
+                editing: editing
             )
             // §2's anatomy name for the slot; TextInput nests inside it by rect containment.
             .ui2Element("Input")

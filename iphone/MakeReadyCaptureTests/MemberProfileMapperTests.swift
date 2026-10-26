@@ -157,4 +157,35 @@ final class MemberProfileMapperTests: XCTestCase {
         XCTAssertEqual(MemberProfileMapper.phoneLabel("+447700900123"), "+447700900123")   // non-NANP as stored
         XCTAssertEqual(MemberProfileMapper.phoneLabel(""), "")
     }
+
+    // MARK: - ui2-members-edit D7: Emergency phone display
+
+    func testEmergencyPhoneDisplayRule() {
+        let rows: [(String, String)] = [
+            ("5551234567", "+1 (555) 123-4567"),
+            ("(555) 123-4567", "+1 (555) 123-4567"),
+            ("555.123.4567", "+1 (555) 123-4567"),
+            ("1-555-123-4567", "+1 (555) 123-4567"),
+            ("+1 555 123 4567", "+1 (555) 123-4567"),       // +1 with 11 digits
+            ("15551234567", "+1 (555) 123-4567"),
+            ("+65 6123 4567", "+65 6123 4567"),             // 10 digits but `+`-led non-1: as typed
+            ("+11234567891", "+1 (123) 456-7891"),
+            ("555-1234", "555-1234"),                       // 7 digits: as typed
+            ("555-123-4567 x12", "555-123-4567 x12"),       // an extension: as typed
+            ("+44 20 7946 0958", "+44 20 7946 0958"),       // 12 digits: as typed
+            ("25551234567", "25551234567"),                 // 11 digits not starting 1
+            ("", "")
+        ]
+        for (typed, shown) in rows {
+            XCTAssertEqual(MemberProfileMapper.contactPhoneLabel(typed), shown, typed)
+        }
+    }
+
+    func testEmergencyPhoneRowUsesTheContactRule() {
+        var d = tony()
+        d.emergencyContactPhone = "555.123.4567"
+        XCTAssertEqual(map(.init(name: "Tony S.", detail: d)).emergencyContactPhone, "+1 (555) 123-4567")
+        d.emergencyContactPhone = "555-123-4567 ext. 2"
+        XCTAssertEqual(map(.init(name: "Tony S.", detail: d)).emergencyContactPhone, "555-123-4567 ext. 2")
+    }
 }
