@@ -1,7 +1,7 @@
 import Foundation
 
-/// SPEC D8/D25: Overview + Activity from the snapshot; Sessions, Engagement,
-/// Following keep `.empty`'s values.
+/// SPEC D8/D25 + home-dashboard-data D6–D16: every Home section from the snapshot; a section the
+/// snapshot has never held keeps `.empty`'s values.
 enum HomeDashboardMapper {
     private static let months = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
     private static let weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
@@ -33,7 +33,7 @@ enum HomeDashboardMapper {
         let todayIndex = keys.firstIndex(of: todayKey) ?? 28
         st.chartDates = keys
         st.chartCompleted = keys.map { s.activityDays[$0] ?? 0 }
-        st.chartScheduled = Array(repeating: 0, count: keys.count)
+        st.chartScheduled = keys.map { s.scheduledDays[$0] ?? 0 }                    // D10
         st.chartToday = todayKey
         // SPEC D31 (owner 2026-10-25): the window opens on the 29 days ending today, so today is
         // the last column and the rail's three cards end on it.
@@ -44,14 +44,25 @@ enum HomeDashboardMapper {
         st.dayWeekdays = window.map { $0.key == todayKey ? "" : weekdays[$0.weekday - 1] }
         st.dayNumbers = window.map { "\($0.day)" }
         st.dayDateStates = keys.map { $0 == todayKey ? "today" : "default" }
-        st.daySeries = keys.map { _ in Array(repeating: 0, count: 12) }
-        st.dayLine1s = keys.map { _ in "0 mins" }
-        st.dayLine2s = keys.map { "\(s.activityDays[$0] ?? 0) lessons" }
-        st.dayDetailsStates = keys.map { (s.activityDays[$0] ?? 0) > 0 ? "default" : "nothing" }
+        // D6: minutes and bars are session time; line 2 is lesson completions.
+        st.daySeries = keys.map { blockMinutes(s.dayBlocks[$0]) }
+        st.dayLine1s = keys.map { "\(s.dayMinutes[$0] ?? 0) mins" }
+        st.dayLine2s = keys.map { "\(s.activityDays[$0] ?? 0) complete" }
+        st.dayDetailsStates = keys.map { key in
+            let sessionSeconds = s.dayBlocks[key]?.reduce(0, +) ?? 0
+            let hasActivity = sessionSeconds > 0 || (s.dayMinutes[key] ?? 0) > 0 || (s.activityDays[key] ?? 0) > 0
+            return hasActivity ? "default" : "nothing"
+        }
         return st
     }
 
     // MARK: - Helpers
+
+    /// D6: the 12 two-hour blocks (server seconds) as minutes — always 12 long, zero-filled.
+    static func blockMinutes(_ seconds: [Int]?) -> [Double] {
+        let values = (seconds ?? []).prefix(12).map { Double($0) / 60 }
+        return values + Array(repeating: 0, count: 12 - values.count)
+    }
 
     struct Trend { let direction: String; let polarity: String; let label: String }
     struct Day { let key: String; let month: Int; let day: Int; let weekday: Int }

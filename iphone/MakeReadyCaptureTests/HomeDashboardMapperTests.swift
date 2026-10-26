@@ -156,4 +156,57 @@ final class HomeDashboardMapperTests: XCTestCase {
         XCTAssertEqual(r.bins, [0, 0.25, 1])
         XCTAssertEqual(r.ticks.count, 4)
     }
+
+    // MARK: - Task 10: Activity + day cards (D6, D10)
+
+    private func map(_ s: DashboardSnapshot, range: String = "All time") -> HomeDashboardScreen.State {
+        HomeDashboardMapper.state(from: s, today: today, timeZone: tz, sessionRange: range)
+    }
+
+    func testScheduledColumnsComeFromTheSnapshot() {
+        var s = snapshot()
+        s.scheduledDays = ["2026-10-24": 5, "2026-11-01": 4]
+        let st = map(s)
+        XCTAssertEqual(st.chartScheduled.count, 36)
+        XCTAssertEqual(st.chartScheduled[st.chartDates.firstIndex(of: "2026-10-24")!], 5)
+        XCTAssertEqual(st.chartScheduled[st.chartDates.firstIndex(of: "2026-11-01")!], 4)   // today + 7
+        XCTAssertEqual(st.chartScheduled.reduce(0, +), 9)
+    }
+
+    func testDayCardMinutesBarsAndCompletions() {
+        var s = snapshot()
+        s.dayMinutes = ["2026-10-24": 26]
+        s.dayBlocks = ["2026-10-24": [0, 0, 0, 0, 600, 0, 930, 0, 0, 0, 0, 0]]
+        let st = map(s)
+        let i = st.dayDates.firstIndex(of: "2026-10-24")!
+        XCTAssertEqual(st.dayLine1s[i], "26 mins")
+        XCTAssertEqual(st.dayLine2s[i], "3 complete")
+        XCTAssertEqual(st.daySeries[i], [0, 0, 0, 0, 10, 0, 15.5, 0, 0, 0, 0, 0])
+        XCTAssertEqual(st.dayDetailsStates[i], "default")
+    }
+
+    func testEmptyDayIsNothing() {
+        let st = map(snapshot())
+        let i = st.dayDates.firstIndex(of: "2026-10-20")!
+        XCTAssertEqual(st.dayLine1s[i], "0 mins")
+        XCTAssertEqual(st.dayLine2s[i], "0 complete")
+        XCTAssertEqual(st.daySeries[i], Array(repeating: 0, count: 12))
+        XCTAssertEqual(st.dayDetailsStates[i], "nothing")
+    }
+
+    func testSessionOnlyDayIsDefault() {
+        var s = snapshot()
+        s.dayMinutes = ["2026-10-22": 1]
+        s.dayBlocks = ["2026-10-22": [60, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+        let st = map(s)
+        let i = st.dayDates.firstIndex(of: "2026-10-22")!
+        XCTAssertEqual(st.dayLine2s[i], "0 complete")
+        XCTAssertEqual(st.dayDetailsStates[i], "default")
+    }
+
+    func testBlockMinutesIsAlwaysTwelve() {
+        XCTAssertEqual(HomeDashboardMapper.blockMinutes([120]), [2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+        XCTAssertEqual(HomeDashboardMapper.blockMinutes(nil), Array(repeating: 0, count: 12))
+        XCTAssertEqual(HomeDashboardMapper.blockMinutes(Array(repeating: 60, count: 14)).count, 12)
+    }
 }
