@@ -98,6 +98,7 @@ struct UI2Shell: View {
     @ViewBuilder private var sectionContent: some View {
         switch model.section {
         case .home: HomeDashboardContainer()  // SPEC D8/D13
+        case .members: MembersHomeContainer() // ui2-members-browse
         default: EmptyPage()                  // SPEC D10: Library…Media are unwired
         }
     }

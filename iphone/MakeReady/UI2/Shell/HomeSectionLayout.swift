@@ -127,6 +127,9 @@ private struct SectionPageScroll<Content: View>: View {
         }
         .scrollIndicators(.hidden)
         .scrollBounceBehavior(.always, axes: .vertical)
+        // ui2-members-browse D19: a drag on the section page (Members' list) dismisses the
+        // keyboard the editable C-034 raised; inert on a page with no text input.
+        .scrollDismissesKeyboard(.interactively)
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             geometry.contentOffset.y + geometry.contentInsets.top
         } action: { _, offset in
