@@ -30,6 +30,14 @@ final class UI2MembersComponentTests: XCTestCase {
     }
 
     /// D4: the screen is built from its State and its four outward actions alone.
+    /// Agent walk round 1: tapping a chip opened no menu. A `Menu` chip fires `onTap`, and an
+    /// unlabelled trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan).
+    func testMembersHomeMenuChipTapPresentsTheMenu() {
+        var tapped = false
+        MembersHomeScreen.menuChip(label: "All Groups") { tapped = true }.onTap()
+        XCTAssertTrue(tapped)
+    }
+
     func testMembersHomeTakesNoNavCallbacks() {
         var opened: [Int] = []
         let screen = MembersHomeScreen(state: .populated, onOpenMember: { opened.append($0) })

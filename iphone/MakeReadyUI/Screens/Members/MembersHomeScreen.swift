@@ -154,20 +154,21 @@ struct MembersHomeScreen: View {
             // horizontally only when long selections overflow — the resting row fits, so it is a
             // plain HStack here.
             HStack(spacing: Token.Space.elementGap) {                // §2: "8pt gap"
-                FilterChip(type: .menu, active: false, label: state.groupFilterLabel) {
-                    presentedMenu = .groups
-                }
+                Self.menuChip(label: state.groupFilterLabel) { presentedMenu = .groups }
                 .ui2Element("C-035 FilterChip")
                 if state.showsLeaderFilter {                         // D7/D15
-                    FilterChip(type: .menu, active: false, label: state.leaderFilterLabel) {
-                        presentedMenu = .leaders
-                    }
+                    Self.menuChip(label: state.leaderFilterLabel) { presentedMenu = .leaders }
                     .ui2Element("C-035 FilterChip 2")
                 }
             }
             Spacer().frame(height: Self.headerGap)
         }
         .padding(.horizontal, Token.Space.pageMargin)                // §2: content inset 16
+    }
+
+    /// §3: "Tap a chip → FilterMenuOverlay (C-036) opens" — a `Menu` chip whose tap presents it.
+    static func menuChip(label: String, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: false, label: label, onTap: onTap)
     }
 
     // MARK: §2 List
