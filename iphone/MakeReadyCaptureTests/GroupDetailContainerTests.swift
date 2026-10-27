@@ -88,4 +88,14 @@ final class GroupDetailContainerTests: XCTestCase {
         XCTAssertNil(GroupDetailContainer.editDestination(groupId: "g1", label: "Cover", group: g))
         XCTAssertNil(GroupDetailContainer.editDestination(groupId: "g1", label: "Age", group: nil))
     }
+
+    // MARK: ui2-groups-edit D9/D13/D14
+
+    func testDeleteActionIsOneRedRowNamingTheGroup() {
+        let item = GroupDetailContainer.deleteAction(groupName: "Empty Group")
+        XCTAssertEqual(item.label, "Delete Empty Group")
+        XCTAssertEqual(item.glyph, "trash-2")
+        XCTAssertEqual(item.tone, .destructive)
+        XCTAssertEqual(GroupDetailContainer.deleteFailedMessage, "Couldn't delete the group")
+    }
 }
