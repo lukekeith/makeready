@@ -212,3 +212,16 @@ Undo = drop both columns.
 | F3 | An uncommitted hand edit to d2m-owned `EditCoverScreen.swift` (toolbar pair centred, owner 2026-10-27) | build-time risk — commit it or fold it into d2m before the D9 run, or the regenerate loses it |
 | F4 | Multer `LIMIT_FILE_SIZE` / unexpected-field errors reach Express's default handler as an HTML 500 today (`members.ts:48-61`, no error middleware) | settled in D8: the avatar route maps them to JSON 413 / 400 |
 | F2 | Renaming the group cover's editor pieces touches code that shipped hours ago with agent sign-off only | build-time risk — the rename task runs the group cover's full test set before and after; behaviour unchanged is the gate |
+
+## Plan
+
+The plan, with its code: `docs/features/image-framing-editor/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Member avatar columns — schema YAML, Atlas migration, Prisma client, GET payload
+- Phase 1 · Task 2 · Avatar upload takes framing + original — `member-avatar.ts` service, thin route, JSON multer errors, visibility gate
+- Phase 1 · Task 3 · The four non-upload `profilePicture` writers clear the original and framing (D11)
+- Phase 1 · Task 4 · Google-only fixture member — and the contract freeze
+- Phase 2 · Task 5 · Shared, aspect-parameterised framing editor — the group cover moved onto it, behaviour unchanged
+- Phase 3 · Task 6 · Member avatar state — the two new fields, a status-keeping multipart call, `MemberActions.saveAvatar`
+- Phase 4 · Task 7 · Edit photo — the avatar editor route on the generalised d2m screen, and the group cover passing its own geometry
+- Phase 4 · Task 8 · The avatar tap on the member page — picker, C-066 menu, viewer (D4, D10, D13)
