@@ -346,6 +346,8 @@ model Member {
   gender               String? // male or female
   birthday             DateTime?
   profilePicture       String?
+  profilePictureOriginalUrl String? @db.Text // image-framing-editor SC1 (D5, D8): the full original avatar photo; null means Edit reopens profilePicture
+  profilePictureFraming Json? // image-framing-editor SC2 (D8): {scale, rotation, offsetX, offsetY, flipped, quarterTurns} the avatar was rendered with
   isActive             Boolean @default(true)
   lastVerifiedAt       DateTime?
   createdAt            DateTime @default(now())

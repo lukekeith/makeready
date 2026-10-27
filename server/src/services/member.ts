@@ -2,6 +2,7 @@ import { prisma } from '../lib/prisma.js'
 import type { Member, Group, Prisma } from '../generated/prisma/index.js'
 import { type MemberViewer, visibleMemberOrgIds } from './member-access.js'
 import { normalizePhone } from './member-fields.js'
+import { parseStoredFraming, type CoverFraming } from './group-cover.js'
 
 /**
  * Member Service
@@ -43,9 +44,15 @@ const memberWithOrganizations = {
 
 export type MemberWithOrganizations = Prisma.MemberGetPayload<typeof memberWithOrganizations>
 
+/** GET /api/members/:id's payload — image-framing-editor SC2: the framing parsed (null when absent or bad). */
+export type ScopedMember = Omit<MemberWithOrganizations, 'profilePictureFraming'> & {
+  profilePictureFraming: CoverFraming | null
+  isGroupLeader: boolean
+}
+
 export interface ScopedMemberResult {
   success: boolean
-  data?: MemberWithOrganizations & { isGroupLeader: boolean }
+  data?: ScopedMember
   error?: string
 }
 
@@ -476,7 +483,16 @@ export async function getScopedMember(memberId: string, viewer: MemberViewer): P
         where: { creatorId: member.userId, isActive: true, organizationId: { in: visible } },
       })) > 0
 
-    return { success: true, data: { ...member, organizations, isGroupLeader } }
+    return {
+      success: true,
+      data: {
+        ...member,
+        // image-framing-editor §Contract row 2: the group-payload.ts:53 precedent.
+        profilePictureFraming: parseStoredFraming(member.profilePictureFraming),
+        organizations,
+        isGroupLeader,
+      },
+    }
   } catch (error) {
     console.error('Error fetching scoped member:', error)
     return { success: false, error: 'Failed to fetch member' }
