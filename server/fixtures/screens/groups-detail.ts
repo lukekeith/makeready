@@ -11,6 +11,9 @@
  *    was held (−5). A future social and a past LESSON event exist and must not show (D15). Base's
  *    joins come from home-dashboard's ADDED events; joins by invite write none (D26).
  *  - Activity rail + chart: base + home-dashboard already schedule, complete and sessionize group 1.
+ *  - Settings (ui2-groups-edit T5): the rich group stores a description, age 26–35, a 40-member cap
+ *    and Names-only directory access, so every edit page opens on a stored value; Empty Group keeps
+ *    the defaults.
  * Never touches ctx.rand: this file runs before home-dashboard.ts, and one draw would shift its numbers.
  * Creates no org, user or group.
  */
@@ -19,6 +22,15 @@ import type { FixtureContext } from '../context.js'
 import { FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
 export const RICH_GROUP_ID = FIXTURE_GROUP_IDS[0]
+/** ui2-groups-edit T5: the rich group's stored settings (age 26–35 is the "26 - 35" preset). */
+export const RICH_GROUP_FIELDS = {
+  description: 'Men meeting Tuesday mornings to read the Gospels together.',
+  ageRangeMin: 26,
+  ageRangeMax: 35,
+  maxMembers: 40,
+  memberDirectoryAccess: 'NAMES_ONLY',
+  memberDirectoryEnabled: false,
+} as const
 /** Enrollment 4 (group 1) runs daily from today−13: day 14 is today, day 15 tomorrow. */
 export const NEXT_LESSON_SCHEDULE_IDS: readonly string[] = [scheduleId(4, 14), scheduleId(4, 15)]
 /** Ruth Hamilton (20) and Esther Graham (21), newest request last in this list. */
@@ -39,6 +51,8 @@ export async function full(ctx: FixtureContext): Promise<void> {
   const member = (i: number) => FIXTURE_MEMBER_IDS[i]
   const [ruth, esther] = REQUESTER_INDICES
   const requestedAt = [ctx.at(-2, 15), ctx.at(-1, 9)]
+  // Settings (ui2-groups-edit T5): a stored value behind every edit page.
+  await prisma.group.update({ where: { id: RICH_GROUP_ID }, data: RICH_GROUP_FIELDS })
 
   // Requests section (D18) + their history rows.
   await prisma.groupJoinRequest.createMany({
