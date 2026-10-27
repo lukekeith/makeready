@@ -140,6 +140,23 @@ final class GroupsHomeMapperTests: XCTestCase {
         XCTAssertEqual(state.groups.all.map(\.id), ["1"])
     }
 
+    /// D22: a failed first load leaves the list unloaded; the shell's static refresh then loading zero
+    /// groups marks it loaded in `AppState`, so the section reads "No groups yet", not a blank list.
+    func testFailedLoadThenEmptyRefreshShowsNoGroups() async {
+        let state = AppState()
+        let api = failingGroupsAPI(APIError.serverError("boom"))
+        let failed = await GroupsHomeContainer.load(api: api, state: state, onUnauthorized: {})
+        XCTAssertFalse(failed)
+        XCTAssertFalse(state.groupsListLoaded)
+
+        api.errorFor = nil
+        api.stub("GET", "/api/groups", json: #"{"success":true,"groups":[]}"#)
+        let refreshed = await GroupsHomeContainer.load(api: api, state: state, onUnauthorized: {})
+        XCTAssertTrue(refreshed)
+        XCTAssertTrue(state.groupsListLoaded)
+        XCTAssertEqual(output(state.groups.all, loaded: state.groupsListLoaded).state.listEmpty, "noGroups")
+    }
+
     /// ui2-shell D28: with groups already cached, a 401 signs out instead of showing stale data.
     func testLoadWithCacheSignsOutOn401() async {
         let state = AppState()

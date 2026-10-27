@@ -179,6 +179,11 @@ final class AppState {
     /// Separate from `userOrganizations`, which the shell's org scoping owns.
     var myOrganizations: [OrganizationData] = []
 
+    /// D22: true once the Groups section's groups load succeeded this session — until then an
+    /// empty list draws no line. Lives here (not in the container) so the shell's static
+    /// pull-to-refresh (`GroupsHomeContainer.refresh`) sets it too.
+    var groupsListLoaded = false
+
     /// All organizations the user belongs to. Drives the per-org buttons in
     /// UserMenu and the Org Home page. Loaded by `loadOrganization()`. Today
     /// the server only exposes the org the user owns; when multi-org listing
@@ -858,6 +863,7 @@ final class AppState {
         groupDaysByGroupId = [:]
         groupChartByGroupId = [:]
         myOrganizations = []
+        groupsListLoaded = false
         // ui2-groups-browse T14: org-scoped and never cleared before — fixed here deliberately.
         pendingJoinRequestsByGroupId = [:]
         userOrganizations = []

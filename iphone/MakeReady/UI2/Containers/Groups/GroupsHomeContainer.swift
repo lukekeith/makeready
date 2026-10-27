@@ -20,14 +20,12 @@ struct GroupsHomeContainer: View {
     @State private var selection = GroupsHomeMapper.Selection()
     /// The pending debounce; a newer keystroke cancels it (Task + `Task.sleep`, never `asyncAfter`).
     @State private var searchTask: Task<Void, Never>?
-    /// D22: true once a load succeeded — before that an empty list draws no line.
-    @State private var loaded = false
 
     var body: some View {
         let app = AppState.shared
         let output = GroupsHomeMapper.output(
             groups: app.groups.all, leaders: app.groupLeaders, organizations: app.myOrganizations,
-            selection: selection, typedSearch: typedSearch, loaded: loaded || !app.groups.all.isEmpty
+            selection: selection, typedSearch: typedSearch, loaded: app.groupsListLoaded || !app.groups.all.isEmpty
         )
         GroupsHomeScreen(
             state: output.state,
@@ -47,12 +45,13 @@ struct GroupsHomeContainer: View {
                 navigator.push(destination(id, output.state.groupNames[row]))
             }
         )
-        .task { loaded = await Self.load(authManager: authManager) }
+        .task { await Self.load(authManager: authManager) }
         .onDisappear { searchTask?.cancel() }
     }
 
     /// D3/D22: groups (a failure surfaces the banner over the cached or empty list), leaders and
-    /// orgs (console-only) all at once. Returns whether the groups load succeeded.
+    /// orgs (console-only) all at once. A groups success sets `AppState.groupsListLoaded` (D22).
+    /// Returns whether the groups load succeeded.
     @MainActor
     @discardableResult
     static func load(authManager: AuthManager) async -> Bool {
@@ -71,6 +70,7 @@ struct GroupsHomeContainer: View {
         var ok = true
         do {
             try await GroupActions(api: api, state: state).loadGroups(forceRefresh: true)
+            state.groupsListLoaded = true
         } catch {
             ok = false
             await route(error, context: "GroupsHomeContainer.loadGroups", surface: true,

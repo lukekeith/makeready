@@ -24,6 +24,7 @@ final class GroupStoresTests: XCTestCase {
         state.groupDaysByGroupId["g1"] = [HomeDay(day: "2026-10-25", sessionSeconds: 60)]
         state.groupChartByGroupId["g1"] = GroupChart(scheduled: ["2026-10-25": 3], completed: ["2026-10-25": 1])
         state.myOrganizations = [OrganizationData(id: "o1", name: "Grace Church"), OrganizationData(id: "o2", name: "Hope Chapel")]
+        state.groupsListLoaded = true
         state.pendingJoinRequestsByGroupId["g1"] = [
             JoinRequest(id: "r1", status: "PENDING", message: nil, createdAt: Date(),
                         member: JoinRequestMember(id: "m1", firstName: "Tony", lastName: "Stark", avatarUrl: nil))
@@ -39,6 +40,7 @@ final class GroupStoresTests: XCTestCase {
         XCTAssertTrue(state.groupChartByGroupId.isEmpty)
         XCTAssertTrue(state.myOrganizations.isEmpty)
         XCTAssertTrue(state.pendingJoinRequestsByGroupId.isEmpty)    // pre-existing leak (SPEC §iphone)
+        XCTAssertFalse(state.groupsListLoaded)
     }
 
     func testEnvironmentSwitchEmptiesThemToo() {
