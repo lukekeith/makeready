@@ -154,4 +154,26 @@ final class UI2ShellModelTests: XCTestCase {
         m.popIfTop(editPhone, on: .profile)                    // another tab: no-op
         XCTAssertEqual(m.path(for: .home), [editPhone])
     }
+
+    // MARK: - invite-member D11: the whole-flow pop
+
+    func testPopToDepthDropsEveryInvitePageAboveTheEntry() {
+        var m = UI2ShellModel()
+        m.push(tony, on: .home)                                         // depth 1 when "+" is tapped
+        m.push(.inviteSelectGroup(returnDepth: 1), on: .home)
+        m.push(.inviteMember(groupId: "g1", returnDepth: 1), on: .home)
+        m.popTo(depth: 1, on: .home)
+        XCTAssertEqual(m.path(for: .home), [tony])
+    }
+
+    func testPopToDepthAtOrAboveTheCountIsANoOp() {
+        var m = UI2ShellModel()
+        m.push(.inviteMember(groupId: "g1", returnDepth: 0), on: .calendar)
+        m.popTo(depth: 3, on: .calendar)
+        XCTAssertEqual(m.path(for: .calendar), [.inviteMember(groupId: "g1", returnDepth: 0)])
+        m.popTo(depth: 0, on: .calendar)
+        XCTAssertEqual(m.path(for: .calendar), [])
+        m.popTo(depth: -1, on: .calendar)                               // never negative
+        XCTAssertEqual(m.path(for: .calendar), [])
+    }
 }

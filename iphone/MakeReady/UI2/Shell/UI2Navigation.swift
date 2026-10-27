@@ -8,6 +8,10 @@ struct UI2Navigator {
     var pop: () -> Void = {}
     /// ui2-members-edit D13: pop only if `destination` is still on top.
     var popIfTop: (UI2Destination) -> Void = { _ in }
+    /// invite-member D11: pop the stack back to `depth` entries.
+    var popTo: (Int) -> Void = { _ in }
+    /// invite-member D11: the stack's current depth (the entry depth a flow returns to).
+    var depth: () -> Int = { 0 }
 }
 
 private struct UI2NavigatorKey: EnvironmentKey {
