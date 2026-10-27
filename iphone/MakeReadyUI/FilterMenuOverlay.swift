@@ -358,9 +358,8 @@ private struct HostableFilterMenuPresentation<Menu: View>: ViewModifier {
 
     func body(content: Content) -> some View {
         if hosted {
-            content.preference(
-                key: UI2HostedOverlayKey.self,
-                value: isPresented
+            content.hostedOverlay(
+                isPresented
                     ? UI2HostedOverlay(view: AnyView(FilterMenuLayer(onDismiss: onDismiss) { menu }))
                     : nil
             )
@@ -388,6 +387,19 @@ struct UI2HostedOverlayKey: PreferenceKey {
     static let defaultValue: UI2HostedOverlay? = nil
     static func reduce(value: inout UI2HostedOverlay?, nextValue: () -> UI2HostedOverlay?) {
         if value == nil { value = nextValue() }
+    }
+}
+
+extension View {
+    /// Hands `overlay` up to the shell's `.ui2OverlayHost()` without hiding one already handed up
+    /// from inside this view. Presentations stack as nested modifiers on one screen (group-cover-image
+    /// C1: delete menu, cover menu, viewer), and an outer `.preference(key:value:)` REPLACES what
+    /// its content wrote — `reduce` only merges siblings — so a closed outer writer's nil would
+    /// hide an open inner one. Here the inner value is kept and a nil never overrides it.
+    func hostedOverlay(_ overlay: UI2HostedOverlay?) -> some View {
+        transformPreference(UI2HostedOverlayKey.self) { value in
+            if value == nil, let overlay { value = overlay }
+        }
     }
 }
 

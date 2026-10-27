@@ -116,9 +116,7 @@ struct UI2Shell: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .background(UI2InteractivePop())
                 .navigationDestination(for: UI2Destination.self) { destination in
-                    page(for: destination)
-                        .toolbar(.hidden, for: .navigationBar)
-                        .background(UI2InteractivePop())
+                    UI2PushedPage { page(for: destination) }   // group-cover-image D26: + its back-swipe guard
                 }
         }
         .environment(\.ui2Navigator, UI2Navigator(
@@ -157,6 +155,7 @@ struct UI2Shell: View {
         case let .editGroupField(groupId, field): GroupFieldEditContainer(groupId: groupId, field: field)  // ui2-groups-edit D2
         case .createGroup:                                                                    // ui2-groups-browse D1/D8
             CreateGroupContainer(route: .createGroup, destination: { .groupDetail(id: $0.id, name: $0.name) })
+        case let .editGroupCover(groupId, source): EditGroupCoverContainer(groupId: groupId, source: source)  // group-cover-image D4
         }
     }
 

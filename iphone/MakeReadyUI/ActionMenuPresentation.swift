@@ -6,13 +6,16 @@ import SwiftUI
 // Under a `.ui2OverlayHost()` it draws above every piece of the shell's chrome, like C-036.
 
 extension View {
-    /// Presents `menu` (a C-066 ActionMenuOverlay) as the full-screen action sheet.
+    /// Presents `menu` (a C-066 ActionMenuOverlay) as the full-screen action sheet. `onHidden` runs
+    /// once its slide-out has finished and the layer is unmounted — the moment a follow-up overlay
+    /// can be presented (group-cover-image D8: the host keeps only the first presented overlay).
     func actionMenuPresentation<Menu: View>(
         isPresented: Bool,
         onDismiss: @escaping () -> Void,
+        onHidden: @escaping () -> Void = {},
         @ViewBuilder menu: () -> Menu
     ) -> some View {
-        modifier(HostableActionMenuPresentation(isPresented: isPresented, onDismiss: onDismiss, menu: menu()))
+        modifier(HostableActionMenuPresentation(isPresented: isPresented, onDismiss: onDismiss, onHidden: onHidden, menu: menu()))
     }
 }
 
@@ -117,22 +120,20 @@ private struct ActionMenuLayer<Menu: View>: View {
 private struct HostableActionMenuPresentation<Menu: View>: ViewModifier {
     let isPresented: Bool
     let onDismiss: () -> Void
+    let onHidden: () -> Void
     let menu: Menu
 
     @Environment(\.ui2HostsOverlays) private var hosted
     @State private var mounted = false
 
     private var layer: some View {
-        ActionMenuLayer(visible: isPresented, onDismiss: onDismiss, onHidden: { mounted = false }, menu: menu)
+        ActionMenuLayer(visible: isPresented, onDismiss: onDismiss, onHidden: { mounted = false; onHidden() }, menu: menu)
     }
 
     func body(content: Content) -> some View {
         Group {
             if hosted {
-                content.preference(
-                    key: UI2HostedOverlayKey.self,
-                    value: mounted ? UI2HostedOverlay(view: AnyView(layer), transition: .identity) : nil
-                )
+                content.hostedOverlay(mounted ? UI2HostedOverlay(view: AnyView(layer), transition: .identity) : nil)
             } else {
                 content.overlay {
                     if mounted { layer }

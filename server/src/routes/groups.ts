@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import { z } from 'zod'
-import sharp from 'sharp'
 import QRCode from 'qrcode'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
-import { uploadImageVariants } from '../services/storage.js'
+import { Prisma } from '../generated/prisma/index.js'
+import { CoverUploadError, coverFramingSchema, saveGroupCover } from '../services/group-cover.js'
 import { generateUniqueGroupCode, normalizeGroupCode } from '../lib/group-code.js'
 import { trackActivity } from '../services/activity.js'
 import { captureToLibrary } from '../services/media-library.js'
@@ -12,6 +12,7 @@ import { isSuperAdmin, groupManageFilter, findManageableGroup } from '../service
 import { getGroupHistory } from '../services/group-history.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { resolveUserOrganizationId } from '../services/organization.js'
+import { toGroupPayload } from '../services/group-payload.js'
 import {
   AGE_RANGE_INVERTED_MESSAGE,
   DIRECTORY_CONFLICT_MESSAGE,
@@ -169,29 +170,7 @@ router.post('/', requireAuth, async (req, res) => {
     })
 
     // Transform response to match iOS model
-    const response = {
-      id: group.id,
-      organizationId: group.organizationId,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }
+    const response = toGroupPayload(group)
 
     trackActivity({
       actorId: userId,
@@ -275,30 +254,9 @@ router.get('/', requireAuth, async (req, res) => {
     )
 
     // Transform response to match iOS model
-    const response = groups.map((group) => ({
-      id: group.id,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      organizationId: group.organizationId,
-      organizationName: orgNames.get(group.organizationId) ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }))
+    const response = groups.map((group) =>
+      toGroupPayload(group, { organizationName: orgNames.get(group.organizationId) ?? null }),
+    )
 
     res.json({ success: true, groups: response })
   } catch (error) {
@@ -606,28 +564,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
 
     // Transform response to match iOS model
-    const response = {
-      id: group.id,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }
+    const response = toGroupPayload(group)
 
     res.json({ success: true, group: response })
   } catch (error) {
@@ -1052,7 +989,12 @@ router.patch('/:id', requireAuth, async (req, res) => {
     const updateData: any = {}
     if (body.name !== undefined) updateData.name = body.name
     if (body.description !== undefined) updateData.description = body.description
-    if (body.coverImageUrl !== undefined) updateData.coverImageUrl = body.coverImageUrl
+    if (body.coverImageUrl !== undefined) {
+      updateData.coverImageUrl = body.coverImageUrl
+      // group-cover-image D9: a cover set elsewhere drops the stored original and framing.
+      updateData.coverOriginalUrl = null
+      updateData.coverFraming = Prisma.DbNull
+    }
     if (body.isPrivate !== undefined) updateData.isPrivate = body.isPrivate
     if (body.allowInvites !== undefined) updateData.allowInvites = body.allowInvites
     // ui2-groups-edit D7 + D12: the enum and the Boolean move together; a Boolean-only `false`
@@ -1116,28 +1058,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     })
 
     // Transform response to match iOS model
-    const response = {
-      id: group.id,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }
+    const response = toGroupPayload(group)
 
     trackActivity({
       actorId: userId,
@@ -1245,6 +1166,9 @@ router.delete('/:id', requireAuth, async (req, res) => {
  *     description: |
  *       Uploads a cover image for the group. Accepts base64-encoded image data.
  *       Automatically generates multiple sizes (original, medium, thumbnail).
+ *       The request may also carry the full original photo (originalData) and the framing
+ *       that produced the cover; framing without originalData keeps the stored original.
+ *       An upload without framing (the legacy body) clears the stored original and framing.
  *     security:
  *       - userSession: []
  *     parameters:
@@ -1269,6 +1193,39 @@ router.delete('/:id', requireAuth, async (req, res) => {
  *               contentType:
  *                 type: string
  *                 default: image/jpeg
+ *               framing:
+ *                 type: object
+ *                 description: D11 + D21 - required with originalData
+ *                 additionalProperties: false
+ *                 required: [scale, rotation, offsetX, offsetY]
+ *                 properties:
+ *                   scale:
+ *                     type: number
+ *                     minimum: 1
+ *                     maximum: 8
+ *                   rotation:
+ *                     type: number
+ *                     minimum: -45
+ *                     maximum: 45
+ *                   offsetX:
+ *                     type: number
+ *                     minimum: -1
+ *                     maximum: 1
+ *                   offsetY:
+ *                     type: number
+ *                     minimum: -1
+ *                     maximum: 1
+ *                   flipped:
+ *                     type: boolean
+ *                     default: false
+ *                   quarterTurns:
+ *                     type: integer
+ *                     minimum: 0
+ *                     maximum: 3
+ *                     default: 0
+ *               originalData:
+ *                 type: string
+ *                 description: Base64 JPEG of the full original; requires framing
  *     responses:
  *       200:
  *         description: Image uploaded
@@ -1283,26 +1240,48 @@ router.delete('/:id', requireAuth, async (req, res) => {
  *                 coverImageUrl:
  *                   type: string
  *                   format: uri
+ *                 coverOriginalUrl:
+ *                   type: string
+ *                   format: uri
+ *                   nullable: true
+ *                 coverFraming:
+ *                   type: object
+ *                   nullable: true
+ *       400:
+ *         description: Invalid framing, originalData without framing, or an undecodable image
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  *       404:
  *         description: Group not found
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       413:
+ *         description: Body over the 10mb JSON limit
  */
 router.post('/:id/cover-image', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const userId = (req.user as any).id
 
+    // group-cover-image D10/D11: the legacy body (imageData, contentType) still works; framing is
+    // strict; contentType is accepted and ignored for the original (always re-encoded JPEG).
     const schema = z.object({
       imageData: z.string().min(1, 'Image data is required'),
       contentType: z.string().default('image/jpeg'),
+      framing: coverFramingSchema.optional(),
+      originalData: z.string().min(1).optional(),
     })
 
     const body = schema.parse(req.body)
+    if (body.originalData !== undefined && body.framing === undefined) {
+      return res.status(400).json({ success: false, error: 'originalData requires framing' })
+    }
 
-    // Creator, the group org's owner/role-holders, or a super admin may edit.
+    // Creator, the group org's owner/role-holders, or a super admin may edit (D14).
     const group = await prisma.group.findFirst({
       where: { id, ...(await groupManageFilter(userId)), isActive: true },
     })
@@ -1311,56 +1290,11 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Group not found' })
     }
 
-    // Decode base64 image
-    const base64Data = body.imageData.replace(/^data:image\/\w+;base64,/, '')
-    const imageBuffer = Buffer.from(base64Data, 'base64')
-
-    // Determine file naming
-    const timestamp = Date.now()
-    const baseName = `group-${id}-${timestamp}`
-    const extension = 'jpeg' // Always output as JPEG for consistency
-
-    // Generate image variants using sharp
-    console.log(`📸 Processing image variants for group ${id}...`)
-
-    const [originalBuffer, mediumBuffer, thumbBuffer] = await Promise.all([
-      // Original: max 1200px width, 85% quality
-      sharp(imageBuffer)
-        .resize(1200, null, { withoutEnlargement: true })
-        .jpeg({ quality: 85 })
-        .toBuffer(),
-      // Medium: max 400px width, 80% quality
-      sharp(imageBuffer)
-        .resize(400, null, { withoutEnlargement: true })
-        .jpeg({ quality: 80 })
-        .toBuffer(),
-      // Thumbnail: max 150px width, 75% quality
-      sharp(imageBuffer)
-        .resize(150, null, { withoutEnlargement: true })
-        .jpeg({ quality: 75 })
-        .toBuffer(),
-    ])
-
-    console.log(
-      `📸 Generated variants: original=${originalBuffer.length}b, medium=${mediumBuffer.length}b, thumb=${thumbBuffer.length}b`
-    )
-
-    // Upload to R2
-    const { url: coverImageUrl } = await uploadImageVariants(
-      'groups',
-      baseName,
-      extension,
-      originalBuffer,
-      mediumBuffer,
-      thumbBuffer,
-    )
-
-    console.log(`📸 Uploaded group cover image: ${coverImageUrl}`)
-
-    // Update group with cover image URL
-    await prisma.group.update({
-      where: { id },
-      data: { coverImageUrl },
+    const saved = await saveGroupCover({
+      group: { id: group.id, coverOriginalUrl: group.coverOriginalUrl },
+      imageData: body.imageData,
+      framing: body.framing,
+      originalData: body.originalData,
     })
 
     // ui2-groups-browse SC7 / D15: the group history reads this row as "Updated cover photo".
@@ -1375,16 +1309,17 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
       metadata: { field: 'cover' },
     })
 
-    // Auto-capture to media library with metadata
-    if (group.organizationId) {
-      const imageMeta = await extractImageMetadata(imageBuffer)
+    // group-cover-image D18: capture a new image (an original, or a framing-less upload); a re-edit
+    // captures nothing, and the original is never captured.
+    if (group.organizationId && saved.isNewImage) {
+      const imageMeta = await extractImageMetadata(saved.renderedBuffer)
       captureToLibrary({
         title: `${group.name} - Cover Image`,
-        url: coverImageUrl,
+        url: saved.coverImageUrl,
         type: 'photo',
         mimeType: 'image/jpeg',
-        fileSize: originalBuffer.length,
-        thumbnailUrl: coverImageUrl.replace('.jpeg', '-thumb.jpeg'),
+        fileSize: saved.renderedSize,
+        thumbnailUrl: saved.coverImageUrl.replace('.jpeg', '-thumb.jpeg'),
         organizationId: group.organizationId,
         uploadedBy: userId,
         source: 'auto_capture',
@@ -1400,13 +1335,19 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
       })
     }
 
+    // D10: flat — coverImageUrl stays top-level for released 1.0 and the web.
     res.json({
       success: true,
-      coverImageUrl,
+      coverImageUrl: saved.coverImageUrl,
+      coverOriginalUrl: saved.coverOriginalUrl,
+      coverFraming: saved.coverFraming,
     })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
+    }
+    if (error instanceof CoverUploadError) {
+      return res.status(error.status).json({ success: false, error: error.message })
     }
     console.error('Error uploading cover image:', error)
     res.status(500).json({ success: false, error: 'Failed to upload cover image' })

@@ -1,4 +1,5 @@
 import CoreGraphics
+import UIKit
 
 /// SPEC D12/D13: the 8 TopNav sections, in C-019's closed order.
 enum UI2Section: String, CaseIterable {
@@ -31,6 +32,9 @@ enum UI2Destination: Hashable {
     /// ui2-groups-browse D1/D8: the create form, pushed on the Home stack by the Groups `+`;
     /// success replaces it with the new group's `.groupDetail`.
     case createGroup
+    /// group-cover-image D6/D7: the Edit cover page, above the group page — a new pick, or the
+    /// stored original at its framing.
+    case editGroupCover(groupId: String, source: CoverEditSource)
 }
 
 /// Ephemeral shell state (SPEC D19) — held as @State by UI2Shell, never persisted.

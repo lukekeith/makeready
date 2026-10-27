@@ -12,6 +12,48 @@ import Foundation
 
 // MARK: - Group Models
 
+/// group-cover-image D11/D21: how the cover was framed — `scale` relative to the zoom floor (1…8),
+/// `rotation` the fine angle in degrees (−45…45, clockwise), `offsetX`/`offsetY` as fractions of the
+/// frame's width/height from centred (−1…1), `flipped` a horizontal mirror (applied first) and
+/// `quarterTurns` counter-clockwise 90° steps (0…3, applied before `rotation`). The server rejects
+/// anything else. A D11-shaped value (no `flipped`/`quarterTurns`) decodes with the defaults.
+struct CoverFraming: Codable, Equatable, Hashable {
+    var scale: Double
+    var rotation: Double
+    var offsetX: Double
+    var offsetY: Double
+    var flipped: Bool = false
+    var quarterTurns: Int = 0
+
+    /// D7: a cover with no stored original opens at identity — the floor, unrotated, centred.
+    static let identity = CoverFraming(scale: 1, rotation: 0, offsetX: 0, offsetY: 0)
+
+    init(scale: Double, rotation: Double, offsetX: Double, offsetY: Double, flipped: Bool = false, quarterTurns: Int = 0) {
+        self.scale = scale
+        self.rotation = rotation
+        self.offsetX = offsetX
+        self.offsetY = offsetY
+        self.flipped = flipped
+        self.quarterTurns = quarterTurns
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        scale = try container.decode(Double.self, forKey: .scale)
+        rotation = try container.decode(Double.self, forKey: .rotation)
+        offsetX = try container.decode(Double.self, forKey: .offsetX)
+        offsetY = try container.decode(Double.self, forKey: .offsetY)
+        flipped = try container.decodeIfPresent(Bool.self, forKey: .flipped) ?? false
+        quarterTurns = try container.decodeIfPresent(Int.self, forKey: .quarterTurns) ?? 0
+    }
+
+    /// The upload body's `framing` (D10/D21) — all six keys, always.
+    var requestBody: [String: Any] {
+        ["scale": scale, "rotation": rotation, "offsetX": offsetX, "offsetY": offsetY,
+         "flipped": flipped, "quarterTurns": quarterTurns]
+    }
+}
+
 /// A group that users can join and interact in
 /// Named `UserGroup` to avoid conflict with SwiftUI's Group view
 struct UserGroup: Codable, Identifiable {
@@ -20,6 +62,10 @@ struct UserGroup: Codable, Identifiable {
     var name: String
     var description: String?
     var coverImageUrl: String?
+    /// group-cover-image SC1 (D7): the full original photo; nil = Edit reopens `coverImageUrl`.
+    var coverOriginalUrl: String?
+    /// group-cover-image SC2 (D11): the framing the cover was rendered with. nil on an old cache.
+    var coverFraming: CoverFraming?
     var isPrivate: Bool
     var allowInvites: Bool
     var memberDirectory: Bool
@@ -51,6 +97,9 @@ struct UserGroup: Codable, Identifiable {
         name = try container.decode(String.self, forKey: .name)
         description = try container.decodeIfPresent(String.self, forKey: .description)
         coverImageUrl = try container.decodeIfPresent(String.self, forKey: .coverImageUrl)
+        coverOriginalUrl = try container.decodeIfPresent(String.self, forKey: .coverOriginalUrl)
+        // D11: a bad stored value decodes as nil, never failing the group list.
+        coverFraming = (try? container.decodeIfPresent(CoverFraming.self, forKey: .coverFraming)) ?? nil
         isPrivate = try container.decode(Bool.self, forKey: .isPrivate)
         allowInvites = try container.decode(Bool.self, forKey: .allowInvites)
         memberDirectory = try container.decodeIfPresent(Bool.self, forKey: .memberDirectory) ?? true
@@ -69,7 +118,8 @@ struct UserGroup: Codable, Identifiable {
 
     init(
         id: String, code: String, name: String, description: String? = nil,
-        coverImageUrl: String? = nil, isPrivate: Bool, allowInvites: Bool,
+        coverImageUrl: String? = nil, coverOriginalUrl: String? = nil,
+        coverFraming: CoverFraming? = nil, isPrivate: Bool, allowInvites: Bool,
         memberDirectory: Bool = true, welcomeMessage: String? = nil,
         ageRange: AgeRange? = nil, maxMembers: Int? = nil, memberCount: Int,
         creatorId: String, creatorName: String? = nil, organizationId: String? = nil,
@@ -81,6 +131,8 @@ struct UserGroup: Codable, Identifiable {
         self.name = name
         self.description = description
         self.coverImageUrl = coverImageUrl
+        self.coverOriginalUrl = coverOriginalUrl
+        self.coverFraming = coverFraming
         self.isPrivate = isPrivate
         self.allowInvites = allowInvites
         self.memberDirectory = memberDirectory

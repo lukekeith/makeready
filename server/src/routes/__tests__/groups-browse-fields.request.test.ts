@@ -44,9 +44,10 @@ vi.mock('../../services/media-metadata.js', async (importOriginal) => ({
 }))
 vi.mock('sharp', () => ({
   default: vi.fn(() => {
-    const chain = { resize: vi.fn(), jpeg: vi.fn(), toBuffer: vi.fn().mockResolvedValue(Buffer.from('jpeg')) }
-    chain.resize.mockReturnValue(chain)
-    chain.jpeg.mockReturnValue(chain)
+    const chain: Record<string, any> = {}
+    for (const op of ['resize', 'jpeg', 'rotate']) chain[op] = vi.fn(() => chain)
+    chain.toBuffer = vi.fn().mockResolvedValue(Buffer.from('jpeg'))
+    chain.metadata = vi.fn().mockResolvedValue({ format: 'jpeg', width: 1, height: 1 })
     return chain
   }),
 }))

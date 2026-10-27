@@ -41,11 +41,20 @@ struct UI2HidesTopNavKey: PreferenceKey {
 /// navigation controllers keep their own behaviour. Re-attached on every appearance, because
 /// a push may reset the recognizer's delegate.
 struct UI2InteractivePop: UIViewControllerRepresentable {
-    func makeCoordinator() -> UI2PopGestureDelegate { UI2PopGestureDelegate() }
+    /// group-cover-image D26: the page's veto on the edge swipe (nil on a tab's root).
+    var backSwipe: UI2BackSwipeGuard?
+
+    func makeCoordinator() -> UI2PopGestureDelegate {
+        let delegate = UI2PopGestureDelegate()
+        delegate.backSwipe = backSwipe
+        return delegate
+    }
 
     func makeUIViewController(context: Context) -> Probe { Probe(popDelegate: context.coordinator) }
 
-    func updateUIViewController(_ uiViewController: Probe, context: Context) {}
+    func updateUIViewController(_ uiViewController: Probe, context: Context) {
+        context.coordinator.backSwipe = backSwipe
+    }
 
     /// An invisible child controller whose only job is to find its UINavigationController.
     final class Probe: UIViewController {
@@ -85,11 +94,54 @@ struct UI2InteractivePop: UIViewControllerRepresentable {
 }
 
 /// F2: the edge swipe may begin only when the stack has a page above its root.
+/// group-cover-image D26: and only when the page on top does not veto it — a vetoed swipe is
+/// handed to the page instead (Edit cover asks to discard).
 final class UI2PopGestureDelegate: NSObject, UIGestureRecognizerDelegate {
     weak var navigationController: UINavigationController?
+    var backSwipe: UI2BackSwipeGuard?
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
-        (navigationController?.viewControllers.count ?? 0) > 1
+        guard (navigationController?.viewControllers.count ?? 0) > 1 else { return false }
+        if let backSwipe, backSwipe.blocksBackSwipe() {
+            backSwipe.onBlockedBackSwipe()
+            return false
+        }
+        return true
+    }
+}
+
+/// group-cover-image D26: one per pushed page (`UI2PushedPage`), read from the environment. A page
+/// with unsaved work sets `blocksBackSwipe`; the edge swipe then does not pop and
+/// `onBlockedBackSwipe` runs instead. The defaults leave the swipe as F2 has it.
+@MainActor
+final class UI2BackSwipeGuard {
+    var blocksBackSwipe: () -> Bool = { false }
+    var onBlockedBackSwipe: () -> Void = {}
+}
+
+private struct UI2BackSwipeGuardKey: EnvironmentKey {
+    static let defaultValue: UI2BackSwipeGuard? = nil
+}
+
+extension EnvironmentValues {
+    /// group-cover-image D26: the pushed page's back-swipe guard (nil outside a UI2 stack).
+    var ui2BackSwipeGuard: UI2BackSwipeGuard? {
+        get { self[UI2BackSwipeGuardKey.self] }
+        set { self[UI2BackSwipeGuardKey.self] = newValue }
+    }
+}
+
+/// D1/F2 + group-cover-image D26: a pushed page's chrome — the system bar hidden, the edge pop
+/// re-armed, and the page's own back-swipe guard both handed to that pop and put in the environment.
+struct UI2PushedPage<Content: View>: View {
+    @State private var backSwipe = UI2BackSwipeGuard()
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        content
+            .toolbar(.hidden, for: .navigationBar)
+            .background(UI2InteractivePop(backSwipe: backSwipe))
+            .environment(\.ui2BackSwipeGuard, backSwipe)
     }
 }
 
