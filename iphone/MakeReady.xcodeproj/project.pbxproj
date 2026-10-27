@@ -75,6 +75,7 @@
 		169BF1E77EE8783F6E64AAA8 /* EnrollmentProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E914735F357B49E183769E8C /* EnrollmentProgressHeader.swift */; };
 		16AD78FB8247A79C5D71ECB2 /* MakeReadyUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 46323A5C4F61C690433E30F0 /* MakeReadyUI.framework */; };
 		16E38BF59573823824FB68D7 /* EditGroupCoverModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB2758E269C6EA69687DBC4A /* EditGroupCoverModelTests.swift */; };
+		16E7595283CE08C6466C584D /* EditGroupCoverContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96FFB99B33BBCE3586DFDF3 /* EditGroupCoverContainer.swift */; };
 		170EC82CEFFA1883444E6710 /* NotificationActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = NOTIF0002000000000001 /* NotificationActions.swift */; };
 		17943BC718F92AB4F3318B00 /* MonthDayCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 53F27BC95AAD82CB7506E94E /* MonthDayCell.swift */; };
 		1825B5FBB64AD1D66022EB86 /* ConfirmationMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8AE89647C0C2149E14610D /* ConfirmationMark.swift */; };
@@ -263,6 +264,7 @@
 		56CBD4879E3D31C8E1C5DD76 /* RadioOptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA76AA758C8BAE03036A7242 /* RadioOptionRow.swift */; };
 		56E141944D7C250575C616E7 /* ChartIntro.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE5EECBC4FD05E1F6F17EE08 /* ChartIntro.swift */; };
 		56E26E50B07DB0A8A9A079BD /* TopNavInset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B6430FFED63399B7F40EBFD /* TopNavInset.swift */; };
+		573FFD8A31B2D0305F085FE5 /* EditGroupCoverContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C96FFB99B33BBCE3586DFDF3 /* EditGroupCoverContainer.swift */; };
 		5758574304722F74FB8121FD /* DateRangePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = D10FFC8629C46C7F51F5D33B /* DateRangePicker.swift */; };
 		57899623A414D127086279DC /* TextSizeSlider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 945CD8F5027766163F905527 /* TextSizeSlider.swift */; };
 		57A46C41971B59BDF53F17C8 /* VideoActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = ST5FADD273F9B744E7BBF2 /* VideoActions.swift */; };
@@ -525,6 +527,7 @@
 		B8AE6D74E43B55121DA4CE99 /* MemberDetailHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189B4856A7811AD7B6B3116D /* MemberDetailHost.swift */; };
 		B92B78EF98077C0A9E7A880B /* MembersProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0769F269C502AB580380D1 /* MembersProfileScreen.swift */; };
 		B9A109B8BB2562D7973486CB /* HomeKpiPickerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE91DF06FB7BC0A51884820 /* HomeKpiPickerScreen.swift */; };
+		BA1D7D635B4D73BE6D3CEB8A /* EditGroupCoverContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE95BB06F91242BBE4E016DB /* EditGroupCoverContainerTests.swift */; };
 		BA27680BC4C6C3518BDD3F97 /* Avatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F19BDEACACDBD227ACFB2CF /* Avatar.swift */; };
 		BB41C7AC7F18364DD6666B19 /* CoverFramingMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5424CB76AAB02D8065242B5 /* CoverFramingMathTests.swift */; };
 		BB9D75DA550C665E11C0EF57 /* EnrollmentSelectAccessScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 274A2D7DED7E16B6480EA173 /* EnrollmentSelectAccessScreen.swift */; };
@@ -700,6 +703,7 @@
 		F47F6C5CAC3C6AF6A5918F55 /* ActivityTypeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC9158A6A58A4861557AD41 /* ActivityTypeCard.swift */; };
 		F4B374CCE8305C35D475CF41 /* EnrollmentStatusRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48ED78C47738F74C6C13A3C /* EnrollmentStatusRow.swift */; };
 		F51FA0C1F10680AC1F9EBEB7 /* Palette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FF9734EBD998E39175131FA /* Palette.swift */; };
+		F5618A8A16376EE4C4A55049 /* EditCoverScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0406D3559DE79394B01FF97 /* EditCoverScreen.swift */; };
 		F590CFBCB4461FF6418A8970 /* SearchResultRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37DEE7E2D3EC2C399663CBEA /* SearchResultRow.swift */; };
 		F5BA2EE19407400020D7CACD /* NavTabButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8C3E909CB9BFE8D2732940 /* NavTabButton.swift */; };
 		F64F88868A3AAE5BF9173D09 /* StudyProgramHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A60640A82D674D2B06F8637 /* StudyProgramHomeScreen.swift */; };
@@ -1146,6 +1150,7 @@
 		C6E3CA9173B2C6F939B01782 /* GroupDetailHost.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GroupDetailHost.swift; path = Containers/Groups/GroupDetailHost.swift; sourceTree = "<group>"; };
 		C8317984007B14F8F31FC56D /* TaskDisc.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskDisc.swift; sourceTree = "<group>"; };
 		C91B1CE3E660CE68CA31F598 /* AISuggestionsBlock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AISuggestionsBlock.swift; sourceTree = "<group>"; };
+		C96FFB99B33BBCE3586DFDF3 /* EditGroupCoverContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditGroupCoverContainer.swift; path = Containers/Groups/EditGroupCoverContainer.swift; sourceTree = "<group>"; };
 		CACHIMG0002000000000001 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		CAL_BAR00000000000001 /* CalendarBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBottomBar.swift; sourceTree = "<group>"; };
 		CAL_CTL00000000000001 /* SplitMonthCalendarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitMonthCalendarController.swift; sourceTree = "<group>"; };
@@ -1280,6 +1285,7 @@
 		FDE2917CCA2C5196A802AAF6 /* EnrollmentSelectScheduleScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnrollmentSelectScheduleScreen.swift; path = Screens/Groups/EnrollmentSelectScheduleScreen.swift; sourceTree = "<group>"; };
 		FDE294872DE18CB5A3638502 /* ClearSearchButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClearSearchButton.swift; sourceTree = "<group>"; };
 		FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExtractedModels.swift; sourceTree = "<group>"; };
+		FE95BB06F91242BBE4E016DB /* EditGroupCoverContainerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EditGroupCoverContainerTests.swift; sourceTree = "<group>"; };
 		FF04F853C6A69D8FD9C1187A /* EnvironmentActions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnvironmentActions.swift; sourceTree = "<group>"; };
 		FF676E78A8861B4738753BFC /* DeviceChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceChrome.swift; sourceTree = "<group>"; };
 		FF91998459107B43365D9BCA /* GroupsHomeMapperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupsHomeMapperTests.swift; sourceTree = "<group>"; };
@@ -1534,6 +1540,7 @@
 				064C8DCC17A0C8C7EDBD17C8 /* CoverImageRendering.swift */,
 				F3595FBA02E83857322B3165 /* EditGroupCoverModel.swift */,
 				F4202E6AAA3D1D4C9BB6A6CB /* CoverViewerOverlay.swift */,
+				C96FFB99B33BBCE3586DFDF3 /* EditGroupCoverContainer.swift */,
 			);
 			name = UI2;
 			path = UI2;
@@ -1825,6 +1832,7 @@
 				ECC122F1DF8104431B5F2D50 /* CoverImageRenderingTests.swift */,
 				CB2758E269C6EA69687DBC4A /* EditGroupCoverModelTests.swift */,
 				8EE481F1AC2B3A858A3233D2 /* CoverViewerOverlayTests.swift */,
+				FE95BB06F91242BBE4E016DB /* EditGroupCoverContainerTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -2925,6 +2933,7 @@
 				6E331DF8F4D427344062E2CB /* CoverImageRenderingTests.swift in Sources */,
 				16E38BF59573823824FB68D7 /* EditGroupCoverModelTests.swift in Sources */,
 				A37338EFFB96EA601085C205 /* CoverViewerOverlayTests.swift in Sources */,
+				BA1D7D635B4D73BE6D3CEB8A /* EditGroupCoverContainerTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3203,6 +3212,7 @@
 				6E23F295562D525FC33720AF /* EditGroupCoverModel.swift in Sources */,
 				501336B63802C46DBB73CFA8 /* CoverViewerOverlay.swift in Sources */,
 				3A9E70CAB81F32A08A8BC672 /* EditCoverScreen.swift in Sources */,
+				573FFD8A31B2D0305F085FE5 /* EditGroupCoverContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3630,6 +3640,8 @@
 				13EAD0CEED8DAD75F2AD74BF /* CoverImageRendering.swift in Sources */,
 				8C8653A37D21D38573554F9D /* EditGroupCoverModel.swift in Sources */,
 				E26D816429141F4BB24833C7 /* CoverViewerOverlay.swift in Sources */,
+				F5618A8A16376EE4C4A55049 /* EditCoverScreen.swift in Sources */,
+				16E7595283CE08C6466C584D /* EditGroupCoverContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
