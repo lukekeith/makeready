@@ -59,3 +59,17 @@ final class InviteSelectGroupMapperTests: XCTestCase {
         XCTAssertTrue(out.state.failed)
     }
 }
+
+@MainActor
+final class InviteSelectGroupEnrollmentLoadTests: XCTestCase {
+    func testLoadsOnlyGroupsWithoutCachedEnrollments() async {
+        StatePersistence.shared.clear()
+        let state = AppState()
+        state.groupEnrollmentIndex.add(parentId: "g1", childId: "e1")
+        let api = StubAPIClient()
+        api.stub("GET", "/api/groups/g2/enrollments", json: #"{"success":true,"enrollments":[]}"#)
+        await InviteSelectGroupContainer.loadEnrollmentCounts(for: ["g1", "g2"], state: state, api: api)
+        XCTAssertEqual(api.callCount("GET", "/api/groups/g1/enrollments"), 0)
+        XCTAssertEqual(api.callCount("GET", "/api/groups/g2/enrollments"), 1)
+    }
+}

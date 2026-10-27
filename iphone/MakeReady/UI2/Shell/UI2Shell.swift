@@ -144,7 +144,7 @@ struct UI2Shell: View {
         switch destination {
         case let .memberDetail(id, name): MemberDetailHost(id: id, name: name)
         case let .editMemberField(memberId, field): MemberFieldEditContainer(memberId: memberId, field: field)  // ui2-members-edit D2
-        case .inviteSelectGroup: EmptyPage()      // invite-member: InviteSelectGroupContainer (Task 10)
+        case let .inviteSelectGroup(returnDepth): InviteSelectGroupContainer(returnDepth: returnDepth)  // invite-member D3
         case .inviteMember: EmptyPage()           // invite-member: InviteMemberContainer (Task 11)
         }
     }
