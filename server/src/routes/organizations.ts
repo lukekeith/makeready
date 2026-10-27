@@ -652,6 +652,27 @@ router.patch(
   }
 )
 
+const uuidSchema = z.string().uuid()
+
+/**
+ * filter-multiselect D11: `a,b` or the repeated `x=a&x=b` (Express parses that to an array) →
+ * distinct, trimmed ids. Absent, or nothing left after dropping empties → undefined (no filter,
+ * never `in: []`). Any other shape, or an id that is not a uuid → 'invalid' (400).
+ */
+function parseIdList(value: unknown): string[] | undefined | 'invalid' {
+  if (value === undefined) return undefined
+  const parts =
+    typeof value === 'string'
+      ? [value]
+      : Array.isArray(value) && value.every((p) => typeof p === 'string')
+        ? (value as string[])
+        : null
+  if (parts === null) return 'invalid'
+  const ids = [...new Set(parts.flatMap((p) => p.split(',')).map((p) => p.trim()).filter((p) => p.length > 0))]
+  if (ids.length === 0) return undefined
+  return ids.every((id) => uuidSchema.safeParse(id).success) ? ids : 'invalid'
+}
+
 /**
  * @openapi
  * /api/organizations/{organizationId}/members:
@@ -696,6 +717,18 @@ router.patch(
  *         schema:
  *           type: string
  *         description: A User.id from /api/group-leaders — only members of groups that user created
+ *       - in: query
+ *         name: groupIds
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: filter-multiselect — comma-separated group uuids (or repeated groupIds=…); members active in ANY of them. AND'd with leaderIds. A group-scoped caller's out-of-scope ids are dropped; empty result if none remain. 400 on a non-uuid.
+ *       - in: query
+ *         name: leaderIds
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: filter-multiselect — comma-separated User uuids (or repeated leaderIds=…); members of groups created by ANY of them. 400 on a non-uuid.
  *     responses:
  *       200:
  *         description: Organization members retrieved successfully
@@ -737,6 +770,12 @@ router.patch(
  *                   createdAt: "2024-01-16T08:00:00.000Z"
  *                   updatedAt: "2024-01-16T08:00:00.000Z"
  *               count: 2
+ *       400:
+ *         description: groupIds or leaderIds is not a list of uuids
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  *       401:
  *         description: Not authenticated
  *         content:
@@ -774,11 +813,34 @@ router.get(
       const { organizationId } = req.params
       const userId = (req.user as { id: string }).id // requirePermission has already 401'd a missing user
       const text = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : undefined)
+      const isUuid = (v: string | undefined): v is string => v !== undefined && uuidSchema.safeParse(v).success
+
+      let groupId = text(req.query.groupId)
+      let leaderId = text(req.query.leaderId)
+      let groupIds = parseIdList(req.query.groupIds)
+      let leaderIds = parseIdList(req.query.leaderIds)
+      if (groupIds === 'invalid' || leaderIds === 'invalid') {
+        return res.status(400).json({
+          success: false,
+          error: 'groupIds and leaderIds must be comma-separated uuids',
+        })
+      }
+      // D6: a uuid single param joins its list; a non-uuid one keeps today's no-match meaning.
+      if (groupIds && isUuid(groupId)) {
+        groupIds = [...new Set([groupId, ...groupIds])]
+        groupId = undefined
+      }
+      if (leaderIds && isUuid(leaderId)) {
+        leaderIds = [...new Set([leaderId, ...leaderIds])]
+        leaderId = undefined
+      }
 
       const result = await getOrganizationMembers(organizationId, userId, {
         search: text(req.query.search),
-        groupId: text(req.query.groupId),
-        leaderId: text(req.query.leaderId),
+        groupId,
+        leaderId,
+        groupIds,
+        leaderIds,
         includeInactive: req.query.includeInactive === 'true',
       })
 
