@@ -176,4 +176,28 @@ final class UI2ShellModelTests: XCTestCase {
         m.popTo(depth: -1, on: .calendar)                               // never negative
         XCTAssertEqual(m.path(for: .calendar), [])
     }
+
+
+    // MARK: - ui2-groups-browse D8 / T17: the guarded replace
+
+    /// D8: one path write — the top entry becomes the new page; back returns to what was below.
+    func testReplaceTopSwapsOnlyTheLastEntry() {
+        var m = UI2ShellModel()
+        m.push(tony, on: .home)
+        m.push(editPhone, on: .home)
+        m.replaceTop(editPhone, with: .memberDetail(id: "m2", name: "Clark Kent"), on: .home)
+        XCTAssertEqual(m.path(for: .home), [tony, .memberDetail(id: "m2", name: "Clark Kent")])
+    }
+
+    /// D8: swiped back mid-create (the form is no longer on top) → nothing is written.
+    func testReplaceTopIsANoOpWhenTheExpectedPageIsNotOnTop() {
+        var m = UI2ShellModel()
+        m.push(tony, on: .home)
+        m.push(editPhone, on: .home)
+        m.setPath([tony], for: .home)                                    // the system edge-swipe pop
+        m.replaceTop(editPhone, with: .memberDetail(id: "m2", name: "Clark Kent"), on: .home)
+        XCTAssertEqual(m.path(for: .home), [tony])
+        m.replaceTop(editPhone, with: tony, on: .profile)                // empty tab: no-op
+        XCTAssertEqual(m.path(for: .profile), [])
+    }
 }

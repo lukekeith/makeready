@@ -126,7 +126,8 @@ struct UI2Shell: View {
             pop: { model.pop(on: tab) },
             popIfTop: { model.popIfTop($0, on: tab) },
             popTo: { model.popTo(depth: $0, on: tab) },
-            depth: { model.path(for: tab).count }
+            depth: { model.path(for: tab).count },
+            replaceTop: { model.replaceTop($0, with: $1, on: tab) }
         ))
         // dashboard-chart-intros D15: the dashboard resets its intros while hidden, replays on return.
         .environment(\.chartIntroActive, model.homeActive)

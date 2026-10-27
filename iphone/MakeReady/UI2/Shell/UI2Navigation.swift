@@ -12,6 +12,9 @@ struct UI2Navigator {
     var popTo: (Int) -> Void = { _ in }
     /// invite-member D11: the stack's current depth (the entry depth a flow returns to).
     var depth: () -> Int = { 0 }
+    /// ui2-groups-browse D8: replace the top entry (first) with a new page (second) — a no-op
+    /// unless the first is still on top.
+    var replaceTop: (UI2Destination, UI2Destination) -> Void = { _, _ in }
 }
 
 private struct UI2NavigatorKey: EnvironmentKey {

@@ -65,6 +65,15 @@ struct UI2ShellModel {
         pop(on: tab)
     }
 
+    /// ui2-groups-browse D8: the create form's success — `next` replaces `expected` in ONE path
+    /// write, only while `expected` is still the tab's last entry (as `popIfTop`), so a swipe-back
+    /// or a Home re-tap mid-create writes nothing. Back from `next` returns to what was below.
+    mutating func replaceTop(_ expected: UI2Destination, with next: UI2Destination, on tab: TabBar.Tab) {
+        guard var path = paths[tab], path.last == expected else { return }
+        path[path.count - 1] = next
+        paths[tab] = path
+    }
+
     /// invite-member D11: Cancel / Done pop the whole flow back to the page "+" was tapped on.
     mutating func popTo(depth: Int, on tab: TabBar.Tab) {
         let path = path(for: tab)
