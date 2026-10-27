@@ -101,6 +101,31 @@ describe('getOrganizationMembers — Owner/Admin (all)', () => {
     await getOrganizationMembers(ORG, 'owner-1', { groupId: 'g-other-org' })
     expect(prismaMock.memberOrganization.findMany.mock.calls[0][0].where.member.AND).toContainEqual(activeIn({ id: 'g-other-org' }))
   })
+
+  it('ORs within groupIds and leaderIds and ANDs across them (filter-multiselect D5)', async () => {
+    await getOrganizationMembers(ORG, 'owner-1', { groupIds: ['g1', 'g2'], leaderIds: ['u1', 'u2'] })
+    expect(prismaMock.memberOrganization.findMany.mock.calls[0][0].where).toEqual({
+      organizationId: ORG,
+      member: {
+        AND: [{ isActive: true }, activeIn({ id: { in: ['g1', 'g2'] } }), activeIn({ creatorId: { in: ['u1', 'u2'] } })],
+      },
+    })
+  })
+
+  it('treats empty lists as no filter (D6)', async () => {
+    await getOrganizationMembers(ORG, 'owner-1', { groupIds: [], leaderIds: [] })
+    expect(prismaMock.memberOrganization.findMany.mock.calls[0][0].where).toEqual({
+      organizationId: ORG,
+      member: { AND: [{ isActive: true }] },
+    })
+  })
+
+  it('lets the org constraint empty another org’s group in a list', async () => {
+    await getOrganizationMembers(ORG, 'owner-1', { groupIds: ['g-other-org'] })
+    expect(prismaMock.memberOrganization.findMany.mock.calls[0][0].where.member.AND).toContainEqual(
+      activeIn({ id: { in: ['g-other-org'] } })
+    )
+  })
 })
 
 describe('getOrganizationMembers — narrowed leader (D7, D15)', () => {
@@ -135,6 +160,30 @@ describe('getOrganizationMembers — narrowed leader (D7, D15)', () => {
     vi.mocked(memberAccessScope).mockResolvedValue({ all: false, groupIds: [] })
     const result = await getOrganizationMembers(ORG, 'gl')
     expect(result).toEqual({ success: true, data: [], viewerScope: { all: false, groupIds: [] } })
+    expect(prismaMock.memberOrganization.findMany).not.toHaveBeenCalled()
+  })
+
+  it('drops out-of-scope ids from the lists and keeps the rest (filter-multiselect D7)', async () => {
+    await getOrganizationMembers(ORG, 'gl', { groupIds: ['g-led', 'g-foreign'], leaderIds: ['gl', 'other-leader'] })
+    expect(prismaMock.memberOrganization.findMany.mock.calls[0][0].where).toEqual({
+      organizationId: ORG,
+      member: {
+        AND: [
+          { isActive: true },
+          activeIn({ id: { in: ['g-led'] } }),
+          activeIn({ creatorId: { in: ['gl'] } }),
+          activeIn({ id: { in: ['g-led'] } }),
+        ],
+      },
+    })
+  })
+
+  it.each([
+    ['only out-of-scope groups', { groupIds: ['g-foreign'] }],
+    ['only other leaders', { leaderIds: ['other-leader'] }],
+  ])('answers a list of %s with an empty list, without querying (D7)', async (_label, options) => {
+    const result = await getOrganizationMembers(ORG, 'gl', options)
+    expect(result).toEqual({ success: true, data: [], viewerScope: { all: false, groupIds: ['g-led'] } })
     expect(prismaMock.memberOrganization.findMany).not.toHaveBeenCalled()
   })
 })
