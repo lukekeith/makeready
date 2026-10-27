@@ -12,6 +12,13 @@ import { isSuperAdmin, groupManageFilter, findManageableGroup } from '../service
 import { getGroupHistory } from '../services/group-history.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { resolveUserOrganizationId } from '../services/organization.js'
+import {
+  AGE_RANGE_INVERTED_MESSAGE,
+  DIRECTORY_CONFLICT_MESSAGE,
+  type DirectoryAccess,
+  directoryWrite,
+  isAgeRangeInverted,
+} from '../services/group-fields.js'
 
 const router = Router()
 
@@ -1011,6 +1018,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
       // Maps to the memberDirectoryEnabled column. Both apps have always sent
       // this key; before 2026-07-04 it was silently stripped by this schema.
       memberDirectory: z.boolean().optional(),
+      // ui2-groups-edit D7: the three-state directory access; the Boolean follows it.
+      memberDirectoryAccess: z.enum(['ALLOWED', 'NAMES_ONLY', 'NOT_ALLOWED']).optional(),
       welcomeMessage: z.string().max(1000).optional().nullable(),
       ageRange: z
         .object({
@@ -1024,6 +1033,11 @@ router.patch('/:id', requireAuth, async (req, res) => {
     })
 
     const body = schema.parse(req.body)
+
+    // ui2-groups-edit D8: an inverted range is rejected before anything is read or written.
+    if (isAgeRangeInverted(body.ageRange)) {
+      return res.status(400).json({ success: false, error: AGE_RANGE_INVERTED_MESSAGE })
+    }
 
     // Creator, the group org's owner/role-holders, or a super admin may update.
     const existingGroup = await prisma.group.findFirst({
@@ -1041,10 +1055,18 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (body.coverImageUrl !== undefined) updateData.coverImageUrl = body.coverImageUrl
     if (body.isPrivate !== undefined) updateData.isPrivate = body.isPrivate
     if (body.allowInvites !== undefined) updateData.allowInvites = body.allowInvites
-    if (body.memberDirectory !== undefined) updateData.memberDirectoryEnabled = body.memberDirectory
-    // ui2-groups-browse D11: a Boolean-only write sets the enum to match (child 2 adds the enum write).
-    if (body.memberDirectory !== undefined) {
-      updateData.memberDirectoryAccess = body.memberDirectory ? 'ALLOWED' : 'NOT_ALLOWED'
+    // ui2-groups-edit D7 + D12: the enum and the Boolean move together; a Boolean-only `false`
+    // keeps a stored NAMES_ONLY (LeaderApp and iPhone 1.0 send `memberDirectory` on every save).
+    const directory = directoryWrite(
+      { memberDirectory: body.memberDirectory, memberDirectoryAccess: body.memberDirectoryAccess },
+      existingGroup.memberDirectoryAccess as DirectoryAccess
+    )
+    if (directory === 'conflict') {
+      return res.status(400).json({ success: false, error: DIRECTORY_CONFLICT_MESSAGE })
+    }
+    if (directory) {
+      updateData.memberDirectoryAccess = directory.memberDirectoryAccess
+      updateData.memberDirectoryEnabled = directory.memberDirectoryEnabled
     }
     if (body.welcomeMessage !== undefined) updateData.welcomeMessage = body.welcomeMessage
     if (body.ageRange !== undefined) {
