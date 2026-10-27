@@ -1,4 +1,5 @@
 # ui2-groups-browse — spec
+> 🤖 AGENT SIGNED OFF 2026-10-27 — 464e654 · agent walk round 2 · not human-tested · evidence: .builder/ui2-groups-browse/agent-walk/round-2/
 > lg · child 1 of program `ui2-groups` (docs/features/ui2-groups/PROGRAM.md)
 
 ## Idea
@@ -251,27 +252,6 @@ SC2; detail leader name SC3; directory access SC1; lesson title + slide images S
 timeline SC4/SC7) · 0 RENAME · 0 DESIGN-ONLY. State that outlives the app: none new — filter selections and
 search are screen `@State` (as Members, `MembersHomeContainer.swift:13`), the per-group stores in-memory (T14).
 No owner notes on the three screens (`ui2-notes.mjs read`, 2026-10-27).
-
-## Plan
-
-The plan, with its code: `docs/features/ui2-groups-browse/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · DirectoryAccess enum + Group.memberDirectoryAccess (SC1)
-- Phase 1 · Task 2 · groups payloads — org fields, creatorName, memberDirectoryAccess, D11 sync, cover trackActivity
-- Phase 2 · Task 3 · group history service + GET /api/groups/:id/history (SC4)
-- Phase 2 · Task 4 · next-study title, versionId, thumbnailUrl (SC5)
-- Phase 2 · Task 5 · /api/home/days groupId (SC6)
-- Phase 2 · Task 6 · scope GET group members + membership-history (D9)
-- Phase 3 · Task 7 · fixtures — empty group, groups-home / groups-detail / create-group layers; contract freeze
-- Phase 4 · Task 8 · decode models — UserGroup fields, NextStudy, GroupHistoryEvent
-- Phase 4 · Task 9 · AppState group stores + myOrganizations
-- Phase 4 · Task 10 · GroupActions loaders — next study, history, days, chart, my organizations
-- Phase 5 · Task 11 · MakeReadyUI screen edits (D2, D22, D27)
-- Phase 5 · Task 12 · GroupsHomeMapper + GroupsHomeContainer
-- Phase 5 · Task 13 · UI2Navigator.replaceTop + CreateGroupContainer
-- Phase 6 · Task 14 · GroupDetailMapper
-- Phase 6 · Task 15 · GroupDetailContainer + GroupDetailHost
-- Phase 6 · Task 16 · shell wiring + members-profile group row + residual sweep
 
 ## Prototype
 
