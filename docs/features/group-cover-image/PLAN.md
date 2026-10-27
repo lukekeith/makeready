@@ -46,7 +46,9 @@
 | 2 | server | 3–4 | the cover upload takes framing + original per D10/D11, clears on legacy bodies and PATCH (D9), captures per D18, deletes old originals (D19); the contract freezes | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` |
 | 3 | iphone | 5–6 | `UserGroup` carries the two fields (old caches still decode) and `GroupActions.saveCover` uploads and patches `AppState` | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 | 4 | iphone | 7–9 | the framing math (D5), the 1200×529 render (D12), the ≤2400px upright pick (D3) and the Edit cover model (D6/D7/D13) exist and are tested | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
-| 5 | iphone | 10–12 | the viewer (D8), the Edit cover page wired to the d2m screen (D4), and the cover tap → picker / C-066 menu on the group page (D1/D2) | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
+| 5 | iphone | 10 | the viewer (D8) | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
+| 6 | server | 13 | the cover upload accepts D21's `flipped` + `quarterTurns`; the contract re-freezes | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` |
+| 7 | iphone | 14, 11, 12 | framing/render/model reworked for D20–D26, then Edit cover wired to the d2m screen (D22) and the cover tap (D1/D2) | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 
 ---
 
@@ -2045,8 +2047,10 @@ If `Token.Motion.menuFadeOut` is not an `Animation`, use the motion token the C-
 
 ### Task 11: Edit cover page — wire the d2m-built screen to `EditGroupCoverModel`, route `.editGroupCover`
 App: iphone
-Phase: 5
-Recipe: `/push-page` · `/ios-error-surface` · SPEC D4, D5, D6, D7, D13 · ⚠ build-time risk F1
+Phase: 7
+Recipe: `/push-page` · `/ios-error-surface` · SPEC D4, D5, D6, D7, D13, D20–D27 · ⚠ build-time risk F1
+
+> **Revised 2026-10-27 (D20–D27):** Phase 7, after Task 14. The d2m screen is now Edit cover from Figma **4729:53712** (F1's first-step grep: `4729:53712\|Edit cover`). Chrome per D22: the C-040 header's leading **Cancel** (D26: with a change → C-066 "Discard changes" + Done; none → pop) and trailing **Done** (= save, D13); **no bottom Save/Cancel**. Wire Flip / Rotate 90° / Auto (D22, D23 — Auto disabled when Task 14's `horizonAngle` is nil) to the model; the canvas draws D24's readout, grid and dimmed overflow and D25's rubber-band. The frame is **16:9** (`CoverFramingMath.frameAspect` after Task 14) — every `408:180` / `408 / frameAspect` line below reads as 16:9. Add tests: `route` unchanged; `cancelAction(hasChanges:) -> .confirmDiscard | .pop`.
 
 > **⚠ build-time risk (F1):** Edit cover (Figma 4724:53609, title "Edit cover") must already be specced and built in d2m by the owner. **First step:** find it — `grep -rl "4724:53609\|Edit cover" iphone/MakeReadyUI docs/ui2/screens`. Expected under `iphone/MakeReadyUI/Screens/Groups/` (the `GroupsDetailScreen.swift` naming pattern). **If it does not exist, STOP and report BLOCKED citing F1** — do not write the screen yourself (D4: the build wires it and never writes it); under `--agent-walk` the run parks as a human step: "the owner runs the d2m screen spec + build for Edit cover (Figma 4724:53609), then /builder:agent". Tasks 5–10 stay committed.
 >
@@ -2249,8 +2253,11 @@ The canvas's on-screen frame may differ from `model.frameSize` (the d2m frame wi
 
 ### Task 12: The cover tap on the group page — picker, C-066 menu, viewer (D1/D2/D3/D8)
 App: iphone
-Phase: 5
+Phase: 7
 Recipe: `/present-overlay` · SPEC D1, D2, D3, D8 · F3, F5, F7
+
+> **Revised 2026-10-27 (D20):** the cover C-087 is 16:9 once `/ui2-component-update C-087` lands (F11); this task's tap target is whatever C-087 draws — no size literal here.
+
 
 > **F5 build-time risk:** the menu uses glyphs `upload` / `edit` / `eye` (existing `GlyphName` cases, `Glyph.swift:86,88,207`). If the Figma menu frame for this feature draws different glyphs, do not draw one: note it in your report for `/ui2-component-update C-066`.
 > **F3:** `onCoverTap` on `GroupsDetailScreen` and the `onHidden` hook on `.actionMenuPresentation` are MakeReadyUI edits outside d2m — list both in your report so they are routed to `/ui2-resolve` after the build.
@@ -2451,3 +2458,38 @@ Run `/transition-review` over the diff (it touches a presentation) before commit
 - [ ] **Step 6: Run the tests and watch them pass** — `npm run ios:build-check -- --test` → PASS (the new tests, `GroupsScreensEditTests`, `GroupDetailContainerTests`, the ViewRegistry capture case still compiling); swiftlint from `iphone/` → no new violations
 
 - [ ] **Step 7: Commit** — `feat(group-cover-image): cover tap → picker / Change · Edit · View menu / viewer (D1–D3, D8)`
+
+---
+
+### Task 13: Cover framing gains `flipped` + `quarterTurns` (D21) — and the contract re-freezes
+App: server
+Phase: 6
+Recipe: SPEC D21, D10 · §Contract (reopened 2026-10-27)
+
+**Files:**
+- Modify: the framing zod schema in `server/src/services/group-cover.ts` (D17's service) and its OpenAPI block in `server/src/routes/groups.ts`
+- Test: the existing group-cover service/route test file
+
+- [ ] **Step 1: Failing tests** — (a) a body with `framing:{scale:1.2, rotation:-4, offsetX:0.1, offsetY:0, flipped:true, quarterTurns:3}` stores all six keys and returns them; (b) a D11-shaped framing (no new keys) stores `flipped:false, quarterTurns:0`; (c) `quarterTurns:4`, `quarterTurns:-1`, `quarterTurns:1.5`, `flipped:"yes"` → 400; (d) `rotation:46` → 400 (fine angle now −45…45, D21); (e) an unknown key still → 400 (`.strict()`).
+- [ ] **Step 2: Run, watch them fail** — `cd server && npm run test:run -- group-cover`
+- [ ] **Step 3: Implement** — extend the schema: `flipped: z.boolean().default(false)`, `quarterTurns: z.number().int().min(0).max(3).default(0)`, `rotation: z.number().finite().min(-45).max(45)`; persist the parsed (defaulted) object; payloads already pass `coverFraming` through `toGroupPayload`.
+- [ ] **Step 4: Run, watch them pass**; phase gates green.
+- [ ] **Step 5: Commit** — `feat(group-cover-image): framing flipped + quarterTurns (D21)`; then the manifest `contract: frozen <date>`.
+
+### Task 14: Framing math, render and model for D20–D26 (owed rework on Tasks 5, 7, 8, 9)
+App: iphone
+Phase: 7
+Recipe: SPEC D20–D26 · Task 7/8/9's files (complete — this block changes them, it does not rewrite their task text)
+
+**Files:**
+- Modify: `CoverFraming` (Task 5) — `flipped: Bool = false`, `quarterTurns: Int = 0` decoded with `decodeIfPresent`, encoded always
+- Modify: `CoverFramingMath` (Task 7) — `frameAspect = 16.0/9.0`; the zoom floor and pan clamp use the image's bounding size after `quarterTurns` (odd turns swap width/height) and the fine `rotation`; flip mirrors the x offset; `rubberBand(_ excess: CGFloat) -> CGFloat` (× 0.3) and `settle(_ framing:) -> CoverFraming` (nearest covering framing)
+- Modify: `CoverImageRendering` (Task 8) — 1200×675; apply flip, then quarter turns, then rotation, then scale/offset
+- Modify: `EditGroupCoverModel` (Task 9) — `flip()`, `rotate90()` (counter-clockwise: `quarterTurns = (q + 1) % 4`, re-apply floor), `auto()` / `horizonAngle: Double?` (D23, `VNDetectHorizonRequest` run once on open, off the main actor), `hasChanges`, `isTwisting` + `readoutDegrees` (D24), `isGestureActive` (grid), gesture end → `settle` (D25)
+- Test: the Task 7/8/9 test files
+
+- [ ] **Step 1: Failing tests** — floor at 16:9 for a 4:3 and a 3:4 image at quarterTurns 0 and 1 (odd turns swap); flip mirrors offsetX and keeps coverage; rotate90 four times returns to identity; render output is exactly 1200×675; a framing rendered with `flipped:true` equals the mirrored render of `flipped:false` (pixel probe at two points); `rubberBand(100) == 30`; `settle` of an over-panned framing covers the frame; `hasChanges` false on open of a stored cover, true after any change and always true for a new pick; `CoverFraming` decodes a D11-shaped JSON with defaults.
+- [ ] **Step 2: Run, watch them fail** — `npm run ios:build-check -- --test`
+- [ ] **Step 3: Implement** per the Files list; keep D5's ±3° snap on the fine rotation only.
+- [ ] **Step 4: Run, watch them pass**; phase gates green.
+- [ ] **Step 5: Commit** — `feat(group-cover-image): 16:9 framing with flip, quarter turns, auto and rubber-band (D20–D26)`
