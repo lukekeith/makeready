@@ -8,15 +8,22 @@ enum InviteSelectGroupMapper {
         var groups: [UserGroup]
         var enrollmentCounts: [String: Int]
         var query: String
-        var leader: String?
+        /// filter-multiselect D13: the picked creators' `User.id`s; [] = every group.
+        var leaderIds: Set<String>
         var loading: Bool
         var failed: Bool
+    }
+
+    /// D13: one Leaders option — the creator's id and the name C-036 shows.
+    struct LeaderOption: Equatable {
+        let id: String
+        let label: String
     }
 
     struct Output {
         var state: EnrollmentSelectGroupScreen.State
         var groupIds: [String]
-        var leaderOptions: [String]
+        var leaderOptions: [LeaderOption]
     }
 
     static let restingLeaderLabel = "Leaders"
@@ -26,15 +33,24 @@ enum InviteSelectGroupMapper {
         let query = input.query.trimmingCharacters(in: .whitespacesAndNewlines)
         let rows = input.groups
             .filter { query.isEmpty || $0.name.localizedCaseInsensitiveContains(query) }
-            .filter { input.leader == nil || $0.creatorName == input.leader }
+            .filter { input.leaderIds.isEmpty || input.leaderIds.contains($0.creatorId) }   // D5: any of
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
-        let leaderOptions = Set(input.groups.compactMap { $0.creatorName }.filter { !$0.isEmpty })
-            .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
+        var seen = Set<String>()
+        let leaderOptions = input.groups
+            .compactMap { g -> LeaderOption? in
+                guard let name = g.creatorName, !name.isEmpty, seen.insert(g.creatorId).inserted else { return nil }
+                return LeaderOption(id: g.creatorId, label: name)
+            }
+            .sorted {
+                let byName = $0.label.localizedCaseInsensitiveCompare($1.label)
+                return byName == .orderedSame ? $0.id < $1.id : byName == .orderedAscending
+            }
+        let picked = leaderOptions.filter { input.leaderIds.contains($0.id) }.map(\.label)
         let state = EnrollmentSelectGroupScreen.State(
             searchText: input.query,
             orgFilterVisible: false,
             orgFilterLabel: restingOrgLabel,
-            leaderFilterLabel: input.leader ?? restingLeaderLabel,
+            leaderFilterLabel: FilterMenuOverlay.chipLabel(picked: picked, resting: restingLeaderLabel, noun: "leaders"),
             groupNames: rows.map(\.name),
             groupPhotoURLs: rows.map { $0.coverImageUrl ?? "" },
             groupLeaderNames: rows.map { $0.creatorName ?? "" },
