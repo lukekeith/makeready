@@ -103,6 +103,8 @@ the released callers. `memberDirectory` keeps its meaning on every read and writ
 | D17 | Next lesson (P7) | `GET /api/groups/:id/next-study` adds `study.title` (`LessonSchedule.title`, null-safe) and per activity `thumbnailUrl` (YouTube/video thumbnail when the activity has one, else the first image of a READ activity, else null). Card: title = `title ?? "Day «dayNumber»"`; program line = program name; meta = "Today" / "Tomorrow" / weekday within 6 days / "MMM d"; slides = first 3 activities, image = `thumbnailUrl` (downloaded through `Ui2ImageCache`), label = activity title; 204 → section empty | Luke 2026-10-27 (fields) · (assumed at spec) 2026-10-27 (fallbacks) |
 | D18 | Members + requests display | Requests (C-089 `requested`): `GET /groups/:id/join-requests` pending, `recipient` = first + last name, `date` = `createdAt` per D16's date rule; above the members; not counted in "«N» members". Members: `GET /groups/:id/members` order (joinedAt desc), "Joined «label»" with ui2-members-browse D6's day-age labels. Enrollments: `GET /groups/:id/enrollments` order, title = `studyProgram.name`, description, cover, "enrolled «MMM d, yyyy»" of `createdAt`; header "«N» programs" | (assumed at spec) 2026-10-27 |
 | D19 | Fixtures (P15) | `server/fixtures/screens/groups-home.ts` and `groups-detail.ts` (+ `create-group.ts` empty layer if the registry requires one per screen): one fixture group gets 2 pending join requests, a next lesson tomorrow with 3 activities carrying thumbnails, ≥6 history items across all kinds, 30 days of scheduled lessons with partial completions and member sessions; one fixture group stays empty for the section-empty states | (assumed at spec) 2026-10-27 |
+| D20 | Groups-home leader short name (align) | OPEN — the built `GroupsHomeScreen` C-043 slot takes a short name ("L. Keith", `GroupsHomeScreen.swift:55`); `creatorName` is the full `User.name`. **Recommended:** the mapper formats `creatorName` as «first letter of the first word». «last word» when it has ≥2 words, the single word unchanged, "" when null; computed on the phone at render, the wire keeps the full name. Rejected: a server `creatorShortName` (a display rule on the wire); the full name (overflows the chip in the frame) | OPEN — align 2026-10-27 |
+| D21 | Activity chart query split (align, amends D13) | OPEN — D13's one query 400s: `scheduled_lessons` buckets by stored date and `lesson_completions` by event time, and `analytics.service.ts:538` refuses to mix them. **Recommended:** two `POST /api/analytics/query` calls, run concurrently, same `filters:{groupId}`, `dimensions:["day"]` and range — `["scheduled_lessons"]` and `["lesson_completions"]` — zero-filled and merged per day, exactly as Home does (`DashboardActions.swift:49,110`); either failing keeps the other series and records the error (D4). Rejected: a server-side combined metric (new engine surface for one chart) | OPEN — align 2026-10-27 |
 
 ## Contract
 
@@ -115,19 +117,20 @@ the released callers. `memberDirectory` keeps its meaning on every read and writ
 | `GET /api/groups/:id/next-study` (extended) | server | iphone | as today | — | existing + `study.title` (string\|null), `activities[].thumbnailUrl` (string\|null); 204 unchanged | 401 · 404 |
 | `GET /api/home/days` (+ `groupId`) | server | iphone | `requireAuth` + D14 | existing + `groupId?` | existing `{days:[…]}`, filtered per D14 | 400 · 401 · 404 |
 | `GET /api/groups/:groupId/members`, `/membership-history` (scoped) | server | iphone | `requireAuth` + `groupManageFilter` (D9) | unchanged | unchanged | 401 · 404 (new) |
-| `POST /api/analytics/query`, `GET /groups/:id/join-requests`, `GET /groups/:id/enrollments`, `GET /api/group-leaders`, `GET /api/organizations/my/organizations` (unchanged) | server | iphone | existing | D13 / — | existing | existing |
+| `POST /api/analytics/query` ×2 (D21: `scheduled_lessons` alone, `lesson_completions` alone — they cannot share a query) | server | iphone | existing (`filtersWithinScope`, `analytics.ts:70`) | `{metrics:[one], dimensions:["day"], filters:{groupId}, timeRange}` | existing `rows` per day | 400 (mixed buckets) · 404 (group outside scope) |
+| `GET /groups/:id/join-requests`, `GET /groups/:id/enrollments`, `GET /api/group-leaders`, `GET /api/organizations/my/organizations` (unchanged) | server | iphone | existing | — | existing | existing |
 
 ## Schema & API changes
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Group.memberDirectoryAccess` (enum `DirectoryAccess`, NOT NULL, default `ALLOWED`) | `memberDirectoryAccess` on every group payload | groups-detail settings row "Member directory access" (three options, shared-edit-field §2b); P8 · D11 | planned |
-| SC2 | EDIT | groups list response | + `organizationId`, `organizationName` | groups-home Orgs chip; D10 | planned |
-| SC3 | EDIT | group detail / PATCH / create response | + `creatorName` | groups-detail "Group Leader" stat; D10 | planned |
-| SC4 | ADD | `GET /api/groups/:id/history` | §Contract | groups-detail Timeline; D15 | planned |
-| SC5 | EDIT | next-study response | + `study.title`, `activities[].thumbnailUrl` | groups-detail Lessons up next; D17 | planned |
-| SC6 | EDIT | `/api/home/days` `groupId` param | §Contract | groups-detail day rail series; D14 | planned |
-| SC7 | EDIT | cover-image upload | + `trackActivity` row | groups-detail Timeline "Updated cover photo"; D15 | planned |
+| SC1 | ADD | `Group.memberDirectoryAccess` (enum `DirectoryAccess`, NOT NULL, default `ALLOWED`) | `memberDirectoryAccess` on every group payload | groups-detail settings row "Member directory access" (three options, shared-edit-field §2b); P8 · D11 | planned · T1, T3 |
+| SC2 | EDIT | groups list response | + `organizationId`, `organizationName` | groups-home Orgs chip; D10 | planned · T2 |
+| SC3 | EDIT | group detail / PATCH / create response | + `creatorName` | groups-detail "Group Leader" stat; D10 | planned · T3 |
+| SC4 | ADD | `GET /api/groups/:id/history` | §Contract | groups-detail Timeline; D15 | planned · T4 |
+| SC5 | EDIT | next-study response | + `study.title`, `activities[].thumbnailUrl` | groups-detail Lessons up next; D17 | planned · T6 |
+| SC6 | EDIT | `/api/home/days` `groupId` param | §Contract | groups-detail day rail series; D14 | planned · T7 |
+| SC7 | EDIT | cover-image upload | + `trackActivity` row | groups-detail Timeline "Updated cover photo"; D15 | planned · T5 |
 
 **Data plan:** SC1 goes through `server/schema/*.yaml` → `schema:diff` → one Atlas migration (house
 rules): add the enum + column with default `ALLOWED`, then `UPDATE groups SET member_directory_access =
@@ -192,7 +195,36 @@ the enum; the Boolean is untouched throughout. SC2–SC7 are additive wire chang
 | F1 | d2m marks groups-detail `updateNeeded` (Figma ref re-added after the spec, 2026-10-27) | build-time risk — a d2m drift check before the iPhone phase (design owner); a drifted section goes through `/builder:revise` |
 | F2 | D9 adds 404s to two endpoints released 1.0 builds and the web may call without manage rights | audit lists every caller (`GroupActions.loadMembers`, web stores) and rules each |
 | F3 | D2 edits a MakeReadyUI screen (ui2-members-browse precedent) | route the change to `/ui2-resolve` after the build so d2m regenerates the same view |
-| F4 | `/api/analytics/query` future-day buckets for `scheduled_lessons` (D13 window ends today+3) are unverified | audit confirms; else the window ends today |
+| F4 | `/api/analytics/query` future-day buckets for `scheduled_lessons` (D13 window ends today+3) are unverified | settled at align: stored-date buckets read `lesson_schedules.scheduledDate`, and Home already queries them to today+7 (`DashboardActions.swift:44`) — the today+3 window stands |
+| F5 | D13 as written sends both metrics in one query, which the engine rejects with 400 (`analytics.service.ts:538`) | D21 (OPEN) — two queries, as Home |
+| F6 | `Activity.groupId` is set on every resource type in a group (posts, events…), so a history query on `groupId` alone would pull non-group rows into D15's GROUP kinds | T4 filters `resourceType = 'GROUP' AND resourceId = :id` |
+| F7 | `UserGroup` is disk-cached in the released app; the three new fields decode optional (`decodeIfPresent`), so an old cache and an old server both load. No RESHAPE on a cached field | T10 — decode test with each key absent |
+| T1 | server: `server/schema/*.yaml` enum `DirectoryAccess` + `Group.memberDirectoryAccess` → `schema:diff` migration with the D11 backfill (SC1) | blocking |
+| T2 | server: `GET /api/groups` adds `organizationId`, `organizationName` (include `organization {name}`), `memberDirectoryAccess` (SC1, SC2) | blocking |
+| T3 | server: detail, PATCH and create responses add `creatorName` + `memberDirectoryAccess`; create and Boolean-only PATCH write the enum (D11) (SC1, SC3) | blocking |
+| T4 | server: `services/group-history.ts` + `GET /api/groups/:id/history` — `MembershipEvent` by `groupId`, `Activity` by `resourceType 'GROUP'` + `resourceId`, past `Event` with `isActive` (D15, F6) (SC4) | blocking |
+| T5 | server: `POST /groups/:id/cover-image` calls `trackActivity` with `metadata {field:"cover"}` (SC7) | blocking |
+| T6 | server: next-study selects `title`, and per activity `thumbnailUrl` = `youtubeThumbnailUrl` ?? `video.thumbnailUrl` ?? the lowest-`orderNumber` `readBlocks.backgroundImageUrl` of a READ activity ?? null (D17) (SC5) | blocking |
+| T7 | server: `/api/home/days` `groupId` in `daysQuery` (z.object strips undeclared keys), the D14 check, `getHomeDays` `opts.groupId` → `loadSessions` member filter (SC6) | blocking |
+| T8 | server: D9 `groupManageFilter` checks on `group-members.ts:188/348` list and `:712` history | blocking |
+| T9 | server: fixture layers D19 | blocking |
+| T10 | iphone: `UserGroup` + `organizationId?`, `organizationName?`, `memberDirectoryAccess?` (optional decode, F7) | trailing |
+| T11 | iphone: `NextStudy` Codable struct (none exists today) + `GroupActions.loadNextStudy` (204 → nil) | trailing |
+| T12 | iphone: `GroupHistoryEvent` Codable struct + `GroupActions.loadHistory(limit: 5)` | trailing |
+| T13 | iphone: `GroupActions.loadGroupDays` (reuses `HomeDay`) and `loadGroupChart` (D21's two queries) | trailing |
+| T14 | iphone: `AppState` per-group stores (next study, history, days, chart) keyed by group id, in memory, cleared in `clearInMemory()` | trailing |
+| T15 | iphone: shell routes + `GroupsHomeContainer`/`GroupDetailHost`/`GroupDetailContainer`/`CreateGroupContainer` and their mappers (D1–D8, D12, D16, D18, D20) | trailing |
+| T16 | iphone: `GroupsHomeScreen` drops C-019 (D2); routed to `/ui2-resolve` (F3) | trailing |
+
+**Field alignment (2026-10-27).** 36 rendered fields traced model → zod → wire → `UserGroup`/Actions → screen
+`State`: **27 ALIGNED** (home: org options, leader options, name, cover, member count; detail: name, cover,
+created, description, visibility, age, max members, program name, lesson meta, slide labels, day lines 1–2,
+member name/photo/joined, request name/date, enrollment title/description/date/cover; create: name, 1–200 on
+both sides) · **2 RESHAPE** (home leader short name → D20; chart query → D21) · **7 MISSING** (org per group
+SC2; detail leader name SC3; directory access SC1; lesson title + slide images SC5; day series by group SC6;
+timeline SC4/SC7) · 0 RENAME · 0 DESIGN-ONLY. State that outlives the app: none new — filter selections and
+search are screen `@State` (as Members, `MembersHomeContainer.swift:13`), the per-group stores in-memory (T14).
+No owner notes on the three screens (`ui2-notes.mjs read`, 2026-10-27).
 
 ## Prototype
 

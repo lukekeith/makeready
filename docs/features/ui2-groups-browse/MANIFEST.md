@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: aligned
 next: /builder:resume --path docs/features/ui2-groups-browse
-head: 071c623
+head: ec819b5
 ticket: none
-branch: main
+branch: builder/ui2-groups-browse
 pr: none
 apps: server+iphone
 contract: open
@@ -17,3 +17,4 @@ ready: none
 ui2: groups-home, groups-detail, create-group (via program ui2-groups)
 auto: off
 blocked: none
+agent-walk: on 2026-10-27
