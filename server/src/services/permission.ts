@@ -328,6 +328,21 @@ export async function groupManageFilter(userId: string): Promise<Prisma.GroupWhe
 }
 
 /**
+ * The active group `groupId` when `userId` may manage it (`groupManageFilter`), else null — the
+ * 404 gate shared by the group history (ui2-groups-browse D15), `/api/home/days?groupId` (D14) and
+ * the group member list + membership history (D9).
+ */
+export async function findManageableGroup(
+  userId: string,
+  groupId: string
+): Promise<{ id: string; organizationId: string } | null> {
+  return prisma.group.findFirst({
+    where: { id: groupId, ...(await groupManageFilter(userId)), isActive: true },
+    select: { id: true, organizationId: true },
+  })
+}
+
+/**
  * Prisma where-fragment selecting the enrollments a user may MANAGE: ones they
  * created (`createdById`) OR ones whose group they can manage (group creator /
  * org owner / role-holder). Super admins match all enrollments (`{}`). Spread

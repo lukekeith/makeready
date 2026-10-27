@@ -8,7 +8,8 @@ import { uploadImageVariants } from '../services/storage.js'
 import { generateUniqueGroupCode, normalizeGroupCode } from '../lib/group-code.js'
 import { trackActivity } from '../services/activity.js'
 import { captureToLibrary } from '../services/media-library.js'
-import { isSuperAdmin, groupManageFilter } from '../services/permission.js'
+import { isSuperAdmin, groupManageFilter, findManageableGroup } from '../services/permission.js'
+import { getGroupHistory } from '../services/group-history.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { resolveUserOrganizationId } from '../services/organization.js'
 
@@ -625,6 +626,73 @@ router.get('/:id', requireAuth, async (req, res) => {
   } catch (error) {
     console.error('Error fetching group:', error)
     res.status(500).json({ success: false, error: 'Failed to fetch group' })
+  }
+})
+
+const historyQuery = z.object({ limit: z.coerce.number().int().min(1).max(50).default(20) })
+
+/**
+ * @openapi
+ * /api/groups/{id}/history:
+ *   get:
+ *     tags: [Groups]
+ *     summary: Group history feed
+ *     description: |
+ *       Newest-first merge of the group's membership events (joined / left / requested), its
+ *       GROUP activity rows (created, settings, cover) and its past non-lesson events
+ *       (ui2-groups-browse D15).
+ *     security:
+ *       - userSession: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+ *     responses:
+ *       200:
+ *         description: History events
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success: { type: boolean, example: true }
+ *                 events:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id: { type: string }
+ *                       occurredAt: { type: string, format: date-time }
+ *                       kind:
+ *                         type: string
+ *                         enum: [member_joined, member_left, join_requested, settings_updated, cover_updated, group_created, event_held]
+ *                       text: { type: string }
+ *                       highlight: { type: string, nullable: true }
+ *       400:
+ *         description: Invalid limit
+ *       404:
+ *         description: Group not found
+ */
+router.get('/:id/history', requireAuth, async (req, res) => {
+  try {
+    const parsed = historyQuery.safeParse(req.query)
+    if (!parsed.success) {
+      return res.status(400).json({ success: false, error: 'Invalid query', details: parsed.error.errors })
+    }
+    const userId = (req.user as any).id
+    if (!(await findManageableGroup(userId, req.params.id))) {
+      return res.status(404).json({ success: false, error: 'Group not found' })
+    }
+    const events = await getGroupHistory(req.params.id, parsed.data.limit)
+    res.json({ success: true, events })
+  } catch (error) {
+    console.error('Error fetching group history:', error)
+    res.status(500).json({ success: false, error: 'Failed to fetch group history' })
   }
 })
 
