@@ -121,10 +121,10 @@ avatars and the web; none of them change. Group cover storage and endpoints are 
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Member.profilePictureOriginalUrl` (text, null) | `profilePictureOriginalUrl` | Edit reopens the full photo; D5, D8 | pending |
-| SC2 | ADD | `Member.profilePictureFraming` (YAML `json`, null) | `profilePictureFraming` | Edit restores zoom/rotate/position/flip/turns; D8 | pending |
-| SC3 | EDIT | avatar upload body + response | D8 | framing + original in the same request; D8 | pending |
-| SC4 | EDIT | the four non-upload `profilePicture` writers (D11) | — | clear SC1/SC2 on a legacy avatar write; D11 | pending |
+| SC1 | ADD | `Member.profilePictureOriginalUrl` (text, null) | `profilePictureOriginalUrl` | Edit reopens the full photo; D5, D8 | landed 20261027231101 (8f15bda) |
+| SC2 | ADD | `Member.profilePictureFraming` (YAML `json`, null) | `profilePictureFraming` | Edit restores zoom/rotate/position/flip/turns; D8 | landed 20261027231101 (8f15bda) |
+| SC3 | EDIT | avatar upload body + response | D8 | framing + original in the same request; D8 | landed 6d11cfb (no migration) |
+| SC4 | EDIT | the four non-upload `profilePicture` writers (D11) | — | clear SC1/SC2 on a legacy avatar write; D11 | landed 8291c3f (no migration) |
 
 **Data plan:** SC1–SC2 are nullable adds through `server/schema/schema.yaml` (Member, `profilePicture` at :591) →
 `schema:diff` → one Atlas migration; no backfill — every member reads null and uses D5's fallback.
