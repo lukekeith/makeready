@@ -150,3 +150,30 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertNil(MembersProfileScreen.todayIndex([]))
     }
 }
+
+/// filter-multiselect D1/D4/D10: C-036's draft transition and chip summary.
+final class FilterMenuOverlayDraftTests: XCTestCase {
+    func testToggleAddsThenRemoves() {
+        var draft: Set<String> = ["a"]
+        draft = FilterMenuOverlay.toggled(draft, "b")
+        XCTAssertEqual(draft, ["a", "b"])
+        draft = FilterMenuOverlay.toggled(draft, "a")
+        XCTAssertEqual(draft, ["b"])
+    }
+
+    func testChipLabelForZeroOneAndMany() {
+        XCTAssertEqual(FilterMenuOverlay.chipLabel(picked: [], resting: "All Groups", noun: "groups"), "All Groups")
+        XCTAssertEqual(FilterMenuOverlay.chipLabel(picked: ["Youth"], resting: "All Groups", noun: "groups"), "Youth")
+        XCTAssertEqual(FilterMenuOverlay.chipLabel(picked: ["A", "B", "C"], resting: "All Leaders", noun: "leaders"), "3 leaders")
+    }
+
+    func testDraftModeBuildsWithSave() {
+        var saved: Set<String>?
+        let menu = FilterMenuOverlay(
+            options: [.init(id: "a", label: "A")], selectionMode: .multiple, selectedIDs: ["a"],
+            onSave: { saved = $0 }
+        )
+        menu.onSave?(["a"])
+        XCTAssertEqual(saved, ["a"])
+    }
+}

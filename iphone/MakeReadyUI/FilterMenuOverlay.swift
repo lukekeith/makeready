@@ -11,8 +11,9 @@
 //    it is a private sub-view drawn from C-036 §2's row anatomy — the disclosed fallback of
 //    R-15 that §5 names. It moves out when that row is minted, specced and built.
 //
-//  SELECTION API: §4 `selectionMode` + `selectedIDs` (OQ-C-036-9). OQ-C-036-10: in
-//  `.multiple` choices apply live and the ✕ simply dismisses.
+//  SELECTION API: §4 `selectionMode` + `selectedIDs` (OQ-C-036-9). OQ-C-036-10 as amended by
+//  filter-multiselect D1 (owner 2026-10-26): with onSave set, picks are a draft — Save applies,
+//  ✕ discards (routed to /d2m:component:update C-036, F2/F4).
 //
 
 import SwiftUI
@@ -44,21 +45,70 @@ struct FilterMenuOverlay: View {
     /// OQ-C-036-009 `selectionMode`.
     let selectionMode: SelectionMode
     /// OQ-C-036-009 `selectedIDs`: every checked option; empty = a plain option menu with no
-    /// checkmark. Controlled (R-01) — the view never holds the selection.
+    /// checkmark. Controlled (R-01) except in draft mode (onSave set), where it only seeds the draft.
     let selectedIDs: Set<String>
     /// §4 `onSelect`: fires on every option tap, the already-selected one included (R-03).
-    var onSelect: (Option) -> Void = { _ in }
+    var onSelect: (Option) -> Void
     /// §4 `onClose`: the close button (C-082) was tapped; the presenter dismisses. In
     /// `.multiple` the live choices stand (OQ-C-036-10).
-    var onClose: () -> Void = {}
+    var onClose: () -> Void
     /// filter-menu-clear (owner 2026-10-26): every filter menu carries a C-049 "Clear" link top
     /// left, above the list. The presenter resets its filter to rest (and, in `.single`, closes,
     /// as an option tap does). nil hides the link — a plain option menu with no filter.
-    var onClear: (() -> Void)? = nil
+    var onClear: (() -> Void)?
     /// False while the filter is already at rest — the link draws at C-049's 50% and ignores taps.
-    var clearEnabled: Bool = true
+    var clearEnabled: Bool
+
+    /// filter-multiselect D1/D10: set → draft mode. Option taps toggle a draft seeded from
+    /// `selectedIDs` when the menu opens; the top row's Clear empties the draft (the menu stays
+    /// open); Save hands the draft back here (the presenter applies it and closes); ✕ discards it.
+    /// `onSelect` still fires per toggle. `onClear` / `clearEnabled` are ignored in this mode (D10).
+    var onSave: ((Set<String>) -> Void)?
+
+    /// D1: the picks being edited — seeded once per presentation (each opening builds a new view).
+    @SwiftUI.State private var draft: Set<String>
 
     private static let clearLabel = "Clear"
+    private static let saveLabel = "Save"
+
+    init(
+        options: [Option],
+        selectionMode: SelectionMode,
+        selectedIDs: Set<String>,
+        onSelect: @escaping (Option) -> Void = { _ in },
+        onClose: @escaping () -> Void = {},
+        onClear: (() -> Void)? = nil,
+        clearEnabled: Bool = true,
+        onSave: ((Set<String>) -> Void)? = nil
+    ) {
+        self.options = options
+        self.selectionMode = selectionMode
+        self.selectedIDs = selectedIDs
+        self.onSelect = onSelect
+        self.onClose = onClose
+        self.onClear = onClear
+        self.clearEnabled = clearEnabled
+        self.onSave = onSave
+        // Seeded here, not in onAppear, so the first frame already shows the current checks.
+        _draft = SwiftUI.State(initialValue: selectedIDs)
+    }
+
+    /// D1: a tap toggles the option's id in the draft.
+    static func toggled(_ draft: Set<String>, _ id: String) -> Set<String> {
+        var next = draft
+        if next.remove(id) == nil { next.insert(id) }
+        return next
+    }
+
+    /// D4: a chip's text for the picked labels — none → `resting`, one → that label,
+    /// n ≥ 2 → "n <noun>" (`noun` plural).
+    static func chipLabel(picked labels: [String], resting: String, noun: String) -> String {
+        switch labels.count {
+        case 0: return resting
+        case 1: return labels[0]
+        default: return "\(labels.count) \(noun)"
+        }
+    }
 
     private enum Geometry {
         /// FLAGGED LITERAL — C-036 §2: "⚑ 174pt (flagged literal: Figma gradient stop
@@ -78,7 +128,19 @@ struct FilterMenuOverlay: View {
 
             ZStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let onClear {
+                    if let onSave {
+                        // filter-multiselect D1/D8: Clear leading, Save trailing, one fixed row above
+                        // the list. Clear is enabled iff the draft is non-empty; Save always is.
+                        HStack(spacing: Token.Space.cardPadding) {
+                            LinkButton(label: Self.clearLabel, onTap: { draft = [] }, isEnabled: !draft.isEmpty)
+                                .ui2Element("C-049 LinkButton")
+                            Spacer(minLength: 0)
+                            LinkButton(label: Self.saveLabel, onTap: { onSave(draft) })
+                                .ui2Element("C-049 LinkButton 2")
+                        }
+                        .padding(.horizontal, Token.Space.sectionGap)
+                        .padding(.vertical, Token.Space.cardPadding)
+                    } else if let onClear {
                         // filter-menu-clear: fixed above the list (it never scrolls away), on the
                         // option rows' leading inset.
                         LinkButton(label: Self.clearLabel, onTap: onClear, isEnabled: clearEnabled)
@@ -112,8 +174,11 @@ struct FilterMenuOverlay: View {
                     OptionRow(
                         glyph: option.glyph,
                         label: option.label,
-                        selected: selectedIDs.contains(option.id),
-                        onTap: { onSelect(option) }
+                        selected: onSave != nil ? draft.contains(option.id) : selectedIDs.contains(option.id),
+                        onTap: {
+                            if onSave != nil { draft = Self.toggled(draft, option.id) }
+                            onSelect(option)
+                        }
                     )
                     .ui2Element("Option row \(index + 1)")
                 }
