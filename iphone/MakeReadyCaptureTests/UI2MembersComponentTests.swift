@@ -72,8 +72,15 @@ final class UI2MembersComponentTests: XCTestCase {
     /// unlabelled trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan).
     func testMembersHomeMenuChipTapPresentsTheMenu() {
         var tapped = false
-        MembersHomeScreen.menuChip(label: "All Groups") { tapped = true }.onTap()
+        MembersHomeScreen.menuChip(label: "All Groups", active: false) { tapped = true }.onTap()
         XCTAssertTrue(tapped)
+    }
+
+    /// filter-multiselect D3: the sample menus carry no "All …" row.
+    func testMembersHomeSampleHasNoAllRows() {
+        let s = MembersHomeScreen.State.populated
+        XCTAssertFalse(s.groupOptions.contains("All Groups"))
+        XCTAssertFalse(s.leaderOptions.contains("All Leaders"))
     }
 
     /// Agent walk round 1: program covers stayed grey. The screen reads Ui2ImageCache, which

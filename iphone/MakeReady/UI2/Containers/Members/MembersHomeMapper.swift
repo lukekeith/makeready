@@ -13,44 +13,20 @@ enum MembersHomeMapper {
         let label: String
     }
 
-    /// The container's query: search text and the two chip picks (nil = "All …").
+    /// The container's query: search text and the two chip picks ([] = no filter, D3).
     struct Selection: Equatable {
         var search = ""
-        var groupId: String?
-        var leaderId: String?
+        var groupIds: Set<String> = []
+        var leaderIds: Set<String> = []
     }
 
-    enum Pick: Equatable {
-        case all
-        case option(String)
-        case unknown
-    }
-
-    /// T13: the State plus the ids behind every index it renders, so a row tap or an option pick
-    /// resolves against the snapshot that was on screen, never a re-read store.
+    /// T13: the State plus the member id behind every row it renders.
     struct Output {
         var state: MembersHomeScreen.State
         var memberIds: [String]
-        var groupOptionIds: [String]       // parallel to state.groupOptions minus its leading "All Groups"
-        var leaderOptionIds: [String]      // parallel to state.leaderOptions minus its leading "All Leaders"
 
         func memberId(atRow row: Int) -> String? {
             memberIds.indices.contains(row) ? memberIds[row] : nil
-        }
-
-        func groupPick(_ label: String) -> Pick {
-            Self.pick(label, all: MembersHomeMapper.allGroups, labels: state.groupOptions, ids: groupOptionIds)
-        }
-
-        func leaderPick(_ label: String) -> Pick {
-            Self.pick(label, all: MembersHomeMapper.allLeaders, labels: state.leaderOptions, ids: leaderOptionIds)
-        }
-
-        private static func pick(_ label: String, all: String, labels: [String], ids: [String]) -> Pick {
-            if label == all { return .all }
-            guard let index = labels.firstIndex(of: label), index > 0, ids.indices.contains(index - 1)
-            else { return .unknown }
-            return .option(ids[index - 1])
         }
     }
 
@@ -61,12 +37,18 @@ enum MembersHomeMapper {
         let seesAll = scope?.all ?? true
         let visibleGroups = seesAll ? groups : groups.filter { (scope?.groupIds ?? []).contains($0.id) }
         let members = directory?.members ?? []
+        let pickedGroups = visibleGroups.filter { selection.groupIds.contains($0.id) }
+        let pickedLeaders = leaders.filter { selection.leaderIds.contains($0.id) }
         let state = MembersHomeScreen.State(
             searchText: selection.search,
-            groupFilterLabel: visibleGroups.first { $0.id == selection.groupId }?.label ?? allGroups,
-            leaderFilterLabel: leaders.first { $0.id == selection.leaderId }?.label ?? allLeaders,
-            groupOptions: [allGroups] + visibleGroups.map(\.label),
-            leaderOptions: [allLeaders] + leaders.map(\.label),
+            groupFilterLabel: FilterMenuOverlay.chipLabel(picked: pickedGroups.map(\.label), resting: allGroups, noun: "groups"),
+            leaderFilterLabel: FilterMenuOverlay.chipLabel(picked: pickedLeaders.map(\.label), resting: allLeaders, noun: "leaders"),
+            groupOptions: visibleGroups.map(\.label),
+            leaderOptions: leaders.map(\.label),
+            groupOptionIDs: visibleGroups.map(\.id),
+            leaderOptionIDs: leaders.map(\.id),
+            selectedGroupIDs: Set(pickedGroups.map(\.id)),
+            selectedLeaderIDs: Set(pickedLeaders.map(\.id)),
             showsLeaderFilter: seesAll,
             memberNames: members.map { displayName(first: $0.firstName, last: $0.lastName) },
             memberPhotoURLs: members.map { nonEmpty($0.profilePicture) ?? nonEmpty($0.googlePicture) ?? "" },
@@ -74,8 +56,7 @@ enum MembersHomeMapper {
             memberJoinedLabels: members.map { joinedLabel($0.joinedAt, today: today, timeZone: timeZone) },
             memberGroupCounts: members.map(\.groupCount)
         )
-        return Output(state: state, memberIds: members.map(\.id),
-                      groupOptionIds: visibleGroups.map(\.id), leaderOptionIds: leaders.map(\.id))
+        return Output(state: state, memberIds: members.map(\.id))
     }
 
     // MARK: - Helpers (also read by MemberProfileMapper)
