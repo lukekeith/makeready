@@ -128,10 +128,23 @@ struct GroupActions {
             throw APIError.serverError(response.error ?? "Group not found")
         }
 
-        state.groups.upsert(group)
+        upsertKeepingOrganization(group)
         state.persist()
 
-        return group
+        return state.groups[group.id] ?? group
+    }
+
+    /// ui2-groups-browse D10 (verify A1): only `GET /api/groups` carries a group's org; the detail
+    /// and PATCH responses don't, so a group they return keeps the org already cached for it —
+    /// the Orgs chip filters on it.
+    @MainActor
+    private func upsertKeepingOrganization(_ group: UserGroup) {
+        var merged = group
+        if merged.organizationId == nil, let cached = state.groups[group.id] {
+            merged.organizationId = cached.organizationId
+            merged.organizationName = cached.organizationName
+        }
+        state.groups.upsert(merged)
     }
 
     // MARK: - Create Group
@@ -231,11 +244,11 @@ struct GroupActions {
             throw APIError.serverError(response.error ?? "Failed to update group")
         }
 
-        state.groups.upsert(group)
+        upsertKeepingOrganization(group)
         state.persist()
 
         NSLog("👥 GroupActions: Updated group '\(group.name)'")
-        return group
+        return state.groups[group.id] ?? group
     }
 
     // MARK: - Delete Group

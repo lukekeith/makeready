@@ -31,6 +31,35 @@ final class GroupActionsLoadersTests: XCTestCase {
         GroupActions(api: api, state: state, now: { self.now }, timeZone: tz, onUnauthorized: onUnauthorized)
     }
 
+    // MARK: - Verify A1: the detail keeps the list's org (D10)
+
+    private func groupJSON(org: Bool) -> String {
+        let orgFields = org ? #","organizationId":"o1","organizationName":"Grace Church""# : ""
+        return #"{"id":"g1","code":null,"name":"Alpha","isPrivate":false,"allowInvites":true,"memberCount":3,"creatorId":"u1","createdAt":"2026-10-01T10:00:00Z","updatedAt":"2026-10-01T10:00:00Z""#
+            + orgFields + "}"
+    }
+
+    /// `GET /api/groups/:id` carries no org fields (§Contract); replacing the cached group with it
+    /// blanked the org the Orgs chip filters on (verify 2026-10-27, A1).
+    func testGetGroupKeepsTheListsOrganization() async throws {
+        api.stub("GET", "/api/groups", json: #"{"success":true,"groups":["# + groupJSON(org: true) + "]}")
+        try await actions().loadGroups(forceRefresh: true)
+        api.stub("GET", "/api/groups/g1", json: #"{"success":true,"group":"# + groupJSON(org: false) + "}")
+        _ = try await actions().getGroup(id: "g1")
+        XCTAssertEqual(state.groups["g1"]?.organizationId, "o1")
+        XCTAssertEqual(state.groups["g1"]?.organizationName, "Grace Church")
+    }
+
+    /// The PATCH response has no org fields either.
+    func testUpdateGroupKeepsTheListsOrganization() async throws {
+        api.stub("GET", "/api/groups", json: #"{"success":true,"groups":["# + groupJSON(org: true) + "]}")
+        try await actions().loadGroups(forceRefresh: true)
+        api.stub("PATCH", "/api/groups/g1", json: #"{"success":true,"group":"# + groupJSON(org: false) + "}")
+        _ = try await actions().updateGroup(id: "g1", name: "Alpha")
+        XCTAssertEqual(state.groups["g1"]?.organizationId, "o1")
+        XCTAssertEqual(state.groups["g1"]?.organizationName, "Grace Church")
+    }
+
     // MARK: - T11 next study
 
     func testNextStudyLandsByGroup() async {
