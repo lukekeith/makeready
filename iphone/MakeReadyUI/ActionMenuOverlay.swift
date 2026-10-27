@@ -38,11 +38,14 @@ import SwiftUI
 /// (preview-build.md OQ-PB-1 / OQ-PB-2).
 struct ActionMenuOverlay: View {
 
-    /// C-066 §4: one entry of `actions: [ActionItem]`. Its two fields are C-067's own §4
+    /// C-066 §4: one entry of `actions: [ActionItem]`. Its fields are C-067's own §4
     /// props — the container supplies each row's content and nothing else.
     struct ActionItem: Identifiable {
         let glyph: String
         let label: String
+        /// ui2-groups-edit D13: C-067 §4 `tone`. Default `.standard` keeps the frozen C-066 snapshot.
+        // GAP — C-066 §4 lists no `tone` on ActionItem; routed to /ui2-resolve C-066 (ui2-groups-edit F4).
+        var tone: ActionMenuRow.Tone = .standard
 
         var id: String { "\(glyph)|\(label)" }
     }
@@ -93,7 +96,7 @@ struct ActionMenuOverlay: View {
     private var actionsList: some View {
         VStack(spacing: 0) {
             ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
-                ActionMenuRow(glyph: action.glyph, label: action.label) { onSelect(action) }
+                ActionMenuRow(glyph: action.glyph, label: action.label, tone: action.tone) { onSelect(action) }
                     .overlay(alignment: .bottom) {
                         if hairlineAfterLast || index < actions.count - 1 {
                             hairline.ui2Element("Hairline \(index + 1)")
