@@ -251,6 +251,22 @@ struct GroupActions {
         return state.groups[group.id] ?? group
     }
 
+    /// ui2-groups-edit D5/D6: one field's PATCH. Uses the status-keeping request so the edit page
+    /// can tell a 404 (the group is gone or out of scope) from a failure worth retrying; a 401
+    /// still throws `APIError.unauthorized`. Merges the response, keeping the cached org (D10 of
+    /// ui2-groups-browse — the PATCH response carries none).
+    @MainActor
+    func updateGroup(id: String, patch: GroupPatch) async throws -> UserGroup {
+        let data = try await api.requestWithStatus(endpoint: "/api/groups/\(id)", method: "PATCH", body: patch.body)
+        let response = try JSONDecoder.apiDecoder.decode(GroupResponse.self, from: data)
+        guard response.success, let group = response.group else {
+            throw APIError.serverError(response.error ?? "Failed to update group")
+        }
+        upsertKeepingOrganization(group)
+        state.persist()
+        return state.groups[group.id] ?? group
+    }
+
     // MARK: - Delete Group
 
     /// Delete a group
