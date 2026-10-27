@@ -21,6 +21,8 @@ final class EditGroupCoverModel {
     enum SaveOutcome: Equatable { case saved, ignored, unauthorized, gone, failed(String) }
 
     static let saveFailedMessage = "Couldn't save the cover"
+    /// D24: a rotation this small is the jitter of a pinch, not a twist — the readout stays hidden.
+    static let twistThreshold: Double = 1
 
     let groupId: String
     let image: UIImage
@@ -30,7 +32,7 @@ final class EditGroupCoverModel {
     private(set) var isSaving = false
     /// D24: any gesture is in progress — the rule-of-thirds grid shows.
     private(set) var isGestureActive = false
-    /// D24: the current gesture has twisted — the degree readout shows.
+    /// D24: the current gesture has twisted at least `twistThreshold` — the degree readout shows.
     private(set) var isTwisting = false
     /// D23: the horizon's tilt in the original, degrees (clockwise levels it); nil = none found, or
     /// detection has not run. Auto is offered only when non-nil.
@@ -76,10 +78,12 @@ final class EditGroupCoverModel {
     func updateGesture(magnification: CGFloat, rotationDegrees: Double, translation: CGSize) {
         guard !isSaving else { return }
         isGestureActive = true
-        if rotationDegrees != 0 { isTwisting = true }
+        if abs(rotationDegrees) >= Self.twistThreshold { isTwisting = true }
         var next = base
         next.scale = base.scale * Double(magnification)
-        next.rotation = base.rotation + rotationDegrees
+        // D21: the raw sum stops at ±45° before `clamped` normalises — past 180° it must not wrap to the other stop.
+        let maxRotation = CoverFramingMath.maxRotation
+        next.rotation = min(max(base.rotation + rotationDegrees, -maxRotation), maxRotation)
         next.offsetX = base.offsetX + Double(translation.width / frameSize.width)
         next.offsetY = base.offsetY + Double(translation.height / frameSize.height)
         let limit = CoverFramingMath.clamped(next, image: image.size, frame: frameSize)
@@ -104,10 +108,16 @@ final class EditGroupCoverModel {
         commit(CoverFramingMath.flippedHorizontally(framing))
     }
 
-    /// D21/D22: one counter-clockwise quarter turn; the floor follows the turned size.
+    /// D21/D22: turn the framed view a quarter counter-clockwise — the image's quarter turns step and
+    /// its pan turns with it, (x, y) points → (y, −x); the floor follows the turned size.
     func rotate90() {
         var next = framing
         next.quarterTurns = (CoverFramingMath.normalized(quarterTurns: next.quarterTurns) + 1) % 4
+        let w = Double(frameSize.width), h = Double(frameSize.height)
+        if w > 0, h > 0 {
+            next.offsetX = framing.offsetY * h / w
+            next.offsetY = -framing.offsetX * w / h
+        }
         commit(next)
     }
 
@@ -154,8 +164,8 @@ final class EditGroupCoverModel {
     /// D13: one save at a time; success seeds Ui2ImageCache under the new URL.
     func save() async -> SaveOutcome {
         guard !isSaving else { return .ignored }
-        // D25: Done mid-gesture saves a legal framing — the frame as it would settle, covered.
-        framing = CoverFramingMath.clamped(framing, image: image.size, frame: frameSize)
+        // D5/D25: Done mid-gesture saves what release would settle to — snapped and covered.
+        framing = CoverFramingMath.settle(framing, image: image.size, frame: frameSize)
         base = framing
         isGestureActive = false
         isTwisting = false

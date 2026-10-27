@@ -75,10 +75,18 @@ final class EditGroupCoverModelTests: XCTestCase {
         XCTAssertTrue(covers(m.framing))
     }
 
-    /// D21: a twist stops at the ±45° fine-rotation range.
+    /// D21: a twist stops at the ±45° fine-rotation range — and stays there past 180° (no wrap to the other stop).
     func testTwistStopsAtFortyFive() {
         let m = model(save: { _, _, _ in self.ok })
         m.updateGesture(magnification: 1, rotationDegrees: 70, translation: .zero)
+        XCTAssertEqual(m.framing.rotation, 45)
+        m.updateGesture(magnification: 1, rotationDegrees: 200, translation: .zero)
+        XCTAssertEqual(m.framing.rotation, 45)
+        m.updateGesture(magnification: 1, rotationDegrees: -200, translation: .zero)
+        XCTAssertEqual(m.framing.rotation, -45)
+        m.updateGesture(magnification: 1, rotationDegrees: 40, translation: .zero)
+        m.endGesture()
+        m.updateGesture(magnification: 1, rotationDegrees: 145, translation: .zero)   // base 40 + 145 = 185
         XCTAssertEqual(m.framing.rotation, 45)
     }
 
@@ -109,6 +117,28 @@ final class EditGroupCoverModelTests: XCTestCase {
         }
         XCTAssertEqual(turns, [1, 2, 3, 0])
         XCTAssertEqual(m.framing, .identity)
+    }
+
+    /// D22: Rotate 90° turns the whole framed view counter-clockwise — the pan turns with it — so four
+    /// turns from a panned, tilted framing return to it.
+    func testRotate90TurnsThePanAndFourTurnsReturnToIt() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.updateGesture(magnification: 4, rotationDegrees: 10, translation: CGSize(width: 32, height: -9))
+        m.endGesture()
+        let start = m.framing
+        XCTAssertEqual(start.offsetX, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(start.offsetY, -0.05, accuracy: 1e-9)
+        m.rotate90()
+        // (x, y) points → (y, −x): a pan up becomes a pan left, a pan right becomes a pan up.
+        XCTAssertEqual(m.framing.offsetX, -0.05 * 180 / 320, accuracy: 1e-9)
+        XCTAssertEqual(m.framing.offsetY, -0.1 * 320 / 180, accuracy: 1e-9)
+        XCTAssertEqual(m.framing.rotation, 10, accuracy: 1e-9)
+        for _ in 0..<3 { m.rotate90() }
+        XCTAssertEqual(m.framing.quarterTurns, 0)
+        XCTAssertEqual(m.framing.offsetX, start.offsetX, accuracy: 1e-9)
+        XCTAssertEqual(m.framing.offsetY, start.offsetY, accuracy: 1e-9)
+        XCTAssertEqual(m.framing.rotation, start.rotation, accuracy: 1e-9)
+        XCTAssertEqual(m.framing.scale, start.scale, accuracy: 1e-9)
     }
 
     func testRotate90PullsAPanBackIntoCoverage() {
@@ -184,6 +214,8 @@ final class EditGroupCoverModelTests: XCTestCase {
         m.updateGesture(magnification: 1.1, rotationDegrees: 0, translation: .zero)
         XCTAssertTrue(m.isGestureActive)
         XCTAssertFalse(m.isTwisting)
+        m.updateGesture(magnification: 1.2, rotationDegrees: 0.6, translation: .zero)   // pinch jitter, not a twist
+        XCTAssertFalse(m.isTwisting)
         m.updateGesture(magnification: 1.1, rotationDegrees: -12.4, translation: .zero)
         XCTAssertTrue(m.isTwisting)
         XCTAssertEqual(m.readoutDegrees, -12)
@@ -208,14 +240,15 @@ final class EditGroupCoverModelTests: XCTestCase {
         _ = await first
     }
 
-    /// D25: Done mid-gesture saves the settled framing (an over-pan is not a legal framing).
+    /// D5/D25: Done mid-gesture saves what release would settle to — covered, and the ±3° snap applied.
     func testSaveSendsASettledFraming() async {
         var sent: CoverFraming?
         let m = model(save: { _, f, _ in sent = f; return self.ok })
-        m.updateGesture(magnification: 0.5, rotationDegrees: 0, translation: CGSize(width: 200, height: 0))
+        m.updateGesture(magnification: 0.5, rotationDegrees: 2, translation: CGSize(width: 200, height: 0))
         _ = await m.save()
         XCTAssertEqual(sent?.scale, 1)
         XCTAssertEqual(sent?.offsetX ?? 1, 0, accuracy: 1e-6)
+        XCTAssertEqual(sent?.rotation, 0)
     }
 
     /// D13: a new pick sends the original; a re-edit of a stored original does not.
@@ -269,11 +302,13 @@ final class EditGroupCoverModelTests: XCTestCase {
             await withCheckedContinuation { release = $0 }
             return self.ok
         })
-        m.updateGesture(magnification: 1, rotationDegrees: 2, translation: .zero)   // live, un-snapped
+        m.updateGesture(magnification: 2, rotationDegrees: 10, translation: CGSize(width: 30, height: 0))
         async let first = m.save()
         while release == nil { await Task.yield() }
+        let saving = m.framing
+        m.updateGesture(magnification: 3, rotationDegrees: 20, translation: CGSize(width: 90, height: 0))
         m.endGesture()
-        XCTAssertEqual(m.framing.rotation, 2, accuracy: 1e-9)    // not snapped to 0 mid-save
+        XCTAssertEqual(m.framing, saving)
         release?.resume()
         _ = await first
     }
