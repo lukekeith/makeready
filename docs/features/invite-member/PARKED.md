@@ -26,6 +26,8 @@ d2m commands are not available to this run.
 - Did not work around it with `.id(step)` re-identity or by keeping View invite. D7 rejected both
   ("keep View invite + rebuild the view by identity — reverses D4, brittle").
 
+- 2026-10-27 retry: re-checked the cause — it no longer holds. `e4a2264` added `showsViewInvite: Bool = true` and `.onChange(of: state.step)` adoption to `InviteMemberScreen.swift` in place (owner override, SPEC D7 superseded in `d66a63d`). Building Task 11 against those names.
+
 ## Evidence
 - `iphone/MakeReadyUI/Screens/Groups/InviteMemberScreen.swift:54-71`: `init(state:onBack:onCancel:onSendInvite:onDone:onViewInvite:)` has no show-View-invite parameter, and `_step = SwiftUI.State(initialValue: Step(rawValue: state.step) ?? .name)` seeds the step once.
 - `InviteMemberScreen.swift:226-233`: the sent step always draws `secondary: Self.viewInviteLabel, secondaryEnabled: true`.
