@@ -1,7 +1,7 @@
 size: lg
-state: aligned
+state: audited
 next: /builder:resume --path docs/features/invite-member
-head: 0a2c258
+head: 65c465c
 ticket: none
 branch: builder/invite-member
 pr: none

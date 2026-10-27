@@ -52,7 +52,7 @@ make this a multi-screen feature; *first group only* — wrong for any leader of
 
 | App | In scope | What changes | Section |
 |---|---|---|---|
-| server | ✅ | `Invite.recipientName` (schema + additive migration); send body accepts it; leader reads return it; `GET /api/groups` adds `creatorName`; fixtures layer `screens/invite-member.ts` | §server |
+| server | ✅ | `Invite.recipientName` (schema + additive migration); send body accepts it; leader reads return it; `GET /api/groups` adds `creatorName`; fixtures layer `screens/invite-member.ts` (seeds the SMS campaigns, D18); `sendSMS` succeeds without Twilio in test mode (D17) | §server |
 | client | ⬜ | Not touched: the design is iPhone-only (d2m `platform: ios`). Its `/admin/api/groups` readers (leader-groups, leader-library, leader-calendar, leader-dashboard, leader-enrollment-flow stores; `CheckMemberSession.php:77`) ignore the additive `creatorName` | — |
 | iphone | ✅ | Add-menu row wired; two shell destinations; `InviteMemberContainer` + group-pick container; `InviteActions.sendInvite`; `UserGroup.creatorName` | §iphone |
 | capture | ⬜ | Not touched: d2m already captures `invite-member` (`ui2s-invite-member`) and the picker; no new twin or adapter | — |
@@ -104,6 +104,8 @@ unaffected.
 | D13 | Group list freshness | Tapping the row awaits `GroupActions().loadGroups()` (cache-first) before deciding 1 vs 2+; a load failure with no cache surfaces "Couldn't load your groups" and pushes nothing | (assumed at spec) 2026-10-26 |
 | D14 | Which groups | The picker lists every group `GET /api/groups` returns (already scoped by `groupManageFilter`); `allowInvites` is not consulted — it governs member-side sharing, not leader SMS invites | (assumed at spec) 2026-10-26 |
 | D16 | Orgs chip on the group pick | OPEN — recommended: `orgFilterVisible` is always `false` in `InviteSelectGroupContainer` for this feature. Why: `UserGroup` carries no `organizationId` (`GET /api/groups` returns none), so a visible Orgs chip could not filter anything, and `AppState.userOrganizations` holds at most one org today (`AppState.swift:162-166`), so D3's 2+ condition is never true. Rejected: *add `organizationId` to `GET /api/groups` and filter by it* — widens the server change for a state no leader can reach today | align 2026-10-26 |
+| D17 | SMS in Twilio test mode | OPEN — recommended: when `twilio.ts`'s `isTestMode` is true (`NODE_ENV=test` or `TEST_VERIFICATION_CODES` set), `sendSMS` calls no Twilio API and returns `{ success: true, messageSid: "test-<uuid>" }`, logging `[Twilio] test mode — SMS not sent to <to>`; with Twilio configured (no test-mode signal) nothing changes. Mirrors the verification test-code path (`twilio.ts:116`, `:166`). Why: today it throws "Twilio client not initialized" (`twilio.ts:283-285`), so `/send` returns 400 and deletes the invite in every test-mode env, the agent walk's included. Rejected: *real Twilio credentials in the walk env* — sends real SMS to fixture numbers and puts secrets in fleet worktrees | audit 2026-10-26 |
+| D18 | The `group-invite-v1` template in a fresh DB | OPEN — recommended: `src/scripts/seed-sms-campaigns.ts` exports its idempotent upsert as `seedSmsCampaigns(prisma)` (the CLI keeps calling it), and `fixtures/screens/invite-member.ts` calls it first in `full`, so `fixtures:reset` guarantees the template. Why: no seed or migration creates SMS templates (`server/seeds/manifest.yaml` lists none), so a reset DB answers `/send` with 400 `Template not found: group-invite-v1` (`sms-campaign.ts:147`). Rejected: *a dev seed YAML* — a second copy of the campaign definitions that drifts; *the versioned seeds* — prod would re-upsert edited live template copy | audit 2026-10-26 |
 | D15 | Fixtures | `server/fixtures/screens/invite-member.ts`, `full` scenario: one pending invite with `recipientName` "Tony Stark" on the base world's first fixture group, so `GET /api/invites` returns a named row; the base world's 3+ groups make the picker path walkable. Reads base entities only; dates from `ctx.now` | (assumed at spec) 2026-10-26 |
 
 ## Contract
@@ -158,7 +160,9 @@ released build stores is reshaped.
 - `routes/invites.ts` `/send` zod adds D8's field and passes it through (zod must not strip it);
   `GET /` and `PATCH /:id` responses add `recipientName`; `GET /:token` unchanged.
 - `routes/groups.ts` `GET /` includes `creator { name }` and maps `creatorName` (D9).
-- `fixtures/screens/invite-member.ts` per D15, registered with the runner.
+- `fixtures/screens/invite-member.ts` per D15 (auto-discovered by `fixtures/runner.ts:82-104`), calling
+  `seedSmsCampaigns(prisma)` first (D18).
+- `services/twilio.ts` `sendSMS`: the test-mode short-circuit (D17).
 
 ## iphone
 
@@ -183,7 +187,8 @@ released build stores is reshaped.
 
 - **server** — `routes/__tests__/invites.test.ts`: `/send` accepts and persists `recipientName`,
   rejects 0 or 101 chars, still accepts a body without it; `GET /` and `PATCH /:id` return it;
-  `GET /:token` does not. A `groups` route test: `creatorName` present and equal to the creator's
+  `GET /:token` does not. `twilio` service test: in test mode `sendSMS` returns success with a
+  `test-` sid and never constructs a Twilio call (D17). A `groups` route test: `creatorName` present and equal to the creator's
   name. `npx tsc --noEmit`, `-p fixtures`, `npm run test:run`, `schema:validate`.
 - **iphone** — XCTest: `InviteActions.sendInvite` request body + error mapping (stub API);
   `UserGroup` decodes with and without `creatorName`; the entry decision (0 / 1 / 2+ groups → none /
@@ -198,7 +203,9 @@ released build stores is reshaped.
   4. Step 3 shows "Invitation was sent to / Ada Test / +1 (…) …-…" and Done only → Done returns to Home.
   5. `GET /api/invites` (curl, leader session) shows the new invite with `recipientName: "Ada Test"`;
      `GET /api/invites/<token>` does not include it.
-  6. Send to an invalid number (server 400) → stays on step 2, banner shows the server error.
+  6. Invite the same number again (the template's 1200-minute rate limit, `sms-campaign.ts:174-180`,
+     makes the server answer 400 "Rate limited: …") → stays on step 2 with the number kept, banner
+     shows the server error. (The keypad cannot produce a number the E.164 check rejects.)
 - **Human verification:** the walk above on the dev simulator, plus a single-group leader going
   straight to step 1.
 
@@ -216,9 +223,9 @@ released build stores is reshaped.
 
 | # | Finding | Resolution |
 |---|---|---|
-| F1 | The "+" Add menu (action-menu-overlay) is uncommitted work on `ui2-preview-build`; this feature edits the same `UI2Shell.swift` | build-time risk — commit action-menu-overlay before the iphone phase starts |
-| F2 | D7's d2m update is outside this pipeline; until it lands the iphone phase cannot satisfy D4/D7 | build-time risk — iphone phase gated on `/d2m:screen:update invite-member` having landed (check the view for the new input) |
-| F3 | Local SMS: `sendCampaignSms` has a dev path (`sms-campaign.ts:231`, `isDev`); the walk must confirm a local send succeeds without a real Twilio delivery | build-time risk — settled by the server phase's walk-readiness smoke |
+| F1 | The "+" Add menu (action-menu-overlay) was uncommitted work this feature edits (`UI2Shell.swift`) | resolved — committed `bfb6d75` on this branch (`UI2Shell.swift:26-31,56-62`) |
+| F2 | D7's d2m update is outside this pipeline and has **not landed** (2026-10-26: `InviteMemberScreen.init` has no show-View-invite parameter, `InviteMemberScreen.swift:56-71`, and no `onChange` adopting `State.step`); until it lands the iphone phase cannot satisfy D4/D7 | build-time risk — the iphone phase's first task checks the view for both; absent, that phase stops on the human step `/d2m:screen:update invite-member` (the server phase is not gated) |
+| F3 | A local send cannot succeed today: `isDev` (`sms-campaign.ts:21,173`) only shortens the rate limit — the send still goes to Twilio, which throws in test mode (`twilio.ts:283`), and a reset DB has no `group-invite-v1` template (`sms-campaign.ts:147`) | D17 + D18 → T9, T10 |
 | T1 | server: `schema.yaml` `Invite.recipientName` + Prisma regen + Atlas migration (SC1) | blocking |
 | T2 | server: `/send` zod accepts `recipientName` (D8) and `sendGroupInvite` persists it; SMS context unchanged (SC2) | blocking |
 | T3 | server: `GET /api/invites` and `PATCH /api/invites/:id` return `recipientName`; `GET /:token` unchanged (SC3) | blocking |
@@ -227,6 +234,15 @@ released build stores is reshaped.
 | T6 | iphone: `UserGroup.creatorName: String?` — CodingKeys, `decodeIfPresent`, memberwise init default `nil` (SC4 consumer) | trailing |
 | T7 | iphone: `InviteActions.sendInvite(groupId:recipientPhone:recipientName:)` posting the §Contract body (SC2 consumer) | trailing |
 | T8 | iphone: `InviteSelectGroupContainer` starts `EnrollmentActions().loadEnrollments(groupId:)` for each listed group with no cached enrollments, concurrently and console-only on failure; the chip reads `AppState.enrollmentsFor(groupId:).count` and updates as they land (no server count exists) | trailing |
+| T9 | server: `sendSMS` test-mode short-circuit + its test (D17) — service-only | blocking |
+| T10 | server: export `seedSmsCampaigns(prisma)` from `seed-sms-campaigns.ts`; the invite-member fixtures layer calls it (D18) — service-only | blocking |
+| F6 | `UI2Navigator` has `push`, `pop`, `popIfTop` only (`UI2Navigation.swift:6-11`); D11's whole-flow pop needs a new capability on it and `UI2ShellModel` (pop the tab's path back to its depth at entry) | build-time risk — the iphone shell task adds it with a `UI2ShellModel` unit test |
+| F7 | Open questions on the in-scope set: OQ-invite-member-003 (`recipientName` API gap) → D8; OQ-C-045-002 (non-US numbers) → §Out of scope; picker OQ-003 (Orgs chip) → D16; picker OQ-002 (already-enrolled warning) → not reachable, this host never sets a warning; picker OQ-001, OQ-004, OQ-005, OQ-006 and OQ-C-040-001 are settled inside the built view, nothing for the host | disposed |
+| F8 | Render vs the frozen snapshots not re-diffed this pass: the capture server (`:5950`) did not answer and the audit starts no server. Both screens were built and diffed by d2m (snapshots 2026-10-19); `MakeReadyUI/**` is frozen here | build-time risk — the iphone phase's first task re-captures `invite-member` and `enrollment-select-group` with `capture/runners/ui2/capture.mjs` before wiring |
+| R1 | repoint (iphone): Add-menu "Invite a member" ← `UI2Shell.swift:30` (row), `UI2Shell.swift:62` (`onSelect` closes the menu for every row) — the only callers | builder:plan's repoint + retire phase |
+| R2 | repoint (iphone): `EnrollmentSelectGroupScreen` — no app caller today (grep of `iphone/MakeReady/UI2`); REUSES, nothing to repoint | none |
+| R3 | repoint (iphone): `GroupInvitePage` ← `Pages/Manage/Group/GroupHomePage.swift`, `Pages/Manage/Member/MemberHomePage.swift` (legacy 1.0, outside the app target); `State/` hits are comments only | none — legacy files untouched |
+| R4 | repoint (iphone): `Route.groupsInviteMenu` ← `Services/Route.swift:35,101,155` (legacy overlay routes) | none — legacy files untouched |
 | F5 | The Orgs chip cannot filter: `UserGroup` has no `organizationId` | D16 (OPEN) |
 | F4 | `EnrollmentSelectGroupScreen`'s copy is enrollment-flavoured only in its empty line ("No groups ready to enroll"), which D12 keeps from ever showing here | resolved by D12 |
 
