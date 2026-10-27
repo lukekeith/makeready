@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F1A2B3C4D5E60718293A4C01 /* InviteMemberContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4C04 /* InviteMemberContainer.swift */; };
+		F1A2B3C4D5E60718293A4C02 /* InviteMemberContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4C04 /* InviteMemberContainer.swift */; };
+		F1A2B3C4D5E60718293A4C03 /* InviteMemberSendTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A2B3C4D5E60718293A4C05 /* InviteMemberSendTests.swift */; };
 		000E500D0C6BF54F8F89C2A3 /* UI2MembersComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DB8BF575CABAA62353707C1 /* UI2MembersComponentTests.swift */; };
 		01167EF604ED4EA7ADB6B80B /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E2ABA006F9C95D8D874EBE /* LoginScreen.swift */; };
 		01BBC68B9E556A04BB09BB20 /* TabBarButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24A76B07F6BD3009C7241C6 /* TabBarButton.swift */; };
@@ -791,6 +794,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F1A2B3C4D5E60718293A4C04 /* InviteMemberContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InviteMemberContainer.swift; path = Containers/Groups/InviteMemberContainer.swift; sourceTree = "<group>"; };
+		F1A2B3C4D5E60718293A4C05 /* InviteMemberSendTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InviteMemberSendTests.swift; sourceTree = "<group>"; };
 		001D190CE74A411A8561B558 /* DataComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataComponent.swift; sourceTree = "<group>"; };
 		001E7230FA584A33992A699C /* SearchContactsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchContactsPage.swift; sourceTree = "<group>"; };
 		00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardVideo.swift; sourceTree = "<group>"; };
@@ -1426,6 +1431,7 @@
 				8A55DA48564CE36A3E0A0909 /* MemberFieldEditContainer.swift */,
 				C2D3E4F5A6B70819203A4B5D /* InviteSelectGroupMapper.swift */,
 				D4E5F6A7B8C90A1B2C3D4E03 /* InviteSelectGroupContainer.swift */,
+				F1A2B3C4D5E60718293A4C04 /* InviteMemberContainer.swift */,
 				E1F2A3B4C5D60718293A4B02 /* InviteEntry.swift */,
 			);
 			name = UI2;
@@ -1678,6 +1684,7 @@
 				A7C3E15D2B8F4961D0E4A7B1 /* InviteActionsTests.swift */,
 				E1F2A3B4C5D60718293A4B05 /* InviteEntryTests.swift */,
 				B1A2C3D4E5F60718293A4B5D /* InviteSelectGroupMapperTests.swift */,
+				F1A2B3C4D5E60718293A4C05 /* InviteMemberSendTests.swift */,
 				EC8C4B11C668BCCF2F63D17F /* TopNavDragTests.swift */,
 				B6BBCE49B263A647CD6AE3D7 /* DashboardActionsTests.swift */,
 				671238FA8D410853C42A08F2 /* HomeDashboardMapperTests.swift */,
@@ -2753,6 +2760,7 @@
 				5E9D0B4C7A1F36828C2D93F4 /* InviteActionsTests.swift in Sources */,
 				E1F2A3B4C5D60718293A4B04 /* InviteEntryTests.swift in Sources */,
 				B1A2C3D4E5F60718293A4B5C /* InviteSelectGroupMapperTests.swift in Sources */,
+				F1A2B3C4D5E60718293A4C03 /* InviteMemberSendTests.swift in Sources */,
 				4CDE4ECB783FF419C968CC10 /* TopNavDragTests.swift in Sources */,
 				60A5E32D863B5B2B9628E15D /* DashboardActionsTests.swift in Sources */,
 				C73ED610722685DD44D3F17F /* HomeDashboardMapperTests.swift in Sources */,
@@ -3027,6 +3035,7 @@
 				6206EF9672DA0C5DDA87120E /* MemberFieldEditContainer.swift in Sources */,
 				C2D3E4F5A6B70819203A4B5E /* InviteSelectGroupMapper.swift in Sources */,
 				D4E5F6A7B8C90A1B2C3D4E01 /* InviteSelectGroupContainer.swift in Sources */,
+				F1A2B3C4D5E60718293A4C01 /* InviteMemberContainer.swift in Sources */,
 				E1F2A3B4C5D60718293A4B01 /* InviteEntry.swift in Sources */,
 				345ABE13625C20366078F6B3 /* ChartIntro.swift in Sources */,
 				D28897006A0E16B5AF362E91 /* CountUp.swift in Sources */,
@@ -3436,6 +3445,7 @@
 				C27B4478D18AB8765B0107A6 /* MemberFieldEditContainer.swift in Sources */,
 				C2D3E4F5A6B70819203A4B5F /* InviteSelectGroupMapper.swift in Sources */,
 				D4E5F6A7B8C90A1B2C3D4E02 /* InviteSelectGroupContainer.swift in Sources */,
+				F1A2B3C4D5E60718293A4C02 /* InviteMemberContainer.swift in Sources */,
 				56E141944D7C250575C616E7 /* ChartIntro.swift in Sources */,
 				79D2101F40AB55F444EED417 /* CountUp.swift in Sources */,
 				D7708E3FCA2922B28D7C5AC8 /* ChartIntroLedger.swift in Sources */,
