@@ -44,3 +44,4 @@ That run builds Task 11 against the updated view, then walks, verifies and merge
 
 ## History
 - 2026-10-26 parked — the D7 d2m screen update has not landed; Task 11 cannot host the screen as specced
+- 2026-10-27 unparked by a person — named to /builder:agent or /builder:fleet
