@@ -376,6 +376,7 @@
 		9080B30176F8AEBFEE1D4477 /* MonthGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37CCA4C892BAD06F81E3A4BB /* MonthGrid.swift */; };
 		90D231BD850450FE2B4E4E73 /* KeypadKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C1FA9984819D347D1C876A /* KeypadKey.swift */; };
 		90DC5A1324DE8066E3BC652E /* UI2ShellModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F96B0F7A3B4647434537DE76 /* UI2ShellModelTests.swift */; };
+		5E9D0B4C7A1F36828C2D93F4 /* InviteActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7C3E15D2B8F4961D0E4A7B1 /* InviteActionsTests.swift */; };
 		9133DD027E6837830CE067AE /* TimeDialPicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 978B0A88C084BBF431A7A18D /* TimeDialPicker.swift */; };
 		9158BFCEE9D7AD626EE6D275 /* SectionDivider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CBA9CFB1A625C598ADE76FC /* SectionDivider.swift */; };
 		920796F0244318E1357FE479 /* HighlightSnapping.swift in Sources */ = {isa = PBXBuildFile; fileRef = HLSN000100000000000001 /* HighlightSnapping.swift */; };
@@ -1161,6 +1162,7 @@
 		F8B5C32E5E9B47D1A6F2E4B3 /* QRCodeScreenPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScreenPage.swift; sourceTree = "<group>"; };
 		F92CE7087FD4474D6C575ED2 /* UI2Shell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2Shell.swift; sourceTree = "<group>"; };
 		F96B0F7A3B4647434537DE76 /* UI2ShellModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2ShellModelTests.swift; sourceTree = "<group>"; };
+		A7C3E15D2B8F4961D0E4A7B1 /* InviteActionsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InviteActionsTests.swift; sourceTree = "<group>"; };
 		FB16994C803D8C9D8E54158D /* MemberFieldEditorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemberFieldEditorTests.swift; sourceTree = "<group>"; };
 		FC599075F8870C376CC3475B /* ChipStrip.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChipStrip.swift; sourceTree = "<group>"; };
 		FC62B8BBB32118AA08CB6087 /* UI2Root.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2Root.swift; sourceTree = "<group>"; };
@@ -1657,6 +1659,7 @@
 				84EE8D46D0C74242AD5EFCF3 /* AuthStatusPolicyTests.swift */,
 				883183D291E9E697B727F876 /* LoginOutcomeTests.swift */,
 				F96B0F7A3B4647434537DE76 /* UI2ShellModelTests.swift */,
+				A7C3E15D2B8F4961D0E4A7B1 /* InviteActionsTests.swift */,
 				EC8C4B11C668BCCF2F63D17F /* TopNavDragTests.swift */,
 				B6BBCE49B263A647CD6AE3D7 /* DashboardActionsTests.swift */,
 				671238FA8D410853C42A08F2 /* HomeDashboardMapperTests.swift */,
@@ -2729,6 +2732,7 @@
 				5313A611EFF1A31A9AE13426 /* AuthStatusPolicyTests.swift in Sources */,
 				406F93192BF8A7E8FDF53F83 /* LoginOutcomeTests.swift in Sources */,
 				90DC5A1324DE8066E3BC652E /* UI2ShellModelTests.swift in Sources */,
+				5E9D0B4C7A1F36828C2D93F4 /* InviteActionsTests.swift in Sources */,
 				4CDE4ECB783FF419C968CC10 /* TopNavDragTests.swift in Sources */,
 				60A5E32D863B5B2B9628E15D /* DashboardActionsTests.swift in Sources */,
 				C73ED610722685DD44D3F17F /* HomeDashboardMapperTests.swift in Sources */,

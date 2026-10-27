@@ -69,6 +69,31 @@ struct InviteActions {
         return invite
     }
 
+    // MARK: - SMS invite (invite-member)
+
+    /// invite-member T7: `POST /api/invites/send` — the existing group-invite SMS, carrying the
+    /// invitee's name (D8). Returns the created invite's id. D5: no AppState write — no screen
+    /// reads invites yet.
+    @MainActor
+    func sendInvite(groupId: String, recipientPhone: String, recipientName: String) async throws -> String {
+        struct SendInviteResponse: Codable {
+            let success: Bool
+            let inviteId: String?
+            let error: String?
+        }
+
+        let response: SendInviteResponse = try await api.post(
+            "/api/invites/send",
+            body: ["groupId": groupId, "recipientPhone": recipientPhone, "recipientName": recipientName],
+            responseType: SendInviteResponse.self
+        )
+
+        guard response.success, let inviteId = response.inviteId else {
+            throw APIError.serverError(response.error ?? "Couldn't send the invite")
+        }
+        return inviteId
+    }
+
     // MARK: - QR Code Generation
 
     /// Generate a styled QR code image on the server.
