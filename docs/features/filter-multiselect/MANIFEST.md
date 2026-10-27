@@ -1,14 +1,14 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/filter-multiselect
-head: 0d78481
+head: 6b3332f
 ticket: none
 branch: builder/filter-multiselect
 pr: none
 apps: server+iphone
 contract: open
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-10-26
 tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
