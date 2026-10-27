@@ -59,7 +59,9 @@ final class CoverFramingMathTests: XCTestCase {
         let c = CoverFramingMath.clamped(CoverFraming(scale: 1, rotation: 0, offsetX: 0.5, offsetY: 0.5), image: wide, frame: frame)
         // wide at floor: width fits exactly, so no horizontal slack.
         XCTAssertEqual(c.offsetX, 0, accuracy: 1e-6)
-        XCTAssertNotEqual(c.offsetY, 0)   // 2400×1600 at 0.17 is 272pt tall in a 180pt frame: vertical slack exists
+        // 2400×1600 at 0.17 is 272pt tall in a 180pt frame: (272−180)/2 = 46pt of vertical slack.
+        let slack = (1600 * (408.0 / 2400.0) - 180) / 2
+        XCTAssertEqual(c.offsetY, slack / 180, accuracy: 1e-6)
     }
 
     func testClampKeepsALegalOffset() {
@@ -70,6 +72,30 @@ final class CoverFramingMathTests: XCTestCase {
     func testScaleIsClampedTo1Through8() {
         XCTAssertEqual(CoverFramingMath.clamped(CoverFraming(scale: 0.4, rotation: 0, offsetX: 0, offsetY: 0), image: wide, frame: frame).scale, 1)
         XCTAssertEqual(CoverFramingMath.clamped(CoverFraming(scale: 12, rotation: 0, offsetX: 0, offsetY: 0), image: wide, frame: frame).scale, 8)
+    }
+
+    /// D11: the server rejects offsets outside −1…1, so the clamp bounds them as well as covering.
+    func testClampBoundsOffsetsToOneAndStillCoversAtScale8() {
+        for deg in [0.0, 20, 45, 90] {
+            for (ox, oy) in [(50.0, -50.0), (-9, 9), (3.5, 0), (0, -3.5)] {
+                let wild = CoverFraming(scale: 8, rotation: deg, offsetX: ox, offsetY: oy)
+                let c = CoverFramingMath.clamped(wild, image: wide, frame: frame)
+                XCTAssertLessThanOrEqual(abs(c.offsetX), 1 + 1e-9, "\(deg)° x")
+                XCTAssertLessThanOrEqual(abs(c.offsetY), 1 + 1e-9, "\(deg)° y")
+                XCTAssertTrue(covers(c, image: wide), "\(deg)° covers")
+            }
+        }
+        // Past ±1 the coverage-only clamp alone would have allowed this far: 2400×1600 at 8× is ±3.5.
+        let far = CoverFramingMath.clamped(CoverFraming(scale: 8, rotation: 0, offsetX: 9, offsetY: 0), image: wide, frame: frame)
+        XCTAssertEqual(far.offsetX, 1, accuracy: 1e-9)
+    }
+
+    func testNonFiniteFramingComesBackUnchanged() {
+        let nan = CoverFraming(scale: 2, rotation: 0, offsetX: .nan, offsetY: 0)
+        let out = CoverFramingMath.clamped(nan, image: wide, frame: frame)
+        XCTAssertTrue(out.offsetX.isNaN)
+        let inf = CoverFraming(scale: .infinity, rotation: 0, offsetX: 0, offsetY: 0)
+        XCTAssertEqual(CoverFramingMath.clamped(inf, image: wide, frame: frame), inf)
     }
 
     func testSnap() {

@@ -32,7 +32,8 @@ enum CoverFramingMath {
         return ((frame.width * c + frame.height * s) / 2, (frame.width * s + frame.height * c) / 2)
     }
 
-    /// D5: the smallest absolute scale at which the image, rotated, covers the frame.
+    /// D5: the smallest absolute scale at which the image, rotated, covers the frame. A zero-size
+    /// image has no meaningful floor; it reads as 1 so callers never divide by zero.
     static func zoomFloor(image: CGSize, frame: CGSize, rotationDegrees: Double) -> CGFloat {
         guard image.width > 0, image.height > 0 else { return 1 }
         let (ex, ey) = halfExtents(frame: frame, radians: rotationDegrees * .pi / 180)
@@ -47,12 +48,20 @@ enum CoverFramingMath {
         CGPoint(x: CGFloat(framing.offsetX) * frame.width, y: CGFloat(framing.offsetY) * frame.height)
     }
 
-    /// D5/D11: scale into 1…8, rotation into −180…180, and the offset pulled back (in the image's
-    /// axes) until the frame is covered. A legal framing comes back unchanged.
+    /// D11: the frozen contract range for an offset (the server 400s outside it).
+    static let maxOffset: Double = 1
+
+    /// D5/D11: scale into 1…8, rotation into −180…180, offsets into −1…1, and the offset pulled back
+    /// (in the image's axes) until the frame is covered. A legal framing comes back unchanged, and a
+    /// non-finite one comes back as given (D11 requires finite values; there is nothing to clamp to).
     static func clamped(_ framing: CoverFraming, image: CGSize, frame: CGSize) -> CoverFraming {
+        guard framing.scale.isFinite, framing.rotation.isFinite,
+              framing.offsetX.isFinite, framing.offsetY.isFinite else { return framing }
         var f = framing
         f.scale = min(max(f.scale, 1), maxRelativeScale)
         f.rotation = normalized(degrees: f.rotation)
+        f.offsetX = min(max(f.offsetX, -maxOffset), maxOffset)
+        f.offsetY = min(max(f.offsetY, -maxOffset), maxOffset)
         guard frame.width > 0, frame.height > 0 else { return f }
 
         let t = f.rotation * .pi / 180
@@ -64,16 +73,26 @@ enum CoverFramingMath {
         // The frame centre relative to the image centre is −p; into image axes by R(−θ).
         let p = imageCenter(f, frame: frame)
         let ct = CGFloat(cos(t)), st = CGFloat(sin(t))
-        var u = -p.x * ct - p.y * st
-        var v = p.x * st - p.y * ct
+        let u = -p.x * ct - p.y * st
+        let v = p.x * st - p.y * ct
         guard abs(u) > maxU || abs(v) > maxV else { return f }
-        u = min(max(u, -maxU), maxU)
-        v = min(max(v, -maxV), maxV)
-        // Back to frame axes: p = −R(θ)·(u, v).
-        let px = -(u * ct - v * st)
-        let py = -(u * st + v * ct)
-        f.offsetX = Double(px / frame.width)
-        f.offsetY = Double(py / frame.height)
+
+        // Pull back to the covered rectangle, per image axis, then back to frame axes.
+        let cu = min(max(u, -maxU), maxU)
+        let cv = min(max(v, -maxV), maxV)
+        let px = -(cu * ct - cv * st) / frame.width
+        let py = -(cu * st + cv * ct) / frame.height
+        if abs(px) <= maxOffset, abs(py) <= maxOffset {
+            f.offsetX = Double(px)
+            f.offsetY = Double(py)
+            return f
+        }
+        // Rotation can swing a pulled-back component past ±1. The covered rectangle and the ±1 box
+        // both contain the centre (scale ≥ floor), so shrinking the box-clamped offset toward the
+        // centre only helps coverage: take the largest shrink that is still covered.
+        let k = min(1, maxU / max(abs(u), .leastNonzeroMagnitude), maxV / max(abs(v), .leastNonzeroMagnitude))
+        f.offsetX = Double(p.x * k / frame.width)
+        f.offsetY = Double(p.y * k / frame.height)
         return f
     }
 }
