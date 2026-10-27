@@ -149,14 +149,18 @@ enum MemberFieldEditModel {
             return .textSingle(single(field, text: detail.email ?? "", saving: saving, errorMessage: errorMessage), canSave: nil)
         case .phone:
             let stored = detail.phoneNumber
+            // input-masking: the stored +1 number shows nationally, formatted by the phone mask.
             return .textSingle(
-                single(field, text: MemberProfileMapper.phoneLabel(stored), saving: saving, errorMessage: errorMessage),
+                single(field, text: InputMask.phone.format(InputMask.phone.raw(stored)), saving: saving, errorMessage: errorMessage),
                 canSave: { phoneCanSave($0, stored: stored) }
             )
         case .emergencyName:
             return .textSingle(single(field, text: detail.emergencyContactName ?? "", saving: saving, errorMessage: errorMessage), canSave: nil)
         case .emergencyPhone:
-            return .textSingle(single(field, text: detail.emergencyContactPhone ?? "", saving: saving, errorMessage: errorMessage), canSave: nil)
+            // input-masking: stored as typed; shown in the contact-phone mask's form.
+            let stored = detail.emergencyContactPhone ?? ""
+            let shown = stored.isEmpty ? "" : InputMask.phone.format(InputMask.phone.raw(stored))
+            return .textSingle(single(field, text: shown, saving: saving, errorMessage: errorMessage), canSave: nil)
         case .address:
             var s = EditTextMultiFieldScreen.State(
                 title: title, description: description(field), label: title, placeholder: "",
@@ -181,12 +185,16 @@ enum MemberFieldEditModel {
         case .birthday:
             let day = MemberFieldRules.birthdayComponents(detail.birthday)
             let bounds = MemberFieldRules.birthdayBounds(today: today, calendar: calendar)
-            return .date(EditDateFieldScreen.State(
+            var s = EditDateFieldScreen.State(
                 title: title, description: description(field),
                 loadedValue: day, selectedValue: day,
                 minDate: bounds.min, maxDate: bounds.max,
                 saving: saving, errorMessage: errorMessage
-            ))
+            )
+            // birthday-no-clear (owner 2026-10-26, supersedes ui2-members-edit D8 for Birthday):
+            // a birthday can be changed, not removed.
+            s.showsClear = false
+            return .date(s)
         }
     }
 
@@ -281,12 +289,16 @@ enum MemberFieldEditModel {
             s.autocapitalization = .never
             s.autocorrect = false
             s.maxLength = 20
+            s.mask = .phone                       // input-masking B3
         case .emergencyPhone:
-            s.keyboard = .numbersAndPunctuation   // D22: ABC key reaches "x"/"ext" (D7)
+            // Owner 2026-10-26: every phone input opens the number keypad — supersedes D22's
+            // numbersAndPunctuation; extension entry is dropped (a stored one shows until edited).
+            s.keyboard = .phonePad
             s.textContentType = .telephoneNumber
             s.autocapitalization = .never
             s.autocorrect = false
             s.maxLength = 40
+            s.mask = .phone
         case .emergencyName, .birthday, .gender, .address:
             s.keyboard = .default
             s.textContentType = .name

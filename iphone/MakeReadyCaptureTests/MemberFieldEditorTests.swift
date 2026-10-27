@@ -88,6 +88,13 @@ final class MemberFieldEditorTests: XCTestCase {
         }
     }
 
+    // MARK: - birthday-no-clear
+
+    func testBirthdayPageHasNoClear() {
+        guard case let .date(s) = page(.birthday, tony()) else { return XCTFail("birthday is the date page") }
+        XCTAssertFalse(s.showsClear)                   // owner 2026-10-26, supersedes D8 for Birthday
+    }
+
     // MARK: - D9 birthday
 
     func testBirthdayBoundsAndUTCCalendarDate() {
@@ -129,7 +136,8 @@ final class MemberFieldEditorTests: XCTestCase {
         let (s, canSave) = phone
         XCTAssertEqual(s.title, "Phone number")
         XCTAssertEqual(s.description, "The number this member signs in with. Changing it marks it unverified until they sign in with the new number.")
-        XCTAssertEqual(s.text, "+1 (555) 010-0009")    // browse D23 label
+        XCTAssertEqual(s.text, "(555) 010-0009")       // input-masking: the phone mask's national form
+        XCTAssertEqual(s.mask, .phone)
         XCTAssertFalse(s.allowsEmpty)                  // D8: Phone can't be cleared
         XCTAssertEqual(s.maxLength, 20)
         XCTAssertEqual(s.keyboard, .phonePad)
@@ -144,9 +152,12 @@ final class MemberFieldEditorTests: XCTestCase {
     func testEmergencyPagesKeepTheValueAsTyped() {
         guard let phone = single(.emergencyPhone, tony())?.0 else { return XCTFail("emergency phone is text-single") }
         XCTAssertEqual(phone.title, "Emergency phone")
-        XCTAssertEqual(phone.text, "555-123-4567 x2")
+        // Owner 2026-10-26: the keypad on every phone input; extension entry dropped — a stored
+        // extension is not shown on the edit page (the row still shows it until a save).
+        XCTAssertEqual(phone.text, "(555) 123-4567")
         XCTAssertEqual(phone.maxLength, 40)
-        XCTAssertEqual(phone.keyboard, .numbersAndPunctuation)   // D22: reaches "x"/"ext" (D7)
+        XCTAssertEqual(phone.keyboard, .phonePad)
+        XCTAssertEqual(phone.mask, .phone)
         XCTAssertTrue(phone.allowsEmpty)
         guard let name = single(.emergencyName, tony())?.0 else { return XCTFail("emergency contact is text-single") }
         XCTAssertEqual(name.title, "Emergency contact")

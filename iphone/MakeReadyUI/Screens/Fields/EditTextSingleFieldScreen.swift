@@ -58,6 +58,8 @@ struct EditTextSingleFieldScreen: View {
         var textContentType: UITextContentType? = nil
         var autocapitalization: TextInputAutocapitalization = .sentences
         var autocorrect: Bool = true
+        /// input-masking: the live field's mask; Save hands back the raw value.
+        var mask: InputMask? = nil
     }
 
     let state: State
@@ -109,6 +111,7 @@ struct EditTextSingleFieldScreen: View {
             autocapitalization: state.autocapitalization,
             autocorrect: state.autocorrect,
             focusOnAppear: state.focusOnAppear,
+            mask: state.mask,
             canSave: canSave,
             onBack: onBack,
             onGenerate: onGenerate,

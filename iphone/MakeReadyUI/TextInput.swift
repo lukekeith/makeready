@@ -68,6 +68,9 @@ struct TextInput: View {
         var isEnabled: Bool = true
         /// R-17: the live field's spoken name (C-046 passes its label); "" falls back to `placeholder`.
         var accessibilityName: String = ""
+        /// input-masking: formats the text as it is typed — the caller still owns `text` (now the
+        /// formatted form) and reads the saved value back with `mask.raw(_:)`. nil = no mask.
+        var mask: InputMask? = nil
     }
 
     var body: some View {
@@ -275,6 +278,27 @@ private struct LiveField: View {
     }
 
     var body: some View {
+        if let mask = editing.mask, !multiline {
+            // input-masking: a masked field formats in the UIKit delegate, before the keystroke is
+            // drawn — SwiftUI's TextField can only fix the text up after (a visible flicker, and
+            // a fix-up that fights the next keystroke).
+            MaskedTextField(
+                text: text,
+                placeholder: placeholder,
+                mask: mask,
+                alignment: alignment,
+                editing: editing,
+                onChange: onChange,
+                onFocusChange: onFocusChange
+            )
+            .frame(maxWidth: .infinity)
+            .frame(height: Token.TypeStyle.input.lineHeight ?? Token.TypeStyle.input.size)
+        } else {
+            plainField
+        }
+    }
+
+    private var plainField: some View {
         TextField(
             editing.accessibilityName.isEmpty ? placeholder : editing.accessibilityName,
             text: Binding(get: { text }, set: { onChange($0) }),
@@ -298,6 +322,86 @@ private struct LiveField: View {
         // field keeps focus instead of resigning.
         .onSubmit { if !multiline { fieldFocused = true } }
         .onChange(of: fieldFocused) { _, now in onFocusChange(now) }
+
         .onAppear { if editing.focusOnAppear { fieldFocused = true } }
+    }
+}
+
+/// input-masking: C-045's masked live field — a `UITextField` whose delegate applies the mask in
+/// `textField(_:shouldChangeCharactersIn:replacementString:)` and returns false, the standard iOS
+/// pattern: the formatted text and caret are set before anything is drawn, so a keystroke past a
+/// full mask changes nothing and backspace never fights the formatter. Drawn in §2's
+/// `type-input` and colours, caret tinted `color-accent`, like `LiveField`'s `TextField`.
+private struct MaskedTextField: UIViewRepresentable {
+    let text: String
+    let placeholder: String
+    let mask: InputMask
+    let alignment: TextAlignment
+    let editing: TextInput.Editing
+    let onChange: (String) -> Void
+    let onFocusChange: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    func makeUIView(context: Context) -> UITextField {
+        let field = UITextField()
+        field.delegate = context.coordinator
+        field.font = UIFont.systemFont(ofSize: Token.TypeStyle.input.size, weight: .regular)
+        field.textColor = UIColor(Token.inputValue)
+        field.tintColor = UIColor(Token.accent)
+        field.attributedPlaceholder = NSAttributedString(
+            string: placeholder,
+            attributes: [.foregroundColor: UIColor(Token.inputPlaceholder)]
+        )
+        field.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        field.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        field.addTarget(context.coordinator, action: #selector(Coordinator.editingChanged(_:)), for: .editingChanged)
+        if editing.focusOnAppear {
+            Task { @MainActor in field.becomeFirstResponder() }
+        }
+        return field
+    }
+
+    func updateUIView(_ field: UITextField, context: Context) {
+        context.coordinator.parent = self
+        // A caller-side change (seed, cap) — never re-set our own text: that moves the caret.
+        if field.text != text { field.text = text }
+        field.keyboardType = editing.keyboard
+        field.textContentType = editing.textContentType
+        field.autocapitalizationType = .none
+        field.autocorrectionType = editing.autocorrect ? .default : .no
+        field.isEnabled = editing.isEnabled
+        field.textAlignment = alignment == .center ? .center : .natural
+        field.accessibilityLabel = editing.accessibilityName.isEmpty ? placeholder : editing.accessibilityName
+    }
+
+    final class Coordinator: NSObject, UITextFieldDelegate {
+        var parent: MaskedTextField
+
+        init(_ parent: MaskedTextField) { self.parent = parent }
+
+        func textField(_ field: UITextField, shouldChangeCharactersIn range: NSRange, replacementString string: String) -> Bool {
+            let edit = parent.mask.applyEdit(to: field.text ?? "", range: range, replacement: string)
+            if edit.text != field.text {
+                field.text = edit.text
+                parent.onChange(edit.text)
+            }
+            if let caret = field.position(from: field.beginningOfDocument, offset: edit.caret) {
+                field.selectedTextRange = field.textRange(from: caret, to: caret)
+            }
+            return false
+        }
+
+        /// Autofill and dictation bypass the delegate: format whatever arrived.
+        @objc func editingChanged(_ field: UITextField) {
+            let current = field.text ?? ""
+            let formatted = parent.mask.format(parent.mask.raw(current))
+            if formatted != current { field.text = formatted }
+            parent.onChange(formatted)
+        }
+
+        func textFieldShouldReturn(_ field: UITextField) -> Bool { false }   // D22: return does nothing
+        func textFieldDidBeginEditing(_ field: UITextField) { parent.onFocusChange(true) }
+        func textFieldDidEndEditing(_ field: UITextField) { parent.onFocusChange(false) }
     }
 }
