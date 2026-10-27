@@ -106,6 +106,7 @@ struct MembersHomeContainer: View {
         await AppState.shared.loadInitialData()                      // D18: waits for the org
         guard let orgId = AppState.shared.organizationId else { return }
         await actions.loadDirectory(orgId: orgId, search: selection.search,
-                                    groupId: selection.groupId, leaderId: selection.leaderId)
+                                    groupIds: Set([selection.groupId].compactMap { $0 }),
+                                    leaderIds: Set([selection.leaderId].compactMap { $0 }))
     }
 }
