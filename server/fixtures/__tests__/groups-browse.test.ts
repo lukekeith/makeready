@@ -7,6 +7,7 @@ import {
   LEFT_MEMBER_INDEX,
   NEXT_LESSON_SCHEDULE_IDS,
   REQUESTER_INDICES,
+  RICH_GROUP_FIELDS,
   RICH_GROUP_ID,
 } from '../screens/groups-detail.js'
 
@@ -42,5 +43,18 @@ describe('groups-browse fixture ids (D19, D25)', () => {
   it('takes requesters and the leaver from outside group 1', () => {
     for (const i of [...REQUESTER_INDICES, LEFT_MEMBER_INDEX]) expect(i).toBeGreaterThanOrEqual(MEMBERS_PER_GROUP)
     expect(GROUPS_DETAIL_MEMBERSHIP_EVENT_IDS).toHaveLength(4)
+  })
+})
+
+describe('groups-detail rich group fields (ui2-groups-edit T5, F6)', () => {
+  it('stores a value in every edited field, in step with each other', () => {
+    expect(RICH_GROUP_FIELDS).toEqual({
+      description: 'Men meeting Tuesday mornings to read the Gospels together.',
+      ageRangeMin: 26,
+      ageRangeMax: 35,
+      maxMembers: 40,
+      memberDirectoryAccess: 'NAMES_ONLY',
+      memberDirectoryEnabled: false,
+    })
   })
 })

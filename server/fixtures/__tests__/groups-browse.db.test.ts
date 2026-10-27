@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { activityThumbnailUrl } from '../../src/services/next-study-thumbnail.js'
 import { addDays, localDate } from '../context.js'
 import { FIXTURE_EMPTY_GROUP_ID, FIXTURE_ORG_ID } from '../ids.js'
-import { NEXT_LESSON_SCHEDULE_IDS, RICH_GROUP_ID } from '../screens/groups-detail.js'
+import { NEXT_LESSON_SCHEDULE_IDS, RICH_GROUP_FIELDS, RICH_GROUP_ID } from '../screens/groups-detail.js'
 import { type FixturesDb, TEST_DB_URL, openFixturesDb } from './db-harness.js'
 
 const TZ = 'America/Chicago'
@@ -31,7 +31,22 @@ describe.skipIf(!TEST_DB_URL)('groups-browse layers against the test database (D
       ['Empty Group', 'Prayer Team', "Tuesday Men's Group", "Women's Bible Study", 'Young Adults'].sort()
     )
     expect(new Set(groups.map((g) => g.creatorId)).size).toBe(2)
-    expect(groups.every((g) => g.memberDirectoryAccess === 'ALLOWED')).toBe(true)
+    // ui2-groups-edit T5: the rich group is Names only; every other group keeps the default.
+    expect(groups.filter((g) => g.id !== RICH_GROUP_ID).every((g) => g.memberDirectoryAccess === 'ALLOWED')).toBe(true)
+  })
+
+  it('stores the rich group settings and leaves the Empty Group on defaults (ui2-groups-edit T5)', async () => {
+    const rich = await db.prisma.group.findUniqueOrThrow({ where: { id: RICH_GROUP_ID } })
+    expect(rich).toMatchObject(RICH_GROUP_FIELDS)
+    const empty = await db.prisma.group.findUniqueOrThrow({ where: { id: FIXTURE_EMPTY_GROUP_ID } })
+    expect(empty).toMatchObject({
+      description: null,
+      ageRangeMin: null,
+      ageRangeMax: null,
+      maxMembers: null,
+      memberDirectoryAccess: 'ALLOWED',
+      memberDirectoryEnabled: true,
+    })
   })
 
   it('leaves the Empty Group with nothing in any section', async () => {

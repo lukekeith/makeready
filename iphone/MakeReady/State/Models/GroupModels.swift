@@ -118,6 +118,36 @@ struct AgeRange: Codable, Equatable {
     }
 }
 
+/// ui2-groups-edit D6: one group field's PATCH. The iPhone sends one key per request, so a case
+/// is the "sent" state, its `nil` payload the "null" state, and every other key stays absent.
+enum GroupPatch: Equatable {
+    case name(String)
+    case description(String?)
+    case isPrivate(Bool)
+    /// nil clears both bounds; a nil bound inside is sent as null.
+    case ageRange(AgeRange?)
+    /// nil = no limit.
+    case maxMembers(Int?)
+    /// "ALLOWED" | "NAMES_ONLY" | "NOT_ALLOWED" (D7).
+    case memberDirectoryAccess(String)
+
+    /// The request body. `JSONSerialization` writes `NSNull` as `null`.
+    var body: [String: Any] {
+        switch self {
+        case .name(let v): return ["name": v]
+        case .description(let v): return ["description": Self.json(v)]
+        case .isPrivate(let v): return ["isPrivate": v]
+        case .ageRange(let range):
+            guard let range else { return ["ageRange": NSNull()] }
+            return ["ageRange": ["min": Self.json(range.min), "max": Self.json(range.max)]]
+        case .maxMembers(let v): return ["maxMembers": Self.json(v)]
+        case .memberDirectoryAccess(let v): return ["memberDirectoryAccess": v]
+        }
+    }
+
+    private static func json<T>(_ value: T?) -> Any { value.map { $0 as Any } ?? NSNull() }
+}
+
 // MARK: - Group Post Models
 
 /// A post within a group (poll, video, event, or announcement)

@@ -75,4 +75,27 @@ final class GroupDetailContainerTests: XCTestCase {
         XCTAssertEqual(input.requests.map(\.id), ["r1"])
         XCTAssertNil(GroupDetailContainer.input(groupId: "g2", name: "Other", state: state).group)
     }
+
+    // MARK: ui2-groups-edit D1
+
+    func testEditFieldPushesTheFieldsPageOnceTheGroupIsLoaded() {
+        let g = UserGroup(id: "g1", code: "ABC123", name: "Alpha", isPrivate: false, allowInvites: true,
+                          memberCount: 0, creatorId: "u1", createdAt: Date(), updatedAt: Date())
+        XCTAssertEqual(GroupDetailContainer.editDestination(groupId: "g1", label: "Age", group: g),
+                       .editGroupField(groupId: "g1", field: .ageRange))
+        XCTAssertEqual(GroupDetailContainer.editDestination(groupId: "g1", label: "Group name", group: g),
+                       .editGroupField(groupId: "g1", field: .name))
+        XCTAssertNil(GroupDetailContainer.editDestination(groupId: "g1", label: "Cover", group: g))
+        XCTAssertNil(GroupDetailContainer.editDestination(groupId: "g1", label: "Age", group: nil))
+    }
+
+    // MARK: ui2-groups-edit D9/D13/D14
+
+    func testDeleteActionIsOneRedRowNamingTheGroup() {
+        let item = GroupDetailContainer.deleteAction(groupName: "Empty Group")
+        XCTAssertEqual(item.label, "Delete Empty Group")
+        XCTAssertEqual(item.glyph, "trash-2")
+        XCTAssertEqual(item.tone, .destructive)
+        XCTAssertEqual(GroupDetailContainer.deleteFailedMessage, "Couldn't delete the group")
+    }
 }

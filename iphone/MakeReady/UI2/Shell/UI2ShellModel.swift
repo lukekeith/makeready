@@ -26,6 +26,8 @@ enum UI2Destination: Hashable {
     /// ui2-groups-browse D1: one group's page. `name` is the list-known title C-040 shows while
     /// the group loads (D4).
     case groupDetail(id: String, name: String)
+    /// ui2-groups-edit D1/D2: one group setting's edit page, above the group page.
+    case editGroupField(groupId: String, field: GroupField)
     /// ui2-groups-browse D1/D8: the create form, pushed on the Home stack by the Groups `+`;
     /// success replaces it with the new group's `.groupDetail`.
     case createGroup

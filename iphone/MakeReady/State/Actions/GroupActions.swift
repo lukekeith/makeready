@@ -251,9 +251,25 @@ struct GroupActions {
         return state.groups[group.id] ?? group
     }
 
+    /// ui2-groups-edit D5/D6: one field's PATCH. Uses the status-keeping request so the edit page
+    /// can tell a 404 (the group is gone or out of scope) from a failure worth retrying; a 401
+    /// still throws `APIError.unauthorized`. Merges the response, keeping the cached org (D10 of
+    /// ui2-groups-browse — the PATCH response carries none).
+    @MainActor
+    func updateGroup(id: String, patch: GroupPatch) async throws -> UserGroup {
+        let data = try await api.requestWithStatus(endpoint: "/api/groups/\(id)", method: "PATCH", body: patch.body)
+        let response = try JSONDecoder.apiDecoder.decode(GroupResponse.self, from: data)
+        guard response.success, let group = response.group else {
+            throw APIError.serverError(response.error ?? "Failed to update group")
+        }
+        upsertKeepingOrganization(group)
+        state.persist()
+        return state.groups[group.id] ?? group
+    }
+
     // MARK: - Delete Group
 
-    /// Delete a group
+    /// Delete a group (server archives it: `isActive = false`), then forget it locally (D10).
     @MainActor
     func deleteGroup(id: String) async throws {
         let groupName = state.groups[id]?.name ?? id
@@ -264,10 +280,20 @@ struct GroupActions {
             throw APIError.serverError(response.error ?? "Failed to delete group")
         }
 
-        // Remove from state
+        forgetGroup(id: id)
+        Log.state.info("GroupActions: deleted group \(groupName, privacy: .private)")
+    }
+
+    /// ui2-groups-edit D10: drop a group from every store keyed by or listing it, so nothing
+    /// stale stays tappable — the entity stores and indexes, the group page's stores, each
+    /// member's group list, and Home's followed groups (matched by the group's enrollment ids,
+    /// read before the index is cleared). Local only: also the edit page's 404 path (D5).
+    @MainActor
+    func forgetGroup(id: String) {
+        let enrollmentIds = Set(state.groupEnrollmentIndex.get(id))
+
         state.groups.remove(id)
 
-        // Clean up related data
         let postIds = state.groupPostIndex.get(id)
         state.posts.removeMany(postIds)
         state.groupPostIndex.removeAll(parentId: id)
@@ -276,13 +302,33 @@ struct GroupActions {
         state.members.removeMany(memberIds)
         state.groupMemberIndex.removeAll(parentId: id)
 
-        // Remove enrollments for this group
-        let enrollmentIds = state.groupEnrollmentIndex.get(id)
-        state.enrollments.removeMany(enrollmentIds)
+        state.enrollments.removeMany(Array(enrollmentIds))
         state.groupEnrollmentIndex.removeAll(parentId: id)
 
+        state.nextStudyByGroupId[id] = nil
+        state.historyByGroupId[id] = nil
+        state.groupDaysByGroupId[id] = nil
+        state.groupChartByGroupId[id] = nil
+        state.pendingJoinRequestsByGroupId[id] = nil
+        state.groupInvitesByGroupId[id] = nil
+
+        for (memberId, items) in state.memberGroupsById where items.contains(where: { $0.id == id }) {
+            state.memberGroupsById[memberId] = items.filter { $0.id != id }
+        }
+
+        if var following = state.dashboard.following {
+            following.programs = following.programs.compactMap { program in
+                let kept = program.groups.filter { !enrollmentIds.contains($0.enrollmentId) }
+                guard kept.count != program.groups.count else { return program }
+                guard !kept.isEmpty else { return nil }
+                var trimmed = program
+                trimmed.groups = kept
+                return trimmed
+            }
+            state.dashboard.following = following
+        }
+
         state.persist()
-        NSLog("👥 GroupActions: Deleted group '\(groupName)'")
     }
 
     // MARK: - Cover Image Upload

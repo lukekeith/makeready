@@ -50,6 +50,10 @@ struct EditOptionsCustomFieldScreen: View {
         var focusedInput: String
         /// §3 `saving`: a save is in flight.
         var saving: Bool
+        // GAP — editable age inputs, routed to /ui2-resolve (ui2-groups-edit final review)
+        /// true → both inputs are live number-pad fields; false → the static render previews and
+        /// captures use (members-edit T9e's precedent for the text screens).
+        var editable: Bool = false
     }
 
     let state: State
@@ -63,6 +67,8 @@ struct EditOptionsCustomFieldScreen: View {
     // clears both inputs" — the inputs' local text, seeded from `State`.
     @SwiftUI.State private var minimum: String
     @SwiftUI.State private var maximum: String
+    // The live fields' focus as C-045 reports it; drives C-046 `style` when `editable`.
+    @SwiftUI.State private var liveFocus: String = ""
 
     init(
         state: State,
@@ -124,20 +130,26 @@ struct EditOptionsCustomFieldScreen: View {
                     FieldGroup(
                         label: state.minimumLabel,
                         field: .text,
-                        style: state.focusedInput == Self.minimumKey ? .focus : .default,
+                        style: focusedInput == Self.minimumKey ? .focus : .default,
                         layout: .default,
                         text: minimum,
-                        placeholder: state.minimumPlaceholder
+                        placeholder: state.minimumPlaceholder,
+                        editing: state.editable ? liveEditing(state.minimumLabel) : nil,
+                        onChange: { minimum = $0; selectCustom() },
+                        onFocusChange: { focusChanged(Self.minimumKey, $0) }
                     )
                     .ui2Element("C-046 FieldGroup")
 
                     FieldGroup(
                         label: state.maximumLabel,
                         field: .text,
-                        style: state.focusedInput == Self.maximumKey ? .focus : .default,
+                        style: focusedInput == Self.maximumKey ? .focus : .default,
                         layout: .default,
                         text: maximum,
-                        placeholder: state.maximumPlaceholder
+                        placeholder: state.maximumPlaceholder,
+                        editing: state.editable ? liveEditing(state.maximumLabel) : nil,
+                        onChange: { maximum = $0; selectCustom() },
+                        onFocusChange: { focusChanged(Self.maximumKey, $0) }
                     )
                     .ui2Element("C-046 FieldGroup 2")
                 }
@@ -173,26 +185,66 @@ struct EditOptionsCustomFieldScreen: View {
         }
     }
 
-    // §3: `clean` disables Save; `dirty-valid` enables it; `dirty-invalid` disables it;
-    // `saving` disables it; `save-failed` keeps the value, so it is still dirty-valid.
+    /// The focused input: the live fields report their own focus; the static render uses `State`.
+    private var focusedInput: String { state.editable ? liveFocus : state.focusedInput }
+
+    /// The live fields' keyboard: whole numbers only (§5), locked while saving (D26).
+    private func liveEditing(_ label: String) -> TextInput.Editing {
+        TextInput.Editing(
+            keyboard: .numberPad,
+            autocapitalization: .never,
+            autocorrect: false,
+            isEnabled: !state.saving,
+            accessibilityName: label
+        )
+    }
+
+    // §3: typing a bound is a custom range — the selection follows the keystroke to the
+    // custom option.
+    private func selectCustom() {
+        if let custom = state.options.last { selection = custom }
+    }
+
+    private func focusChanged(_ key: String, _ focused: Bool) {
+        if focused {
+            liveFocus = key
+        } else if liveFocus == key {
+            liveFocus = ""
+        }
+    }
+
     private var saveEnabled: Bool {
-        !state.saving && dirty && valid
+        Self.saveEnabled(
+            selection: selection, minimum: minimum, maximum: maximum,
+            loadedMinimum: state.loadedMinimum, loadedMaximum: state.loadedMaximum,
+            options: state.options, saving: state.saving
+        )
     }
 
-    private var dirty: Bool {
-        minimum != state.loadedMinimum || maximum != state.loadedMaximum
-    }
-
-    // §3 `dirty-invalid` (proposed default, OQ-edit-options-custom-field-3): "min > max;
-    // outside 0–120; custom option selected with both inputs empty".
-    private var valid: Bool {
-        let isCustom = selection == state.options.last
-        if isCustom && minimum.isEmpty && maximum.isEmpty { return false }
-        let low = Self.bound(minimum)
-        let high = Self.bound(maximum)
+    /// §3: `clean` disables Save; `dirty-valid` enables it; `dirty-invalid` disables it;
+    /// `saving` disables it; `save-failed` keeps the value, so it is still dirty-valid.
+    /// `dirty-invalid` (proposed default, OQ-edit-options-custom-field-3): "min > max;
+    /// outside 0–120; custom option selected with both inputs empty". Dirty compares the
+    /// effective bounds, so "030" against a stored 30 is clean.
+    static func saveEnabled(
+        selection: String, minimum: String, maximum: String,
+        loadedMinimum: String, loadedMaximum: String,
+        options: [String], saving: Bool
+    ) -> Bool {
+        let dirty = effective(minimum) != effective(loadedMinimum)
+            || effective(maximum) != effective(loadedMaximum)
+        guard !saving, dirty else { return false }
+        if selection == options.last && minimum.isEmpty && maximum.isEmpty { return false }
+        let low = bound(minimum)
+        let high = bound(maximum)
         if (!minimum.isEmpty && low == nil) || (!maximum.isEmpty && high == nil) { return false }
         if let low, let high, low > high { return false }
         return true
+    }
+
+    /// A bound's effective value: its whole number when it parses, else the text as typed.
+    private static func effective(_ text: String) -> String {
+        Int(text).map(String.init) ?? text
     }
 
     // §5: `ageRange.min/max` int 0–120. Behaviour, not a design value.
