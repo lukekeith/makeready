@@ -1,12 +1,12 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/group-cover-image
-head: f49dae0
+head: 37d1438
 ticket: none
 branch: builder/group-cover-image
 pr: none
 apps: server+iphone
-contract: open (reopened 2026-10-27)
+contract: frozen 2026-10-27
 hold: none
 go-ahead: Luke 2026-10-27
 tests: slice=own+app end=risk review=slice
