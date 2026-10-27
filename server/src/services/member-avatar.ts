@@ -101,3 +101,11 @@ export async function saveMemberAvatar(input: SaveMemberAvatarInput): Promise<Sa
 
   return { url: avatar.url, originalUrl, framing }
 }
+
+/**
+ * D11: what every profilePicture write OTHER than the avatar upload also sets — the stored
+ * original and framing no longer describe the avatar, so Edit must not reopen them.
+ */
+export function clearedAvatarOriginal(): { profilePictureOriginalUrl: null; profilePictureFraming: typeof Prisma.DbNull } {
+  return { profilePictureOriginalUrl: null, profilePictureFraming: Prisma.DbNull }
+}

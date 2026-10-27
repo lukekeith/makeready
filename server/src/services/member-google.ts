@@ -1,5 +1,7 @@
 import { prisma } from '../lib/prisma.js'
 import type { Member } from '../generated/prisma/index.js'
+import { clearedAvatarOriginal } from './member-avatar.js'
+import { deleteOriginalBestEffort } from './image-original.js'
 
 /**
  * Member Google Profile Linking Service
@@ -190,13 +192,18 @@ export async function syncGoogleProfile(
       }
     }
 
-    // Update member's profile picture with Google picture
+    // Update member's profile picture with Google picture; image-framing-editor D11 clears the
+    // stored original + framing and deletes the old original after the write.
     const updatedMember = await prisma.member.update({
       where: { id: memberId },
       data: {
         profilePicture: member.googlePicture,
+        ...clearedAvatarOriginal(),
       },
     })
+    if (member.profilePictureOriginalUrl) {
+      await deleteOriginalBestEffort(member.profilePictureOriginalUrl, 'syncGoogleProfile')
+    }
 
     console.log(`✅ Synced Google profile picture for member ${memberId}`)
 

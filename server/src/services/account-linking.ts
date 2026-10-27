@@ -1,6 +1,8 @@
 import { prisma } from '../lib/prisma.js'
 import type { Member, User } from '../generated/prisma/index.js'
 import { uploadMemberAvatar } from './storage.js'
+import { clearedAvatarOriginal } from './member-avatar.js'
+import { deleteOriginalBestEffort } from './image-original.js'
 
 /**
  * Account Linking Service
@@ -60,11 +62,19 @@ export async function syncProfilePictureFromUrl(
       return false
     }
 
-    // Update member's profilePicture
+    // Update member's profilePicture; image-framing-editor D11/D15: the R2 copy counts as an
+    // uploaded avatar with no original yet, so the stored original + framing are cleared.
+    const stored = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { profilePictureOriginalUrl: true },
+    })
     await prisma.member.update({
       where: { id: memberId },
-      data: { profilePicture: uploadResult.url },
+      data: { profilePicture: uploadResult.url, ...clearedAvatarOriginal() },
     })
+    if (stored?.profilePictureOriginalUrl) {
+      await deleteOriginalBestEffort(stored.profilePictureOriginalUrl, 'syncProfilePictureFromUrl')
+    }
 
     console.log(`✅ Synced profile picture for member ${memberId} from external URL`)
     return true

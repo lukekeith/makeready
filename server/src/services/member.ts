@@ -3,6 +3,8 @@ import type { Member, Group, Prisma } from '../generated/prisma/index.js'
 import { type MemberViewer, visibleMemberOrgIds } from './member-access.js'
 import { normalizePhone } from './member-fields.js'
 import { parseStoredFraming, type CoverFraming } from './group-cover.js'
+import { clearedAvatarOriginal } from './member-avatar.js'
+import { deleteOriginalBestEffort } from './image-original.js'
 
 /**
  * Member Service
@@ -80,6 +82,9 @@ export interface UpdateMemberData {
   emergencyContactName?: string | null
   emergencyContactPhone?: string | null
   profilePicture?: string | null
+  /** image-framing-editor D11: set by updateMember itself whenever profilePicture is written. */
+  profilePictureOriginalUrl?: null
+  profilePictureFraming?: typeof Prisma.DbNull
   phoneVerified?: boolean
   lastVerifiedAt?: Date | null
   smsConsent?: boolean
@@ -285,6 +290,17 @@ export async function updateMember(
 ): Promise<MemberResult> {
   try {
     const update: UpdateMemberData = { ...data }
+    // image-framing-editor D11: a profilePicture written here (PATCH, avatar/sync-google) drops the
+    // stored original + framing; the old original is deleted after the write, best-effort.
+    let replacedOriginal: string | null = null
+    if (data.profilePicture !== undefined) {
+      const stored = await prisma.member.findUnique({
+        where: { id: memberId },
+        select: { profilePictureOriginalUrl: true },
+      })
+      replacedOriginal = stored?.profilePictureOriginalUrl ?? null
+      Object.assign(update, clearedAvatarOriginal())
+    }
 
     if (data.phoneNumber !== undefined) {
       const next = normalizePhone(data.phoneNumber)
@@ -319,6 +335,7 @@ export async function updateMember(
         updatedAt: new Date(),
       },
     })
+    if (replacedOriginal) await deleteOriginalBestEffort(replacedOriginal, 'updateMember')
 
     return {
       success: true,
