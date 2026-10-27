@@ -5,6 +5,7 @@ const prismaMock = vi.hoisted(() => ({
   memberLessonProgress: { findMany: vi.fn() },
   memberVideoProgress: { findMany: vi.fn() },
   member: { findMany: vi.fn() },
+  groupMember: { findMany: vi.fn() },
 }))
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
 
@@ -128,5 +129,40 @@ describe('loadSessions (D2 sources)', () => {
       where: { OR: [{ startedAt: padded }, { lastWatchedAt: padded }], lessonSchedule: scheduleWhere, memberId: 'm1' },
       select: { memberId: true, startedAt: true, lastWatchedAt: true },
     })
+  })
+
+  it('narrows every source to the group’s active members when groupId is set (ui2-groups-browse D14)', async () => {
+    prismaMock.groupMember.findMany.mockResolvedValue([{ memberId: 'm1' }, { memberId: 'm3' }, { memberId: 'm1' }])
+    await loadSessions(scope, window, { groupId: 'g1' })
+    expect(prismaMock.groupMember.findMany).toHaveBeenCalledWith({
+      where: { groupId: 'g1', isActive: true, memberId: { not: null } },
+      select: { memberId: true },
+    })
+    const inGroup = { in: ['m1', 'm3'] }
+    expect(prismaMock.clientEvent.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
+    expect(prismaMock.memberLessonProgress.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
+    expect(prismaMock.memberVideoProgress.findMany.mock.calls[0][0].where.memberId).toEqual(inGroup)
+  })
+
+  it('counts a member of two groups in both (D14)', async () => {
+    prismaMock.groupMember.findMany.mockImplementation(async ({ where }: any) =>
+      where.groupId === 'g1' ? [{ memberId: 'm1' }] : [{ memberId: 'm1' }, { memberId: 'm2' }]
+    )
+    prismaMock.clientEvent.findMany.mockImplementation(async ({ where }: any) =>
+      [
+        { memberId: 'm1', occurredAt: at('2026-10-20T10:05:00Z') },
+        { memberId: 'm2', occurredAt: at('2026-10-20T10:30:00Z') },
+      ].filter((e) => where.memberId.in.includes(e.memberId))
+    )
+    prismaMock.member.findMany.mockResolvedValue([{ id: 'm1' }, { id: 'm2' }])
+    prismaMock.memberLessonProgress.findMany.mockResolvedValue([])
+    prismaMock.memberVideoProgress.findMany.mockResolvedValue([])
+    expect((await loadSessions(scope, window, { groupId: 'g1' })).map((s) => s.memberId)).toEqual(['m1'])
+    expect((await loadSessions(scope, window, { groupId: 'g2' })).map((s) => s.memberId)).toEqual(['m1', 'm2'])
+  })
+
+  it('reads no group members when groupId is absent', async () => {
+    await loadSessions(scope, window)
+    expect(prismaMock.groupMember.findMany).not.toHaveBeenCalled()
   })
 })

@@ -119,6 +119,16 @@ describe('getHomeDays', () => {
     expect(result.days[0].lastActivityAt).toBe('2026-11-01T05:40:00.000Z')
   })
 
+  it('passes groupId through to loadSessions (ui2-groups-browse D14)', async () => {
+    vi.mocked(loadSessions).mockResolvedValue([])
+    await getHomeDays(SCOPE, '2026-11-01', '2026-11-02', CHI, { groupId: 'g1' })
+    expect(loadSessions).toHaveBeenCalledWith(
+      SCOPE,
+      { from: at('2026-11-01T05:00:00Z'), to: at('2026-11-03T06:00:00Z') },
+      { groupId: 'g1' }
+    )
+  })
+
   it('passes memberId through to loadSessions (ui2-members-browse D12)', async () => {
     vi.mocked(loadSessions).mockResolvedValue([])
     await getHomeDays(SCOPE, '2026-11-01', '2026-11-02', CHI, { memberId: 'm1' })

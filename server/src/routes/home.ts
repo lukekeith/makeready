@@ -19,6 +19,7 @@ import { deriveAnalyticsScope, isEmptyScope } from '../services/analytics-scope.
 import { getHomeDays, getHomeEngagement, getHomeSessions, validateDayRange } from '../services/home-dashboard.js'
 import { getHomeFollowing } from '../services/home-following.js'
 import { canViewMember, visibleMemberOrgIds } from '../services/member-access.js'
+import { findManageableGroup } from '../services/permission.js'
 
 const router = Router()
 
@@ -32,6 +33,8 @@ const daysQuery = z.object({
   organizationId,
   // ui2-members-browse D12: declared, or z.object strips it and the rail would read the whole org.
   memberId: z.string().min(1).max(64).optional(),
+  // ui2-groups-browse D14: declared, or z.object strips it and the group rail would read the whole org.
+  groupId: z.string().min(1).max(64).optional(),
 })
 const engagementQuery = z.object({ tz, organizationId })
 const followingQuery = z.object({ organizationId })
@@ -107,6 +110,7 @@ router.get('/sessions', requireAuth, async (req, res) => {
  *       - { in: query, name: tz, schema: { type: string } }
  *       - { in: query, name: organizationId, schema: { type: string } }
  *       - { in: query, name: memberId, schema: { type: string }, description: "Only this member's sessions; 404 outside the caller's member scope" }
+ *       - { in: query, name: groupId, schema: { type: string }, description: "Only sessions of this group's active members; 404 unless the caller manages the group; 400 with memberId" }
  *     responses:
  *       200: { description: "{ days: [{ day, sessionSeconds, blocks[12], lastActivityAt (ISO|null) }] } — every day, zero-filled" }
  *       400: { description: Bad dates, more than 62 days, bad timezone or an empty memberId }
@@ -118,10 +122,23 @@ router.get('/days', requireAuth, async (req, res) => {
     if (!parsed.success) return invalid(res, parsed.error)
     const rangeError = validateDayRange(parsed.data.from, parsed.data.to)
     if (rangeError) return res.status(400).json({ success: false, error: rangeError })
+    if (parsed.data.memberId && parsed.data.groupId) {
+      return res.status(400).json({ success: false, error: 'memberId and groupId cannot be combined' })
+    }
     assertValidTimezone(parsed.data.tz)
     const scope = await scopeOrRespond(req, res, parsed.data.organizationId)
     if (!scope) return
-    const { from, to, memberId, organizationId: orgId } = parsed.data
+    const { from, to, memberId, groupId, organizationId: orgId } = parsed.data
+    if (groupId) {
+      // D14: the caller must manage the group (groupManageFilter + isActive); an API-key caller has no user id.
+      const groupUserId = callerOf(req).userId
+      if (!groupUserId || !(await findManageableGroup(groupUserId, groupId))) {
+        res.status(404).json({ success: false, error: 'Not found' })
+        return
+      }
+      res.json(await getHomeDays(scope, from, to, parsed.data.tz, { groupId }))
+      return
+    }
     if (!memberId) {
       res.json(await getHomeDays(scope, from, to, parsed.data.tz))
       return

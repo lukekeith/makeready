@@ -248,12 +248,14 @@ export async function getHomeDays(
   from: string,
   to: string,
   tz: string,
-  opts: { memberId?: string } = {}
+  opts: { memberId?: string; groupId?: string } = {}
 ): Promise<{ days: HomeDay[] }> {
   const window = { from: zonedMidnight(from, tz), to: zonedMidnight(addDays(to, 1), tz) }
   const sessions = opts.memberId
     ? await loadSessions(scope, window, { memberId: opts.memberId })
-    : await loadSessions(scope, window)
+    : opts.groupId
+      ? await loadSessions(scope, window, { groupId: opts.groupId })
+      : await loadSessions(scope, window)
   return { days: bucketDays(sessions, from, to, tz) }
 }
 
