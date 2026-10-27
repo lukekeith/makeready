@@ -122,10 +122,10 @@ unaffected.
 
 | # | ADD/EDIT/RENAME/REMOVE | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Invite.recipientName` (String?, nullable) | `recipientName` | D8 — the invitee's name has nowhere to live | planned |
-| SC2 | EDIT | `POST /api/invites/send` body | `recipientName?` | D8 — accept and persist the name | planned |
-| SC3 | EDIT | `GET /api/invites` and `PATCH /api/invites/:id` responses | `recipientName` | D6 — leader reads return the name | planned |
-| SC4 | EDIT | `GET /api/groups` response | `creatorName` | D9 — the picker's leader chip and filter | planned |
+| SC1 | ADD | `Invite.recipientName` (String?, nullable) | `recipientName` | D8 — the invitee's name has nowhere to live | landed `20261027005642` |
+| SC2 | EDIT | `POST /api/invites/send` body | `recipientName?` | D8 — accept and persist the name | landed |
+| SC3 | EDIT | `GET /api/invites` and `PATCH /api/invites/:id` responses | `recipientName` | D6 — leader reads return the name | landed |
+| SC4 | EDIT | `GET /api/groups` response | `creatorName` | D9 — the picker's leader chip and filter | landed |
 
 **Data plan:** SC1 is one additive, nullable column via `server/schema/schema.yaml` → `npm run
 schema:diff` (Atlas); existing invites read `null`; no backfill; undone by dropping the column.
