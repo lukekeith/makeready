@@ -68,3 +68,4 @@ Apply the diff above to `.claude/builder.md` on main (real values), then run
 - 2026-10-27 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-10-27 F1 cleared (8b83f38 on main); Tasks 11, 12, 15 + final review built; phases closed at 09216fd
 - 2026-10-27 re-parked by the walk lane — agent_walk.env lacks R2_* [F10]; config change is the owner's
+- 2026-10-27 unparked by a person — named to /builder:agent or /builder:fleet
