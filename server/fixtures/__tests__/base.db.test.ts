@@ -66,7 +66,7 @@ describe.skipIf(!TEST_DB_URL)('fixtures base layer against the test database (D1
       users: 2,
       organizations: 1,
       user_roles: 2,
-      groups: 4,
+      groups: 5,
       members: 24,
       group_members: 24,
       member_organizations: 24,
