@@ -97,9 +97,9 @@ same columns.
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | EDIT | PATCH body `memberDirectoryAccess` (writes `Group.memberDirectoryAccess` + `memberDirectoryEnabled`) | §Contract | groups-detail "Member directory access" edit page (shared-edit-field §2b, three options); D7 | planned |
-| SC3 | EDIT | PATCH `memberDirectory` Boolean-only write keeps a stored `NAMES_ONLY` (`memberDirectoryAccess` sync) | §Contract | the "Names only" option must survive the full-form saves of LeaderApp and 1.0 (F3); D12 | planned |
-| SC2 | EDIT | PATCH `ageRange` validation | §Contract | edit-options-custom-field §3 validation (min ≤ max); D8 | planned |
+| SC1 | EDIT | PATCH body `memberDirectoryAccess` (writes `Group.memberDirectoryAccess` + `memberDirectoryEnabled`) | §Contract | groups-detail "Member directory access" edit page (shared-edit-field §2b, three options); D7 | landed cb5708f (no migration — wire only) |
+| SC3 | EDIT | PATCH `memberDirectory` Boolean-only write keeps a stored `NAMES_ONLY` (`memberDirectoryAccess` sync) | §Contract | the "Names only" option must survive the full-form saves of LeaderApp and 1.0 (F3); D12 | landed cb5708f (no migration — wire only) |
+| SC2 | EDIT | PATCH `ageRange` validation | §Contract | edit-options-custom-field §3 validation (min ≤ max); D8 | landed cb5708f (no migration — wire only) |
 
 **Data plan:** no schema change — the column landed in browse (SC1 there). Existing rows untouched.
 
