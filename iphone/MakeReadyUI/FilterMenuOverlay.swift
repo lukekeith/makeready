@@ -195,8 +195,9 @@ private extension FilterMenuOverlay {
 // MARK: - Presentation (§4 modifier, OQ-C-036-4)
 
 extension View {
-    /// C-036 §4 `.filterMenuPresentation(isPresented:onDismiss:)`: the full-screen
-    /// `color-black-80` dim (OQ-C-036-3) under the view, crossfaded together with
+    /// C-036 §4 `.filterMenuPresentation(isPresented:onDismiss:)`: the full-screen blurred
+    /// backdrop (system material under `color-black-60`; was the `color-black-80` dim,
+    /// OQ-C-036-3) under the view, crossfaded together with
     /// `motion-menu-fade-in/out`. The dim is not a tap target; the escape action fires
     /// `onDismiss`. Always draws in place (previews, capture).
     func filterMenuPresentation(isPresented: Bool, onDismiss: @escaping () -> Void = {}) -> some View {
@@ -240,10 +241,18 @@ private struct FilterMenuLayer<Menu: View>: View {
     var body: some View {
         ZStack {
             // Full screen, ignoring safe areas; not an accessibility element, no gesture.
-            Token.black80
-                .ignoresSafeArea()
-                .accessibilityHidden(true)
-                .ui2Element("Dim")
+            // filter-menu-backdrop (owner 2026-10-26): the page behind is blurred — the system
+            // backdrop blur, live like CSS `backdrop-filter` — under a `color-black-60` tint so
+            // the options read; replaces the see-through `color-black-80` dim. Snapshots draw
+            // the material invisible (a known capture quirk); the device draws it.
+            ZStack {
+                Rectangle().fill(.ultraThinMaterial)
+                Token.black60
+            }
+            .environment(\.colorScheme, .dark)
+            .ignoresSafeArea()
+            .accessibilityHidden(true)
+            .ui2Element("Dim")
             menu
                 .accessibilityAddTraits(.isModal)
                 .accessibilityAction(.escape, onDismiss)
