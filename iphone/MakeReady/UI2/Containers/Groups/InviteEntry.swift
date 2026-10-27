@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// invite-member D2/D12/D13: where the Add menu's "Invite a member" row goes.
 enum InviteEntry {
@@ -11,6 +11,16 @@ enum InviteEntry {
         case 0: return nil
         case 1: return .inviteMember(groupId: groups[0].id, returnDepth: returnDepth)
         default: return .inviteSelectGroup(returnDepth: returnDepth)
+        }
+    }
+
+    /// Every "Invite a member" entry — the TabBar Add menu's row and the TopNav Members `add`
+    /// (owner 2026-10-26) — opens the flow on `tab`'s stack; Cancel/Done return to that depth.
+    @MainActor
+    static func open(on tab: TabBar.Tab, model: Binding<UI2ShellModel>) {
+        let depth = model.wrappedValue.path(for: tab).count
+        Task { @MainActor in
+            await open(push: { model.wrappedValue.push($0, on: tab) }, returnDepth: depth)
         }
     }
 

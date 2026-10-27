@@ -91,7 +91,12 @@ struct TopNavHost: View {
             scrollOffset: model.scrollOffset,
             onSelect: select,
             onToggleExpansion: toggle,
-            onAdd: { _ in }                                  // SPEC D10: add slots are no-ops
+            // The Members `add` opens the invite flow, exactly as the Add menu's row does (owner
+            // 2026-10-26); the other add slots stay no-ops (SPEC D10).
+            onAdd: { tab in
+                guard tab == UI2Section.members.rawValue else { return }
+                InviteEntry.open(on: .home, model: $model)
+            }
         )
         // Simultaneous so TopNav's own horizontal ScrollView keeps its pan; only a drag whose
         // first movement is vertical scrubs the morph (analysis §6: horizontal pan scrolls,

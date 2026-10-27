@@ -62,11 +62,7 @@ struct UI2Shell: View {
                         onSelect: { action in
                             addMenuOpen = false
                             guard action.label == InviteEntry.rowLabel else { return }  // the other rows land with their screens
-                            let tab = model.tab
-                            let depth = model.path(for: tab).count
-                            Task { @MainActor in
-                                await InviteEntry.open(push: { model.push($0, on: tab) }, returnDepth: depth)
-                            }
+                            InviteEntry.open(on: model.tab, model: $model)
                         },
                         showsDone: false,
                         hairlineAfterLast: false
