@@ -1,5 +1,5 @@
 # ui2-groups-edit — spec
-> 🤖 AGENT SIGNED OFF 2026-10-27 — 629238d · agent walk round 1 · not human-tested · evidence: .builder/ui2-groups-edit/agent-walk/round-1/
+> ✅ SHIPPED 2026-10-27 — merged into main · no ticket · 🤖 agent signed off (walk round 1), not human-tested
 > md · child 2 of program `ui2-groups` (docs/features/ui2-groups/PROGRAM.md)
 
 ## Idea
@@ -180,3 +180,4 @@ owner notes on any of the five items (`ui2-notes.mjs read`, 2026-10-27). The iPh
 | R1 | repoint: none — §Replaced surfaces is empty; the feature fills `GroupDetailContainer`'s two no-op closures and replaces no live surface. Legacy 1.0 `EditGroupPage`/`GroupHomePage` stay for the 1.0 shell | nothing to repoint |
 | T5 | server: `server/fixtures/screens/groups-detail.ts` `full` sets the rich group's description, `ageRangeMin/Max` 26/35, `maxMembers` 40, `memberDirectoryAccess` NAMES_ONLY + `memberDirectoryEnabled` false; Empty Group untouched (F6) | trailing |
 | T6 | iphone: `ActionMenuOverlay.ActionItem.tone` passed to `ActionMenuRow` (D13), default `.standard` | trailing |
+| L1 | lesson for §Standing traps: in a fleet worktree (no `server/.env`) the server gate's `test:run` and `migrate:status` go red on env alone (36 files fail to load) — run vitest against a throwaway migrated + seeded DB (`createdb`, atlas `migrate apply`, `scripts/schema/run-seeds.ts`, then `DATABASE_URL=… GOOGLE_CLIENT_ID=… npx vitest run`); 3 files (production/users/lesson-activities) stay red at base | proposed |

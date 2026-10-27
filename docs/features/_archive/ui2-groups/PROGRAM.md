@@ -1,4 +1,5 @@
 # ui2-groups — program
+> ✅ SHIPPED 2026-10-27 — every child shipped · last: ui2-groups-edit
 > tier: program · design ref `--ui2 groups-home,groups-detail,edit-text-single-field,edit-text-multi-field,edit-option-field,edit-options-custom-field` + `create-group` (d2m era 2.0, intake 2026-10-27)
 
 ## Overview
