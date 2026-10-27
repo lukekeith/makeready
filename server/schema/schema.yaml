@@ -286,6 +286,14 @@ models:
       coverImageUrl:
         type: string
         nullable: true
+      coverOriginalUrl:
+        type: text
+        nullable: true
+        description: "group-cover-image SC1 (D10): the full original cover photo; null means Edit reopens coverImageUrl (D7)"
+      coverFraming:
+        type: json
+        nullable: true
+        description: "group-cover-image SC2 (D11): {scale, rotation, offsetX, offsetY} the cover was rendered with"
       isPrivate:
         type: boolean
         default: false
