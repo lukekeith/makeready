@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/ui2-groups-browse
-head: 4cb859d
+next: /builder:resume --path docs/features/ui2-groups-browse
+head: 6483bd6
 ticket: none
 branch: builder/ui2-groups-browse
 pr: none
