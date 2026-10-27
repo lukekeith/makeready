@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/filter-multiselect
-head: 2f423e8
+head: 58cece9
 ticket: none
-branch: ui2-preview-build
+branch: builder/filter-multiselect
 pr: none
 apps: server+iphone
 contract: open
