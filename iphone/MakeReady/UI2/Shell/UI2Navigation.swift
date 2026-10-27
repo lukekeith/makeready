@@ -89,3 +89,12 @@ final class UI2PopGestureDelegate: NSObject, UIGestureRecognizerDelegate {
         (navigationController?.viewControllers.count ?? 0) > 1
     }
 }
+
+extension View {
+    /// invite-member Fixes (agent walk round 1, O1): a d2m screen that sizes to its content
+    /// (`maxWidth` only) is centred by the NavigationStack; a pushed page fills the screen top-down.
+    func ui2PushedPageFill() -> some View {
+        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Token.layoutBackground.ignoresSafeArea())
+    }
+}

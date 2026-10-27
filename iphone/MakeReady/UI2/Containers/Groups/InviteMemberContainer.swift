@@ -43,6 +43,7 @@ struct InviteMemberContainer: View {
             onSendInvite: { name, phone in send(name: name, phone: phone) },
             onDone: { navigator.popTo(returnDepth) }
         )
+        .ui2PushedPageFill()
     }
 
     private func send(name: String, phone: String) {

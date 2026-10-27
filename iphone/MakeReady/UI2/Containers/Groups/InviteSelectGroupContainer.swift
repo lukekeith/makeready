@@ -33,6 +33,7 @@ struct InviteSelectGroupContainer: View {
             onSearch: { query = $0 },
             onOpenLeaderFilter: { leaderMenuOpen = true }
         )
+        .ui2PushedPageFill()
         .filterMenuPresentation(isPresented: leaderMenuOpen, onDismiss: { leaderMenuOpen = false }) {
             FilterMenuOverlay(
                 options: output.leaderOptions.map { FilterMenuOverlay.Option(id: $0, label: $0) },
