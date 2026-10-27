@@ -28,15 +28,20 @@ struct MemberActions {
     // MARK: - Directory (members-home)
 
     /// D6/P12: one directory load — the server orders, filters and D7-scopes it. `search` is
-    /// trimmed; empty values are not sent.
+    /// trimmed; filter-multiselect D12: the picks go as sorted comma lists (`groupIds`,
+    /// `leaderIds` — never the single params); empty values are not sent.
     @MainActor
-    func loadDirectory(orgId: String, search: String = "", groupId: String? = nil, leaderId: String? = nil) async {
+    func loadDirectory(orgId: String, search: String = "", groupIds: Set<String> = [], leaderIds: Set<String> = []) async {
         let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+        let groups = groupIds.sorted()
+        let leaders = leaderIds.sorted()
         let path = Self.path("/api/organizations/\(orgId)/members",
-                             [("search", query), ("groupId", groupId ?? ""), ("leaderId", leaderId ?? "")])
+                             [("search", query),
+                              ("groupIds", groups.joined(separator: ",")),
+                              ("leaderIds", leaders.joined(separator: ","))])
         guard let response = await fetch("loadDirectory", path, OrgMembersResponse.self) else { return }
         state.orgMembersByOrgId[orgId] = OrgMemberDirectory(
-            search: query, groupId: groupId, leaderId: leaderId,
+            search: query, groupIds: groups, leaderIds: leaders,
             members: response.data, viewerScope: response.viewerScope
         )
     }

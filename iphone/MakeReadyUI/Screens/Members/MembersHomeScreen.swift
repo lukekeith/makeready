@@ -37,10 +37,19 @@ struct MembersHomeScreen: View {
         var groupFilterLabel: String
         /// C-035 `label` of the Leaders chip (§3: "All Leaders" default).
         var leaderFilterLabel: String
-        /// C-036 options of the Groups menu — §3: "All Groups" + every group the caller can see.
+        /// C-036 options of the Groups menu — every group the caller can see (no "All …" row, D3).
         var groupOptions: [String]
-        /// C-036 options of the Leaders menu — §3: "All Leaders" + each leader in the org.
+        /// C-036 options of the Leaders menu — each leader in the org (no "All …" row, D3).
         var leaderOptions: [String]
+        /// filter-multiselect D15: the id behind each `groupOptions` label, parallel; [] = the
+        /// labels are the ids (previews, capture).
+        var groupOptionIDs: [String] = []
+        /// D15: the id behind each `leaderOptions` label, parallel; [] = the labels are the ids.
+        var leaderOptionIDs: [String] = []
+        /// filter-multiselect D1/D4: the checked Groups ids — C-036's seed; non-empty = active chip.
+        var selectedGroupIDs: Set<String> = []
+        /// D1/D4: the checked Leaders ids.
+        var selectedLeaderIDs: Set<String> = []
         /// D7/D15: the Leaders chip shows only for a caller who sees every member of the org;
         /// a Group Leader's directory is already their own groups.
         var showsLeaderFilter: Bool
@@ -68,8 +77,8 @@ struct MembersHomeScreen: View {
     // The screen never decides what an action means. (D4: no tab / nav-toggle callbacks — the
     // shell's TopNav owns them.)
     var onSearch: (String) -> Void = { _ in }       // §3: typing filters the list live (debounced)
-    var onSelectGroup: (String) -> Void = { _ in }  // §3: a Groups option applies that filter
-    var onSelectLeader: (String) -> Void = { _ in } // §3: a Leaders option applies that filter
+    var onSaveGroups: (Set<String>) -> Void = { _ in }  // filter-multiselect D1: Save on the Groups menu
+    var onSaveLeaders: (Set<String>) -> Void = { _ in } // D1: Save on the Leaders menu
     var onOpenMember: (Int) -> Void = { _ in }      // §3: MemberRow tap → members-profile, by row
     /// members-search-pinned (routed to /ui2-resolve): search became active / ended — the shell
     /// pushes its TopNav off screen while it is active. The screen only reports it.
@@ -85,15 +94,15 @@ struct MembersHomeScreen: View {
     init(
         state: State,
         onSearch: @escaping (String) -> Void = { _ in },
-        onSelectGroup: @escaping (String) -> Void = { _ in },
-        onSelectLeader: @escaping (String) -> Void = { _ in },
+        onSaveGroups: @escaping (Set<String>) -> Void = { _ in },
+        onSaveLeaders: @escaping (Set<String>) -> Void = { _ in },
         onOpenMember: @escaping (Int) -> Void = { _ in },
         onSearchActiveChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.state = state
         self.onSearch = onSearch
-        self.onSelectGroup = onSelectGroup
-        self.onSelectLeader = onSelectLeader
+        self.onSaveGroups = onSaveGroups
+        self.onSaveLeaders = onSaveLeaders
         self.onOpenMember = onOpenMember
         self.onSearchActiveChange = onSearchActiveChange
         _query = SwiftUI.State(initialValue: state.searchText)
@@ -195,10 +204,10 @@ struct MembersHomeScreen: View {
             // horizontally only when long selections overflow — the resting row fits, so it is a
             // plain HStack here.
             HStack(spacing: Token.Space.elementGap) {                // §2: "8pt gap"
-                Self.menuChip(label: state.groupFilterLabel) { presentedMenu = .groups }
+                Self.menuChip(label: state.groupFilterLabel, active: !state.selectedGroupIDs.isEmpty) { presentedMenu = .groups }
                 .ui2Element("C-035 FilterChip")
                 if state.showsLeaderFilter {                         // D7/D15
-                    Self.menuChip(label: state.leaderFilterLabel) { presentedMenu = .leaders }
+                    Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaderIDs.isEmpty) { presentedMenu = .leaders }
                     .ui2Element("C-035 FilterChip 2")
                 }
             }
@@ -207,9 +216,15 @@ struct MembersHomeScreen: View {
         .padding(.horizontal, Token.Space.pageMargin)                // §2: content inset 16
     }
 
-    /// §3: "Tap a chip → FilterMenuOverlay (C-036) opens" — a `Menu` chip whose tap presents it.
-    static func menuChip(label: String, onTap: @escaping () -> Void) -> FilterChip {
-        FilterChip(type: .menu, active: false, label: label, onTap: onTap)
+    /// §3: "Tap a chip → FilterMenuOverlay (C-036) opens" — a `Menu` chip whose tap presents it;
+    /// filter-multiselect D4: active while it has a pick.
+    static func menuChip(label: String, active: Bool, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: active, label: label, onTap: onTap)
+    }
+
+    /// D15: the ids C-036 gets — the State's ids when they line up with the labels, else the labels.
+    static func optionIDs(_ ids: [String], labels: [String]) -> [String] {
+        ids.count == labels.count ? ids : labels
     }
 
     // MARK: §2 List
@@ -256,36 +271,27 @@ struct MembersHomeScreen: View {
 
     // MARK: §3 Filter menu
 
-    /// §3: "Tap a chip → FilterMenuOverlay (C-036) opens … Options are single-select, plain text
-    /// labels" — no glyph (OQ-C-036-002's proposed default: this screen passes none). "Selecting
-    /// an option applies the filter immediately, closes the menu … X closes with no change. There
-    /// is no tap-outside dismissal surface." The crossfades are C-036's own modifier.
+    /// §3: "Tap a chip → FilterMenuOverlay (C-036) opens" — plain text labels, no glyph
+    /// (OQ-C-036-002's proposed default: this screen passes none). filter-multiselect D1/D2:
+    /// multi-select with a draft; Save applies and closes, ✕ closes with no change. There is no
+    /// tap-outside dismissal surface. The crossfades are C-036's own modifier.
     @ViewBuilder private var filterMenu: some View {
-        let options = presentedMenu == .leaders ? state.leaderOptions : state.groupOptions
-        let selected = presentedMenu == .leaders ? state.leaderFilterLabel : state.groupFilterLabel
+        let leaders = presentedMenu == .leaders
+        let labels = leaders ? state.leaderOptions : state.groupOptions
+        let ids = Self.optionIDs(leaders ? state.leaderOptionIDs : state.groupOptionIDs, labels: labels)
         FilterMenuOverlay(
-            options: options.map { FilterMenuOverlay.Option(id: $0, label: $0) },
-            selectionMode: .single,
-            selectedIDs: [selected],
-            onSelect: { option in
-                if presentedMenu == .leaders {
-                    onSelectLeader(option.id)
-                } else {
-                    onSelectGroup(option.id)
-                }
-                presentedMenu = nil
-            },
+            options: zip(ids, labels).map { FilterMenuOverlay.Option(id: $0.0, label: $0.1) },
+            selectionMode: .multiple,
+            selectedIDs: leaders ? state.selectedLeaderIDs : state.selectedGroupIDs,
             onClose: { presentedMenu = nil },
-            // filter-menu-clear: back to the menu's resting first option ("All Leaders" /
-            // "All Groups"), then close — as picking it would.
-            onClear: {
-                if let rest = options.first {
-                    if presentedMenu == .leaders { onSelectLeader(rest) } else { onSelectGroup(rest) }
-                }
+            onSave: { picked in
+                if leaders { onSaveLeaders(picked) } else { onSaveGroups(picked) }
                 presentedMenu = nil
-            },
-            clearEnabled: selected != options.first
+            }
         )
+        // Groups and Leaders share this position: a new identity per menu, so a draft never
+        // carries from one to the other.
+        .id(presentedMenu)
         .ui2Element("C-036 FilterMenuOverlay")
     }
 
@@ -314,8 +320,8 @@ extension MembersHomeScreen.State {
         searchText: "",
         groupFilterLabel: "All Groups",
         leaderFilterLabel: "All Leaders",
-        groupOptions: ["All Groups", "Young professionals"],
-        leaderOptions: ["All Leaders"],
+        groupOptions: ["Young professionals"],
+        leaderOptions: [],
         showsLeaderFilter: true,
         memberNames: ["Barry Allen", "Clark Kent", "Incredible Hulk", "Donald Trump", "Bruce Wayne"],
         memberPhotoURLs: [

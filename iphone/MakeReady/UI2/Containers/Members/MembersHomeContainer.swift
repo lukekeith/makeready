@@ -33,23 +33,15 @@ struct MembersHomeContainer: View {
                 selection = next
                 reload(next, after: Self.searchDebounce)
             },
-            onSelectGroup: { label in
+            onSaveGroups: { ids in
                 var next = selection
-                switch output.groupPick(label) {
-                case .all: next.groupId = nil
-                case .option(let id): next.groupId = id
-                case .unknown: return
-                }
+                next.groupIds = ids
                 selection = next
                 reload(next, after: nil)
             },
-            onSelectLeader: { label in
+            onSaveLeaders: { ids in
                 var next = selection
-                switch output.leaderPick(label) {
-                case .all: next.leaderId = nil
-                case .option(let id): next.leaderId = id
-                case .unknown: return
-                }
+                next.leaderIds = ids
                 selection = next
                 reload(next, after: nil)
             },
@@ -106,6 +98,6 @@ struct MembersHomeContainer: View {
         await AppState.shared.loadInitialData()                      // D18: waits for the org
         guard let orgId = AppState.shared.organizationId else { return }
         await actions.loadDirectory(orgId: orgId, search: selection.search,
-                                    groupId: selection.groupId, leaderId: selection.leaderId)
+                                    groupIds: selection.groupIds, leaderIds: selection.leaderIds)
     }
 }

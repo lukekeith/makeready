@@ -103,3 +103,52 @@ describe('GET /api/organizations/:organizationId/members (SC4, SC9)', () => {
     expect((await request(await appAs()).get('/api/organizations/org-1/members')).status).toBe(401)
   })
 })
+
+const G1 = '11111111-1111-4111-8111-111111111111'
+const G2 = '22222222-2222-4222-8222-222222222222'
+const U1 = '33333333-3333-4333-8333-333333333333'
+
+describe('GET /api/organizations/:organizationId/members — lists (filter-multiselect D6, D11)', () => {
+  const lastQuery = () => vi.mocked(getOrganizationMembers).mock.calls[0][2]
+
+  it('splits comma lists into the service arrays', async () => {
+    const res = await request(await appAs('owner-1')).get(`/api/organizations/org-1/members?groupIds=${G1},${G2}&leaderIds=${U1}`)
+    expect(res.status).toBe(200)
+    expect(lastQuery()).toMatchObject({ groupIds: [G1, G2], leaderIds: [U1] })
+  })
+
+  it('accepts the repeated form, trims, and drops duplicates', async () => {
+    const res = await request(await appAs('owner-1')).get(`/api/organizations/org-1/members?groupIds=${G1}&groupIds=%20${G2}&groupIds=${G1}`)
+    expect(res.status).toBe(200)
+    expect(lastQuery()).toMatchObject({ groupIds: [G1, G2] })
+  })
+
+  it('treats a list with no ids left as absent (F7)', async () => {
+    const res = await request(await appAs('owner-1')).get('/api/organizations/org-1/members?groupIds=,&leaderIds=')
+    expect(res.status).toBe(200)
+    expect(lastQuery()?.groupIds).toBeUndefined()
+    expect(lastQuery()?.leaderIds).toBeUndefined()
+  })
+
+  it('unions a uuid single param into its list', async () => {
+    await request(await appAs('owner-1')).get(`/api/organizations/org-1/members?groupId=${G1}&groupIds=${G2}`)
+    expect(lastQuery()).toMatchObject({ groupId: undefined, groupIds: [G1, G2] })
+  })
+
+  it('keeps a single groupId alone exactly as before, uuid or not', async () => {
+    const res = await request(await appAs('gl')).get('/api/organizations/org-1/members?groupId=g-foreign')
+    expect(res.status).toBe(200)
+    expect(lastQuery()).toMatchObject({ groupId: 'g-foreign', groupIds: undefined })
+  })
+
+  it.each([
+    ['a non-uuid in groupIds', `groupIds=${G1},not-a-uuid`],
+    ['a non-uuid in leaderIds', 'leaderIds=nope'],
+    ['an object shape', `groupIds[a]=${G1}`],
+  ])('400s on %s', async (_label, qs) => {
+    const res = await request(await appAs('owner-1')).get(`/api/organizations/org-1/members?${qs}`)
+    expect(res.status).toBe(400)
+    expect(res.body.success).toBe(false)
+    expect(getOrganizationMembers).not.toHaveBeenCalled()
+  })
+})

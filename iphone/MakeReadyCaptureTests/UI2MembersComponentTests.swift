@@ -72,8 +72,15 @@ final class UI2MembersComponentTests: XCTestCase {
     /// unlabelled trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan).
     func testMembersHomeMenuChipTapPresentsTheMenu() {
         var tapped = false
-        MembersHomeScreen.menuChip(label: "All Groups") { tapped = true }.onTap()
+        MembersHomeScreen.menuChip(label: "All Groups", active: false) { tapped = true }.onTap()
         XCTAssertTrue(tapped)
+    }
+
+    /// filter-multiselect D3: the sample menus carry no "All …" row.
+    func testMembersHomeSampleHasNoAllRows() {
+        let s = MembersHomeScreen.State.populated
+        XCTAssertFalse(s.groupOptions.contains("All Groups"))
+        XCTAssertFalse(s.leaderOptions.contains("All Leaders"))
     }
 
     /// Agent walk round 1: program covers stayed grey. The screen reads Ui2ImageCache, which
@@ -148,5 +155,50 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertEqual(MembersProfileScreen.todayIndex(["default", "default", "today"]), 2)
         XCTAssertEqual(MembersProfileScreen.todayIndex(MembersProfileScreen.State.populated.dayDateStates), 3)
         XCTAssertNil(MembersProfileScreen.todayIndex([]))
+    }
+}
+
+/// filter-multiselect D1/D4/D10: C-036's draft transition and chip summary.
+final class FilterMenuOverlayDraftTests: XCTestCase {
+    func testToggleAddsThenRemoves() {
+        var draft: Set<String> = ["a"]
+        draft = FilterMenuOverlay.toggled(draft, "b")
+        XCTAssertEqual(draft, ["a", "b"])
+        draft = FilterMenuOverlay.toggled(draft, "a")
+        XCTAssertEqual(draft, ["b"])
+    }
+
+    func testChipLabelForZeroOneAndMany() {
+        XCTAssertEqual(FilterMenuOverlay.chipLabel(picked: [], resting: "All Groups", noun: "groups"), "All Groups")
+        XCTAssertEqual(FilterMenuOverlay.chipLabel(picked: ["Youth"], resting: "All Groups", noun: "groups"), "Youth")
+        XCTAssertEqual(FilterMenuOverlay.chipLabel(picked: ["A", "B", "C"], resting: "All Leaders", noun: "leaders"), "3 leaders")
+    }
+
+    func testDraftModeBuildsWithSave() {
+        var saved: Set<String>?
+        let menu = FilterMenuOverlay(
+            options: [.init(id: "a", label: "A")], selectionMode: .multiple, selectedIDs: ["a"],
+            onSave: { saved = $0 }
+        )
+        menu.onSave?(["a"])
+        XCTAssertEqual(saved, ["a"])
+    }
+}
+
+/// filter-multiselect D3/D14: Groups home's menus carry no "All …" row and its State holds the picks.
+final class GroupsHomeFilterTests: XCTestCase {
+    func testSampleHasNoAllRowsAndEmptyPicks() {
+        let s = GroupsHomeScreen.State.populated
+        XCTAssertFalse(s.orgOptions.contains("All Orgs"))
+        XCTAssertFalse(s.leaderOptions.contains("All Leaders"))
+        XCTAssertEqual(s.selectedOrgs, [])
+        XCTAssertEqual(s.selectedLeaders, [])
+    }
+
+    func testSaveClosuresAreSetValued() {
+        var saved: Set<String>?
+        let screen = GroupsHomeScreen(state: .populated, onSaveLeaders: { saved = $0 })
+        screen.onSaveLeaders(["Tony"])
+        XCTAssertEqual(saved, ["Tony"])
     }
 }

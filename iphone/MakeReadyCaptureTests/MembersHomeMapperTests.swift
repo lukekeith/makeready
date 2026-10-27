@@ -75,46 +75,55 @@ final class MembersHomeMapperTests: XCTestCase {
         XCTAssertEqual(MembersHomeMapper.initials(first: nil, last: nil), "")
     }
 
-    /// D7/D15: everyone-visible callers (or a server without D15) get every group and the Leaders chip.
+    /// D7/D15 + filter-multiselect D3: no "All …" rows; ids ride beside the labels.
     func testAnOwnerSeesEveryGroupAndTheLeaderChip() {
         for scope in [ViewerScope(all: true, groupIds: []), nil] {
             let out = map(OrgMemberDirectory(viewerScope: scope))
             XCTAssertTrue(out.state.showsLeaderFilter)
-            XCTAssertEqual(out.state.groupOptions, ["All Groups", "The kids", "Young professionals"])
-            XCTAssertEqual(out.state.leaderOptions, ["All Leaders", "Luke Keith", "Scott Stickane"])
+            XCTAssertEqual(out.state.groupOptions, ["The kids", "Young professionals"])
+            XCTAssertEqual(out.state.groupOptionIDs, ["g1", "g2"])
+            XCTAssertEqual(out.state.leaderOptions, ["Luke Keith", "Scott Stickane"])
+            XCTAssertEqual(out.state.leaderOptionIDs, ["u1", "u2"])
         }
     }
 
-    /// D15: a scoped leader's Groups options are only `viewerScope.groupIds`; no Leaders chip.
     func testAScopedLeaderSeesOnlyTheirGroupsAndNoLeaderChip() {
         let out = map(OrgMemberDirectory(viewerScope: ViewerScope(all: false, groupIds: ["g2"])))
         XCTAssertFalse(out.state.showsLeaderFilter)
-        XCTAssertEqual(out.state.groupOptions, ["All Groups", "Young professionals"])
-        XCTAssertEqual(out.groupPick("The kids"), .unknown)
-        XCTAssertEqual(out.groupPick("Young professionals"), .option("g2"))
+        XCTAssertEqual(out.state.groupOptions, ["Young professionals"])
+        XCTAssertEqual(out.state.groupOptionIDs, ["g2"])
     }
 
+    /// filter-multiselect D4: 0 / 1 / many picks.
     func testChipLabelsFollowTheSelection() {
-        var selection = MembersHomeMapper.Selection(search: "kent", groupId: "g2", leaderId: "u2")
+        var selection = MembersHomeMapper.Selection(search: "kent")
         var out = map(OrgMemberDirectory(), selection)
         XCTAssertEqual(out.state.searchText, "kent")
-        XCTAssertEqual(out.state.groupFilterLabel, "Young professionals")
-        XCTAssertEqual(out.state.leaderFilterLabel, "Scott Stickane")
-        selection.groupId = "gone"
-        selection.leaderId = nil
-        out = map(OrgMemberDirectory(), selection)
         XCTAssertEqual(out.state.groupFilterLabel, "All Groups")
         XCTAssertEqual(out.state.leaderFilterLabel, "All Leaders")
+        XCTAssertEqual(out.state.selectedGroupIDs, [])
+        selection.groupIds = ["g2"]
+        selection.leaderIds = ["u1", "u2"]
+        out = map(OrgMemberDirectory(), selection)
+        XCTAssertEqual(out.state.groupFilterLabel, "Young professionals")
+        XCTAssertEqual(out.state.leaderFilterLabel, "2 leaders")
+        XCTAssertEqual(out.state.selectedGroupIDs, ["g2"])
+        XCTAssertEqual(out.state.selectedLeaderIDs, ["u1", "u2"])
+        selection.groupIds = ["g1", "g2", "gone"]
+        out = map(OrgMemberDirectory(), selection)
+        XCTAssertEqual(out.state.groupFilterLabel, "2 groups")              // an id no longer listed is not counted
+        XCTAssertEqual(out.state.selectedGroupIDs, ["g1", "g2"])
     }
 
-    /// T13: an option pick resolves against the options that were rendered.
-    func testPicksResolveAgainstTheRenderedOptions() {
-        let out = map(OrgMemberDirectory())
-        XCTAssertEqual(out.groupPick("All Groups"), .all)
-        XCTAssertEqual(out.groupPick("The kids"), .option("g1"))
-        XCTAssertEqual(out.leaderPick("All Leaders"), .all)
-        XCTAssertEqual(out.leaderPick("Luke Keith"), .option("u1"))
-        XCTAssertEqual(out.leaderPick("Nobody"), .unknown)
+    /// filter-multiselect D15: two options with the same label stay two ids.
+    func testSameNamedOptionsStayDistinct() {
+        let twins = [MembersHomeMapper.Option(id: "u7", label: "Group Leader"),
+                     MembersHomeMapper.Option(id: "u8", label: "Group Leader")]
+        let out = MembersHomeMapper.output(directory: OrgMemberDirectory(), groups: groups, leaders: twins,
+                                           selection: .init(leaderIds: ["u8"]), today: today, timeZone: tz)
+        XCTAssertEqual(out.state.leaderOptionIDs, ["u7", "u8"])
+        XCTAssertEqual(out.state.selectedLeaderIDs, ["u8"])
+        XCTAssertEqual(out.state.leaderFilterLabel, "Group Leader")
     }
 
     /// F5: no directory yet renders the empty list with the header live.

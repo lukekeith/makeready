@@ -210,6 +210,11 @@ export interface OrgMembersQuery {
   groupId?: string
   /** A User.id from /api/group-leaders → members of groups with that creatorId. */
   leaderId?: string
+  /** filter-multiselect D5/D6: members active in ANY of these groups. Absent or [] = no filter. */
+  groupIds?: string[]
+  /** filter-multiselect D5: members of groups created by ANY of these users. A user who created
+   *  no groups (an Owner/Admin listed by /api/group-leaders) contributes no members. */
+  leaderIds?: string[]
 }
 
 export interface OrgMembersResult {
@@ -232,6 +237,7 @@ export function searchTokens(search: string | undefined): string[] {
  * payload to the contract's keys (F9 — no pagination in this child). A narrowed
  * caller (memberAccessScope → groups) sees only members of the groups they
  * created; a groupId or leaderId outside that scope answers an empty list.
+ * filter-multiselect: groupIds / leaderIds OR within, AND across; a narrowed caller's out-of-scope ids are dropped (D7).
  */
 export async function getOrganizationMembers(
   organizationId: string,
@@ -240,6 +246,7 @@ export async function getOrganizationMembers(
 ): Promise<OrgMembersResult> {
   try {
     const { includeInactive = false, search, groupId, leaderId } = options
+    let { groupIds, leaderIds } = options
     const scope = await memberAccessScope(viewerUserId, organizationId)
     const viewerScope = { all: scope.all, groupIds: scope.all ? [] : scope.groupIds }
     if (!scope.all) {
@@ -248,6 +255,16 @@ export async function getOrganizationMembers(
         (groupId !== undefined && !scope.groupIds.includes(groupId)) ||
         (leaderId !== undefined && leaderId !== viewerUserId)
       if (outside) return { success: true, data: [], viewerScope }
+      // filter-multiselect D7: out-of-scope ids are dropped; a list that was sent and ends empty
+      // names nothing the caller may see.
+      if (groupIds !== undefined && groupIds.length > 0) {
+        groupIds = groupIds.filter((id) => scope.groupIds.includes(id))
+        if (groupIds.length === 0) return { success: true, data: [], viewerScope }
+      }
+      if (leaderIds !== undefined && leaderIds.length > 0) {
+        leaderIds = leaderIds.filter((id) => id === viewerUserId)
+        if (leaderIds.length === 0) return { success: true, data: [], viewerScope }
+      }
     }
 
     const activeIn = (group: Prisma.GroupWhereInput): Prisma.MemberWhereInput => ({
@@ -267,6 +284,9 @@ export async function getOrganizationMembers(
     }
     if (groupId !== undefined) and.push(activeIn({ id: groupId }))
     if (leaderId !== undefined) and.push(activeIn({ creatorId: leaderId }))
+    // filter-multiselect D5: OR within a list (`in`), AND across filters (each its own entry).
+    if (groupIds !== undefined && groupIds.length > 0) and.push(activeIn({ id: { in: groupIds } }))
+    if (leaderIds !== undefined && leaderIds.length > 0) and.push(activeIn({ creatorId: { in: leaderIds } }))
     if (!scope.all) and.push(activeIn({ id: { in: scope.groupIds } }))
 
     const rows = await prisma.memberOrganization.findMany({

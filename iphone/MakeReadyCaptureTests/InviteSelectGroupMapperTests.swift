@@ -14,8 +14,8 @@ final class InviteSelectGroupMapperTests: XCTestCase {
          group("g3", "Men's Study", leader: nil, members: 0)]
     }
 
-    private func input(query: String = "", leader: String? = nil) -> InviteSelectGroupMapper.Input {
-        .init(groups: groups, enrollmentCounts: ["g2": 2], query: query, leader: leader, loading: false, failed: false)
+    private func input(query: String = "", leaderIds: Set<String> = []) -> InviteSelectGroupMapper.Input {
+        .init(groups: groups, enrollmentCounts: ["g2": 2], query: query, leaderIds: leaderIds, loading: false, failed: false)
     }
 
     func testRowsAreAlphabeticalWithEveryChip() {
@@ -38,16 +38,22 @@ final class InviteSelectGroupMapperTests: XCTestCase {
         XCTAssertEqual(out.state.searchText, "PRAY")
     }
 
-    func testLeaderFilterNarrowsAndLabelsTheChip() {
-        let out = InviteSelectGroupMapper.output(input(leader: "Tony Stark"))
+    /// filter-multiselect D5/D13/D4: any of the picked creators; the chip summarises.
+    func testLeaderFilterNarrowsByCreatorIdAndLabelsTheChip() {
+        var out = InviteSelectGroupMapper.output(input(leaderIds: ["u-g1"]))
         XCTAssertEqual(out.groupIds, ["g1"])
         XCTAssertEqual(out.state.leaderFilterLabel, "Tony Stark")
+        out = InviteSelectGroupMapper.output(input(leaderIds: ["u-g1", "u-g2"]))
+        XCTAssertEqual(out.groupIds, ["g2", "g1"])
+        XCTAssertEqual(out.state.leaderFilterLabel, "2 leaders")
     }
 
-    func testLeaderOptionsAreDistinctNonEmptyAndSorted() {
+    /// D13: one option per creator id with a name — same-named creators stay two options.
+    func testLeaderOptionsAreOnePerCreatorAndSorted() {
         let more = groups + [group("g4", "Alpha", leader: "Tony Stark", members: 1)]
-        let out = InviteSelectGroupMapper.output(.init(groups: more, enrollmentCounts: [:], query: "", leader: nil, loading: false, failed: false))
-        XCTAssertEqual(out.leaderOptions, ["Pepper Potts", "Tony Stark"])
+        let out = InviteSelectGroupMapper.output(.init(groups: more, enrollmentCounts: [:], query: "", leaderIds: [], loading: false, failed: false))
+        XCTAssertEqual(out.leaderOptions.map(\.label), ["Pepper Potts", "Tony Stark", "Tony Stark"])
+        XCTAssertEqual(out.leaderOptions.map(\.id), ["u-g2", "u-g1", "u-g4"])
     }
 
     func testLoadingAndFailedPassThrough() {

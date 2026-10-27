@@ -34,17 +34,24 @@ final class MemberActionsTests: XCTestCase {
         let directory = state.orgMembersByOrgId["org1"]
         XCTAssertEqual(directory?.members.map(\.id), ["m1", "m2"])          // server order kept (D6)
         XCTAssertEqual(directory?.search, "")
-        XCTAssertNil(directory?.groupId)
+        XCTAssertEqual(directory?.groupIds, [])
         XCTAssertEqual(directory?.viewerScope, ViewerScope(all: false, groupIds: ["g1"]))
     }
 
-    func testDirectoryQuerySendsTrimmedSearchAndBothFilters() async {
-        let path = "/api/organizations/org1/members?search=clark%20%20kent&groupId=g1&leaderId=u1"
+    func testDirectoryQuerySendsTrimmedSearchAndSortedLists() async {
+        let path = "/api/organizations/org1/members?search=clark%20%20kent&groupIds=g1,g2&leaderIds=u1"
         api.stub("GET", path, json: directoryJSON)
-        await actions().loadDirectory(orgId: "org1", search: "  clark  kent \n", groupId: "g1", leaderId: "u1")
+        await actions().loadDirectory(orgId: "org1", search: "  clark  kent \n", groupIds: ["g2", "g1"], leaderIds: ["u1"])
         XCTAssertEqual(api.callCount("GET", path), 1)
         XCTAssertEqual(state.orgMembersByOrgId["org1"]?.search, "clark  kent")
-        XCTAssertEqual(state.orgMembersByOrgId["org1"]?.leaderId, "u1")
+        XCTAssertEqual(state.orgMembersByOrgId["org1"]?.groupIds, ["g1", "g2"])
+        XCTAssertEqual(state.orgMembersByOrgId["org1"]?.leaderIds, ["u1"])
+    }
+
+    func testDirectoryQueryOmitsEmptyLists() async {
+        api.stub("GET", "/api/organizations/org1/members", json: directoryJSON)
+        await actions().loadDirectory(orgId: "org1", groupIds: [], leaderIds: [])
+        XCTAssertEqual(api.callCount("GET", "/api/organizations/org1/members"), 1)
     }
 
     func testPathDropsEmptyValuesAndEncodesTheRest() {

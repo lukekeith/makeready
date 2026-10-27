@@ -69,8 +69,9 @@ extension OrgMembersResponse {
 /// answered (in memory only, D21).
 struct OrgMemberDirectory: Equatable {
     var search: String = ""
-    var groupId: String?
-    var leaderId: String?
+    /// filter-multiselect D12: the query's group and leader picks, sorted.
+    var groupIds: [String] = []
+    var leaderIds: [String] = []
     var members: [OrgMemberListItem] = []
     var viewerScope: ViewerScope?
 }
