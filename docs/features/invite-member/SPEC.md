@@ -1,4 +1,5 @@
 # invite-member — spec
+> 🤖 AGENT SIGNED OFF 2026-10-26 — dfc433d · agent walk round 2 · not human-tested · evidence: .builder/invite-member/agent-walk/round-2/
 > lg · ticket none
 
 ## Idea
@@ -257,24 +258,6 @@ released build stores is reshaped.
 | F4 | `EnrollmentSelectGroupScreen`'s copy is enrollment-flavoured only in its empty line ("No groups ready to enroll"), which D12 keeps from ever showing here | resolved by D12 |
 | F9 | D10/D12/D13 call `recordError(surface: true)`, but ui2-shell D28 left the legacy `ErrorBannerHost` behind with `Components/` (not in the app target), so the 2.0 shell drew no banner (agent walk round 1, E6) | ruled 2026-10-26 (agent walk, unruled=recommend): `UI2Shell` mounts one `UI2ErrorBannerHost` (`UI2/Shell/UI2ErrorBannerHost.swift`) — the legacy behaviour (top slide-in, 4 s auto-dismiss, tap/swipe-up dismiss, newest replaces) in 2.0 tokens (`Token.error`, `labelEmphasis`), a stopgap until a designed 2.0 banner is specced; costs a restyle when one is |
 | F10 | Pushed invite pages sat vertically centred: the d2m screens size to content (`maxWidth` only) (agent walk round 1, O1) | fixed host-side: `.ui2PushedPageFill()` (`UI2Navigation.swift`) on both invite containers — top-aligned, full height, `Token.layoutBackground`; `MakeReadyUI/**` untouched |
-
-## Plan
-
-The plan, with its code: `docs/features/invite-member/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Invite.recipientName — column, send body, persisted by the service
-- Phase 1 · Task 2 · Leader invite reads return recipientName
-- Phase 1 · Task 3 · GET /api/groups returns creatorName
-- Phase 1 · Task 4 · sendSMS succeeds without Twilio in test mode
-- Phase 1 · Task 5 · SMS campaign seed module + invite-member fixtures layer; freeze the contract
-- Phase 2 · Task 6 · UserGroup.creatorName
-- Phase 2 · Task 7 · InviteActions.sendInvite
-- Phase 3 · Task 8 · The invite destinations and the whole-flow pop
-- Phase 3 · Task 9 · InviteSelectGroupMapper — the picker's state from AppState
-- Phase 3 · Task 10 · InviteSelectGroupContainer — host the picker
-- Phase 4 · Task 11 · InviteMemberContainer — host the invite page and send
-- Phase 4 · Task 12 · The Add-menu row opens the flow
-- Phase 4 · Task 13 · Residual sweep — nothing else points at the old invite entries
 
 ## Prototype
 
