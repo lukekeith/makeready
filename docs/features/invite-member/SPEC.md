@@ -305,3 +305,9 @@ The plan, with its code: `docs/features/invite-member/PLAN.md` (§PLAN.md).
 | # | Adds | Disposition | App |
 |---|---|---|---|
 | N1 | The group-pick step before step 1 (the design draws none) | D3 — built from the reused `EnrollmentSelectGroupScreen`; reads SC4 `creatorName`; no persistence of its own | iphone |
+
+## Fixes
+
+- [ ] iphone: E6 send failure surfaces an error — expected the D10 error banner over step 2 (number kept, Send re-enabled), saw no banner at all: the UI 2.0 shell mounts no `ErrorBanner`/`activeSurfacedError` host (only legacy `MainView.swift` does), so every surfaced error — D10's, and D12/D13's "Create a group before inviting members" / "Couldn't load your groups" — is dropped; server reply was correct (400 "Rate limited: …") (agent walk round 1)
+- [ ] iphone: E7 single-group leader skips the picker — expected a leader with exactly one group to land straight on the invite page, saw it unwalkable: the fixtures seed no single-group leader identity (both dev identities see all 4 groups); add a fixture layer for one, or a test that pins the D13 skip (agent walk round 1)
+- [ ] iphone: pushed invite pages fill the screen — expected Select group and the three invite steps to sit top-aligned under the status bar, full height, saw each page vertically centred with the system background above and below (header ~96–220 pt down); `InviteMemberScreen` / `EnrollmentSelectGroupScreen` frames lack `maxHeight: .infinity` (agent walk round 1, seen in passing)

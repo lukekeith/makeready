@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/invite-member
-head: 754d1f4
+next: /builder:resume --path docs/features/invite-member
+head: 7331e98
 ticket: none
 branch: builder/invite-member
 pr: none
