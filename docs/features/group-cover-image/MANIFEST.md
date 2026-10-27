@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/group-cover-image
-head: 7270901
+head: f7cae8a
 ticket: none
 branch: builder/group-cover-image
 pr: none
