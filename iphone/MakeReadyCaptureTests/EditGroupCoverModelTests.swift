@@ -15,11 +15,10 @@ final class EditGroupCoverModelTests: XCTestCase {
     private let ok = CoverSaveResult(coverImageUrl: "https://img/new.jpeg", coverOriginalUrl: "https://img/o.jpeg", coverFraming: .identity)
 
     private func model(isNewPick: Bool = true, hasStoredOriginal: Bool = true, framing: CoverFraming = .identity,
-                       horizon: Double? = nil,
                        save: @escaping @MainActor (UIImage, CoverFraming, UIImage?) async throws -> CoverSaveResult) -> EditGroupCoverModel {
         EditGroupCoverModel(groupId: "g1", image: image(), framing: framing, isNewPick: isNewPick,
                             hasStoredOriginal: hasStoredOriginal, frameSize: frame,
-                            detectHorizon: { _ in horizon }, save: save)
+                            save: save)
     }
 
     /// Every frame corner lies inside the framed (turned, rotated, scaled, offset) image.
@@ -150,42 +149,90 @@ final class EditGroupCoverModelTests: XCTestCase {
         XCTAssertTrue(covers(m.framing))
     }
 
-    /// D23: Auto is disabled until a horizon is found, then levels it (clamped to ±45°) at the floor.
-    func testAutoLevelsTheDetectedHorizon() async {
-        let none = model(horizon: nil, save: { _, _, _ in self.ok })
-        await none.detectHorizon()
-        XCTAssertNil(none.horizonAngle)
-        XCTAssertFalse(none.canAuto)
-        none.auto()
-        XCTAssertEqual(none.framing, .identity)
-
-        let m = model(horizon: 8, save: { _, _, _ in self.ok })
-        XCTAssertFalse(m.canAuto)                               // not run yet
-        await m.detectHorizon()
-        XCTAssertEqual(m.horizonAngle, 8)
-        XCTAssertTrue(m.canAuto)
-        m.auto()
-        XCTAssertEqual(m.framing.rotation, 8, accuracy: 1e-9)
+    /// D30: the dial sets the fine rotation absolutely; the framing still covers once released.
+    func testStraightenSetsRotationAbsolutelyAndStaysCovered() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.straighten(to: 12)
+        XCTAssertEqual(m.framing.rotation, 12, accuracy: 1e-9)
+        XCTAssertTrue(m.isGestureActive)
+        XCTAssertTrue(m.isTwisting)
+        m.straighten(to: 20)
+        m.straighten(to: 12)                                     // absolute, not cumulative
+        XCTAssertEqual(m.framing.rotation, 12, accuracy: 1e-9)
+        m.endStraighten()
+        XCTAssertEqual(m.framing.rotation, 12, accuracy: 1e-9)
         XCTAssertTrue(covers(m.framing))
-        m.flip()
-        m.auto()
-        XCTAssertEqual(m.framing.rotation, -8, accuracy: 1e-9) // the mirror's horizon tilts the other way
-
-        let steep = model(horizon: 70, save: { _, _, _ in self.ok })
-        await steep.detectHorizon()
-        steep.auto()
-        XCTAssertEqual(steep.framing.rotation, 45)
+        XCTAssertFalse(m.isGestureActive)
+        XCTAssertFalse(m.isTwisting)
     }
 
-    /// D23: detection runs once on open.
-    func testHorizonIsDetectedOnce() async {
-        var runs = 0
-        let m = EditGroupCoverModel(groupId: "g1", image: image(), framing: .identity, isNewPick: true, hasStoredOriginal: true,
-                                    frameSize: frame, detectHorizon: { _ in await MainActor.run { runs += 1 }; return 3 },
-                                    save: { _, _, _ in self.ok })
-        await m.detectHorizon()
-        await m.detectHorizon()
-        XCTAssertEqual(runs, 1)
+    /// D30: scale and offsets stay from the committed base while the dial turns.
+    func testStraightenKeepsScaleAndOffsets() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.updateGesture(magnification: 4, rotationDegrees: 0, translation: CGSize(width: 32, height: -9))
+        m.endGesture()
+        let before = m.framing
+        m.straighten(to: 6)
+        XCTAssertEqual(m.framing.scale, before.scale, accuracy: 1e-9)
+        XCTAssertEqual(m.framing.offsetX, before.offsetX, accuracy: 1e-9)
+        XCTAssertEqual(m.framing.offsetY, before.offsetY, accuracy: 1e-9)
+    }
+
+    /// D30: the dial is bounded to ±45° like the twist.
+    func testStraightenClampsToTheMaximumRotation() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.straighten(to: 60)
+        XCTAssertEqual(m.framing.rotation, 45, accuracy: 1e-9)
+        m.straighten(to: -60)
+        XCTAssertEqual(m.framing.rotation, -45, accuracy: 1e-9)
+        m.endStraighten()
+        XCTAssertTrue(covers(m.framing))
+    }
+
+    /// D5/D30: releasing the dial within ±3° snaps to level.
+    func testEndStraightenSnapsWithinThreeDegrees() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.straighten(to: 2)
+        XCTAssertEqual(m.framing.rotation, 2, accuracy: 1e-9)
+        m.endStraighten()
+        XCTAssertEqual(m.framing.rotation, 0)
+    }
+
+    /// D30: a twist after a straighten continues from the straightened value.
+    func testTwistContinuesFromAStraightenedValue() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.straighten(to: 12)
+        m.endStraighten()
+        m.updateGesture(magnification: 1, rotationDegrees: 8, translation: .zero)
+        m.endGesture()
+        XCTAssertEqual(m.framing.rotation, 20, accuracy: 1e-9)
+    }
+
+    /// D13: the dial is off while saving, like the gestures.
+    func testStraightenIsIgnoredWhileSaving() async {
+        var release: CheckedContinuation<Void, Never>?
+        let m = model(save: { _, _, _ in
+            await withCheckedContinuation { release = $0 }
+            return self.ok
+        })
+        async let first = m.save()
+        while release == nil { await Task.yield() }
+        m.straighten(to: 20)
+        m.endStraighten()
+        XCTAssertEqual(m.framing, .identity)
+        XCTAssertFalse(m.isGestureActive)
+        release?.resume()
+        _ = await first
+    }
+
+    /// D30: Flip negates the rotation, so a straightened +10 reads -10 (dial and readout change sign).
+    func testFlipNegatesAStraightenedRotation() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.straighten(to: 10)
+        m.endStraighten()
+        m.flip()
+        XCTAssertEqual(m.framing.rotation, -10, accuracy: 1e-9)
+        XCTAssertEqual(m.readoutDegrees, -10)
     }
 
     /// D22: Done is enabled on a re-edit only after a change; a new pick is always savable.
@@ -225,16 +272,15 @@ final class EditGroupCoverModelTests: XCTestCase {
     }
 
     /// D13: the controls are off while saving, like the gestures.
-    func testFlipRotateAutoAreIgnoredWhileSaving() async {
+    func testFlipAndRotateAreIgnoredWhileSaving() async {
         var release: CheckedContinuation<Void, Never>?
-        let m = model(horizon: 10, save: { _, _, _ in
+        let m = model(save: { _, _, _ in
             await withCheckedContinuation { release = $0 }
             return self.ok
         })
-        await m.detectHorizon()
         async let first = m.save()
         while release == nil { await Task.yield() }
-        m.flip(); m.rotate90(); m.auto()
+        m.flip(); m.rotate90()
         XCTAssertEqual(m.framing, .identity)
         release?.resume()
         _ = await first
