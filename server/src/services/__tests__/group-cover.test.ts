@@ -34,7 +34,7 @@ vi.mock('sharp', () => ({
 import { CoverUploadError, saveGroupCover } from '../group-cover.js'
 
 const b64 = (s: string) => Buffer.from(s).toString('base64')
-const FRAMING = { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 }
+const FRAMING = { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: false, quarterTurns: 0 }
 const group = (coverOriginalUrl: string | null = null) => ({ id: 'g1', coverOriginalUrl })
 const written = () => prismaMock.group.update.mock.calls[0][0].data
 

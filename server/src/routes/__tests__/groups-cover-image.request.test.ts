@@ -100,7 +100,7 @@ import { captureToLibrary } from '../../services/media-library.js'
 import { Prisma } from '../../generated/prisma/index.js'
 
 const b64 = (s: string) => Buffer.from(s).toString('base64')
-const FRAMING = { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 }
+const FRAMING = { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: false, quarterTurns: 0 }
 const upload = (body: Record<string, unknown>) => request(app()).post('/api/groups/g1/cover-image').send(body)
 const written = () => prismaMock.group.update.mock.calls[0][0].data
 
@@ -125,6 +125,30 @@ describe('POST /api/groups/:id/cover-image (D10)', () => {
       coverFraming: FRAMING,
     })
     expect(res.body).not.toHaveProperty('data')
+  })
+
+  it('D21: flipped + quarterTurns are stored and returned with the four D11 keys', async () => {
+    const framing = { scale: 1.2, rotation: -4, offsetX: 0.1, offsetY: 0, flipped: true, quarterTurns: 3 }
+    const res = await upload({ imageData: b64('render'), framing })
+    expect(res.status).toBe(200)
+    expect(res.body.coverFraming).toEqual(framing)
+  })
+
+  it('D21: a D11-shaped framing (no new keys) stores flipped:false, quarterTurns:0', async () => {
+    const res = await upload({ imageData: b64('render'), framing: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 } })
+    expect(res.status).toBe(200)
+    expect(res.body.coverFraming).toEqual({ scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: false, quarterTurns: 0 })
+  })
+
+  it.each([
+    ['quarterTurns 4', { quarterTurns: 4 }],
+    ['quarterTurns -1', { quarterTurns: -1 }],
+    ['quarterTurns 1.5', { quarterTurns: 1.5 }],
+    ['flipped "yes"', { flipped: 'yes' }],
+    ['rotation 46 (fine angle is -45...45)', { rotation: 46 }],
+  ])('D21: %s is a 400', async (_label, patch) => {
+    const res = await upload({ imageData: b64('r'), framing: { ...FRAMING, ...patch } })
+    expect(res.status).toBe(400)
   })
 
   it('framing only keeps the stored original', async () => {

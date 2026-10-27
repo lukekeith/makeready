@@ -8,19 +8,25 @@ import { prisma } from '../lib/prisma.js'
 import { Prisma } from '../generated/prisma/index.js'
 import { deleteFromR2, extractKeyFromUrl, uploadImageVariants, uploadToR2 } from './storage.js'
 
-/** D11: all finite; scale relative to the zoom floor (1…8), degrees, fractions of the frame. */
+/**
+ * D11 + D21: all finite; scale relative to the zoom floor (1…8), fine rotation in degrees (-45…45
+ * after quarter turns), fractions of the frame; `flipped` (mirror) and `quarterTurns` (CCW 90° steps)
+ * are optional and default to false / 0 so a D11-shaped body stays valid.
+ */
 export const coverFramingSchema = z
   .object({
     scale: z.number().finite().min(1).max(8),
-    rotation: z.number().finite().min(-180).max(180),
+    rotation: z.number().finite().min(-45).max(45),
     offsetX: z.number().finite().min(-1).max(1),
     offsetY: z.number().finite().min(-1).max(1),
+    flipped: z.boolean().default(false),
+    quarterTurns: z.number().int().min(0).max(3).default(0),
   })
   .strict()
 
 export type CoverFraming = z.infer<typeof coverFramingSchema>
 
-/** A stored `coverFraming` as the payload returns it — null when absent or not D11-shaped. */
+/** A stored `coverFraming` as the payload returns it — null when absent or not D21-shaped. */
 export function parseStoredFraming(value: unknown): CoverFraming | null {
   const parsed = coverFramingSchema.safeParse(value)
   return parsed.success ? parsed.data : null

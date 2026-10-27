@@ -255,12 +255,14 @@ All endpoints return consistent JSON responses:
           coverFraming: {
             type: 'object',
             nullable: true,
-            description: 'group-cover-image D11: the framing the cover was rendered with',
+            description: 'group-cover-image D11 + D21: the framing the cover was rendered with',
             properties: {
               scale: { type: 'number', minimum: 1, maximum: 8 },
-              rotation: { type: 'number', minimum: -180, maximum: 180 },
+              rotation: { type: 'number', minimum: -45, maximum: 45 },
               offsetX: { type: 'number', minimum: -1, maximum: 1 },
               offsetY: { type: 'number', minimum: -1, maximum: 1 },
+              flipped: { type: 'boolean', default: false },
+              quarterTurns: { type: 'integer', minimum: 0, maximum: 3, default: 0 },
             },
           },
           isPrivate: { type: 'boolean' },

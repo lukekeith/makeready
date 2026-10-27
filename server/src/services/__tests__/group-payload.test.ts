@@ -5,7 +5,7 @@ import { coverFramingSchema, parseStoredFraming } from '../group-cover.js'
 const row = (over: Record<string, unknown> = {}) => ({
   id: 'g1', organizationId: 'org1', code: 'ABC123', name: 'Prayer Team', description: null,
   coverImageUrl: 'https://img.test/c.jpeg', coverOriginalUrl: 'https://img.test/o.jpeg',
-  coverFraming: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 },
+  coverFraming: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: false, quarterTurns: 0 },
   isPrivate: false, allowInvites: true, memberDirectoryEnabled: true, memberDirectoryAccess: 'ALLOWED',
   welcomeMessage: null, ageRangeMin: null, ageRangeMax: null, maxMembers: null, creatorId: 'u1',
   createdAt: new Date('2026-10-01T00:00:00Z'), updatedAt: new Date('2026-10-02T00:00:00Z'),
@@ -17,7 +17,7 @@ describe('toGroupPayload (D17)', () => {
   it('returns both cover fields', () => {
     const p = toGroupPayload(row() as any)
     expect(p.coverOriginalUrl).toBe('https://img.test/o.jpeg')
-    expect(p.coverFraming).toEqual({ scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 })
+    expect(p.coverFraming).toEqual({ scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: false, quarterTurns: 0 })
   })
 
   it('returns null for absent cover fields', () => {
@@ -46,12 +46,16 @@ describe('toGroupPayload (D17)', () => {
 describe('coverFramingSchema (D11)', () => {
   const ok = { scale: 1, rotation: 0, offsetX: 0, offsetY: 0 }
   it('accepts the bounds', () => {
-    expect(coverFramingSchema.parse({ scale: 8, rotation: -180, offsetX: 1, offsetY: -1 })).toBeTruthy()
+    expect(coverFramingSchema.parse({ scale: 8, rotation: -45, offsetX: 1, offsetY: -1 })).toBeTruthy()
   })
   it.each([
     ['scale below 1', { ...ok, scale: 0.5 }],
     ['scale above 8', { ...ok, scale: 8.1 }],
-    ['rotation above 180', { ...ok, rotation: 181 }],
+    ['rotation above 45 (D21)', { ...ok, rotation: 46 }],
+    ['rotation below -45 (D21)', { ...ok, rotation: -46 }],
+    ['quarterTurns 4', { ...ok, quarterTurns: 4 }],
+    ['quarterTurns 1.5', { ...ok, quarterTurns: 1.5 }],
+    ['flipped a string', { ...ok, flipped: 'yes' }],
     ['offsetX beyond 1', { ...ok, offsetX: 1.5 }],
     ['an unknown key', { ...ok, flip: true }],
     ['a missing key', { scale: 1, rotation: 0, offsetX: 0 }],
@@ -62,6 +66,6 @@ describe('coverFramingSchema (D11)', () => {
   it('parseStoredFraming returns null for junk', () => {
     expect(parseStoredFraming('x')).toBeNull()
     expect(parseStoredFraming(null)).toBeNull()
-    expect(parseStoredFraming(ok)).toEqual(ok)
+    expect(parseStoredFraming(ok)).toEqual({ ...ok, flipped: false, quarterTurns: 0 })
   })
 })

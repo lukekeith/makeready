@@ -70,7 +70,7 @@ const row = (over: Record<string, unknown> = {}) => ({
   description: null,
   coverImageUrl: null,
   coverOriginalUrl: 'https://img.test/o.jpeg',
-  coverFraming: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 },
+  coverFraming: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: false, quarterTurns: 0 },
   isPrivate: false,
   allowInvites: true,
   memberDirectoryEnabled: true,
@@ -94,7 +94,7 @@ beforeEach(() => {
   prismaMock.organization.findMany.mockResolvedValue([])
 })
 
-const COVER = { coverOriginalUrl: 'https://img.test/o.jpeg', coverFraming: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 } }
+const COVER = { coverOriginalUrl: 'https://img.test/o.jpeg', coverFraming: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: false, quarterTurns: 0 } }
 
 describe('group payloads carry the cover fields (§Contract row 2)', () => {
   beforeEach(() => {

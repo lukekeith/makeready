@@ -1195,7 +1195,7 @@ router.delete('/:id', requireAuth, async (req, res) => {
  *                 default: image/jpeg
  *               framing:
  *                 type: object
- *                 description: D11 - required with originalData
+ *                 description: D11 + D21 - required with originalData
  *                 additionalProperties: false
  *                 required: [scale, rotation, offsetX, offsetY]
  *                 properties:
@@ -1205,8 +1205,8 @@ router.delete('/:id', requireAuth, async (req, res) => {
  *                     maximum: 8
  *                   rotation:
  *                     type: number
- *                     minimum: -180
- *                     maximum: 180
+ *                     minimum: -45
+ *                     maximum: 45
  *                   offsetX:
  *                     type: number
  *                     minimum: -1
@@ -1215,6 +1215,14 @@ router.delete('/:id', requireAuth, async (req, res) => {
  *                     type: number
  *                     minimum: -1
  *                     maximum: 1
+ *                   flipped:
+ *                     type: boolean
+ *                     default: false
+ *                   quarterTurns:
+ *                     type: integer
+ *                     minimum: 0
+ *                     maximum: 3
+ *                     default: 0
  *               originalData:
  *                 type: string
  *                 description: Base64 JPEG of the full original; requires framing
