@@ -1,7 +1,7 @@
 size: lg
-state: built
-next: /builder:agent-walk --path docs/features/filter-multiselect
-head: 66b4396
+state: signed-off
+next: /builder:verify --path docs/features/filter-multiselect
+head: 23022c6
 ticket: none
 branch: builder/filter-multiselect
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-10-26
 tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
-walk: none
+walk: agent-pass 2026-10-26 23022c6
 verify: none
 ready: yes 2026-10-26 66b4396
 ui2: none

@@ -1,4 +1,5 @@
 # filter-multiselect — spec
+> 🤖 AGENT SIGNED OFF 2026-10-26 — 23022c6 · agent walk round 1 · not human-tested · evidence: .builder/filter-multiselect/agent-walk/round-1/
 > lg · ticket none
 
 ## Idea
@@ -217,15 +218,3 @@ Automated tests — **iphone:** XCTest in `iphone/MakeReadyCaptureTests/` (`Memb
 | F7 | An empty list after parsing pushed as `in: []` would match nothing | build-time risk — server route task: D11 treats it as absent; route test `groupIds=,` |
 | F8 | Two Members options with the same label (unnamed leaders all read "Group Leader"; group names aren't unique) collapse under label-as-id | resolved — D15; invite picker likewise by D13 |
 | F9 | The fixtures house rule (a feature wiring a UI 2.0 screen adds `server/fixtures/screens/<id>.ts`) — this feature wires no new screen (Groups home stays unwired, Members/invite already wired) | no fixture layer owed |
-
-## Plan
-
-The plan, with its code: `docs/features/filter-multiselect/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Service — `groupIds` / `leaderIds` in `getOrganizationMembers`
-- Phase 1 · Task 2 · Route — parse `groupIds` / `leaderIds`, 400 on a bad list, Swagger; freeze the contract
-- Phase 2 · Task 3 · C-036 draft mode — Clear + Save, toggling options, `onSave(Set)`
-- Phase 3 · Task 4 · `MemberActions.loadDirectory` sends `groupIds` / `leaderIds`
-- Phase 3 · Task 5 · Members — multi-select Groups and Leaders with Save, D4 chips, ids not labels
-- Phase 4 · Task 6 · Invite picker — Leaders multi-select by `creatorId`
-- Phase 4 · Task 7 · Groups home — Orgs and Leaders menus multi-select
