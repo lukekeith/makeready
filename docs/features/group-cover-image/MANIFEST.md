@@ -1,7 +1,7 @@
 size: lg
-state: signed-off
-next: /builder:verify --path docs/features/group-cover-image
-head: d1a3677
+state: verified
+next: /builder:resume --path docs/features/group-cover-image
+head: fc80696
 ticket: none
 branch: builder/group-cover-image
 pr: none
@@ -12,7 +12,7 @@ go-ahead: Luke 2026-10-27
 tests: slice=own+app end=risk review=slice
 target: main
 walk: agent-pass 2026-10-27 d1a3677
-verify: none
+verify: READY 2026-10-27
 ready: yes 2026-10-27 b54cc65
 auto: on 2026-10-27
 blocked: none
