@@ -207,9 +207,10 @@ final class APIClient {
     }
 
     /// ui2-members-edit T6: an uncoalesced request whose non-2xx failure keeps its HTTP status
-    /// (`APIHTTPError`). Opt-in: only `MemberActions.updateMember` calls it.
-    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?) async throws -> Data {
-        let request = try buildRequest(endpoint: endpoint, method: method, body: body, timeout: 30)
+    /// (`APIHTTPError`). Opt-in: `MemberActions.updateMember`, `GroupActions.saveCover`.
+    /// group-cover-image D13: `timeout` (30 by default) — the cover upload needs 120.
+    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data {
+        let request = try buildRequest(endpoint: endpoint, method: method, body: body, timeout: timeout)
         let data: Data
         let response: URLResponse
         do {
@@ -448,7 +449,7 @@ private actor GETCoalescer {
 protocol APIClientProtocol {
     func request(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data
     /// ui2-members-edit T6: as `request`, but a non-2xx throws `APIHTTPError` with its status.
-    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?) async throws -> Data
+    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval) async throws -> Data
     func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, timeout: TimeInterval, responseType: T.Type) async throws -> T
     func get<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T
     func post<T: Decodable>(_ endpoint: String, body: [String: Any]?, responseType: T.Type) async throws -> T
@@ -468,6 +469,10 @@ extension APIClientProtocol {
 
     func request<T: Decodable>(endpoint: String, method: String, body: [String: Any]?, responseType: T.Type) async throws -> T {
         try await request(endpoint: endpoint, method: method, body: body, timeout: 30, responseType: responseType)
+    }
+
+    func requestWithStatus(endpoint: String, method: String, body: [String: Any]?) async throws -> Data {
+        try await requestWithStatus(endpoint: endpoint, method: method, body: body, timeout: 30)
     }
 
     func uploadImage(endpoint: String, image: UIImage) async throws -> Data {

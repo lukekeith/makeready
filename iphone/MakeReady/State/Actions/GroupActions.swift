@@ -360,6 +360,54 @@ struct GroupActions {
         return url
     }
 
+    /// group-cover-image D13: the cover upload's long timeout (two images, <= ~4.5MB, D16).
+    static let coverSaveTimeout: TimeInterval = 120
+
+    /// group-cover-image D10/D13: upload the rendered cover (JPEG 0.9) with its framing - and the
+    /// original on a new pick - then patch the three returned fields into the group and persist.
+    /// Uses `requestWithStatus` so a 404 keeps its status (F6); a 401 throws `.unauthorized`.
+    @MainActor
+    func saveCover(groupId: String, rendered: UIImage, framing: CoverFraming, original: UIImage?) async throws -> CoverSaveResult {
+        struct Response: Decodable {
+            let success: Bool
+            let coverImageUrl: String?
+            let coverOriginalUrl: String?
+            let coverFraming: CoverFraming?
+            let error: String?
+        }
+        guard let renderedJPEG = rendered.jpegData(compressionQuality: 0.9) else {
+            throw APIError.serverError("Couldn't encode the cover")
+        }
+        var body: [String: Any] = [
+            "imageData": renderedJPEG.base64EncodedString(),
+            "contentType": "image/jpeg",
+            "framing": framing.requestBody
+        ]
+        if let original {
+            guard let originalJPEG = original.jpegData(compressionQuality: 0.9) else {
+                throw APIError.serverError("Couldn't encode the original photo")
+            }
+            body["originalData"] = originalJPEG.base64EncodedString()
+        }
+
+        let data = try await api.requestWithStatus(endpoint: "/api/groups/\(groupId)/cover-image", method: "POST",
+                                                   body: body, timeout: Self.coverSaveTimeout)
+        let response = try JSONDecoder.apiDecoder.decode(Response.self, from: data)
+        guard response.success, let url = response.coverImageUrl else {
+            throw APIError.serverError(response.error ?? "Failed to save the cover")
+        }
+        let result = CoverSaveResult(coverImageUrl: url, coverOriginalUrl: response.coverOriginalUrl,
+                                     coverFraming: response.coverFraming)
+        if var group = state.groups[groupId] {
+            group.coverImageUrl = result.coverImageUrl
+            group.coverOriginalUrl = result.coverOriginalUrl
+            group.coverFraming = result.coverFraming
+            state.groups.upsert(group)
+            state.persist()
+        }
+        return result
+    }
+
     // MARK: - Group Invite
 
     /// Fetch the group invite (URL + QR code payload) for a group.
@@ -843,4 +891,11 @@ struct GroupActions {
         if let http = error as? APIHTTPError, http.status == 404 { return } // D23: scope, not failure
         state.recordError(error, context: "GroupActions.\(context)", surface: false)
     }
+}
+
+/// group-cover-image D10: the three fields the cover upload returns.
+struct CoverSaveResult: Equatable {
+    let coverImageUrl: String
+    let coverOriginalUrl: String?
+    let coverFraming: CoverFraming?
 }

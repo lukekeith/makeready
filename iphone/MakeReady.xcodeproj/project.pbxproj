@@ -327,6 +327,7 @@
 		714594EA341AC49AE8C7F278 /* HomeDashboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A2E963F777311FDA1B0715 /* HomeDashboardScreen.swift */; };
 		7193A218AB78D8F08F856E18 /* GroupPageModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AB02699C3732F34D52FAC3 /* GroupPageModels.swift */; };
 		71F7F6F9D60AD47C259A2CC1 /* InlineDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F83C09E34A9A68A7758BF1 /* InlineDropdown.swift */; };
+		7233795930206128B569BFAE /* GroupSaveCoverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F06C9316E57E1499C57D50B3 /* GroupSaveCoverTests.swift */; };
 		7271690298C16E30A564F962 /* CanvasTextObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E2FBC04A6DD8E9B873FAA5 /* CanvasTextObject.swift */; };
 		72F2F3E95D85FAF4D24932F0 /* MemberFieldEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB16994C803D8C9D8E54158D /* MemberFieldEditorTests.swift */; };
 		73506EA6764D69CF9AA39BF6 /* CoverImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9A7F04E1276422781ADE05 /* CoverImage.swift */; };
@@ -1226,6 +1227,7 @@
 		EXNE0002000000000000001 /* ExegesisNoteEditorPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisNoteEditorPage.swift; sourceTree = "<group>"; };
 		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
 		EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditYouTubeActivityPage.swift; sourceTree = "<group>"; };
+		F06C9316E57E1499C57D50B3 /* GroupSaveCoverTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSaveCoverTests.swift; sourceTree = "<group>"; };
 		F0E2FBC04A6DD8E9B873FAA5 /* CanvasTextObject.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CanvasTextObject.swift; sourceTree = "<group>"; };
 		F0FF0B250AF20FEA47BB6BD1 /* CardActivityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardActivityType.swift; sourceTree = "<group>"; };
 		F1A2B3C4D5E60718293A4C04 /* InviteMemberContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InviteMemberContainer.swift; path = Containers/Groups/InviteMemberContainer.swift; sourceTree = "<group>"; };
@@ -1791,6 +1793,7 @@
 				DC52F14565247106FF0CBE8B /* GroupDeleteCleanupTests.swift */,
 				D4C6E955DCAF91D8673260F5 /* GroupFieldEditorTests.swift */,
 				EF746206A631F1751571CADF /* GroupCoverDecodingTests.swift */,
+				F06C9316E57E1499C57D50B3 /* GroupSaveCoverTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -2885,6 +2888,7 @@
 				686083CFAF5B43EB43926635 /* GroupDeleteCleanupTests.swift in Sources */,
 				491C8EFD19A7A12BC302D8A0 /* GroupFieldEditorTests.swift in Sources */,
 				D20B4AB2A7E0874505490C93 /* GroupCoverDecodingTests.swift in Sources */,
+				7233795930206128B569BFAE /* GroupSaveCoverTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
