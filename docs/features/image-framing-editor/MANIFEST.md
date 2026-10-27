@@ -15,3 +15,4 @@ ready: none
 auto: off
 blocked: none
 agent-walk: off
+build: here
