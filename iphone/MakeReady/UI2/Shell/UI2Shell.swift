@@ -21,8 +21,8 @@ struct UI2Shell: View {
     @State private var addMenuOpen = false
 
     /// action-menu-overlay B3: the Add menu's actions, as frame 4717:52460 draws them. B5: none of
-    /// their destinations exists in the 2.0 shell yet, so a row only closes the menu; each is wired
-    /// when its screen lands.
+    /// their destinations existed in the 2.0 shell at the time. "Invite a member" now opens the invite
+    /// flow (invite-member D2); the other three still only close the menu until their screens land.
     static let addMenuActions: [ActionMenuOverlay.ActionItem] = [
         .init(glyph: "c066-record", label: "Record a video"),
         .init(glyph: "c066-microphone", label: "Voice memo"),
@@ -59,7 +59,15 @@ struct UI2Shell: View {
                 .actionMenuPresentation(isPresented: addMenuOpen, onDismiss: { addMenuOpen = false }) {
                     ActionMenuOverlay(
                         actions: Self.addMenuActions,
-                        onSelect: { _ in addMenuOpen = false },
+                        onSelect: { action in
+                            addMenuOpen = false
+                            guard action.label == InviteEntry.rowLabel else { return }  // the other rows land with their screens
+                            let tab = model.tab
+                            let depth = model.path(for: tab).count
+                            Task { @MainActor in
+                                await InviteEntry.open(push: { model.push($0, on: tab) }, returnDepth: depth)
+                            }
+                        },
                         showsDone: false,
                         hairlineAfterLast: false
                     )
