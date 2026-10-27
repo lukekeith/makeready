@@ -1,7 +1,7 @@
 size: lg
-state: signed-off
-next: /builder:verify --path docs/features/invite-member
-head: dfc433d
+state: verified
+next: /builder:resume --path docs/features/invite-member
+head: 02784b1
 ticket: none
 branch: builder/invite-member
 pr: none
@@ -12,7 +12,7 @@ go-ahead: auto (recommended) 2026-10-26
 tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: agent-pass 2026-10-26 dfc433d
-verify: none
+verify: READY 2026-10-26
 ready: yes 2026-10-26 7793b18
 ui2: invite-member (C-040, C-046→C-045, C-048, C-107→C-108, C-109; reuses enrollment-select-group)
 auto: on 2026-10-26
