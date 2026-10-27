@@ -49,8 +49,8 @@ struct FilterMenuOverlay: View {
     let selectedIDs: Set<String>
     /// §4 `onSelect`: fires on every option tap, the already-selected one included (R-03).
     var onSelect: (Option) -> Void
-    /// §4 `onClose`: the close button (C-082) was tapped; the presenter dismisses. In
-    /// `.multiple` the live choices stand (OQ-C-036-10).
+    /// §4 `onClose`: the close button (C-082) was tapped; the presenter dismisses. When
+    /// `onSave` is set, close discards the draft (D1); only Save commits it.
     var onClose: () -> Void
     /// filter-menu-clear (owner 2026-10-26): every filter menu carries a C-049 "Clear" link top
     /// left, above the list. The presenter resets its filter to rest (and, in `.single`, closes,
