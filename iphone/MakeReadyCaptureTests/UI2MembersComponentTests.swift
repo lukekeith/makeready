@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import MakeReady
 
@@ -25,6 +26,20 @@ final class UI2MembersComponentTests: XCTestCase {
         XCTAssertFalse(SearchField(text: "", placeholder: "Search members", focused: false).clearDismisses)
         XCTAssertTrue(SearchField(text: "", placeholder: "Search members", focused: false,
                                   clearDismisses: true, editable: true).clearDismisses)
+    }
+
+    /// filter-menu-fullscreen: a presented menu is handed up to the shell's host; the first
+    /// presented one wins and an unpresented screen hands up nothing.
+    func testHostedOverlayKeepsTheFirstPresentedMenu() {
+        let first = UI2HostedOverlay(view: AnyView(Color.clear))
+        var value: UI2HostedOverlay? = UI2HostedOverlayKey.defaultValue
+        XCTAssertNil(value)
+        UI2HostedOverlayKey.reduce(value: &value) { nil }
+        XCTAssertNil(value)
+        UI2HostedOverlayKey.reduce(value: &value) { first }
+        UI2HostedOverlayKey.reduce(value: &value) { UI2HostedOverlay(view: AnyView(Color.red)) }
+        XCTAssertEqual(value?.id, first.id)
+        XCTAssertFalse(EnvironmentValues().ui2HostsOverlays)
     }
 
     // MARK: - Task 13: MembersHomeScreen (D4, D7/D15, T11)

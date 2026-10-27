@@ -17,6 +17,18 @@ struct UI2Shell: View {
     /// only the part of the keyboard that rises past the TabBar it covers.
     @State private var keyboardHeight: CGFloat = 0
     @State private var tabBarHeight: CGFloat = 0
+    /// action-menu-overlay: the TabBar's Add (+) menu is open.
+    @State private var addMenuOpen = false
+
+    /// action-menu-overlay B3: the Add menu's actions, as frame 4717:52460 draws them. B5: none of
+    /// their destinations exists in the 2.0 shell yet, so a row only closes the menu; each is wired
+    /// when its screen lands.
+    static let addMenuActions: [ActionMenuOverlay.ActionItem] = [
+        .init(glyph: "c066-record", label: "Record a video"),
+        .init(glyph: "c066-microphone", label: "Voice memo"),
+        .init(glyph: "c066-note", label: "Write a note"),
+        .init(glyph: "c066-send-alt", label: "Invite a member"),
+    ]
 
     /// members-search-pinned: the keyboard covers the TabBar instead of lifting it.
     static func keyboardOverlap(keyboardHeight: CGFloat, tabBarHeight: CGFloat) -> CGFloat {
@@ -41,10 +53,21 @@ struct UI2Shell: View {
             .safeAreaPadding(.bottom, Self.keyboardOverlap(keyboardHeight: keyboardHeight, tabBarHeight: tabBarHeight))
             // C-084 §2 Motion: "the selection switches instantly with no animation"; a re-tap
             // with a page pushed pops it (D20, the system pop).
-            TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: {})
+            TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: { addMenuOpen = true })
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabBarHeight = $0 }
+                // action-menu-overlay: C-066 slides up over every piece of chrome (the host below).
+                .actionMenuPresentation(isPresented: addMenuOpen, onDismiss: { addMenuOpen = false }) {
+                    ActionMenuOverlay(
+                        actions: Self.addMenuActions,
+                        onSelect: { _ in addMenuOpen = false },
+                        showsDone: false,
+                        hairlineAfterLast: false
+                    )
+                }
         }
         .ignoresSafeArea(.container, edges: .bottom)
+        // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
+        .ui2OverlayHost()
         // members-search-pinned: the keyboard never lifts the TabBar (it squeezed the Members
         // list); the pages above it get the keyboard's overlap as safe area instead.
         .ignoresSafeArea(.keyboard, edges: .bottom)

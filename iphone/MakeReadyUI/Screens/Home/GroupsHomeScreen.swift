@@ -132,7 +132,10 @@ struct GroupsHomeScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: the page background
-        .overlay { filterMenu }
+        // filter-menu-fullscreen: in the app the shell draws the menu above all chrome.
+        .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
+            filterMenu
+        }
     }
 
     /// §2: "status bar → collapsed nav (C-019, Groups active)" — C-019 in its `collapsed` state
@@ -262,7 +265,6 @@ struct GroupsHomeScreen: View {
             onClose: { presentedMenu = nil }
         )
         .ui2Element("C-036 FilterMenuOverlay")
-        .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil })
     }
 
     /// `"C-### <Name>"`, with `" N"` from the second instance on (D11).

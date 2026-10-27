@@ -54,12 +54,23 @@ struct ActionMenuOverlay: View {
     var onSelect: (ActionItem) -> Void = { _ in }
     /// §4: `onDone` — "Done always dismisses". Interaction-bearing (OQ-PB-3).
     var onDone: () -> Void = {}
+    /// action-menu-overlay: the Add menu frame (4717:52460) draws no Done button — the scrim tap
+    /// and the swipe down dismiss it instead. Default true keeps the frozen C-066 snapshot.
+    // GAP — C-066 §2 item 2: the Done button is not optional in the contract; the owner files the
+    // change via /ui2-component-update C-066 (action-menu-overlay B6).
+    var showsDone: Bool = true
+    /// action-menu-overlay: the Add menu frame draws hairlines BETWEEN rows only; the C-066
+    /// snapshot draws one after the last row too. Default true keeps the snapshot.
+    // GAP — C-066 §2 item 1: "including after the last row" (action-menu-overlay B6).
+    var hairlineAfterLast: Bool = true
 
     var body: some View {
         // §2: "internal gap 16" — between the actions list and the Done button.
         VStack(spacing: Self.gap) {
             actionsList.ui2Element("Actions list")
-            doneButton.ui2Element("Done")
+            if showsDone {
+                doneButton.ui2Element("Done")
+            }
         }
         // §2: "p24". tokens.md's only 24 row is `space-row-gap`, coined for
         // study-program-home's demographics table — it is the program's 24, but it was not
@@ -83,7 +94,11 @@ struct ActionMenuOverlay: View {
         VStack(spacing: 0) {
             ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
                 ActionMenuRow(glyph: action.glyph, label: action.label) { onSelect(action) }
-                    .overlay(alignment: .bottom) { hairline.ui2Element("Hairline \(index + 1)") }
+                    .overlay(alignment: .bottom) {
+                        if hairlineAfterLast || index < actions.count - 1 {
+                            hairline.ui2Element("Hairline \(index + 1)")
+                        }
+                    }
             }
         }
     }

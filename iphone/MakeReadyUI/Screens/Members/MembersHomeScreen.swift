@@ -142,7 +142,10 @@ struct MembersHomeScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
-        .overlay { filterMenu }
+        // filter-menu-fullscreen: in the app the shell draws the menu above all chrome.
+        .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
+            filterMenu
+        }
         .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
     }
 
@@ -275,7 +278,6 @@ struct MembersHomeScreen: View {
             onClose: { presentedMenu = nil }
         )
         .ui2Element("C-036 FilterMenuOverlay")
-        .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil })
     }
 
     /// `"C-### <Name>"`, with `" N"` from the second instance on (D11).

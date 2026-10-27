@@ -81,6 +81,15 @@ struct ActionMenuRow: View {
         if let name = Self.glyphName(glyph) {
             Glyph(name, size: .md, tint: tint)
                 .accessibilityHidden(true)
+        } else if Self.contentGlyphs.contains(glyph) {
+            // action-menu-overlay: §2's glyph is a CONTENT slot — artwork a presenting surface
+            // supplies, carried in the catalog under the `c066-` prefix (not C-021's library).
+            Image(glyph, bundle: .ui2Preview)
+                .renderingMode(.template)
+                .resizable()
+                .frame(width: GlyphSize.md.points, height: GlyphSize.md.points)
+                .foregroundStyle(tint)
+                .accessibilityHidden(true)
         } else {
             // STUB — C-067 `glyph` names no glyph in the library. Drawn obviously unfinished
             // at the designed 24pt rather than substituting a near-enough glyph.
@@ -94,6 +103,10 @@ struct ActionMenuRow: View {
     /// and `c066-close`; §1 traces them to the same Figma art as `send-filled` (3832:31474)
     /// and `x-circle-filled` (the "Misuse" instance), so a fixture still carrying them
     /// resolves to those glyphs rather than to the stub.
+    /// action-menu-overlay: the Add menu's four content glyphs, from frame 4717:52460 (Carbon
+    /// Radio-button--checked, Microphone, Text-annotation-toggle, Send--alt).
+    static let contentGlyphs: Set<String> = ["c066-record", "c066-microphone", "c066-note", "c066-send-alt"]
+
     private static func glyphName(_ glyph: String) -> GlyphName? {
         switch glyph {
         case "c066-send": return .sendFilled

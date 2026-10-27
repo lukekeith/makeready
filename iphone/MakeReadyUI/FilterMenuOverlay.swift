@@ -198,9 +198,21 @@ extension View {
     /// C-036 §4 `.filterMenuPresentation(isPresented:onDismiss:)`: the full-screen
     /// `color-black-80` dim (OQ-C-036-3) under the view, crossfaded together with
     /// `motion-menu-fade-in/out`. The dim is not a tap target; the escape action fires
-    /// `onDismiss`.
+    /// `onDismiss`. Always draws in place (previews, capture).
     func filterMenuPresentation(isPresented: Bool, onDismiss: @escaping () -> Void = {}) -> some View {
         modifier(FilterMenuPresentation(isPresented: isPresented, onDismiss: onDismiss))
+    }
+
+    /// filter-menu-fullscreen (routed to /ui2-resolve): the screen-level form — applied to the
+    /// SCREEN with the menu as a view. Under a `.ui2OverlayHost()` the presented menu is handed
+    /// up and drawn above every piece of the shell's chrome; elsewhere it overlays the screen
+    /// exactly as `.overlay { menu.filterMenuPresentation(…) }` did.
+    func filterMenuPresentation<Menu: View>(
+        isPresented: Bool,
+        onDismiss: @escaping () -> Void = {},
+        @ViewBuilder menu: () -> Menu
+    ) -> some View {
+        modifier(HostableFilterMenuPresentation(isPresented: isPresented, onDismiss: onDismiss, menu: menu()))
     }
 }
 
@@ -211,20 +223,105 @@ private struct FilterMenuPresentation: ViewModifier {
     func body(content: Content) -> some View {
         ZStack {
             if isPresented {
-                ZStack {
-                    // Full screen, ignoring safe areas; not an accessibility element, no gesture.
-                    Token.black80
-                        .ignoresSafeArea()
-                        .accessibilityHidden(true)
-                        .ui2Element("Dim")
-                    content
-                        .accessibilityAddTraits(.isModal)
-                        .accessibilityAction(.escape, onDismiss)
-                }
-                // Opacity only — no slide, no scale (§2 Motion).
-                .transition(.opacity)
+                FilterMenuLayer(onDismiss: onDismiss) { content }
+                    // Opacity only — no slide, no scale (§2 Motion).
+                    .transition(.opacity)
             }
         }
         .animation(isPresented ? Token.Motion.menuFadeIn : Token.Motion.menuFadeOut, value: isPresented)
+    }
+}
+
+/// The presented layer: the dim, then the menu as a modal.
+private struct FilterMenuLayer<Menu: View>: View {
+    let onDismiss: () -> Void
+    @ViewBuilder var menu: Menu
+
+    var body: some View {
+        ZStack {
+            // Full screen, ignoring safe areas; not an accessibility element, no gesture.
+            Token.black80
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+                .ui2Element("Dim")
+            menu
+                .accessibilityAddTraits(.isModal)
+                .accessibilityAction(.escape, onDismiss)
+        }
+    }
+}
+
+/// The screen-level presentation. A hosted menu is handed up as the real menu view — never
+/// a modifier's `Content`, which renders empty once moved out of its modifier.
+private struct HostableFilterMenuPresentation<Menu: View>: ViewModifier {
+    let isPresented: Bool
+    let onDismiss: () -> Void
+    let menu: Menu
+
+    @Environment(\.ui2HostsOverlays) private var hosted
+
+    func body(content: Content) -> some View {
+        if hosted {
+            content.preference(
+                key: UI2HostedOverlayKey.self,
+                value: isPresented
+                    ? UI2HostedOverlay(view: AnyView(FilterMenuLayer(onDismiss: onDismiss) { menu }))
+                    : nil
+            )
+        } else {
+            content.overlay {
+                menu.filterMenuPresentation(isPresented: isPresented, onDismiss: onDismiss)
+            }
+        }
+    }
+}
+
+// MARK: - Hosting (filter-menu-fullscreen, routed to /ui2-resolve)
+
+/// A presented full-screen overlay handed up to the app shell's host. `id` is per instance.
+struct UI2HostedOverlay {
+    let id = UUID()
+    let view: AnyView
+    /// action-menu-overlay: how the layer enters and leaves. The filter menu's crossfade is the
+    /// default; the action menu brings its own (scrim fade + slide up, with its own animation).
+    var transition: AnyTransition = .opacity
+}
+
+/// The presented overlay a screen hands up; the first presented one wins.
+struct UI2HostedOverlayKey: PreferenceKey {
+    static let defaultValue: UI2HostedOverlay? = nil
+    static func reduce(value: inout UI2HostedOverlay?, nextValue: () -> UI2HostedOverlay?) {
+        if value == nil { value = nextValue() }
+    }
+}
+
+private struct UI2HostsOverlaysKey: EnvironmentKey {
+    static let defaultValue = false
+}
+
+extension EnvironmentValues {
+    /// True under a `.ui2OverlayHost()` — presentations hand their overlay up instead of drawing
+    /// in place.
+    var ui2HostsOverlays: Bool {
+        get { self[UI2HostsOverlaysKey.self] }
+        set { self[UI2HostsOverlaysKey.self] = newValue }
+    }
+}
+
+extension View {
+    /// filter-menu-fullscreen: hosts every `.filterMenuPresentation` below this view over this
+    /// view's whole frame — the app shell applies it at its root so a menu covers the TopNav,
+    /// the pinned headers and the TabBar. Same crossfade as the in-place presentation.
+    func ui2OverlayHost() -> some View {
+        environment(\.ui2HostsOverlays, true)
+            .overlayPreferenceValue(UI2HostedOverlayKey.self) { overlay in
+                ZStack {
+                    if let overlay {
+                        overlay.view.transition(overlay.transition)
+                    }
+                }
+                .animation(overlay == nil ? Token.Motion.menuFadeOut : Token.Motion.menuFadeIn,
+                           value: overlay == nil)
+            }
     }
 }
