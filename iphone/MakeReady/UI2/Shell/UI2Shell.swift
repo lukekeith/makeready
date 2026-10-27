@@ -154,6 +154,7 @@ struct UI2Shell: View {
         case let .inviteSelectGroup(returnDepth): InviteSelectGroupContainer(returnDepth: returnDepth)  // invite-member D3
         case let .inviteMember(groupId, returnDepth): InviteMemberContainer(groupId: groupId, returnDepth: returnDepth)  // invite-member D1
         case let .groupDetail(id, name): GroupDetailHost(id: id, name: name)                 // ui2-groups-browse D1
+        case let .editGroupField(groupId, field): GroupFieldEditContainer(groupId: groupId, field: field)  // ui2-groups-edit D2
         case .createGroup:                                                                    // ui2-groups-browse D1/D8
             CreateGroupContainer(route: .createGroup, destination: { .groupDetail(id: $0.id, name: $0.name) })
         }

@@ -433,6 +433,7 @@
 		9B219EBA3BFAAA3B09574E58 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 280805AC8E1F4024BA7D665C /* Foundation.framework */; };
 		9B97B2B93DC2CE59A4AC48EB /* CalendarEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABD4EEE3782A40450EDC653 /* CalendarEventRow.swift */; };
 		9BB935C98EA7ED8693A4700E /* CaptureFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88550B352EE04282DC290166 /* CaptureFixture.swift */; };
+		9C3E01A450B2785560D7B6EC /* GroupFieldEditContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0466BB805D1828407F191773 /* GroupFieldEditContainer.swift */; };
 		9C5D2A595E7E3EC44BAFD70B /* MemberProfileMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F65125EF21DADBF7C1D423 /* MemberProfileMapper.swift */; };
 		9CC801F3C70B4B3BB1CCB414 /* CardVideo.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 00DF3BDA8C7D46B8B58A9645 /* CardVideo.swift */; };
 		9F58E70015F94933534C1FA3 /* StudyProgramHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A60640A82D674D2B06F8637 /* StudyProgramHomeScreen.swift */; };
@@ -637,6 +638,7 @@
 		E5C0336E52DCA6917556CEC7 /* EnrollmentSelectInviteTimeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75733538DFA580C9A87172B7 /* EnrollmentSelectInviteTimeScreen.swift */; };
 		E5C29BE4C48A53CED3928771 /* MembersHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C255ED2E1B2AF33F0FBCD21 /* MembersHomeScreen.swift */; };
 		E606571E63FFBB31D5C6C499 /* TextInput.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDF81A3117A2576E375188C /* TextInput.swift */; };
+		E63961CA8FC4ED5B9C9D8CC8 /* GroupFieldEditContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0466BB805D1828407F191773 /* GroupFieldEditContainer.swift */; };
 		E659924115E39ECB0366BF9A /* CaptureRunner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3B52EC30DAB12213461B48A4 /* CaptureRunner.swift */; };
 		E6B4A1000000000000000001 /* UI2ErrorBannerHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B4A1000000000000000003 /* UI2ErrorBannerHost.swift */; };
 		E6B4A1000000000000000002 /* UI2ErrorBannerHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B4A1000000000000000003 /* UI2ErrorBannerHost.swift */; };
@@ -837,6 +839,7 @@
 		0236991E08F6AB94F85853F3 /* ProfileStopgapContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProfileStopgapContainer.swift; path = Containers/Profile/ProfileStopgapContainer.swift; sourceTree = "<group>"; };
 		02F77D8340B7A5CD6DBD3020 /* DayTimeline.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DayTimeline.swift; sourceTree = "<group>"; };
 		0358DC8F8392440D9FB81D02 /* CardData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardData.swift; sourceTree = "<group>"; };
+		0466BB805D1828407F191773 /* GroupFieldEditContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GroupFieldEditContainer.swift; path = Containers/Groups/GroupFieldEditContainer.swift; sourceTree = "<group>"; };
 		067A81F2D190432AB322B817 /* ContactsManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactsManager.swift; sourceTree = "<group>"; };
 		072A3D7764A43A5B4953912C /* ActivitySpinner.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ActivitySpinner.swift; sourceTree = "<group>"; };
 		0861A5A9123E5C6F3093FF0D /* LoginOutcome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LoginOutcome.swift; path = Containers/Auth/LoginOutcome.swift; sourceTree = "<group>"; };
@@ -1499,6 +1502,7 @@
 				D3CF281ABF36D716D82FFEF9 /* GroupDetailContainer.swift */,
 				C6E3CA9173B2C6F939B01782 /* GroupDetailHost.swift */,
 				D13E32E27A2ABE5B1A0D3485 /* GroupFieldEditor.swift */,
+				0466BB805D1828407F191773 /* GroupFieldEditContainer.swift */,
 			);
 			name = UI2;
 			path = UI2;
@@ -3149,6 +3153,7 @@
 				92C7319C7E2D003AABE20E82 /* GroupDetailContainer.swift in Sources */,
 				DDF7F97280B7A24EF2AE400B /* GroupDetailHost.swift in Sources */,
 				69E3E2513C8A8D8F8D6C2E05 /* GroupFieldEditor.swift in Sources */,
+				E63961CA8FC4ED5B9C9D8CC8 /* GroupFieldEditContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3570,6 +3575,7 @@
 				0B5D016F0CB52EEE6C1FEB75 /* GroupDetailContainer.swift in Sources */,
 				3BB275121E785F57ADCDB7A7 /* GroupDetailHost.swift in Sources */,
 				A8E08190AACA234EBC173ECD /* GroupFieldEditor.swift in Sources */,
+				9C3E01A450B2785560D7B6EC /* GroupFieldEditContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

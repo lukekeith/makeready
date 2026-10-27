@@ -35,6 +35,12 @@ struct GroupDetailContainer: View {
                 GroupsDetailScreen(
                     state: state,
                     showsHeader: false,
+                    // ui2-groups-edit D1: a settings row → that field's edit page.
+                    onEditField: { label in
+                        guard let next = Self.editDestination(groupId: groupId, label: label,
+                                                              group: AppState.shared.groups[groupId]) else { return }
+                        navigator.push(next)
+                    },
                     // D7: Members `add` → invite; Cancel/Done return here.
                     onInviteMember: { navigator.push(.inviteMember(groupId: groupId, returnDepth: navigator.depth())) },
                     // D7: a member row → the member page (GroupMember.userId). D6: everything else inert.
@@ -67,6 +73,13 @@ struct GroupDetailContainer: View {
             days: app.groupDaysByGroupId[groupId],
             chart: app.groupChartByGroupId[groupId]
         )
+    }
+
+    /// ui2-groups-edit D1: the row label's edit page — nil for an unknown label, or while the
+    /// group has not loaded (the page has nothing to edit yet).
+    static func editDestination(groupId: String, label: String, group: UserGroup?) -> UI2Destination? {
+        guard group != nil, let field = GroupField(label: label) else { return nil }
+        return .editGroupField(groupId: groupId, field: field)
     }
 
     /// D17: the images the container seeds — the cover, the lesson slides, the enrollment covers.
