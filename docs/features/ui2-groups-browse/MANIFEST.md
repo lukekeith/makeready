@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/ui2-groups-browse
-head: e4baa8c
+state: built
+next: /builder:agent-walk --path docs/features/ui2-groups-browse
+head: 4cb859d
 ticket: none
 branch: builder/ui2-groups-browse
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-10-27 4cb859d
 ui2: groups-home, groups-detail, create-group (via program ui2-groups)
 auto: off
 blocked: none
