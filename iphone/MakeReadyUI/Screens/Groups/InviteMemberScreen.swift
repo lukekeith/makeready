@@ -4,7 +4,7 @@
 //
 //  Built from screen invite-member in d2m (§2 layout, §3 states, §4 components).
 //  §5 endpoints, cited only — this view calls none: POST /api/invites/send
-//  (the invitee's `recipientName` is an API-GAP in §5, OQ-invite-member-003).
+//  (the invitee's `recipientName` is in the frozen contract — SPEC §Contract, closed by SC1–SC3).
 //  Hosted by iphone/MakeReady/UI2/Containers/Groups/InviteMemberContainer.swift (invite-member).
 //
 
@@ -155,7 +155,9 @@ struct InviteMemberScreen: View {
             style: .focus,
             layout: .centered,
             text: name,
-            placeholder: Self.namePlaceholder
+            placeholder: Self.namePlaceholder,
+            editing: TextInput.Editing(autocapitalization: .words, focusOnAppear: true, accessibilityName: Self.nameLabel),
+            onChange: { name = $0 }
         )
         .ui2Element("C-046 FieldGroup")
 
