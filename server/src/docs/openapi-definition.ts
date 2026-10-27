@@ -299,18 +299,6 @@ All endpoints return consistent JSON responses:
           title: { type: 'string' },
           description: { type: 'string', nullable: true },
           coverImageUrl: { type: 'string', format: 'uri', nullable: true },
-          coverOriginalUrl: { type: 'string', format: 'uri', nullable: true, description: 'group-cover-image D10: the full original cover photo' },
-          coverFraming: {
-            type: 'object',
-            nullable: true,
-            description: 'group-cover-image D11: the framing the cover was rendered with',
-            properties: {
-              scale: { type: 'number', minimum: 1, maximum: 8 },
-              rotation: { type: 'number', minimum: -180, maximum: 180 },
-              offsetX: { type: 'number', minimum: -1, maximum: 1 },
-              offsetY: { type: 'number', minimum: -1, maximum: 1 },
-            },
-          },
           isPublished: { type: 'boolean' },
           lessonCount: { type: 'integer' },
           createdAt: { type: 'string', format: 'date-time' },

@@ -94,7 +94,6 @@ beforeEach(() => {
   prismaMock.organization.findMany.mockResolvedValue([])
 })
 
-
 const COVER = { coverOriginalUrl: 'https://img.test/o.jpeg', coverFraming: { scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2 } }
 
 describe('group payloads carry the cover fields (§Contract row 2)', () => {

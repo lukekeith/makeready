@@ -1,6 +1,7 @@
 /**
  * group-cover-image D17: the one group payload every groups route returns (POST, GET list,
- * GET /:id, PATCH) — the four inline mappers it replaced were identical but for the org keys.
+ * GET /:id, PATCH) — the four inline mappers it replaced were identical but for the org keys; GET /:id
+ * and PATCH now also return organizationId, which they omitted before (additive).
  */
 import type { Group } from '../generated/prisma/index.js'
 import { parseStoredFraming, type CoverFraming } from './group-cover.js'
