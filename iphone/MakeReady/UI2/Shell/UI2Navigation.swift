@@ -8,6 +8,10 @@ struct UI2Navigator {
     var pop: () -> Void = {}
     /// ui2-members-edit D13: pop only if `destination` is still on top.
     var popIfTop: (UI2Destination) -> Void = { _ in }
+    /// invite-member D11: pop the stack back to `depth` entries.
+    var popTo: (Int) -> Void = { _ in }
+    /// invite-member D11: the stack's current depth (the entry depth a flow returns to).
+    var depth: () -> Int = { 0 }
 }
 
 private struct UI2NavigatorKey: EnvironmentKey {
@@ -83,5 +87,14 @@ final class UI2PopGestureDelegate: NSObject, UIGestureRecognizerDelegate {
 
     func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
         (navigationController?.viewControllers.count ?? 0) > 1
+    }
+}
+
+extension View {
+    /// invite-member Fixes (agent walk round 1, O1): a d2m screen that sizes to its content
+    /// (`maxWidth` only) is centred by the NavigationStack; a pushed page fills the screen top-down.
+    func ui2PushedPageFill() -> some View {
+        frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(Token.layoutBackground.ignoresSafeArea())
     }
 }

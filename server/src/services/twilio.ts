@@ -1,4 +1,5 @@
 import Twilio from 'twilio';
+import { randomUUID } from 'node:crypto';
 
 // Initialize Twilio client
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
@@ -264,8 +265,12 @@ export async function sendSMS(
       };
     }
 
+    // D17: test mode (TEST_VERIFICATION_CODES or NODE_ENV=test) sends nothing — like the
+    // verification test codes above — so local and agent-walk envs can send invites.
     if (!twilioClient) {
-      throw new Error('Twilio client not initialized (test mode is enabled)');
+      const messageSid = `test-${randomUUID()}`;
+      console.log(`[Twilio] test mode — SMS not sent to ${to} (${messageSid})`);
+      return { success: true, messageSid };
     }
 
     // Use messagingServiceSid if provided, otherwise fall back to phone number

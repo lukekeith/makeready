@@ -4,8 +4,8 @@
 //
 //  Built from screen invite-member in d2m (§2 layout, §3 states, §4 components).
 //  §5 endpoints, cited only — this view calls none: POST /api/invites/send
-//  (the invitee's `recipientName` is an API-GAP in §5, OQ-invite-member-003).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  (the invitee's `recipientName` is in the frozen contract — SPEC §Contract, closed by SC1–SC3).
+//  Hosted by iphone/MakeReady/UI2/Containers/Groups/InviteMemberContainer.swift (invite-member).
 //
 
 import SwiftUI
@@ -38,6 +38,9 @@ struct InviteMemberScreen: View {
     }
 
     let state: State
+    /// invite-member D4/D7 (owner 2026-10-26): false hides View invite on the sent step, leaving
+    /// Done alone — until invite-home is wired. Default true keeps the designed page.
+    var showsViewInvite: Bool = true
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op default.
     var onBack: () -> Void = {}                              // step 1 back / edge-swipe → caller
     var onCancel: () -> Void = {}                            // Cancel (steps 1–2) → pop the flow
@@ -53,6 +56,7 @@ struct InviteMemberScreen: View {
 
     init(
         state: State,
+        showsViewInvite: Bool = true,
         onBack: @escaping () -> Void = {},
         onCancel: @escaping () -> Void = {},
         onSendInvite: @escaping (String, String) -> Void = { _, _ in },
@@ -60,6 +64,7 @@ struct InviteMemberScreen: View {
         onViewInvite: @escaping () -> Void = {}
     ) {
         self.state = state
+        self.showsViewInvite = showsViewInvite
         self.onBack = onBack
         self.onCancel = onCancel
         self.onSendInvite = onSendInvite
@@ -132,6 +137,11 @@ struct InviteMemberScreen: View {
         // §2 step 1.3: empty background below; the column stays top-anchored.
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)
+        // invite-member D7 (owner 2026-10-26): a host moves the page to a later step (`sent` after
+        // an async send) by changing `state.step`; the name and digits the leader entered stay.
+        .onChange(of: state.step) { _, newStep in
+            if let adopted = Step(rawValue: newStep) { step = adopted }
+        }
     }
 
     // MARK: - Step 1 — name
@@ -145,7 +155,9 @@ struct InviteMemberScreen: View {
             style: .focus,
             layout: .centered,
             text: name,
-            placeholder: Self.namePlaceholder
+            placeholder: Self.namePlaceholder,
+            editing: TextInput.Editing(autocapitalization: .words, focusOnAppear: true, accessibilityName: Self.nameLabel),
+            onChange: { name = $0 }
         )
         .ui2Element("C-046 FieldGroup")
 
@@ -223,15 +235,21 @@ struct InviteMemberScreen: View {
         .padding(Token.Space.sectionGap)
         .frame(maxWidth: .infinity)
 
-        // §2 step 3.2: Done (`affirmative`) then View invite (`secondary`).
-        buttons(
-            primary: Self.doneLabel,
-            primaryEnabled: true,
-            primaryAction: onDone,
-            secondary: Self.viewInviteLabel,
-            secondaryEnabled: true,
-            secondaryAction: onViewInvite
-        )
+        // §2 step 3.2: Done (`affirmative`) then View invite (`secondary`); D4/D7: Done alone
+        // while `showsViewInvite` is false.
+        if showsViewInvite {
+            buttons(
+                primary: Self.doneLabel,
+                primaryEnabled: true,
+                primaryAction: onDone,
+                secondary: Self.viewInviteLabel,
+                secondaryEnabled: true,
+                secondaryAction: onViewInvite
+            )
+        } else {
+            PageActionButton(label: Self.doneLabel, role: .affirmative, enabled: true, onTap: onDone)
+                .ui2Element("C-048 PageActionButton")
+        }
     }
 
     // MARK: - Parts

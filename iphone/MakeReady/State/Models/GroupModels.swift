@@ -28,6 +28,8 @@ struct UserGroup: Codable, Identifiable {
     var maxMembers: Int?
     var memberCount: Int
     let creatorId: String
+    /// invite-member D9: the creator's `User.name` from `GET /api/groups`; nil on an old cache.
+    var creatorName: String?
     let createdAt: Date
     var updatedAt: Date
 
@@ -50,6 +52,7 @@ struct UserGroup: Codable, Identifiable {
         maxMembers = try container.decodeIfPresent(Int.self, forKey: .maxMembers)
         memberCount = try container.decode(Int.self, forKey: .memberCount)
         creatorId = try container.decode(String.self, forKey: .creatorId)
+        creatorName = try container.decodeIfPresent(String.self, forKey: .creatorName)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
@@ -59,7 +62,7 @@ struct UserGroup: Codable, Identifiable {
         coverImageUrl: String? = nil, isPrivate: Bool, allowInvites: Bool,
         memberDirectory: Bool = true, welcomeMessage: String? = nil,
         ageRange: AgeRange? = nil, maxMembers: Int? = nil, memberCount: Int,
-        creatorId: String, createdAt: Date, updatedAt: Date
+        creatorId: String, creatorName: String? = nil, createdAt: Date, updatedAt: Date
     ) {
         self.id = id
         self.code = code
@@ -74,6 +77,7 @@ struct UserGroup: Codable, Identifiable {
         self.maxMembers = maxMembers
         self.memberCount = memberCount
         self.creatorId = creatorId
+        self.creatorName = creatorName
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

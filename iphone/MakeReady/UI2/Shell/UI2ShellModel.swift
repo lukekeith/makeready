@@ -18,6 +18,11 @@ enum UI2Route: Equatable {
 enum UI2Destination: Hashable {
     case memberDetail(id: String, name: String)
     case editMemberField(memberId: String, field: MemberField)
+    /// invite-member D2/D3: the group pick before the invite (2+ groups). `returnDepth` = the
+    /// stack depth when "+" was tapped (D11).
+    case inviteSelectGroup(returnDepth: Int)
+    /// invite-member D1/D2: the invite page for one group.
+    case inviteMember(groupId: String, returnDepth: Int)
 }
 
 /// Ephemeral shell state (SPEC D19) — held as @State by UI2Shell, never persisted.
@@ -58,6 +63,13 @@ struct UI2ShellModel {
     mutating func popIfTop(_ destination: UI2Destination, on tab: TabBar.Tab) {
         guard path(for: tab).last == destination else { return }
         pop(on: tab)
+    }
+
+    /// invite-member D11: Cancel / Done pop the whole flow back to the page "+" was tapped on.
+    mutating func popTo(depth: Int, on tab: TabBar.Tab) {
+        let path = path(for: tab)
+        guard depth < path.count else { return }
+        paths[tab] = Array(path.prefix(max(0, depth)))
     }
 
     mutating func apply(_ route: UI2Route) {

@@ -21,8 +21,8 @@ struct UI2Shell: View {
     @State private var addMenuOpen = false
 
     /// action-menu-overlay B3: the Add menu's actions, as frame 4717:52460 draws them. B5: none of
-    /// their destinations exists in the 2.0 shell yet, so a row only closes the menu; each is wired
-    /// when its screen lands.
+    /// their destinations existed in the 2.0 shell at the time. "Invite a member" now opens the invite
+    /// flow (invite-member D2); the other three still only close the menu until their screens land.
     static let addMenuActions: [ActionMenuOverlay.ActionItem] = [
         .init(glyph: "c066-record", label: "Record a video"),
         .init(glyph: "c066-microphone", label: "Voice memo"),
@@ -59,7 +59,15 @@ struct UI2Shell: View {
                 .actionMenuPresentation(isPresented: addMenuOpen, onDismiss: { addMenuOpen = false }) {
                     ActionMenuOverlay(
                         actions: Self.addMenuActions,
-                        onSelect: { _ in addMenuOpen = false },
+                        onSelect: { action in
+                            addMenuOpen = false
+                            guard action.label == InviteEntry.rowLabel else { return }  // the other rows land with their screens
+                            let tab = model.tab
+                            let depth = model.path(for: tab).count
+                            Task { @MainActor in
+                                await InviteEntry.open(push: { model.push($0, on: tab) }, returnDepth: depth)
+                            }
+                        },
                         showsDone: false,
                         hairlineAfterLast: false
                     )
@@ -68,6 +76,8 @@ struct UI2Shell: View {
         .ignoresSafeArea(.container, edges: .bottom)
         // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
         .ui2OverlayHost()
+        // invite-member Fixes (E6): surfaced errors (`recordError(surface: true)`) draw above everything.
+        .overlay(alignment: .top) { UI2ErrorBannerHost() }
         // members-search-pinned: the keyboard never lifts the TabBar (it squeezed the Members
         // list); the pages above it get the keyboard's overlap as safe area instead.
         .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -118,7 +128,9 @@ struct UI2Shell: View {
         .environment(\.ui2Navigator, UI2Navigator(
             push: { model.push($0, on: tab) },
             pop: { model.pop(on: tab) },
-            popIfTop: { model.popIfTop($0, on: tab) }
+            popIfTop: { model.popIfTop($0, on: tab) },
+            popTo: { model.popTo(depth: $0, on: tab) },
+            depth: { model.path(for: tab).count }
         ))
         // dashboard-chart-intros D15: the dashboard resets its intros while hidden, replays on return.
         .environment(\.chartIntroActive, model.homeActive)
@@ -142,6 +154,8 @@ struct UI2Shell: View {
         switch destination {
         case let .memberDetail(id, name): MemberDetailHost(id: id, name: name)
         case let .editMemberField(memberId, field): MemberFieldEditContainer(memberId: memberId, field: field)  // ui2-members-edit D2
+        case let .inviteSelectGroup(returnDepth): InviteSelectGroupContainer(returnDepth: returnDepth)  // invite-member D3
+        case let .inviteMember(groupId, returnDepth): InviteMemberContainer(groupId: groupId, returnDepth: returnDepth)  // invite-member D1
         }
     }
 

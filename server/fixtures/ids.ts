@@ -26,6 +26,7 @@ export const FIXTURE_KIND = {
   userPreference: '0011',
   media: '0012',
   mediaUsage: '0013',
+  invite: '0014',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

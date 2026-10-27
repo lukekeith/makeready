@@ -30,6 +30,7 @@ export function generateInviteToken(): string {
  * @param recipientPhone - Phone number of the recipient (E.164 format)
  * @param groupName - Name of the group (for SMS message)
  * @param baseUrl - Base URL for invite links (e.g., "https://makeready.app")
+ * @param recipientName - Optional name of the invitee (stored on the invite, not used in the SMS)
  * @returns Result object with invite details
  */
 export async function sendGroupInvite(
@@ -38,7 +39,8 @@ export async function sendGroupInvite(
   inviterName: string,
   recipientPhone: string,
   groupName: string,
-  baseUrl: string
+  baseUrl: string,
+  recipientName?: string
 ): Promise<SendInviteResult> {
   try {
     // Generate unique token
@@ -55,6 +57,7 @@ export async function sendGroupInvite(
         groupId,
         inviterId,
         recipientPhone,
+        recipientName: recipientName ?? null,
         status: 'pending',
         expiresAt,
       },

@@ -247,6 +247,7 @@ router.get('/', requireAuth, async (req, res) => {
         _count: {
           select: { members: { where: { isActive: true } } },
         },
+        creator: { select: { name: true } },
       },
     })
 
@@ -268,6 +269,7 @@ router.get('/', requireAuth, async (req, res) => {
       maxMembers: group.maxMembers,
       memberCount: group._count.members,
       creatorId: group.creatorId,
+      creatorName: group.creator?.name ?? null,
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     }))
