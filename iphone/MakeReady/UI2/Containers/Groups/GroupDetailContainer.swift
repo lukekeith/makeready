@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// ui2-groups-browse §iphone Group page: the pushed `.groupDetail` page (D1, D4). It owns its
@@ -15,6 +16,14 @@ struct GroupDetailContainer: View {
     @State private var imagesSeeded = 0
     /// ui2-groups-edit D9: the Delete Group menu is up.
     @State private var deleteMenuOpen = false
+    /// group-cover-image D1/D3: the system photo picker and its selection.
+    @State private var pickerOpen = false
+    @State private var pickedItem: PhotosPickerItem?
+    /// D2: the cover menu, and the row chosen in it — acted on once the menu has slid out (D8).
+    @State private var coverMenuOpen = false
+    @State private var pendingCoverChoice: CoverChoice?
+    /// D8: the viewer's URL while it is up.
+    @State private var viewerURL: String?
 
     var body: some View {
         let output = GroupDetailMapper.output(Self.input(groupId: groupId, name: name, state: AppState.shared),
@@ -51,7 +60,9 @@ struct GroupDetailContainer: View {
                         navigator.push(.memberDetail(id: member.id, name: member.name))
                     },
                     // ui2-groups-edit D9: C-048 Delete Group → the C-066 confirmation.
-                    onDeleteGroup: { deleteMenuOpen = true }
+                    onDeleteGroup: { deleteMenuOpen = true },
+                    // group-cover-image D1/D2: no cover → the picker; a cover → Change · Edit · View.
+                    onCoverTap: { handleCoverTap() }
                 )
             }
             .scrollIndicators(.hidden)
@@ -69,9 +80,86 @@ struct GroupDetailContainer: View {
                 onDone: { deleteMenuOpen = false }
             )
         }
+        // group-cover-image D2: Change · Edit · View; Done cancels. The chosen row runs after the
+        // menu has finished hiding — the overlay host keeps only the first presented overlay.
+        .actionMenuPresentation(isPresented: coverMenuOpen, onDismiss: { coverMenuOpen = false },
+                                onHidden: { runPendingCoverChoice() }) {
+            ActionMenuOverlay(
+                actions: Self.coverActions,
+                onSelect: { item in
+                    pendingCoverChoice = CoverChoice(label: item.label)
+                    coverMenuOpen = false
+                },
+                onDone: { coverMenuOpen = false }
+            )
+        }
+        // D1/D3: the system picker — a modifier, not .sheet/.fullScreenCover; no permission prompt.
+        .photosPicker(isPresented: $pickerOpen, selection: $pickedItem, matching: .images)
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            pickedItem = nil
+            Task { await openPicked(item) }
+        }
+        // D8
+        .coverViewerPresentation(url: viewerURL, onClose: { viewerURL = nil })
         .task { await Self.load(groupId: groupId, authManager: authManager) }
         .task(id: Self.imageURLs(output.state)) {
             if await MemberProfileContainer.seedCovers(Self.imageURLs(output.state)) { imagesSeeded += 1 }
+        }
+    }
+
+    enum CoverTap: Equatable { case none, picker, menu }
+
+    enum CoverChoice: String {
+        case change = "Change image", edit = "Edit image", view = "View image"
+        init?(label: String) { self.init(rawValue: label) }
+    }
+
+    /// group-cover-image D2: the menu rows, in order — existing glyphs (an unknown name renders the red stub).
+    static let coverActions: [ActionMenuOverlay.ActionItem] = [
+        .init(glyph: "upload", label: CoverChoice.change.rawValue),
+        .init(glyph: "edit", label: CoverChoice.edit.rawValue),
+        .init(glyph: "eye", label: CoverChoice.view.rawValue)
+    ]
+
+    /// D1/D2/F7: read from AppState's group — inert until it has loaded.
+    static func coverTap(group: UserGroup?) -> CoverTap {
+        guard let group else { return .none }
+        return (group.coverImageUrl ?? "").isEmpty ? .picker : .menu
+    }
+
+    private func handleCoverTap() {
+        switch Self.coverTap(group: AppState.shared.groups[groupId]) {
+        case .none: break
+        case .picker: pickerOpen = true
+        case .menu: coverMenuOpen = true
+        }
+    }
+
+    private func runPendingCoverChoice() {
+        guard let choice = pendingCoverChoice else { return }
+        pendingCoverChoice = nil
+        switch choice {
+        case .change: pickerOpen = true
+        case .edit: navigator.push(.editGroupCover(groupId: groupId, source: .stored))
+        case .view: viewerURL = AppState.shared.groups[groupId].flatMap(CoverViewerOverlay.viewerURL(group:))
+        }
+    }
+
+    /// D3/D6: load the pick, make it upright and ≤ 2400px, then Edit cover. Dismissing the picker
+    /// changes nothing; an unreadable pick surfaces a banner and stays here.
+    @MainActor
+    private func openPicked(_ item: PhotosPickerItem) async {
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = CoverImageRendering.uprightDownsampled(data) else {
+                throw APIError.invalidResponse
+            }
+            navigator.push(.editGroupCover(groupId: groupId, source: .newPick(image)))
+        } catch {
+            if GroupActions.isCancellation(error) { return }
+            AppState.shared.recordError(error, context: "GroupDetailContainer.openPicked", surface: true,
+                                        friendlyMessage: "Couldn't open that photo")
         }
     }
 

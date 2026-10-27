@@ -527,6 +527,7 @@
 		B8AE6D74E43B55121DA4CE99 /* MemberDetailHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189B4856A7811AD7B6B3116D /* MemberDetailHost.swift */; };
 		B92B78EF98077C0A9E7A880B /* MembersProfileScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A0769F269C502AB580380D1 /* MembersProfileScreen.swift */; };
 		B9A109B8BB2562D7973486CB /* HomeKpiPickerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DE91DF06FB7BC0A51884820 /* HomeKpiPickerScreen.swift */; };
+		C0FE7A9B12D4E5F601A2B3C4 /* GroupDetailCoverTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0FE7A9B12D4E5F601A2B3C5 /* GroupDetailCoverTapTests.swift */; };
 		BA1D7D635B4D73BE6D3CEB8A /* EditGroupCoverContainerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE95BB06F91242BBE4E016DB /* EditGroupCoverContainerTests.swift */; };
 		BA27680BC4C6C3518BDD3F97 /* Avatar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F19BDEACACDBD227ACFB2CF /* Avatar.swift */; };
 		BB41C7AC7F18364DD6666B19 /* CoverFramingMathTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5424CB76AAB02D8065242B5 /* CoverFramingMathTests.swift */; };
@@ -1285,6 +1286,7 @@
 		FDE2917CCA2C5196A802AAF6 /* EnrollmentSelectScheduleScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnrollmentSelectScheduleScreen.swift; path = Screens/Groups/EnrollmentSelectScheduleScreen.swift; sourceTree = "<group>"; };
 		FDE294872DE18CB5A3638502 /* ClearSearchButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ClearSearchButton.swift; sourceTree = "<group>"; };
 		FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ExtractedModels.swift; sourceTree = "<group>"; };
+		C0FE7A9B12D4E5F601A2B3C5 /* GroupDetailCoverTapTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupDetailCoverTapTests.swift; sourceTree = "<group>"; };
 		FE95BB06F91242BBE4E016DB /* EditGroupCoverContainerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EditGroupCoverContainerTests.swift; sourceTree = "<group>"; };
 		FF04F853C6A69D8FD9C1187A /* EnvironmentActions.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnvironmentActions.swift; sourceTree = "<group>"; };
 		FF676E78A8861B4738753BFC /* DeviceChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DeviceChrome.swift; sourceTree = "<group>"; };
@@ -1833,6 +1835,7 @@
 				CB2758E269C6EA69687DBC4A /* EditGroupCoverModelTests.swift */,
 				8EE481F1AC2B3A858A3233D2 /* CoverViewerOverlayTests.swift */,
 				FE95BB06F91242BBE4E016DB /* EditGroupCoverContainerTests.swift */,
+				C0FE7A9B12D4E5F601A2B3C5 /* GroupDetailCoverTapTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -2934,6 +2937,7 @@
 				16E38BF59573823824FB68D7 /* EditGroupCoverModelTests.swift in Sources */,
 				A37338EFFB96EA601085C205 /* CoverViewerOverlayTests.swift in Sources */,
 				BA1D7D635B4D73BE6D3CEB8A /* EditGroupCoverContainerTests.swift in Sources */,
+				C0FE7A9B12D4E5F601A2B3C4 /* GroupDetailCoverTapTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -121,6 +121,7 @@ struct GroupsDetailScreen: View {
     var onOpenEnrollment: (Int) -> Void = { _ in }      // C-059 tap → enrollment-home
     var onOpenHistory: () -> Void = {}                  // Timeline "All history" → groups-history
     var onDeleteGroup: () -> Void = {}                  // C-048 → the archive confirmation (OQ-004)
+    var onCoverTap: () -> Void = {}                     // C-087 tap → picker or the cover menu (group-cover-image D1/D2)
 
     init(
         state: State,
@@ -135,7 +136,8 @@ struct GroupsDetailScreen: View {
         onEnrollProgram: @escaping () -> Void = {},
         onOpenEnrollment: @escaping (Int) -> Void = { _ in },
         onOpenHistory: @escaping () -> Void = {},
-        onDeleteGroup: @escaping () -> Void = {}
+        onDeleteGroup: @escaping () -> Void = {},
+        onCoverTap: @escaping () -> Void = {}
     ) {
         self.state = state
         self.showsHeader = showsHeader
@@ -150,6 +152,7 @@ struct GroupsDetailScreen: View {
         self.onOpenEnrollment = onOpenEnrollment
         self.onOpenHistory = onOpenHistory
         self.onDeleteGroup = onDeleteGroup
+        self.onCoverTap = onCoverTap
     }
 
     // R-31 ephemeral UI: the day rail's scroll position. D27/D12: the rail opens at its last card
@@ -282,11 +285,17 @@ struct GroupsDetailScreen: View {
 
     // MARK: §2.1 Cover
 
-    /// §2.1: "C-087 CoverImage 408×180 at y119 (`radius-card`)".
+    /// §2.1: "C-087 CoverImage 408×180 at y119 (`radius-card`)". group-cover-image D1/D2: tappable;
+    /// CoverImage is accessibilityHidden, so the button carries its own label and trait.
     private var cover: some View {
-        CoverImage(image: Self.cachedImage(state.coverURL))
-            .ui2Element("C-087 CoverImage")
-            .padding(.horizontal, Token.Space.pageMargin)
+        SwiftUI.Button(action: onCoverTap) {
+            CoverImage(image: Self.cachedImage(state.coverURL))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(state.coverURL.isEmpty ? "Add cover image" : "Cover image")
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("C-087 CoverImage")
+        .padding(.horizontal, Token.Space.pageMargin)
     }
 
     // MARK: §2.2 Quick stats
