@@ -156,7 +156,7 @@ No schema change (established 2026-10-26) — query parameters only.
 
 ## Testing
 
-- **server** — two layers, uuid-shaped ids in the list cases. *Route* (`routes/__tests__/organization-members.request.test.ts`,
+Automated tests — **server:** two layers, uuid-shaped ids in the list cases. *Route* (`routes/__tests__/organization-members.request.test.ts`,
   supertest, service mocked — asserts the service args): `groupIds=a,b` → `[a,b]`; repeated
   `groupIds=a&groupIds=b` → `[a,b]`; `groupIds=,` → absent; single `groupId` alone as before; `groupId`
   + `groupIds` union; an invalid uuid in a list → 400; a non-uuid single `groupId` → 200 as today.
@@ -164,7 +164,8 @@ No schema change (established 2026-10-26) — query parameters only.
   two groups → one `id in`; groups + leaders → two AND'd `activeIn`; another org's group adds nothing;
   narrowed caller with `{mine, foreign}` → only mine; with only foreign → `data: []` (D7).
   `npx tsc --noEmit`, `npm run test:run`.
-- **iphone** — XCTest in `iphone/MakeReadyCaptureTests/` (`MembersHomeMapperTests`, `MemberActionsTests`,
+
+Automated tests — **iphone:** XCTest in `iphone/MakeReadyCaptureTests/` (`MembersHomeMapperTests`, `MemberActionsTests`,
   `InviteSelectGroupMapperTests`, `UI2MembersComponentTests` — the "All …" assertions at
   `MembersHomeMapperTests.swift:83,92,106` and the `active: false` one at `UI2MembersComponentTests.swift:75` change):
   `MembersHomeMapper` chip labels for 0 / 1 / 3 picks, two same-named options stay distinct (D15);
@@ -172,13 +173,29 @@ No schema change (established 2026-10-26) — query parameters only.
   `InviteSelectGroupMapper` keeps groups whose `creatorId` is in the set; C-036's draft logic (seed,
   toggle, clear, save emits the set) via its preview-state helper or a unit-testable reducer.
   `npm run ios:build-check -- --test`; swiftlint.
-- **Cross-app E2E walk** (dev env, fixtures reset, Fixtures identity):
-  1. Members → Leaders: no "All Leaders" row; Clear dimmed. Check two leaders → Clear enables; Save → chip "2 leaders", list = members of either leader's groups.
-  2. Reopen Leaders: both still checked. Clear → none checked, menu still open; ✕ → chip still "2 leaders".
-  3. Groups: pick one group + keep the leaders → list narrows to that group AND those leaders.
-  4. "+" → Invite a member → Select group → Leaders: check two → Save → only those leaders' groups.
-  5. curl `…/members?groupId=<g>` (single form) still returns that group's members.
-- **Human verification:** the walk above on the phone.
+
+### server
+
+- curl `…/members?groupId=<g>` (single form, non-bot User-Agent) still returns that group's members, exactly as before.
+- curl `…/members?groupIds=<g1>,<g2>` returns members of either group; `…&leaderIds=<u>` narrows it to that leader's groups too.
+- curl `…/members?groupIds=not-a-uuid` → 400 `{ success: false }`.
+
+### iphone
+
+- Members → Leaders: no "All Leaders" row; Clear dimmed. Check two leaders → Clear enables; Save → chip "2 leaders", list = members of either leader's groups.
+- Reopen Leaders: both still checked. Clear → none checked, menu still open; ✕ → chip still "2 leaders".
+- Members → Groups: pick one group, keep the leaders, Save → the list narrows to that group AND those leaders; the Groups chip shows the group's name.
+- "+" → Invite a member → Select group → Leaders: check two → Save → only those leaders' groups listed; chip "2 leaders".
+
+### Cross-app E2E walk (dev env, fixtures reset, Fixtures identity)
+
+1. Members → Leaders: no "All Leaders" row; Clear dimmed. Check two leaders → Clear enables; Save → chip "2 leaders", list = members of either leader's groups.
+2. Reopen Leaders: both still checked. Clear → none checked, menu still open; ✕ → chip still "2 leaders".
+3. Groups: pick one group + keep the leaders → list narrows to that group AND those leaders.
+4. "+" → Invite a member → Select group → Leaders: check two → Save → only those leaders' groups.
+5. curl `…/members?groupId=<g>` (single form) still returns that group's members.
+
+**Human verification:** the walk above on the phone.
 
 ## Out of scope
 
