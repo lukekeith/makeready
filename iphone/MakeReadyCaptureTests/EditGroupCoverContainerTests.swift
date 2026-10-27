@@ -37,8 +37,24 @@ final class EditGroupCoverContainerTests: XCTestCase {
 
     /// D26: Cancel with a change asks to discard; with none it pops.
     func testCancelAction() {
-        XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: true), .confirmDiscard)
-        XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: false), .pop)
+        XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: true, isSaving: false), .confirmDiscard)
+        XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: false, isSaving: false), .pop)
+    }
+
+    /// I1/D13: while a save is in flight Cancel (and so the blocked swipe) does nothing — no
+    /// discard menu, no pop — and the discard row cannot pop.
+    func testCancelIsInertWhileSaving() {
+        XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: true, isSaving: true), .ignore)
+        XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: false, isSaving: true), .ignore)
+        XCTAssertFalse(EditGroupCoverContainer.discardPops(isSaving: true))
+        XCTAssertTrue(EditGroupCoverContainer.discardPops(isSaving: false))
+    }
+
+    /// I1/D26: the edge swipe is vetoed while there is a change OR a save is in flight.
+    func testBackSwipeIsBlockedWhileSaving() {
+        XCTAssertTrue(EditGroupCoverContainer.blocksBackSwipe(hasChanges: false, isSaving: true))
+        XCTAssertTrue(EditGroupCoverContainer.blocksBackSwipe(hasChanges: true, isSaving: false))
+        XCTAssertFalse(EditGroupCoverContainer.blocksBackSwipe(hasChanges: false, isSaving: false))
     }
 
     /// D26/D2: the discard row's glyph is a real GlyphName case (an unknown name renders the red stub).

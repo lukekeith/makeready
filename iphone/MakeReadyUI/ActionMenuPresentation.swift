@@ -133,10 +133,7 @@ private struct HostableActionMenuPresentation<Menu: View>: ViewModifier {
     func body(content: Content) -> some View {
         Group {
             if hosted {
-                content.preference(
-                    key: UI2HostedOverlayKey.self,
-                    value: mounted ? UI2HostedOverlay(view: AnyView(layer), transition: .identity) : nil
-                )
+                content.hostedOverlay(mounted ? UI2HostedOverlay(view: AnyView(layer), transition: .identity) : nil)
             } else {
                 content.overlay {
                     if mounted { layer }

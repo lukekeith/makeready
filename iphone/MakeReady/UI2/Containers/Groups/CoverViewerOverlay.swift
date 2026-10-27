@@ -63,8 +63,7 @@ private struct CoverViewerPresentation: ViewModifier {
     func body(content: Content) -> some View {
         let layer = url.map { CoverViewerOverlay(url: $0, onClose: onClose) }
         if hosted {
-            content.preference(key: UI2HostedOverlayKey.self,
-                               value: layer.map { UI2HostedOverlay(view: AnyView($0)) })
+            content.hostedOverlay(layer.map { UI2HostedOverlay(view: AnyView($0)) })
         } else {
             content.overlay { if let layer { layer } }
         }
@@ -74,7 +73,8 @@ private struct CoverViewerPresentation: ViewModifier {
 extension View {
     /// D8: presents the viewer while `url` is non-nil, through the shell's `.ui2OverlayHost()`
     /// (crossfade, the filter-menu default). Present it only after any C-066 menu has finished
-    /// sliding out — the host keeps the first presented overlay (`FilterMenuOverlay.swift:384-389`).
+    /// sliding out — the host keeps the first presented overlay (`UI2HostedOverlayKey` and
+    /// `hostedOverlay(_:)` in FilterMenuOverlay.swift).
     func coverViewerPresentation(url: String?, onClose: @escaping () -> Void) -> some View {
         modifier(CoverViewerPresentation(url: url, onClose: onClose))
     }

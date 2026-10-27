@@ -13,7 +13,7 @@ struct EditGroupCoverContainer: View {
 
     enum Route: Equatable { case pop, popToRoot, signOut, banner, stay }
     /// D26: what Cancel does.
-    enum CancelAction: Equatable { case confirmDiscard, pop }
+    enum CancelAction: Equatable { case confirmDiscard, pop, ignore }
 
     @Environment(AuthManager.self) private var authManager
     @Environment(\.ui2Navigator) private var navigator
@@ -67,9 +67,23 @@ struct EditGroupCoverContainer: View {
         }
     }
 
-    /// D26: any framing change, or a new pick, asks before discarding.
-    static func cancelAction(hasChanges: Bool) -> CancelAction {
-        hasChanges ? .confirmDiscard : .pop
+    /// D26: any framing change, or a new pick, asks before discarding. D13: while a save is in
+    /// flight Cancel does nothing — a pop now would leave the POST to change the cover after the
+    /// leader chose to leave.
+    static func cancelAction(hasChanges: Bool, isSaving: Bool) -> CancelAction {
+        if isSaving { return .ignore }
+        return hasChanges ? .confirmDiscard : .pop
+    }
+
+    /// D26/D13: the edge swipe is vetoed while there is a change to discard or a save in flight.
+    /// A vetoed swipe opens the discard menu as Cancel does, or nothing while saving.
+    static func blocksBackSwipe(hasChanges: Bool, isSaving: Bool) -> Bool {
+        hasChanges || isSaving
+    }
+
+    /// D13: the discard row pops only when no save is in flight.
+    static func discardPops(isSaving: Bool) -> Bool {
+        !isSaving
     }
 
     /// D28/D30: the screen's inputs. The grid shows during any gesture, the readout only while
@@ -118,6 +132,7 @@ struct EditGroupCoverContainer: View {
                 actions: [Self.discardAction],
                 onSelect: { _ in
                     discardMenuOpen = false
+                    guard Self.discardPops(isSaving: model?.isSaving ?? false) else { return }
                     navigator.pop()
                 },
                 onDone: { discardMenuOpen = false }
@@ -135,9 +150,10 @@ struct EditGroupCoverContainer: View {
     }
 
     private func cancel() {
-        switch Self.cancelAction(hasChanges: model?.hasChanges ?? false) {
+        switch Self.cancelAction(hasChanges: model?.hasChanges ?? false, isSaving: model?.isSaving ?? false) {
         case .pop: navigator.pop()
         case .confirmDiscard: discardMenuOpen = true
+        case .ignore: break
         }
     }
 
@@ -152,8 +168,14 @@ struct EditGroupCoverContainer: View {
                                         frameSize: frameRect.size, save: save)
         model = built
         // D26: an edge swipe with a change does not pop; it asks to discard, as Cancel does.
-        backSwipe?.blocksBackSwipe = { [weak built] in built?.hasChanges ?? false }
-        backSwipe?.onBlockedBackSwipe = { discardMenuOpen = true }
+        // D13: while saving it neither pops nor asks.
+        backSwipe?.blocksBackSwipe = { [weak built] in
+            Self.blocksBackSwipe(hasChanges: built?.hasChanges ?? false, isSaving: built?.isSaving ?? false)
+        }
+        backSwipe?.onBlockedBackSwipe = { [weak built] in
+            let action = Self.cancelAction(hasChanges: built?.hasChanges ?? false, isSaving: built?.isSaving ?? false)
+            if action == .confirmDiscard { discardMenuOpen = true }
+        }
     }
 
     @MainActor
