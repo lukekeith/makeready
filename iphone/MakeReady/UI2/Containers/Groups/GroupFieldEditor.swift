@@ -151,7 +151,7 @@ enum GroupFieldEditModel {
         case .ageRange:
             let minimum = group.ageRange?.min.map(String.init) ?? ""
             let maximum = group.ageRange?.max.map(String.init) ?? ""
-            return .ageRange(EditOptionsCustomFieldScreen.State(
+            var s = EditOptionsCustomFieldScreen.State(
                 title: title(field), description: description(field),
                 options: ageOptions, presetMinimums: agePresetMinimums, presetMaximums: agePresetMaximums,
                 minimumLabel: "Minimum age", maximumLabel: "Maximum age",
@@ -160,7 +160,9 @@ enum GroupFieldEditModel {
                 minimum: minimum, maximum: maximum,
                 loadedMinimum: minimum, loadedMaximum: maximum,
                 focusedInput: "", saving: saving
-            ))
+            )
+            s.editable = true                                  // C1: the bounds take typing
+            return .ageRange(s)
         }
     }
 
@@ -187,7 +189,8 @@ enum GroupFieldEditModel {
         return ageOptions[ageOptions.count - 1]
     }
 
-    /// D2/D4: the one key and its wire value; nil when the input does not belong to the field.
+    /// D2/D4: the one key and its wire value; nil when the input does not belong to the field,
+    /// or when a non-empty number input is not a whole number (I2: never a silent clear).
     static func patch(_ field: GroupField, _ input: GroupFieldInput) -> GroupPatch? {
         switch (field, input) {
         case (.name, .text(let s)):
@@ -197,7 +200,9 @@ enum GroupFieldEditModel {
             return .description(trimmed.isEmpty ? nil : trimmed)
         case (.maxMembers, .text(let s)):
             let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-            return .maxMembers(trimmed.isEmpty ? nil : Int(trimmed))
+            if trimmed.isEmpty { return .maxMembers(nil) }
+            guard let value = Int(trimmed) else { return nil }
+            return .maxMembers(value)
         case (.visibility, .option(let label)):
             switch label {
             case "Private": return .isPrivate(true)
@@ -213,10 +218,19 @@ enum GroupFieldEditModel {
             }
         case (.ageRange, .ageRange(let minimum, let maximum)):
             if minimum.isEmpty && maximum.isEmpty { return .ageRange(nil) }
-            return .ageRange(AgeRange(min: Int(minimum), max: Int(maximum)))
+            guard let low = wholeNumber(minimum), let high = wholeNumber(maximum) else { return nil }
+            return .ageRange(AgeRange(min: low, max: high))
         default:
             return nil
         }
+    }
+
+    /// A bound's value: `.some(nil)` when empty (no bound), `.some(n)` for a whole number,
+    /// nil when the text is neither.
+    private static func wholeNumber(_ text: String) -> Int?? {
+        if text.isEmpty { return .some(nil) }
+        guard let value = Int(text) else { return nil }
+        return .some(value)
     }
 
     /// D5: cancelled → nothing; 401 → sign-out; 404 → gone; anything else → retry.

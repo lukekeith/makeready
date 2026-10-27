@@ -20,8 +20,11 @@ struct GroupFieldEditContainer: View {
             if let group = AppState.shared.groups[groupId] {
                 screen(GroupFieldEditModel.page(field, group: group, saving: saving, errorMessage: errorText))
             } else {
-                // D1: rows open this page only once the group is loaded; a sign-out or a 404
-                // mid-page clears the store and the page pops.
+                // D1: rows open this page only once the group is loaded. A 404 on Save forgets
+                // the group and pops to the root itself (`save`), and a sign-out swaps the shell
+                // for Login. If the group leaves the store any other way while this page is open,
+                // this draws a blank page with no header (it lives inside the screens) — only the
+                // edge swipe leaves it. Nothing pops here.
                 Token.layoutBackground
             }
         }

@@ -128,6 +128,40 @@ final class GroupFieldEditorTests: XCTestCase {
         XCTAssertEqual(s.minimum, "26")
         XCTAssertEqual(s.loadedMaximum, "35")
         XCTAssertTrue(s.saving)
+        XCTAssertTrue(s.editable)                                     // C1: the inputs take typing
+    }
+
+    /// D4 lives in the built screen (F8 → OQ-6); these pin its Save rule.
+    private func ageSave(_ selection: String, _ minimum: String, _ maximum: String,
+                         loaded: (String, String) = ("", ""), saving: Bool = false) -> Bool {
+        EditOptionsCustomFieldScreen.saveEnabled(
+            selection: selection, minimum: minimum, maximum: maximum,
+            loadedMinimum: loaded.0, loadedMaximum: loaded.1,
+            options: GroupFieldEditModel.ageOptions, saving: saving
+        )
+    }
+
+    func testAgeSaveRejectsEveryD4InvalidCase() {
+        XCTAssertFalse(ageSave("Custom range", "30", "20"))                     // min > max
+        XCTAssertFalse(ageSave("Custom range", "121", ""))                      // above 120
+        XCTAssertFalse(ageSave("Custom range", "", "121"))
+        XCTAssertFalse(ageSave("Custom range", "-1", ""))                       // below 0
+        XCTAssertFalse(ageSave("Custom range", "4a", ""))                       // not a whole number
+        XCTAssertFalse(ageSave("Custom range", "", "2.5"))
+        XCTAssertFalse(ageSave("Custom range", "", ""))                         // Custom, both empty
+        XCTAssertFalse(ageSave("Custom range", "30", "", loaded: ("30", "")))   // unchanged
+        XCTAssertFalse(ageSave("Custom range", "030", "", loaded: ("30", "")))  // same effective bound
+        XCTAssertFalse(ageSave("Any age", "", ""))                              // Any age → Any age
+        XCTAssertFalse(ageSave("Custom range", "20", "30", saving: true))       // saving
+    }
+
+    func testAgeSaveAcceptsValidChanges() {
+        XCTAssertTrue(ageSave("Custom range", "20", "30"))
+        XCTAssertTrue(ageSave("Custom range", "30", "30"))                      // equal bounds
+        XCTAssertTrue(ageSave("Custom range", "0", "120"))
+        XCTAssertTrue(ageSave("Custom range", "30", ""))                        // one bound
+        XCTAssertTrue(ageSave("18 - 25", "18", "25", loaded: ("26", "35")))
+        XCTAssertTrue(ageSave("Any age", "", "", loaded: ("26", "35")))         // clear
     }
 
     // MARK: D2/D4 patches
@@ -148,6 +182,15 @@ final class GroupFieldEditorTests: XCTestCase {
         XCTAssertEqual(GroupFieldEditModel.patch(.ageRange, .ageRange(minimum: "30", maximum: "")), .ageRange(AgeRange(min: 30, max: nil)))
         XCTAssertNil(GroupFieldEditModel.patch(.name, .option("Private")))           // wrong input for the field
         XCTAssertNil(GroupFieldEditModel.patch(.visibility, .option("Sometimes")))
+    }
+
+    /// I2: text that is not a whole number never becomes a cleared value.
+    func testPatchRefusesTextThatIsNotAWholeNumber() {
+        XCTAssertNil(GroupFieldEditModel.patch(.maxMembers, .text("4a")))
+        XCTAssertNil(GroupFieldEditModel.patch(.maxMembers, .text("2.5")))
+        XCTAssertNil(GroupFieldEditModel.patch(.ageRange, .ageRange(minimum: "4a", maximum: "")))
+        XCTAssertNil(GroupFieldEditModel.patch(.ageRange, .ageRange(minimum: "", maximum: "x")))
+        XCTAssertNil(GroupFieldEditModel.patch(.ageRange, .ageRange(minimum: "20", maximum: "3o")))
     }
 
     // MARK: D5 failures
