@@ -10,6 +10,7 @@ import {
   requireGroupManage,
 } from '../middleware/auth.js'
 import { trackActivity } from '../services/activity.js'
+import { findManageableGroup } from '../services/permission.js'
 import {
   recordMembershipEvent,
   getMembershipHistory,
@@ -174,6 +175,8 @@ const router = Router()
  *             example:
  *               success: false
  *               error: "Not authenticated"
+ *       404:
+ *         description: Group not found or outside the caller's manage scope
  *       500:
  *         description: Internal server error
  *         content:
@@ -191,6 +194,11 @@ router.get(
   try {
     const { groupId } = req.params
     const { includeInactive } = req.query
+    // ui2-groups-browse D9: only a caller who manages the (active) group reads its members.
+    const userId = (req.user as { id?: string } | undefined)?.id
+    if (!userId || !(await findManageableGroup(userId, groupId))) {
+      return res.status(404).json({ success: false, error: 'Group not found' })
+    }
 
     const where: any = {
       groupId,
@@ -708,11 +716,18 @@ router.delete(
  *     responses:
  *       200:
  *         description: Membership events, newest first
+ *       404:
+ *         description: Group not found or outside the caller's manage scope
  */
 router.get('/:groupId/membership-history', requireAuth, async (req, res) => {
   try {
     const { groupId } = req.params
     const { search, limit } = req.query
+    // ui2-groups-browse D9: only a caller who manages the (active) group reads its history.
+    const userId = (req.user as { id?: string } | undefined)?.id
+    if (!userId || !(await findManageableGroup(userId, groupId))) {
+      return res.status(404).json({ success: false, error: 'Group not found' })
+    }
 
     const events = await getMembershipHistory({
       groupId,
