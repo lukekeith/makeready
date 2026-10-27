@@ -44,7 +44,13 @@ struct InviteSelectGroupContainer: View {
                     leader = (leader == option.id) ? nil : option.id   // re-tapping the chosen leader clears it
                     leaderMenuOpen = false
                 },
-                onClose: { leaderMenuOpen = false }
+                onClose: { leaderMenuOpen = false },
+                // filter-menu-clear: no leader chosen = every group listed.
+                onClear: {
+                    leader = nil
+                    leaderMenuOpen = false
+                },
+                clearEnabled: leader != nil
             )
         }
         .task { await Self.loadEnrollmentCounts(for: groups.map(\.id)) }

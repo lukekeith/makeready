@@ -51,6 +51,14 @@ struct FilterMenuOverlay: View {
     /// §4 `onClose`: the close button (C-082) was tapped; the presenter dismisses. In
     /// `.multiple` the live choices stand (OQ-C-036-10).
     var onClose: () -> Void = {}
+    /// filter-menu-clear (owner 2026-10-26): every filter menu carries a C-049 "Clear" link top
+    /// left, above the list. The presenter resets its filter to rest (and, in `.single`, closes,
+    /// as an option tap does). nil hides the link — a plain option menu with no filter.
+    var onClear: (() -> Void)? = nil
+    /// False while the filter is already at rest — the link draws at C-049's 50% and ignores taps.
+    var clearEnabled: Bool = true
+
+    private static let clearLabel = "Clear"
 
     private enum Geometry {
         /// FLAGGED LITERAL — C-036 §2: "⚑ 174pt (flagged literal: Figma gradient stop
@@ -69,9 +77,19 @@ struct FilterMenuOverlay: View {
             let closeTopOffset = closeBottom + Geometry.closeDisc
 
             ZStack(alignment: .bottom) {
-                optionList(bottomInset: closeTopOffset)
-                    .mask { fadeMask(closeTopOffset: closeTopOffset) }
-                    .ui2Element("Option list")
+                VStack(alignment: .leading, spacing: 0) {
+                    if let onClear {
+                        // filter-menu-clear: fixed above the list (it never scrolls away), on the
+                        // option rows' leading inset.
+                        LinkButton(label: Self.clearLabel, onTap: onClear, isEnabled: clearEnabled)
+                            .padding(.horizontal, Token.Space.sectionGap)
+                            .padding(.vertical, Token.Space.cardPadding)
+                            .ui2Element("C-049 LinkButton")
+                    }
+                    optionList(bottomInset: closeTopOffset)
+                        .mask { fadeMask(closeTopOffset: closeTopOffset) }
+                        .ui2Element("Option list")
+                }
 
                 // Topmost layer: always hit-testable, fixed while the list scrolls.
                 ModalCloseButton(onClose: onClose)

@@ -262,7 +262,15 @@ struct GroupsHomeScreen: View {
                 }
                 presentedMenu = nil
             },
-            onClose: { presentedMenu = nil }
+            onClose: { presentedMenu = nil },
+            // filter-menu-clear: back to the menu's resting first option, then close.
+            onClear: {
+                if let rest = options.first {
+                    if presentedMenu == .orgs { onSelectOrg(rest) } else { onSelectLeader(rest) }
+                }
+                presentedMenu = nil
+            },
+            clearEnabled: selected != options.first
         )
         .ui2Element("C-036 FilterMenuOverlay")
     }
