@@ -4,9 +4,9 @@ import SwiftUI
 /// (`EditCoverScreen`) to `EditGroupCoverModel`. A new pick opens at once; a stored cover loads its
 /// original (`coverOriginalUrl ?? coverImageUrl`) first. The model is built once both the image and
 /// the screen's frame rect (`onFrameLayout`) are known, so its `frameSize` is the frame the canvas
-/// really draws. Cancel with a change asks to discard (D26), else pops. Done saves → D13: pop on
-/// success (AppState + the image cache already updated), 404 → back to Groups, 401 → sign-out,
-/// anything else → the surfaced banner with the page kept.
+/// really draws. Cancel or an edge swipe with a change asks to discard (D26), else pops. Done saves
+/// → D13: pop on success (AppState + the image cache already updated), 404 → back to Groups,
+/// 401 → sign-out, anything else → the surfaced banner with the page kept.
 struct EditGroupCoverContainer: View {
     let groupId: String
     let source: CoverEditSource
@@ -17,6 +17,8 @@ struct EditGroupCoverContainer: View {
 
     @Environment(AuthManager.self) private var authManager
     @Environment(\.ui2Navigator) private var navigator
+    /// D26: this page's veto on the shell's edge swipe.
+    @Environment(\.ui2BackSwipeGuard) private var backSwipe
     /// The photo to frame and where it opens — set once it is in hand (D6 at once, D7 after a load).
     @State private var opening: Opening?
     /// The screen's frame rect, in the canvas slot's coordinates (`onFrameLayout`).
@@ -145,22 +147,30 @@ struct EditGroupCoverContainer: View {
         let save: @MainActor (UIImage, CoverFraming, UIImage?) async throws -> CoverSaveResult = { [groupId] rendered, framing, original in
             try await GroupActions().saveCover(groupId: groupId, rendered: rendered, framing: framing, original: original)
         }
-        model = EditGroupCoverModel(groupId: groupId, image: opening.image, framing: opening.framing,
-                                    isNewPick: opening.isNewPick, hasStoredOriginal: opening.hasStoredOriginal,
-                                    frameSize: frameRect.size, save: save)
+        let built = EditGroupCoverModel(groupId: groupId, image: opening.image, framing: opening.framing,
+                                        isNewPick: opening.isNewPick, hasStoredOriginal: opening.hasStoredOriginal,
+                                        frameSize: frameRect.size, save: save)
+        model = built
+        // D26: an edge swipe with a change does not pop; it asks to discard, as Cancel does.
+        backSwipe?.blocksBackSwipe = { [weak built] in built?.hasChanges ?? false }
+        backSwipe?.onBlockedBackSwipe = { discardMenuOpen = true }
     }
 
     @MainActor
     private func prepare() async {
         // A new pick and a cached original were set in `init`; this loads an uncached original (D7).
         guard opening == nil else { return }
+        // Pops only this page: the leader may already have left it (Cancel pops at once while loading).
+        let leave = { navigator.popIfTop(.editGroupCover(groupId: groupId, source: source)) }
         guard let group = AppState.shared.groups[groupId],
-              let stored = EditGroupCoverModel.opening(group: group) else { navigator.pop(); return }
+              let stored = EditGroupCoverModel.opening(group: group) else { leave(); return }
         _ = await MemberProfileContainer.seedCovers([stored.url])
+        // Silent: the page was closed during the load — no banner for a page that is gone.
+        guard !Task.isCancelled else { return }
         guard let opened = Self.immediateOpening(groupId: groupId, source: source) else {
             AppState.shared.recordError(APIError.invalidResponse, context: "EditGroupCoverContainer.loadOriginal",
                                         surface: true, friendlyMessage: Self.loadFailedMessage)
-            navigator.pop()
+            leave()
             return
         }
         opening = opened
@@ -191,9 +201,9 @@ struct EditGroupCoverContainer: View {
 }
 
 /// D5/D25/D30: the framed image and its three simultaneous gestures, placed in the Edit cover
-/// screen's canvas slot. It fills the whole canvas area unclipped (the screen dims what lies
-/// outside `frame`) and draws the image as `CoverImageRendering` renders it — mirrored, turned,
-/// rotated, scaled, offset — against `frame`. The model clamps every change; release springs back
+/// screen's canvas slot. It fills the whole canvas area, clipped to that slot but not to `frame`
+/// (the screen dims what lies outside `frame`), and draws the image as `CoverImageRendering`
+/// renders it — mirrored, turned, rotated, scaled, offset — against `frame`. The model clamps every change; release springs back
 /// to coverage (D25).
 struct CoverFramingCanvas: View {
     let model: EditGroupCoverModel
@@ -218,6 +228,9 @@ struct CoverFramingCanvas: View {
                 .position(x: frame.midX + center.x, y: frame.midY + center.y)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // D30: clipped to the canvas slot, not the frame — the screen dims the overflow inside the
+        // slot, and nothing paints over the header or the toolbar.
+        .clipped()
         .contentShape(Rectangle())
         .gesture(
             SimultaneousGesture(

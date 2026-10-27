@@ -119,6 +119,32 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertFalse(UI2PopGestureDelegate().gestureRecognizerShouldBegin(gesture))   // no stack known
     }
 
+    /// group-cover-image D26: a page with unsaved work vetoes the edge swipe and is told about it
+    /// (Edit cover then asks to discard); with nothing to lose the swipe pops as before.
+    @MainActor
+    func testBackSwipeGuardVetoesThePop() {
+        let nav = UINavigationController(rootViewController: UIViewController())
+        nav.pushViewController(UIViewController(), animated: false)
+        let backSwipe = UI2BackSwipeGuard()
+        let delegate = UI2PopGestureDelegate()
+        delegate.navigationController = nav
+        delegate.backSwipe = backSwipe
+        let gesture = UIScreenEdgePanGestureRecognizer()
+        var blocked = 0
+        backSwipe.onBlockedBackSwipe = { blocked += 1 }
+
+        XCTAssertTrue(delegate.gestureRecognizerShouldBegin(gesture))      // nothing to lose → pops
+        XCTAssertEqual(blocked, 0)
+
+        backSwipe.blocksBackSwipe = { true }
+        XCTAssertFalse(delegate.gestureRecognizerShouldBegin(gesture))     // unsaved work → vetoed
+        XCTAssertEqual(blocked, 1)
+
+        nav.popViewController(animated: false)
+        XCTAssertFalse(delegate.gestureRecognizerShouldBegin(gesture))     // at the root → no pop, no prompt
+        XCTAssertEqual(blocked, 1)
+    }
+
     // MARK: - ui2-members-edit D2 / D13: the edit page on the member page
 
     private var editPhone: UI2Destination { .editMemberField(memberId: "m1", field: .phone) }

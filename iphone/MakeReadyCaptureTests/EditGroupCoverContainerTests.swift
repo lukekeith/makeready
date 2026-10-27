@@ -41,6 +41,11 @@ final class EditGroupCoverContainerTests: XCTestCase {
         XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: false), .pop)
     }
 
+    /// D26/D2: the discard row's glyph is a real GlyphName case (an unknown name renders the red stub).
+    func testDiscardGlyphExists() {
+        XCTAssertNotNil(GlyphName(rawValue: EditGroupCoverContainer.discardAction.glyph))
+    }
+
     /// D30: no grid and no readout at rest; Done mirrors `hasChanges` (a new pick is always savable).
     func testScreenStateAtRest() {
         let pick: EditCoverScreen<EmptyView>.State = EditGroupCoverContainer.screenState(model(isNewPick: true))

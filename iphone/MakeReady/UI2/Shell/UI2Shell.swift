@@ -116,9 +116,7 @@ struct UI2Shell: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .background(UI2InteractivePop())
                 .navigationDestination(for: UI2Destination.self) { destination in
-                    page(for: destination)
-                        .toolbar(.hidden, for: .navigationBar)
-                        .background(UI2InteractivePop())
+                    UI2PushedPage { page(for: destination) }   // group-cover-image D26: + its back-swipe guard
                 }
         }
         .environment(\.ui2Navigator, UI2Navigator(
