@@ -127,3 +127,13 @@ extension GroupHistoryEvent {
         highlight = try c.decodeIfPresent(String.self, forKey: .highlight)
     }
 }
+
+// MARK: - The group page's activity series (T13, D21)
+
+/// The two D21 analytics series of one group, per local `yyyy-MM-dd` day — `scheduled_lessons`
+/// and `lesson_completions`, each from its own query. A day missing from a map is zero; the
+/// mapper zero-fills the window (D13). A failed query leaves its map as it was (D21).
+struct GroupChart: Equatable {
+    var scheduled: [String: Int] = [:]
+    var completed: [String: Int] = [:]
+}
