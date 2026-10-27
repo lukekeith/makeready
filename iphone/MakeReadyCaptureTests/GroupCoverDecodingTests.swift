@@ -45,13 +45,34 @@ final class GroupCoverDecodingTests: XCTestCase {
         XCTAssertEqual(again.coverFraming, group.coverFraming)
     }
 
-    func testRequestBodyHasTheFourKeys() {
-        let body = CoverFraming(scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2).requestBody
-        XCTAssertEqual(Set(body.keys), ["scale", "rotation", "offsetX", "offsetY"])
+    /// D21: the request body always carries all six keys.
+    func testRequestBodyHasTheSixKeys() {
+        let body = CoverFraming(scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: true, quarterTurns: 3).requestBody
+        XCTAssertEqual(Set(body.keys), ["scale", "rotation", "offsetX", "offsetY", "flipped", "quarterTurns"])
         XCTAssertEqual(body["rotation"] as? Double, 15)
+        XCTAssertEqual(body["flipped"] as? Bool, true)
+        XCTAssertEqual(body["quarterTurns"] as? Int, 3)
     }
 
     func testIdentity() {
-        XCTAssertEqual(CoverFraming.identity, CoverFraming(scale: 1, rotation: 0, offsetX: 0, offsetY: 0))
+        XCTAssertEqual(CoverFraming.identity,
+                       CoverFraming(scale: 1, rotation: 0, offsetX: 0, offsetY: 0, flipped: false, quarterTurns: 0))
+    }
+
+    /// D21: a D11-shaped value (no flipped / quarterTurns) decodes with the defaults.
+    func testD11ShapedFramingDecodesWithDefaults() throws {
+        let group = try decode(#"{\#(base),"coverFraming":{"scale":2,"rotation":15,"offsetX":0.1,"offsetY":-0.2}}"#)
+        XCTAssertEqual(group.coverFraming?.flipped, false)
+        XCTAssertEqual(group.coverFraming?.quarterTurns, 0)
+        XCTAssertEqual(group.coverFraming?.scale, 2)
+    }
+
+    /// D21: the new keys decode, and encode always (the disk cache keeps them).
+    func testFlippedAndQuarterTurnsDecodeAndEncode() throws {
+        let group = try decode(#"{\#(base),"coverFraming":{"scale":2,"rotation":15,"offsetX":0.1,"offsetY":-0.2,"flipped":true,"quarterTurns":3}}"#)
+        XCTAssertEqual(group.coverFraming, CoverFraming(scale: 2, rotation: 15, offsetX: 0.1, offsetY: -0.2, flipped: true, quarterTurns: 3))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(CoverFraming.identity)) as? [String: Any])
+        XCTAssertEqual(json["flipped"] as? Bool, false)
+        XCTAssertEqual(json["quarterTurns"] as? Int, 0)
     }
 }

@@ -4,13 +4,14 @@ import UIKit
 /// group-cover-image D12: the phone renders exactly what the Edit cover frame shows; D3: a pick is
 /// made upright and ≤ 2400px before Edit cover opens (memory, and D16's body size).
 enum CoverImageRendering {
-    /// D12: 408:180 at 1200 wide.
-    static let renderSize = CGSize(width: 1200, height: 529)
+    /// D12/D20: 16:9 at 1200 wide.
+    static let renderSize = CGSize(width: 1200, height: 675)
     /// D3 / D10: the original's longest side.
     static let originalMaxPixels: CGFloat = 2400
 
-    /// D12: the framed image at `renderSize`, scale 1, opaque. `UIImage.draw(in:)` applies the
-    /// image's orientation (`APIClient.resizeImageIfNeeded` does not).
+    /// D12/D21: the framed image at `renderSize`, scale 1, opaque — the image flipped, then turned
+    /// counter-clockwise by its quarter turns, then rotated by the fine angle, then scaled and offset.
+    /// `UIImage.draw(in:)` applies the image's orientation (`APIClient.resizeImageIfNeeded` does not).
     static func render(_ image: UIImage, framing: CoverFraming) -> UIImage {
         let frame = renderSize
         let f = CoverFramingMath.clamped(framing, image: image.size, frame: frame)
@@ -23,6 +24,10 @@ enum CoverImageRendering {
             let cg = ctx.cgContext
             cg.translateBy(x: frame.width / 2 + center.x, y: frame.height / 2 + center.y)
             cg.rotate(by: CGFloat(f.rotation * .pi / 180))
+            // Context transforms apply to the drawing innermost-last: this turn acts before the fine
+            // rotation, and the mirror below before the turn. Negative = counter-clockwise (y down).
+            cg.rotate(by: -CGFloat(f.quarterTurns) * .pi / 2)
+            if f.flipped { cg.scaleBy(x: -1, y: 1) }
             let w = image.size.width * scale, h = image.size.height * scale
             image.draw(in: CGRect(x: -w / 2, y: -h / 2, width: w, height: h))
         }
