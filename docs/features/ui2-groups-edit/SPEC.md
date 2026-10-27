@@ -86,7 +86,7 @@ same columns.
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `PATCH /api/groups/:id` (extended) | server | iphone | `requireAuth` + `groupManageFilter` | existing fields + `memberDirectoryAccess?` (D7); `ageRange` min ≤ max (D8) | unchanged (browse: + `creatorName`, `memberDirectoryAccess`) | 400 (D7 conflict, D8, existing zod) · 401 · 404 |
+| `PATCH /api/groups/:id` (extended) | server | iphone | `requireAuth` + `groupManageFilter` | existing fields + `memberDirectoryAccess?` (D7); `ageRange` min ≤ max (D8); the iPhone sends one field per request, `null` clearing `description`, `maxMembers`, `ageRange` or a bound (D6) | unchanged (browse: + `creatorName`, `memberDirectoryAccess`) | 400 (D7 conflict, D8, existing zod) · 401 · 404 |
 | `DELETE /api/groups/:id` (unchanged) | server | iphone | as today | — | `{success, message}` | 401 · 404 |
 
 ## Schema & API changes
@@ -97,6 +97,25 @@ same columns.
 | SC2 | EDIT | PATCH `ageRange` validation | §Contract | edit-options-custom-field §3 validation (min ≤ max); D8 | planned |
 
 **Data plan:** no schema change — the column landed in browse (SC1 there). Existing rows untouched.
+
+**Field trace (align 2026-10-27)** — design field → `Group` column → PATCH zod → wire → iPhone `UserGroup`
+property → write path (`GroupActions.updateGroup`):
+
+| Design field (page) | Column | PATCH zod | Wire (response) | iPhone property | Verdict |
+|---|---|---|---|---|---|
+| Group name (single) | `name` | `string 1–200` | `name` | `name` | ALIGNED — screen `maxLength` 200 = zod max |
+| Description (multi) | `description` | `string ≤2000 \| null` | `description` | `description` | ALIGNED for set; iPhone cannot send `null` (nil = not sent) → T3 |
+| Visibility (option) | `isPrivate` | `boolean` | `isPrivate` | `isPrivate` | ALIGNED — layer transform Private ↔ `true`, Public ↔ `false`, written in D2 |
+| Age (options-custom) | `ageRangeMin`/`ageRangeMax` | `{min?,max?} 0–120 \| null` | `ageRange {min,max} \| null` | `ageRange: AgeRange?` | server ALIGNED but no min ≤ max (SC2/T2); iPhone cannot send `null` or a null bound (drops nil keys) → T3 |
+| Maximum members (single) | `maxMembers` | `int ≥1 \| null` | `maxMembers` | `maxMembers` | server ALIGNED; iPhone cannot send `null` (Unlimited) → T3 |
+| Member directory access (option) | `memberDirectoryAccess` + `memberDirectoryEnabled` | **absent** — zod strips it | `memberDirectoryAccess` (browse) | `memberDirectoryAccess: String?` | MISSING at the server (SC1/T1) and on the iPhone write path (T3) |
+| Delete Group | `isActive` (DELETE archives) | — | `{success,message}` | `groups` + group-keyed stores | ALIGNED on the server; iPhone leaves 7 stores stale → T4 |
+
+Not a field, persisted nowhere (checked for N1): an edit in progress — Back discards (D5), so nothing
+survives the app closing. The PATCH response has no `organizationId`/`organizationName`;
+`upsertKeepingOrganization` (`GroupActions.swift:141`) already carries them over — ALIGNED. No pending
+owner notes on any of the five items (`ui2-notes.mjs read`, 2026-10-27). The iPhone stores
+`memberDirectoryAccess` as a `String?`, so 1.0 builds (which never decode it) are unaffected.
 
 ## server
 
@@ -134,3 +153,7 @@ same columns.
 |---|---|---|
 | F1 | D8 makes an inverted age range a 400 for every PATCH caller | audit confirms web admin / LeaderApp / 1.0 EditGroupPage never send one |
 | F2 | D3's two drafted descriptions and D9's menu-as-confirm are design gaps | route to `/ui2-resolve` (copy) and the design owner (P9 ratification) after the build |
+| T1 | server: PATCH `/api/groups/:id` zod gains `memberDirectoryAccess: z.enum(['ALLOWED','NAMES_ONLY','NOT_ALLOWED']).optional()`; writes the enum and `memberDirectoryEnabled = (value == 'ALLOWED')`; D7 conflict → 400 (SC1) | blocking |
+| T2 | server: PATCH `ageRange` refine — both bounds non-null and `min > max` → 400 `"Minimum age must not exceed maximum age"`, nothing written (SC2, D8) | blocking |
+| T3 | iphone: `GroupPatch` with tri-state fields (absent · null · value) and `GroupActions.updateGroup(id:patch:)` — must encode `description: null`, `maxMembers: null`, `ageRange: null`, a bound as `null`, and `memberDirectoryAccess`; the existing labelled `updateGroup(...)` keeps its body for its callers (D6) | trailing |
+| T4 | iphone: `GroupActions.deleteGroup` also clears `nextStudyByGroupId`, `historyByGroupId`, `groupDaysByGroupId`, `groupChartByGroupId`, `pendingJoinRequestsByGroupId`, `groupInvitesByGroupId` for the id, drops the group's rows from every `memberGroupsById` list, and refetches Home `following` when it lists the group (D10) | trailing |
