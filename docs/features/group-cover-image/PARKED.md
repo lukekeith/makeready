@@ -43,3 +43,4 @@ writing the screen itself — is ruled out by D4 (UI 2.0 screens belong to `/ui2
 
 ## History
 - 2026-10-27 parked — Edit cover screen not built in d2m [F1]
+- 2026-10-27 unparked by a person — named to /builder:agent or /builder:fleet

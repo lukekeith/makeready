@@ -15,5 +15,5 @@ walk: none
 verify: none
 ready: none
 auto: on 2026-10-27
-blocked: "the Edit cover screen (Figma 4724:53609) is not specced or built in d2m yet, and the build only wires it [F1] — next: run the d2m screen spec + build for Edit cover, then /builder:agent"
+blocked: none
 agent-walk: on 2026-10-27
