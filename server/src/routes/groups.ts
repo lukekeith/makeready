@@ -144,6 +144,8 @@ router.post('/', requireAuth, async (req, res) => {
         isPrivate: body.isPrivate,
         allowInvites: body.allowInvites,
         memberDirectoryEnabled: body.memberDirectory,
+        // ui2-groups-browse D11: the enum follows the Boolean on every Boolean-only write.
+        memberDirectoryAccess: body.memberDirectory ? 'ALLOWED' : 'NOT_ALLOWED',
         welcomeMessage: body.welcomeMessage,
         ageRangeMin: body.ageRange?.min,
         ageRangeMax: body.ageRange?.max,
@@ -154,6 +156,7 @@ router.post('/', requireAuth, async (req, res) => {
         _count: {
           select: { members: { where: { isActive: true } } },
         },
+        creator: { select: { name: true } },
       },
     })
 
@@ -168,6 +171,7 @@ router.post('/', requireAuth, async (req, res) => {
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
       memberDirectory: group.memberDirectoryEnabled,
+      memberDirectoryAccess: group.memberDirectoryAccess,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null
@@ -176,6 +180,7 @@ router.post('/', requireAuth, async (req, res) => {
       maxMembers: group.maxMembers,
       memberCount: group._count.members,
       creatorId: group.creatorId,
+      creatorName: group.creator?.name ?? null,
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     }
@@ -251,6 +256,16 @@ router.get('/', requireAuth, async (req, res) => {
       },
     })
 
+    // ui2-groups-browse D10: Group has no organization relation — one batched lookup.
+    const orgIds = [...new Set(groups.map((group) => group.organizationId))]
+    const orgNames = new Map(
+      orgIds.length > 0
+        ? (
+            await prisma.organization.findMany({ where: { id: { in: orgIds } }, select: { id: true, name: true } })
+          ).map((org) => [org.id, org.name] as const)
+        : []
+    )
+
     // Transform response to match iOS model
     const response = groups.map((group) => ({
       id: group.id,
@@ -261,6 +276,7 @@ router.get('/', requireAuth, async (req, res) => {
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
       memberDirectory: group.memberDirectoryEnabled,
+      memberDirectoryAccess: group.memberDirectoryAccess,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null
@@ -270,6 +286,8 @@ router.get('/', requireAuth, async (req, res) => {
       memberCount: group._count.members,
       creatorId: group.creatorId,
       creatorName: group.creator?.name ?? null,
+      organizationId: group.organizationId,
+      organizationName: orgNames.get(group.organizationId) ?? null,
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     }))
@@ -571,6 +589,7 @@ router.get('/:id', requireAuth, async (req, res) => {
         _count: {
           select: { members: { where: { isActive: true } } },
         },
+        creator: { select: { name: true } },
       },
     })
 
@@ -588,6 +607,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
       memberDirectory: group.memberDirectoryEnabled,
+      memberDirectoryAccess: group.memberDirectoryAccess,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null
@@ -596,6 +616,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       maxMembers: group.maxMembers,
       memberCount: group._count.members,
       creatorId: group.creatorId,
+      creatorName: group.creator?.name ?? null,
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     }
@@ -953,6 +974,10 @@ router.patch('/:id', requireAuth, async (req, res) => {
     if (body.isPrivate !== undefined) updateData.isPrivate = body.isPrivate
     if (body.allowInvites !== undefined) updateData.allowInvites = body.allowInvites
     if (body.memberDirectory !== undefined) updateData.memberDirectoryEnabled = body.memberDirectory
+    // ui2-groups-browse D11: a Boolean-only write sets the enum to match (child 2 adds the enum write).
+    if (body.memberDirectory !== undefined) {
+      updateData.memberDirectoryAccess = body.memberDirectory ? 'ALLOWED' : 'NOT_ALLOWED'
+    }
     if (body.welcomeMessage !== undefined) updateData.welcomeMessage = body.welcomeMessage
     if (body.ageRange !== undefined) {
       updateData.ageRangeMin = body.ageRange?.min ?? null
@@ -996,6 +1021,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
         _count: {
           select: { members: { where: { isActive: true } } },
         },
+        creator: { select: { name: true } },
       },
     })
 
@@ -1009,6 +1035,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
       isPrivate: group.isPrivate,
       allowInvites: group.allowInvites,
       memberDirectory: group.memberDirectoryEnabled,
+      memberDirectoryAccess: group.memberDirectoryAccess,
       welcomeMessage: group.welcomeMessage,
       ageRange:
         group.ageRangeMin !== null || group.ageRangeMax !== null
@@ -1017,6 +1044,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
       maxMembers: group.maxMembers,
       memberCount: group._count.members,
       creatorId: group.creatorId,
+      creatorName: group.creator?.name ?? null,
       createdAt: group.createdAt,
       updatedAt: group.updatedAt,
     }
@@ -1243,6 +1271,18 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
     await prisma.group.update({
       where: { id },
       data: { coverImageUrl },
+    })
+
+    // ui2-groups-browse SC7 / D15: the group history reads this row as "Updated cover photo".
+    trackActivity({
+      actorId: userId,
+      action: 'UPDATED',
+      resourceType: 'GROUP',
+      resourceId: group.id,
+      resourceName: group.name,
+      organizationId: group.organizationId,
+      groupId: group.id,
+      metadata: { field: 'cover' },
     })
 
     // Auto-capture to media library with metadata
