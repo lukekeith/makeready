@@ -1,7 +1,7 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/group-cover-image
-head: 32413b8
+head: bd5a8a1
 ticket: none
 branch: builder/group-cover-image
 pr: none

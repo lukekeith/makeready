@@ -48,7 +48,7 @@
 | 4 | iphone | 7–9 | the framing math (D5), the 1200×529 render (D12), the ≤2400px upright pick (D3) and the Edit cover model (D6/D7/D13) exist and are tested | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 | 5 | iphone | 10 | the viewer (D8) | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 | 6 | server | 13 | the cover upload accepts D21's `flipped` + `quarterTurns`; the contract re-freezes | `cd server && npx tsc --noEmit` · `cd server && npx tsc --noEmit -p fixtures` · `cd server && npm run test:run` |
-| 7 | iphone | 14, 11, 12 | framing/render/model reworked for D20–D26, then Edit cover wired to the d2m screen (D22) and the cover tap (D1/D2) | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
+| 7 | iphone | 14, 15, 11, 12 | framing/render/model reworked for D20–D26 and D29/D30 (no Auto, the straighten dial), then Edit cover wired to the d2m screen (D28) and the cover tap (D1/D2) | `npm run ios:build-check` · `npm run ios:build-check -- --test` · `cd iphone && swiftlint --baseline .swiftlint-baseline.json` |
 
 ---
 
@@ -2052,6 +2052,8 @@ Recipe: `/push-page` · `/ios-error-surface` · SPEC D4, D5, D6, D7, D13, D20–
 
 > **Revised 2026-10-27 (D20–D27):** Phase 7, after Task 14. The d2m screen is now Edit cover from Figma **4729:53712** (F1's first-step grep: `4729:53712\|Edit cover`). Chrome per D22: the C-040 header's leading **Cancel** (D26: with a change → C-066 "Discard changes" + Done; none → pop) and trailing **Done** (= save, D13); **no bottom Save/Cancel**. Wire Flip / Rotate 90° / Auto (D22, D23 — Auto disabled when Task 14's `horizonAngle` is nil) to the model; the canvas draws D24's readout, grid and dimmed overflow and D25's rubber-band. The frame is **16:9** (`CoverFramingMath.frameAspect` after Task 14) — every `408:180` / `408 / frameAspect` line below reads as 16:9. Add tests: `route` unchanged; `cancelAction(hasChanges:) -> .confirmDiscard | .pop`.
 
+> **Revised 2026-10-27 (D28–D30, owner ruling OQ-schat-edit-cover-1 — supersedes the Auto and readout lines of the note above):** F1 is cleared — the screen is on main (`8b83f38`): `iphone/MakeReadyUI/Screens/Groups/EditCoverScreen.swift`, contract = the d2m spec of screen `edit-cover` (`curl -s localhost:5961/api/projects/makeready/eras/2.0/screens/edit-cover`). Wire its real initializer: `EditCoverScreen(state: .init(showsGrid: model.isGestureActive, readoutDegrees: model.isTwisting ? model.readoutDegrees : nil, rotationDegrees: model.framing.rotation, saving: model.isSaving, doneEnabled: model.hasChanges), canvas: { CoverFramingCanvas(model:) }, onFrameLayout:, onCancel:, onDone:, onFlip: model.flip, onRotate90: model.rotate90, onStraighten: model.straighten(to:), onStraightenEnd: model.endStraighten)`. **There is no Auto** (D29) and no `onAuto`. The screen draws the dim, the thirds grid and the readout (inside its bottom dial); `CoverFramingCanvas` draws only the framed image, unclipped, and owns pinch / twist / pan and the rubber-band (D25). The model's `frameSize` comes from `onFrameLayout`'s rect (the canvas lays the image out against that rect, in the slot's coordinate space). Extra test: the `State` mapping above as a pure `static func screenState(_ model:) -> EditCoverScreen<EmptyView>.State` (readout nil when not twisting; doneEnabled mirrors `hasChanges`). Consumes Task 15.
+
 > **⚠ build-time risk (F1):** Edit cover (Figma 4724:53609, title "Edit cover") must already be specced and built in d2m by the owner. **First step:** find it — `grep -rl "4724:53609\|Edit cover" iphone/MakeReadyUI docs/ui2/screens`. Expected under `iphone/MakeReadyUI/Screens/Groups/` (the `GroupsDetailScreen.swift` naming pattern). **If it does not exist, STOP and report BLOCKED citing F1** — do not write the screen yourself (D4: the build wires it and never writes it); under `--agent-walk` the run parks as a human step: "the owner runs the d2m screen spec + build for Edit cover (Figma 4724:53609), then /builder:agent". Tasks 5–10 stay committed.
 >
 > **F5 build-time risk** rides with Task 12 (menu glyphs).
@@ -2493,3 +2495,22 @@ Recipe: SPEC D20–D26 · Task 7/8/9's files (complete — this block changes th
 - [ ] **Step 3: Implement** per the Files list; keep D5's ±3° snap on the fine rotation only.
 - [ ] **Step 4: Run, watch them pass**; phase gates green.
 - [ ] **Step 5: Commit** — `feat(group-cover-image): 16:9 framing with flip, quarter turns, auto and rubber-band (D20–D26)`
+
+### Task 15: Drop Auto, add the dial's straighten API to the model (D29, D30 — owed rework on Task 14)
+App: iphone
+Phase: 7
+Recipe: SPEC D29, D30, D5, D25 · Task 14's files (complete — this block changes them, it does not rewrite their task text)
+
+**Files:**
+- Modify: `iphone/MakeReady/UI2/Containers/Groups/EditGroupCoverModel.swift` — remove `import Vision`, `horizonAngle`, `horizonChecked`, `canAuto`, `auto()`, `detectHorizon()`, `visionHorizonDegrees(_:)` and the `detectHorizon:` init parameter (and its `detector` store); add `straighten(to degrees: Double)` — sets `framing.rotation` absolutely to `degrees` clamped to ±`CoverFramingMath.maxRotation`, keeps scale and offsets from `base`, applies the same live clamp + rubber-band path as `updateGesture`, sets `isGestureActive = true` and `isTwisting = true`; ignored while saving — and `endStraighten()` — the same release as `endGesture()` (±3° snap, `settle`, commit `base`, clear both flags)
+- Modify: every caller and test that passed `detectHorizon:` or called `auto()` / `canAuto` / `detectHorizon()` (grep `detectHorizon\|canAuto\|\.auto()\|horizonAngle` under `iphone/`)
+- Test: the Task 9/14 model test file
+
+**Interfaces:**
+- Produces: `EditGroupCoverModel.straighten(to:)`, `EditGroupCoverModel.endStraighten()`; removes `auto()`, `canAuto`, `horizonAngle`, `detectHorizon()`, `visionHorizonDegrees(_:)`
+
+- [ ] **Step 1: Failing tests** — `straighten(to: 12)` sets `framing.rotation == 12`, `isGestureActive` and `isTwisting` true, and the framing still covers the frame after `endStraighten()`; `straighten(to: 60)` clamps to 45; `straighten(to: 2)` then `endStraighten()` snaps to 0 (D5); a twist via `updateGesture` after `straighten` continues from the straightened value once released; `straighten` while saving changes nothing; after `flip()` a straightened +10 reads −10. Delete the Auto / horizon tests.
+- [ ] **Step 2: Run, watch them fail** — `npm run ios:build-check -- --test`
+- [ ] **Step 3: Implement** per the Files list.
+- [ ] **Step 4: Run, watch them pass**; `grep -rn "Vision\|horizon" iphone/MakeReady/UI2/Containers/Groups` returns nothing; phase gates green.
+- [ ] **Step 5: Commit** — `refactor(group-cover-image): drop Auto, add the straighten dial API (D29, D30)`
