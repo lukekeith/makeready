@@ -1,7 +1,7 @@
 size: md
-state: built
-next: /builder:agent-walk --path docs/features/ui2-groups-edit
-head: 49eec8d
+state: signed-off
+next: /builder:verify --path docs/features/ui2-groups-edit
+head: 629238d
 ticket: none
 branch: builder/ui2-groups-edit
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-10-27
 tests: slice=own+app end=risk review=slice
 target: main
-walk: none
+walk: agent-pass 2026-10-27 629238d
 verify: none
 ready: yes 2026-10-27 49eec8d
 ui2: groups-detail, edit-text-single-field, edit-text-multi-field, edit-option-field, edit-options-custom-field (via program ui2-groups)
