@@ -1,12 +1,12 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/invite-member
-head: 0f7925c
+head: 4e169fe
 ticket: none
 branch: builder/invite-member
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-10-26
 hold: none
 go-ahead: auto (recommended) 2026-10-26
 tests: slice=own+app end=risk review=slice
