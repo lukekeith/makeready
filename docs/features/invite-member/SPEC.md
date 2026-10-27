@@ -103,6 +103,7 @@ unaffected.
 | D12 | Zero groups | With `AppState.groups` empty after `GroupActions.loadGroups()`, the row pushes nothing and surfaces the error banner "Create a group before inviting members" (`recordError(surface: true)`). Not the picker's empty line, whose copy is "No groups ready to enroll" | (assumed at spec) 2026-10-26 |
 | D13 | Group list freshness | Tapping the row awaits `GroupActions().loadGroups()` (cache-first) before deciding 1 vs 2+; a load failure with no cache surfaces "Couldn't load your groups" and pushes nothing | (assumed at spec) 2026-10-26 |
 | D14 | Which groups | The picker lists every group `GET /api/groups` returns (already scoped by `groupManageFilter`); `allowInvites` is not consulted — it governs member-side sharing, not leader SMS invites | (assumed at spec) 2026-10-26 |
+| D16 | Orgs chip on the group pick | OPEN — recommended: `orgFilterVisible` is always `false` in `InviteSelectGroupContainer` for this feature. Why: `UserGroup` carries no `organizationId` (`GET /api/groups` returns none), so a visible Orgs chip could not filter anything, and `AppState.userOrganizations` holds at most one org today (`AppState.swift:162-166`), so D3's 2+ condition is never true. Rejected: *add `organizationId` to `GET /api/groups` and filter by it* — widens the server change for a state no leader can reach today | align 2026-10-26 |
 | D15 | Fixtures | `server/fixtures/screens/invite-member.ts`, `full` scenario: one pending invite with `recipientName` "Tony Stark" on the base world's first fixture group, so `GET /api/invites` returns a named row; the base world's 3+ groups make the picker path walkable. Reads base entities only; dates from `ctx.now` | (assumed at spec) 2026-10-26 |
 
 ## Contract
@@ -110,6 +111,9 @@ unaffected.
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
 | `POST /api/invites/send` | server | iphone (`InviteActions.sendInvite`) | session; `canManageOrgContent` on the group's org | `{ groupId: uuid, recipientPhone: E.164, recipientName?: string 1–100 (trimmed) }` | `{ success: true, inviteId, inviteUrl, message }` (unchanged) | 400 `{ success:false, error }` invalid body / phone / send failure · 403 not authorized · 404 group not found · 500 |
+| `GET /api/invites` | server | none in this feature (fixtures + walk step 5 via curl); the future invites store (D5) | session; own invites (`inviterId`) | `?groupId&status` | each invite gains `recipientName: string \| null`; every existing field unchanged | unchanged |
+| `PATCH /api/invites/:id` | server | none in this feature | session; `canManageOrgContent` | unchanged | `invite` gains `recipientName: string \| null` | unchanged |
+| `GET /api/invites/:token` | server | client join flow (unchanged) | public | — | unchanged — **no** `recipientName` (D6) | unchanged |
 | `GET /api/groups` | server | iphone (`GroupActions.fetchGroups` → `UserGroup`); client stores (ignore the new field) | session; `groupManageFilter` | — | each group gains `creatorName: string \| null`; every existing field unchanged | unchanged |
 
 ## Schema & API changes
@@ -123,6 +127,27 @@ unaffected.
 
 **Data plan:** SC1 is one additive, nullable column via `server/schema/schema.yaml` → `npm run
 schema:diff` (Atlas); existing invites read `null`; no backfill; undone by dropping the column.
+
+**Alignment (2026-10-26)** — every value the design and the reused picker hand on, traced
+producer model → zod → wire → endpoint → iphone property. No owner notes exist for
+`invite-member` (`ui2-notes.mjs read` → `exists: false`).
+
+| Value | Design / screen input | Producer today | iphone holds it in | Verdict |
+|---|---|---|---|---|
+| invitee name | `onSendInvite` arg 1 (trimmed, 1–100) | no column; `/send` zod strips it (`invites.ts:405-410`) | — (send body only, D5) | MISSING → SC1–SC3, T1–T3, T7 |
+| phone | `onSendInvite` arg 2, `+1` + 10 digits | `Invite.recipientPhone` String?, zod `isValidPhoneNumber` | send body `recipientPhone` | ALIGNED |
+| group | container's `groupId` | `/send` `groupId` uuid | `UserGroup.id` | ALIGNED |
+| invite id | — (returned, unused on screen) | `/send` `inviteId` | `sendInvite` return value | ALIGNED |
+| row name | `groupNames` | `Group.name` → `name` | `UserGroup.name` | ALIGNED |
+| row photo | `groupPhotoURLs` | `coverImageUrl` (nullable) | `UserGroup.coverImageUrl` → `""` when nil | ALIGNED (layer name, mapped in the container) |
+| leader chip / Leaders filter | `groupLeaderNames` | `creatorId` only; no name on the wire (`groups.ts:234-275`) | — | MISSING → SC4, T4, T6 |
+| members chip | `groupMemberCounts` | `_count.members` (active) → `memberCount` | `UserGroup.memberCount` | ALIGNED |
+| enrollments chip | `groupEnrollmentCounts` | per group only — `GET /api/groups/:groupId/enrollments`; no count on the groups list | `AppState.enrollmentsFor(groupId:)`, filled only for groups already opened | RESHAPE (derived; needs a per-group load) → T8 |
+| Orgs chip visibility | `orgFilterVisible` | `/api/organizations/my/organization(s)` | `AppState.userOrganizations` (D3's "organizations" = this property) | ALIGNED; filtering by org has no `organizationId` on `UserGroup` → D16 |
+
+**Released build:** `UserGroup` is disk-cached by the 1.0/2.0 builds; `creatorName` is read with
+`decodeIfPresent`, so an old snapshot decodes `nil` and the new build re-fetches. Nothing a
+released build stores is reshaped.
 
 ## server
 
@@ -194,6 +219,15 @@ schema:diff` (Atlas); existing invites read `null`; no backfill; undone by dropp
 | F1 | The "+" Add menu (action-menu-overlay) is uncommitted work on `ui2-preview-build`; this feature edits the same `UI2Shell.swift` | build-time risk — commit action-menu-overlay before the iphone phase starts |
 | F2 | D7's d2m update is outside this pipeline; until it lands the iphone phase cannot satisfy D4/D7 | build-time risk — iphone phase gated on `/d2m:screen:update invite-member` having landed (check the view for the new input) |
 | F3 | Local SMS: `sendCampaignSms` has a dev path (`sms-campaign.ts:231`, `isDev`); the walk must confirm a local send succeeds without a real Twilio delivery | build-time risk — settled by the server phase's walk-readiness smoke |
+| T1 | server: `schema.yaml` `Invite.recipientName` + Prisma regen + Atlas migration (SC1) | blocking |
+| T2 | server: `/send` zod accepts `recipientName` (D8) and `sendGroupInvite` persists it; SMS context unchanged (SC2) | blocking |
+| T3 | server: `GET /api/invites` and `PATCH /api/invites/:id` return `recipientName`; `GET /:token` unchanged (SC3) | blocking |
+| T4 | server: `GET /api/groups` includes `creator { name }` and maps `creatorName` (SC4) | blocking |
+| T5 | server: `fixtures/screens/invite-member.ts` (D15) — auto-discovered by `runner.ts:82-104`; invites cascade with the fixture groups in `wipe.ts:26` | blocking |
+| T6 | iphone: `UserGroup.creatorName: String?` — CodingKeys, `decodeIfPresent`, memberwise init default `nil` (SC4 consumer) | trailing |
+| T7 | iphone: `InviteActions.sendInvite(groupId:recipientPhone:recipientName:)` posting the §Contract body (SC2 consumer) | trailing |
+| T8 | iphone: `InviteSelectGroupContainer` starts `EnrollmentActions().loadEnrollments(groupId:)` for each listed group with no cached enrollments, concurrently and console-only on failure; the chip reads `AppState.enrollmentsFor(groupId:).count` and updates as they land (no server count exists) | trailing |
+| F5 | The Orgs chip cannot filter: `UserGroup` has no `organizationId` | D16 (OPEN) |
 | F4 | `EnrollmentSelectGroupScreen`'s copy is enrollment-flavoured only in its empty line ("No groups ready to enroll"), which D12 keeps from ever showing here | resolved by D12 |
 
 ## Prototype

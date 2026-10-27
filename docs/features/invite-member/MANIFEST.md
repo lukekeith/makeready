@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: aligned
 next: /builder:resume --path docs/features/invite-member
-head: 0306119
+head: 0a2c258
 ticket: none
-branch: ui2-preview-build
+branch: builder/invite-member
 pr: none
 apps: server+iphone
 contract: open
