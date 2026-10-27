@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/group-cover-image
-head: 09216fd
+state: built
+next: /builder:agent-walk --path docs/features/group-cover-image
+head: b54cc65
 ticket: none
 branch: builder/group-cover-image
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-10-27 b54cc65
 auto: on 2026-10-27
 blocked: none
 agent-walk: on 2026-10-27
