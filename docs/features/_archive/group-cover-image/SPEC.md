@@ -1,5 +1,5 @@
 # group-cover-image — spec
-> 🤖 AGENT SIGNED OFF 2026-10-27 — d1a3677 · agent walk round 1 · not human-tested · evidence: .builder/group-cover-image/agent-walk/round-1/
+> ✅ SHIPPED 2026-10-27 — merged into main · no ticket · 🤖 agent signed off (walk round 1), not human-tested
 > lg · follows program `ui2-groups` (docs/features/ui2-groups/PROGRAM.md — its §Out of scope "cover upload")
 
 ## Idea
@@ -209,3 +209,4 @@ migration; no backfill — existing groups read null and use D7's fallback. Undo
 | F10 | The agent walk env (`agent_walk.env`) carries no R2 settings; `getR2Client` throws without them (`storage.ts:13-21`), so every cover save on the walk is a 500 and fixture images are skipped | build-time risk — settled at the agent walk: R2 settings in `agent_walk.env` are a config change, the owner's (a `human-step` park naming `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`), unless the walk env has them by then. **Settled 2026-10-27 by 97acb50 on main:** the walk env stores images in a local s3mock (`R2_ENDPOINT` + dummy keys in `agent_walk.env`); walk readiness smoked a framed upload, original + framing read back, both objects served 200 |
 | F11 | The legacy admin SPA posts multipart `image` and reads `res.data.group` (`admin-island/stores/domain/groups.domain.ts:112-121`); the zod body requires `imageData`, so it already 400s | pre-existing, out of scope; not touched |
 | F11 | D20 makes C-087 16:9 on every consumer (groups-detail, study-program-home, others in the registry) — a d2m component change | done 2026-10-27 — d2m made C-087 16:9 (`8b83f38`) |
+| L1 | lesson for §Standing traps: in a fleet worktree `cd server && npm run test:run` and `migrate:status` go red on env alone (no `server/.env` — the 1Password pipe), so judge server gates by re-running vitest with an explicit `DATABASE_URL` against a throwaway DB migrated by `atlas.sh --var database_url=…` (the ledger's env-notes line), never by the raw gate exit | proposed |
