@@ -12,6 +12,7 @@ import { isSuperAdmin, groupManageFilter, findManageableGroup } from '../service
 import { getGroupHistory } from '../services/group-history.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { resolveUserOrganizationId } from '../services/organization.js'
+import { toGroupPayload } from '../services/group-payload.js'
 import {
   AGE_RANGE_INVERTED_MESSAGE,
   DIRECTORY_CONFLICT_MESSAGE,
@@ -169,29 +170,7 @@ router.post('/', requireAuth, async (req, res) => {
     })
 
     // Transform response to match iOS model
-    const response = {
-      id: group.id,
-      organizationId: group.organizationId,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }
+    const response = toGroupPayload(group)
 
     trackActivity({
       actorId: userId,
@@ -275,30 +254,9 @@ router.get('/', requireAuth, async (req, res) => {
     )
 
     // Transform response to match iOS model
-    const response = groups.map((group) => ({
-      id: group.id,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      organizationId: group.organizationId,
-      organizationName: orgNames.get(group.organizationId) ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }))
+    const response = groups.map((group) =>
+      toGroupPayload(group, { organizationName: orgNames.get(group.organizationId) ?? null }),
+    )
 
     res.json({ success: true, groups: response })
   } catch (error) {
@@ -606,28 +564,7 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
 
     // Transform response to match iOS model
-    const response = {
-      id: group.id,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }
+    const response = toGroupPayload(group)
 
     res.json({ success: true, group: response })
   } catch (error) {
@@ -1116,28 +1053,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     })
 
     // Transform response to match iOS model
-    const response = {
-      id: group.id,
-      code: group.code,
-      name: group.name,
-      description: group.description,
-      coverImageUrl: group.coverImageUrl,
-      isPrivate: group.isPrivate,
-      allowInvites: group.allowInvites,
-      memberDirectory: group.memberDirectoryEnabled,
-      memberDirectoryAccess: group.memberDirectoryAccess,
-      welcomeMessage: group.welcomeMessage,
-      ageRange:
-        group.ageRangeMin !== null || group.ageRangeMax !== null
-          ? { min: group.ageRangeMin, max: group.ageRangeMax }
-          : null,
-      maxMembers: group.maxMembers,
-      memberCount: group._count.members,
-      creatorId: group.creatorId,
-      creatorName: group.creator?.name ?? null,
-      createdAt: group.createdAt,
-      updatedAt: group.updatedAt,
-    }
+    const response = toGroupPayload(group)
 
     trackActivity({
       actorId: userId,
