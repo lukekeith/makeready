@@ -130,13 +130,13 @@ the released callers. `memberDirectory` keeps its meaning on every read and writ
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Group.memberDirectoryAccess` (enum `DirectoryAccess`, NOT NULL, default `ALLOWED`) | `memberDirectoryAccess` on every group payload | groups-detail settings row "Member directory access" (three options, shared-edit-field §2b); P8 · D11 | planned · T1, T3 |
-| SC2 | EDIT | groups list response | + `organizationId`, `organizationName` | groups-home Orgs chip; D10 | planned · T2 |
-| SC3 | EDIT | group detail / PATCH / create response | + `creatorName` | groups-detail "Group Leader" stat; D10 | planned · T3 |
-| SC4 | ADD | `GET /api/groups/:id/history` | §Contract | groups-detail Timeline; D15 | planned · T4 |
-| SC5 | EDIT | next-study response | + `study.title`, `activities[].thumbnailUrl` | groups-detail Lessons up next; D17 | planned · T6 |
-| SC6 | EDIT | `/api/home/days` `groupId` param | §Contract | groups-detail day rail series; D14 | planned · T7 |
-| SC7 | EDIT | cover-image upload | + `trackActivity` row | groups-detail Timeline "Updated cover photo"; D15 | planned · T5 |
+| SC1 | ADD | `Group.memberDirectoryAccess` (enum `DirectoryAccess`, NOT NULL, default `ALLOWED`) | `memberDirectoryAccess` on every group payload | groups-detail settings row "Member directory access" (three options, shared-edit-field §2b); P8 · D11 | landed 865aa61 · migration 20261027064150 · T1, T3 |
+| SC2 | EDIT | groups list response | + `organizationId`, `organizationName` | groups-home Orgs chip; D10 | landed e08813c · T2 |
+| SC3 | EDIT | group detail / PATCH / create response | + `creatorName` | groups-detail "Group Leader" stat; D10 | landed e08813c · T3 |
+| SC4 | ADD | `GET /api/groups/:id/history` | §Contract | groups-detail Timeline; D15 | landed 891f1fe · T4 |
+| SC5 | EDIT | next-study response | + `study.title`, `activities[].thumbnailUrl` | groups-detail Lessons up next; D17 | landed c5370b0 · T6 |
+| SC6 | EDIT | `/api/home/days` `groupId` param | §Contract | groups-detail day rail series; D14 | landed e0e5b73 · T7 |
+| SC7 | EDIT | cover-image upload | + `trackActivity` row | groups-detail Timeline "Updated cover photo"; D15 | landed e08813c · T5 |
 
 **Data plan:** SC1 goes through `server/schema/*.yaml` → `schema:diff` → one Atlas migration (house
 rules): add the enum + column with default `ALLOWED`, then `UPDATE "groups" SET "memberDirectoryAccess" =
