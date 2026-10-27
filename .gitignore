@@ -105,3 +105,6 @@ capture/node_modules/
 .#*
 
 # Fixture images pulled from d2m by fixtures:reset (home-dashboard-data D22)
+
+# capture runners' scratch workflows (ui2 capture.mjs TMP_WORKFLOW, compare capture-batch)
+capture/fixtures/*/ztmp-*/

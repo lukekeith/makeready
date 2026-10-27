@@ -35,6 +35,9 @@ struct EditDateFieldScreen: View {
         var saving: Bool = false
         /// `save-failed`: the inline error line's copy; "" renders no line.
         var errorMessage: String = ""
+        /// birthday-no-clear (owner 2026-10-26): false hides the Clear link — a field that can be
+        /// changed but not emptied. Default true keeps the designed page.
+        var showsClear: Bool = true
     }
 
     let state: State
@@ -111,12 +114,14 @@ struct EditDateFieldScreen: View {
                     .ui2Element("DatePicker")
 
                     // D28 / OQ-shared-edit-field-4: C-049 as built (accent).
-                    LinkButton(
-                        label: Self.clearLabel,
-                        onTap: { value = nil },
-                        isEnabled: Self.clearEnabled(value: value, saving: state.saving)
-                    )
-                    .ui2Element("C-049 LinkButton")
+                    if state.showsClear {
+                        LinkButton(
+                            label: Self.clearLabel,
+                            onTap: { value = nil },
+                            isEnabled: Self.clearEnabled(value: value, saving: state.saving)
+                        )
+                        .ui2Element("C-049 LinkButton")
+                    }
                 }
 
                 VStack(alignment: .leading, spacing: Token.Space.elementGap) {

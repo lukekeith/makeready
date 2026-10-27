@@ -62,6 +62,9 @@ struct SharedEditFieldTemplate: View {
     let autocorrect: Bool
     /// D22: the live field takes focus on appear.
     let focusOnAppear: Bool
+    /// input-masking: the live field's format-as-you-type mask. With one, Save, `canSave` and
+    /// `onTextChange` receive the RAW value (`mask.raw`) — the page keeps its own save rules.
+    let mask: InputMask?
     /// T9f (D24): when given, replaces the dirty/empty rule with the caller's (it receives the
     /// trimmed text); `saving` still disables Save.
     let canSave: ((String) -> Bool)?
@@ -101,6 +104,7 @@ struct SharedEditFieldTemplate: View {
         autocapitalization: TextInputAutocapitalization = .sentences,
         autocorrect: Bool = true,
         focusOnAppear: Bool = false,
+        mask: InputMask? = nil,
         canSave: ((String) -> Bool)? = nil,
         onBack: @escaping () -> Void = {},
         onGenerate: @escaping () -> Void = {},
@@ -128,6 +132,7 @@ struct SharedEditFieldTemplate: View {
         self.autocapitalization = autocapitalization
         self.autocorrect = autocorrect
         self.focusOnAppear = focusOnAppear
+        self.mask = mask
         self.canSave = canSave
         self.onBack = onBack
         self.onGenerate = onGenerate
@@ -185,7 +190,7 @@ struct SharedEditFieldTemplate: View {
                     if let clipped = Self.overflowReplacement(for: new, maxLength: maxLength) {
                         text = clipped
                     } else {
-                        onTextChange(new)
+                        onTextChange(mask?.raw(new) ?? new)
                     }
                 }
 
@@ -220,7 +225,7 @@ struct SharedEditFieldTemplate: View {
                         label: Self.saveLabel,
                         role: .affirmative,
                         enabled: saveEnabled,
-                        onTap: { onSave(trimmed) }
+                        onTap: { onSave(mask?.raw(trimmed) ?? trimmed) }
                     )
                     .ui2Element("C-048 PageActionButton")
                 }
@@ -239,14 +244,19 @@ struct SharedEditFieldTemplate: View {
             autocorrect: autocorrect,
             focusOnAppear: focusOnAppear,
             isEnabled: !saving,                              // D26: saving locks the input
-            accessibilityName: label
+            accessibilityName: label,
+            mask: mask
         )
     }
 
     private var trimmed: String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     private var saveEnabled: Bool {
-        Self.saveEnabled(text: text, loaded: loadedValue, allowsEmpty: allowsEmpty, saving: saving, canSave: canSave)
+        Self.saveEnabled(
+            text: text, loaded: loadedValue, allowsEmpty: allowsEmpty, saving: saving,
+            // input-masking: a caller rule judges the raw value, as Save sends it.
+            canSave: canSave.map { rule in { rule(mask?.raw($0) ?? $0) } }
+        )
     }
 
     // §3: `clean` (equal to the loaded value) disables Save, and so does `invalid` (empty) where

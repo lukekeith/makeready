@@ -32,8 +32,9 @@ struct PinnedBelowTopNav: ViewModifier {
     }
 
     /// The push needed for an element whose top sits at `top` in the page scroll's visible
-    /// coordinates while the row covers its first `inset` points.
+    /// coordinates while the row covers its first `inset` points — never more than the row grew,
+    /// so a collapsed row moves nothing and an element scrolled above the page is never pulled in.
     nonisolated static func shift(top: CGFloat, inset: CGFloat) -> CGFloat {
-        max(0, inset - top)
+        min(inset, max(0, inset - top))
     }
 }
