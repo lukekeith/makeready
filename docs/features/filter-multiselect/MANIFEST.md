@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/filter-multiselect
-head: 58cece9
+head: 0d78481
 ticket: none
 branch: builder/filter-multiselect
 pr: none
