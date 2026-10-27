@@ -184,3 +184,21 @@ final class FilterMenuOverlayDraftTests: XCTestCase {
         XCTAssertEqual(saved, ["a"])
     }
 }
+
+/// filter-multiselect D3/D14: Groups home's menus carry no "All …" row and its State holds the picks.
+final class GroupsHomeFilterTests: XCTestCase {
+    func testSampleHasNoAllRowsAndEmptyPicks() {
+        let s = GroupsHomeScreen.State.populated
+        XCTAssertFalse(s.orgOptions.contains("All Orgs"))
+        XCTAssertFalse(s.leaderOptions.contains("All Leaders"))
+        XCTAssertEqual(s.selectedOrgs, [])
+        XCTAssertEqual(s.selectedLeaders, [])
+    }
+
+    func testSaveClosuresAreSetValued() {
+        var saved: Set<String>?
+        let screen = GroupsHomeScreen(state: .populated, onSaveLeaders: { saved = $0 })
+        screen.onSaveLeaders(["Tony"])
+        XCTAssertEqual(saved, ["Tony"])
+    }
+}
