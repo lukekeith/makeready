@@ -442,6 +442,9 @@ models:
       recipientPhone:
         type: string
         nullable: true
+      recipientName:
+        type: string
+        nullable: true
       status:
         type: string
         default: "pending"

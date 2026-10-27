@@ -292,6 +292,7 @@ model Invite {
   groupId              String?
   inviterId            String
   recipientPhone       String?
+  recipientName        String?
   status               String @default("pending")
   expiresAt            DateTime?
   createdAt            DateTime @default(now())

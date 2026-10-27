@@ -322,9 +322,15 @@ router.post('/', requireAuth, async (req, res) => {
  *                 type: string
  *                 pattern: '^\+[1-9]\d{1,14}$'
  *                 description: Phone number in E.164 format (e.g., +1234567890)
+ *               recipientName:
+ *                 type: string
+ *                 minLength: 1
+ *                 maxLength: 100
+ *                 description: Optional name of the invitee (trimmed; stored on the invite, not used in the SMS)
  *           example:
  *             groupId: "123e4567-e89b-12d3-a456-426614174000"
  *             recipientPhone: "+12025551234"
+ *             recipientName: "Ada Test"
  *     responses:
  *       200:
  *         description: Invite sent successfully
@@ -407,9 +413,10 @@ router.post('/send', requireAuth, async (req, res) => {
       recipientPhone: z.string().refine(isValidPhoneNumber, {
         message: 'Invalid phone number format. Must be E.164 format (e.g., +1234567890)',
       }),
+      recipientName: z.string().trim().min(1).max(100).optional(),
     });
 
-    const { groupId, recipientPhone } = sendInviteSchema.parse(req.body);
+    const { groupId, recipientPhone, recipientName } = sendInviteSchema.parse(req.body);
     const user = req.user as User;
 
     // Verify group exists and user is the creator
@@ -442,7 +449,8 @@ router.post('/send', requireAuth, async (req, res) => {
       user.name,
       recipientPhone,
       group.name,
-      baseUrl
+      baseUrl,
+      recipientName
     );
 
     if (!result.success) {
