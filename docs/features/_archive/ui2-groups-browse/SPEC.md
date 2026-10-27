@@ -1,5 +1,5 @@
 # ui2-groups-browse — spec
-> 🤖 AGENT SIGNED OFF 2026-10-27 — 464e654 · agent walk round 2 · not human-tested · evidence: .builder/ui2-groups-browse/agent-walk/round-2/
+> ✅ SHIPPED 2026-10-27 — merged into main · no ticket · 🤖 agent signed off (walk round 2), not human-tested
 > lg · child 1 of program `ui2-groups` (docs/features/ui2-groups/PROGRAM.md)
 
 ## Idea
@@ -239,6 +239,7 @@ the enum; the Boolean is untouched throughout. SC2–SC7 are additive wire chang
 | F9 | Render diff (audit item 8) not re-run: the capture tool (:5950) was down and the audit starts no server. d2m records all three screens built and diffed at intake; groups-detail is `updateNeeded` (F1) | build-time risk — T15's first task runs the d2m drift check (F1) before wiring the group page |
 | F11 | D11's Boolean→enum sync turns a future `NAMES_ONLY` back into `ALLOWED` on any PATCH carrying `memberDirectory: true`, and both apps send it on every edit (`groups.ts:922`) | carried to `ui2-groups-edit`: its enum write must stop the Boolean sync overwriting `NAMES_ONLY` |
 | F10 | Design OQs on the three screens are all closed and land on rulings: groups-home-1 → D3 · groups-home-2 → D2/D7 · create-group-002 → D8 · groups-detail-006 → D4 · groups-detail-007 + OQ-004 + schat-groups-detail-1 → D6 · OQ-C-065-001 → F8. No owner notes pending (`ui2-notes.mjs read`) | disposed |
+| L1 | lesson for §Standing traps: iphone — pass `onTap:` by label to `FilterChip(type: .menu, …)`: its init ends with two defaulted closures (`onTap`, `onSelect`) and under SWIFT_VERSION 5 an unlabelled trailing closure binds to `onSelect`, so the menu never opens (hit by members-browse and ui2-groups-browse agent walks; still in EnrollmentsHomeScreen:198, StudyProgramsScreen:160, InvitesHomeScreen:172, all unwired today) | proposed |
 | R1 | repoint (iphone): `MainGroups.swift` ← no compiled caller (not in Sources; `MainView.swift:91` also out of target) | builder:plan's repoint + retire phase — nothing to repoint |
 | R2 | repoint (iphone): `GroupHomePage.swift`, `GroupMembersPage.swift` ← no compiled caller (`NavigationCoordinator.swift:77,100-102,147`, `GlobalSearchPage.swift:122-127`, `MemberHomePage.swift:178`, `Route.swift:62-63` all out of target); live group deep links are D24 | builder:plan's repoint + retire phase — nothing to repoint |
 | R3 | repoint (iphone): `CreateGroupPage.swift` ← no compiled caller (`AddMenu.swift:65` out of target) | builder:plan's repoint + retire phase — nothing to repoint |
