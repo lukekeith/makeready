@@ -118,9 +118,9 @@ extended: `GET /api/groups/code/:code` (416), the public group endpoint (~880-91
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Group.coverOriginalUrl` (text, null) | `coverOriginalUrl` | Edit image reopens the full photo; D7 | planned |
-| SC2 | ADD | `Group.coverFraming` (jsonb, null) | `coverFraming` | Edit image restores zoom/rotate/position; D11 | planned |
-| SC3 | EDIT | cover upload body + response | D10 | new pick + re-edit in one request; D10 | planned |
+| SC1 | ADD | `Group.coverOriginalUrl` (text, null) | `coverOriginalUrl` | Edit image reopens the full photo; D7 | landed 20261027164451_group_cover_image (22b8c4e) |
+| SC2 | ADD | `Group.coverFraming` (jsonb, null) | `coverFraming` | Edit image restores zoom/rotate/position; D11 | landed 20261027164451_group_cover_image (22b8c4e) |
+| SC3 | EDIT | cover upload body + response | D10 | new pick + re-edit in one request; D10 | landed 28b0382 (no migration) |
 
 **Data plan:** SC1–SC2 are nullable adds through `server/schema/*.yaml` → `schema:diff` → one Atlas
 migration; no backfill — existing groups read null and use D7's fallback. Undo = drop both columns.
