@@ -1,7 +1,7 @@
 size: lg
-state: building
-next: /builder:resume --path docs/features/filter-multiselect
-head: e679185
+state: built
+next: /builder:agent-walk --path docs/features/filter-multiselect
+head: 66b4396
 ticket: none
 branch: builder/filter-multiselect
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-10-26 66b4396
 ui2: none
 auto: on 2026-10-26
 blocked: none
