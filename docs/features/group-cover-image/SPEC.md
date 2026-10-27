@@ -1,4 +1,5 @@
 # group-cover-image — spec
+> 🤖 AGENT SIGNED OFF 2026-10-27 — d1a3677 · agent walk round 1 · not human-tested · evidence: .builder/group-cover-image/agent-walk/round-1/
 > lg · follows program `ui2-groups` (docs/features/ui2-groups/PROGRAM.md — its §Out of scope "cover upload")
 
 ## Idea
@@ -208,23 +209,3 @@ migration; no backfill — existing groups read null and use D7's fallback. Undo
 | F10 | The agent walk env (`agent_walk.env`) carries no R2 settings; `getR2Client` throws without them (`storage.ts:13-21`), so every cover save on the walk is a 500 and fixture images are skipped | build-time risk — settled at the agent walk: R2 settings in `agent_walk.env` are a config change, the owner's (a `human-step` park naming `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET_NAME`, `R2_PUBLIC_URL`), unless the walk env has them by then. **Settled 2026-10-27 by 97acb50 on main:** the walk env stores images in a local s3mock (`R2_ENDPOINT` + dummy keys in `agent_walk.env`); walk readiness smoked a framed upload, original + framing read back, both objects served 200 |
 | F11 | The legacy admin SPA posts multipart `image` and reads `res.data.group` (`admin-island/stores/domain/groups.domain.ts:112-121`); the zod body requires `imageData`, so it already 400s | pre-existing, out of scope; not touched |
 | F11 | D20 makes C-087 16:9 on every consumer (groups-detail, study-program-home, others in the registry) — a d2m component change | done 2026-10-27 — d2m made C-087 16:9 (`8b83f38`) |
-
-## Plan
-
-The plan, with its code: `docs/features/group-cover-image/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · Group cover columns — schema YAML, Atlas migration, Prisma client
-- Phase 1 · Task 2 · One `toGroupPayload` carrying the two new fields
-- Phase 2 · Task 3 · `saveGroupCover` service — re-encode, upload, one atomic write, old-original delete
-- Phase 2 · Task 4 · Cover upload route on the service, PATCH clearing, OpenAPI — and the contract freeze
-- Phase 3 · Task 5 · `UserGroup.coverOriginalUrl` + `coverFraming`, decoding old caches and bad values
-- Phase 3 · Task 6 · `GroupActions.saveCover` on `requestWithStatus` with a timeout
-- Phase 4 · Task 7 · Cover framing math — zoom floor, pan clamp, ±3° snap, relative scale
-- Phase 4 · Task 8 · The 1200×529 render and the ≤ 2400px upright pick
-- Phase 4 · Task 9 · `EditGroupCoverModel` — gesture state, D6/D7 opening, D13 save outcomes
-- Phase 5 · Task 10 · The full-screen cover viewer (D8)
-- Phase 7 · Task 11 · Edit cover page — wire the d2m-built screen to `EditGroupCoverModel`, route `.editGroupCover`
-- Phase 7 · Task 12 · The cover tap on the group page — picker, C-066 menu, viewer (D1/D2/D3/D8)
-- Phase 6 · Task 13 · Cover framing gains flipped + quarterTurns
-- Phase 7 · Task 14 · Framing math, render and model for D20–D26
-- Phase 7 · Task 15 · Drop Auto, add the dial's straighten API to the model (D29, D30)

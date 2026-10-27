@@ -1,7 +1,7 @@
 size: lg
-state: built
-next: /builder:agent-walk --path docs/features/group-cover-image
-head: b54cc65
+state: signed-off
+next: /builder:verify --path docs/features/group-cover-image
+head: d1a3677
 ticket: none
 branch: builder/group-cover-image
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: Luke 2026-10-27
 tests: slice=own+app end=risk review=slice
 target: main
-walk: none
+walk: agent-pass 2026-10-27 d1a3677
 verify: none
 ready: yes 2026-10-27 b54cc65
 auto: on 2026-10-27
