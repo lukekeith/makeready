@@ -78,16 +78,38 @@ final class EditGroupCoverModelTests: XCTestCase {
     /// D13: a second Save while saving is ignored.
     func testSecondSaveWhileSavingIsIgnored() async {
         var calls = 0
-        let m = model(save: { _, _, _ in calls += 1; try await Task.sleep(nanoseconds: 200_000_000); return self.ok })
+        var release: CheckedContinuation<Void, Never>?
+        let m = model(save: { _, _, _ in
+            calls += 1
+            await withCheckedContinuation { release = $0 }
+            return self.ok
+        })
         async let first = m.save()
-        await Task.yield()
+        while release == nil { await Task.yield() }              // the first save is suspended inside send
         XCTAssertTrue(m.isSaving)
         let second = await m.save()
         XCTAssertEqual(second, .ignored)
+        release?.resume()
         let firstOutcome = await first
         XCTAssertEqual(firstOutcome, .saved)
         XCTAssertEqual(calls, 1)
         XCTAssertFalse(m.isSaving)
+    }
+
+    /// D13: gestures are off while saving, release included, so the saved framing stays what was rendered.
+    func testReleaseWhileSavingDoesNotChangeTheFraming() async {
+        var release: CheckedContinuation<Void, Never>?
+        let m = model(save: { _, _, _ in
+            await withCheckedContinuation { release = $0 }
+            return self.ok
+        })
+        m.updateGesture(magnification: 1, rotationDegrees: 2, translation: .zero)   // live, un-snapped
+        async let first = m.save()
+        while release == nil { await Task.yield() }
+        m.endGesture()
+        XCTAssertEqual(m.framing.rotation, 2, accuracy: 1e-9)    // not snapped to 0 mid-save
+        release?.resume()
+        _ = await first
     }
 
     /// D13: success seeds the cache under the new URL so the cover does not flash the placeholder.
@@ -119,10 +141,12 @@ final class EditGroupCoverModelTests: XCTestCase {
         }
         let f = CoverFraming(scale: 3, rotation: 10, offsetX: 0, offsetY: 0)
         XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: f))?.url, "o")
+        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: f))?.hasOriginal, true)
         XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: f))?.framing, f)
         XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: nil))?.framing, .identity)
         XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: nil, framing: f))?.url, "c")
         XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: nil, framing: f))?.framing, .identity)
+        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: nil, framing: f))?.hasOriginal, false)
         XCTAssertNil(EditGroupCoverModel.opening(group: group(cover: nil, original: nil, framing: nil)))
     }
 }

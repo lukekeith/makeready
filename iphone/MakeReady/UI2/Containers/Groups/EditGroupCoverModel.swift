@@ -31,7 +31,7 @@ final class EditGroupCoverModel {
     @ObservationIgnored private let hasStoredOriginal: Bool
     @ObservationIgnored private let send: @MainActor (UIImage, CoverFraming, UIImage?) async throws -> CoverSaveResult
 
-    init(groupId: String, image: UIImage, framing: CoverFraming, isNewPick: Bool, hasStoredOriginal: Bool = true,
+    init(groupId: String, image: UIImage, framing: CoverFraming, isNewPick: Bool, hasStoredOriginal: Bool,
          frameSize: CGSize,
          save: @escaping @MainActor (UIImage, CoverFraming, UIImage?) async throws -> CoverSaveResult) {
         self.groupId = groupId
@@ -58,6 +58,7 @@ final class EditGroupCoverModel {
 
     /// D5: release — snap within ±3°, re-clamp (the floor changes with rotation), commit.
     func endGesture() {
+        guard !isSaving else { return }
         var next = framing
         next.rotation = CoverFramingMath.snapped(rotationDegrees: next.rotation)
         framing = CoverFramingMath.clamped(next, image: image.size, frame: frameSize)
@@ -84,11 +85,12 @@ final class EditGroupCoverModel {
 
     /// D7: Edit image reopens the original at its framing; a cover with no original opens the
     /// cover itself at identity; no cover → nil (the menu is not offered then, D2).
-    static func opening(group: UserGroup) -> (url: String, framing: CoverFraming)? {
+    /// `hasOriginal` is false for the cover fallback: the caller passes it on as `hasStoredOriginal`.
+    static func opening(group: UserGroup) -> (url: String, framing: CoverFraming, hasOriginal: Bool)? {
         if let original = group.coverOriginalUrl, !original.isEmpty {
-            return (original, group.coverFraming ?? .identity)
+            return (original, group.coverFraming ?? .identity, true)
         }
-        if let cover = group.coverImageUrl, !cover.isEmpty { return (cover, .identity) }
+        if let cover = group.coverImageUrl, !cover.isEmpty { return (cover, .identity, false) }
         return nil
     }
 }
