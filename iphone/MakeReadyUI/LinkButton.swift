@@ -39,6 +39,10 @@ struct LinkButton: View {
     /// C-049 §4 `isEnabled: Bool` — "`false` renders 50% opacity and suppresses `onTap`.
     /// Default `true`" (OQ-C-049-2, ratified 2026-09-16).
     var isEnabled: Bool = true
+    /// filter-menu text links (owner 2026-10-26): false is the plain text-button variant — the
+    /// same label, colours and states with no underline, so the footprint is the 24pt line box.
+    /// Default true keeps the designed underlined link.
+    var underlined: Bool = true
 
     var body: some View {
         SwiftUI.Button(action: onTap) {
@@ -62,12 +66,14 @@ struct LinkButton: View {
                 // gap." The bottom padding grows the box to 24.5 and the overlay pins the rule
                 // into that half-point, so the underline is as wide as the (possibly truncated)
                 // label and never as wide as the consumer's row.
-                .padding(.bottom, Self.underline)
+                .padding(.bottom, underlined ? Self.underline : 0)
                 .overlay(alignment: .bottom) {
-                    Rectangle()
-                        .fill(color)
-                        .frame(height: Self.underline)
-                        .ui2Element("Underline")
+                    if underlined {
+                        Rectangle()
+                            .fill(color)
+                            .frame(height: Self.underline)
+                            .ui2Element("Underline")
+                    }
                 }
         }
         .buttonStyle(PressedDim())

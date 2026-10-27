@@ -130,12 +130,15 @@ struct FilterMenuOverlay: View {
                 VStack(alignment: .leading, spacing: 0) {
                     if let onSave {
                         // filter-multiselect D1/D8: Clear leading, Save trailing, one fixed row above
-                        // the list. Clear is enabled iff the draft is non-empty; Save always is.
+                        // the list. Owner 2026-10-27: Clear applies the empty selection and closes
+                        // (the presenter closes on save); enabled while anything is checked or
+                        // applied. Save always is.
                         HStack(spacing: Token.Space.cardPadding) {
-                            LinkButton(label: Self.clearLabel, onTap: { draft = [] }, isEnabled: !draft.isEmpty)
+                            LinkButton(label: Self.clearLabel, style: .muted, onTap: { onSave([]) },
+                                       isEnabled: !draft.isEmpty || !selectedIDs.isEmpty, underlined: false)
                                 .ui2Element("C-049 LinkButton")
                             Spacer(minLength: 0)
-                            LinkButton(label: Self.saveLabel, onTap: { onSave(draft) })
+                            LinkButton(label: Self.saveLabel, onTap: { onSave(draft) }, underlined: false)
                                 .ui2Element("C-049 LinkButton 2")
                         }
                         .padding(.horizontal, Token.Space.sectionGap)
@@ -143,7 +146,8 @@ struct FilterMenuOverlay: View {
                     } else if let onClear {
                         // filter-menu-clear: fixed above the list (it never scrolls away), on the
                         // option rows' leading inset.
-                        LinkButton(label: Self.clearLabel, onTap: onClear, isEnabled: clearEnabled)
+                        LinkButton(label: Self.clearLabel, style: .muted, onTap: onClear,
+                                   isEnabled: clearEnabled, underlined: false)
                             .padding(.horizontal, Token.Space.sectionGap)
                             .padding(.vertical, Token.Space.cardPadding)
                             .ui2Element("C-049 LinkButton")
