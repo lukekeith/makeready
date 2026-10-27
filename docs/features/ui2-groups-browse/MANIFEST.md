@@ -1,7 +1,7 @@
 size: lg
 state: audited
 next: /builder:resume --path docs/features/ui2-groups-browse
-head: 7788e0b
+head: 23cc0a3
 ticket: none
 branch: builder/ui2-groups-browse
 pr: none
