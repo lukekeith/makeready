@@ -29,12 +29,9 @@ struct RadialDayClock: View {
     let centerCaption: String
     // GAP — C-029: no contract prop for the intro (dashboard-chart-intros D12).
     /// dashboard-chart-intros: nil = the still render (D7). A clockwise sweep from midnight: each
-    /// arc trims in and blooms as the sweep reaches its start hour, each hour dot lights as it is
-    /// passed, and the centre value counts up.
+    /// arc trims in along the ring as the sweep reaches its start hour (no scale — the arcs never
+    /// leave the ring), each hour dot lights as it is passed, and the centre value counts up.
     let intro: ChartIntro?
-
-    /// An arc's scale at intro progress `progress` (D2's bloom).
-    static func bloomScale(progress: Double) -> CGFloat { 0.85 + 0.15 * CGFloat(progress) }
 
     private var introProgress: Double {
         intro?.progress(fadeOnly: !hourValues.contains { $0 > 0 }) ?? 1
@@ -243,7 +240,6 @@ struct RadialDayClock: View {
                         run.band.color,
                         style: StrokeStyle(lineWidth: Geometry.ringStroke, lineCap: .butt)
                     )
-                    .scaleEffect(Self.bloomScale(progress: introProgress))
                     .animation(
                         intro?.animation(ChartIntroMotion.draw, after: ChartIntroMotion.sweepDelay(hour: run.startHour)),
                         value: intro?.played
