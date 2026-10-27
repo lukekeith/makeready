@@ -76,6 +76,8 @@ struct UI2Shell: View {
         .ignoresSafeArea(.container, edges: .bottom)
         // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
         .ui2OverlayHost()
+        // invite-member Fixes (E6): surfaced errors (`recordError(surface: true)`) draw above everything.
+        .overlay(alignment: .top) { UI2ErrorBannerHost() }
         // members-search-pinned: the keyboard never lifts the TabBar (it squeezed the Members
         // list); the pages above it get the keyboard's overlap as safe area instead.
         .ignoresSafeArea(.keyboard, edges: .bottom)

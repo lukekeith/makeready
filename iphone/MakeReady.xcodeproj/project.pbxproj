@@ -13,6 +13,9 @@
 		000E500D0C6BF54F8F89C2A3 /* UI2MembersComponentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DB8BF575CABAA62353707C1 /* UI2MembersComponentTests.swift */; };
 		01167EF604ED4EA7ADB6B80B /* LoginScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E2ABA006F9C95D8D874EBE /* LoginScreen.swift */; };
 		01BBC68B9E556A04BB09BB20 /* TabBarButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = F24A76B07F6BD3009C7241C6 /* TabBarButton.swift */; };
+		E6B4A1000000000000000001 /* UI2ErrorBannerHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B4A1000000000000000003 /* UI2ErrorBannerHost.swift */; };
+		E6B4A1000000000000000002 /* UI2ErrorBannerHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B4A1000000000000000003 /* UI2ErrorBannerHost.swift */; };
+		E6B4A1000000000000000004 /* UI2ErrorBannerHostTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6B4A1000000000000000005 /* UI2ErrorBannerHostTests.swift */; };
 		01DC38152353E3F3F17A29E5 /* UI2Shell.swift in Sources */ = {isa = PBXBuildFile; fileRef = F92CE7087FD4474D6C575ED2 /* UI2Shell.swift */; };
 		02481FC82554105644A41BA0 /* ActivitiesEditorScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 875F284960A85B36FC4E88E7 /* ActivitiesEditorScreen.swift */; };
 		0286F6BBC837D29DF679FCC4 /* ActivityTypeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2CC9158A6A58A4861557AD41 /* ActivityTypeCard.swift */; };
@@ -1179,6 +1182,8 @@
 		F7A4D695AE2ACBC8DD649960 /* HomeDashboardContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeDashboardContainer.swift; path = Containers/Home/HomeDashboardContainer.swift; sourceTree = "<group>"; };
 		F872551E8E1EBD5B6696457E /* PercentBar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PercentBar.swift; sourceTree = "<group>"; };
 		F8B5C32E5E9B47D1A6F2E4B3 /* QRCodeScreenPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeScreenPage.swift; sourceTree = "<group>"; };
+		E6B4A1000000000000000003 /* UI2ErrorBannerHost.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2ErrorBannerHost.swift; sourceTree = "<group>"; };
+		E6B4A1000000000000000005 /* UI2ErrorBannerHostTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2ErrorBannerHostTests.swift; sourceTree = "<group>"; };
 		F92CE7087FD4474D6C575ED2 /* UI2Shell.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2Shell.swift; sourceTree = "<group>"; };
 		F96B0F7A3B4647434537DE76 /* UI2ShellModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2ShellModelTests.swift; sourceTree = "<group>"; };
 		FB16994C803D8C9D8E54158D /* MemberFieldEditorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = MemberFieldEditorTests.swift; sourceTree = "<group>"; };
@@ -1683,6 +1688,7 @@
 				F96B0F7A3B4647434537DE76 /* UI2ShellModelTests.swift */,
 				A7C3E15D2B8F4961D0E4A7B1 /* InviteActionsTests.swift */,
 				E1F2A3B4C5D60718293A4B05 /* InviteEntryTests.swift */,
+				E6B4A1000000000000000005 /* UI2ErrorBannerHostTests.swift */,
 				B1A2C3D4E5F60718293A4B5D /* InviteSelectGroupMapperTests.swift */,
 				F1A2B3C4D5E60718293A4C05 /* InviteMemberSendTests.swift */,
 				EC8C4B11C668BCCF2F63D17F /* TopNavDragTests.swift */,
@@ -1873,6 +1879,7 @@
 			children = (
 				933803A1F05DD48F7891BDF2 /* UI2ShellModel.swift */,
 				F92CE7087FD4474D6C575ED2 /* UI2Shell.swift */,
+				E6B4A1000000000000000003 /* UI2ErrorBannerHost.swift */,
 				9B9C75D11CAC091343DF3BED /* TopNavHost.swift */,
 				E3D93499CD42C4938E074090 /* EmptyPage.swift */,
 				406C477CDE9B26111A88BCEF /* HomeSectionLayout.swift */,
@@ -2759,6 +2766,7 @@
 				90DC5A1324DE8066E3BC652E /* UI2ShellModelTests.swift in Sources */,
 				5E9D0B4C7A1F36828C2D93F4 /* InviteActionsTests.swift in Sources */,
 				E1F2A3B4C5D60718293A4B04 /* InviteEntryTests.swift in Sources */,
+				E6B4A1000000000000000004 /* UI2ErrorBannerHostTests.swift in Sources */,
 				B1A2C3D4E5F60718293A4B5C /* InviteSelectGroupMapperTests.swift in Sources */,
 				F1A2B3C4D5E60718293A4C03 /* InviteMemberSendTests.swift in Sources */,
 				4CDE4ECB783FF419C968CC10 /* TopNavDragTests.swift in Sources */,
@@ -3011,6 +3019,7 @@
 				7C776415C2C975D258164568 /* LoginOutcome.swift in Sources */,
 				88310D9DAAFE372424BCD2A9 /* UI2ShellModel.swift in Sources */,
 				01DC38152353E3F3F17A29E5 /* UI2Shell.swift in Sources */,
+				E6B4A1000000000000000001 /* UI2ErrorBannerHost.swift in Sources */,
 				CDADDAE442262291CE7CA102 /* TopNavHost.swift in Sources */,
 				DB5F6BAFCBB1E9DBB5317AC5 /* EmptyPage.swift in Sources */,
 				1DA6524EFD1A43FF6995132D /* DashboardModels.swift in Sources */,
@@ -3421,6 +3430,7 @@
 				6B411A460D0C12CB2075F9AC /* LoginOutcome.swift in Sources */,
 				11E10844813CAF3F0714C60E /* UI2ShellModel.swift in Sources */,
 				BD168B4A9E0F4CCA156151CE /* UI2Shell.swift in Sources */,
+				E6B4A1000000000000000002 /* UI2ErrorBannerHost.swift in Sources */,
 				3047A7E01D41A8CF19D0679C /* TopNavHost.swift in Sources */,
 				0FB40CBAF6AA32DDDDA497D5 /* EmptyPage.swift in Sources */,
 				7E998DFA32F028AB0DAB38C3 /* DashboardModels.swift in Sources */,
