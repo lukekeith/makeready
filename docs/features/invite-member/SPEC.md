@@ -185,29 +185,39 @@ released build stores is reshaped.
 
 ## Testing
 
-- **server** — `routes/__tests__/invites.test.ts`: `/send` accepts and persists `recipientName`,
+### server
+
+- `routes/__tests__/invites.test.ts`: `/send` accepts and persists `recipientName`,
   rejects 0 or 101 chars, still accepts a body without it; `GET /` and `PATCH /:id` return it;
   `GET /:token` does not. `twilio` service test: in test mode `sendSMS` returns success with a
   `test-` sid and never constructs a Twilio call (D17). A `groups` route test: `creatorName` present and equal to the creator's
   name. `npx tsc --noEmit`, `-p fixtures`, `npm run test:run`, `schema:validate`.
-- **iphone** — XCTest: `InviteActions.sendInvite` request body + error mapping (stub API);
+
+### iphone
+
+- XCTest: `InviteActions.sendInvite` request body + error mapping (stub API);
   `UserGroup` decodes with and without `creatorName`; the entry decision (0 / 1 / 2+ groups → none /
   `.inviteMember` / `.inviteSelectGroup`); the picker mapper (chips, alphabetical order, Leaders
   filter, Orgs visibility). `npm run ios:build-check -- --test`, swiftlint from `iphone/`.
-- **Cross-app E2E walk** (dev env, fixtures reset, Fixtures identity):
-  1. Home → "+" → Invite a member → Select group lists the fixture groups with leader · members ·
-     enrollments chips; Leaders filter narrows the list; pick one → Select.
-  2. Step 1: Continue disabled until a name; type "Ada Test" → Continue.
-  3. Step 2: key 9 digits — Send disabled; 10th digit enables it; an 11th is ignored; ⌫ removes one;
-     long-press ⌫ clears; re-key → Send invite → buttons and keypad lock while sending.
-  4. Step 3 shows "Invitation was sent to / Ada Test / +1 (…) …-…" and Done only → Done returns to Home.
-  5. `GET /api/invites` (curl, leader session) shows the new invite with `recipientName: "Ada Test"`;
-     `GET /api/invites/<token>` does not include it.
-  6. Invite the same number again (the template's 1200-minute rate limit, `sms-campaign.ts:174-180`,
-     makes the server answer 400 "Rate limited: …") → stays on step 2 with the number kept, banner
-     shows the server error. (The keypad cannot produce a number the E.164 check rejects.)
-- **Human verification:** the walk above on the dev simulator, plus a single-group leader going
-  straight to step 1.
+
+### Cross-app E2E walk (dev env, fixtures reset, Fixtures identity)
+
+1. Home → "+" → Invite a member → Select group lists the fixture groups with leader · members ·
+   enrollments chips; Leaders filter narrows the list; pick one → Select.
+2. Step 1: Continue disabled until a name; type "Ada Test" → Continue.
+3. Step 2: key 9 digits — Send disabled; 10th digit enables it; an 11th is ignored; ⌫ removes one;
+   long-press ⌫ clears; re-key → Send invite → buttons and keypad lock while sending.
+4. Step 3 shows "Invitation was sent to / Ada Test / +1 (…) …-…" and Done only → Done returns to Home.
+5. `GET /api/invites` (curl, leader session) shows the new invite with `recipientName: "Ada Test"`;
+   `GET /api/invites/<token>` does not include it.
+6. Invite the same number again (the template's 1200-minute rate limit, `sms-campaign.ts:174-180`,
+   makes the server answer 400 "Rate limited: …") → stays on step 2 with the number kept, banner
+   shows the server error. (The keypad cannot produce a number the E.164 check rejects.)
+
+### Human verification
+
+7. A single-group leader (exactly one group) taps "+" → Invite a member and lands straight on step 1 —
+   no group picker. A person also walks steps 1–6 above on the dev simulator.
 
 ## Out of scope
 

@@ -1,7 +1,7 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/invite-member
-head: fa5e385
+head: 6a7e771
 ticket: none
 branch: builder/invite-member
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: ui2-preview-build
 walk: none
 verify: none
-ready: none
+ready: pending "dev env (fleet walk lane)"
 ui2: invite-member (C-040, C-046→C-045, C-048, C-107→C-108, C-109; reuses enrollment-select-group)
 auto: on 2026-10-26
 blocked: none
