@@ -1,7 +1,7 @@
 size: lg
 state: audited
 next: /builder:resume --path docs/features/image-framing-editor
-head: f8e1532
+head: 255cbf4
 ticket: none
 branch: main
 pr: none
