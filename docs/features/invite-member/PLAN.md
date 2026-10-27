@@ -1200,7 +1200,7 @@ Recipe: `/ios-error-surface` · SPEC D1, D4, D7, D10, D11, F2, F8
 - Consumes: `InviteActions.sendInvite` (Task 7); `UI2Navigator.pop/popTo` (Task 8); `InviteMemberScreen` with D7's two additions.
 - Produces: `InviteMemberContainer(groupId: String, returnDepth: Int)`; `InviteMemberSend.run(groupId:name:phone:actions:state:) async -> Bool`.
 
-- [ ] **Step 1: Check D7 has landed (F2)** — read `iphone/MakeReadyUI/Screens/Groups/InviteMemberScreen.swift`. It must have (a) an input that hides View invite (default showing) and (b) adoption of a later `State.step` change (an `onChange(of: state.step)` or equivalent). Either missing → STOP this task and report `BLOCKED: D7 not landed — run /d2m:screen:update invite-member (adds the View-invite switch and step adoption)`. Do not edit `MakeReadyUI/**`, and do not work around it with `.id(...)` (D7 rejected that).
+- [ ] **Step 1: Check D7 has landed (F2)** — read `iphone/MakeReadyUI/Screens/Groups/InviteMemberScreen.swift`. It must have (a) an input that hides View invite (default showing) and (b) adoption of a later `State.step` change (an `onChange(of: state.step)` or equivalent). (Landed 2026-10-26 in place — `showsViewInvite:` and `.onChange(of: state.step)`, D7 superseded.) Either missing → STOP this task and report `BLOCKED: D7 not landed`. Do not edit `MakeReadyUI/**`, and do not work around it with `.id(...)` (D7 rejected that).
 
 - [ ] **Step 2: Re-capture the screen (F8)** — `node capture/runners/ui2/capture.mjs invite-member`; report any diff the d2m run did not have. Capture server down → say so and continue.
 
