@@ -1,5 +1,5 @@
 # filter-multiselect — spec
-> 🤖 AGENT SIGNED OFF 2026-10-26 — 23022c6 · agent walk round 1 · not human-tested · evidence: .builder/filter-multiselect/agent-walk/round-1/
+> ✅ SHIPPED 2026-10-26 — merged into ui2-preview-build · no ticket · 🤖 agent signed off (walk round 1), not human-tested
 > lg · ticket none
 
 ## Idea
@@ -218,3 +218,4 @@ Automated tests — **iphone:** XCTest in `iphone/MakeReadyCaptureTests/` (`Memb
 | F7 | An empty list after parsing pushed as `in: []` would match nothing | build-time risk — server route task: D11 treats it as absent; route test `groupIds=,` |
 | F8 | Two Members options with the same label (unnamed leaders all read "Group Leader"; group names aren't unique) collapse under label-as-id | resolved — D15; invite picker likewise by D13 |
 | F9 | The fixtures house rule (a feature wiring a UI 2.0 screen adds `server/fixtures/screens/<id>.ts`) — this feature wires no new screen (Groups home stays unwired, Members/invite already wired) | no fixture layer owed |
+| L1 | lesson for §Standing traps: a fleet worktree has no `server/.env`, so the server fast set (`test:run`, `migrate:status`) goes red at import (passport needs `GOOGLE_CLIENT_ID`) and on every DB suite unless run under `agent_walk.env` — judge server reds by whether the failing suites import the changed modules | proposed |
