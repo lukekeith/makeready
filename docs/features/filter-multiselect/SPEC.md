@@ -59,10 +59,10 @@ consumer. *Rejected:* each presenter holds its own draft — the same logic four
 | iphone | ✅ | C-036 draft + Save; Members, invite picker and Groups home presenters hold sets; "All …" rows removed; chip labels; `MemberActions.loadDirectory` sends lists | §iphone |
 | capture | ⬜ | Not touched: no new twin or adapter; d2m's own captures of C-036 / Members re-record when d2m catches up (F2) | — |
 
-**Sequencing:** contract → server implements and verifies (contract FREEZES) → iphone builds against it → walk.
+**Sequencing:** contract → server implements and verifies (contract FREEZES) → iphone builds against it → walk. The server change must be deployed before any iPhone build carrying this feature ships.
 
 **Backward compatibility:** released iPhone builds send only `groupId`/`leaderId`; those keep their
-exact meaning (D6). The response shape is unchanged.
+exact meaning (D6). The response shape is unchanged. An older server ignores `groupIds`/`leaderIds` and returns the unfiltered list, so the server must be deployed first.
 
 **Blast radius:** the members directory is read only by the iPhone Members screen (2.0) — the 1.0
 Members pages are out of the app target.
