@@ -1,7 +1,7 @@
 size: md
-state: aligned
+state: audited
 next: /builder:resume --path docs/features/ui2-groups-edit
-head: 77bc1e2
+head: 2b24ca6
 ticket: none
 branch: builder/ui2-groups-edit
 pr: none
