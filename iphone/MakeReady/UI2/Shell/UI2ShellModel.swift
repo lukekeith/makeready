@@ -23,6 +23,12 @@ enum UI2Destination: Hashable {
     case inviteSelectGroup(returnDepth: Int)
     /// invite-member D1/D2: the invite page for one group.
     case inviteMember(groupId: String, returnDepth: Int)
+    /// ui2-groups-browse D1: one group's page. `name` is the list-known title C-040 shows while
+    /// the group loads (D4).
+    case groupDetail(id: String, name: String)
+    /// ui2-groups-browse D1/D8: the create form, pushed on the Home stack by the Groups `+`;
+    /// success replaces it with the new group's `.groupDetail`.
+    case createGroup
 }
 
 /// Ephemeral shell state (SPEC D19) — held as @State by UI2Shell, never persisted.
@@ -42,6 +48,13 @@ struct UI2ShellModel {
 
     /// D1: TopNav is part of the Home stack's ROOT page, so a pushed page covers it — no hide logic.
     var showsTopNav: Bool { tab == .home }
+
+    /// home-dashboard-data D24 + ui2-groups-browse D3: the section whose pull-to-refresh is
+    /// wired — Home and Groups, on the Home tab; nil anywhere else.
+    var refreshableSection: UI2Section? {
+        guard tab == .home, section == .home || section == .groups else { return nil }
+        return section
+    }
 
     func path(for tab: TabBar.Tab) -> [UI2Destination] { paths[tab] ?? [] }
 

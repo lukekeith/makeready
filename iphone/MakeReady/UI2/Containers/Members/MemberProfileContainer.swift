@@ -46,8 +46,13 @@ struct MemberProfileContainer: View {
                     state: state,
                     showsHeader: false,
                     // ui2-members-edit D2: a field row pushes its edit page on this tab's stack.
-                    // Group rows, program rows, both `add`s and the day cards stay no-ops (browse D5).
-                    onEditField: { navigator.push(.editMemberField(memberId: memberId, field: $0)) }
+                    onEditField: { navigator.push(.editMemberField(memberId: memberId, field: $0)) },
+                    // ui2-groups-browse D7: a group row opens that group's page. Program rows, both
+                    // `add`s and the day cards stay no-ops (browse D5).
+                    onOpenGroup: { row in
+                        guard let page = Self.groupDestination(app.memberGroupsById[memberId], row: row) else { return }
+                        navigator.push(page)
+                    }
                 )
             }
             .scrollIndicators(.hidden)
@@ -82,6 +87,13 @@ struct MemberProfileContainer: View {
             guard let url = URL(string: raw), Ui2ImageCache.shared.image(for: url) != nil else { return "" }
             return raw
         }
+    }
+
+    /// ui2-groups-browse D7: the page a group row opens — rows are `memberGroupsById` in order
+    /// (MemberProfileMapper maps them one-for-one).
+    static func groupDestination(_ groups: [MemberGroupItem]?, row: Int) -> UI2Destination? {
+        guard let groups, groups.indices.contains(row) else { return nil }
+        return .groupDetail(id: groups[row].id, name: groups[row].name)
     }
 
     /// C-059 §4 `cover: Image?` is caller-resolved: the screen reads Ui2ImageCache only

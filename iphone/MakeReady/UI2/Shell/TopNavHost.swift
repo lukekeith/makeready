@@ -92,10 +92,14 @@ struct TopNavHost: View {
             onSelect: select,
             onToggleExpansion: toggle,
             // The Members `add` opens the invite flow, exactly as the Add menu's row does (owner
-            // 2026-10-26); the other add slots stay no-ops (SPEC D10).
+            // 2026-10-26); the Groups `add` pushes create-group on the Home stack (ui2-groups-browse
+            // D7/D8, OQ-groups-home-2); the other add slots stay no-ops (SPEC D10).
             onAdd: { tab in
-                guard tab == UI2Section.members.rawValue else { return }
-                InviteEntry.open(on: .home, model: $model)
+                switch UI2Section(rawValue: tab) {
+                case .members?: InviteEntry.open(on: .home, model: $model)
+                case .groups?: model.push(.createGroup, on: .home)
+                default: return
+                }
             }
         )
         // Simultaneous so TopNav's own horizontal ScrollView keeps its pan; only a drag whose

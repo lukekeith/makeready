@@ -200,4 +200,61 @@ final class UI2ShellModelTests: XCTestCase {
         m.replaceTop(editPhone, with: tony, on: .profile)                // empty tab: no-op
         XCTAssertEqual(m.path(for: .profile), [])
     }
+
+    // MARK: - ui2-groups-browse D1/D3/D7/D8: the group routes
+
+    private let walkGroup = UI2Destination.groupDetail(id: "g9", name: "Walk Test Group")
+
+    /// D1: the group page is keyed by id and name, and pushes on the Home stack like any page.
+    func testGroupDetailPushesOnTheHomeStack() {
+        var m = UI2ShellModel()
+        m.apply(.section(.groups))
+        m.push(walkGroup, on: .home)
+        XCTAssertEqual(m.path(for: .home), [walkGroup])
+        XCTAssertNotEqual(walkGroup, .groupDetail(id: "g8", name: "Walk Test Group"))
+        m.push(.memberDetail(id: "m1", name: "Tony Stark"), on: .home)   // D7: member row
+        XCTAssertEqual(m.path(for: .home).count, 2)
+    }
+
+    /// D8: TopNav `+` pushes the form; success replaces it with the new group's page; back → Groups.
+    func testCreateGroupIsReplacedByTheNewGroupsPage() {
+        var m = UI2ShellModel()
+        m.apply(.section(.groups))
+        m.push(.createGroup, on: .home)
+        m.replaceTop(.createGroup, with: walkGroup, on: .home)
+        XCTAssertEqual(m.path(for: .home), [walkGroup])
+        m.pop(on: .home)
+        XCTAssertEqual(m.path(for: .home), [])
+        XCTAssertEqual(m.section, .groups)
+    }
+
+    /// D8: swiped back mid-create → the success writes nothing.
+    func testCreateSwipedBackMidCreateWritesNothing() {
+        var m = UI2ShellModel()
+        m.push(.createGroup, on: .home)
+        m.setPath([], for: .home)
+        m.replaceTop(.createGroup, with: walkGroup, on: .home)
+        XCTAssertEqual(m.path(for: .home), [])
+    }
+
+    /// D3 + home-dashboard-data D24: pull-to-refresh is wired for Home and Groups only.
+    func testRefreshableSectionsAreHomeAndGroups() {
+        var m = UI2ShellModel()
+        XCTAssertEqual(m.refreshableSection, .home)
+        m.apply(.section(.groups))
+        XCTAssertEqual(m.refreshableSection, .groups)
+        m.apply(.section(.members))
+        XCTAssertNil(m.refreshableSection)
+        m.apply(.section(.groups))
+        m.apply(.tab(.search))
+        XCTAssertNil(m.refreshableSection)
+    }
+
+    /// D7: a member page's group row opens that group (rows are `memberGroupsById` in order).
+    func testMemberPageGroupRowOpensTheGroup() {
+        let groups = [MemberGroupItem(id: "g1", name: "Young professionals"), MemberGroupItem(id: "g2", name: "The kids")]
+        XCTAssertEqual(MemberProfileContainer.groupDestination(groups, row: 1), .groupDetail(id: "g2", name: "The kids"))
+        XCTAssertNil(MemberProfileContainer.groupDestination(groups, row: 2))
+        XCTAssertNil(MemberProfileContainer.groupDestination(nil, row: 0))
+    }
 }

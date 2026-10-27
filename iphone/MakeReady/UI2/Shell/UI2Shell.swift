@@ -153,20 +153,27 @@ struct UI2Shell: View {
         case let .editMemberField(memberId, field): MemberFieldEditContainer(memberId: memberId, field: field)  // ui2-members-edit D2
         case let .inviteSelectGroup(returnDepth): InviteSelectGroupContainer(returnDepth: returnDepth)  // invite-member D3
         case let .inviteMember(groupId, returnDepth): InviteMemberContainer(groupId: groupId, returnDepth: returnDepth)  // invite-member D1
+        case let .groupDetail(id, name): GroupDetailHost(id: id, name: name)                 // ui2-groups-browse D1
+        case .createGroup:                                                                    // ui2-groups-browse D1/D8
+            CreateGroupContainer(route: .createGroup, destination: { .groupDetail(id: $0.id, name: $0.name) })
         }
     }
 
-    /// home-dashboard-data D24: the pull-to-refresh of the page on screen — Home only (the other
-    /// sections are unwired, D10).
+    /// home-dashboard-data D24 + ui2-groups-browse D3: the pull-to-refresh of the page on screen —
+    /// Home's dashboard and the Groups list (the other sections are unwired, D10).
     private var refreshAction: (@MainActor () async -> Void)? {
-        guard model.tab == .home, model.section == .home else { return nil }
-        return { [authManager] in await HomeDashboardContainer.refresh(authManager: authManager) }
+        switch model.refreshableSection {
+        case .home?: return { [authManager] in await HomeDashboardContainer.refresh(authManager: authManager) }
+        case .groups?: return { [authManager] in await GroupsHomeContainer.refresh(authManager: authManager) }
+        default: return nil
+        }
     }
 
     @ViewBuilder private var sectionContent: some View {
         switch model.section {
         case .home: HomeDashboardContainer()  // SPEC D8/D13
         case .members: MembersHomeContainer() // ui2-members-browse
+        case .groups: GroupsHomeContainer(destination: { .groupDetail(id: $0, name: $1) })  // ui2-groups-browse D1/D3
         default: EmptyPage()                  // SPEC D10: Library…Media are unwired
         }
     }
