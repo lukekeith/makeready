@@ -7,6 +7,8 @@
 //
 //  DEPENDENCY: C-021 GlyphButton, level 1 — its own contract and preview view. It fills the
 //  leading slot and each trailing glyph and owns its 44×44 tap area (OQ-C-040-7).
+//  DEPENDENCY: C-076 ActivitySpinner, level 1 — replaces the `textButtons` trailing label
+//  while `trailingLoading` is true (D66).
 //
 
 import SwiftUI
@@ -42,12 +44,19 @@ struct PageHeader: View {
     let rightButtons: [GlyphButton.Glyph]
     /// §4 `leadingLabel` — `textButtons` leading label (OQ-C-040-4).
     var leadingLabel: String = "Cancel"
+    /// §4 `leadingEnabled` — whether the `textButtons` leading label is tappable. `false`:
+    /// `color-white-50` (its tint already), not tappable, not-enabled trait (D66).
+    var leadingEnabled: Bool = true
     /// §4 `trailingLabel` — the trailing text action of `textButtons` and `backAndLink`
     /// (OQ-C-040-4, D60): Select / Save / Enroll / Done.
     var trailingLabel: String = "Done"
     /// §4 `trailingEnabled` — whether the trailing text action is tappable. `false` is the
     /// undesigned dimmed look (OQ-C-040-001): `color-white-50`, not tappable, same geometry.
     var trailingEnabled: Bool = true
+    /// §4 `trailingLoading` — the `textButtons` saving look: a C-076 ActivitySpinner replaces
+    /// the trailing label and the action is not tappable. Wins over `trailingEnabled`;
+    /// `backAndLink` ignores it (D66).
+    var trailingLoading: Bool = false
     // Interaction-bearing props have no render effect; defaulted no-ops (R-03) so the
     // promoted view keeps its real signature. Shape confirmed by OQ-C-040-8.
     var onLeading: () -> Void = {}
@@ -73,6 +82,7 @@ struct PageHeader: View {
             GlyphButton(glyph: leadingGlyph, onTap: onLeading)
         case .textButtons:
             label(leadingLabel, color: Token.white50, action: onCancel)
+                .disabled(!leadingEnabled)               // D66: onCancel never fires
                 .ui2Element("Leading label")
         }
     }
@@ -88,6 +98,10 @@ struct PageHeader: View {
                     }
                 }
             }
+        case .textButtons where trailingLoading:       // D66: spinner replaces the label
+            // C-076 at its designed 24pt / color-accent — the label's line box, so the bar stays 56.
+            ActivitySpinner()
+                .ui2Element("Trailing spinner")
         case .textButtons, .backAndLink:              // D60: the same text action
             label(trailingLabel, color: trailingEnabled ? Token.accent : Token.white50, action: onDone)
                 .disabled(!trailingEnabled)              // OQ-C-040-001: onDone never fires
@@ -108,7 +122,7 @@ struct PageHeader: View {
                 // lineSpacing, so the 24 is the frame (else a glyph-less bar is 49pt, not 56).
                 .frame(minHeight: Token.TypeStyle.navAction.lineHeight)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(UndimmedLabelStyle())             // the tint is the whole disabled look
         .contentShape(LabelHitShape(height: Self.labelHitHeight))
         .accessibilityLabel(text)
         .accessibilityAddTraits(.isButton)
@@ -124,6 +138,14 @@ struct PageHeader: View {
                 .accessibilityAddTraits(.isHeader)
                 .ui2Element("Title")
         }
+    }
+}
+
+/// Draws the label exactly as tinted. `.plain` dims a disabled label again on top of its
+/// tint, which would put the ruled `color-white-50` look (OQ-C-040-001, D66) at ~25%.
+private struct UndimmedLabelStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
     }
 }
 

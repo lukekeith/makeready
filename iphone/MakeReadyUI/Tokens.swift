@@ -373,7 +373,7 @@ enum Token {
     static let ink300 = Color(red: 0.8039, green: 0.8039, blue: 0.8039, opacity: 1)
     static let ink400 = Color(red: 0.5686, green: 0.5686, blue: 0.5686, opacity: 1)
     static let ink500 = Color(red: 0.3686, green: 0.3686, blue: 0.3686, opacity: 1)
-    static let ink600 = Color(red: 0.2235, green: 0.2235, blue: 0.2235, opacity: 1)
+    static let ink600 = Color(red: 0.1843, green: 0.2118, blue: 0.2235, opacity: 1)
     static let ink700 = Color(red: 0.1451, green: 0.1451, blue: 0.1451, opacity: 1)
     static let ink800 = Color(red: 0.0392, green: 0.0392, blue: 0.0392, opacity: 1)
     static let ink900 = Color(red: 0.0118, green: 0.0157, blue: 0.0196, opacity: 1)
