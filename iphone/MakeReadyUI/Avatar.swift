@@ -81,6 +81,9 @@ struct Avatar: View {
         // §2: Root — a `size` × `size` box clipped to the outline; everything inside clips to it.
         .frame(width: size, height: size)
         .clipShape(outline)
+        // enrollment-select-group §3 Motion: "the selection change cross-fades C-038's image/
+        // selected look (C-038 owns the timing)" — 300ms (owner, 2026-10-26).
+        .animation(Self.selectFade, value: selected)
         .ui2Element("Avatar")                     // capture element map — UI2Element.swift
     }
 
@@ -212,4 +215,7 @@ struct Avatar: View {
     private static let checkmarkRatio: CGFloat = 24.0 / 64.0
     // FLAGGED LITERAL — C-038 §2: the selected content's 20% layer opacity.
     private static let selectedContentOpacity: Double = 0.2
+    // FLAGGED LITERAL — owner 2026-10-26: the selected look cross-fades in 300ms; no motion
+    // token names a selection fade.
+    private static let selectFade = Animation.easeOut(duration: 0.3)
 }

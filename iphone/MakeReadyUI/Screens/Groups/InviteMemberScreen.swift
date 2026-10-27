@@ -156,7 +156,10 @@ struct InviteMemberScreen: View {
             layout: .centered,
             text: name,
             placeholder: Self.namePlaceholder,
-            editing: TextInput.Editing(autocapitalization: .words, focusOnAppear: true, accessibilityName: Self.nameLabel),
+            // §3 name-ready: "Keyboard Return = Continue" — only while Continue is enabled.
+            editing: TextInput.Editing(autocapitalization: .words, focusOnAppear: true,
+                                       accessibilityName: Self.nameLabel,
+                                       onSubmit: { if continueEnabled { step = .phone } }),
             onChange: { name = $0 }
         )
         .ui2Element("C-046 FieldGroup")

@@ -78,8 +78,14 @@ struct EnrollmentSelectGroupScreen: View {
     @SwiftUI.State private var query: String
     @SwiftUI.State private var selection: Int?
 
+    /// invite-member tweaks (owner 2026-10-26): true puts L3's group list in its own vertical
+    /// scroll under the pinned header and filter block, bouncing even when the rows fit. Default
+    /// false keeps D22's full-length canvas for previews and capture.
+    var scrollsList: Bool = false
+
     init(
         state: State,
+        scrollsList: Bool = false,
         onBack: @escaping () -> Void = {},
         onSelect: @escaping (Int) -> Void = { _ in },
         onSearch: @escaping (String) -> Void = { _ in },
@@ -88,6 +94,7 @@ struct EnrollmentSelectGroupScreen: View {
         onPickGroup: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
+        self.scrollsList = scrollsList
         self.onBack = onBack
         self.onSelect = onSelect
         self.onSearch = onSearch
@@ -129,7 +136,13 @@ struct EnrollmentSelectGroupScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             header
             filterBlock
-            listArea
+            if scrollsList {
+                // §2 L3: "vertical scroll container directly under the filter block".
+                ScrollView(.vertical) { listArea }
+                    .scrollBounceBehavior(.always, axes: .vertical)
+            } else {
+                listArea
+            }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: the page background

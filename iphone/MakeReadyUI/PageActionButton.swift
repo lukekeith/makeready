@@ -108,6 +108,10 @@ struct PageActionButton: View {
                 RoundedRectangle(cornerRadius: Token.Radius.card + Self.hairline)
                     .strokeBorder(look.stroke, lineWidth: Self.hairline)
             )
+            // §2 "Hit target = the button's own frame": every role but Prominent fills
+            // `Token.transparent`, and a ButtonStyle hit-tests only painted pixels — without this
+            // only the label and the 1px ring took taps (owner, 2026-10-26).
+            .contentShape(RoundedRectangle(cornerRadius: Token.Radius.card + Self.hairline))
     }
 
     /// §2 "Content layout" — only when a glyph is present. `spread` (Figma `content=Between`):

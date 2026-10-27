@@ -25,6 +25,7 @@ struct InviteSelectGroupContainer: View {
         ))
         EnrollmentSelectGroupScreen(
             state: output.state,
+            scrollsList: true,                 // the list scrolls and bounces under the pinned header
             onBack: { navigator.pop() },
             onSelect: { index in
                 guard output.groupIds.indices.contains(index) else { return }

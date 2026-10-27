@@ -71,6 +71,9 @@ struct TextInput: View {
         /// input-masking: formats the text as it is typed — the caller still owns `text` (now the
         /// formatted form) and reads the saved value back with `mask.raw(_:)`. nil = no mask.
         var mask: InputMask? = nil
+        /// invite-member tweaks (owner 2026-10-26): Return runs this — a page whose primary
+        /// action should fire from the keyboard. nil keeps D22: Return does nothing, focus stays.
+        var onSubmit: (() -> Void)? = nil
     }
 
     var body: some View {
@@ -320,7 +323,9 @@ private struct LiveField: View {
         .disabled(!editing.isEnabled)
         // D22: on a single-line page the return key does nothing — Save stays a tap — so the
         // field keeps focus instead of resigning.
-        .onSubmit { if !multiline { fieldFocused = true } }
+        .onSubmit {
+            if let submit = editing.onSubmit, !multiline { submit() } else if !multiline { fieldFocused = true }
+        }
         .onChange(of: fieldFocused) { _, now in onFocusChange(now) }
 
         .onAppear { if editing.focusOnAppear { fieldFocused = true } }
@@ -400,7 +405,11 @@ private struct MaskedTextField: UIViewRepresentable {
             parent.onChange(formatted)
         }
 
-        func textFieldShouldReturn(_ field: UITextField) -> Bool { false }   // D22: return does nothing
+        // D22: return does nothing — unless the caller asked for a Return action.
+        func textFieldShouldReturn(_ field: UITextField) -> Bool {
+            parent.editing.onSubmit?()
+            return false
+        }
         func textFieldDidBeginEditing(_ field: UITextField) { parent.onFocusChange(true) }
         func textFieldDidEndEditing(_ field: UITextField) { parent.onFocusChange(false) }
     }
