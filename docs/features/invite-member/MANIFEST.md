@@ -1,7 +1,7 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/invite-member
-head: 4e169fe
+head: fa5e385
 ticket: none
 branch: builder/invite-member
 pr: none
@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: invite-member (C-040, C-046→C-045, C-048, C-107→C-108, C-109; reuses enrollment-select-group)
 auto: on 2026-10-26
-blocked: none
+blocked: "The invite page can't hide View invite or show its sent step after a send until the d2m screen update lands (D7) — next: /d2m:screen:update invite-member, then /builder:agent --path docs/features/invite-member"
 agent-walk: on 2026-10-26
