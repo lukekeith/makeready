@@ -105,7 +105,7 @@ unaffected.
 | D14 | Which groups | The picker lists every group `GET /api/groups` returns (already scoped by `groupManageFilter`); `allowInvites` is not consulted — it governs member-side sharing, not leader SMS invites | (assumed at spec) 2026-10-26 |
 | D16 | Orgs chip on the group pick | `orgFilterVisible` is always `false` in `InviteSelectGroupContainer` for this feature. Why: `UserGroup` carries no `organizationId` (`GET /api/groups` returns none), so a visible Orgs chip could not filter anything, and `AppState.userOrganizations` holds at most one org today (`AppState.swift:162-166`), so D3's 2+ condition is never true. Rejected: *add `organizationId` to `GET /api/groups` and filter by it* — widens the server change for a state no leader can reach today | auto (recommended) 2026-10-26 |
 | D17 | SMS in Twilio test mode | When `twilio.ts`'s `isTestMode` is true (`NODE_ENV=test` or `TEST_VERIFICATION_CODES` set), `sendSMS` calls no Twilio API and returns `{ success: true, messageSid: "test-<uuid>" }`, logging `[Twilio] test mode — SMS not sent to <to>`; with Twilio configured (no test-mode signal) nothing changes. Mirrors the verification test-code path (`twilio.ts:116`, `:166`). Why: today it throws "Twilio client not initialized" (`twilio.ts:283-285`), so `/send` returns 400 and deletes the invite in every test-mode env, the agent walk's included. Rejected: *real Twilio credentials in the walk env* — sends real SMS to fixture numbers and puts secrets in fleet worktrees | auto (recommended) 2026-10-26 |
-| D18 | The `group-invite-v1` template in a fresh DB | `src/scripts/seed-sms-campaigns.ts` exports its idempotent upsert as `seedSmsCampaigns(prisma)` (the CLI keeps calling it), and `fixtures/screens/invite-member.ts` calls it first in `full`, so `fixtures:reset` guarantees the template. Why: no seed or migration creates SMS templates (`server/seeds/manifest.yaml` lists none), so a reset DB answers `/send` with 400 `Template not found: group-invite-v1` (`sms-campaign.ts:147`). Rejected: *a dev seed YAML* — a second copy of the campaign definitions that drifts; *the versioned seeds* — prod would re-upsert edited live template copy | auto (recommended) 2026-10-26 |
+| D18 | The `group-invite-v1` template in a fresh DB | the campaign definitions and their idempotent upsert move out of `src/scripts/seed-sms-campaigns.ts` into `src/services/sms-campaign-seed.ts` as `seedSmsCampaigns(prisma)` (the CLI keeps calling it; a separate module because importing the script runs its `main()`), and `fixtures/screens/invite-member.ts` calls it first in `full`, so `fixtures:reset` guarantees the template. Why: no seed or migration creates SMS templates (`server/seeds/manifest.yaml` lists none), so a reset DB answers `/send` with 400 `Template not found: group-invite-v1` (`sms-campaign.ts:147`). Rejected: *a dev seed YAML* — a second copy of the campaign definitions that drifts; *the versioned seeds* — prod would re-upsert edited live template copy | auto (recommended) 2026-10-26 |
 | D15 | Fixtures | `server/fixtures/screens/invite-member.ts`, `full` scenario: one pending invite with `recipientName` "Tony Stark" on the base world's first fixture group, so `GET /api/invites` returns a named row; the base world's 3+ groups make the picker path walkable. Reads base entities only; dates from `ctx.now` | (assumed at spec) 2026-10-26 |
 
 ## Contract
@@ -235,7 +235,7 @@ released build stores is reshaped.
 | T7 | iphone: `InviteActions.sendInvite(groupId:recipientPhone:recipientName:)` posting the §Contract body (SC2 consumer) | trailing |
 | T8 | iphone: `InviteSelectGroupContainer` starts `EnrollmentActions().loadEnrollments(groupId:)` for each listed group with no cached enrollments, concurrently and console-only on failure; the chip reads `AppState.enrollmentsFor(groupId:).count` and updates as they land (no server count exists) | trailing |
 | T9 | server: `sendSMS` test-mode short-circuit + its test (D17) — service-only | blocking |
-| T10 | server: export `seedSmsCampaigns(prisma)` from `seed-sms-campaigns.ts`; the invite-member fixtures layer calls it (D18) — service-only | blocking |
+| T10 | server: `seedSmsCampaigns(prisma)` in `services/sms-campaign-seed.ts`, called by `seed-sms-campaigns.ts`; the invite-member fixtures layer calls it (D18) — service-only | blocking |
 | F6 | `UI2Navigator` has `push`, `pop`, `popIfTop` only (`UI2Navigation.swift:6-11`); D11's whole-flow pop needs a new capability on it and `UI2ShellModel` (pop the tab's path back to its depth at entry) | build-time risk — the iphone shell task adds it with a `UI2ShellModel` unit test |
 | F7 | Open questions on the in-scope set: OQ-invite-member-003 (`recipientName` API gap) → D8; OQ-C-045-002 (non-US numbers) → §Out of scope; picker OQ-003 (Orgs chip) → D16; picker OQ-002 (already-enrolled warning) → not reachable, this host never sets a warning; picker OQ-001, OQ-004, OQ-005, OQ-006 and OQ-C-040-001 are settled inside the built view, nothing for the host | disposed |
 | F8 | Render vs the frozen snapshots not re-diffed this pass: the capture server (`:5950`) did not answer and the audit starts no server. Both screens were built and diffed by d2m (snapshots 2026-10-19); `MakeReadyUI/**` is frozen here | build-time risk — the iphone phase's first task re-captures `invite-member` and `enrollment-select-group` with `capture/runners/ui2/capture.mjs` before wiring |
@@ -245,6 +245,24 @@ released build stores is reshaped.
 | R4 | repoint (iphone): `Route.groupsInviteMenu` ← `Services/Route.swift:35,101,155` (legacy overlay routes) | none — legacy files untouched |
 | F5 | The Orgs chip cannot filter: `UserGroup` has no `organizationId` | D16 |
 | F4 | `EnrollmentSelectGroupScreen`'s copy is enrollment-flavoured only in its empty line ("No groups ready to enroll"), which D12 keeps from ever showing here | resolved by D12 |
+
+## Plan
+
+The plan, with its code: `docs/features/invite-member/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · Invite.recipientName — column, send body, persisted by the service
+- Phase 1 · Task 2 · Leader invite reads return recipientName
+- Phase 1 · Task 3 · GET /api/groups returns creatorName
+- Phase 1 · Task 4 · sendSMS succeeds without Twilio in test mode
+- Phase 1 · Task 5 · SMS campaign seed module + invite-member fixtures layer; freeze the contract
+- Phase 2 · Task 6 · UserGroup.creatorName
+- Phase 2 · Task 7 · InviteActions.sendInvite
+- Phase 3 · Task 8 · The invite destinations and the whole-flow pop
+- Phase 3 · Task 9 · InviteSelectGroupMapper — the picker's state from AppState
+- Phase 3 · Task 10 · InviteSelectGroupContainer — host the picker
+- Phase 4 · Task 11 · InviteMemberContainer — host the invite page and send
+- Phase 4 · Task 12 · The Add-menu row opens the flow
+- Phase 4 · Task 13 · Residual sweep — nothing else points at the old invite entries
 
 ## Prototype
 
