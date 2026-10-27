@@ -15,5 +15,5 @@ walk: none
 verify: none
 ready: none
 auto: on 2026-10-27
-blocked: "the Edit cover screen is being specced and built in d2m (screen edit-cover, by session d2m-4a) and the build only wires it [F1] — next: when d2m's edit-cover commit lands on main, /builder:agent --path docs/features/group-cover-image"
+blocked: none
 agent-walk: on 2026-10-27

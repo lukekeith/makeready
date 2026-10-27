@@ -51,3 +51,4 @@ merges main in, and Task 11 finds the screen.
 - 2026-10-27 parked — Edit cover screen not built in d2m [F1]
 - 2026-10-27 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-10-27 re-parked at Task 11 — Phases 5–6 and Task 14 built; edit-cover in flight in d2m (d2m-4a)
+- 2026-10-27 unparked by a person — named to /builder:agent or /builder:fleet
