@@ -6,7 +6,11 @@ import { z } from 'zod'
 import sharp from 'sharp'
 import { prisma } from '../lib/prisma.js'
 import { Prisma } from '../generated/prisma/index.js'
-import { deleteFromR2, extractKeyFromUrl, uploadImageVariants, uploadToR2 } from './storage.js'
+import { uploadImageVariants, uploadToR2 } from './storage.js'
+import { ImageUploadError, assertDecodable, deleteOriginalBestEffort, encodeOriginal } from './image-original.js'
+
+/** Kept under their shipped names — routes/groups.ts and the group-cover tests import them from here. */
+export { ImageUploadError as CoverUploadError, ORIGINAL_MAX_PX } from './image-original.js'
 
 /**
  * D11 + D21: all finite; scale relative to the zoom floor (1…8), fine rotation in degrees (-45…45
@@ -30,14 +34,6 @@ export type CoverFraming = z.infer<typeof coverFramingSchema>
 export function parseStoredFraming(value: unknown): CoverFraming | null {
   const parsed = coverFramingSchema.safeParse(value)
   return parsed.success ? parsed.data : null
-}
-
-/** D10: the original's longest side, re-enforced server-side (D16). */
-export const ORIGINAL_MAX_PX = 2400
-
-/** A client error the route maps to its status (D10: a bad image is a 400, not a 500). */
-export class CoverUploadError extends Error {
-  readonly status = 400 as const
 }
 
 export interface SaveGroupCoverInput {
@@ -64,16 +60,6 @@ function decodeBase64(data: string): Buffer {
   return Buffer.from(data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
 }
 
-/** D10: either image failing sharp's metadata read is a 400. */
-async function assertDecodable(buffer: Buffer, label: string): Promise<void> {
-  try {
-    const meta = await sharp(buffer).metadata()
-    if (!meta.format) throw new Error('no format')
-  } catch {
-    throw new CoverUploadError(`The ${label} could not be decoded as an image`)
-  }
-}
-
 /**
  * D10 / D17: decode + validate both images, upload the rendered ladder (1200/400/150, as before)
  * and the re-encoded original, then ONE group update writing all three cover columns. D9: no
@@ -83,7 +69,7 @@ async function assertDecodable(buffer: Buffer, label: string): Promise<void> {
 export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGroupCoverResult> {
   const { group, framing } = input
   if (input.originalData !== undefined && framing === undefined) {
-    throw new CoverUploadError('originalData requires framing')
+    throw new ImageUploadError('originalData requires framing')
   }
 
   const rendered = decodeBase64(input.imageData)
@@ -98,13 +84,7 @@ export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGr
     sharp(rendered).resize(1200, null, { withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer(),
     sharp(rendered).resize(400, null, { withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer(),
     sharp(rendered).resize(150, null, { withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer(),
-    original
-      ? sharp(original)
-          .rotate()
-          .resize(ORIGINAL_MAX_PX, ORIGINAL_MAX_PX, { fit: 'inside', withoutEnlargement: true })
-          .jpeg({ quality: 90 })
-          .toBuffer()
-      : Promise.resolve(null),
+    original ? encodeOriginal(original) : Promise.resolve(null),
   ])
 
   const [{ url: coverImageUrl }, uploadedOriginalUrl] = await Promise.all([
@@ -121,16 +101,7 @@ export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGr
   })
 
   const previous = group.coverOriginalUrl
-  if (previous && previous !== coverOriginalUrl) {
-    const key = extractKeyFromUrl(previous)
-    if (key) {
-      try {
-        await deleteFromR2(key)
-      } catch (error) {
-        console.warn(`saveGroupCover: could not delete the old original ${key}:`, error)
-      }
-    }
-  }
+  if (previous && previous !== coverOriginalUrl) await deleteOriginalBestEffort(previous, 'saveGroupCover')
 
   return {
     coverImageUrl,

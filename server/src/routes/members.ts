@@ -1,7 +1,6 @@
-import { Router, type Request } from 'express'
+import { Router, type Request, type RequestHandler } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
-import sharp from 'sharp'
 import {
   getMember,
   getMemberByPhone,
@@ -39,26 +38,40 @@ import { getMemberEngagement } from '../services/member-engagement.js'
 import { AnalyticsQueryError, assertValidTimezone } from '../services/analytics.service.js'
 import { groupManageFilter } from '../services/permission.js'
 import { sendVerificationCode, verifyCode } from '../services/twilio.js'
-import { uploadMemberAvatar, deleteMemberAvatar } from '../services/storage.js'
+import { MemberAvatarNotFoundError, saveMemberAvatar } from '../services/member-avatar.js'
+import { ImageUploadError } from '../services/image-original.js'
 import { prisma } from '../lib/prisma.js'
 import { logSuccess } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 
-// Configure multer for memory storage (we'll process and upload to R2)
-const upload = multer({
+/** image-framing-editor D8: per file — a detailed 2400px JPEG 0.9 original can approach 5MB. */
+const AVATAR_FILE_LIMIT = 10 * 1024 * 1024
+const AVATAR_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+
+const avatarUpload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB
-  },
+  limits: { fileSize: AVATAR_FILE_LIMIT },
   fileFilter: (_req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true)
-    } else {
-      cb(new Error('Invalid file type. Allowed: JPEG, PNG, GIF, WebP'))
-    }
+    if (AVATAR_TYPES.includes(file.mimetype)) cb(null, true)
+    else cb(new Error('Invalid file type. Allowed: JPEG, PNG, GIF, WebP'))
   },
-})
+}).fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'avatar', maxCount: 1 },
+  { name: 'original', maxCount: 1 },
+])
+
+/** D8 / F4: multer errors answer JSON — over the limit 413, an unexpected field or file type 400. */
+const receiveAvatarUpload: RequestHandler = (req, res, next) => {
+  avatarUpload(req, res, (err: unknown) => {
+    if (!err) return next()
+    if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
+      res.status(413).json({ success: false, error: 'Each file must be 10MB or smaller' })
+      return
+    }
+    res.status(400).json({ success: false, error: err instanceof Error ? err.message : 'Invalid upload' })
+  })
+}
 
 const router = Router()
 
@@ -71,6 +84,24 @@ function viewerOf(req: Request, memberId: string): MemberViewer | null {
   if (req.session?.memberId === memberId) return { kind: 'self' }
   const userId = (req.user as { id?: string } | undefined)?.id
   return userId ? { kind: 'user', userId } : null
+}
+
+/**
+ * image-framing-editor D16: the PATCH visibility gate on a route behind requireMemberOrOrgOwner —
+ * a user the member is hidden from gets GET's 404 before anything is read or written.
+ */
+const requireVisibleMember: RequestHandler = async (req, res, next) => {
+  try {
+    const { memberId } = req.params
+    const viewer = viewerOf(req, memberId)
+    if (viewer?.kind === 'user' && !(await canViewMember(viewer.userId, memberId))) {
+      res.status(404).json({ success: false, error: 'Member not found' })
+      return
+    }
+    next()
+  } catch (error) {
+    next(error)
+  }
 }
 
 /**
@@ -1431,11 +1462,14 @@ router.delete('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  * /api/members/{memberId}/avatar:
  *   post:
  *     tags: [Members]
- *     summary: Upload member avatar
+ *     summary: Upload member avatar (with optional framing + original)
  *     description: |
- *       Uploads a new avatar image for the member. The image is processed,
- *       resized to a maximum of 512x512 pixels, and uploaded to cloud storage.
- *       Any existing avatar is automatically deleted.
+ *       image-framing-editor D8. The rendered avatar (`file`, or `avatar` — D14) is re-encoded to a
+ *       512px WebP and becomes profilePicture. With `framing` + `original` the full original
+ *       (re-encoded: EXIF applied, longest side 2400px, JPEG 90) and the framing are stored too;
+ *       `framing` alone re-frames the stored original; neither clears both. One DB write; the old
+ *       avatar and a replaced original are deleted afterwards. A user who cannot view the member
+ *       gets 404 (D16).
  *     security:
  *       - memberSession: []
  *       - userSession: []
@@ -1452,16 +1486,25 @@ router.delete('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  *         multipart/form-data:
  *           schema:
  *             type: object
- *             required:
- *               - file
  *             properties:
  *               file:
  *                 type: string
  *                 format: binary
- *                 description: Image file (JPEG, PNG, GIF, WebP). Max 5MB.
+ *                 description: The rendered avatar (JPEG, PNG, GIF, WebP), max 10MB. Required unless sent as `avatar`.
+ *               avatar:
+ *                 type: string
+ *                 format: binary
+ *                 description: D14 — the same image under the web's field name.
+ *               framing:
+ *                 type: string
+ *                 description: 'JSON string {scale 1–8, rotation -45–45, offsetX/offsetY -1–1, flipped?, quarterTurns? 0–3}; strict. Required with original.'
+ *               original:
+ *                 type: string
+ *                 format: binary
+ *                 description: The full original photo, max 10MB. Requires framing.
  *     responses:
  *       200:
- *         description: Avatar uploaded successfully
+ *         description: Avatar saved
  *         content:
  *           application/json:
  *             schema:
@@ -1476,105 +1519,68 @@ router.delete('/:memberId', requireMemberOrOrgOwner, async (req, res) => {
  *                     url:
  *                       type: string
  *                       format: uri
- *                       description: Public URL of the uploaded avatar
+ *                       description: The new profilePicture (512px WebP)
+ *                     originalUrl:
+ *                       type: string
+ *                       format: uri
+ *                       nullable: true
+ *                     framing:
+ *                       type: object
+ *                       nullable: true
  *       400:
- *         description: No file uploaded or invalid file type
+ *         description: No file, bad or unknown-key framing, original without framing, framing alone with no stored original, an unexpected field or file type, or an undecodable image
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Not the member and not a manager of one of the member's orgs
+ *       404:
+ *         description: Member not found, or hidden from the caller (D16)
+ *       413:
+ *         description: A file over 10MB
+ *       500:
+ *         description: Storage or database failure — the member row is unchanged
  */
 router.post(
   '/:memberId/avatar',
   requireMemberOrOrgOwner,
-  upload.single('file'),
+  requireVisibleMember,
+  receiveAvatarUpload,
   async (req, res) => {
     try {
-      const { memberId } = req.params
-      const file = req.file
+      const files = (req.files ?? {}) as Record<string, Array<{ buffer: Buffer }> | undefined>
+      const body = (req.body ?? {}) as Record<string, unknown>
 
-      if (!file) {
-        return res.status(400).json({
-          success: false,
-          error: 'No file uploaded',
-        })
+      // D8: `framing` is the only text field.
+      const unexpected = Object.keys(body).find((key) => key !== 'framing')
+      if (unexpected) {
+        return res.status(400).json({ success: false, error: `Unexpected field: ${unexpected}` })
+      }
+      if (body.framing !== undefined && typeof body.framing !== 'string') {
+        return res.status(400).json({ success: false, error: 'framing must be one JSON string' })
       }
 
-      // Get current member to check for existing avatar
-      const memberResult = await getMember(memberId)
-      if (!memberResult.success) {
-        return res.status(404).json({
-          success: false,
-          error: 'Member not found',
-        })
+      // D14: the phone sends the rendered image as `file`, the web as `avatar`.
+      const rendered = files.file?.[0] ?? files.avatar?.[0]
+      if (!rendered) {
+        return res.status(400).json({ success: false, error: 'No file uploaded' })
       }
 
-      const oldAvatarUrl = memberResult.data?.profilePicture
-
-      // Process image with sharp - resize to max 512x512 and convert to webp for efficiency
-      let processedBuffer: Buffer
-      let mimeType: string
-
-      try {
-        processedBuffer = await sharp(file.buffer)
-          .resize(512, 512, {
-            fit: 'cover',
-            withoutEnlargement: true,
-          })
-          .webp({ quality: 85 })
-          .toBuffer()
-        mimeType = 'image/webp'
-      } catch (sharpError) {
-        console.error('Error processing image:', sharpError)
-        return res.status(400).json({
-          success: false,
-          error: 'Failed to process image',
-        })
-      }
-
-      // Upload to R2
-      const uploadResult = await uploadMemberAvatar(
-        memberId,
-        processedBuffer,
-        mimeType
-      )
-
-      if (!uploadResult.success) {
-        return res.status(500).json({
-          success: false,
-          error: uploadResult.error || 'Failed to upload avatar',
-        })
-      }
-
-      // Update member's profilePicture in database
-      const updateResult = await updateMember(memberId, {
-        profilePicture: uploadResult.url,
+      const saved = await saveMemberAvatar({
+        memberId: req.params.memberId,
+        rendered: rendered.buffer,
+        framingJson: body.framing as string | undefined,
+        original: files.original?.[0]?.buffer,
       })
 
-      if (!updateResult.success) {
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to update member profile',
-        })
-      }
-
-      // Delete old avatar if it exists
-      if (oldAvatarUrl) {
-        await deleteMemberAvatar(oldAvatarUrl)
-      }
-
-      res.json({
-        success: true,
-        data: {
-          url: uploadResult.url,
-        },
-      })
+      res.json({ success: true, data: saved })
     } catch (error) {
+      if (error instanceof ImageUploadError || error instanceof MemberAvatarNotFoundError) {
+        return res.status(error.status).json({ success: false, error: error.message })
+      }
       console.error('Error uploading avatar:', error)
-      res.status(500).json({
-        success: false,
-        error: 'Internal server error',
-      })
+      res.status(500).json({ success: false, error: 'Internal server error' })
     }
   }
 )
