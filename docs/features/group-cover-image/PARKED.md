@@ -24,6 +24,8 @@ onAuto) and how the app-owned image slot works, and it will commit on makeready 
   math, render 1200×675, model flip/rotate90/auto/rubber-band, a0e3b3e..32413b8, review clean)
 - Sent d2m-4a the screen requirements; it took the work (and C-087) per the owner's routine
 
+- 2026-10-27 fleet retry: F1 cause CLEARED — d2m's 8b83f38 `feat(ui2): edit-cover screen` (iphone/MakeReadyUI/Screens/Groups/EditCoverScreen.swift) is on main and merged into this branch (709c6d8); SPEC revised 360f8a4 (Auto dropped, dial added → Task 15). Build resumed at Task 11
+
 ## Evidence
 - iPhone fast set PASS at 32413b8 (ios:build-check, --test, swiftlint baseline)
 - server Phase 6: tsc, fixtures tsc, schema validate/diff green; suite vs makeready_gci_test green
