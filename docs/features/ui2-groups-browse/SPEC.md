@@ -176,20 +176,27 @@ the enum; the Boolean is untouched throughout. SC2–SC7 are additive wire chang
 
 ## Testing
 
-- **server:** route tests — list org fields; detail/PATCH `creatorName`; D11 enum backfill + sync on
-  create/PATCH; history (each kind, ordering, limit, highlight, cover upload row, 404 outside scope);
-  next-study `title` + `thumbnailUrl` (each source, null); days `groupId` (member filter, two-group
-  member, 404 out of scope, 400 with `memberId`); D9 404s for a non-manager; fixtures DB tests (D19);
-  `migrate:status` clean on a fresh DB.
-- **iphone:** mapper tests (D3 sort/search/chips; D5 values incl. every Age form; D12 lines incl. today
-  "left"; D13 zero-fill; D16 date labels; D17 fallbacks; D18 order + counts), decode tests for the
-  extended payloads, shell route tests (`.groupDetail`, `.createGroup` replace), `ios:build-check
-  --test`, swiftlint baseline.
-- **Cross-app E2E (Fixtures, walk env):** Groups lists every fixture group A→Z; search + chips filter;
-  Groups section `+` creates "Walk Test Group" and lands on its empty page (every empty line shows); the rich fixture
-  group shows every section populated; member row → member page; Members `add` → invite; member page
-  group row → group page.
-- **Human walk (on device):** scroll feel of the long group page, rail "Jump to today", pinned header.
+**server**
+- route tests: list org fields; detail/PATCH `creatorName`; D11 enum backfill + sync on create/PATCH
+- history: each kind, ordering, limit, highlight, cover upload row, blank location → title, 404 outside scope
+- next-study `title` + `thumbnailUrl` (each source, null); days `groupId` (member filter, two-group member, 404 out of scope, 400 with `memberId`); D9 404s for a non-manager
+- fixtures DB tests (D19, D25); migrations apply clean on a fresh DB
+
+**iphone**
+- mapper tests: D3 sort/search/chips; D5 values incl. every Age form; D12 lines incl. today "left"; D13/D21 zero-fill; D16 date labels; D17 fallbacks; D18 order + counts; D22 empty lines
+- decode tests for the extended payloads; shell route tests (`.groupDetail`, `.createGroup` replaceTop); `ios:build-check --test`; swiftlint baseline
+- on device (human): scroll feel of the long group page, rail "Jump to today", pinned header
+
+**Cross-app verification script (Fixtures identity, walk env)**
+1. Open Home → Groups section — every fixture group is listed A→Z, including "Empty Group", each row with cover or initials, short leader name and member count
+2. Type part of a group name in search — only matching groups remain; a nonsense query shows "No groups match your search"
+3. Open the Leaders chip, select one leader, Save — only that leader's groups remain; clear it — all return
+4. Tap the TopNav `+` on Groups → create-group; type "Walk Test Group", tap Create — lands on its group page; back returns to Groups and the new group is listed
+5. On "Walk Test Group"'s page every section shows its empty line ("No lessons scheduled", "No members yet", "No enrollments yet", "No history yet")
+6. Open "Tuesday Men's Group" — cover, the four stats, the six setting values, the next lesson with activity thumbnails, the activity rail and chart, 2 pending join requests above the members, enrollments and 5 history rows all show real data
+7. Tap a member row — the member page opens for that member
+8. Back, tap Members `add` — the invite screen opens for this group
+9. On a member page, tap one of their groups — that group's page opens
 
 ## Out of scope
 
