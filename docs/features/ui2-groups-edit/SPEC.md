@@ -179,3 +179,16 @@ owner notes on any of the five items (`ui2-notes.mjs read`, 2026-10-27). The iPh
 | R1 | repoint: none — §Replaced surfaces is empty; the feature fills `GroupDetailContainer`'s two no-op closures and replaces no live surface. Legacy 1.0 `EditGroupPage`/`GroupHomePage` stay for the 1.0 shell | nothing to repoint |
 | T5 | server: `server/fixtures/screens/groups-detail.ts` `full` sets the rich group's description, `ageRangeMin/Max` 26/35, `maxMembers` 40, `memberDirectoryAccess` NAMES_ONLY + `memberDirectoryEnabled` false; Empty Group untouched (F6) | trailing |
 | T6 | iphone: `ActionMenuOverlay.ActionItem.tone` passed to `ActionMenuRow` (D13), default `.standard` | trailing |
+
+## Plan
+
+The plan, with its code: `docs/features/ui2-groups-edit/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · PATCH directory access + age validation (SC1, SC2, SC3)
+- Phase 1 · Task 2 · Fixture values on the rich group (T5) + contract freeze
+- Phase 2 · Task 3 · C-066 destructive row tone (T6, D13)
+- Phase 2 · Task 4 · GroupPatch + GroupActions.updateGroup(id:patch:) (T3, D6)
+- Phase 2 · Task 5 · deleteGroup clears every group-keyed store (T4, D10)
+- Phase 2 · Task 6 · GroupField + GroupFieldEditModel (D1–D5)
+- Phase 2 · Task 7 · `.editGroupField` route + GroupFieldEditContainer + group page wiring (D1, D2, D5)
+- Phase 2 · Task 8 · Delete Group through the red C-066 menu (D9, D13, D14)
