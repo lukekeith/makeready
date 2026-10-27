@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { addDays, localDate, zonedTime } from '../context.js'
 import { FIXTURE_ENROLLMENT_IDS, FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID } from '../ids.js'
+import { GROUPS_DETAIL_MEMBERSHIP_EVENT_IDS } from '../screens/groups-detail.js'
 import { type FixturesDb, TEST_DB_URL, openFixturesDb } from './db-harness.js'
 
 const TZ = 'America/Chicago'
@@ -29,7 +30,7 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     expect(first.member_video_progress).toBeGreaterThan(300)
     expect(first.member_lesson_progress).toBeGreaterThan(first.member_video_progress + 1000)
     expect(first.client_events).toBeGreaterThanOrEqual(first.member_lesson_progress) // + mid-sitting resume opens
-    expect(first.membership_events).toBe(24)
+    expect(first.membership_events).toBe(24 + GROUPS_DETAIL_MEMBERSHIP_EVENT_IDS.length) // + groups-detail's history (ui2-groups-browse D19)
   }, 180_000)
 
   it('(d) Home reads ≥ 18 non-empty days, a populated trend windows, and 40 h (±2 h) of video', async () => {
@@ -93,7 +94,9 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     expect(share(6, 9)).toBeGreaterThan(0.2)
     expect(share(19, 23)).toBeGreaterThan(0.25)
     expect(share(14, 17)).toBeLessThan(0.05)
-    const joins = await db.prisma.membershipEvent.findMany({ where: { memberId: { in: FIXTURE_MEMBER_IDS } } })
+    const joins = await db.prisma.membershipEvent.findMany({
+      where: { memberId: { in: FIXTURE_MEMBER_IDS }, id: { notIn: GROUPS_DETAIL_MEMBERSHIP_EVENT_IDS } },
+    })
     expect(joins).toHaveLength(24)
     for (const j of joins) {
       expect(j.action).toBe('ADDED')

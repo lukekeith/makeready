@@ -8,6 +8,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { addDays, localDate } from '../context.js'
 import { FIXTURE_LEADER_GROUP_ID, FIXTURE_LEADER_USER_ID, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID } from '../ids.js'
 import { JOINED_OFFSETS, MULTI_GROUP_MEMBER_INDICES } from '../screens/members-home.js'
+import { GROUPS_DETAIL_MEMBERSHIP_EVENT_IDS } from '../screens/groups-detail.js'
 import { LEADER_MEMBER_INDEX } from '../screens/members-profile.js'
 import { type FixturesDb, TEST_DB_URL, openFixturesDb } from './db-harness.js'
 
@@ -111,6 +112,10 @@ describe.skipIf(!TEST_DB_URL)('members layers against the test database (ui2-mem
   })
 
   it('leaves Home’s membership events at 24 (members-home adds memberships, not events)', async () => {
-    expect(await db.prisma.membershipEvent.count({ where: { memberId: { in: FIXTURE_MEMBER_IDS } } })).toBe(24)
+    expect(
+      await db.prisma.membershipEvent.count({
+        where: { memberId: { in: FIXTURE_MEMBER_IDS }, id: { notIn: GROUPS_DETAIL_MEMBERSHIP_EVENT_IDS } },
+      })
+    ).toBe(24)
   })
 })

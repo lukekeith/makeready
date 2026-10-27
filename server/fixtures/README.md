@@ -78,6 +78,16 @@ Group-Leader session for the walk (the iPhone's Local identity offers only Fixtu
 `curl -s -X POST http://localhost:3010/auth/dev-login -H 'Content-Type: application/json' -d '{"email":"fixtures-leader@makeready.local"}'`
 — it lists exactly the three Prayer Team members and gets 404 for anyone else.
 
+### What `full` makes non-empty on Groups
+
+`base.ts` + `screens/groups-home.ts` + `screens/groups-detail.ts` (ui2-groups-browse D19, D25): the
+list shows five groups (Empty Group is base group 5 — no members, enrollments or history, for every
+empty line). Tuesday Men's Group is the rich group: two pending join requests (Ruth Hamilton, Esther
+Graham), today's and tomorrow's lesson each with a YouTube, a video and a READ thumbnail, and a
+Timeline with every kind — requests (−1, −2 days), cover (−3), breakfast at Corner Bakery (−5), Sophia
+Powell left (−6), settings (−10), joined (−20), base joins (−62…−59), created (−75). Its day rail is
+base + home-dashboard: enrollment 1 (−48…−19) and 4 (−13…+7) leave −18…−14 at 0 lessons.
+
 ## Layers
 
 `index.ts` → `base.ts` → every file in `screens/`, in filename order, all sharing one
@@ -110,9 +120,10 @@ activity in the 07:00–21:00 Chicago band so it lands on the same calendar day 
 `0002` org, `0003` groups, `0004` members, `0005` programs, `0006` lessons, `0007` activities,
 `0008` enrollments, `0009` schedules, `000a` lesson progress, `000b` video progress, `000c`
 membership events, `000d` client events, `000e` user roles, `000f` group members, `0010` member
-orgs, `0011` user preferences. A new kind gets the next free code. Rows that hang off a fixture
+orgs, `0011` user preferences, `0015` join requests, `0016` feed activities, `0017` events, `0018`
+scheduled activities, `0019` videos, `001a` read blocks. A new kind gets the next free code. Rows that hang off a fixture
 member, group, program or the fixture user are deleted by reset's cascade; anything else needs a
-line in `wipe.ts`. The Group-Leader user is `user` n 2 and its group `group` n 4; the members-home
+line in `wipe.ts`. The Group-Leader user is `user` n 2 and its group `group` n 4; the Empty Group is `group` n 5; the members-home
 memberships are `groupMember` n 25–27. Reset deletes both users (`FIXTURE_USER_IDS`).
 
 ## A new screen layer

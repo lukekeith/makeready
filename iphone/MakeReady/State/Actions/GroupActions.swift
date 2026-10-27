@@ -12,8 +12,13 @@ import UIKit
 /// Actions for group CRUD, posts, and member management.
 struct GroupActions {
 
-private let api: APIClientProtocol
+    private let api: APIClientProtocol
     private let stateOverride: AppState?
+    /// ui2-groups-browse: the clock and zone the group page's day windows read (D12, D21).
+    private let now: () -> Date
+    private let timeZone: TimeZone
+    /// ui2-groups-browse (ui2-shell D27): what a 401 from the group page's loaders does.
+    private let onUnauthorized: @MainActor () async -> Void
 
     /// Injected state when testing, else the shared singleton.
     @MainActor private var state: AppState { stateOverride ?? AppState.shared }
@@ -23,9 +28,17 @@ private let api: APIClientProtocol
     ///   - state: AppState to read/mutate; nil means AppState.shared (an
     ///     Optional because Swift 5 mode can't evaluate a @MainActor default
     ///     argument like `= .shared` from a nonisolated init)
-    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil) {
+    ///   - now / timeZone: the group page's "today" (ui2-groups-browse D12, D21)
+    ///   - onUnauthorized: the group page loaders' 401 (ui2-shell D27); the throwing
+    ///     Actions above keep throwing and never call it
+    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil,
+         now: @escaping () -> Date = Date.init, timeZone: TimeZone = .current,
+         onUnauthorized: @escaping @MainActor () async -> Void = {}) {
         self.api = api
         self.stateOverride = state
+        self.now = now
+        self.timeZone = timeZone
+        self.onUnauthorized = onUnauthorized
     }
 
     // MARK: - Load Groups
@@ -115,10 +128,23 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Group not found")
         }
 
-        state.groups.upsert(group)
+        upsertKeepingOrganization(group)
         state.persist()
 
-        return group
+        return state.groups[group.id] ?? group
+    }
+
+    /// ui2-groups-browse D10 (verify A1): only `GET /api/groups` carries a group's org; the detail
+    /// and PATCH responses don't, so a group they return keeps the org already cached for it —
+    /// the Orgs chip filters on it.
+    @MainActor
+    private func upsertKeepingOrganization(_ group: UserGroup) {
+        var merged = group
+        if merged.organizationId == nil, let cached = state.groups[group.id] {
+            merged.organizationId = cached.organizationId
+            merged.organizationName = cached.organizationName
+        }
+        state.groups.upsert(merged)
     }
 
     // MARK: - Create Group
@@ -218,11 +244,11 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to update group")
         }
 
-        state.groups.upsert(group)
+        upsertKeepingOrganization(group)
         state.persist()
 
         NSLog("👥 GroupActions: Updated group '\(group.name)'")
-        return group
+        return state.groups[group.id] ?? group
     }
 
     // MARK: - Delete Group
@@ -629,5 +655,146 @@ private let api: APIClientProtocol
             requests.removeAll { $0.id == requestId }
             state.pendingJoinRequestsByGroupId[groupId] = requests
         }
+    }
+
+    // MARK: - ui2-groups-browse: the group page's loads (T11–T13, T18)
+    // Non-throwing, as MemberActions: a 401 signs out, a 404 is the caller's scope (D23) and
+    // writes nothing, anything else is recorded console-only (these are background loads, D4)
+    // and the store keeps what it held. A cancelled load or a retired session writes nothing.
+
+    /// D12: the rail's 30 local days, today trailing.
+    static let railDays = 30
+    /// D13/D21: the chart's days reach three past today.
+    static let chartAheadDays = 3
+    /// D4: the Timeline shows the latest 5.
+    static let historyLimit = 5
+
+    /// T11/D17: the next lesson; a 204 (no lesson ahead) removes the group's entry.
+    @MainActor
+    func loadNextStudy(groupId: String) async {
+        guard let data = await send("loadNextStudy", "GET", "/api/groups/\(groupId)/next-study") else { return }
+        guard !data.isEmpty else {
+            state.nextStudyByGroupId.removeValue(forKey: groupId)
+            return
+        }
+        guard let response = decode("loadNextStudy", data, NextStudyResponse.self) else { return }
+        if let study = response.study {
+            state.nextStudyByGroupId[groupId] = study
+        } else {
+            state.nextStudyByGroupId.removeValue(forKey: groupId)
+        }
+    }
+
+    /// T12/D15: the merged group history, newest first.
+    @MainActor
+    func loadHistory(groupId: String, limit: Int = GroupActions.historyLimit) async {
+        let path = MemberActions.path("/api/groups/\(groupId)/history", [("limit", "\(limit)")])
+        guard let data = await send("loadHistory", "GET", path),
+              let response = decode("loadHistory", data, GroupHistoryResponse.self) else { return }
+        state.historyByGroupId[groupId] = response.events
+    }
+
+    /// T13/D12/D14: `/api/home/days` filtered to the group's members, today−29 … today, local tz.
+    @MainActor
+    func loadGroupDays(groupId: String) async {
+        let window = HomeDashboardMapper.days(endingAt: now(), back: Self.railDays - 1, ahead: 0, tz: timeZone)
+        guard let from = window.first?.key, let to = window.last?.key else { return }
+        let path = MemberActions.path("/api/home/days", [
+            ("from", from), ("to", to), ("tz", timeZone.identifier), ("groupId", groupId)
+        ])
+        guard let data = await send("loadGroupDays", "GET", path),
+              let response = decode("loadGroupDays", data, HomeDaysResponse.self) else { return }
+        state.groupDaysByGroupId[groupId] = response.days
+    }
+
+    /// T13/D21: `scheduled_lessons` and `lesson_completions` cannot share a query (the engine
+    /// 400s on mixed buckets), so two run at once over today−29 … today+3. Each series that lands
+    /// replaces its map; a failed one keeps the old map and is recorded.
+    @MainActor
+    func loadGroupChart(groupId: String) async {
+        let window = HomeDashboardMapper.days(endingAt: now(), back: Self.railDays - 1, ahead: Self.chartAheadDays, tz: timeZone)
+        guard let from = window.first?.key, let to = window.last?.key else { return }
+        let generation = state.initialLoad.generation
+        async let scheduled = dailyCounts("loadGroupChart.scheduled", metric: "scheduled_lessons",
+                                          groupId: groupId, from: from, to: to)
+        async let completed = dailyCounts("loadGroupChart.completed", metric: "lesson_completions",
+                                          groupId: groupId, from: from, to: to)
+        let (scheduledDays, completedDays) = await (scheduled, completed)
+        guard state.initialLoad.isCurrent(generation), scheduledDays != nil || completedDays != nil else { return }
+        var chart = state.groupChartByGroupId[groupId] ?? GroupChart()
+        if let scheduledDays { chart.scheduled = scheduledDays }
+        if let completedDays { chart.completed = completedDays }
+        state.groupChartByGroupId[groupId] = chart
+    }
+
+    /// T18/D3: every org the caller holds a role in — the Groups Orgs chip, for every role.
+    @MainActor
+    func loadMyOrganizations() async {
+        guard let data = await send("loadMyOrganizations", "GET", "/api/organizations/my/organizations"),
+              let response = decode("loadMyOrganizations", data, MyOrganizationsResponse.self) else { return }
+        state.myOrganizations = response.data
+    }
+
+    /// One metric's rows keyed by their `day` (rows without a day or a number are skipped).
+    static func byDay(_ rows: [[String: AnalyticsValue]], metric: String) -> [String: Int] {
+        Dictionary(rows.compactMap { row in row["day"]?.string.flatMap { key in row[metric]?.int.map { (key, $0) } } },
+                   uniquingKeysWith: { $1 })
+    }
+
+    /// A cancelled load — directly, or wrapped by APIClient as a network error.
+    static func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError || (error as? URLError)?.code == .cancelled { return true }
+        if case APIError.networkError(let inner) = error { return isCancellation(inner) }
+        return false
+    }
+
+    /// D21: one single-metric analytics query, per day, or nil when it failed.
+    @MainActor
+    private func dailyCounts(_ context: String, metric: String, groupId: String, from: String, to: String) async -> [String: Int]? {
+        let body: [String: Any] = [
+            "metrics": [metric],
+            "dimensions": ["day"],
+            "timezone": timeZone.identifier,
+            "filters": ["groupId": groupId, "from": from, "to": to]
+        ]
+        guard let data = await send(context, "POST", "/api/analytics/query", body: body),
+              let response = decode(context, data, AnalyticsQueryResponse.self) else { return nil }
+        return Self.byDay(response.rows, metric: metric)
+    }
+
+    /// One request through `requestWithStatus`, so a 404 keeps its status. nil = failed,
+    /// cancelled, or a sign-out retired the session meanwhile; empty Data = a 204.
+    @MainActor
+    private func send(_ context: String, _ method: String, _ path: String, body: [String: Any]? = nil) async -> Data? {
+        let generation = state.initialLoad.generation
+        do {
+            let data = try await api.requestWithStatus(endpoint: path, method: method, body: body)
+            guard !Task.isCancelled, state.initialLoad.isCurrent(generation) else { return nil }
+            return data
+        } catch {
+            await handle(error, context)
+            return nil
+        }
+    }
+
+    @MainActor
+    private func decode<T: Decodable>(_ context: String, _ data: Data, _ type: T.Type) -> T? {
+        do {
+            return try JSONDecoder.apiDecoder.decode(type, from: data)
+        } catch {
+            state.recordError(APIError.decodingError(error), context: "GroupActions.\(context)", surface: false)
+            return nil
+        }
+    }
+
+    @MainActor
+    private func handle(_ error: Error, _ context: String) async {
+        if Self.isCancellation(error) { return }
+        if AuthStatusPolicy.shouldSignOut(after: error) {
+            await onUnauthorized()                                         // ui2-shell D27
+            return
+        }
+        if let http = error as? APIHTTPError, http.status == 404 { return } // D23: scope, not failure
+        state.recordError(error, context: "GroupActions.\(context)", surface: false)
     }
 }

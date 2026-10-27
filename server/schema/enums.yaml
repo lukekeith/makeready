@@ -135,3 +135,11 @@ enums:
       - RUNNING
       - COMPLETED
       - FAILED
+
+  # ui2-groups-browse D11: who may see a group's member directory. The Boolean
+  # Group.memberDirectoryEnabled stays; group writes keep the two in sync.
+  DirectoryAccess:
+    values:
+      - ALLOWED       # members see the directory
+      - NAMES_ONLY    # members see names only
+      - NOT_ALLOWED   # no directory

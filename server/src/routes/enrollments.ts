@@ -20,6 +20,7 @@ import { syncEnrollmentToLatest, SyncNotPossibleError } from '../services/enroll
 import { computePendingChanges } from '../services/enrollment-sync-changes.js'
 import { resolveNotificationsByDedupeKey } from '../services/notification.js'
 import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
+import { activityThumbnailUrl } from '../services/next-study-thumbnail.js'
 import { generateScheduleDates } from '../services/enrollment-schedule.js'
 import { applyEnrollmentEdit, applyStudySwap, previewEnrollmentEdit, EnrollmentEditError } from '../services/enrollment-edit.js'
 import {
@@ -1338,8 +1339,18 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
             orderNumber: true,
             title: true,
             videoUrl: true,
+            // ui2-groups-browse D17: without versionId, filterActivitiesToVersion keeps every version.
+            versionId: true,
             sourceReferences: {
               select: { passageReference: true },
+            },
+            youtubeThumbnailUrl: true,
+            video: { select: { thumbnailUrl: true } },
+            readBlocks: {
+              where: { backgroundImageUrl: { not: null } },
+              orderBy: { orderNumber: 'asc' },
+              take: 1,
+              select: { backgroundImageUrl: true },
             },
           },
         },
@@ -1363,11 +1374,17 @@ router.get('/groups/:groupId/next-study', requireAuth, async (req, res) => {
     const study = {
       id: nextLesson.id,
       code: nextLesson.code,
+      title: nextLesson.title ?? null,
       dayNumber: nextLesson.lesson?.dayNumber ?? 0,
       scheduledDate: nextLesson.scheduledDate,
       enrollment: nextLesson.enrollment,
       studyProgram: nextLesson.lesson?.studyProgram ?? null,
-      activities: filterActivitiesToVersion(nextLesson.scheduledActivities, nextLesson.currentVersionId),
+      activities: filterActivitiesToVersion(nextLesson.scheduledActivities, nextLesson.currentVersionId).map(
+        ({ youtubeThumbnailUrl, video, readBlocks, ...activity }) => ({
+          ...activity,
+          thumbnailUrl: activityThumbnailUrl({ type: activity.type, youtubeThumbnailUrl, video, readBlocks }),
+        })
+      ),
     }
 
     res.json({ success: true, study })

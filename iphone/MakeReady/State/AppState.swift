@@ -159,6 +159,31 @@ final class AppState {
     /// `GET /api/home/days?memberId=` — the member page's D12 rail, by member id.
     var memberDaysById: [String: [HomeDay]] = [:]
 
+    // MARK: ui2-groups-browse — group page stores (T14: in memory only)
+    // `PersistedState` never encodes these; `clearInMemory()` empties them on sign-out and
+    // environment switch.
+
+    /// `GET /api/groups/:id/next-study`, by group id. A 204 (no lesson ahead) REMOVES the key.
+    var nextStudyByGroupId: [String: NextStudy] = [:]
+
+    /// `GET /api/groups/:id/history?limit=5` — the Timeline's latest events, by group id (D15).
+    var historyByGroupId: [String: [GroupHistoryEvent]] = [:]
+
+    /// `GET /api/home/days?groupId=` — the group page's rail series (D12), by group id.
+    var groupDaysByGroupId: [String: [HomeDay]] = [:]
+
+    /// D21's two single-metric analytics series, by group id (rail lines + chart).
+    var groupChartByGroupId: [String: GroupChart] = [:]
+
+    /// D3: `GET /api/organizations/my/organizations` for every role — the Groups Orgs chip.
+    /// Separate from `userOrganizations`, which the shell's org scoping owns.
+    var myOrganizations: [OrganizationData] = []
+
+    /// D22: true once the Groups section's groups load succeeded this session — until then an
+    /// empty list draws no line. Lives here (not in the container) so the shell's static
+    /// pull-to-refresh (`GroupsHomeContainer.refresh`) sets it too.
+    var groupsListLoaded = false
+
     /// All organizations the user belongs to. Drives the per-org buttons in
     /// UserMenu and the Org Home page. Loaded by `loadOrganization()`. Today
     /// the server only exposes the org the user owns; when multi-org listing
@@ -833,6 +858,14 @@ final class AppState {
         memberGroupsById = [:]
         memberEngagementById = [:]
         memberDaysById = [:]
+        nextStudyByGroupId = [:]
+        historyByGroupId = [:]
+        groupDaysByGroupId = [:]
+        groupChartByGroupId = [:]
+        myOrganizations = []
+        groupsListLoaded = false
+        // ui2-groups-browse T14: org-scoped and never cleared before — fixed here deliberately.
+        pendingJoinRequestsByGroupId = [:]
         userOrganizations = []
         mediaLibraryTotal = 0
         mediaLibraryNextCursor = nil

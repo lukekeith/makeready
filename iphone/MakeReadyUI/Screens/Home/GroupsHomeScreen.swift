@@ -6,16 +6,19 @@
 //  §5 endpoints, cited only — this view calls none: GET /api/groups · GET /api/group-leaders ·
 //  GET /api/organizations/my/organization
 //  (a "my organizations" list for multi-org callers is an additive API-GAP in §5).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Wired by MakeReady/UI2/Containers/Groups/GroupsHomeContainer.swift (ui2-groups-browse).
+//  ui2-groups-browse edits, routed to /ui2-resolve (F3): no C-019 row of its own (D2 — the
+//  shell's TopNav is the only one, its Groups `+` opens create-group), an editable C-034 (D3),
+//  and `listEmpty`'s one line (D22).
 //
 
 import SwiftUI
 
-/// Groups (leader directory) — the Groups tab root (§6): a flat, filtered list of the caller's
-/// groups. The collapsed C-019 nav row, a header of C-034 search over two C-035 filter chips,
-/// then the group list of C-037 rows separated by hairlines (§2: "Identical skeleton to
-/// `members-home` §2"). Composed only of §4's C-019, C-034, C-035, C-036 and C-037; C-038 and
-/// C-043 render only inside C-037 (§4).
+/// Groups (leader directory) — the Home tab's Groups section (§6): a flat, filtered list of the
+/// caller's groups. A header of C-034 search over two C-035 filter chips, then the group list of
+/// C-037 rows separated by hairlines (§2). §2's collapsed C-019 nav row is the shell's TopNav
+/// (D2), so this screen starts at the header. Composed only of §4's C-034, C-035, C-036 and
+/// C-037; C-038 and C-043 render only inside C-037 (§4).
 ///
 /// §3 names four states — `loading`, `populated`, `empty`, `error`. This build renders
 /// `populated`; `loading` (row skeletons), `empty` (an empty message) and `error` (an inline
@@ -56,6 +59,11 @@ struct GroupsHomeScreen: View {
         var groupLeaderNames: [String]
         /// C-043 `Key value/Default` — the member count ("3" + "members").
         var groupMemberCounts: [Int]
+
+        // ── D22 (ui2-groups-browse): the list's one line when no row shows ──
+        /// "" = nothing (loading, or rows showing) · "noGroups" · "noMatch" — the caller decides;
+        /// the copy is the screen's (`emptyCopy`).
+        var listEmpty: String = ""
     }
 
     /// Which C-036 menu is presented — the one screen-local choice §3 makes.
@@ -67,11 +75,6 @@ struct GroupsHomeScreen: View {
     let state: State
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op default.
     // The screen never decides what an action means.
-    var onSelectTab: (String) -> Void = { _ in }    // C-019 tab tap → that tab's root (§6)
-    var onToggleNav: () -> Void = {}                // C-019 collapse ⇄ expand
-    // OQ-groups-home-2 (answered 2026-10-03): "Groups are added by the NavTabButton when it
-    // expands and reveals the plus" — C-019's `onAdd` on the Groups tab.
-    var onAddGroup: () -> Void = {}
     var onSearch: (String) -> Void = { _ in }       // §3: live filter, debounced ≥300ms
     var onSaveOrgs: (Set<String>) -> Void = { _ in }    // filter-multiselect D14: Save on the Orgs menu
     var onSaveLeaders: (Set<String>) -> Void = { _ in } // D14: Save on the Leaders menu
@@ -84,18 +87,12 @@ struct GroupsHomeScreen: View {
 
     init(
         state: State,
-        onSelectTab: @escaping (String) -> Void = { _ in },
-        onToggleNav: @escaping () -> Void = {},
-        onAddGroup: @escaping () -> Void = {},
         onSearch: @escaping (String) -> Void = { _ in },
         onSaveOrgs: @escaping (Set<String>) -> Void = { _ in },
         onSaveLeaders: @escaping (Set<String>) -> Void = { _ in },
         onOpenGroup: @escaping (Int) -> Void = { _ in }
     ) {
         self.state = state
-        self.onSelectTab = onSelectTab
-        self.onToggleNav = onToggleNav
-        self.onAddGroup = onAddGroup
         self.onSearch = onSearch
         self.onSaveOrgs = onSaveOrgs
         self.onSaveLeaders = onSaveLeaders
@@ -106,12 +103,22 @@ struct GroupsHomeScreen: View {
 
     // MARK: - §2 / §4 constants (values that no §3 state changes)
 
-    /// §2 / §4 (C-019): "collapsed nav (C-019, Groups active)".
-    private static let selectedTab = "Groups"
     /// §2 / §4 (C-034): "SearchField 408×44 \"Search groups\"".
     private static let searchPlaceholder = "Search groups"
     /// §2: MetaChip `Key value/Default` = member count ("3" + "members").
     private static let memberCountLabel = "members"
+    /// D22 (ui2-groups-browse): the two list lines — no copy on the frame, ruled at audit.
+    private static let noGroupsCopy = "No groups yet"
+    private static let noMatchCopy = "No groups match your search"
+
+    /// D22: `State.listEmpty` → its line; nil draws nothing.
+    static func emptyCopy(_ listEmpty: String) -> String? {
+        switch listEmpty {
+        case "noGroups": return noGroupsCopy
+        case "noMatch": return noMatchCopy
+        default: return nil
+        }
+    }
 
     // MARK: - §2 geometry the screen owns
 
@@ -131,9 +138,9 @@ struct GroupsHomeScreen: View {
         // length, so the page lays out top to bottom at full height. The status bar (§1
         // deviation 2) is the harness's.
         VStack(alignment: .leading, spacing: 0) {
-            navRow
             header
             groupList
+            emptyLine
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: the page background
@@ -143,31 +150,16 @@ struct GroupsHomeScreen: View {
         }
     }
 
-    /// §2: "status bar → collapsed nav (C-019, Groups active)" — C-019 in its `collapsed` state
-    /// (`expansion` 0), full width with no screen inset (C-019 owns its own row inset; the
-    /// members-home measurement).
-    private var navRow: some View {
-        TopNav(
-            tabs: TopNav.designedTabs,
-            selectedTab: Self.selectedTab,
-            expansion: 0,
-            scrollOffset: 0,
-            onSelect: onSelectTab,
-            onToggleExpansion: onToggleNav,
-            onAdd: { _ in onAddGroup() }                         // OQ-groups-home-2
-        )
-        .ui2Element("C-019 TopNav")
-    }
-
     // MARK: §2 Header
 
     /// §2: "header block (116pt: 16 inset → SearchField 408×44 \"Search groups\" → 16 → chip
     /// row: FilterChip ×2 \"∨ All Orgs\" (95pt), \"∨ All Leaders\" (117pt), 8 gap)".
     private var header: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Spacer().frame(height: Self.headerGap)
-            // §4: C-034 `state=Default` — derived by C-034 from `text.isEmpty × focused`; this
-            // presentational screen owns no focus, so `focused` is false.
+            // §2's "16 inset" above the field is the gap under the nav row. The row is now the
+            // shell's (D2) and `HomeSectionLayout.navGap` (16) already is that gap, so the
+            // screen adds none of its own (the MembersHomeScreen D4 precedent).
+            // §4: C-034, its editable form (D3 — members-browse D19 precedent); focus is the field's own.
             SearchField(
                 text: query,
                 placeholder: Self.searchPlaceholder,
@@ -179,7 +171,8 @@ struct GroupsHomeScreen: View {
                 onClear: {
                     query = ""
                     onSearch("")
-                }
+                },
+                editable: true
             )
             .ui2Element("C-034 SearchField")
             Spacer().frame(height: Self.headerGap)
@@ -187,12 +180,12 @@ struct GroupsHomeScreen: View {
             // HStack (members-home's OQ-members-home-3 default, inherited by "identical skeleton").
             HStack(spacing: Token.Space.elementGap) {                // §2: "8 gap"
                 if state.orgFilterVisible {
-                    FilterChip(type: .menu, active: !state.selectedOrgs.isEmpty, label: state.orgFilterLabel) {
+                    Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
                         presentedMenu = .orgs
                     }
                     .ui2Element("C-035 FilterChip")
                 }
-                FilterChip(type: .menu, active: !state.selectedLeaders.isEmpty, label: state.leaderFilterLabel) {
+                Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaders.isEmpty) {
                     presentedMenu = .leaders
                 }
                 .ui2Element(state.orgFilterVisible ? "C-035 FilterChip 2" : "C-035 FilterChip")
@@ -200,6 +193,13 @@ struct GroupsHomeScreen: View {
             Spacer().frame(height: Self.headerGap)
         }
         .padding(.horizontal, Token.Space.pageMargin)                // §2: "inset 16"
+    }
+
+    /// §4: a `Menu` chip whose tap presents C-036. `onTap:` is passed by label: an unlabelled
+    /// trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan), which a
+    /// `Menu` chip never fires (agent walk round 1, E3 — the MembersHomeScreen precedent).
+    static func menuChip(label: String, active: Bool, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: active, label: label, onTap: onTap)
     }
 
     // MARK: §2 List
@@ -222,6 +222,19 @@ struct GroupsHomeScreen: View {
             }
         }
         .padding(.horizontal, Token.Space.pageMargin)
+    }
+
+    /// D22: one centred `type-body-sm` `color-text-secondary` line under the chips when no row
+    /// shows — the groups-detail §3 section-empty treatment.
+    @ViewBuilder private var emptyLine: some View {
+        if state.groupNames.isEmpty, let copy = Self.emptyCopy(state.listEmpty) {
+            Text(copy)
+                .designTextStyle(Token.TypeStyle.bodySm)
+                .foregroundStyle(Token.textSecondary)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.horizontal, Token.Space.pageMargin)
+        }
     }
 
     /// §2 row content: "64pt group image (rounded-full, C-038 fallback rules) → info (8 gap):

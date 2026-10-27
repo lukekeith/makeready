@@ -155,6 +155,12 @@ enum SyncRunStatus {
   FAILED
 }
 
+enum DirectoryAccess {
+  ALLOWED
+  NAMES_ONLY
+  NOT_ALLOWED
+}
+
 model User {
   id                   String @id @default(uuid())
   googleId             String? @unique
@@ -247,6 +253,7 @@ model Group {
   organizationId       String
   isActive             Boolean @default(true)
   memberDirectoryEnabled Boolean @default(true) // Allow members to see contact info of other members
+  memberDirectoryAccess DirectoryAccess @default(ALLOWED) // Three-state member directory access (ui2-groups-browse D11); memberDirectoryEnabled is kept in sync
   updatedById          String? // User who last updated this group
 
   members              GroupMember[]

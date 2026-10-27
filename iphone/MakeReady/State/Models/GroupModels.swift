@@ -30,6 +30,13 @@ struct UserGroup: Codable, Identifiable {
     let creatorId: String
     /// invite-member D9: the creator's `User.name` from `GET /api/groups`; nil on an old cache.
     var creatorName: String?
+    /// ui2-groups-browse D10: the group's org, from `GET /api/groups` — the Groups Orgs chip
+    /// (D3). nil on an old cache or an old server (F7).
+    var organizationId: String?
+    var organizationName: String?
+    /// ui2-groups-browse D11: "ALLOWED" | "NAMES_ONLY" | "NOT_ALLOWED". A String, not an enum,
+    /// so a value this build does not know never fails the decode (F7). nil on an old cache.
+    var memberDirectoryAccess: String?
     let createdAt: Date
     var updatedAt: Date
 
@@ -53,6 +60,9 @@ struct UserGroup: Codable, Identifiable {
         memberCount = try container.decode(Int.self, forKey: .memberCount)
         creatorId = try container.decode(String.self, forKey: .creatorId)
         creatorName = try container.decodeIfPresent(String.self, forKey: .creatorName)
+        organizationId = try container.decodeIfPresent(String.self, forKey: .organizationId)
+        organizationName = try container.decodeIfPresent(String.self, forKey: .organizationName)
+        memberDirectoryAccess = try container.decodeIfPresent(String.self, forKey: .memberDirectoryAccess)
         createdAt = try container.decode(Date.self, forKey: .createdAt)
         updatedAt = try container.decode(Date.self, forKey: .updatedAt)
     }
@@ -62,7 +72,9 @@ struct UserGroup: Codable, Identifiable {
         coverImageUrl: String? = nil, isPrivate: Bool, allowInvites: Bool,
         memberDirectory: Bool = true, welcomeMessage: String? = nil,
         ageRange: AgeRange? = nil, maxMembers: Int? = nil, memberCount: Int,
-        creatorId: String, creatorName: String? = nil, createdAt: Date, updatedAt: Date
+        creatorId: String, creatorName: String? = nil, organizationId: String? = nil,
+        organizationName: String? = nil, memberDirectoryAccess: String? = nil,
+        createdAt: Date, updatedAt: Date
     ) {
         self.id = id
         self.code = code
@@ -78,6 +90,9 @@ struct UserGroup: Codable, Identifiable {
         self.memberCount = memberCount
         self.creatorId = creatorId
         self.creatorName = creatorName
+        self.organizationId = organizationId
+        self.organizationName = organizationName
+        self.memberDirectoryAccess = memberDirectoryAccess
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

@@ -4,7 +4,9 @@
 //
 //  Built from screen create-group in d2m (§2 layout, §3 states, §4 components).
 //  §5 endpoints, cited only — this view calls none: POST /api/groups · GET /api/groups/{id}
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Wired by MakeReady/UI2/Containers/Groups/CreateGroupContainer.swift (ui2-groups-browse).
+//  ui2-groups-browse edit, routed to /ui2-resolve (F3): the name field is live (D27 — the
+//  `editing:` precedent of InviteMemberScreen.swift:160), read-only while creating.
 //
 
 import SwiftUI
@@ -79,7 +81,10 @@ struct CreateGroupScreen: View {
                     style: fieldFocused ? .focus : .default,
                     layout: .default,
                     text: text,
-                    placeholder: Self.placeholder
+                    placeholder: Self.placeholder,
+                    editing: Self.fieldEditing(creating: state.creating),
+                    // §3: "The input does not accept characters past 200 (server limit, §5)."
+                    onChange: { text = String($0.prefix(Self.maxLength)) }
                 )
                 .ui2Element("C-046 FieldGroup")
 
@@ -110,6 +115,12 @@ struct CreateGroupScreen: View {
 
     // §3: "The input does not accept characters past 200 (server limit, §5)."
     private static let maxLength = 200
+
+    /// D27: C-045's live form — focused on appear (§3 `empty`), locked while creating (§3
+    /// `creating`: "the field is read-only").
+    static func fieldEditing(creating: Bool) -> TextInput.Editing {
+        TextInput.Editing(focusOnAppear: true, isEnabled: !creating)
+    }
 
     // §2 / §1 deviation 4 — final copy.
     private static let title = "Create group"

@@ -322,6 +322,11 @@ models:
         type: boolean
         default: true
         description: "Allow members to see contact info of other members"
+      memberDirectoryAccess:
+        type: enum
+        enum: DirectoryAccess
+        default: ALLOWED
+        description: "Three-state member directory access (ui2-groups-browse D11); memberDirectoryEnabled is kept in sync"
       updatedById:
         type: string
         nullable: true

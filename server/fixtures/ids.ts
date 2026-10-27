@@ -27,6 +27,13 @@ export const FIXTURE_KIND = {
   media: '0012',
   mediaUsage: '0013',
   invite: '0014',
+  // ui2-groups-browse D25 / T9: the group page's rows.
+  joinRequest: '0015',
+  feedActivity: '0016',
+  event: '0017',
+  scheduledActivity: '0018',
+  video: '0019',
+  readBlock: '001a',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND
@@ -54,6 +61,8 @@ export const FIXTURE_ENROLLMENT_IDS: string[] = [1, 2, 3, 4].map((n) => fixtureI
 export const FIXTURE_LEADER_EMAIL = 'fixtures-leader@makeready.local'
 export const FIXTURE_LEADER_USER_ID = fixtureId('user', 2)
 export const FIXTURE_LEADER_GROUP_ID = fixtureId('group', 4)
+/** ui2-groups-browse D25: a group with no members, enrollments, schedules or history (the empty states). */
+export const FIXTURE_EMPTY_GROUP_ID = fixtureId('group', 5)
 /** Every fixture user — reset deletes exactly these. */
 export const FIXTURE_USER_IDS: string[] = [FIXTURE_USER_ID, FIXTURE_LEADER_USER_ID]
 
@@ -66,4 +75,5 @@ export const FIXTURE_IDS = {
   enrollments: FIXTURE_ENROLLMENT_IDS,
   leaderUser: FIXTURE_LEADER_USER_ID,
   leaderGroup: FIXTURE_LEADER_GROUP_ID,
+  emptyGroup: FIXTURE_EMPTY_GROUP_ID,
 }

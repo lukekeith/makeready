@@ -2,7 +2,10 @@ import express from 'express'
 import request from 'supertest'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const prismaMock = vi.hoisted(() => ({ group: { findMany: vi.fn() } }))
+const prismaMock = vi.hoisted(() => ({
+  group: { findMany: vi.fn() },
+  organization: { findMany: vi.fn().mockResolvedValue([]) },
+}))
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
 vi.mock('../../services/permission.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../services/permission.js')>()),

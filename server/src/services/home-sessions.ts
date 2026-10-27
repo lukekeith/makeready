@@ -61,18 +61,31 @@ function clientEventScope(scope: AnalyticsScope): Prisma.ClientEventWhereInput {
   return { OR: [{ organizationId: { in: scope.orgIds } }, { groupId: { in: scope.groupIds } }] }
 }
 
+type MemberFilter = { memberId?: string | { in: string[] } }
+
+/** ui2-members-browse D12: one member · ui2-groups-browse D14: the active members of one group. */
+async function memberFilter(opts: { memberId?: string; groupId?: string }): Promise<MemberFilter> {
+  if (opts.memberId) return { memberId: opts.memberId }
+  if (!opts.groupId) return {}
+  const rows = await prisma.groupMember.findMany({
+    where: { groupId: opts.groupId, isActive: true, memberId: { not: null } },
+    select: { memberId: true },
+  })
+  return { memberId: { in: [...new Set(rows.flatMap((r) => (r.memberId ? [r.memberId] : [])))] } }
+}
+
 export async function loadSessions(
   scope: AnalyticsScope,
   window: { from: Date; to: Date },
-  opts: { memberId?: string } = {}
+  opts: { memberId?: string; groupId?: string } = {}
 ): Promise<Session[]> {
   const from = new Date(window.from.getTime() - LOAD_PAD_MS)
   const to = new Date(window.to.getTime() + LOAD_PAD_MS)
   const range = { gte: from, lt: to }
   const inRange = (d: Date) => d >= from && d < to
   const scheduleWhere = { enrollment: { group: scopeGroupWhere(scope) } }
-  // ui2-members-browse D12: the member page's day rail reads one member's sessions.
-  const member = opts.memberId ? { memberId: opts.memberId } : {}
+  // ui2-members-browse D12 (member page rail) / ui2-groups-browse D14 (group page rail).
+  const member = await memberFilter(opts)
 
   const [events, lessons, videos] = await Promise.all([
     prisma.clientEvent.findMany({

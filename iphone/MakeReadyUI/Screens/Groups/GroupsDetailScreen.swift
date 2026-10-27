@@ -12,7 +12,9 @@
 //  DELETE /api/groups/{id}
 //  (group-scoped daily completion metrics and one merged group-history feed are API-GAPs
 //  in §5).
-//  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Wired by MakeReady/UI2/Containers/Groups/GroupDetailContainer.swift (ui2-groups-browse).
+//  ui2-groups-browse edits, routed to /ui2-resolve (F3): `showsHeader` (D27 — the container
+//  pins C-040 above its ScrollView) and the day rail opening at its last card (D27/D12).
 //
 
 import SwiftUI
@@ -103,6 +105,9 @@ struct GroupsDetailScreen: View {
     }
 
     let state: State
+    /// D27: false when the container pins C-040 above its own ScrollView, so the header is not
+    /// drawn twice. True (the default) keeps the capture / ViewRegistry render whole.
+    let showsHeader: Bool
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op
     // default. The screen never decides what an action means.
     var onBack: () -> Void = {}                         // C-040 back → pops to the pusher
@@ -119,6 +124,7 @@ struct GroupsDetailScreen: View {
 
     init(
         state: State,
+        showsHeader: Bool = true,
         onBack: @escaping () -> Void = {},
         onEditField: @escaping (String) -> Void = { _ in },
         onOpenLesson: @escaping () -> Void = {},
@@ -132,6 +138,7 @@ struct GroupsDetailScreen: View {
         onDeleteGroup: @escaping () -> Void = {}
     ) {
         self.state = state
+        self.showsHeader = showsHeader
         self.onBack = onBack
         self.onEditField = onEditField
         self.onOpenLesson = onOpenLesson
@@ -145,9 +152,12 @@ struct GroupsDetailScreen: View {
         self.onDeleteGroup = onDeleteGroup
     }
 
-    // §3 has one interaction that stays on the screen — ""Jump to today" → scrolls the day rail
-    // to today's card" — and it is scroll position (R-31 ephemeral UI), driven through a
-    // ScrollViewReader below. Nothing else is local, so there is no `@SwiftUI.State` here.
+    // R-31 ephemeral UI: the day rail's scroll position. D27/D12: the rail opens at its last card
+    // (today trails) and "Jump to today" scrolls back to it.
+    @SwiftUI.State private var railDay: Int?
+
+    /// D27: the card the rail opens on — the last (today trails, D12); nil while the rail is empty.
+    static func openingRailIndex(_ dayCount: Int) -> Int? { dayCount > 0 ? dayCount - 1 : nil }
 
     // MARK: - §2 constants (values that no §3 state changes)
 
@@ -220,16 +230,18 @@ struct GroupsDetailScreen: View {
         // length. The status bar (§1 deviation 2) is the harness's.
         VStack(alignment: .leading, spacing: 0) {
             // §2: "C-040 PageHeader (56pt: `back` left, group name centred, no right icons)".
-            PageHeader(
-                style: .twoIcons,
-                title: state.groupName,
-                showTitle: true,
-                showIcons: false,
-                leadingGlyph: .back,
-                rightButtons: [],
-                onLeading: onBack
-            )
-            .ui2Element("C-040 PageHeader")
+            if showsHeader {
+                PageHeader(
+                    style: .twoIcons,
+                    title: state.groupName,
+                    showTitle: true,
+                    showIcons: false,
+                    leadingGlyph: .back,
+                    rightButtons: [],
+                    onLeading: onBack
+                )
+                .ui2Element("C-040 PageHeader")
+            }
 
             // §2: "content top padding 16, bottom padding ≥ 16"; every block, divider and
             // section header → content gap is `space-section-gap` (32).
@@ -425,14 +437,20 @@ struct GroupsDetailScreen: View {
                     .ui2Element(Self.partName("C-023 RailCard", ordinal: index + 1))
                 }
             }
+            .scrollTargetLayout()
             .padding(.horizontal, Token.Space.pageMargin)
         }
         .scrollIndicators(.hidden)
+        // D27: opens on the last card; days that land after the page opened re-align it.
+        .scrollPosition(id: $railDay, anchor: .trailing)
+        .onAppear { railDay = Self.openingRailIndex(state.dayNumbers.count) }
+        .onChange(of: state.dayNumbers.count) { _, count in railDay = Self.openingRailIndex(count) }
     }
 
     /// §3: ""Jump to today" → scrolls the day rail to today's card".
     private func scrollToToday(_ proxy: ScrollViewProxy) {
         guard let today = state.dayDateStates.firstIndex(of: "today") else { return }
+        railDay = today
         proxy.scrollTo(today, anchor: .trailing)
     }
 

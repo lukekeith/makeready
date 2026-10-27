@@ -9,6 +9,7 @@
 import { FIXTURE_TZ, FixtureError, type ScenarioFn, addDays, weekdayOf } from './context.js'
 import { seedImages } from './images.js'
 import {
+  FIXTURE_EMPTY_GROUP_ID,
   FIXTURE_ENROLLMENT_IDS,
   FIXTURE_GROUP_IDS,
   FIXTURE_LEADER_EMAIL,
@@ -27,6 +28,8 @@ export const FIXTURE_ORG_NAME = 'MakeReady Fixtures'
 /** ui2-members-browse T7: the Group-Leader fixture user — the same person as member 7 (members-profile links them, D8). */
 export const FIXTURE_LEADER_NAME = 'Nathan Hughes'
 export const LEADER_GROUP_NAME = 'Prayer Team'
+/** ui2-groups-browse D25: the group page's empty states. */
+export const EMPTY_GROUP_NAME = 'Empty Group'
 export const GROUP_NAMES = ["Tuesday Men's Group", 'Young Adults', "Women's Bible Study"] as const
 export const MEMBERS_PER_GROUP = 8
 export const ALL_DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
@@ -166,6 +169,17 @@ export const seedBase: ScenarioFn = async (ctx) => {
       id: FIXTURE_LEADER_GROUP_ID,
       name: LEADER_GROUP_NAME,
       creatorId: FIXTURE_LEADER_USER_ID,
+      organizationId: FIXTURE_ORG_ID,
+      createdAt: seededAt,
+    },
+  })
+  // ui2-groups-browse D25: no members, enrollments, schedules or history, so the group page shows
+  // every designed empty line. Kept out of created.groups (like Prayer Team): no other layer sees it.
+  await prisma.group.create({
+    data: {
+      id: FIXTURE_EMPTY_GROUP_ID,
+      name: EMPTY_GROUP_NAME,
+      creatorId: FIXTURE_USER_ID,
       organizationId: FIXTURE_ORG_ID,
       createdAt: seededAt,
     },
