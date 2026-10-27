@@ -93,7 +93,7 @@ export async function getGroupHistory(groupId: string, limit: number, now: Date 
     out.push({ id: `activity:${a.id}`, occurredAt: a.createdAt.toISOString(), kind, text: ACTIVITY_TEXT[kind], highlight: null })
   }
   for (const e of events) {
-    const place = e.locationName ?? e.title
+    const place = e.locationName?.trim() || e.title
     out.push({
       id: `event:${e.id}`,
       occurredAt: e.date.toISOString(),

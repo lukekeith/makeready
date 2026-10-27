@@ -76,6 +76,19 @@ describe('getGroupHistory (D15)', () => {
     ])
   })
 
+  it('falls back to the title when the location is empty or whitespace, and trims a padded location', async () => {
+    prismaMock.event.findMany.mockResolvedValue([
+      { id: 'e1', title: 'Monthly Breakfast', locationName: '', date: at('2026-10-22T13:00:00Z') },
+      { id: 'e2', title: 'Prayer Night', locationName: '   ', date: at('2026-10-21T01:00:00Z') },
+      { id: 'e3', title: 'Picnic', locationName: '  Corner Bakery ', date: at('2026-10-20T01:00:00Z') },
+    ])
+    expect(await getGroupHistory('g1', 20, NOW)).toEqual([
+      { id: 'event:e1', occurredAt: '2026-10-22T13:00:00.000Z', kind: 'event_held', text: 'Held event at Monthly Breakfast', highlight: 'event at Monthly Breakfast' },
+      { id: 'event:e2', occurredAt: '2026-10-21T01:00:00.000Z', kind: 'event_held', text: 'Held event at Prayer Night', highlight: 'event at Prayer Night' },
+      { id: 'event:e3', occurredAt: '2026-10-20T01:00:00.000Z', kind: 'event_held', text: 'Held event at Corner Bakery', highlight: 'event at Corner Bakery' },
+    ])
+  })
+
   it('merges all three sources newest first and keeps only `limit`', async () => {
     prismaMock.membershipEvent.findMany.mockResolvedValue([
       { id: 'me1', action: 'REQUESTED', createdAt: at('2026-10-26T10:00:00Z'), member: person('Ruth', 'Diaz') },
