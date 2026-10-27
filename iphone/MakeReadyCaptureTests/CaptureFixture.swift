@@ -1101,6 +1101,9 @@ struct CaptureComponent: Codable {
     let trailingLabel: String?                 // C-040 — textButtons trailing label; nil = §4's "Done"
     // C-040 update 2026-10-24 (D60, OQ-C-040-001). Additive; no field of this name existed.
     let trailingEnabled: Bool?                 // C-040 — textButtons / backAndLink trailing action; nil = §4's true
+    // C-040 update 2026-10-27 (D66). Additive; no field of either name existed.
+    let leadingEnabled: Bool?                  // C-040 — textButtons leading label; nil = §4's true
+    let trailingLoading: Bool?                 // C-040 — textButtons saving spinner; nil = §4's false
     // ── preview props ──
     // C-045 TextInput rebuild 2026-10-19. Additive; reuses `kind` and `alignment` (same names,
     // same String type); no field named countryCode existed.
@@ -1233,6 +1236,13 @@ struct CaptureComponent: Codable {
     // Additive; reuses `lessonCount`, `today` (string reading), `startDate`, `enabledDays`,
     // `overriddenDates`, `existingLessonDates` and `prompt` as-is (same names, same types).
     let programChosen: Bool?                   // false = §3 needs-program
+    // ── screen edit-cover ──
+    // Additive; reuses `saving` (Bool?) and `imageURL` (String?, the canvas slot's sample photo)
+    // as-is (same names, same types).
+    let showsGrid: Bool?                       // §3 gesture-active: thirds grid on
+    let readoutDegrees: Int?                   // §3 twisting: degree readout; nil = none
+    let rotationDegrees: Double?               // §2 item 4: the dial's straighten value, ±45
+    let doneEnabled: Bool?                     // false = §3 Done disabled
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated

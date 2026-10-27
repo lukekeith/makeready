@@ -182,7 +182,7 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
         // C-040 §4: `style` and `rightButtons` are required, so a nil is a fixture bug, not a
         // value to guess. `title` is `String?` outright. Every other prop has a §4 default:
         // showTitle / showIcons true, leadingGlyph back, leadingLabel "Cancel", trailingLabel "Done",
-        // trailingEnabled true.
+        // trailingEnabled true, leadingEnabled true, trailingLoading false (D66).
         guard let styleRaw = c.style else {
             throw ViewRegistryError.unknownView("component.ui2.C-040: missing props.style")
         }
@@ -224,8 +224,10 @@ private func buildCaptureViewPart5(_ fixture: CaptureFixture, authManager: AuthM
             leadingGlyph: ui2C040Leading,
             rightButtons: ui2C040Right,
             leadingLabel: c.leadingLabel ?? "Cancel",
+            leadingEnabled: c.leadingEnabled ?? true,
             trailingLabel: c.trailingLabel ?? "Done",
-            trailingEnabled: c.trailingEnabled ?? true
+            trailingEnabled: c.trailingEnabled ?? true,
+            trailingLoading: c.trailingLoading ?? false
         )
         // The master width and specimen margin are the PREVIEW's frame. A fill capture (designer-pick-width)
         // and a design capture draw the bare header at the page width — the runner's rule (designer-live-picks D5).
@@ -2611,6 +2613,9 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
     case "screen.2.0.activities-editor":
         // Out of line for the same stack-frame reason as C-083.
         return try buildScreenActivitiesEditor(fixture)
+    case "screen.2.0.edit-cover":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildScreenEditCover(fixture)
     case "component.ui2.C-102":
         // Out of line for the same stack-frame reason as C-083.
         return try buildUI2C102(fixture)
@@ -3600,6 +3605,54 @@ private func buildScreenEnrollmentsHome(_ fixture: CaptureFixture) throws -> Any
             programCoverURLs: programCoverURLs
         )
     ))
+}
+
+/// `screen.2.0.edit-cover` — the edit-cover screen preview. See the case in
+/// `buildCaptureView`.
+@MainActor @inline(never)
+private func buildScreenEditCover(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.edit-cover: missing state.component")
+    }
+    // A missing field takes this build's `default` sample (the preview linked to the frozen
+    // frame `default`), single-sourced on the screen's State. `readoutDegrees` is optional on
+    // purpose: nil is §3's "no readout".
+    let sample = MakeReadyUI.EditCoverScreen<AnyView>.State.default
+    // The canvas SLOT is the app's (`CoverFramingCanvas`, owner description item 4); the harness
+    // stands in for it with the fixture's photo at the zoom floor — full frame width, centred —
+    // resolved here so the snapshot's single layout pass has the bytes. No photo → an empty slot.
+    var photo: UIImage?
+    if let raw = c.imageURL, let url = URL(string: raw), url.scheme != nil,
+       let data = try? Data(contentsOf: url) {
+        photo = UIImage(data: data)
+    }
+    let slot: AnyView = photo.map {
+        AnyView(
+            Image(uiImage: $0)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .padding(.horizontal, MakeReadyUI.Token.Space.pageMargin)
+        )
+    } ?? AnyView(Color.clear)
+    // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
+    // max(its height, the content's length), under the top safe area — the bare screen here.
+    // §2 Frame position centres the frame on the DEVICE midline, which the screen derives from
+    // its safe-area insets; the `screen.*` canvas pads the top instead of insetting it and has
+    // no bottom inset, so the case supplies iphone-16-pro-max's (CaptureDevices: safeArea top 59,
+    // bottom 34) — the top as an inset pulled back over the runner's own 59pt padding.
+    return AnyView(MakeReadyUI.EditCoverScreen<AnyView>(
+        state: .init(
+            showsGrid: c.showsGrid ?? sample.showsGrid,
+            readoutDegrees: c.readoutDegrees,
+            rotationDegrees: c.rotationDegrees ?? sample.rotationDegrees,
+            saving: c.saving ?? sample.saving,
+            doneEnabled: c.doneEnabled ?? sample.doneEnabled
+        ),
+        canvas: { slot }
+    )
+    .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 59) }
+    .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 34) }
+    .padding(.top, -59))
 }
 
 /// `screen.2.0.groups-detail` — the groups-detail screen preview. See the case in
@@ -5250,6 +5303,7 @@ enum ViewRegistry {
         "screen.2.0.enrollments-home",
         "screen.2.0.search-home",
         "screen.2.0.activities-editor",
+        "screen.2.0.edit-cover",
         "component.ui2.C-102",
         "component.ui2.C-105",
         "component.ui2.C-091",
