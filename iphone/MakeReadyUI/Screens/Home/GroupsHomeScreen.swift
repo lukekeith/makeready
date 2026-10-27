@@ -180,12 +180,12 @@ struct GroupsHomeScreen: View {
             // HStack (members-home's OQ-members-home-3 default, inherited by "identical skeleton").
             HStack(spacing: Token.Space.elementGap) {                // §2: "8 gap"
                 if state.orgFilterVisible {
-                    FilterChip(type: .menu, active: !state.selectedOrgs.isEmpty, label: state.orgFilterLabel) {
+                    Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
                         presentedMenu = .orgs
                     }
                     .ui2Element("C-035 FilterChip")
                 }
-                FilterChip(type: .menu, active: !state.selectedLeaders.isEmpty, label: state.leaderFilterLabel) {
+                Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaders.isEmpty) {
                     presentedMenu = .leaders
                 }
                 .ui2Element(state.orgFilterVisible ? "C-035 FilterChip 2" : "C-035 FilterChip")
@@ -193,6 +193,13 @@ struct GroupsHomeScreen: View {
             Spacer().frame(height: Self.headerGap)
         }
         .padding(.horizontal, Token.Space.pageMargin)                // §2: "inset 16"
+    }
+
+    /// §4: a `Menu` chip whose tap presents C-036. `onTap:` is passed by label: an unlabelled
+    /// trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan), which a
+    /// `Menu` chip never fires (agent walk round 1, E3 — the MembersHomeScreen precedent).
+    static func menuChip(label: String, active: Bool, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: active, label: label, onTap: onTap)
     }
 
     // MARK: §2 List

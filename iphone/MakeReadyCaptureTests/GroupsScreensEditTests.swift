@@ -12,6 +12,14 @@ final class GroupsScreensEditTests: XCTestCase {
         XCTAssertEqual(GroupsHomeScreen.State.populated.listEmpty, "")
     }
 
+    /// Agent walk round 1 (E3): tapping "All Leaders" opened no menu. A `Menu` chip fires `onTap`,
+    /// and an unlabelled trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan).
+    func testGroupsHomeMenuChipTapPresentsTheMenu() {
+        var tapped = false
+        GroupsHomeScreen.menuChip(label: "All Leaders", active: false) { tapped = true }.onTap()
+        XCTAssertTrue(tapped)
+    }
+
     /// D27: the container pins C-040 itself; the capture render keeps the screen's own header.
     func testGroupsDetailHeaderDefaultsOnAndCanBePinnedOut() {
         XCTAssertTrue(GroupsDetailScreen(state: .populated).showsHeader)

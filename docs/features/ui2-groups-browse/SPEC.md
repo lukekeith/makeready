@@ -303,5 +303,5 @@ Ref (via program `ui2-groups`): `groups-home`, `groups-detail`, `create-group` �
 
 ## Fixes
 
-- [ ] iphone: E3 Leaders chip on Home → Groups — expected a tap on "All Leaders" to open the C-036 Leaders menu (options + Save) and filter on Save, saw nothing open (no menu, no Save in the element tree, list unchanged; the Members chip opens fine in the same harness — lead: the Groups section's new pull-to-refresh scroll may keep `UI2HostedOverlayKey` from reaching `.ui2OverlayHost()`) (agent walk round 1)
+- [x] iphone: E3 Leaders chip on Home → Groups — expected a tap on "All Leaders" to open the C-036 Leaders menu (options + Save) and filter on Save, saw nothing open (no menu, no Save in the element tree, list unchanged; the Members chip opens fine in the same harness — lead: the Groups section's new pull-to-refresh scroll may keep `UI2HostedOverlayKey` from reaching `.ui2OverlayHost()`) (agent walk round 1)
 - [x] spec: E5 history empty line — expected "No history yet" on a new group's Timeline (§Testing step 5), saw one "Created the group" row, which D15 rules (Activity CREATED → group_created); Ruling: D15 wins, reword §Testing step 5 so a new group's Timeline shows exactly one "Created the group" row (agent walk round 1)
