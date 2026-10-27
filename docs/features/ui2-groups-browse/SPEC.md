@@ -192,7 +192,7 @@ the enum; the Boolean is untouched throughout. SC2–SC7 are additive wire chang
 2. Type part of a group name in search — only matching groups remain; a nonsense query shows "No groups match your search"
 3. Open the Leaders chip, select one leader, Save — only that leader's groups remain; clear it — all return
 4. Tap the TopNav `+` on Groups → create-group; type "Walk Test Group", tap Create — lands on its group page; back returns to Groups and the new group is listed
-5. On "Walk Test Group"'s page every section shows its empty line ("No lessons scheduled", "No members yet", "No enrollments yet", "No history yet")
+5. On "Walk Test Group"'s page Lessons, Members and Enrollments show their empty lines ("No lessons scheduled", "No members yet", "No enrollments yet") and the Timeline shows exactly one row, "Created the group" (D15 — a group is never history-less once created; "No history yet" is only reached by a group with no CREATED activity)
 6. Open "Tuesday Men's Group" — cover, the four stats, the six setting values, the next lesson with activity thumbnails, the activity rail and chart, 2 pending join requests above the members, enrollments and 5 history rows all show real data
 7. Tap a member row — the member page opens for that member
 8. Back, tap Members `add` — the invite screen opens for this group
@@ -304,4 +304,4 @@ Ref (via program `ui2-groups`): `groups-home`, `groups-detail`, `create-group` �
 ## Fixes
 
 - [ ] iphone: E3 Leaders chip on Home → Groups — expected a tap on "All Leaders" to open the C-036 Leaders menu (options + Save) and filter on Save, saw nothing open (no menu, no Save in the element tree, list unchanged; the Members chip opens fine in the same harness — lead: the Groups section's new pull-to-refresh scroll may keep `UI2HostedOverlayKey` from reaching `.ui2OverlayHost()`) (agent walk round 1)
-- [ ] spec: E5 history empty line — expected "No history yet" on a new group's Timeline (§Testing step 5), saw one "Created the group" row, which D15 rules (Activity CREATED → group_created); Ruling: D15 wins, reword §Testing step 5 so a new group's Timeline shows exactly one "Created the group" row (agent walk round 1)
+- [x] spec: E5 history empty line — expected "No history yet" on a new group's Timeline (§Testing step 5), saw one "Created the group" row, which D15 rules (Activity CREATED → group_created); Ruling: D15 wins, reword §Testing step 5 so a new group's Timeline shows exactly one "Created the group" row (agent walk round 1)
