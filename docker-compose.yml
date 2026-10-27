@@ -16,6 +16,18 @@ services:
       timeout: 5s
       retries: 5
 
+  # S3-compatible image store for the agent walk (walk-image-storage). The walk server's
+  # R2_ENDPOINT points here; the human's dev server keeps its R2 dev bucket. s3mock checks no
+  # credentials, serves every object by plain URL and keeps nothing across a restart — the walk's
+  # reset restarts it. (MinIO was the first pick; its images are no longer publicly pullable.)
+  s3mock:
+    image: adobe/s3mock:5.2.3
+    container_name: makeready-s3mock
+    environment:
+      COM_ADOBE_TESTING_S3MOCK_STORE_INITIAL_BUCKETS: makeready-walk
+    ports:
+      - "9010:9090"
+
   server:
     build:
       context: ./server

@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, type S3ClientConfig, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3'
 import sharp from 'sharp'
 
 /**
@@ -10,25 +10,37 @@ const MAX_FILE_SIZE = 5 * 1024 * 1024 // 5MB
 
 let s3Client: S3Client | null = null
 
-function getR2Client(): S3Client {
-  if (s3Client) return s3Client
-
-  const accountId = process.env.R2_ACCOUNT_ID
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY
+/**
+ * The S3 client settings. `R2_ENDPOINT` points the client at a local S3-compatible store (MinIO on
+ * the agent walk) with path-style addressing; unset, it talks to Cloudflare R2 as always.
+ */
+export function r2ClientConfig(env: NodeJS.ProcessEnv = process.env): S3ClientConfig {
+  const accountId = env.R2_ACCOUNT_ID
+  const accessKeyId = env.R2_ACCESS_KEY_ID
+  const secretAccessKey = env.R2_SECRET_ACCESS_KEY
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new Error('R2 credentials not configured (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY)')
   }
 
-  s3Client = new S3Client({
+  const config: S3ClientConfig = {
     region: 'auto',
     endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
     credentials: {
       accessKeyId,
       secretAccessKey,
     },
-  })
+  }
+  if (env.R2_ENDPOINT) {
+    config.endpoint = env.R2_ENDPOINT
+    config.forcePathStyle = true
+  }
+  return config
+}
+
+function getR2Client(): S3Client {
+  if (s3Client) return s3Client
+  s3Client = new S3Client(r2ClientConfig())
   return s3Client
 }
 
