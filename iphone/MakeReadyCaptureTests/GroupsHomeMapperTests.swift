@@ -119,4 +119,36 @@ final class GroupsHomeMapperTests: XCTestCase {
         await GroupsHomeContainer.route(CancellationError(), context: "x", surface: true, state: state, onUnauthorized: {})
         XCTAssertEqual(state.errors.count, 1)
     }
+    /// A stub whose leaders and orgs load and whose groups fail with `groupsError`.
+    private func failingGroupsAPI(_ groupsError: Error) -> StubAPIClient {
+        let api = StubAPIClient()
+        api.stub("GET", "/api/group-leaders", json: #"{"success":true,"leaders":[]}"#)
+        api.stub("GET", "/api/organizations/my/organizations", json: #"{"success":true,"data":[]}"#)
+        api.errorFor = { endpoint, _ in endpoint == "/api/groups" ? groupsError : nil }
+        return api
+    }
+
+    /// D22: with groups already cached, a failed load still fetches and surfaces the banner over them.
+    func testLoadWithCacheSurfacesAFailure() async {
+        let state = AppState()
+        state.groups.replaceAll([group("1", "Alpha")])
+        let api = failingGroupsAPI(APIError.serverError("boom"))
+        let ok = await GroupsHomeContainer.load(api: api, state: state, onUnauthorized: {})
+        XCTAssertFalse(ok)
+        XCTAssertEqual(api.callCount("GET", "/api/groups"), 1)
+        XCTAssertEqual(state.activeSurfacedError?.message, "Couldn't load your groups")
+        XCTAssertEqual(state.groups.all.map(\.id), ["1"])
+    }
+
+    /// ui2-shell D28: with groups already cached, a 401 signs out instead of showing stale data.
+    func testLoadWithCacheSignsOutOn401() async {
+        let state = AppState()
+        state.groups.replaceAll([group("1", "Alpha")])
+        var signOuts = 0
+        let ok = await GroupsHomeContainer.load(api: failingGroupsAPI(APIError.unauthorized), state: state,
+                                                onUnauthorized: { signOuts += 1 })
+        XCTAssertFalse(ok)
+        XCTAssertEqual(signOuts, 1)
+        XCTAssertNil(state.activeSurfacedError)
+    }
 }

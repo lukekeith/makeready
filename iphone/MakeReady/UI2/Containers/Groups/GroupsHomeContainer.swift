@@ -51,18 +51,26 @@ struct GroupsHomeContainer: View {
         .onDisappear { searchTask?.cancel() }
     }
 
-    /// D3/D22: groups (cache-first; a failure surfaces the banner), leaders and orgs (console-only)
-    /// all at once. Returns whether the groups load succeeded.
+    /// D3/D22: groups (a failure surfaces the banner over the cached or empty list), leaders and
+    /// orgs (console-only) all at once. Returns whether the groups load succeeded.
     @MainActor
     @discardableResult
-    static func load(authManager: AuthManager, forceRefresh: Bool = false) async -> Bool {
-        let state = AppState.shared
-        let onUnauthorized = signOut(authManager)
-        async let leaders: () = loadLeaders(state: state, onUnauthorized: onUnauthorized)
-        async let orgs: () = GroupActions(onUnauthorized: onUnauthorized).loadMyOrganizations()
+    static func load(authManager: AuthManager) async -> Bool {
+        await load(api: APIClient.shared, state: AppState.shared, onUnauthorized: signOut(authManager))
+    }
+
+    /// `load` with its client, state and 401 handler injected (tests).
+    /// The body already renders the cache from `AppState.groups`, so groups always fetch: the
+    /// Action's cache branch would detach the fetch and drop both the banner and the 401 sign-out.
+    @MainActor
+    @discardableResult
+    static func load(api: APIClientProtocol, state: AppState,
+                     onUnauthorized: @escaping @MainActor () async -> Void) async -> Bool {
+        async let leaders: () = loadLeaders(api: api, state: state, onUnauthorized: onUnauthorized)
+        async let orgs: () = GroupActions(api: api, state: state, onUnauthorized: onUnauthorized).loadMyOrganizations()
         var ok = true
         do {
-            try await GroupActions().loadGroups(forceRefresh: forceRefresh)
+            try await GroupActions(api: api, state: state).loadGroups(forceRefresh: true)
         } catch {
             ok = false
             await route(error, context: "GroupsHomeContainer.loadGroups", surface: true,
@@ -75,7 +83,7 @@ struct GroupsHomeContainer: View {
     /// D3: the Groups section's pull-to-refresh (UI2Shell.refreshAction).
     @MainActor
     static func refresh(authManager: AuthManager) async {
-        await load(authManager: authManager, forceRefresh: true)
+        await load(authManager: authManager)
     }
 
     /// D22 + ui2-shell D28: a cancelled load is nothing; a 401 signs out; anything else is
@@ -93,9 +101,10 @@ struct GroupsHomeContainer: View {
     }
 
     @MainActor
-    private static func loadLeaders(state: AppState, onUnauthorized: @escaping @MainActor () async -> Void) async {
+    private static func loadLeaders(api: APIClientProtocol, state: AppState,
+                                    onUnauthorized: @escaping @MainActor () async -> Void) async {
         do {
-            try await ProgramActions(state: state).loadGroupLeaders()
+            try await ProgramActions(api: api, state: state).loadGroupLeaders()
         } catch {
             await route(error, context: "GroupsHomeContainer.loadGroupLeaders", surface: false,
                         state: state, onUnauthorized: onUnauthorized)
