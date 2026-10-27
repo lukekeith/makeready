@@ -1,9 +1,17 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { FIXTURE_LEADER_NAME, MALE_MEMBER_COUNT, MEMBERS_PER_GROUP, memberNominalAge, memberProfile } from '../base.js'
 import { FIXTURE_MEMBER_IDS } from '../ids.js'
 import { AVATAR_COUNT, AVATAR_MEMBER_INDICES } from '../images.js'
 import { JOINED_OFFSETS, MULTI_GROUP_MEMBER_INDICES } from '../screens/members-home.js'
-import { LEADER_MEMBER_INDEX } from '../screens/members-profile.js'
+import type { FixtureContext } from '../context.js'
+import {
+  GOOGLE_ONLY_GOOGLE_EMAIL,
+  GOOGLE_ONLY_GOOGLE_ID,
+  GOOGLE_ONLY_MEMBER_INDEX,
+  GOOGLE_PICTURE_SOURCE_INDEX,
+  LEADER_MEMBER_INDEX,
+  full as membersProfileFull,
+} from '../screens/members-profile.js'
 
 const indices = Array.from({ length: FIXTURE_MEMBER_IDS.length }, (_, i) => i)
 /** Whole years between a birthday and a YYYY-MM-DD day. */
@@ -81,5 +89,67 @@ describe('members-profile layer', () => {
     expect(memberProfile(LEADER_MEMBER_INDEX, '2026-10-25').email).toBe(
       `${FIXTURE_LEADER_NAME.toLowerCase().replace(' ', '.')}@example.org`
     )
+  })
+})
+
+describe('members-profile layer — the Google-only member (image-framing-editor D4)', () => {
+  type UpdateArgs = { where: { id: string }; data: Record<string, unknown> }
+  const fakeCtx = (sourcePicture: string | null) => {
+    const updates: UpdateArgs[] = []
+    const findUnique = vi.fn(async () => ({ profilePicture: sourcePicture }))
+    const ctx = {
+      prisma: {
+        member: {
+          update: vi.fn(async (args: UpdateArgs) => {
+            updates.push(args)
+            return {}
+          }),
+          findUnique,
+        },
+      },
+      daysAgo: (n: number) => new Date(Date.UTC(2026, 9, 27) - n * 86_400_000),
+    } as unknown as FixtureContext
+    return { ctx, updates, findUnique }
+  }
+  const googleUpdate = (updates: UpdateArgs[]) =>
+    updates.find((u) => u.where.id === FIXTURE_MEMBER_IDS[GOOGLE_ONLY_MEMBER_INDEX])
+
+  it('picks a member with no fixture avatar who is not the leader, and a source that has one', () => {
+    expect(AVATAR_MEMBER_INDICES).not.toContain(GOOGLE_ONLY_MEMBER_INDEX)
+    expect(GOOGLE_ONLY_MEMBER_INDEX).not.toBe(LEADER_MEMBER_INDEX)
+    expect(AVATAR_MEMBER_INDICES).toContain(GOOGLE_PICTURE_SOURCE_INDEX)
+  })
+
+  it('links the Google account under the member’s own email', () => {
+    expect(memberProfile(GOOGLE_ONLY_MEMBER_INDEX, '2026-10-25').email).toBe(GOOGLE_ONLY_GOOGLE_EMAIL)
+  })
+
+  it('uses the source member’s placed avatar URL as the Google picture', async () => {
+    const placed = 'https://img.test/avatars/members/m0/1700000000001.webp'
+    const { ctx, updates, findUnique } = fakeCtx(placed)
+    await membersProfileFull(ctx)
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: FIXTURE_MEMBER_IDS[GOOGLE_PICTURE_SOURCE_INDEX] },
+      select: { profilePicture: true },
+    })
+    expect(googleUpdate(updates)?.data).toEqual({
+      googleId: GOOGLE_ONLY_GOOGLE_ID,
+      googleEmail: GOOGLE_ONLY_GOOGLE_EMAIL,
+      googlePicture: placed,
+      googleLinkedAt: expect.any(Date),
+    })
+    expect(googleUpdate(updates)?.data).not.toHaveProperty('profilePicture')
+  })
+
+  it('still links the account (picture null) when images are off', async () => {
+    const { ctx, updates } = fakeCtx(null)
+    await membersProfileFull(ctx)
+    expect(googleUpdate(updates)?.data).toMatchObject({ googleId: GOOGLE_ONLY_GOOGLE_ID, googlePicture: null })
+  })
+
+  it('keeps the member-7 leader link', async () => {
+    const { ctx, updates } = fakeCtx(null)
+    await membersProfileFull(ctx)
+    expect(updates.find((u) => u.where.id === FIXTURE_MEMBER_IDS[LEADER_MEMBER_INDEX])?.data).toMatchObject({ userId: expect.any(String) })
   })
 })

@@ -9,7 +9,8 @@ import * as layer from '../screens/shared-edit-field.js'
 const prisma = {
   groupMember: { createMany: vi.fn() },
   memberOrganization: { update: vi.fn() },
-  member: { update: vi.fn() },
+  // members-profile also reads the Google-only member's picture source (image-framing-editor D4).
+  member: { update: vi.fn(), findUnique: vi.fn(async () => ({ profilePicture: null })) },
 }
 
 beforeEach(() => {
@@ -30,7 +31,8 @@ describe('shared-edit-field layer (ui2-members-edit T5)', () => {
 
   it('replays the Members layers, then nulls the five optional fields on that one member', async () => {
     await layer.sparse(createContext(prisma as never, new Date('2026-10-26T15:00:00Z')))
-    // members-home: the three Prayer Team memberships; members-profile: the member-7 user link.
+    // members-home: the three Prayer Team memberships; members-profile: the member-7 user link
+    // and the member-10 Google link.
     expect(prisma.groupMember.createMany).toHaveBeenCalledTimes(1)
     expect(prisma.groupMember.createMany.mock.calls[0][0].data).toHaveLength(3)
     expect(prisma.member.update).toHaveBeenCalledWith(

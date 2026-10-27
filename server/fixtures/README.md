@@ -72,7 +72,7 @@ two-line city address and an emergency contact name and phone; 13 of 24 have a d
 when images are on (the set's avatars are all men, so 5 women carry one), the rest show initials.
 The list leads with joins of today, yesterday, 4 days, 1 and 2 weeks and 40 days ago; James
 Carter, Emily Price and Sarah Griffin are in two groups (their base group + Prayer Team). Nathan
-Hughes (member 7) is linked to the Group-Leader user, so his Role reads "Group leader".
+Hughes (member 7) is linked to the Group-Leader user, so his Role reads "Group leader". Hannah Jenkins (member 10, no fixture avatar) is linked to a Google account whose picture is James Carter's placed avatar URL, so her avatar tap shows the Google-only menu (image-framing-editor D4); with images off her googlePicture is null.
 
 Group-Leader session for the walk (the iPhone's Local identity offers only Fixtures):
 `curl -s -X POST http://localhost:3010/auth/dev-login -H 'Content-Type: application/json' -d '{"email":"fixtures-leader@makeready.local"}'`
