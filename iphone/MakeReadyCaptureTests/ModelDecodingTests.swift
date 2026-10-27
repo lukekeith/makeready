@@ -260,4 +260,24 @@ final class ModelDecodingTests: XCTestCase {
         let video = try JSONDecoder.apiDecoder.decode(Video.self, from: Data(json.utf8))
         XCTAssertEqual(video.id, "v3")
     }
+
+    // MARK: - UserGroup.creatorName
+
+    // invite-member D9: GET /api/groups' creatorName, optional for released-build caches.
+    private func groupJSON(creatorName: String?) -> Data {
+        let name = creatorName.map { #","creatorName":"\#($0)""# } ?? ""
+        return Data(#"{"id":"g1","code":"ABC123","name":"Prayer Team","isPrivate":false,"allowInvites":true,"memberCount":3,"creatorId":"u1","createdAt":"2026-10-26T12:00:00.000Z","updatedAt":"2026-10-26T12:00:00.000Z"\#(name)}"#.utf8)
+    }
+
+    func testUserGroupDecodesCreatorName() throws {
+        let group = try JSONDecoder.apiDecoder.decode(UserGroup.self, from: groupJSON(creatorName: "Tony Stark"))
+        XCTAssertEqual(group.creatorName, "Tony Stark")
+    }
+
+    func testUserGroupWithoutCreatorNameDecodesNil() throws {
+        let group = try JSONDecoder.apiDecoder.decode(UserGroup.self, from: groupJSON(creatorName: nil))
+        XCTAssertNil(group.creatorName)
+        let roundTrip = try JSONDecoder.apiDecoder.decode(UserGroup.self, from: JSONEncoder.apiEncoder.encode(group))
+        XCTAssertNil(roundTrip.creatorName)
+    }
 }
