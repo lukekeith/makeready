@@ -156,6 +156,7 @@
 		2EF8E54A989796F9429593CF /* EnrollmentSelectProgramScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFA88CF9737A3691F25B967 /* EnrollmentSelectProgramScreen.swift */; };
 		2F33DCCF273D65DBCBCC8209 /* TextColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70E6F4460F6AAF00A6F20E43 /* TextColorPalette.swift */; };
 		2F36A2E4E6CDB4DE0BAA70A4 /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = DATEFMT0002000000000001 /* Date+Formatting.swift */; };
+		2F674AB1EE1F3DAD394F6F9B /* ProgramDecodingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA4EDD5274781FBF3D270F88 /* ProgramDecodingTests.swift */; };
 		303E23A3DF409DFC5C3E5F77 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNTC0002000000000000001 /* Contact.swift */; };
 		3047A7E01D41A8CF19D0679C /* TopNavHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9C75D11CAC091343DF3BED /* TopNavHost.swift */; };
 		308BFF5A34B22800FD280ABA /* AISuggestionsBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91B1CE3E660CE68CA31F598 /* AISuggestionsBlock.swift */; };
@@ -1168,6 +1169,7 @@
 		C8317984007B14F8F31FC56D /* TaskDisc.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TaskDisc.swift; sourceTree = "<group>"; };
 		C91B1CE3E660CE68CA31F598 /* AISuggestionsBlock.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AISuggestionsBlock.swift; sourceTree = "<group>"; };
 		C96FFB99B33BBCE3586DFDF3 /* EditGroupCoverContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EditGroupCoverContainer.swift; path = Containers/Groups/EditGroupCoverContainer.swift; sourceTree = "<group>"; };
+		CA4EDD5274781FBF3D270F88 /* ProgramDecodingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProgramDecodingTests.swift; sourceTree = "<group>"; };
 		CACHIMG0002000000000001 /* CachedAsyncImage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedAsyncImage.swift; sourceTree = "<group>"; };
 		CAL_BAR00000000000001 /* CalendarBottomBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CalendarBottomBar.swift; sourceTree = "<group>"; };
 		CAL_CTL00000000000001 /* SplitMonthCalendarController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitMonthCalendarController.swift; sourceTree = "<group>"; };
@@ -1860,6 +1862,7 @@
 				EAB0D7D882383511F27A0C9E /* MemberSaveAvatarTests.swift */,
 				7D29BF82B15BA13EA5F67398 /* EditMemberAvatarContainerTests.swift */,
 				1B5C983BF26831FF08272540 /* MemberProfileAvatarTapTests.swift */,
+				CA4EDD5274781FBF3D270F88 /* ProgramDecodingTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -2966,6 +2969,7 @@
 				91E26EDF9EF220D730643632 /* MemberSaveAvatarTests.swift in Sources */,
 				CA865DD52F2D2C4059E9620C /* EditMemberAvatarContainerTests.swift in Sources */,
 				E506FDEFB48A7DEF9D3EAA57 /* MemberProfileAvatarTapTests.swift in Sources */,
+				2F674AB1EE1F3DAD394F6F9B /* ProgramDecodingTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

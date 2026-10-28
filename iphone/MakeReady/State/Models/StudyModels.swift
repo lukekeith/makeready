@@ -34,6 +34,21 @@ struct StudyProgram: Codable, Identifiable, Hashable {
     var templateId: String?
     var templateName: String?
     var tags: [String]?
+    // ui2-programs D15 (§Contract): names, settings and the cover's original + framing. All
+    // optional — a program cached before these keys existed decodes with them nil.
+    var creatorName: String?
+    var leaderName: String?
+    var leaderId: String?
+    var organizationId: String?
+    var organizationName: String?
+    var coverOriginalUrl: String?
+    var isPrivate: Bool?
+    var ageRangeMin: Int?
+    var ageRangeMax: Int?
+    var maxMembers: Int?
+    /// The server's DirectoryAccess raw value, held as a String exactly as `UserGroup` holds it.
+    var memberDirectoryAccess: String?
+    var coverFraming: ImageFraming?
 
     // MARK: - CodingKeys
 
@@ -45,6 +60,9 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         case _count
         case templateId, template, templateName
         case tags
+        case creatorName, leaderName, leaderId, organizationId, organizationName
+        case coverOriginalUrl, isPrivate, ageRangeMin, ageRangeMax, maxMembers
+        case memberDirectoryAccess, coverFraming
     }
 
     // MARK: - Custom Decoder
@@ -100,6 +118,21 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         }
 
         tags = try container.decodeIfPresent([String].self, forKey: .tags)
+
+        creatorName = try container.decodeIfPresent(String.self, forKey: .creatorName)
+        leaderName = try container.decodeIfPresent(String.self, forKey: .leaderName)
+        leaderId = try container.decodeIfPresent(String.self, forKey: .leaderId)
+        organizationId = try container.decodeIfPresent(String.self, forKey: .organizationId)
+        organizationName = try container.decodeIfPresent(String.self, forKey: .organizationName)
+        coverOriginalUrl = try container.decodeIfPresent(String.self, forKey: .coverOriginalUrl)
+        isPrivate = try container.decodeIfPresent(Bool.self, forKey: .isPrivate)
+        ageRangeMin = try container.decodeIfPresent(Int.self, forKey: .ageRangeMin)
+        ageRangeMax = try container.decodeIfPresent(Int.self, forKey: .ageRangeMax)
+        maxMembers = try container.decodeIfPresent(Int.self, forKey: .maxMembers)
+        // Tolerant, as UserGroup's (GroupModels.swift): a malformed value reads as unset rather
+        // than failing the whole program — and with it the cached list.
+        memberDirectoryAccess = (try? container.decodeIfPresent(String.self, forKey: .memberDirectoryAccess)) ?? nil
+        coverFraming = (try? container.decodeIfPresent(ImageFraming.self, forKey: .coverFraming)) ?? nil
     }
 
     // MARK: - Custom Encoder
@@ -124,6 +157,18 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         try container.encodeIfPresent(templateId, forKey: .templateId)
         try container.encodeIfPresent(templateName, forKey: .templateName)
         try container.encodeIfPresent(tags, forKey: .tags)
+        try container.encodeIfPresent(creatorName, forKey: .creatorName)
+        try container.encodeIfPresent(leaderName, forKey: .leaderName)
+        try container.encodeIfPresent(leaderId, forKey: .leaderId)
+        try container.encodeIfPresent(organizationId, forKey: .organizationId)
+        try container.encodeIfPresent(organizationName, forKey: .organizationName)
+        try container.encodeIfPresent(coverOriginalUrl, forKey: .coverOriginalUrl)
+        try container.encodeIfPresent(isPrivate, forKey: .isPrivate)
+        try container.encodeIfPresent(ageRangeMin, forKey: .ageRangeMin)
+        try container.encodeIfPresent(ageRangeMax, forKey: .ageRangeMax)
+        try container.encodeIfPresent(maxMembers, forKey: .maxMembers)
+        try container.encodeIfPresent(memberDirectoryAccess, forKey: .memberDirectoryAccess)
+        try container.encodeIfPresent(coverFraming, forKey: .coverFraming)
     }
 
     // MARK: - Memberwise Init
@@ -144,7 +189,19 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         _count: ProgramCount? = nil,
         templateId: String? = nil,
         templateName: String? = nil,
-        tags: [String]? = nil
+        tags: [String]? = nil,
+        creatorName: String? = nil,
+        leaderName: String? = nil,
+        leaderId: String? = nil,
+        organizationId: String? = nil,
+        organizationName: String? = nil,
+        coverOriginalUrl: String? = nil,
+        isPrivate: Bool? = nil,
+        ageRangeMin: Int? = nil,
+        ageRangeMax: Int? = nil,
+        maxMembers: Int? = nil,
+        memberDirectoryAccess: String? = nil,
+        coverFraming: ImageFraming? = nil
     ) {
         self.id = id
         self.name = name
@@ -162,6 +219,18 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         self.templateId = templateId
         self.templateName = templateName
         self.tags = tags
+        self.creatorName = creatorName
+        self.leaderName = leaderName
+        self.leaderId = leaderId
+        self.organizationId = organizationId
+        self.organizationName = organizationName
+        self.coverOriginalUrl = coverOriginalUrl
+        self.isPrivate = isPrivate
+        self.ageRangeMin = ageRangeMin
+        self.ageRangeMax = ageRangeMax
+        self.maxMembers = maxMembers
+        self.memberDirectoryAccess = memberDirectoryAccess
+        self.coverFraming = coverFraming
     }
 
     // MARK: - Hashable
@@ -178,7 +247,18 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         lhs.coverImageUrl == rhs.coverImageUrl &&
         lhs.days == rhs.days &&
         lhs.updatedAt == rhs.updatedAt &&
-        lhs.tags == rhs.tags
+        lhs.tags == rhs.tags &&
+        lhs.creatorName == rhs.creatorName &&
+        lhs.leaderName == rhs.leaderName &&
+        lhs.leaderId == rhs.leaderId &&
+        lhs.organizationName == rhs.organizationName &&
+        lhs.coverOriginalUrl == rhs.coverOriginalUrl &&
+        lhs.isPrivate == rhs.isPrivate &&
+        lhs.ageRangeMin == rhs.ageRangeMin &&
+        lhs.ageRangeMax == rhs.ageRangeMax &&
+        lhs.maxMembers == rhs.maxMembers &&
+        lhs.memberDirectoryAccess == rhs.memberDirectoryAccess &&
+        lhs.coverFraming == rhs.coverFraming
     }
 }
 
