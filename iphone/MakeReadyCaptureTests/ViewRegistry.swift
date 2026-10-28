@@ -3619,19 +3619,32 @@ private func buildScreenEditCover(_ fixture: CaptureFixture) throws -> AnyView {
     // purpose: nil is §3's "no readout".
     let sample = MakeReadyUI.EditCoverScreen<AnyView>.State.default
     // The canvas SLOT is the app's (`CoverFramingCanvas`, owner description item 4); the harness
-    // stands in for it with the fixture's photo at the zoom floor — full frame width, centred —
-    // resolved here so the snapshot's single layout pass has the bytes. No photo → an empty slot.
+    // stands in for it with the fixture's photo at the zoom floor — the smallest scale that covers
+    // the whole 16:9 frame, centred ON the frame (§2 Image slot: no frame pixel shows the
+    // background; the overflow is symmetric) — resolved here so the snapshot's single layout pass
+    // has the bytes. No photo → an empty slot. The frame sits on the device midline (§2 Frame
+    // position): iphone-16-pro-max's 956pt height ÷ 2, read in the case's own screen space below.
     var photo: UIImage?
     if let raw = c.imageURL, let url = URL(string: raw), url.scheme != nil,
        let data = try? Data(contentsOf: url) {
         photo = UIImage(data: data)
     }
-    let slot: AnyView = photo.map {
+    // §3 states 6–7: the member-avatar configuration (1:1 · circle · "Edit photo") rides on
+    // three fixed-per-use inputs; a missing one takes the group-cover default.
+    let aspect = CGFloat(c.aspect ?? 16.0 / 9.0)
+    let mask: MakeReadyUI.EditCoverScreen<AnyView>.Mask = c.mask == "circle" ? .circle : .rectangle
+    let screenSpace = "buildScreenEditCover.screen"
+    let slot: AnyView = photo.map { image in
         AnyView(
-            Image(uiImage: $0)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .padding(.horizontal, MakeReadyUI.Token.Space.pageMargin)
+            GeometryReader { proxy in
+                let frameWidth = proxy.size.width - MakeReadyUI.Token.Space.pageMargin * 2
+                let midY = 956 / 2 - proxy.frame(in: .named(screenSpace)).minY
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: frameWidth, height: frameWidth / aspect)
+                    .position(x: proxy.size.width / 2, y: midY)
+            }
         )
     } ?? AnyView(Color.clear)
     // The canvas is the harness's (CaptureRunner's `screen.*` branch): devices[0]'s width ×
@@ -3648,10 +3661,16 @@ private func buildScreenEditCover(_ fixture: CaptureFixture) throws -> AnyView {
             saving: c.saving ?? sample.saving,
             doneEnabled: c.doneEnabled ?? sample.doneEnabled
         ),
+        aspect: aspect,
+        mask: mask,
+        title: c.title ?? "Edit cover",
         canvas: { slot }
     )
     .safeAreaInset(edge: .top, spacing: 0) { Color.clear.frame(height: 59) }
     .safeAreaInset(edge: .bottom, spacing: 0) { Color.clear.frame(height: 34) }
+    // Named before the pull-back: the negative padding shrinks the outer view, so only the
+    // inset view's origin is the screen's top (y0).
+    .coordinateSpace(.named(screenSpace))
     .padding(.top, -59))
 }
 

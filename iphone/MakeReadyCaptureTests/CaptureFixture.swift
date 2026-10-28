@@ -1243,6 +1243,10 @@ struct CaptureComponent: Codable {
     let readoutDegrees: Int?                   // §3 twisting: degree readout; nil = none
     let rotationDegrees: Double?               // §2 item 4: the dial's straighten value, ±45
     let doneEnabled: Bool?                     // false = §3 Done disabled
+    // §3 states 6–7 (image-framing-editor D9): the member-avatar configuration. Reuses `title`
+    // (String?) as-is; nil fields take the group-cover defaults (16:9 · rectangle · "Edit cover").
+    let aspect: Double?                        // frame width ÷ height; 1 = the avatar square
+    let mask: String?                          // "rectangle" | "circle"
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated

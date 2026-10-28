@@ -144,8 +144,10 @@ struct EditGroupCoverContainer: View {
             },
             onCancel: cancel,
             onDone: { Task { await save() } },
+            // Owner 2026-10-27: both ease in — the canvas eases Flip's mirror itself; the turn eases here.
             onFlip: { model?.flip() },
-            onRotate90: { model?.rotate90() },
+            onRotate90: { withAnimation(ImageFramingCanvas.turnTween) { model?.rotate90() } },
+            onAuto: autoFrame,
             onStraighten: { model?.straighten(to: $0) },
             onStraightenEnd: {
                 guard let model else { return }
@@ -175,6 +177,15 @@ struct EditGroupCoverContainer: View {
             ImageFramingCanvas(model: model, frame: frameRect, accessibilityLabel: Self.canvasLabel)
         } else {
             ProgressView().frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    /// D17: Auto — detect once (Vision, off the main thread), then frame, animated like a release.
+    private func autoFrame() {
+        guard let model else { return }
+        Task {
+            let subject = await model.subject()
+            withAnimation(ImageFramingCanvas.settle) { model.autoFrame(subject) }
         }
     }
 

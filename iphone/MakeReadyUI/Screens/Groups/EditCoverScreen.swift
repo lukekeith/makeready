@@ -19,7 +19,7 @@ import SwiftUI
 /// the image and every gesture are the app's, passed in as the `canvas` slot (owner description
 /// item 4, R-08). The screen never draws or transforms the image itself.
 ///
-/// Composed only of §4's C-040 PageHeader and two C-102 IconButtons; the straighten dial (ticks,
+/// Composed only of §4's C-040 PageHeader and three C-102 IconButtons; the straighten dial (ticks,
 /// index mark, readout — OQ-007), the frame chrome (border, corner elbows, edge bars — OQ-008), the dim and the
 /// two-density grid are §4's screen-local anatomy. Standalone: `identifiedFrom` is null, so no D7
 /// template applies.
@@ -66,6 +66,8 @@ struct EditCoverScreen<Canvas: View>: View {
     var onDone: () -> Void = {}
     var onFlip: () -> Void = {}
     var onRotate90: () -> Void = {}
+    /// §3 Auto frame (image-framing-editor D17): one tap frames the image — the app's call.
+    var onAuto: () -> Void = {}
     /// §3 Dial drag: every change, clamped to ±45.
     var onStraighten: (Double) -> Void = { _ in }
     /// §3 Dial drag: on release.
@@ -89,6 +91,7 @@ struct EditCoverScreen<Canvas: View>: View {
         onDone: @escaping () -> Void = {},
         onFlip: @escaping () -> Void = {},
         onRotate90: @escaping () -> Void = {},
+        onAuto: @escaping () -> Void = {},
         onStraighten: @escaping (Double) -> Void = { _ in },
         onStraightenEnd: @escaping () -> Void = {}
     ) {
@@ -102,6 +105,7 @@ struct EditCoverScreen<Canvas: View>: View {
         self.onDone = onDone
         self.onFlip = onFlip
         self.onRotate90 = onRotate90
+        self.onAuto = onAuto
         self.onStraighten = onStraighten
         self.onStraightenEnd = onStraightenEnd
         _shownDegrees = SwiftUI.State(initialValue: state.readoutDegrees)
@@ -224,10 +228,22 @@ struct EditCoverScreen<Canvas: View>: View {
                 onTap: onRotate90
             )
             .ui2Element("C-102 IconButton 2")
+            // §2 item 2 (image-framing-editor D17): Auto frame — `scan` is not in the 2.0 glyph
+            // library yet, so `target` stands in until it lands; always enabled.
+            IconButton(
+                glyph: .target,
+                tone: .default,
+                style: .plain,
+                selected: false,
+                accessibilityLabel: "Auto frame",
+                onTap: onAuto
+            )
+            .ui2Element("C-102 IconButton 3")
         }
-        // §3 saving: Flip + Rotate stay visible and ignore taps (OQ-004; C-102 has no disabled look).
+        // §3 saving: Flip, Rotate and Auto frame stay visible and ignore taps (OQ-004; C-102 has
+        // no disabled look).
         .allowsHitTesting(!state.saving)
-        // §2 item 2 (owner, 2026-10-27): the pair is one group centred in the row.
+        // §2 item 2 (owner, 2026-10-27): the three are one group centred in the row.
         .frame(maxWidth: .infinity)
         .frame(height: Self.toolbarHeight)
         .padding(.horizontal, Token.Space.pageMargin)
