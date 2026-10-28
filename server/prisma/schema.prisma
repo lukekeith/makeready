@@ -204,6 +204,7 @@ model User {
   targetedActivities   Activity[] @relation("ActivityTarget")
   updatedGroups        Group[] @relation("GroupUpdater")
   updatedPrograms      StudyProgram[] @relation("StudyProgramUpdater")
+  ledStudyPrograms     StudyProgram[] @relation("StudyProgramLeader")
   updatedEnrollments   Enrollment[] @relation("EnrollmentUpdater")
   updatedEvents        Event[] @relation("EventUpdater")
   updatedPosts         Post[] @relation("PostUpdater")
@@ -873,6 +874,14 @@ model StudyProgram {
   creatorId            String
   updatedById          String? // User who last updated this program
   organizationId       String? // Direct org association for efficient filtering
+  isPrivate            Boolean @default(false) // ui2-programs D12/D13: hidden from other leaders' program lists (discovery only)
+  ageRangeMin          Int? // ui2-programs D12: advisory
+  ageRangeMax          Int? // ui2-programs D12: advisory
+  maxMembers           Int? // ui2-programs D12: advisory
+  memberDirectoryAccess DirectoryAccess @default(ALLOWED) // ui2-programs D12: stored and returned, not enforced
+  leaderId             String? // ui2-programs D12: one assignable leader, defaults to the creator
+  coverOriginalUrl     String? @db.Text // ui2-programs D11: the full original cover photo; null means Edit reopens coverImageUrl
+  coverFraming         Json? // ui2-programs D11: {scale, rotation, offsetX, offsetY} the cover was rendered with
   isActive             Boolean @default(true)
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -880,6 +889,7 @@ model StudyProgram {
   template             LessonTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
   creator              User @relation("StudyProgramCreator", fields: [creatorId], references: [id], onDelete: Cascade)
   updatedBy            User? @relation("StudyProgramUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  leader               User? @relation("StudyProgramLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   lessons              Lesson[]
   enrollments          Enrollment[]
   tags                 StudyProgramTag[]
@@ -887,6 +897,7 @@ model StudyProgram {
   @@index([creatorId])
   @@index([isActive])
   @@index([templateId])
+  @@index([leaderId])
   @@index([organizationId])
   @@map("study_programs")
 }

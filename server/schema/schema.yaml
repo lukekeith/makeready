@@ -181,6 +181,10 @@ models:
         type: one_to_many
         target: StudyProgram
         name: StudyProgramUpdater
+      ledStudyPrograms:
+        type: one_to_many
+        target: StudyProgram
+        name: StudyProgramLeader
       updatedEnrollments:
         type: one_to_many
         target: Enrollment
@@ -1995,6 +1999,39 @@ models:
         type: string
         nullable: true
         description: "Direct org association for efficient filtering"
+      isPrivate:
+        type: boolean
+        default: false
+        description: "ui2-programs D12/D13: hidden from other leaders' program lists (discovery only)"
+      ageRangeMin:
+        type: int
+        nullable: true
+        description: "ui2-programs D12: advisory"
+      ageRangeMax:
+        type: int
+        nullable: true
+        description: "ui2-programs D12: advisory"
+      maxMembers:
+        type: int
+        nullable: true
+        description: "ui2-programs D12: advisory"
+      memberDirectoryAccess:
+        type: enum
+        enum: DirectoryAccess
+        default: ALLOWED
+        description: "ui2-programs D12: stored and returned, not enforced"
+      leaderId:
+        type: string
+        nullable: true
+        description: "ui2-programs D12: one assignable leader, defaults to the creator"
+      coverOriginalUrl:
+        type: text
+        nullable: true
+        description: "ui2-programs D11: the full original cover photo; null means Edit reopens coverImageUrl"
+      coverFraming:
+        type: json
+        nullable: true
+        description: "ui2-programs D11: {scale, rotation, offsetX, offsetY} the cover was rendered with"
       isActive:
         type: boolean
         default: true
@@ -2027,6 +2064,14 @@ models:
         name: StudyProgramUpdater
         onDelete: SetNull
         nullable: true
+      leader:
+        type: many_to_one
+        target: User
+        fields: [leaderId]
+        references: [id]
+        name: StudyProgramLeader
+        onDelete: SetNull
+        nullable: true
       lessons:
         type: one_to_many
         target: Lesson
@@ -2043,6 +2088,7 @@ models:
       - fields: [creatorId]
       - fields: [isActive]
       - fields: [templateId]
+      - fields: [leaderId]
       - fields: [organizationId]
 
   # ---------------------------------------------------------------------------
