@@ -156,6 +156,7 @@ struct UI2Shell: View {
         case .createGroup:                                                                    // ui2-groups-browse D1/D8
             CreateGroupContainer(route: .createGroup, destination: { .groupDetail(id: $0.id, name: $0.name) })
         case let .editGroupCover(groupId, source): EditGroupCoverContainer(groupId: groupId, source: source)  // group-cover-image D4
+        case let .editMemberAvatar(memberId, source): EditMemberAvatarContainer(memberId: memberId, source: source)  // image-framing-editor D9
         }
     }
 

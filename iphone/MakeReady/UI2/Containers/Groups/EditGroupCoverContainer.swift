@@ -18,6 +18,8 @@ struct EditGroupCoverContainer: View {
     /// group-cover-image D20 — image-framing-editor D1: the cover's frame is 16:9; the shared editor
     /// takes it as an input, and no other 16:9 constant remains.
     static let frameAspect: CGFloat = 16.0 / 9.0
+    /// image-framing-editor D9: the generalised screen's title for the group cover.
+    static let title = "Edit cover"
     /// group-cover-image D12/D20: the rendered cover, 1200×675.
     static let renderSize = CGSize(width: 1200, height: 675)
     /// group-cover-image D13: the banner a failed save shows.
@@ -132,6 +134,9 @@ struct EditGroupCoverContainer: View {
     var body: some View {
         EditCoverScreen(
             state: Self.screenState(model),
+            aspect: Self.frameAspect,
+            mask: .rectangle,
+            title: Self.title,
             canvas: { canvas },
             onFrameLayout: { rect in
                 frameRect = rect
