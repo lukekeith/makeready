@@ -1,5 +1,16 @@
 -- Modify "study_programs" table
-ALTER TABLE "study_programs" ADD COLUMN "isPrivate" boolean NOT NULL DEFAULT false, ADD COLUMN "ageRangeMin" integer NULL, ADD COLUMN "ageRangeMax" integer NULL, ADD COLUMN "maxMembers" integer NULL, ADD COLUMN "memberDirectoryAccess" "DirectoryAccess" NOT NULL DEFAULT 'ALLOWED', ADD COLUMN "leaderId" uuid NULL, ADD COLUMN "coverOriginalUrl" text NULL, ADD COLUMN "coverFraming" jsonb NULL, ADD CONSTRAINT "fk_study_programs_leader" FOREIGN KEY ("leaderId") REFERENCES "users" ("id") ON UPDATE NO ACTION ON DELETE SET NULL;
+ALTER TABLE "study_programs" ADD COLUMN "isPrivate" boolean NOT NULL DEFAULT false, ADD COLUMN "ageRangeMin" integer NULL, ADD COLUMN "ageRangeMax" integer NULL, ADD COLUMN "maxMembers" integer NULL, ADD COLUMN "memberDirectoryAccess" "DirectoryAccess" NOT NULL DEFAULT 'ALLOWED', ADD COLUMN "coverOriginalUrl" text NULL, ADD COLUMN "coverFraming" jsonb NULL;
+-- ui2-programs D12: "leaderId" takes the type "users"."id" actually has. A database built by these
+-- migrations has uuid ids; one created by Prisma before Atlas (the Prisma-era dev/prod schema) has
+-- text ids, and a uuid column could not reference it (42804). Same column either way.
+DO $$
+DECLARE id_type text;
+BEGIN
+  SELECT format_type(atttypid, atttypmod) INTO id_type
+    FROM pg_attribute WHERE attrelid = '"users"'::regclass AND attname = 'id';
+  EXECUTE format('ALTER TABLE "study_programs" ADD COLUMN "leaderId" %s NULL', id_type);
+END $$;
+ALTER TABLE "study_programs" ADD CONSTRAINT "fk_study_programs_leader" FOREIGN KEY ("leaderId") REFERENCES "users" ("id") ON UPDATE NO ACTION ON DELETE SET NULL;
 -- Create index "idx_study_programs_leaderId" to table: "study_programs"
 CREATE INDEX "idx_study_programs_leaderId" ON "study_programs" ("leaderId");
 -- Set comment to column: "isPrivate" on table: "study_programs"
