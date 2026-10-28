@@ -78,11 +78,16 @@ struct StudyProgramsScreen: View {
     var onSaveLeaders: (Set<String>) -> Void = { _ in } // §3: Save on the Leaders menu
     var onOpenProgram: (Int) -> Void = { _ in }     // §3: C-059 tap → study-program-home, by row
     var onRetry: () -> Void = {}                    // §3: error-state retry tap → re-run the fetch
+    /// §3 Search field (owner 2026-10-28: exactly `members-home`'s): search became active / ended
+    /// — the app container hides the shell TopNav while it is active. The screen only reports it.
+    var onSearchActiveChange: (Bool) -> Void = { _ in }
 
     // R-31 ephemeral UI: the query as typed (§3 "a live text filter") and the presented menu
     // (§3 chip taps → C-036).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var presentedMenu: FilterMenu?
+    /// §3 Search field: the editable C-034's focus, as it reports it.
+    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
@@ -90,7 +95,8 @@ struct StudyProgramsScreen: View {
         onSaveOrgs: @escaping (Set<String>) -> Void = { _ in },
         onSaveLeaders: @escaping (Set<String>) -> Void = { _ in },
         onOpenProgram: @escaping (Int) -> Void = { _ in },
-        onRetry: @escaping () -> Void = {}
+        onRetry: @escaping () -> Void = {},
+        onSearchActiveChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.state = state
         self.onSearch = onSearch
@@ -98,6 +104,7 @@ struct StudyProgramsScreen: View {
         self.onSaveLeaders = onSaveLeaders
         self.onOpenProgram = onOpenProgram
         self.onRetry = onRetry
+        self.onSearchActiveChange = onSearchActiveChange
         _query = SwiftUI.State(initialValue: state.searchText)
         _presentedMenu = SwiftUI.State(initialValue: nil)
     }
@@ -119,15 +126,30 @@ struct StudyProgramsScreen: View {
     /// §3: "Debounce and min-chars follow search-home: 300ms, min 2".
     private static let minimumQueryLength = 2
 
+    /// §3 Search field: "\"Search active\" = the field is focused OR its query is non-empty".
+    static func isSearchActive(query: String, focused: Bool) -> Bool {
+        focused || !query.isEmpty
+    }
+
+    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
+
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
         // D22: no ScrollView at the root. The canvas is the device width × the content's full
         // length, so the page lays out top to bottom at full height. The status bar (§1
         // deviation 2) is the harness's; the C-019 TopNav is the shell's (§1 deviation 3).
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            programList
+        // §2 Pinned header (owner 2026-10-28, `members-search-pinned`; exactly `members-home`'s):
+        // the header is a pinned section header, so inside the shell's scroll it stays put below
+        // the TopNav and every body state scrolls beneath it.
+        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+            Section {
+                programList
+            } header: {
+                header.background { Self.headerMaterial }
+                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
+                    .pinnedBelowTopNav()
+            }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
@@ -135,6 +157,18 @@ struct StudyProgramsScreen: View {
         // shell draws the menu above all chrome).
         .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
             filterMenu
+        }
+        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
+    }
+
+    // GAP — §2 pinned header: "`ultraThinMaterial` under `color-layout-background` at 0.8
+    // opacity" — no material token (members-home's header material).
+    private static let headerScrimOpacity: Double = 0.8
+
+    private static var headerMaterial: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            Token.layoutBackground.opacity(headerScrimOpacity)
         }
     }
 
@@ -144,8 +178,8 @@ struct StudyProgramsScreen: View {
     /// (16) gap, 116 tall" — persists in every §3 state.
     private var header: some View {
         VStack(alignment: .leading, spacing: Token.Space.cardPadding) {   // §2: 16 gap
-            // §2: C-034 "408×44, `Default`" — derived by C-034 from `text.isEmpty × focused`.
-            // This presentational screen owns no focus, so `focused` is false.
+            // §2: C-034 "408×44, `Default`". §3 Search field: its editable form — focus is the
+            // field's own.
             SearchField(
                 text: query,
                 placeholder: Self.searchPlaceholder,
@@ -157,7 +191,12 @@ struct StudyProgramsScreen: View {
                 onClear: {
                     query = ""
                     onSearch("")
-                }
+                },
+                // §3: the clear control shows whenever search is active and also dismisses focus.
+                showsClearWhenEmpty: searchActive,
+                onFocusChange: { searchFocused = $0 },
+                clearDismisses: true,
+                editable: true
             )
             .ui2Element("C-034 SearchField")
             chipRow

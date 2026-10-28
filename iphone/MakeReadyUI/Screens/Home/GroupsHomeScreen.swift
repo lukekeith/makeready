@@ -79,24 +79,31 @@ struct GroupsHomeScreen: View {
     var onSaveOrgs: (Set<String>) -> Void = { _ in }    // filter-multiselect D14: Save on the Orgs menu
     var onSaveLeaders: (Set<String>) -> Void = { _ in } // D14: Save on the Leaders menu
     var onOpenGroup: (Int) -> Void = { _ in }       // §3: row tap → groups-detail, by row
+    /// §3 Search active (identical to members-home): search became active / ended — the shell
+    /// pushes its TopNav off screen while it is active. The screen only reports it.
+    var onSearchActiveChange: (Bool) -> Void = { _ in }
 
     // R-31 ephemeral UI: the query as typed (§3 "live filter") and the presented menu (§3 chip
     // taps → C-036).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var presentedMenu: FilterMenu?
+    /// §3 Search active: the editable C-034's focus, as it reports it.
+    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
         onSearch: @escaping (String) -> Void = { _ in },
         onSaveOrgs: @escaping (Set<String>) -> Void = { _ in },
         onSaveLeaders: @escaping (Set<String>) -> Void = { _ in },
-        onOpenGroup: @escaping (Int) -> Void = { _ in }
+        onOpenGroup: @escaping (Int) -> Void = { _ in },
+        onSearchActiveChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.state = state
         self.onSearch = onSearch
         self.onSaveOrgs = onSaveOrgs
         self.onSaveLeaders = onSaveLeaders
         self.onOpenGroup = onOpenGroup
+        self.onSearchActiveChange = onSearchActiveChange
         _query = SwiftUI.State(initialValue: state.searchText)
         _presentedMenu = SwiftUI.State(initialValue: nil)
     }
@@ -131,22 +138,50 @@ struct GroupsHomeScreen: View {
     // token.
     private static let hairline: CGFloat = 1
 
+    /// §3 Search active (identical to members-home): search is active while the field is focused
+    /// or holds a query, so typed results stay up after the keyboard drops; only C-039 (the x)
+    /// ends it.
+    static func isSearchActive(query: String, focused: Bool) -> Bool {
+        focused || !query.isEmpty
+    }
+
+    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
+
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
         // D22: no ScrollView at the root — the canvas is the device width × the content's full
         // length, so the page lays out top to bottom at full height. The status bar (§1
         // deviation 2) is the harness's.
-        VStack(alignment: .leading, spacing: 0) {
-            header
-            groupList
-            emptyLine
+        // §3 Pinned header (identical to members-home): the header is a pinned section header, so
+        // inside the shell's scroll it stays put and the rows scroll beneath it.
+        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+            Section {
+                groupList
+                emptyLine
+            } header: {
+                header.background { Self.headerMaterial }
+                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
+                    .pinnedBelowTopNav()
+            }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: the page background
         // filter-menu-fullscreen: in the app the shell draws the menu above all chrome.
         .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
             filterMenu
+        }
+        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
+    }
+
+    // GAP — groups-home §3 Pinned header (members-search-pinned): no material token. A blur under
+    // a mostly-opaque page background, so the rows behind the pinned header are barely visible.
+    private static let headerScrimOpacity: Double = 0.8
+
+    private static var headerMaterial: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            Token.layoutBackground.opacity(headerScrimOpacity)
         }
     }
 
@@ -172,6 +207,10 @@ struct GroupsHomeScreen: View {
                     query = ""
                     onSearch("")
                 },
+                // §3 Search active: while active the x is always there and ends the search.
+                showsClearWhenEmpty: searchActive,
+                onFocusChange: { searchFocused = $0 },
+                clearDismisses: true,
                 editable: true
             )
             .ui2Element("C-034 SearchField")

@@ -14,6 +14,9 @@ struct StudyProgramsContainer: View {
     /// The text as typed — the screen filters by it itself (D3), this keeps it across re-renders.
     @State private var typedSearch = ""
     @State private var selection = StudyProgramsMapper.Selection()
+    /// members-search-pinned (owner 2026-10-28: as on Members): while search is active the
+    /// shell's TopNav moves off screen.
+    @State private var searchActive = false
 
     var body: some View {
         let app = AppState.shared
@@ -31,8 +34,10 @@ struct StudyProgramsContainer: View {
                 guard let id = output.programId(atRow: row) else { return }
                 navigator.push(destination(id, output.state.programTitles[row]))
             },
-            onRetry: { Task { await Self.load(authManager: authManager) } }
+            onRetry: { Task { await Self.load(authManager: authManager) } },
+            onSearchActiveChange: { searchActive = $0 }
         )
+        .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .task { await Self.load(authManager: authManager) }
     }
 

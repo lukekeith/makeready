@@ -20,6 +20,8 @@ struct GroupsHomeContainer: View {
     @State private var selection = GroupsHomeMapper.Selection()
     /// The pending debounce; a newer keystroke cancels it (Task + `Task.sleep`, never `asyncAfter`).
     @State private var searchTask: Task<Void, Never>?
+    /// groups-home §3 Search active: while search is active the shell's TopNav moves off screen.
+    @State private var searchActive = false
 
     var body: some View {
         let app = AppState.shared
@@ -43,8 +45,10 @@ struct GroupsHomeContainer: View {
             onOpenGroup: { row in
                 guard let id = output.groupId(atRow: row) else { return }
                 navigator.push(destination(id, output.state.groupNames[row]))
-            }
+            },
+            onSearchActiveChange: { searchActive = $0 }
         )
+        .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .task { await Self.load(authManager: authManager) }
         .onDisappear { searchTask?.cancel() }
     }
