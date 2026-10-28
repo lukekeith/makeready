@@ -285,7 +285,7 @@ Recipe: /push-page · /nav-route
 - Test: `iphone/MakeReadyCaptureTests/UI2ShellModelTests.swift:295-302`
 
 **Interfaces:**
-- Produces: `UI2Destination.studyProgramHome(id: String, name: String)`, `.createStudyProgram`, `.editProgramField(programId: String, field: ProgramField)`, `.editProgramCover(programId: String, source: ImageEditSource)` (full-screen); `refreshableSection` includes `.programs`.
+- Produces: `UI2Destination.studyProgramHome(id: String, name: String)`, `.createStudyProgram`, `.editProgramField(programId: String, field: ProgramField)`, `.editProgramCover(programId: String, source: ImageEditSource)` (full-screen); `refreshableSection` includes `.programs`; `refreshAction .programs → StudyProgramsContainer.refresh(authManager:)`. The shell's section pull-to-refresh goes through `MakeReadyUI/PullToRefresh.swift`'s `.pullToRefresh(_:)` (owner 2026-10-28: one reusable pull-down reload) — swap the shell's bare `.refreshable` for it in this task.
 
 - [ ] **Step 1: Write the failing tests** — `refreshableSection` set; `.editProgramCover` `isFullScreen`; `replaceTop` from `.createStudyProgram` to `.studyProgramHome`.
 - [ ] **Step 2: Run and watch them fail** → FAIL
@@ -296,41 +296,41 @@ Recipe: /push-page · /nav-route
 ### Task 11: Programs list container
 App: iphone
 Phase: 4
-Recipe: iphone/.claude/CLAUDE.md §State Management · build-time risk F1: start only once d2m changes cmvrt1gql000av0apcp9jchn4 and cmvrtiigb001av0ap04h1mk4u are `done`
+Recipe: iphone/.claude/CLAUDE.md §State Management · F1 cleared: both d2m changes done and committed (0d56019)
 
 **Files:**
 - Create: `iphone/MakeReady/UI2/Containers/Programs/StudyProgramsContainer.swift`, `StudyProgramsMapper.swift`
 - Test: `iphone/MakeReadyCaptureTests/StudyProgramsMapperTests.swift`
 
 **Interfaces:**
-- Consumes: `AppState.orderedPrograms`, `groupLeaders`, `myOrganizations`; `ProgramActions.loadPrograms(forceRefresh:)`, `loadGroupLeaders`, `GroupActions.loadMyOrganizations`; the screen's post-d2m filter API.
+- Consumes: `AppState.orderedPrograms`, `groupLeaders`, `myOrganizations`; `ProgramActions.loadPrograms(forceRefresh:)`, `loadGroupLeaders`, `GroupActions.loadMyOrganizations`; the screen as landed (0d56019): `State { searchText, orgFilterVisible, orgFilterLabel, leaderFilterLabel, orgOptions, leaderOptions, selectedOrgs, selectedLeaders, loading, failed, programTitles, programDescriptions, programEnrollmentCounts, programCoverURLs }`, `onSearch`, `onSaveOrgs(Set<String>)`, `onSaveLeaders(Set<String>)`, `onOpenProgram(Int)`, `onRetry` (the error state's Retry line). The screen filters search text itself (diacritic-insensitive, min 2) — the mapper does not.
 - Produces: `StudyProgramsMapper.output(programs:leaders:orgs:selectedLeaders:selectedOrgs:searchText:loading:failed:) -> (state: StudyProgramsScreen.State, programIds: [String])`.
 
 - [ ] **Step 1: Write the failing mapper tests** — order, chips multi/AND/leader-or-creator/org, `orgFilterVisible` with ≥2 orgs, enrolled count, empty/no-match lines per D4.
-- [ ] **Step 2–4:** fail → implement (container mirrors `GroupsHomeContainer`: `.task` loads, 401 sign-out, cache-aware D4 errors, row tap → `.studyProgramHome(id, name)`) → pass
+- [ ] **Step 2–4:** fail → implement (container mirrors `GroupsHomeContainer`: `.task` loads, static `refresh(authManager:)` for the shell's pull, `onRetry` re-runs the load, selections held as Groups holds them (`selection.orgLabels`/leader labels), 401 sign-out, cache-aware D4 errors, row tap → `.studyProgramHome(id, name)`) → pass
 - [ ] **Step 5: Commit** — `feat(ui2-programs): Programs list on live data`
 
 ### Task 12: Program page container
 App: iphone
 Phase: 4
-Recipe: iphone/.claude/CLAUDE.md §State Management · /ios-error-surface · build-time risk F1: start only once cmvrt1jl5000jv0apjy6tlfk0 and cmvrtikv0001jv0apwciaj98o are `done`
+Recipe: iphone/.claude/CLAUDE.md §State Management · /ios-error-surface · F1 cleared: both d2m changes done and committed (0d56019)
 
 **Files:**
 - Create: `iphone/MakeReady/UI2/Containers/Programs/StudyProgramHomeHost.swift`, `StudyProgramHomeContainer.swift`, `StudyProgramHomeMapper.swift`
 - Test: `iphone/MakeReadyCaptureTests/StudyProgramHomeMapperTests.swift`, `StudyProgramHomeContainerTests.swift`
 
 **Interfaces:**
-- Consumes: `ProgramActions.getProgram`, `getProgramEnrollments(programId:forceRefresh:)`, `addLesson`, `forgetProgram`; `GroupDetailMapper` label helpers.
+- Consumes: `ProgramActions.getProgram`, `getProgramEnrollments(programId:forceRefresh:)`, `addLesson`, `forgetProgram`; `GroupDetailMapper` label helpers; the screen as landed (0d56019): `showsHeader`, `State.loading`/`State.failed` (failed draws the header + "Unable to load program, pull down to refresh"), `onRetry`, `onCoverTap`, `onEditField(label)`, `onSelectDay`, `onAddLesson`, `StudyProgramHomeScreen.lessonScrollID(_:)`; `.pullToRefresh(_:)` from `MakeReadyUI/PullToRefresh.swift`.
 - Produces: `StudyProgramHomeMapper.state(program:lessons:enrollments:loading:failed:activeDay:) -> StudyProgramHomeScreen.State`; `ProgramField(label:) -> ProgramField?` (nil for "Lessons").
 
 - [ ] **Step 1: Write the failing tests** — every D6 value (each Age form, Unlimited, durations, slide fallbacks, "0 groups", "«n» lessons"); "Lessons" row maps to nil; loading/failed flags per D5.
-- [ ] **Step 2–4:** fail → implement (host pins C-040 "Study program" + `showsHeader: false`, `ScrollViewReader` day scroll, image cache seeding, Lessons `+` with one-in-flight guard then reload, 404 → forget + `popTo(0)` after the push settles) → pass
+- [ ] **Step 2–4:** fail → implement (host pins C-040 "Study program" + `showsHeader: false`; its ScrollView takes `.pullToRefresh(reload)` — the only retry, owner 2026-10-28 — and a `ScrollViewReader` that `scrollTo(StudyProgramHomeScreen.lessonScrollID(day))` on `onSelectDay`; `onCoverTap` is a no-op until Task 15; image cache seeding, Lessons `+` with one-in-flight guard then reload, 404 → forget + `popTo(0)` after the push settles) → pass
 - [ ] **Step 5: Commit** — `feat(ui2-programs): program page on live data`
 
 ### Task 13: Create study program container
 App: iphone
 Phase: 4
-Recipe: /push-page · build-time risk F1: start only once cmvrtieot0011v0apd8m6x90w is `done`
+Recipe: /push-page · F1 cleared: the d2m change is done and committed (0d56019)
 
 **Files:**
 - Create: `iphone/MakeReady/UI2/Containers/Programs/CreateStudyProgramContainer.swift`
