@@ -11,20 +11,33 @@
 import SwiftUI
 
 /// Edit cover — "frame a group's cover image". The leader pinches, twists and pans a photo
-/// inside a fixed 16:9 frame, then saves. The screen draws the chrome AROUND the image — header,
-/// toolbar, the frame's dim, the thirds grid and the bottom straighten dial with its degree
-/// readout — and reports the frame rect;
+/// inside a fixed-aspect frame, then saves. image-framing-editor D9: the frame's `aspect`, its
+/// `mask` and the `title` are inputs — the group cover is 16:9 · `.rectangle` · "Edit cover" (the
+/// defaults), the member avatar 1:1 · `.circle` · "Edit photo". The screen draws the chrome AROUND the image — header,
+/// toolbar, the frame's dim, its border, corner elbows and edge bars, the thirds / fine grid and the bottom
+/// straighten dial with its degree readout — and reports the frame rect;
 /// the image and every gesture are the app's, passed in as the `canvas` slot (owner description
 /// item 4, R-08). The screen never draws or transforms the image itself.
 ///
 /// Composed only of §4's C-040 PageHeader and two C-102 IconButtons; the straighten dial (ticks,
-/// index mark, readout — OQ-007), the dim and the grid are §4's screen-local anatomy. Standalone: `identifiedFrom` is null, so no D7
+/// index mark, readout — OQ-007), the frame chrome (border, corner elbows, edge bars — OQ-008), the dim and the
+/// two-density grid are §4's screen-local anatomy. Standalone: `identifiedFrom` is null, so no D7
 /// template applies.
 struct EditCoverScreen<Canvas: View>: View {
 
+    /// image-framing-editor D9: what the dim leaves clear and the border outlines.
+    enum Mask: Equatable {
+        /// The frame rect itself, with the border, corner elbows and edge bars (the group cover).
+        case rectangle
+        /// The circle inscribed in the frame (the member avatar): the dim, border and grid follow
+        /// the circle; the corner elbows and edge bars belong to a rectangle and are not drawn.
+        case circle
+    }
+
     /// One §3 state's inputs. Every §3 state is reachable by these alone.
     struct State {
-        /// §3 gesture-active: the rule-of-thirds grid shows inside the frame.
+        /// §3 gesture-active: the grid shows inside the frame — 3×3 thirds, or 9×9 fine while
+        /// `readoutDegrees` is non-nil (§3 Grid density rule).
         var showsGrid: Bool
         /// §3 twisting: the signed integer readout inside the dial; nil = none (fades out).
         var readoutDegrees: Int?
@@ -37,6 +50,12 @@ struct EditCoverScreen<Canvas: View>: View {
     }
 
     let state: State
+    /// image-framing-editor D9: the frame's width ÷ height (16:9 the group cover, 1 the avatar).
+    var aspect: CGFloat = 16.0 / 9.0
+    /// image-framing-editor D9: the mask the dim and border follow.
+    var mask: Mask = .rectangle
+    /// image-framing-editor D9: the header title ("Edit cover", "Edit photo").
+    var title: String = "Edit cover"
     /// §2 item 3 Image slot — the app's content view (e.g. `CoverFramingCanvas`); it fills the
     /// whole canvas area, unclipped, under the dim.
     @ViewBuilder let canvas: () -> Canvas
@@ -61,6 +80,9 @@ struct EditCoverScreen<Canvas: View>: View {
 
     init(
         state: State,
+        aspect: CGFloat = 16.0 / 9.0,
+        mask: Mask = .rectangle,
+        title: String = "Edit cover",
         @ViewBuilder canvas: @escaping () -> Canvas,
         onFrameLayout: @escaping (CGRect) -> Void = { _ in },
         onCancel: @escaping () -> Void = {},
@@ -71,6 +93,9 @@ struct EditCoverScreen<Canvas: View>: View {
         onStraightenEnd: @escaping () -> Void = {}
     ) {
         self.state = state
+        self.aspect = aspect
+        self.mask = mask
+        self.title = title
         self.canvas = canvas
         self.onFrameLayout = onFrameLayout
         self.onCancel = onCancel
@@ -84,11 +109,8 @@ struct EditCoverScreen<Canvas: View>: View {
 
     // MARK: - §2 constants (values that no §3 state changes)
 
-    private static var title: String { "Edit cover" }
     private static var cancelLabel: String { "Cancel" }
     private static var doneLabel: String { "Done" }
-    /// §2 item 3: the frame is fixed 16:9 (OQ-002, group-cover-image D20).
-    private static var frameAspect: CGFloat { 16.0 / 9.0 }
     /// GAP — edit-cover §2 item 2: "44pt tall" toolbar row; no sizing token.
     private static var toolbarHeight: CGFloat { 44 }
     /// GAP — edit-cover §2 item 3: the canvas "fills the remaining height to the bottom safe
@@ -98,8 +120,21 @@ struct EditCoverScreen<Canvas: View>: View {
     private static var contentRegionHeight: CGFloat { 863 }
     /// GAP — edit-cover §2 item 3 Dim: `color-layout-background` "at 0.6 opacity"; no opacity token.
     private static var dimOpacity: Double { 0.6 }
-    /// FLAGGED LITERAL — edit-cover §2 item 3 Grid: 1pt lines, the program-wide hairline; no stroke token.
-    private static var gridLineWidth: CGFloat { 1 }
+    /// GAP — edit-cover §2 item 3 Grid: "0.5pt" lines (both densities); no stroke token.
+    private static var gridLineWidth: CGFloat { 0.5 }
+    /// GAP — edit-cover §2 item 3 Grid: the 9×9 fine grid is `color-white-50` "at 0.6 opacity"; no
+    /// opacity token.
+    private static var fineGridOpacity: Double { 0.6 }
+    /// GAP — edit-cover §2 item 3 Frame chrome (OQ-008): the border is "a continuous 1pt line"; no
+    /// stroke token.
+    private static var borderWidth: CGFloat { 1 }
+    /// GAP — edit-cover §2 item 3 Corner elbows (OQ-008): "each arm 20pt long"; no sizing token.
+    private static var elbowArm: CGFloat { 20 }
+    /// GAP — edit-cover §2 item 3 Corner elbows + Edge bars (OQ-008): "3pt stroke" / "3pt thick"; no
+    /// stroke token.
+    private static var elbowStroke: CGFloat { 3 }
+    /// GAP — edit-cover §2 item 3 Edge bars (OQ-008): "24pt long"; no sizing token.
+    private static var edgeBarLength: CGFloat { 24 }
     /// GAP — edit-cover §3 Motion: the readout "fades out over 0.6s"; no motion token.
     private static var readoutFade: Animation { .easeOut(duration: 0.6) }
     /// GAP — edit-cover §2 item 4 (OQ-007): the dial is "56pt tall"; no sizing token.
@@ -154,7 +189,7 @@ struct EditCoverScreen<Canvas: View>: View {
     private var header: some View {
         PageHeader(
             style: .textButtons,
-            title: Self.title,
+            title: title,
             rightButtons: [],
             leadingLabel: Self.cancelLabel,
             leadingEnabled: !state.saving,                          // §3 saving (D66)
@@ -189,10 +224,11 @@ struct EditCoverScreen<Canvas: View>: View {
                 onTap: onRotate90
             )
             .ui2Element("C-102 IconButton 2")
-            Spacer(minLength: 0)                                    // §2 trailing: nothing
         }
         // §3 saving: Flip + Rotate stay visible and ignore taps (OQ-004; C-102 has no disabled look).
         .allowsHitTesting(!state.saving)
+        // §2 item 2 (owner, 2026-10-27): the pair is one group centred in the row.
+        .frame(maxWidth: .infinity)
         .frame(height: Self.toolbarHeight)
         .padding(.horizontal, Token.Space.pageMargin)
     }
@@ -205,12 +241,17 @@ struct EditCoverScreen<Canvas: View>: View {
     /// `screenMidY` is the device midline in the page's coordinates (§2 Frame position).
     private func canvasArea(screenMidY: CGFloat) -> some View {
         GeometryReader { proxy in
-            let frame = Self.frameRect(in: proxy.size, midY: screenMidY - proxy.frame(in: .named(Self.pageSpace)).minY)
+            let frame = Self.frameRect(in: proxy.size, aspect: aspect, midY: screenMidY - proxy.frame(in: .named(Self.pageSpace)).minY)
             ZStack(alignment: .topLeading) {
                 canvas()
                     .frame(width: proxy.size.width, height: proxy.size.height)
                 dim(frame: frame, size: proxy.size)
                 grid(frame: frame)
+                border(frame: frame)
+                if mask == .rectangle {
+                    elbows(frame: frame)
+                    edgeBars(frame: frame)
+                }
             }
             .onAppear { onFrameLayout(frame) }
             // §2 Frame geometry out: the rect moves with the canvas's position as well as its size.
@@ -220,32 +261,106 @@ struct EditCoverScreen<Canvas: View>: View {
         .allowsHitTesting(!state.saving)
     }
 
-    /// §2 Frame: full width inside `space-page-margin`, height = width × 9⁄16, its mid-y on the
-    /// screen's vertical midline (`midY`, in the canvas's coordinates) — clamped inside the canvas
-    /// when the canvas is too short to hold it there.
-    private static func frameRect(in size: CGSize, midY: CGFloat) -> CGRect {
+    /// §2 Frame: full width inside `space-page-margin`, height = width ÷ `aspect` (9⁄16 for the
+    /// group cover — OQ-002, group-cover-image D20; square for the avatar — image-framing-editor D9),
+    /// its mid-y on the screen's vertical midline (`midY`, in the canvas's coordinates) — clamped
+    /// inside the canvas when the canvas is too short to hold it there.
+    private static func frameRect(in size: CGSize, aspect: CGFloat, midY: CGFloat) -> CGRect {
         let width = max(0, size.width - Token.Space.pageMargin * 2)
-        let height = width / frameAspect
+        let height = aspect > 0 ? width / aspect : width
         let top = min(max(0, midY - height / 2), max(0, size.height - height))
         return CGRect(x: Token.Space.pageMargin, y: top, width: width, height: height)
     }
 
-    /// §2 Dim: `color-layout-background` at 0.6 over the canvas area outside the frame (even-odd).
+    /// The clear shape inside `frame`: the frame rect, or (image-framing-editor D9) its inscribed circle.
+    private func maskPath(_ frame: CGRect) -> Path {
+        switch mask {
+        case .rectangle: return Path(frame)
+        case .circle:
+            let side = min(frame.width, frame.height)
+            return Path(ellipseIn: CGRect(x: frame.midX - side / 2, y: frame.midY - side / 2, width: side, height: side))
+        }
+    }
+
+    /// §2 Dim: `color-layout-background` at 0.6 over the canvas area outside the mask (even-odd).
     private func dim(frame: CGRect, size: CGSize) -> some View {
         Path { path in
             path.addRect(CGRect(origin: .zero, size: size))
-            path.addRect(frame)
+            path.addPath(maskPath(frame))
         }
         .fill(Token.layoutBackground.opacity(Self.dimOpacity), style: FillStyle(eoFill: true))
         .allowsHitTesting(false)
     }
 
-    /// §2 Grid: rule of thirds inside the frame, 1pt `color-white-50`; fades with `motion-chip-select`.
+    /// §2 Border (OQ-008): a continuous 1pt `color-text-primary` line on the frame's four edges,
+    /// inside the frame rect. Above the grid; always shown; never hit-tested.
+    private func border(frame: CGRect) -> some View {
+        maskPath(frame.insetBy(dx: Self.borderWidth / 2, dy: Self.borderWidth / 2))
+            .stroke(Token.textPrimary, lineWidth: Self.borderWidth)
+            .allowsHitTesting(false)
+    }
+
+    /// §2 Corner elbows (OQ-008): an L on each frame corner, 20pt arms, 3pt `color-text-primary`,
+    /// square ends; the stroke's outer edge sits on the frame edge, so no elbow leaves the frame.
+    /// Over the border; always shown; never hit-tested.
+    private func elbows(frame: CGRect) -> some View {
+        let edge = frame.insetBy(dx: Self.elbowStroke / 2, dy: Self.elbowStroke / 2)
+        let arm = Self.elbowArm - Self.elbowStroke / 2
+        return Path { path in
+            for (corner, dx, dy) in [
+                (CGPoint(x: edge.minX, y: edge.minY), CGFloat(1), CGFloat(1)),
+                (CGPoint(x: edge.maxX, y: edge.minY), -1, 1),
+                (CGPoint(x: edge.minX, y: edge.maxY), 1, -1),
+                (CGPoint(x: edge.maxX, y: edge.maxY), -1, -1)
+            ] {
+                path.move(to: CGPoint(x: corner.x + arm * dx, y: corner.y))
+                path.addLine(to: corner)
+                path.addLine(to: CGPoint(x: corner.x, y: corner.y + arm * dy))
+            }
+        }
+        .stroke(Token.textPrimary, style: StrokeStyle(lineWidth: Self.elbowStroke, lineCap: .butt, lineJoin: .miter))
+        .allowsHitTesting(false)
+    }
+
+    /// §2 Edge bars (OQ-008): a 24×3pt `color-text-primary` bar centred on each edge's midpoint,
+    /// flush on the frame's outer edge. Over the border; always shown; never hit-tested.
+    private func edgeBars(frame: CGRect) -> some View {
+        let half = Self.edgeBarLength / 2
+        let thick = Self.elbowStroke
+        return Path { path in
+            path.addRect(CGRect(x: frame.midX - half, y: frame.minY, width: Self.edgeBarLength, height: thick))
+            path.addRect(CGRect(x: frame.midX - half, y: frame.maxY - thick, width: Self.edgeBarLength, height: thick))
+            path.addRect(CGRect(x: frame.minX, y: frame.midY - half, width: thick, height: Self.edgeBarLength))
+            path.addRect(CGRect(x: frame.maxX - thick, y: frame.midY - half, width: thick, height: Self.edgeBarLength))
+        }
+        .fill(Token.textPrimary)
+        .allowsHitTesting(false)
+    }
+
+    /// §2 Grid: inside the frame, 0.5pt `color-white-50`, clipped to the frame rect so no line
+    /// overshoots onto the dim. §3 Grid density rule: 3×3 thirds while `readoutDegrees` is nil,
+    /// the 9×9 fine grid (at 0.6) while it is non-nil; both fade and cross-fade with
+    /// `motion-chip-select`.
     private func grid(frame: CGRect) -> some View {
+        let fine = state.readoutDegrees != nil
+        return ZStack {
+            gridLines(frame: frame, divisions: 3)
+                .opacity(state.showsGrid && !fine ? 1 : 0)
+            gridLines(frame: frame, divisions: 9)
+                .opacity(state.showsGrid && fine ? Self.fineGridOpacity : 0)
+        }
+        .clipShape(maskPath(frame))
+        .animation(Token.Motion.chipSelect, value: state.showsGrid)
+        .animation(Token.Motion.chipSelect, value: fine)
+        .allowsHitTesting(false)
+    }
+
+    /// `divisions − 1` vertical and horizontal lines at k/`divisions` of the frame, edge to edge.
+    private func gridLines(frame: CGRect, divisions: Int) -> some View {
         Path { path in
-            for third in 1...2 {
-                let x = frame.minX + frame.width * CGFloat(third) / 3
-                let y = frame.minY + frame.height * CGFloat(third) / 3
+            for k in 1..<divisions {
+                let x = frame.minX + frame.width * CGFloat(k) / CGFloat(divisions)
+                let y = frame.minY + frame.height * CGFloat(k) / CGFloat(divisions)
                 path.move(to: CGPoint(x: x, y: frame.minY))
                 path.addLine(to: CGPoint(x: x, y: frame.maxY))
                 path.move(to: CGPoint(x: frame.minX, y: y))
@@ -253,9 +368,6 @@ struct EditCoverScreen<Canvas: View>: View {
             }
         }
         .stroke(Token.white50, lineWidth: Self.gridLineWidth)
-        .opacity(state.showsGrid ? 1 : 0)
-        .animation(Token.Motion.chipSelect, value: state.showsGrid)
-        .allowsHitTesting(false)
     }
 
     // MARK: - §2 item 4: straighten dial
@@ -410,6 +522,13 @@ private struct EditCoverPreviewCanvas: View {
 
 #Preview("saving") {
     EditCoverScreen(state: .saving) { EditCoverPreviewCanvas() }
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("avatar 1:1 circle") {
+    EditCoverScreen(state: .gestureActive, aspect: 1, mask: .circle, title: "Edit photo") { EditCoverPreviewCanvas() }
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
