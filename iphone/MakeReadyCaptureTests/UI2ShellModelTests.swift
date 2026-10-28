@@ -29,8 +29,10 @@ final class UI2ShellModelTests: XCTestCase {
     /// Owner walk 2026-10-27: a page's bottom edge is fixed by what the page is, never by the
     /// TabBar's presence — so the bar sliding away under an editor moves nothing on it.
     func testPageBottomPaddingIgnoresTheTabBarsPresence() {
-        XCTAssertEqual(UI2Shell.pageBottomPadding(fullScreen: false, tabBarHeight: 84, safeBottom: 34), 84)
-        XCTAssertEqual(UI2Shell.pageBottomPadding(fullScreen: true, tabBarHeight: 84, safeBottom: 34), 34)
+        // The stack already insets 34 (measured on device): a page ends at the bar's top (956 − 84),
+        // a full-screen page at the home-indicator clearance (956 − 34).
+        XCTAssertEqual(UI2Shell.pageBottomPadding(fullScreen: false, tabBarHeight: 84, safeBottom: 34) + 34, 84)
+        XCTAssertEqual(UI2Shell.pageBottomPadding(fullScreen: true, tabBarHeight: 84, safeBottom: 34) + 34, 34)
         XCTAssertTrue(UI2Destination.editGroupCover(groupId: "g", source: .stored).isFullScreen)
         XCTAssertFalse(UI2Destination.createGroup.isFullScreen)
     }

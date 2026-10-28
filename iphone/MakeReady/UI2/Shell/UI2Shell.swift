@@ -37,13 +37,16 @@ struct UI2Shell: View {
     }
 
     /// image-framing-editor (owner walk 2026-10-27): a page's bottom edge never depends on whether
-    /// the TabBar shows — the TabBar is a layer over the pages, and a page reserves its height (a
-    /// full-screen page, the home-indicator clearance only), so the bar sliding away moves nothing.
+    /// the TabBar shows — the TabBar is a layer over the pages, and a page reserves the bar's height
+    /// itself, so the bar sliding away moves nothing. Each tab's NavigationStack already insets its
+    /// pages by the home-indicator safe area (`safeBottom`, measured on device: 34pt, whatever its
+    /// SwiftUI parents ignore), so a page adds only the rest of the bar's 84 — and a full-screen page
+    /// nothing: the stack's inset is its home-indicator clearance.
     static func pageBottomPadding(fullScreen: Bool, tabBarHeight: CGFloat, safeBottom: CGFloat) -> CGFloat {
-        fullScreen ? safeBottom : tabBarHeight
+        fullScreen ? 0 : max(0, tabBarHeight - safeBottom)
     }
 
-    /// The window's bottom safe area — the shell ignores it, so a full-screen page re-applies it.
+    /// The window's bottom safe area — the inset each NavigationStack applies to its pages.
     private var safeBottom: CGFloat {
         (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow?.safeAreaInsets.bottom ?? 0
     }
@@ -65,11 +68,6 @@ struct UI2Shell: View {
             }
             .safeAreaPadding(.bottom, Self.keyboardOverlap(keyboardHeight: keyboardHeight,
                                                            tabBarHeight: model.showsTabBar ? tabBarHeight : 0))
-            // The pages reserve their own bottom edge (`pageBottomPadding`). Reaching the screen
-            // edge, they would also get the 34pt home-indicator inset and stop that far short of
-            // the TabBar — a bare black band (owner screenshots 2026-10-27). The keyboard padding
-            // above is applied inside this, so it still reaches them.
-            .ignoresSafeArea(.container, edges: .bottom)
             // C-084 §2 Motion: "the selection switches instantly with no animation"; a re-tap
             // with a page pushed pops it (D20, the system pop).
             // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen; the
