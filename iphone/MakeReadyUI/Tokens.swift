@@ -388,7 +388,7 @@ enum Token {
         static let heroTitle = DesignTextStyle(weight: .regular, size: 24, lineHeight: 24, tracking: -0.1)
         static let input = DesignTextStyle(weight: .regular, size: 14, lineHeight: 24, tracking: 0)
         static let keypadDigit = DesignTextStyle(weight: .regular, size: 28, lineHeight: 34, tracking: -0.15)
-        static let pageActionLabelLg = DesignTextStyle(weight: .regular, size: 14, lineHeight: 20, tracking: -0.28)
+        static let pageActionLabelLg = DesignTextStyle(weight: .bold, size: 14, lineHeight: 20, tracking: -0.28)
         static let passageVerse = DesignTextStyle(weight: .regular, size: 18, lineHeight: 25.2, tracking: 0.72)
         static let stepTitle = DesignTextStyle(weight: .regular, size: 14, lineHeight: 18, tracking: -0.1)
         static let summaryLabel = DesignTextStyle(weight: .bold, size: 14, lineHeight: 14, tracking: 0)

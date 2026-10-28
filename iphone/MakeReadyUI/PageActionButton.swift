@@ -14,7 +14,7 @@ import SwiftUI
 /// trailing side. No sub-components (the glyph is library artwork)."
 ///
 /// Chrome-free and width-driven (R-16): §2 "**Width is the consumer's.**" The view fills the
-/// width it is given and states only its own height (38 Md / 44 Lg); the call site supplies
+/// width it is given and states only its own height (44 at both sizes); the call site supplies
 /// width and ground.
 struct PageActionButton: View {
 
@@ -28,8 +28,8 @@ struct PageActionButton: View {
         case accent
     }
 
-    /// C-048 §4 `size: md | lg` — "selects the §2 size column (38 / 44 tall, label type, glyph
-    /// box)". Nested per R-36.
+    /// C-048 §4 `size: md | lg` — "selects the glyph box (14 Md / 20 Lg); both sizes are 44 tall
+    /// with the Bold 14/20 label (§1 deviation 2)". Nested per R-36.
     enum Size: String {
         case md
         case lg
@@ -83,19 +83,18 @@ struct PageActionButton: View {
         // §3: "A disabled button ignores taps and never invokes `onTap`"; §2: "A disabled button
         // never shows [pressed]" — a disabled Button never reports isPressed.
         .disabled(!enabled)
-        // §2: "**Hit target** = the button's own frame (38 or 44 × width)."
+        // §2: "**Hit target** = the button's own frame (44 × width) at both sizes."
         .ui2Element("PageActionButton")           // capture element map — UI2Element.swift
     }
 
-    // §2 By size: Md "**38** — 36pt content box (8 + 20 + 8) plus a 1px ring outside it"; Lg
-    // "**44** — fixed, the 1px ring inside the 44 (content row centred, 11pt above and below it
-    // inside the ring)". Both are the same construction — padding, then the 1px ring — with
-    // the vertical inset per size: 1 + 8 + 20 + 8 + 1 = 38, 1 + 11 + 20 + 11 + 1 = 44.
+    // §2 By size (owner ruling 2026-10-28, §1 deviation 2): both sizes "**44** — fixed, the 1px
+    // ring inside the 44 (content row centred, 11pt above and below it inside the ring)" —
+    // padding, then the 1px ring: 1 + 11 + 20 + 11 + 1 = 44.
     private var pill: some View {
         content
             .frame(maxWidth: .infinity)           // §2: "No glyph: the label is centred"
             .padding(.horizontal, Self.padH)
-            .padding(.vertical, padV)
+            .padding(.vertical, Self.padV)
             // The ring is layout as well as paint: `.padding` grows the box by 1pt per side and
             // `strokeBorder` draws inside that ring. Prominent's ring is white (OQ-C-048-002), so
             // its fill runs under the ring — clipping the fill at the inner radius left a dark
@@ -148,8 +147,8 @@ struct PageActionButton: View {
 
     private var labelView: some View {
         Text(label)
-            // §2 label: Md `type-button-label` (12/20), Lg `type-page-action-label-lg` (14/20).
-            .designTextStyle(size == .lg ? Token.TypeStyle.pageActionLabelLg : Token.TypeStyle.buttonLabel)
+            // §2 label: `type-page-action-label-lg` (Bold 14/20) at both sizes — §1 deviation 2.
+            .designTextStyle(Token.TypeStyle.pageActionLabelLg)
             .foregroundColor(look.labelColor)
             // OQ-C-048-4 (owner 2026-09-17): "single line, no wrap, no ellipsis". `lineLimit(1)`
             // alone would tail-truncate; `fixedSize` keeps the run at its ideal width instead.
@@ -203,9 +202,9 @@ struct PageActionButton: View {
             return Look(fill: Token.transparent, stroke: Token.accent,
                         labelColor: Token.accent, glyphColor: Token.white50)
         case .secondary:
-            // §2 secondary (Muted, enabled — D57): no fill, 1px `color-layout-border`,
-            // `color-text-secondary` label, `color-white-50` glyph.
-            return Look(fill: Token.transparent, stroke: Token.layoutBorder,
+            // §2 secondary (Muted, enabled — D57): no fill, 1px `color-white-50` (§1 deviation 3,
+            // owner 2026-10-28), `color-text-secondary` label, `color-white-50` glyph.
+            return Look(fill: Token.transparent, stroke: Token.white50,
                         labelColor: Token.textSecondary, glyphColor: Token.white50)
         case .prominent:
             // §2 prominent (White): fill `color-text-primary`, 1px `color-text-primary` ring
@@ -232,14 +231,6 @@ struct PageActionButton: View {
         }
     }
 
-    /// §2 By size: the vertical inset inside the ring — Md 8 (36pt content box), Lg 11.
-    private var padV: CGFloat {
-        switch size {
-        case .md: return Self.padVMd
-        case .lg: return Self.padVLg
-        }
-    }
-
     /// §2 By size: "glyph box **14×14**" Md, "**20×20**" Lg.
     private var glyphBox: CGFloat {
         switch size {
@@ -259,11 +250,9 @@ struct PageActionButton: View {
     // FLAGGED LITERAL — C-048 §2 By size: "content row 20 tall" (both sizes); flagged as this
     // button's own geometry by OQ-C-048-5 (owner 2026-10-20).
     private static let contentRow: CGFloat = 20
-    // FLAGGED LITERAL — C-048 §2 By size: Md "36pt content box (8 + 20 + 8)"; OQ-C-048-5.
-    private static let padVMd: CGFloat = 8
-    // FLAGGED LITERAL — C-048 §2 By size: Lg "11pt above and below it inside the ring";
-    // OQ-C-048-5.
-    private static let padVLg: CGFloat = 11
+    // FLAGGED LITERAL — C-048 §2 By size: "11pt above and below it inside the ring", both sizes
+    // (§1 deviation 2); OQ-C-048-5.
+    private static let padV: CGFloat = 11
     // FLAGGED LITERAL — C-048 §2 By size: "glyph box **14×14**" Md; OQ-C-048-5.
     private static let glyphBoxMd: CGFloat = 14
     // FLAGGED LITERAL — C-048 §2 By size: "glyph box **20×20**" Lg; OQ-C-048-5.

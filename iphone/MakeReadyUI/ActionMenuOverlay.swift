@@ -14,8 +14,8 @@
 //    docs/ui2/screens/shared-edit-field.md §4 into a component record of its own, with a
 //    contract, a frozen snapshot and (since the /d2m-component-build C-048 run) a preview and
 //    a comparison row. So this file composes the REAL PageActionButton.swift at
-//    `role: .prominent` — C-048 §3 row 3, which is what C-066 §2's "36pt, white FILL (not
-//    bordered), r8" names. The private inline copy this file used to carry was deleted in that
+//    `role: .prominent` — C-048 §3 row 3, which is what C-066 §2's "white FILL (not
+//    bordered), r8" names; 44 tall since the C-048 owner ruling of 2026-10-28. The private inline copy this file used to carry was deleted in that
 //    run: it existed only because C-048 "owns no comparison row", which stopped being true.
 //
 //  ARTWORK: the two content glyphs are the vectors the owner supplied 2026-09-10 (see
@@ -101,9 +101,9 @@ struct ActionMenuOverlay: View {
     ///
     /// Spacing 0, and the hairlines are drawn as overlays rather than stack items: the
     /// frozen snapshot's two hairline centres sit exactly 56 apart (y 80 and y 136) with the
-    /// container's own arithmetic — 24 + 56 + 56 + 16 + 36 + 24 = 212, its full height — so
-    /// a hairline occupies NO height in the layout. As a stack item each would have added a
-    /// point and made the panel 214.
+    /// container's own arithmetic — 24 + 56 + 56 + 16 + 44 + 24 = 220, its full height since
+    /// C-048's 44pt ruling (2026-10-28; the snapshot's 36pt Done made it 212) — so a hairline
+    /// occupies NO height in the layout. As a stack item each would have added a point.
     private var actionsList: some View {
         VStack(spacing: 0) {
             ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
@@ -129,8 +129,8 @@ struct ActionMenuOverlay: View {
             .offset(y: Self.hairlineWidth / 2)
     }
 
-    /// §2 item 2: "C-048 PageActionButton, `color=White` — 36pt, white FILL (not bordered),
-    /// r8, centered label 'Done'".
+    /// §2 item 2: "C-048 PageActionButton, `color=White` — white FILL (not bordered), r8,
+    /// centered label 'Done'" — 44pt tall, C-048's own height (owner ruling 2026-10-28).
     private var doneButton: some View {
         PageActionButton(label: "Done", role: Self.doneRole(confirming: confirmLabel != nil), onTap: onDone)
     }
