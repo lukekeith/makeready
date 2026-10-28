@@ -151,6 +151,7 @@
 		2D9E05227AF4D7A4E0D12906 /* GroupsHomeMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF91998459107B43365D9BCA /* GroupsHomeMapperTests.swift */; };
 		2E325C975686377D0A71D20D /* PageHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 188241DBAEB2FC57C1FC4856 /* PageHeader.swift */; };
 		2E690ADD237860B1668B0712 /* MemberActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD2971555D1C3D439F412992 /* MemberActions.swift */; };
+		2EAB04D29B98170C6C2BCE1B /* ProgramPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C14315E68265AD1CFADEAA /* ProgramPatch.swift */; };
 		2EC222DDF414CFCC0CDC078E /* AuthCallbackParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 793BF9462EB0C66EF0EAF8AD /* AuthCallbackParser.swift */; };
 		2EEB1C6066074A89E8183EA8 /* MakeReadyUI.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 46323A5C4F61C690433E30F0 /* MakeReadyUI.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		2EF8E54A989796F9429593CF /* EnrollmentSelectProgramScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3AFA88CF9737A3691F25B967 /* EnrollmentSelectProgramScreen.swift */; };
@@ -315,6 +316,8 @@
 		66BD975C6A95FA3D4B4A812B /* CalendarDateCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1919977929231856F89E8CE1 /* CalendarDateCard.swift */; };
 		66F5080D791D9E5B040078D5 /* GroupActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STEA7C3A65D00D453EBCC6 /* GroupActions.swift */; };
 		67256301BA9BEC408FD77C3F /* RecordingJob.swift in Sources */ = {isa = PBXBuildFile; fileRef = 767367FED5DCEA1D9A73501A /* RecordingJob.swift */; };
+		677F1A3168A33F771FCB54F7 /* PullToRefresh.swift in Sources */ = {isa = PBXBuildFile; fileRef = 49EF62251C2C12244356B416 /* PullToRefresh.swift */; };
+		67BBBA4C931C0F48542DD862 /* ProgramActionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0056E2810D06200B0CF320F /* ProgramActionsTests.swift */; };
 		68444E6C236A57C5A3EB1328 /* TextColorPalette.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70E6F4460F6AAF00A6F20E43 /* TextColorPalette.swift */; };
 		686083CFAF5B43EB43926635 /* GroupDeleteCleanupTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC52F14565247106FF0CBE8B /* GroupDeleteCleanupTests.swift */; };
 		68F56F90F0A94FDE353F4672 /* EnrollmentHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1A5388D6230CC74F99CFFE3 /* EnrollmentHomeScreen.swift */; };
@@ -592,6 +595,7 @@
 		CBA6E822EF1EDE6C26592A91 /* GroupPatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83258CB074CE451E434761D2 /* GroupPatchTests.swift */; };
 		CBBC766D9D836D6FFED5383B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPDEL0002000000000001 /* AppDelegate.swift */; };
 		CC89EF2BAA06EB92E43C64C7 /* InviteHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CF5FCCA1E4B00460E8794A2 /* InviteHomeScreen.swift */; };
+		CCC76D1315436A92E02CE805 /* ProgramPatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 82C14315E68265AD1CFADEAA /* ProgramPatch.swift */; };
 		CCDD5F8E34A30442E4AAD8E2 /* ImageFramingMath.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6C597A7D6222978BCC8BE1 /* ImageFramingMath.swift */; };
 		CCE5EFA14868EA07443898A8 /* HomeDashboardMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 311BD49BE0FF6C6B94A2760D /* HomeDashboardMapper.swift */; };
 		CDADDAE442262291CE7CA102 /* TopNavHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9C75D11CAC091343DF3BED /* TopNavHost.swift */; };
@@ -1029,6 +1033,7 @@
 		7E8AE89647C0C2149E14610D /* ConfirmationMark.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ConfirmationMark.swift; sourceTree = "<group>"; };
 		806C04750A29B7AC55358E67 /* SkeletonCardGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkeletonCardGroup.swift; sourceTree = "<group>"; };
 		813B940D8CC0C51848F38583 /* ViewRegistry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ViewRegistry.swift; sourceTree = "<group>"; };
+		82C14315E68265AD1CFADEAA /* ProgramPatch.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProgramPatch.swift; sourceTree = "<group>"; };
 		83258CB074CE451E434761D2 /* GroupPatchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupPatchTests.swift; sourceTree = "<group>"; };
 		8350B89429F04F72A2A9348A /* DataComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataComponent.swift; sourceTree = "<group>"; };
 		84EE8D46D0C74242AD5EFCF3 /* AuthStatusPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthStatusPolicyTests.swift; sourceTree = "<group>"; };
@@ -1275,6 +1280,7 @@
 		EXNE0002000000000000001 /* ExegesisNoteEditorPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisNoteEditorPage.swift; sourceTree = "<group>"; };
 		EXVV000100000000000001 /* ExegesisVerseView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExegesisVerseView.swift; sourceTree = "<group>"; };
 		EYTA0002000000000000001 /* EditYouTubeActivityPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditYouTubeActivityPage.swift; sourceTree = "<group>"; };
+		F0056E2810D06200B0CF320F /* ProgramActionsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ProgramActionsTests.swift; sourceTree = "<group>"; };
 		F06C9316E57E1499C57D50B3 /* GroupSaveCoverTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupSaveCoverTests.swift; sourceTree = "<group>"; };
 		F0E2FBC04A6DD8E9B873FAA5 /* CanvasTextObject.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CanvasTextObject.swift; sourceTree = "<group>"; };
 		F0FF0B250AF20FEA47BB6BD1 /* CardActivityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardActivityType.swift; sourceTree = "<group>"; };
@@ -1863,6 +1869,7 @@
 				7D29BF82B15BA13EA5F67398 /* EditMemberAvatarContainerTests.swift */,
 				1B5C983BF26831FF08272540 /* MemberProfileAvatarTapTests.swift */,
 				CA4EDD5274781FBF3D270F88 /* ProgramDecodingTests.swift */,
+				F0056E2810D06200B0CF320F /* ProgramActionsTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -2570,6 +2577,7 @@
 				D271A3D129AD5219948318F3 /* DashboardModels.swift */,
 				0E5E7BDBEBC8CD8BF4D82532 /* MemberModels.swift */,
 				57AB02699C3732F34D52FAC3 /* GroupPageModels.swift */,
+				82C14315E68265AD1CFADEAA /* ProgramPatch.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -2970,6 +2978,7 @@
 				CA865DD52F2D2C4059E9620C /* EditMemberAvatarContainerTests.swift in Sources */,
 				E506FDEFB48A7DEF9D3EAA57 /* MemberProfileAvatarTapTests.swift in Sources */,
 				2F674AB1EE1F3DAD394F6F9B /* ProgramDecodingTests.swift in Sources */,
+				67BBBA4C931C0F48542DD862 /* ProgramActionsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3253,6 +3262,7 @@
 				28BB243BEADDD56B04FE167A /* EditMemberAvatarContainer.swift in Sources */,
 				5AFE0DE4CD7E8335391FE9D9 /* ImageSubjectDetector.swift in Sources */,
 				561356D9644507936C465846 /* PullToRefresh.swift in Sources */,
+				2EAB04D29B98170C6C2BCE1B /* ProgramPatch.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3686,6 +3696,8 @@
 				3403788A2B5EC22EFA5F1794 /* ImageFramingCanvas.swift in Sources */,
 				BEDF8FAD3CD370EBBA381F88 /* EditMemberAvatarContainer.swift in Sources */,
 				15F5BA6C87A29C0906061BAD /* ImageSubjectDetector.swift in Sources */,
+				677F1A3168A33F771FCB54F7 /* PullToRefresh.swift in Sources */,
+				CCC76D1315436A92E02CE805 /* ProgramPatch.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -273,6 +273,75 @@ let api: APIClientProtocol
         return program
     }
 
+    /// ui2-programs D10: one field's PATCH. Uses the status-keeping request so the edit page can
+    /// tell a 404 (the program is gone or out of scope) from a failure worth retrying; a 401 still
+    /// throws `APIError.unauthorized`.
+    @MainActor
+    func updateProgram(id: String, patch: ProgramPatch) async throws -> StudyProgram {
+        let data = try await api.requestWithStatus(endpoint: "/api/programs/\(id)", method: "PATCH", body: patch.body)
+        let response = try JSONDecoder.apiDecoder.decode(CreateProgramResponse.self, from: data)
+        guard response.success, let program = response.program else {
+            throw APIError.serverError(response.error ?? "Failed to update program")
+        }
+        state.programs.upsert(program)
+        state.persist()
+        return program
+    }
+
+    // MARK: - Create (ui2-programs D8)
+
+    /// ui2-programs D8: a blank program from a title alone — no template, so the server creates it
+    /// with no lessons, unpublished, led by the caller.
+    @MainActor
+    func createProgram(name: String) async throws -> StudyProgram {
+        let response: CreateProgramResponse = try await api.post("/api/programs", body: ["name": name],
+                                                                 responseType: CreateProgramResponse.self)
+        guard response.success, let program = response.program else {
+            throw APIError.serverError(response.error ?? "Failed to create program")
+        }
+        state.programs.upsert(program)
+        state.persist()
+        return program
+    }
+
+    // MARK: - Every lesson page (ui2-programs D5)
+
+    /// The page size the program page loads lessons in (the server's cap).
+    static let lessonPageLimit = 60
+
+    /// ui2-programs D5: the program with every lesson — pages by `hasMore`, then replaces the
+    /// program's lesson index with what the pages returned, so a lesson deleted elsewhere drops.
+    /// Uses the status-keeping request so the page can tell a 404 (forget the program) apart.
+    @MainActor
+    func loadProgram(id: String) async throws {
+        state.loadingStates.startLoading(id, hasCachedData: state.programs.contains(id))
+        defer { state.loadingStates.finishLoading(id) }
+
+        var lessonIds: [String] = []
+        var page = 1
+        while true {
+            let endpoint = "/api/programs/\(id)?lessonPage=\(page)&lessonLimit=\(Self.lessonPageLimit)"
+            let data = try await api.requestWithStatus(endpoint: endpoint, method: "GET", body: nil)
+            let response = try JSONDecoder.apiDecoder.decode(CreateProgramResponse.self, from: data)
+            guard response.success, let program = response.program else {
+                throw APIError.serverError(response.error ?? "Program not found")
+            }
+            if page == 1 { state.programs.upsert(program) }
+            for lesson in program.lessons ?? [] {
+                state.lessons.upsert(lesson)
+                lessonIds.append(lesson.id)
+                for activity in lesson.activities {
+                    state.activities.upsert(activity)
+                    state.lessonActivityIndex.add(parentId: lesson.id, childId: activity.id)
+                }
+            }
+            guard response.pagination?.hasMore == true else { break }
+            page += 1
+        }
+        state.programLessonIndex.replace(parentId: id, childIds: lessonIds)
+        state.persist()
+    }
+
     // MARK: - Publish Updates (study sync)
 
     /// Result of publishing curriculum updates as a new program version.
@@ -373,10 +442,17 @@ let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to delete program")
         }
 
-        // Remove from state
+        forgetProgram(id: id)
+        NSLog("📚 ProgramActions: Deleted program '\(programName)'")
+    }
+
+    /// ui2-programs D5: drop a program from every store keyed by or listing it — the program, its
+    /// lessons and their activities, and its enrollments. Local only: also the program page's and
+    /// the edit pages' 404 path.
+    @MainActor
+    func forgetProgram(id: String) {
         state.programs.remove(id)
 
-        // Clean up related data
         let lessonIds = state.programLessonIndex.get(id)
         for lessonId in lessonIds {
             let activityIds = state.lessonActivityIndex.get(lessonId)
@@ -386,13 +462,11 @@ let api: APIClientProtocol
         state.lessons.removeMany(lessonIds)
         state.programLessonIndex.removeAll(parentId: id)
 
-        // Remove enrollments for this program
         let enrollmentIds = state.programEnrollmentIndex.get(id)
         state.enrollments.removeMany(enrollmentIds)
         state.programEnrollmentIndex.removeAll(parentId: id)
 
         state.persist()
-        NSLog("📚 ProgramActions: Deleted program '\(programName)'")
     }
 
     // MARK: - Cover Image Upload
@@ -585,6 +659,51 @@ let api: APIClientProtocol
 
         NSLog("📸 ProgramActions: Uploaded cover image for program \(programId)")
         return url
+    }
+
+    /// ui2-programs D11 (group-cover-image D10/D13 for a program): upload the rendered cover
+    /// (JPEG 0.9) with its framing — and the original on a new pick — then patch the three returned
+    /// fields into the program and persist. `requestWithStatus` keeps a 404's status.
+    @MainActor
+    func saveCover(programId: String, rendered: UIImage, framing: ImageFraming, original: UIImage?) async throws -> CoverSaveResult {
+        struct Response: Decodable {
+            let success: Bool
+            let coverImageUrl: String?
+            let coverOriginalUrl: String?
+            let coverFraming: ImageFraming?
+            let error: String?
+        }
+        guard let renderedJPEG = rendered.jpegData(compressionQuality: 0.9) else {
+            throw APIError.serverError("Couldn't encode the cover")
+        }
+        var body: [String: Any] = [
+            "imageData": renderedJPEG.base64EncodedString(),
+            "contentType": "image/jpeg",
+            "framing": framing.requestBody
+        ]
+        if let original {
+            guard let originalJPEG = original.jpegData(compressionQuality: 0.9) else {
+                throw APIError.serverError("Couldn't encode the original photo")
+            }
+            body["originalData"] = originalJPEG.base64EncodedString()
+        }
+
+        let data = try await api.requestWithStatus(endpoint: "/api/programs/\(programId)/cover-image", method: "POST",
+                                                   body: body, timeout: GroupActions.coverSaveTimeout)
+        let response = try JSONDecoder.apiDecoder.decode(Response.self, from: data)
+        guard response.success, let url = response.coverImageUrl else {
+            throw APIError.serverError(response.error ?? "Failed to save the cover")
+        }
+        let result = CoverSaveResult(coverImageUrl: url, coverOriginalUrl: response.coverOriginalUrl,
+                                     coverFraming: response.coverFraming)
+        if var program = state.programs[programId] {
+            program.coverImageUrl = result.coverImageUrl
+            program.coverOriginalUrl = result.coverOriginalUrl
+            program.coverFraming = result.coverFraming
+            state.programs.upsert(program)
+            state.persist()
+        }
+        return result
     }
 
     // MARK: - Export / Import / YouTube Metadata
