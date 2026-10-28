@@ -125,8 +125,8 @@ struct EditGroupCoverContainer: View {
                      doneEnabled: model.hasChanges)
     }
 
-    /// D26: the confirmation's one row.
-    static let discardAction = ActionMenuOverlay.ActionItem(glyph: "trash-2", label: "Discard changes", tone: .destructive)
+    /// D26, owner 2026-10-27: the confirmation's main button (Done secondary below it); the avatar shares it.
+    static let discardLabel = "Discard changes"
 
     /// D7: the banner a stored original that will not load shows; the page pops.
     static let loadFailedMessage = "Couldn't load the cover"
@@ -153,16 +153,18 @@ struct EditGroupCoverContainer: View {
             }
         )
         .background(Token.layoutBackground.ignoresSafeArea())
-        // D26: one red row and Done; Done stays. Hosted by the shell's `.ui2OverlayHost()`.
+        // D26, owner 2026-10-27: "Discard changes" as the main button, Done (stays) below it.
+        // Hosted by the shell's `.ui2OverlayHost()`.
         .actionMenuPresentation(isPresented: discardMenuOpen, onDismiss: { discardMenuOpen = false }) {
             ActionMenuOverlay(
-                actions: [Self.discardAction],
-                onSelect: { _ in
+                actions: [],
+                onDone: { discardMenuOpen = false },
+                confirmLabel: Self.discardLabel,
+                onConfirm: {
                     discardMenuOpen = false
                     guard Self.discardPops(isSaving: model?.isSaving ?? false) else { return }
                     navigator.pop()
-                },
-                onDone: { discardMenuOpen = false }
+                }
             )
         }
         .task { await prepare() }

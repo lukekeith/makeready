@@ -111,16 +111,18 @@ struct EditMemberAvatarContainer: View {
             }
         )
         .background(Token.layoutBackground.ignoresSafeArea())
-        // D12: one red row and Done; Done stays. Hosted by the shell's `.ui2OverlayHost()`.
+        // D12, owner 2026-10-27: "Discard changes" as the main button, Done (stays) below it.
+        // Hosted by the shell's `.ui2OverlayHost()`.
         .actionMenuPresentation(isPresented: discardMenuOpen, onDismiss: { discardMenuOpen = false }) {
             ActionMenuOverlay(
-                actions: [EditGroupCoverContainer.discardAction],
-                onSelect: { _ in
+                actions: [],
+                onDone: { discardMenuOpen = false },
+                confirmLabel: EditGroupCoverContainer.discardLabel,
+                onConfirm: {
                     discardMenuOpen = false
                     guard EditGroupCoverContainer.discardPops(isSaving: model?.isSaving ?? false) else { return }
                     navigator.pop()
-                },
-                onDone: { discardMenuOpen = false }
+                }
             )
         }
         .task { await prepare() }

@@ -66,11 +66,22 @@ struct ActionMenuOverlay: View {
     /// snapshot draws one after the last row too. Default true keeps the snapshot.
     // GAP — C-066 §2 item 1: "including after the last row" (action-menu-overlay B6).
     var hairlineAfterLast: Bool = true
+    /// image-framing-editor (owner 2026-10-27): a confirmation sheet — one centred C-048 prominent
+    /// button with this label in place of the rows, Done demoted to `.secondary` below it. Default
+    /// nil keeps the frozen C-066 snapshot.
+    // GAP — C-066 §2 has no confirmation form; routed to /ui2-component-update C-066 (image-framing-editor).
+    var confirmLabel: String? = nil
+    /// Fired by the confirmation button; no render effect (OQ-PB-3).
+    var onConfirm: () -> Void = {}
 
     var body: some View {
         // §2: "internal gap 16" — between the actions list and the Done button.
         VStack(spacing: Self.gap) {
-            actionsList.ui2Element("Actions list")
+            if let confirmLabel {
+                PageActionButton(label: confirmLabel, role: .prominent, onTap: onConfirm).ui2Element("Confirm")
+            } else {
+                actionsList.ui2Element("Actions list")
+            }
             if showsDone {
                 doneButton.ui2Element("Done")
             }
@@ -121,7 +132,12 @@ struct ActionMenuOverlay: View {
     /// §2 item 2: "C-048 PageActionButton, `color=White` — 36pt, white FILL (not bordered),
     /// r8, centered label 'Done'".
     private var doneButton: some View {
-        PageActionButton(label: "Done", role: .prominent, onTap: onDone)
+        PageActionButton(label: "Done", role: Self.doneRole(confirming: confirmLabel != nil), onTap: onDone)
+    }
+
+    /// Done is the prominent button unless a confirmation button holds that place.
+    static func doneRole(confirming: Bool) -> PageActionButton.Role {
+        confirming ? .secondary : .prominent
     }
 
     /// §2: "1px `color-layout-border` hairline".

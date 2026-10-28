@@ -59,9 +59,12 @@ final class EditGroupCoverContainerTests: XCTestCase {
         XCTAssertFalse(EditGroupCoverContainer.blocksBackSwipe(hasChanges: false, isSaving: false))
     }
 
-    /// D26/D2: the discard row's glyph is a real GlyphName case (an unknown name renders the red stub).
-    func testDiscardGlyphExists() {
-        XCTAssertNotNil(GlyphName(rawValue: EditGroupCoverContainer.discardAction.glyph))
+    /// Owner 2026-10-27 (image-framing-editor walk): the discard confirm is a centred main button
+    /// "Discard changes" with Done demoted to secondary below it — no C-067 row.
+    func testDiscardConfirmIsAMainButtonOverASecondaryDone() {
+        XCTAssertEqual(EditGroupCoverContainer.discardLabel, "Discard changes")
+        XCTAssertEqual(ActionMenuOverlay.doneRole(confirming: true), .secondary)
+        XCTAssertEqual(ActionMenuOverlay.doneRole(confirming: false), .prominent)
     }
 
     /// D30: no grid and no readout at rest; Done mirrors `hasChanges` (a new pick is always savable).

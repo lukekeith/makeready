@@ -225,3 +225,7 @@ The plan, with its code: `docs/features/image-framing-editor/PLAN.md` (§PLAN.md
 - Phase 3 · Task 6 · Member avatar state — the two new fields, a status-keeping multipart call, `MemberActions.saveAvatar`
 - Phase 4 · Task 7 · Edit photo — the avatar editor route on the generalised d2m screen, and the group cover passing its own geometry
 - Phase 4 · Task 8 · The avatar tap on the member page — picker, C-066 menu, viewer (D4, D10, D13)
+
+## Fixes
+
+- [x] iphone · (walk, owner 2026-10-27) The image editors' discard confirm shows "Discard changes" as a centred C-048 `.prominent` button with Done as `.secondary` below it — not a C-067 glyph + chevron row. Binds every image-editing discard: Edit cover and Edit photo. C-066 gains `confirmLabel`/`onConfirm` (default nil keeps its snapshot; GAP routed to `/ui2-component-update C-066`). Test: `EditGroupCoverContainerTests.testDiscardConfirmIsAMainButtonOverASecondaryDone`.
