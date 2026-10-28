@@ -883,7 +883,7 @@ struct CaptureComponent: Codable {
     let createFailed: Bool?
     // ── screen study-program-home ──
     // Reused as-is: `createdLabel`, `authorName`, `leaderName`, `programName`,
-    // `programDescription` (same names, same types).
+    // `programDescription`, `loading`, `failed` (same names, same types).
     let coverURL: String?
     let lessonCount: Int?
     let visibility: String?
@@ -1119,8 +1119,9 @@ struct CaptureComponent: Codable {
     // (same names, same types); no field named hasAdd existed.
     let hasAdd: Bool?                          // C-069 — nil = §4's default true
     // ── screen study-programs ──
-    // Reused as-is: `searchText`, `orgFilterLabel`, `leaderFilterLabel`, `loading`, `failed`,
-    // `programTitles`, `programDescriptions` and `programCoverURLs` (same names, same types).
+    // Reused as-is: `searchText`, `orgFilterVisible`, `orgFilterLabel`, `leaderFilterLabel`,
+    // `orgOptions`, `leaderOptions`, `loading`, `failed`, `programTitles`, `programDescriptions`
+    // and `programCoverURLs` (same names, same types).
     let programEnrollmentCounts: [Int]?
     // ── preview props ──
     // C-110 CopyableCodeCard build 2026-10-20. Both additive; no field of either name existed.

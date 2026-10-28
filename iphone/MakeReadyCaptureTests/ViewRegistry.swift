@@ -3466,8 +3466,11 @@ private func buildScreenStudyPrograms(_ fixture: CaptureFixture) throws -> AnyVi
     return AnyView(MakeReadyUI.StudyProgramsScreen(
         state: .init(
             searchText: c.searchText ?? sample.searchText,
+            orgFilterVisible: c.orgFilterVisible ?? sample.orgFilterVisible,
             orgFilterLabel: c.orgFilterLabel ?? sample.orgFilterLabel,
             leaderFilterLabel: c.leaderFilterLabel ?? sample.leaderFilterLabel,
+            orgOptions: c.orgOptions ?? sample.orgOptions,
+            leaderOptions: c.leaderOptions ?? sample.leaderOptions,
             loading: c.loading ?? sample.loading,
             failed: c.failed ?? sample.failed,
             programTitles: c.programTitles ?? sample.programTitles,
@@ -3931,7 +3934,10 @@ private func buildScreenStudyProgramHome(_ fixture: CaptureFixture) throws -> An
             lessonTitles: c.lessonTitles ?? sample.lessonTitles,
             lessonDurations: c.lessonDurations ?? sample.lessonDurations,
             lessonSlideImages: lessonSlideImages,
-            lessonSlideLabels: c.lessonSlideLabels ?? sample.lessonSlideLabels
+            lessonSlideLabels: c.lessonSlideLabels ?? sample.lessonSlideLabels,
+            // §3 `Loading` / `Error` — the reused `loading` / `failed` fields.
+            loading: c.loading ?? sample.loading,
+            failed: c.failed ?? sample.failed
         )
     ))
 }

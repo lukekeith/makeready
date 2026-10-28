@@ -8,6 +8,8 @@
 //  (creator.name, leader, Visibility, Age, Maximum members and Member directory access are
 //  API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  ui2-programs container inputs (§3, as groups-detail D27): `showsHeader`, `loading`,
+//  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19) and `onCoverTap`.
 //
 
 import SwiftUI
@@ -17,10 +19,11 @@ import SwiftUI
 /// A pushed page (C-040 back chevron). Composed only of §4's C-020, C-021, C-022, C-037, C-040,
 /// C-042, C-052, C-063, C-087 and C-088; C-043, C-061 and C-079 render only inside those.
 ///
-/// §3 names six states. This build renders `Populated`, `No cover image`, `Empty (no
-/// enrollments)` and `Empty (no lessons)`. `Loading` ("skeletons at their contracted
-/// geometry") and `Error` ("page-level retry") name no §4 component, so they are reported as
-/// spec defects and not improvised here (the home-dashboard / members-profile precedent).
+/// §3 names six states, all reachable through `State` alone. `Loading` draws the §4 parts at
+/// their contracted geometry with no data — C-087's placeholder fill, C-022 / C-042 labels over
+/// empty values, section headers static, both lists omitted. `Error` keeps the header and puts
+/// one centred muted line in place of the content column; the reload is a pull-to-refresh on
+/// the host's ScrollView (`.pullToRefresh(onRetry)`, OQ-study-program-home-19), not a button.
 struct StudyProgramHomeScreen: View {
 
     /// One §3 state's inputs. Every built §3 state is reachable by these alone. Parallel arrays,
@@ -65,9 +68,17 @@ struct StudyProgramHomeScreen: View {
         var lessonSlideImages: [[String]]
         /// Per lesson, its slides' VoiceOver labels (never rendered).
         var lessonSlideLabels: [[String]]
+        // ── Load status (§3) ──
+        /// §3 `Loading`: the parts render at their contracted geometry with no data.
+        var loading: Bool = false
+        /// §3 `Error`: the load failed — header kept, the content column is the failure line.
+        var failed: Bool = false
     }
 
     let state: State
+    /// §3 container input: false when the host pins C-040 above its own ScrollView, so the header
+    /// is not drawn twice (groups-detail D27). True (the default) keeps the capture render whole.
+    let showsHeader: Bool
     // §3 interactions — every one leaves the screen, so each is an on<Verb> closure with R-03's
     // no-op default. The screen never decides what an action means.
     var onBack: () -> Void = {}                         // C-040 back → pop to caller
@@ -78,9 +89,12 @@ struct StudyProgramHomeScreen: View {
     var onSelectDay: (Int) -> Void = { _ in }           // C-052 tap → select day (OQ-11)
     var onOpenLesson: (Int) -> Void = { _ in }          // C-063 title block tap
     var onOpenActivity: (Int, Int) -> Void = { _, _ in } // C-061 tap → activities-editor
+    var onCoverTap: () -> Void = {}                     // C-087 tap → the cover flow (group-cover-image D1/D2)
+    var onRetry: () -> Void = {}                        // pull-to-refresh → reload (host applies `.pullToRefresh`)
 
     init(
         state: State,
+        showsHeader: Bool = true,
         onBack: @escaping () -> Void = {},
         onEditField: @escaping (String) -> Void = { _ in },
         onAddEnrollment: @escaping () -> Void = {},
@@ -88,9 +102,12 @@ struct StudyProgramHomeScreen: View {
         onAddLesson: @escaping () -> Void = {},
         onSelectDay: @escaping (Int) -> Void = { _ in },
         onOpenLesson: @escaping (Int) -> Void = { _ in },
-        onOpenActivity: @escaping (Int, Int) -> Void = { _, _ in }
+        onOpenActivity: @escaping (Int, Int) -> Void = { _, _ in },
+        onCoverTap: @escaping () -> Void = {},
+        onRetry: @escaping () -> Void = {}
     ) {
         self.state = state
+        self.showsHeader = showsHeader
         self.onBack = onBack
         self.onEditField = onEditField
         self.onAddEnrollment = onAddEnrollment
@@ -99,6 +116,8 @@ struct StudyProgramHomeScreen: View {
         self.onSelectDay = onSelectDay
         self.onOpenLesson = onOpenLesson
         self.onOpenActivity = onOpenActivity
+        self.onCoverTap = onCoverTap
+        self.onRetry = onRetry
     }
 
     // §3 has no UI-only rule on this screen: the day selection is reported through `onSelectDay`
@@ -127,6 +146,11 @@ struct StudyProgramHomeScreen: View {
     private static let daysLabel = "days"
     /// §4 C-043 `Key value` chip label inside C-037.
     private static let membersLabel = "members"
+    /// §3 `Error` (OQ-study-program-home-19): the one failure line.
+    private static let failedCopy = "Unable to load program, pull down to refresh"
+    /// §3 Interactions: C-087's VoiceOver label, by whether there is a cover.
+    private static let addCoverLabel = "Add cover image"
+    private static let coverLabel = "Cover image"
 
     // MARK: - §2 geometry the screen owns
 
@@ -145,31 +169,53 @@ struct StudyProgramHomeScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             // §2: "C-040 PageHeader 56pt, style `Two icons` with `showTitle=true` and
             // `showIcons=false`: back chevron left, centered static title "Study program"".
-            PageHeader(
-                style: .twoIcons,
-                title: Self.pageTitle,
-                showTitle: true,
-                showIcons: false,
-                leadingGlyph: .back,
-                rightButtons: [],
-                onLeading: onBack
-            )
-            .ui2Element("C-040 PageHeader")
+            if showsHeader {
+                PageHeader(
+                    style: .twoIcons,
+                    title: Self.pageTitle,
+                    showTitle: true,
+                    showIcons: false,
+                    leadingGlyph: .back,
+                    rightButtons: [],
+                    onLeading: onBack
+                )
+                .ui2Element("C-040 PageHeader")
+            }
 
-            VStack(alignment: .leading, spacing: 0) {
-                programDetail
-                divider(ordinal: 1)
-                settings
-                divider(ordinal: 2)
-                enrollmentsSection
-                divider(ordinal: 3)
-                lessonsSection
-                Spacer().frame(height: Self.bottomPadding)
+            if state.failed {
+                failedLine
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    programDetail
+                    divider(ordinal: 1)
+                    settings
+                    divider(ordinal: 2)
+                    enrollmentsSection
+                    divider(ordinal: 3)
+                    lessonsSection
+                    Spacer().frame(height: Self.bottomPadding)
+                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                  // §2: `color-layout-background`
     }
+
+    /// §3 `Error`: "header intact", and in place of the content column one centred line of
+    /// `type-body-sm` `color-text-secondary` (OQ-study-program-home-19). The reload is the host's
+    /// pull-to-refresh, so nothing here is tappable.
+    private var failedLine: some View {
+        Text(Self.failedCopy)
+            .designTextStyle(Token.TypeStyle.bodySm)
+            .foregroundStyle(Token.textSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, Token.Space.pageMargin)
+            .padding(.vertical, Token.Space.sectionGap)
+    }
+
+    /// §3 `Loading`: a data value renders empty, at its part's contracted geometry.
+    private func value(_ text: String) -> String { state.loading ? "" : text }
 
     /// §2: "C-088 SectionDivider ×3, 408 wide, 32 above and below (one `space-section-gap` step
     /// each side, owned by the page, not the divider)".
@@ -186,22 +232,33 @@ struct StudyProgramHomeScreen: View {
     /// details grid.
     private var programDetail: some View {
         VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
-            // §2.1.1: "C-087 CoverImage … 408×180"; §3 `No cover image` → `nil`.
-            CoverImage(image: Self.cachedImage(state.coverURL))
-                .ui2Element("C-087 CoverImage")
+            cover
             // §2.1.2: "2×2 of C-022 MetaPair … Created · Author · Group leader · Lessons".
             VStack(alignment: .leading, spacing: Self.gridGap) {
                 HStack(alignment: .top, spacing: Self.gridGap) {
-                    detailCell(label: Self.createdLabel, value: state.createdLabel, ordinal: 1)
-                    detailCell(label: Self.authorLabel, value: state.authorName, ordinal: 2)
+                    detailCell(label: Self.createdLabel, value: value(state.createdLabel), ordinal: 1)
+                    detailCell(label: Self.authorLabel, value: value(state.authorName), ordinal: 2)
                 }
                 HStack(alignment: .top, spacing: Self.gridGap) {
-                    detailCell(label: Self.leaderLabel, value: state.leaderName, ordinal: 3)
-                    detailCell(label: Self.lessonsLabel, value: "\(state.lessonCount)", ordinal: 4)
+                    detailCell(label: Self.leaderLabel, value: value(state.leaderName), ordinal: 3)
+                    detailCell(label: Self.lessonsLabel, value: value("\(state.lessonCount)"), ordinal: 4)
                 }
             }
         }
         .padding(.horizontal, Token.Space.pageMargin)
+    }
+
+    /// §2.1.1: "C-087 CoverImage … 408×180"; §3 `No cover image` and `Loading` → `nil` (the
+    /// placeholder fill). §3 Interactions: tappable → `onCoverTap`; CoverImage is
+    /// accessibilityHidden, so the button carries its own label and trait (as groups-detail).
+    private var cover: some View {
+        SwiftUI.Button(action: onCoverTap) {
+            CoverImage(image: state.loading ? nil : Self.cachedImage(state.coverURL))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(state.coverURL.isEmpty ? Self.addCoverLabel : Self.coverLabel)
+        .accessibilityAddTraits(.isButton)
+        .ui2Element("C-087 CoverImage")
     }
 
     private func detailCell(label: String, value: String, ordinal: Int) -> some View {
@@ -229,7 +286,7 @@ struct StudyProgramHomeScreen: View {
     }
 
     private func fieldRow(_ label: String, _ value: String, multiline: Bool = false, ordinal: Int) -> some View {
-        EditableFieldRow(label: label, value: value, multiline: multiline, onTap: { onEditField(label) })
+        EditableFieldRow(label: label, value: self.value(value), multiline: multiline, onTap: { onEditField(label) })
             .ui2Element(Self.partName("C-042 EditableFieldRow", ordinal: ordinal))
     }
 
@@ -241,13 +298,14 @@ struct StudyProgramHomeScreen: View {
             // "3"+"groups" + C-021 `add`"; §3 `Empty (no enrollments)`: "reads "0 groups"".
             SectionHeader(
                 title: Self.enrollmentsTitle,
-                accessory: .meta(value: "\(state.enrollmentNames.count)", label: Self.groupsLabel, glyph: .add),
+                accessory: .meta(value: value("\(state.enrollmentNames.count)"), label: Self.groupsLabel, glyph: .add),
                 onAccessoryTap: onAddEnrollment
             )
             .padding(.horizontal, Token.Space.pageMargin)
             .ui2Element("C-020 SectionHeader")
-            // §3 `Empty (no enrollments)`: "the Active-enrollments list is omitted".
-            if !state.enrollmentNames.isEmpty {
+            // §3 `Empty (no enrollments)`: "the Active-enrollments list is omitted"; §3 `Loading`
+            // omits it too (no rows yet).
+            if !state.loading, !state.enrollmentNames.isEmpty {
                 Spacer().frame(height: Token.Space.sectionGap)       // §2.5: "→ 32 →"
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(state.enrollmentNames.indices, id: \.self) { index in
@@ -285,13 +343,13 @@ struct StudyProgramHomeScreen: View {
             // `meta-button` = C-022 "31"+"days" + C-021 `add`)".
             SectionHeader(
                 title: Self.lessonsLabel,
-                accessory: .meta(value: "\(state.dayCount)", label: Self.daysLabel, glyph: .add),
+                accessory: .meta(value: value("\(state.dayCount)"), label: Self.daysLabel, glyph: .add),
                 onAccessoryTap: onAddLesson
             )
             .padding(.horizontal, Token.Space.pageMargin)
             .ui2Element("C-020 SectionHeader 2")
-            // §3 `Empty (no lessons)`: "day rail and lesson list omitted".
-            if !state.lessonTitles.isEmpty {
+            // §3 `Empty (no lessons)`: "day rail and lesson list omitted"; §3 `Loading` too.
+            if !state.loading, !state.lessonTitles.isEmpty {
                 Spacer().frame(height: Token.Space.sectionGap)       // §2.7: "→ 32 →"
                 dayRail
                 Spacer().frame(height: Token.Space.sectionGap)       // §2.7: "→ 32 →"
@@ -337,8 +395,18 @@ struct StudyProgramHomeScreen: View {
                     onSelectSlide: { slide in onOpenActivity(index, slide) }
                 )
                 .ui2Element(Self.partName("C-063 LessonCard", ordinal: index + 1))
+                // §3 container input: the lesson scroll identity the host's ScrollViewReader
+                // scrolls to on `onSelectDay` (OQ-11 default). The screen itself never scrolls.
+                .id(Self.lessonScrollID(state.lessonNumbers[safe: index] ?? index + 1))
             }
         }
+    }
+
+    /// §3 "Lesson scroll identity": the `.id` each C-063 LessonCard carries, keyed by its
+    /// lesson/day number, so the app container can `scrollTo(lessonScrollID(day))` when a C-052
+    /// DayChip calls `onSelectDay(day)`.
+    static func lessonScrollID(_ lessonNumber: Int) -> String {
+        "study-program-home.lesson.\(lessonNumber)"
     }
 
     private func slides(_ lesson: Int) -> [LessonCard.Slide] {
@@ -457,6 +525,38 @@ extension StudyProgramHomeScreen.State {
         $0.lessonSlideLabels = []
     }
 
+    /// §3 `Loading` — "cover, details grid, field values, enrollment rows and lesson cards render
+    /// as skeletons at their contracted geometry; section headers and field labels are static".
+    /// Nothing has landed, so no data is carried: C-087's placeholder, labels over empty values,
+    /// both lists omitted.
+    static let loading = emptyNoEnrollments.with {
+        $0.coverURL = ""
+        $0.createdLabel = ""
+        $0.authorName = ""
+        $0.leaderName = ""
+        $0.lessonCount = 0
+        $0.programName = ""
+        $0.programDescription = ""
+        $0.visibility = ""
+        $0.ageRange = ""
+        $0.maximumMembers = ""
+        $0.memberDirectoryAccess = ""
+        $0.dayCount = 0
+        $0.lessonNumbers = []
+        $0.lessonTitles = []
+        $0.lessonDurations = []
+        $0.lessonSlideImages = []
+        $0.lessonSlideLabels = []
+        $0.loading = true
+    }
+
+    /// §3 `Error` — "page-level retry in place of the content column, header intact": the one
+    /// failure line; the reload is the host's pull-to-refresh (OQ-study-program-home-19).
+    static let error = loading.with {
+        $0.loading = false
+        $0.failed = true
+    }
+
     private func with(_ change: (inout Self) -> Void) -> Self {
         var copy = self
         change(&copy)
@@ -487,6 +587,20 @@ extension StudyProgramHomeScreen.State {
 
 #Preview("Empty (no lessons)") {
     StudyProgramHomeScreen(state: .emptyNoLessons)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("Loading") {
+    StudyProgramHomeScreen(state: .loading)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("Error") {
+    StudyProgramHomeScreen(state: .error)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

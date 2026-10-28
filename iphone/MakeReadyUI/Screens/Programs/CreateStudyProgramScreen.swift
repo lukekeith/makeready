@@ -31,8 +31,9 @@ struct CreateStudyProgramScreen: View {
     var onBack: () -> Void = {}
     var onCreate: (String) -> Void = { _ in }
 
-    // §3 UI-only rule: "`empty` — title blank; Create renders `disabled`. `ready` — title
-    // non-blank; Create renders `affirmative`" — the field's local text, seeded from `State`.
+    // §3 UI-only rule: "`empty` — title blank or whitespace-only; Create renders `disabled`.
+    // `ready` — trimmed title has 1–200 characters; Create renders `affirmative`" — the field's
+    // local text, seeded from `State`. "The input accepts no characters past 200."
     @SwiftUI.State private var text: String
 
     init(
@@ -43,7 +44,7 @@ struct CreateStudyProgramScreen: View {
         self.state = state
         self.onBack = onBack
         self.onCreate = onCreate
-        _text = SwiftUI.State(initialValue: state.text)
+        _text = SwiftUI.State(initialValue: String(state.text.prefix(Self.maxLength)))
     }
 
     var body: some View {
@@ -78,7 +79,10 @@ struct CreateStudyProgramScreen: View {
                     style: .default,
                     layout: .default,
                     text: text,
-                    placeholder: Self.placeholder
+                    placeholder: Self.placeholder,
+                    editing: Self.fieldEditing(creating: state.creating),
+                    // §3: "The input accepts no characters past 200."
+                    onChange: { text = String($0.prefix(Self.maxLength)) }
                 )
                 .ui2Element("C-046 FieldGroup")
 
@@ -117,6 +121,15 @@ struct CreateStudyProgramScreen: View {
     // OQ-shared-edit-field-3 — its activity indicator has no §4 component, reported as a gap);
     // `create-failed` preserves the value, so Create is enabled again.
     private var createEnabled: Bool { !state.creating && !trimmed.isEmpty }
+
+    // §3: "The input accepts no characters past 200."
+    private static let maxLength = 200
+
+    /// C-045's live form, as CreateGroupScreen — focused on appear (§3 `empty`), read-only
+    /// while creating (§3 `creating`: "the field is read-only").
+    static func fieldEditing(creating: Bool) -> TextInput.Editing {
+        TextInput.Editing(focusOnAppear: true, isEnabled: !creating)
+    }
 
     // §2 copy.
     private static let title = "Create study program"

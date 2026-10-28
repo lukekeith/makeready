@@ -12,17 +12,18 @@
 import SwiftUI
 
 /// Study programs — "main list of all study programs available to the group leader" (the
-/// owner's description): the Programs tab of the Home section switcher (§6). The collapsed C-019
-/// nav row, a header of C-034 search over two C-035 filter chips, then one C-059
-/// `state: .program` row per program with a C-088 rule under each, the last one included (§2).
-/// Composed only of §4's C-019, C-034, C-035, C-059 and C-088. C-036 FilterMenuOverlay is
-/// presented by a chip but §4 drops it ("presented, not on the screen"), so a chip tap leaves
-/// the screen through `onOpenFilter`.
+/// owner's description): the Programs tab of the Home section switcher (§6). The shell's C-019
+/// TopNav owns the nav row (§1 deviation 3), so the screen starts at a header of C-034 search
+/// over two C-035 filter chips, then one C-059 `state: .program` row per program with a C-088
+/// rule under each, the last one included (§2).
+/// Composed only of §4's C-034, C-035, C-059 and C-088. §3 Filter API (owner 2026-10-28:
+/// exactly `groups-home`'s): a chip tap presents C-036 FilterMenuOverlay in-screen,
+/// multi-select with Save; Save leaves through `onSaveOrgs` / `onSaveLeaders`.
 ///
-/// §3 names five states: `loading`, `populated`, `filtered-empty`, `empty` and `error`. The
-/// `loading` skeleton rows and the `error` inline retry name no §4 component, no geometry and no
-/// copy, so both render the persistent header over an empty body and the missing parts are
-/// reported as spec gaps — not improvised here (the enrollments-home precedent).
+/// §3 names five states: `loading`, `populated`, `filtered-empty`, `empty` and `error`.
+/// `loading` draws skeleton C-059 `Program` rows (108 tall, C-088 rule under each) under the
+/// persistent header, so the body is never blank. `error`'s inline retry is one centred "Retry"
+/// line (OQ-study-programs-7) that calls `onRetry`.
 struct StudyProgramsScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone. Parallel arrays — one
@@ -32,11 +33,23 @@ struct StudyProgramsScreen: View {
         // ── Header (§2) ──
         /// C-034 `text`: the current query. "" shows the placeholder (§4 `Default`).
         var searchText: String
+        /// §3 Filter API: the org chip is drawn only when true.
+        var orgFilterVisible: Bool
         /// C-035 `label` per chip: "The label is the current selection, per the C-035 contract"
         /// (§2). §2's resting labels: "All Orgs" · "All Leaders".
         var orgFilterLabel: String
         var leaderFilterLabel: String
-        /// §3 `loading`: "first launch with no cached data". The body shows no rows.
+        /// §3 Filter API: C-036 options of the Orgs menu (org scopes; no "All Orgs" row — an
+        /// empty selection means no filter).
+        var orgOptions: [String]
+        /// C-036 options of the Leaders menu — the org's program creators.
+        var leaderOptions: [String]
+        /// The checked Orgs options (ids = labels until a container supplies ids); non-empty =
+        /// the chip is active.
+        var selectedOrgs: Set<String> = []
+        /// The checked Leaders options.
+        var selectedLeaders: Set<String> = []
+        /// §3 `loading`: "first launch with no cached data". The body draws skeleton rows.
         var loading: Bool
         /// §3 `error`: the load failed. The body shows no rows.
         var failed: Bool
@@ -51,48 +64,58 @@ struct StudyProgramsScreen: View {
         var programCoverURLs: [String]
     }
 
+    /// Which C-036 menu is presented — the one screen-local choice §3 makes.
+    private enum FilterMenu {
+        case orgs
+        case leaders
+    }
+
     let state: State
     // §3 interactions that leave the screen. Each is an on<Verb> closure with R-03's no-op
     // default. The screen never decides what an action means.
-    var onSelectTab: (String) -> Void = { _ in }    // C-019 tab tap → that Home section (§6)
-    var onToggleNav: () -> Void = {}                // C-019 collapse ⇄ expand
     var onSearch: (String) -> Void = { _ in }       // §3: live text filter (300ms, min 2)
-    var onOpenFilter: (String) -> Void = { _ in }   // §3: chip tap → C-036 for that dimension
+    var onSaveOrgs: (Set<String>) -> Void = { _ in }    // §3: Save on the Orgs menu
+    var onSaveLeaders: (Set<String>) -> Void = { _ in } // §3: Save on the Leaders menu
     var onOpenProgram: (Int) -> Void = { _ in }     // §3: C-059 tap → study-program-home, by row
+    var onRetry: () -> Void = {}                    // §3: error-state retry tap → re-run the fetch
 
-    // R-31 ephemeral UI: the query as typed (§3 "a live text filter").
+    // R-31 ephemeral UI: the query as typed (§3 "a live text filter") and the presented menu
+    // (§3 chip taps → C-036).
     @SwiftUI.State private var query: String
+    @SwiftUI.State private var presentedMenu: FilterMenu?
 
     init(
         state: State,
-        onSelectTab: @escaping (String) -> Void = { _ in },
-        onToggleNav: @escaping () -> Void = {},
         onSearch: @escaping (String) -> Void = { _ in },
-        onOpenFilter: @escaping (String) -> Void = { _ in },
-        onOpenProgram: @escaping (Int) -> Void = { _ in }
+        onSaveOrgs: @escaping (Set<String>) -> Void = { _ in },
+        onSaveLeaders: @escaping (Set<String>) -> Void = { _ in },
+        onOpenProgram: @escaping (Int) -> Void = { _ in },
+        onRetry: @escaping () -> Void = {}
     ) {
         self.state = state
-        self.onSelectTab = onSelectTab
-        self.onToggleNav = onToggleNav
         self.onSearch = onSearch
-        self.onOpenFilter = onOpenFilter
+        self.onSaveOrgs = onSaveOrgs
+        self.onSaveLeaders = onSaveLeaders
         self.onOpenProgram = onOpenProgram
+        self.onRetry = onRetry
         _query = SwiftUI.State(initialValue: state.searchText)
+        _presentedMenu = SwiftUI.State(initialValue: nil)
     }
 
     // MARK: - §2 / §3 constants (values that no §3 state changes)
 
-    /// §2: "C-019 TopNav, collapsed row, 32pt, **Programs** active".
-    private static let selectedTab = "Programs"
     /// §2: "placeholder \"Search programs\"".
     private static let searchPlaceholder = "Search programs"
-    /// §3 chip dimensions, in §2's order: org scope · leaders (program creators).
-    private static let filterDimensions = ["Orgs", "Leaders"]
-    /// §2's resting chip labels, in the same order — a chip off its resting label is narrowing.
+    /// §2's resting chip labels, in §2's order (org scope · leaders) — a chip off its resting
+    /// label is narrowing.
     private static let restingFilterLabels = ["All Orgs", "All Leaders"]
+    /// §3 `loading`: skeleton rows drawn while no row has landed — the frozen frame's count.
+    private static let skeletonRowCount = 3
     /// §3 / OQ-study-programs-004 (closed): the two centred lines.
     private static let noMatchMessage = "No programs match"
     private static let emptyMessage = "No programs yet"
+    /// §3 `error` / OQ-study-programs-7: the inline retry line.
+    private static let retryLabel = "Retry"
     /// §3: "Debounce and min-chars follow search-home: 300ms, min 2".
     private static let minimumQueryLength = 2
 
@@ -101,28 +124,18 @@ struct StudyProgramsScreen: View {
     var body: some View {
         // D22: no ScrollView at the root. The canvas is the device width × the content's full
         // length, so the page lays out top to bottom at full height. The status bar (§1
-        // deviation 2) is the harness's.
+        // deviation 2) is the harness's; the C-019 TopNav is the shell's (§1 deviation 3).
         VStack(alignment: .leading, spacing: 0) {
-            navRow
             header
             programList
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
-    }
-
-    /// §2: "C-019 TopNav, collapsed row, 32pt, Programs active" — `expansion` 0 at rest
-    /// (`scrollOffset` 0). No `onAdd`: no create affordance is drawn (OQ-study-programs-005).
-    private var navRow: some View {
-        TopNav(
-            tabs: TopNav.designedTabs,
-            selectedTab: Self.selectedTab,
-            expansion: 0,
-            scrollOffset: 0,
-            onSelect: onSelectTab,
-            onToggleExpansion: onToggleNav
-        )
-        .ui2Element("C-019 TopNav")
+        // §3 Filter API: the screen presents C-036 itself (filter-menu-fullscreen: in the app the
+        // shell draws the menu above all chrome).
+        .filterMenuPresentation(isPresented: presentedMenu != nil, onDismiss: { presentedMenu = nil }) {
+            filterMenu
+        }
     }
 
     // MARK: §2 Header
@@ -152,17 +165,29 @@ struct StudyProgramsScreen: View {
         .padding(Token.Space.pageMargin)
     }
 
-    /// §2: "Filter rail: 2 × C-035 FilterChip (`type=Menu, active=false`), gap
-    /// `space-element-gap` (8), 24 tall". Both chips fit the width, so the rail is a plain row.
+    /// §2: "Filter rail: 2 × C-035 FilterChip (`type=Menu`), gap `space-element-gap` (8), 24
+    /// tall". Both chips fit the width, so the rail is a plain row. A chip is active while it
+    /// has a pick; the org chip is drawn only when `orgFilterVisible` (§3 Filter API).
     private var chipRow: some View {
         HStack(spacing: Token.Space.elementGap) {
-            ForEach(chipLabels.indices, id: \.self) { index in
-                FilterChip(type: .menu, active: false, label: chipLabels[index]) {
-                    onOpenFilter(Self.filterDimensions[index])
+            if state.orgFilterVisible {
+                Self.menuChip(label: state.orgFilterLabel, active: !state.selectedOrgs.isEmpty) {
+                    presentedMenu = .orgs
                 }
-                .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
+                .ui2Element("C-035 FilterChip")
             }
+            Self.menuChip(label: state.leaderFilterLabel, active: !state.selectedLeaders.isEmpty) {
+                presentedMenu = .leaders
+            }
+            .ui2Element(state.orgFilterVisible ? "C-035 FilterChip 2" : "C-035 FilterChip")
         }
+    }
+
+    /// §4: a `Menu` chip whose tap presents C-036. `onTap:` is passed by label: an unlabelled
+    /// trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan), which a
+    /// `Menu` chip never fires (the GroupsHomeScreen precedent).
+    static func menuChip(label: String, active: Bool, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: active, label: label, onTap: onTap)
     }
 
     // MARK: §2 Program list
@@ -177,6 +202,25 @@ struct StudyProgramsScreen: View {
                 SectionDivider()
                     .ui2Element(Self.partName("C-088 SectionDivider", ordinal: position + 1))
             }
+            if state.loading, visibleRows.isEmpty {
+                // §3 `loading`: skeleton C-059 `Program` rows, 108 tall each, with C-088 rules —
+                // the row at its contracted geometry with no data: empty title, description and
+                // caption lines in their 20pt boxes, and the ruled missing-cover box.
+                ForEach(0..<Self.skeletonRowCount, id: \.self) { index in
+                    StudyProgramRow(
+                        state: .program,
+                        title: "",
+                        description: "",
+                        caption: "",
+                        progress: 0,
+                        metaChips: [],
+                        cover: nil
+                    )
+                    .ui2Element(Self.partName("C-059 StudyProgramRow", ordinal: index + 1))
+                    SectionDivider()
+                        .ui2Element(Self.partName("C-088 SectionDivider", ordinal: index + 1))
+                }
+            }
             if let message = bodyMessage {
                 // §3 / OQ-study-programs-004: "one centred `color-text-secondary` line".
                 // GAP — §3 names the colour only; the type style is invites-home's ruled
@@ -186,6 +230,17 @@ struct StudyProgramsScreen: View {
                     .designTextStyle(Token.TypeStyle.bodySm)
                     .foregroundStyle(Token.textSecondary)
                     .frame(maxWidth: .infinity, alignment: .center)
+            }
+            if state.failed, !state.loading {
+                // §3 `error` / OQ-study-programs-7: "one centred "Retry" line in the error body
+                // (type-body-sm, color-accent, the same slot as the empty-state line)".
+                SwiftUI.Button(action: onRetry) {
+                    Text(Self.retryLabel)
+                        .designTextStyle(Token.TypeStyle.bodySm)
+                        .foregroundStyle(Token.accent)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
+                .buttonStyle(.plain)
             }
         }
         .padding(.horizontal, Token.Space.pageMargin)
@@ -214,19 +269,22 @@ struct StudyProgramsScreen: View {
         [state.orgFilterLabel, state.leaderFilterLabel]
     }
 
-    /// §3: "Search: a live text filter over program title and description … min 2".
+    /// §3: "Search: a live client-side text filter over program title and description … it
+    /// applies from 2 characters".
     private var needle: String {
         let trimmed = query.trimmingCharacters(in: .whitespaces)
         return trimmed.count >= Self.minimumQueryLength ? trimmed : ""
     }
 
-    /// §3 `loading` and `error` show no rows; otherwise every program the query leaves.
+    /// §3 `loading` and `error` show no rows; otherwise every program the query leaves. §3: the
+    /// match is "diacritic- and case-insensitive (locale-standard containment, so \"cafe\"
+    /// matches \"Café\")".
     private var visibleRows: [Int] {
         guard !state.loading, !state.failed else { return [] }
         return state.programTitles.indices.filter { row in
             needle.isEmpty
-                || state.programTitles[row].localizedCaseInsensitiveContains(needle)
-                || (state.programDescriptions[safe: row] ?? "").localizedCaseInsensitiveContains(needle)
+                || state.programTitles[row].localizedStandardContains(needle)
+                || (state.programDescriptions[safe: row] ?? "").localizedStandardContains(needle)
         }
     }
 
@@ -236,7 +294,30 @@ struct StudyProgramsScreen: View {
     private var bodyMessage: String? {
         guard visibleRows.isEmpty, !state.loading, !state.failed else { return nil }
         let narrowed = !needle.isEmpty || chipLabels != Self.restingFilterLabels
+            || !state.selectedOrgs.isEmpty || !state.selectedLeaders.isEmpty
         return narrowed ? Self.noMatchMessage : Self.emptyMessage
+    }
+
+    // MARK: §3 Filter menu
+
+    /// §3: chip taps → C-036 FilterMenuOverlay, "multi-select with a Save action": toggling rows
+    /// changes the draft only; Save commits through the save callback; dismissing discards.
+    @ViewBuilder private var filterMenu: some View {
+        let orgs = presentedMenu == .orgs
+        let options = orgs ? state.orgOptions : state.leaderOptions
+        FilterMenuOverlay(
+            options: options.map { FilterMenuOverlay.Option(id: $0, label: $0) },
+            selectionMode: .multiple,
+            selectedIDs: orgs ? state.selectedOrgs : state.selectedLeaders,
+            onClose: { presentedMenu = nil },
+            onSave: { picked in
+                if orgs { onSaveOrgs(picked) } else { onSaveLeaders(picked) }
+                presentedMenu = nil
+            }
+        )
+        // Orgs and Leaders share this position: a new identity per menu, so a draft never carries over.
+        .id(presentedMenu)
+        .ui2Element("C-036 FilterMenuOverlay")
     }
 
     // MARK: - Derived (JSON-native props → the §4 views' types)
@@ -282,12 +363,15 @@ extension StudyProgramsScreen.State {
         "https://picsum.photos/seed/c059/128/176"
     ]
 
-    /// §3 `loading`: "skeleton rows under the persistent header block. Search and chips render
-    /// at once."
+    /// §3 `loading`: "skeleton program rows … under the persistent header block; the body is
+    /// never blank. Search and chips render at once."
     static let loading = Self(
         searchText: "",
+        orgFilterVisible: true,
         orgFilterLabel: "All Orgs",
         leaderFilterLabel: "All Leaders",
+        orgOptions: [],
+        leaderOptions: [],
         loading: true,
         failed: false,
         programTitles: [],
@@ -299,8 +383,11 @@ extension StudyProgramsScreen.State {
     /// §3 `populated`: "as in §2" — the frozen frame's three rows.
     static let populated = Self(
         searchText: "",
+        orgFilterVisible: true,
         orgFilterLabel: "All Orgs",
         leaderFilterLabel: "All Leaders",
+        orgOptions: [],
+        leaderOptions: [],
         loading: false,
         failed: false,
         programTitles: frameTitles,
@@ -314,8 +401,11 @@ extension StudyProgramsScreen.State {
     /// match".
     static let filteredEmpty = Self(
         searchText: "Exodus",
+        orgFilterVisible: true,
         orgFilterLabel: "All Orgs",
         leaderFilterLabel: "All Leaders",
+        orgOptions: [],
+        leaderOptions: [],
         loading: false,
         failed: false,
         programTitles: frameTitles,
@@ -327,8 +417,11 @@ extension StudyProgramsScreen.State {
     /// §3 `empty`: "the org has no programs", every chip at its resting label.
     static let empty = Self(
         searchText: "",
+        orgFilterVisible: true,
         orgFilterLabel: "All Orgs",
         leaderFilterLabel: "All Leaders",
+        orgOptions: [],
+        leaderOptions: [],
         loading: false,
         failed: false,
         programTitles: [],
@@ -337,12 +430,15 @@ extension StudyProgramsScreen.State {
         programCoverURLs: []
     )
 
-    /// §3 `error`: "inline retry in the body. The header stays." — the retry has no §4 component
-    /// or copy (a spec gap), so the body is empty.
+    /// §3 `error`: "inline retry in the body. The header stays." — the centred "Retry" line
+    /// (OQ-study-programs-7).
     static let error = Self(
         searchText: "",
+        orgFilterVisible: true,
         orgFilterLabel: "All Orgs",
         leaderFilterLabel: "All Leaders",
+        orgOptions: [],
+        leaderOptions: [],
         loading: false,
         failed: true,
         programTitles: [],
