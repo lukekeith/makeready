@@ -156,7 +156,10 @@ struct ListResultRow: View {
             initials: initials,
             size: Self.avatarSize(subject),
             shape: subject == .program ? .square : .round,
-            selected: selection == .selected
+            selected: selection == .selected,
+            // §2a (owner 2026-10-28): a group with no cover draws the `image` glyph on C-038's
+            // fallback ground; member and program keep C-038's default person glyph.
+            fallbackGlyph: subject == .group ? .image : .person
         )
         .ui2Element("Leading")
     }

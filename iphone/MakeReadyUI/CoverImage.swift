@@ -11,7 +11,8 @@ import SwiftUI
 /// C-087 CoverImage — a program's cover picture, shown as a rounded banner.
 ///
 /// §2: "A single rounded rectangle with the image clipped inside it" — no border, overlay,
-/// gradient or badge. With no image it is the placeholder fill; with one, the cover covers it.
+/// gradient or badge. With no image it is the placeholder fill with the centred no-cover glyph;
+/// with one, the cover covers it.
 ///
 /// §2 / R-16: fills the width it is given and derives its height from that width at 16:9; it
 /// paints nothing outside its rounded frame and adds no outer padding.
@@ -37,11 +38,16 @@ struct CoverImage: View {
                         .resizable()
                         .scaledToFill()
                         .ui2Element("Image")
+                } else {
+                    // §2 "No-cover glyph: Lucide `image`, centred in the box both ways,
+                    // 32×32pt, white at 20 % opacity" — drawn only when `image == nil`.
+                    Glyph(.image, size: .lg, tint: Token.white20)
+                        .ui2Element("NoCoverGlyph")
                 }
             }
             // §2 "Corner: `radius-card` (8), with the content clipped to it."
             .clipShape(RoundedRectangle(cornerRadius: Token.Radius.card))
-            // §2 Accessibility: decorative, hidden from VoiceOver.
+            // §2 Accessibility: the picture and the no-cover glyph are decorative, hidden from VoiceOver.
             .accessibilityHidden(true)
             .ui2Element("CoverImage")
             // The harness measures with a numeric 0 height proposal; a `.fit` aspect ratio

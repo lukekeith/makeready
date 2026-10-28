@@ -25,6 +25,14 @@ struct Avatar: View {
         case unknownUser = "Unknown user"
     }
 
+    /// C-038 fallback glyph — what the Unknown-user ground carries. Default `person` (C-038's
+    /// `user--filled`) keeps every consumer unchanged; `image` is the library `image` glyph
+    /// (C-087's no-cover glyph) a C-037 `subject=group` row passes (C-037 §2a, owner 2026-10-28).
+    enum FallbackGlyph: String {
+        case person
+        case image
+    }
+
     /// C-038 §4 `shape` — the outline. Raw values are the contract's values verbatim.
     /// Figma `style=Group` → `round`, `style=Program` → `square`.
     enum Shape: String {
@@ -43,13 +51,24 @@ struct Avatar: View {
     /// C-038 §4: `selected` — the selected look (§2). Default `false`. Host-set; the avatar is
     /// still never the tap target (OQ-C-038-6).
     let selected: Bool
+    /// C-038 fallback glyph — the glyph on the ground when there is no photo and no initials.
+    /// Default `person`. Host-set, not derived.
+    let fallbackGlyph: FallbackGlyph
 
-    init(imageURL: URL?, initials: String?, size: CGFloat, shape: Shape = .round, selected: Bool = false) {
+    init(
+        imageURL: URL?,
+        initials: String?,
+        size: CGFloat,
+        shape: Shape = .round,
+        selected: Bool = false,
+        fallbackGlyph: FallbackGlyph = .person
+    ) {
         self.imageURL = imageURL
         self.initials = initials
         self.size = size
         self.shape = shape
         self.selected = selected
+        self.fallbackGlyph = fallbackGlyph
     }
 
     /// C-038 §4's derivation chain, confirmed by OQ-C-038-3 (a):
@@ -154,7 +173,10 @@ struct Avatar: View {
             if let text = Self.normalisedInitials(initials) {
                 initialsText(text)
             } else {
-                personGlyph
+                switch fallbackGlyph {
+                case .person: personGlyph
+                case .image: imageGlyph
+                }
             }
         }
     }
@@ -189,6 +211,20 @@ struct Avatar: View {
             // §2: "24×24 at (8, 8) — inset 8 on every side, i.e. 60% of the diameter".
             .frame(width: size * Self.glyphRatio, height: size * Self.glyphRatio)
             // §5a: "white at 50% opacity (`color-white-50`), applied by C-038".
+            .foregroundStyle(Token.white50)
+            .accessibilityHidden(true)
+            .ui2Element("Glyph")
+    }
+
+    /// C-037 §2a (owner 2026-10-28) — the library `image` glyph in place of the person glyph,
+    /// with the same treatment: 60% of the diameter (38.4 at 64), `color-white-50`. Drawn from
+    /// the imageset at the ratio, as `personGlyph` is.
+    private var imageGlyph: some View {
+        Image(GlyphName.image.rawValue, bundle: .ui2Preview)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size * Self.glyphRatio, height: size * Self.glyphRatio)
             .foregroundStyle(Token.white50)
             .accessibilityHidden(true)
             .ui2Element("Glyph")

@@ -116,6 +116,7 @@ enum GlyphName: String, CaseIterable {
     case history = "history"
     case home = "home"
     case homeCarbon = "home-carbon"
+    case image = "image"
     case inbox = "inbox"
     case info = "info"
     case kanban = "kanban"
