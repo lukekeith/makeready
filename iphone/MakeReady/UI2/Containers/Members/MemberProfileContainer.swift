@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// ui2-members-browse §iphone Member page: the pushed `.memberDetail` page (D1). It owns its
@@ -12,6 +13,15 @@ struct MemberProfileContainer: View {
     @Environment(\.ui2Navigator) private var navigator
     /// Bumped when program covers land in Ui2ImageCache, which SwiftUI does not observe.
     @State private var coversSeeded = 0
+    /// image-framing-editor D4: the system photo picker and its selection.
+    @State private var pickerOpen = false
+    @State private var pickedItem: PhotosPickerItem?
+    /// D4: the photo menu, its rows, and the row chosen — acted on once the menu has slid out.
+    @State private var avatarMenuOpen = false
+    @State private var avatarMenuRows: [ActionMenuOverlay.ActionItem] = []
+    @State private var pendingAvatarChoice: AvatarChoice?
+    /// D13: the viewer's URL while it is up.
+    @State private var viewerURL: String?
 
     var body: some View {
         let app = AppState.shared
@@ -52,15 +62,77 @@ struct MemberProfileContainer: View {
                     onOpenGroup: { row in
                         guard let page = Self.groupDestination(app.memberGroupsById[memberId], row: row) else { return }
                         navigator.push(page)
-                    }
+                    },
+                    // image-framing-editor D4: no photo → the picker; a photo → Change · Edit · View (Google-only: no Edit).
+                    onAvatarTap: { handleAvatarTap() }
                 )
             }
             .scrollIndicators(.hidden)
         }
         .background(Token.layoutBackground.ignoresSafeArea())
+        // D4: the C-066 photo menu; Done cancels. The chosen row runs after the menu has finished
+        // hiding — the overlay host keeps only the first presented overlay.
+        .actionMenuPresentation(isPresented: avatarMenuOpen, onDismiss: { avatarMenuOpen = false },
+                                onHidden: { runPendingAvatarChoice() }) {
+            ActionMenuOverlay(
+                actions: avatarMenuRows,
+                onSelect: { item in
+                    pendingAvatarChoice = AvatarChoice(label: item.label)
+                    avatarMenuOpen = false
+                },
+                onDone: { avatarMenuOpen = false }
+            )
+        }
+        // D4: the system picker — a modifier, not .sheet/.fullScreenCover; no permission prompt.
+        .photosPicker(isPresented: $pickerOpen, selection: $pickedItem, matching: .images)
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            pickedItem = nil
+            Task { await openPicked(item) }
+        }
+        // D13
+        .coverViewerPresentation(url: viewerURL, accessibilityLabel: Self.viewerLabel, onClose: { viewerURL = nil })
         .task { await Self.load(memberId: memberId, authManager: authManager) }
         .task(id: mapped.programCoverURLs) {
             if await Self.seedCovers(mapped.programCoverURLs) { coversSeeded += 1 }
+        }
+    }
+
+    private func handleAvatarTap() {
+        let tap = Self.avatarTap(detail: AppState.shared.memberDetails[memberId])
+        switch tap {
+        case .none: break
+        case .picker: pickerOpen = true
+        case .menu, .googleMenu:
+            avatarMenuRows = Self.avatarActions(tap)
+            avatarMenuOpen = true
+        }
+    }
+
+    private func runPendingAvatarChoice() {
+        guard let choice = pendingAvatarChoice else { return }
+        pendingAvatarChoice = nil
+        switch choice {
+        case .change: pickerOpen = true
+        case .edit: navigator.push(.editMemberAvatar(memberId: memberId, source: .stored))
+        case .view: viewerURL = Self.avatarViewerURL(detail: AppState.shared.memberDetails[memberId])
+        }
+    }
+
+    /// D4/D7: load the pick, make it upright and ≤ 2400px, then Edit photo. Dismissing the picker
+    /// changes nothing; an unreadable pick surfaces a banner and stays here.
+    @MainActor
+    private func openPicked(_ item: PhotosPickerItem) async {
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = CoverImageRendering.uprightDownsampled(data) else {
+                throw APIError.invalidResponse
+            }
+            navigator.push(.editMemberAvatar(memberId: memberId, source: .newPick(image)))
+        } catch {
+            if GroupActions.isCancellation(error) { return }
+            AppState.shared.recordError(error, context: "MemberProfileContainer.openPicked", surface: true,
+                                        friendlyMessage: Self.pickFailedMessage)
         }
     }
 
@@ -94,6 +166,60 @@ struct MemberProfileContainer: View {
     static func groupDestination(_ groups: [MemberGroupItem]?, row: Int) -> UI2Destination? {
         guard let groups, groups.indices.contains(row) else { return nil }
         return .groupDetail(id: groups[row].id, name: groups[row].name)
+    }
+
+    // MARK: image-framing-editor D4/D13 — the avatar tap
+
+    enum AvatarTap: Equatable { case none, picker, menu, googleMenu }
+
+    enum AvatarChoice: String {
+        case change = "Change image", edit = "Edit image", view = "View image"
+        init?(label: String) { self.init(rawValue: label) }
+    }
+
+    /// D13: the viewer image's accessibility label.
+    static let viewerLabel = "Profile photo"
+    /// The banner an unreadable pick shows; the page stays.
+    static let pickFailedMessage = "Couldn't open that photo"
+
+    /// D4: read from AppState's member detail — inert until it has loaded. No avatar and no Google
+    /// picture → the picker; Google-only → Change · View; an uploaded avatar → Change · Edit · View.
+    static func avatarTap(detail: MemberDetail?) -> AvatarTap {
+        guard let detail else { return .none }
+        let picture = MembersHomeMapper.nonEmpty(detail.profilePicture)
+        let google = MembersHomeMapper.nonEmpty(detail.googlePicture)
+        if picture == nil && google == nil { return .picker }
+        return isGoogleOnly(detail) ? .googleMenu : .menu
+    }
+
+    /// D4: the shown picture is Google's — no avatar (the Google picture shows), the avatar equals the
+    /// Google picture, or it is served from googleusercontent.com. An R2 copy made at linking is not (D15).
+    static func isGoogleOnly(_ detail: MemberDetail) -> Bool {
+        guard let picture = MembersHomeMapper.nonEmpty(detail.profilePicture) else {
+            return MembersHomeMapper.nonEmpty(detail.googlePicture) != nil
+        }
+        if picture == detail.googlePicture { return true }
+        return URL(string: picture)?.host?.hasSuffix("googleusercontent.com") == true
+    }
+
+    /// D4: the C-066 rows, in order — existing glyphs (an unknown name renders the red stub).
+    static func avatarActions(_ tap: AvatarTap) -> [ActionMenuOverlay.ActionItem] {
+        let change = ActionMenuOverlay.ActionItem(glyph: "upload", label: AvatarChoice.change.rawValue)
+        let edit = ActionMenuOverlay.ActionItem(glyph: "edit", label: AvatarChoice.edit.rawValue)
+        let view = ActionMenuOverlay.ActionItem(glyph: "eye", label: AvatarChoice.view.rawValue)
+        switch tap {
+        case .menu: return [change, edit, view]
+        case .googleMenu: return [change, view]
+        case .none, .picker: return []
+        }
+    }
+
+    /// D13: the stored original when there is one, else the avatar, else the Google picture.
+    static func avatarViewerURL(detail: MemberDetail?) -> String? {
+        guard let detail else { return nil }
+        return MembersHomeMapper.nonEmpty(detail.profilePictureOriginalUrl)
+            ?? MembersHomeMapper.nonEmpty(detail.profilePicture)
+            ?? MembersHomeMapper.nonEmpty(detail.googlePicture)
     }
 
     /// C-059 §4 `cover: Image?` is caller-resolved: the screen reads Ui2ImageCache only

@@ -106,6 +106,7 @@ struct MembersProfileScreen: View {
     var onAddToGroup: () -> Void = {}               // Membership add → group picker (OQ-2)
     var onOpenGroup: (Int) -> Void = { _ in }       // C-037 tap → the group's screen (OQ-2)
     var onEnroll: () -> Void = {}                   // Engagement add → enroll action (OQ-2)
+    var onAvatarTap: () -> Void = {}                // C-038 tap → picker or the photo menu (image-framing-editor D4/D10)
 
     init(
         state: State,
@@ -115,7 +116,8 @@ struct MembersProfileScreen: View {
         onJumpToToday: @escaping () -> Void = {},
         onAddToGroup: @escaping () -> Void = {},
         onOpenGroup: @escaping (Int) -> Void = { _ in },
-        onEnroll: @escaping () -> Void = {}
+        onEnroll: @escaping () -> Void = {},
+        onAvatarTap: @escaping () -> Void = {}
     ) {
         self.state = state
         self.showsHeader = showsHeader
@@ -125,6 +127,7 @@ struct MembersProfileScreen: View {
         self.onAddToGroup = onAddToGroup
         self.onOpenGroup = onOpenGroup
         self.onEnroll = onEnroll
+        self.onAvatarTap = onAvatarTap
     }
 
     // R-31 ephemeral UI: the day rail's scroll position (D12: it opens on today, "Jump to today"
@@ -273,11 +276,18 @@ struct MembersProfileScreen: View {
     private var identityBlock: some View {
         VStack(alignment: .leading, spacing: 0) {
             Spacer().frame(height: Self.avatarTopGap)
-            Avatar(
-                imageURL: Self.optionalText(state.avatarURL).flatMap(URL.init(string:)),
-                initials: Self.optionalText(state.initials),
-                size: Self.avatarSize
-            )
+            // image-framing-editor D10: tappable; the button carries its own label and trait
+            // (the group cover's `onCoverTap` precedent).
+            SwiftUI.Button(action: onAvatarTap) {
+                Avatar(
+                    imageURL: Self.optionalText(state.avatarURL).flatMap(URL.init(string:)),
+                    initials: Self.optionalText(state.initials),
+                    size: Self.avatarSize
+                )
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(state.avatarURL.isEmpty ? "Add photo" : "Profile photo")
+            .accessibilityAddTraits(.isButton)
             .ui2Element("C-038 Avatar")
             Spacer().frame(height: Token.Space.sectionGap)
             VStack(alignment: .leading, spacing: Token.Space.elementGap) {
