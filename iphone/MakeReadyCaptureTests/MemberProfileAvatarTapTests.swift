@@ -40,15 +40,15 @@ final class MemberProfileAvatarTapTests: XCTestCase {
     /// D4: the rows, in order, with existing glyphs; Google-only has no Edit; the picker states have none.
     func testMenuRowsPerState() {
         let full = MemberProfileContainer.avatarActions(.menu)
-        XCTAssertEqual(full.map(\.label), ["Change image", "Edit image", "View image"])
-        XCTAssertEqual(full.map(\.glyph), ["upload", "edit", "eye"])
+        XCTAssertEqual(full.map(\.label), ["Edit image", "Change image", "View image"])
+        XCTAssertEqual(full.map(\.glyph), ["edit", "upload", "eye"])
         let googleOnly = MemberProfileContainer.avatarActions(.googleMenu)
         XCTAssertEqual(googleOnly.map(\.label), ["Change image", "View image"])
         XCTAssertEqual(googleOnly.map(\.glyph), ["upload", "eye"])
         XCTAssertTrue(MemberProfileContainer.avatarActions(.picker).isEmpty)
         XCTAssertTrue(MemberProfileContainer.avatarActions(.none).isEmpty)
         for row in full { XCTAssertNotNil(GlyphName(rawValue: row.glyph), row.glyph) }
-        XCTAssertEqual(full.map { MemberProfileContainer.AvatarChoice(label: $0.label) }, [.change, .edit, .view])
+        XCTAssertEqual(full.map { MemberProfileContainer.AvatarChoice(label: $0.label) }, [.edit, .change, .view])
     }
 
     /// D13: the stored original first, else the avatar, else the Google picture.

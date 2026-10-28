@@ -202,13 +202,13 @@ struct MemberProfileContainer: View {
         return URL(string: picture)?.host?.hasSuffix("googleusercontent.com") == true
     }
 
-    /// D4: the C-066 rows, in order — existing glyphs (an unknown name renders the red stub).
+    /// D4: the C-066 rows — Edit · Change · View (Google-only: Change · View) — existing glyphs (an unknown name renders the red stub).
     static func avatarActions(_ tap: AvatarTap) -> [ActionMenuOverlay.ActionItem] {
         let change = ActionMenuOverlay.ActionItem(glyph: "upload", label: AvatarChoice.change.rawValue)
         let edit = ActionMenuOverlay.ActionItem(glyph: "edit", label: AvatarChoice.edit.rawValue)
         let view = ActionMenuOverlay.ActionItem(glyph: "eye", label: AvatarChoice.view.rawValue)
         switch tap {
-        case .menu: return [change, edit, view]
+        case .menu: return [edit, change, view]   // owner 2026-10-27: Edit first
         case .googleMenu: return [change, view]
         case .none, .picker: return []
         }

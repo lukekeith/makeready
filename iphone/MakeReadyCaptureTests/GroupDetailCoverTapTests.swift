@@ -24,12 +24,12 @@ final class GroupDetailCoverTapTests: XCTestCase {
         XCTAssertEqual(GroupDetailContainer.coverTap(group: nil), .none)
     }
 
-    /// D2: three rows, in order, with existing glyphs.
+    /// D2 (order: owner 2026-10-27, image-framing-editor D4): Edit · Change · View, with existing glyphs.
     func testMenuRows() {
         let rows = GroupDetailContainer.coverActions
-        XCTAssertEqual(rows.map(\.label), ["Change image", "Edit image", "View image"])
-        XCTAssertEqual(rows.map(\.glyph), ["upload", "edit", "eye"])
+        XCTAssertEqual(rows.map(\.label), ["Edit image", "Change image", "View image"])
+        XCTAssertEqual(rows.map(\.glyph), ["edit", "upload", "eye"])
         for row in rows { XCTAssertNotNil(GlyphName(rawValue: row.glyph), row.glyph) }
-        XCTAssertEqual(rows.map { GroupDetailContainer.CoverChoice(label: $0.label) }, [.change, .edit, .view])
+        XCTAssertEqual(rows.map { GroupDetailContainer.CoverChoice(label: $0.label) }, [.edit, .change, .view])
     }
 }

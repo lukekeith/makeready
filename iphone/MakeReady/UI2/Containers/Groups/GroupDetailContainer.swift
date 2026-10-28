@@ -115,10 +115,11 @@ struct GroupDetailContainer: View {
         init?(label: String) { self.init(rawValue: label) }
     }
 
-    /// group-cover-image D2: the menu rows, in order — existing glyphs (an unknown name renders the red stub).
+    /// group-cover-image D2: the menu rows — Edit · Change · View (order: owner 2026-10-27,
+    /// image-framing-editor D4) — existing glyphs (an unknown name renders the red stub).
     static let coverActions: [ActionMenuOverlay.ActionItem] = [
-        .init(glyph: "upload", label: CoverChoice.change.rawValue),
         .init(glyph: "edit", label: CoverChoice.edit.rawValue),
+        .init(glyph: "upload", label: CoverChoice.change.rawValue),
         .init(glyph: "eye", label: CoverChoice.view.rawValue)
     ]
 
