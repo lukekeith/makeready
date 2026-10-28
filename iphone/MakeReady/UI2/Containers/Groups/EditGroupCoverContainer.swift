@@ -7,8 +7,9 @@ import SwiftUI
 /// really draws. Cancel or an edge swipe with a change asks to discard (D26), else pops. Done saves
 /// → D13: pop on success (AppState + the image cache already updated), 404 → back to Groups,
 /// 401 → sign-out, anything else → the surfaced banner with the page kept.
+/// ui2-programs D11: the same page frames a program's cover — `owner` says whose.
 struct EditGroupCoverContainer: View {
-    let groupId: String
+    let owner: CoverOwner
     let source: ImageEditSource
 
     enum Route: Equatable { case pop, popToRoot, signOut, banner, stay }
@@ -31,10 +32,16 @@ struct EditGroupCoverContainer: View {
     /// opens the cover itself at identity; no cover → nil (the menu is not offered then, D2).
     /// `hasOriginal` is false for the cover fallback: the caller passes it on as `hasStoredOriginal`.
     static func opening(group: UserGroup) -> (url: String, framing: ImageFraming, hasOriginal: Bool)? {
-        if let original = group.coverOriginalUrl, !original.isEmpty {
-            return (original, group.coverFraming ?? .identity, true)
+        opening(CoverOwner.Fields(coverImageUrl: group.coverImageUrl, coverOriginalUrl: group.coverOriginalUrl,
+                                  coverFraming: group.coverFraming))
+    }
+
+    /// `opening(group:)` for any owner's stored cover (ui2-programs D11).
+    static func opening(_ fields: CoverOwner.Fields) -> (url: String, framing: ImageFraming, hasOriginal: Bool)? {
+        if let original = fields.coverOriginalUrl, !original.isEmpty {
+            return (original, fields.coverFraming ?? .identity, true)
         }
-        if let cover = group.coverImageUrl, !cover.isEmpty { return (cover, .identity, false) }
+        if let cover = fields.coverImageUrl, !cover.isEmpty { return (cover, .identity, false) }
         return nil
     }
 
@@ -60,20 +67,24 @@ struct EditGroupCoverContainer: View {
     /// Cache-first: a new pick, or a stored original already in Ui2ImageCache, is in hand before the
     /// push animates in; only an uncached original waits for `prepare()`.
     init(groupId: String, source: ImageEditSource) {
-        self.groupId = groupId
+        self.init(owner: .group(groupId), source: source)
+    }
+
+    init(owner: CoverOwner, source: ImageEditSource) {
+        self.owner = owner
         self.source = source
-        _opening = State(initialValue: Self.immediateOpening(groupId: groupId, source: source))
+        _opening = State(initialValue: Self.immediateOpening(owner: owner, source: source))
     }
 
     @MainActor
-    private static func immediateOpening(groupId: String, source: ImageEditSource) -> Opening? {
+    private static func immediateOpening(owner: CoverOwner, source: ImageEditSource) -> Opening? {
         switch source {
         case let .newPick(image):
             // D6 at the floor, centred; the pick itself is uploaded as the original.
             return Opening(image: image, framing: .identity, isNewPick: true, hasStoredOriginal: true)
         case .stored:
-            guard let group = AppState.shared.groups[groupId],
-                  let stored = Self.opening(group: group),
+            guard let fields = owner.fields,
+                  let stored = Self.opening(fields),
                   let url = URL(string: stored.url),
                   let image = Ui2ImageCache.shared.image(for: url) else { return nil }
             return Opening(image: image, framing: stored.framing, isNewPick: false, hasStoredOriginal: stored.hasOriginal)
@@ -200,8 +211,8 @@ struct EditGroupCoverContainer: View {
     /// The model is built once, from the first laid-out frame that has a size.
     private func makeModelIfReady() {
         guard model == nil, let opening, frameRect.width > 0, frameRect.height > 0 else { return }
-        let save: @MainActor (UIImage, ImageFraming, UIImage?) async throws -> String = { [groupId] rendered, framing, original in
-            try await GroupActions().saveCover(groupId: groupId, rendered: rendered, framing: framing, original: original).coverImageUrl
+        let save: @MainActor (UIImage, ImageFraming, UIImage?) async throws -> String = { [owner] rendered, framing, original in
+            try await owner.save(rendered: rendered, framing: framing, original: original)
         }
         let built = ImageFramingModel(image: opening.image, framing: opening.framing,
                                       isNewPick: opening.isNewPick, hasStoredOriginal: opening.hasStoredOriginal,
@@ -224,13 +235,13 @@ struct EditGroupCoverContainer: View {
         // A new pick and a cached original were set in `init`; this loads an uncached original (D7).
         guard opening == nil else { return }
         // Pops only this page: the leader may already have left it (Cancel pops at once while loading).
-        let leave = { navigator.popIfTop(.editGroupCover(groupId: groupId, source: source)) }
-        guard let group = AppState.shared.groups[groupId],
-              let stored = Self.opening(group: group) else { leave(); return }
+        let leave = { navigator.popIfTop(owner.destination(source)) }
+        guard let fields = owner.fields,
+              let stored = Self.opening(fields) else { leave(); return }
         _ = await MemberProfileContainer.seedCovers([stored.url])
         // Silent: the page was closed during the load — no banner for a page that is gone.
         guard !Task.isCancelled else { return }
-        guard let opened = Self.immediateOpening(groupId: groupId, source: source) else {
+        guard let opened = Self.immediateOpening(owner: owner, source: source) else {
             AppState.shared.recordError(APIError.invalidResponse, context: "EditGroupCoverContainer.loadOriginal",
                                         surface: true, friendlyMessage: Self.loadFailedMessage)
             leave()
@@ -245,7 +256,7 @@ struct EditGroupCoverContainer: View {
         guard let model else { return }
         let outcome = await model.save()
         switch Self.route(outcome) {
-        case .pop: navigator.popIfTop(.editGroupCover(groupId: groupId, source: source))
+        case .pop: navigator.popIfTop(owner.destination(source))
         case .popToRoot: navigator.popTo(0)
         case .signOut:
             // ui2-shell D27: a 401 ends the session; UI2Root then shows Login.

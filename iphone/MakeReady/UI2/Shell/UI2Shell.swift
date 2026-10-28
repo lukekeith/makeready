@@ -194,7 +194,7 @@ struct UI2Shell: View {
         case let .studyProgramHome(id, name): StudyProgramHomeHost(id: id, name: name)          // ui2-programs D1
         case .createStudyProgram: CreateStudyProgramContainer()                               // ui2-programs D1/D8
         case let .editProgramField(programId, field): ProgramFieldEditContainer(programId: programId, field: field)  // ui2-programs D10
-        case .editProgramCover: EmptyPage()
+        case let .editProgramCover(programId, source): EditProgramCoverContainer(programId: programId, source: source)  // ui2-programs D11
         }
     }
 

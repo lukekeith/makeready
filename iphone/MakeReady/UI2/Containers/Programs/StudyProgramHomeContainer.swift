@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 
 /// ui2-programs §iphone Program page: the pushed `.studyProgramHome` page (D5–D7). It owns its
@@ -26,6 +27,14 @@ struct StudyProgramHomeContainer: View {
     @State private var activeDay = 1
     /// D9: one add in flight.
     @State private var addingLesson = false
+    /// D11 (group-cover-image D1–D3): the system photo picker and its selection.
+    @State private var pickerOpen = false
+    @State private var pickedItem: PhotosPickerItem?
+    /// D11: the cover menu, and the row chosen in it — acted on once the menu has slid out.
+    @State private var coverMenuOpen = false
+    @State private var pendingCoverChoice: GroupDetailContainer.CoverChoice?
+    /// D11: the viewer's URL while it is up.
+    @State private var viewerURL: String?
 
     var body: some View {
         let app = AppState.shared
@@ -64,7 +73,8 @@ struct StudyProgramHomeContainer: View {
                             activeDay = day
                             withAnimation { proxy.scrollTo(StudyProgramHomeScreen.lessonScrollID(day), anchor: .top) }
                         },
-                        onCoverTap: {},          // D11: the cover flow lands in Task 15
+                        // D11: no cover → the picker; a cover → Edit · Change · View.
+                        onCoverTap: { handleCoverTap() },
                         onRetry: { Task { await reload() } }
                     )
                 }
@@ -73,6 +83,27 @@ struct StudyProgramHomeContainer: View {
             }
         }
         .background(Token.layoutBackground.ignoresSafeArea())
+        // D11 (group-cover-image D2): the chosen row runs after the menu has finished hiding — the
+        // overlay host keeps only the first presented overlay.
+        .actionMenuPresentation(isPresented: coverMenuOpen, onDismiss: { coverMenuOpen = false },
+                                onHidden: { runPendingCoverChoice() }) {
+            ActionMenuOverlay(
+                actions: GroupDetailContainer.coverActions,
+                onSelect: { item in
+                    pendingCoverChoice = GroupDetailContainer.CoverChoice(label: item.label)
+                    coverMenuOpen = false
+                },
+                onDone: { coverMenuOpen = false }
+            )
+        }
+        // The system picker — a modifier, not .sheet/.fullScreenCover; no permission prompt.
+        .photosPicker(isPresented: $pickerOpen, selection: $pickedItem, matching: .images)
+        .onChange(of: pickedItem) { _, item in
+            guard let item else { return }
+            pickedItem = nil
+            Task { await openPicked(item) }
+        }
+        .coverViewerPresentation(url: viewerURL, accessibilityLabel: "Program cover", onClose: { viewerURL = nil })
         .task { await reload() }
         .task(id: Self.imageURLs(mapped)) {
             if await MemberProfileContainer.seedCovers(Self.imageURLs(mapped)) { imagesSeeded += 1 }
@@ -136,6 +167,45 @@ struct StudyProgramHomeContainer: View {
             case .gone, .failed:
                 AppState.shared.recordError(error, context: "StudyProgramHomeContainer.loadEnrollments", surface: false)
             }
+        }
+    }
+
+    // MARK: - Cover (D11)
+
+    private var coverOwner: CoverOwner { .program(programId) }
+
+    private func handleCoverTap() {
+        switch CoverOwner.coverTap(coverOwner.fields) {
+        case .none: break
+        case .picker: pickerOpen = true
+        case .menu: coverMenuOpen = true
+        }
+    }
+
+    private func runPendingCoverChoice() {
+        guard let choice = pendingCoverChoice else { return }
+        pendingCoverChoice = nil
+        switch choice {
+        case .change: pickerOpen = true
+        case .edit: navigator.push(coverOwner.destination(.stored))
+        case .view: viewerURL = coverOwner.fields.flatMap(CoverOwner.viewerURL)
+        }
+    }
+
+    /// Load the pick, make it upright and ≤ 2400px, then Edit cover. Dismissing the picker changes
+    /// nothing; an unreadable pick surfaces a banner and stays here.
+    @MainActor
+    private func openPicked(_ item: PhotosPickerItem) async {
+        do {
+            guard let data = try await item.loadTransferable(type: Data.self),
+                  let image = CoverImageRendering.uprightDownsampled(data) else {
+                throw APIError.invalidResponse
+            }
+            navigator.push(coverOwner.destination(.newPick(image)))
+        } catch {
+            if GroupActions.isCancellation(error) { return }
+            AppState.shared.recordError(error, context: "StudyProgramHomeContainer.openPicked", surface: true,
+                                        friendlyMessage: "Couldn't open that photo")
         }
     }
 
