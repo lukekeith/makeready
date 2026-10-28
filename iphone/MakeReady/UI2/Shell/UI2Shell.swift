@@ -85,6 +85,10 @@ struct UI2Shell: View {
                             hairlineAfterLast: false
                         )
                     }
+                    // C-084 §2 Placement: the 84pt bar includes the home-indicator clearance and sits flush
+                    // on the screen's bottom edge. As a layer it would be placed inside the safe area,
+                    // its fill running on below it (118pt) — so it ignores that edge itself.
+                    .ignoresSafeArea(.container, edges: .bottom)
                     .transition(.move(edge: .bottom))
             }
         }
