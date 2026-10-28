@@ -6,17 +6,19 @@ import UIKit
 /// group-cover-image D13/D26/D28/D30: the Edit cover page's routing and screen state, without the view.
 @MainActor
 final class EditGroupCoverContainerTests: XCTestCase {
-    private let ok = CoverSaveResult(coverImageUrl: "https://img/new.jpeg", coverOriginalUrl: nil, coverFraming: .identity)
+    private let ok = "https://img/new.jpeg"
 
-    private func model(isNewPick: Bool) -> EditGroupCoverModel {
+    private func model(isNewPick: Bool) -> ImageFramingModel {
         let format = UIGraphicsImageRendererFormat(); format.scale = 1
         let size = CGSize(width: 1600, height: 1200)
         let image = UIGraphicsImageRenderer(size: size, format: format).image { ctx in
             UIColor.green.setFill(); ctx.fill(CGRect(origin: .zero, size: size))
         }
-        return EditGroupCoverModel(groupId: "g1", image: image, framing: .identity, isNewPick: isNewPick,
-                                   hasStoredOriginal: true, frameSize: CGSize(width: 320, height: 180),
-                                   save: { _, _, _ in self.ok })
+        return ImageFramingModel(image: image, framing: .identity, isNewPick: isNewPick,
+                                 hasStoredOriginal: true, frameSize: CGSize(width: 320, height: 180),
+                                 outputSize: EditGroupCoverContainer.renderSize,
+                                 saveFailedMessage: EditGroupCoverContainer.saveFailedMessage,
+                                 save: { _, _, _ in self.ok })
     }
 
     /// D13: each save outcome's route.
@@ -108,5 +110,35 @@ final class EditGroupCoverContainerTests: XCTestCase {
         XCTAssertNil(s.readoutDegrees)
         XCTAssertFalse(s.saving)
         XCTAssertFalse(s.doneEnabled)
+    }
+
+    /// Moved from CoverFramingMathTests (image-framing-editor D1): the 16:9 frame and the 1200×675
+    /// render are the group cover's own constants now.
+    func testFrameIs16By9() {
+        XCTAssertEqual(EditGroupCoverContainer.frameAspect, 16.0 / 9.0, accuracy: 1e-12)
+        XCTAssertEqual(EditGroupCoverContainer.renderSize, CGSize(width: 1200, height: 675))
+    }
+
+    /// image-framing-editor D12: the model's new 403 outcome keeps the group cover's old behaviour — the banner.
+    func testForbiddenKeepsTheGroupBanner() {
+        XCTAssertEqual(EditGroupCoverContainer.route(.forbidden), .banner)
+    }
+
+    /// Moved from EditGroupCoverModelTests (group-cover-image D7): the original at its framing; no
+    /// original -> the cover at identity; no cover -> nil.
+    func testOpening() {
+        func group(cover: String?, original: String?, framing: CoverFraming?) -> UserGroup {
+            UserGroup(id: "g1", code: "A", name: "G", coverImageUrl: cover, coverOriginalUrl: original, coverFraming: framing,
+                      isPrivate: false, allowInvites: true, memberCount: 1, creatorId: "u", createdAt: Date(), updatedAt: Date())
+        }
+        let f = CoverFraming(scale: 3, rotation: 10, offsetX: 0, offsetY: 0)
+        XCTAssertEqual(EditGroupCoverContainer.opening(group: group(cover: "c", original: "o", framing: f))?.url, "o")
+        XCTAssertEqual(EditGroupCoverContainer.opening(group: group(cover: "c", original: "o", framing: f))?.hasOriginal, true)
+        XCTAssertEqual(EditGroupCoverContainer.opening(group: group(cover: "c", original: "o", framing: f))?.framing, f)
+        XCTAssertEqual(EditGroupCoverContainer.opening(group: group(cover: "c", original: "o", framing: nil))?.framing, .identity)
+        XCTAssertEqual(EditGroupCoverContainer.opening(group: group(cover: "c", original: nil, framing: f))?.url, "c")
+        XCTAssertEqual(EditGroupCoverContainer.opening(group: group(cover: "c", original: nil, framing: f))?.framing, .identity)
+        XCTAssertEqual(EditGroupCoverContainer.opening(group: group(cover: "c", original: nil, framing: f))?.hasOriginal, false)
+        XCTAssertNil(EditGroupCoverContainer.opening(group: group(cover: nil, original: nil, framing: nil)))
     }
 }

@@ -5,6 +5,7 @@ import SwiftUI
 /// `/ui2-resolve` after the build (F3).
 struct CoverViewerOverlay: View {
     let url: String
+    let accessibilityLabel: String
     let onClose: () -> Void
 
     /// GAP — no design: a downward drag past this closes the viewer (the C-066 sheet's threshold).
@@ -29,7 +30,7 @@ struct CoverViewerOverlay: View {
                     .resizable()
                     .scaledToFit()
                     .offset(y: max(0, drag))
-                    .accessibilityLabel("Group cover")
+                    .accessibilityLabel(accessibilityLabel)
             } else {
                 ProgressView()
             }
@@ -57,11 +58,12 @@ struct CoverViewerOverlay: View {
 
 private struct CoverViewerPresentation: ViewModifier {
     let url: String?
+    let accessibilityLabel: String
     let onClose: () -> Void
     @Environment(\.ui2HostsOverlays) private var hosted
 
     func body(content: Content) -> some View {
-        let layer = url.map { CoverViewerOverlay(url: $0, onClose: onClose) }
+        let layer = url.map { CoverViewerOverlay(url: $0, accessibilityLabel: accessibilityLabel, onClose: onClose) }
         if hosted {
             content.hostedOverlay(layer.map { UI2HostedOverlay(view: AnyView($0)) })
         } else {
@@ -74,8 +76,9 @@ extension View {
     /// D8: presents the viewer while `url` is non-nil, through the shell's `.ui2OverlayHost()`
     /// (crossfade, the filter-menu default). Present it only after any C-066 menu has finished
     /// sliding out — the host keeps the first presented overlay (`UI2HostedOverlayKey` and
-    /// `hostedOverlay(_:)` in FilterMenuOverlay.swift).
-    func coverViewerPresentation(url: String?, onClose: @escaping () -> Void) -> some View {
-        modifier(CoverViewerPresentation(url: url, onClose: onClose))
+    /// `hostedOverlay(_:)` in FilterMenuOverlay.swift). image-framing-editor D13: the image's
+    /// accessibility label is the caller's ("Group cover", "Profile photo").
+    func coverViewerPresentation(url: String?, accessibilityLabel: String, onClose: @escaping () -> Void) -> some View {
+        modifier(CoverViewerPresentation(url: url, accessibilityLabel: accessibilityLabel, onClose: onClose))
     }
 }

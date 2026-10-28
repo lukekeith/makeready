@@ -1,22 +1,21 @@
 import ImageIO
 import UIKit
 
-/// group-cover-image D12: the phone renders exactly what the Edit cover frame shows; D3: a pick is
-/// made upright and ≤ 2400px before Edit cover opens (memory, and D16's body size).
+/// group-cover-image D12: the phone renders exactly what the editor's frame shows; D3: a pick is
+/// made upright and ≤ 2400px before the editor opens (memory, and the upload's body size).
+/// image-framing-editor D1: the output size is the caller's (group cover 1200×675, avatar 512×512).
 enum CoverImageRendering {
-    /// D12/D20: 16:9 at 1200 wide.
-    static let renderSize = CGSize(width: 1200, height: 675)
     /// D3 / D10: the original's longest side.
     static let originalMaxPixels: CGFloat = 2400
 
-    /// D12/D21: the framed image at `renderSize`, scale 1, opaque — the image flipped, then turned
+    /// D12/D21: the framed image at `size`, scale 1, opaque — the image flipped, then turned
     /// counter-clockwise by its quarter turns, then rotated by the fine angle, then scaled and offset.
     /// `UIImage.draw(in:)` applies the image's orientation (`APIClient.resizeImageIfNeeded` does not).
-    static func render(_ image: UIImage, framing: CoverFraming) -> UIImage {
-        let frame = renderSize
-        let f = CoverFramingMath.clamped(framing, image: image.size, frame: frame)
-        let scale = CoverFramingMath.absoluteScale(f, image: image.size, frame: frame)
-        let center = CoverFramingMath.imageCenter(f, frame: frame)
+    static func render(_ image: UIImage, framing: ImageFraming, size: CGSize) -> UIImage {
+        let frame = size
+        let f = ImageFramingMath.clamped(framing, image: image.size, frame: frame)
+        let scale = ImageFramingMath.absoluteScale(f, image: image.size, frame: frame)
+        let center = ImageFramingMath.imageCenter(f, frame: frame)
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1
         format.opaque = true

@@ -101,7 +101,7 @@ struct GroupDetailContainer: View {
             Task { await openPicked(item) }
         }
         // D8
-        .coverViewerPresentation(url: viewerURL, onClose: { viewerURL = nil })
+        .coverViewerPresentation(url: viewerURL, accessibilityLabel: "Group cover", onClose: { viewerURL = nil })
         .task { await Self.load(groupId: groupId, authManager: authManager) }
         .task(id: Self.imageURLs(output.state)) {
             if await MemberProfileContainer.seedCovers(Self.imageURLs(output.state)) { imagesSeeded += 1 }

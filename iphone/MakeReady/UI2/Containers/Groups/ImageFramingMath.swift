@@ -1,7 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// group-cover-image D5/D11/D20/D21/D25: the Edit cover geometry, pure. Frame and image sizes are in
+/// image-framing-editor D1 (group-cover-image D5/D11/D20/D21/D25): the framing geometry for any frame aspect, pure. Frame and image sizes are in
 /// points; rotation in degrees; the image is centred on the frame centre plus `imageCenter`.
 ///
 /// The image is drawn flipped (a mirror moves no edge), then turned by `quarterTurns` (odd turns swap
@@ -9,9 +9,7 @@ import Foundation
 /// frame, mapped into the turned image's own axes, has half-extents
 /// `ex = (w|cos θ| + h|sin θ|)/2`, `ey = (w|sin θ| + h|cos θ|)/2`. The frame centre, in the same
 /// axes, must stay within `(s·iw/2 − ex, s·ih/2 − ey)` of the image centre.
-enum CoverFramingMath {
-    /// D20: the cover's aspect, 16:9.
-    static let frameAspect: CGFloat = 16.0 / 9.0
+enum ImageFramingMath {
     /// D5: the zoom ceiling, relative to the floor.
     static let maxRelativeScale: Double = 8
     /// D5: rotation snaps to 0° when released within this.
@@ -51,7 +49,7 @@ enum CoverFramingMath {
     /// D21/D22: Flip mirrors the whole framed view about the frame's vertical centre line: the mirror
     /// toggles and the x offset, the fine rotation and the quarter turns change sign. Coverage is
     /// symmetric, so a covering framing stays covering.
-    static func flippedHorizontally(_ framing: CoverFraming) -> CoverFraming {
+    static func flippedHorizontally(_ framing: ImageFraming) -> ImageFraming {
         var f = framing
         f.flipped.toggle()
         f.offsetX = -framing.offsetX
@@ -62,7 +60,7 @@ enum CoverFramingMath {
 
     /// D5/D25: a gesture's release — the fine rotation snaps within ±3°, then the framing is pulled
     /// back to the nearest one that covers the frame.
-    static func settle(_ framing: CoverFraming, image: CGSize, frame: CGSize) -> CoverFraming {
+    static func settle(_ framing: ImageFraming, image: CGSize, frame: CGSize) -> ImageFraming {
         var f = framing
         f.rotation = snapped(rotationDegrees: f.rotation)
         return clamped(f, image: image, frame: frame)
@@ -82,12 +80,12 @@ enum CoverFramingMath {
     }
 
     /// The drawn scale for `image` (its upright size): `scale` times the floor of its turned size.
-    static func absoluteScale(_ framing: CoverFraming, image: CGSize, frame: CGSize) -> CGFloat {
+    static func absoluteScale(_ framing: ImageFraming, image: CGSize, frame: CGSize) -> CGFloat {
         let turned = turnedSize(image, quarterTurns: normalized(quarterTurns: framing.quarterTurns))
         return CGFloat(framing.scale) * zoomFloor(image: turned, frame: frame, rotationDegrees: framing.rotation)
     }
 
-    static func imageCenter(_ framing: CoverFraming, frame: CGSize) -> CGPoint {
+    static func imageCenter(_ framing: ImageFraming, frame: CGSize) -> CGPoint {
         CGPoint(x: CGFloat(framing.offsetX) * frame.width, y: CGFloat(framing.offsetY) * frame.height)
     }
 
@@ -98,7 +96,7 @@ enum CoverFramingMath {
     /// and the offset pulled back (in the turned image's axes) until the frame is covered. A legal
     /// framing comes back unchanged; a non-finite one comes back as identity (D11 requires finite
     /// values; there is nothing to clamp to).
-    static func clamped(_ framing: CoverFraming, image: CGSize, frame: CGSize) -> CoverFraming {
+    static func clamped(_ framing: ImageFraming, image: CGSize, frame: CGSize) -> ImageFraming {
         guard framing.scale.isFinite, framing.rotation.isFinite,
               framing.offsetX.isFinite, framing.offsetY.isFinite else { return .identity }
         var f = framing

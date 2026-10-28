@@ -36,11 +36,26 @@ final class CoverImageRenderingTests: XCTestCase {
         abs(Int(a.r) - Int(b.r)) < 8 && abs(Int(a.g) - Int(b.g)) < 8 && abs(Int(a.b) - Int(b.b)) < 8
     }
 
+    /// The group cover's render (image-framing-editor D1: the size is the caller's).
+    private func renderCover(_ image: UIImage, framing: CoverFraming) -> UIImage {
+        CoverImageRendering.render(image, framing: framing, size: EditGroupCoverContainer.renderSize)
+    }
+
+    /// image-framing-editor D7: the avatar renders at exactly 512×512 — at identity, the photo's centred square.
+    func testAvatarRenderIs512x512() {
+        let out = CoverImageRendering.render(halves(CGSize(width: 2400, height: 1600)), framing: .identity,
+                                             size: CGSize(width: 512, height: 512))
+        XCTAssertEqual(out.cgImage?.width, 512)
+        XCTAssertEqual(out.cgImage?.height, 512)
+        XCTAssertTrue(same(out.pixel(100, 256), (r: 255, g: 0, b: 0)))
+        XCTAssertTrue(same(out.pixel(400, 256), (r: 0, g: 0, b: 255)))
+    }
+
     func testRenderIs1200x675AtScale1() {
-        let out = CoverImageRendering.render(halves(CGSize(width: 2400, height: 1600)), framing: .identity)
+        let out = renderCover(halves(CGSize(width: 2400, height: 1600)), framing: .identity)
         XCTAssertEqual(out.cgImage?.width, 1200)
         XCTAssertEqual(out.cgImage?.height, 675)
-        let turned = CoverImageRendering.render(halves(CGSize(width: 1200, height: 1600)),
+        let turned = renderCover(halves(CGSize(width: 1200, height: 1600)),
                                                 framing: CoverFraming(scale: 1, rotation: 0, offsetX: 0, offsetY: 0, quarterTurns: 1))
         XCTAssertEqual(turned.cgImage?.width, 1200)
         XCTAssertEqual(turned.cgImage?.height, 675)
@@ -51,8 +66,8 @@ final class CoverImageRenderingTests: XCTestCase {
         let image = quadrants(CGSize(width: 2400, height: 1600))
         let plain = CoverFraming(scale: 1.5, rotation: 0, offsetX: 0, offsetY: 0.05)
         var flipped = plain; flipped.flipped = true
-        let a = CoverImageRendering.render(image, framing: plain)
-        let b = CoverImageRendering.render(image, framing: flipped)
+        let a = renderCover(image, framing: plain)
+        let b = renderCover(image, framing: flipped)
         for (x, y) in [(150, 100), (900, 600)] {
             XCTAssertTrue(same(b.pixel(x, y), a.pixel(1199 - x, y)), "(\(x),\(y)) \(b.pixel(x, y)) vs \(a.pixel(1199 - x, y))")
         }
@@ -62,10 +77,10 @@ final class CoverImageRenderingTests: XCTestCase {
     /// D22: Flip mirrors the whole framed view, tilt and quarter turn included.
     func testFlippingAFramingMirrorsItsRender() {
         let image = quadrants(CGSize(width: 2400, height: 1600))
-        let f = CoverFramingMath.clamped(CoverFraming(scale: 2, rotation: 14, offsetX: 0.2, offsetY: -0.1, quarterTurns: 1),
-                                         image: image.size, frame: CoverImageRendering.renderSize)
-        let a = CoverImageRendering.render(image, framing: f)
-        let b = CoverImageRendering.render(image, framing: CoverFramingMath.flippedHorizontally(f))
+        let f = ImageFramingMath.clamped(CoverFraming(scale: 2, rotation: 14, offsetX: 0.2, offsetY: -0.1, quarterTurns: 1),
+                                         image: image.size, frame: EditGroupCoverContainer.renderSize)
+        let a = renderCover(image, framing: f)
+        let b = renderCover(image, framing: ImageFramingMath.flippedHorizontally(f))
         for (x, y) in [(200, 150), (1000, 500), (600, 337)] {
             XCTAssertTrue(same(b.pixel(x, y), a.pixel(1199 - x, y)), "(\(x),\(y))")
         }
@@ -73,14 +88,14 @@ final class CoverImageRenderingTests: XCTestCase {
 
     /// D21: a quarter turn is counter-clockwise — the image's left (red) half ends up at the bottom.
     func testQuarterTurnIsCounterClockwise() {
-        let out = CoverImageRendering.render(halves(CGSize(width: 1600, height: 1200)),
+        let out = renderCover(halves(CGSize(width: 1600, height: 1200)),
                                              framing: CoverFraming(scale: 1, rotation: 0, offsetX: 0, offsetY: 0, quarterTurns: 1))
         XCTAssertGreaterThan(out.pixel(600, 50).b, 200)      // top = blue (was the right)
         XCTAssertGreaterThan(out.pixel(600, 625).r, 200)     // bottom = red (was the left)
     }
 
     func testIdentityShowsBothHalves() {
-        let out = CoverImageRendering.render(halves(CGSize(width: 2400, height: 1600)), framing: .identity)
+        let out = renderCover(halves(CGSize(width: 2400, height: 1600)), framing: .identity)
         XCTAssertGreaterThan(pixel(out, 100, 337).r, 200)    // left = red
         XCTAssertGreaterThan(pixel(out, 1100, 337).b, 200)   // right = blue
     }
@@ -88,13 +103,13 @@ final class CoverImageRenderingTests: XCTestCase {
     /// Image centre moved right by a quarter frame → the frame's left edge now shows… more red.
     func testOffsetMovesTheContent() {
         let zoomed = CoverFraming(scale: 2, rotation: 0, offsetX: 0.25, offsetY: 0)
-        let out = CoverImageRendering.render(halves(CGSize(width: 2400, height: 1600)), framing: zoomed)
+        let out = renderCover(halves(CGSize(width: 2400, height: 1600)), framing: zoomed)
         XCTAssertGreaterThan(pixel(out, 700, 337).r, 200)    // the red/blue seam moved right of centre
     }
 
     func testRotationLeavesNoEmptyCorners() {
         let f = CoverFraming(scale: 1, rotation: 45, offsetX: 0, offsetY: 0)
-        let out = CoverImageRendering.render(halves(CGSize(width: 2400, height: 1600)), framing: f)
+        let out = renderCover(halves(CGSize(width: 2400, height: 1600)), framing: f)
         for (x, y) in [(1, 1), (1198, 1), (1, 673), (1198, 673)] {
             let p = pixel(out, x, y)
             XCTAssertTrue(p.r > 200 || p.b > 200, "corner \(x),\(y) is \(p)")

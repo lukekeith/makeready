@@ -12,12 +12,12 @@ import Foundation
 
 // MARK: - Group Models
 
-/// group-cover-image D11/D21: how the cover was framed — `scale` relative to the zoom floor (1…8),
+/// image-framing-editor D1 (group-cover-image D11/D21): how an image was framed — `scale` relative to the zoom floor (1…8),
 /// `rotation` the fine angle in degrees (−45…45, clockwise), `offsetX`/`offsetY` as fractions of the
 /// frame's width/height from centred (−1…1), `flipped` a horizontal mirror (applied first) and
 /// `quarterTurns` counter-clockwise 90° steps (0…3, applied before `rotation`). The server rejects
 /// anything else. A D11-shaped value (no `flipped`/`quarterTurns`) decodes with the defaults.
-struct CoverFraming: Codable, Equatable, Hashable {
+struct ImageFraming: Codable, Equatable, Hashable {
     var scale: Double
     var rotation: Double
     var offsetX: Double
@@ -26,7 +26,7 @@ struct CoverFraming: Codable, Equatable, Hashable {
     var quarterTurns: Int = 0
 
     /// D7: a cover with no stored original opens at identity — the floor, unrotated, centred.
-    static let identity = CoverFraming(scale: 1, rotation: 0, offsetX: 0, offsetY: 0)
+    static let identity = ImageFraming(scale: 1, rotation: 0, offsetX: 0, offsetY: 0)
 
     init(scale: Double, rotation: Double, offsetX: Double, offsetY: Double, flipped: Bool = false, quarterTurns: Int = 0) {
         self.scale = scale
@@ -53,6 +53,10 @@ struct CoverFraming: Codable, Equatable, Hashable {
          "flipped": flipped, "quarterTurns": quarterTurns]
     }
 }
+
+/// image-framing-editor D1: the group cover's name for the shared framing (stored on the group and,
+/// as `profilePictureFraming`, on a member).
+typealias CoverFraming = ImageFraming
 
 /// A group that users can join and interact in
 /// Named `UserGroup` to avoid conflict with SwiftUI's Group view

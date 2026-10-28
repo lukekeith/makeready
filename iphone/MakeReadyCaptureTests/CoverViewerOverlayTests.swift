@@ -49,7 +49,7 @@ final class CoverViewerOverlayTests: XCTestCase {
         host(Color.clear
             .actionMenuPresentation(isPresented: true, onDismiss: {}) { Color.red.onAppear { shown.value = true } }
             .actionMenuPresentation(isPresented: false, onDismiss: {}) { Color.blue }
-            .coverViewerPresentation(url: nil, onClose: {}))
+            .coverViewerPresentation(url: nil, accessibilityLabel: "Group cover", onClose: {}))
         XCTAssertTrue(shown.value, "the open menu was overridden by a closed sibling's nil")
     }
 
@@ -58,7 +58,7 @@ final class CoverViewerOverlayTests: XCTestCase {
         let shown = Shown()
         host(Color.clear
             .filterMenuPresentation(isPresented: true) { Color.red.onAppear { shown.value = true } }
-            .coverViewerPresentation(url: nil, onClose: {}))
+            .coverViewerPresentation(url: nil, accessibilityLabel: "Group cover", onClose: {}))
         XCTAssertTrue(shown.value, "the open filter menu was overridden by a closed sibling's nil")
     }
 

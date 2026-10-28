@@ -34,7 +34,7 @@ enum UI2Destination: Hashable {
     case createGroup
     /// group-cover-image D6/D7: the Edit cover page, above the group page — a new pick, or the
     /// stored original at its framing.
-    case editGroupCover(groupId: String, source: CoverEditSource)
+    case editGroupCover(groupId: String, source: ImageEditSource)
 }
 
 /// Ephemeral shell state (SPEC D19) — held as @State by UI2Shell, never persisted.

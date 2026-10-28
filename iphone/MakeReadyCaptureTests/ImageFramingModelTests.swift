@@ -4,7 +4,7 @@ import UIKit
 
 /// group-cover-image D5/D6/D7/D13/D20–D26: the Edit cover page's state, without the view.
 @MainActor
-final class EditGroupCoverModelTests: XCTestCase {
+final class ImageFramingModelTests: XCTestCase {
     private let frame = CGSize(width: 320, height: 180)
     private func image(_ size: CGSize = CGSize(width: 2400, height: 1600)) -> UIImage {
         let format = UIGraphicsImageRendererFormat(); format.scale = 1
@@ -12,20 +12,22 @@ final class EditGroupCoverModelTests: XCTestCase {
             UIColor.green.setFill(); ctx.fill(CGRect(origin: .zero, size: size))
         }
     }
-    private let ok = CoverSaveResult(coverImageUrl: "https://img/new.jpeg", coverOriginalUrl: "https://img/o.jpeg", coverFraming: .identity)
+    private let ok = "https://img/new.jpeg"
 
     private func model(isNewPick: Bool = true, hasStoredOriginal: Bool = true, framing: CoverFraming = .identity,
-                       save: @escaping @MainActor (UIImage, CoverFraming, UIImage?) async throws -> CoverSaveResult) -> EditGroupCoverModel {
-        EditGroupCoverModel(groupId: "g1", image: image(), framing: framing, isNewPick: isNewPick,
-                            hasStoredOriginal: hasStoredOriginal, frameSize: frame,
-                            save: save)
+                       save: @escaping @MainActor (UIImage, CoverFraming, UIImage?) async throws -> String) -> ImageFramingModel {
+        ImageFramingModel(image: image(), framing: framing, isNewPick: isNewPick,
+                          hasStoredOriginal: hasStoredOriginal, frameSize: frame,
+                          outputSize: EditGroupCoverContainer.renderSize,
+                          saveFailedMessage: EditGroupCoverContainer.saveFailedMessage,
+                          save: save)
     }
 
     /// Every frame corner lies inside the framed (turned, rotated, scaled, offset) image.
     private func covers(_ f: CoverFraming, image: CGSize = CGSize(width: 2400, height: 1600)) -> Bool {
         let turned = f.quarterTurns % 2 == 0 ? image : CGSize(width: image.height, height: image.width)
-        let s = CoverFramingMath.absoluteScale(f, image: image, frame: frame)
-        let c = CoverFramingMath.imageCenter(f, frame: frame)
+        let s = ImageFramingMath.absoluteScale(f, image: image, frame: frame)
+        let c = ImageFramingMath.imageCenter(f, frame: frame)
         let t = f.rotation * .pi / 180
         return [(-1.0, -1.0), (1, -1), (1, 1), (-1, 1)].allSatisfy { corner in
             let dx = corner.0 * frame.width / 2 - c.x, dy = corner.1 * frame.height / 2 - c.y
@@ -244,7 +246,7 @@ final class EditGroupCoverModelTests: XCTestCase {
         stored.endGesture()
         XCTAssertTrue(stored.hasChanges)
 
-        let changes: [@MainActor (EditGroupCoverModel) -> Void] = [{ $0.flip() }, { $0.rotate90() }]
+        let changes: [@MainActor (ImageFramingModel) -> Void] = [{ $0.flip() }, { $0.rotate90() }]
         for change in changes {
             let m = model(isNewPick: false, save: { _, _, _ in self.ok })
             change(m)
@@ -300,7 +302,7 @@ final class EditGroupCoverModelTests: XCTestCase {
     /// D13: a new pick sends the original; a re-edit of a stored original does not.
     func testSaveSendsTheOriginalOnlyForANewPick() async {
         var originals: [Bool] = []
-        let save: @MainActor (UIImage, CoverFraming, UIImage?) async throws -> CoverSaveResult = { _, _, o in originals.append(o != nil); return self.ok }
+        let save: @MainActor (UIImage, CoverFraming, UIImage?) async throws -> String = { _, _, o in originals.append(o != nil); return self.ok }
         _ = await model(isNewPick: true, save: save).save()
         _ = await model(isNewPick: false, save: save).save()
         XCTAssertEqual(originals, [true, false])
@@ -309,7 +311,7 @@ final class EditGroupCoverModelTests: XCTestCase {
     /// D7: the first edit of a no-original cover uses the cover as the original, so Save must store it as one.
     func testSaveSendsTheOriginalWhenTheGroupHasNoStoredOne() async {
         var originals: [Bool] = []
-        let save: @MainActor (UIImage, CoverFraming, UIImage?) async throws -> CoverSaveResult = { _, _, o in originals.append(o != nil); return self.ok }
+        let save: @MainActor (UIImage, CoverFraming, UIImage?) async throws -> String = { _, _, o in originals.append(o != nil); return self.ok }
         _ = await model(isNewPick: false, hasStoredOriginal: false, save: save).save()
         XCTAssertEqual(originals, [true])
     }
@@ -362,7 +364,7 @@ final class EditGroupCoverModelTests: XCTestCase {
     /// D13: success seeds the cache under the new URL so the cover does not flash the placeholder.
     func testSuccessSeedsTheImageCache() async {
         let url = "https://img/seed-\(UUID().uuidString).jpeg"
-        let m = model(save: { _, _, _ in CoverSaveResult(coverImageUrl: url, coverOriginalUrl: nil, coverFraming: nil) })
+        let m = model(save: { _, _, _ in url })
         let outcome = await m.save()
         XCTAssertEqual(outcome, .saved)
         XCTAssertNotNil(Ui2ImageCache.shared.image(for: URL(string: url)!))
@@ -380,20 +382,21 @@ final class EditGroupCoverModelTests: XCTestCase {
         XCTAssertEqual(network, .failed(timedOut.localizedDescription))
     }
 
-    /// D7: the original at its framing; no original -> the cover at identity; no cover -> nil.
-    func testOpening() {
-        func group(cover: String?, original: String?, framing: CoverFraming?) -> UserGroup {
-            UserGroup(id: "g1", code: "A", name: "G", coverImageUrl: cover, coverOriginalUrl: original, coverFraming: framing,
-                      isPrivate: false, allowInvites: true, memberCount: 1, creatorId: "u", createdAt: Date(), updatedAt: Date())
-        }
-        let f = CoverFraming(scale: 3, rotation: 10, offsetX: 0, offsetY: 0)
-        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: f))?.url, "o")
-        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: f))?.hasOriginal, true)
-        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: f))?.framing, f)
-        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: "o", framing: nil))?.framing, .identity)
-        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: nil, framing: f))?.url, "c")
-        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: nil, framing: f))?.framing, .identity)
-        XCTAssertEqual(EditGroupCoverModel.opening(group: group(cover: "c", original: nil, framing: f))?.hasOriginal, false)
-        XCTAssertNil(EditGroupCoverModel.opening(group: group(cover: nil, original: nil, framing: nil)))
+    /// image-framing-editor D12: a 403 is its own outcome (the avatar pops to its profile on it).
+    func testForbiddenOutcome() async {
+        let outcome = await model(save: { _, _, _ in throw APIHTTPError(status: 403, message: "Forbidden") }).save()
+        XCTAssertEqual(outcome, .forbidden)
+    }
+
+    /// image-framing-editor D1/D7: the render follows the model's output size — 512×512 for the avatar.
+    func testSaveRendersAtTheOutputSize() async {
+        var size: CGSize?
+        let m = ImageFramingModel(image: image(), framing: .identity, isNewPick: true, hasStoredOriginal: true,
+                                  frameSize: CGSize(width: 300, height: 300), outputSize: CGSize(width: 512, height: 512),
+                                  saveFailedMessage: "Couldn't save the photo",
+                                  save: { r, _, _ in size = CGSize(width: r.cgImage!.width, height: r.cgImage!.height); return self.ok })
+        _ = await m.save()
+        XCTAssertEqual(size, CGSize(width: 512, height: 512))
+        XCTAssertEqual(m.saveFailedMessage, "Couldn't save the photo")
     }
 }
