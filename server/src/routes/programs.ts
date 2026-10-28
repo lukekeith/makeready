@@ -2,11 +2,10 @@ import crypto from 'crypto'
 import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import multer from 'multer'
-import sharp from 'sharp'
 import { Prisma } from '../generated/prisma/index.js'
 import { prisma } from '../lib/prisma.js'
 import { requireAuth } from '../middleware/auth.js'
-import { uploadImageVariants, deleteFromR2, extractKeyFromUrl } from '../services/storage.js'
+import { deleteFromR2, extractKeyFromUrl } from '../services/storage.js'
 import { trackActivity } from '../services/activity.js'
 import { exportProgram, importProgram } from '../services/program-export.js'
 import { captureToLibrary, getUserOrgId } from '../services/media-library.js'
@@ -23,6 +22,7 @@ import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '.
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
 import { canManageOrgContent, isSuperAdmin, programManageFilter } from '../services/permission.js'
 import { AGE_RANGE_INVERTED_MESSAGE, isAgeRangeInverted } from '../services/group-fields.js'
+import { CoverUploadError, coverFramingSchema, saveCover } from '../services/group-cover.js'
 import {
   PROGRAM_NAME_INCLUDE,
   buildProgramListWhere,
@@ -3892,14 +3892,20 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const userId = (req.user as any).id
-    const userOrgId = await getUserOrgId(userId)
 
+    // ui2-programs D11: the group route's body — the legacy (imageData, contentType) still works;
+    // framing and the original are optional, and an original needs its framing.
     const schema = z.object({
       imageData: z.string().min(1, 'Image data is required'),
       contentType: z.string().default('image/jpeg'),
+      framing: coverFramingSchema.optional(),
+      originalData: z.string().min(1).optional(),
     })
 
     const body = schema.parse(req.body)
+    if (body.originalData !== undefined && body.framing === undefined) {
+      return res.status(400).json({ success: false, error: 'originalData requires framing' })
+    }
 
     const program = await prisma.studyProgram.findFirst({
       where: { id, ...(await mutationFilter(userId)), isActive: true },
@@ -3909,32 +3915,15 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Program not found' })
     }
 
-    const base64Data = body.imageData.replace(/^data:image\/\w+;base64,/, '')
-    const imageBuffer = Buffer.from(base64Data, 'base64')
-
-    const timestamp = Date.now()
-    const baseName = `program-${id}-${timestamp}`
-    const extension = 'jpeg'
-
-    const [originalBuffer, mediumBuffer, thumbBuffer] = await Promise.all([
-      sharp(imageBuffer).resize(1200, null, { withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer(),
-      sharp(imageBuffer).resize(400, null, { withoutEnlargement: true }).jpeg({ quality: 80 }).toBuffer(),
-      sharp(imageBuffer).resize(150, null, { withoutEnlargement: true }).jpeg({ quality: 75 }).toBuffer(),
-    ])
-
-    const { url: coverImageUrl } = await uploadImageVariants(
-      'programs',
-      baseName,
-      extension,
-      originalBuffer,
-      mediumBuffer,
-      thumbBuffer,
+    const saved = await saveCover(
+      { kind: 'program', id: program.id, coverOriginalUrl: program.coverOriginalUrl },
+      { imageData: body.imageData, framing: body.framing, originalData: body.originalData },
     )
 
-    const updatedProgram = await prisma.studyProgram.update({
+    const updatedProgram = await prisma.studyProgram.findUnique({
       where: { id },
-      data: { coverImageUrl },
       include: {
+        ...PROGRAM_NAME_INCLUDE,
         template: { select: { id: true, name: true } },
         lessons: {
           orderBy: { dayNumber: 'asc' },
@@ -3945,17 +3934,17 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
       },
     })
 
-    // Auto-capture to media library with metadata
-    if (userOrgId) {
-      const imageMeta = await extractImageMetadata(imageBuffer)
+    // Auto-capture a new image to the program org's media library; a re-edit captures nothing.
+    if (program.organizationId && saved.isNewImage) {
+      const imageMeta = await extractImageMetadata(saved.renderedBuffer)
       captureToLibrary({
         title: `${program.name} - Cover Image`,
-        url: coverImageUrl,
+        url: saved.coverImageUrl,
         type: 'photo',
         mimeType: 'image/jpeg',
-        fileSize: originalBuffer.length,
-        thumbnailUrl: coverImageUrl.replace('.jpeg', '-thumb.jpeg'),
-        organizationId: userOrgId,
+        fileSize: saved.renderedSize,
+        thumbnailUrl: saved.coverImageUrl.replace('.jpeg', '-thumb.jpeg'),
+        organizationId: program.organizationId,
         uploadedBy: userId,
         source: 'auto_capture',
         usageType: 'PROGRAM_COVER',
@@ -3970,10 +3959,19 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
       })
     }
 
-    res.json({ success: true, coverImageUrl, program: updatedProgram })
+    res.json({
+      success: true,
+      coverImageUrl: saved.coverImageUrl,
+      coverOriginalUrl: saved.coverOriginalUrl,
+      coverFraming: saved.coverFraming,
+      program: updatedProgram ? toProgramPayload(updatedProgram) : updatedProgram,
+    })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
+    }
+    if (error instanceof CoverUploadError) {
+      return res.status(error.status).json({ success: false, error: error.message })
     }
     console.error('Error uploading cover image:', error)
     res.status(500).json({ success: false, error: 'Failed to upload cover image' })

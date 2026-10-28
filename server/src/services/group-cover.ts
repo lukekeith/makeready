@@ -60,14 +60,27 @@ function decodeBase64(data: string): Buffer {
   return Buffer.from(data.replace(/^data:image\/\w+;base64,/, ''), 'base64')
 }
 
+/** ui2-programs D11: whose cover is being saved — a group's or a study program's. */
+export interface CoverOwner {
+  kind: 'group' | 'program'
+  id: string
+  coverOriginalUrl: string | null
+}
+
+export type SaveCoverInput = Omit<SaveGroupCoverInput, 'group'>
+
+/** R2 folder per owner — `programs/program-<id>-…` keys are the ones programs have always used. */
+const COVER_FOLDER: Record<CoverOwner['kind'], string> = { group: 'groups', program: 'programs' }
+
 /**
  * D10 / D17: decode + validate both images, upload the rendered ladder (1200/400/150, as before)
- * and the re-encoded original, then ONE group update writing all three cover columns. D9: no
+ * and the re-encoded original, then ONE owner update writing all three cover columns. D9: no
  * framing clears the original and the framing. D19: a replaced or cleared original is deleted
  * from R2 after the write, best-effort. Any R2 failure rejects before the write (orphans accepted).
+ * ui2-programs D11: the same for a study program's cover.
  */
-export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGroupCoverResult> {
-  const { group, framing } = input
+export async function saveCover(owner: CoverOwner, input: SaveCoverInput): Promise<SaveGroupCoverResult> {
+  const { framing } = input
   if (input.originalData !== undefined && framing === undefined) {
     throw new ImageUploadError('originalData requires framing')
   }
@@ -77,8 +90,9 @@ export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGr
   await assertDecodable(rendered, 'cover image')
   if (original) await assertDecodable(original, 'original image')
 
+  const folder = COVER_FOLDER[owner.kind]
   const timestamp = Date.now()
-  const baseName = `group-${group.id}-${timestamp}`
+  const baseName = `${owner.kind}-${owner.id}-${timestamp}`
 
   const [large, medium, thumb, originalJpeg] = await Promise.all([
     sharp(rendered).resize(1200, null, { withoutEnlargement: true }).jpeg({ quality: 85 }).toBuffer(),
@@ -88,20 +102,22 @@ export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGr
   ])
 
   const [{ url: coverImageUrl }, uploadedOriginalUrl] = await Promise.all([
-    uploadImageVariants('groups', baseName, 'jpeg', large, medium, thumb),
-    originalJpeg ? uploadToR2(`groups/${baseName}-original.jpeg`, originalJpeg, 'image/jpeg') : Promise.resolve(null),
+    uploadImageVariants(folder, baseName, 'jpeg', large, medium, thumb),
+    originalJpeg ? uploadToR2(`${folder}/${baseName}-original.jpeg`, originalJpeg, 'image/jpeg') : Promise.resolve(null),
   ])
 
-  const coverOriginalUrl = framing ? (uploadedOriginalUrl ?? group.coverOriginalUrl) : null
+  const coverOriginalUrl = framing ? (uploadedOriginalUrl ?? owner.coverOriginalUrl) : null
   const coverFraming = framing ?? null
+  const data = { coverImageUrl, coverOriginalUrl, coverFraming: coverFraming ?? Prisma.DbNull }
 
-  await prisma.group.update({
-    where: { id: group.id },
-    data: { coverImageUrl, coverOriginalUrl, coverFraming: coverFraming ?? Prisma.DbNull },
-  })
+  if (owner.kind === 'group') {
+    await prisma.group.update({ where: { id: owner.id }, data })
+  } else {
+    await prisma.studyProgram.update({ where: { id: owner.id }, data })
+  }
 
-  const previous = group.coverOriginalUrl
-  if (previous && previous !== coverOriginalUrl) await deleteOriginalBestEffort(previous, 'saveGroupCover')
+  const previous = owner.coverOriginalUrl
+  if (previous && previous !== coverOriginalUrl) await deleteOriginalBestEffort(previous, 'saveCover')
 
   return {
     coverImageUrl,
@@ -111,4 +127,10 @@ export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGr
     renderedSize: large.length,
     isNewImage: original !== null || framing === undefined,
   }
+}
+
+/** Kept under its shipped name — routes/groups.ts and the group-cover tests call it. */
+export async function saveGroupCover(input: SaveGroupCoverInput): Promise<SaveGroupCoverResult> {
+  const { group, ...rest } = input
+  return saveCover({ kind: 'group', id: group.id, coverOriginalUrl: group.coverOriginalUrl }, rest)
 }
