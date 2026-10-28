@@ -106,6 +106,7 @@ describe('layer discovery (D2, D6)', () => {
     const layers = await loadLayers(FIXTURES_DIR)
     expect(layers.screens.map((s) => s.name)).toEqual([
       'create-group',
+      'create-study-program',
       'groups-detail',
       'groups-home',
       'home-dashboard',
@@ -113,6 +114,8 @@ describe('layer discovery (D2, D6)', () => {
       'members-home',
       'members-profile',
       'shared-edit-field',
+      'study-program-home',
+      'study-programs',
     ])
     expect(availableScenarios(layers.screens)).toEqual(['full', 'sparse', 'empty'])
   })
