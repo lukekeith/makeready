@@ -14,7 +14,7 @@ function findMigration(): { file: string; sql: string } {
   const hits = readdirSync(MIGRATIONS)
     .filter((f) => f.endsWith('.sql'))
     .map((file) => ({ file, sql: readFileSync(join(MIGRATIONS, file), 'utf8') }))
-    .filter((m) => m.sql.includes('"coverOriginalUrl"'))
+    .filter((m) => m.sql.includes('ALTER TABLE "groups" ADD COLUMN "coverOriginalUrl"'))  // not the programs column (ui2-programs)
   expect(hits.map((h) => h.file)).toHaveLength(1)
   return hits[0]
 }
