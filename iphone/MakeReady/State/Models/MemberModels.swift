@@ -106,7 +106,7 @@ extension MemberDetailOrganization {
     }
 }
 
-/// `GET /api/members/:memberId` — the existing member columns plus SC1–SC3 and SC8.
+/// `GET /api/members/:memberId` — the existing member columns plus SC1–SC3 and SC8, and image-framing-editor SC1–SC2.
 struct MemberDetail: Codable, Equatable, Identifiable {
     var id: String = ""
     var phoneNumber: String = ""
@@ -125,6 +125,8 @@ struct MemberDetail: Codable, Equatable, Identifiable {
     var emergencyContactPhone: String? // SC3 (P6)
     var isGroupLeader: Bool = false    // SC8 (D8)
     var organizations: [MemberDetailOrganization] = []
+    var profilePictureOriginalUrl: String?   // image-framing-editor SC1 (D5): the full photo Edit reopens
+    var profilePictureFraming: ImageFraming? // image-framing-editor SC2 (D8): the framing the avatar was rendered with
 }
 
 extension MemberDetail {
@@ -147,6 +149,9 @@ extension MemberDetail {
         emergencyContactPhone = try c.decodeIfPresent(String.self, forKey: .emergencyContactPhone)
         isGroupLeader = try c.decodeIfPresent(Bool.self, forKey: .isGroupLeader) ?? false
         organizations = try c.decodeIfPresent([MemberDetailOrganization].self, forKey: .organizations) ?? []
+        profilePictureOriginalUrl = try c.decodeIfPresent(String.self, forKey: .profilePictureOriginalUrl)
+        // image-framing-editor §iphone State: a bad stored framing decodes as nil, never failing the member.
+        profilePictureFraming = (try? c.decodeIfPresent(ImageFraming.self, forKey: .profilePictureFraming)) ?? nil
     }
 }
 

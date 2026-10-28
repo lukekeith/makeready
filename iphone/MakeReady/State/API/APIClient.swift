@@ -323,6 +323,33 @@ final class APIClient {
         }
     }
 
+    /// image-framing-editor §iphone State: a multipart POST whose non-2xx failure keeps its HTTP
+    /// status (`statusError` — 401 → `.unauthorized`, else `APIHTTPError`); `upload` above folds every
+    /// status into a `serverError`. Opt-in: `MemberActions.saveAvatar` (D8, 120s).
+    func uploadWithStatus(endpoint: String, boundary: String, body: Data, timeout: TimeInterval) async throws -> Data {
+        guard getSessionCookie() != nil else { throw APIError.notAuthenticated }
+        guard let url = URL(string: "\(baseURL)\(endpoint)") else { throw APIError.badURL }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.timeoutInterval = timeout
+        if let cookie = getSessionCookie() {
+            request.setValue("connect.sid=\(cookie)", forHTTPHeaderField: "Cookie")
+        }
+        request.httpBody = body
+        let data: Data
+        let response: URLResponse
+        do {
+            (data, response) = try await session.data(for: request)
+        } catch {
+            throw APIError.networkError(error)
+        }
+        guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
+        if let error = Self.statusError(status: http.statusCode, data: data) { throw error }
+        return data
+    }
+
     // MARK: - Image Upload
 
     /// Upload an image with base64 encoding
@@ -456,6 +483,8 @@ protocol APIClientProtocol {
     func patch<T: Decodable>(_ endpoint: String, body: [String: Any], responseType: T.Type) async throws -> T
     func delete<T: Decodable>(_ endpoint: String, responseType: T.Type) async throws -> T
     func upload(endpoint: String, boundary: String, body: Data, timeout: TimeInterval) async throws -> Data
+    /// image-framing-editor: as `upload`, but a non-2xx throws `statusError` (the status survives).
+    func uploadWithStatus(endpoint: String, boundary: String, body: Data, timeout: TimeInterval) async throws -> Data
     func uploadImage(endpoint: String, image: UIImage, maxDimension: CGFloat, quality: CGFloat) async throws -> Data
 }
 

@@ -1,4 +1,4 @@
-import Foundation
+import UIKit
 
 /// ui2-members-browse §iphone State: the Members directory and one member's page. Writes the
 /// in-memory member stores on `AppState` (D21). A 401 ends the session (ui2-shell D27); any other
@@ -157,6 +157,84 @@ struct MemberActions {
             state.recordError(error, context: "MemberActions.updateMember", surface: false)
         }
         return .failure(.generic)
+    }
+
+    // MARK: - Avatar (image-framing-editor)
+
+    /// image-framing-editor D8/D12: the avatar upload's long timeout (two JPEGs, up to 10MB each).
+    static let avatarSaveTimeout: TimeInterval = 120
+
+    /// D8: the multipart body — `framing` (the six-key framing as a JSON string field), `file` (the
+    /// rendered avatar) and, when given, `original`; each file part `Content-Type: image/jpeg`.
+    static func avatarBody(boundary: String, rendered: Data, framing: ImageFraming, original: Data?) throws -> Data {
+        let json = try JSONSerialization.data(withJSONObject: framing.requestBody, options: [.sortedKeys])
+        var body = Data()
+        func text(_ s: String) { body.append(Data(s.utf8)) }
+        func file(_ name: String, _ filename: String, _ data: Data) {
+            text("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(name)\"; filename=\"\(filename)\"\r\n")
+            text("Content-Type: image/jpeg\r\n\r\n")
+            body.append(data)
+            text("\r\n")
+        }
+        text("--\(boundary)\r\nContent-Disposition: form-data; name=\"framing\"\r\n\r\n")
+        body.append(json)
+        text("\r\n")
+        file("file", "avatar.jpg", rendered)
+        if let original { file("original", "original.jpg", original) }
+        text("--\(boundary)--\r\n")
+        return body
+    }
+
+    /// D7/D8/D12: upload the rendered 512×512 avatar (JPEG 0.9) with its framing — and the original
+    /// (JPEG 0.9) on a new pick or a first edit — then write the returned fields into `memberDetails`
+    /// and the avatar URL into every Members-list row of the member (memory-only stores; group-detail
+    /// member rows refresh on their next load). Throws the transport error untouched: 401 →
+    /// `APIError.unauthorized` (the caller signs out), 403/404 → `APIHTTPError`. A sign-out while
+    /// in flight writes nothing. Returns the new `profilePicture` URL.
+    @MainActor
+    func saveAvatar(memberId: String, rendered: UIImage, framing: ImageFraming, original: UIImage?) async throws -> String {
+        struct Payload: Decodable {
+            let url: String?
+            let originalUrl: String?
+            let framing: ImageFraming?
+        }
+        struct Response: Decodable {
+            let success: Bool
+            let data: Payload?
+            let error: String?
+        }
+        guard let renderedJPEG = rendered.jpegData(compressionQuality: 0.9) else {
+            throw APIError.serverError("Couldn't encode the photo")
+        }
+        var originalJPEG: Data?
+        if let original {
+            guard let data = original.jpegData(compressionQuality: 0.9) else {
+                throw APIError.serverError("Couldn't encode the original photo")
+            }
+            originalJPEG = data
+        }
+        let boundary = "Boundary-\(UUID().uuidString)"
+        let body = try Self.avatarBody(boundary: boundary, rendered: renderedJPEG, framing: framing, original: originalJPEG)
+        let generation = state.initialLoad.generation
+        let data = try await api.uploadWithStatus(endpoint: "/api/members/\(memberId)/avatar", boundary: boundary,
+                                                  body: body, timeout: Self.avatarSaveTimeout)
+        let response = try JSONDecoder.apiDecoder.decode(Response.self, from: data)
+        guard response.success, let url = response.data?.url, !url.isEmpty else {
+            throw APIError.serverError(response.error ?? "Failed to save the photo")
+        }
+        guard state.initialLoad.isCurrent(generation) else { return url }
+        state.memberDetails.update(memberId) {
+            $0.profilePicture = url
+            $0.profilePictureOriginalUrl = response.data?.originalUrl
+            $0.profilePictureFraming = response.data?.framing
+        }
+        for (orgId, var directory) in state.orgMembersByOrgId where directory.members.contains(where: { $0.id == memberId }) {
+            for index in directory.members.indices where directory.members[index].id == memberId {
+                directory.members[index].profilePicture = url
+            }
+            state.orgMembersByOrgId[orgId] = directory
+        }
+        return url
     }
 
     // MARK: - Helpers

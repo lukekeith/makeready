@@ -108,4 +108,38 @@ final class MemberModelsTests: XCTestCase {
         XCTAssertEqual(r.data.map(\.id), ["org2", "org3"])
         XCTAssertEqual(try decode(MyOrganizationsResponse.self, #"{"success":true}"#).data, [])
     }
+
+    // MARK: - image-framing-editor SC1/SC2 (§iphone State)
+
+    func testMemberDetailDecodesTheAvatarOriginalAndFraming() throws {
+        let json = #"{"success":true,"data":{"id":"m1","profilePicture":"https://img/a.webp","profilePictureOriginalUrl":"https://img/o.jpeg","profilePictureFraming":{"scale":2,"rotation":15,"offsetX":0.25,"offsetY":-0.5,"flipped":true,"quarterTurns":1}}}"#
+        let d = try XCTUnwrap(try decode(MemberDetailResponse.self, json).data)
+        XCTAssertEqual(d.profilePictureOriginalUrl, "https://img/o.jpeg")
+        XCTAssertEqual(d.profilePictureFraming, ImageFraming(scale: 2, rotation: 15, offsetX: 0.25, offsetY: -0.5, flipped: true, quarterTurns: 1))
+    }
+
+    /// A server without SC1/SC2 (and the in-memory store written before them) still decodes.
+    func testMemberDetailWithoutTheAvatarFieldsDecodesAsNil() throws {
+        let d = try XCTUnwrap(try decode(MemberDetailResponse.self, #"{"success":true,"data":{"id":"m1","profilePicture":null}}"#).data)
+        XCTAssertNil(d.profilePictureOriginalUrl)
+        XCTAssertNil(d.profilePictureFraming)
+        let nulls = try XCTUnwrap(try decode(MemberDetailResponse.self, #"{"success":true,"data":{"id":"m1","profilePictureOriginalUrl":null,"profilePictureFraming":null}}"#).data)
+        XCTAssertNil(nulls.profilePictureFraming)
+    }
+
+    /// A bad stored framing never fails the member decode.
+    func testBadAvatarFramingDecodesAsNilAndKeepsTheMember() throws {
+        let d = try XCTUnwrap(try decode(MemberDetailResponse.self, #"{"success":true,"data":{"id":"m1","firstName":"Tony","profilePictureFraming":{"scale":"big"}}}"#).data)
+        XCTAssertNil(d.profilePictureFraming)
+        XCTAssertEqual(d.firstName, "Tony")
+    }
+
+    /// The memory-only store round-trips the two fields through Codable.
+    func testMemberDetailRoundTripsTheAvatarFields() throws {
+        let f = ImageFraming(scale: 3, rotation: -10, offsetX: 0, offsetY: 0.5)
+        let d = MemberDetail(id: "m1", profilePictureOriginalUrl: "https://img/o.jpeg", profilePictureFraming: f)
+        let again = try JSONDecoder.apiDecoder.decode(MemberDetail.self, from: JSONEncoder().encode(d))
+        XCTAssertEqual(again.profilePictureOriginalUrl, "https://img/o.jpeg")
+        XCTAssertEqual(again.profilePictureFraming, f)
+    }
 }

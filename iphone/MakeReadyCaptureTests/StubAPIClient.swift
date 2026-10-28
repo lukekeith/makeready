@@ -41,6 +41,10 @@ final class StubAPIClient: APIClientProtocol {
     private var recordedCalls: [RecordedCall] = []
     var calls: [RecordedCall] { callsLock.withLock { recordedCalls } }
 
+    /// The last `uploadWithStatus` call — its body is multipart `Data`, which `RecordedCall.body` cannot hold.
+    private var recordedUpload: (endpoint: String, boundary: String, body: Data, timeout: TimeInterval)?
+    var lastUpload: (endpoint: String, boundary: String, body: Data, timeout: TimeInterval)? { callsLock.withLock { recordedUpload } }
+
     func stub(_ method: String, _ endpoint: String, json: String) {
         responses["\(method) \(endpoint)"] = Data(json.utf8)
     }
@@ -100,6 +104,13 @@ final class StubAPIClient: APIClientProtocol {
 
     func upload(endpoint: String, boundary: String, body: Data, timeout: TimeInterval) async throws -> Data {
         try await request(endpoint: endpoint, method: "UPLOAD", body: nil, timeout: timeout)
+    }
+
+    /// Recorded (`lastUpload`) and answered like a POST: `stub("POST", endpoint, json:)`, or an
+    /// `APIHTTPError` from `errorFor` to play a status.
+    func uploadWithStatus(endpoint: String, boundary: String, body: Data, timeout: TimeInterval) async throws -> Data {
+        callsLock.withLock { recordedUpload = (endpoint, boundary, body, timeout) }
+        return try await request(endpoint: endpoint, method: "POST", body: nil, timeout: timeout)
     }
 
     func uploadImage(endpoint: String, image: UIImage, maxDimension: CGFloat, quality: CGFloat) async throws -> Data {
