@@ -193,7 +193,8 @@ struct UI2Shell: View {
         // ui2-programs D1: the program pages land in Tasks 11–15.
         case let .studyProgramHome(id, name): StudyProgramHomeHost(id: id, name: name)          // ui2-programs D1
         case .createStudyProgram: CreateStudyProgramContainer()                               // ui2-programs D1/D8
-        case .editProgramField, .editProgramCover: EmptyPage()
+        case let .editProgramField(programId, field): ProgramFieldEditContainer(programId: programId, field: field)  // ui2-programs D10
+        case .editProgramCover: EmptyPage()
         }
     }
 

@@ -19,46 +19,24 @@ enum GroupField: String, Hashable, CaseIterable {
     }
 }
 
-/// D2: the built screen a field opens, with its State.
-enum GroupFieldPage {
-    case textSingle(EditTextSingleFieldScreen.State, canSave: (String) -> Bool)
-    case textMulti(EditTextMultiFieldScreen.State)
-    case option(EditOptionFieldScreen.State)
-    case ageRange(EditOptionsCustomFieldScreen.State)
-}
-
-/// What an edit page hands back on Save.
-enum GroupFieldInput {
-    case text(String)
-    case option(String)
-    case ageRange(minimum: String, maximum: String)
-}
-
-/// D5: what a failed save does.
-enum GroupSaveFailure: Equatable {
-    /// The task was cancelled — nothing to show.
-    case cancelled
-    /// 401 — ui2-shell D27 sign-out.
-    case signOut
-    /// 404 — the group is gone or out of scope: forget it locally and pop to Groups.
-    case gone
-    /// Anything else — the inline line (the age page: the banner); the value is kept.
-    case retry
-}
+/// D2/D5: the shared page, input and failure types (Shared/FieldEditRules.swift, ui2-programs D10).
+typealias GroupFieldPage = FieldEditPage
+typealias GroupFieldInput = FieldEditInput
+typealias GroupSaveFailure = FieldSaveFailure
 
 /// ui2-groups-edit §iphone Model: each field's screen State from the cached group, the Save
 /// rules the screens do not own, the one-key patch and the failure class. Pure —
 /// `GroupFieldEditContainer` renders and saves.
 enum GroupFieldEditModel {
-    static let saveFailedMessage = "Couldn't save. Try again."
+    static let saveFailedMessage = FieldEditRules.saveFailedMessage
 
-    static let visibilityOptions = ["Private", "Public"]
-    static let directoryOptions = ["Allowed", "Names only", "Not allowed"]
-    static let ageOptions = ["Any age", "18 - 25", "26 - 35", "36 - 50", "Custom range"]
-    static let agePresetMinimums = [18, 26, 36]
-    static let agePresetMaximums = [25, 35, 50]
+    static let visibilityOptions = FieldEditRules.visibilityOptions
+    static let directoryOptions = FieldEditRules.directoryOptions
+    static let ageOptions = FieldEditRules.ageOptions
+    static let agePresetMinimums = FieldEditRules.agePresetMinimums
+    static let agePresetMaximums = FieldEditRules.agePresetMaximums
     /// D2: the column is a 32-bit Int; nine digits always fit.
-    static let maxMembersDigits = 9
+    static let maxMembersDigits = FieldEditRules.maxMembersDigits
 
     /// D2: shared-edit-field §2b titles ("Age range" opens from the "Age" row).
     static func title(_ field: GroupField) -> String {
@@ -167,27 +145,13 @@ enum GroupFieldEditModel {
     }
 
     /// D2: 1–200 characters after trimming, and different from the stored name.
-    static func nameCanSave(_ typed: String, stored: String) -> Bool {
-        let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !trimmed.isEmpty && trimmed.count <= 200 && trimmed != stored
-    }
+    static func nameCanSave(_ typed: String, stored: String) -> Bool { FieldEditRules.nameCanSave(typed, stored: stored) }
 
     /// D2: empty = Unlimited; otherwise ASCII digits forming an integer ≥ 1; different from stored.
-    static func maxMembersCanSave(_ typed: String, stored: Int?) -> Bool {
-        let trimmed = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return stored != nil }
-        guard trimmed.allSatisfy({ ("0"..."9").contains($0) }), let value = Int(trimmed), value >= 1 else { return false }
-        return value != stored
-    }
+    static func maxMembersCanSave(_ typed: String, stored: Int?) -> Bool { FieldEditRules.maxMembersCanSave(typed, stored: stored) }
 
     /// D4: both null → "Any age"; equal to a preset → that preset; anything else → "Custom range".
-    static func ageSelection(_ range: AgeRange?) -> String {
-        guard let range, range.min != nil || range.max != nil else { return ageOptions[0] }
-        for (i, low) in agePresetMinimums.enumerated() where range.min == low && range.max == agePresetMaximums[i] {
-            return ageOptions[i + 1]
-        }
-        return ageOptions[ageOptions.count - 1]
-    }
+    static func ageSelection(_ range: AgeRange?) -> String { FieldEditRules.ageSelection(range) }
 
     /// D2/D4: the one key and its wire value; nil when the input does not belong to the field,
     /// or when a non-empty number input is not a whole number (I2: never a silent clear).
@@ -199,59 +163,24 @@ enum GroupFieldEditModel {
             let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
             return .description(trimmed.isEmpty ? nil : trimmed)
         case (.maxMembers, .text(let s)):
-            let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-            if trimmed.isEmpty { return .maxMembers(nil) }
-            guard let value = Int(trimmed) else { return nil }
-            return .maxMembers(value)
+            return FieldEditRules.maxMembers(s).map { .maxMembers($0) }
         case (.visibility, .option(let label)):
-            switch label {
-            case "Private": return .isPrivate(true)
-            case "Public": return .isPrivate(false)
-            default: return nil
-            }
+            return FieldEditRules.isPrivate(label).map { .isPrivate($0) }
         case (.directoryAccess, .option(let label)):
-            switch label {
-            case "Allowed": return .memberDirectoryAccess("ALLOWED")
-            case "Names only": return .memberDirectoryAccess("NAMES_ONLY")
-            case "Not allowed": return .memberDirectoryAccess("NOT_ALLOWED")
-            default: return nil
-            }
+            return FieldEditRules.directoryAccessValue(label).map { .memberDirectoryAccess($0) }
         case (.ageRange, .ageRange(let minimum, let maximum)):
-            if minimum.isEmpty && maximum.isEmpty { return .ageRange(nil) }
-            guard let low = wholeNumber(minimum), let high = wholeNumber(maximum) else { return nil }
-            return .ageRange(AgeRange(min: low, max: high))
+            return FieldEditRules.ageRange(minimum: minimum, maximum: maximum).map { .ageRange($0) }
         default:
             return nil
         }
     }
 
-    /// A bound's value: `.some(nil)` when empty (no bound), `.some(n)` for a whole number,
-    /// nil when the text is neither.
-    private static func wholeNumber(_ text: String) -> Int?? {
-        if text.isEmpty { return .some(nil) }
-        guard let value = Int(text) else { return nil }
-        return .some(value)
-    }
-
     /// D5: cancelled → nothing; 401 → sign-out; 404 → gone; anything else → retry.
-    static func failure(for error: Error) -> GroupSaveFailure {
-        if GroupActions.isCancellation(error) { return .cancelled }
-        if AuthStatusPolicy.shouldSignOut(after: error) { return .signOut }
-        if let http = error as? APIHTTPError, http.status == 404 { return .gone }
-        return .retry
-    }
+    static func failure(for error: Error) -> GroupSaveFailure { FieldEditRules.failure(for: error) }
 
     /// D2: a group text-single page — title = label, no placeholder, no AI block (P11), focused on appear.
     private static func single(_ field: GroupField, text: String, saving: Bool, errorMessage: String) -> EditTextSingleFieldScreen.State {
-        var s = EditTextSingleFieldScreen.State(
-            title: title(field), description: description(field), label: title(field), placeholder: "",
-            text: text, loadedValue: text, focused: false, saving: saving,
-            promptCopy: "", aiState: "prompt", suggestions: []
-        )
-        s.errorMessage = errorMessage
-        s.showsAISuggestions = false
-        s.editable = true
-        s.focusOnAppear = true
-        return s
+        FieldEditRules.single(title: title(field), description: description(field), text: text, saving: saving,
+                              errorMessage: errorMessage)
     }
 }
