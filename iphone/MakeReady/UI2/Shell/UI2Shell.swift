@@ -50,26 +50,34 @@ struct UI2Shell: View {
                     }
                 }
             }
-            .safeAreaPadding(.bottom, Self.keyboardOverlap(keyboardHeight: keyboardHeight, tabBarHeight: tabBarHeight))
+            .safeAreaPadding(.bottom, Self.keyboardOverlap(keyboardHeight: keyboardHeight,
+                                                           tabBarHeight: model.showsTabBar ? tabBarHeight : 0))
             // C-084 §2 Motion: "the selection switches instantly with no animation"; a re-tap
             // with a page pushed pops it (D20, the system pop).
-            TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: { addMenuOpen = true })
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabBarHeight = $0 }
-                // action-menu-overlay: C-066 slides up over every piece of chrome (the host below).
-                .actionMenuPresentation(isPresented: addMenuOpen, onDismiss: { addMenuOpen = false }) {
-                    ActionMenuOverlay(
-                        actions: Self.addMenuActions,
-                        onSelect: { action in
-                            addMenuOpen = false
-                            guard action.label == InviteEntry.rowLabel else { return }  // the other rows land with their screens
-                            InviteEntry.open(on: model.tab, model: $model)
-                        },
-                        showsDone: false,
-                        hairlineAfterLast: false
-                    )
-                }
+            // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen.
+            if model.showsTabBar {
+                TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: { addMenuOpen = true })
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabBarHeight = $0 }
+                    // action-menu-overlay: C-066 slides up over every piece of chrome (the host below).
+                    .actionMenuPresentation(isPresented: addMenuOpen, onDismiss: { addMenuOpen = false }) {
+                        ActionMenuOverlay(
+                            actions: Self.addMenuActions,
+                            onSelect: { action in
+                                addMenuOpen = false
+                                guard action.label == InviteEntry.rowLabel else { return }  // the other rows land with their screens
+                                InviteEntry.open(on: model.tab, model: $model)
+                            },
+                            showsDone: false,
+                            hairlineAfterLast: false
+                        )
+                    }
+                    .transition(.move(edge: .bottom))
+            }
         }
-        .ignoresSafeArea(.container, edges: .bottom)
+        // The TabBar slides out under an editor's push and back in on its pop, on the push's timing.
+        .animation(Motion.standard, value: model.showsTabBar)
+        // The TabBar draws over the bottom safe area; without it, the page keeps that inset.
+        .ignoresSafeArea(.container, edges: model.showsTabBar ? .bottom : [])
         // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
         .ui2OverlayHost()
         // invite-member Fixes (E6): surfaced errors (`recordError(surface: true)`) draw above everything.

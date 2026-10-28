@@ -10,6 +10,22 @@ final class UI2ShellModelTests: XCTestCase {
     func testSectionsMatchTopNavContract() {
         XCTAssertEqual(UI2Section.allCases.map(\.rawValue), TopNav.designedTabs)
     }
+    /// image-framing-editor (owner walk 2026-10-27): the image editors are full-screen — no TabBar
+    /// while one is the selected tab's top page; every other page keeps it.
+    func testTabBarHidesUnderTheImageEditorsOnly() {
+        var m = UI2ShellModel()
+        XCTAssertTrue(m.showsTabBar)
+        m.push(.createGroup, on: .home)
+        XCTAssertTrue(m.showsTabBar)
+        m.push(.editGroupCover(groupId: "g", source: .stored), on: .home)
+        XCTAssertFalse(m.showsTabBar)
+        m.pop(on: .home)
+        XCTAssertTrue(m.showsTabBar)
+        m.push(.editMemberAvatar(memberId: "m", source: .stored), on: .home)
+        XCTAssertFalse(m.showsTabBar)
+        m.apply(.tab(.search))
+        XCTAssertTrue(m.showsTabBar)
+    }
     func testTopNavOnlyOnHome() {
         var m = UI2ShellModel()
         for tab in [TabBar.Tab.calendar, .search, .profile] { m.apply(.tab(tab)); XCTAssertFalse(m.showsTopNav) }

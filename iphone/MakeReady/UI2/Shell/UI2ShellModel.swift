@@ -40,6 +40,16 @@ enum UI2Destination: Hashable {
     case editMemberAvatar(memberId: String, source: ImageEditSource)
 }
 
+extension UI2Destination {
+    /// A page that takes the whole screen, with no TabBar under it.
+    var isFullScreen: Bool {
+        switch self {
+        case .editGroupCover, .editMemberAvatar: return true
+        default: return false
+        }
+    }
+}
+
 /// Ephemeral shell state (SPEC D19) — held as @State by UI2Shell, never persisted.
 struct UI2ShellModel {
     /// The four root tabs in TabBar order — one NavigationStack each (ui2-members-browse D1).
@@ -57,6 +67,10 @@ struct UI2ShellModel {
 
     /// D1: TopNav is part of the Home stack's ROOT page, so a pushed page covers it — no hide logic.
     var showsTopNav: Bool { tab == .home }
+
+    /// image-framing-editor (owner walk 2026-10-27): the image editors are full-screen — the TabBar
+    /// is gone while one is the selected tab's top page.
+    var showsTabBar: Bool { !(path(for: tab).last?.isFullScreen ?? false) }
 
     /// home-dashboard-data D24 + ui2-groups-browse D3: the section whose pull-to-refresh is
     /// wired — Home and Groups, on the Home tab; nil anywhere else.
