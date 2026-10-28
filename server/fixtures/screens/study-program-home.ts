@@ -4,7 +4,10 @@
  * every D12 setting and a leader other than its creator (Nathan, the fixture Group Leader). Program 3
  * is private and created by Nathan — the org Owner still sees it (D13); a Group Leader who neither
  * created nor leads it would not. Program 4, "Empty Program", has no cover, lessons or enrollments
- * (the page's empty states). Base programs keep their covers from base's images.
+ * (the page's empty states). Base programs keep their covers from base's images; program 3 takes a
+ * fixture library photo as its cover (owner 2026-10-28: program covers use fixture images), as a
+ * leader picking one from the library would leave it — the photo's URL plus a PROGRAM_COVER usage.
+ * No library (images skipped: no R2) → no cover.
  */
 import type { FixtureContext } from '../context.js'
 import { FIXTURE_LEADER_USER_ID, FIXTURE_ORG_ID, FIXTURE_PROGRAM_IDS, FIXTURE_USER_ID, fixtureId } from '../ids.js'
@@ -14,6 +17,10 @@ export const PRIVATE_PROGRAM_ID = fixtureId('program', 3)
 export const EMPTY_PROGRAM_ID = fixtureId('program', 4)
 export const EMPTY_PROGRAM_NAME = 'Empty Program'
 export const PRIVATE_PROGRAM_NAME = "Nathan's Private Study"
+/** The fixture library photo program 3 uses as its cover (manifest slug `2-john-truth-and-love`). */
+export const PRIVATE_PROGRAM_COVER_TITLE_PREFIX = '2 John'
+/** Clear of base's usage ids (one per base cover). */
+export const PRIVATE_PROGRAM_COVER_USAGE_ID = fixtureId('mediaUsage', 101)
 
 export const RICH_PROGRAM_FIELDS = {
   description: 'Three weeks through the core beliefs of the faith — one short reading and reflection a day.',
@@ -58,4 +65,19 @@ export async function full(ctx: FixtureContext): Promise<void> {
       },
     ],
   })
+  const photo = await prisma.media.findFirst({
+    where: { organizationId: FIXTURE_ORG_ID, source: 'direct', title: { startsWith: PRIVATE_PROGRAM_COVER_TITLE_PREFIX } },
+  })
+  if (photo) {
+    await prisma.studyProgram.update({ where: { id: PRIVATE_PROGRAM_ID }, data: { coverImageUrl: photo.url } })
+    await prisma.mediaUsage.create({
+      data: {
+        id: PRIVATE_PROGRAM_COVER_USAGE_ID,
+        mediaId: photo.id,
+        usageType: 'PROGRAM_COVER',
+        resourceId: PRIVATE_PROGRAM_ID,
+        resourceName: PRIVATE_PROGRAM_NAME,
+      },
+    })
+  }
 }
