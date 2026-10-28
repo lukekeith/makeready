@@ -142,23 +142,21 @@ enum ImageFramingMath {
     /// D17: a face subject sits this share of its own height above the frame centre (head and shoulders).
     static let faceLift: Double = 0.2
 
-    /// D17: Auto — flip, quarter turns and straighten stay; the zoom goes to the floor, or, for faces
+    /// D17: Auto — back to the original orientation (no flip, no quarter turns, no straighten; owner
+    /// 2026-10-27); the zoom goes to the floor, or, for faces
     /// with a `faceFill`, to where the faces' box spans that share of the frame's shorter side; the
     /// subject's point (its box centre, lifted for faces) moves to the frame centre, then the framing
-    /// is pulled back to coverage. No subject → centred at the floor.
+    /// is pulled back to coverage. No subject → centred at the floor. The current `framing` is
+    /// replaced whole: nothing of it carries over.
     static func autoFramed(_ framing: ImageFraming, subject: ImageSubject?, faceFill: Double?,
                            image: CGSize, frame: CGSize) -> ImageFraming {
-        var f = framing
-        f.scale = 1
-        f.offsetX = 0
-        f.offsetY = 0
+        var f = ImageFraming.identity
         guard let subject, image.width > 0, image.height > 0, frame.width > 0, frame.height > 0 else {
             return clamped(f, image: image, frame: frame)
         }
         let box = subject.box
         if subject.kind == .faces, let faceFill {
-            let turned = turnedSize(image, quarterTurns: normalized(quarterTurns: f.quarterTurns))
-            let floor = zoomFloor(image: turned, frame: frame, rotationDegrees: f.rotation)
+            let floor = zoomFloor(image: image, frame: frame, rotationDegrees: 0)
             let faceSide = max(box.width * image.width, box.height * image.height)
             if faceSide > 0 {
                 let target = CGFloat(faceFill) * min(frame.width, frame.height) / faceSide
@@ -166,16 +164,10 @@ enum ImageFramingMath {
             }
         }
         let liftY = subject.kind == .faces && faceFill != nil ? faceLift * box.height : 0
-        // The subject point, from the image centre at the drawn scale, through the render's transform:
-        // mirror, then the counter-clockwise turns, then the fine rotation (CoverImageRendering.render).
+        // Upright and unrotated, the subject point sits (x, y) from the image centre at the drawn scale.
         let s = absoluteScale(f, image: image, frame: frame)
-        var x = (box.midX - 0.5) * image.width * s
-        let y = (box.midY + liftY - 0.5) * image.height * s
-        if f.flipped { x = -x }
-        let a = f.rotation * .pi / 180 - Double(normalized(quarterTurns: f.quarterTurns)) * .pi / 2
-        let ca = CGFloat(cos(a)), sa = CGFloat(sin(a))
-        f.offsetX = Double(-(x * ca - y * sa) / frame.width)
-        f.offsetY = Double(-(x * sa + y * ca) / frame.height)
+        f.offsetX = Double(-(box.midX - 0.5) * image.width * s / frame.width)
+        f.offsetY = Double(-(box.midY + liftY - 0.5) * image.height * s / frame.height)
         return clamped(f, image: image, frame: frame)
     }
 }

@@ -251,30 +251,28 @@ final class ImageFramingMathTests: XCTestCase {
         XCTAssertEqual(f.offsetY, 0, accuracy: 1e-6)
     }
 
-    /// D17: a mirrored image moves the other way; a quarter turn (counter-clockwise) carries the
-    /// subject to the top, so the image moves down.
-    func testAutoFollowsFlipAndQuarterTurns() {
+    /// D17 (owner 2026-10-27): Auto returns the image to its original orientation — no flip, no
+    /// quarter turns, no straighten — and frames it there, so the result is the unturned one.
+    func testAutoRestoresTheOriginalOrientation() {
         let subject = ImageSubject(kind: .salient, box: CGRect(x: 0.65, y: 0.45, width: 0.1, height: 0.1))
-        let flippedF = ImageFramingMath.autoFramed(framing(flipped: true), subject: subject, faceFill: nil,
-                                                   image: CGSize(width: 2000, height: 1000), frame: square)
-        XCTAssertEqual(flippedF.offsetX, 0.4, accuracy: 1e-6)
-        XCTAssertTrue(flippedF.flipped)
-        let turned = ImageFramingMath.autoFramed(framing(quarterTurns: 1), subject: subject, faceFill: nil,
-                                                 image: CGSize(width: 2000, height: 1000), frame: square)
-        XCTAssertEqual(turned.offsetX, 0, accuracy: 1e-6)
-        XCTAssertEqual(turned.offsetY, 0.4, accuracy: 1e-6)
-        XCTAssertEqual(turned.quarterTurns, 1)
+        let image = CGSize(width: 2000, height: 1000)
+        let upright = ImageFramingMath.autoFramed(.identity, subject: subject, faceFill: nil, image: image, frame: square)
+        for start in [framing(flipped: true), framing(quarterTurns: 1), framing(rotation: 20, flipped: true, quarterTurns: 3)] {
+            XCTAssertEqual(ImageFramingMath.autoFramed(start, subject: subject, faceFill: nil, image: image, frame: square),
+                           upright, "\(start)")
+        }
+        XCTAssertEqual(upright.offsetX, -0.4, accuracy: 1e-6)
+        XCTAssertFalse(upright.flipped)
+        XCTAssertEqual(upright.quarterTurns, 0)
+        XCTAssertEqual(upright.rotation, 0)
     }
 
     /// D17: past the edge it stops where the frame is still covered (no empty corners).
     func testAutoNeverUncoversTheFrame() {
         let subject = ImageSubject(kind: .salient, box: CGRect(x: 0.9, y: 0.0, width: 0.1, height: 0.1))
-        for r in [0.0, 12, -30] {
-            let f = ImageFramingMath.autoFramed(framing(rotation: r), subject: subject, faceFill: nil,
-                                                image: wide, frame: frame)
-            XCTAssertTrue(covers(f, image: wide), "r=\(r)")
-            XCTAssertEqual(f.rotation, r, accuracy: 1e-9)
-        }
+        let f = ImageFramingMath.autoFramed(framing(rotation: 12, quarterTurns: 1), subject: subject, faceFill: nil,
+                                            image: wide, frame: frame)
+        XCTAssertTrue(covers(f, image: wide))
     }
 
     /// D17: faces with a fill zoom so the face box spans that share of the frame (1000px square
@@ -300,10 +298,10 @@ final class ImageFramingMathTests: XCTestCase {
                                                    image: wide, frame: frame).scale, 1, accuracy: 1e-9)
     }
 
-    /// D17: nothing found → centred at the floor; flip, turns and straighten stay.
+    /// D17: nothing found → the original orientation, centred at the floor.
     func testAutoWithNoSubjectCentres() {
         let f = ImageFramingMath.autoFramed(framing(scale: 2, rotation: 10, offsetX: 0.2, offsetY: -0.1, flipped: true, quarterTurns: 3),
                                             subject: nil, faceFill: 0.5, image: wide, frame: frame)
-        XCTAssertEqual(f, framing(scale: 1, rotation: 10, offsetX: 0, offsetY: 0, flipped: true, quarterTurns: 3))
+        XCTAssertEqual(f, .identity)
     }
 }
