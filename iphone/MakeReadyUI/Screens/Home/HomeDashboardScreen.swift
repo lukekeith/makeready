@@ -407,9 +407,12 @@ struct HomeDashboardScreen: View {
             .ui2Element("C-029 RadialDayClock")
             Spacer().frame(height: Self.chartGap)                    // §2.3: "→ 16pt →"
             // §2.3: "TimeActivityChart 438×140" — at x=0 on the frame `default`.
-            TimeActivityChart(bins: state.bins, tickLabels: sessionTickLabels, intro: intro(.sessions))
+            // sessions-chart-reveal: its own reveal unit — the section's 50 % line is crossed while
+            // this chart is still below the fold, so on `.sessions` its intro played unseen.
+            TimeActivityChart(bins: state.bins, tickLabels: sessionTickLabels, intro: intro(.timeline))
                 .frame(width: Self.timeChartWidth, height: Self.timeChartHeight)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .modifier(revealsIntro(.timeline))                  // D4's 50 % line, measured on the chart
                 .ui2Element("C-030 TimeActivityChart")
         }
     }

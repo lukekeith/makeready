@@ -4,7 +4,9 @@ import SwiftUI
 /// View state on HomeDashboardScreen (`@State`) — nothing else reads it and it is not persisted.
 struct ChartIntroLedger: Equatable {
     enum Section: String, CaseIterable {
-        case overview, activity, sessions, engagement
+        // sessions-chart-reveal (owner 2026-10-27): `timeline` is the Sessions time chart on its own,
+        // so it plays when IT is half on screen, not when the clock above it is.
+        case overview, activity, sessions, timeline, engagement
     }
 
     private(set) var played: Set<Section> = []

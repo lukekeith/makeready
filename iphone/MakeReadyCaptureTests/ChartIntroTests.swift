@@ -116,6 +116,17 @@ final class ChartIntroTests: XCTestCase {
         XCTAssertFalse(ledger.hasPlayed(.engagement))
     }
 
+    /// sessions-chart-reveal (owner 2026-10-27): the Sessions time chart is its own reveal unit —
+    /// the clock above it reaching 50 % no longer plays it below the fold.
+    func testTheSessionsTimeChartPlaysOnItsOwnReveal() {
+        var ledger = ChartIntroLedger()
+        ledger.setVisible(.sessions, true)
+        XCTAssertTrue(ledger.hasPlayed(.sessions))
+        XCTAssertFalse(ledger.hasPlayed(.timeline))
+        ledger.setVisible(.timeline, true)
+        XCTAssertTrue(ledger.hasPlayed(.timeline))
+    }
+
     /// F4 + D15: Home sits hidden under another tab with its geometry unchanged, so leaving
     /// clears every flag and returning replays only what is still on screen.
     func testLeavingHomeClearsAndReturningReplaysTheVisibleSections() {
