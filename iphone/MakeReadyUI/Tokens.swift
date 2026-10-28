@@ -62,7 +62,7 @@ enum Token {
     static let white50 = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.502)
     static let accent = Color(red: 0.4235, green: 0.2784, blue: 1.0, opacity: 1)
     static let highlight = Color(red: 1.0, green: 0.9412, blue: 0.5216, opacity: 1)
-    static let layoutBorder = Color(red: 0.1216, green: 0.1412, blue: 0.1490, opacity: 1)
+    static let layoutBorder = Color(red: 0.1098, green: 0.1294, blue: 0.1412, opacity: 1)
     static let white20 = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.2)
     static let white30 = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.302)
     static let white40 = Color(red: 1.0, green: 1.0, blue: 1.0, opacity: 0.4)
