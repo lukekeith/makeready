@@ -33,6 +33,9 @@ final class ImageFramingModel {
     let outputSize: CGSize
     /// image-framing-editor D1: the banner text the container shows when a save fails.
     let saveFailedMessage: String
+    /// image-framing-editor D17: Auto's zoom on faces — the share of the frame a face box spans (the
+    /// avatar); nil frames faces at the floor (the group cover).
+    let autoFaceFill: Double?
     private(set) var framing: ImageFraming
     private(set) var isSaving = false
     /// D30: any gesture (twist or dial) is in progress — the rule-of-thirds grid shows.
@@ -45,9 +48,13 @@ final class ImageFramingModel {
     /// D7: false when there is no stored original, so `image` IS the current image and Save stores it as one.
     @ObservationIgnored private let hasStoredOriginal: Bool
     @ObservationIgnored private let send: @MainActor (UIImage, ImageFraming, UIImage?) async throws -> String
+    @ObservationIgnored private let detect: @MainActor (UIImage) async -> ImageSubject?
+    /// D17: the image never changes, so Vision runs once; `.some(nil)` is "looked, found nothing".
+    @ObservationIgnored private var detected: ImageSubject??
 
     init(image: UIImage, framing: ImageFraming, isNewPick: Bool, hasStoredOriginal: Bool,
-         frameSize: CGSize, outputSize: CGSize, saveFailedMessage: String,
+         frameSize: CGSize, outputSize: CGSize, saveFailedMessage: String, autoFaceFill: Double? = nil,
+         detectSubject: @escaping @MainActor (UIImage) async -> ImageSubject? = { await ImageSubjectDetector.detect(in: $0) },
          save: @escaping @MainActor (UIImage, ImageFraming, UIImage?) async throws -> String) {
         self.image = image
         self.isNewPick = isNewPick
@@ -55,6 +62,8 @@ final class ImageFramingModel {
         self.frameSize = frameSize
         self.outputSize = outputSize
         self.saveFailedMessage = saveFailedMessage
+        self.autoFaceFill = autoFaceFill
+        self.detect = detectSubject
         let start = ImageFramingMath.clamped(framing, image: image.size, frame: frameSize)
         self.framing = start
         self.base = start
@@ -127,6 +136,20 @@ final class ImageFramingModel {
             next.offsetY = -framing.offsetX * w / h
         }
         commit(next)
+    }
+
+    /// D17: what Auto frames on — detected on the first tap, then remembered.
+    func subject() async -> ImageSubject? {
+        if let detected { return detected }
+        let found = await detect(image)
+        detected = .some(found)
+        return found
+    }
+
+    /// D17: Auto — the best framing for `subject`, committed like Flip (the container animates it).
+    func autoFrame(_ subject: ImageSubject?) {
+        commit(ImageFramingMath.autoFramed(framing, subject: subject, faceFill: autoFaceFill,
+                                           image: image.size, frame: frameSize))
     }
 
     /// D25: Flip and Rotate 90° re-apply the floor at once. Ignored while saving (D13).

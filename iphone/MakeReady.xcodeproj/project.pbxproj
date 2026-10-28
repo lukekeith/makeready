@@ -69,6 +69,7 @@
 		1582166899543CCD2CE33B92 /* MediaActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = MDAC0002000000000000001 /* MediaActions.swift */; };
 		158AFCA4FBA5FBA1E93D4E27 /* StudyProgramRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EADB43EEB3864563E630F71 /* StudyProgramRow.swift */; };
 		15EB241AECBFAC12BBE5CCE6 /* EditOptionsCustomFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A52B503E5B111C68CF79691 /* EditOptionsCustomFieldScreen.swift */; };
+		15F5BA6C87A29C0906061BAD /* ImageSubjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9984E3AF58E3189E6D1E978 /* ImageSubjectDetector.swift */; };
 		161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */; };
 		16653B87C42DDEDC3E31A86C /* StudyProgramRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EADB43EEB3864563E630F71 /* StudyProgramRow.swift */; };
 		166E9BC4BD36E86410245599 /* ColorPickerWell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 679B147467507A4B69BF0D70 /* ColorPickerWell.swift */; };
@@ -277,6 +278,7 @@
 		5A106349ED65DEBF0FEC7A59 /* FilterMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = DFF128158CFBF649CF77A2A6 /* FilterMenuOverlay.swift */; };
 		5A4E6CEA25380B1F08C45A2B /* EditableFieldRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A01F7586EF6E6C5B6DF4E767 /* EditableFieldRow.swift */; };
 		5A89CC503EBA48AFADAA9527 /* NavTabButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB8C3E909CB9BFE8D2732940 /* NavTabButton.swift */; };
+		5AFE0DE4CD7E8335391FE9D9 /* ImageSubjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9984E3AF58E3189E6D1E978 /* ImageSubjectDetector.swift */; };
 		5B3A754933E7601732F253E8 /* String+ImageVariants.swift in Sources */ = {isa = PBXBuildFile; fileRef = IMGVAR0002000000000001 /* String+ImageVariants.swift */; };
 		5C95B8F6E94FDAFD03ED6EE2 /* NumberKeypad.swift in Sources */ = {isa = PBXBuildFile; fileRef = ADE8FE7EDC7A6D5D1B2C6858 /* NumberKeypad.swift */; };
 		5CA64150B3D34BD924A2E621 /* SearchHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F15F6873F3FD12B46C59109 /* SearchHomeScreen.swift */; };
@@ -1135,6 +1137,7 @@
 		B6BBCE49B263A647CD6AE3D7 /* DashboardActionsTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = DashboardActionsTests.swift; sourceTree = "<group>"; };
 		B7D532DD50E7A1292EA2FCBB /* CategoryBarTable.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CategoryBarTable.swift; sourceTree = "<group>"; };
 		B8E2ABA006F9C95D8D874EBE /* LoginScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = LoginScreen.swift; path = Screens/Auth/LoginScreen.swift; sourceTree = "<group>"; };
+		B9984E3AF58E3189E6D1E978 /* ImageSubjectDetector.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageSubjectDetector.swift; path = Containers/Groups/ImageSubjectDetector.swift; sourceTree = "<group>"; };
 		BABD4EEE3782A40450EDC653 /* CalendarEventRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CalendarEventRow.swift; sourceTree = "<group>"; };
 		BBDT0002000000000000001 /* BibleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleData.swift; sourceTree = "<group>"; };
 		BBRB0002000000000000001 /* BibleReaderBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BibleReaderBridge.swift; sourceTree = "<group>"; };
@@ -1557,6 +1560,7 @@
 				C96FFB99B33BBCE3586DFDF3 /* EditGroupCoverContainer.swift */,
 				DF85A20653C34F45A6C52EC0 /* ImageFramingCanvas.swift */,
 				E457EFA78B8D5BCC8FC8DC13 /* EditMemberAvatarContainer.swift */,
+				B9984E3AF58E3189E6D1E978 /* ImageSubjectDetector.swift */,
 			);
 			name = UI2;
 			path = UI2;
@@ -3239,6 +3243,7 @@
 				573FFD8A31B2D0305F085FE5 /* EditGroupCoverContainer.swift in Sources */,
 				23FF05C975B4EBFC877D4BD0 /* ImageFramingCanvas.swift in Sources */,
 				28BB243BEADDD56B04FE167A /* EditMemberAvatarContainer.swift in Sources */,
+				5AFE0DE4CD7E8335391FE9D9 /* ImageSubjectDetector.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3670,6 +3675,7 @@
 				16E7595283CE08C6466C584D /* EditGroupCoverContainer.swift in Sources */,
 				3403788A2B5EC22EFA5F1794 /* ImageFramingCanvas.swift in Sources */,
 				BEDF8FAD3CD370EBBA381F88 /* EditMemberAvatarContainer.swift in Sources */,
+				15F5BA6C87A29C0906061BAD /* ImageSubjectDetector.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

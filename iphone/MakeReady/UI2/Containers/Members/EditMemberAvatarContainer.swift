@@ -23,6 +23,8 @@ struct EditMemberAvatarContainer: View {
     static let title = "Edit photo"
     /// D12: the banner a failed save shows.
     static let saveFailedMessage = "Couldn't save the photo"
+    /// D17: Auto on a face frames head and shoulders — the face box spans half the frame.
+    static let autoFaceFill = 0.5
     /// D5: the banner a stored photo that will not load shows; the page pops.
     static let loadFailedMessage = "Couldn't load the photo"
     /// The canvas's accessibility label.
@@ -153,7 +155,7 @@ struct EditMemberAvatarContainer: View {
         let built = ImageFramingModel(image: opening.image, framing: opening.framing,
                                       isNewPick: opening.isNewPick, hasStoredOriginal: opening.hasStoredOriginal,
                                       frameSize: frameRect.size, outputSize: Self.renderSize,
-                                      saveFailedMessage: Self.saveFailedMessage, save: save)
+                                      saveFailedMessage: Self.saveFailedMessage, autoFaceFill: Self.autoFaceFill, save: save)
         model = built
         // D12: an edge swipe with a change does not pop; it asks to discard, as Cancel does; while saving it neither pops nor asks.
         backSwipe?.blocksBackSwipe = { [weak built] in

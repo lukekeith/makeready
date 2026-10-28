@@ -399,4 +399,45 @@ final class ImageFramingModelTests: XCTestCase {
         XCTAssertEqual(size, CGSize(width: 512, height: 512))
         XCTAssertEqual(m.saveFailedMessage, "Couldn't save the photo")
     }
+    /// D17: Auto commits the auto-framed result (Done enables on a re-edit) and asks Vision once.
+    func testAutoFrameCommitsAndDetectsOnce() async {
+        var calls = 0
+        let subject = ImageSubject(kind: .salient, box: CGRect(x: 0.6, y: 0.5, width: 0.1, height: 0.1))
+        let m = ImageFramingModel(image: image(), framing: .identity, isNewPick: false, hasStoredOriginal: true,
+                                  frameSize: frame, outputSize: EditGroupCoverContainer.renderSize,
+                                  saveFailedMessage: EditGroupCoverContainer.saveFailedMessage,
+                                  detectSubject: { _ in calls += 1; return subject },
+                                  save: { _, _, _ in self.ok })
+        XCTAssertFalse(m.hasChanges)
+        m.autoFrame(await m.subject())
+        XCTAssertEqual(m.framing, ImageFramingMath.autoFramed(.identity, subject: subject, faceFill: nil,
+                                                               image: image().size, frame: frame))
+        XCTAssertTrue(m.hasChanges)
+        _ = await m.subject()
+        XCTAssertEqual(calls, 1)
+    }
+
+    /// D17: the avatar zooms in on a face; the group cover (no fill) does not.
+    func testAutoFaceFillIsAnInput() async {
+        let face = ImageSubject(kind: .faces, box: CGRect(x: 0.45, y: 0.3, width: 0.05, height: 0.05))
+        let m = ImageFramingModel(image: image(CGSize(width: 1000, height: 1000)), framing: .identity, isNewPick: true,
+                                  hasStoredOriginal: true, frameSize: CGSize(width: 300, height: 300),
+                                  outputSize: CGSize(width: 512, height: 512), saveFailedMessage: "x",
+                                  autoFaceFill: EditMemberAvatarContainer.autoFaceFill,
+                                  detectSubject: { _ in face }, save: { _, _, _ in self.ok })
+        m.autoFrame(await m.subject())
+        XCTAssertGreaterThan(m.framing.scale, 1)
+        XCTAssertEqual(EditMemberAvatarContainer.autoFaceFill, 0.5)
+    }
+
+    /// D17: Vision's boxes are bottom-left-origin; the subject box is top-left, the union of all.
+    func testVisionBoxesBecomeOneTopLeftBox() {
+        let box = ImageSubjectDetector.topLeftUnion([CGRect(x: 0.1, y: 0.7, width: 0.2, height: 0.2),
+                                                     CGRect(x: 0.5, y: 0.6, width: 0.1, height: 0.1)])
+        XCTAssertEqual(box?.minX ?? -1, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(box?.minY ?? -1, 0.1, accuracy: 1e-9)
+        XCTAssertEqual(box?.width ?? -1, 0.5, accuracy: 1e-9)
+        XCTAssertEqual(box?.height ?? -1, 0.3, accuracy: 1e-9)
+        XCTAssertNil(ImageSubjectDetector.topLeftUnion([]))
+    }
 }

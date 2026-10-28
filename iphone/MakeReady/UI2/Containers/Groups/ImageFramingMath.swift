@@ -139,4 +139,43 @@ enum ImageFramingMath {
         f.offsetY = Double(p.y * k / frame.height)
         return f
     }
+    /// D17: a face subject sits this share of its own height above the frame centre (head and shoulders).
+    static let faceLift: Double = 0.2
+
+    /// D17: Auto — flip, quarter turns and straighten stay; the zoom goes to the floor, or, for faces
+    /// with a `faceFill`, to where the faces' box spans that share of the frame's shorter side; the
+    /// subject's point (its box centre, lifted for faces) moves to the frame centre, then the framing
+    /// is pulled back to coverage. No subject → centred at the floor.
+    static func autoFramed(_ framing: ImageFraming, subject: ImageSubject?, faceFill: Double?,
+                           image: CGSize, frame: CGSize) -> ImageFraming {
+        var f = framing
+        f.scale = 1
+        f.offsetX = 0
+        f.offsetY = 0
+        guard let subject, image.width > 0, image.height > 0, frame.width > 0, frame.height > 0 else {
+            return clamped(f, image: image, frame: frame)
+        }
+        let box = subject.box
+        if subject.kind == .faces, let faceFill {
+            let turned = turnedSize(image, quarterTurns: normalized(quarterTurns: f.quarterTurns))
+            let floor = zoomFloor(image: turned, frame: frame, rotationDegrees: f.rotation)
+            let faceSide = max(box.width * image.width, box.height * image.height)
+            if faceSide > 0 {
+                let target = CGFloat(faceFill) * min(frame.width, frame.height) / faceSide
+                f.scale = max(1, Double(target / floor))
+            }
+        }
+        let liftY = subject.kind == .faces && faceFill != nil ? faceLift * box.height : 0
+        // The subject point, from the image centre at the drawn scale, through the render's transform:
+        // mirror, then the counter-clockwise turns, then the fine rotation (CoverImageRendering.render).
+        let s = absoluteScale(f, image: image, frame: frame)
+        var x = (box.midX - 0.5) * image.width * s
+        let y = (box.midY + liftY - 0.5) * image.height * s
+        if f.flipped { x = -x }
+        let a = f.rotation * .pi / 180 - Double(normalized(quarterTurns: f.quarterTurns)) * .pi / 2
+        let ca = CGFloat(cos(a)), sa = CGFloat(sin(a))
+        f.offsetX = Double(-(x * ca - y * sa) / frame.width)
+        f.offsetY = Double(-(x * sa + y * ca) / frame.height)
+        return clamped(f, image: image, frame: frame)
+    }
 }

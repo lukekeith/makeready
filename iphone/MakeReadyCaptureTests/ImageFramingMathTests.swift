@@ -238,4 +238,72 @@ final class ImageFramingMathTests: XCTestCase {
             }
         }
     }
+    // MARK: - image-framing-editor D17: Auto
+
+    /// D17: the subject's centre lands on the frame centre — a 2000×1000 image in a 300pt square
+    /// sits at floor 0.3 (600pt wide), so x = 0.7 is 120pt right of centre and the image moves 120pt left.
+    func testAutoCentresTheSubject() {
+        let subject = ImageSubject(kind: .salient, box: CGRect(x: 0.65, y: 0.45, width: 0.1, height: 0.1))
+        let f = ImageFramingMath.autoFramed(.identity, subject: subject, faceFill: nil,
+                                            image: CGSize(width: 2000, height: 1000), frame: square)
+        XCTAssertEqual(f.scale, 1, accuracy: 1e-9)
+        XCTAssertEqual(f.offsetX, -0.4, accuracy: 1e-6)
+        XCTAssertEqual(f.offsetY, 0, accuracy: 1e-6)
+    }
+
+    /// D17: a mirrored image moves the other way; a quarter turn (counter-clockwise) carries the
+    /// subject to the top, so the image moves down.
+    func testAutoFollowsFlipAndQuarterTurns() {
+        let subject = ImageSubject(kind: .salient, box: CGRect(x: 0.65, y: 0.45, width: 0.1, height: 0.1))
+        let flippedF = ImageFramingMath.autoFramed(framing(flipped: true), subject: subject, faceFill: nil,
+                                                   image: CGSize(width: 2000, height: 1000), frame: square)
+        XCTAssertEqual(flippedF.offsetX, 0.4, accuracy: 1e-6)
+        XCTAssertTrue(flippedF.flipped)
+        let turned = ImageFramingMath.autoFramed(framing(quarterTurns: 1), subject: subject, faceFill: nil,
+                                                 image: CGSize(width: 2000, height: 1000), frame: square)
+        XCTAssertEqual(turned.offsetX, 0, accuracy: 1e-6)
+        XCTAssertEqual(turned.offsetY, 0.4, accuracy: 1e-6)
+        XCTAssertEqual(turned.quarterTurns, 1)
+    }
+
+    /// D17: past the edge it stops where the frame is still covered (no empty corners).
+    func testAutoNeverUncoversTheFrame() {
+        let subject = ImageSubject(kind: .salient, box: CGRect(x: 0.9, y: 0.0, width: 0.1, height: 0.1))
+        for r in [0.0, 12, -30] {
+            let f = ImageFramingMath.autoFramed(framing(rotation: r), subject: subject, faceFill: nil,
+                                                image: wide, frame: frame)
+            XCTAssertTrue(covers(f, image: wide), "r=\(r)")
+            XCTAssertEqual(f.rotation, r, accuracy: 1e-9)
+        }
+    }
+
+    /// D17: faces with a fill zoom so the face box spans that share of the frame (1000px square
+    /// image, 300pt frame → floor 0.3; a 100px face at fill 0.5 needs 150pt → 1.5 → ×5), and the
+    /// face sits a fifth of its height above centre (head and shoulders).
+    func testAutoZoomsToTheFaceWithAFill() {
+        let face = ImageSubject(kind: .faces, box: CGRect(x: 0.45, y: 0.3, width: 0.1, height: 0.1))
+        let f = ImageFramingMath.autoFramed(framing(scale: 3), subject: face, faceFill: 0.5,
+                                            image: CGSize(width: 1000, height: 1000), frame: square)
+        XCTAssertEqual(f.scale, 5, accuracy: 1e-6)
+        // Point (0.5, 0.37): 0.13 × 1000 × 1.5 = 195pt above centre → the image moves 195pt down.
+        XCTAssertEqual(f.offsetY, 195.0 / 300.0, accuracy: 1e-6)
+        XCTAssertEqual(f.offsetX, 0, accuracy: 1e-6)
+    }
+
+    /// D17: without a fill (the group cover) or with salient content, Auto zooms all the way out.
+    func testAutoWithoutAFillZoomsOut() {
+        let face = ImageSubject(kind: .faces, box: CGRect(x: 0.45, y: 0.45, width: 0.1, height: 0.1))
+        XCTAssertEqual(ImageFramingMath.autoFramed(framing(scale: 3), subject: face, faceFill: nil,
+                                                   image: wide, frame: frame).scale, 1, accuracy: 1e-9)
+        let salient = ImageSubject(kind: .salient, box: face.box)
+        XCTAssertEqual(ImageFramingMath.autoFramed(framing(scale: 3), subject: salient, faceFill: 0.5,
+                                                   image: wide, frame: frame).scale, 1, accuracy: 1e-9)
+    }
+
+    /// D17: nothing found → centred at the floor; flip, turns and straighten stay.
+    func testAutoWithNoSubjectCentres() {
+        let f = ImageFramingMath.autoFramed(framing(scale: 2, rotation: 10, offsetX: 0.2, offsetY: -0.1, flipped: true, quarterTurns: 3),
+                                            subject: nil, faceFill: 0.5, image: wide, frame: frame)
+        XCTAssertEqual(f, framing(scale: 1, rotation: 10, offsetX: 0, offsetY: 0, flipped: true, quarterTurns: 3))
+    }
 }
