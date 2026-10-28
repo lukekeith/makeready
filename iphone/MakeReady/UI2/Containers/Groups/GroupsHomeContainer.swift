@@ -22,6 +22,8 @@ struct GroupsHomeContainer: View {
     @State private var searchTask: Task<Void, Never>?
     /// groups-home §3 Search active: while search is active the shell's TopNav moves off screen.
     @State private var searchActive = false
+    /// Bumped when covers land in Ui2ImageCache, which SwiftUI does not observe.
+    @State private var coversSeeded = 0
 
     var body: some View {
         let app = AppState.shared
@@ -29,8 +31,11 @@ struct GroupsHomeContainer: View {
             groups: app.groups.all, leaders: app.groupLeaders, organizations: app.myOrganizations,
             selection: selection, typedSearch: typedSearch, loaded: app.groupsListLoaded || !app.groups.all.isEmpty
         )
+        let _ = coversSeeded
+        // cover-image-sizes: the rows' avatars show the 400px list copy, once cached.
+        let state = { var s = output.state; s.groupPhotoURLs = CoverImageLoader.cachedListURLs(s.groupPhotoURLs); return s }()
         GroupsHomeScreen(
-            state: output.state,
+            state: state,
             onSearch: { text in
                 typedSearch = text
                 searchTask?.cancel()
@@ -50,6 +55,9 @@ struct GroupsHomeContainer: View {
         )
         .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .task { await Self.load(authManager: authManager) }
+        .task(id: output.state.groupPhotoURLs) {
+            if await CoverImageLoader.seedList(output.state.groupPhotoURLs) { coversSeeded += 1 }
+        }
         .onDisappear { searchTask?.cancel() }
     }
 

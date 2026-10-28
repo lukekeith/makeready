@@ -43,13 +43,14 @@ final class GroupDetailContainerTests: XCTestCase {
         XCTAssertTrue(state.errors.isEmpty)
     }
 
-    /// D17: the container seeds the cover, the slide images and the enrollment covers.
-    func testImageURLsAreTheCoverSlidesAndProgramCovers() {
+    /// D17 + cover-image-sizes: the full-size seed is the cover and the slide images; the
+    /// enrollment rows' program covers load as list copies (CoverImageLoader), not here.
+    func testImageURLsAreTheCoverAndSlides() {
         var s = GroupsDetailScreen.State.populated
         s.coverURL = "https://img/c.jpg"
         s.lessonSlideImages = [["https://img/1.jpg", ""]]
         s.programCoverURLs = ["", "https://img/p.jpg"]
-        XCTAssertEqual(GroupDetailContainer.imageURLs(s), ["https://img/c.jpg", "https://img/1.jpg", "https://img/p.jpg"])
+        XCTAssertEqual(GroupDetailContainer.imageURLs(s), ["https://img/c.jpg", "https://img/1.jpg"])
     }
 
     /// D4: the page reads every group store for its id.

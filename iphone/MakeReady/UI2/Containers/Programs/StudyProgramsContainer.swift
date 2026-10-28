@@ -17,6 +17,8 @@ struct StudyProgramsContainer: View {
     /// members-search-pinned (owner 2026-10-28: as on Members): while search is active the
     /// shell's TopNav moves off screen.
     @State private var searchActive = false
+    /// Bumped when covers land in Ui2ImageCache, which SwiftUI does not observe.
+    @State private var coversSeeded = 0
 
     var body: some View {
         let app = AppState.shared
@@ -25,8 +27,11 @@ struct StudyProgramsContainer: View {
             selection: selection, typedSearch: typedSearch,
             loaded: app.programsListLoaded, failed: app.programsListFailed
         )
+        let _ = coversSeeded
+        // cover-image-sizes: the screen reads covers from Ui2ImageCache only — the 400px list copy.
+        let state = { var s = output.state; s.programCoverURLs = CoverImageLoader.cachedListURLs(s.programCoverURLs); return s }()
         StudyProgramsScreen(
-            state: output.state,
+            state: state,
             onSearch: { typedSearch = $0 },
             onSaveOrgs: { selection.orgLabels = $0 },
             onSaveLeaders: { selection.leaderLabels = $0 },
@@ -39,6 +44,9 @@ struct StudyProgramsContainer: View {
         )
         .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .task { await Self.load(authManager: authManager) }
+        .task(id: output.state.programCoverURLs) {
+            if await CoverImageLoader.seedList(output.state.programCoverURLs) { coversSeeded += 1 }
+        }
     }
 
     /// D3/D4: programs, leaders and orgs all at once. Every failure is console-only (D4: a refresh

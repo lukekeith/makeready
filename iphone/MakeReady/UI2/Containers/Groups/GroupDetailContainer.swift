@@ -106,6 +106,9 @@ struct GroupDetailContainer: View {
         .task(id: Self.imageURLs(output.state)) {
             if await MemberProfileContainer.seedCovers(Self.imageURLs(output.state)) { imagesSeeded += 1 }
         }
+        .task(id: output.state.programCoverURLs) {
+            if await CoverImageLoader.seedList(output.state.programCoverURLs) { imagesSeeded += 1 }
+        }
     }
 
     enum CoverTap: Equatable { case none, picker, menu }
@@ -216,9 +219,10 @@ struct GroupDetailContainer: View {
         return .editGroupField(groupId: groupId, field: field)
     }
 
-    /// D17: the images the container seeds — the cover, the lesson slides, the enrollment covers.
+    /// D17: the full-size images the container seeds — the cover and the lesson slides. The
+    /// enrollment rows' program covers are list copies (cover-image-sizes, CoverImageLoader).
     static func imageURLs(_ state: GroupsDetailScreen.State) -> [String] {
-        ([state.coverURL] + state.lessonSlideImages.flatMap { $0 } + state.programCoverURLs).filter { !$0.isEmpty }
+        ([state.coverURL] + state.lessonSlideImages.flatMap { $0 }).filter { !$0.isEmpty }
     }
 
     /// Each image URL already in Ui2ImageCache, else "" (the component's empty look until it lands).
@@ -227,7 +231,7 @@ struct GroupDetailContainer: View {
         var s = mapped
         s.coverURL = MemberProfileContainer.cachedCoverURLs([mapped.coverURL]).first ?? ""
         s.lessonSlideImages = mapped.lessonSlideImages.map { MemberProfileContainer.cachedCoverURLs($0) }
-        s.programCoverURLs = MemberProfileContainer.cachedCoverURLs(mapped.programCoverURLs)
+        s.programCoverURLs = CoverImageLoader.cachedListURLs(mapped.programCoverURLs)
         return s
     }
 

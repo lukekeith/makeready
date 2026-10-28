@@ -25,6 +25,6 @@ final class StudyProgramHomeContainerTests: XCTestCase {
         s.coverURL = "https://c"
         s.lessonSlideImages = [["https://s", ""]]
         s.enrollmentPhotoURLs = ["", "https://g"]
-        XCTAssertEqual(StudyProgramHomeContainer.imageURLs(s), ["https://c", "https://s", "https://g"])
+        XCTAssertEqual(StudyProgramHomeContainer.imageURLs(s), ["https://c", "https://s"])   // rows load list copies
     }
 }

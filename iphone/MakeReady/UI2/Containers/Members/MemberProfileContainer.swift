@@ -36,7 +36,7 @@ struct MemberProfileContainer: View {
         // reaches it only once cached, and its arrival changes the screen's input (round 1).
         let state = {
             var state = mapped
-            state.programCoverURLs = Self.cachedCoverURLs(mapped.programCoverURLs)
+            state.programCoverURLs = CoverImageLoader.cachedListURLs(mapped.programCoverURLs)   // cover-image-sizes
             state.fieldsEditable = app.memberDetails[memberId] != nil     // ui2-members-edit D27
             return state
         }()
@@ -94,7 +94,7 @@ struct MemberProfileContainer: View {
         .coverViewerPresentation(url: viewerURL, accessibilityLabel: Self.viewerLabel, onClose: { viewerURL = nil })
         .task { await Self.load(memberId: memberId, authManager: authManager) }
         .task(id: mapped.programCoverURLs) {
-            if await Self.seedCovers(mapped.programCoverURLs) { coversSeeded += 1 }
+            if await CoverImageLoader.seedList(mapped.programCoverURLs) { coversSeeded += 1 }
         }
     }
 
