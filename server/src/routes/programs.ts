@@ -22,7 +22,14 @@ import { recalculateLessonEstimate } from '../services/lesson-estimate.service.j
 import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '../services/youtube.js'
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
 import { canManageOrgContent, isSuperAdmin, getManageableOrgIds } from '../services/permission.js'
-import { PROGRAM_NAME_INCLUDE, createBlankProgram, toProgramPayload } from '../services/study-program.service.js'
+import {
+  PROGRAM_NAME_INCLUDE,
+  buildProgramListWhere,
+  createBlankProgram,
+  privateProgramVisibility,
+  programListScope,
+  toProgramPayload,
+} from '../services/study-program.service.js'
 
 // Configure multer for ZIP upload (memory storage)
 const uploadZip = multer({
@@ -433,52 +440,35 @@ router.get('/programs', requireAuth, async (req, res) => {
     const userId = (req.user as any).id
     // Scope by the caller's real role, not by auth method — a self-minted API
     // key must not see more than the user's session would. Super admins (incl.
-    // the global admin key's owner) see all orgs; everyone else is org-scoped.
+    // the global admin key's owner) see all orgs; everyone else sees every org
+    // they manage plus their own programs (ui2-programs D14).
     const isSuperAdminUser = await isSuperAdmin(userId)
-    const userOrgId = await getUserOrgId(userId)
+    const orgIds = isSuperAdminUser ? null : await programListScope(userId)
 
-    const includeInactive = isSuperAdminUser && req.query.includeInactive === 'true'
-
-    const where: any = {
-      ...(isSuperAdminUser ? {} : accessFilter(userOrgId, userId)),
-      ...(includeInactive ? {} : { isActive: true }),
+    // ui2-programs D14: ?orgId= narrows to one org of the caller's scope.
+    const orgId = typeof req.query.orgId === 'string' && req.query.orgId ? req.query.orgId : undefined
+    if (orgId && orgIds !== null && !orgIds.includes(orgId)) {
+      return res.status(400).json({ success: false, error: 'orgId is not one of your organizations' })
     }
 
-    // Filter by creator (group leader)
-    if (req.query.creatorId) {
-      where.creatorId = req.query.creatorId as string
-    }
+    const split = (v: unknown) =>
+      typeof v === 'string' ? v.split(',').map((x) => x.trim()).filter(Boolean) : []
 
-    // Filter by multiple group leaders — comma-separated user IDs.
-    // Coexists with single ?creatorId=; if both set, ?leaders= wins.
-    if (req.query.leaders) {
-      const leaderIds = (req.query.leaders as string).split(',').map((id) => id.trim()).filter(Boolean)
-      if (leaderIds.length > 0) {
-        where.creatorId = { in: leaderIds }
-      }
-    }
-
-    // Filter by published status
-    if (req.query.isPublished === 'true') {
-      where.isPublished = true
-    } else if (req.query.isPublished === 'false') {
-      where.isPublished = false
-    }
-
-    // Filter by group (programs enrolled in a specific group)
-    if (req.query.groupId) {
-      where.enrollments = {
-        some: { groupId: req.query.groupId as string },
-      }
-    }
-
-    // Filter by tag(s) — comma-separated, matches programs with any of the tags
-    if (req.query.tag) {
-      const tagList = (req.query.tag as string).split(',').map((t) => t.toLowerCase().trim()).filter(Boolean)
-      if (tagList.length > 0) {
-        where.tags = { some: { tag: { in: tagList } } }
-      }
-    }
+    const where = buildProgramListWhere({
+      userId,
+      orgIds,
+      // ui2-programs D13: other leaders' private programs are not listed.
+      privacy: await privateProgramVisibility(userId),
+      includeInactive: isSuperAdminUser && req.query.includeInactive === 'true',
+      orgId,
+      creatorId: typeof req.query.creatorId === 'string' ? req.query.creatorId : undefined,
+      // Multiple group leaders — matches the program's leader or its creator (D14).
+      leaders: split(req.query.leaders),
+      isPublished: req.query.isPublished === 'true' ? true : req.query.isPublished === 'false' ? false : undefined,
+      groupId: typeof req.query.groupId === 'string' ? req.query.groupId : undefined,
+      // Tag(s) — comma-separated, matches programs with any of the tags
+      tags: split(req.query.tag).map((t) => t.toLowerCase()),
+    })
 
     const programs = await prisma.studyProgram.findMany({
       where,
@@ -495,6 +485,18 @@ router.get('/programs', requireAuth, async (req, res) => {
         isPublished: true,
         createdAt: true,
         updatedAt: true,
+        // ui2-programs D15: the list carries everything the program page renders, so a list refresh
+        // never blanks a cached program's settings on the phone.
+        organizationId: true,
+        leaderId: true,
+        isPrivate: true,
+        ageRangeMin: true,
+        ageRangeMax: true,
+        maxMembers: true,
+        memberDirectoryAccess: true,
+        coverOriginalUrl: true,
+        coverFraming: true,
+        ...PROGRAM_NAME_INCLUDE,
         template: {
           select: { id: true, name: true },
         },
@@ -510,10 +512,18 @@ router.get('/programs', requireAuth, async (req, res) => {
       },
     })
 
+    // StudyProgram has no Organization relation — one batched lookup for the names (as groups D10).
+    const programOrgIds = [...new Set(programs.map((p) => p.organizationId).filter((id): id is string => !!id))]
+    const orgs = programOrgIds.length
+      ? await prisma.organization.findMany({ where: { id: { in: programOrgIds } }, select: { id: true, name: true } })
+      : []
+    const orgName = new Map(orgs.map((o) => [o.id, o.name]))
+
     res.json({
       success: true,
       programs: programs.map((p) => ({
-        ...p,
+        ...toProgramPayload(p),
+        organizationName: p.organizationId ? (orgName.get(p.organizationId) ?? null) : null,
         tags: p.tags.map((t) => t.tag),
       })),
     })
