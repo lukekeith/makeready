@@ -16,7 +16,8 @@ struct UI2Shell: View {
     /// members-search-pinned: the keyboard's height and the TabBar's, so the page is padded by
     /// only the part of the keyboard that rises past the TabBar it covers.
     @State private var keyboardHeight: CGFloat = 0
-    @State private var tabBarHeight: CGFloat = 0
+    /// Starts at C-084 §2's 84 (the cells' height) so the first frame lays pages out above it.
+    @State private var tabBarHeight: CGFloat = 84
     /// action-menu-overlay: the TabBar's Add (+) menu is open.
     @State private var addMenuOpen = false
 
@@ -35,8 +36,20 @@ struct UI2Shell: View {
         max(0, keyboardHeight - tabBarHeight)
     }
 
+    /// image-framing-editor (owner walk 2026-10-27): a page's bottom edge never depends on whether
+    /// the TabBar shows — the TabBar is a layer over the pages, and a page reserves its height (a
+    /// full-screen page, the home-indicator clearance only), so the bar sliding away moves nothing.
+    static func pageBottomPadding(fullScreen: Bool, tabBarHeight: CGFloat, safeBottom: CGFloat) -> CGFloat {
+        fullScreen ? safeBottom : tabBarHeight
+    }
+
+    /// The window's bottom safe area — the shell ignores it, so a full-screen page re-applies it.
+    private var safeBottom: CGFloat {
+        (UIApplication.shared.connectedScenes.first as? UIWindowScene)?.keyWindow?.safeAreaInsets.bottom ?? 0
+    }
+
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack(alignment: .bottom) {
             // ui2-members-browse D1/D2: one NavigationStack per tab, above the TabBar. Home stays
             // mounted — its TopNav keeps its own scroll position (SPEC D12) and its pushed page
             // survives a tab switch (D2); any other tab mounts while selected (none pushes yet).
@@ -54,7 +67,8 @@ struct UI2Shell: View {
                                                            tabBarHeight: model.showsTabBar ? tabBarHeight : 0))
             // C-084 §2 Motion: "the selection switches instantly with no animation"; a re-tap
             // with a page pushed pops it (D20, the system pop).
-            // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen.
+            // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen; the
+            // bar is drawn over the pages, so removing it changes no page's layout.
             if model.showsTabBar {
                 TabBar(selected: model.tab, onSelect: { model.apply(.tab($0)) }, onAdd: { addMenuOpen = true })
                     .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { tabBarHeight = $0 }
@@ -76,8 +90,7 @@ struct UI2Shell: View {
         }
         // The TabBar slides out under an editor's push and back in on its pop, on the push's timing.
         .animation(Motion.standard, value: model.showsTabBar)
-        // The TabBar draws over the bottom safe area; without it, the page keeps that inset.
-        .ignoresSafeArea(.container, edges: model.showsTabBar ? .bottom : [])
+        .ignoresSafeArea(.container, edges: .bottom)
         // filter-menu-fullscreen: full-screen menus (C-036) draw here, above TopNav and TabBar.
         .ui2OverlayHost()
         // invite-member Fixes (E6): surfaced errors (`recordError(surface: true)`) draw above everything.
@@ -120,11 +133,16 @@ struct UI2Shell: View {
     private func stack(for tab: TabBar.Tab) -> some View {
         NavigationStack(path: pathBinding(for: tab)) {
             root(for: tab)
+                .padding(.bottom, Self.pageBottomPadding(fullScreen: false, tabBarHeight: tabBarHeight, safeBottom: safeBottom))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .toolbar(.hidden, for: .navigationBar)
                 .background(UI2InteractivePop())
                 .navigationDestination(for: UI2Destination.self) { destination in
-                    UI2PushedPage { page(for: destination) }   // group-cover-image D26: + its back-swipe guard
+                    UI2PushedPage {                            // group-cover-image D26: + its back-swipe guard
+                        page(for: destination)
+                            .padding(.bottom, Self.pageBottomPadding(fullScreen: destination.isFullScreen,
+                                                                     tabBarHeight: tabBarHeight, safeBottom: safeBottom))
+                    }
                 }
         }
         .environment(\.ui2Navigator, UI2Navigator(

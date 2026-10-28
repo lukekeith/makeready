@@ -26,6 +26,14 @@ final class UI2ShellModelTests: XCTestCase {
         m.apply(.tab(.search))
         XCTAssertTrue(m.showsTabBar)
     }
+    /// Owner walk 2026-10-27: a page's bottom edge is fixed by what the page is, never by the
+    /// TabBar's presence — so the bar sliding away under an editor moves nothing on it.
+    func testPageBottomPaddingIgnoresTheTabBarsPresence() {
+        XCTAssertEqual(UI2Shell.pageBottomPadding(fullScreen: false, tabBarHeight: 84, safeBottom: 34), 84)
+        XCTAssertEqual(UI2Shell.pageBottomPadding(fullScreen: true, tabBarHeight: 84, safeBottom: 34), 34)
+        XCTAssertTrue(UI2Destination.editGroupCover(groupId: "g", source: .stored).isFullScreen)
+        XCTAssertFalse(UI2Destination.createGroup.isFullScreen)
+    }
     func testTopNavOnlyOnHome() {
         var m = UI2ShellModel()
         for tab in [TabBar.Tab.calendar, .search, .profile] { m.apply(.tab(tab)); XCTAssertFalse(m.showsTopNav) }
