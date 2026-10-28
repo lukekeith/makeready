@@ -319,6 +319,19 @@ export async function getManageableOrgIds(userId: string): Promise<string[]> {
  * (`{}`). Spread into a `group.findFirst/findMany` where alongside
  * `{ id, isActive: true }`; a non-matching group falls through and reads as 404.
  */
+/**
+ * ui2-programs D20: the StudyProgram twin of `groupManageFilter` — the programs a user may MANAGE:
+ * ones they created OR any program in an org they own / hold a role in. Super admins match every
+ * program (`{}`). A non-matching program falls through and reads as 404.
+ */
+export async function programManageFilter(userId: string): Promise<Prisma.StudyProgramWhereInput> {
+  if (await isSuperAdmin(userId)) return {}
+  const orgIds = await getManageableOrgIds(userId)
+  return orgIds.length > 0
+    ? { OR: [{ creatorId: userId }, { organizationId: { in: orgIds } }] }
+    : { creatorId: userId }
+}
+
 export async function groupManageFilter(userId: string): Promise<Prisma.GroupWhereInput> {
   if (await isSuperAdmin(userId)) return {}
   const orgIds = await getManageableOrgIds(userId)

@@ -21,12 +21,15 @@ import {
 import { recalculateLessonEstimate } from '../services/lesson-estimate.service.js'
 import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '../services/youtube.js'
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
-import { canManageOrgContent, isSuperAdmin, getManageableOrgIds } from '../services/permission.js'
+import { canManageOrgContent, isSuperAdmin, programManageFilter } from '../services/permission.js'
+import { AGE_RANGE_INVERTED_MESSAGE, isAgeRangeInverted } from '../services/group-fields.js'
 import {
   PROGRAM_NAME_INCLUDE,
   buildProgramListWhere,
   createBlankProgram,
+  isEligibleProgramLeader,
   privateProgramVisibility,
+  programReadFilter,
   programListScope,
   toProgramPayload,
 } from '../services/study-program.service.js'
@@ -68,15 +71,8 @@ function accessFilter(userOrgId: string | undefined, userId: string) {
  * filter and reads as 404 — preserving the existing "stranger gets 404"
  * behavior without a separate ownership branch in every handler.
  */
-async function mutationFilter(userId: string): Promise<Prisma.StudyProgramWhereInput> {
-  // Super admins bypass org scoping entirely.
-  if (await isSuperAdmin(userId)) return {}
-
-  const orgIds = await getManageableOrgIds(userId)
-  return orgIds.length > 0
-    ? { OR: [{ creatorId: userId }, { organizationId: { in: orgIds } }] }
-    : { creatorId: userId }
-}
+// ui2-programs D20: the filter lives in the service layer now (`permission.programManageFilter`).
+const mutationFilter = programManageFilter
 
 // ─── Preview Tokens ─────────────────────────────────────────────────────────
 // Database-backed tokens that let WKWebView authenticate preview routes
@@ -720,7 +716,6 @@ router.get('/programs/:id', requireAuth, async (req, res) => {
   try {
     const { id } = req.params
     const userId = (req.user as any).id
-    const userOrgId = await getUserOrgId(userId)
 
     const lessonPage = Math.max(1, parseInt(req.query.lessonPage as string) || 1)
     const lessonLimit = Math.min(60, Math.max(1, parseInt(req.query.lessonLimit as string) || 30))
@@ -729,7 +724,8 @@ router.get('/programs/:id', requireAuth, async (req, res) => {
     const program = await prisma.studyProgram.findFirst({
       where: {
         id,
-        ...accessFilter(userOrgId, userId),
+        // ui2-programs D14: the same orgs the list returns.
+        ...(await programReadFilter(userId)),
         isActive: true,
       },
       select: {
@@ -744,6 +740,17 @@ router.get('/programs/:id', requireAuth, async (req, res) => {
         isPublished: true,
         createdAt: true,
         updatedAt: true,
+        // ui2-programs D15: the settings, leader and cover framing the program page renders.
+        organizationId: true,
+        leaderId: true,
+        isPrivate: true,
+        ageRangeMin: true,
+        ageRangeMax: true,
+        maxMembers: true,
+        memberDirectoryAccess: true,
+        coverOriginalUrl: true,
+        coverFraming: true,
+        ...PROGRAM_NAME_INCLUDE,
         template: {
           select: { id: true, name: true, description: true },
         },
@@ -819,7 +826,7 @@ router.get('/programs/:id', requireAuth, async (req, res) => {
     res.json({
       success: true,
       program: {
-        ...program,
+        ...toProgramPayload(program),
         tags: program.tags.map((t) => t.tag),
       },
       pagination: {
@@ -884,15 +891,31 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
 
     const schema = z.object({
       name: z.string().min(1).max(200).optional(),
-      description: z.string().max(2000).optional(),
+      // ui2-programs D10/D15: null clears the description.
+      description: z.string().max(2000).optional().nullable(),
       days: z.number().int().min(1).max(360).optional(),
       templateId: z.string().uuid().optional(),
       coverImageUrl: z.string().url().optional().nullable(),
       isPublished: z.boolean().optional(),
       organizationId: z.string().uuid().optional(),
+      // ui2-programs D15: the program settings, mirroring PATCH /api/groups/:id.
+      isPrivate: z.boolean().optional(),
+      ageRange: z
+        .object({
+          min: z.number().int().min(0).max(120).optional().nullable(),
+          max: z.number().int().min(0).max(120).optional().nullable(),
+        })
+        .optional()
+        .nullable(),
+      maxMembers: z.number().int().min(1).optional().nullable(),
+      memberDirectoryAccess: z.enum(['ALLOWED', 'NAMES_ONLY', 'NOT_ALLOWED']).optional(),
+      leaderId: z.string().uuid().optional().nullable(),
     })
 
-    const body = schema.parse(req.body)
+    const { ageRange, leaderId, organizationId, ...body } = schema.parse(req.body)
+    if (isAgeRangeInverted(ageRange)) {
+      return res.status(400).json({ success: false, error: AGE_RANGE_INVERTED_MESSAGE })
+    }
 
     // Authorization is by the caller's actual permissions, NOT by auth method:
     // a self-minted API key must not grant more than the user's session would.
@@ -904,6 +927,56 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
 
     if (!existingProgram) {
       return res.status(404).json({ success: false, error: 'Program not found' })
+    }
+
+    // ui2-programs D15/D18: the settings the phone edits, validated before anything is written.
+    const settings: Prisma.StudyProgramUncheckedUpdateInput = {}
+    if (ageRange !== undefined) {
+      const min = ageRange === null ? null : ageRange.min !== undefined ? ageRange.min : existingProgram.ageRangeMin
+      const max = ageRange === null ? null : ageRange.max !== undefined ? ageRange.max : existingProgram.ageRangeMax
+      // One bound sent is checked against the stored other bound.
+      if (isAgeRangeInverted({ min, max })) {
+        return res.status(400).json({ success: false, error: AGE_RANGE_INVERTED_MESSAGE })
+      }
+      settings.ageRangeMin = min
+      settings.ageRangeMax = max
+    }
+    // D18: a program may only move into an org the caller belongs to (as PATCH /api/groups/:id).
+    if (organizationId !== undefined) {
+      const targetOrg = await prisma.organization.findUnique({
+        where: { id: organizationId },
+        select: { id: true, ownerId: true },
+      })
+      if (!targetOrg) {
+        return res.status(400).json({ success: false, error: 'Organization not found' })
+      }
+      if (!(await isSuperAdmin(userId))) {
+        const belongs =
+          targetOrg.ownerId === userId ||
+          (await prisma.userRole.findFirst({
+            where: { userId, organizationId: targetOrg.id },
+            select: { id: true },
+          })) !== null
+        if (!belongs) {
+          return res.status(403).json({ success: false, error: 'You do not belong to that organization' })
+        }
+      }
+      settings.organizationId = targetOrg.id
+    }
+    // D15: the leader must belong to the program's org (after any move).
+    if (leaderId !== undefined) {
+      if (leaderId !== null) {
+        const org = organizationId ?? existingProgram.organizationId
+        if (!(await isEligibleProgramLeader(leaderId, org, existingProgram.creatorId))) {
+          return res.status(400).json({ success: false, error: "The leader must belong to the program's organization" })
+        }
+      }
+      settings.leaderId = leaderId
+    }
+    if (body.coverImageUrl !== undefined) {
+      // ui2-programs D11: a cover set here drops the stored original and framing (group-cover-image D9).
+      settings.coverOriginalUrl = null
+      settings.coverFraming = Prisma.DbNull
     }
 
     // If template is changing, get the new template
@@ -1006,6 +1079,7 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
           where: { id },
           data: {
             ...body,
+            ...settings,
             ...(newTemplate ? { templateId: newTemplate.id } : {}),
             ...(publishedAt !== undefined ? { publishedAt } : {}),
             updatedById: userId,
@@ -1018,6 +1092,7 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
         where: { id },
         data: {
           ...body,
+          ...settings,
           ...(newTemplate ? { templateId: newTemplate.id } : {}),
           ...(publishedAt !== undefined ? { publishedAt } : {}),
           updatedById: userId,
@@ -1029,6 +1104,7 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
     const program = await prisma.studyProgram.findUnique({
       where: { id },
       include: {
+        ...PROGRAM_NAME_INCLUDE,
         template: { select: { id: true, name: true } },
         lessons: {
           orderBy: { dayNumber: 'asc' },
@@ -1073,7 +1149,7 @@ router.patch('/programs/:id', requireAuth, async (req, res) => {
       organizationId: existingProgram.organizationId,
     })
 
-    res.json({ success: true, program })
+    res.json({ success: true, program: program ? toProgramPayload(program) : program })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })

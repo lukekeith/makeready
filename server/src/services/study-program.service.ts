@@ -121,3 +121,35 @@ export function buildProgramListWhere(o: ProgramListOptions): Prisma.StudyProgra
   if (o.tags?.length) and.push({ tags: { some: { tag: { in: o.tags } } } })
   return { AND: and }
 }
+
+/**
+ * D14: the read scope for one program — the same orgs the list returns, so a program the list shows
+ * never 404s when opened. Super admins read every program.
+ */
+export async function programReadFilter(userId: string): Promise<Prisma.StudyProgramWhereInput> {
+  if (await isSuperAdmin(userId)) return {}
+  const orgIds = await programListScope(userId)
+  return orgIds.length > 0
+    ? { OR: [{ organizationId: { in: orgIds } }, { creatorId: userId }] }
+    : { creatorId: userId }
+}
+
+/**
+ * D15: a program's leader is its org's owner or a role-holder there (the set `GET /api/group-leaders`
+ * offers). A program with no org can only be led by its creator.
+ */
+export async function isEligibleProgramLeader(
+  leaderId: string,
+  organizationId: string | null,
+  creatorId: string,
+): Promise<boolean> {
+  if (leaderId === creatorId) return true
+  if (!organizationId) return false
+  const owned = await prisma.organization.findFirst({
+    where: { id: organizationId, ownerId: leaderId },
+    select: { id: true },
+  })
+  if (owned) return true
+  const role = await prisma.userRole.findFirst({ where: { userId: leaderId, organizationId }, select: { id: true } })
+  return role !== null
+}
