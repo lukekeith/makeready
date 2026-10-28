@@ -1,7 +1,7 @@
 size: lg
-state: planned
-next: /builder:resume --path docs/features/image-framing-editor
-head: 491f830
+state: building
+next: generalise d2m edit-cover (aspect · mask · title, D9), then /builder:resume --path docs/features/image-framing-editor
+head: d2d7f38
 ticket: none
 branch: main
 pr: none
