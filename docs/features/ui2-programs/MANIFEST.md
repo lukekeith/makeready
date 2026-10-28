@@ -15,3 +15,4 @@ ready: none
 ui2: study-programs, create-study-program, study-program-home
 auto: off
 blocked: none
+build: here
