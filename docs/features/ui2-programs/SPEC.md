@@ -129,13 +129,13 @@ program created in 2.0 can have zero lessons, which 1.0's program page renders a
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `StudyProgram.isPrivate`, `ageRangeMin`, `ageRangeMax`, `maxMembers`, `memberDirectoryAccess` | every program payload; PATCH takes `ageRange: {min, max}` | study-program-home settings rows; D12, D15 | planned · T1 |
-| SC2 | ADD | `StudyProgram.leaderId` → `User` (relation `StudyProgramLeader`, back-relation `User.ledStudyPrograms`, nullable, indexed, backfilled `creatorId`) | `leaderId` + `leaderName` on every program payload | details grid Group leader; D12, D15, D19 | planned · T1 |
-| SC3 | ADD | `StudyProgram.coverOriginalUrl` (text), `coverFraming` (Json) | every program payload, cover-image response | cover Edit reopens the framing; D11 | planned · T1, T5 |
-| SC4 | EDIT | `POST /api/programs` | `templateId` optional; template-less → `days` 0, unpublished | create from a title alone; D8 | planned · T2 |
-| SC5 | EDIT | `GET /api/programs` | scope widened to every managed org; `orgId` param; + org id/name, names, D12 fields; private filter; `leaders` matches leader or creator | Orgs/Leaders chips, discovery, cache safety; D3, D13, D14, D15 | planned · T3 |
-| SC6 | EDIT | detail / PATCH / POST responses; PATCH body | + `creatorName`, `leaderName` + SC1–SC3 fields; PATCH keys (D15), org-move check (D18) | Author + leader display, field edits; D15, D18 | planned · T2, T4 |
-| SC7 | EDIT | `POST /api/programs/:id/cover-image` | + `originalData?`, `framing?`; response + top-level `coverOriginalUrl`, `coverFraming` | cover flow; D11 | planned · T5 |
+| SC1 | ADD | `StudyProgram.isPrivate`, `ageRangeMin`, `ageRangeMax`, `maxMembers`, `memberDirectoryAccess` | every program payload; PATCH takes `ageRange: {min, max}` | study-program-home settings rows; D12, D15 | landed 3c8803e · migration 20261028080040 · T1 |
+| SC2 | ADD | `StudyProgram.leaderId` → `User` (relation `StudyProgramLeader`, back-relation `User.ledStudyPrograms`, nullable, indexed, backfilled `creatorId`) | `leaderId` + `leaderName` on every program payload | details grid Group leader; D12, D15, D19 | landed 3c8803e · migration 20261028080040 · T1 |
+| SC3 | ADD | `StudyProgram.coverOriginalUrl` (text), `coverFraming` (Json) | every program payload, cover-image response | cover Edit reopens the framing; D11 | landed 3c8803e · migration 20261028080040 · T1, T5 |
+| SC4 | EDIT | `POST /api/programs` | `templateId` optional; template-less → `days` 0, unpublished | create from a title alone; D8 | landed 3af5d89 · T2 |
+| SC5 | EDIT | `GET /api/programs` | scope widened to every managed org; `orgId` param; + org id/name, names, D12 fields; private filter; `leaders` matches leader or creator | Orgs/Leaders chips, discovery, cache safety; D3, D13, D14, D15 | landed 6f31ae1 · T3 |
+| SC6 | EDIT | detail / PATCH / POST responses; PATCH body | + `creatorName`, `leaderName` + SC1–SC3 fields; PATCH keys (D15), org-move check (D18) | Author + leader display, field edits; D15, D18 | landed 3af5d89, Task 4 · T2, T4 |
+| SC7 | EDIT | `POST /api/programs/:id/cover-image` | + `originalData?`, `framing?`; response + top-level `coverOriginalUrl`, `coverFraming` | cover flow; D11 | landed Task 5 · T5 |
 
 **Data plan:** SC1–SC3 go through `server/schema/*.yaml` → `schema:diff` → one Atlas migration (house
 rules; diff/apply through `scripts/atlas.sh --var database_url=…`, never `npm run schema:diff`, which
