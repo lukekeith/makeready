@@ -30,7 +30,7 @@ of these program tokens and is specced with the activities screens.
 | Token | Value | Figma variable | iOS mapping | Web mapping |
 |---|---|---|---|---|
 | color-layout-background | #030405 | `layout/background` | (new) | (new) |
-| color-layout-border | #2f3639 | `layout/border` | (new) | (new) |
+| color-layout-border | #1f2426 | `layout/border` | (new) | (new) |
 | color-card-background | #1f2124 | `card/background` | (new) | (new) |
 | color-card-border | #2f363a | `card/border` | (new) | (new) |
 | color-accent | #6c47ff | `Purple/100%` | (new) | (new) |
