@@ -158,6 +158,8 @@ block pointing at `docs/ui2/` and its resolver. The pipeline **reads** that desi
 back to the `/ui2-*` or `/d2m-*` command that owns it; it never writes a contract, registry row,
 token or note.
 
+**d2m-built views (`iphone/MakeReadyUI`):** before editing a d2m-built view, call `check_project_change` (the `d2m-channel` MCP server); after committing a fast change, call `report_project_change`; never edit a handover change in place — call `request_project_change`.
+
 **Replaces `/build-spec*` (2026-09-24).** A folder still in the old numbered-suite layout
 (`01-architecture.md` … `09-gaps-and-decisions.md`) is converted, not rewritten:
 `/builder:resume --path docs/features/<name>` offers the conversion and leaves every numbered doc
