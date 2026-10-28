@@ -271,6 +271,27 @@ age, max members, directory SC1; cover original + framing SC3; list org id/name 
 `@State` (as Groups), program enrollments live in `AppState.programEnrollments` (exists). No owner
 notes on the three screens (`ui2-notes.mjs read`, 2026-10-28).
 
+## Plan
+
+The plan, with its code: `docs/features/ui2-programs/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · StudyProgram settings, leader and cover-framing columns
+- Phase 1 · Task 2 · Template-less create + the program payload mapper
+- Phase 1 · Task 3 · Program list — every managed org, private filter, full fields
+- Phase 2 · Task 4 · Detail + PATCH — names, settings, org-move check, program manage filter
+- Phase 2 · Task 5 · Program cover with original + framing
+- Phase 2 · Task 6 · Add-lesson on an empty program
+- Phase 2 · Task 7 · Fixture layers for the three screens — and the contract freeze
+- Phase 3 · Task 8 · StudyProgram decodes the new fields without risking the cache
+- Phase 3 · Task 9 · ProgramActions — create, patch, cover, forget, lesson paging
+- Phase 3 · Task 10 · Shell routes for programs
+- Phase 4 · Task 11 · Programs list container
+- Phase 4 · Task 12 · Program page container
+- Phase 4 · Task 13 · Create study program container
+- Phase 5 · Task 14 · Program field edit pages
+- Phase 5 · Task 15 · Program cover flow
+- Phase 5 · Task 16 · Repoint + retire sweep (R1–R3)
+
 ## Prototype
 
 Ref: `study-programs`, `create-study-program`, `study-program-home` — d2m era 2.0, every screen and
