@@ -122,6 +122,15 @@ final class ProgramActionsTests: XCTestCase {
         XCTAssertTrue(state.programEnrollmentIndex.get("p1").isEmpty)
     }
 
+    func testForgetClearsTheProgramPagesEnrollments() throws {
+        let json = #"{"id":"pe1","groupId":"g1","studyProgramId":"p1","startDate":"2026-10-01T00:00:00Z","endDate":"2026-11-01T00:00:00Z"}"#
+        state.programEnrollments.upsert(try JSONDecoder.apiDecoder.decode(ProgramEnrollment.self, from: Data(json.utf8)))
+        state.programProgramEnrollmentIndex.add(parentId: "p1", childId: "pe1")
+        actions.forgetProgram(id: "p1")
+        XCTAssertTrue(state.programEnrollmentsFor(programId: "p1").isEmpty)
+        XCTAssertNil(state.programEnrollments["pe1"])
+    }
+
     // MARK: - Every lesson page (D5)
 
     private func lessonJSON(_ id: String, day: Int) -> String {

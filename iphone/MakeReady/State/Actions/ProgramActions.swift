@@ -466,6 +466,9 @@ let api: APIClientProtocol
         state.enrollments.removeMany(enrollmentIds)
         state.programEnrollmentIndex.removeAll(parentId: id)
 
+        state.programEnrollments.removeMany(state.programProgramEnrollmentIndex.get(id))
+        state.programProgramEnrollmentIndex.removeAll(parentId: id)
+
         state.persist()
     }
 
