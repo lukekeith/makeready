@@ -221,27 +221,4 @@ struct MemberProfileContainer: View {
             ?? MembersHomeMapper.nonEmpty(detail.profilePicture)
             ?? MembersHomeMapper.nonEmpty(detail.googlePicture)
     }
-
-    /// C-059 §4 `cover: Image?` is caller-resolved: the screen reads Ui2ImageCache only
-    /// (`MembersProfileScreen.cachedImage`), so the page puts each program cover there. A cover
-    /// that fails to load keeps C-059's missing-cover box. Returns whether any cover landed.
-    @MainActor
-    static func seedCovers(_ urls: [String]) async -> Bool {
-        var seeded = false
-        for raw in urls {
-            guard let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
-                  Ui2ImageCache.shared.image(for: url) == nil else { continue }
-            do {
-                let (data, _) = try await URLSession.shared.data(from: url)
-                if let image = UIImage(data: data) {
-                    Ui2ImageCache.shared.seed(image, for: url)
-                    seeded = true
-                }
-            } catch {
-                if error is CancellationError || (error as? URLError)?.code == .cancelled { return seeded }
-                AppState.shared.recordError(error, context: "MemberProfileContainer.seedCovers", surface: false)
-            }
-        }
-        return seeded
-    }
 }

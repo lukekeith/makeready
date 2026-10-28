@@ -186,7 +186,7 @@ struct EditMemberAvatarContainer: View {
         let leave = { navigator.popIfTop(.editMemberAvatar(memberId: memberId, source: source)) }
         guard let detail = AppState.shared.memberDetails[memberId],
               let stored = Self.opening(detail: detail) else { leave(); return }
-        _ = await MemberProfileContainer.seedCovers([stored.url])
+        _ = await UI2ImageLoader.seed([stored.url], context: "EditMemberAvatarContainer")
         // Silent: the page was closed during the load — no banner for a page that is gone.
         guard !Task.isCancelled else { return }
         guard let opened = Self.immediateOpening(memberId: memberId, source: source) else {

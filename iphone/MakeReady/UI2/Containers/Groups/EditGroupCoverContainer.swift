@@ -238,7 +238,7 @@ struct EditGroupCoverContainer: View {
         let leave = { navigator.popIfTop(owner.destination(source)) }
         guard let fields = owner.fields,
               let stored = Self.opening(fields) else { leave(); return }
-        _ = await MemberProfileContainer.seedCovers([stored.url])
+        _ = await UI2ImageLoader.seed([stored.url], context: "EditGroupCoverContainer")
         // Silent: the page was closed during the load — no banner for a page that is gone.
         guard !Task.isCancelled else { return }
         guard let opened = Self.immediateOpening(owner: owner, source: source) else {

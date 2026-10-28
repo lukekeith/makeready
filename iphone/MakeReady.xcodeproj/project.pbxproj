@@ -516,6 +516,7 @@
 		AD0DFE8C18AC4AE04680B250 /* EditableFieldRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A01F7586EF6E6C5B6DF4E767 /* EditableFieldRow.swift */; };
 		AD7DD28434CA3DFE8AF432EA /* CalendarEventRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = BABD4EEE3782A40450EDC653 /* CalendarEventRow.swift */; };
 		ADCE66B8B937645058088335 /* GlyphButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 746C3F28C4E9089EC9034E99 /* GlyphButton.swift */; };
+		ADDF9A9E039A20357EBC46C9 /* UI2ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32EBF20904DF63847DD15AC /* UI2ImageLoader.swift */; };
 		AE32A3B96104E66B5FEA35EA /* ActivityNewScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E952CAE97D190453E43F7C7A /* ActivityNewScreen.swift */; };
 		AF2EF3344204268CDF612A95 /* TaskDisc.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8317984007B14F8F31FC56D /* TaskDisc.swift */; };
 		AF647A088F2FFBC343A6C4C3 /* ValuePair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38E14CE4E15C37FB21E78616 /* ValuePair.swift */; };
@@ -635,6 +636,7 @@
 		CNTC0001000000000000001 /* Contact.swift in Sources */ = {isa = PBXBuildFile; fileRef = CNTC0002000000000000001 /* Contact.swift */; };
 		CONF17022EADF96D0098FAB0 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CONF17012EADF96D0098FAB0 /* Configuration.swift */; };
 		D01BE9C6ABB2586451F15E90 /* ThemeActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = THMA0002000000000001 /* ThemeActions.swift */; };
+		D0BD439B6E29AB970A62F2C9 /* UI2ImageLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F32EBF20904DF63847DD15AC /* UI2ImageLoader.swift */; };
 		D0E29D5E7177920EE7BF0F93 /* RadioOptionRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA76AA758C8BAE03036A7242 /* RadioOptionRow.swift */; };
 		D1539C5732A55B6F6FBFA520 /* CategoryBarTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7D532DD50E7A1292EA2FCBB /* CategoryBarTable.swift */; };
 		D17FE9322256E3B4CA790B32 /* PercentBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = F872551E8E1EBD5B6696457E /* PercentBar.swift */; };
@@ -1341,6 +1343,7 @@
 		F24A76B07F6BD3009C7241C6 /* TabBarButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TabBarButton.swift; sourceTree = "<group>"; };
 		F288E33EC18546D2BC571B03 /* CardEnrolled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEnrolled.swift; sourceTree = "<group>"; };
 		F3249A663601844B407E8B75 /* InputMask.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InputMask.swift; sourceTree = "<group>"; };
+		F32EBF20904DF63847DD15AC /* UI2ImageLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2ImageLoader.swift; sourceTree = "<group>"; };
 		F34B1B3B99424DDCB80AEC60 /* StudyProgramsScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StudyProgramsScreen.swift; path = Screens/Programs/StudyProgramsScreen.swift; sourceTree = "<group>"; };
 		F3595FBA02E83857322B3165 /* ImageFramingModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ImageFramingModel.swift; path = Containers/Groups/ImageFramingModel.swift; sourceTree = "<group>"; };
 		F39EE6699A87B0DF8F4063A7 /* CalendarHomeScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CalendarHomeScreen.swift; path = Screens/Calendar/CalendarHomeScreen.swift; sourceTree = "<group>"; };
@@ -1723,6 +1726,7 @@
 				2DE0189F4315086D68E5CF0F /* FieldEditRules.swift */,
 				1C37495CB83A38766D43E8E0 /* CoverOwner.swift */,
 				54608FD376D4319946A8F422 /* CoverImageLoader.swift */,
+				F32EBF20904DF63847DD15AC /* UI2ImageLoader.swift */,
 			);
 			name = Shared;
 			path = Shared;
@@ -3383,6 +3387,7 @@
 				352BE2CE837FD30C967B63B4 /* CoverOwner.swift in Sources */,
 				CD6B5DBB972FCCFE7EF5F2B1 /* EditProgramCoverContainer.swift in Sources */,
 				625C241FE22E3E94A2D209EB /* CoverImageLoader.swift in Sources */,
+				D0BD439B6E29AB970A62F2C9 /* UI2ImageLoader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3831,6 +3836,7 @@
 				F5277BA5F163BF8BEB6C3A37 /* CoverOwner.swift in Sources */,
 				CA815F47BD922CE8CA2FA644 /* EditProgramCoverContainer.swift in Sources */,
 				2277B00775F8BC5723824C02 /* CoverImageLoader.swift in Sources */,
+				ADDF9A9E039A20357EBC46C9 /* UI2ImageLoader.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -50,7 +50,7 @@ struct CoverViewerOverlay: View {
         .accessibilityAction(.escape) { onClose() }
         .task(id: url) {
             guard let u = URL(string: url) else { return }
-            if Ui2ImageCache.shared.image(for: u) == nil { _ = await MemberProfileContainer.seedCovers([url]) }
+            if Ui2ImageCache.shared.image(for: u) == nil { _ = await UI2ImageLoader.seed([url], context: "CoverViewerOverlay") }
             image = Ui2ImageCache.shared.image(for: u)
         }
     }

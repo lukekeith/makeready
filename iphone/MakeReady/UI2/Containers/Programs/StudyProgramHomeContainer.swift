@@ -106,7 +106,7 @@ struct StudyProgramHomeContainer: View {
         .coverViewerPresentation(url: viewerURL, accessibilityLabel: "Program cover", onClose: { viewerURL = nil })
         .task { await reload() }
         .task(id: Self.imageURLs(mapped)) {
-            if await MemberProfileContainer.seedCovers(Self.imageURLs(mapped)) { imagesSeeded += 1 }
+            if await UI2ImageLoader.seed(Self.imageURLs(mapped), context: "StudyProgramHomeContainer") { imagesSeeded += 1 }
         }
         .task(id: mapped.enrollmentPhotoURLs) {
             if await CoverImageLoader.seedList(mapped.enrollmentPhotoURLs) { imagesSeeded += 1 }
