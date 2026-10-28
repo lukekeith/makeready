@@ -59,10 +59,12 @@ final class EditGroupCoverContainerTests: XCTestCase {
         XCTAssertFalse(EditGroupCoverContainer.blocksBackSwipe(hasChanges: false, isSaving: false))
     }
 
-    /// Owner 2026-10-27 (image-framing-editor walk): the discard confirm is a centred main button
-    /// "Discard changes" with Done demoted to secondary below it — no C-067 row.
+    /// Owner 2026-10-27 (image-framing-editor walk): the discard confirm is a centred destructive
+    /// button "Discard changes" with Done demoted to secondary below it — no C-067 row.
     func testDiscardConfirmIsAMainButtonOverASecondaryDone() {
         XCTAssertEqual(EditGroupCoverContainer.discardLabel, "Discard changes")
+        // Owner 2026-10-27, Figma 4733:53757: the destructive C-048 look, not the white fill.
+        XCTAssertEqual(ActionMenuOverlay.confirmRole, .destructive)
         XCTAssertEqual(ActionMenuOverlay.doneRole(confirming: true), .secondary)
         XCTAssertEqual(ActionMenuOverlay.doneRole(confirming: false), .prominent)
     }

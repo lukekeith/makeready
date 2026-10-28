@@ -66,9 +66,9 @@ struct ActionMenuOverlay: View {
     /// snapshot draws one after the last row too. Default true keeps the snapshot.
     // GAP — C-066 §2 item 1: "including after the last row" (action-menu-overlay B6).
     var hairlineAfterLast: Bool = true
-    /// image-framing-editor (owner 2026-10-27): a confirmation sheet — one centred C-048 prominent
-    /// button with this label in place of the rows, Done demoted to `.secondary` below it. Default
-    /// nil keeps the frozen C-066 snapshot.
+    /// image-framing-editor (owner 2026-10-27, Figma 4733:53757): a confirmation sheet — one centred
+    /// C-048 `.destructive` button with this label in place of the rows, Done demoted to `.secondary`
+    /// below it. Default nil keeps the frozen C-066 snapshot.
     // GAP — C-066 §2 has no confirmation form; routed to /ui2-component-update C-066 (image-framing-editor).
     var confirmLabel: String? = nil
     /// Fired by the confirmation button; no render effect (OQ-PB-3).
@@ -78,7 +78,7 @@ struct ActionMenuOverlay: View {
         // §2: "internal gap 16" — between the actions list and the Done button.
         VStack(spacing: Self.gap) {
             if let confirmLabel {
-                PageActionButton(label: confirmLabel, role: .prominent, onTap: onConfirm).ui2Element("Confirm")
+                PageActionButton(label: confirmLabel, role: Self.confirmRole, onTap: onConfirm).ui2Element("Confirm")
             } else {
                 actionsList.ui2Element("Actions list")
             }
@@ -134,6 +134,9 @@ struct ActionMenuOverlay: View {
     private var doneButton: some View {
         PageActionButton(label: "Done", role: Self.doneRole(confirming: confirmLabel != nil), onTap: onDone)
     }
+
+    /// The confirmation button's C-048 look (Figma 4733:53757).
+    static let confirmRole: PageActionButton.Role = .destructive
 
     /// Done is the prominent button unless a confirmation button holds that place.
     static func doneRole(confirming: Bool) -> PageActionButton.Role {
