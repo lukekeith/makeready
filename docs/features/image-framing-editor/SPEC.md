@@ -208,8 +208,8 @@ Undo = drop both columns.
 
 | # | Finding | Resolution |
 |---|---|---|
-| F1 | The iPhone phase needs d2m `edit-cover` generalised (D9) and `MembersProfileScreen.onAvatarTap` (D10) | build-time risk — the owner runs the d2m update before the iPhone phase; an agent run reaching it first parks as a human step |
-| F3 | An uncommitted hand edit to d2m-owned `EditCoverScreen.swift` (toolbar pair centred, owner 2026-10-27) | build-time risk — commit it or fold it into d2m before the D9 run, or the regenerate loses it |
+| F1 | The iPhone phase needs d2m `edit-cover` generalised (D9) and `MembersProfileScreen.onAvatarTap` (D10) | settled 2026-10-27 — both edits landed as owner-requested build edits (2204730 `edit-cover` aspect·mask·title; 1455c3f `onAvatarTap`), reported to d2m as fast changes (`cmvrflfab…`, `cmvrflg5y…`); the 1:1 circle spec states + captures are a d2m handover request (`cmvrfm1ke…`) — not a walk blocker |
+| F3 | An uncommitted hand edit to d2m-owned `EditCoverScreen.swift` (toolbar pair centred, owner 2026-10-27) | settled 2026-10-27 — committed with 2204730 and named in its d2m report |
 | F4 | Multer `LIMIT_FILE_SIZE` / unexpected-field errors reach Express's default handler as an HTML 500 today (`members.ts:48-61`, no error middleware) | settled in D8: the avatar route maps them to JSON 413 / 400 |
 | F2 | Renaming the group cover's editor pieces touches code that shipped hours ago with agent sign-off only | build-time risk — the rename task runs the group cover's full test set before and after; behaviour unchanged is the gate |
 
