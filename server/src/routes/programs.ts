@@ -22,6 +22,7 @@ import { recalculateLessonEstimate } from '../services/lesson-estimate.service.j
 import { extractYouTubeVideoId, extractStartTime, fetchYouTubeMetadata } from '../services/youtube.js'
 import { normalizeScriptureMarkdown, normalizeScriptureVerses } from '../utils/scripture-content-normalizer.js'
 import { canManageOrgContent, isSuperAdmin, getManageableOrgIds } from '../services/permission.js'
+import { PROGRAM_NAME_INCLUDE, createBlankProgram, toProgramPayload } from '../services/study-program.service.js'
 
 // Configure multer for ZIP upload (memory storage)
 const uploadZip = multer({
@@ -215,9 +216,10 @@ async function canPreview(userId: string, creatorId: string, programOrgId: strin
 router.post('/programs', requireAuth, async (req, res) => {
   try {
     const schema = z.object({
-      name: z.string().min(1).max(200),
+      name: z.string().trim().min(1).max(200),
       description: z.string().max(2000).optional(),
-      templateId: z.string().uuid(),
+      // ui2-programs D8: optional — without it the program is created blank (no lessons, days 0).
+      templateId: z.string().uuid().optional(),
       days: z.number().int().min(1).max(360).default(30),
       coverImageUrl: z.string().url().optional(),
       isPublished: z.boolean().default(false),
@@ -227,10 +229,31 @@ router.post('/programs', requireAuth, async (req, res) => {
     const userId = (req.user as any).id
     const userOrgId = await getUserOrgId(userId)
 
+    // ui2-programs D8: a title alone makes a blank program — `days` and `isPublished` are ignored on
+    // this path (an empty program can't be enrolled, so it is never published at create).
+    if (!body.templateId) {
+      const blank = await createBlankProgram({
+        name: body.name,
+        description: body.description ?? null,
+        userId,
+        organizationId: userOrgId ?? null,
+      })
+      trackActivity({
+        actorId: userId,
+        action: 'CREATED',
+        resourceType: 'PROGRAM',
+        resourceId: blank.id,
+        resourceName: blank.name,
+        organizationId: userOrgId,
+      })
+      return res.json({ success: true, program: toProgramPayload(blank) })
+    }
+    const templateId = body.templateId
+
     // Verify template exists and is accessible
     const template = await prisma.lessonTemplate.findFirst({
       where: {
-        id: body.templateId,
+        id: templateId,
         isActive: true,
         OR: [
           { isSystem: true },
@@ -256,12 +279,13 @@ router.post('/programs', requireAuth, async (req, res) => {
         data: {
           name: body.name,
           description: body.description,
-          templateId: body.templateId,
+          templateId,
           days: body.days,
           coverImageUrl: body.coverImageUrl,
           isPublished: body.isPublished,
           publishedAt: body.isPublished ? new Date() : null,
           creatorId: userId,
+          leaderId: userId, // ui2-programs D12: led by its creator
           // userOrgId resolves owners, members, and role-holders (group
           // leaders) — not just org owners — so leader-created programs are
           // visible org-wide.
@@ -323,6 +347,7 @@ router.post('/programs', requireAuth, async (req, res) => {
       return tx.studyProgram.findUnique({
         where: { id: newProgram.id },
         include: {
+          ...PROGRAM_NAME_INCLUDE,
           template: {
             select: { id: true, name: true },
           },
@@ -354,7 +379,7 @@ router.post('/programs', requireAuth, async (req, res) => {
       })
     }
 
-    res.json({ success: true, program })
+    res.json({ success: true, program: program ? toProgramPayload(program) : program })
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
