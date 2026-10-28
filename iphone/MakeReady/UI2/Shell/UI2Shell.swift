@@ -65,6 +65,11 @@ struct UI2Shell: View {
             }
             .safeAreaPadding(.bottom, Self.keyboardOverlap(keyboardHeight: keyboardHeight,
                                                            tabBarHeight: model.showsTabBar ? tabBarHeight : 0))
+            // The pages reserve their own bottom edge (`pageBottomPadding`). Reaching the screen
+            // edge, they would also get the 34pt home-indicator inset and stop that far short of
+            // the TabBar — a bare black band (owner screenshots 2026-10-27). The keyboard padding
+            // above is applied inside this, so it still reaches them.
+            .ignoresSafeArea(.container, edges: .bottom)
             // C-084 §2 Motion: "the selection switches instantly with no animation"; a re-tap
             // with a page pushed pops it (D20, the system pop).
             // image-framing-editor (owner walk 2026-10-27): the image editors are full-screen; the
