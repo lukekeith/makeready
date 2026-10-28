@@ -289,17 +289,44 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(m.path(for: .home), [])
     }
 
-    /// D3 + home-dashboard-data D24: pull-to-refresh is wired for Home and Groups only.
-    func testRefreshableSectionsAreHomeAndGroups() {
+    /// D3 + home-dashboard-data D24 + ui2-programs D5: pull-to-refresh is wired for Home, Groups
+    /// and Programs only.
+    func testRefreshableSectionsAreHomeGroupsAndPrograms() {
         var m = UI2ShellModel()
         XCTAssertEqual(m.refreshableSection, .home)
         m.apply(.section(.groups))
         XCTAssertEqual(m.refreshableSection, .groups)
+        m.apply(.section(.programs))
+        XCTAssertEqual(m.refreshableSection, .programs)
         m.apply(.section(.members))
         XCTAssertNil(m.refreshableSection)
         m.apply(.section(.groups))
         m.apply(.tab(.search))
         XCTAssertNil(m.refreshableSection)
+    }
+
+    /// ui2-programs D11: the program cover editor is full-screen; the program pages are not.
+    func testProgramCoverEditorIsFullScreen() {
+        XCTAssertTrue(UI2Destination.editProgramCover(programId: "p1", source: .stored).isFullScreen)
+        XCTAssertFalse(UI2Destination.studyProgramHome(id: "p1", name: "Walk").isFullScreen)
+        XCTAssertFalse(UI2Destination.createStudyProgram.isFullScreen)
+        XCTAssertFalse(UI2Destination.editProgramField(programId: "p1", field: .name).isFullScreen)
+    }
+
+    /// ui2-programs D8: a created program replaces the create form; back returns below it.
+    func testCreatedProgramReplacesTheCreateForm() {
+        var m = UI2ShellModel()
+        m.push(.createStudyProgram, on: .home)
+        m.replaceTop(.createStudyProgram, with: .studyProgramHome(id: "p9", name: "Walk"), on: .home)
+        XCTAssertEqual(m.path(for: .home), [.studyProgramHome(id: "p9", name: "Walk")])
+    }
+
+    /// ui2-programs D10: a settings row label maps to its field; Lessons and Group leader do not.
+    func testProgramRowLabelsMapToFields() {
+        XCTAssertEqual(ProgramField(label: "Study name"), .name)
+        XCTAssertEqual(ProgramField(label: "Member directory access"), .directoryAccess)
+        XCTAssertNil(ProgramField(label: "Lessons"))
+        XCTAssertNil(ProgramField(label: "Group leader"))
     }
 
     /// D7: a member page's group row opens that group (rows are `memberGroupsById` in order).

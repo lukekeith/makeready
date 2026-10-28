@@ -190,6 +190,8 @@ struct UI2Shell: View {
             CreateGroupContainer(route: .createGroup, destination: { .groupDetail(id: $0.id, name: $0.name) })
         case let .editGroupCover(groupId, source): EditGroupCoverContainer(groupId: groupId, source: source)  // group-cover-image D4
         case let .editMemberAvatar(memberId, source): EditMemberAvatarContainer(memberId: memberId, source: source)  // image-framing-editor D9
+        // ui2-programs D1: the program pages land in Tasks 11–15.
+        case .studyProgramHome, .createStudyProgram, .editProgramField, .editProgramCover: EmptyPage()
         }
     }
 

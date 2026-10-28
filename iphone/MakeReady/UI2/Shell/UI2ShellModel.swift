@@ -38,13 +38,22 @@ enum UI2Destination: Hashable {
     /// image-framing-editor D4/D5: the Edit photo page, above the member page — a new pick, or the
     /// stored original (else the avatar itself) at its framing.
     case editMemberAvatar(memberId: String, source: ImageEditSource)
+    /// ui2-programs D1: one program's page. `name` is the list-known title while it loads.
+    case studyProgramHome(id: String, name: String)
+    /// ui2-programs D1/D8: the create form, pushed on the Home stack by the Programs `+`;
+    /// success replaces it with the new program's `.studyProgramHome`.
+    case createStudyProgram
+    /// ui2-programs D10: one program setting's edit page, above the program page.
+    case editProgramField(programId: String, field: ProgramField)
+    /// ui2-programs D11: the Edit cover page, above the program page (the group cover flow).
+    case editProgramCover(programId: String, source: ImageEditSource)
 }
 
 extension UI2Destination {
     /// A page that takes the whole screen, with no TabBar under it.
     var isFullScreen: Bool {
         switch self {
-        case .editGroupCover, .editMemberAvatar: return true
+        case .editGroupCover, .editMemberAvatar, .editProgramCover: return true
         default: return false
         }
     }
@@ -72,10 +81,10 @@ struct UI2ShellModel {
     /// is gone while one is the selected tab's top page.
     var showsTabBar: Bool { !(path(for: tab).last?.isFullScreen ?? false) }
 
-    /// home-dashboard-data D24 + ui2-groups-browse D3: the section whose pull-to-refresh is
-    /// wired — Home and Groups, on the Home tab; nil anywhere else.
+    /// home-dashboard-data D24 + ui2-groups-browse D3 + ui2-programs D5: the section whose
+    /// pull-to-refresh is wired — Home, Groups and Programs, on the Home tab; nil anywhere else.
     var refreshableSection: UI2Section? {
-        guard tab == .home, section == .home || section == .groups else { return nil }
+        guard tab == .home, [.home, .groups, .programs].contains(section) else { return nil }
         return section
     }
 
