@@ -184,6 +184,13 @@ final class AppState {
     /// pull-to-refresh (`GroupsHomeContainer.refresh`) sets it too.
     var groupsListLoaded = false
 
+    /// ui2-programs D4: the Programs section's list load — succeeded this session (until then an
+    /// empty list shows skeletons, not "No programs yet"), and whether the last one failed (with
+    /// nothing cached, the inline Retry). Here, not in the container, so the shell's static
+    /// pull-to-refresh (`StudyProgramsContainer.refresh`) sets them too.
+    var programsListLoaded = false
+    var programsListFailed = false
+
     /// All organizations the user belongs to. Drives the per-org buttons in
     /// UserMenu and the Org Home page. Loaded by `loadOrganization()`. Today
     /// the server only exposes the org the user owns; when multi-org listing
@@ -864,6 +871,8 @@ final class AppState {
         groupChartByGroupId = [:]
         myOrganizations = []
         groupsListLoaded = false
+        programsListLoaded = false
+        programsListFailed = false
         // ui2-groups-browse T14: org-scoped and never cleared before — fixed here deliberately.
         pendingJoinRequestsByGroupId = [:]
         userOrganizations = []
