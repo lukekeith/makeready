@@ -440,4 +440,59 @@ final class ImageFramingModelTests: XCTestCase {
         XCTAssertEqual(box?.height ?? -1, 0.3, accuracy: 1e-9)
         XCTAssertNil(ImageSubjectDetector.topLeftUnion([]))
     }
+    /// Owner 2026-10-27: Rotate 90° tweens — the canvas turn is continuous, a quarter
+    /// counter-clockwise every tap (the fourth turn is −360°, not a 270° swing back to 0).
+    func testRotateTurnIsContinuous() {
+        let m = model(save: { _, _, _ in self.ok })
+        XCTAssertEqual(m.turnDegrees, 0)
+        for step in 1...5 {
+            m.rotate90()
+            XCTAssertEqual(m.turnDegrees, -90 * Double(step))
+            XCTAssertEqual(ImageFramingMath.normalized(degrees: m.turnDegrees + 90 * Double(m.framing.quarterTurns)), 0)
+        }
+    }
+
+    /// Owner 2026-10-27: Flip tweens — each tap counts once (the canvas eases a mirror from the old
+    /// look), and the turn mirrors with the quarter turns, so the two always agree.
+    func testFlipCountsAndMirrorsTheTurn() {
+        let m = model(save: { _, _, _ in self.ok })
+        m.rotate90()
+        m.flip()
+        XCTAssertEqual(m.flipCount, 1)
+        XCTAssertEqual(m.turnDegrees, 90)
+        XCTAssertEqual(ImageFramingMath.normalized(degrees: m.turnDegrees + 90 * Double(m.framing.quarterTurns)), 0)
+        m.flip()
+        XCTAssertEqual(m.flipCount, 2)
+        XCTAssertEqual(m.turnDegrees, -90)
+    }
+
+    /// D17 + tween: Auto turns back by the shortest way to a whole turn (quarter turns 0).
+    func testAutoTurnsBackTheShortWay() {
+        let m = model(save: { _, _, _ in self.ok })
+        for _ in 0..<3 { m.rotate90() }   // −270°
+        m.autoFrame(nil)
+        XCTAssertEqual(m.turnDegrees, -360)
+        XCTAssertEqual(m.framing.quarterTurns, 0)
+    }
+
+    /// The mirror tween's look: −1 (the old look) at the start, +1 at rest, for one or two flips.
+    func testMirrorTweenScale() {
+        XCTAssertEqual(ImageFramingCanvas.mirrorScale(progress: 0, target: 1), -1, accuracy: 1e-9)
+        XCTAssertEqual(ImageFramingCanvas.mirrorScale(progress: 1, target: 1), 1, accuracy: 1e-9)
+        XCTAssertEqual(ImageFramingCanvas.mirrorScale(progress: 0.5, target: 1), 0, accuracy: 1e-9)
+        XCTAssertEqual(ImageFramingCanvas.mirrorScale(progress: 3, target: 3), 1, accuracy: 1e-9)
+    }
+
+    /// While saving, Flip and Rotate change nothing — no tween either.
+    func testFlipAndRotateIgnoredWhileSaving() async {
+        var release: CheckedContinuation<Void, Never>?
+        let m = model(save: { _, _, _ in await withCheckedContinuation { release = $0 }; return self.ok })
+        async let saving = m.save()
+        while release == nil { await Task.yield() }              // the save is suspended inside send
+        m.flip(); m.rotate90()
+        XCTAssertEqual(m.flipCount, 0)
+        XCTAssertEqual(m.turnDegrees, 0)
+        release?.resume()
+        _ = await saving
+    }
 }

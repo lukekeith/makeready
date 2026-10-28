@@ -42,6 +42,13 @@ final class ImageFramingModel {
     private(set) var isGestureActive = false
     /// D30: the current gesture has twisted (or the dial is turning) at least `twistThreshold` — the degree readout shows.
     private(set) var isTwisting = false
+    /// Owner 2026-10-27 (tweens): the quarter turns as one continuous angle for the canvas —
+    /// always ≡ −90° × `quarterTurns`, but Rotate 90° steps it −90° every tap, so the eased turn is
+    /// always a quarter counter-clockwise (never a 270° swing back from the fourth turn).
+    private(set) var turnDegrees: Double
+    /// Owner 2026-10-27 (tweens): counts Flip taps; the canvas eases a mirror about the frame from
+    /// the old look to the new one each time it moves.
+    private(set) var flipCount = 0
     private var base: ImageFraming
     /// D22: the framing the page opened at; a re-edit is savable only once it differs.
     @ObservationIgnored private let opened: ImageFraming
@@ -66,6 +73,7 @@ final class ImageFramingModel {
         self.detect = detectSubject
         let start = ImageFramingMath.clamped(framing, image: image.size, frame: frameSize)
         self.framing = start
+        self.turnDegrees = -90 * Double(start.quarterTurns)
         self.base = start
         self.opened = start
         self.send = save
@@ -120,14 +128,19 @@ final class ImageFramingModel {
         endGesture()
     }
 
-    /// D21/D22: mirror the framed view horizontally.
+    /// D21/D22: mirror the framed view horizontally. The new framing applies at once; the canvas
+    /// eases the mirror (`flipCount`). The turn mirrors with the quarter turns.
     func flip() {
+        guard !isSaving else { return }
         commit(ImageFramingMath.flippedHorizontally(framing))
+        turnDegrees = -turnDegrees
+        flipCount += 1
     }
 
     /// D21/D22: turn the framed view a quarter counter-clockwise — the image's quarter turns step and
     /// its pan turns with it, (x, y) points → (y, −x); the floor follows the turned size.
     func rotate90() {
+        guard !isSaving else { return }
         var next = framing
         next.quarterTurns = (ImageFramingMath.normalized(quarterTurns: next.quarterTurns) + 1) % 4
         let w = Double(frameSize.width), h = Double(frameSize.height)
@@ -136,6 +149,7 @@ final class ImageFramingModel {
             next.offsetY = -framing.offsetX * w / h
         }
         commit(next)
+        turnDegrees -= 90
     }
 
     /// D17: what Auto frames on — detected on the first tap, then remembered.
@@ -148,8 +162,11 @@ final class ImageFramingModel {
 
     /// D17: Auto — the best framing for `subject`, committed like Flip (the container animates it).
     func autoFrame(_ subject: ImageSubject?) {
+        guard !isSaving else { return }
         commit(ImageFramingMath.autoFramed(framing, subject: subject, faceFill: autoFaceFill,
                                            image: image.size, frame: frameSize))
+        // Quarter turns are 0 now: the nearest whole turn, so the eased turn back is the short way.
+        turnDegrees = (turnDegrees / 360).rounded() * 360
     }
 
     /// D25: Flip and Rotate 90° re-apply the floor at once. Ignored while saving (D13).

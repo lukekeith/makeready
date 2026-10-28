@@ -14,6 +14,14 @@ struct ImageFramingCanvas: View {
 
     /// D25: the spring back to the nearest covering framing on release.
     static let settle = Animation.spring(response: 0.35, dampingFraction: 0.85)
+    /// Owner 2026-10-27: Flip and Rotate 90° ease their change in rather than jumping.
+    static let turnTween = Motion.standard
+
+    /// The mirror's x scale while a Flip eases in: `target` is the flip count, `progress` its
+    /// animated value. −1 (the old look, mirrored back) at the start of each flip, +1 at rest.
+    static func mirrorScale(progress: Double, target: Double) -> CGFloat {
+        CGFloat(cos(.pi * (target - progress)))
+    }
 
     var body: some View {
         let f = model.framing
@@ -25,11 +33,16 @@ struct ImageFramingCanvas: View {
                 .resizable()
                 .frame(width: model.image.size.width * scale, height: model.image.size.height * scale)
                 .scaleEffect(x: f.flipped ? -1 : 1, y: 1)
-                .rotationEffect(.degrees(-90 * Double(f.quarterTurns)))   // D21: counter-clockwise turns
+                .rotationEffect(.degrees(model.turnDegrees))   // D21: counter-clockwise turns, continuous
                 .rotationEffect(.degrees(f.rotation))
                 .position(x: frame.midX + center.x, y: frame.midY + center.y)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Flip's tween, scoped so only the mirror animates: the flipped framing is already applied,
+        // and the mirror about the frame's centre line starts at the old look and eases to none.
+        .animation(Self.turnTween) { content in
+            content.modifier(FlipTween(progress: Double(model.flipCount), target: Double(model.flipCount), axisX: frame.midX))
+        }
         // D30: clipped to the canvas slot, not the frame — the screen dims the overflow inside the
         // slot, and nothing paints over the header or the toolbar.
         .clipped()
@@ -53,5 +66,25 @@ struct ImageFramingCanvas: View {
         .accessibilityElement()
         .accessibilityLabel(accessibilityLabel)
         .accessibilityHint("Pinch to zoom, rotate with two fingers, drag to move")
+    }
+}
+
+/// A horizontal mirror about the vertical line x = `axisX` (the frame's centre), its x scale
+/// `ImageFramingCanvas.mirrorScale`. Only `progress` animates; `target` is the settled flip count.
+private struct FlipTween: GeometryEffect {
+    var progress: Double
+    let target: Double
+    let axisX: CGFloat
+
+    var animatableData: Double {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        let sx = ImageFramingCanvas.mirrorScale(progress: progress, target: target)
+        return ProjectionTransform(CGAffineTransform(translationX: axisX, y: 0)
+            .scaledBy(x: sx, y: 1)
+            .translatedBy(x: -axisX, y: 0))
     }
 }
