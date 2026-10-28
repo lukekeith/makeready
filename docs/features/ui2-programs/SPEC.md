@@ -123,13 +123,13 @@ have zero lessons, which 1.0's program page must survive (F2).
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `StudyProgram.isPrivate`, `ageRangeMin`, `ageRangeMax`, `maxMembers`, `memberDirectoryAccess` | detail, PATCH, POST; `isPrivate` on list | study-program-home settings rows; D12 | planned |
-| SC2 | ADD | `StudyProgram.leaderId` → `User` (nullable, backfilled `creatorId`) | `leaderId` everywhere, `leaderName` on detail/PATCH/POST | Group leader cell + row; D12, D15 | planned |
-| SC3 | ADD | `StudyProgram.coverOriginalUrl`, `coverFraming` | detail, cover-image response | cover Edit reopens the framing; D11 | planned |
-| SC4 | EDIT | `POST /api/programs` | `templateId` optional | create from a title alone; D8 | planned |
-| SC5 | EDIT | `GET /api/programs` | `orgId` param; + `organizationId`, `organizationName`, `leaderId`, `isPrivate`; private filter | Orgs chip, Leaders chip, discovery; D3, D13, D14 | planned |
-| SC6 | EDIT | detail / PATCH / POST responses | + `creatorName`, `leaderName` + SC1–SC3 fields | Author + leader display; D15 | planned |
-| SC7 | EDIT | `POST /api/programs/:id/cover-image` | + `original?`, `framing?`; response + `coverOriginalUrl`, `coverFraming` | cover flow; D11 | planned |
+| SC1 | ADD | `StudyProgram.isPrivate`, `ageRangeMin`, `ageRangeMax`, `maxMembers`, `memberDirectoryAccess` | detail, PATCH, POST; `isPrivate` on list | study-program-home settings rows; D12 | planned · T1 |
+| SC2 | ADD | `StudyProgram.leaderId` → `User` (nullable, backfilled `creatorId`) | `leaderId` everywhere, `leaderName` on detail/PATCH/POST | Group leader cell + row; D12, D15 | planned · T1 |
+| SC3 | ADD | `StudyProgram.coverOriginalUrl`, `coverFraming` | detail, cover-image response | cover Edit reopens the framing; D11 | planned · T1, T5 |
+| SC4 | EDIT | `POST /api/programs` | `templateId` optional | create from a title alone; D8 | planned · T2 |
+| SC5 | EDIT | `GET /api/programs` | `orgId` param; + `organizationId`, `organizationName`, `leaderId`, `isPrivate`; private filter | Orgs chip, Leaders chip, discovery; D3, D13, D14 | planned · T3 |
+| SC6 | EDIT | detail / PATCH / POST responses | + `creatorName`, `leaderName` + SC1–SC3 fields | Author + leader display; D15 | planned · T2, T4 |
+| SC7 | EDIT | `POST /api/programs/:id/cover-image` | + `original?`, `framing?`; response + `coverOriginalUrl`, `coverFraming` | cover flow; D11 | planned · T5 |
 
 **Data plan:** SC1–SC3 go through `server/schema/*.yaml` → `schema:diff` → one Atlas migration (house
 rules; diff/apply through `scripts/atlas.sh --var database_url=…`, never the 1Password `.env`). Every
@@ -221,6 +221,33 @@ changes. SC4–SC7 are wire changes, additive for every existing caller. Indepen
 | F6 | `StudyProgram` is disk-cached in the released app; every new field decodes optional, so an old cache and an old server both load | iphone decode test with each key absent |
 | F7 | `GET /api/group-leaders` lists group creators and role holders, not strictly program creators (OQ-study-programs-003 said creators) | D3 matches `leaderId` or `creatorId` against it; a leader with no programs filters to an empty list ("No programs match") |
 | F8 | Design OQs: study-programs 001–006 → D3/D4 · create-study-program 1 → D8, 2 → D8 (owner chose blank), 3 → D1 (TopNav `+`) · study-program-home 1 → D7, 7 → D4/D5, 8 → D6, 10 → D7 inert, 11 → D7, 14 → §Out of scope, 15–18 → D12/D13 | disposed |
+| T1 | server: `server/schema/*.yaml` `StudyProgram` gains the eight D12 columns (reusing enum `DirectoryAccess`) + `leader` relation → `schema:diff` migration with the `leaderId = creatorId` backfill (SC1–SC3) | blocking |
+| T2 | server: `POST /api/programs` — `templateId` optional, template-less branch (D8); response adds the D15 fields (SC4, SC6) | blocking |
+| T3 | server: `GET /api/programs` — `orgId` param + 400, `organizationId`/`organizationName` (batched `organization.findMany`), `leaderId`, `isPrivate`, the D13 filter with `canManageOrgContent` (SC5) | blocking |
+| T4 | server: `GET /api/programs/:id` + PATCH — `creatorName`, `leaderName`, D12 fields; PATCH zod accepts the six keys (nullable), `leaderId` org-member check, `coverImageUrl` clears original + framing (SC6) | blocking |
+| T5 | server: `services/group-cover.ts` generalised by owner type; `POST /api/programs/:id/cover-image` takes `original?` + `framing?`, stores and returns `coverOriginalUrl` + `coverFraming` (D11, SC3, SC7) | blocking |
+| T6 | server: `POST /api/programs/:id/lessons` on a zero-lesson program creates day 1 and keeps `days` = lesson count (D9, F4) | blocking |
+| T7 | server: fixture layers `study-programs.ts`, `create-study-program.ts`, `study-program-home.ts` + `ids.ts` kinds (D17) | blocking |
+| T8 | iphone: `StudyProgram` + 12 optional fields (`decodeIfPresent`, encoded in the custom `encode(to:)`), F6 | trailing |
+| T9 | iphone: `ProgramActions.createProgram(name:)` without a template; `updateProgram(id:patch:)` with a `ProgramPatch` that encodes explicit nulls; `uploadCoverImage(programId:image:original:framing:)` → `CoverSaveResult` | trailing |
+| T10 | iphone: shell routes (D1), `sectionContent` `.programs`, `TopNavHost.onAdd` `.programs`, refresh for `.programs` | trailing |
+| T11 | iphone: `StudyProgramsContainer` + `StudyProgramsMapper` (D3, D4, F5) | trailing |
+| T12 | iphone: `StudyProgramHomeHost` + `StudyProgramHomeContainer` + `StudyProgramHomeMapper` (D5–D7, D9; waits on D2/F1) | trailing |
+| T13 | iphone: `CreateStudyProgramContainer` + `CreateProgramSubmit` (D8) | trailing |
+| T14 | iphone: `ProgramFieldEditContainer` + `ProgramFieldEditor` (D10) | trailing |
+| T15 | iphone: `EditProgramCoverContainer` + cover menu + viewer wiring (D11) | trailing |
+
+**Field alignment (2026-10-28).** 33 rendered fields traced model → zod → wire → `StudyProgram` /
+`ProgramEnrollment` / `Lesson` / `StudyActivity` → screen `State`: **21 ALIGNED** (list: name,
+description, cover, enrolled count `_count.enrollments`; create: name; home: cover, created
+`createdAt`, lesson count, study name, description, enrollment name / photo / leader `group.creator.name`
+/ member count `group._count.members`, lesson number `dayNumber`, title, duration `estimatedMinutes`,
+slide image `youtubeThumbnailUrl` ?? `video.thumbnailUrl`, slide label `title`) · **1 RESHAPE**
+(enrollment leader → short form at render, D6) · **11 MISSING** (author SC6; leader SC2; visibility,
+age, max members, directory SC1; cover original + framing SC3; list org id/name + leader id SC5) ·
+0 RENAME · 0 DESIGN-ONLY. State that outlives the app: none new — search and chip picks are screen
+`@State` (as Groups), program enrollments live in `AppState.programEnrollments` (exists). No owner
+notes on the three screens (`ui2-notes.mjs read`, 2026-10-28).
 
 ## Prototype
 

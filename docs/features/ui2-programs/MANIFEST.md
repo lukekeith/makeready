@@ -1,7 +1,7 @@
 size: lg
-state: spec
+state: aligned
 next: /builder:resume --path docs/features/ui2-programs
-head: 84f4a89
+head: 7fd4564
 ticket: none
 branch: main
 pr: none
