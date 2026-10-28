@@ -1,12 +1,12 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/ui2-programs
-head: 2296f25
+head: ebeb81f
 ticket: none
 branch: main
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-10-28
 hold: none
 go-ahead: luke 2026-10-28 (here)
 tests: slice=own+app end=risk review=slice
