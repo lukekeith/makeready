@@ -192,7 +192,8 @@ struct UI2Shell: View {
         case let .editMemberAvatar(memberId, source): EditMemberAvatarContainer(memberId: memberId, source: source)  // image-framing-editor D9
         // ui2-programs D1: the program pages land in Tasks 11–15.
         case let .studyProgramHome(id, name): StudyProgramHomeHost(id: id, name: name)          // ui2-programs D1
-        case .createStudyProgram, .editProgramField, .editProgramCover: EmptyPage()
+        case .createStudyProgram: CreateStudyProgramContainer()                               // ui2-programs D1/D8
+        case .editProgramField, .editProgramCover: EmptyPage()
         }
     }
 
