@@ -213,6 +213,7 @@ Undo = drop both columns.
 | F3 | An uncommitted hand edit to d2m-owned `EditCoverScreen.swift` (toolbar pair centred, owner 2026-10-27) | settled 2026-10-27 — committed with 2204730 and named in its d2m report |
 | F4 | Multer `LIMIT_FILE_SIZE` / unexpected-field errors reach Express's default handler as an HTML 500 today (`members.ts:48-61`, no error middleware) | settled in D8: the avatar route maps them to JSON 413 / 400 |
 | F5 | D17's Auto button is a composition change to d2m `edit-cover` (handover `cmvrgnysh…`: the third C-102, `onAuto`, Lucide `scan` in the glyph library) | build-time risk — the app side is built (`ImageFramingModel.autoFrame`, `ImageSubjectDetector`); the two containers pass `onAuto` once d2m lands it (## Fixes) |
+| F6 | Owner 2026-10-27: an empty cover (no cover, or a group just created) shows a centred 32×32 image glyph, white at 20 %, on every C-087 consumer (Group detail, Program home, Enrollment home) | d2m handover `cmvrjfusr…` (C-087 is shared — no app-side edit; adds Lucide `image` to the glyph library); look at it on the walk once d2m lands it — not a sign-off blocker |
 | F2 | Renaming the group cover's editor pieces touches code that shipped hours ago with agent sign-off only | build-time risk — the rename task runs the group cover's full test set before and after; behaviour unchanged is the gate |
 
 ## Plan
