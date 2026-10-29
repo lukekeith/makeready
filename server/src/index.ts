@@ -32,6 +32,7 @@ import programsRoutes from './routes/programs.js'
 import videosRoutes from './routes/videos.js'
 import enrollmentsRoutes from './routes/enrollments.js'
 import enrollmentDraftsRoutes from './routes/enrollment-drafts.js'
+import enrollmentDirectoryRoutes from './routes/enrollment-directory.js'
 import postsRoutes from './routes/posts.js'
 import joinRoutes from './routes/join.js'
 import groupJoinRequestRoutes from './routes/group-join-requests.js'
@@ -464,6 +465,9 @@ app.use('/api', enrollmentsRoutes)
 
 // Enrollment drafts (ui2-enrollments-browse SC2): saved 2.0 enroll checklists
 app.use('/api', enrollmentDraftsRoutes)
+
+// Enrollment directory (ui2-enrollments-browse SC4/SC5): the org-wide feed and the enrollment home read
+app.use('/api', enrollmentDirectoryRoutes)
 
 // Posts routes (Group feed posts)
 app.use('/api', postsRoutes)
