@@ -1,40 +1,29 @@
-import UIKit
+import Foundation
 
-/// ui2-enrollment-create D11/D18: the group and program pickers' Select warnings. They never block
-/// — the container shows C-066 with "… — select anyway" and "Choose another" (a recorded deviation:
-/// C-066 draws no title or body; a titled confirm is a `/ui2-component-update C-066` follow-up).
+/// enroll-picker-hide-enrolled D1/D2/D5/D7 (supersedes ui2-enrollment-create D11/D18's ask-once C-066
+/// menus): the pickers never present a menu. A pair with a current enrollment is unavailable — muted
+/// and inert in the d2m screen — and a lesson-date clash is an amber note on the Schedule row. Pure.
 enum EnrollPickerWarnings {
-    enum Warning: Equatable { case alreadyEnrolled, lessonOverlap }
+    static let scheduleClashMessage = "Some dates clash with this group's existing lessons"
+    /// D7: Enroll's banner for `409 already_enrolled` (D6).
+    static let alreadyEnrolledMessage = "This group is already enrolled in this program"
 
-    static let chooseAnother = "Choose another"
-
-    /// Agent walk round 2 (E9): the pickers' search is editable (ccc5df8), so a warning raised from Select
-    /// opened C-066 under a still-raised keyboard — unreachable, a tap typing into the field. The
-    /// container drops the keyboard before it presents the menu.
-    @MainActor static func dismissKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    /// D1: the programs a group is currently enrolled in — `isActive` (endDate after now: active or upcoming).
+    static func currentProgramIds(_ enrollments: [EnrollmentWithProgram]) -> Set<String> {
+        Set(enrollments.filter(\.isActive).map(\.studyProgramId))
     }
 
-    static func confirmLabel(_ warning: Warning) -> String {
-        switch warning {
-        case .alreadyEnrolled: return "Already enrolled — select anyway"
-        case .lessonOverlap: return "Lesson already scheduled — select anyway"
-        }
+    /// D1: the groups currently enrolled in `programId`; none when the draft has no program.
+    static func unavailableGroupIds(_ groupIds: [String], programId: String?,
+                                    enrollmentsFor: (String) -> [EnrollmentWithProgram]) -> Set<String> {
+        guard let programId else { return [] }
+        return Set(groupIds.filter { currentProgramIds(enrollmentsFor($0)).contains(programId) })
     }
 
-    static func forGroup(enrollments: [EnrollmentWithProgram], programId: String?, scheduleDates: [Date],
-                         existingLessonDates: [Date]) -> Warning? {
-        if let programId, enrollments.contains(where: { $0.studyProgramId == programId && $0.isActive }) {
-            return .alreadyEnrolled
-        }
+    /// D5: any schedule date on the same calendar day as one of the group's existing lessons.
+    static func scheduleClashes(_ scheduleDates: [Date], existingLessonDates: [Date]) -> Bool {
         let cal = Calendar.current
         let taken = Set(existingLessonDates.map { cal.startOfDay(for: $0) })
-        if scheduleDates.contains(where: { taken.contains(cal.startOfDay(for: $0)) }) { return .lessonOverlap }
-        return nil
-    }
-
-    static func forProgram(groupEnrollments: [EnrollmentWithProgram]?, programId: String) -> Warning? {
-        guard let groupEnrollments else { return nil }
-        return groupEnrollments.contains { $0.studyProgramId == programId && $0.isActive } ? .alreadyEnrolled : nil
+        return scheduleDates.contains { taken.contains(cal.startOfDay(for: $0)) }
     }
 }

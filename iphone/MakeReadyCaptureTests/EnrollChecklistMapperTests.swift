@@ -62,6 +62,18 @@ final class EnrollChecklistMapperTests: XCTestCase {
         XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil).scheduleStartDay, "")
     }
 
+    func testScheduleClashNoteNeedsAGroupAndASharedDay() {   // enroll-picker-hide-enrolled D5
+        var d = EnrollmentDraft(id: UUID()); d.setProgram("p1")
+        d.scheduleDates = [day("2035-01-08"), day("2035-01-10")]
+        let clash = [day("2035-01-10").addingTimeInterval(9 * 3600)]
+        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessonDates: clash).scheduleWarningMessage, "")
+        d.groupId = "g1"
+        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessonDates: clash).scheduleWarningMessage,
+                       EnrollPickerWarnings.scheduleClashMessage)
+        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessonDates: [day("2035-01-09")]).scheduleWarningMessage, "")
+        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil).scheduleWarningMessage, "")
+    }
+
     func testIneligibleGroupCarriesTheWarning() throws {   // owner 2026-10-28: preload + warning
         var d = EnrollmentDraft(id: UUID()); d.groupId = "g0"
         let empty = EnrollChecklistMapper.state(d, group: try group("g0", members: 0), program: nil)

@@ -93,4 +93,10 @@ final class EnrollSubmitTests: XCTestCase {
         let id = UUID()
         XCTAssertEqual(EnrollChecklistContainer.destination(for: .schedule, flowId: id), .enrollSelectSchedule(flowId: id))
     }
+
+    func testAlreadyEnrolledGetsItsOwnBanner() {   // enroll-picker-hide-enrolled D7
+        XCTAssertEqual(EnrollSubmit.friendlyMessage(for: APIError.serverError("already_enrolled")), EnrollPickerWarnings.alreadyEnrolledMessage)
+        XCTAssertEqual(EnrollSubmit.friendlyMessage(for: APIHTTPError(status: 409, message: "already_enrolled")), EnrollPickerWarnings.alreadyEnrolledMessage)
+        XCTAssertEqual(EnrollSubmit.friendlyMessage(for: APIError.serverError("boom")), EnrollSubmit.failedMessage)
+    }
 }

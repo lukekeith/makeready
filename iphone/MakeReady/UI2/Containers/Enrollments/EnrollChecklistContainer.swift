@@ -5,6 +5,17 @@ import SwiftUI
 enum EnrollSubmit {
     static let failedMessage = "Couldn't enroll"
 
+    /// enroll-picker-hide-enrolled D7: the server's `409 already_enrolled` (D6) gets its own banner text.
+    static func friendlyMessage(for error: Error) -> String {
+        if case APIError.serverError(let message) = error, message == "already_enrolled" {
+            return EnrollPickerWarnings.alreadyEnrolledMessage
+        }
+        if let http = error as? APIHTTPError, http.message == "already_enrolled" {
+            return EnrollPickerWarnings.alreadyEnrolledMessage
+        }
+        return failedMessage
+    }
+
     /// true = enrolled. Sends nothing unless every row is done and the draft is not already
     /// processing (A5). A cancelled request is silent; a 401 signs out and surfaces nothing; any
     /// other failure surfaces `failedMessage` with Retry and returns the page to its 6/6 checklist.
@@ -38,7 +49,7 @@ enum EnrollSubmit {
                 return false
             }
             state.recordError(error, context: "EnrollChecklistContainer.enroll", surface: true,
-                              friendlyMessage: failedMessage,
+                              friendlyMessage: friendlyMessage(for: error),
                               retry: { Task { @MainActor in _ = await run(flowId: flowId, actions: actions, state: state, onUnauthorized: onUnauthorized) } })
             return false
         }
@@ -57,11 +68,14 @@ struct EnrollChecklistContainer: View {
 
     /// D10: the Discard confirmation menu is up.
     @State private var discardMenuOpen = false
+    /// enroll-picker-hide-enrolled D5/D8: the draft group's existing lesson dates, for the Schedule
+    /// row's clash note — screen-local, re-fetched when the group changes; a failure shows no note.
+    @State private var existingLessonDates: [Date] = []
 
     var body: some View {
         let draft = AppState.shared.enrollmentDrafts[flowId] ?? EnrollmentDraft(id: flowId)
         GroupsEnrollProgramScreen(
-            state: Self.screenState(draft, app: AppState.shared),
+            state: Self.screenState(draft, app: AppState.shared, existingLessonDates: existingLessonDates),
             scrollsContent: true,              // the checklist scrolls under the pinned header
             onBack: leave,
             onSelectStep: { navigator.push(Self.destination(for: $0, flowId: flowId)) },
@@ -105,6 +119,13 @@ struct EnrollChecklistContainer: View {
             }
             sync.changed()
         }
+        .task(id: draft.groupId) {
+            existingLessonDates = []
+            guard let groupId = draft.groupId else { return }
+            let dates = await EnrollSelectScheduleContainer.existingLessonDates(groupId: groupId)
+            guard !Task.isCancelled else { return }
+            existingLessonDates = dates
+        }
     }
 
     static func destination(for step: GroupsEnrollProgramScreen.Step, flowId: UUID) -> UI2Destination {
@@ -121,12 +142,14 @@ struct EnrollChecklistContainer: View {
     /// The checklist's rows: the draft, with its group and program looked up in the stores, else the
     /// names the row it opened from showed — the list's own fallback, so both count alike (D19).
     @MainActor
-    static func screenState(_ draft: EnrollmentDraft, app: AppState) -> GroupsEnrollProgramScreen.State {
+    static func screenState(_ draft: EnrollmentDraft, app: AppState,
+                            existingLessonDates: [Date] = []) -> GroupsEnrollProgramScreen.State {
         EnrollChecklistMapper.state(draft,
                                     group: draft.groupId.flatMap { app.groups[$0] },
                                     program: draft.studyProgramId.flatMap { app.programs[$0] },
                                     groupFallbackName: draft.listedGroupName,
-                                    programFallbackName: draft.listedProgramName)
+                                    programFallbackName: draft.listedProgramName,
+                                    existingLessonDates: existingLessonDates)
     }
 
     /// D10: the button shows while a saved draft backs the checklist and it is still a checklist.

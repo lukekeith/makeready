@@ -50,6 +50,32 @@ final class EnrollPickerMapperTests: XCTestCase {
         XCTAssertEqual(EnrollSelectProgramMapper.output(input(ps, selectedId: "p2")).state.selectedIndex, 1)
     }
 
+    func testProgramsTheGroupIsCurrentlyEnrolledInAreUnavailable() throws {   // enroll-picker-hide-enrolled D1/D2
+        let ps = [try program("p1", "Acts", days: 3), try program("p2", "Mark", days: 3), try program("p3", "Zeal", days: 3)]
+        let now = Date()
+        let active = EnrollmentWithProgram(id: "e1", groupId: "g", studyProgramId: "p1", startDate: now.addingTimeInterval(-86_400), endDate: now.addingTimeInterval(86_400))
+        let upcoming = EnrollmentWithProgram(id: "e2", groupId: "g", studyProgramId: "p2", startDate: now.addingTimeInterval(86_400), endDate: now.addingTimeInterval(9 * 86_400))
+        let ended = EnrollmentWithProgram(id: "e3", groupId: "g", studyProgramId: "p3", startDate: now.addingTimeInterval(-9 * 86_400), endDate: now.addingTimeInterval(-86_400))
+        XCTAssertEqual(EnrollSelectProgramMapper.output(input(ps, group: [active, upcoming, ended])).state.programUnavailable, [true, true, false])
+        XCTAssertEqual(EnrollSelectProgramMapper.output(input(ps)).state.programUnavailable, [false, false, false])
+        // D2: the draft's own pick is never muted against itself.
+        XCTAssertEqual(EnrollSelectProgramMapper.output(input(ps, group: [active], selectedId: "p1")).state.programUnavailable, [false, false, false])
+    }
+
+    func testGroupPickerMutesTheUnavailableIdsButNotThePick() {   // enroll-picker-hide-enrolled D1/D2
+        func group(_ id: String, _ name: String) -> UserGroup {
+            UserGroup(id: id, code: "C\(id)", name: name, isPrivate: false, allowInvites: false, memberCount: 1,
+                      creatorId: "u-\(id)", createdAt: Date(), updatedAt: Date())
+        }
+        var input = InviteSelectGroupMapper.Input(groups: [group("a", "Alpha"), group("b", "Bravo")], enrollmentCounts: [:],
+                                                  query: "", leaderIds: [], loading: false, failed: false, eligibleOnly: true)
+        XCTAssertEqual(InviteSelectGroupMapper.output(input).state.groupUnavailable, [false, false])
+        input.unavailableIds = ["b"]
+        XCTAssertEqual(InviteSelectGroupMapper.output(input).state.groupUnavailable, [false, true])
+        input.selectedId = "b"
+        XCTAssertEqual(InviteSelectGroupMapper.output(input).state.groupUnavailable, [false, false])
+    }
+
     func testScheduleSeedFromTheDraft() {
         var d = EnrollmentDraft(id: UUID()); d.setProgram("p1")
         d.startDate = day("2035-01-08"); d.enabledDays = [1, 3]; d.overriddenDates = [day("2035-01-10")]

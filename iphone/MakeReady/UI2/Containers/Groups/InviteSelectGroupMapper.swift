@@ -19,6 +19,9 @@ enum InviteSelectGroupMapper {
         var pickedOrgIds: Set<String> = []
         /// The picked group to show selected on open; nil = none.
         var selectedId: String? = nil
+        /// enroll-picker-hide-enrolled D1: groups shown muted and inert (the enroll picker's
+        /// currently-enrolled groups); [] everywhere else.
+        var unavailableIds: Set<String> = []
     }
 
     /// D13: one Leaders option — the creator's id and the name C-036 shows.
@@ -75,7 +78,8 @@ enum InviteSelectGroupMapper {
             groupEnrollmentCounts: rows.map { input.enrollmentCounts[$0.id] ?? 0 },
             selectedIndex: input.selectedId.flatMap { id in rows.firstIndex { $0.id == id } } ?? -1,
             loading: input.loading,
-            failed: input.failed
+            failed: input.failed,
+            groupUnavailable: rows.map { input.unavailableIds.contains($0.id) && $0.id != input.selectedId }
         )
         return Output(state: state, groupIds: rows.map(\.id), leaderOptions: leaderOptions, orgOptions: orgOptions)
     }

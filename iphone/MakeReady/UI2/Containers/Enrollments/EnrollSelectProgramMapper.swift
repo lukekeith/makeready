@@ -34,6 +34,9 @@ enum EnrollSelectProgramMapper {
             .map { InviteSelectGroupMapper.LeaderOption(id: $0.id, label: $0.displayName) }
             .sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
         let picked = leaderOptions.filter { input.leaderIds.contains($0.id) }.map(\.label)
+        // enroll-picker-hide-enrolled D1/D2: the draft group's current programs are muted and inert; the
+        // draft's own pick is never muted against itself.
+        let unavailable = input.draftGroupEnrollments.map(EnrollPickerWarnings.currentProgramIds) ?? []
         let startOfToday = Calendar.current.startOfDay(for: input.today)
         let completed: (StudyProgram) -> Int = { p in
             guard let enrollments = input.draftGroupEnrollments else { return p.completedEnrollmentCount ?? 0 }
@@ -50,7 +53,8 @@ enum EnrollSelectProgramMapper {
             programDayCounts: rows.map(\.days),
             programCompletedCounts: rows.map(completed),
             selectedIndex: input.selectedId.flatMap { id in rows.firstIndex { $0.id == id } } ?? -1,
-            loading: input.loading
+            loading: input.loading,
+            programUnavailable: rows.map { unavailable.contains($0.id) && $0.id != input.selectedId }
         )
         return Output(state: state, programIds: rows.map(\.id), leaderOptions: leaderOptions)
     }

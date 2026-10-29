@@ -3,8 +3,9 @@ import SwiftUI
 /// ui2-enrollment-create D5/D11/D17/D18/D19: the checklist's program picker. Hosts the d2m-built
 /// `EnrollmentSelectProgramScreen` unchanged. Programs load cache-first (`loadPrograms` sends no
 /// isPublished, so eligibility is filtered locally, D5); the completed chip follows D17; Leaders
-/// options come from `AppState.groupLeaders`. Select warns once against the draft's group (D11/D18),
-/// then `setProgram` (design rule 2) and pops. Re-keyed only on a load or a chip Save, never on the
+/// options come from `AppState.groupLeaders`. Programs the draft's group is currently enrolled in are
+/// muted and inert (enroll-picker-hide-enrolled D1, superseding D11/D18's menu); Select `setProgram`s
+/// (design rule 2) and pops. Re-keyed only on a load or a chip Save, never on the
 /// query (that would drop the keyboard); Select resolves through the tracked id (`EnrollPickerSelection`).
 struct EnrollSelectProgramContainer: View {
     let flowId: UUID
@@ -14,7 +15,6 @@ struct EnrollSelectProgramContainer: View {
     @State private var leaderIds: Set<String> = []
     @State private var leaderMenuOpen = false
     @State private var pickedId: String?
-    @State private var pendingProgramId: String?
 
     var body: some View {
         let app = AppState.shared
@@ -33,7 +33,7 @@ struct EnrollSelectProgramContainer: View {
             onSelect: { index in
                 guard let id = EnrollPickerSelection.committedId(index: index, rowIds: output.programIds, trackedId: trackedId)
                 else { return }
-                select(id)
+                commit(id)
             },
             onSearch: { query = $0 },
             onOpenLeaderFilter: { leaderMenuOpen = true },
@@ -48,30 +48,7 @@ struct EnrollSelectProgramContainer: View {
                 onClose: { leaderMenuOpen = false },
                 onSave: { leaderIds = $0; leaderMenuOpen = false })
         }
-        // D18: C-066 has no title or body, so the warning is the confirm row's label.
-        .actionMenuPresentation(isPresented: pendingProgramId != nil, onDismiss: { pendingProgramId = nil }) {
-            ActionMenuOverlay(
-                actions: [.init(glyph: "alert-triangle", label: EnrollPickerWarnings.confirmLabel(.alreadyEnrolled)),
-                          .init(glyph: "x", label: EnrollPickerWarnings.chooseAnother)],
-                onSelect: { item in
-                    let id = pendingProgramId
-                    pendingProgramId = nil
-                    if item.label != EnrollPickerWarnings.chooseAnother, let id { commit(id) }
-                },
-                onDone: { pendingProgramId = nil })
-        }
         .task { await load() }
-    }
-
-    private func select(_ programId: String) {
-        let app = AppState.shared
-        let groupEnrollments = app.enrollmentDrafts[flowId]?.groupId.map { app.enrollmentsFor(groupId: $0) }
-        if EnrollPickerWarnings.forProgram(groupEnrollments: groupEnrollments, programId: programId) != nil {
-            EnrollPickerWarnings.dismissKeyboard()
-            pendingProgramId = programId
-        } else {
-            commit(programId)
-        }
     }
 
     private func commit(_ programId: String) {
