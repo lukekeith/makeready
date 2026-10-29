@@ -5,7 +5,13 @@
 import { Router, type Request, type Response } from 'express'
 import { z } from 'zod'
 import { requireAuth } from '../middleware/auth.js'
-import { DirectoryError, feedQuerySchema, getEnrollmentFeed } from '../services/enrollment-directory.service.js'
+import {
+  DirectoryError,
+  feedQuerySchema,
+  getEnrollmentFeed,
+  getEnrollmentHome,
+  homeQuerySchema,
+} from '../services/enrollment-directory.service.js'
 
 const router = Router()
 const userIdOf = (req: Request): string => (req.user as { id: string }).id
@@ -29,6 +35,19 @@ router.get('/enrollments-feed', requireAuth, async (req, res) => {
     res.json({ success: true, ...feed })
   } catch (error) {
     fail(res, error, 'building the enrollments feed')
+  }
+})
+
+router.get('/enrollments/:id/home', requireAuth, async (req, res) => {
+  const notFound = () => res.status(404).json({ success: false, error: 'Enrollment not found' })
+  if (!z.string().uuid().safeParse(req.params.id).success) return notFound()
+  try {
+    homeQuerySchema.parse(req.query)
+    const home = await getEnrollmentHome(userIdOf(req), req.params.id)
+    if (!home) return notFound()
+    res.json({ success: true, home })
+  } catch (error) {
+    fail(res, error, 'reading the enrollment home')
   }
 })
 

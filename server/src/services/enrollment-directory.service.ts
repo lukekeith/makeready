@@ -5,11 +5,13 @@
  * `col::text = ANY($1::text[])`, which works on both the live text ids and migration-built uuid ids.
  */
 import { z } from 'zod'
-import type { Prisma } from '../generated/prisma/index.js'
+import type { LessonAccess, Prisma } from '../generated/prisma/index.js'
 import { prisma } from '../lib/prisma.js'
 import { isValidTimezone, localDate, todayInTimezone } from '../utils/timezone.js'
 import { DRAFT_SELECT, toDraftWire, type DraftWire } from './enrollment-draft.service.js'
-import { getManageableOrgIds, isSuperAdmin } from './permission.js'
+import { enrollmentManageFilter, getManageableOrgIds, isSuperAdmin } from './permission.js'
+import { filterActivitiesToVersion } from './lesson-version-resolution.js'
+import { activityThumbnailUrl } from './next-study-thumbnail.js'
 
 export const FEED_STATUSES = ['active', 'upcoming', 'completed', 'draft', 'all'] as const
 export type FeedStatus = (typeof FEED_STATUSES)[number]
@@ -272,4 +274,166 @@ export async function getEnrollmentFeed(userId: string, query: FeedQuery, now: D
     section.items.push(item)
   }
   return { sections: [...sections.values()], options }
+}
+
+// ── SC5: the enrollment home read (D20, §Contract Home) ──────────────────────
+
+/** `tz` is validated but changes nothing: every Home date is in the enrollment's own zone (§Contract). */
+export const homeQuerySchema = z.object({
+  tz: z.string().refine(isValidTimezone, { message: 'Invalid timezone' }).optional(),
+})
+
+export interface HomeActivity {
+  id: string
+  type: string
+  title: string
+  thumbnailUrl: string | null
+}
+export interface HomeDay {
+  scheduleId: string
+  date: string
+  percent: number
+  lessonCount: number
+  plannedMinutes: number
+}
+export interface HomeLesson {
+  scheduleId: string
+  dayNumber: number
+  title: string
+  date: string
+  progress: number | null
+  activities: HomeActivity[]
+}
+export interface EnrollmentHome {
+  id: string
+  studyProgram: { id: string; name: string; description: string | null; coverImageUrl: string | null; authorName: string }
+  group: { id: string; name: string; leader: PersonRef | null }
+  memberCount: number
+  enrolledAt: string
+  startDate: string
+  endDate: string
+  lessonAccess: LessonAccess
+  smsTime: string | null
+  timezone: string | null
+  days: HomeDay[]
+  lessons: HomeLesson[]
+}
+
+export async function getEnrollmentHome(userId: string, enrollmentId: string): Promise<EnrollmentHome | null> {
+  const enrollment = await prisma.enrollment.findFirst({
+    where: { id: enrollmentId, ...(await enrollmentManageFilter(userId)) },
+    select: {
+      id: true,
+      groupId: true,
+      createdAt: true,
+      startDate: true,
+      endDate: true,
+      lessonAccess: true,
+      smsTime: true,
+      timezone: true,
+      studyProgram: {
+        select: { id: true, name: true, description: true, coverImageUrl: true, creator: { select: { name: true } } },
+      },
+      group: { select: { id: true, name: true, creator: { select: { id: true, name: true } } } },
+      lessonSchedules: {
+        where: { removedAt: null },
+        orderBy: [{ scheduledDate: 'asc' }, { id: 'asc' }],
+        select: {
+          id: true,
+          title: true,
+          scheduledDate: true,
+          estimatedMinutes: true,
+          currentVersionId: true,
+          scheduledActivities: {
+            orderBy: { orderNumber: 'asc' },
+            select: {
+              id: true,
+              type: true,
+              title: true,
+              versionId: true,
+              youtubeThumbnailUrl: true,
+              video: { select: { thumbnailUrl: true } },
+              readBlocks: {
+                where: { backgroundImageUrl: { not: null } },
+                orderBy: { orderNumber: 'asc' },
+                take: 1,
+                select: { backgroundImageUrl: true },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+  if (!enrollment) return null
+  const tz = enrollment.timezone ?? 'UTC'
+  const schedules = enrollment.lessonSchedules
+
+  // D16 / F5: active members only.
+  const active = await prisma.groupMember.findMany({
+    where: { groupId: enrollment.groupId, isActive: true, memberId: { not: null } },
+    select: { memberId: true },
+  })
+  const activeIds = [...new Set(active.map((m) => m.memberId as string))]
+  const memberCount = activeIds.length
+  const completers = new Map<string, Set<string>>(schedules.map((s) => [s.id, new Set<string>()]))
+  if (memberCount > 0 && schedules.length > 0) {
+    const rows = await prisma.memberLessonProgress.findMany({
+      where: { lessonScheduleId: { in: schedules.map((s) => s.id) }, memberId: { in: activeIds }, completedAt: { not: null } },
+      select: { memberId: true, lessonScheduleId: true },
+    })
+    for (const r of rows) completers.get(r.lessonScheduleId)?.add(r.memberId)
+  }
+
+  const byDate = new Map<string, typeof schedules>()
+  for (const s of schedules) {
+    const date = localDate(s.scheduledDate, tz)
+    byDate.set(date, [...(byDate.get(date) ?? []), s])
+  }
+  const days: HomeDay[] = [...byDate.entries()].map(([date, onDate]) => {
+    const everyOne = activeIds.filter((m) => onDate.every((s) => completers.get(s.id)?.has(m))).length
+    return {
+      scheduleId: onDate[0].id,
+      date,
+      percent: memberCount === 0 ? 0 : Math.round((100 * everyOne) / memberCount),
+      lessonCount: onDate.length,
+      plannedMinutes: onDate.reduce((sum, s) => sum + (s.estimatedMinutes ?? 0), 0),
+    }
+  })
+
+  const lessons: HomeLesson[] = schedules.map((s, index) => ({
+    scheduleId: s.id,
+    dayNumber: index + 1,
+    title: s.title ?? '',
+    date: localDate(s.scheduledDate, tz),
+    progress: memberCount === 0 ? null : (completers.get(s.id)?.size ?? 0) / memberCount,
+    activities: filterActivitiesToVersion(s.scheduledActivities, s.currentVersionId).map((a) => ({
+      id: a.id,
+      type: a.type,
+      title: a.title,
+      thumbnailUrl: activityThumbnailUrl({ type: a.type, youtubeThumbnailUrl: a.youtubeThumbnailUrl, video: a.video, readBlocks: a.readBlocks }),
+    })),
+  }))
+
+  const leader = enrollment.group.creator
+  return {
+    id: enrollment.id,
+    studyProgram: {
+      id: enrollment.studyProgram.id,
+      name: enrollment.studyProgram.name,
+      description: enrollment.studyProgram.description,
+      coverImageUrl: enrollment.studyProgram.coverImageUrl,
+      authorName: enrollment.studyProgram.creator.name,
+    },
+    group: { id: enrollment.group.id, name: enrollment.group.name, leader: leader ? { id: leader.id, name: leader.name } : null },
+    memberCount,
+    enrolledAt: enrollment.createdAt.toISOString(),
+    startDate: localDate(enrollment.startDate, tz),
+    endDate: localDate(enrollment.endDate, tz),
+    lessonAccess: enrollment.lessonAccess,
+    smsTime: enrollment.smsTime,
+    timezone: enrollment.timezone,
+    days,
+    lessons,
+  }
 }
