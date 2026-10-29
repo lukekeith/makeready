@@ -292,8 +292,9 @@ struct StudyProgramRow: View {
 
     /// §2 Image: "64×64, `radius-card` (8), clipped; the source is an 88×64 portrait centred
     /// inside it (offset −12 on y) — the box crops, it does not letterbox". The 64×88 child
-    /// centred in the 64×64 frame IS the −12 offset. Missing cover (ruled, OQ-C-059-7): "the
-    /// 64×64 box filled `color-white-10`, no glyph".
+    /// centred in the 64×64 frame IS the −12 offset. Missing cover (ruled, OQ-C-059-7; glyph
+    /// added by owner ruling 2026-10-28): "the 64×64 box keeps its `color-white-10` fill … and
+    /// draws the Lucide `image` glyph centred in it, `color-white-50`, sized at 60% of the box".
     private var image: some View {
         ZStack {
             if let cover {
@@ -303,6 +304,7 @@ struct StudyProgramRow: View {
                     .frame(width: Self.imageSide, height: Self.portraitHeight)
             } else {
                 Token.white10
+                missingCoverGlyph
             }
         }
         .frame(width: Self.imageSide, height: Self.imageSide)
@@ -310,11 +312,27 @@ struct StudyProgramRow: View {
         .ui2Element("Image")
     }
 
+    /// §2 missing cover — "the same glyph and treatment as C-038 Avatar's `fallbackGlyph:
+    /// .image`": the library `image` imageset drawn at the ratio, as C-038 draws it. §2
+    /// Accessibility: "The missing-cover glyph is decorative (hidden from accessibility)".
+    private var missingCoverGlyph: some View {
+        Image(GlyphName.image.rawValue, bundle: .ui2Preview)
+            .renderingMode(.template)
+            .resizable()
+            .scaledToFit()
+            .frame(width: Self.imageSide * Self.glyphRatio, height: Self.imageSide * Self.glyphRatio)
+            .foregroundStyle(Token.white50)
+            .accessibilityHidden(true)
+            .ui2Element("Glyph")
+    }
+
     // GAP — C-059 §2: "Image | 64×64 … the source is an 88×64 portrait" — part footprints
     // the contract states, with no size token in the register (the spacing family has no
     // vocabulary for a part's footprint; C-054 / C-033 treat their 64 the same way).
     private static let imageSide: CGFloat = 64
     private static let portraitHeight: CGFloat = 88
+    // GAP — C-059 §2 missing cover: "sized at 60% of the box" — a ratio, as C-038's glyphRatio.
+    private static let glyphRatio: CGFloat = 0.6
 
     private static func lineBox(_ style: DesignTextStyle) -> CGFloat { style.lineHeight ?? style.size }
 }
