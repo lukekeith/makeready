@@ -20,10 +20,14 @@ function findMigration(): { file: string; sql: string } {
 }
 
 describe('SC1 enrollment_drafts migration', () => {
-  it('creates the table with the two required uuid keys', () => {
+  // The id columns take "users"."id"'s real type (text on the Prisma-era dev/prod schema, uuid on a
+  // migrations-only database) — the 20261028080040 precedent; a literal uuid failed on dev with 42804.
+  it('creates the table with the two required keys typed as "users"."id" is', () => {
     const { sql } = findMigration()
-    expect(sql).toMatch(/"groupId" uuid NOT NULL/)
-    expect(sql).toMatch(/"studyProgramId" uuid NOT NULL/)
+    expect(sql).toMatch(/format_type\(atttypid, atttypmod\) INTO id_type/)
+    expect(sql).toMatch(/"groupId" %1\$s NOT NULL/)
+    expect(sql).toMatch(/"studyProgramId" %1\$s NOT NULL/)
+    expect(sql).not.toMatch(/"(groupId|studyProgramId|createdById|updatedById)" uuid/)
   })
 
   it('makes every checklist field nullable with the SC1 types', () => {

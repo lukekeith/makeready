@@ -3,7 +3,7 @@
  * dates and lesson access, refuses a 0-member group and a program outside the caller's read scope.
  * Real DB + API-key auth, as enrollment-authorization.test.ts.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import request from 'supertest'
 import { app } from '../src/index.js'
 import { prisma } from '../src/lib/prisma.js'
@@ -53,6 +53,11 @@ describe('POST /api/enrollments (ui2-enrollment-create)', () => {
     }
     programId = await mkProgram(orgId, owner.userId, `EC Program ${stamp}`)
     foreignProgramId = await mkProgram(otherOrgId, stranger.userId, `EC Foreign ${stamp}`)
+  })
+
+  // enroll-picker-hide-enrolled D6: every case enrolls the same pair, which may hold one current enrollment.
+  beforeEach(async () => {
+    await prisma.enrollment.deleteMany({ where: { groupId, studyProgramId: programId } })
   })
 
   afterAll(async () => {

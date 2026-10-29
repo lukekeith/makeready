@@ -133,6 +133,12 @@ const router = Router()
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *       409:
+ *         description: "`already_enrolled` — the group already has an enrollment of this program whose endDate has not passed; the body carries its `enrollmentId`"
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
  */
 router.post('/enrollments', requireAuth, async (req, res) => {
   try {
@@ -230,6 +236,15 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         success: false,
         error: 'Cannot enroll in a study program with no lessons. Please add lessons to the program first.'
       })
+    }
+
+    // enroll-picker-hide-enrolled D6: one current (active or upcoming) enrollment per group + program.
+    const current = await prisma.enrollment.findFirst({
+      where: { groupId: body.groupId, studyProgramId: body.studyProgramId, endDate: { gt: new Date() } },
+      select: { id: true },
+    })
+    if (current) {
+      return res.status(409).json({ success: false, error: 'already_enrolled', enrollmentId: current.id })
     }
 
     // D3: the app's exact dates when sent (00:00 in `timezone`, D16); else the weekday walk —
