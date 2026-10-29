@@ -73,6 +73,8 @@ struct EnrollmentSelectProgramScreen: View {
     // deselects any other"; OQ-004: tapping the selected row keeps it selected).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var selection: Int?
+    /// `selection` while the pick is filtered out of view: Select stays enabled, no row matches.
+    private static let pickOutOfView = -1
 
     init(
         state: State,
@@ -131,6 +133,16 @@ struct EnrollmentSelectProgramScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: the page background
+        // The highlight follows the caller's pick: a query that moves the picked row moves its
+        // highlight with it, and one that filters it out of view leaves no row highlighted while
+        // Select stays enabled (`pickOutOfView`; select-group §3) — so Select commits the row shown.
+        .onChange(of: state.selectedIndex) { _, index in
+            if state.programTitles.indices.contains(index) {
+                selection = index
+            } else if selection != nil {
+                selection = Self.pickOutOfView
+            }
+        }
     }
 
     /// §2 L2: C-040 `style: backAndLink` (D60) — back glyph, centred title, trailing "Select";
@@ -157,8 +169,8 @@ struct EnrollmentSelectProgramScreen: View {
     /// chip row (gap 8), 16 bottom, closed by a C-088.
     private var filterBand: some View {
         VStack(alignment: .leading, spacing: Self.filterRowGap) {
-            // C-034 `state` derives from `text.isEmpty × focused`; this presentational screen
-            // owns no focus, so `focused` is false.
+            // C-034 editable form (D19 precedent, members-home): the field owns its focus, so
+            // `focused` stays false and typing reaches `onChange` → `onSearch`.
             SearchField(
                 text: query,
                 placeholder: Self.searchPlaceholder,
@@ -170,7 +182,8 @@ struct EnrollmentSelectProgramScreen: View {
                 onClear: {
                     query = ""
                     onSearch("")
-                }
+                },
+                editable: true
             )
             .ui2Element("C-034 SearchField")
             // §2: "a chip row at y 179 with gap 8" — C-035 `type: Menu`, width hugs the label.

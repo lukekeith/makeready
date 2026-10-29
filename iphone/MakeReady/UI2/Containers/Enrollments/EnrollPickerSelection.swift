@@ -14,8 +14,11 @@ enum EnrollPickerSelection {
     }
 
     /// The id Select commits: the tracked pick while it is still listed, else the row at `index`.
+    /// No row at `index` (the screen's highlight follows `selectedIndex`, -1 once a query filters
+    /// the pick out of view) commits the tracked pick — select-group §3: "a selected row filtered
+    /// out of view stays selected and Select stays enabled".
     static func committedId(index: Int, rowIds: [String], trackedId: String?) -> String? {
-        if let trackedId, rowIds.contains(trackedId) { return trackedId }
+        if let trackedId, rowIds.contains(trackedId) || !rowIds.indices.contains(index) { return trackedId }
         return rowIds.indices.contains(index) ? rowIds[index] : nil
     }
 }

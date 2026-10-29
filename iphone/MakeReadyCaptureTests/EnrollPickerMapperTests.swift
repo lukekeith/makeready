@@ -128,6 +128,14 @@ final class EnrollPickerMapperTests: XCTestCase {
         // The pick is filtered out: the row the screen highlights is the one Select names.
         XCTAssertEqual(EnrollPickerSelection.committedId(index: 1, rowIds: ["c", "d"], trackedId: "b"), "d")
         XCTAssertEqual(EnrollPickerSelection.committedId(index: 0, rowIds: ["c"], trackedId: nil), "c")
-        XCTAssertNil(EnrollPickerSelection.committedId(index: 2, rowIds: ["c"], trackedId: "b"))
+        XCTAssertNil(EnrollPickerSelection.committedId(index: 2, rowIds: ["c"], trackedId: nil))
+    }
+
+    func testSelectCommitsAPickTheQueryFilteredOutOfView() {
+        // select-group §3: "a selected row filtered out of view stays selected and Select stays
+        // enabled" — the screen reports no row (its highlight follows `selectedIndex`, -1 here).
+        XCTAssertEqual(EnrollPickerSelection.committedId(index: -1, rowIds: ["c", "d"], trackedId: "b"), "b")
+        XCTAssertEqual(EnrollPickerSelection.committedId(index: 2, rowIds: ["c"], trackedId: "b"), "b")
+        XCTAssertNil(EnrollPickerSelection.committedId(index: -1, rowIds: ["c"], trackedId: nil))
     }
 }
