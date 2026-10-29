@@ -19,6 +19,19 @@ struct EnrollmentDraft: Equatable {
     var syncMode: String?                    // "AUTO" | "OFF"
     var lessonAccess: String?                // "one-at-a-time" | "all-at-once"
     var phase: Phase = .checklist
+    /// ui2-enrollments-browse D21: the server draft backing this flow — nil until D3's POST or a resume.
+    var serverId: String?
+    /// D7: `Draft.createdBy.name`; nil = no starter line (F9).
+    var createdByName: String?
+    /// D21: the server row's `updatedAt` this flow was last seeded from or saved to.
+    var serverUpdatedAt: String?
+    /// D19: the group and program names the row this flow opened from showed. The checklist falls
+    /// back to them while the draft still holds that id and the store has no such group or program.
+    var listedGroup: EnrollmentWireRef?
+    var listedProgram: EnrollmentWireRef?
+
+    var listedGroupName: String { listedGroup.flatMap { $0.id == groupId ? $0.name : nil } ?? "" }
+    var listedProgramName: String { listedProgram.flatMap { $0.id == studyProgramId ? $0.name : nil } ?? "" }
 
     init(id: UUID, groupId: String? = nil, studyProgramId: String? = nil) {
         self.id = id
@@ -36,6 +49,17 @@ struct EnrollmentDraft: Equatable {
         studyProgramId = id
         scheduleDates = []
         endDate = nil
+    }
+
+    /// D9/D23: a schedule whose first date is before today counts as not done — start, dates and
+    /// end clear; weekdays and overrides stay as the picker's seed. Local only: sends nothing.
+    @discardableResult
+    mutating func clearStaleStart(today: Date, calendar: Calendar = .current) -> Bool {
+        guard let first = scheduleDates.first, first < calendar.startOfDay(for: today) else { return false }
+        startDate = nil
+        scheduleDates = []
+        endDate = nil
+        return true
     }
 }
 

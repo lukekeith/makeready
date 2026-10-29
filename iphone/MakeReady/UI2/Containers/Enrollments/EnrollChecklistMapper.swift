@@ -21,18 +21,21 @@ enum EnrollChecklistMapper {
         return id
     }
 
+    /// `groupFallbackName`/`programFallbackName`: the names a listing sent for a group or program the
+    /// stores do not hold (D19) — used only when `group`/`program` is nil.
     static func state(_ draft: EnrollmentDraft, group: UserGroup?, program: StudyProgram?,
+                      groupFallbackName: String = "", programFallbackName: String = "",
                       today: Date = Date()) -> GroupsEnrollProgramScreen.State {
         let cal = Calendar.current
         let start = draft.scheduleDone ? draft.startDate : nil
         var state = GroupsEnrollProgramScreen.State(
             phase: draft.phase.rawValue,
-            groupName: group?.name ?? "",
-            groupInitials: group.map { initials($0.name) } ?? "",
+            groupName: group?.name ?? groupFallbackName,
+            groupInitials: initials(group?.name ?? groupFallbackName),
             groupImageURL: group?.coverImageUrl ?? "",
             groupCreatedOn: group.map { longDate($0.createdAt) } ?? "",
             groupActiveMembers: group?.memberCount ?? 0,
-            programName: program?.name ?? "",
+            programName: program?.name ?? programFallbackName,
             programDescription: program?.description ?? "",
             programImageURL: program?.coverImageUrl ?? "",
             scheduleStartWeekday: start.map { format($0, "EEEE") } ?? "",

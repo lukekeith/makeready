@@ -251,9 +251,14 @@ describe.skipIf(!TEST_DB_URL)('home-dashboard layer against the test database (D
     expect(hours.some((h) => h >= 11 && h < 14)).toBe(true)
     expect(hours.some((h) => h >= 18)).toBe(true)
 
-    // Engagement (D3, D15, D17): 10 of 24 caught up across 3 groups.
+    // Engagement (D3, D15, D17): 24 enrolled members across 4 groups -- the three home-dashboard groups plus
+    // the Prayer Team, which enrollments-home (ui2-enrollments-browse D22) gives due schedules. How many are
+    // caught up depends on today's date (schedules are dated relative to it), so pin the shape, not the count.
     const engagement = await getHomeEngagement(scope, TZ, new Date())
-    expect(engagement).toMatchObject({ currentCount: 10, enrolledCount: 24, groupCount: 3, percent: 42 })
+    expect(engagement).toMatchObject({ enrolledCount: 24, groupCount: 4 })
+    expect(engagement.currentCount).toBeGreaterThan(0)
+    expect(engagement.currentCount).toBeLessThan(engagement.enrolledCount)
+    expect(engagement.percent).toBe(Math.round((engagement.currentCount / engagement.enrolledCount) * 100))
     expect(engagement.activeCount).toBeGreaterThan(0)
 
     // Following (D4, D11, D12): 3 enrollments across 2 programs, from a JSON-encoded string.

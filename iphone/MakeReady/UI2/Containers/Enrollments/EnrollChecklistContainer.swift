@@ -18,14 +18,17 @@ enum EnrollSubmit {
               let syncMode = d.syncMode, let access = d.lessonAccess.flatMap(EnrollmentWire.lessonAccessWire)
         else { return false }
         state.updateEnrollmentDraft(flowId) { $0.phase = .processing }
+        EnrollDraftSyncs.cancelPending(flowId)                       // ui2-enrollments-browse D30: no PATCH after Enroll
         do {
             _ = try await actions.createEnrollment(
                 groupId: groupId, studyProgramId: programId, startDate: start,
                 enabledDays: EnrollmentWire.dayNames(d.enabledDays), smsTime: smsTime,
                 timezone: d.timezone ?? TimeZone.current.identifier,
                 syncMode: syncMode == "AUTO" ? .auto : .off,
-                scheduleDates: d.scheduleDates, lessonAccess: access)
+                scheduleDates: d.scheduleDates, lessonAccess: access,
+                draftId: d.serverId)                                 // D11: the server deletes the draft
             state.updateEnrollmentDraft(flowId) { $0.phase = .enrolled }
+            EnrollDraftSyncs.stop(flowId)
             return true
         } catch {
             state.updateEnrollmentDraft(flowId) { $0.phase = .checklist }
@@ -52,23 +55,55 @@ struct EnrollChecklistContainer: View {
     @Environment(\.ui2Navigator) private var navigator
     @Environment(\.ui2BackSwipeGuard) private var backSwipe
 
+    /// D10: the Discard confirmation menu is up.
+    @State private var discardMenuOpen = false
+
     var body: some View {
-        let app = AppState.shared
-        let draft = app.enrollmentDrafts[flowId] ?? EnrollmentDraft(id: flowId)
+        let draft = AppState.shared.enrollmentDrafts[flowId] ?? EnrollmentDraft(id: flowId)
         GroupsEnrollProgramScreen(
-            state: EnrollChecklistMapper.state(draft,
-                                               group: draft.groupId.flatMap { app.groups[$0] },
-                                               program: draft.studyProgramId.flatMap { app.programs[$0] }),
+            state: Self.screenState(draft, app: AppState.shared),
             scrollsContent: true,              // the checklist scrolls under the pinned header
             onBack: leave,
             onSelectStep: { navigator.push(Self.destination(for: $0, flowId: flowId)) },
             onEnroll: enroll,
-            onDone: leave
+            onDone: leave,
+            // ui2-enrollments-browse D10: only while a saved draft backs the checklist (nil = no button).
+            onDiscard: Self.offersDiscard(draft) ? { discardMenuOpen = true } : nil
         )
         .ui2PushedPageFill()
+        // D10/D29: one red row; Done keeps editing. Hosted by the shell's `.ui2OverlayHost()`.
+        .actionMenuPresentation(isPresented: discardMenuOpen, onDismiss: { discardMenuOpen = false }) {
+            ActionMenuOverlay(
+                actions: [EnrollDiscard.action],
+                onSelect: { _ in
+                    discardMenuOpen = false
+                    Task { @MainActor in
+                        await EnrollDiscard.run(flowId: flowId,
+                                                pop: { navigator.popIfTop(.enrollChecklist(flowId: flowId)) },
+                                                onUnauthorized: { [authManager] in
+                                                    do { try await authManager.signOut() } catch {
+                                                        AppState.shared.recordError(error, context: "EnrollChecklistContainer.signOut", surface: false)
+                                                    }
+                                                })
+                    }
+                },
+                onDone: { discardMenuOpen = false }
+            )
+        }
         .onAppear {
             // A5: no swipe-back while the POST is in flight.
             backSwipe?.blocksBackSwipe = { AppState.shared.enrollmentDrafts[flowId]?.phase == .processing }
+            // ui2-enrollments-browse D3/D30: this flow's autosave; a gone draft pops to the pusher.
+            let entryDepth = max(0, navigator.depth() - 1)
+            let sync = EnrollDraftSyncs.sync(for: flowId)
+            sync.reopen()                      // back on screen before a Back's save settled: keep the flow
+            sync.onGone = { [navigator] in navigator.popTo(entryDepth) }
+            sync.onUnauthorized = { [authManager] in
+                do { try await authManager.signOut() } catch {
+                    AppState.shared.recordError(error, context: "EnrollChecklistContainer.signOut", surface: false)
+                }
+            }
+            sync.changed()
         }
     }
 
@@ -83,8 +118,32 @@ struct EnrollChecklistContainer: View {
         }
     }
 
+    /// The checklist's rows: the draft, with its group and program looked up in the stores, else the
+    /// names the row it opened from showed — the list's own fallback, so both count alike (D19).
+    @MainActor
+    static func screenState(_ draft: EnrollmentDraft, app: AppState) -> GroupsEnrollProgramScreen.State {
+        EnrollChecklistMapper.state(draft,
+                                    group: draft.groupId.flatMap { app.groups[$0] },
+                                    program: draft.studyProgramId.flatMap { app.programs[$0] },
+                                    groupFallbackName: draft.listedGroupName,
+                                    programFallbackName: draft.listedProgramName)
+    }
+
+    /// D10: the button shows while a saved draft backs the checklist and it is still a checklist.
+    static func offersDiscard(_ draft: EnrollmentDraft) -> Bool {
+        draft.serverId != nil && draft.phase == .checklist
+    }
+
+    /// D2/R4: Back (and Done after enrolling) ends the LOCAL flow only — a saved draft stays on the
+    /// server and is never DELETEd here; D30 (superseded 2026-10-29): a pending create/PATCH and its
+    /// retry are not cancelled — the flow ends once they settle, so the last Select is saved.
+    @MainActor
+    static func endFlow(_ flowId: UUID, state: AppState? = nil) {
+        EnrollDraftSyncs.finish(flowId, state: state ?? .shared)
+    }
+
     private func leave() {
-        AppState.shared.endEnrollmentDraft(flowId)
+        Self.endFlow(flowId)
         navigator.popIfTop(.enrollChecklist(flowId: flowId))
     }
 

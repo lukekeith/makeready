@@ -76,6 +76,7 @@ struct EnrollSelectProgramContainer: View {
 
     private func commit(_ programId: String) {
         AppState.shared.updateEnrollmentDraft(flowId) { $0.setProgram(programId) }
+        EnrollDraftSyncs.changed(flowId)                                        // ui2-enrollments-browse D3/D4
         navigator.popIfTop(.enrollSelectProgram(flowId: flowId))
     }
 

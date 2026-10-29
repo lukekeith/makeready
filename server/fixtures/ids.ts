@@ -34,6 +34,8 @@ export const FIXTURE_KIND = {
   scheduledActivity: '0018',
   video: '0019',
   readBlock: '001a',
+  // ui2-enrollments-browse D22: saved enroll checklists.
+  enrollmentDraft: '001b',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

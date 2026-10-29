@@ -27,6 +27,10 @@ enum GroupDetailMapper {
         var history: [GroupHistoryEvent] = []
         var days: [HomeDay]? = nil
         var chart: GroupChart? = nil
+        /// ui2-enrollments-browse D7b: the group's saved drafts, newest first — listed after the enrollments.
+        var drafts: [DraftWire] = []
+        /// The drafts' programs, by id (the drafts list carries only `studyProgramId`).
+        var programsById: [String: StudyProgram] = [:]
     }
 
     /// D7: a member row opens the MEMBER (`GroupMember.userId`), not the membership row.
@@ -38,9 +42,15 @@ enum GroupDetailMapper {
     struct Output {
         var state: GroupsDetailScreen.State
         var memberRows: [MemberRow]
+        /// D28/D21: what each Enrollments row opens — enrollments first, then drafts.
+        var enrollmentTargets: [EnrollmentRowTarget] = []
 
         func member(atRow row: Int) -> MemberRow? {
             memberRows.indices.contains(row) ? memberRows[row] : nil
+        }
+
+        func enrollmentTarget(atRow row: Int) -> EnrollmentRowTarget? {
+            enrollmentTargets.indices.contains(row) ? enrollmentTargets[row] : nil
         }
     }
 
@@ -64,7 +74,7 @@ enum GroupDetailMapper {
         let chart = chart(input.chart, now: now, timeZone: timeZone)
         let study = input.nextStudy
         let slides = Array((study?.activities ?? []).prefix(3))          // D17: the first 3
-        let state = GroupsDetailScreen.State(
+        var state = GroupsDetailScreen.State(
             groupName: MembersHomeMapper.nonEmpty(g?.name) ?? input.name,
             coverURL: g?.coverImageUrl ?? "",
             leaderName: g?.creatorName ?? "",
@@ -116,7 +126,45 @@ enum GroupDetailMapper {
             // D16; F8: C-065's built Tone renders "accent" plain until its rebuild.
             eventTones: input.history.map { $0.highlight == nil ? "neutral" : "accent" }
         )
-        return Output(state: state, memberRows: members.map { MemberRow(id: $0.userId, name: $0.name) })
+        // ui2-enrollments-browse D7b/D14.2: draft rows after the enrollments; the screen counts only
+        // "" rows in the Enrollments stat and «N» meta (F6).
+        let drafts = draftRows(input, now: now, timeZone: timeZone)
+        state.programTitles += drafts.map(\.title)
+        state.programDescriptions += drafts.map { _ in "" }
+        state.programEnrolledDates += drafts.map { _ in "" }
+        state.programCoverURLs += drafts.map(\.cover)
+        state.programDraftLabels = enrollments.map { _ in "" } + drafts.map(\.label)
+        state.programDraftStarters = enrollments.map { _ in "" } + drafts.map(\.starter)
+        let targets = enrollments.map { EnrollmentRowTarget.enrollment(id: $0.id, name: $0.studyProgram?.name ?? "") }
+            + input.drafts.map {
+                EnrollmentRowTarget.draft($0, groupName: input.group?.name ?? input.name,
+                                          programName: input.programsById[$0.studyProgramId]?.name ?? "")
+            }
+        return Output(state: state, memberRows: members.map { MemberRow(id: $0.userId, name: $0.name) },
+                      enrollmentTargets: targets)
+    }
+
+    // MARK: - ui2-enrollments-browse D7b/D19 draft rows
+
+    private struct DraftRow {
+        let title: String
+        let cover: String
+        let label: String
+        let starter: String
+    }
+
+    /// D19: `Draft · n/6` with the checklist's own count and D9's stale rule.
+    private static func draftRows(_ input: Input, now: Date, timeZone: TimeZone) -> [DraftRow] {
+        input.drafts.map { wire in
+            let program = input.programsById[wire.studyProgramId]
+            let n = EnrollmentsHomeMapper.draftCompletedSteps(
+                wire, group: input.group, program: program,
+                groupName: input.group?.name ?? input.name, programName: program?.name ?? "",
+                today: now, timeZone: timeZone)
+            return DraftRow(title: program?.name ?? "", cover: program?.coverImageUrl ?? "",
+                            label: EnrollmentsHomeMapper.draftLabel(completed: n),
+                            starter: EnrollmentsHomeMapper.starterLabel(wire.createdBy?.name))
+        }
     }
 
     // MARK: - D5 settings values

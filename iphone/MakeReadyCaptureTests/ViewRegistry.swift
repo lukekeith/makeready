@@ -3605,7 +3605,9 @@ private func buildScreenEnrollmentsHome(_ fixture: CaptureFixture) throws -> Any
             programCompleteCounts: c.programCompleteCounts ?? sample.programCompleteCounts,
             programHours: c.programHours ?? sample.programHours,
             programEnrolledDates: c.programEnrolledDates ?? sample.programEnrolledDates,
-            programCoverURLs: programCoverURLs
+            programCoverURLs: programCoverURLs,
+            programDraftLabels: c.programDraftLabels ?? sample.programDraftLabels,
+            programDraftStarters: c.programDraftStarters ?? sample.programDraftStarters
         )
     ))
 }
@@ -3742,6 +3744,8 @@ private func buildScreenGroupsDetail(_ fixture: CaptureFixture) throws -> AnyVie
             programDescriptions: c.programDescriptions ?? sample.programDescriptions,
             programEnrolledDates: c.programEnrolledDates ?? sample.programEnrolledDates,
             programCoverURLs: programCoverURLs,
+            programDraftLabels: c.programDraftLabels ?? sample.programDraftLabels,
+            programDraftStarters: c.programDraftStarters ?? sample.programDraftStarters,
             eventDates: c.eventDates ?? sample.eventDates,
             eventTexts: c.eventTexts ?? sample.eventTexts,
             eventHighlights: c.eventHighlights ?? sample.eventHighlights,
@@ -3832,7 +3836,10 @@ private func buildScreenEnrollmentHome(_ fixture: CaptureFixture) throws -> AnyV
             lessonMetaLabels: c.lessonMetaLabels ?? sample.lessonMetaLabels,
             lessonProgress: c.lessonProgress ?? sample.lessonProgress,
             lessonSlideImages: lessonSlideImages,
-            lessonSlideLabels: c.lessonSlideLabels ?? sample.lessonSlideLabels
+            lessonSlideLabels: c.lessonSlideLabels ?? sample.lessonSlideLabels,
+            // §3 `loading` / `failed` — the reused `loading` / `failed` fields.
+            loading: c.loading ?? sample.loading,
+            failed: c.failed ?? sample.failed
         )
     ))
 }
@@ -5232,7 +5239,9 @@ private func buildScreenGroupsEnrollProgram(_ fixture: CaptureFixture) throws ->
             lessonAccess: c.lessonAccess ?? sample.lessonAccess,
             groupIneligibleMessage: c.groupIneligibleMessage ?? sample.groupIneligibleMessage
         ),
-        confirmationAnimated: false
+        confirmationAnimated: false,
+        // §3 `discardable`: a non-nil `onDiscard` draws the Discard enrollment button.
+        onDiscard: c.discardable == true ? {} : nil
     ))
 }
 

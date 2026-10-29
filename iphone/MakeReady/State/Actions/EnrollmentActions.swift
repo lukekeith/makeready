@@ -34,6 +34,21 @@ enum EnrollmentWire {
         return ymdFormatter.string(from: date)
     }
 
+    /// T7: a `yyyy-MM-dd` wire day as the start of that day in `zone`.
+    static func date(ymd: String, in zone: TimeZone = .current) -> Date? {
+        ymdFormatter.timeZone = zone
+        return ymdFormatter.date(from: ymd)
+    }
+
+    /// T7: the server enum → the screen's kebab value (nil = not chosen).
+    static func lessonAccessLocal(_ wire: String?) -> String? {
+        switch wire {
+        case "ONE_AT_A_TIME": return "one-at-a-time"
+        case "ALL_AT_ONCE": return "all-at-once"
+        default: return nil
+        }
+    }
+
     /// The screen's kebab value → the server enum (nil = not chosen).
     static func lessonAccessWire(_ screen: String) -> String? {
         switch screen {
@@ -252,7 +267,8 @@ private let api: APIClientProtocol
         requireResponse: Bool = false,
         syncMode: EnrollmentSyncMode = .off,
         scheduleDates: [Date]? = nil,
-        lessonAccess: String? = nil
+        lessonAccess: String? = nil,
+        draftId: String? = nil
     ) async throws -> Enrollment {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -279,6 +295,9 @@ private let api: APIClientProtocol
         if let lessonAccess {                                   // D4: ONE_AT_A_TIME | ALL_AT_ONCE
             body["lessonAccess"] = lessonAccess
         }
+        if let draftId {                                        // ui2-enrollments-browse D11
+            body["draftId"] = draftId
+        }
 
         struct Response: Decodable {
             let success: Bool
@@ -299,6 +318,9 @@ private let api: APIClientProtocol
         // Update relationship indexes
         state.groupEnrollmentIndex.add(parentId: groupId, childId: enrollment.id)
         state.programEnrollmentIndex.add(parentId: studyProgramId, childId: enrollment.id)
+        // ui2-enrollments-browse D11/D24: the server deleted the pair's drafts; the feed changed.
+        state.removeEnrollmentDrafts(groupId: groupId, studyProgramId: studyProgramId)
+        state.enrollmentFeed = [:]
 
         // Update program enrollment count optimistically
         state.updateProgramEnrollmentCount(programId: studyProgramId, delta: 1)
@@ -329,6 +351,43 @@ private let api: APIClientProtocol
         return enrollment
     }
 
+    // MARK: - Enrollments feed + home
+
+    /// ui2-enrollments-browse D8/D27: the org-wide feed for `filter`. Cache-first within the session.
+    @MainActor
+    func loadFeed(filter: EnrollmentFeedFilter, forceRefresh: Bool = false, timeZone: TimeZone = .current) async throws {
+        if !forceRefresh, state.enrollmentFeed[filter] != nil { return }
+        struct Response: Decodable {
+            let success: Bool
+            let sections: [EnrollmentFeedSection]
+            let options: EnrollmentFeedOptions
+        }
+        let data = try await api.requestWithStatus(endpoint: filter.path(timeZone: timeZone), method: "GET", body: nil)
+        let response: Response
+        do { response = try JSONDecoder.apiDecoder.decode(Response.self, from: data) } catch { throw APIError.decodingError(error) }
+        state.enrollmentFeed[filter] = EnrollmentFeed(sections: response.sections, options: response.options)
+    }
+
+    /// ui2-enrollments-browse D20: one enrollment's assembled detail.
+    @MainActor
+    func loadHome(id: String, forceRefresh: Bool = false, timeZone: TimeZone = .current) async throws {
+        if !forceRefresh, state.enrollmentHomes[id] != nil { return }
+        struct Response: Decodable { let success: Bool; let home: EnrollmentHome }
+        let data = try await api.requestWithStatus(endpoint: EnrollmentHome.path(id: id, timeZone: timeZone), method: "GET", body: nil)
+        let response: Response
+        do { response = try JSONDecoder.apiDecoder.decode(Response.self, from: data) } catch { throw APIError.decodingError(error) }
+        state.enrollmentHomes[id] = response.home
+    }
+
+    /// Drop the cached Enrollments feed (every filter) and this enrollment's home,
+    /// so the next load re-reads the server. Called by every mutation that changes
+    /// what the feed or the home shows.
+    @MainActor
+    private func dropBrowseCaches(enrollmentId: String) {
+        state.enrollmentFeed = [:]
+        state.enrollmentHomes[enrollmentId] = nil
+    }
+
     // MARK: - Delete Enrollment
 
     /// Delete an enrollment
@@ -344,6 +403,7 @@ private let api: APIClientProtocol
         }
 
         // Remove from state
+        dropBrowseCaches(enrollmentId: id)
         state.enrollments.remove(id)
         state.groupEnrollmentIndex.remove(parentId: groupId, childId: id)
         state.programEnrollmentIndex.remove(parentId: programId, childId: id)
@@ -384,6 +444,7 @@ private let api: APIClientProtocol
             state.programEnrollmentIndex.removeChild(id)
             state.programEnrollments.remove(id)
             state.programProgramEnrollmentIndex.removeChild(id)
+            dropBrowseCaches(enrollmentId: id)
 
             state.persist()
             return
@@ -435,6 +496,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to cancel future lessons")
         }
 
+        dropBrowseCaches(enrollmentId: id)
         NSLog("📅 EnrollmentActions: Cancelled future lessons for enrollment \(id)")
     }
 
@@ -611,6 +673,7 @@ private let api: APIClientProtocol
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to update enrollment")
         }
+        dropBrowseCaches(enrollmentId: enrollmentId)
     }
 
     /// Change an enrollment's sync mode (OFF / AUTO / APPROVAL).

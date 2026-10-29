@@ -107,6 +107,8 @@ describe('layer discovery (D2, D6)', () => {
     expect(layers.screens.map((s) => s.name)).toEqual([
       'create-group',
       'create-study-program',
+      'enrollment-home',
+      'enrollments-home',
       'groups-detail',
       'groups-enroll-program',
       'groups-home',

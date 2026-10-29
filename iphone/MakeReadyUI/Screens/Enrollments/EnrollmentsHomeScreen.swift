@@ -14,10 +14,10 @@
 import SwiftUI
 
 /// Enrollments — the Enrollments tab of the Home section switcher (§6): the org-wide enrollment
-/// directory, grouped by group. The collapsed C-019 nav row, a header of C-034 search over four
-/// C-035 filter chips, then one section per group — a C-058 header over its C-059 rows — with a
-/// C-088 rule between consecutive sections (§2). Composed only of §4's C-019, C-034, C-035,
-/// C-058, C-059 and C-088; C-021 and C-038 render inside C-058, C-057 and C-043 inside C-059.
+/// directory, grouped by group. A header of C-034 search over four C-035 filter chips, pinned below
+/// the shell's TopNav, then one section per group — a C-058 header over its C-059 rows — with a
+/// C-088 rule between consecutive sections (§2). The C-019 TopNav is the shell's (§1 deviation 3).
+/// Composed only of §4's C-034, C-035, C-058, C-059 and C-088; C-021 and C-038 render inside C-058, C-057 and C-043 inside C-059.
 /// C-036 FilterMenuOverlay is presented by a chip but §4 drops it ("presented, not on the
 /// screen"), so a chip tap leaves the screen through `onOpenFilter`.
 ///
@@ -66,44 +66,51 @@ struct EnrollmentsHomeScreen: View {
         var programEnrolledDates: [String]
         /// C-059 `cover`, resolved from the media cache by URL (R-19/R-32); "" = none.
         var programCoverURLs: [String]
+        /// §2 draft rows (deviation 8): parallel to `programTitles`; a missing index reads as "".
+        /// "" = an enrollment row; non-empty (e.g. "Draft · 2/6") = a draft row showing this label.
+        var programDraftLabels: [String] = []
+        /// A draft row's starter line under its label (e.g. "Started by Jane Doe"); "" = no line.
+        var programDraftStarters: [String] = []
     }
 
     let state: State
     // §3 interactions that leave the screen. Each is an on<Verb> closure with R-03's no-op
-    // default. The screen never decides what an action means.
-    var onSelectTab: (String) -> Void = { _ in }    // C-019 tab tap → that Home section (§6)
-    var onToggleNav: () -> Void = {}                // C-019 collapse ⇄ expand
-    var onSearch: (String) -> Void = { _ in }       // §3: live text filter (300ms, min 2)
+    // default. The screen never decides what an action means. (No tab / nav-toggle callbacks —
+    // the shell's TopNav owns them.)
+    var onSearch: (String) -> Void = { _ in }       // §3: live local text filter (300ms, min 2)
     var onOpenFilter: (String) -> Void = { _ in }   // §3: chip tap → C-036 for that dimension
     var onOpenGroup: (Int) -> Void = { _ in }       // §3: C-058 arrow → groups-detail, by section
-    var onOpenEnrollment: (Int) -> Void = { _ in }  // §3: C-059 tap → enrollment-home, by row
+    /// §3: row tap → `onOpenProgram(section, row)` — enrollment and draft rows alike; the host
+    /// decides the destination.
+    var onOpenProgram: (Int, Int) -> Void = { _, _ in }
+    /// §3: search became active / ended (members-home's pattern) — the shell hides its TopNav
+    /// while it is active. The screen only reports it.
+    var onSearchActiveChange: (Bool) -> Void = { _ in }
 
     // R-31 ephemeral UI: the query as typed (§3 "live text filter").
     @SwiftUI.State private var query: String
+    /// The editable C-034's focus, as it reports it.
+    @SwiftUI.State private var searchFocused = false
 
     init(
         state: State,
-        onSelectTab: @escaping (String) -> Void = { _ in },
-        onToggleNav: @escaping () -> Void = {},
         onSearch: @escaping (String) -> Void = { _ in },
         onOpenFilter: @escaping (String) -> Void = { _ in },
         onOpenGroup: @escaping (Int) -> Void = { _ in },
-        onOpenEnrollment: @escaping (Int) -> Void = { _ in }
+        onOpenProgram: @escaping (Int, Int) -> Void = { _, _ in },
+        onSearchActiveChange: @escaping (Bool) -> Void = { _ in }
     ) {
         self.state = state
-        self.onSelectTab = onSelectTab
-        self.onToggleNav = onToggleNav
         self.onSearch = onSearch
         self.onOpenFilter = onOpenFilter
         self.onOpenGroup = onOpenGroup
-        self.onOpenEnrollment = onOpenEnrollment
+        self.onOpenProgram = onOpenProgram
+        self.onSearchActiveChange = onSearchActiveChange
         _query = SwiftUI.State(initialValue: state.searchText)
     }
 
     // MARK: - §2 / §3 constants (values that no §3 state changes)
 
-    /// §2: "C-019 TopNav collapsed row (32pt, Enrollments active)".
-    private static let selectedTab = "Enrollments"
     /// §2: "placeholder \"Search enrollments\"".
     private static let searchPlaceholder = "Search enrollments"
     /// §3 chip dimensions, in §2's order: org scope · groups · leaders · enrollment status.
@@ -121,6 +128,13 @@ struct EnrollmentsHomeScreen: View {
     /// §3: "debounce/min-chars follow search-home's precedent: 300ms, min 2".
     private static let minimumQueryLength = 2
 
+    /// §3: search is active while the field is focused or holds a query (members-home's rule).
+    static func isSearchActive(query: String, focused: Bool) -> Bool {
+        focused || !query.isEmpty
+    }
+
+    private var searchActive: Bool { Self.isSearchActive(query: query, focused: searchFocused) }
+
     // MARK: - §2 geometry the screen owns
 
     // GAP — enrollments-home §2: "header block (`space-page-margin` 16 padding, 16 gap; 116
@@ -135,28 +149,32 @@ struct EnrollmentsHomeScreen: View {
     var body: some View {
         // D22: no ScrollView at the root. The canvas is the device width × the content's full
         // length, so the page lays out top to bottom at full height. The status bar (§1
-        // deviation 2) is the harness's.
-        VStack(alignment: .leading, spacing: 0) {
-            navRow
-            header
-            sectionsContainer
+        // deviation 2) is the harness's; the C-019 TopNav is the shell's (§1 deviation 3).
+        // §2: the header is a pinned section header (members-home's), so inside the shell's
+        // scroll it stays below the TopNav and the sections scroll beneath it.
+        LazyVStack(alignment: .leading, spacing: 0, pinnedViews: [.sectionHeaders]) {
+            Section {
+                sectionsContainer
+            } header: {
+                header.background { Self.headerMaterial }
+                    // topnav-height-env: once pinned, the growing TopNav pushes it down.
+                    .pinnedBelowTopNav()
+            }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: `color-layout-background`
+        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
     }
 
-    /// §2: "C-019 TopNav collapsed row (32pt, Enrollments active)" — `expansion` 0 at rest
-    /// (`scrollOffset` 0). No `onAdd`: no create affordance is designed on this frame (§7).
-    private var navRow: some View {
-        TopNav(
-            tabs: TopNav.designedTabs,
-            selectedTab: Self.selectedTab,
-            expansion: 0,
-            scrollOffset: 0,
-            onSelect: onSelectTab,
-            onToggleExpansion: onToggleNav
-        )
-        .ui2Element("C-019 TopNav")
+    // GAP — §2 pinned header: no material token — members-home's header material
+    // (`ultraThinMaterial` under `color-layout-background` at 0.8).
+    private static let headerScrimOpacity: Double = 0.8
+
+    private static var headerMaterial: some View {
+        ZStack {
+            Rectangle().fill(.ultraThinMaterial)
+            Token.layoutBackground.opacity(headerScrimOpacity)
+        }
     }
 
     // MARK: §2 Header
@@ -165,8 +183,8 @@ struct EnrollmentsHomeScreen: View {
     /// §3 state.
     private var header: some View {
         VStack(alignment: .leading, spacing: Self.headerGap) {
-            // §2: C-034 "408×44, `Default` state" — derived by C-034 from `text.isEmpty ×
-            // focused`. This presentational screen owns no focus, so `focused` is false.
+            // §2: C-034 "408×44, `Default` state". §3: its editable form — focus is the field's
+            // own, reported so the screen can tell the shell when search is active.
             SearchField(
                 text: query,
                 placeholder: Self.searchPlaceholder,
@@ -178,7 +196,12 @@ struct EnrollmentsHomeScreen: View {
                 onClear: {
                     query = ""
                     onSearch("")
-                }
+                },
+                // members-home: while active the x is always there and ends the search.
+                showsClearWhenEmpty: searchActive,
+                onFocusChange: { searchFocused = $0 },
+                clearDismisses: true,
+                editable: true
             )
             .ui2Element("C-034 SearchField")
             .padding(.horizontal, Token.Space.pageMargin)
@@ -195,15 +218,20 @@ struct EnrollmentsHomeScreen: View {
         HorizontalRail {
             HStack(spacing: Token.Space.elementGap) {
                 ForEach(chipLabels.indices, id: \.self) { index in
-                    FilterChip(type: .menu, active: false, label: chipLabels[index]) {
-                        onOpenFilter(Self.filterDimensions[index])
-                    }
+                    Self.menuChip(label: chipLabels[index]) { onOpenFilter(Self.filterDimensions[index]) }
                     .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
                 }
             }
             .padding(.horizontal, Token.Space.pageMargin)
         }
         .scrollIndicators(.hidden)
+    }
+
+    /// §3: a chip tap presents C-036. `onTap:` is passed by label: an unlabelled trailing closure on
+    /// FilterChip binds to `onSelect` (Swift 5's backward scan), which a `Menu` chip never fires
+    /// (agent walk round 1, E2/E3 — the GroupsHomeScreen precedent).
+    static func menuChip(label: String, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: false, label: label, onTap: onTap)
     }
 
     // MARK: §2 Sections
@@ -254,11 +282,41 @@ struct EnrollmentsHomeScreen: View {
         }
     }
 
-    /// §2: "title → C-057 PercentBar `size=sm`/`Left` → C-043 MetaChips (the designed two + a
+    /// §2: one row per entry, chosen by its draft label (`programDraftLabels[i]`; missing = "").
+    @ViewBuilder
+    private func programRow(_ row: Int) -> some View {
+        let draftLabel = state.programDraftLabels[safe: row] ?? ""
+        if draftLabel.isEmpty {
+            enrollmentRow(row)
+        } else {
+            draftRow(row, label: draftLabel)
+        }
+    }
+
+    /// §2 Draft row (deviation 8): "the same 408×96 row with the same 64×64 cover and title, but
+    /// the label is shown, and on the line below it the starter text … No C-057 and no C-043 are
+    /// drawn on a draft row." C-059's `Program` variant is the row with neither bar nor chips:
+    /// its description line carries the label and its caption line the starter ("" drops it).
+    private func draftRow(_ row: Int, label: String) -> some View {
+        let starter = state.programDraftStarters[safe: row] ?? ""
+        return StudyProgramRow(
+            state: .program,
+            title: state.programTitles[row],
+            description: label,
+            caption: starter.isEmpty ? nil : starter,
+            progress: 0,
+            metaChips: [],
+            cover: Self.cachedImage(state.programCoverURLs[safe: row]),
+            onTap: { onOpenProgram(state.programGroupIndexes[safe: row] ?? 0, row) }
+        )
+        .ui2Element(Self.partName("C-059 StudyProgramRow", ordinal: row + 1))
+    }
+
+    /// §2 Enrollment row: "title → C-057 PercentBar `size=sm`/`Left` → C-043 MetaChips (the designed two + a
     /// third `label=\"Enrolled\"`, `value=«Mon D, YYYY»`, `align=right`, `state=default`) →
     /// 64×64 `radius-card` cover". §3 row states: "a 100% enrollment renders C-059
     /// `state=Complete`" — whose completed-count chip is C-043 `state=complete` (C-059 §3a).
-    private func programRow(_ row: Int) -> some View {
+    private func enrollmentRow(_ row: Int) -> some View {
         let progress = state.programProgress[safe: row] ?? 0
         let complete = progress >= 1
         return StudyProgramRow(
@@ -279,7 +337,7 @@ struct EnrollmentsHomeScreen: View {
                 )
             ],
             cover: Self.cachedImage(state.programCoverURLs[safe: row]),
-            onTap: { onOpenEnrollment(row) }
+            onTap: { onOpenProgram(state.programGroupIndexes[safe: row] ?? 0, row) }
         )
         .ui2Element(Self.partName("C-059 StudyProgramRow", ordinal: row + 1))
     }
@@ -386,6 +444,36 @@ extension EnrollmentsHomeScreen.State {
             "https://picsum.photos/seed/enrollments-home-3/128/176",
             "https://picsum.photos/seed/c059/128/176"
         ]
+    )
+
+    /// §3 `populated` capture state `with-draft` (deviation 8): "one section with two enrollment
+    /// rows + one draft row". The frame's first group with two of its titles, then a draft
+    /// ("Draft · 2/6", "Started by Jane Doe" — §2's samples). Photo and covers are catalog images
+    /// (image-fixtures).
+    static let withDraft = Self(
+        searchText: "",
+        orgFilterLabel: "All Orgs",
+        groupFilterLabel: "All groups",
+        leaderFilterLabel: "All Leaders",
+        statusFilterLabel: "Active",
+        loading: false,
+        failed: false,
+        groupNames: ["Stickane Family"],
+        groupLeaderNames: ["Scott Stickane"],
+        groupPhotoURLs: ["http://localhost:5961/api/projects/makeready/images/image-5"],
+        programGroupIndexes: [0, 0, 0],
+        programTitles: ["Romans in 30 days", "John 1:1-18", "Wisdom at Work"],
+        programProgress: [0.54, 0.31, 0],
+        programCompleteCounts: ["12", "12", ""],
+        programHours: ["15", "15", ""],
+        programEnrolledDates: ["Jan 3, 2025", "Jan 3, 2025", ""],
+        programCoverURLs: [
+            "http://localhost:5961/api/projects/makeready/images/romans-new-life-baptism",
+            "http://localhost:5961/api/projects/makeready/images/john-vine-branches",
+            "http://localhost:5961/api/projects/makeready/images/proverbs-wisdom-at-work"
+        ],
+        programDraftLabels: ["", "", "Draft · 2/6"],
+        programDraftStarters: ["", "", "Started by Jane Doe"]
     )
 
     /// §3 `loading`: "first launch with no cached data … search + chips render immediately".
@@ -508,6 +596,13 @@ extension EnrollmentsHomeScreen.State {
 
 #Preview("error") {
     EnrollmentsHomeScreen(state: .error)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("with-draft") {
+    EnrollmentsHomeScreen(state: .withDraft)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

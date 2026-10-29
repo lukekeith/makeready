@@ -469,11 +469,70 @@ final class AppState {
         enrollmentDrafts[id] = draft
     }
 
-    func endEnrollmentDraft(_ id: UUID) { enrollmentDrafts[id] = nil }
+    func endEnrollmentDraft(_ id: UUID) {
+        enrollmentDrafts[id] = nil
+        enrollmentDraftBaselines[id] = nil
+    }
 
-    /// D13: a flow whose checklist left every stack (back-swipe, Home re-tap) loses its draft.
+    /// D13: a flow whose checklist left every stack (back-swipe, Home re-tap) loses its LOCAL draft.
+    /// ui2-enrollments-browse D2/R4: never a server request — a saved draft stays on the server.
     func pruneEnrollmentDrafts(keeping ids: Set<UUID>) {
         enrollmentDrafts = enrollmentDrafts.filter { ids.contains($0.key) }
+        enrollmentDraftBaselines = enrollmentDraftBaselines.filter { ids.contains($0.key) }
+    }
+
+    // MARK: ui2-enrollments-browse — enrollment stores (memory-only: never PersistedState;
+    // `clearInMemory()` empties them)
+
+    /// `GET /api/enrollment-drafts?groupId=`, by group, newest `updatedAt` first (ISO text compares
+    /// in time order — the server writes one format). Kept current by EnrollmentDraftActions and an enroll.
+    var enrollmentDraftsByGroupId: [String: [DraftWire]] = [:]
+    /// `GET /api/enrollments-feed`, one answer per filter. Every draft or enrollment mutation drops it whole.
+    var enrollmentFeed: [EnrollmentFeedFilter: EnrollmentFeed] = [:]
+    /// `GET /api/enrollments/:id/home`, by enrollment id (D20).
+    var enrollmentHomes: [String: EnrollmentHome] = [:]
+    /// D4: per flow, the draft as the server last acknowledged it — the PATCH diff's base.
+    var enrollmentDraftBaselines: [UUID: EnrollmentDraft] = [:]
+
+    /// D21: a flow seeded from a server draft — a new flow, or `flowId` overwritten in place (D6).
+    /// D9/D23: a schedule that starts before `today` is cleared in the LOCAL draft and its baseline
+    /// alike, so no request carries the clear; the server keeps its schedule until the next
+    /// Schedule Select's PATCH.
+    @discardableResult
+    func seedEnrollmentDraft(_ wire: DraftWire, flowId: UUID? = nil, today: Date = Date()) -> UUID {
+        let id = flowId ?? UUID()
+        var draft = EnrollmentDraftMapping.draft(wire, flowId: id)
+        draft.clearStaleStart(today: today)
+        draft.listedGroup = enrollmentDrafts[id]?.listedGroup        // a re-seed keeps the listed names (D19)
+        draft.listedProgram = enrollmentDrafts[id]?.listedProgram
+        enrollmentDrafts[id] = draft
+        enrollmentDraftBaselines[id] = draft
+        return id
+    }
+
+    /// D21: the open flow already backed by server draft `serverId`.
+    func enrollmentFlowId(forServerId serverId: String) -> UUID? {
+        enrollmentDrafts.first { $0.value.serverId == serverId }?.key
+    }
+
+    /// The draft leaves every group's list and joins its own (a group change moves it), newest first.
+    func upsertEnrollmentDraftWire(_ wire: DraftWire) {
+        removeEnrollmentDraftWire(id: wire.id)
+        var list = enrollmentDraftsByGroupId[wire.groupId] ?? []
+        list.append(wire)
+        enrollmentDraftsByGroupId[wire.groupId] = list.sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    func removeEnrollmentDraftWire(id: String) {
+        for (groupId, list) in enrollmentDraftsByGroupId where list.contains(where: { $0.id == id }) {
+            enrollmentDraftsByGroupId[groupId] = list.filter { $0.id != id }
+        }
+    }
+
+    /// D11/D24: an enroll deletes the pair's drafts on the server.
+    func removeEnrollmentDrafts(groupId: String, studyProgramId: String) {
+        guard let list = enrollmentDraftsByGroupId[groupId] else { return }
+        enrollmentDraftsByGroupId[groupId] = list.filter { $0.studyProgramId != studyProgramId }
     }
 
     /// Keyset cursor for each group's posts feed, keyed by group id — posts
@@ -928,6 +987,11 @@ final class AppState {
         groupPostsNextCursor = [:]
         // ui2-enrollment-create D13: drafts are memory-only and die with the session.
         enrollmentDrafts = [:]
+        // ui2-enrollments-browse: memory-only stores, org-scoped — die with the session.
+        enrollmentDraftsByGroupId = [:]
+        enrollmentFeed = [:]
+        enrollmentHomes = [:]
+        enrollmentDraftBaselines = [:]
         // Pre-existing leak, fixed here deliberately (not collateral): themes
         // are org-scoped too and were never cleared.
         textThemes = []

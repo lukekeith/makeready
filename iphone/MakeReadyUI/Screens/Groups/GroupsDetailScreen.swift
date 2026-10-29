@@ -95,6 +95,12 @@ struct GroupsDetailScreen: View {
         var programEnrolledDates: [String]
         /// "" = no cover → C-059's missing-cover box.
         var programCoverURLs: [String]
+        /// §3 enrollment draft rows (owner request 2026-10-28): parallel to `programTitles`; a
+        /// missing index reads as "". "" = an enrollment row; non-empty = a draft row whose label
+        /// replaces the "enrolled «date»" chip text.
+        var programDraftLabels: [String] = []
+        /// A draft row's starter line ("Started by …"), replacing the description; "" = none.
+        var programDraftStarters: [String] = []
         // ── Timeline (§2.9) — C-065, the latest 5 events ──
         var eventDates: [String]
         var eventTexts: [String]
@@ -315,7 +321,7 @@ struct GroupsDetailScreen: View {
             }
             HStack(alignment: .top, spacing: Self.gridGap) {
                 statCell(label: Self.createdLabel, value: state.createdLabel, ordinal: 3)
-                statCell(label: Self.enrollmentsLabel, value: "\(state.programTitles.count)", ordinal: 4)
+                statCell(label: Self.enrollmentsLabel, value: "\(enrollmentCount)", ordinal: 4)
             }
         }
         .padding(.horizontal, Token.Space.pageMargin)
@@ -522,6 +528,12 @@ struct GroupsDetailScreen: View {
 
     // MARK: §2.8 Enrollments
 
+    /// §3: the Enrollments quick stat and the «N» programs header count only rows whose draft
+    /// label is "" — drafts are not enrollments.
+    private var enrollmentCount: Int {
+        state.programTitles.indices.filter { (state.programDraftLabels[safe: $0] ?? "").isEmpty }.count
+    }
+
     /// §2.8: "C-020 `section·meta` ("«N» programs" + C-021 `add`, deviation 7) → 32 → **every**
     /// enrollment as a C-059 StudyProgramRow `Enrolled` (D53), no cap".
     ///
@@ -533,7 +545,7 @@ struct GroupsDetailScreen: View {
         VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
             SectionHeader(
                 title: Self.enrollmentsTitle,
-                accessory: .meta(value: "\(state.programTitles.count)", label: Self.programsCountLabel, glyph: .add),
+                accessory: .meta(value: "\(enrollmentCount)", label: Self.programsCountLabel, glyph: .add),
                 onAccessoryTap: onEnrollProgram
             )
             .ui2Element("C-020 SectionHeader 4")
@@ -543,19 +555,26 @@ struct GroupsDetailScreen: View {
             } else {
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(state.programTitles.indices, id: \.self) { index in
+                        let draftLabel = state.programDraftLabels[safe: index] ?? ""
                         StudyProgramRow(
                             state: .condensed,
                             title: state.programTitles[index],
-                            description: Self.optionalText(state.programDescriptions[safe: index]),
+                            // §2.8: a draft row's starter line replaces the description.
+                            description: draftLabel.isEmpty
+                                ? Self.optionalText(state.programDescriptions[safe: index])
+                                : Self.optionalText(state.programDraftStarters[safe: index]),
                             progress: 0,
                             metaChips: [
                                 // §2.8: "C-043 MetaChip `Default · Key value` "enrolled «date»"" —
-                                // the key leads, which is C-043's `align=Right` order.
-                                .init(
-                                    value: state.programEnrolledDates[safe: index] ?? "",
-                                    label: Self.enrolledLabel,
-                                    align: .leading
-                                )
+                                // the key leads, which is C-043's `align=Right` order. A draft
+                                // row's label replaces the chip text.
+                                draftLabel.isEmpty
+                                    ? StudyProgramRow.Chip(
+                                        value: state.programEnrolledDates[safe: index] ?? "",
+                                        label: Self.enrolledLabel,
+                                        align: .leading
+                                    )
+                                    : StudyProgramRow.Chip(value: draftLabel)
                             ],
                             cover: Self.cachedImage(state.programCoverURLs[safe: index]),
                             onTap: { onOpenEnrollment(index) }
@@ -864,6 +883,19 @@ extension GroupsDetailScreen.State {
     /// D39)". The cached render is `populated`'s.
     static let error = populated
 
+    /// §3 `enrollments-with-draft` (capture state, owner request 2026-10-28) — `populated` with
+    /// one enrollment draft after its two enrollments (label "Draft · 3/6", starter "Started by
+    /// Jane Doe"); the Enrollments quick stat and the header still read 2 / "2 programs". The
+    /// draft's cover is a catalog image (image-fixtures).
+    static let enrollmentsWithDraft = populated.with {
+        $0.programTitles.append("Wisdom at Work")
+        $0.programDescriptions.append("")
+        $0.programEnrolledDates.append("")
+        $0.programCoverURLs.append("http://localhost:5961/api/projects/makeready/images/proverbs-wisdom-at-work")
+        $0.programDraftLabels = ["", "", "Draft · 3/6"]
+        $0.programDraftStarters = ["", "", "Started by Jane Doe"]
+    }
+
     private func with(_ change: (inout Self) -> Void) -> Self {
         var copy = self
         change(&copy)
@@ -894,6 +926,13 @@ extension GroupsDetailScreen.State {
 
 #Preview("error") {
     GroupsDetailScreen(state: .error)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("enrollments-with-draft") {
+    GroupsDetailScreen(state: .enrollmentsWithDraft)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

@@ -47,6 +47,9 @@ enum UI2Destination: Hashable {
     case editProgramField(programId: String, field: ProgramField)
     /// ui2-programs D11: the Edit cover page, above the program page (the group cover flow).
     case editProgramCover(programId: String, source: ImageEditSource)
+    /// ui2-enrollments-browse D7/D28: one enrollment's page. `name` is the list-known program name
+    /// the page shows while the home read loads.
+    case enrollmentHome(id: String, name: String)
     /// ui2-enrollment-create D2/D9: the "New enrollment" checklist; `flowId` keys its draft in
     /// `AppState.enrollmentDrafts`. Pushed on the stack it was opened from.
     case enrollChecklist(flowId: UUID)

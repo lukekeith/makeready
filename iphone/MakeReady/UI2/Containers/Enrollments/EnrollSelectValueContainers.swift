@@ -31,6 +31,7 @@ struct EnrollSelectInviteTimeContainer: View {
             onBack: { navigator.pop() },
             onSelect: { time, zone in
                 AppState.shared.updateEnrollmentDraft(flowId) { EnrollValueWrite.inviteTime(time, timezone: zone, into: &$0) }
+                EnrollDraftSyncs.changed(flowId)                                // ui2-enrollments-browse D4
                 navigator.popIfTop(.enrollSelectInviteTime(flowId: flowId))
             }
         )
@@ -49,7 +50,10 @@ struct EnrollSelectSyncContainer: View {
             onSave: { mode in
                 var saved = false
                 AppState.shared.updateEnrollmentDraft(flowId) { saved = EnrollValueWrite.sync(mode, into: &$0) }
-                if saved { navigator.popIfTop(.enrollSelectSync(flowId: flowId)) }
+                if saved {
+                    EnrollDraftSyncs.changed(flowId)                            // ui2-enrollments-browse D4
+                    navigator.popIfTop(.enrollSelectSync(flowId: flowId))
+                }
             }
         )
         .ui2PushedPageFill()
@@ -67,7 +71,10 @@ struct EnrollSelectAccessContainer: View {
             onSave: { value in
                 var saved = false
                 AppState.shared.updateEnrollmentDraft(flowId) { saved = EnrollValueWrite.access(value, into: &$0) }
-                if saved { navigator.popIfTop(.enrollSelectAccess(flowId: flowId)) }
+                if saved {
+                    EnrollDraftSyncs.changed(flowId)                            // ui2-enrollments-browse D4
+                    navigator.popIfTop(.enrollSelectAccess(flowId: flowId))
+                }
             }
         )
         .ui2PushedPageFill()

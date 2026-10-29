@@ -130,6 +130,10 @@ models:
         type: one_to_many
         target: Enrollment
         name: EnrollmentCreator
+      enrollmentDrafts:
+        type: one_to_many
+        target: EnrollmentDraft
+        name: EnrollmentDraftCreator
       posts:
         type: one_to_many
         target: Post
@@ -189,6 +193,10 @@ models:
         type: one_to_many
         target: Enrollment
         name: EnrollmentUpdater
+      updatedEnrollmentDrafts:
+        type: one_to_many
+        target: EnrollmentDraft
+        name: EnrollmentDraftUpdater
       updatedEvents:
         type: one_to_many
         target: Event
@@ -371,6 +379,9 @@ models:
       enrollments:
         type: one_to_many
         target: Enrollment
+      enrollmentDrafts:
+        type: one_to_many
+        target: EnrollmentDraft
       events:
         type: one_to_many
         target: Event
@@ -2078,6 +2089,9 @@ models:
       enrollments:
         type: one_to_many
         target: Enrollment
+      enrollmentDrafts:
+        type: one_to_many
+        target: EnrollmentDraft
       tags:
         type: one_to_many
         target: StudyProgramTag
@@ -2462,6 +2476,98 @@ models:
       - fields: [createdById]
       - fields: [startDate]
       - fields: [studyProgramId, syncMode]
+
+  # ---------------------------------------------------------------------------
+  # Enrollment drafts (ui2-enrollments-browse SC1 — D2, D6, D19): a 2.0 enroll checklist that holds a
+  # group and a study program, saved before Enroll so a leader or co-leader can resume it. One per
+  # (group, program). POST /api/enrollments deletes the pair's drafts (D11, D24). Never expires.
+  # ---------------------------------------------------------------------------
+  EnrollmentDraft:
+    table_name: enrollment_drafts
+    fields:
+      id:
+        type: uuid
+        primary: true
+        default: uuid()
+      groupId:
+        type: string
+      studyProgramId:
+        type: string
+      startDate:
+        type: string
+        nullable: true
+        description: "yyyy-MM-dd — the checklist's first lesson date"
+      enabledDays:
+        type: json
+        nullable: true
+        description: "Weekday names as sent, e.g. ['Sun','Mon']"
+      overriddenDates:
+        type: json
+        nullable: true
+        description: "yyyy-MM-dd[] the leader toggled against the weekday walk"
+      scheduleDates:
+        type: json
+        nullable: true
+        description: "yyyy-MM-dd[] strictly ascending — the checklist's lesson dates"
+      smsTime:
+        type: string
+        nullable: true
+        description: "HH:mm invite time"
+      timezone:
+        type: string
+        nullable: true
+        description: "IANA zone, e.g. 'America/Chicago'"
+      syncMode:
+        type: enum
+        enum: EnrollmentSyncMode
+        nullable: true
+      lessonAccess:
+        type: enum
+        enum: LessonAccess
+        nullable: true
+      createdById:
+        type: string
+        nullable: true
+      updatedById:
+        type: string
+        nullable: true
+      createdAt:
+        type: datetime
+        default: now()
+      updatedAt:
+        type: datetime
+        updatedAt: true
+    relations:
+      group:
+        type: many_to_one
+        target: Group
+        fields: [groupId]
+        references: [id]
+        onDelete: Cascade
+      studyProgram:
+        type: many_to_one
+        target: StudyProgram
+        fields: [studyProgramId]
+        references: [id]
+        onDelete: Cascade
+      createdBy:
+        type: many_to_one
+        target: User
+        fields: [createdById]
+        references: [id]
+        name: EnrollmentDraftCreator
+        onDelete: SetNull
+        nullable: true
+      updatedBy:
+        type: many_to_one
+        target: User
+        fields: [updatedById]
+        references: [id]
+        name: EnrollmentDraftUpdater
+        onDelete: SetNull
+        nullable: true
+    unique:
+      - fields: [groupId, studyProgramId]
 
   # ---------------------------------------------------------------------------
   # Enrollment Sync Runs (idempotency + resume state for sync fan-out)

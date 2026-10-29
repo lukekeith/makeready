@@ -85,6 +85,10 @@ struct GroupsEnrollProgramScreen: View {
     var onSelectStep: (Step) -> Void = { _ in }     // row tap → that row's picker (§6)
     var onEnroll: () -> Void = {}                   // header Enroll → POST /api/enrollments
     var onDone: () -> Void = {}                     // Done (header, button, back on `enrolled`) → caller
+    /// §2 screen inputs `onDiscard` (owner, 2026-10-29): `nil` = no button, today's look in every
+    /// state. Non-nil = the destructive "Discard enrollment" button below the rows in the
+    /// checklist phase; the caller decides what discarding means (§3).
+    var onDiscard: (() -> Void)?
 
     init(
         state: State,
@@ -93,7 +97,8 @@ struct GroupsEnrollProgramScreen: View {
         onBack: @escaping () -> Void = {},
         onSelectStep: @escaping (Step) -> Void = { _ in },
         onEnroll: @escaping () -> Void = {},
-        onDone: @escaping () -> Void = {}
+        onDone: @escaping () -> Void = {},
+        onDiscard: (() -> Void)? = nil
     ) {
         self.state = state
         self.confirmationAnimated = confirmationAnimated
@@ -102,6 +107,7 @@ struct GroupsEnrollProgramScreen: View {
         self.onSelectStep = onSelectStep
         self.onEnroll = onEnroll
         self.onDone = onDone
+        self.onDiscard = onDiscard
     }
 
     // MARK: - §2 / §3 constants
@@ -109,6 +115,7 @@ struct GroupsEnrollProgramScreen: View {
     private static let title = "Enrollment"
     private static let enrollLabel = "Enroll"
     private static let doneLabel = "Done"
+    private static let discardLabel = "Discard enrollment"
     private static let enrolledTitle = "Group enrolled"
     private static let processingAnnouncement = "Enrolling"
     /// §2: `totalSteps` = 6.
@@ -246,6 +253,13 @@ struct GroupsEnrollProgramScreen: View {
             // §3 `processing`: "every row ignore[s] taps" — no visual change (C-124's dimmed
             // `disabled` look is for the Row prerequisite only).
             .allowsHitTesting(phase == .checklist)
+
+            // §2 checklist 3: C-048 "Discard enrollment", `destructive`, `md`, below row 6 after
+            // the column gap — only when `onDiscard` is set, never in `processing` (§3).
+            if let onDiscard, phase == .checklist {
+                PageActionButton(label: Self.discardLabel, role: .destructive, size: .md, onTap: onDiscard)
+                    .ui2Element("C-048 PageActionButton")
+            }
         }
     }
 
@@ -338,7 +352,8 @@ struct GroupsEnrollProgramScreen: View {
         switch step {
         case .group: return groupDone
         case .studyProgram: return !state.programName.isEmpty
-        case .schedule: return !state.scheduleStartDay.isEmpty
+        // §3 rules 1 and 6: "a schedule with no done program does not count".
+        case .schedule: return !state.scheduleStartDay.isEmpty && isDone(.studyProgram)
         case .inviteTime: return Self.inviteTime(state.smsTime) != nil
         case .sync: return state.syncMode == "AUTO" || state.syncMode == "OFF"
         case .accessibility: return state.lessonAccess == "all-at-once" || state.lessonAccess == "one-at-a-time"
@@ -351,7 +366,16 @@ struct GroupsEnrollProgramScreen: View {
         step == .schedule && !isDone(.studyProgram)
     }
 
-    private var completedSteps: Int { Step.allCases.filter(isDone).count }
+    private var completedSteps: Int { Self.completedSteps(state) }
+
+    /// §3 draft rule 6 (owner, 2026-10-29): the one public row-done count, 0–6 — the same value
+    /// passed to C-125 as `completedSteps`. An ineligible group and a schedule with no done
+    /// program do not count. Every "Draft · n/6" label reads this, never a recount.
+    public static func completedSteps(_ state: State) -> Int {
+        GroupsEnrollProgramScreen(state: state).completedStepsByRule
+    }
+
+    private var completedStepsByRule: Int { Step.allCases.filter(isDone).count }
 
     private var allDone: Bool { completedSteps == Self.totalSteps }
 
@@ -516,6 +540,16 @@ extension GroupsEnrollProgramScreen.State {
         return s
     }()
 
+    /// §3 `discardable` — the `schedule-done` checklist (3/6); the preview passes a non-nil
+    /// `onDiscard`, so the Discard enrollment button shows. Photos are catalog image-6 and
+    /// romans-grafted-olive.
+    static let discardable: Self = {
+        var s = scheduleDone
+        s.groupImageURL = "http://localhost:5961/api/projects/makeready/images/image-6"
+        s.programImageURL = "http://localhost:5961/api/projects/makeready/images/romans-grafted-olive"
+        return s
+    }()
+
     /// §3 `ready` — 6/6; the header shows Enroll.
     static let ready: Self = {
         var s = scheduleDone
@@ -576,6 +610,13 @@ extension GroupsEnrollProgramScreen.State {
 
 #Preview("schedule-done") {
     GroupsEnrollProgramScreen(state: .scheduleDone, confirmationAnimated: false)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("discardable") {
+    GroupsEnrollProgramScreen(state: .discardable, confirmationAnimated: false, onDiscard: {})
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

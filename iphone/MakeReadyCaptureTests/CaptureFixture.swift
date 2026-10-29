@@ -966,11 +966,15 @@ struct CaptureComponent: Codable {
     // groups-detail re-build 2026-10-18 (C-089 join-request rows, §2.7): additive.
     let requestNames: [String]?
     let requestDates: [String]?
+    // groups-detail change 2026-10-28 (enrollment draft rows, §2.8/§3): additive.
+    let programDraftLabels: [String]?
+    let programDraftStarters: [String]?
     // ── screen enrollments-home ──
     // Reused as-is: `searchText`, the four `*FilterLabel`s, `loading`, `groupNames`,
     // `groupLeaderNames`, `groupPhotoURLs`, `programTitles`, `programProgress`,
-    // `programCompleteCounts`, `programHours`, `programEnrolledDates` and `programCoverURLs`
-    // (same names, same types).
+    // `programCompleteCounts`, `programHours`, `programEnrolledDates`, `programCoverURLs`, and
+    // (change 2026-10-28, draft rows) `programDraftLabels` / `programDraftStarters` (same names,
+    // same types).
     let failed: Bool?
     let programGroupIndexes: [Int]?
     // ── screen search-home ──
@@ -1234,6 +1238,7 @@ struct CaptureComponent: Codable {
     let scheduleWeekdays: [String]?            // enabled weekdays, full names
     let scheduleEndDate: String?               // "October 18th, 2026" as displayed
     let groupIneligibleMessage: String?        // §3 group-ineligible: warning under row 1; "" = none
+    let discardable: Bool?                     // §3 discardable: true = `onDiscard` set (Discard button)
     // ── screen enrollment-select-schedule ──
     // Additive; reuses `lessonCount`, `today` (string reading), `startDate`, `enabledDays`,
     // `overriddenDates`, `existingLessonDates` and `prompt` as-is (same names, same types).

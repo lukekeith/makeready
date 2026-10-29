@@ -123,8 +123,11 @@ struct UI2Shell: View {
             if link != .none { PushNotificationManager.shared.clearPendingDeepLink() }
         }
         // ui2-enrollment-create D13: a checklist that left every stack (swipe-back, Home re-tap)
-        // takes its draft with it.
-        .onChange(of: model.enrollmentFlowIds) { _, ids in AppState.shared.pruneEnrollmentDrafts(keeping: ids) }
+        // takes its LOCAL draft with it. ui2-enrollments-browse D2/R4/D30: once its save in flight
+        // has settled — a saved draft stays on the server; the prune never DELETEs.
+        .onChange(of: model.enrollmentFlowIds) { _, ids in
+            EnrollDraftSyncs.prune(keeping: ids)
+        }
     }
 
     /// members-search-pinned: track the keyboard on its own animation timing.
@@ -198,6 +201,7 @@ struct UI2Shell: View {
         case .createStudyProgram: CreateStudyProgramContainer()                               // ui2-programs D1/D8
         case let .editProgramField(programId, field): ProgramFieldEditContainer(programId: programId, field: field)  // ui2-programs D10
         case let .editProgramCover(programId, source): EditProgramCoverContainer(programId: programId, source: source)  // ui2-programs D11
+        case let .enrollmentHome(id, name): EnrollmentHomeHost(id: id, name: name)               // ui2-enrollments-browse R2
         case let .enrollChecklist(flowId): EnrollChecklistContainer(flowId: flowId)                 // ui2-enrollment-create D2
         case let .enrollSelectGroup(flowId): EnrollSelectGroupContainer(flowId: flowId)
         case let .enrollSelectProgram(flowId): EnrollSelectProgramContainer(flowId: flowId)
@@ -214,6 +218,7 @@ struct UI2Shell: View {
         case .members: MembersHomeContainer() // ui2-members-browse
         case .groups: GroupsHomeContainer(destination: { .groupDetail(id: $0, name: $1) })  // ui2-groups-browse D1/D3
         case .programs: StudyProgramsContainer(destination: { .studyProgramHome(id: $0, name: $1) })  // ui2-programs D1/D3
+        case .enrollments: EnrollmentsHomeContainer()  // ui2-enrollments-browse R1
         default: EmptyPage()                  // SPEC D10: Library…Media are unwired
         }
     }

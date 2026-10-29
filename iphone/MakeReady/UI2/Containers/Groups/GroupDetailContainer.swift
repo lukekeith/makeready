@@ -4,7 +4,7 @@ import SwiftUI
 /// ui2-groups-browse §iphone Group page: the pushed `.groupDetail` page (D1, D4). It owns its
 /// ScrollView and pins C-040 above it (D27: the screen's `showsHeader: false`, the
 /// MemberProfileContainer precedent). Cache-first: the stores render at once under the pushed
-/// name, and eight loads run in parallel; a failure keeps what is shown (D4) and a group outside
+/// name, and nine loads run in parallel; a failure keeps what is shown (D4) and a group outside
 /// the caller's scope just stays empty (D23).
 struct GroupDetailContainer: View {
     let groupId: String
@@ -64,6 +64,8 @@ struct GroupDetailContainer: View {
                     },
                     // ui2-enrollment-create D2: Enrollments `add` → the checklist with this group preloaded.
                     onEnrollProgram: { EnrollEntry.open(groupId: groupId, studyProgramId: nil, push: navigator.push) },
+                    // ui2-enrollments-browse D28/D21: an enrollment row → its page; a draft row → its checklist.
+                    onOpenEnrollment: { row in EnrollDraftOpen.route(output.enrollmentTarget(atRow: row), navigator: navigator) },
                     // ui2-groups-edit D9: C-048 Delete Group → the C-066 confirmation.
                     onDeleteGroup: { deleteMenuOpen = true },
                     // group-cover-image D1/D2: no cover → the picker; a cover → Change · Edit · View.
@@ -205,7 +207,8 @@ struct GroupDetailContainer: View {
     /// D4: every group store, read for this group.
     @MainActor
     static func input(groupId: String, name: String, state app: AppState) -> GroupDetailMapper.Input {
-        GroupDetailMapper.Input(
+        let drafts = app.enrollmentDraftsByGroupId[groupId] ?? []
+        return GroupDetailMapper.Input(
             name: name,
             group: app.groups[groupId],
             members: app.membersFor(groupId: groupId),
@@ -214,7 +217,10 @@ struct GroupDetailContainer: View {
             nextStudy: app.nextStudyByGroupId[groupId],
             history: app.historyByGroupId[groupId] ?? [],
             days: app.groupDaysByGroupId[groupId],
-            chart: app.groupChartByGroupId[groupId]
+            chart: app.groupChartByGroupId[groupId],
+            drafts: drafts,
+            programsById: Dictionary(drafts.compactMap { d in app.programs[d.studyProgramId].map { (d.studyProgramId, $0) } },
+                                     uniquingKeysWith: { first, _ in first })
         )
     }
 
@@ -241,7 +247,7 @@ struct GroupDetailContainer: View {
         return s
     }
 
-    /// D4: the eight section loads, all at once.
+    /// D4: the nine section loads, all at once.
     @MainActor
     static func load(groupId: String, authManager: AuthManager) async {
         let onUnauthorized: @MainActor () async -> Void = { [authManager] in
@@ -257,11 +263,19 @@ struct GroupDetailContainer: View {
         async let enrollments: () = attempt("loadEnrollments", onUnauthorized: onUnauthorized) {
             _ = try await EnrollmentActions().loadEnrollments(groupId: groupId)
         }
+        async let drafts: () = attempt("loadDrafts", onUnauthorized: onUnauthorized) {
+            try await EnrollmentDraftActions().listByGroup(groupId: groupId)
+            // D7b: a draft row's title is its program's — load the programs when one is unknown.
+            let ids = (AppState.shared.enrollmentDraftsByGroupId[groupId] ?? []).map(\.studyProgramId)
+            if ids.contains(where: { AppState.shared.programs[$0] == nil }) {
+                try await ProgramActions().loadPrograms()
+            }
+        }
         async let next: () = groups.loadNextStudy(groupId: groupId)
         async let history: () = groups.loadHistory(groupId: groupId)
         async let days: () = groups.loadGroupDays(groupId: groupId)
         async let chart: () = groups.loadGroupChart(groupId: groupId)
-        _ = await (group, members, requests, enrollments, next, history, days, chart)
+        _ = await (group, members, requests, enrollments, next, history, days, chart, drafts)
     }
 
     /// D4/D23 for the four throwing loaders: cancelled → nothing; 401 → sign-out; anything else —

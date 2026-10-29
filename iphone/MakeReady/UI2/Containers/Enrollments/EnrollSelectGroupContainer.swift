@@ -106,6 +106,7 @@ struct EnrollSelectGroupContainer: View {
 
     private func commit(_ groupId: String) {
         AppState.shared.updateEnrollmentDraft(flowId) { $0.groupId = groupId }   // group change cascades nothing
+        EnrollDraftSyncs.changed(flowId)                                        // ui2-enrollments-browse D3/D4
         navigator.popIfTop(.enrollSelectGroup(flowId: flowId))
     }
 }
