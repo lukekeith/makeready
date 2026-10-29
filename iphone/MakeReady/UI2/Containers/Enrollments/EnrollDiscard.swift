@@ -36,7 +36,7 @@ enum EnrollDiscard {
                 EnrollDraftOpen.gone(flowId: flowId, draftId: serverId, error: error, pop: pop, state: state, actions: actions)
                 return false
             }
-            state.recordError(error, context: "EnrollChecklistContainer.discard", surface: true,
+            state.recordError(error, context: "EnrollDiscard.run", surface: true,
                               friendlyMessage: failedMessage,
                               retry: {
                                   Task { @MainActor in

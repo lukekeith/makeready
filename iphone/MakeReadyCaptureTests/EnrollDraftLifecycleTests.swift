@@ -88,6 +88,7 @@ final class EnrollDraftLifecycleTests: XCTestCase {
         XCTAssertFalse(ok)
         XCTAssertNotNil(state.enrollmentDrafts[flow])
         XCTAssertEqual(state.activeSurfacedError?.message, "Couldn't discard the draft")
+        XCTAssertEqual(state.activeSurfacedError?.context, "EnrollDiscard.run")    // logged under its own name
         XCTAssertNotNil(state.activeSurfacedError?.retry)
         XCTAssertFalse(popped)
         EnrollDraftSyncs.stop(flow)
