@@ -59,6 +59,7 @@ struct EnrollChecklistContainer: View {
             state: EnrollChecklistMapper.state(draft,
                                                group: draft.groupId.flatMap { app.groups[$0] },
                                                program: draft.studyProgramId.flatMap { app.programs[$0] }),
+            scrollsContent: true,              // the checklist scrolls under the pinned header
             onBack: leave,
             onSelectStep: { navigator.push(Self.destination(for: $0, flowId: flowId)) },
             onEnroll: enroll,
