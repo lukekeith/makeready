@@ -25,6 +25,7 @@ import { generateScheduleDates, validateScheduleDates } from '../services/enroll
 import { isValidTimezone } from '../utils/timezone.js'
 import { lessonAvailability, notYetBody } from '../services/lesson-availability.js'
 import { programReadFilter } from '../services/study-program.service.js'
+import { deleteDraftsForPair } from '../services/enrollment-draft.service.js'
 import { applyEnrollmentEdit, applyStudySwap, previewEnrollmentEdit, EnrollmentEditError } from '../services/enrollment-edit.js'
 import {
   canManageOrgContent,
@@ -153,6 +154,8 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       scheduleDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).optional(),
       // D4: when lessons open to members; absent → the column default ALL_AT_ONCE.
       lessonAccess: z.enum(['ONE_AT_A_TIME', 'ALL_AT_ONCE']).optional(),
+      // ui2-enrollments-browse D11: the checklist's server draft; an unknown id is ignored (D24 deletes by pair).
+      draftId: z.string().uuid().optional(),
     })
 
     const body = schema.parse(req.body)
@@ -439,6 +442,15 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         // Enrollment might not have been created yet
       }
       throw stepError
+    }
+
+    // ui2-enrollments-browse D11 + D24: the enrollment and its welcome post exist, so the pair's drafts are
+    // promoted — deleted whether or not draftId was sent. Its own try/catch, OUTSIDE the step try/catch
+    // above (whose catch deletes the enrollment, F4): a failure here is logged and the 200 stands.
+    try {
+      await deleteDraftsForPair(body.groupId, body.studyProgramId)
+    } catch (draftError) {
+      console.error('   ⚠️ Could not delete the enrollment drafts for this group + program:', draftError)
     }
 
     // Step 5: Fetch enrollment summary (outside transaction)
