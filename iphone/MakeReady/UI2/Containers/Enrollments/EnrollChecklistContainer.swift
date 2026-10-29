@@ -69,6 +69,16 @@ struct EnrollChecklistContainer: View {
         .onAppear {
             // A5: no swipe-back while the POST is in flight.
             backSwipe?.blocksBackSwipe = { AppState.shared.enrollmentDrafts[flowId]?.phase == .processing }
+            // ui2-enrollments-browse D3/D30: this flow's autosave; a gone draft pops to the pusher.
+            let entryDepth = max(0, navigator.depth() - 1)
+            let sync = EnrollDraftSyncs.sync(for: flowId)
+            sync.onGone = { [navigator] in navigator.popTo(entryDepth) }
+            sync.onUnauthorized = { [authManager] in
+                do { try await authManager.signOut() } catch {
+                    AppState.shared.recordError(error, context: "EnrollChecklistContainer.signOut", surface: false)
+                }
+            }
+            sync.changed()
         }
     }
 

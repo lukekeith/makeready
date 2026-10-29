@@ -24,7 +24,10 @@ struct EnrollSelectScheduleContainer: View {
                     applied = EnrollSelectScheduleMapper.apply(start: start, end: end, days: days, overrides: overrides,
                                                                lessonCount: lessonCount, to: &$0)
                 }
-                if applied { navigator.popIfTop(.enrollSelectSchedule(flowId: flowId)) }
+                if applied {
+                    EnrollDraftSyncs.changed(flowId)                            // ui2-enrollments-browse D4
+                    navigator.popIfTop(.enrollSelectSchedule(flowId: flowId))
+                }
             }
         )
         .ui2PushedPageFill()
