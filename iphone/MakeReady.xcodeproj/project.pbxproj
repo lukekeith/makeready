@@ -353,6 +353,7 @@
 		6C366F99DDD04D86AFE698C0 /* ScheduleSummaryFooter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DB72DDA04CB5BBBF5F045A /* ScheduleSummaryFooter.swift */; };
 		6C5439AC8DC1A09DC5EC2685 /* MemberProfileMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F65125EF21DADBF7C1D423 /* MemberProfileMapper.swift */; };
 		6C5A8DD5D8C7CE3123E8C6E6 /* ChipStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC599075F8870C376CC3475B /* ChipStrip.swift */; };
+		6C7E6B4C50A01BA7E1926DF5 /* EnrollContainers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB991CE63D7056A7143B350 /* EnrollContainers.swift */; };
 		6CE3199C41B004B85F0DB676 /* ProgramActions.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF9898162D0FC410484CC /* ProgramActions.swift */; };
 		6D90975D960EA7436A71C57E /* MembersHomeContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E8421A055A4822DFACE79DD /* MembersHomeContainer.swift */; };
 		6DC45BD77ABA5F7395413B48 /* HighlightRange.swift in Sources */ = {isa = PBXBuildFile; fileRef = HLRG000100000000000001 /* HighlightRange.swift */; };
@@ -712,6 +713,7 @@
 		E3060889028DDE0CCCE1A679 /* AuthManagerLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD3BCF3A8A02BB93C8528AF5 /* AuthManagerLaunchTests.swift */; };
 		E33E7E6028D60D8906715C62 /* ActionMenuOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1415CE5DD9954FF8FEC16114 /* ActionMenuOverlay.swift */; };
 		E3D1FDC0FE37120E4D17D8F8 /* HomeDashboardScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6A2E963F777311FDA1B0715 /* HomeDashboardScreen.swift */; };
+		E47628BAD102CE5037BA173A /* EnrollContainers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB991CE63D7056A7143B350 /* EnrollContainers.swift */; };
 		E48377398D59716985F1E599 /* EditCoverScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0406D3559DE79394B01FF97 /* EditCoverScreen.swift */; };
 		E489AAA8979BCC8168F7AD2F /* EntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF7F960A70FAA4CFB9D79 /* EntityStore.swift */; };
 		E4A81963C2E474C36BC23753 /* ExtractedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */; };
@@ -990,6 +992,7 @@
 		2DE0189F4315086D68E5CF0F /* FieldEditRules.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FieldEditRules.swift; sourceTree = "<group>"; };
 		2F15F6873F3FD12B46C59109 /* SearchHomeScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SearchHomeScreen.swift; path = Screens/Search/SearchHomeScreen.swift; sourceTree = "<group>"; };
 		2F9A7F04E1276422781ADE05 /* CoverImage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CoverImage.swift; sourceTree = "<group>"; };
+		2FB991CE63D7056A7143B350 /* EnrollContainers.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollContainers.swift; sourceTree = "<group>"; };
 		308350C32C1F0B4373C3C40C /* SharedEditFieldTemplate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SharedEditFieldTemplate.swift; path = Screens/Shared/SharedEditFieldTemplate.swift; sourceTree = "<group>"; };
 		31183EC63408B733B58CC816 /* GroupsEnrollProgramScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GroupsEnrollProgramScreen.swift; path = Screens/Groups/GroupsEnrollProgramScreen.swift; sourceTree = "<group>"; };
 		311BD49BE0FF6C6B94A2760D /* HomeDashboardMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HomeDashboardMapper.swift; path = Containers/Home/HomeDashboardMapper.swift; sourceTree = "<group>"; };
@@ -1697,6 +1700,7 @@
 				DC46BC64B6223DADBB9F2679 /* EnrollChecklistMapper.swift */,
 				015E0430F6964B2304CC0415 /* EnrollSelectProgramMapper.swift */,
 				6DFE0E2E717A1D9A73F83DD2 /* EnrollSelectScheduleMapper.swift */,
+				2FB991CE63D7056A7143B350 /* EnrollContainers.swift */,
 			);
 			name = Enrollments;
 			path = Enrollments;
@@ -3447,6 +3451,7 @@
 				BD8F5727EAE892898AB1E036 /* EnrollChecklistMapper.swift in Sources */,
 				A75D55F8A851AFDEE0190A58 /* EnrollSelectProgramMapper.swift in Sources */,
 				0A3F272FF5055FC53F040377 /* EnrollSelectScheduleMapper.swift in Sources */,
+				6C7E6B4C50A01BA7E1926DF5 /* EnrollContainers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3902,6 +3907,7 @@
 				7968F7B37DB1ACF8F59B9D7D /* EnrollChecklistMapper.swift in Sources */,
 				C0F48887A5A97936E9C402DE /* EnrollSelectProgramMapper.swift in Sources */,
 				F21164846BFCBDCB585D133C /* EnrollSelectScheduleMapper.swift in Sources */,
+				E47628BAD102CE5037BA173A /* EnrollContainers.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

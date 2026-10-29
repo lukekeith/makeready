@@ -122,6 +122,9 @@ struct UI2Shell: View {
         .onChange(of: PushNotificationManager.shared.pendingDeepLink) { _, link in
             if link != .none { PushNotificationManager.shared.clearPendingDeepLink() }
         }
+        // ui2-enrollment-create D13: a checklist that left every stack (swipe-back, Home re-tap)
+        // takes its draft with it.
+        .onChange(of: model.enrollmentFlowIds) { _, ids in AppState.shared.pruneEnrollmentDrafts(keeping: ids) }
     }
 
     /// members-search-pinned: track the keyboard on its own animation timing.
@@ -195,6 +198,13 @@ struct UI2Shell: View {
         case .createStudyProgram: CreateStudyProgramContainer()                               // ui2-programs D1/D8
         case let .editProgramField(programId, field): ProgramFieldEditContainer(programId: programId, field: field)  // ui2-programs D10
         case let .editProgramCover(programId, source): EditProgramCoverContainer(programId: programId, source: source)  // ui2-programs D11
+        case let .enrollChecklist(flowId): EnrollChecklistContainer(flowId: flowId)                 // ui2-enrollment-create D2
+        case let .enrollSelectGroup(flowId): EnrollSelectGroupContainer(flowId: flowId)
+        case let .enrollSelectProgram(flowId): EnrollSelectProgramContainer(flowId: flowId)
+        case let .enrollSelectSchedule(flowId): EnrollSelectScheduleContainer(flowId: flowId)
+        case let .enrollSelectInviteTime(flowId): EnrollSelectInviteTimeContainer(flowId: flowId)
+        case let .enrollSelectSync(flowId): EnrollSelectSyncContainer(flowId: flowId)
+        case let .enrollSelectAccess(flowId): EnrollSelectAccessContainer(flowId: flowId)
         }
     }
 
