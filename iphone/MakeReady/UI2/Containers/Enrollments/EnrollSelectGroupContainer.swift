@@ -16,6 +16,9 @@ struct EnrollSelectGroupContainer: View {
     @State private var orgMenuOpen = false
     @State private var pickedId: String?
     @State private var pendingWarning: (groupId: String, warning: EnrollPickerWarnings.Warning)?
+    /// The in-flight lesson-date lookup; cancelled by a newer Select and when the page leaves, so
+    /// Back during the lookup writes nothing (SPEC: Back from a picker leaves the draft unchanged).
+    @State private var lookup: Task<Void, Never>?
 
     var body: some View {
         let app = AppState.shared
@@ -69,27 +72,70 @@ struct EnrollSelectGroupContainer: View {
                 },
                 onDone: { pendingWarning = nil })
         }
-        .task { await InviteSelectGroupContainer.loadEnrollmentCounts(for: groups.map(\.id)) }
+        .task { await Self.loadGroupsIfNeeded() }
+        .task(id: groups.map(\.id)) { await InviteSelectGroupContainer.loadEnrollmentCounts(for: groups.map(\.id)) }
+        .onDisappear { lookup?.cancel() }
     }
 
     private func select(_ groupId: String) {
         let app = AppState.shared
         guard let draft = app.enrollmentDrafts[flowId] else { return navigator.pop() }
-        Task { @MainActor in
-            let existing = await EnrollSelectScheduleContainer.existingLessonDates(groupId: groupId)
-            if let warning = EnrollPickerWarnings.forGroup(enrollments: app.enrollmentsFor(groupId: groupId),
-                                                           programId: draft.studyProgramId,
-                                                           scheduleDates: draft.scheduleDates,
-                                                           existingLessonDates: existing) {
-                pendingWarning = (groupId, warning)
-            } else {
-                commit(groupId)
-            }
+        lookup?.cancel()
+        // No schedule yet: the overlap check cannot fire, so decide now from the cached enrollments.
+        guard !draft.scheduleDates.isEmpty else {
+            return apply(Self.outcome(groupId: groupId, draft: draft, existingLessonDates: [], state: app), groupId)
+        }
+        lookup = Task { @MainActor in
+            guard let outcome = await Self.lookupOutcome(groupId: groupId, draft: draft) else { return }
+            apply(outcome, groupId)
+        }
+    }
+
+    private func apply(_ outcome: GroupSelectOutcome, _ groupId: String) {
+        switch outcome {
+        case .commit: commit(groupId)
+        case .warn(let warning): pendingWarning = (groupId, warning)
         }
     }
 
     private func commit(_ groupId: String) {
         AppState.shared.updateEnrollmentDraft(flowId) { $0.groupId = groupId }   // group change cascades nothing
         navigator.popIfTop(.enrollSelectGroup(flowId: flowId))
+    }
+}
+
+/// What a group Select does once its checks are in.
+enum GroupSelectOutcome: Equatable { case commit, warn(EnrollPickerWarnings.Warning) }
+
+extension EnrollSelectGroupContainer {
+    static func outcome(groupId: String, draft: EnrollmentDraft, existingLessonDates: [Date],
+                        state: AppState) -> GroupSelectOutcome {
+        EnrollPickerWarnings.forGroup(enrollments: state.enrollmentsFor(groupId: groupId), programId: draft.studyProgramId,
+                                      scheduleDates: draft.scheduleDates, existingLessonDates: existingLessonDates)
+            .map(GroupSelectOutcome.warn) ?? .commit
+    }
+
+    /// Fetches the group's existing lesson dates only when the draft has a schedule (the overlap check
+    /// needs them); nil when the lookup was cancelled — the picker left, so nothing may be written.
+    @MainActor
+    static func lookupOutcome(groupId: String, draft: EnrollmentDraft, state: AppState? = nil,
+                              api: APIClientProtocol? = nil) async -> GroupSelectOutcome? {
+        let state = state ?? .shared
+        guard !draft.scheduleDates.isEmpty else {
+            return outcome(groupId: groupId, draft: draft, existingLessonDates: [], state: state)
+        }
+        let existing = await EnrollSelectScheduleContainer.existingLessonDates(groupId: groupId, state: state, api: api)
+        guard !Task.isCancelled else { return nil }
+        return outcome(groupId: groupId, draft: draft, existingLessonDates: existing, state: state)
+    }
+
+    /// The flow can open from the TopNav on a cold cache: load the groups (cache-first) when none are held.
+    @MainActor
+    static func loadGroupsIfNeeded(state: AppState? = nil) async {
+        let state = state ?? .shared
+        guard state.groups.isEmpty else { return }
+        do { try await GroupActions(state: state).loadGroups() } catch {
+            state.recordError(error, context: "EnrollSelectGroupContainer.loadGroups")
+        }
     }
 }

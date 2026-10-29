@@ -37,3 +37,56 @@ final class EnrollPickerWarningsTests: XCTestCase {
         XCTAssertEqual(EnrollPickerWarnings.chooseAnother, "Choose another")
     }
 }
+
+/// ui2-enrollment-create D11/D18 (Task 13 fix round 1): a group Select only fetches lesson dates when
+/// the draft has a schedule, and a lookup cancelled by Back yields nothing to write.
+@MainActor
+final class EnrollGroupSelectOutcomeTests: XCTestCase {
+    private func draft(schedule: [Date]) -> EnrollmentDraft {
+        var draft = EnrollmentDraft(id: UUID(), groupId: nil, studyProgramId: "p1")
+        draft.scheduleDates = schedule
+        return draft
+    }
+
+    func testNoScheduleDecidesFromCachedEnrollmentsWithoutARequest() async {
+        StatePersistence.shared.clear()
+        let state = AppState()
+        let live = EnrollmentWithProgram(id: "e1", groupId: "g1", studyProgramId: "p1", startDate: .distantPast,
+                                         endDate: Date().addingTimeInterval(86_400))
+        state.enrollments.upsert(live)
+        state.groupEnrollmentIndex.add(parentId: "g1", childId: "e1")
+        let api = StubAPIClient()
+        let outcome = await EnrollSelectGroupContainer.lookupOutcome(groupId: "g1", draft: draft(schedule: []),
+                                                                     state: state, api: api)
+        XCTAssertEqual(outcome, .warn(.alreadyEnrolled))
+        XCTAssertEqual(EnrollSelectGroupContainer.outcome(groupId: "g2", draft: draft(schedule: []),
+                                                          existingLessonDates: [], state: state), .commit)
+        XCTAssertTrue(api.calls.isEmpty)
+    }
+
+    func testScheduleFetchesLessonDatesBeforeDeciding() async {
+        StatePersistence.shared.clear()
+        let state = AppState()
+        let api = StubAPIClient()
+        api.stub("GET", "/api/groups/g1/enrollments", json: #"{"success":true,"enrollments":[]}"#)
+        let outcome = await EnrollSelectGroupContainer.lookupOutcome(groupId: "g1", draft: draft(schedule: [Date()]),
+                                                                     state: state, api: api)
+        XCTAssertEqual(outcome, .commit)
+        XCTAssertEqual(api.callCount("GET", "/api/groups/g1/enrollments"), 1)
+    }
+
+    func testACancelledLookupYieldsNothingToWrite() async {
+        StatePersistence.shared.clear()
+        let state = AppState()
+        let api = StubAPIClient()
+        api.stub("GET", "/api/groups/g1/enrollments", json: #"{"success":true,"enrollments":[]}"#)
+        api.delayFor = { _ in 0.2 }
+        let schedule = draft(schedule: [Date()])
+        let lookup = Task { @MainActor in
+            await EnrollSelectGroupContainer.lookupOutcome(groupId: "g1", draft: schedule, state: state, api: api)
+        }
+        lookup.cancel()                                  // Back while the lookup is pending
+        let outcome = await lookup.value
+        XCTAssertNil(outcome)
+    }
+}
