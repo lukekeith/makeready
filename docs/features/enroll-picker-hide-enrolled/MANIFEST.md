@@ -1,14 +1,14 @@
 size: md
-state: spec
-next: /builder:resume --path docs/features/enroll-picker-hide-enrolled
-head: 116582eb
+state: built
+next: walk it on the phone, then /builder:signoff --path docs/features/enroll-picker-hide-enrolled
+head: b13dec84
 ticket: none
 branch: main
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-10-29
 hold: none
-go-ahead: none
+go-ahead: Luke 2026-10-29 (in session)
 walk: none
 verify: none
 ready: none
