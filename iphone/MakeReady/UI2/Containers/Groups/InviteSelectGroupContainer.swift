@@ -17,7 +17,7 @@ struct InviteSelectGroupContainer: View {
         let groups = app.groups.all
         let output = InviteSelectGroupMapper.output(.init(
             groups: groups,
-            enrollmentCounts: Dictionary(uniqueKeysWithValues: groups.map { ($0.id, app.enrollmentsFor(groupId: $0.id).count) }),
+            enrollmentCounts: InviteSelectGroupMapper.activeEnrollmentCounts(groups, enrollmentsFor: { app.enrollmentsFor(groupId: $0) }),   // D14
             query: query,
             leaderIds: leaderIds,
             loading: groups.isEmpty && app.loadingStates.isLoading(.groups),

@@ -64,6 +64,46 @@ final class InviteSelectGroupMapperTests: XCTestCase {
         XCTAssertTrue(out.state.loading)
         XCTAssertTrue(out.state.failed)
     }
+
+    private func makeGroup(id: String, name: String, members: Int, org: String? = nil) -> UserGroup {
+        UserGroup(id: id, code: "C\(id)", name: name, isPrivate: false, allowInvites: false, memberCount: members,
+                  creatorId: "u-\(id)", organizationId: org, createdAt: Date(), updatedAt: Date())
+    }
+
+    // ui2-enrollment-create D5/D14/D19 — the enroll picker's inputs; invite's defaults unchanged.
+    func testEligibleOnlyHidesEmptyGroups() {
+        let out = InviteSelectGroupMapper.output(.init(groups: [makeGroup(id: "a", name: "A", members: 0), makeGroup(id: "b", name: "B", members: 2)],
+                                                       enrollmentCounts: [:], query: "", leaderIds: [], loading: false, failed: false,
+                                                       eligibleOnly: true))
+        XCTAssertEqual(out.groupIds, ["b"])
+    }
+
+    func testOrgsChipShowsOnlyForMultiOrgCallersAndFilters() {
+        let groups = [makeGroup(id: "a", name: "A", members: 1, org: "o1"), makeGroup(id: "b", name: "B", members: 1, org: "o2")]
+        let orgs = [OrganizationData(id: "o1", name: "Grace"), OrganizationData(id: "o2", name: "Hope")]
+        let one = InviteSelectGroupMapper.output(.init(groups: groups, enrollmentCounts: [:], query: "", leaderIds: [],
+                                                       loading: false, failed: false, organizations: [orgs[0]]))
+        XCTAssertFalse(one.state.orgFilterVisible)
+        let two = InviteSelectGroupMapper.output(.init(groups: groups, enrollmentCounts: [:], query: "", leaderIds: [],
+                                                       loading: false, failed: false, organizations: orgs, pickedOrgIds: ["o2"]))
+        XCTAssertTrue(two.state.orgFilterVisible)
+        XCTAssertEqual(two.groupIds, ["b"])
+        XCTAssertEqual(two.orgOptions.map(\.label), ["Grace", "Hope"])
+    }
+
+    func testSelectedIdSetsTheSelectedIndex() {
+        let out = InviteSelectGroupMapper.output(.init(groups: [makeGroup(id: "a", name: "A", members: 1), makeGroup(id: "b", name: "B", members: 1)],
+                                                       enrollmentCounts: [:], query: "", leaderIds: [], loading: false, failed: false,
+                                                       selectedId: "b"))
+        XCTAssertEqual(out.state.selectedIndex, 1)
+    }
+
+    func testActiveEnrollmentCountsCountOnlyActiveOnes() {   // D14
+        let g = makeGroup(id: "a", name: "A", members: 1)
+        let past = EnrollmentWithProgram(id: "e1", groupId: "a", studyProgramId: "p", startDate: .distantPast, endDate: Date(timeIntervalSinceNow: -86_400))
+        let live = EnrollmentWithProgram(id: "e2", groupId: "a", studyProgramId: "p", startDate: .distantPast, endDate: Date(timeIntervalSinceNow: 86_400))
+        XCTAssertEqual(InviteSelectGroupMapper.activeEnrollmentCounts([g], enrollmentsFor: { _ in [past, live] }), ["a": 1])
+    }
 }
 
 @MainActor
