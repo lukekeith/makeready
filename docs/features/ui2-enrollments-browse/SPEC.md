@@ -149,11 +149,11 @@ All routes `requireAuth`; ids are uuids; errors `{success:false, error, message?
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `EnrollmentDraft` (`enrollment_drafts`): id uuid PK; `groupId` FK→groups CASCADE; `studyProgramId` FK→study_programs CASCADE; `startDate string?` (`yyyy-MM-dd` — the YAML has no `date` type); `enabledDays json?` (the wire `["Sun"…]` array, not Enrollment's varchar-JSON); `overriddenDates json?`; `scheduleDates json?`; `smsTime string?`; `timezone string?`; `syncMode enum EnrollmentSyncMode?`; `lessonAccess enum LessonAccess?`; `createdById` FK→users SET NULL (`EnrollmentDraftCreator`); `updatedById` FK→users SET NULL (`EnrollmentDraftUpdater`); `createdAt`, `updatedAt`; UNIQUE(`groupId`,`studyProgramId`) (its leading column serves `groupId` lookups — no separate index); inverse relations on Group, StudyProgram, User | Draft | D2, D6, D19 | pending — T1 |
-| SC2 | ADD | `/api/enrollment-drafts` POST/GET list/GET/PATCH/DELETE | Draft | D3–D6, D10 | pending — T2 |
-| SC3 | EDIT | `POST /api/enrollments` | + `draftId?` | D11 | pending — T3 |
-| SC4 | ADD | `GET /api/enrollments-feed` | Item, sections, options | D7, D8, D12, D13, D15–D18 | pending — T4 |
-| SC5 | ADD | `GET /api/enrollments/:id/home` | Home | D20; enrollment-home `dayLine2s` (the invite time) → `smsTime`/`timezone`, `authorName`, `lessonNumbers` → `dayNumber` (align) | pending — T5 |
+| SC1 | ADD | `EnrollmentDraft` (`enrollment_drafts`): id uuid PK; `groupId` FK→groups CASCADE; `studyProgramId` FK→study_programs CASCADE; `startDate string?` (`yyyy-MM-dd` — the YAML has no `date` type); `enabledDays json?` (the wire `["Sun"…]` array, not Enrollment's varchar-JSON); `overriddenDates json?`; `scheduleDates json?`; `smsTime string?`; `timezone string?`; `syncMode enum EnrollmentSyncMode?`; `lessonAccess enum LessonAccess?`; `createdById` FK→users SET NULL (`EnrollmentDraftCreator`); `updatedById` FK→users SET NULL (`EnrollmentDraftUpdater`); `createdAt`, `updatedAt`; UNIQUE(`groupId`,`studyProgramId`) (its leading column serves `groupId` lookups — no separate index); inverse relations on Group, StudyProgram, User | Draft | D2, D6, D19 | landed — migration 20261029050528_enrollment_drafts (339c21a) |
+| SC2 | ADD | `/api/enrollment-drafts` POST/GET list/GET/PATCH/DELETE | Draft | D3–D6, D10 | landed — c48be97 |
+| SC3 | EDIT | `POST /api/enrollments` | + `draftId?` | D11 | landed — e5fe855, 8b45314 |
+| SC4 | ADD | `GET /api/enrollments-feed` | Item, sections, options | D7, D8, D12, D13, D15–D18 | landed — 0ff9d84 |
+| SC5 | ADD | `GET /api/enrollments/:id/home` | Home | D20; enrollment-home `dayLine2s` (the invite time) → `smsTime`/`timezone`, `authorName`, `lessonNumbers` → `dayNumber` (align) | landed — 5601c49 |
 
 **Data plan:** SC1 is a new empty table — no backfill. `server/schema/schema.yaml` → `npm run schema:generate`
 (tsx, no dotenv) regenerates `schema.prisma` + `atlas/.schema.hcl` → `cd server/atlas && ../scripts/atlas.sh migrate diff --env local --var database_url=postgres://postgres:postgres@localhost:5434/makeready_dev`
