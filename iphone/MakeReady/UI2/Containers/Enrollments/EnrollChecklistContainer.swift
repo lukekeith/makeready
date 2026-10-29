@@ -70,12 +70,12 @@ struct EnrollChecklistContainer: View {
     @State private var discardMenuOpen = false
     /// enroll-picker-hide-enrolled D5/D8: the draft group's existing lesson dates, for the Schedule
     /// row's clash note — screen-local, re-fetched when the group changes; a failure shows no note.
-    @State private var existingLessonDates: [Date] = []
+    @State private var existingLessons: [EnrollPickerWarnings.ExistingLesson] = []
 
     var body: some View {
         let draft = AppState.shared.enrollmentDrafts[flowId] ?? EnrollmentDraft(id: flowId)
         GroupsEnrollProgramScreen(
-            state: Self.screenState(draft, app: AppState.shared, existingLessonDates: existingLessonDates),
+            state: Self.screenState(draft, app: AppState.shared, existingLessons: existingLessons),
             scrollsContent: true,              // the checklist scrolls under the pinned header
             onBack: leave,
             onSelectStep: { navigator.push(Self.destination(for: $0, flowId: flowId)) },
@@ -120,11 +120,11 @@ struct EnrollChecklistContainer: View {
             sync.changed()
         }
         .task(id: draft.groupId) {
-            existingLessonDates = []
+            existingLessons = []
             guard let groupId = draft.groupId else { return }
-            let dates = await EnrollSelectScheduleContainer.existingLessonDates(groupId: groupId)
+            let lessons = await EnrollSelectScheduleContainer.existingLessons(groupId: groupId)
             guard !Task.isCancelled else { return }
-            existingLessonDates = dates
+            existingLessons = lessons
         }
     }
 
@@ -143,13 +143,13 @@ struct EnrollChecklistContainer: View {
     /// names the row it opened from showed — the list's own fallback, so both count alike (D19).
     @MainActor
     static func screenState(_ draft: EnrollmentDraft, app: AppState,
-                            existingLessonDates: [Date] = []) -> GroupsEnrollProgramScreen.State {
+                            existingLessons: [EnrollPickerWarnings.ExistingLesson] = []) -> GroupsEnrollProgramScreen.State {
         EnrollChecklistMapper.state(draft,
                                     group: draft.groupId.flatMap { app.groups[$0] },
                                     program: draft.studyProgramId.flatMap { app.programs[$0] },
                                     groupFallbackName: draft.listedGroupName,
                                     programFallbackName: draft.listedProgramName,
-                                    existingLessonDates: existingLessonDates)
+                                    existingLessons: existingLessons)
     }
 
     /// D10: the button shows while a saved draft backs the checklist and it is still a checklist.

@@ -12,7 +12,7 @@ final class UI2ShellModelTests: XCTestCase {
     }
     /// image-framing-editor (owner walk 2026-10-27): the image editors are full-screen — no TabBar
     /// while one is the selected tab's top page; every other page keeps it.
-    func testTabBarHidesUnderTheImageEditorsOnly() {
+    func testTabBarHidesUnderTheImageEditors() {
         var m = UI2ShellModel()
         XCTAssertTrue(m.showsTabBar)
         m.push(.createGroup, on: .home)
@@ -25,6 +25,20 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertFalse(m.showsTabBar)
         m.apply(.tab(.search))
         XCTAssertTrue(m.showsTabBar)
+    }
+    /// Owner 2026-10-29: every enrollment page is full-screen; the Enrollments list (a Home section) is not.
+    func testTabBarHidesOnEveryEnrollmentPage() {
+        let id = UUID()
+        let pages: [UI2Destination] = [.enrollmentHome(id: "e", name: "Acts"), .enrollChecklist(flowId: id),
+                                       .enrollSelectGroup(flowId: id), .enrollSelectProgram(flowId: id),
+                                       .enrollSelectSchedule(flowId: id), .enrollSelectInviteTime(flowId: id),
+                                       .enrollSelectSync(flowId: id), .enrollSelectAccess(flowId: id)]
+        for page in pages {
+            var m = UI2ShellModel()
+            m.push(page, on: .home)
+            XCTAssertFalse(m.showsTabBar, "\(page)")
+        }
+        XCTAssertTrue(UI2ShellModel().showsTabBar)
     }
     /// Owner walk 2026-10-27: a page's bottom edge is fixed by what the page is, never by the
     /// TabBar's presence — so the bar sliding away under an editor moves nothing on it.
@@ -254,13 +268,14 @@ final class UI2ShellModelTests: XCTestCase {
     }
 
     // ui2-enrollments-browse R2/D7/D28: one enrollment's page, pushed on the stack it was tapped on.
-    func testEnrollmentHomePushesWithTheTabBarAndPopsOnlyWhenOnTop() {
+    /// Owner 2026-10-29: the enrollment page is full-screen (no TabBar), like the rest of the flow.
+    func testEnrollmentHomePushesFullScreenAndPopsOnlyWhenOnTop() {
         var m = UI2ShellModel()
         let page = UI2Destination.enrollmentHome(id: "e1", name: "Romans")
         m.push(page, on: .home)
         XCTAssertEqual(m.path(for: .home), [page])
-        XCTAssertTrue(m.showsTabBar)
-        XCTAssertFalse(page.isFullScreen)
+        XCTAssertFalse(m.showsTabBar)
+        XCTAssertTrue(page.isFullScreen)
         XCTAssertTrue(m.enrollmentFlowIds.isEmpty)                  // not a checklist: prune ignores it
         m.popIfTop(.enrollmentHome(id: "e2", name: "Romans"), on: .home)
         XCTAssertEqual(m.path(for: .home), [page])
@@ -351,14 +366,5 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(model.enrollmentFlowIds, [a, b])
         model.pop(on: .home); model.pop(on: .home)
         XCTAssertEqual(model.enrollmentFlowIds, [b])
-    }
-
-    func testEnrollmentPagesAreNotFullScreen() {
-        let id = UUID()
-        for d: UI2Destination in [.enrollChecklist(flowId: id), .enrollSelectGroup(flowId: id), .enrollSelectProgram(flowId: id),
-                                  .enrollSelectSchedule(flowId: id), .enrollSelectInviteTime(flowId: id),
-                                  .enrollSelectSync(flowId: id), .enrollSelectAccess(flowId: id)] {
-            XCTAssertFalse(d.isFullScreen)
-        }
     }
 }

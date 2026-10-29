@@ -65,12 +65,13 @@ final class EnrollChecklistMapperTests: XCTestCase {
     func testScheduleClashNoteNeedsAGroupAndASharedDay() {   // enroll-picker-hide-enrolled D5
         var d = EnrollmentDraft(id: UUID()); d.setProgram("p1")
         d.scheduleDates = [day("2035-01-08"), day("2035-01-10")]
-        let clash = [day("2035-01-10").addingTimeInterval(9 * 3600)]
-        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessonDates: clash).scheduleWarningMessage, "")
+        let clash = [EnrollPickerWarnings.ExistingLesson(date: day("2035-01-10").addingTimeInterval(9 * 3600), programName: "Acts")]
+        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessons: clash).scheduleWarningMessage, "")
         d.groupId = "g1"
-        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessonDates: clash).scheduleWarningMessage,
-                       EnrollPickerWarnings.scheduleClashMessage)
-        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessonDates: [day("2035-01-09")]).scheduleWarningMessage, "")
+        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil, existingLessons: clash).scheduleWarningMessage,
+                       "Jan 10 clashes with Acts")
+        XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil,
+                                                   existingLessons: [.init(date: day("2035-01-09"), programName: "Acts")]).scheduleWarningMessage, "")
         XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil).scheduleWarningMessage, "")
     }
 

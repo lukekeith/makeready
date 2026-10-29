@@ -25,7 +25,7 @@ enum EnrollChecklistMapper {
     /// stores do not hold (D19) — used only when `group`/`program` is nil.
     static func state(_ draft: EnrollmentDraft, group: UserGroup?, program: StudyProgram?,
                       groupFallbackName: String = "", programFallbackName: String = "",
-                      existingLessonDates: [Date] = [],
+                      existingLessons: [EnrollPickerWarnings.ExistingLesson] = [],
                       today: Date = Date()) -> GroupsEnrollProgramScreen.State {
         let cal = Calendar.current
         let start = draft.scheduleDone ? draft.startDate : nil
@@ -51,8 +51,8 @@ enum EnrollChecklistMapper {
         )
         if let group, !isEligible(group) { state.groupIneligibleMessage = ineligibleGroupMessage }
         // enroll-picker-hide-enrolled D5: a warning, never a block — the row stays as it was.
-        if draft.groupId != nil, EnrollPickerWarnings.scheduleClashes(draft.scheduleDates, existingLessonDates: existingLessonDates) {
-            state.scheduleWarningMessage = EnrollPickerWarnings.scheduleClashMessage
+        if draft.groupId != nil {
+            state.scheduleWarningMessage = EnrollPickerWarnings.scheduleClashMessage(draft.scheduleDates, existing: existingLessons)
         }
         return state
     }

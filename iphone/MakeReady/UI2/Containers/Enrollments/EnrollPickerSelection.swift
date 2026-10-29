@@ -8,8 +8,11 @@ import Foundation
 /// index can name a row that moved, so Select resolves through the tracked pick.
 enum EnrollPickerSelection {
     /// What a picker screen is re-keyed on: a load (source ids) or a filter-chip Save.
+    /// Owner walk 2026-10-29 (Select stayed grey after a row tap): the ids are a SET — `EntityStore.all`
+    /// is dictionary order, which reshuffles when a background refresh rewrites the store, and a
+    /// re-key on a mere reorder rebuilt the screen mid-tap, cancelling the pick.
     struct ScreenKey: Hashable {
-        var sourceIds: [String]
+        var sourceIds: Set<String>
         var filters: [Set<String>]
     }
 
@@ -25,12 +28,12 @@ enum EnrollPickerSelection {
 
 extension InviteSelectGroupMapper {
     static func screenKey(_ input: Input) -> EnrollPickerSelection.ScreenKey {
-        .init(sourceIds: input.groups.map(\.id), filters: [input.leaderIds, input.pickedOrgIds])
+        .init(sourceIds: Set(input.groups.map(\.id)), filters: [input.leaderIds, input.pickedOrgIds])
     }
 }
 
 extension EnrollSelectProgramMapper {
     static func screenKey(_ input: Input) -> EnrollPickerSelection.ScreenKey {
-        .init(sourceIds: input.programs.map(\.id), filters: [input.leaderIds])
+        .init(sourceIds: Set(input.programs.map(\.id)), filters: [input.leaderIds])
     }
 }

@@ -67,6 +67,10 @@ extension UI2Destination {
     var isFullScreen: Bool {
         switch self {
         case .editGroupCover, .editMemberAvatar, .editProgramCover: return true
+        // Owner 2026-10-29: no TabBar on any enrollment page — the enrollment's own page, the
+        // checklist and its six pickers.
+        case .enrollmentHome, .enrollChecklist, .enrollSelectGroup, .enrollSelectProgram, .enrollSelectSchedule,
+             .enrollSelectInviteTime, .enrollSelectSync, .enrollSelectAccess: return true
         default: return false
         }
     }

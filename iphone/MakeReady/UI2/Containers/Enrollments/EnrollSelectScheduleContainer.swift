@@ -41,6 +41,14 @@ struct EnrollSelectScheduleContainer: View {
     /// D11: the group's lesson dates across its active enrollments (as 1.0 — A6 accepted).
     @MainActor
     static func existingLessonDates(groupId: String, state: AppState? = nil, api: APIClientProtocol? = nil) async -> [Date] {
+        await existingLessons(groupId: groupId, state: state, api: api).map(\.date)
+    }
+
+    /// enroll-picker-hide-enrolled D5 (owner 2026-10-29): each existing lesson with its enrollment's
+    /// program name, so the checklist's clash note can say what it clashes with.
+    @MainActor
+    static func existingLessons(groupId: String, state: AppState? = nil,
+                                api: APIClientProtocol? = nil) async -> [EnrollPickerWarnings.ExistingLesson] {
         let state = state ?? AppState.shared
         let actions = EnrollmentActions(api: api ?? APIClient.shared, state: state)
         let enrollments: [EnrollmentWithProgram]
@@ -48,12 +56,16 @@ struct EnrollSelectScheduleContainer: View {
             state.recordError(error, context: "EnrollSelectScheduleContainer.loadEnrollments")
             enrollments = state.enrollmentsFor(groupId: groupId)
         }
-        var dates: [Date] = []
+        var lessons: [EnrollPickerWarnings.ExistingLesson] = []
         for enrollment in enrollments where enrollment.isActive {
-            do { dates += try await actions.getEnrollmentDetails(id: enrollment.id).lessonSchedules.map(\.scheduledDate) } catch {
+            let name = enrollment.studyProgram?.name ?? state.programs[enrollment.studyProgramId]?.name ?? ""
+            do {
+                lessons += try await actions.getEnrollmentDetails(id: enrollment.id).lessonSchedules
+                    .map { .init(date: $0.scheduledDate, programName: name) }
+            } catch {
                 state.recordError(error, context: "EnrollSelectScheduleContainer.getEnrollmentDetails")
             }
         }
-        return dates
+        return lessons
     }
 }

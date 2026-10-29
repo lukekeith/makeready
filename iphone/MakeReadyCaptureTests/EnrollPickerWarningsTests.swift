@@ -37,8 +37,21 @@ final class EnrollPickerWarningsTests: XCTestCase {
         XCTAssertFalse(EnrollPickerWarnings.scheduleClashes([], existingLessonDates: [today]))
     }
 
+    func testClashMessageNamesTheFirstDayAndItsProgram() {   // owner 2026-10-29
+        let cal = Calendar(identifier: .gregorian)
+        func d(_ m: Int, _ day: Int, hour: Int = 0) -> Date { cal.date(from: DateComponents(year: 2026, month: m, day: day, hour: hour))! }
+        let existing = [EnrollPickerWarnings.ExistingLesson(date: d(11, 4, hour: 9), programName: "Foundations of Faith"),
+                        EnrollPickerWarnings.ExistingLesson(date: d(11, 5, hour: 9), programName: "Foundations of Faith")]
+        XCTAssertEqual(EnrollPickerWarnings.scheduleClashMessage([d(11, 6), d(11, 4)], existing: existing),
+                       "Nov 4 clashes with Foundations of Faith")
+        XCTAssertEqual(EnrollPickerWarnings.scheduleClashMessage([d(11, 5), d(11, 4)], existing: existing),
+                       "Nov 4 and 1 more date clash with Foundations of Faith")
+        XCTAssertEqual(EnrollPickerWarnings.scheduleClashMessage([d(11, 9)], existing: existing), "")
+        XCTAssertEqual(EnrollPickerWarnings.scheduleClashMessage([d(11, 4)], existing: [.init(date: d(11, 4), programName: "")]),
+                       "Nov 4 clashes with another enrollment")
+    }
+
     func testCopy() {
-        XCTAssertEqual(EnrollPickerWarnings.scheduleClashMessage, "Some dates clash with this group's existing lessons")
         XCTAssertEqual(EnrollPickerWarnings.alreadyEnrolledMessage, "This group is already enrolled in this program")
     }
 }

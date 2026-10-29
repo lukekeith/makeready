@@ -148,6 +148,22 @@ final class EnrollPickerMapperTests: XCTestCase {
         XCTAssertNotEqual(EnrollSelectProgramMapper.screenKey(base), EnrollSelectProgramMapper.screenKey(byLeader))
     }
 
+    /// Owner walk 2026-10-29: a store reorder (dictionary order after a refresh) is not a re-key.
+    func testScreenKeysIgnoreTheStoresOrder() throws {
+        let ps = [try program("p1", "Acts", days: 3), try program("p2", "Zeal", days: 5)]
+        XCTAssertEqual(EnrollSelectProgramMapper.screenKey(input(ps)), EnrollSelectProgramMapper.screenKey(input(ps.reversed())))
+        func group(_ id: String) -> UserGroup {
+            UserGroup(id: id, code: "C\(id)", name: id, isPrivate: false, allowInvites: false, memberCount: 1,
+                      creatorId: "u", createdAt: Date(), updatedAt: Date())
+        }
+        func key(_ ids: [String]) -> EnrollPickerSelection.ScreenKey {
+            InviteSelectGroupMapper.screenKey(.init(groups: ids.map(group), enrollmentCounts: [:], query: "",
+                                                    leaderIds: [], loading: false, failed: false))
+        }
+        XCTAssertEqual(key(["a", "b"]), key(["b", "a"]))
+        XCTAssertNotEqual(key(["a", "b"]), key(["a"]))
+    }
+
     func testSelectCommitsTheTrackedPickWhileListedElseTheRowAtTheIndex() {
         // Picked "b" at index 1, then a query moved it to index 0: the stale index names "c".
         XCTAssertEqual(EnrollPickerSelection.committedId(index: 1, rowIds: ["b", "c"], trackedId: "b"), "b")
