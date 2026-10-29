@@ -2393,6 +2393,11 @@ models:
         enum: EnrollmentSyncMode
         default: "OFF"
         description: "How this enrollment tracks curriculum updates published to its study program"
+      lessonAccess:
+        type: enum
+        enum: LessonAccess
+        default: "ALL_AT_ONCE"
+        description: "When lessons open to members: ONE_AT_A_TIME on each lesson's day, ALL_AT_ONCE from the start (ui2-enrollment-create D4)"
       syncedProgramVersionNumber:
         type: int
         nullable: true
