@@ -1,14 +1,14 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/ui2-enrollment-create
-head: ff04ac8
+head: 6276084
 ticket: none
 branch: builder/ui2-enrollment-create
 pr: none
 apps: server+client+iphone
 contract: open
 hold: none
-go-ahead: none
+go-ahead: auto (recommended) 2026-10-28
 tests: slice=own+app end=risk review=slice
 target: main
 walk: none
