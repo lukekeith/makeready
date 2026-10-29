@@ -185,6 +185,7 @@
 		352BE2CE837FD30C967B63B4 /* CoverOwner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C37495CB83A38766D43E8E0 /* CoverOwner.swift */; };
 		374D96638BCA142031639780 /* DualSeriesBarChart.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1AC45C4A7B11EED55A1BE743 /* DualSeriesBarChart.swift */; };
 		37970435C7933A439FB1C31B /* KeypadKey.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33C1FA9984819D347D1C876A /* KeypadKey.swift */; };
+		379A55A3593C5235D3C9837F /* EnrollChecklistContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766607C12E41B36CE8B06DF9 /* EnrollChecklistContainer.swift */; };
 		37AC08685D0A29D1E4B4094C /* ProfileStopgapContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0236991E08F6AB94F85853F3 /* ProfileStopgapContainer.swift */; };
 		388FC4A64E508BF2105288E7 /* LinkButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3802F8C672BB9465B9F0535 /* LinkButton.swift */; };
 		38A322890E8D23DBFEE992D9 /* StripContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = STCT0002000000000000001 /* StripContent.swift */; };
@@ -397,11 +398,13 @@
 		7B2CE210BB7D9217A3F34C46 /* IconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9864290A0E2B13B42DE130AC /* IconButton.swift */; };
 		7BC5ECFB6BB78973C1E7A027 /* PageIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE7A283DC18E63DEB9F68753 /* PageIndicator.swift */; };
 		7BC6F36E5262E705AE546061 /* ClearSearchButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDE294872DE18CB5A3638502 /* ClearSearchButton.swift */; };
+		7BDF61BF4D4EC3450D9A7287 /* EnrollEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771C7ACB0FD35BD6B7353E2A /* EnrollEntry.swift */; };
 		7C110E35205D25AE69B2D738 /* DayChip.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2D1A4A67F64179C24D5F24 /* DayChip.swift */; };
 		7C776415C2C975D258164568 /* LoginOutcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0861A5A9123E5C6F3093FF0D /* LoginOutcome.swift */; };
 		7CC3BB802F76C2695DFE64E8 /* Ui2ImageCache.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35A7A0E8961A7C1CA6BA200B /* Ui2ImageCache.swift */; };
 		7DA8C25819DB30CA9949E397 /* SharedEditFieldTemplate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 308350C32C1F0B4373C3C40C /* SharedEditFieldTemplate.swift */; };
 		7E08D4F53DA58D2BE8E55F7B /* MetaPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D91FF0005F3180CBFFEDAC5 /* MetaPair.swift */; };
+		7E0ED192948010A3C3E5DE23 /* EnrollSubmitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F30C44139417C68EE64AEC0D /* EnrollSubmitTests.swift */; };
 		7E998DFA32F028AB0DAB38C3 /* DashboardModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = D271A3D129AD5219948318F3 /* DashboardModels.swift */; };
 		7EE3402C7955CFD9B6BB5169 /* EditTextMultiFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = E84409E80C407DC088722D45 /* EditTextMultiFieldScreen.swift */; };
 		7FB0547F003BDB2B2E16885C /* ActionMenuToneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1463F3D0D0BB5110D73F1FEE /* ActionMenuToneTests.swift */; };
@@ -509,6 +512,7 @@
 		A712A342B73BFB904C0B5420 /* GroupsDetailScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = A50A4F43D9CD2E4B5BA3BD78 /* GroupsDetailScreen.swift */; };
 		A75D55F8A851AFDEE0190A58 /* EnrollSelectProgramMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 015E0430F6964B2304CC0415 /* EnrollSelectProgramMapper.swift */; };
 		A77EB80A2F5FB9EB82396CF3 /* AISuggestionsBlock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C91B1CE3E660CE68CA31F598 /* AISuggestionsBlock.swift */; };
+		A7AB5658B1CA05B0533B02C6 /* EnrollEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 771C7ACB0FD35BD6B7353E2A /* EnrollEntry.swift */; };
 		A7E0E3779D0841ECB1EE2F6C /* CardEvent.swift in Frameworks */ = {isa = PBXBuildFile; fileRef = 63E711311E1F46678776FA7D /* CardEvent.swift */; };
 		A86B2A8A39CDD070FFA1B053 /* TrendIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 975627A655EA5CE4637D47EE /* TrendIndicator.swift */; };
 		A8BECAACE7157226D79FC99A /* WeekStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA937AB383FD627EF44F636 /* WeekStrip.swift */; };
@@ -615,6 +619,7 @@
 		C5B9685E3745FCC37B30BDA8 /* TrendIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 975627A655EA5CE4637D47EE /* TrendIndicator.swift */; };
 		C5B9E1CD2DD782EE93970FFD /* MemberDetailHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 189B4856A7811AD7B6B3116D /* MemberDetailHost.swift */; };
 		C5E3A3397633C8EC3CE7AF56 /* StudyProgramHomeHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = 03889107F7E6E47302A2CECC /* StudyProgramHomeHost.swift */; };
+		C5FDFB73830C6CB38395039E /* EnrollChecklistContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 766607C12E41B36CE8B06DF9 /* EnrollChecklistContainer.swift */; };
 		C64BF1BF83F04B6564B95734 /* Configuration.swift in Sources */ = {isa = PBXBuildFile; fileRef = CONF17012EADF96D0098FAB0 /* Configuration.swift */; };
 		C6983B399CB79A7ADF4B620F /* ProgramActions+Activities.swift in Sources */ = {isa = PBXBuildFile; fileRef = STPA0002000000000000002 /* ProgramActions+Activities.swift */; };
 		C6D4228D99CBEC483AF8B685 /* ChecklistStepRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DB3778F0ED3889F1EAC471 /* ChecklistStepRow.swift */; };
@@ -1092,8 +1097,10 @@
 		75733538DFA580C9A87172B7 /* EnrollmentSelectInviteTimeScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EnrollmentSelectInviteTimeScreen.swift; path = Screens/Groups/EnrollmentSelectInviteTimeScreen.swift; sourceTree = "<group>"; };
 		758C509D71EF3942709BFA3C /* EnrollCalendar.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollCalendar.swift; sourceTree = "<group>"; };
 		7617458C473B79AE74E6CA08 /* UI2Navigation.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2Navigation.swift; sourceTree = "<group>"; };
+		766607C12E41B36CE8B06DF9 /* EnrollChecklistContainer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollChecklistContainer.swift; sourceTree = "<group>"; };
 		767367FED5DCEA1D9A73501A /* RecordingJob.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RecordingJob.swift; sourceTree = "<group>"; };
 		770F3C64332CB846630F4067 /* LegendItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LegendItem.swift; sourceTree = "<group>"; };
+		771C7ACB0FD35BD6B7353E2A /* EnrollEntry.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollEntry.swift; sourceTree = "<group>"; };
 		7758B3AA0C7E01D6261BB8F4 /* CaptureSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CaptureSession.swift; sourceTree = "<group>"; };
 		793AE2E54A40CA1145F94725 /* EventIndicator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EventIndicator.swift; sourceTree = "<group>"; };
 		793BF9462EB0C66EF0EAF8AD /* AuthCallbackParser.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthCallbackParser.swift; sourceTree = "<group>"; };
@@ -1373,6 +1380,7 @@
 		F1A2B3C4D5E60718293A4C05 /* InviteMemberSendTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InviteMemberSendTests.swift; sourceTree = "<group>"; };
 		F24A76B07F6BD3009C7241C6 /* TabBarButton.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = TabBarButton.swift; sourceTree = "<group>"; };
 		F288E33EC18546D2BC571B03 /* CardEnrolled.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardEnrolled.swift; sourceTree = "<group>"; };
+		F30C44139417C68EE64AEC0D /* EnrollSubmitTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollSubmitTests.swift; sourceTree = "<group>"; };
 		F3249A663601844B407E8B75 /* InputMask.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = InputMask.swift; sourceTree = "<group>"; };
 		F32EBF20904DF63847DD15AC /* UI2ImageLoader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = UI2ImageLoader.swift; sourceTree = "<group>"; };
 		F34B1B3B99424DDCB80AEC60 /* StudyProgramsScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = StudyProgramsScreen.swift; path = Screens/Programs/StudyProgramsScreen.swift; sourceTree = "<group>"; };
@@ -1701,6 +1709,8 @@
 				015E0430F6964B2304CC0415 /* EnrollSelectProgramMapper.swift */,
 				6DFE0E2E717A1D9A73F83DD2 /* EnrollSelectScheduleMapper.swift */,
 				2FB991CE63D7056A7143B350 /* EnrollContainers.swift */,
+				771C7ACB0FD35BD6B7353E2A /* EnrollEntry.swift */,
+				766607C12E41B36CE8B06DF9 /* EnrollChecklistContainer.swift */,
 			);
 			name = Enrollments;
 			path = Enrollments;
@@ -2024,6 +2034,7 @@
 				530653278A6469E2AA16EE0B /* EnrollmentDraftTests.swift */,
 				D0AED3DE5006C1CA506B8CBB /* EnrollChecklistMapperTests.swift */,
 				AC708670CBF401E5B91F514F /* EnrollPickerMapperTests.swift */,
+				F30C44139417C68EE64AEC0D /* EnrollSubmitTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3147,6 +3158,7 @@
 				D08FFFEBBECC2012310998AB /* EnrollmentDraftTests.swift in Sources */,
 				D3A7A05AE1CD37BFBCC48B4C /* EnrollChecklistMapperTests.swift in Sources */,
 				29905A8A56E2601B694E3195 /* EnrollPickerMapperTests.swift in Sources */,
+				7E0ED192948010A3C3E5DE23 /* EnrollSubmitTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3452,6 +3464,8 @@
 				A75D55F8A851AFDEE0190A58 /* EnrollSelectProgramMapper.swift in Sources */,
 				0A3F272FF5055FC53F040377 /* EnrollSelectScheduleMapper.swift in Sources */,
 				6C7E6B4C50A01BA7E1926DF5 /* EnrollContainers.swift in Sources */,
+				7BDF61BF4D4EC3450D9A7287 /* EnrollEntry.swift in Sources */,
+				379A55A3593C5235D3C9837F /* EnrollChecklistContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -3908,6 +3922,8 @@
 				C0F48887A5A97936E9C402DE /* EnrollSelectProgramMapper.swift in Sources */,
 				F21164846BFCBDCB585D133C /* EnrollSelectScheduleMapper.swift in Sources */,
 				E47628BAD102CE5037BA173A /* EnrollContainers.swift in Sources */,
+				A7AB5658B1CA05B0533B02C6 /* EnrollEntry.swift in Sources */,
+				C5FDFB73830C6CB38395039E /* EnrollChecklistContainer.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

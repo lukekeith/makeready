@@ -94,12 +94,15 @@ struct TopNavHost: View {
             // The Members `add` opens the invite flow, exactly as the Add menu's row does (owner
             // 2026-10-26); the Groups `add` pushes create-group on the Home stack (ui2-groups-browse
             // D7/D8, OQ-groups-home-2); the Programs `add` pushes create-study-program (ui2-programs
-            // D1/D8); the other add slots stay no-ops (SPEC D10).
+            // D1/D8); the Enrollments `add` opens the enroll checklist with nothing preloaded
+            // (ui2-enrollment-create D2); the other add slots stay no-ops (SPEC D10).
             onAdd: { tab in
                 switch UI2Section(rawValue: tab) {
                 case .members?: InviteEntry.open(on: .home, model: $model)
                 case .groups?: model.push(.createGroup, on: .home)
                 case .programs?: model.push(.createStudyProgram, on: .home)  // ui2-programs D1/D8
+                case .enrollments?:                                            // ui2-enrollment-create D2
+                    EnrollEntry.open(groupId: nil, studyProgramId: nil, push: { model.push($0, on: .home) })
                 default: return
                 }
             }

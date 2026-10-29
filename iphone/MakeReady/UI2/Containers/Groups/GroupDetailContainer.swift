@@ -62,6 +62,8 @@ struct GroupDetailContainer: View {
                         guard let member = output.member(atRow: row) else { return }
                         navigator.push(.memberDetail(id: member.id, name: member.name))
                     },
+                    // ui2-enrollment-create D2: Enrollments `add` → the checklist with this group preloaded.
+                    onEnrollProgram: { EnrollEntry.open(groupId: groupId, studyProgramId: nil, push: navigator.push) },
                     // ui2-groups-edit D9: C-048 Delete Group → the C-066 confirmation.
                     onDeleteGroup: { deleteMenuOpen = true },
                     // group-cover-image D1/D2: no cover → the picker; a cover → Change · Edit · View.
