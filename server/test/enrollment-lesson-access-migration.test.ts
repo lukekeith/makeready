@@ -6,7 +6,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
-import { Prisma } from '../src/generated/prisma/index.js'
+import { LessonAccess, Prisma } from '../src/generated/prisma/index.js'
 
 const MIGRATIONS = fileURLToPath(new URL('../atlas/migrations', import.meta.url))
 
@@ -41,6 +41,6 @@ describe('SC1 migration', () => {
 
   it('generates the Prisma field and enum', () => {
     expect(Object.keys(Prisma.EnrollmentScalarFieldEnum)).toContain('lessonAccess')
-    expect(Object.values((Prisma as any).LessonAccess ?? {})).toEqual(['ONE_AT_A_TIME', 'ALL_AT_ONCE'])
+    expect(Object.values(LessonAccess)).toEqual(['ONE_AT_A_TIME', 'ALL_AT_ONCE'])
   })
 })
