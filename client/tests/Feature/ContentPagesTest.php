@@ -168,6 +168,40 @@ class ContentPagesTest extends TestCase
         $response->assertRedirect('/');
     }
 
+    /**
+     * ui2-enrollment-create D15: a one-at-a-time lesson opened early shows the server's message.
+     */
+    public function test_lesson_page_shows_not_yet_message_on_not_yet_available(): void
+    {
+        $this->fakeAuth([
+            '*/api/member/lessons/schedule-1*' => Http::response([
+                'success'     => false,
+                'error'       => 'not_yet_available',
+                'message'     => 'This lesson is available on Monday, November 3',
+                'availableOn' => '2026-11-03',
+            ], 403),
+        ]);
+
+        $response = $this->get('/member/groups/group-1/lessons/schedule-1/1');
+
+        $response->assertStatus(403);
+        $response->assertSee('This lesson is available on Monday, November 3');
+        $response->assertSee('LessonNotYetPage', false);
+        $response->assertDontSee('data-vue="LessonIsland"', false);
+    }
+
+    /**
+     * Any other non-200 still 404s.
+     */
+    public function test_lesson_page_still_404s_on_other_errors(): void
+    {
+        $this->fakeAuth([
+            '*/api/member/lessons/schedule-1*' => Http::response(['success' => false, 'error' => 'Member is not part of this group'], 403),
+        ]);
+
+        $this->get('/member/groups/group-1/lessons/schedule-1/1')->assertStatus(404);
+    }
+
     // ─── Route Name Smoke Tests ─────────────────────────────────────────────────
 
     /**
