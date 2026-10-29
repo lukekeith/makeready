@@ -96,6 +96,7 @@ struct EnrollChecklistContainer: View {
             // ui2-enrollments-browse D3/D30: this flow's autosave; a gone draft pops to the pusher.
             let entryDepth = max(0, navigator.depth() - 1)
             let sync = EnrollDraftSyncs.sync(for: flowId)
+            sync.reopen()                      // back on screen before a Back's save settled: keep the flow
             sync.onGone = { [navigator] in navigator.popTo(entryDepth) }
             sync.onUnauthorized = { [authManager] in
                 do { try await authManager.signOut() } catch {
@@ -134,11 +135,11 @@ struct EnrollChecklistContainer: View {
     }
 
     /// D2/R4: Back (and Done after enrolling) ends the LOCAL flow only — a saved draft stays on the
-    /// server and is never DELETEd here; D30: any pending PATCH or retry is cancelled.
+    /// server and is never DELETEd here; D30 (superseded 2026-10-29): a pending create/PATCH and its
+    /// retry are not cancelled — the flow ends once they settle, so the last Select is saved.
     @MainActor
     static func endFlow(_ flowId: UUID, state: AppState? = nil) {
-        EnrollDraftSyncs.stop(flowId)
-        (state ?? .shared).endEnrollmentDraft(flowId)
+        EnrollDraftSyncs.finish(flowId, state: state ?? .shared)
     }
 
     private func leave() {

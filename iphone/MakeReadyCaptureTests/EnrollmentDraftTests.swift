@@ -54,8 +54,8 @@ final class EnrollmentDraftTests: XCTestCase {
         XCTAssertNil(EnrollScheduleMath.dates(start: day("2035-01-08"), days: [], overrides: [], lessonCount: 3)) // A4
     }
 
-    /// ui2-enrollments-browse R4/D2: a checklist that leaves every stack drops the LOCAL flow and
-    /// stops its autosave — the shell's prune sends no request, and never a DELETE.
+    /// ui2-enrollments-browse R4/D2: a checklist that leaves every stack with no save in flight drops
+    /// the LOCAL flow and stops its autosave — the shell's prune sends no request, and never a DELETE.
     func testThePruneOfASavedDraftsFlowSendsNoRequest() async {
         let api = StubAPIClient()
         let state = AppState()
@@ -69,8 +69,7 @@ final class EnrollmentDraftTests: XCTestCase {
         model.push(.enrollChecklist(flowId: flow), on: .home)
         state.updateEnrollmentDraft(flow) { $0.smsTime = "07:30" }                 // an unsent change
         model.pop(on: .home)                                                     // swipe-back
-        state.pruneEnrollmentDrafts(keeping: model.enrollmentFlowIds)            // UI2Shell's onChange, both halves
-        EnrollDraftSyncs.prune(keeping: model.enrollmentFlowIds)
+        EnrollDraftSyncs.prune(keeping: model.enrollmentFlowIds, state: state)   // UI2Shell's onChange
         sync.changed()
         await sync.flush()
         XCTAssertNil(state.enrollmentDrafts[flow])

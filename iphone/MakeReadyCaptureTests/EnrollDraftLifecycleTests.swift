@@ -134,7 +134,7 @@ final class EnrollDraftLifecycleTests: XCTestCase {
 
     // MARK: D2/R4 Back + prune
 
-    func testBackEndsTheLocalFlowCancelsPendingSavesAndNeverDeletes() async {
+    func testBackWithNothingInFlightEndsTheLocalFlowAtOnceAndNeverDeletes() async {
         let flow = state.seedEnrollmentDraft(wire("d1"))
         let sync = EnrollDraftSyncs.sync(for: flow, state: state, actions: actions)
         state.updateEnrollmentDraft(flow) { $0.smsTime = "07:30" }               // an unsent change
@@ -144,6 +144,44 @@ final class EnrollDraftLifecycleTests: XCTestCase {
         XCTAssertNil(state.enrollmentDraftBaselines[flow])
         XCTAssertTrue(api.calls.isEmpty)                                      // no PATCH, and never a DELETE
         XCTAssertFalse(EnrollDraftSyncs.isRegistered(flow))
+    }
+
+    private func draftJSON(_ id: String, sms: String? = nil) -> String {
+        let smsValue = sms.map { "\"\($0)\"" } ?? "null"
+        return #"{"success":true,"draft":{"id":"\#(id)","groupId":"g1","studyProgramId":"p1","startDate":null,"enabledDays":null,"overriddenDates":null,"scheduleDates":null,"smsTime":\#(smsValue),"timezone":null,"syncMode":null,"lessonAccess":null,"createdBy":{"id":"u1","name":"Luke Keith"},"createdAt":"2035-01-01T00:00:00.000Z","updatedAt":"2035-01-03T00:00:00.000Z"}}"#
+    }
+
+    /// D30 as superseded 2026-10-29 (final review, Important 2): Back lets the pending save settle.
+    func testASelectFollowedAtOnceByBackStillSendsItsPatchThenEndsTheFlow() async {
+        let flow = state.seedEnrollmentDraft(wire("d1"))
+        let sync = EnrollDraftSyncs.sync(for: flow, state: state, actions: actions)
+        api.stub("PATCH", "/api/enrollment-drafts/d1", json: draftJSON("d1", sms: "07:30"))
+        state.updateEnrollmentDraft(flow) { $0.smsTime = "07:30" }               // a picker's Select…
+        EnrollDraftSyncs.changed(flow)
+        EnrollChecklistContainer.endFlow(flow, state: state)                    // …then Back at once
+        EnrollDraftSyncs.prune(keeping: [], state: state)                       // the shell, as the checklist leaves
+        await sync.flush()
+        XCTAssertEqual(api.calls.map(\.method), ["PATCH"])                       // sent, and never a DELETE
+        XCTAssertEqual(api.calls.first?.body?["smsTime"] as? String, "07:30")
+        XCTAssertNil(state.enrollmentDrafts[flow])                              // then the local flow ends
+        XCTAssertNil(state.enrollmentDraftBaselines[flow])
+        XCTAssertFalse(EnrollDraftSyncs.isRegistered(flow))
+        XCTAssertEqual(state.enrollmentDraftsByGroupId["g1"]?.map(\.id), ["d1"]) // the group page lists it
+    }
+
+    func testAProgramPickFollowedAtOnceByBackStillSendsTheFirstSave() async {    // D3 + walk step 6
+        let flow = state.startEnrollmentDraft(groupId: "g1", studyProgramId: nil)
+        let sync = EnrollDraftSyncs.sync(for: flow, state: state, actions: actions)
+        api.stub("POST", "/api/enrollment-drafts", json: draftJSON("d1"))
+        state.updateEnrollmentDraft(flow) { $0.setProgram("p1") }
+        EnrollDraftSyncs.changed(flow)
+        EnrollChecklistContainer.endFlow(flow, state: state)
+        EnrollDraftSyncs.prune(keeping: [], state: state)
+        await sync.flush()
+        XCTAssertEqual(api.callCount("POST", "/api/enrollment-drafts"), 1)
+        XCTAssertNil(state.enrollmentDrafts[flow])
+        XCTAssertFalse(EnrollDraftSyncs.isRegistered(flow))
+        XCTAssertEqual(state.enrollmentDraftsByGroupId["g1"]?.map(\.id), ["d1"])
     }
 
     func testAPickerCommitAfterTheFlowStoppedRegistersNoSync() {

@@ -196,7 +196,7 @@ final class EnrollDraftSyncTests: XCTestCase {
         XCTAssertEqual(patches().count, 1)                                    // a 404 is not retried
     }
 
-    func testStopCancelsPendingWorkForGood() async {                          // D30: Discard/Enroll/Back
+    func testStopCancelsPendingWorkForGood() async {                          // D30: Discard/Enroll
         let st = state!
         let id = st.seedEnrollmentDraft(wire("d1"))
         let s = sync(id)
@@ -217,12 +217,67 @@ final class EnrollDraftSyncTests: XCTestCase {
         XCTAssertTrue(api.calls.isEmpty)
     }
 
+    // MARK: D30 as superseded 2026-10-29 — Back lets the pending save settle
+
+    func testFinishLetsTheOneRetrySettleThenEndsWithoutABanner() async {
+        let st = state!
+        let id = st.seedEnrollmentDraft(wire("d1"))
+        api.errorFor = { endpoint, _ in endpoint == "/api/enrollment-drafts/d1" ? APIError.serverError("offline") : nil }
+        let s = sync(id)
+        var ended = false
+        st.updateEnrollmentDraft(id) { $0.smsTime = "07:30" }
+        s.changed()
+        s.finish { ended = true }
+        XCTAssertFalse(ended)                                                  // waits for the save
+        await s.flush()
+        XCTAssertEqual(patches().count, 2)                                     // the PATCH and its one retry
+        XCTAssertEqual(sleeps, 1)
+        XCTAssertTrue(ended)
+        XCTAssertNil(st.activeSurfacedError)                                   // the checklist is gone: no banner
+    }
+
+    func testA404WhileFinishingIsSilentAndDoesNotPop() async {
+        let st = state!
+        let id = st.seedEnrollmentDraft(wire("d1"))
+        st.enrollmentDraftsByGroupId["g1"] = [wire("d1")]
+        api.errorFor = { _, _ in APIHTTPError(status: 404, message: "Not found") }
+        var popped = false, ended = false
+        let s = sync(id)
+        s.onGone = { popped = true }
+        st.updateEnrollmentDraft(id) { $0.smsTime = "07:30" }
+        s.changed()
+        s.finish { ended = true }
+        await s.flush()
+        XCTAssertTrue(ended)
+        XCTAssertFalse(popped)                                                 // the user already left
+        XCTAssertNil(st.activeSurfacedError)
+        XCTAssertEqual(st.enrollmentDraftsByGroupId["g1"], [])                 // forgotten all the same
+    }
+
+    func testReopeningTheChecklistBeforeTheSaveSettlesKeepsTheFlow() async {
+        let st = state!
+        let id = st.seedEnrollmentDraft(wire("d1"))
+        api.stub("PATCH", "/api/enrollment-drafts/d1", json: draftJSON("d1", sms: "07:30"))
+        let s = sync(id)
+        var ended = false
+        st.updateEnrollmentDraft(id) { $0.smsTime = "07:30" }
+        s.changed()
+        s.finish { ended = true }
+        s.reopen()                                                             // the row was tapped again
+        await s.flush()
+        XCTAssertEqual(patches().count, 1)
+        XCTAssertFalse(ended)
+        st.updateEnrollmentDraft(id) { $0.syncMode = "AUTO" }
+        s.changed(); await s.flush()
+        XCTAssertEqual(patches().count, 2)                                     // still saving
+    }
+
     func testTheRegistryKeepsOneSyncPerFlowAndPruneStopsTheRest() {
         let a = UUID(), b = UUID()
         let sa = EnrollDraftSyncs.sync(for: a, state: state, actions: actions)
         XCTAssertTrue(EnrollDraftSyncs.sync(for: a) === sa)
         _ = EnrollDraftSyncs.sync(for: b, state: state, actions: actions)
-        EnrollDraftSyncs.prune(keeping: [a])
+        EnrollDraftSyncs.prune(keeping: [a], state: state)
         XCTAssertTrue(EnrollDraftSyncs.isRegistered(a))
         XCTAssertFalse(EnrollDraftSyncs.isRegistered(b))
         EnrollDraftSyncs.stop(a)

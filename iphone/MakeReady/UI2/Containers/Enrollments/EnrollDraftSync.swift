@@ -6,7 +6,9 @@ import Foundation
 /// (`AppState.enrollmentDraftBaselines`). At most one request is in flight: changes made meanwhile
 /// are picked up when it returns. A failure retries once after `retryDelay`; a second failure marks
 /// the flow dirty and banners once per dirty episode (D26). 409 re-seeds the flow in place (D6);
-/// 404 is D30's gone path. Never a timer for UI — the only wait is the retry's `sleep`.
+/// 404 is D30's gone path. Never a timer for UI — the only wait is the retry's `sleep`. Back
+/// (`finish`) lets the save in flight and its one retry settle before the local flow ends (D30 as
+/// superseded 2026-10-29); Discard and Enroll cancel it (`cancelPending`/`stop`).
 @MainActor
 final class EnrollDraftSync {
     static let retryDelay: Duration = .seconds(2)
@@ -26,6 +28,9 @@ final class EnrollDraftSync {
     private var stopped = false
     private var inFlight: Task<Void, Never>?
     private var generation = 0
+    /// Back: runs once the save in flight has settled. Non-nil = the checklist has been left.
+    private var onSettled: (@MainActor () -> Void)?
+    var isFinishing: Bool { onSettled != nil }
 
     init(flowId: UUID, state: AppState, actions: EnrollmentDraftActions,
          sleep: @escaping @MainActor (Duration) async throws -> Void = { try await Task.sleep(for: $0) }) {
@@ -42,7 +47,13 @@ final class EnrollDraftSync {
         let mine = generation
         inFlight = Task { [weak self] in
             await self?.pump()
-            if self?.generation == mine { self?.inFlight = nil }
+            guard let self, self.generation == mine else { return }
+            self.inFlight = nil
+            if let done = self.onSettled {
+                self.onSettled = nil
+                self.stopped = true
+                done()
+            }
         }
     }
 
@@ -53,11 +64,26 @@ final class EnrollDraftSync {
         generation += 1
     }
 
-    /// Discard, Enroll (success) and Back: nothing more is ever sent for this flow.
+    /// Discard and Enroll (success): nothing more is ever sent for this flow.
     func stop() {
         stopped = true
         cancelPending()
     }
+
+    /// D2/D30 Back: the create/PATCH in flight — and its one retry — is not cancelled; once it has
+    /// settled nothing more is sent and `done` runs (now, when nothing is in flight). A failure after
+    /// Back stays console-only and a 404 is silent: the checklist is gone.
+    func finish(_ done: @escaping @MainActor () -> Void) {
+        guard inFlight != nil, !stopped else {
+            stopped = true
+            done()
+            return
+        }
+        onSettled = done
+    }
+
+    /// The checklist is back on screen before the save settled: keep the flow.
+    func reopen() { onSettled = nil }
 
     /// Tests: wait until the sync is idle.
     func flush() async {
@@ -90,6 +116,10 @@ final class EnrollDraftSync {
                     return
                 }
                 if let http = error as? APIHTTPError, http.status == 404 {                         // D30
+                    if isFinishing {                                    // after Back: forget it silently
+                        if let serverId = current.serverId { actions.forget(id: serverId) }
+                        return
+                    }
                     EnrollDraftOpen.gone(flowId: flowId, draftId: current.serverId, error: error,
                                          pop: onGone, state: state, actions: actions)
                     return
@@ -133,6 +163,10 @@ final class EnrollDraftSync {
 
     private func markDirty(_ error: Error) {
         dirty = true
+        if isFinishing {
+            state.recordError(error, context: "EnrollDraftSync.save")
+            return
+        }
         guard !bannerShown else { return }
         bannerShown = true
         state.recordError(error, context: "EnrollDraftSync.save", surface: true,
@@ -156,15 +190,34 @@ enum EnrollDraftSyncs {
 
     /// D4: called by each picker right after its Select/Save wrote the draft. Only the checklist
     /// registers a sync: a flow that already ended (Discard, Back, Enroll) has none, so this is a no-op.
+    /// A flow that is finishing after Back has no picker left to call it.
     static func changed(_ flowId: UUID) { syncs[flowId]?.changed() }
 
     static func cancelPending(_ flowId: UUID) { syncs[flowId]?.cancelPending() }
 
     static func stop(_ flowId: UUID) { syncs.removeValue(forKey: flowId)?.stop() }
 
-    /// The shell's prune: flows whose checklist left every stack stop saving (never a DELETE, R4).
-    static func prune(keeping ids: Set<UUID>) {
-        for id in Array(syncs.keys) where !ids.contains(id) { stop(id) }
+    /// D2/D30 Back: the flow's save in flight settles, then the sync leaves the registry and the local
+    /// flow ends. No sync → the flow ends now.
+    static func finish(_ flowId: UUID, state: AppState) {
+        guard let sync = syncs[flowId] else {
+            state.endEnrollmentDraft(flowId)
+            return
+        }
+        sync.finish { [weak sync] in
+            if let sync, syncs[flowId] === sync { syncs[flowId] = nil }
+            state.endEnrollmentDraft(flowId)
+        }
+    }
+
+    /// The shell's prune (ui2-enrollment-create D13 + R4): a flow whose checklist left every stack
+    /// ends like Back — its save in flight settles first — and its local draft is kept until then.
+    /// Never a request of its own, never a DELETE.
+    static func prune(keeping ids: Set<UUID>, state: AppState? = nil) {
+        let state = state ?? .shared
+        for id in Array(syncs.keys) where !ids.contains(id) { finish(id, state: state) }
+        let settling = Set(syncs.filter { $0.value.isFinishing }.keys)
+        state.pruneEnrollmentDrafts(keeping: ids.union(settling))
     }
 
     static func isRegistered(_ flowId: UUID) -> Bool { syncs[flowId] != nil }
