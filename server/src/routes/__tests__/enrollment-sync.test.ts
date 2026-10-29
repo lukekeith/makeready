@@ -28,6 +28,7 @@ describe('Enrollment versioning (study-sync)', () => {
   let lesson2Id: string
   let lesson1ActivityIds: string[] = []
   let apiKey: string
+  let memberId: string
 
   const authed = () => ({ Authorization: `Bearer ${apiKey}` })
 
@@ -60,6 +61,11 @@ describe('Enrollment versioning (study-sync)', () => {
       data: { name: 'Sync Test Group', creatorId: userId, organizationId },
     })
     groupId = group.id
+    // ui2-enrollment-create D5: POST refuses a group with no active member.
+    memberId = (await prisma.member.create({
+      data: { firstName: 'Sync', lastName: 'Member', phoneNumber: `+1558${String(Date.now()).slice(-7)}` },
+    })).id
+    await prisma.groupMember.create({ data: { groupId, memberId, isActive: true } })
 
     const program = await prisma.studyProgram.create({
       data: {
@@ -141,6 +147,7 @@ describe('Enrollment versioning (study-sync)', () => {
     // Scoped cleanup — cascades remove enrollments, schedules, versions,
     // activities, api keys, lessons, etc.
     await prisma.group.deleteMany({ where: { id: groupId } })
+    await prisma.member.deleteMany({ where: { id: memberId } })
     await prisma.studyProgram.deleteMany({ where: { id: programId } })
     await prisma.organization.deleteMany({ where: { id: organizationId } })
     await prisma.user.deleteMany({ where: { id: userId } })
@@ -209,6 +216,7 @@ describe('Enrollment versioning (study-sync)', () => {
     const group2 = await prisma.group.create({
       data: { name: 'Sync Test Group 2', creatorId: userId, organizationId },
     })
+    await prisma.groupMember.create({ data: { groupId: group2.id, memberId, isActive: true } })
 
     const response = await request(app)
       .post('/api/enrollments')

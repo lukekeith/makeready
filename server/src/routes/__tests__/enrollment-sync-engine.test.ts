@@ -37,6 +37,7 @@ describe('Enrollment sync engine (study-sync)', () => {
   let lesson2Id: string
   let enrollmentId: string
   let apiKey: string
+  let memberId: string
 
   const authed = () => ({ Authorization: `Bearer ${apiKey}` })
 
@@ -85,6 +86,11 @@ describe('Enrollment sync engine (study-sync)', () => {
       data: { name: 'Sync Engine Group', creatorId: userId, organizationId },
     })
     groupId = group.id
+    // ui2-enrollment-create D5: POST refuses a group with no active member.
+    memberId = (await prisma.member.create({
+      data: { firstName: 'Engine', lastName: 'Member', phoneNumber: `+1559${String(Date.now()).slice(-7)}` },
+    })).id
+    await prisma.groupMember.create({ data: { groupId, memberId, isActive: true } })
 
     const program = await prisma.studyProgram.create({
       data: { name: 'Sync Engine Program', days: 2, creatorId: userId },
@@ -185,6 +191,7 @@ describe('Enrollment sync engine (study-sync)', () => {
     await prisma.studyProgram.deleteMany({ where: { id: programId } })
     await prisma.organization.deleteMany({ where: { id: organizationId } })
     await prisma.member.deleteMany({ where: { phoneNumber: '+15559876543' } })
+    await prisma.member.deleteMany({ where: { id: memberId } })
     await prisma.user.deleteMany({ where: { id: userId } })
   })
 
@@ -502,6 +509,7 @@ describe('Enrollment sync engine (study-sync)', () => {
     const autoGroup = await prisma.group.create({
       data: { name: 'Auto Sync Group', creatorId: userId, organizationId },
     })
+    await prisma.groupMember.create({ data: { groupId: autoGroup.id, memberId, isActive: true } })
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
     const enrollResponse = await request(app)

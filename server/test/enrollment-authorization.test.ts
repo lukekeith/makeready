@@ -29,6 +29,9 @@ describe('Enrollment authorization (org-scoped management)', () => {
   let programId: string
   let enrollmentId: string
   let scheduledActivityId: string
+  let foreignOrgId: string
+  let foreignProgramId: string
+  let memberId: string
   const stamp = Date.now()
 
   beforeAll(async () => {
@@ -82,6 +85,23 @@ describe('Enrollment authorization (org-scoped management)', () => {
       data: { lessonScheduleId: schedule.id, orderNumber: 1, title: 'Read', type: 'READ' },
     })
     scheduledActivityId = activity.id
+
+    // ui2-enrollment-create T12: the group has an active member (D5) so a POST reaches the program
+    // lookup; the stranger's published program in their own org is outside the owner's read scope.
+    memberId = (await prisma.member.create({
+      data: { firstName: 'Auth', lastName: 'Member', phoneNumber: `+1556${String(stamp).slice(-7)}` },
+    })).id
+    await prisma.groupMember.create({ data: { groupId, memberId, isActive: true } })
+    foreignOrgId = (await prisma.organization.create({
+      data: { name: `Foreign Org ${stamp}`, ownerId: stranger.userId },
+    })).id
+    foreignProgramId = (await prisma.studyProgram.create({
+      data: {
+        name: `Foreign Program ${stamp}`, days: 1, creatorId: stranger.userId, organizationId: foreignOrgId,
+        isPublished: true, publishedAt: new Date(),
+      },
+    })).id
+    await prisma.lesson.create({ data: { studyProgramId: foreignProgramId, dayNumber: 1 } })
   })
 
   afterAll(async () => {
@@ -94,14 +114,17 @@ describe('Enrollment authorization (org-scoped management)', () => {
     })
     await prisma.lessonSchedule.deleteMany({ where: { enrollment: { groupId } } })
     await prisma.enrollment.deleteMany({ where: { groupId } })
-    await prisma.lesson.deleteMany({ where: { studyProgram: { organizationId: orgId } } })
-    await prisma.studyProgram.deleteMany({ where: { organizationId: orgId } })
+    await prisma.groupMember.deleteMany({ where: { memberId } })
+    await prisma.member.deleteMany({ where: { id: memberId } })
+    const orgIds = [orgId, foreignOrgId]
+    await prisma.lesson.deleteMany({ where: { studyProgram: { organizationId: { in: orgIds } } } })
+    await prisma.studyProgram.deleteMany({ where: { organizationId: { in: orgIds } } })
     await prisma.group.deleteMany({ where: { organizationId: orgId } })
     await prisma.userRole.deleteMany({ where: { organizationId: orgId } })
     await prisma.role.deleteMany({ where: { organizationId: orgId } })
     const userIds = [owner.userId, leader.userId, stranger.userId]
     await prisma.apiKey.deleteMany({ where: { userId: { in: userIds } } })
-    await prisma.organization.deleteMany({ where: { id: orgId } })
+    await prisma.organization.deleteMany({ where: { id: { in: orgIds } } })
     await prisma.user.deleteMany({ where: { id: { in: userIds } } })
   })
 
@@ -188,6 +211,22 @@ describe('Enrollment authorization (org-scoped management)', () => {
       .set('Authorization', bearer(stranger.token))
       .send({ title: 'Edited by stranger' })
     expect(res.status).toBe(404)
+  })
+
+  // ─── Create an enrollment (ui2-enrollment-create T12) ───────────────────────────
+
+  it('404s the owner enrolling their group in a program outside their read scope (T12)', async () => {
+    const res = await request(app)
+      .post('/api/enrollments')
+      .set('Authorization', bearer(owner.token))
+      .send({
+        groupId,
+        studyProgramId: foreignProgramId,
+        startDate: new Date().toISOString(),
+        enabledDays: ['Mon', 'Wed', 'Fri'],
+      })
+    expect(res.status).toBe(404)
+    expect(res.body.error).toBe('Study program not found')
   })
 
   // ─── Delete enrollment (last — cascades to schedules) ───────────────────────────
