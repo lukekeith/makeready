@@ -11,6 +11,7 @@ const prismaMock = vi.hoisted(() => ({
   organization: { findMany: vi.fn() },
   userRole: { findMany: vi.fn() },
   user: { findUnique: vi.fn() },
+  enrollment: { groupBy: vi.fn() },
 }))
 const permission = vi.hoisted(() => ({ isSuperAdmin: vi.fn(), getManageableOrgIds: vi.fn() }))
 vi.mock('../../lib/prisma.js', () => ({ prisma: prismaMock, Prisma: {} }))
@@ -60,6 +61,7 @@ beforeEach(() => {
   )
   prismaMock.userRole.findMany.mockResolvedValue([])
   prismaMock.studyProgram.findMany.mockResolvedValue([row])
+  prismaMock.enrollment.groupBy.mockResolvedValue([{ studyProgramId: 'p1', _count: { _all: 2 } }])
 })
 
 describe('GET /api/programs (D13/D14/D15)', () => {
@@ -111,5 +113,22 @@ describe('GET /api/programs (D13/D14/D15)', () => {
     permission.isSuperAdmin.mockResolvedValue(true)
     await request(app()).get('/api/programs')
     expect(prismaMock.studyProgram.findMany.mock.calls[0][0].where).toEqual({ AND: [{ isActive: true }] })
+  })
+
+  it('adds completedEnrollmentCount from one grouped query over ended enrollments (D8)', async () => {
+    const res = await request(app()).get('/api/programs')
+    expect(res.body.programs[0].completedEnrollmentCount).toBe(2)
+    expect(prismaMock.enrollment.groupBy).toHaveBeenCalledTimes(1)
+    const arg = prismaMock.enrollment.groupBy.mock.calls[0][0]
+    expect(arg.by).toEqual(['studyProgramId'])
+    expect(arg.where.studyProgramId).toEqual({ in: ['p1'] })
+    const startOfTodayUtc = new Date(); startOfTodayUtc.setUTCHours(0, 0, 0, 0)
+    expect(arg.where.endDate.lt.toISOString()).toBe(startOfTodayUtc.toISOString())
+  })
+
+  it('reads 0 for a program with no ended enrollment', async () => {
+    prismaMock.enrollment.groupBy.mockResolvedValue([])
+    const res = await request(app()).get('/api/programs')
+    expect(res.body.programs[0].completedEnrollmentCount).toBe(0)
   })
 })

@@ -108,6 +108,22 @@ describe('Member version resolution (study-sync)', () => {
       .send({ isPublished: true })
     expect(publishResponse.status).toBe(200)
 
+    // ui2-enrollment-create D5: the members join before the POST, which refuses a group with none.
+    const memberA = await prisma.member.create({
+      data: { phoneNumber: '+16665550001', firstName: 'Alma', lastName: 'Pinned' },
+    })
+    memberAId = memberA.id
+    const memberB = await prisma.member.create({
+      data: { phoneNumber: '+16665550002', firstName: 'Ben', lastName: 'Floating' },
+    })
+    memberBId = memberB.id
+    await prisma.groupMember.createMany({
+      data: [
+        { groupId, memberId: memberAId },
+        { groupId, memberId: memberBId },
+      ],
+    })
+
     const tomorrow = new Date()
     tomorrow.setDate(tomorrow.getDate() + 1)
     const enrollResponse = await request(app)
@@ -128,21 +144,6 @@ describe('Member version resolution (study-sync)', () => {
     })
     scheduleId = schedule.id
     v1Id = schedule.currentVersionId!
-
-    const memberA = await prisma.member.create({
-      data: { phoneNumber: '+16665550001', firstName: 'Alma', lastName: 'Pinned' },
-    })
-    memberAId = memberA.id
-    const memberB = await prisma.member.create({
-      data: { phoneNumber: '+16665550002', firstName: 'Ben', lastName: 'Floating' },
-    })
-    memberBId = memberB.id
-    await prisma.groupMember.createMany({
-      data: [
-        { groupId, memberId: memberAId },
-        { groupId, memberId: memberBId },
-      ],
-    })
   })
 
   afterAll(async () => {

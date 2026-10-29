@@ -406,6 +406,74 @@ describe('Member Lesson Progress API', () => {
       expect(response.status).toBe(400)
       expect(response.body.success).toBe(false)
     })
+
+    it('403s a member opening a one-at-a-time lesson before its day (D4, D15)', async () => {
+      const future = new Date(); future.setDate(future.getDate() + 3)
+      await prisma.enrollment.update({ where: { id: testEnrollment.id }, data: { lessonAccess: 'ONE_AT_A_TIME', timezone: 'UTC' } })
+      await prisma.lessonSchedule.update({ where: { id: testLessonSchedule.id }, data: { scheduledDate: future } })
+
+      const response = await request(app)
+        .get(`/api/member/lessons/${testLessonSchedule.id}`)
+        .set('Cookie', memberCookies)
+
+      expect(response.status).toBe(403)
+      expect(response.body).toMatchObject({ success: false, error: 'not_yet_available', availableOn: future.toISOString().slice(0, 10) })
+      expect(response.body.message).toMatch(/^This lesson is available on \w+, \w+ \d{1,2}$/)
+    })
+
+    it('opens a one-at-a-time lesson on its day, and an all-at-once lesson any day', async () => {
+      await prisma.enrollment.update({ where: { id: testEnrollment.id }, data: { lessonAccess: 'ONE_AT_A_TIME', timezone: 'UTC' } })
+      expect((await request(app).get(`/api/member/lessons/${testLessonSchedule.id}`).set('Cookie', memberCookies)).status).toBe(200)
+      const future = new Date(); future.setDate(future.getDate() + 3)
+      await prisma.enrollment.update({ where: { id: testEnrollment.id }, data: { lessonAccess: 'ALL_AT_ONCE' } })
+      await prisma.lessonSchedule.update({ where: { id: testLessonSchedule.id }, data: { scheduledDate: future } })
+      expect((await request(app).get(`/api/member/lessons/${testLessonSchedule.id}`).set('Cookie', memberCookies)).status).toBe(200)
+    })
+
+    describe('D15 exemption — decided against the lesson’s own group', () => {
+      const LEADER_GOOGLE_ID = 'test-member-lessons-d15-leader'
+      const OUTSIDER_GOOGLE_ID = 'test-member-lessons-d15-outsider'
+      let future: Date
+
+      /** Signs a Google user into the member's real session row, as a leader browsing as a member would be. */
+      async function signInUser(userId: string) {
+        const cookie = memberCookies.find((c) => c.startsWith('connect.sid='))!
+        const sid = decodeURIComponent(cookie.split(';')[0].slice('connect.sid='.length)).replace(/^s:/, '').split('.')[0]
+        const updated = await prisma.$executeRaw`UPDATE session SET sess = jsonb_set(sess::jsonb, '{passport}', ${JSON.stringify({ user: userId })}::jsonb)::json WHERE sid = ${sid}`
+        expect(updated).toBe(1)
+      }
+
+      beforeEach(async () => {
+        await prisma.organization.deleteMany({ where: { owner: { googleId: { in: [LEADER_GOOGLE_ID, OUTSIDER_GOOGLE_ID] } } } })
+        await prisma.user.deleteMany({ where: { googleId: { in: [LEADER_GOOGLE_ID, OUTSIDER_GOOGLE_ID] } } })
+        future = new Date(); future.setDate(future.getDate() + 3)
+        await prisma.enrollment.update({ where: { id: testEnrollment.id }, data: { lessonAccess: 'ONE_AT_A_TIME', timezone: 'UTC' } })
+        await prisma.lessonSchedule.update({ where: { id: testLessonSchedule.id }, data: { scheduledDate: future } })
+      })
+
+      it('opens the lesson early for a manager of the lesson’s group who does not own its org', async () => {
+        const leader = await prisma.user.create({ data: { googleId: LEADER_GOOGLE_ID, email: 'd15-leader@example.com', name: 'D15 Leader' } })
+        const role = await prisma.role.create({ data: { name: 'Group Leader', organizationId: testOrganization.id } })
+        await prisma.userRole.create({ data: { userId: leader.id, roleId: role.id, organizationId: testOrganization.id } })
+        await signInUser(leader.id)
+
+        const response = await request(app).get(`/api/member/lessons/${testLessonSchedule.id}`).set('Cookie', memberCookies)
+
+        expect(response.status).toBe(200)
+        expect(response.body.success).toBe(true)
+      })
+
+      it('403s the owner of an unrelated org who is only a member of this group', async () => {
+        const outsider = await prisma.user.create({ data: { googleId: OUTSIDER_GOOGLE_ID, email: 'd15-outsider@example.com', name: 'D15 Outsider' } })
+        await prisma.organization.create({ data: { name: 'Unrelated Org', ownerId: outsider.id, isActive: true } })
+        await signInUser(outsider.id)
+
+        const response = await request(app).get(`/api/member/lessons/${testLessonSchedule.id}`).set('Cookie', memberCookies)
+
+        expect(response.status).toBe(403)
+        expect(response.body).toMatchObject({ success: false, error: 'not_yet_available', availableOn: future.toISOString().slice(0, 10) })
+      })
+    })
   })
 
   // ============================================================================

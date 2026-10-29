@@ -47,6 +47,16 @@ enum UI2Destination: Hashable {
     case editProgramField(programId: String, field: ProgramField)
     /// ui2-programs D11: the Edit cover page, above the program page (the group cover flow).
     case editProgramCover(programId: String, source: ImageEditSource)
+    /// ui2-enrollment-create D2/D9: the "New enrollment" checklist; `flowId` keys its draft in
+    /// `AppState.enrollmentDrafts`. Pushed on the stack it was opened from.
+    case enrollChecklist(flowId: UUID)
+    /// ui2-enrollment-create: the six pickers, each above its checklist; Select/Save writes the draft and pops.
+    case enrollSelectGroup(flowId: UUID)
+    case enrollSelectProgram(flowId: UUID)
+    case enrollSelectSchedule(flowId: UUID)
+    case enrollSelectInviteTime(flowId: UUID)
+    case enrollSelectSync(flowId: UUID)
+    case enrollSelectAccess(flowId: UUID)
 }
 
 extension UI2Destination {
@@ -82,6 +92,14 @@ struct UI2ShellModel {
     var showsTabBar: Bool { !(path(for: tab).last?.isFullScreen ?? false) }
 
     func path(for tab: TabBar.Tab) -> [UI2Destination] { paths[tab] ?? [] }
+
+    /// ui2-enrollment-create D13: the flows whose checklist is still on some stack — every other
+    /// draft is pruned when the paths change.
+    var enrollmentFlowIds: Set<UUID> {
+        Set(paths.values.flatMap { $0 }.compactMap {
+            if case let .enrollChecklist(flowId) = $0 { return flowId } else { return nil }
+        })
+    }
 
     /// The stack's `path:` binding writes here — including the system back and edge-swipe pops.
     mutating func setPath(_ path: [UI2Destination], for tab: TabBar.Tab) { paths[tab] = path }

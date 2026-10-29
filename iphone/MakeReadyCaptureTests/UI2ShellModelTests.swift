@@ -320,4 +320,25 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertNil(MemberProfileContainer.groupDestination(groups, row: 2))
         XCTAssertNil(MemberProfileContainer.groupDestination(nil, row: 0))
     }
+
+    // ui2-enrollment-create D2/D13: the flow's seven pages, and the flow ids still on a stack.
+    func testEnrollmentFlowIdsAreTheChecklistsOnAnyPath() {
+        var model = UI2ShellModel()
+        let a = UUID(), b = UUID()
+        model.push(.enrollChecklist(flowId: a), on: .home)
+        model.push(.enrollSelectGroup(flowId: a), on: .home)
+        model.push(.enrollChecklist(flowId: b), on: .calendar)
+        XCTAssertEqual(model.enrollmentFlowIds, [a, b])
+        model.pop(on: .home); model.pop(on: .home)
+        XCTAssertEqual(model.enrollmentFlowIds, [b])
+    }
+
+    func testEnrollmentPagesAreNotFullScreen() {
+        let id = UUID()
+        for d: UI2Destination in [.enrollChecklist(flowId: id), .enrollSelectGroup(flowId: id), .enrollSelectProgram(flowId: id),
+                                  .enrollSelectSchedule(flowId: id), .enrollSelectInviteTime(flowId: id),
+                                  .enrollSelectSync(flowId: id), .enrollSelectAccess(flowId: id)] {
+            XCTAssertFalse(d.isFullScreen)
+        }
+    }
 }

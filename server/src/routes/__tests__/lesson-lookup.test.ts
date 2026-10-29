@@ -329,4 +329,28 @@ describe('Lesson Lookup API', () => {
       // Client will show: "Study not found. Please check your link and try again."
     })
   })
+
+  describe('one-at-a-time (D15)', () => {
+    const makeFuture = async () => {
+      const future = new Date(); future.setDate(future.getDate() + 3)
+      await prisma.enrollment.update({ where: { id: testEnrollment.id }, data: { lessonAccess: 'ONE_AT_A_TIME', timezone: 'UTC' } })
+      await prisma.lessonSchedule.update({ where: { id: testLessonSchedule.id }, data: { scheduledDate: future } })
+    }
+
+    it('leaves /lessons/code and /lessons/view open (the join flow needs them)', async () => {
+      await makeFuture()
+      expect((await request(app).get(`/api/lessons/code/${TEST_STUDY_CODE}`)).status).toBe(200)
+      expect((await request(app).get(`/api/lessons/view/${testLessonSchedule.id}`)).status).toBe(200)
+    })
+
+    it('/lessons/today opens a one-at-a-time lesson on its own day', async () => {
+      // the setup's schedule is today; the gate must not block it (the closed case is the unit test's)
+      await prisma.enrollment.update({ where: { id: testEnrollment.id }, data: { lessonAccess: 'ONE_AT_A_TIME', timezone: 'UTC' } })
+      expect((await request(app).get(`/api/lessons/today/${testEnrollment.id}`)).status).toBe(200)
+    })
+
+    it('/lessons/today stays 200 for an all-at-once enrollment', async () => {
+      expect((await request(app).get(`/api/lessons/today/${testEnrollment.id}`)).status).toBe(200)
+    })
+  })
 })

@@ -148,6 +148,11 @@ enum EnrollmentSyncMode {
   APPROVAL
 }
 
+enum LessonAccess {
+  ONE_AT_A_TIME
+  ALL_AT_ONCE
+}
+
 enum SyncRunStatus {
   PENDING
   RUNNING
@@ -1007,6 +1012,7 @@ model Enrollment {
   timezone             String? // e.g. 'America/Chicago'
   requireResponse      Boolean @default(true) // Require user input before step completion
   syncMode             EnrollmentSyncMode @default(OFF) // How this enrollment tracks curriculum updates published to its study program
+  lessonAccess         LessonAccess @default(ALL_AT_ONCE) // When lessons open to members: ONE_AT_A_TIME on each lesson's day, ALL_AT_ONCE from the start (ui2-enrollment-create D4)
   syncedProgramVersionNumber Int? // StudyProgramVersion.versionNumber this enrollment's lessons reflect; null = pre-versioning baseline. Drift = program.currentVersionNumber > this.
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

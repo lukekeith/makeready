@@ -4,7 +4,8 @@ import SwiftUI
 /// ui2-shell D28 left the legacy `ErrorBannerHost` behind with `Components/` and named "a 2.0 error host"
 /// a later feature's; invite-member is the first 2.0 mutation that surfaces one (D10, D12, D13).
 /// Stopgap until a designed 2.0 banner is specced: the legacy behaviour (slides down from the top,
-/// auto-dismisses after 4 s, tap or swipe up dismisses, a new error replaces the current one) drawn
+/// auto-dismisses after 4 s, tap or swipe up dismisses, a new error replaces the current one, a
+/// retryable error shows Retry) drawn
 /// with 2.0 tokens. Mounted ONCE, in `UI2Shell`, above every piece of chrome.
 struct UI2ErrorBannerHost: View {
     static let autoDismiss: Duration = .seconds(4)
@@ -15,13 +16,24 @@ struct UI2ErrorBannerHost: View {
         return error.message
     }
 
+    /// ui2-enrollment-create Fixes (agent walk round 2, E10): the error's `retry`, wrapped to dismiss the
+    /// banner first and then re-run the failed operation, as the legacy `ErrorBannerHost` did — nil when
+    /// the error carries none (no Retry button).
+    static func retryAction(for error: AppError?, dismiss: @escaping () -> Void) -> (() -> Void)? {
+        guard let retry = error?.retry else { return nil }
+        return {
+            dismiss()
+            retry()
+        }
+    }
+
     private var state: AppState { AppState.shared }
     @State private var dismissTask: Task<Void, Never>? = nil
 
     var body: some View {
         VStack {
             if let error = state.activeSurfacedError, let message = Self.message(for: error) {
-                banner(message, kind: error.kind)
+                banner(message, kind: error.kind, onRetry: Self.retryAction(for: error) { dismiss() })
                     .transition(.move(edge: .top).combined(with: .opacity))
                     .id(error.id)
             }
@@ -39,13 +51,28 @@ struct UI2ErrorBannerHost: View {
         }
     }
 
-    private func banner(_ message: String, kind: AppMessageKind) -> some View {
+    private func banner(_ message: String, kind: AppMessageKind, onRetry: (() -> Void)?) -> some View {
         HStack(spacing: 12) {
             Image(systemName: kind == .notice ? "info.circle.fill" : "exclamationmark.triangle.fill")
             Text(message)
                 .designTextStyle(Token.TypeStyle.labelEmphasis)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(2)
+            if let onRetry {
+                SwiftUI.Button(action: onRetry) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Retry")
+                            .designTextStyle(Token.TypeStyle.labelEmphasis)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 2)
+                    .background(Token.textPrimary.opacity(0.2))
+                    .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("ui2-error-banner-retry")
+            }
         }
         .foregroundStyle(Token.textPrimary)
         .padding(.horizontal, 16)
@@ -55,7 +82,7 @@ struct UI2ErrorBannerHost: View {
         .padding(.horizontal, 16)
         .padding(.top, 8)
         .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("ui2-error-banner")
         .onTapGesture { dismiss() }
         .gesture(DragGesture(minimumDistance: 15).onEnded { if $0.translation.height < -20 { dismiss() } })

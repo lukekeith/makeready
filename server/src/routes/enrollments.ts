@@ -21,7 +21,10 @@ import { computePendingChanges } from '../services/enrollment-sync-changes.js'
 import { resolveNotificationsByDedupeKey } from '../services/notification.js'
 import { filterActivitiesToVersion } from '../services/lesson-version-resolution.js'
 import { activityThumbnailUrl } from '../services/next-study-thumbnail.js'
-import { generateScheduleDates } from '../services/enrollment-schedule.js'
+import { generateScheduleDates, validateScheduleDates } from '../services/enrollment-schedule.js'
+import { isValidTimezone } from '../utils/timezone.js'
+import { lessonAvailability, notYetBody } from '../services/lesson-availability.js'
+import { programReadFilter } from '../services/study-program.service.js'
 import { applyEnrollmentEdit, applyStudySwap, previewEnrollmentEdit, EnrollmentEditError } from '../services/enrollment-edit.js'
 import {
   canManageOrgContent,
@@ -45,7 +48,8 @@ const router = Router()
  *     summary: Create an enrollment
  *     description: |
  *       Enrolls a group in a study program. Creates lesson schedules, calendar events, and welcome post.
- *       Lesson dates are calculated based on enabled days (e.g., Mon, Wed, Fri).
+ *       Lesson dates are calculated based on enabled days (e.g., Mon, Wed, Fri), unless
+ *       `scheduleDates` gives them exactly (stored as 00:00 in `timezone`, UTC when absent).
  *     security:
  *       - userSession: []
  *     requestBody:
@@ -81,8 +85,25 @@ const router = Router()
  *                 description: Time for SMS notifications (HH:MM)
  *               timezone:
  *                 type: string
+ *                 description: IANA time zone (e.g. America/Chicago); an invalid zone is a 400
  *               requireResponse:
  *                 type: boolean
+ *               syncMode:
+ *                 type: string
+ *                 enum: [OFF, AUTO, APPROVAL]
+ *               scheduleDates:
+ *                 type: array
+ *                 description: |
+ *                   Exact lesson dates (yyyy-MM-dd), one per program lesson, strictly ascending, the
+ *                   first not before today in `timezone`. Absent → derived from startDate + enabledDays.
+ *                 items:
+ *                   type: string
+ *                   format: date
+ *                 minItems: 1
+ *               lessonAccess:
+ *                 type: string
+ *                 enum: [ONE_AT_A_TIME, ALL_AT_ONCE]
+ *                 description: When lessons open to members (default ALL_AT_ONCE)
  *     responses:
  *       200:
  *         description: Enrollment created
@@ -97,13 +118,16 @@ const router = Router()
  *                 enrollment:
  *                   $ref: '#/components/schemas/Enrollment'
  *       400:
- *         description: Validation error or program has no lessons
+ *         description: |
+ *           Validation error (incl. an invalid timezone); "Schedule doesn't match the program: …"
+ *           when scheduleDates has the wrong count, is not ascending or starts before today;
+ *           `group_has_no_members` when the group has no active members; draft program or no lessons
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
  *       404:
- *         description: Group or program not found
+ *         description: Group not manageable by the caller, or program outside the caller's read scope
  *         content:
  *           application/json:
  *             schema:
@@ -121,9 +145,14 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       startDate: z.string().datetime(),
       enabledDays: z.array(z.enum(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'])).min(1),
       smsTime: z.string().regex(/^\d{2}:\d{2}$/).optional(), // "HH:MM" format
-      timezone: z.string().optional(),
+      // D16: an invalid zone is a 400, never a silent UTC fallback.
+      timezone: z.string().refine(isValidTimezone, { message: 'Invalid timezone' }).optional(),
       requireResponse: z.boolean().optional(), // Override program default (inherits from program if not specified)
       syncMode: z.enum(['OFF', 'AUTO', 'APPROVAL']).optional(), // "Sync to study": how this enrollment tracks published curriculum updates
+      // ui2-enrollment-create D3: the app's exact lesson dates (overrides included); absent → derived.
+      scheduleDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).min(1).optional(),
+      // D4: when lessons open to members; absent → the column default ALL_AT_ONCE.
+      lessonAccess: z.enum(['ONE_AT_A_TIME', 'ALL_AT_ONCE']).optional(),
     })
 
     const body = schema.parse(req.body)
@@ -138,18 +167,25 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         ...(await groupManageFilter(userId)),
         isActive: true,
       },
+      include: { _count: { select: { members: { where: { isActive: true } } } } },
     })
 
     if (!group) {
       return res.status(404).json({ success: false, error: 'Group not found' })
     }
 
+    // D5: an enrollment needs someone to enroll — the pickers hide empty groups, this guards every caller.
+    if (group._count.members === 0) {
+      return res.status(400).json({ success: false, error: 'group_has_no_members', message: 'Group has no members' })
+    }
+
     // Verify study program exists and is active
-    // Note: Any active program can be used for enrollment (not restricted to creator)
+    // T12: only a program the caller can read (programReadFilter, the GET /api/programs/:id scope).
     const program = await prisma.studyProgram.findFirst({
       where: {
         id: body.studyProgramId,
         isActive: true,
+        ...(await programReadFilter(userId)),
       },
       include: {
         template: { select: { id: true, name: true } },
@@ -193,10 +229,19 @@ router.post('/enrollments', requireAuth, async (req, res) => {
       })
     }
 
-    // Calculate lesson schedule dates — one per lesson on the enabled weekdays,
-    // walking forward from the start date (shared with the edit/reschedule path).
-    const startDate = new Date(body.startDate)
-    const scheduleDates = generateScheduleDates(startDate, body.enabledDays, program.lessons.length)
+    // D3: the app's exact dates when sent (00:00 in `timezone`, D16); else the weekday walk —
+    // one per lesson on the enabled weekdays from the start date (shared with edit/reschedule).
+    let scheduleDates: Date[]
+    if (body.scheduleDates) {
+      const checked = validateScheduleDates(body.scheduleDates, program.lessons.length, body.timezone ?? 'UTC', new Date())
+      if (!checked.ok) {
+        return res.status(400).json({ success: false, error: checked.error })
+      }
+      scheduleDates = checked.dates
+    } else {
+      scheduleDates = generateScheduleDates(new Date(body.startDate), body.enabledDays, program.lessons.length)
+    }
+    const startDate = body.scheduleDates ? scheduleDates[0] : new Date(body.startDate)
     const endDate = scheduleDates[scheduleDates.length - 1]
 
     // Pre-generate IDs and codes to use batch operations (avoids PgBouncer transaction timeout)
@@ -247,6 +292,7 @@ router.post('/enrollments', requireAuth, async (req, res) => {
           // days never reached members unless the leader also toggled sync on
           // per enrollment (monday#12268576962).
           syncMode: body.syncMode ?? 'AUTO',
+          lessonAccess: body.lessonAccess ?? 'ALL_AT_ONCE',
           // The copy is made from live curriculum, which reflects at least the
           // latest published version — so the enrollment starts drift-free.
           syncedProgramVersionNumber: program.currentVersionNumber ?? null,
@@ -410,6 +456,8 @@ router.post('/enrollments', requireAuth, async (req, res) => {
         enabledDays: true,
         smsTime: true,
         timezone: true,
+        lessonAccess: true,
+        syncMode: true,
         createdAt: true,
         updatedAt: true,
         createdById: true,
@@ -2410,6 +2458,28 @@ router.get('/lessons/view/:scheduleId', async (req, res) => {
  *                       type: array
  *                       items:
  *                         type: object
+ *       403:
+ *         description: |
+ *           The enrollment is ONE_AT_A_TIME and the lesson's day has not begun in the
+ *           enrollment's timezone (UTC when unset) — ui2-enrollment-create D4/D15.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: "not_yet_available"
+ *                 message:
+ *                   type: string
+ *                   example: "This lesson is available on Wednesday, January 10"
+ *                 availableOn:
+ *                   type: string
+ *                   format: date
+ *                   example: "2035-01-10"
  *       404:
  *         description: No lesson scheduled for today
  *         content:
@@ -2456,11 +2526,18 @@ router.get('/lessons/today/:enrollmentId', async (req, res) => {
             readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true } } } },
           },
         },
+        enrollment: { select: { lessonAccess: true, timezone: true } },
       },
     })
 
     if (!schedule) {
       return res.status(404).json({ success: false, error: 'No lesson scheduled for today' })
+    }
+
+    // D15: a one-at-a-time lesson not yet open in the enrollment's zone.
+    const availability = lessonAvailability(schedule.scheduledDate, schedule.enrollment, new Date())
+    if (!availability.available) {
+      return res.status(403).json(notYetBody(availability))
     }
 
     res.json({

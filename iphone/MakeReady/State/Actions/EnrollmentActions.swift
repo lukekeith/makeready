@@ -10,6 +10,40 @@ import Foundation
 
 /// Actions for enrollment CRUD operations.
 /// Enrollments connect groups to study programs.
+/// ui2-enrollment-create §Contract *Wire ↔ app mapping*: the transforms between the draft's
+/// forms and POST /api/enrollments, written once.
+enum EnrollmentWire {
+    static let dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    /// 0 = Sun … 6 = Sat → the server's day names, in week order (the 1.0 map).
+    static func dayNames(_ days: Set<Int>) -> [String] {
+        days.sorted().compactMap { dayNames.indices.contains($0) ? dayNames[$0] : nil }
+    }
+
+    private static let ymdFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
+
+    /// D16: a calendar day as the server reads it — formatted in the calendar's zone.
+    static func ymd(_ date: Date, in zone: TimeZone = .current) -> String {
+        ymdFormatter.timeZone = zone
+        return ymdFormatter.string(from: date)
+    }
+
+    /// The screen's kebab value → the server enum (nil = not chosen).
+    static func lessonAccessWire(_ screen: String) -> String? {
+        switch screen {
+        case "one-at-a-time": return "ONE_AT_A_TIME"
+        case "all-at-once": return "ALL_AT_ONCE"
+        default: return nil
+        }
+    }
+}
+
 struct EnrollmentActions {
 
 private let api: APIClientProtocol
@@ -216,7 +250,9 @@ private let api: APIClientProtocol
         smsTime: String?,
         timezone: String?,
         requireResponse: Bool = false,
-        syncMode: EnrollmentSyncMode = .off
+        syncMode: EnrollmentSyncMode = .off,
+        scheduleDates: [Date]? = nil,
+        lessonAccess: String? = nil
     ) async throws -> Enrollment {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -235,6 +271,13 @@ private let api: APIClientProtocol
         }
         if let timezone = timezone {
             body["timezone"] = timezone
+        }
+        // ui2-enrollment-create D3/D16: the calendar's exact days, in its own zone.
+        if let scheduleDates {
+            body["scheduleDates"] = scheduleDates.map { EnrollmentWire.ymd($0) }
+        }
+        if let lessonAccess {                                   // D4: ONE_AT_A_TIME | ALL_AT_ONCE
+            body["lessonAccess"] = lessonAccess
         }
 
         struct Response: Decodable {
@@ -261,6 +304,26 @@ private let api: APIClientProtocol
         state.updateProgramEnrollmentCount(programId: studyProgramId, delta: 1)
 
         state.persist()
+
+        // T13: the index adds alone left loadEnrollmentCounts skipping this group and the group /
+        // program pages without the new row — reload what they read. Background: a failure here
+        // never fails the create.
+        // Agent walk round 2 (E5): the group page's `.task` doesn't re-run when the checklist pops,
+        // so its next-study and days are reloaded here, not just cleared.
+        let groups = GroupActions(api: api, state: state)
+        async let next: () = groups.loadNextStudy(groupId: groupId)
+        async let days: () = groups.loadGroupDays(groupId: groupId)
+        _ = await (next, days)
+        do { _ = try await loadEnrollments(groupId: groupId) } catch {
+            state.recordError(error, context: "EnrollmentActions.createEnrollment.refreshGroup")
+        }
+        do {
+            _ = try await ProgramActions(api: api, state: state)
+                .getProgramEnrollments(programId: studyProgramId, forceRefresh: true)
+        } catch {
+            state.recordError(error, context: "EnrollmentActions.createEnrollment.refreshProgram")
+        }
+
         NSLog("📅 EnrollmentActions: Created enrollment \(enrollment.id)")
 
         return enrollment
@@ -1253,4 +1316,7 @@ struct Enrollment: Codable, Identifiable {
     let createdAt: Date
     let updatedAt: Date
     let createdById: String?
+    /// ui2-enrollment-create T6: server raw values; absent on a response from before.
+    let lessonAccess: String?
+    let syncMode: String?
 }

@@ -77,6 +77,8 @@ struct EnrollmentSelectGroupScreen: View {
     // tap → that row becomes the selection"; OQ-005: tapping the selected row keeps it).
     @SwiftUI.State private var query: String
     @SwiftUI.State private var selection: Int?
+    /// `selection` while the pick is filtered out of view: Select stays enabled, no row matches.
+    private static let pickOutOfView = -1
 
     /// invite-member tweaks (owner 2026-10-26): true puts L3's group list in its own vertical
     /// scroll under the pinned header and filter block, bouncing even when the rows fit. Default
@@ -146,6 +148,16 @@ struct EnrollmentSelectGroupScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                      // §2: the page background
+        // The highlight follows the caller's pick: a query that moves the picked row moves its
+        // highlight with it, and one that filters it out of view leaves no row highlighted while
+        // Select stays enabled (`pickOutOfView`; select-group §3) — so Select commits the row shown.
+        .onChange(of: state.selectedIndex) { _, index in
+            if state.groupNames.indices.contains(index) {
+                selection = index
+            } else if selection != nil {
+                selection = Self.pickOutOfView
+            }
+        }
     }
 
     /// §2 L1: C-040 `style: backAndLink` (D60) — back glyph, centred title, trailing "Select";
@@ -172,8 +184,8 @@ struct EnrollmentSelectGroupScreen: View {
     /// `space-page-margin` (16) on all sides, 16 pt between its two rows".
     private var filterBlock: some View {
         VStack(alignment: .leading, spacing: Self.filterRowGap) {
-            // C-034 `state` is derived from `text.isEmpty × focused`; this presentational screen
-            // owns no focus, so `focused` is false.
+            // C-034 editable form (D19 precedent, members-home): the field owns its focus, so
+            // `focused` stays false and typing reaches `onChange` → `onSearch`.
             SearchField(
                 text: query,
                 placeholder: Self.searchPlaceholder,
@@ -185,7 +197,8 @@ struct EnrollmentSelectGroupScreen: View {
                 onClear: {
                     query = ""
                     onSearch("")
-                }
+                },
+                editable: true
             )
             .ui2Element("C-034 SearchField")
             // §2: "Chip row, 24 pt tall, 8 pt gap" — C-035 `type: Menu`, width hugs the label.

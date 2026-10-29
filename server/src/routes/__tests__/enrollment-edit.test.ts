@@ -163,6 +163,8 @@ describe('Enrollment edit (reschedule / group change / preview)', () => {
       data: { phoneNumber: `+1555${String(stamp).slice(-7)}`, firstName: 'Prog', lastName: 'Member' },
     })
     memberId = member.id
+    // ui2-enrollment-create D5: POST refuses a group with no active member.
+    await prisma.groupMember.create({ data: { groupId, memberId, isActive: true } })
   })
 
   afterAll(async () => {

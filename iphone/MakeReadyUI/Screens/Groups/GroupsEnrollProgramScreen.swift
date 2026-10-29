@@ -72,6 +72,10 @@ struct GroupsEnrollProgramScreen: View {
     let state: State
     /// C-109 `animated` — `true` live, `false` in captures (§4).
     var confirmationAnimated: Bool = true
+    /// §2: "the page scrolls vertically … the header stays pinned and content scrolls under it"
+    /// (OQ-C-040-3). `true` live (the app's container); `false` in captures, where the harness's
+    /// canvas is the content's full length (D22).
+    var scrollsContent: Bool = false
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op default.
     var onBack: () -> Void = {}                     // checklist back → caller, draft discarded (OQ-004)
     var onSelectStep: (Step) -> Void = { _ in }     // row tap → that row's picker (§6)
@@ -81,6 +85,7 @@ struct GroupsEnrollProgramScreen: View {
     init(
         state: State,
         confirmationAnimated: Bool = true,
+        scrollsContent: Bool = false,
         onBack: @escaping () -> Void = {},
         onSelectStep: @escaping (Step) -> Void = { _ in },
         onEnroll: @escaping () -> Void = {},
@@ -88,6 +93,7 @@ struct GroupsEnrollProgramScreen: View {
     ) {
         self.state = state
         self.confirmationAnimated = confirmationAnimated
+        self.scrollsContent = scrollsContent
         self.onBack = onBack
         self.onSelectStep = onSelectStep
         self.onEnroll = onEnroll
@@ -123,19 +129,18 @@ struct GroupsEnrollProgramScreen: View {
     // MARK: - Body (§2 top → bottom)
 
     var body: some View {
-        // D22: no ScrollView at the root — the checklist is laid out at full length. The status
-        // bar (§1 deviation 8) is the harness's.
+        // D22: no ScrollView at the root — the header stays pinned above the content column. The
+        // status bar (§1 deviation 8) is the harness's.
         VStack(spacing: 0) {
             header
 
-            // §2: content column at y103, padding `space-page-margin`.
-            Group {
-                switch phase {
-                case .checklist, .processing: checklist
-                case .enrolled: completion
-                }
+            if scrollsContent {
+                // §2: "the page scrolls vertically" — the ≈1158pt checklist outgrows a 956 device.
+                ScrollView(.vertical) { content }
+                    .scrollBounceBehavior(.basedOnSize, axes: .vertical)
+            } else {
+                content
             }
-            .padding(Token.Space.pageMargin)
         }
         // §2: empty `color-layout-background` below; the column stays top-anchored.
         .frame(maxWidth: .infinity, alignment: .top)
@@ -144,6 +149,17 @@ struct GroupsEnrollProgramScreen: View {
         .onChange(of: phase == .processing, initial: true) { _, processing in
             if processing { AccessibilityNotification.Announcement(Self.processingAnnouncement).post() }
         }
+    }
+
+    /// §2: content column at y103, padding `space-page-margin`.
+    private var content: some View {
+        Group {
+            switch phase {
+            case .checklist, .processing: checklist
+            case .enrolled: completion
+            }
+        }
+        .padding(Token.Space.pageMargin)
     }
 
     // MARK: - Chrome

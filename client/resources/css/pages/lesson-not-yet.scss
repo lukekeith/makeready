@@ -1,0 +1,18 @@
+// ui2-enrollment-create D15: the not-yet line on the member lesson player.
+.LessonNotYetPage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--space-lg);
+  background: var(--color-background-dark);
+
+  &__message {
+    max-width: 32rem;
+    margin: 0;
+    font-size: var(--text-lead);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-white-80);
+    text-align: center;
+  }
+}

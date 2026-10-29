@@ -34,6 +34,14 @@ class LessonController extends Controller
         );
 
         if ($result['status'] !== 200) {
+            // ui2-enrollment-create D15: a one-at-a-time lesson before its day — show the server's
+            // message instead of the 404 page.
+            $body = $result['body'] ?? [];
+            if ($result['status'] === 403 && ($body['error'] ?? null) === 'not_yet_available') {
+                return response()->view('pages.lesson-not-yet', [
+                    'message' => $body['message'] ?? 'This lesson is not available yet',
+                ], 403);
+            }
             abort(404);
         }
 

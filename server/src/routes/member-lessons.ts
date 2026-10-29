@@ -10,6 +10,7 @@ import {
 } from '../services/member-progress.service.js'
 import { getOrCreateAiLessonSummary } from '../services/lesson-summary.service.js'
 import { prisma } from '../lib/prisma.js'
+import { notYetBody } from '../services/lesson-availability.js'
 
 const router = Router()
 
@@ -513,7 +514,11 @@ router.get(
  *                   type: string
  *                   example: "Member not authenticated"
  *       403:
- *         description: Member does not have access to this lesson
+ *         description: |
+ *           Member does not have access to this lesson (`error` is the reason), or — with
+ *           `error: "not_yet_available"` — the enrollment is ONE_AT_A_TIME and the lesson's day
+ *           has not begun in the enrollment's timezone (UTC when unset); group leaders and
+ *           managers are exempt (ui2-enrollment-create D4/D15).
  *         content:
  *           application/json:
  *             schema:
@@ -524,7 +529,16 @@ router.get(
  *                   example: false
  *                 error:
  *                   type: string
- *                   example: "Access denied"
+ *                   example: "not_yet_available"
+ *                 message:
+ *                   type: string
+ *                   description: Present when error is not_yet_available
+ *                   example: "This lesson is available on Wednesday, January 10"
+ *                 availableOn:
+ *                   type: string
+ *                   format: date
+ *                   description: Present when error is not_yet_available
+ *                   example: "2035-01-10"
  *       404:
  *         description: Lesson not found
  *         content:
@@ -595,7 +609,12 @@ router.get(
       }
 
       const isGroupLeader = await isRequestFromGroupLeader(req)
-      const result = await getMemberLessonDetail(memberId, lessonScheduleId, isGroupLeader)
+      const requestingUserId = (req.user as { id?: string } | undefined)?.id ?? null
+      const result = await getMemberLessonDetail(memberId, lessonScheduleId, isGroupLeader, requestingUserId)
+
+      if (result.notYet) {
+        return res.status(403).json(notYetBody(result.notYet)) // D4/D15
+      }
 
       if (!result.success) {
         console.log('[member-lessons] Error:', { memberId, lessonScheduleId, error: result.error })

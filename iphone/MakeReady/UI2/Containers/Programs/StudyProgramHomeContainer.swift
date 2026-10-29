@@ -70,6 +70,8 @@ struct StudyProgramHomeContainer: View {
                                                                   program: AppState.shared.programs[programId]) else { return }
                             navigator.push(next)
                         },
+                        // ui2-enrollment-create D2: enrollments `add` → the checklist with this program preloaded.
+                        onAddEnrollment: { EnrollEntry.open(groupId: nil, studyProgramId: programId, push: navigator.push) },
                         onAddLesson: { Task { await addLesson() } },
                         // D7/OQ-11: select the chip and bring that day's card into view.
                         onSelectDay: { day in

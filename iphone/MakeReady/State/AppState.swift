@@ -451,6 +451,31 @@ final class AppState {
     /// counts. Drives the Library "Group leaders" filter and Org Home's list.
     var groupLeaders: [GroupLeader] = []
 
+    // MARK: - Enrollment drafts (ui2-enrollment-create D9/D13)
+
+    /// One per open "New enrollment" flow, keyed by the flow id its routes carry. Memory-only:
+    /// `PersistedState` never encodes it (D13); `clearInMemory()` empties it.
+    var enrollmentDrafts: [UUID: EnrollmentDraft] = [:]
+
+    func startEnrollmentDraft(groupId: String?, studyProgramId: String?) -> UUID {
+        let id = UUID()
+        enrollmentDrafts[id] = EnrollmentDraft(id: id, groupId: groupId, studyProgramId: studyProgramId)
+        return id
+    }
+
+    func updateEnrollmentDraft(_ id: UUID, _ change: (inout EnrollmentDraft) -> Void) {
+        guard var draft = enrollmentDrafts[id] else { return }
+        change(&draft)
+        enrollmentDrafts[id] = draft
+    }
+
+    func endEnrollmentDraft(_ id: UUID) { enrollmentDrafts[id] = nil }
+
+    /// D13: a flow whose checklist left every stack (back-swipe, Home re-tap) loses its draft.
+    func pruneEnrollmentDrafts(keeping ids: Set<UUID>) {
+        enrollmentDrafts = enrollmentDrafts.filter { ids.contains($0.key) }
+    }
+
     /// Keyset cursor for each group's posts feed, keyed by group id — posts
     /// paginate per group, unlike the media library's singleton
     /// `mediaLibraryNextCursor`. The cursor lives here rather than on the page
@@ -901,6 +926,8 @@ final class AppState {
         allMediaTags = []
         groupLeaders = []
         groupPostsNextCursor = [:]
+        // ui2-enrollment-create D13: drafts are memory-only and die with the session.
+        enrollmentDrafts = [:]
         // Pre-existing leak, fixed here deliberately (not collateral): themes
         // are org-scoped too and were never cleared.
         textThemes = []

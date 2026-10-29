@@ -229,6 +229,11 @@ describe('Study program publish (study-sync)', () => {
     const group = await prisma.group.create({
       data: { name: 'Publish Test Group', creatorId: userId, organizationId },
     })
+    // ui2-enrollment-create D5: POST refuses a group with no active member.
+    const member = await prisma.member.create({
+      data: { firstName: 'Pub', lastName: 'Member', phoneNumber: `+1557${String(Date.now()).slice(-7)}` },
+    })
+    await prisma.groupMember.create({ data: { groupId: group.id, memberId: member.id, isActive: true } })
 
     const response = await request(app)
       .post('/api/enrollments')
@@ -257,5 +262,6 @@ describe('Study program publish (study-sync)', () => {
     }
 
     await prisma.group.deleteMany({ where: { id: group.id } })
+    await prisma.member.deleteMany({ where: { id: member.id } })
   })
 })
