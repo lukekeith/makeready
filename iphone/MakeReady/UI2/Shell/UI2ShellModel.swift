@@ -81,13 +81,6 @@ struct UI2ShellModel {
     /// is gone while one is the selected tab's top page.
     var showsTabBar: Bool { !(path(for: tab).last?.isFullScreen ?? false) }
 
-    /// home-dashboard-data D24 + ui2-groups-browse D3 + ui2-programs D5: the section whose
-    /// pull-to-refresh is wired — Home, Groups and Programs, on the Home tab; nil anywhere else.
-    var refreshableSection: UI2Section? {
-        guard tab == .home, [.home, .groups, .programs].contains(section) else { return nil }
-        return section
-    }
-
     func path(for tab: TabBar.Tab) -> [UI2Destination] { paths[tab] ?? [] }
 
     /// The stack's `path:` binding writes here — including the system back and edge-swipe pops.

@@ -28,10 +28,11 @@ struct HomeDashboardContainer: View {
             introsEnabled: true                                  // dashboard-chart-intros D7
         )
         .task { await Self.refresh(authManager: authManager) }
+        .pageRefresh { [authManager] in await Self.refresh(authManager: authManager) }
     }
 
     /// Home's data fetch — on first appearance, and on the page's pull-to-refresh
-    /// (home-dashboard-data D24, wired by UI2Shell).
+    /// (home-dashboard-data D24, declared with `pageRefresh`).
     @MainActor
     static func refresh(authManager: AuthManager) async {
         await AppState.shared.loadInitialData()                      // D24: waits for the org

@@ -55,6 +55,7 @@ struct GroupsHomeContainer: View {
         )
         .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .task { await Self.load(authManager: authManager) }
+        .pageRefresh { [authManager] in await Self.refresh(authManager: authManager) }
         .task(id: output.state.groupPhotoURLs) {
             if await CoverImageLoader.seedList(output.state.groupPhotoURLs) { coversSeeded += 1 }
         }
@@ -92,7 +93,7 @@ struct GroupsHomeContainer: View {
         return ok
     }
 
-    /// D3: the Groups section's pull-to-refresh (UI2Shell.refreshAction).
+    /// D3: the Groups section's pull-to-refresh (declared with `pageRefresh`).
     @MainActor
     static func refresh(authManager: AuthManager) async {
         await load(authManager: authManager)

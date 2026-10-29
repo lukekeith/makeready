@@ -122,6 +122,7 @@ struct GroupsDetailScreen: View {
     var onOpenHistory: () -> Void = {}                  // Timeline "All history" → groups-history
     var onDeleteGroup: () -> Void = {}                  // C-048 → the archive confirmation (OQ-004)
     var onCoverTap: () -> Void = {}                     // C-087 tap → picker or the cover menu (group-cover-image D1/D2)
+    var onCoverFrameChange: (CGRect) -> Void = { _ in } // C-087 global frame → the image viewer's zoom origin
 
     init(
         state: State,
@@ -137,7 +138,8 @@ struct GroupsDetailScreen: View {
         onOpenEnrollment: @escaping (Int) -> Void = { _ in },
         onOpenHistory: @escaping () -> Void = {},
         onDeleteGroup: @escaping () -> Void = {},
-        onCoverTap: @escaping () -> Void = {}
+        onCoverTap: @escaping () -> Void = {},
+        onCoverFrameChange: @escaping (CGRect) -> Void = { _ in }
     ) {
         self.state = state
         self.showsHeader = showsHeader
@@ -153,6 +155,7 @@ struct GroupsDetailScreen: View {
         self.onOpenHistory = onOpenHistory
         self.onDeleteGroup = onDeleteGroup
         self.onCoverTap = onCoverTap
+        self.onCoverFrameChange = onCoverFrameChange
     }
 
     // R-31 ephemeral UI: the day rail's scroll position. D27/D12: the rail opens at its last card
@@ -295,6 +298,8 @@ struct GroupsDetailScreen: View {
         .accessibilityLabel(state.coverURL.isEmpty ? "Add cover image" : "Cover image")
         .accessibilityAddTraits(.isButton)
         .ui2Element("C-087 CoverImage")
+        // §3 cover frame callback: the cover's global frame, on appear and on every change.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onCoverFrameChange($0) }
         .padding(.horizontal, Token.Space.pageMargin)
     }
 

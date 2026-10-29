@@ -8,8 +8,6 @@ import SwiftUI
 /// position (D12: TopNav's position lives in its own ScrollView, not in `scrollOffset`).
 struct HomeSectionLayout<Content: View>: View {
     @Binding var model: UI2ShellModel
-    /// home-dashboard-data D24: the page's pull-to-refresh; nil = the page does not refresh.
-    var onRefresh: (@MainActor () async -> Void)?
     @ViewBuilder var content: Content
 
     /// members-search-pinned: the page asked for the row to leave (Members' active search,
@@ -43,7 +41,7 @@ struct HomeSectionLayout<Content: View>: View {
             // row's growth instead. One section, one scroll: a switch starts the new page at its
             // top (the row is outside the `id`, so it keeps its own scroll position, D12).
             ZStack(alignment: .top) {
-                SectionPageScroll(model: $model, growth: growth, morphs: !hidesNav, onRefresh: onRefresh) { content }
+                SectionPageScroll(model: $model, growth: growth, morphs: !hidesNav) { content }
                     .id(model.section)
                     // topnav-height-env: the row's live growth, for the page's pinned elements.
                     .environment(\.topNavInset, hidesNav ? 0 : growth)
@@ -111,18 +109,13 @@ private struct SectionPageScroll<Content: View>: View {
     /// members-search-pinned: false while the row is pushed off screen — the page's pull and
     /// scroll leave `expansion` alone.
     let morphs: Bool
-    let onRefresh: (@MainActor () async -> Void)?
     @ViewBuilder var content: Content
+    /// The section page's reload, as it declares it (`pageRefresh`); nil = it does not refresh.
+    @State private var refresh: PageRefresh?
 
-    // GAP — home-dashboard-data D24: no pull-to-refresh in C-019 or the analysis. A pull this far
-    // past the top arms it (well past `expandPull`, so a pull first opens the row, then refreshes);
-    // releasing armed runs it. The system refresh control would sit under the floating row.
-    static var refreshPull: CGFloat { 72 }
-    // GAP — the room the content makes below the row for the spinner while it refreshes.
-    static var refreshGap: CGFloat { 48 }
-
-    @State private var refreshArmed = false
-    @State private var refreshing = false
+    // home-dashboard-data D24: the pull-down reload is `pullDownRefresh` — its full pull (72pt) is
+    // well past `expandPull`, so a pull first opens the row, then refreshes. The system refresh
+    // control would sit under the floating row.
 
     // GAP — no pull distance in C-019 or the analysis; the reference fires on a short pull
     // (10.62–10.79s shows the page barely moved before the morph): 12pt past the top.
@@ -137,17 +130,9 @@ private struct SectionPageScroll<Content: View>: View {
 
     var body: some View {
         ScrollView(.vertical) {
-            ZStack(alignment: .top) {
-                content
-                    .frame(maxWidth: .infinity, alignment: .top)
-                    .offset(y: growth + (refreshing ? Self.refreshGap : 0))
-                if refreshArmed || refreshing {
-                    ActivitySpinner()
-                        .offset(y: growth + (Self.refreshGap - 24) / 2)
-                        .transition(.opacity)
-                        .accessibilityLabel("Refreshing")
-                }
-            }
+            content
+                .frame(maxWidth: .infinity, alignment: .top)
+                .offset(y: growth)
         }
         .scrollIndicators(.hidden)
         // A page shorter than the screen (a filtered Members list) must not show the window's
@@ -162,27 +147,12 @@ private struct SectionPageScroll<Content: View>: View {
         } action: { _, offset in
             react(to: offset)
         }
-        .onScrollPhaseChange { _, new in
-            phase = new
-            if new != .interacting, refreshArmed { startRefresh() }
-        }
-        .sensoryFeedback(.impact(weight: .light), trigger: refreshArmed) { _, armed in armed }
-    }
-
-    private func startRefresh() {
-        refreshArmed = false
-        guard let onRefresh, !refreshing else { return }
-        withAnimation(TopNavHost.morphSpring) { refreshing = true }
-        Task { @MainActor in
-            await onRefresh()
-            withAnimation(TopNavHost.morphSpring) { refreshing = false }
-        }
+        .onScrollPhaseChange { _, new in phase = new }
+        .onPreferenceChange(PageRefreshKey.self) { refresh = $0 }
+        .pullDownRefresh(spinnerTop: growth, refresh?.action)
     }
 
     private func react(to offset: CGFloat) {
-        if onRefresh != nil, !refreshing, phase == .interacting, offset <= -Self.refreshPull, !refreshArmed {
-            withAnimation(.easeOut(duration: 0.15)) { refreshArmed = true }
-        }
         guard morphs else { return }
         if model.expansion == 0, phase == .interacting, offset <= -Self.expandPull {
             withAnimation(Self.triggerSpring) { model.expansion = 1 }

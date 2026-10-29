@@ -172,7 +172,7 @@ struct UI2Shell: View {
     /// `HomeSectionLayout`, so TopNav slides left with the root under a push).
     @ViewBuilder private func root(for tab: TabBar.Tab) -> some View {
         switch tab {
-        case .home: HomeSectionLayout(model: $model, onRefresh: refreshAction) { sectionContent }
+        case .home: HomeSectionLayout(model: $model) { sectionContent }
         case .calendar, .search: EmptyPage()
         case .profile: ProfileStopgapContainer()
         }
@@ -195,18 +195,6 @@ struct UI2Shell: View {
         case .createStudyProgram: CreateStudyProgramContainer()                               // ui2-programs D1/D8
         case let .editProgramField(programId, field): ProgramFieldEditContainer(programId: programId, field: field)  // ui2-programs D10
         case let .editProgramCover(programId, source): EditProgramCoverContainer(programId: programId, source: source)  // ui2-programs D11
-        }
-    }
-
-    /// home-dashboard-data D24 + ui2-groups-browse D3 + ui2-programs D3: the pull-to-refresh of the
-    /// page on screen — Home's dashboard, the Groups list and the Programs list (the other sections
-    /// are unwired, D10).
-    private var refreshAction: (@MainActor () async -> Void)? {
-        switch model.refreshableSection {
-        case .home?: return { [authManager] in await HomeDashboardContainer.refresh(authManager: authManager) }
-        case .groups?: return { [authManager] in await GroupsHomeContainer.refresh(authManager: authManager) }
-        case .programs?: return { [authManager] in await StudyProgramsContainer.refresh(authManager: authManager) }
-        default: return nil
         }
     }
 

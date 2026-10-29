@@ -56,6 +56,12 @@ struct MembersHomeContainer: View {
             reload(selection, after: nil)
             await actions.loadFilterOptions()
         }
+        // Pull-down reload: the directory as currently searched and filtered, and the filter options.
+        .pageRefresh {
+            loadTask?.cancel()
+            await Self.load(selection, actions: actions)
+            await actions.loadFilterOptions()
+        }
         .onDisappear { loadTask?.cancel() }
     }
 

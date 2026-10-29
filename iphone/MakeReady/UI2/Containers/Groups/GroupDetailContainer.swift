@@ -24,6 +24,9 @@ struct GroupDetailContainer: View {
     @State private var pendingCoverChoice: CoverChoice?
     /// D8: the viewer's URL while it is up.
     @State private var viewerURL: String?
+    /// image-viewer-zoom-dismiss: the cover's on-screen frame — the viewer grows from it and flies
+    /// back into it.
+    @State private var coverFrame: CGRect?
 
     var body: some View {
         let output = GroupDetailMapper.output(Self.input(groupId: groupId, name: name, state: AppState.shared),
@@ -62,7 +65,8 @@ struct GroupDetailContainer: View {
                     // ui2-groups-edit D9: C-048 Delete Group → the C-066 confirmation.
                     onDeleteGroup: { deleteMenuOpen = true },
                     // group-cover-image D1/D2: no cover → the picker; a cover → Change · Edit · View.
-                    onCoverTap: { handleCoverTap() }
+                    onCoverTap: { handleCoverTap() },
+                    onCoverFrameChange: { coverFrame = $0 }
                 )
             }
             .scrollIndicators(.hidden)
@@ -101,7 +105,7 @@ struct GroupDetailContainer: View {
             Task { await openPicked(item) }
         }
         // D8
-        .coverViewerPresentation(url: viewerURL, accessibilityLabel: "Group cover", onClose: { viewerURL = nil })
+        .coverViewerPresentation(url: viewerURL, sourceFrame: coverFrame, accessibilityLabel: "Group cover", onClose: { viewerURL = nil })
         .task { await Self.load(groupId: groupId, authManager: authManager) }
         .task(id: Self.imageURLs(output.state)) {
             if await UI2ImageLoader.seed(Self.imageURLs(output.state), context: "GroupDetailContainer") { imagesSeeded += 1 }

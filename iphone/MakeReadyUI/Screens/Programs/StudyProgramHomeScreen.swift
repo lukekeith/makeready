@@ -9,7 +9,8 @@
 //  API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
 //  ui2-programs container inputs (§3, as groups-detail D27): `showsHeader`, `loading`,
-//  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19) and `onCoverTap`.
+//  `failed` + `onRetry` (reload = pull-to-refresh, OQ-study-program-home-19), `onCoverTap` and
+//  `onCoverFrameChange`.
 //
 
 import SwiftUI
@@ -90,6 +91,7 @@ struct StudyProgramHomeScreen: View {
     var onOpenLesson: (Int) -> Void = { _ in }          // C-063 title block tap
     var onOpenActivity: (Int, Int) -> Void = { _, _ in } // C-061 tap → activities-editor
     var onCoverTap: () -> Void = {}                     // C-087 tap → the cover flow (group-cover-image D1/D2)
+    var onCoverFrameChange: (CGRect) -> Void = { _ in } // C-087 global frame → the image viewer's zoom origin
     var onRetry: () -> Void = {}                        // pull-to-refresh → reload (host applies `.pullToRefresh`)
 
     init(
@@ -104,7 +106,8 @@ struct StudyProgramHomeScreen: View {
         onOpenLesson: @escaping (Int) -> Void = { _ in },
         onOpenActivity: @escaping (Int, Int) -> Void = { _, _ in },
         onCoverTap: @escaping () -> Void = {},
-        onRetry: @escaping () -> Void = {}
+        onRetry: @escaping () -> Void = {},
+        onCoverFrameChange: @escaping (CGRect) -> Void = { _ in }
     ) {
         self.state = state
         self.showsHeader = showsHeader
@@ -118,6 +121,7 @@ struct StudyProgramHomeScreen: View {
         self.onOpenActivity = onOpenActivity
         self.onCoverTap = onCoverTap
         self.onRetry = onRetry
+        self.onCoverFrameChange = onCoverFrameChange
     }
 
     // §3 has no UI-only rule on this screen: the day selection is reported through `onSelectDay`
@@ -259,6 +263,8 @@ struct StudyProgramHomeScreen: View {
         .accessibilityLabel(state.coverURL.isEmpty ? Self.addCoverLabel : Self.coverLabel)
         .accessibilityAddTraits(.isButton)
         .ui2Element("C-087 CoverImage")
+        // §3 cover frame callback: the cover's global frame, on appear and on every change.
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { onCoverFrameChange($0) }
     }
 
     private func detailCell(label: String, value: String, ordinal: Int) -> some View {

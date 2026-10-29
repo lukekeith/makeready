@@ -44,6 +44,7 @@ struct StudyProgramsContainer: View {
         )
         .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .task { await Self.load(authManager: authManager) }
+        .pageRefresh { [authManager] in await Self.refresh(authManager: authManager) }
         .task(id: output.state.programCoverURLs) {
             if await CoverImageLoader.seedList(output.state.programCoverURLs) { coversSeeded += 1 }
         }
@@ -84,7 +85,7 @@ struct StudyProgramsContainer: View {
         return ok
     }
 
-    /// D3: the Programs section's pull-to-refresh (UI2Shell.refreshAction).
+    /// D3: the Programs section's pull-to-refresh (declared with `pageRefresh`).
     @MainActor
     static func refresh(authManager: AuthManager) async {
         await load(authManager: authManager)

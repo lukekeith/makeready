@@ -289,22 +289,6 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(m.path(for: .home), [])
     }
 
-    /// D3 + home-dashboard-data D24 + ui2-programs D5: pull-to-refresh is wired for Home, Groups
-    /// and Programs only.
-    func testRefreshableSectionsAreHomeGroupsAndPrograms() {
-        var m = UI2ShellModel()
-        XCTAssertEqual(m.refreshableSection, .home)
-        m.apply(.section(.groups))
-        XCTAssertEqual(m.refreshableSection, .groups)
-        m.apply(.section(.programs))
-        XCTAssertEqual(m.refreshableSection, .programs)
-        m.apply(.section(.members))
-        XCTAssertNil(m.refreshableSection)
-        m.apply(.section(.groups))
-        m.apply(.tab(.search))
-        XCTAssertNil(m.refreshableSection)
-    }
-
     /// ui2-programs D11: the program cover editor is full-screen; the program pages are not.
     func testProgramCoverEditorIsFullScreen() {
         XCTAssertTrue(UI2Destination.editProgramCover(programId: "p1", source: .stored).isFullScreen)

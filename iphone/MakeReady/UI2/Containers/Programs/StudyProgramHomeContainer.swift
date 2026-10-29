@@ -35,6 +35,9 @@ struct StudyProgramHomeContainer: View {
     @State private var pendingCoverChoice: GroupDetailContainer.CoverChoice?
     /// D11: the viewer's URL while it is up.
     @State private var viewerURL: String?
+    /// image-viewer-zoom-dismiss: the cover's on-screen frame — the viewer grows from it and flies
+    /// back into it.
+    @State private var coverFrame: CGRect?
 
     var body: some View {
         let app = AppState.shared
@@ -75,11 +78,12 @@ struct StudyProgramHomeContainer: View {
                         },
                         // D11: no cover → the picker; a cover → Edit · Change · View.
                         onCoverTap: { handleCoverTap() },
-                        onRetry: { Task { await reload() } }
+                        onRetry: { Task { await reload() } },
+                        onCoverFrameChange: { coverFrame = $0 }
                     )
                 }
                 .scrollIndicators(.hidden)
-                .pullToRefresh { await reload() }
+                .pullDownRefresh { await reload() }
             }
         }
         .background(Token.layoutBackground.ignoresSafeArea())
@@ -103,7 +107,7 @@ struct StudyProgramHomeContainer: View {
             pickedItem = nil
             Task { await openPicked(item) }
         }
-        .coverViewerPresentation(url: viewerURL, accessibilityLabel: "Program cover", onClose: { viewerURL = nil })
+        .coverViewerPresentation(url: viewerURL, sourceFrame: coverFrame, accessibilityLabel: "Program cover", onClose: { viewerURL = nil })
         .task { await reload() }
         .task(id: Self.imageURLs(mapped)) {
             if await UI2ImageLoader.seed(Self.imageURLs(mapped), context: "StudyProgramHomeContainer") { imagesSeeded += 1 }
