@@ -195,6 +195,7 @@ model User {
   createdTemplates     LessonTemplate[] @relation("TemplateCreator")
   studyPrograms        StudyProgram[] @relation("StudyProgramCreator")
   enrollments          Enrollment[] @relation("EnrollmentCreator")
+  enrollmentDrafts     EnrollmentDraft[] @relation("EnrollmentDraftCreator")
   posts                Post[] @relation("PostAuthor")
   reviewedJoinRequests GroupJoinRequest[] @relation("JoinRequestReviewer")
   createdEvents        Event[] @relation("EventCreator")
@@ -211,6 +212,7 @@ model User {
   updatedPrograms      StudyProgram[] @relation("StudyProgramUpdater")
   ledStudyPrograms     StudyProgram[] @relation("StudyProgramLeader")
   updatedEnrollments   Enrollment[] @relation("EnrollmentUpdater")
+  updatedEnrollmentDrafts EnrollmentDraft[] @relation("EnrollmentDraftUpdater")
   updatedEvents        Event[] @relation("EventUpdater")
   updatedPosts         Post[] @relation("PostUpdater")
   updatedTemplates     LessonTemplate[] @relation("TemplateUpdater")
@@ -270,6 +272,7 @@ model Group {
   invites              Invite[]
   media                Media[]
   enrollments          Enrollment[]
+  enrollmentDrafts     EnrollmentDraft[]
   events               Event[]
   posts                Post[]
   joinRequests         GroupJoinRequest[]
@@ -897,6 +900,7 @@ model StudyProgram {
   leader               User? @relation("StudyProgramLeader", fields: [leaderId], references: [id], onDelete: SetNull)
   lessons              Lesson[]
   enrollments          Enrollment[]
+  enrollmentDrafts     EnrollmentDraft[]
   tags                 StudyProgramTag[]
   versions             StudyProgramVersion[]
   @@index([creatorId])
@@ -1033,6 +1037,32 @@ model Enrollment {
   @@index([startDate])
   @@index([studyProgramId, syncMode])
   @@map("enrollments")
+}
+
+model EnrollmentDraft {
+  id                   String @id @default(uuid())
+  groupId              String
+  studyProgramId       String
+  startDate            String? // yyyy-MM-dd — the checklist's first lesson date
+  enabledDays          Json? // Weekday names as sent, e.g. ['Sun','Mon']
+  overriddenDates      Json? // yyyy-MM-dd[] the leader toggled against the weekday walk
+  scheduleDates        Json? // yyyy-MM-dd[] strictly ascending — the checklist's lesson dates
+  smsTime              String? // HH:mm invite time
+  timezone             String? // IANA zone, e.g. 'America/Chicago'
+  syncMode             EnrollmentSyncMode?
+  lessonAccess         LessonAccess?
+  createdById          String?
+  updatedById          String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  group                Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  studyProgram         StudyProgram @relation(fields: [studyProgramId], references: [id], onDelete: Cascade)
+  createdBy            User? @relation("EnrollmentDraftCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy            User? @relation("EnrollmentDraftUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([groupId, studyProgramId])
+  @@map("enrollment_drafts")
 }
 
 model EnrollmentSyncRun {
