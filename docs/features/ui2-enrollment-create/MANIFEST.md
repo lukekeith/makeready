@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:agent-walk --path docs/features/ui2-enrollment-create
-head: 48f184a
+next: /builder:resume --path docs/features/ui2-enrollment-create
+head: 4c7eca0
 ticket: none
 branch: builder/ui2-enrollment-create
 pr: none
