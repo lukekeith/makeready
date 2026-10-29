@@ -134,17 +134,17 @@ All routes `requireAuth`; ids are uuids; errors `{success:false, error, message?
 
 **Draft** = `{id, groupId, studyProgramId, startDate, enabledDays, overriddenDates, scheduleDates, smsTime, timezone, syncMode, lessonAccess, createdBy:{id,name}, createdAt, updatedAt}` (unset fields `null`).
 **Item** = `{kind:"enrollment", id, studyProgram:{id,name,coverImageUrl}, startDate, endDate, enrolledAt, progress (0…1), completedMembers, memberCount, plannedMinutes, recencyAt}` or `{kind:"draft", draft: Draft, studyProgram:{id,name,coverImageUrl}, recencyAt}`.
-**Home** = `{id, studyProgram:{id,name,description,coverImageUrl,authorName}, group:{id,name,leader:{id,name}|null}, memberCount, enrolledAt, startDate, endDate, lessonAccess, days:[{scheduleId, date, percent (0…100), lessonCount, plannedMinutes}], lessons:[{scheduleId, dayNumber, title, date, progress (0…1)|null, activities:[{id, type, title, thumbnailUrl|null}]}]}`; `days`/`lessons` exclude removed schedules, ordered by date.
+**Home** = `{id, studyProgram:{id,name,description,coverImageUrl,authorName}, group:{id,name,leader:{id,name}|null}, memberCount, enrolledAt, startDate, endDate, lessonAccess, smsTime ("HH:mm"|null), timezone|null, days:[{scheduleId, date, percent (0…100), lessonCount, plannedMinutes}], lessons:[{scheduleId, dayNumber, title, date, progress (0…1)|null, activities:[{id, type, title, thumbnailUrl|null}]}]}`; `days`/`lessons` exclude removed schedules, ordered by date. `authorName` = the program creator's `User.name` (as `StudyProgramHomeMapper`'s `creatorName`); `dayNumber` = the schedule's 1-based position among the non-removed schedules by `scheduledDate` (`LessonSchedule` has no day column); `smsTime`/`timezone` = `Enrollment.smsTime`/`timezone` — the day card's second line (enrollment-home §2.4 "time"), null → empty line (align T5).
 
 ## Schema & API changes
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `EnrollmentDraft` (`enrollment_drafts`): id uuid PK; `groupId` FK→groups CASCADE; `studyProgramId` FK→study_programs CASCADE; `startDate date?`; `enabledDays text?` (JSON, as Enrollment); `overriddenDates jsonb?`; `scheduleDates jsonb?`; `smsTime text?`; `timezone text?`; `syncMode EnrollmentSyncMode?`; `lessonAccess LessonAccess?`; `createdById` FK→users SET NULL; `updatedById?`; `createdAt`, `updatedAt`; UNIQUE(`groupId`,`studyProgramId`); index `groupId` | Draft | D2, D6, D19 | pending |
-| SC2 | ADD | `/api/enrollment-drafts` POST/GET list/GET/PATCH/DELETE | Draft | D3–D6, D10 | pending |
-| SC3 | EDIT | `POST /api/enrollments` | + `draftId?` | D11 | pending |
-| SC4 | ADD | `GET /api/enrollments-feed` | Item, sections, options | D7, D8, D12, D13, D15–D18 | pending |
-| SC5 | ADD | `GET /api/enrollments/:id/home` | Home | D20 | pending |
+| SC1 | ADD | `EnrollmentDraft` (`enrollment_drafts`): id uuid PK; `groupId` FK→groups CASCADE; `studyProgramId` FK→study_programs CASCADE; `startDate date?`; `enabledDays text?` (JSON, as Enrollment); `overriddenDates jsonb?`; `scheduleDates jsonb?`; `smsTime text?`; `timezone text?`; `syncMode EnrollmentSyncMode?`; `lessonAccess LessonAccess?`; `createdById` FK→users SET NULL; `updatedById?`; `createdAt`, `updatedAt`; UNIQUE(`groupId`,`studyProgramId`); index `groupId` | Draft | D2, D6, D19 | pending — T1 |
+| SC2 | ADD | `/api/enrollment-drafts` POST/GET list/GET/PATCH/DELETE | Draft | D3–D6, D10 | pending — T2 |
+| SC3 | EDIT | `POST /api/enrollments` | + `draftId?` | D11 | pending — T3 |
+| SC4 | ADD | `GET /api/enrollments-feed` | Item, sections, options | D7, D8, D12, D13, D15–D18 | pending — T4 |
+| SC5 | ADD | `GET /api/enrollments/:id/home` | Home | D20; enrollment-home `dayLine2s` (the invite time) → `smsTime`/`timezone`, `authorName`, `lessonNumbers` → `dayNumber` (align) | pending — T5 |
 
 **Data plan:** SC1 is a new empty table — no backfill. `server/schema/schema.yaml` → schema diff → one
 Atlas migration (house rules: `scripts/atlas.sh … --var database_url=postgres://postgres:postgres@localhost:5434/makeready_dev`,
@@ -217,3 +217,51 @@ never `npm run schema:diff`). Undo = drop the table. SC2–SC5 are new or additi
 | F3 | `GET /api/enrollments/:id/completion-stats` scopes by single-org `getUserOrgId` — not reused; the feed and home use `enrollmentManageFilter` | settled by D15/D20 |
 | F4 | `POST /api/enrollments` is not transactional, so D11's draft delete runs after the welcome post and is non-fatal | settled by D11 |
 | F5 | `Enrollment.group._count.members` in `GET /api/enrollments/:id` counts inactive members; the home read counts active members only | settled by D20 |
+| F6 | groups-detail derives its Enrollments quick stat and the section's «N» programs meta from `programTitles.count` (`GroupsDetailScreen.swift:318,536`), so draft rows added through D14.2 would be counted, against D7 | settled by T9 — the D14.2 request states both counts cover rows whose `programDraftLabels` entry is `""` only |
+| F7 | The local `EnrollmentDraft.endDate` has no column in SC1 or field in Draft | settled — derived: `endDate` = the last `scheduleDates` entry when the mapper reads a Draft (T7); not stored, so D9's clear is `startDate` + `scheduleDates` only on the wire |
+| T1 | server: `EnrollmentDraft` in `schema.yaml` + `schema.prisma`, the Atlas migration, `prisma generate` (SC1) | blocking |
+| T2 | server: `src/routes/enrollment-drafts.ts` + its service — POST/GET list/GET/PATCH/DELETE, scope, 409 `draft_exists` (SC2) | blocking |
+| T3 | server: `POST /api/enrollments` zod gains `draftId`, the non-fatal delete after the welcome post (SC3) | blocking |
+| T4 | server: `enrollment-directory.service.ts` feed — sections, items, options, buckets, recency, numbers (SC4) | blocking |
+| T5 | server: the same service's home read — incl. `smsTime`, `timezone`, `authorName`, derived `dayNumber` (SC5) | blocking |
+| T6 | server: fixture layers `screens/enrollments-home.ts`, `screens/enrollment-home.ts`, `fixtures/wipe.ts` clears `enrollment_drafts` (D22) | blocking |
+| T7 | iphone: the `Draft` Codable type + `EnrollmentDraft` (`serverId`, `createdByName`) mapper — dates `yyyy-MM-dd` in `TimeZone.current`, weekday names ↔ 0…6, `lessonAccess` `one-at-a-time`/`all-at-once` ↔ `ONE_AT_A_TIME`/`ALL_AT_ONCE`, `syncMode` `AUTO`\|`OFF`, `endDate` derived (F7); `AppState.enrollmentDraftsByGroupId` + `EnrollmentDraftActions` | trailing |
+| T8 | iphone: `AppState.enrollmentFeed`, `enrollmentHomes[id]`, `EnrollmentActions.loadFeed`/`loadHome`, both containers and their mappers (day line 2 = `smsTime` formatted `h:mma` lower-case, `7:30am`) | trailing |
+| T9 | iphone: the four D14 `request_project_change` handovers, with F6's count rule in the groups-detail request and F2's drift check | trailing |
+| T10 | iphone: checklist autosave (D3/D4), 409 replace (D6), stale start (D9), Discard (D10), `draftId` on Enroll (D11), group page draft rows (D7b) | trailing |
+
+## Prototype
+
+Ref `--ui2 enrollments-home, enrollment-home, groups-enroll-program, groups-detail` (manifest `ui2:`).
+All four are **built** d2m screens under `iphone/MakeReadyUI/Screens/` (`Enrollments/EnrollmentsHomeScreen.swift`,
+`Enrollments/EnrollmentHomeScreen.swift`, `Groups/GroupsEnrollProgramScreen.swift`, `Groups/GroupsDetailScreen.swift`);
+their `State` structs and `populated` fixtures are the harvested payloads. No owner notes on any of them
+(`node capture/lib/ui2-notes.mjs read <screen>`, 2026-10-28: `exists: false` ×4). D14's inputs are not built yet.
+
+**Alignment (2026-10-28)** — every rendered input traced to its column and wire field. 19 input groups: 10 ALIGNED,
+8 derived or app-only (each settled by a named ruling or finding), 1 MISSING → T5.
+
+| Screen input | Source | Wire | Verdict |
+|---|---|---|---|
+| draft `groupId`, `studyProgramId`, `startDate`, `enabledDays`, `overriddenDates`, `scheduleDates`, `smsTime`, `timezone` | SC1 columns | Draft | ALIGNED (dates `yyyy-MM-dd`, weekdays names ↔ 0…6 — layer transform, T7) |
+| draft `lessonAccess`, `syncMode` | SC1 enums `LessonAccess`, `EnrollmentSyncMode` | `ONE_AT_A_TIME`\|`ALL_AT_ONCE`, `AUTO`\|`OFF` | ALIGNED (app `one-at-a-time` ↔ wire, T7; the column's `APPROVAL` member is never sent — the checklist offers two) |
+| draft `endDate` | — | — | derived from `scheduleDates` (F7) |
+| draft `phase` | — | — | app-only, transient (`processing`/`enrolled` never persist) |
+| enrollments-home `groupNames` · `groupLeaderNames` · `groupPhotoURLs` | `Group.name` · `Group.creator.name` (D13) · `Group.coverImageUrl` | `sections[].group` | ALIGNED |
+| `programTitles` · `programCoverURLs` · `programEnrolledDates` | `StudyProgram.name` · `.coverImageUrl` · `Enrollment.createdAt` | Item | ALIGNED |
+| `programProgress` · `programCompleteCounts` · `programHours` | progress tables · `LessonSchedule.estimatedMinutes` | `progress`, `completedMembers`, `plannedMinutes` | derived (D16, D12) |
+| filter labels ×4 | `options`, `organizations/my/organizations`, D8 | feed `options` | ALIGNED |
+| D14.1 `programDraftLabels` · `programDraftStarters` | app (`EnrollChecklistMapper`, D19) · `EnrollmentDraft.createdById` → `User.name` | Draft `createdBy` | derived · ALIGNED |
+| enrollment-home `coverURL` · `programName` · `programDescription` · `authorName` | `StudyProgram.coverImageUrl` · `.name` · `.description` · `.creator.name` | Home `studyProgram` | ALIGNED |
+| `memberCount` · `enrolledLabel` · `leaderName` | active `GroupMember` count (F5) · `Enrollment.createdAt` · `Group.creator.name` | Home | ALIGNED |
+| start/end month·weekday·day, `spanMonths`/`spanDays` | `Enrollment.startDate`/`endDate` | Home | ALIGNED · span derived in the mapper |
+| day `dates`, `dayPercents`, `dayLine1s` | `LessonSchedule.scheduledDate` · progress · count per date | `days[]` | ALIGNED · derived (D20) |
+| `dayLine2s` (the invite time) | `Enrollment.smsTime` | — | **MISSING** from Home → added (§Contract, T5) |
+| `dayDateStates` · `lessonMetaLabels` | `date` vs today in the device zone | — | derived in the mapper |
+| `lessonNumbers` · `lessonTitles` · `lessonProgress` | position by date · `LessonSchedule.title` · progress | `lessons[]` `dayNumber`, `title`, `progress` | derived · ALIGNED · derived |
+| `lessonSlideImages` · `lessonSlideLabels` | `ScheduledLessonActivity.youtubeThumbnailUrl` → `Video.thumbnailUrl` → first `ActivityReadBlock.backgroundImageUrl` · `type` + `title` | `activities[]` | ALIGNED (D20 order) |
+| groups-detail Enrollments rows + D14.2 arrays | existing `GET /api/groups/:id/enrollments` + `GET /api/enrollment-drafts?groupId=` | existing · Draft | ALIGNED; counts per F6 |
+| groups-enroll-program rows (group, program, schedule, invite time, sync, access) | the draft fields above | Draft | ALIGNED (ui2-enrollment-create's mapper) |
+
+**Released build:** iphone is `released_artifact`; every change is additive (new routes, an optional `draftId`, new
+Home fields on a new route) — nothing a shipped 1.0 build caches changes shape.

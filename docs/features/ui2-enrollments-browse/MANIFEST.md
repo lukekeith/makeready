@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: aligned
 next: /builder:resume --path docs/features/ui2-enrollments-browse
-head: 0d4e87c
+head: b0129f0
 ticket: none
-branch: main
+branch: builder/ui2-enrollments-browse
 pr: none
 apps: server+iphone
 contract: open
@@ -17,3 +17,4 @@ ready: none
 ui2: enrollments-home, enrollment-home, groups-enroll-program, groups-detail
 auto: off
 blocked: none
+agent-walk: on 2026-10-28
