@@ -201,7 +201,7 @@ All routes `requireAuth`; ids are uuids; errors `{success:false, error, message?
 **iphone**
 - mappers: feed → `EnrollmentsHomeScreen.State` (rows, draft labels `Draft · n/6`, hours format, chips), home → `EnrollmentHomeScreen.State`, Draft ↔ `EnrollmentDraft` round-trip
 - checklist: first save only when both set; PATCH per Select; retry-then-banner once per dirty episode and re-send on the next Select/Retry/Enroll (D26); 409 replace; D9 stale clear; Discard confirm → delete → pop; `draftId` on Enroll
-- PATCH ordering and coalescing; changes before the POST returns; the program-change PATCH's `scheduleDates: null`; 409 on a PATCH while a picker is on top; 404 on GET/PATCH/DELETE and pending-PATCH cancel on Enroll/Discard/Back (D30)
+- PATCH ordering and coalescing; changes before the POST returns; the program-change PATCH's `scheduleDates: null`; 409 on a PATCH while a picker is on top; 404 on GET/PATCH/DELETE and pending-PATCH cancel on Enroll/Discard, while Back lets the pending create/PATCH settle (D30 as superseded 2026-10-29)
 - feed and group-draft store refresh after create, delete and enroll; list `n/6` equals the checklist's count incl. the stale rule
 - route tests for `.enrollmentHome`; `clearInMemory` clears the new stores; `ios:build-check --test`; swiftlint baseline
 
