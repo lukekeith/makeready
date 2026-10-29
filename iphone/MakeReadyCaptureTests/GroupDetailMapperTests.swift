@@ -236,4 +236,56 @@ final class GroupDetailMapperTests: XCTestCase {
         XCTAssertEqual(s.eventHighlights, ["Tony Stark", ""])
         XCTAssertEqual(s.eventTones, ["accent", "neutral"])              // F8: renders plain until C-065 rebuild
     }
+
+    // MARK: - ui2-enrollments-browse D7b/D14.2/D19/D28
+
+    private func romans() throws -> StudyProgram {
+        try JSONDecoder.apiDecoder.decode(StudyProgram.self, from: Data(
+            #"{"id":"p2","name":"Romans in 30 days","description":"A deep dive","days":30,"isPublished":true,"coverImageUrl":"https://x/p2.png","createdAt":"2025-01-01T00:00:00.000Z","updatedAt":"2025-01-01T00:00:00.000Z"}"#.utf8))
+    }
+
+    private func groupDraft(start: String? = nil, schedule: [String]? = nil, sms: String? = "07:30",
+                            sync: String? = nil, access: String? = nil) -> DraftWire {
+        DraftWire(id: "d1", groupId: "g1", studyProgramId: "p2", startDate: start,
+                  enabledDays: schedule == nil ? nil : ["Mon"], overriddenDates: nil, scheduleDates: schedule,
+                  smsTime: sms, timezone: sms == nil ? nil : "America/Denver", syncMode: sync, lessonAccess: access,
+                  createdBy: EnrollmentWireRef(id: "u1", name: "Luke Keith"),
+                  createdAt: "2026-10-20T00:00:00.000Z", updatedAt: "2026-10-21T00:00:00.000Z")
+    }
+
+    func testDraftRowsFollowTheEnrollmentsWithTheirMarkersAndTargets() throws {
+        let json = #"[{"id":"e1","groupId":"g1","programId":"p1","startedAt":"2026-09-01T00:00:00Z","createdAt":"2026-09-01T15:00:00Z","studyProgram":{"id":"p1","title":"Faith over fear","description":"30 days","coverImageUrl":"https://img/p1.jpg"}}]"#
+        let enrollments = try JSONDecoder.apiDecoder.decode([EnrollmentWithProgram].self, from: Data(json.utf8))
+        let draft = groupDraft()
+        let o = output(.init(name: "x", group: group(), enrollments: enrollments, drafts: [draft], programsById: ["p2": try romans()]))
+        let s = o.state
+        XCTAssertEqual(s.programTitles, ["Faith over fear", "Romans in 30 days"])
+        XCTAssertEqual(s.programDescriptions, ["30 days", ""])
+        XCTAssertEqual(s.programEnrolledDates, ["Sep 1, 2026", ""])
+        XCTAssertEqual(s.programCoverURLs, ["https://img/p1.jpg", "https://x/p2.png"])
+        XCTAssertEqual(s.programDraftLabels, ["", "Draft · 3/6"])                   // group, program, invite time
+        XCTAssertEqual(s.programDraftStarters, ["", "Started by Luke Keith"])
+        XCTAssertEqual(o.enrollmentTarget(atRow: 0), .enrollment(id: "e1", name: "Faith over fear"))   // D28
+        XCTAssertEqual(o.enrollmentTarget(atRow: 1), .draft(draft))                                    // D21
+        XCTAssertNil(o.enrollmentTarget(atRow: 2))
+    }
+
+    func testTheGroupPagesCountEqualsTheChecklistsIncludingTheStaleRule() throws {   // D19 + D9
+        let program = try romans()
+        let stale = groupDraft(start: "2026-10-01", schedule: ["2026-10-01"], sync: "AUTO", access: "ALL_AT_ONCE")
+        let s = output(.init(name: "x", group: group(), drafts: [stale], programsById: ["p2": program])).state
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        var checklist = EnrollmentDraftMapping.draft(stale, flowId: UUID(), zone: tz)
+        checklist.clearStaleStart(today: now, calendar: cal)
+        let n = GroupsEnrollProgramScreen.completedSteps(EnrollChecklistMapper.state(checklist, group: group(), program: program, today: now))
+        XCTAssertEqual(n, 5)
+        XCTAssertEqual(s.programDraftLabels, ["Draft · \(n)/6"])
+    }
+
+    func testNoDraftsLeavesTheEnrollmentRowsUnmarked() throws {
+        let s = output(.init(name: "x", group: group())).state
+        XCTAssertEqual(s.programDraftLabels, [])
+        XCTAssertEqual(s.programDraftStarters, [])
+    }
 }
