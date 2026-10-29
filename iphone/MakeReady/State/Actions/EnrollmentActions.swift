@@ -34,6 +34,21 @@ enum EnrollmentWire {
         return ymdFormatter.string(from: date)
     }
 
+    /// T7: a `yyyy-MM-dd` wire day as the start of that day in `zone`.
+    static func date(ymd: String, in zone: TimeZone = .current) -> Date? {
+        ymdFormatter.timeZone = zone
+        return ymdFormatter.date(from: ymd)
+    }
+
+    /// T7: the server enum → the screen's kebab value (nil = not chosen).
+    static func lessonAccessLocal(_ wire: String?) -> String? {
+        switch wire {
+        case "ONE_AT_A_TIME": return "one-at-a-time"
+        case "ALL_AT_ONCE": return "all-at-once"
+        default: return nil
+        }
+    }
+
     /// The screen's kebab value → the server enum (nil = not chosen).
     static func lessonAccessWire(_ screen: String) -> String? {
         switch screen {
