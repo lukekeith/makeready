@@ -1,4 +1,4 @@
-import Foundation
+import UIKit
 
 /// ui2-enrollment-create D11/D18: the group and program pickers' Select warnings. They never block
 /// — the container shows C-066 with "… — select anyway" and "Choose another" (a recorded deviation:
@@ -7,6 +7,13 @@ enum EnrollPickerWarnings {
     enum Warning: Equatable { case alreadyEnrolled, lessonOverlap }
 
     static let chooseAnother = "Choose another"
+
+    /// Agent walk round 2 (E9): the pickers' search is editable (ccc5df8), so a warning raised from Select
+    /// opened C-066 under a still-raised keyboard — unreachable, a tap typing into the field. The
+    /// container drops the keyboard before it presents the menu.
+    @MainActor static func dismissKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+    }
 
     static func confirmLabel(_ warning: Warning) -> String {
         switch warning {

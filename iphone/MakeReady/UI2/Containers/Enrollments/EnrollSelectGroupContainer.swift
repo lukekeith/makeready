@@ -98,7 +98,9 @@ struct EnrollSelectGroupContainer: View {
     private func apply(_ outcome: GroupSelectOutcome, _ groupId: String) {
         switch outcome {
         case .commit: commit(groupId)
-        case .warn(let warning): pendingWarning = (groupId, warning)
+        case .warn(let warning):
+            EnrollPickerWarnings.dismissKeyboard()
+            pendingWarning = (groupId, warning)
         }
     }
 

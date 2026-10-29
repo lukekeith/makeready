@@ -67,6 +67,7 @@ struct EnrollSelectProgramContainer: View {
         let app = AppState.shared
         let groupEnrollments = app.enrollmentDrafts[flowId]?.groupId.map { app.enrollmentsFor(groupId: $0) }
         if EnrollPickerWarnings.forProgram(groupEnrollments: groupEnrollments, programId: programId) != nil {
+            EnrollPickerWarnings.dismissKeyboard()
             pendingProgramId = programId
         } else {
             commit(programId)
