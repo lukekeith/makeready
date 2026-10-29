@@ -218,15 +218,20 @@ struct EnrollmentsHomeScreen: View {
         HorizontalRail {
             HStack(spacing: Token.Space.elementGap) {
                 ForEach(chipLabels.indices, id: \.self) { index in
-                    FilterChip(type: .menu, active: false, label: chipLabels[index]) {
-                        onOpenFilter(Self.filterDimensions[index])
-                    }
+                    Self.menuChip(label: chipLabels[index]) { onOpenFilter(Self.filterDimensions[index]) }
                     .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
                 }
             }
             .padding(.horizontal, Token.Space.pageMargin)
         }
         .scrollIndicators(.hidden)
+    }
+
+    /// §3: a chip tap presents C-036. `onTap:` is passed by label: an unlabelled trailing closure on
+    /// FilterChip binds to `onSelect` (Swift 5's backward scan), which a `Menu` chip never fires
+    /// (agent walk round 1, E2/E3 — the GroupsHomeScreen precedent).
+    static func menuChip(label: String, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: false, label: label, onTap: onTap)
     }
 
     // MARK: §2 Sections

@@ -4,6 +4,14 @@ import XCTest
 /// ui2-enrollments-browse D7, D8, D12, D13, D15, D16, D19, D27: the feed → the Enrollments section.
 @MainActor
 final class EnrollmentsHomeMapperTests: XCTestCase {
+    /// Agent walk round 1 (E2/E3): no Enrollments chip opened its menu. A `Menu` chip fires `onTap`,
+    /// and an unlabelled trailing closure on FilterChip binds to `onSelect` (Swift 5's backward scan).
+    func testEnrollmentsHomeMenuChipTapPresentsTheMenu() {
+        var tapped = false
+        EnrollmentsHomeScreen.menuChip(label: "Active") { tapped = true }.onTap()
+        XCTAssertTrue(tapped)
+    }
+
     private let zone = TimeZone(identifier: "America/Chicago")!
     private let today = ISO8601DateFormatter().date(from: "2035-01-06T18:00:00Z")!     // Sat Jan 6, 12:00 local
 
