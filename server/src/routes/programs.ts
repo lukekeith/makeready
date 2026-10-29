@@ -429,7 +429,7 @@ router.post('/programs', requireAuth, async (req, res) => {
  *         description: Include soft-deleted programs (API key only)
  *     responses:
  *       200:
- *         description: List of programs
+ *         description: List of programs; each carries completedEnrollmentCount (integer, enrollments ended before today UTC)
  */
 router.get('/programs', requireAuth, async (req, res) => {
   try {
@@ -515,10 +515,24 @@ router.get('/programs', requireAuth, async (req, res) => {
       : []
     const orgName = new Map(orgs.map((o) => [o.id, o.name]))
 
+    // ui2-enrollment-create D8: enrollments that ended before today (UTC), one grouped query —
+    // a filtered _count can't sit beside the _count.enrollments the iPhone already reads.
+    const startOfTodayUtc = new Date()
+    startOfTodayUtc.setUTCHours(0, 0, 0, 0)
+    const completed = programs.length
+      ? await prisma.enrollment.groupBy({
+          by: ['studyProgramId'],
+          where: { studyProgramId: { in: programs.map((p) => p.id) }, endDate: { lt: startOfTodayUtc } },
+          _count: { _all: true },
+        })
+      : []
+    const completedCount = new Map(completed.map((c) => [c.studyProgramId, c._count._all]))
+
     res.json({
       success: true,
       programs: programs.map((p) => ({
         ...toProgramPayload(p),
+        completedEnrollmentCount: completedCount.get(p.id) ?? 0,
         organizationName: p.organizationId ? (orgName.get(p.organizationId) ?? null) : null,
         tags: p.tags.map((t) => t.tag),
       })),
