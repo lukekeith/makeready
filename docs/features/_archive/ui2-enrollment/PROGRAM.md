@@ -1,4 +1,5 @@
 # ui2-enrollment — program
+> ✅ SHIPPED 2026-10-29 — every child shipped · last: ui2-enrollments-browse
 > tier: program · design ref `--ui2 groups-enroll-program,enrollment-select-group,enrollment-select-program,enrollment-select-schedule,enrollment-select-invite-time,enrollment-select-sync,enrollment-select-access,enrollments-home,enrollment-home` (Figma section Enrollment `4674:44206`, d2m era 2.0, intake 2026-10-28)
 
 ## Overview

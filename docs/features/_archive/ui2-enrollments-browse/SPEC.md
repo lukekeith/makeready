@@ -1,5 +1,5 @@
 # ui2-enrollments-browse — spec
-> 🤖 AGENT SIGNED OFF 2026-10-29 — 9e105f9 · agent walk round 2 · not human-tested · evidence: .builder/ui2-enrollments-browse/agent-walk/round-2/
+> ✅ SHIPPED 2026-10-29 — merged into main · no ticket · 🤖 agent signed off (walk round 2), not human-tested
 > lg · no ticket · child 2 of `docs/features/ui2-enrollment` (PROGRAM.md, go-ahead Luke 2026-10-28) · builds on ui2-enrollment-create (shipped 2026-10-28)
 
 ## Idea
@@ -263,6 +263,7 @@ All routes `requireAuth`; ids are uuids; errors `{success:false, error, message?
 | R3 | repoint (iphone): groups-detail Enrollments rows ← `GroupDetailContainer.swift:47-70` (`onOpenEnrollment`, D28) | builder:plan's repoint + retire phase |
 | R4 | repoint (iphone): the in-memory checklist draft ← prune at `UI2Shell.swift:127`, `AppState.swift:475` (drops local state only, never DELETEs), `EnrollChecklistContainer.swift:86-89` `leave()`; TopNav `add` (`TopNavHost.swift:104`) unchanged | builder:plan's repoint + retire phase |
 | R5 | repoint: deep links and notification targets — none (the 2.0 shell drops every deep link, `UI2Shell.swift:119-124`); client and capture — none (web posts without `draftId`, D24; capture's `fixtures/ui2/` holds component fixtures only, the screen cases are in the iphone test target, maintained by d2m) | no repoint |
+| L1 | lesson for §Standing traps: in a fleet worktree `gate.mjs server` reds `test:run` (passport dies on import — no `server/.env`, no `agent_walk.worktree_env`) and `migrate:status` (dotenv); run vitest with `GOOGLE_CLIENT_ID=x GOOGLE_CLIENT_SECRET=x SESSION_SECRET=x DATABASE_URL/DIRECT_URL=<branch test DB>` and atlas with `--var database_url=…`, or add a `worktree_env` | proposed |
 
 ## Prototype
 
