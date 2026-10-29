@@ -71,6 +71,9 @@ struct GroupsEnrollProgramScreen: View {
         /// (row 1) shows the preloaded group as chosen but **not done**, and the message is drawn
         /// as a warning line under that row" (§3 `group-ineligible`).
         var groupIneligibleMessage: String = ""
+        /// enroll-picker-hide-enrolled D5: non-empty = an amber warning line under the Schedule row
+        /// (row 3), the `groupIneligibleMessage` line's style; the row's done state is unchanged.
+        var scheduleWarningMessage: String = ""
     }
 
     let state: State
@@ -246,7 +249,10 @@ struct GroupsEnrollProgramScreen: View {
                     // §2 checklist 2: the warning line, "inserted **directly under row 1 and above
                     // row 2**" — only when `groupIneligibleMessage` is non-empty.
                     if step == .group && groupIneligible {
-                        warningLine
+                        warningLine(state.groupIneligibleMessage)
+                    }
+                    if step == .schedule && !state.scheduleWarningMessage.isEmpty {
+                        warningLine(state.scheduleWarningMessage)
                     }
                 }
             }
@@ -267,10 +273,10 @@ struct GroupsEnrollProgramScreen: View {
     /// `type-body-sm` (14/20), "wrapping with no line limit", aligned to the C-124 text column.
     /// The 20pt pitch is spent as the line box less SF Pro's natural line (the C-124 description
     /// construction), so n lines are exactly n × 20.
-    private var warningLine: some View {
+    private func warningLine(_ message: String) -> some View {
         let style = Token.TypeStyle.bodySm
         let leading = Self.leading(style)
-        return Text(state.groupIneligibleMessage)
+        return Text(message)
             .font(style.font)
             .tracking(style.tracking)
             .lineSpacing(leading)
@@ -579,6 +585,14 @@ extension GroupsEnrollProgramScreen.State {
         return s
     }()
 
+    /// enroll-picker-hide-enrolled D5 — a schedule whose dates clash with the group's existing
+    /// lessons: the amber line under row 3, the row still done.
+    static let scheduleClash: Self = {
+        var s = ready
+        s.scheduleWarningMessage = "Some dates clash with this group's existing lessons"
+        return s
+    }()
+
     /// §3 `enrolled` — the completion state.
     static let enrolled: Self = {
         var s = ready
@@ -645,6 +659,13 @@ extension GroupsEnrollProgramScreen.State {
 
 #Preview("group-ineligible") {
     GroupsEnrollProgramScreen(state: .groupIneligible, confirmationAnimated: false)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("schedule-clash") {
+    GroupsEnrollProgramScreen(state: .scheduleClash, confirmationAnimated: false)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

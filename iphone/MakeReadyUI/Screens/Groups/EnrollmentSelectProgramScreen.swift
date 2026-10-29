@@ -58,12 +58,15 @@ struct EnrollmentSelectProgramScreen: View {
         // ── List area (§3 / OQ-004) ──
         /// OQ-004 loading: no cache, the list has not arrived.
         var loading: Bool
+        /// §3 unavailable row — the checklist's group is currently enrolled (active or upcoming);
+        /// indexed like the program list, a missing index = available.
+        var programUnavailable: [Bool] = []
     }
 
     let state: State
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op default.
     var onBack: () -> Void = {}                        // §3 Back: discard the pick + pop
-    var onSelect: (Int) -> Void = { _ in }             // §3 Select: already-enrolled check, commit + pop
+    var onSelect: (Int) -> Void = { _ in }             // §3 Select: commit + pop
     var onSearch: (String) -> Void = { _ in }          // §3: filters as the leader types
     var onOpenOrgFilter: () -> Void = {}               // §3: Orgs ▾ → C-036
     var onOpenLeaderFilter: () -> Void = {}            // §3: Leaders ▾ → C-036
@@ -93,7 +96,9 @@ struct EnrollmentSelectProgramScreen: View {
         self.onOpenLeaderFilter = onOpenLeaderFilter
         self.onPickProgram = onPickProgram
         _query = SwiftUI.State(initialValue: state.searchText)
+        // §3 "Opening with a value": a preloaded program that is unavailable opens in `none`.
         _selection = SwiftUI.State(initialValue: state.programTitles.indices.contains(state.selectedIndex)
+                                   && !(state.programUnavailable[safe: state.selectedIndex] ?? false)
                                    ? state.selectedIndex : nil)
     }
 
@@ -114,6 +119,8 @@ struct EnrollmentSelectProgramScreen: View {
     private static let noMatchMessage = "No programs match your search"
     /// §2 L4 / §1 deviation 1: the history chip at zero.
     private static let neverEnrolled = "Never enrolled"
+    /// §3 unavailable row: the one muted line that replaces the metadata.
+    private static let unavailableMessage = "Unavailable because currently enrolled"
 
     // MARK: - §2 geometry the screen owns
 
@@ -137,7 +144,7 @@ struct EnrollmentSelectProgramScreen: View {
         // highlight with it, and one that filters it out of view leaves no row highlighted while
         // Select stays enabled (`pickOutOfView`; select-group §3) — so Select commits the row shown.
         .onChange(of: state.selectedIndex) { _, index in
-            if state.programTitles.indices.contains(index) {
+            if state.programTitles.indices.contains(index), !isUnavailable(index) {
                 selection = index
             } else if selection != nil {
                 selection = Self.pickOutOfView
@@ -245,7 +252,15 @@ struct EnrollmentSelectProgramScreen: View {
     /// single pick. Chips, in order: created month · length · enrollment history — the first two
     /// `Default · Single`, the third `Default` ("Never enrolled") or `Highlighted`
     /// ("«n» completed enrollment(s)", OQ-003's singular).
-    private func programRow(at index: Int) -> some View {
+    @ViewBuilder private func programRow(at index: Int) -> some View {
+        if isUnavailable(index) {
+            unavailableRow(at: index)
+        } else {
+            availableRow(at: index)
+        }
+    }
+
+    private func availableRow(at index: Int) -> some View {
         let cover = state.programCoverURLs[safe: index] ?? ""
         let completed = state.programCompletedCounts[safe: index] ?? 0
         return ListResultRow(
@@ -274,7 +289,32 @@ struct EnrollmentSelectProgramScreen: View {
         .ui2Element(Self.partName("C-037 ListResultRow", ordinal: index + 1))
     }
 
+    /// §3 unavailable row: same position, the metadata replaced by one muted line (C-037
+    /// `detail=text`, whose description is `color-white-50`), not selectable (`onTap: nil` — C-037
+    /// §4 "nil → the row is inert", so neither `onPickProgram` nor `onSelect` can fire for it).
+    /// The cover and title take the screen's disabled treatment, `color-white-50` (the inert Select,
+    /// OQ-C-040-001), as the row's alpha.
+    private func unavailableRow(at index: Int) -> some View {
+        let cover = state.programCoverURLs[safe: index] ?? ""
+        return ListResultRow(
+            subject: .program,
+            title: state.programTitles[index],
+            detail: .text,
+            description: Self.unavailableMessage,
+            trailing: .none,
+            selection: .unselected,
+            imageURL: cover.isEmpty ? nil : URL(string: cover),
+            onTap: nil
+        )
+        .mask(Token.white50)
+        .ui2Element(Self.partName("C-037 ListResultRow", ordinal: index + 1))
+    }
+
     // MARK: - Derived
+
+    private func isUnavailable(_ index: Int) -> Bool {
+        state.programUnavailable[safe: index] ?? false
+    }
 
     /// OQ-004 loading lists no rows.
     private var visibleRows: [Int] {
@@ -359,6 +399,12 @@ extension EnrollmentSelectProgramScreen.State {
     static let empty = emptyList(searchText: "", loading: false)
     /// OQ-004 no results — a query matches nothing: "No programs match your search".
     static let noResults = emptyList(searchText: "Romans", loading: false)
+    /// §3 unavailable row — row 2 is a program the chosen group is currently enrolled in.
+    static let unavailable: Self = {
+        var state = programs(selectedIndex: -1)
+        state.programUnavailable = [false, true, false]
+        return state
+    }()
 }
 
 // MARK: - Previews (D21) — one per preview, in the fixture's order, inside the device canvas (D22)
@@ -400,6 +446,13 @@ extension EnrollmentSelectProgramScreen.State {
 
 #Preview("no results") {
     EnrollmentSelectProgramScreen(state: .noResults)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("unavailable") {
+    EnrollmentSelectProgramScreen(state: .unavailable)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

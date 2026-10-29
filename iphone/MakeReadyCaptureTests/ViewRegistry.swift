@@ -4861,7 +4861,8 @@ private func buildScreenEnrollmentSelectGroup(_ fixture: CaptureFixture) throws 
             groupEnrollmentCounts: c.groupEnrollmentCounts ?? sample.groupEnrollmentCounts,
             selectedIndex: c.selectedIndex ?? sample.selectedIndex,
             loading: c.loading ?? sample.loading,
-            failed: c.failed ?? sample.failed
+            failed: c.failed ?? sample.failed,
+            groupUnavailable: c.groupUnavailable ?? sample.groupUnavailable
         )
     ))
 }
@@ -4899,7 +4900,8 @@ private func buildScreenEnrollmentSelectProgram(_ fixture: CaptureFixture) throw
             programDayCounts: c.programDayCounts ?? sample.programDayCounts,
             programCompletedCounts: c.programCompletedCounts ?? sample.programCompletedCounts,
             selectedIndex: c.selectedIndex ?? sample.selectedIndex,
-            loading: c.loading ?? sample.loading
+            loading: c.loading ?? sample.loading,
+            programUnavailable: c.programUnavailable ?? sample.programUnavailable
         )
     ))
 }
@@ -5237,7 +5239,8 @@ private func buildScreenGroupsEnrollProgram(_ fixture: CaptureFixture) throws ->
             smsTime: c.smsTime ?? sample.smsTime,
             syncMode: c.syncMode ?? sample.syncMode,
             lessonAccess: c.lessonAccess ?? sample.lessonAccess,
-            groupIneligibleMessage: c.groupIneligibleMessage ?? sample.groupIneligibleMessage
+            groupIneligibleMessage: c.groupIneligibleMessage ?? sample.groupIneligibleMessage,
+            scheduleWarningMessage: c.scheduleWarningMessage ?? sample.scheduleWarningMessage
         ),
         confirmationAnimated: false,
         // §3 `discardable`: a non-nil `onDiscard` draws the Discard enrollment button.

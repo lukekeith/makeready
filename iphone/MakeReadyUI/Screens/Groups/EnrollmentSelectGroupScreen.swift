@@ -62,6 +62,9 @@ struct EnrollmentSelectGroupScreen: View {
         var loading: Bool
         /// §3 `error`: the list failed to load with no cache.
         var failed: Bool
+        /// §3 state 7 unavailable row — the group is enrolled (active or upcoming) in the
+        /// checklist's program; indexed like the group list, a missing index = available.
+        var groupUnavailable: [Bool] = []
     }
 
     let state: State
@@ -105,6 +108,7 @@ struct EnrollmentSelectGroupScreen: View {
         self.onPickGroup = onPickGroup
         _query = SwiftUI.State(initialValue: state.searchText)
         _selection = SwiftUI.State(initialValue: state.groupNames.indices.contains(state.selectedIndex)
+                                   && !(state.groupUnavailable[safe: state.selectedIndex] ?? false)
                                    ? state.selectedIndex : nil)
     }
 
@@ -123,6 +127,8 @@ struct EnrollmentSelectGroupScreen: View {
     /// OQ-004: "No groups ready to enroll" / "No groups match your search".
     private static let emptyMessage = "No groups ready to enroll"
     private static let noMatchMessage = "No groups match your search"
+    /// §3 state 7: the one muted line that replaces the chips.
+    private static let unavailableMessage = "Unavailable because currently enrolled"
 
     // MARK: - §2 geometry the screen owns
 
@@ -152,7 +158,7 @@ struct EnrollmentSelectGroupScreen: View {
         // highlight with it, and one that filters it out of view leaves no row highlighted while
         // Select stays enabled (`pickOutOfView`; select-group §3) — so Select commits the row shown.
         .onChange(of: state.selectedIndex) { _, index in
-            if state.groupNames.indices.contains(index) {
+            if state.groupNames.indices.contains(index), !isUnavailable(index) {
                 selection = index
             } else if selection != nil {
                 selection = Self.pickOutOfView
@@ -263,7 +269,15 @@ struct EnrollmentSelectGroupScreen: View {
     /// screen's single pick. Chips, in order: leader · members · enrollments, each a C-043
     /// `value` with no `label`; enrollments > 0 → `highlighted`, every other chip → `muted`
     /// (OQ-006).
-    private func groupRow(at index: Int) -> some View {
+    @ViewBuilder private func groupRow(at index: Int) -> some View {
+        if isUnavailable(index) {
+            unavailableRow(at: index)
+        } else {
+            availableRow(at: index)
+        }
+    }
+
+    private func availableRow(at index: Int) -> some View {
         let photo = state.groupPhotoURLs[safe: index] ?? ""
         let enrollments = state.groupEnrollmentCounts[safe: index] ?? 0
         return ListResultRow(
@@ -290,7 +304,33 @@ struct EnrollmentSelectGroupScreen: View {
         .ui2Element(Self.partName("C-037 ListResultRow", ordinal: index + 1))
     }
 
+    /// §3 state 7 unavailable row: same position, the chips replaced by one muted line (C-037
+    /// `detail=text`, whose description is `color-white-50`), not selectable (`onTap: nil` — C-037
+    /// §4 "nil → the row is inert", so neither `onPickGroup` nor `onSelect` can fire for it).
+    /// OQ-enrollment-select-group-7 (owner 2026-10-29): the whole row at `color-white-50` as its
+    /// alpha, exactly as enrollment-select-program's unavailable row, so both pickers read alike.
+    private func unavailableRow(at index: Int) -> some View {
+        let photo = state.groupPhotoURLs[safe: index] ?? ""
+        return ListResultRow(
+            subject: .group,
+            title: state.groupNames[index],
+            detail: .text,
+            description: Self.unavailableMessage,
+            trailing: .none,
+            selection: .unselected,
+            imageURL: photo.isEmpty ? nil : URL(string: photo),
+            onTap: nil
+        )
+        .mask(Token.white50)
+        .disabled(true)
+        .ui2Element(Self.partName("C-037 ListResultRow", ordinal: index + 1))
+    }
+
     // MARK: - Derived
+
+    private func isUnavailable(_ index: Int) -> Bool {
+        state.groupUnavailable[safe: index] ?? false
+    }
 
     /// §3 `loading` and `error` list no rows.
     private var visibleRows: [Int] {
@@ -379,6 +419,13 @@ extension EnrollmentSelectGroupScreen.State {
         groupNames: [], groupPhotoURLs: [], groupLeaderNames: [], groupMemberCounts: [],
         groupEnrollmentCounts: [], selectedIndex: -1, loading: false, failed: true
     )
+    /// §3 state 7 `row-unavailable` — row 1 ("Coffee and football", 2 enrollments) is a group
+    /// already enrolled in the checklist's program; the other two stay pickable.
+    static let rowUnavailable: Self = {
+        var state = groups(selectedIndex: -1)
+        state.groupUnavailable = [true, false, false]
+        return state
+    }()
 }
 
 // MARK: - Previews (D21) — one per preview, in the fixture's order, inside the device canvas (D22)
@@ -420,6 +467,13 @@ extension EnrollmentSelectGroupScreen.State {
 
 #Preview("error") {
     EnrollmentSelectGroupScreen(state: .error)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("row-unavailable") {
+    EnrollmentSelectGroupScreen(state: .rowUnavailable)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

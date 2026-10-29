@@ -1201,12 +1201,14 @@ struct CaptureComponent: Codable {
     // `groupNames`, `groupPhotoURLs`, `groupLeaderNames`, `groupMemberCounts`, `selectedIndex`,
     // `loading` and `failed` as-is (same names, same types).
     let groupEnrollmentCounts: [Int]?          // active enrollments per group row
+    let groupUnavailable: [Bool]?              // §3 state 7 unavailable row flags per row
     // ── screen enrollment-select-program ──
     // Additive; reuses `searchText`, `orgFilterVisible`, `orgFilterLabel`, `leaderFilterLabel`,
     // `programTitles`, `programCoverURLs`, `programCreatedLabels`, `selectedIndex` and `loading`
     // as-is (same names, same types).
     let programDayCounts: [Int]?               // program length in days per row
     let programCompletedCounts: [Int]?         // completed enrollments per row (OQ-003)
+    let programUnavailable: [Bool]?            // §3 unavailable row flags per row
     // ── screen enrollment-select-invite-time ──
     let smsTime: String?                       // saved invite time "HH:mm"; "" = none saved
     // ── screen enrollment-select-sync ──
@@ -1238,6 +1240,7 @@ struct CaptureComponent: Codable {
     let scheduleWeekdays: [String]?            // enabled weekdays, full names
     let scheduleEndDate: String?               // "October 18th, 2026" as displayed
     let groupIneligibleMessage: String?        // §3 group-ineligible: warning under row 1; "" = none
+    let scheduleWarningMessage: String?        // enroll-picker-hide-enrolled D5: warning under row 3; "" = none
     let discardable: Bool?                     // §3 discardable: true = `onDiscard` set (Discard button)
     // ── screen enrollment-select-schedule ──
     // Additive; reuses `lessonCount`, `today` (string reading), `startDate`, `enabledDays`,
