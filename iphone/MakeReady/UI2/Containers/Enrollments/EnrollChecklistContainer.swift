@@ -59,12 +59,9 @@ struct EnrollChecklistContainer: View {
     @State private var discardMenuOpen = false
 
     var body: some View {
-        let app = AppState.shared
-        let draft = app.enrollmentDrafts[flowId] ?? EnrollmentDraft(id: flowId)
+        let draft = AppState.shared.enrollmentDrafts[flowId] ?? EnrollmentDraft(id: flowId)
         GroupsEnrollProgramScreen(
-            state: EnrollChecklistMapper.state(draft,
-                                               group: draft.groupId.flatMap { app.groups[$0] },
-                                               program: draft.studyProgramId.flatMap { app.programs[$0] }),
+            state: Self.screenState(draft, app: AppState.shared),
             scrollsContent: true,              // the checklist scrolls under the pinned header
             onBack: leave,
             onSelectStep: { navigator.push(Self.destination(for: $0, flowId: flowId)) },
@@ -118,6 +115,17 @@ struct EnrollChecklistContainer: View {
         case .sync: return .enrollSelectSync(flowId: flowId)
         case .accessibility: return .enrollSelectAccess(flowId: flowId)
         }
+    }
+
+    /// The checklist's rows: the draft, with its group and program looked up in the stores, else the
+    /// names the row it opened from showed — the list's own fallback, so both count alike (D19).
+    @MainActor
+    static func screenState(_ draft: EnrollmentDraft, app: AppState) -> GroupsEnrollProgramScreen.State {
+        EnrollChecklistMapper.state(draft,
+                                    group: draft.groupId.flatMap { app.groups[$0] },
+                                    program: draft.studyProgramId.flatMap { app.programs[$0] },
+                                    groupFallbackName: draft.listedGroupName,
+                                    programFallbackName: draft.listedProgramName)
     }
 
     /// D10: the button shows while a saved draft backs the checklist and it is still a checklist.

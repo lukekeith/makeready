@@ -25,6 +25,13 @@ struct EnrollmentDraft: Equatable {
     var createdByName: String?
     /// D21: the server row's `updatedAt` this flow was last seeded from or saved to.
     var serverUpdatedAt: String?
+    /// D19: the group and program names the row this flow opened from showed. The checklist falls
+    /// back to them while the draft still holds that id and the store has no such group or program.
+    var listedGroup: EnrollmentWireRef?
+    var listedProgram: EnrollmentWireRef?
+
+    var listedGroupName: String { listedGroup.flatMap { $0.id == groupId ? $0.name : nil } ?? "" }
+    var listedProgramName: String { listedProgram.flatMap { $0.id == studyProgramId ? $0.name : nil } ?? "" }
 
     init(id: UUID, groupId: String? = nil, studyProgramId: String? = nil) {
         self.id = id

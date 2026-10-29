@@ -503,6 +503,8 @@ final class AppState {
         let id = flowId ?? UUID()
         var draft = EnrollmentDraftMapping.draft(wire, flowId: id)
         draft.clearStaleStart(today: today)
+        draft.listedGroup = enrollmentDrafts[id]?.listedGroup        // a re-seed keeps the listed names (D19)
+        draft.listedProgram = enrollmentDrafts[id]?.listedProgram
         enrollmentDrafts[id] = draft
         enrollmentDraftBaselines[id] = draft
         return id

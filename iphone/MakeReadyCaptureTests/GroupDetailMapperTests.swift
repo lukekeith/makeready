@@ -266,7 +266,7 @@ final class GroupDetailMapperTests: XCTestCase {
         XCTAssertEqual(s.programDraftLabels, ["", "Draft · 3/6"])                   // group, program, invite time
         XCTAssertEqual(s.programDraftStarters, ["", "Started by Luke Keith"])
         XCTAssertEqual(o.enrollmentTarget(atRow: 0), .enrollment(id: "e1", name: "Faith over fear"))   // D28
-        XCTAssertEqual(o.enrollmentTarget(atRow: 1), .draft(draft))                                    // D21
+        XCTAssertEqual(o.enrollmentTarget(atRow: 1), .draft(draft, groupName: "Young Professionals", programName: "Romans in 30 days"))                                    // D21
         XCTAssertNil(o.enrollmentTarget(atRow: 2))
     }
 

@@ -71,7 +71,7 @@ final class EnrollmentsHomeMapperTests: XCTestCase {
         let wire = draft("d1")
         let o = output(feed([enrollment("e1", name: "Romans", progress: 0.5, done: 3, members: 12, minutes: 90), draftItem(wire)]))
         XCTAssertEqual(o.target(atRow: 0), .enrollment(id: "e1", name: "Romans"))
-        XCTAssertEqual(o.target(atRow: 1), .draft(wire))
+        XCTAssertEqual(o.target(atRow: 1), .draft(wire, groupName: "Young Professionals", programName: "John"))
         XCTAssertNil(o.target(atRow: 9))
         XCTAssertEqual(o.groupDestination(section: 1), .groupDetail(id: "g2", name: "Stickane Family"))   // D7(d)
         XCTAssertNil(o.groupDestination(section: 5))

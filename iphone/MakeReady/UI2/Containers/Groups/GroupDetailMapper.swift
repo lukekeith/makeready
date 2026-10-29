@@ -136,7 +136,10 @@ enum GroupDetailMapper {
         state.programDraftLabels = enrollments.map { _ in "" } + drafts.map(\.label)
         state.programDraftStarters = enrollments.map { _ in "" } + drafts.map(\.starter)
         let targets = enrollments.map { EnrollmentRowTarget.enrollment(id: $0.id, name: $0.studyProgram?.name ?? "") }
-            + input.drafts.map { EnrollmentRowTarget.draft($0) }
+            + input.drafts.map {
+                EnrollmentRowTarget.draft($0, groupName: input.group?.name ?? input.name,
+                                          programName: input.programsById[$0.studyProgramId]?.name ?? "")
+            }
         return Output(state: state, memberRows: members.map { MemberRow(id: $0.userId, name: $0.name) },
                       enrollmentTargets: targets)
     }

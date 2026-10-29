@@ -69,7 +69,7 @@ enum EnrollmentsHomeMapper {
                     progress.append(0); completes.append(""); hoursLabels.append(""); enrolled.append("")
                     draftLabels.append(draftLabel(completed: n))
                     starters.append(starterLabel(wire.createdBy?.name))
-                    targets.append(.draft(wire))
+                    targets.append(.draft(wire, groupName: section.group.name, programName: item.studyProgram.name))
                 } else {
                     progress.append(item.progress ?? 0)
                     completes.append("\(item.completedMembers ?? 0)/\(item.memberCount ?? 0)")       // D16
@@ -128,9 +128,8 @@ enum EnrollmentsHomeMapper {
         cal.timeZone = timeZone
         var draft = EnrollmentDraftMapping.draft(wire, flowId: UUID(), zone: timeZone)
         draft.clearStaleStart(today: today, calendar: cal)
-        var state = EnrollChecklistMapper.state(draft, group: group, program: program, today: today)
-        if state.groupName.isEmpty { state.groupName = groupName }
-        if state.programName.isEmpty { state.programName = programName }
+        let state = EnrollChecklistMapper.state(draft, group: group, program: program,
+                                                groupFallbackName: groupName, programFallbackName: programName, today: today)
         return GroupsEnrollProgramScreen.completedSteps(state)
     }
 
