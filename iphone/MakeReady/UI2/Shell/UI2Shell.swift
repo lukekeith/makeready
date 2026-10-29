@@ -215,6 +215,7 @@ struct UI2Shell: View {
         case .members: MembersHomeContainer() // ui2-members-browse
         case .groups: GroupsHomeContainer(destination: { .groupDetail(id: $0, name: $1) })  // ui2-groups-browse D1/D3
         case .programs: StudyProgramsContainer(destination: { .studyProgramHome(id: $0, name: $1) })  // ui2-programs D1/D3
+        case .enrollments: EnrollmentsHomeContainer()  // ui2-enrollments-browse R1
         default: EmptyPage()                  // SPEC D10: Library…Media are unwired
         }
     }
