@@ -5,12 +5,13 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import request from 'supertest'
 
-const draftDelete = vi.hoisted(() => ({ fail: false }))
+const draftDelete = vi.hoisted(() => ({ fail: false, calls: 0 }))
 vi.mock('../src/services/enrollment-draft.service.js', async (importOriginal) => {
   const real = await importOriginal<typeof import('../src/services/enrollment-draft.service.js')>()
   return {
     ...real,
     deleteDraftsForPair: async (groupId: string, studyProgramId: string) => {
+      draftDelete.calls++
       if (draftDelete.fail) throw new Error('simulated draft delete failure')
       return real.deleteDraftsForPair(groupId, studyProgramId)
     },
@@ -57,6 +58,7 @@ describe('POST /api/enrollments promotes the pair\'s draft (D11, D24)', () => {
 
   beforeEach(() => {
     draftDelete.fail = false
+    draftDelete.calls = 0
   })
 
   afterAll(async () => {
@@ -107,7 +109,11 @@ describe('POST /api/enrollments promotes the pair\'s draft (D11, D24)', () => {
     await prisma.enrollmentDraft.deleteMany({ where: { groupId, studyProgramId: programs[4] } })
     const draft = await draftFor(programs[4])
     draftDelete.fail = true
+    const logged = vi.spyOn(console, 'error').mockImplementation(() => {})
     const res = await enroll(programs[4], { draftId: draft.id })
+    expect(draftDelete.calls).toBe(1)
+    expect(logged).toHaveBeenCalledWith(expect.stringContaining('Could not delete the enrollment drafts'), expect.any(Error))
+    logged.mockRestore()
     expect(res.status).toBe(200)
     expect(await prisma.enrollment.count({ where: { id: res.body.enrollment.id } })).toBe(1)
     expect(await prisma.enrollmentDraft.count({ where: { id: draft.id } })).toBe(1)
