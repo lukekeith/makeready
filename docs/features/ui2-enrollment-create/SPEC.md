@@ -146,10 +146,10 @@ written once:
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Enrollment.lessonAccess` enum `LessonAccess {ONE_AT_A_TIME, ALL_AT_ONCE}`, NOT NULL, default `ALL_AT_ONCE` | POST body + enrollment payloads | accessibility row; D4 · T1, T6 | planned |
-| SC2 | EDIT | `POST /api/enrollments` | + `scheduleDates?`, `lessonAccess?`; 0-member 400 | exact schedule, access, eligibility; D3–D5 · T2, T9 | planned |
-| SC3 | EDIT | `GET /api/member/lessons/:lessonScheduleId`, `GET /api/lessons/today/:enrollmentId` (D15; `/lessons/code` + `/lessons/view` unchanged) | 403 `not_yet_available` | one-at-a-time enforcement; D4, D15 · T3, T11 | planned |
-| SC4 | EDIT | `GET /api/programs` | + `completedEnrollmentCount` | program picker; D8 · T4, T6 | planned |
+| SC1 | ADD | `Enrollment.lessonAccess` enum `LessonAccess {ONE_AT_A_TIME, ALL_AT_ONCE}`, NOT NULL, default `ALL_AT_ONCE` | POST body + enrollment payloads | accessibility row; D4 · T1, T6 | landed — migration 20261029005901 (d8e9cb2) |
+| SC2 | EDIT | `POST /api/enrollments` | + `scheduleDates?`, `lessonAccess?`; 0-member 400 | exact schedule, access, eligibility; D3–D5 · T2, T9 | landed 7a91bbf |
+| SC3 | EDIT | `GET /api/member/lessons/:lessonScheduleId`, `GET /api/lessons/today/:enrollmentId` (D15; `/lessons/code` + `/lessons/view` unchanged) | 403 `not_yet_available` | one-at-a-time enforcement; D4, D15 · T3, T11 | landed 4c97909 |
+| SC4 | EDIT | `GET /api/programs` | + `completedEnrollmentCount` | program picker; D8 · T4, T6 | landed e17852d |
 
 Align 2026-10-28 traced every screen field through the model, zod, wire and iPhone property; the four rows above are the whole data/wire delta (no further column is owed).
 
