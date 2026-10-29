@@ -23,6 +23,7 @@ import { filterActivitiesToVersion } from '../services/lesson-version-resolution
 import { activityThumbnailUrl } from '../services/next-study-thumbnail.js'
 import { generateScheduleDates, validateScheduleDates } from '../services/enrollment-schedule.js'
 import { isValidTimezone } from '../utils/timezone.js'
+import { lessonAvailability, notYetBody } from '../services/lesson-availability.js'
 import { programReadFilter } from '../services/study-program.service.js'
 import { applyEnrollmentEdit, applyStudySwap, previewEnrollmentEdit, EnrollmentEditError } from '../services/enrollment-edit.js'
 import {
@@ -2457,6 +2458,28 @@ router.get('/lessons/view/:scheduleId', async (req, res) => {
  *                       type: array
  *                       items:
  *                         type: object
+ *       403:
+ *         description: |
+ *           The enrollment is ONE_AT_A_TIME and the lesson's day has not begun in the
+ *           enrollment's timezone (UTC when unset) — ui2-enrollment-create D4/D15.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *                 error:
+ *                   type: string
+ *                   example: "not_yet_available"
+ *                 message:
+ *                   type: string
+ *                   example: "This lesson is available on Wednesday, January 10"
+ *                 availableOn:
+ *                   type: string
+ *                   format: date
+ *                   example: "2035-01-10"
  *       404:
  *         description: No lesson scheduled for today
  *         content:
@@ -2503,11 +2526,18 @@ router.get('/lessons/today/:enrollmentId', async (req, res) => {
             readBlocks: { orderBy: { orderNumber: 'asc' as const }, include: { theme: { select: { id: true, slug: true, name: true } } } },
           },
         },
+        enrollment: { select: { lessonAccess: true, timezone: true } },
       },
     })
 
     if (!schedule) {
       return res.status(404).json({ success: false, error: 'No lesson scheduled for today' })
+    }
+
+    // D15: a one-at-a-time lesson not yet open in the enrollment's zone.
+    const availability = lessonAvailability(schedule.scheduledDate, schedule.enrollment, new Date())
+    if (!availability.available) {
+      return res.status(403).json(notYetBody(availability))
     }
 
     res.json({

@@ -6,6 +6,8 @@ import {
   buildLineageMap,
   carryForwardMemberProgress,
 } from './lesson-version-resolution.js'
+import { lessonAvailability } from './lesson-availability.js'
+import { canManageGroupId } from './permission.js'
 import type {
   MemberActivityProgress,
   MemberVideoProgress,
@@ -637,11 +639,14 @@ export async function getMemberLessons(
 export async function getMemberLessonDetail(
   memberId: string,
   lessonScheduleId: string,
-  isGroupLeader: boolean = false
+  isGroupLeader: boolean = false,
+  /** The signed-in Google user, if any — exempts a manager of THIS lesson's group from the D15 gate. */
+  requestingUserId: string | null = null
 ): Promise<{
   success: boolean
   data?: LessonDetail
   error?: string
+  notYet?: { availableOn: string; message: string }
 }> {
   try {
     // Verify member has access to this lesson
@@ -677,6 +682,8 @@ export async function getMemberLessonDetail(
         enrollment: {
           select: {
             requireResponse: true,
+            lessonAccess: true,
+            timezone: true,
             group: {
               include: {
                 members: {
@@ -714,6 +721,17 @@ export async function getMemberLessonDetail(
 
     if (schedule.enrollment.group.members.length === 0) {
       return { success: false, error: 'Member is not part of this group' }
+    }
+
+    // D15: one-at-a-time enrollments open each lesson on its day. A manager of this
+    // lesson's own group is exempt (canManageOrgContent via the group) — checked only
+    // when the lesson is closed, so open lessons cost no extra query.
+    const availability = lessonAvailability(schedule.scheduledDate, schedule.enrollment, new Date())
+    if (!availability.available) {
+      const managesGroup = !!requestingUserId && (await canManageGroupId(requestingUserId, schedule.enrollment.group.id))
+      if (!managesGroup) {
+        return { success: false, error: 'not_yet_available', notYet: { availableOn: availability.availableOn, message: availability.message } }
+      }
     }
 
     // Resolve the version this member sees (pinned at completion ?? current)
