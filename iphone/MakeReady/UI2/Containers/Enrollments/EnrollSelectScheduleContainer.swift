@@ -27,10 +27,10 @@ struct EnrollSelectScheduleContainer: View {
                 if applied { navigator.popIfTop(.enrollSelectSchedule(flowId: flowId)) }
             }
         )
-        .id(existing)
         .ui2PushedPageFill()
         .task {
-            guard let groupId = draft.groupId else { return }
+            // No program → the screen shows its needs-program body and never reads the dates.
+            guard let groupId = draft.groupId, draft.studyProgramId != nil else { return }
             existing = await Self.existingLessonDates(groupId: groupId)
         }
     }
