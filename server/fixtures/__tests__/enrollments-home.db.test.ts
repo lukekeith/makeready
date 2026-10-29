@@ -54,7 +54,7 @@ describe.skipIf(!TEST_DB_URL)('enrollments-home + enrollment-home full scenario 
   it('Active lists base enrollments 2–4 and the Prayer Team detail enrollment, across four groups', async () => {
     const active = await feedOf('active')
     expect(ids(active).sort()).toEqual([...FIXTURE_ENROLLMENT_IDS.slice(1), HOME_ENROLLMENT_ID].sort())
-    expect(active.sections.length).toBeGreaterThanOrEqual(3)
+    expect(active.sections).toHaveLength(4)
   })
 
   it('Completed lists every fixture enrollment that ended before today (Chicago)', async () => {
