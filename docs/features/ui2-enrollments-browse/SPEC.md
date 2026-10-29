@@ -1,4 +1,5 @@
 # ui2-enrollments-browse — spec
+> 🤖 AGENT SIGNED OFF 2026-10-29 — 9e105f9 · agent walk round 2 · not human-tested · evidence: .builder/ui2-enrollments-browse/agent-walk/round-2/
 > lg · no ticket · child 2 of `docs/features/ui2-enrollment` (PROGRAM.md, go-ahead Luke 2026-10-28) · builds on ui2-enrollment-create (shipped 2026-10-28)
 
 ## Idea
@@ -262,26 +263,6 @@ All routes `requireAuth`; ids are uuids; errors `{success:false, error, message?
 | R3 | repoint (iphone): groups-detail Enrollments rows ← `GroupDetailContainer.swift:47-70` (`onOpenEnrollment`, D28) | builder:plan's repoint + retire phase |
 | R4 | repoint (iphone): the in-memory checklist draft ← prune at `UI2Shell.swift:127`, `AppState.swift:475` (drops local state only, never DELETEs), `EnrollChecklistContainer.swift:86-89` `leave()`; TopNav `add` (`TopNavHost.swift:104`) unchanged | builder:plan's repoint + retire phase |
 | R5 | repoint: deep links and notification targets — none (the 2.0 shell drops every deep link, `UI2Shell.swift:119-124`); client and capture — none (web posts without `draftId`, D24; capture's `fixtures/ui2/` holds component fixtures only, the screen cases are in the iphone test target, maintained by d2m) | no repoint |
-
-## Plan
-
-The plan, with its code: `docs/features/ui2-enrollments-browse/PLAN.md` (§PLAN.md).
-
-- Phase 1 · Task 1 · `EnrollmentDraft` table — schema YAML, Atlas migration, Prisma client, and the branch's test database
-- Phase 1 · Task 2 · Draft CRUD — `enrollment-draft.service.ts` + thin `/api/enrollment-drafts` router
-- Phase 1 · Task 3 · `POST /api/enrollments` takes `draftId` and deletes the pair's drafts after the welcome post
-- Phase 2 · Task 4 · The org-wide feed — `enrollment-directory.service.ts` + `GET /api/enrollments-feed`
-- Phase 2 · Task 5 · The enrollment home read — `getEnrollmentHome` + `GET /api/enrollments/:id/home`
-- Phase 2 · Task 6 · Fixture layers for the walk — `enrollment-home.ts`, `enrollments-home.ts`, kind `001b` — then freeze the contract
-- Phase 3 · Task 7 · Draft wire type, EnrollmentDraft server fields, Draft ↔ EnrollmentDraft mapper and the PATCH body
-- Phase 3 · Task 8 · AppState stores, EnrollmentDraftActions, feed and home loads, draftId on Enroll
-- Phase 3 · Task 9 · The `.enrollmentHome` destination and its page
-- Phase 4 · Task 10 · The Enrollments section — EnrollmentsHomeContainer, EnrollmentsHomeMapper and draft-row opening
-- Phase 4 · Task 11 · The enrollment page — EnrollmentHomeContainer and EnrollmentHomeMapper
-- Phase 5 · Task 12 · Checklist autosave — EnrollDraftSync and the six commit points
-- Phase 5 · Task 13 · Stale start on open, Discard enrollment, draftId on Enroll, Back keeps the server draft
-- Phase 5 · Task 14 · Group page — draft rows after the enrollments, row taps open the enrollment or the draft
-- Phase 5 · Task 15 · Repoint + retire sweep — prove R1–R5 and guard the prune
 
 ## Prototype
 
