@@ -253,6 +253,26 @@ final class UI2ShellModelTests: XCTestCase {
         XCTAssertEqual(m.path(for: .profile), [])
     }
 
+    // ui2-enrollments-browse R2/D7/D28: one enrollment's page, pushed on the stack it was tapped on.
+    func testEnrollmentHomePushesWithTheTabBarAndPopsOnlyWhenOnTop() {
+        var m = UI2ShellModel()
+        let page = UI2Destination.enrollmentHome(id: "e1", name: "Romans")
+        m.push(page, on: .home)
+        XCTAssertEqual(m.path(for: .home), [page])
+        XCTAssertTrue(m.showsTabBar)
+        XCTAssertFalse(page.isFullScreen)
+        XCTAssertTrue(m.enrollmentFlowIds.isEmpty)                  // not a checklist: prune ignores it
+        m.popIfTop(.enrollmentHome(id: "e2", name: "Romans"), on: .home)
+        XCTAssertEqual(m.path(for: .home), [page])
+        m.popIfTop(page, on: .home)
+        XCTAssertTrue(m.path(for: .home).isEmpty)
+    }
+
+    func testEnrollmentHomeIsKeyedByItsId() {
+        XCTAssertNotEqual(UI2Destination.enrollmentHome(id: "e1", name: "A"), .enrollmentHome(id: "e2", name: "A"))
+        XCTAssertNotEqual(UI2Destination.enrollmentHome(id: "e1", name: "A"), .studyProgramHome(id: "e1", name: "A"))
+    }
+
     // MARK: - ui2-groups-browse D1/D3/D7/D8: the group routes
 
     private let walkGroup = UI2Destination.groupDetail(id: "g9", name: "Walk Test Group")

@@ -198,6 +198,7 @@ struct UI2Shell: View {
         case .createStudyProgram: CreateStudyProgramContainer()                               // ui2-programs D1/D8
         case let .editProgramField(programId, field): ProgramFieldEditContainer(programId: programId, field: field)  // ui2-programs D10
         case let .editProgramCover(programId, source): EditProgramCoverContainer(programId: programId, source: source)  // ui2-programs D11
+        case let .enrollmentHome(id, name): EnrollmentHomeHost(id: id, name: name)               // ui2-enrollments-browse R2
         case let .enrollChecklist(flowId): EnrollChecklistContainer(flowId: flowId)                 // ui2-enrollment-create D2
         case let .enrollSelectGroup(flowId): EnrollSelectGroupContainer(flowId: flowId)
         case let .enrollSelectProgram(flowId): EnrollSelectProgramContainer(flowId: flowId)
