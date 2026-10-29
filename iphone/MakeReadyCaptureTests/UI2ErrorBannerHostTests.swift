@@ -20,4 +20,23 @@ final class UI2ErrorBannerHostTests: XCTestCase {
     func testItDismissesItselfAfterFourSeconds() {
         XCTAssertEqual(UI2ErrorBannerHost.autoDismiss, .seconds(4))
     }
+
+    /// ui2-enrollment-create Fixes (agent walk round 2, E10): D6's `retry:` reaches the banner — Retry
+    /// dismisses it, then re-runs the failed operation; an error without one shows no Retry.
+    func testARetryableErrorOffersRetryThatDismissesThenReRuns() {
+        let state = AppState()
+        var order: [String] = []
+        state.recordError(APIError.serverError("x"), context: "t", surface: true,
+                          friendlyMessage: "Couldn't enroll", retry: { order.append("retry") })
+        let action = UI2ErrorBannerHost.retryAction(for: state.activeSurfacedError) { order.append("dismiss") }
+        XCTAssertNotNil(action)
+        action?()
+        XCTAssertEqual(order, ["dismiss", "retry"])
+    }
+
+    func testAnErrorWithoutRetryOffersNone() {
+        let state = AppState()
+        state.recordError(APIError.serverError("x"), context: "t", surface: true, friendlyMessage: "Rate limited")
+        XCTAssertNil(UI2ErrorBannerHost.retryAction(for: state.activeSurfacedError) {})
+    }
 }
