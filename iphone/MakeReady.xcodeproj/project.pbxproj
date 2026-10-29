@@ -243,6 +243,7 @@
 		4A2E489023C6CC74C0C019A1 /* ChecklistStepRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43DB3778F0ED3889F1EAC471 /* ChecklistStepRow.swift */; };
 		4A3150448B3853FB7EC46E22 /* InlineDropdown.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9F83C09E34A9A68A7758BF1 /* InlineDropdown.swift */; };
 		4A6070AA447ED684B89F82BA /* DateSpanIndicator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D03A5064C702D151BD4A15 /* DateSpanIndicator.swift */; };
+		4A674823C224450175E0DC4C /* EnrollmentCreateActionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 407D991174BCE8BCE3E1450F /* EnrollmentCreateActionTests.swift */; };
 		4A972D0C1CDE77F14C8010C6 /* TaskDisc.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8317984007B14F8F31FC56D /* TaskDisc.swift */; };
 		4A9926729F2C017C519E2D3B /* ProfileStopgapContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0236991E08F6AB94F85853F3 /* ProfileStopgapContainer.swift */; };
 		4ABDD3C28C9F7B321A3883A2 /* RailCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A2B14AE206097F6F8A725C4 /* RailCard.swift */; };
@@ -999,6 +1000,7 @@
 		3E6B91B8AAFC5C75411DFD88 /* CreateGroupScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = CreateGroupScreen.swift; path = Screens/Groups/CreateGroupScreen.swift; sourceTree = "<group>"; };
 		3FCF28B58C2A0FB50DD2A838 /* AllDayEventChip.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AllDayEventChip.swift; sourceTree = "<group>"; };
 		406C477CDE9B26111A88BCEF /* HomeSectionLayout.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = HomeSectionLayout.swift; sourceTree = "<group>"; };
+		407D991174BCE8BCE3E1450F /* EnrollmentCreateActionTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollmentCreateActionTests.swift; sourceTree = "<group>"; };
 		41CD1DCAF56CBF47766E35DB /* Button.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Button.swift; sourceTree = "<group>"; };
 		42F65125EF21DADBF7C1D423 /* MemberProfileMapper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = MemberProfileMapper.swift; path = Containers/Members/MemberProfileMapper.swift; sourceTree = "<group>"; };
 		43DB3778F0ED3889F1EAC471 /* ChecklistStepRow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ChecklistStepRow.swift; sourceTree = "<group>"; };
@@ -1984,6 +1986,7 @@
 				0BBFE29D75523E5B6747F741 /* ProgramCoverTapTests.swift */,
 				F882AD31D56CD6C70321D8C8 /* CoverImageLoaderTests.swift */,
 				B509C2E8C2E6245A6CB76ADD /* EnrollmentCreateModelTests.swift */,
+				407D991174BCE8BCE3E1450F /* EnrollmentCreateActionTests.swift */,
 			);
 			path = MakeReadyCaptureTests;
 			sourceTree = SOURCE_ROOT;
@@ -3102,6 +3105,7 @@
 				58C40CC484383E6EEEA23413 /* ProgramCoverTapTests.swift in Sources */,
 				CB060F05D3EB90EA4BD42EC0 /* CoverImageLoaderTests.swift in Sources */,
 				8B6B1348DD253C2F431BDB70 /* EnrollmentCreateModelTests.swift in Sources */,
+				4A674823C224450175E0DC4C /* EnrollmentCreateActionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
