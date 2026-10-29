@@ -51,8 +51,15 @@ struct APIHTTPError: LocalizedError, Equatable {
     let status: Int
     /// The response body's `error` string, when it carried one.
     let message: String?
+    /// ui2-enrollments-browse D6: the body's other string fields (a 409 `draft_exists` carries
+    /// `draftId`). Not part of equality — two errors are the same status and message.
+    var details: [String: String] = [:]
 
     var errorDescription: String? { message ?? "Server returned status \(status)" }
+
+    static func == (lhs: APIHTTPError, rhs: APIHTTPError) -> Bool {
+        lhs.status == rhs.status && lhs.message == rhs.message
+    }
 }
 
 // MARK: - API Client
@@ -229,7 +236,8 @@ final class APIClient {
         if (200...299).contains(status) { return nil }
         if status == 401 { return APIError.unauthorized }
         let json = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
-        return APIHTTPError(status: status, message: json?["error"] as? String)
+        let details = (json ?? [:]).compactMapValues { $0 as? String }.filter { $0.key != "error" }
+        return APIHTTPError(status: status, message: json?["error"] as? String, details: details)
     }
 
     /// Execute a request and decode the response
