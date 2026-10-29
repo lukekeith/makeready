@@ -1253,4 +1253,7 @@ struct Enrollment: Codable, Identifiable {
     let createdAt: Date
     let updatedAt: Date
     let createdById: String?
+    /// ui2-enrollment-create T6: server raw values; absent on a response from before.
+    let lessonAccess: String?
+    let syncMode: String?
 }

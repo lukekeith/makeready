@@ -49,6 +49,8 @@ struct StudyProgram: Codable, Identifiable, Hashable {
     /// The server's DirectoryAccess raw value, held as a String exactly as `UserGroup` holds it.
     var memberDirectoryAccess: String?
     var coverFraming: ImageFraming?
+    /// ui2-enrollment-create D8: enrollments that ended before today; nil on an old cache
+    var completedEnrollmentCount: Int?
 
     // MARK: - CodingKeys
 
@@ -63,6 +65,7 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         case creatorName, leaderName, leaderId, organizationId, organizationName
         case coverOriginalUrl, isPrivate, ageRangeMin, ageRangeMax, maxMembers
         case memberDirectoryAccess, coverFraming
+        case completedEnrollmentCount
     }
 
     // MARK: - Custom Decoder
@@ -133,6 +136,7 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         // than failing the whole program — and with it the cached list.
         memberDirectoryAccess = (try? container.decodeIfPresent(String.self, forKey: .memberDirectoryAccess)) ?? nil
         coverFraming = (try? container.decodeIfPresent(ImageFraming.self, forKey: .coverFraming)) ?? nil
+        completedEnrollmentCount = try container.decodeIfPresent(Int.self, forKey: .completedEnrollmentCount)
     }
 
     // MARK: - Custom Encoder
@@ -169,6 +173,7 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         try container.encodeIfPresent(maxMembers, forKey: .maxMembers)
         try container.encodeIfPresent(memberDirectoryAccess, forKey: .memberDirectoryAccess)
         try container.encodeIfPresent(coverFraming, forKey: .coverFraming)
+        try container.encodeIfPresent(completedEnrollmentCount, forKey: .completedEnrollmentCount)
     }
 
     // MARK: - Memberwise Init
@@ -201,7 +206,8 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         ageRangeMax: Int? = nil,
         maxMembers: Int? = nil,
         memberDirectoryAccess: String? = nil,
-        coverFraming: ImageFraming? = nil
+        coverFraming: ImageFraming? = nil,
+        completedEnrollmentCount: Int? = nil
     ) {
         self.id = id
         self.name = name
@@ -231,6 +237,7 @@ struct StudyProgram: Codable, Identifiable, Hashable {
         self.maxMembers = maxMembers
         self.memberDirectoryAccess = memberDirectoryAccess
         self.coverFraming = coverFraming
+        self.completedEnrollmentCount = completedEnrollmentCount
     }
 
     // MARK: - Hashable

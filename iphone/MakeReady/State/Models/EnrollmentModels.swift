@@ -41,6 +41,10 @@ struct EnrollmentWithProgram: Codable, Identifiable {
     /// cached/older data.
     var studyProgramCreatorName: String?
 
+    /// ui2-enrollment-create T6: server raw values (`ONE_AT_A_TIME` | `ALL_AT_ONCE`, `AUTO` | `OFF` | `APPROVAL`); nil on a cache from before.
+    var lessonAccess: String?
+    var syncMode: String?
+
     // MARK: - CodingKeys
 
     enum CodingKeys: String, CodingKey {
@@ -55,6 +59,7 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         case isActive
         case canManage
         case studyProgramCreatorName
+        case lessonAccess, syncMode
     }
 
     // MARK: - Custom Decoder
@@ -99,6 +104,8 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         _isActive = try container.decodeIfPresent(Bool.self, forKey: .isActive)
         canManage = try container.decodeIfPresent(Bool.self, forKey: .canManage)
         studyProgramCreatorName = try container.decodeIfPresent(String.self, forKey: .studyProgramCreatorName)
+        lessonAccess = try container.decodeIfPresent(String.self, forKey: .lessonAccess)
+        syncMode = try container.decodeIfPresent(String.self, forKey: .syncMode)
     }
 
     // MARK: - Custom Encoder
@@ -127,6 +134,8 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         try container.encodeIfPresent(_isActive, forKey: .isActive)
         try container.encodeIfPresent(canManage, forKey: .canManage)
         try container.encodeIfPresent(studyProgramCreatorName, forKey: .studyProgramCreatorName)
+        try container.encodeIfPresent(lessonAccess, forKey: .lessonAccess)
+        try container.encodeIfPresent(syncMode, forKey: .syncMode)
     }
 
     // MARK: - Memberwise Init
@@ -147,7 +156,9 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         studyProgram: StudyProgramSummary? = nil,
         isActive: Bool? = nil,
         canManage: Bool? = nil,
-        studyProgramCreatorName: String? = nil
+        studyProgramCreatorName: String? = nil,
+        lessonAccess: String? = nil,
+        syncMode: String? = nil
     ) {
         self.id = id
         self.groupId = groupId
@@ -165,6 +176,8 @@ struct EnrollmentWithProgram: Codable, Identifiable {
         self._isActive = isActive
         self.canManage = canManage
         self.studyProgramCreatorName = studyProgramCreatorName
+        self.lessonAccess = lessonAccess
+        self.syncMode = syncMode
     }
 
     /// Whether the enrollment is active
