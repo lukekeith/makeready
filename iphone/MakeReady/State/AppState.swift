@@ -495,10 +495,14 @@ final class AppState {
     var enrollmentDraftBaselines: [UUID: EnrollmentDraft] = [:]
 
     /// D21: a flow seeded from a server draft — a new flow, or `flowId` overwritten in place (D6).
+    /// D9/D23: a schedule that starts before `today` is cleared in the LOCAL draft and its baseline
+    /// alike, so no request carries the clear; the server keeps its schedule until the next
+    /// Schedule Select's PATCH.
     @discardableResult
-    func seedEnrollmentDraft(_ wire: DraftWire, flowId: UUID? = nil) -> UUID {
+    func seedEnrollmentDraft(_ wire: DraftWire, flowId: UUID? = nil, today: Date = Date()) -> UUID {
         let id = flowId ?? UUID()
-        let draft = EnrollmentDraftMapping.draft(wire, flowId: id)
+        var draft = EnrollmentDraftMapping.draft(wire, flowId: id)
+        draft.clearStaleStart(today: today)
         enrollmentDrafts[id] = draft
         enrollmentDraftBaselines[id] = draft
         return id

@@ -154,8 +154,9 @@ enum EnrollDraftSyncs {
         return created
     }
 
-    /// D4: called by each picker right after its Select/Save wrote the draft.
-    static func changed(_ flowId: UUID) { sync(for: flowId).changed() }
+    /// D4: called by each picker right after its Select/Save wrote the draft. Only the checklist
+    /// registers a sync: a flow that already ended (Discard, Back, Enroll) has none, so this is a no-op.
+    static func changed(_ flowId: UUID) { syncs[flowId]?.changed() }
 
     static func cancelPending(_ flowId: UUID) { syncs[flowId]?.cancelPending() }
 

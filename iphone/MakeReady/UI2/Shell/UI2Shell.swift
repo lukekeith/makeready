@@ -123,8 +123,12 @@ struct UI2Shell: View {
             if link != .none { PushNotificationManager.shared.clearPendingDeepLink() }
         }
         // ui2-enrollment-create D13: a checklist that left every stack (swipe-back, Home re-tap)
-        // takes its draft with it.
-        .onChange(of: model.enrollmentFlowIds) { _, ids in AppState.shared.pruneEnrollmentDrafts(keeping: ids) }
+        // takes its LOCAL draft with it. ui2-enrollments-browse D2/R4: and its autosave stops —
+        // a saved draft stays on the server; the prune never DELETEs.
+        .onChange(of: model.enrollmentFlowIds) { _, ids in
+            AppState.shared.pruneEnrollmentDrafts(keeping: ids)
+            EnrollDraftSyncs.prune(keeping: ids)
+        }
     }
 
     /// members-search-pinned: track the keyboard on its own animation timing.
