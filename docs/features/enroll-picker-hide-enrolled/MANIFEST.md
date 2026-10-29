@@ -15,3 +15,4 @@ ready: none
 ui2: enrollment-select-program, enrollment-select-group, groups-enroll-program
 auto: off
 blocked: none
+build: here
