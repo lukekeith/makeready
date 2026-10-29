@@ -1,7 +1,7 @@
 size: lg
 state: built
 next: /builder:resume --path docs/features/ui2-enrollment-create
-head: 942c3aa
+head: 8986a88
 ticket: none
 branch: builder/ui2-enrollment-create
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: main
 walk: none
 verify: none
-ready: yes 2026-10-28 642f160
+ready: pending "dev env (fleet walk lane)"
 ui2: groups-enroll-program, enrollment-select-group, enrollment-select-program, enrollment-select-schedule, enrollment-select-invite-time, enrollment-select-sync, enrollment-select-access (resolved from d2m 2026-10-28: every screen built)
 auto: off
 agent-walk: on 2026-10-28
