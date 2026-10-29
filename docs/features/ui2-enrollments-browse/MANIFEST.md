@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:resume --path docs/features/ui2-enrollments-browse
-head: 9f027d9
+next: /builder:agent-walk --path docs/features/ui2-enrollments-browse
+head: c709623
 ticket: none
 branch: builder/ui2-enrollments-browse
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-10-29 c709623
 ui2: enrollments-home, enrollment-home, groups-enroll-program, groups-detail
 auto: off
 blocked: none
