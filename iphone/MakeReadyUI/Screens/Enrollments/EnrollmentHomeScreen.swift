@@ -8,6 +8,8 @@
 //  GET /api/enrollments/{enrollmentId}/schedules/{scheduleId}/activities
 //  (day-bucketed completion and one assembled enrollment-home payload are API-GAPs in §5).
 //  PREVIEW ONLY: referenced by no app screen, route, tab, flag or navigation case.
+//  Container inputs (§3, as study-program-home / groups-detail): `showsScheduleEditing`,
+//  `showsHeader`, `loading`, `failed` + `onRetry` (all defaulted — existing calls unchanged).
 //
 
 import SwiftUI
@@ -19,10 +21,13 @@ import SwiftUI
 /// CoverImage, which §2 names ("same anatomy as study-program-home §2 items 1–3") but §4's
 /// roll-call omits — reported as a spec defect.
 ///
-/// §3 names four states — `loading`, `populated`, `empty-schedule`, `error`. This build renders
-/// `populated` and `empty-schedule`; `loading` (section skeletons) and `error` (a section-level
-/// inline retry) name no §4 component and no geometry, so they are reported as spec defects and
-/// not improvised here (the invite-home precedent).
+/// §3 names four states — `loading`, `populated`, `empty-schedule`, `failed` — all reachable
+/// through `State` alone. `loading` draws the §4 parts at their contracted geometry with no data
+/// (study-program-home's treatment): C-087's placeholder fill, empty title / description, C-022
+/// labels over empty values, the span row's cards empty with a zeroed C-064, the day rail and
+/// lesson cards omitted; section headers static. `failed` keeps the header and puts one centred
+/// muted line in place of the content column (study-program-home's Error); the reload is the
+/// host's pull-to-refresh (`.pullToRefresh(onRetry)`), not a button.
 struct EnrollmentHomeScreen: View {
 
     /// One §3 state's inputs. Every built §3 state is reachable by these alone. Parallel arrays,
@@ -72,28 +77,46 @@ struct EnrollmentHomeScreen: View {
         var lessonSlideImages: [[String]]
         /// Per lesson, its slides' VoiceOver labels (never rendered).
         var lessonSlideLabels: [[String]]
+        // ── Load status (§3) ──
+        /// §3 `loading`: the parts render at their contracted geometry with no data.
+        var loading: Bool = false
+        /// §3 `failed`: the load failed — header kept, the content column is the failure line.
+        var failed: Bool = false
     }
 
     let state: State
+    /// §3 container input: false omits the "Edit schedule" text-link and the `calendar` C-021
+    /// from the Schedule C-020 (accessory none) while `enrollment-schedule-edit` is undesigned.
+    let showsScheduleEditing: Bool
+    /// §3 container input: false when the host pins C-040 above its own ScrollView, so the header
+    /// is not drawn twice (study-program-home / groups-detail). True keeps the capture render whole.
+    let showsHeader: Bool
     // §3 interactions — every one leaves the screen, so each is an on<Verb> closure with R-03's
     // no-op default. The screen never decides what an action means.
     var onBack: () -> Void = {}                           // C-040 back → pop to caller
     var onEditSchedule: () -> Void = {}                   // "Edit schedule" → enrollment-schedule-edit
     var onOpenLesson: (Int) -> Void = { _ in }            // C-063 title row tap → OQ-1
     var onOpenActivity: (Int, Int) -> Void = { _, _ in }  // C-061/C-079 slide tap → OQ-1
+    var onRetry: () -> Void = {}                          // `failed` reload (host applies `.pullToRefresh`)
 
     init(
         state: State,
+        showsScheduleEditing: Bool = true,
+        showsHeader: Bool = true,
         onBack: @escaping () -> Void = {},
         onEditSchedule: @escaping () -> Void = {},
         onOpenLesson: @escaping (Int) -> Void = { _ in },
-        onOpenActivity: @escaping (Int, Int) -> Void = { _, _ in }
+        onOpenActivity: @escaping (Int, Int) -> Void = { _, _ in },
+        onRetry: @escaping () -> Void = {}
     ) {
         self.state = state
+        self.showsScheduleEditing = showsScheduleEditing
+        self.showsHeader = showsHeader
         self.onBack = onBack
         self.onEditSchedule = onEditSchedule
         self.onOpenLesson = onOpenLesson
         self.onOpenActivity = onOpenActivity
+        self.onRetry = onRetry
     }
 
     // §3 has no UI-only rule on this screen: rail scrolling is scroll physics, and the day-card
@@ -111,6 +134,8 @@ struct EnrollmentHomeScreen: View {
     /// §2.3: the section title and its text-link.
     private static let scheduleTitle = "Schedule"
     private static let editScheduleLabel = "Edit schedule"
+    /// §3 `failed` (study-program-home's Error copy, for this screen): the one failure line.
+    private static let failedCopy = "Unable to load enrollment, pull down to refresh"
 
     // MARK: - §2 geometry the screen owns
 
@@ -144,35 +169,59 @@ struct EnrollmentHomeScreen: View {
         VStack(alignment: .leading, spacing: 0) {
             // §2: "C-040 PageHeader (`Two icons` + `showIcons=false`: back + centered title
             // "Enrollment", no right icons)".
-            PageHeader(
-                style: .twoIcons,
-                title: Self.pageTitle,
-                showTitle: true,
-                showIcons: false,
-                leadingGlyph: .back,
-                rightButtons: [],
-                onLeading: onBack
-            )
-            .ui2Element("C-040 PageHeader")
-
-            // §2: "vertical scroll content (py16, column gap `space-section-gap` 32)".
-            VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
-                programIdentity
-                hairlineRule
-                scheduleSection
-                // §3 `empty-schedule`: "day rail and lesson cards absent".
-                if !state.dayNumbers.isEmpty {
-                    dayRail
-                }
-                if !state.lessonTitles.isEmpty {
-                    lessonList
-                }
+            // §3 container input `showsHeader`: false → the host pins it.
+            if showsHeader {
+                PageHeader(
+                    style: .twoIcons,
+                    title: Self.pageTitle,
+                    showTitle: true,
+                    showIcons: false,
+                    leadingGlyph: .back,
+                    rightButtons: [],
+                    onLeading: onBack
+                )
+                .ui2Element("C-040 PageHeader")
             }
-            .padding(.vertical, Self.contentInset)
+
+            if state.failed {
+                failedLine
+            } else {
+                // §2: "vertical scroll content (py16, column gap `space-section-gap` 32)".
+                VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
+                    programIdentity
+                    hairlineRule
+                    scheduleSection
+                    // §3 `empty-schedule`: "day rail and lesson cards absent"; §3 `loading` omits
+                    // them too (no rows yet — study-program-home's treatment).
+                    if !state.loading, !state.dayNumbers.isEmpty {
+                        dayRail
+                    }
+                    if !state.loading, !state.lessonTitles.isEmpty {
+                        lessonList
+                    }
+                }
+                .padding(.vertical, Self.contentInset)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                  // the page ground
     }
+
+    /// §3 `failed`: "header intact", and in place of the content column one centred line of
+    /// `type-body-sm` `color-text-secondary` (study-program-home's Error). The reload is the
+    /// host's pull-to-refresh → `onRetry`, so nothing here is tappable.
+    private var failedLine: some View {
+        Text(Self.failedCopy)
+            .designTextStyle(Token.TypeStyle.bodySm)
+            .foregroundStyle(Token.textSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.horizontal, Token.Space.pageMargin)
+            .padding(.vertical, Token.Space.sectionGap)
+    }
+
+    /// §3 `loading`: a data value renders empty, at its part's contracted geometry.
+    private func value(_ text: String) -> String { state.loading ? "" : text }
 
     // MARK: §2.1 Program identity
 
@@ -180,11 +229,11 @@ struct EnrollmentHomeScreen: View {
     /// description → 2×2 C-022 MetaPair grid".
     private var programIdentity: some View {
         VStack(alignment: .leading, spacing: Token.Space.sectionGap) {
-            CoverImage(image: Self.cachedImage(state.coverURL))
+            CoverImage(image: state.loading ? nil : Self.cachedImage(state.coverURL))
                 .ui2Element("C-087 CoverImage")
             VStack(alignment: .leading, spacing: Token.Space.elementGap) {
                 // §2.1: "program title (`type-title-card`, 1-line ellipsis)".
-                Text(state.programName)
+                Text(value(state.programName))
                     .designTextStyle(Token.TypeStyle.titleCard)
                     .foregroundStyle(Token.textPrimary)
                     .lineLimit(1)
@@ -192,7 +241,7 @@ struct EnrollmentHomeScreen: View {
                     .frame(minHeight: Token.TypeStyle.titleCard.lineHeight, alignment: .leading)
                 // §2.1: "description (Regular 14/20 `color-white-70`, 1-line ellipsis)" —
                 // Regular 14/20 is `type-body-sm`.
-                Text(state.programDescription)
+                Text(value(state.programDescription))
                     .designTextStyle(Token.TypeStyle.bodySm)
                     .foregroundStyle(Token.white70)
                     .lineLimit(1)
@@ -202,12 +251,12 @@ struct EnrollmentHomeScreen: View {
             // §2.1: "Members (count) · Author · Enrolled (`Mon D, YYYY`) · Group leader".
             VStack(alignment: .leading, spacing: Self.gridGap) {
                 HStack(alignment: .top, spacing: Self.gridGap) {
-                    detailCell(label: Self.membersLabel, value: "\(state.memberCount)", ordinal: 1)
-                    detailCell(label: Self.authorLabel, value: state.authorName, ordinal: 2)
+                    detailCell(label: Self.membersLabel, value: value("\(state.memberCount)"), ordinal: 1)
+                    detailCell(label: Self.authorLabel, value: value(state.authorName), ordinal: 2)
                 }
                 HStack(alignment: .top, spacing: Self.gridGap) {
-                    detailCell(label: Self.enrolledLabel, value: state.enrolledLabel, ordinal: 3)
-                    detailCell(label: Self.leaderLabel, value: state.leaderName, ordinal: 4)
+                    detailCell(label: Self.enrolledLabel, value: value(state.enrolledLabel), ordinal: 3)
+                    detailCell(label: Self.leaderLabel, value: value(state.leaderName), ordinal: 4)
                 }
             }
         }
@@ -240,25 +289,40 @@ struct EnrollmentHomeScreen: View {
             // `caption` accessory. OQ-C-020-002 (answered): the caption and the glyph are ONE
             // control, so both fire `onAccessoryTap` → "Edit schedule"'s exit; the calendar
             // glyph's own destination (OQ-enrollment-home-1, deferred) has no separate hook.
+            // §3 container input `showsScheduleEditing`: false → accessory none.
             SectionHeader(
                 title: Self.scheduleTitle,
-                accessory: .caption(label: Self.editScheduleLabel, glyph: .calendar),
+                accessory: showsScheduleEditing
+                    ? .caption(label: Self.editScheduleLabel, glyph: .calendar)
+                    : .none,
                 onAccessoryTap: onEditSchedule
             )
             .ui2Element("C-020 SectionHeader")
             // §2.3: "span row (16 gap): C-060 (start date) + C-064 (flex) + C-060 (end date)".
             HStack(alignment: .center, spacing: Self.spanGap) {
-                CalendarDateCard(month: state.startMonth, weekday: state.startWeekday, day: state.startDay)
-                    .frame(width: Self.calendarCardWidth)
-                    .ui2Element("C-060 CalendarDateCard")
-                DateSpanIndicator(months: state.spanMonths, days: state.spanDays)
-                    .frame(maxWidth: .infinity)
-                    .ui2Element("C-064 DateSpanIndicator")
+                CalendarDateCard(
+                    month: value(state.startMonth),
+                    weekday: value(state.startWeekday),
+                    day: value(state.startDay)
+                )
+                .frame(width: Self.calendarCardWidth)
+                .ui2Element("C-060 CalendarDateCard")
+                DateSpanIndicator(
+                    months: state.loading ? 0 : state.spanMonths,
+                    days: state.loading ? 0 : state.spanDays
+                )
+                .frame(maxWidth: .infinity)
+                .ui2Element("C-064 DateSpanIndicator")
                 // §3 `empty-schedule`: "start card only + zeroed span" (OQ-8, proposed default).
-                if !state.endDay.isEmpty {
-                    CalendarDateCard(month: state.endMonth, weekday: state.endWeekday, day: state.endDay)
-                        .frame(width: Self.calendarCardWidth)
-                        .ui2Element("C-060 CalendarDateCard 2")
+                // §3 `loading`: the end card keeps its geometry, empty.
+                if state.loading || !state.endDay.isEmpty {
+                    CalendarDateCard(
+                        month: value(state.endMonth),
+                        weekday: value(state.endWeekday),
+                        day: value(state.endDay)
+                    )
+                    .frame(width: Self.calendarCardWidth)
+                    .ui2Element("C-060 CalendarDateCard 2")
                 }
             }
         }
@@ -455,6 +519,15 @@ extension EnrollmentHomeScreen.State {
         $0.lessonSlideLabels = []
     }
 
+    /// §3 `loading` — "the program identity block, the schedule span row, the day rail and the
+    /// lesson cards render as skeletons at their contracted geometry; section headers and MetaPair
+    /// labels are static". `populated`'s data under `loading = true`: the view renders none of it.
+    static let loading = populated.with { $0.loading = true }
+
+    /// §3 `failed` — "a page-level retry in place of the content column, header intact": the one
+    /// failure line; the reload is the host's pull-to-refresh → `onRetry`.
+    static let failed = populated.with { $0.failed = true }
+
     private func with(_ change: (inout Self) -> Void) -> Self {
         var copy = self
         change(&copy)
@@ -471,6 +544,20 @@ extension EnrollmentHomeScreen.State {
 
 #Preview("empty-schedule") {
     EnrollmentHomeScreen(state: .emptySchedule)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("loading") {
+    EnrollmentHomeScreen(state: .loading)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("failed") {
+    EnrollmentHomeScreen(state: .failed)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
