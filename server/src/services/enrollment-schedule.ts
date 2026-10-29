@@ -7,6 +7,8 @@
  * enrollment lands its lessons on exactly the dates a fresh enrollment would.
  */
 
+import { localDate, todayInTimezone, zonedMidnight } from '../utils/timezone.js'
+
 export type EnabledDayName = 'Sun' | 'Mon' | 'Tue' | 'Wed' | 'Thu' | 'Fri' | 'Sat'
 
 const DAY_NAME_TO_NUMBER: Record<EnabledDayName, number> = {
@@ -44,4 +46,36 @@ export function generateScheduleDates(
     cursor.setDate(cursor.getDate() + 1)
   }
   return dates
+}
+
+const YMD = /^\d{4}-\d{2}-\d{2}$/
+const MISMATCH = "Schedule doesn't match the program"
+
+/**
+ * ui2-enrollment-create D3/D16: the app's exact lesson dates. One per lesson, strictly ascending,
+ * the first not before today in `tz`; weekdays are NOT checked (an override may fall on any day).
+ * Each is stored as 00:00 in `tz` — never `new Date('yyyy-MM-dd')`, which is UTC midnight.
+ */
+export function validateScheduleDates(
+  dates: string[],
+  lessonCount: number,
+  tz: string,
+  now: Date,
+): { ok: true; dates: Date[] } | { ok: false; error: string } {
+  if (dates.length !== lessonCount) {
+    return { ok: false, error: `${MISMATCH}: expected ${lessonCount} dates, got ${dates.length}` }
+  }
+  for (const d of dates) {
+    // round-trips only when the date exists on the calendar (rejects 2035-02-30)
+    if (!YMD.test(d) || localDate(zonedMidnight(d, 'UTC'), 'UTC') !== d) {
+      return { ok: false, error: `${MISMATCH}: ${d} is not a date` }
+    }
+  }
+  for (let i = 1; i < dates.length; i++) {
+    if (dates[i] <= dates[i - 1]) return { ok: false, error: `${MISMATCH}: dates must be strictly ascending` }
+  }
+  if (dates.length > 0 && dates[0] < todayInTimezone(tz, now)) {
+    return { ok: false, error: `${MISMATCH}: the first date is before today` }
+  }
+  return { ok: true, dates: dates.map((d) => zonedMidnight(d, tz)) }
 }

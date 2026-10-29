@@ -27,6 +27,7 @@
 
 import pg from 'pg'
 import { prisma } from '../lib/prisma.js'
+import { isValidTimezone, todayInTimezone } from '../utils/timezone.js'
 import {
   ALL_EVENT_TYPES,
   DIMENSIONS_BY_NAME,
@@ -425,10 +426,7 @@ interface ResolvedRange {
   label?: string
 }
 
-/** Today's local calendar date (YYYY-MM-DD) in an IANA timezone. */
-export function todayInTimezone(tz: string): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date())
-}
+export { todayInTimezone }
 
 /** Date-only arithmetic on YYYY-MM-DD strings (UTC-noon anchor avoids DST edges). */
 function addDays(date: string, days: number): string {
@@ -438,11 +436,7 @@ function addDays(date: string, days: number): string {
 }
 
 export function assertValidTimezone(tz: string): void {
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: tz })
-  } catch {
-    throw new AnalyticsQueryError(400, `Invalid timezone: ${tz}`)
-  }
+  if (!isValidTimezone(tz)) throw new AnalyticsQueryError(400, `Invalid timezone: ${tz}`)
 }
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
