@@ -339,3 +339,11 @@ Home fields on a new route) — nothing a shipped 1.0 build caches changes shape
 | N3 | saved drafts | server | SC1, SC2, T1, T2 |
 | N4 | save, resume, discard drafts | iphone | D3–D11, T10 |
 | N5 | group-page draft rows | iphone | D7b, T10 |
+
+## Fixes
+
+- [ ] iphone: E2 Enrollments status chip opens its filter menu: Upcoming/Completed/Draft/All are selectable. Expected: tapping "Active" opens the C-036 menu. Saw: no menu in the element tree after button tap, container tap, coordinate tap or a 0.4 s press, while the Members section's chip opens its menu in the same session. Leads: the chips sit in a `HorizontalRail`, and the menu is presented from `EnrollmentsHomeContainer` `.filterMenuPresentation` (agent walk round 1)
+- [ ] iphone: E3 the Groups, Leaders and All Orgs chips open menus that narrow the list. Expected: a narrowing menu. Saw: nothing opens (same defect as E2; search itself passes) (agent walk round 1)
+- [ ] iphone: I2 the feed half: the Enrollments Draft list reflects create, Discard and Enroll. Expected: the Draft list shows the change. Saw: it can't be reached, because the Status menu never opens (blocked on E2; the group-page half passes) (agent walk round 1)
+- [ ] iphone: E6 the list half: a backed-out draft shows in the Enrollments Draft list. Expected: it is listed under Draft. Saw: Draft can't be selected (blocked on E2; the group-page half passes) (agent walk round 1)
+- [ ] iphone: E9 the list half: a discarded draft is gone from the Enrollments Draft list. Expected: it is absent there. Saw: Draft can't be selected (blocked on E2; the app and server halves pass) (agent walk round 1)
