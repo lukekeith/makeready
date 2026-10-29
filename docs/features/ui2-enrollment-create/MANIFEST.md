@@ -1,7 +1,7 @@
 size: lg
-state: built
-next: /builder:agent-walk --path docs/features/ui2-enrollment-create
-head: da3c8bb
+state: signed-off
+next: /builder:verify --path docs/features/ui2-enrollment-create
+head: 1574ef5
 ticket: none
 branch: builder/ui2-enrollment-create
 pr: none
@@ -11,7 +11,7 @@ hold: none
 go-ahead: auto (recommended) 2026-10-28
 tests: slice=own+app end=risk review=slice
 target: main
-walk: none
+walk: agent-pass 2026-10-28 1574ef5
 verify: none
 ready: yes 2026-10-28 da3c8bb
 ui2: groups-enroll-program, enrollment-select-group, enrollment-select-program, enrollment-select-schedule, enrollment-select-invite-time, enrollment-select-sync, enrollment-select-access (resolved from d2m 2026-10-28: every screen built)
