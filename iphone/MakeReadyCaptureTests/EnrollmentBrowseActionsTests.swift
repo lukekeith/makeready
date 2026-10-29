@@ -43,6 +43,8 @@ final class EnrollmentBrowseActionsTests: XCTestCase {
     private var drafts: EnrollmentDraftActions { EnrollmentDraftActions(api: api, state: state) }
     private func anyFeed() -> EnrollmentFeed { EnrollmentFeed(sections: [], options: EnrollmentFeedOptions(groups: [], leaders: [])) }
 
+    private let homeJSON = #"{"success":true,"home":{"id":"e1","studyProgram":{"id":"p1","name":"Romans","description":"Paul's letter","coverImageUrl":null,"authorName":"Jonathan Edwards"},"group":{"id":"g1","name":"Young Professionals","leader":{"id":"u1","name":"Tony Stark"}},"memberCount":17,"enrolledAt":"2035-01-01T15:00:00.000Z","startDate":"2035-01-08","endDate":"2035-03-10","lessonAccess":"ALL_AT_ONCE","smsTime":"07:30","timezone":"America/Chicago","days":[{"scheduleId":"s1","date":"2035-01-08","percent":78,"lessonCount":1,"plannedMinutes":15}],"lessons":[{"scheduleId":"s1","dayNumber":1,"title":"It is evident","date":"2035-01-08","progress":0.69,"activities":[{"id":"a1","type":"READ","title":"Romans 1","thumbnailUrl":"https://x/a1.png"}]}]}}"#
+
     // MARK: drafts
 
     func testCreateStoresTheDraftUnderItsGroupAndDropsTheFeed() async throws {
@@ -140,7 +142,7 @@ final class EnrollmentBrowseActionsTests: XCTestCase {
     }
 
     func testLoadHomeDecodes() async throws {
-        api.stub("GET", "/api/enrollments/e1/home?tz=America/Chicago", json: #"{"success":true,"home":{"id":"e1","studyProgram":{"id":"p1","name":"Romans","description":"Paul's letter","coverImageUrl":null,"authorName":"Jonathan Edwards"},"group":{"id":"g1","name":"Young Professionals","leader":{"id":"u1","name":"Tony Stark"}},"memberCount":17,"enrolledAt":"2035-01-01T15:00:00.000Z","startDate":"2035-01-08","endDate":"2035-03-10","lessonAccess":"ALL_AT_ONCE","smsTime":"07:30","timezone":"America/Chicago","days":[{"scheduleId":"s1","date":"2035-01-08","percent":78,"lessonCount":1,"plannedMinutes":15}],"lessons":[{"scheduleId":"s1","dayNumber":1,"title":"It is evident","date":"2035-01-08","progress":0.69,"activities":[{"id":"a1","type":"READ","title":"Romans 1","thumbnailUrl":"https://x/a1.png"}]}]}}"#)
+        api.stub("GET", "/api/enrollments/e1/home?tz=America/Chicago", json: homeJSON)
         try await EnrollmentActions(api: api, state: state).loadHome(id: "e1", timeZone: chicago)
         let home = try XCTUnwrap(state.enrollmentHomes["e1"])
         XCTAssertEqual(home.group.leader?.name, "Tony Stark")
@@ -162,6 +164,46 @@ final class EnrollmentBrowseActionsTests: XCTestCase {
         XCTAssertEqual(api.calls.first { $0.endpoint == "/api/enrollments" }?.body?["draftId"] as? String, "d1")
         XCTAssertEqual(state.enrollmentDraftsByGroupId["g1"]?.map(\.id), ["d2"])
         XCTAssertTrue(state.enrollmentFeed.isEmpty)
+    }
+
+    // MARK: enrollment mutations drop the browse caches
+
+    private func seedBrowseCaches() async throws {
+        api.stub("GET", "/api/enrollments/e1/home?tz=America/Chicago", json: homeJSON)
+        try await EnrollmentActions(api: api, state: state).loadHome(id: "e1", timeZone: chicago)
+        state.enrollmentFeed[EnrollmentFeedFilter()] = anyFeed()
+        XCTAssertNotNil(state.enrollmentHomes["e1"])
+    }
+
+    private func assertBrowseCachesDropped(file: StaticString = #filePath, line: UInt = #line) {
+        XCTAssertTrue(state.enrollmentFeed.isEmpty, file: file, line: line)
+        XCTAssertNil(state.enrollmentHomes["e1"], file: file, line: line)
+    }
+
+    func testDeleteByIdDropsTheFeedAndThatHome() async throws {
+        try await seedBrowseCaches()
+        api.stub("DELETE", "/api/enrollments/e1", json: #"{"success":true}"#)
+        try await EnrollmentActions(api: api, state: state).deleteEnrollment(id: "e1")
+        assertBrowseCachesDropped()
+    }
+
+    func testDeleteWithGroupAndProgramDropsTheFeedAndThatHome() async throws {
+        try await seedBrowseCaches()
+        api.stub("DELETE", "/api/enrollments/e1", json: #"{"success":true}"#)
+        try await EnrollmentActions(api: api, state: state).deleteEnrollment(id: "e1", groupId: "g1", programId: "p1")
+        assertBrowseCachesDropped()
+    }
+
+    func testUpdateAndCancelFutureDropTheFeedAndThatHome() async throws {
+        try await seedBrowseCaches()
+        api.stub("PATCH", "/api/enrollments/e1", json: #"{"success":true}"#)
+        try await EnrollmentActions(api: api, state: state).updateEnrollment(enrollmentId: "e1", body: ["smsTime": "08:00"])
+        assertBrowseCachesDropped()
+
+        try await seedBrowseCaches()
+        api.stub("POST", "/api/enrollments/e1/cancel-future", json: #"{"success":true}"#)
+        try await EnrollmentActions(api: api, state: state).cancelFutureLessons(id: "e1")
+        assertBrowseCachesDropped()
     }
 
     func testClearAllDataClearsTheNewStores() {

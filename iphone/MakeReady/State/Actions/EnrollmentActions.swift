@@ -379,6 +379,15 @@ private let api: APIClientProtocol
         state.enrollmentHomes[id] = response.home
     }
 
+    /// Drop the cached Enrollments feed (every filter) and this enrollment's home,
+    /// so the next load re-reads the server. Called by every mutation that changes
+    /// what the feed or the home shows.
+    @MainActor
+    private func dropBrowseCaches(enrollmentId: String) {
+        state.enrollmentFeed = [:]
+        state.enrollmentHomes[enrollmentId] = nil
+    }
+
     // MARK: - Delete Enrollment
 
     /// Delete an enrollment
@@ -394,6 +403,7 @@ private let api: APIClientProtocol
         }
 
         // Remove from state
+        dropBrowseCaches(enrollmentId: id)
         state.enrollments.remove(id)
         state.groupEnrollmentIndex.remove(parentId: groupId, childId: id)
         state.programEnrollmentIndex.remove(parentId: programId, childId: id)
@@ -434,6 +444,7 @@ private let api: APIClientProtocol
             state.programEnrollmentIndex.removeChild(id)
             state.programEnrollments.remove(id)
             state.programProgramEnrollmentIndex.removeChild(id)
+            dropBrowseCaches(enrollmentId: id)
 
             state.persist()
             return
@@ -485,6 +496,7 @@ private let api: APIClientProtocol
             throw APIError.serverError(response.error ?? "Failed to cancel future lessons")
         }
 
+        dropBrowseCaches(enrollmentId: id)
         NSLog("📅 EnrollmentActions: Cancelled future lessons for enrollment \(id)")
     }
 
@@ -661,6 +673,7 @@ private let api: APIClientProtocol
         guard response.success else {
             throw APIError.serverError(response.error ?? "Failed to update enrollment")
         }
+        dropBrowseCaches(enrollmentId: enrollmentId)
     }
 
     /// Change an enrollment's sync mode (OFF / AUTO / APPROVAL).
