@@ -107,6 +107,8 @@ early returns 403 (D4) — no such enrollment exists until 2.0 creates one.
 | D10 | Preload checks | A preloaded group counts as done only when it is in the eligible list (D5); a preloaded program only when published with `days ≥ 1`. A failing preload arrives not done (design rule 1). Program change clears the schedule's done state but keeps start/weekdays/overrides as the schedule picker's seed (design rule 2) | design ref 2026-10-28 |
 | D11 | Picker warnings | Group picker Select: when the draft has a program and the group has an active enrollment in it (`GET /api/groups/:id/enrollments`), show the screen's already-enrolled warning; when the draft has a schedule and the group already has a lesson on one of its dates, the "Lesson already scheduled" warning. Warnings never block. Program picker Select: the already-enrolled warning against the draft's group. The schedule picker gets the draft group's existing lesson dates (`GET /api/groups/:id/enrollments` then `GET /api/enrollments/:id` per active enrollment, as 1.0) for its overlap prompt | design ref 2026-10-28 |
 | D12 | Fixtures | `server/fixtures/screens/groups-enroll-program.ts`: a group with 0 members (hidden in the picker), a group already enrolled in a fixture program (warning), a published program with ≥ 10 lessons, an unpublished program and a 0-lesson program (both hidden), one completed enrollment (completed count 1) | (assumed at spec) 2026-10-28 (PROGRAM P12) |
+| D13 | Draft lifetime when the app closes | OPEN — recommended: `AppState.enrollmentDrafts` is memory-only — excluded from the AppState disk cache, so a relaunch (or sign-out) discards an unfinished checklist and the leader starts again from an entry; matches the design's "Back discards the draft" (OQ-004) and D9's push→pop lifetime. Rejected: persisting drafts to disk (a resumed draft would need its own entry point and stale-preload rechecks the design does not draw) | align 2026-10-28 |
+| D14 | Group picker enrollment chip | OPEN — recommended: the third chip of `EnrollmentSelectGroupScreen` (`groupEnrollmentCounts`, contract "active-enrollment count") counts only enrollments whose `isActive` is true, computed in the shared `InviteSelectGroupMapper` path so the invite picker (same screen) shows the same number. Rejected: counting all enrollments as the invite picker does today (`InviteSelectGroupContainer.swift:20` — a group with only finished enrollments would read "highlighted") | align 2026-10-28 |
 
 ## Contract
 
@@ -117,14 +119,33 @@ early returns 403 (D4) — no such enrollment exists until 2.0 creates one.
 | `GET /api/programs` (extended) | server | iphone | as today | unchanged (`isPublished=true` used by the picker) | existing + `completedEnrollmentCount: number` per program (D8) | as today |
 | `GET /api/groups`, `GET /api/groups/:id/enrollments`, `GET /api/enrollments/:id`, `GET /api/group-leaders`, `GET /api/organizations/my/organizations` (unchanged) | server | iphone | existing | — | existing | existing |
 
+**Wire ↔ app mapping (align 2026-10-28)** — each layer keeps its own form; the transform is the mapper's,
+written once:
+
+| Design / screen field | iPhone draft | Wire (POST body / payload) | Server |
+|---|---|---|---|
+| `lessonAccess` `one-at-a-time` \| `all-at-once` (C-screen §5) | `EnrollmentDraft.lessonAccess` (screen form) | `ONE_AT_A_TIME` \| `ALL_AT_ONCE` | `Enrollment.lessonAccess` enum `LessonAccess` |
+| `syncMode` `AUTO` \| `OFF` | `EnrollmentDraft.syncMode` | `AUTO` \| `OFF` (no transform; `APPROVAL` never sent) | `Enrollment.syncMode` `EnrollmentSyncMode` |
+| schedule `enabledDays` `[Int]` 0 = Sun … 6 = Sat | `Set<Int>` | `enabledDays: ["Sun"…"Sat"]` (1.0 map) | `Enrollment.enabledDays` JSON string |
+| schedule `onSelect` start/end/overrides `Date` | `startDate`, `endDate`, `overriddenDates`, `scheduleDates: [Date]` | `startDate`, `scheduleDates: ["yyyy-MM-dd"]` formatted in the draft's `timezone` | `Enrollment.startDate`/`endDate`, `LessonSchedule.scheduledDate` |
+| `overriddenDates` | draft only (the schedule picker's seed) | not sent — folded into `scheduleDates` (DESIGN-ONLY) | — |
+| `smsTime` `HH:mm`, `timezone` | draft | `smsTime`, `timezone` | `Enrollment.smsTime`, `.timezone` |
+| group row: name, photo, leader, member count, created on | `UserGroup.name`, `.coverImageUrl`, `.creatorName`, `.memberCount`, `.createdAt` | `GET /api/groups` `toGroupPayload` (`memberCount` = active members) | `Group` + `_count.members where isActive` |
+| group row: enrollment count | `app.enrollmentsFor(groupId:)` filtered `isActive` (D14) | `GET /api/groups/:id/enrollments` | `Enrollment` |
+| program row: title, description, cover, created, days | `StudyProgram.name`, `.description`, `.coverImageUrl`, `.createdAt` (`MMM yyyy`), `.days` | `GET /api/programs?isPublished=true` | `StudyProgram` |
+| program row: completed count | `StudyProgram.completedEnrollmentCount` (T6) | `completedEnrollmentCount` (SC4) | derived, D8 |
+| schedule `existingLessonDates` | from `GET /api/enrollments/:id` `lessonSchedules[].scheduledDate` per active enrollment | existing | `LessonSchedule.scheduledDate` |
+
 ## Schema & API changes
 
 | # | Kind | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Enrollment.lessonAccess` enum `LessonAccess {ONE_AT_A_TIME, ALL_AT_ONCE}`, NOT NULL, default `ALL_AT_ONCE` | POST body + enrollment payloads | accessibility row; D4 | planned |
-| SC2 | EDIT | `POST /api/enrollments` | + `scheduleDates?`, `lessonAccess?`; 0-member 400 | exact schedule, access, eligibility; D3–D5 | planned |
-| SC3 | EDIT | `GET /api/lessons/code/:code`, `GET /api/lessons/view/:scheduleId` | 403 `not_yet_available` | one-at-a-time enforcement; D4 | planned |
-| SC4 | EDIT | `GET /api/programs` | + `completedEnrollmentCount` | program picker; D8 | planned |
+| SC1 | ADD | `Enrollment.lessonAccess` enum `LessonAccess {ONE_AT_A_TIME, ALL_AT_ONCE}`, NOT NULL, default `ALL_AT_ONCE` | POST body + enrollment payloads | accessibility row; D4 · T1, T6 | planned |
+| SC2 | EDIT | `POST /api/enrollments` | + `scheduleDates?`, `lessonAccess?`; 0-member 400 | exact schedule, access, eligibility; D3–D5 · T2, T9 | planned |
+| SC3 | EDIT | `GET /api/lessons/code/:code`, `GET /api/lessons/view/:scheduleId` | 403 `not_yet_available` | one-at-a-time enforcement; D4 · T3, T11 | planned |
+| SC4 | EDIT | `GET /api/programs` | + `completedEnrollmentCount` | program picker; D8 · T4, T6 | planned |
+
+Align 2026-10-28 traced every screen field through the model, zod, wire and iPhone property; the four rows above are the whole data/wire delta (no further column is owed).
 
 **Data plan:** SC1 goes through `server/schema/schema.yaml` → schema diff → one Atlas migration
 (house rules: `scripts/atlas.sh --var database_url=postgres://postgres:postgres@localhost:5434/makeready_dev`,
@@ -239,6 +260,17 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
 
 | # | Finding | Resolution |
 |---|---|---|
+| T1 | server: `LessonAccess` enum + `Enrollment.lessonAccess` in `schema/enums.yaml` + `schema/schema.yaml`, Atlas migration, Prisma client regenerated (SC1) | blocking |
+| T2 | server: `POST /api/enrollments` zod + handler — `scheduleDates` (D3), `lessonAccess` (D4), 0-member 400 (D5), response `select` adds `lessonAccess`, `syncMode` (SC2) | blocking |
+| T3 | server: `GET /api/lessons/code/:code` + `GET /api/lessons/view/:scheduleId` one-at-a-time 403 (SC3) | blocking |
+| T4 | server: `GET /api/programs` `completedEnrollmentCount`, one grouped query (SC4) | blocking |
+| T5 | server: fixture layer `server/fixtures/screens/groups-enroll-program.ts` + DB test (D12) — service-only, no DDL | blocking |
+| T6 | iphone: models — `StudyProgram.completedEnrollmentCount: Int?`; `EnrollmentWithProgram.lessonAccess: String?` and `.syncMode: String?`, `decodeIfPresent` (the released 1.0 cache has neither key; today's model decodes no `syncMode` at all) | trailing |
+| T7 | iphone: `EnrollmentDraft` + `AppState.enrollmentDrafts`, memory-only (D13), cleared in `clearInMemory()` | trailing |
+| T8 | iphone: checklist + picker mappers carrying the §Contract *Wire ↔ app mapping* transforms (lessonAccess kebab ↔ SCREAMING, weekday ints ↔ `Sun…Sat`, `Date` → `yyyy-MM-dd` in the draft's timezone) with unit tests per transform | trailing |
+| T9 | iphone: `EnrollmentActions.createEnrollment` body gains `scheduleDates` + `lessonAccess` (SC2 consumer) | trailing |
+| T10 | iphone: group picker enrollment chip counts `isActive` only (D14), in the shared mapper | trailing |
+| T11 | client: verify the D4 403 `message` renders as a not-yet line on the join page; branch on `error === 'not_yet_available'` only if it reads as an error (SC3 consumer) | trailing |
 
 ## Prototype
 

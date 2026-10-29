@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: aligned
 next: /builder:resume --path docs/features/ui2-enrollment-create
-head: 97c05ce
+head: f04c1e9
 ticket: none
-branch: main
+branch: builder/ui2-enrollment-create
 pr: none
 apps: server+client+iphone
 contract: open
