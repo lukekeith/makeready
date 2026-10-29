@@ -15,3 +15,4 @@ walk: none
 verify: none
 ui2: groups-enroll-program, enrollment-select-group, enrollment-select-program, enrollment-select-schedule, enrollment-select-invite-time, enrollment-select-sync, enrollment-select-access (resolved from d2m 2026-10-28: every screen built)
 auto: off
+agent-walk: on 2026-10-28
