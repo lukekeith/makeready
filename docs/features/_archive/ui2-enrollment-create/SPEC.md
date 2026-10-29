@@ -1,5 +1,5 @@
 # ui2-enrollment-create — spec
-> 🤖 AGENT SIGNED OFF 2026-10-28 — 1574ef5 · agent walk round 3 · not human-tested · evidence: .builder/ui2-enrollment-create/agent-walk/round-3/
+> ✅ SHIPPED 2026-10-28 — merged into main · no ticket · 🤖 agent signed off (walk round 3), not human-tested
 > lg · no ticket · child 1 of `docs/features/ui2-enrollment` (PROGRAM.md, go-ahead Luke 2026-10-28)
 
 ## Idea
@@ -327,6 +327,7 @@ changes, additive for every caller except D4/D5's stated refusals and T12's prog
 | A7 | nit: the POST's zod 400 sends `error` as an array; the iPhone `Response.error: String?` can't decode it (`enrollments.ts:470`) | harmless — D6 treats every failure alike |
 | R1 | repoint (iphone): legacy enrollment wizard ← no hit in the MakeReady app target (`EnrollmentFlowModal.swift`, `SelectGroupPage.swift`, `SelectStudyProgramPage.swift`, `EnrollmentSyncPage.swift`, `ConfirmEnrollmentPage.swift`, `Services/Route.swift:66-67,127-128`, `NavigationCoordinator.swift:130` all out of the target; `AppState.swift:314` comment only; `MakeReadyCaptureTests/CaptureFixture.swift:93` capture-only); no deep-link/push target creates an enrollment (`PushNotificationManager.swift:14-19`) | nothing to repoint — builder:plan's retire phase is empty |
 | V1 | design (items 7–8): all seven screens built in d2m, every frame built; component dots green except select-schedule (amber, 3 drawn components not in §4 — no build impact); d2m exposes no render-diff %, so the render check rests on d2m's built status. OQs: groups-enroll-program 001–005 closed and covered (D2, D13, §Testing); select-group 001/004/005/006 built in, 002 → D18, 003 → D19; select-program 001/004 built in, 002 → D11+D18, 003 → D17, 005 → D19; select-schedule 001–004 built in / D10; select-invite-time 001 = D7; sync, access none (access opens on one-at-a-time with an empty value — the draft reads not-done until Save). No owner notes on any of the seven | READY |
+| L1 | lesson for §Standing traps: server `npm run test:run` is red on main with 27 failures not caused by any feature — `test/integration/production.test.ts` (15, hits the live production API) and `test/lesson-activities.test.ts` + `src/routes/__tests__/users.test.ts` (12, Prisma P2023 on non-UUID fixture ids) — judge a feature on the other files, and note lesson-activities never reaches `getMemberLessonDetail` | proposed |
 
 ## Prototype
 
