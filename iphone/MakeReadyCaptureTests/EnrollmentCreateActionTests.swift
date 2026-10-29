@@ -65,17 +65,22 @@ final class EnrollmentCreateActionTests: XCTestCase {
         XCTAssertNil(body?["lessonAccess"])
     }
 
-    func testRefreshesTheGroupsEnrollmentsAndClearsNextStudyAfterCreate() async throws {
+    /// Agent walk round 2 (E5): clearing next-study left the group page on "No lessons scheduled"
+    /// until a relaunch — its `.task` does not re-run when the checklist pops, so the Action reloads it.
+    func testRefreshesTheGroupsEnrollmentsAndReloadsNextStudyAfterCreate() async throws {
         api.stub("POST", "/api/enrollments", json: created)
         api.stub("GET", "/api/groups/g1/enrollments", json: #"{"success":true,"enrollments":[]}"#)
         api.stub("GET", "/api/programs/p1/enrollments", json: #"{"success":true,"enrollments":[]}"#)
+        api.stub("GET", "/api/groups/g1/next-study", json: #"{"success":true,"study":{"id":"s-new","dayNumber":1,"scheduledDate":"2035-01-08T06:00:00.000Z","title":"Day 1","studyProgram":{"id":"p1","name":"John"},"activities":[]}}"#)
         state.nextStudyByGroupId["g1"] = NextStudy(id: "s-old")
         _ = try await EnrollmentActions(api: api, state: state).createEnrollment(
             groupId: "g1", studyProgramId: "p1", startDate: day("2035-01-08"),
             enabledDays: ["Mon"], smsTime: nil, timezone: nil)
         XCTAssertEqual(api.callCount("GET", "/api/groups/g1/enrollments"), 1)
         XCTAssertEqual(api.callCount("GET", "/api/programs/p1/enrollments"), 1)
-        XCTAssertNil(state.nextStudyByGroupId["g1"])
+        XCTAssertEqual(api.callCount("GET", "/api/groups/g1/next-study"), 1)
+        XCTAssertEqual(state.nextStudyByGroupId["g1"]?.id, "s-new")
+        XCTAssertEqual(api.calls.filter { $0.method == "GET" && $0.endpoint.hasPrefix("/api/home/days") }.count, 1)
     }
 
     func testARefreshFailureDoesNotFailTheCreate() async throws {

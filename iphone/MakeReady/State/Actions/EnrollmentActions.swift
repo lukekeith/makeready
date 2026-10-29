@@ -308,7 +308,12 @@ private let api: APIClientProtocol
         // T13: the index adds alone left loadEnrollmentCounts skipping this group and the group /
         // program pages without the new row — reload what they read. Background: a failure here
         // never fails the create.
-        state.nextStudyByGroupId[groupId] = nil
+        // Agent walk round 2 (E5): the group page's `.task` doesn't re-run when the checklist pops,
+        // so its next-study and days are reloaded here, not just cleared.
+        let groups = GroupActions(api: api, state: state)
+        async let next: () = groups.loadNextStudy(groupId: groupId)
+        async let days: () = groups.loadGroupDays(groupId: groupId)
+        _ = await (next, days)
         do { _ = try await loadEnrollments(groupId: groupId) } catch {
             state.recordError(error, context: "EnrollmentActions.createEnrollment.refreshGroup")
         }
