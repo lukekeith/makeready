@@ -78,6 +78,21 @@ final class InviteSelectGroupMapperTests: XCTestCase {
         XCTAssertEqual(out.groupIds, ["b"])
     }
 
+    /// Task-10 carried finding: a leader whose only groups are ineligible is not a Leaders option —
+    /// picking them would empty the list.
+    func testEligibleOnlyLeaderOptionsSkipIneligibleGroups() {
+        let groups = [UserGroup(id: "a", code: "Ca", name: "A", isPrivate: false, allowInvites: false, memberCount: 0,
+                                creatorId: "u-a", creatorName: "Empty Leader", createdAt: Date(), updatedAt: Date()),
+                      UserGroup(id: "b", code: "Cb", name: "B", isPrivate: false, allowInvites: false, memberCount: 2,
+                                creatorId: "u-b", creatorName: "Busy Leader", createdAt: Date(), updatedAt: Date())]
+        let enroll = InviteSelectGroupMapper.output(.init(groups: groups, enrollmentCounts: [:], query: "", leaderIds: [],
+                                                          loading: false, failed: false, eligibleOnly: true))
+        XCTAssertEqual(enroll.leaderOptions.map(\.id), ["u-b"])
+        let invite = InviteSelectGroupMapper.output(.init(groups: groups, enrollmentCounts: [:], query: "", leaderIds: [],
+                                                          loading: false, failed: false))
+        XCTAssertEqual(invite.leaderOptions.map(\.id), ["u-b", "u-a"])
+    }
+
     func testOrgsChipShowsOnlyForMultiOrgCallersAndFilters() {
         let groups = [makeGroup(id: "a", name: "A", members: 1, org: "o1"), makeGroup(id: "b", name: "B", members: 1, org: "o2")]
         let orgs = [OrganizationData(id: "o1", name: "Grace"), OrganizationData(id: "o2", name: "Hope")]

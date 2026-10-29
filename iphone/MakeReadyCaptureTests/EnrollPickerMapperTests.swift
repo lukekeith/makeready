@@ -90,4 +90,44 @@ final class EnrollPickerMapperTests: XCTestCase {
                                                         overrides: [day("2035-01-08"), day("2035-01-15")], lessonCount: 1, to: &d))
         XCTAssertEqual(d, before)
     }
+
+    // Final review I-1: the pickers re-key the d2m screen only on what typing cannot change, so the
+    // search field keeps its focus; Select resolves through the tracked pick.
+    func testGroupScreenKeyIgnoresTheQueryButFollowsTheSourceRowsAndFilters() {
+        func group(_ id: String, _ name: String) -> UserGroup {
+            UserGroup(id: id, code: "C\(id)", name: name, isPrivate: false, allowInvites: false, memberCount: 1,
+                      creatorId: "u-\(id)", createdAt: Date(), updatedAt: Date())
+        }
+        let base = InviteSelectGroupMapper.Input(groups: [group("a", "Alpha"), group("b", "Bravo")], enrollmentCounts: [:],
+                                                 query: "", leaderIds: [], loading: false, failed: false, eligibleOnly: true)
+        var typed = base; typed.query = "Br"
+        XCTAssertNotEqual(InviteSelectGroupMapper.output(base).groupIds, InviteSelectGroupMapper.output(typed).groupIds)
+        XCTAssertEqual(InviteSelectGroupMapper.screenKey(base), InviteSelectGroupMapper.screenKey(typed))
+        var loaded = base; loaded.groups.append(group("c", "Charlie"))
+        XCTAssertNotEqual(InviteSelectGroupMapper.screenKey(base), InviteSelectGroupMapper.screenKey(loaded))
+        var byLeader = base; byLeader.leaderIds = ["u-a"]
+        XCTAssertNotEqual(InviteSelectGroupMapper.screenKey(base), InviteSelectGroupMapper.screenKey(byLeader))
+        var byOrg = base; byOrg.pickedOrgIds = ["o1"]
+        XCTAssertNotEqual(InviteSelectGroupMapper.screenKey(base), InviteSelectGroupMapper.screenKey(byOrg))
+    }
+
+    func testProgramScreenKeyIgnoresTheQueryButFollowsTheSourceRowsAndFilters() throws {
+        let base = input([try program("p1", "Acts", days: 3), try program("p2", "Zeal", days: 5)])
+        var typed = base; typed.query = "Ze"
+        XCTAssertNotEqual(EnrollSelectProgramMapper.output(base).programIds, EnrollSelectProgramMapper.output(typed).programIds)
+        XCTAssertEqual(EnrollSelectProgramMapper.screenKey(base), EnrollSelectProgramMapper.screenKey(typed))
+        var loaded = base; loaded.programs.append(try program("p3", "Mark", days: 2))
+        XCTAssertNotEqual(EnrollSelectProgramMapper.screenKey(base), EnrollSelectProgramMapper.screenKey(loaded))
+        var byLeader = base; byLeader.leaderIds = ["u1"]
+        XCTAssertNotEqual(EnrollSelectProgramMapper.screenKey(base), EnrollSelectProgramMapper.screenKey(byLeader))
+    }
+
+    func testSelectCommitsTheTrackedPickWhileListedElseTheRowAtTheIndex() {
+        // Picked "b" at index 1, then a query moved it to index 0: the stale index names "c".
+        XCTAssertEqual(EnrollPickerSelection.committedId(index: 1, rowIds: ["b", "c"], trackedId: "b"), "b")
+        // The pick is filtered out: the row the screen highlights is the one Select names.
+        XCTAssertEqual(EnrollPickerSelection.committedId(index: 1, rowIds: ["c", "d"], trackedId: "b"), "d")
+        XCTAssertEqual(EnrollPickerSelection.committedId(index: 0, rowIds: ["c"], trackedId: nil), "c")
+        XCTAssertNil(EnrollPickerSelection.committedId(index: 2, rowIds: ["c"], trackedId: "b"))
+    }
 }

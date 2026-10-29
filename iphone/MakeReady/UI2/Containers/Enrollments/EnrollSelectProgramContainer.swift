@@ -4,7 +4,8 @@ import SwiftUI
 /// `EnrollmentSelectProgramScreen` unchanged. Programs load cache-first (`loadPrograms` sends no
 /// isPublished, so eligibility is filtered locally, D5); the completed chip follows D17; Leaders
 /// options come from `AppState.groupLeaders`. Select warns once against the draft's group (D11/D18),
-/// then `setProgram` (design rule 2) and pops.
+/// then `setProgram` (design rule 2) and pops. Re-keyed only on a load or a chip Save, never on the
+/// query (that would drop the keyboard); Select resolves through the tracked id (`EnrollPickerSelection`).
 struct EnrollSelectProgramContainer: View {
     let flowId: UUID
 
@@ -19,23 +20,26 @@ struct EnrollSelectProgramContainer: View {
         let app = AppState.shared
         let draft = app.enrollmentDrafts[flowId]
         let programs = app.programs.all
-        let output = EnrollSelectProgramMapper.output(.init(
+        let trackedId = pickedId ?? draft?.studyProgramId
+        let input = EnrollSelectProgramMapper.Input(
             programs: programs, query: query, leaderIds: leaderIds, leaders: app.groupLeaders,
             draftGroupEnrollments: draft?.groupId.map { app.enrollmentsFor(groupId: $0) },
-            selectedId: pickedId ?? draft?.studyProgramId,
-            loading: programs.isEmpty && app.loadingStates.isLoading(.programs), today: Date()))
+            selectedId: trackedId,
+            loading: programs.isEmpty && app.loadingStates.isLoading(.programs), today: Date())
+        let output = EnrollSelectProgramMapper.output(input)
         EnrollmentSelectProgramScreen(
             state: output.state,
             onBack: { navigator.pop() },
             onSelect: { index in
-                guard output.programIds.indices.contains(index) else { return }
-                select(output.programIds[index])
+                guard let id = EnrollPickerSelection.committedId(index: index, rowIds: output.programIds, trackedId: trackedId)
+                else { return }
+                select(id)
             },
             onSearch: { query = $0 },
             onOpenLeaderFilter: { leaderMenuOpen = true },
             onPickProgram: { index in if output.programIds.indices.contains(index) { pickedId = output.programIds[index] } }
         )
-        .id(output.programIds)
+        .id(EnrollSelectProgramMapper.screenKey(input))
         .ui2PushedPageFill()
         .filterMenuPresentation(isPresented: leaderMenuOpen, onDismiss: { leaderMenuOpen = false }) {
             FilterMenuOverlay(

@@ -47,7 +47,9 @@ enum InviteSelectGroupMapper {
             .filter { input.pickedOrgIds.isEmpty || $0.organizationId.map(input.pickedOrgIds.contains) == true }
             .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         var seen = Set<String>()
+        // A leader whose only groups are ineligible is no option: picking them would empty the list.
         let leaderOptions = input.groups
+            .filter { !input.eligibleOnly || EnrollChecklistMapper.isEligible($0) }
             .compactMap { g -> LeaderOption? in
                 guard let name = g.creatorName, !name.isEmpty, seen.insert(g.creatorId).inserted else { return nil }
                 return LeaderOption(id: g.creatorId, label: name)

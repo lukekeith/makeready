@@ -3,8 +3,9 @@ import SwiftUI
 /// ui2-enrollment-create D5/D11/D14/D18/D19: the checklist's group picker. Hosts the d2m-built
 /// `EnrollmentSelectGroupScreen` unchanged: eligible groups only (D5), active-enrollment chip (D14),
 /// Orgs for multi-org callers and Leaders (D19); Select warns once (D11/D18), then writes the draft
-/// and pops. The picked row is tracked by id and the screen is re-keyed when its rows change, so
-/// `onSelect(index)` always names the highlighted row.
+/// and pops. The picked row is tracked by id; the screen is re-keyed only on a load or a chip Save,
+/// never on the query (that would drop the keyboard), and Select resolves through the tracked id
+/// (`EnrollPickerSelection`).
 struct EnrollSelectGroupContainer: View {
     let flowId: UUID
 
@@ -24,27 +25,30 @@ struct EnrollSelectGroupContainer: View {
         let app = AppState.shared
         let draft = app.enrollmentDrafts[flowId]
         let groups = app.groups.all
-        let output = InviteSelectGroupMapper.output(.init(
+        let trackedId = pickedId ?? draft?.groupId
+        let input = InviteSelectGroupMapper.Input(
             groups: groups,
             enrollmentCounts: InviteSelectGroupMapper.activeEnrollmentCounts(groups, enrollmentsFor: { app.enrollmentsFor(groupId: $0) }),
             query: query, leaderIds: leaderIds,
             loading: groups.isEmpty && app.loadingStates.isLoading(.groups), failed: false,
             eligibleOnly: true, organizations: app.myOrganizations, pickedOrgIds: orgIds,
-            selectedId: pickedId ?? draft?.groupId))
+            selectedId: trackedId)
+        let output = InviteSelectGroupMapper.output(input)
         EnrollmentSelectGroupScreen(
             state: output.state,
             scrollsList: true,
             onBack: { navigator.pop() },
             onSelect: { index in
-                guard output.groupIds.indices.contains(index) else { return }
-                select(output.groupIds[index])
+                guard let id = EnrollPickerSelection.committedId(index: index, rowIds: output.groupIds, trackedId: trackedId)
+                else { return }
+                select(id)
             },
             onSearch: { query = $0 },
             onOpenOrgFilter: { orgMenuOpen = true },
             onOpenLeaderFilter: { leaderMenuOpen = true },
             onPickGroup: { index in if output.groupIds.indices.contains(index) { pickedId = output.groupIds[index] } }
         )
-        .id(output.groupIds)
+        .id(InviteSelectGroupMapper.screenKey(input))
         .ui2PushedPageFill()
         .filterMenuPresentation(isPresented: leaderMenuOpen, onDismiss: { leaderMenuOpen = false }) {
             FilterMenuOverlay(
