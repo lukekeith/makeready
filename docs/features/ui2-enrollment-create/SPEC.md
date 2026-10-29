@@ -57,10 +57,10 @@ and server-local-time drift); dropping overrides (a d2m change and a lost 1.0 ca
 
 | App | In scope | What changes | Section |
 |---|---|---|---|
-| server | ✅ | `Enrollment.lessonAccess` (+ backfill); `POST /api/enrollments` takes `scheduleDates` + `lessonAccess`, refuses a 0-member group; the two lesson-open routes refuse a one-at-a-time lesson before its day; `GET /api/programs` adds `completedEnrollmentCount`; fixture layer | §server |
-| client | ✅ | The member join page already renders a failed lookup's `message` (`client/app/Http/Controllers/StudyJoinController.php:50-57`); this feature verifies that the D4 response reads correctly there and adjusts the view only if it does not | §client |
+| server | ✅ | `Enrollment.lessonAccess` (+ backfill); `POST /api/enrollments` takes `scheduleDates` + `lessonAccess`, refuses a 0-member group and a program outside the caller's read scope; the member lesson player (`GET /api/member/lessons/:lessonScheduleId`) and `/lessons/today/:enrollmentId` refuse a one-at-a-time lesson before its day (D15); `GET /api/programs` adds `completedEnrollmentCount`; fixture layer | §server |
+| client | ✅ | The member lesson player (`LessonController.php:31-38`) turns every non-200 into `abort(404)`; it gains a not-yet page for D15's 403 ("This lesson is available on «date»"). The join page is untouched (D15 keeps its lookup routes open) | §client |
 | iphone | ✅ | Seven d2m screens wired through containers; three entries; the draft; `createEnrollment` gains `scheduleDates` + `lessonAccess`; `Enrollment`/`StudyProgram` model fields | §iphone |
-| capture | ⬜ | screens capture from fixture JSON via ViewRegistry, not the live API; nothing in `/compare` reads enrollments-create | — |
+| capture | ⬜ | the seven `screen.2.0` ViewRegistry cases (`iphone/MakeReadyCaptureTests/ViewRegistry.swift:3150-3179`) are fixture-fed and their `MakeReadyUI` State is unchanged; `/compare` `enrollment-flow` (`capture/fixtures/compare/groups/enrollment-flow.json`) compares the untouched 1.0 wizard with the LeaderApp twin | — |
 
 **Sequencing:** contract settled → server (schema, endpoints, fixtures) verifies → contract FREEZES →
 iphone builds against it; client checks the D4 message → the walk on Fixtures.
@@ -99,24 +99,30 @@ early returns 403 (D4) — no such enrollment exists until 2.0 creates one.
 | D2 | Entries and exits | Group page `onEnrollProgram` → push the checklist with `groupId` preloaded; program page `onAddEnrollment` → `studyProgramId` preloaded; TopNav Enrollments card `add` → nothing preloaded (as Groups/Programs `add` push their create pages). Back on a checklist state, and Done/Back on `enrolled`, pop to the page that pushed it. Rejected: a button on the Enrollments tab (undesigned) | (assumed at intake) 2026-10-28 (PROGRAM P8) |
 | D3 | Exact schedule | `POST /api/enrollments` accepts optional `scheduleDates: string[]` (`yyyy-MM-dd`). When present the server requires exactly one date per program lesson, strictly ascending, none before today in the request's `timezone` (UTC when absent); weekdays are NOT checked against `enabledDays`, because an added override may fall on any day; it uses them as `LessonSchedule.scheduledDate` in order and the last as `endDate`. Absent → today's `generateScheduleDates`. The 2.0 checklist always sends the dates `EnrollmentDateState` computed (overrides included). Rejected: sending overrides for the server to re-apply (two copies of the rule; server-local-time drift); dropping overrides (d2m change; lost 1.0 capability) | Luke 2026-10-28 (PROGRAM P2) |
 | D4 | Lesson access | New `Enrollment.lessonAccess` (`ONE_AT_A_TIME` \| `ALL_AT_ONCE`, NOT NULL, default `ALL_AT_ONCE`); `POST` accepts it, the checklist always sends it. `GET /api/lessons/code/:code` and `GET /api/lessons/view/:scheduleId` return **403** `{success:false, error:"not_yet_available", message:"This lesson is available on «Weekday, Month d»", availableOn:"yyyy-MM-dd"}` when the schedule's enrollment is `ONE_AT_A_TIME` and today (in the enrollment's `timezone`, UTC when null) is before `scheduledDate`. Existing rows get `ALL_AT_ONCE` (the default fills them). Rejected: store only (does nothing); existing rows one-at-a-time (members lose open lessons) | Luke 2026-10-28 (PROGRAM P3) |
-| D5 | Eligibility | Group picker: `AppState.groups` from `GET /api/groups` with `memberCount ≥ 1`. Program picker: `GET /api/programs?isPublished=true` rows with `days ≥ 1`. `POST /api/enrollments` returns 400 `"Group has no members"` for a 0-member group (active members, as `memberCount` counts them). Rejected: picker-only (other callers could enroll an empty group) | Luke 2026-10-28 (PROGRAM P4) |
-| D6 | Enroll failure | A failed POST (network, 5xx, or a 4xx the pickers should have prevented) → `state.recordError(surface: true, friendlyMessage: "Couldn't enroll", retry: enroll)`, phase back to `ready` (checklist, Enroll enabled). A 401 signs out. Rejected: returning silently (a failure would look like nothing happened) | Luke 2026-10-28 (PROGRAM P5) |
+| D5 | Eligibility | Group picker: `AppState.groups` from `GET /api/groups` with `memberCount ≥ 1`. Program picker: `AppState.programs` (loaded by `ProgramActions.loadPrograms`, which sends no `isPublished` and `replaceAll`s the shared store, so the filter is local) with `isPublished == true` and `days ≥ 1`. `POST /api/enrollments` returns 400 `{success:false, error:"group_has_no_members", message:"Group has no members"}` for a 0-member group (active members, as `memberCount` counts them). Rejected: picker-only (other callers could enroll an empty group) | Luke 2026-10-28 (PROGRAM P4) |
+| D6 | Enroll failure | A failed POST (network, 5xx, or a 4xx the pickers should have prevented) → `state.recordError(error, context: "EnrollChecklistContainer.enroll", surface: true, friendlyMessage: "Couldn't enroll", retry: enroll)` (`AppState.swift:355-362`), phase back to `checklist` (6/6, Enroll enabled). A 401 signs out via `AuthStatusPolicy.shouldSignOut` + `authManager.signOut()`, as `GroupDetailContainer.swift:245-275` does. Rejected: returning silently (a failure would look like nothing happened) | Luke 2026-10-28 (PROGRAM P5) |
 | D7 | Invite time | The picker's `smsTime` (`HH:mm`) and its returned `timezone` are sent on POST. Sending invites at that time is out of scope. Rejected: building the sender now (Twilio, a scheduler and opt-outs make it a feature of its own) | Luke 2026-10-28 (PROGRAM P6) |
 | D8 | Program completed count | `GET /api/programs` adds `completedEnrollmentCount` per program: enrollments of that program whose `endDate` is before the start of today (UTC). The program picker shows it as the design's completed count. Rejected: total enrollments under a "completed" label (the number would be wrong under its label) | Luke 2026-10-28 (PROGRAM P7) |
 | D9 | Draft | One `EnrollmentDraft` per flow instance in `AppState.enrollmentDrafts[UUID]` (fields: groupId, studyProgramId, startDate, enabledDays, overriddenDates, scheduleDates, endDate, smsTime, timezone, syncMode, lessonAccess, phase); created at push, removed on pop/Done, cleared in `clearInMemory()`. Row done/disabled flags are derived on read (design draft rules 1–5), never stored. Rejected: `@State` in the checklist container (pickers are separate pushed pages that must write it) | (assumed at spec) 2026-10-28 |
 | D10 | Preload checks | A preloaded group counts as done only when it is in the eligible list (D5); a preloaded program only when published with `days ≥ 1`. A failing preload arrives not done (design rule 1). Program change clears the schedule's done state but keeps start/weekdays/overrides as the schedule picker's seed (design rule 2) | design ref 2026-10-28 |
 | D11 | Picker warnings | Group picker Select: when the draft has a program and the group has an active enrollment in it (`GET /api/groups/:id/enrollments`), show the screen's already-enrolled warning; when the draft has a schedule and the group already has a lesson on one of its dates, the "Lesson already scheduled" warning. Warnings never block. Program picker Select: the already-enrolled warning against the draft's group. The schedule picker gets the draft group's existing lesson dates (`GET /api/groups/:id/enrollments` then `GET /api/enrollments/:id` per active enrollment, as 1.0) for its overlap prompt | design ref 2026-10-28 |
-| D12 | Fixtures | `server/fixtures/screens/groups-enroll-program.ts`: a group with 0 members (hidden in the picker), a group already enrolled in a fixture program (warning), a published program with ≥ 10 lessons, an unpublished program and a 0-lesson program (both hidden), one completed enrollment (completed count 1) | (assumed at spec) 2026-10-28 (PROGRAM P12) |
+| D12 | Fixtures | `server/fixtures/screens/groups-enroll-program.ts` (one layer for the checklist and its six pickers, as `invite-member.ts` serves `enrollment-select-group` — no per-picker layer). Reuses base entities: the 0-member `FIXTURE_EMPTY_GROUP_ID` (`fixtures/ids.ts:65`, hidden), unpublished 0-lesson program 4 (`EMPTY_PROGRAM_ID`, hidden), group 1 with its active enrollment 4 (already-enrolled warning). Creates: program n 5 (published, 12 lessons) with one enrollment on a base group that ended before `ctx.now` (completed count 1), program n 6 (published, `days` 0, no lessons, hidden); enrollment/schedule ids from a fresh n 900+ range. Never creates orgs, users or groups | (assumed at spec) 2026-10-28 (PROGRAM P12) |
 | D13 | Draft lifetime when the app closes | OPEN — recommended: `AppState.enrollmentDrafts` is memory-only — excluded from the AppState disk cache, so a relaunch (or sign-out) discards an unfinished checklist and the leader starts again from an entry; matches the design's "Back discards the draft" (OQ-004) and D9's push→pop lifetime. Rejected: persisting drafts to disk (a resumed draft would need its own entry point and stale-preload rechecks the design does not draw) | align 2026-10-28 |
-| D14 | Group picker enrollment chip | OPEN — recommended: the third chip of `EnrollmentSelectGroupScreen` (`groupEnrollmentCounts`, contract "active-enrollment count") counts only enrollments whose `isActive` is true, computed in the shared `InviteSelectGroupMapper` path so the invite picker (same screen) shows the same number. Rejected: counting all enrollments as the invite picker does today (`InviteSelectGroupContainer.swift:20` — a group with only finished enrollments would read "highlighted") | align 2026-10-28 |
+| D14 | Group picker enrollment chip | OPEN — recommended: the third chip of `EnrollmentSelectGroupScreen` (`groupEnrollmentCounts`, contract "active-enrollment count") counts only enrollments whose `isActive` is true (`EnrollmentModels.swift:171` — `endDate > now` when the payload has no `isActive`, which `GET /api/groups/:id/enrollments` never sends; upcoming counts as active), filtered where the containers build the mapper's `enrollmentCounts` input (`InviteSelectGroupContainer.swift:20` and the new enroll container) so the invite picker shows the same number. Rejected: counting all enrollments as the invite picker does today (`InviteSelectGroupContainer.swift:20` — a group with only finished enrollments would read "highlighted") | align 2026-10-28 |
+| D15 | Where one-at-a-time is enforced (supersedes D4's route list; D4's 403 body stands) | OPEN — recommended: the gate is one service function `lessonAvailability(schedule, enrollment, now)` returning `{available, availableOn}`, applied to **`GET /api/member/lessons/:lessonScheduleId`** (`member-lessons.ts:555-620` → `member-progress.service.ts:637-720`, the real lesson player; group leaders and org managers exempt — it already computes `isGroupLeader`) and **`GET /api/lessons/today/:enrollmentId`** (`enrollments.ts:2420`). **`GET /api/lessons/code/:code` and `/lessons/view/:scheduleId` are NOT gated**: they are the join flow's lookup (`StudyJoinController.php:61-73,137-144` stores `lessonId`/`organizationId` from them), so gating them would stop a member joining the group before the lesson's day. The client lesson player renders D4's `message` on the 403. The member study home's existing client-side lock of future lessons (`use-study-home-state.ts:52-55`, every enrollment) is unchanged. Rejected: gating the lookup routes (blocks joining); leaving the player ungated (the access mode would do nothing — D4's rejected "store only") | audit 2026-10-28 |
+| D16 | Schedule date storage | OPEN — recommended: the server stores each `scheduleDates[i]` as 00:00 in the request `timezone` (the instant existing rows already hold — the iPhone sends local midnight, `enrollment-schedule.ts:29-47` copies it forward); never `new Date('yyyy-MM-dd')` (UTC midnight reads a day early in US zones and opens D4 a day early). `timezone` is validated in zod with `assertValidTimezone` (moved from `analytics.service.ts:439` to a shared util with `todayInTimezone`) → 400 on an invalid zone; with `scheduleDates`, `Enrollment.startDate` is stored as `scheduleDates[0]`. The iPhone formats the dates in `TimeZone.current` (the calendar's zone) and sends `timezone` = the invite-time picker's returned zone, else `TimeZone.current.identifier`. D4's "today" and `availableOn` use the enrollment's `timezone`; D8 stays UTC. Rejected: UTC-midnight storage (day shift) | audit 2026-10-28 |
+| D17 | Whose completed count (d2m OQ-enrollment-select-program-003, owner-closed) | OPEN — recommended: with a group in the draft, the program picker's completed chip counts that group's enrollments of the program with `endDate` before today, client-side from `app.enrollmentsFor(groupId:)`; with no group, it shows the server's `completedEnrollmentCount` (D8, which stays). Rejected: D8's org-wide count in every case (contradicts the owner's d2m answer) | audit 2026-10-28 |
+| D18 | Already-enrolled / lesson-overlap confirm surface (d2m OQ-group-002, OQ-program-002) | OPEN — recommended: the container presents C-066 `ActionMenuOverlay` via `.actionMenuPresentation` (as `GroupDetailContainer.swift:77`) with two rows — "Already enrolled — select anyway" (or "Lesson already scheduled — select anyway") and "Choose another" — a recorded deviation, because C-066 draws no title or body (`ActionMenuOverlay.swift:39-75`); a titled confirm is a d2m follow-up (`/ui2-component-update C-066`). Rejected: building a new confirm view in the app (d2m owns views); skipping the warning (OQ-002 rules it) | audit 2026-10-28 |
+| D19 | Org / Leader chips on the two list pickers (d2m OQ-group-003, OQ-program-005) | OPEN — recommended: group picker — Orgs chip visible only when `AppState.myOrganizations.count > 1`, copying `GroupsHomeMapper.swift:42-47`, filtering locally by `organizationId`; Leaders filters by `creatorId` as invite does. Program picker — Orgs hidden (`orgFilterVisible: false`: `GET /api/programs` is scoped to the session org, so there is nothing to switch to); Leaders filters locally on `leaderId ?? creatorId`, options from `AppState.groupLeaders` (`ProgramActions.swift:604`). Rejected: an org switch inside the picker (no API for it) | audit 2026-10-28 |
 
 ## Contract
 
 | Contract | Producer | Consumers | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|---|
-| `POST /api/enrollments` (extended) | server | iphone | `requireAuth`; group in `groupManageFilter`, active | existing + `scheduleDates?: string[]` (`yyyy-MM-dd`, D3), `lessonAccess?: "ONE_AT_A_TIME" \| "ALL_AT_ONCE"` (D4) | existing `{success, enrollment}` + `enrollment.lessonAccess`, `enrollment.syncMode` | 400 (zod; `scheduleDates` count ≠ lessons, not ascending, before today; 0-member group; unpublished/no-lesson program) · 401 · 404 (group/program) |
-| `GET /api/lessons/code/:code`, `GET /api/lessons/view/:scheduleId` (extended) | server | client | public (as today) | unchanged | unchanged when open | **403** `{success:false, error:"not_yet_available", message, availableOn}` (D4) · 404 as today |
-| `GET /api/programs` (extended) | server | iphone | as today | unchanged (`isPublished=true` used by the picker) | existing + `completedEnrollmentCount: number` per program (D8) | as today |
+| `POST /api/enrollments` (extended) | server | iphone | `requireAuth`; group in `groupManageFilter`, active | existing + `scheduleDates?: string[]` (`yyyy-MM-dd`, D3), `lessonAccess?: "ONE_AT_A_TIME" \| "ALL_AT_ONCE"` (D4) | existing `{success, enrollment}` + `enrollment.lessonAccess`, `enrollment.syncMode` | 400 (zod incl. invalid `timezone` (D16); `scheduleDates` count ≠ lessons, not ascending, before today; 0-member group `group_has_no_members`; unpublished/no-lesson program — existing, `enrollments.ts:181-194`) · 401 · 404 (group outside `groupManageFilter`; program outside `programReadFilter(userId)` — new, T12) |
+| `GET /api/member/lessons/:lessonScheduleId`, `GET /api/lessons/today/:enrollmentId` (extended, D15) | server | client (`LessonController.php`) | as today (member session) | unchanged | unchanged when open, and for group leaders / managers | **403** `{success:false, error:"not_yet_available", message:"This lesson is available on «Weekday, Month d»", availableOn:"yyyy-MM-dd"}` (D4) · as today |
+| `GET /api/lessons/code/:code`, `GET /api/lessons/view/:scheduleId` (unchanged, D15) | server | client (join flow) | public | — | as today | as today |
+| `GET /api/programs` (extended) | server | iphone | as today | unchanged (the iPhone loads without `isPublished` and filters locally, D5) | existing + `completedEnrollmentCount: number` per program (D8; one `enrollment.groupBy` after the `findMany`) | as today |
 | `GET /api/groups`, `GET /api/groups/:id/enrollments`, `GET /api/enrollments/:id`, `GET /api/group-leaders`, `GET /api/organizations/my/organizations` (unchanged) | server | iphone | existing | — | existing | existing |
 
 **Wire ↔ app mapping (align 2026-10-28)** — each layer keeps its own form; the transform is the mapper's,
@@ -127,13 +133,13 @@ written once:
 | `lessonAccess` `one-at-a-time` \| `all-at-once` (C-screen §5) | `EnrollmentDraft.lessonAccess` (screen form) | `ONE_AT_A_TIME` \| `ALL_AT_ONCE` | `Enrollment.lessonAccess` enum `LessonAccess` |
 | `syncMode` `AUTO` \| `OFF` | `EnrollmentDraft.syncMode` | `AUTO` \| `OFF` (no transform; `APPROVAL` never sent) | `Enrollment.syncMode` `EnrollmentSyncMode` |
 | schedule `enabledDays` `[Int]` 0 = Sun … 6 = Sat | `Set<Int>` | `enabledDays: ["Sun"…"Sat"]` (1.0 map) | `Enrollment.enabledDays` JSON string |
-| schedule `onSelect` start/end/overrides `Date` | `startDate`, `endDate`, `overriddenDates`, `scheduleDates: [Date]` | `startDate`, `scheduleDates: ["yyyy-MM-dd"]` formatted in the draft's `timezone` | `Enrollment.startDate`/`endDate`, `LessonSchedule.scheduledDate` |
+| schedule `onSelect` start/end/overrides `Date` | `startDate`, `endDate`, `overriddenDates`, `scheduleDates: [Date]` | `startDate` (= first date) + `scheduleDates: ["yyyy-MM-dd"]`, formatted in `TimeZone.current` (D16) — the list is a scratch `EnrollmentDateState(lessonCount:)`'s `highlightedDates.sorted()` (`MakeReadyUI/EnrollCalendar.swift:119-191`, in the app target), asserted `count == lessonCount` before POST | `Enrollment.startDate`/`endDate`, `LessonSchedule.scheduledDate` |
 | `overriddenDates` | draft only (the schedule picker's seed) | not sent — folded into `scheduleDates` (DESIGN-ONLY) | — |
 | `smsTime` `HH:mm`, `timezone` | draft | `smsTime`, `timezone` | `Enrollment.smsTime`, `.timezone` |
 | group row: name, photo, leader, member count, created on | `UserGroup.name`, `.coverImageUrl`, `.creatorName`, `.memberCount`, `.createdAt` | `GET /api/groups` `toGroupPayload` (`memberCount` = active members) | `Group` + `_count.members where isActive` |
 | group row: enrollment count | `app.enrollmentsFor(groupId:)` filtered `isActive` (D14) | `GET /api/groups/:id/enrollments` | `Enrollment` |
-| program row: title, description, cover, created, days | `StudyProgram.name`, `.description`, `.coverImageUrl`, `.createdAt` (`MMM yyyy`), `.days` | `GET /api/programs?isPublished=true` | `StudyProgram` |
-| program row: completed count | `StudyProgram.completedEnrollmentCount` (T6) | `completedEnrollmentCount` (SC4) | derived, D8 |
+| program row: title, cover, created, days (the screen has no description field) | `StudyProgram.name`, `.coverImageUrl`, `.createdAt` (`MMM yyyy`), `.days` | `GET /api/programs` | `StudyProgram` |
+| program row: completed count | draft group set → client count (D17); else `StudyProgram.completedEnrollmentCount` (T6) | `completedEnrollmentCount` (SC4) | derived, D8 |
 | schedule `existingLessonDates` | from `GET /api/enrollments/:id` `lessonSchedules[].scheduledDate` per active enrollment | existing | `LessonSchedule.scheduledDate` |
 
 ## Schema & API changes
@@ -142,7 +148,7 @@ written once:
 |---|---|---|---|---|---|
 | SC1 | ADD | `Enrollment.lessonAccess` enum `LessonAccess {ONE_AT_A_TIME, ALL_AT_ONCE}`, NOT NULL, default `ALL_AT_ONCE` | POST body + enrollment payloads | accessibility row; D4 · T1, T6 | planned |
 | SC2 | EDIT | `POST /api/enrollments` | + `scheduleDates?`, `lessonAccess?`; 0-member 400 | exact schedule, access, eligibility; D3–D5 · T2, T9 | planned |
-| SC3 | EDIT | `GET /api/lessons/code/:code`, `GET /api/lessons/view/:scheduleId` | 403 `not_yet_available` | one-at-a-time enforcement; D4 · T3, T11 | planned |
+| SC3 | EDIT | `GET /api/member/lessons/:lessonScheduleId`, `GET /api/lessons/today/:enrollmentId` (D15; `/lessons/code` + `/lessons/view` unchanged) | 403 `not_yet_available` | one-at-a-time enforcement; D4, D15 · T3, T11 | planned |
 | SC4 | EDIT | `GET /api/programs` | + `completedEnrollmentCount` | program picker; D8 · T4, T6 | planned |
 
 Align 2026-10-28 traced every screen field through the model, zod, wire and iPhone property; the four rows above are the whole data/wire delta (no further column is owed).
@@ -152,7 +158,7 @@ Align 2026-10-28 traced every screen field through the model, zod, wire and iPho
 never `npm run schema:diff`, which reads the 1Password `.env`). The column is added NOT NULL with
 `DEFAULT 'ALL_AT_ONCE'`, which fills every existing row in the same statement — that IS the backfill
 (D4: existing enrollments stay fully open). Undo = drop the column and the enum. SC2–SC4 are wire
-changes, additive for every caller except D4/D5's stated refusals. Independent ordering.
+changes, additive for every caller except D4/D5's stated refusals and T12's program-scope 404. Independent ordering. The migration copies the `syncMode` precedent `server/atlas/migrations/20260706062151.sql:1-9` (`CREATE TYPE … AS ENUM` + `ADD COLUMN … NOT NULL DEFAULT` + `COMMENT`); every other Enrollment creator (`fixtures/base.ts:289`, `fixtures/screens/home-dashboard.ts:521`, tests) is covered by the default.
 
 ## server
 
@@ -160,26 +166,39 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
   regenerated; migration committed with `atlas.sum`.
 - **`POST /api/enrollments`** (`src/routes/enrollments.ts:112`): zod gains `scheduleDates` (array of
   `yyyy-MM-dd`, optional) and `lessonAccess` (optional enum). After loading the program's lessons:
-  `scheduleDates` given → validate D3 (length = `lessons.length`, strictly ascending, first ≥ today
-  in the request `timezone`) else 400 `"Schedule doesn't match the program"`; the schedule list is
-  those dates (as stored `scheduledDate` values, the same midnight convention `generateScheduleDates`
-  uses) instead of `generateScheduleDates(...)`. The group lookup adds the active-member count; 0 →
-  400 `"Group has no members"`. `lessonAccess` saved; response `select` adds `lessonAccess`, `syncMode`.
-- **Lesson open routes** (`enrollments.ts:2158`, `:2294`): after loading the schedule with its
-  enrollment, apply D4; the message formats the date as "This lesson is available on «Weekday, Month d»".
-- **`GET /api/programs`** (`src/routes/programs.ts:434`): add `completedEnrollmentCount` (a filtered
-  `_count` or one grouped query — no per-program N+1).
-- **Fixtures:** `server/fixtures/screens/groups-enroll-program.ts` per D12, registered in the screens
-  index; its DB test asserts the hidden/visible split.
+  `scheduleDates` given → a pure `validateScheduleDates(dates, lessonCount, tz, now)` in
+  `services/enrollment-schedule.ts` (length = `lessons.length`, strictly ascending, first ≥ today in
+  `timezone`) else 400 `"Schedule doesn't match the program"`; the stored dates are 00:00 in
+  `timezone` (D16), replacing `generateScheduleDates(...)`; `startDate` = the first. `timezone`
+  validated (D16). The group lookup selects `_count.members where isActive` (as `groups.ts:240`); 0 →
+  D5's 400. The program lookup spreads `programReadFilter(userId)` (`study-program.service.ts:136`) →
+  404 outside it (T12). `lessonAccess` saved; response `select` (`:402-438`) adds `lessonAccess`, `syncMode`.
+- **Lesson gate** (D15): `lessonAvailability(schedule, enrollment, now)` in a service, used by
+  `getMemberLessonDetail` (`member-progress.service.ts:637-720`; leaders/managers exempt) and
+  `/lessons/today/:enrollmentId` (`enrollments.ts:2420`); each enrollment select adds `timezone` +
+  `lessonAccess`; the message formats the date with `Intl` in the enrollment's timezone as
+  "This lesson is available on «Weekday, Month d»". `/lessons/code` and `/lessons/view` unchanged.
+- **`GET /api/programs`** (`src/routes/programs.ts:434`): add `completedEnrollmentCount` with one
+  `prisma.enrollment.groupBy({by:['studyProgramId'], where:{studyProgramId:{in:ids}, endDate:{lt:startOfTodayUTC}}})`
+  after the `findMany`, as the org-name lookup at `:508` does (a filtered `_count` can't sit beside the
+  existing `_count.enrollments` the iPhone reads); the mocked prisma in `programs-list.request.test.ts` gains `groupBy`.
+- **Fixtures:** `server/fixtures/screens/groups-enroll-program.ts` per D12 (the runner discovers
+  `screens/*.ts` by filename, `fixtures/runner.ts:91-99`); DB test
+  `fixtures/__tests__/groups-enroll-program.db.test.ts` copying `invite-member.db.test.ts`, asserting
+  the hidden/visible split and the completed count.
 
 ## client
 
-- `StudyJoinController.php:50-57` already shows `$result['body']['message']` for any non-200 on the
-  `info` step. Verify on the walk env that a one-at-a-time lesson opened early renders
-  "This lesson is available on «date»" in the join page's error slot, not "Study not found.". Change the
-  view only if the copy or styling reads as an error rather than a not-yet state (the minimal change:
-  branch on `error === 'not_yet_available'` to a neutral line). Rebuild the client before capturing
-  (built-bundle landmine).
+- **Lesson player** (`app/Http/Controllers/LessonController.php:31-38`): on a 403 whose body `error` is
+  `not_yet_available`, render a not-yet state with the body's `message` (a neutral line, not the 404
+  page), instead of today's `abort(404)` for every non-200. Feature test with `Http::fake`
+  (pattern `tests/Feature/StudyJoinTest.php:19`). Design-token SCSS only; no native dialogs.
+- **Join page** unchanged (D15 leaves `/lessons/code` and `/lessons/view` open, so the info step keeps
+  storing `lessonId`/`organizationId`).
+- Web enrollment creators (LeaderApp `leader-enrollment-flow.store.ts:158`, legacy
+  `enrollments.domain.ts:98`) keep working; a 0-member group now gets D5's 400 — the legacy admin
+  shows its `message`, the LeaderApp its generic "Something went wrong" dialog (accepted, §Out of scope).
+- Rebuild the client before capturing (built-bundle landmine).
 
 ## iphone
 
@@ -204,7 +223,24 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
   warning), schedule (`lessonCount` = program `days`, `programChosen`, existing lesson dates,
   `onSelect` → start/end/days/overrides + the computed `scheduleDates`), invite time, sync, access.
   Each writes the draft only in its Select/Save callback, then pops.
-- **Models:** `StudyProgram.completedEnrollmentCount: Int?`, enrollment `lessonAccess: String?`.
+- **Models:** `StudyProgram.completedEnrollmentCount: Int?`, `EnrollmentWithProgram.lessonAccess`/`.syncMode: String?` —
+  each needs its `CodingKeys` case + `decodeIfPresent` + `encodeIfPresent` in the custom coders
+  (`StudyModels.swift:55-150`, `EnrollmentModels.swift:46-127`); both are disk-cached
+  (`PersistedState.swift:18,24`), so absent keys decode nil; no `schemaVersion` bump.
+- **After create** (T13): `createEnrollment` today only adds index ids (`EnrollmentActions.swift:254-265`),
+  which also makes `loadEnrollmentCounts` skip that group; the Action reloads
+  `loadEnrollments(groupId:)`, `ProgramActions.getProgramEnrollments(programId:, forceRefresh: true)`
+  and the group's next-study/days, so the group and program pages show the new enrollment.
+- **Back-swipe and the draft:** arm `UI2BackSwipeGuard` (`UI2Navigation.swift:117`) while the phase is
+  `processing`; drafts whose `.enrollChecklist(flowId)` has left the path are pruned when the shell
+  path changes (memory-only, D13).
+- **Picker selection by id:** the list screens hold the picked row as an index in their own `@State`,
+  seeded once (`EnrollmentSelectGroupScreen.swift:79,105`, Program `:94`); the container tracks the
+  picked id from `onPickGroup`/`onPickProgram` and re-keys the screen with `.id(rowIds)` when the
+  filtered rows change, so `onSelect(index)` always names the highlighted row.
+- **Org/Leader chips** per D19; the shared `InviteSelectGroupMapper` (`:47` hard-codes
+  `orgFilterVisible: false`, no member filter) gains `eligibleOnly` + `organizations` inputs, defaulted
+  to today's invite behaviour.
 
 ## Testing
 
@@ -215,11 +251,13 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
 - lesson routes: one-at-a-time lesson before its day → 403 with `availableOn`; on/after its day → 200;
   all-at-once → 200 any day; both routes
 - programs list: `completedEnrollmentCount` counts only ended enrollments of that program
+- POST tenancy: a program outside `programReadFilter` → 404 (`test/enrollment-authorization.test.ts`); invalid `timezone` → 400; stored dates are 00:00 in the request zone (D16)
+- member lesson detail + `/lessons/today`: one-at-a-time before its day → 403 for a member, 200 for a group leader; `/lessons/code` and `/lessons/view` stay 200 (D15)
+- existing POST tests add an active `groupMember` before posting (D5 — see A1)
 - migration applies clean; existing rows read `ALL_AT_ONCE`; fixtures DB test (D12)
 
 **client**
-- the D4 403 renders the "available on" line on the join page (walk + a feature test on the controller
-  when the view branches)
+- `LessonController`: a `not_yet_available` 403 renders the not-yet line; any other non-200 still 404s (feature test, `Http::fake`)
 
 **iphone**
 - mapper tests: every row's to-do/done copy (design §3 rows, including the three OQ-005 texts),
@@ -240,8 +278,7 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
 5. Tap Enroll — "Group enrolled"; Done returns to the group page
 6. Server check (or the 1.0 app / web admin): the new enrollment's lesson dates equal step 3's dates,
    the skipped day absent; `lessonAccess` ONE_AT_A_TIME, `syncMode` OFF
-7. Open a future lesson's link on the web join page — "This lesson is available on «date»"; today's
-   lesson opens; a pre-existing enrollment's future lesson still opens
+7. As a member of the group, open a future lesson of the new enrollment in the web lesson player (its `/lesson/…` URL) — "This lesson is available on «date»"; today's lesson opens; a pre-existing (all-at-once) enrollment's future lesson still opens by URL; the join link for a future lesson still lets a new member join
 8. From a program page's enroll action — the program row arrives done; from the TopNav Enrollments
    `add` — nothing preloaded, 0/6
 9. In the group picker the 0-member fixture group is absent; picking the already-enrolled group with
@@ -255,6 +292,10 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
 - Sending invite SMS at `smsTime` (D7) — a separate feature, owner 2026-10-28.
 - Editing an enrollment, APPROVAL sync, `requireResponse` (dropped by the design; the server keeps accepting both).
 - Deleting the 1.0 wizard files (out of the target; 2.0 cutover).
+- Rescheduling that keeps D3's custom dates: edit, sync re-slotting and add-day (`enrollment-edit.ts:135-150`, `enrollment-sync.ts:418`, `enrollments.ts:4859-4885`) still walk `enabledDays`, so a later reschedule drops skipped days — editing is out of scope (audit 2026-10-28).
+- The member study home honouring `ALL_AT_ONCE` (it locks future lessons client-side for every enrollment today, `use-study-home-state.ts:52-55`) — unchanged, D15.
+- The LeaderApp web enrollment flow filtering 0-member groups; it shows a generic error on D5's 400 (audit 2026-10-28).
+- A titled confirm in C-066 (D18) — a `/ui2-component-update` follow-up.
 
 ## Findings & risks
 
@@ -262,7 +303,7 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
 |---|---|---|
 | T1 | server: `LessonAccess` enum + `Enrollment.lessonAccess` in `schema/enums.yaml` + `schema/schema.yaml`, Atlas migration, Prisma client regenerated (SC1) | blocking |
 | T2 | server: `POST /api/enrollments` zod + handler — `scheduleDates` (D3), `lessonAccess` (D4), 0-member 400 (D5), response `select` adds `lessonAccess`, `syncMode` (SC2) | blocking |
-| T3 | server: `GET /api/lessons/code/:code` + `GET /api/lessons/view/:scheduleId` one-at-a-time 403 (SC3) | blocking |
+| T3 | server: `lessonAvailability` service + the one-at-a-time 403 on `GET /api/member/lessons/:lessonScheduleId` (leaders exempt) and `/lessons/today/:enrollmentId` (SC3, D15) | blocking |
 | T4 | server: `GET /api/programs` `completedEnrollmentCount`, one grouped query (SC4) | blocking |
 | T5 | server: fixture layer `server/fixtures/screens/groups-enroll-program.ts` + DB test (D12) — service-only, no DDL | blocking |
 | T6 | iphone: models — `StudyProgram.completedEnrollmentCount: Int?`; `EnrollmentWithProgram.lessonAccess: String?` and `.syncMode: String?`, `decodeIfPresent` (the released 1.0 cache has neither key; today's model decodes no `syncMode` at all) | trailing |
@@ -270,7 +311,21 @@ changes, additive for every caller except D4/D5's stated refusals. Independent o
 | T8 | iphone: checklist + picker mappers carrying the §Contract *Wire ↔ app mapping* transforms (lessonAccess kebab ↔ SCREAMING, weekday ints ↔ `Sun…Sat`, `Date` → `yyyy-MM-dd` in the draft's timezone) with unit tests per transform | trailing |
 | T9 | iphone: `EnrollmentActions.createEnrollment` body gains `scheduleDates` + `lessonAccess` (SC2 consumer) | trailing |
 | T10 | iphone: group picker enrollment chip counts `isActive` only (D14), in the shared mapper | trailing |
-| T11 | client: verify the D4 403 `message` renders as a not-yet line on the join page; branch on `error === 'not_yet_available'` only if it reads as an error (SC3 consumer) | trailing |
+| T11 | client: `LessonController` renders D4's not-yet `message` on a `not_yet_available` 403 (SC3 consumer, D15) | trailing |
+| T12 | server: POST program lookup spreads `programReadFilter(userId)` → 404 outside it — pre-existing tenancy gap: any leader can enroll a group in another org's or a private program by UUID (`enrollments.ts:147-175`, comment "any active program") | build-time risk — settled by the POST task (T2) |
+| T13 | iphone: `createEnrollment` refreshes the stores the group/program pages read (§iphone *After create*) | trailing |
+| contract-1 | contract: D4 as written gated the join lookup and missed the real player — `GET /api/member/lessons/:id` has no date check (`member-progress.service.ts:637-720`) and the join flow needs the lookup (`StudyJoinController.php:61-73`) | §Contract, §server, §client written to D15's recommendation; settled when D15 is ruled |
+| contract-2 | contract: D3's "same midnight convention" does not exist — stored dates are copied instants (`enrollment-schedule.ts:29-47`); UTC-midnight parsing shifts a day | D16 |
+| contract-3 | contract: D8's org-wide completed count contradicts d2m OQ-enrollment-select-program-003 (group-scoped) | D17 |
+| A1 | build-time risk: every existing POST test creates the enrollment for a group with no active member (`program-publish.test.ts:229-240`, `enrollment-sync.test.ts:151,214`, `enrollment-sync-engine.test.ts:167,508`, `enrollment-edit.test.ts:41`, `member-version-resolution.test.ts:114`) — D5 turns them red | the POST task (T2) adds an active member to each |
+| A2 | build-time risk: D3 counts against `lessons.length` while the picker and welcome post use `days`; only app code keeps them equal (`programs.ts:1688,4104`) — a drifted program 400s every 2.0 enroll | T2's 400 message names the expected count; the iPhone mapper uses `days` |
+| A3 | build-time risk: five pickers report `updateNeeded: true` in d2m (group, program, invite-time, sync, access) — an update could move init signatures mid-build | the first iPhone task calls `check_project_change` for each screen before wiring |
+| A4 | build-time risk: `EnrollmentDateState.calculatedEndDate` can stop at its iteration cap short of `lessonCount` (`EnrollCalendar.swift:154-174`) | T8 asserts `count == lessonCount` and treats a short list as "schedule not done" |
+| A5 | nit: double-submit — POST has no idempotency and no transaction (deliberate sequential steps with cleanup, `enrollments.ts:226-396`) | the checklist's `processing` phase disables Enroll; no server key |
+| A6 | nit: D11's per-enrollment detail load pulls every lesson's activities to get dates (`EnrollmentActions.swift:147-182`) | accepted, as 1.0 |
+| A7 | nit: the POST's zod 400 sends `error` as an array; the iPhone `Response.error: String?` can't decode it (`enrollments.ts:470`) | harmless — D6 treats every failure alike |
+| R1 | repoint (iphone): legacy enrollment wizard ← no hit in the MakeReady app target (`EnrollmentFlowModal.swift`, `SelectGroupPage.swift`, `SelectStudyProgramPage.swift`, `EnrollmentSyncPage.swift`, `ConfirmEnrollmentPage.swift`, `Services/Route.swift:66-67,127-128`, `NavigationCoordinator.swift:130` all out of the target; `AppState.swift:314` comment only; `MakeReadyCaptureTests/CaptureFixture.swift:93` capture-only); no deep-link/push target creates an enrollment (`PushNotificationManager.swift:14-19`) | nothing to repoint — builder:plan's retire phase is empty |
+| V1 | design (items 7–8): all seven screens built in d2m, every frame built; component dots green except select-schedule (amber, 3 drawn components not in §4 — no build impact); d2m exposes no render-diff %, so the render check rests on d2m's built status. OQs: groups-enroll-program 001–005 closed and covered (D2, D13, §Testing); select-group 001/004/005/006 built in, 002 → D18, 003 → D19; select-program 001/004 built in, 002 → D11+D18, 003 → D17, 005 → D19; select-schedule 001–004 built in / D10; select-invite-time 001 = D7; sync, access none (access opens on one-at-a-time with an empty value — the draft reads not-done until Save). No owner notes on any of the seven | READY |
 
 ## Prototype
 
