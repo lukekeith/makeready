@@ -50,6 +50,26 @@ struct TopNav: View {
     /// C-019 §4: `onAdd(tab)` — "absent for Home". No render effect (OQ-PB-3); which cards
     /// SHOW a slot is C-069 `hasAdd`, not this closure's presence.
     var onAdd: ((String) -> Void)?
+    /// C-019 §4: `pin` — "keeps the tab under the finger under it while the morph is scrubbed".
+    /// nil = no effect (owner 2026-10-29).
+    var pin: Pin? = nil
+
+    /// C-019 §4: `Pin { x: CGFloat (TopNav's own space), animation: Animation? }`.
+    struct Pin: Equatable {
+        var x: CGFloat
+        var animation: Animation?
+    }
+
+    /// §4 `pin` 3: measured frames and hug widths in a non-observed reference box (ephemeral,
+    /// R-02), so scrolling does not re-render the row.
+    private final class PinBox {
+        var frames: [String: CGRect] = [:]
+        var hugs: [String: CGFloat] = [:]
+        var viewport: CGFloat = 0
+        /// §4 `pin` 1: the held (tab, f) while pinned.
+        var held: (tab: String, f: CGFloat)?
+    }
+    @State private var box = PinBox()
 
     // §2 table: row leading/trailing inset — 8 (`px-8`, in the component) collapsed; "none
     // in the component" expanded, and none from the host (OQ-C-019-1, closed: one shared
@@ -93,6 +113,9 @@ struct TopNav: View {
                             onTap: { onSelect(tab) },
                             onAdd: { onAdd?(tab) }
                         )
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .named(Self.space)) } action: { frame in
+                            record(tab, frame)
+                        }
                     }
                 }
                 // §4: `scrollOffset` — "one shared offset across both presentations". A resting
@@ -111,7 +134,19 @@ struct TopNav: View {
             .onChange(of: selectedTab) { _, tab in
                 withAnimation { proxy.scrollTo(tab, anchor: .leading) }
             }
+            // §4 `pin` 1–2: hold the touched tab when the pin is set, then keep it under `pin.x`
+            // on every `expansion` change.
+            .onChange(of: pin) { old, new in
+                guard let new else { box.held = nil; return }
+                if old == nil { box.held = pinnedTab(at: new.x) }
+                scrollToPin(new, proxy)
+            }
+            .onChange(of: expansion) { _, _ in
+                if let pin { scrollToPin(pin, proxy) }
+            }
         }
+        .coordinateSpace(.named(Self.space))
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { box.viewport = $0 }
         // §2 table: row height 32 collapsed · 96 expanded, growing in step with the tabs
         // (§2c step 2: "the row height grows 32→96"), `items: center`.
         .frame(height: NavTabButton.height(at: progress))
@@ -124,6 +159,52 @@ struct TopNav: View {
     /// §4: `expansion` 0…1 — the designed symbols are its two endpoints and "every value
     /// between renders the §2c choreography" (OQ-C-019-5), which C-069 owns per tab.
     private var progress: CGFloat { min(max(CGFloat(expansion), 0), 1) }
+
+    /// TopNav's own space — `pin.x` and the measured tab frames.
+    private static let space = "TopNav.pin"
+
+    /// §4 `pin` 2: a tab's collapsed width, cached from measured frames — read back through
+    /// C-069's growth (w = hug + (124 − hug)·growth); a fully grown frame carries no hug.
+    private func record(_ tab: String, _ frame: CGRect) {
+        box.frames[tab] = frame
+        let growth = NavTabButton.growth(at: progress)
+        if growth < 0.999 {
+            box.hugs[tab] = (frame.width - Self.expandedWidth * growth) / (1 - growth)
+        }
+    }
+
+    /// §4 `pin` 1: the tab whose visible frame contains `x` — the nearest tab in a gap or past
+    /// either end — and `f = (x − tab.minX) / tab.width`.
+    private func pinnedTab(at x: CGFloat) -> (tab: String, f: CGFloat)? {
+        let measured = tabs.compactMap { tab in box.frames[tab].map { (tab, $0) } }
+        let hit = measured.first { $0.1.minX <= x && x <= $0.1.maxX }
+            ?? measured.min { distance(x, $0.1) < distance(x, $1.1) }
+        guard let (tab, frame) = hit, frame.width > 0 else { return nil }
+        return (tab, (x - frame.minX) / frame.width)
+    }
+
+    private func distance(_ x: CGFloat, _ frame: CGRect) -> CGFloat {
+        x < frame.minX ? frame.minX - x : max(0, x - frame.maxX)
+    }
+
+    /// §4 `pin` 2: scroll so `tab.minX = pin.x − f·w` at the current `expansion`, inside
+    /// `withAnimation(pin.animation)`. `scrollTo` aligns the tab's anchor with the same anchor
+    /// of the inset viewport, so the anchor solving `minX = inset + a·(V − 2·inset − w)` lands
+    /// it there. Clamping at the scroll ends is accepted.
+    private func scrollToPin(_ pin: Pin, _ proxy: ScrollViewProxy) {
+        guard let (tab, f) = box.held else { return }
+        let growth = NavTabButton.growth(at: progress)
+        let hug = box.hugs[tab] ?? box.frames[tab]?.width ?? Self.expandedWidth
+        let width = hug + (Self.expandedWidth - hug) * growth
+        let span = box.viewport - 2 * inset - width
+        guard span > 0 else { return }
+        let anchor = UnitPoint(x: (pin.x - f * width - inset) / span, y: 0.5)
+        withAnimation(pin.animation) { proxy.scrollTo(tab, anchor: anchor) }
+    }
+
+    // GAP — C-069 §2: "fixed 124×96" expanded card, the end of every tab's growth; C-019 §4
+    // `pin` restates it (w = hug + (124 − hug)·growth). C-069 keeps its geometry private.
+    private static let expandedWidth: CGFloat = 124
 
     /// The row inset moves collapsed → expanded over C-069's growth window, while each tab's
     /// own padding grows 8 → 16, so the first label moves continuously through the morph.

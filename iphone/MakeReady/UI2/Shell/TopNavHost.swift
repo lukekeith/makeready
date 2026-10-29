@@ -82,6 +82,9 @@ struct TopNavHost: View {
     @State private var axisLock = TopNavDrag.AxisLock()
     /// True while the drag gesture is live; its reset without `onEnded` is a cancelled drag.
     @GestureState private var dragging = false
+    /// Owner 2026-10-29: the tab the vertical drag started on stays under the finger while the
+    /// row grows (C-019 `pin`). Set for the drag and its settle; nil once the settle finishes.
+    @State private var pin: TopNav.Pin?
 
     var body: some View {
         TopNav(
@@ -105,7 +108,8 @@ struct TopNavHost: View {
                     EnrollEntry.open(groupId: nil, studyProgramId: nil, push: { model.push($0, on: .home) })
                 default: return
                 }
-            }
+            },
+            pin: pin
         )
         // Simultaneous so TopNav's own horizontal ScrollView keeps its pan; only a drag whose
         // first movement is vertical scrubs the morph (analysis §6: horizontal pan scrolls,
@@ -125,6 +129,10 @@ struct TopNavHost: View {
             .onChanged { value in
                 // A drag that began horizontal scrolls the row and never scrubs.
                 guard axisLock.update(start: value.startLocation, translation: value.translation) else { return }
+                // A new vertical drag pins the tab under its start (taking over a settle still
+                // running). TopNav spans the screen width (C-019 §2: no host inset), so the global
+                // x is TopNav's own x.
+                if dragStart == nil { pin = TopNav.Pin(x: value.startLocation.x, animation: nil) }
                 let start = dragStart ?? model.expansion
                 dragStart = start
                 // Finger-tracked: no animation, so a spring still running from a tap or the page
@@ -150,7 +158,12 @@ struct TopNavHost: View {
     private func settle(velocity: CGFloat) {
         dragStart = nil
         withAnimation(Self.morphSpring) {
+            // The row's re-scroll rides the same spring as the morph, then the pin lets go.
+            if let held = pin { pin = TopNav.Pin(x: held.x, animation: Self.morphSpring) }
             model.expansion = TopNavDrag.settle(model.expansion, velocity: velocity)
+        } completion: {
+            // A drag that began during the settle owns the pin now.
+            if dragStart == nil { pin = nil }
         }
     }
 
