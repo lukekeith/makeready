@@ -7,11 +7,14 @@ enum EnrollChecklistMapper {
     static func isEligible(_ group: UserGroup) -> Bool { group.memberCount >= 1 }               // D5
     static func isEligible(_ program: StudyProgram) -> Bool { program.isPublished == true && program.days >= 1 }
 
-    /// D10: a preloaded group counts only when it is eligible; otherwise it arrives not done.
+    /// D10, superseded 2026-10-28 (owner, walk): a preloaded group is kept whenever it is known; an
+    /// ineligible one shows on the Group row with `ineligibleGroupMessage` and the row stays to do.
     static func preloadedGroupId(_ id: String?, groups: [UserGroup]) -> String? {
-        guard let id, let g = groups.first(where: { $0.id == id }), isEligible(g) else { return nil }
+        guard let id, groups.contains(where: { $0.id == id }) else { return nil }
         return id
     }
+
+    static let ineligibleGroupMessage = "Needs at least one member to enroll"
 
     static func preloadedProgramId(_ id: String?, programs: [StudyProgram]) -> String? {
         guard let id, let p = programs.first(where: { $0.id == id }), isEligible(p) else { return nil }
@@ -22,7 +25,7 @@ enum EnrollChecklistMapper {
                       today: Date = Date()) -> GroupsEnrollProgramScreen.State {
         let cal = Calendar.current
         let start = draft.scheduleDone ? draft.startDate : nil
-        return GroupsEnrollProgramScreen.State(
+        var state = GroupsEnrollProgramScreen.State(
             phase: draft.phase.rawValue,
             groupName: group?.name ?? "",
             groupInitials: group.map { initials($0.name) } ?? "",
@@ -42,6 +45,8 @@ enum EnrollChecklistMapper {
             syncMode: draft.syncMode ?? "",
             lessonAccess: draft.lessonAccess ?? ""
         )
+        if let group, !isEligible(group) { state.groupIneligibleMessage = ineligibleGroupMessage }
+        return state
     }
 
     static let fullDayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]

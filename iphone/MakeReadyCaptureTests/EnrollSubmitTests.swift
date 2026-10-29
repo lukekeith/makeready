@@ -80,13 +80,13 @@ final class EnrollSubmitTests: XCTestCase {
         XCTAssertTrue(api.calls.isEmpty)
     }
 
-    func testEntryPreloadsOnlyEligibleRows() throws {   // D10
+    func testEntryPreloadsAnEmptyGroup() throws {   // D10, superseded 2026-10-28: preload + warning
         state.groups.upsert(try JSONDecoder.apiDecoder.decode(UserGroup.self, from: Data(
             #"{"id":"g0","code":"C","name":"Empty","isPrivate":false,"allowInvites":true,"memberDirectory":true,"memberCount":0,"creatorId":"u1","createdAt":"2025-01-03T12:00:00.000Z","updatedAt":"2025-01-03T12:00:00.000Z"}"#.utf8)))
         var pushed: [UI2Destination] = []
         EnrollEntry.open(groupId: "g0", studyProgramId: nil, push: { pushed.append($0) }, state: state)
         guard case let .enrollChecklist(flowId)? = pushed.first else { return XCTFail("no checklist pushed") }
-        XCTAssertNil(state.enrollmentDrafts[flowId]?.groupId)
+        XCTAssertEqual(state.enrollmentDrafts[flowId]?.groupId, "g0")
     }
 
     func testAScheduleRowTapOpensTheSchedulePicker() {

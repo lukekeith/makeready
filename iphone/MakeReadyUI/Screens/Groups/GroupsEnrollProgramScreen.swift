@@ -67,6 +67,10 @@ struct GroupsEnrollProgramScreen: View {
         var syncMode: String
         // Row 6 — `all-at-once` | `one-at-a-time` (§5 `lessonAccess`).
         var lessonAccess: String
+        /// §2 screen inputs: "Empty = no change anywhere on the screen … Non-empty = the group row
+        /// (row 1) shows the preloaded group as chosen but **not done**, and the message is drawn
+        /// as a warning line under that row" (§3 `group-ineligible`).
+        var groupIneligibleMessage: String = ""
     }
 
     let state: State
@@ -119,6 +123,10 @@ struct GroupsEnrollProgramScreen: View {
     // GAP — groups-enroll-program §2 completion 1: "C-109 ConfirmationMark … 100×100" — C-109's
     // diameter is set by the call site; no size token (the invite-member precedent).
     private static let markSize: CGFloat = 100
+    // GAP — groups-enroll-program §2 checklist 2 warning line: "aligned to the C-124 text column"
+    // — C-124's 64pt C-123 disc (C-124 §2 Disc) ahead of its `space-card-padding` gap; C-124
+    // exposes no inset for it.
+    private static let rowDiscWidth: CGFloat = 64
     // FLAGGED LITERAL — groups-enroll-program §2 FL-1: completion title SF Pro Regular 24 / 28,
     // no token (nearest `type-hero-title` 24/24, `type-value-hero` 24/32).
     private static let completionTitleStyle = DesignTextStyle(weight: .regular, size: 24, lineHeight: 28, tracking: 0)
@@ -227,12 +235,36 @@ struct GroupsEnrollProgramScreen: View {
                         onTap: { onSelectStep(step) }
                     )
                     .ui2Element(index == 0 ? "C-124 ChecklistStepRow" : "C-124 ChecklistStepRow \(index + 1)")
+
+                    // §2 checklist 2: the warning line, "inserted **directly under row 1 and above
+                    // row 2**" — only when `groupIneligibleMessage` is non-empty.
+                    if step == .group && groupIneligible {
+                        warningLine
+                    }
                 }
             }
             // §3 `processing`: "every row ignore[s] taps" — no visual change (C-124's dimmed
             // `disabled` look is for the Row prerequisite only).
             .allowsHitTesting(phase == .checklist)
         }
+    }
+
+    /// §2 checklist 2 warning line: screen-owned text, no registry row — `color-amber-500`,
+    /// `type-body-sm` (14/20), "wrapping with no line limit", aligned to the C-124 text column.
+    /// The 20pt pitch is spent as the line box less SF Pro's natural line (the C-124 description
+    /// construction), so n lines are exactly n × 20.
+    private var warningLine: some View {
+        let style = Token.TypeStyle.bodySm
+        let leading = Self.leading(style)
+        return Text(state.groupIneligibleMessage)
+            .font(style.font)
+            .tracking(style.tracking)
+            .lineSpacing(leading)
+            .padding(.vertical, leading / 2)
+            .foregroundStyle(Token.amber500)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.leading, Self.rowDiscWidth + Token.Space.cardPadding)
     }
 
     // MARK: - Completion state
@@ -296,7 +328,11 @@ struct GroupsEnrollProgramScreen: View {
 
     private var phase: Phase { Phase(rawValue: state.phase) ?? .checklist }
 
-    private var groupDone: Bool { !state.groupName.isEmpty }
+    /// §3 draft rule 1 exception: an ineligible preloaded group is "kept for display on row 1
+    /// … but is **not done and not used**".
+    private var groupIneligible: Bool { !state.groupIneligibleMessage.isEmpty && !state.groupName.isEmpty }
+
+    private var groupDone: Bool { !state.groupName.isEmpty && !groupIneligible }
 
     private func isDone(_ step: Step) -> Bool {
         switch step {
@@ -341,7 +377,9 @@ struct GroupsEnrollProgramScreen: View {
         let done = isDone(step)
         switch step {
         case .group:
-            return done
+            // §3 Rows 1: with the message, "the group's name · \"Created on …\"", still `todo`,
+            // `photo(group image)` disc.
+            return done || groupIneligible
                 ? Row(disc: .photo(imageURL: URL(string: state.groupImageURL)),
                       title: state.groupName,
                       description: "Created on \(state.groupCreatedOn) with \(state.groupActiveMembers) active members")
@@ -494,6 +532,19 @@ extension GroupsEnrollProgramScreen.State {
         return s
     }()
 
+    /// §3 `group-ineligible` — the group preloaded with 0 active members: row 1 shows it, to do,
+    /// with the warning line; 0/6, C-125 as `empty`. The photo is catalog image-5.
+    static let groupIneligible: Self = {
+        var s = none
+        s.groupName = "Young Professionals"
+        s.groupInitials = "YP"
+        s.groupImageURL = "http://localhost:5961/api/projects/makeready/images/image-5"
+        s.groupCreatedOn = "January 3rd, 2025"
+        s.groupActiveMembers = 0
+        s.groupIneligibleMessage = "Needs at least one member to enroll"
+        return s
+    }()
+
     /// §3 `enrolled` — the completion state.
     static let enrolled: Self = {
         var s = ready
@@ -546,6 +597,13 @@ extension GroupsEnrollProgramScreen.State {
 
 #Preview("enrolled") {
     GroupsEnrollProgramScreen(state: .enrolled, confirmationAnimated: false)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("group-ineligible") {
+    GroupsEnrollProgramScreen(state: .groupIneligible, confirmationAnimated: false)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

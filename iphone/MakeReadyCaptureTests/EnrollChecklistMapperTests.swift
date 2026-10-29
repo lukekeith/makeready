@@ -62,15 +62,23 @@ final class EnrollChecklistMapperTests: XCTestCase {
         XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil).scheduleStartDay, "")
     }
 
+    func testIneligibleGroupCarriesTheWarning() throws {   // owner 2026-10-28: preload + warning
+        var d = EnrollmentDraft(id: UUID()); d.groupId = "g0"
+        let empty = EnrollChecklistMapper.state(d, group: try group("g0", members: 0), program: nil)
+        XCTAssertEqual(empty.groupIneligibleMessage, EnrollChecklistMapper.ineligibleGroupMessage)
+        let full = EnrollChecklistMapper.state(d, group: try group("g0", members: 2), program: nil)
+        XCTAssertEqual(full.groupIneligibleMessage, "")
+    }
+
     func testPhaseIsPassedThrough() {
         var d = EnrollmentDraft(id: UUID()); d.phase = .processing
         XCTAssertEqual(EnrollChecklistMapper.state(d, group: nil, program: nil).phase, "processing")
     }
 
-    func testPreloadsPassOnlyWhenEligible() throws {   // D10 / design rule 1
+    func testPreloadsPassOnlyWhenEligible() throws {   // D10 / design rule 1; groups superseded 2026-10-28
         let groups = [try group("g1", members: 3), try group("g0", members: 0)]
         XCTAssertEqual(EnrollChecklistMapper.preloadedGroupId("g1", groups: groups), "g1")
-        XCTAssertNil(EnrollChecklistMapper.preloadedGroupId("g0", groups: groups))
+        XCTAssertEqual(EnrollChecklistMapper.preloadedGroupId("g0", groups: groups), "g0")
         XCTAssertNil(EnrollChecklistMapper.preloadedGroupId("gX", groups: groups))
         let programs = [try program("p1", days: 12, published: true), try program("p2", days: 0, published: true),
                         try program("p3", days: 5, published: false)]

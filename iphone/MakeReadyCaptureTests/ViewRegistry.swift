@@ -5229,7 +5229,8 @@ private func buildScreenGroupsEnrollProgram(_ fixture: CaptureFixture) throws ->
             scheduleEndDate: c.scheduleEndDate ?? sample.scheduleEndDate,
             smsTime: c.smsTime ?? sample.smsTime,
             syncMode: c.syncMode ?? sample.syncMode,
-            lessonAccess: c.lessonAccess ?? sample.lessonAccess
+            lessonAccess: c.lessonAccess ?? sample.lessonAccess,
+            groupIneligibleMessage: c.groupIneligibleMessage ?? sample.groupIneligibleMessage
         ),
         confirmationAnimated: false
     ))

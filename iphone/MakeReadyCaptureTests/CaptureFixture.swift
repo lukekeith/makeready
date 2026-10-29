@@ -1233,6 +1233,7 @@ struct CaptureComponent: Codable {
     let scheduleStartToday: Bool?              // C-123 date(today:)
     let scheduleWeekdays: [String]?            // enabled weekdays, full names
     let scheduleEndDate: String?               // "October 18th, 2026" as displayed
+    let groupIneligibleMessage: String?        // §3 group-ineligible: warning under row 1; "" = none
     // ── screen enrollment-select-schedule ──
     // Additive; reuses `lessonCount`, `today` (string reading), `startDate`, `enabledDays`,
     // `overriddenDates`, `existingLessonDates` and `prompt` as-is (same names, same types).
