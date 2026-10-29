@@ -1,7 +1,7 @@
 size: lg
-state: audited
+state: planned
 next: /builder:resume --path docs/features/ui2-enrollments-browse
-head: 017bca1
+head: 7beda79
 ticket: none
 branch: builder/ui2-enrollments-browse
 pr: none
