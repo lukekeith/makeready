@@ -203,18 +203,19 @@ struct StudyProgramRow: View {
             .ui2Element("Details")
         case .program:
             // §2 `Program` (D59): description "single line, ellipsized", then the caption —
-            // "no C-043 chip, no C-057 bar"; "a nil `description` or `caption` drops its line
-            // and its gap" (column 20 + 8 + 20 + 8 + 20 = 76).
+            // "no C-043 chip, no C-057 bar"; "a nil or empty `description` or `caption` drops
+            // its line and its gap" (column 20 + 8 + 20 + 8 + 20 = 76). Owner 2026-10-30: the
+            // lines below move up, but "the column holds its 76", so the row stays 108.
             VStack(alignment: .leading, spacing: Token.Space.elementGap) {
                 titleText
-                if let description {
+                if let description, !description.isEmpty {
                     singleLineDescriptionText(description)
                 }
-                if let caption {
+                if let caption, !caption.isEmpty {
                     captionText(caption)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, minHeight: Self.programColumnHeight, alignment: .topLeading)
             .ui2Element("Details")
         }
     }
@@ -330,6 +331,9 @@ struct StudyProgramRow: View {
     // the contract states, with no size token in the register (the spacing family has no
     // vocabulary for a part's footprint; C-054 / C-033 treat their 64 the same way).
     private static let imageSide: CGFloat = 64
+    /// §2 `Program`: the Details column's designed 76 (20 + 8 + 20 + 8 + 20), held when a line
+    /// drops so the row keeps its 108 (owner 2026-10-30).
+    private static let programColumnHeight: CGFloat = 76
     private static let portraitHeight: CGFloat = 88
     // GAP — C-059 §2 missing cover: "sized at 60% of the box" — a ratio, as C-038's glyphRatio.
     private static let glyphRatio: CGFloat = 0.6
