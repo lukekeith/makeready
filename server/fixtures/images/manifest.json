@@ -6,7 +6,18 @@
   ],
   "programs": {
     "f1f1f1f1-0005-4000-8000-000000000001": "genesis-abram-stars",
-    "f1f1f1f1-0005-4000-8000-000000000002": "john-well-conversation"
+    "f1f1f1f1-0005-4000-8000-000000000002": "john-well-conversation",
+    "f1f1f1f1-0005-4000-8000-000000000005": "romans-new-life-baptism",
+    "f1f1f1f1-0005-4000-8000-000000000064": "matthew-mountain-teaching",
+    "f1f1f1f1-0005-4000-8000-000000000065": "psalms-shepherd-valley",
+    "f1f1f1f1-0005-4000-8000-000000000066": "acts-pentecost-gathering",
+    "f1f1f1f1-0005-4000-8000-000000000067": "daniel-prayer-window",
+    "f1f1f1f1-0005-4000-8000-000000000068": "luke-prodigal-embrace",
+    "f1f1f1f1-0005-4000-8000-000000000069": "genesis-creation-animals",
+    "f1f1f1f1-0005-4000-8000-00000000006a": "james-faith-feeds",
+    "f1f1f1f1-0005-4000-8000-00000000006b": "philippians-joy-confinement",
+    "f1f1f1f1-0005-4000-8000-00000000006c": "ruth-road-with-naomi",
+    "f1f1f1f1-0005-4000-8000-00000000006d": "1-samuel-hannah-prayer"
   },
   "library": [
     "1-chronicles-ark-musicians",
@@ -62,6 +73,61 @@
       "title": "John — Jesus and the woman at the well (John 4)",
       "alt": "Engraving of Jesus gesturing as he talks with a veiled woman seated beside a stone well and a water jar, a hill town and olive trees behind them",
       "mainColor": "#7d776d"
+    },
+    "romans-new-life-baptism": {
+      "title": "Romans — Rising from the water in baptism (Romans 6)",
+      "alt": "Engraving of a bearded man rising from a river with water running down his face as another man steadies him, three smiling onlookers on the bank",
+      "mainColor": "#7c756c"
+    },
+    "matthew-mountain-teaching": {
+      "title": "Matthew — Teaching on the hillside (Matthew 5–7)",
+      "alt": "Engraving of Jesus seated on a hillside teaching with an open hand to a listening crowd of men, women and a child, a lake and town in the distance",
+      "mainColor": "#7f786e"
+    },
+    "psalms-shepherd-valley": {
+      "title": "Psalms — The shepherd leads through the valley (Psalm 23)",
+      "alt": "Engraving of a shepherd seen from behind holding a staff, leading a flock of sheep down a rocky path in a ravine toward a wide, sunlit river valley",
+      "mainColor": "#676158"
+    },
+    "acts-pentecost-gathering": {
+      "title": "Acts — Flames at Pentecost (Acts 2)",
+      "alt": "Engraving of a crowd of believers in a stone hall gazing upward with open hands, small flames above their heads and swirling wind streaks overhead",
+      "mainColor": "#5e5851"
+    },
+    "daniel-prayer-window": {
+      "title": "Daniel — Praying at the open window (Daniel 6)",
+      "alt": "Sepia engraving of an elderly bearded Daniel kneeling in prayer with open hands beside an open window looking out over a city",
+      "mainColor": "#534e48"
+    },
+    "luke-prodigal-embrace": {
+      "title": "Luke — The father embraces the prodigal son (Luke 15)",
+      "alt": "Engraving of a white-bearded father tenderly embracing his kneeling, barefoot son in torn rags on a country path, while family members watch from a farmhouse",
+      "mainColor": "#867c70"
+    },
+    "genesis-creation-animals": {
+      "title": "Genesis — God creates the animals (Genesis 1)",
+      "alt": "Sepia engraving of newly created animals — a lion, a stag, birds in flight, an elephant and a tortoise — in a lush valley with light breaking through",
+      "mainColor": "#8d877e"
+    },
+    "james-faith-feeds": {
+      "title": "James — Faith that feeds the hungry (James 2:14–17)",
+      "alt": "Sepia engraving of a standing bearded man giving a loaf of bread and a folded cloak to a ragged seated man, while a woman and a boy watch from a doorway",
+      "mainColor": "#69635a"
+    },
+    "philippians-joy-confinement": {
+      "title": "Philippians — Joy in a prison cell (Philippians 1 and 4)",
+      "alt": "Engraving of a smiling white-bearded man chained at the wrist, writing on a scroll in a stone cell lit by a barred window, three cheerful friends beside him",
+      "mainColor": "#4b453d"
+    },
+    "ruth-road-with-naomi": {
+      "title": "Ruth — Ruth and Naomi on the road (Ruth 1)",
+      "alt": "Engraving of a younger and an older woman in headcloths walking arm in arm and looking at each other on a stony path past an olive tree, with a hill town behind",
+      "mainColor": "#777168"
+    },
+    "1-samuel-hannah-prayer": {
+      "title": "1 Samuel — Hannah prays at the sanctuary (1 Samuel 1)",
+      "alt": "Engraving of Hannah in a headcovering looking up with clasped hands in a pillared sanctuary, while the priest Eli watches from beside an altar",
+      "mainColor": "#565049"
     },
     "1-chronicles-ark-musicians": {
       "title": "1 Chronicles — Bringing the ark with music (1 Chronicles 15–16)",

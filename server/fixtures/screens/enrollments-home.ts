@@ -7,6 +7,7 @@
  *    started by Fixture Leader, last touched yesterday.
  *  - Draft · 6/6 read as 5/6 (D9 stale start): draft n 2 — Young Adults + "Foundations of Faith", every
  *    row set, its 21 lesson dates from 3 days ago, started by Nathan Hughes.
+ *  (The Prayer Team's draft is groups-enroll-program.ts's: its program is that layer's.)
  * Never touches ctx.rand. Creates no org, user or group; wipe.ts removes the drafts and the enrollment
  * with their groups (cascade).
  */

@@ -76,6 +76,20 @@ export const GROUP_COVER_SLOTS: readonly Slot[] = [
 export const PROGRAM_COVER_SLOTS: Readonly<Record<string, Slot>> = {
   [FIXTURE_PROGRAM_IDS.days21]: { prefer: 'genesis-abram-stars', pool: (i) => has(i, 'Book', 'genesis') }, // Foundations of Faith
   [FIXTURE_PROGRAM_IDS.days30]: { prefer: 'john-well-conversation', pool: (i) => has(i, 'Book', 'john') }, // Walking Through John
+  // Owner 2026-10-30: ≥ 80% of the fixture programs carry a cover. These programs are made by later
+  // layers (groups-enroll-program's n 5, home-dashboard's history n 100…), which place their own
+  // covers with placeProgramCovers once their rows exist.
+  [fixtureId('program', 5)]: { prefer: 'romans-new-life-baptism', pool: (i) => has(i, 'Book', 'romans') }, // Romans in 12 Days
+  [fixtureId('program', 100)]: { prefer: 'matthew-mountain-teaching', pool: (i) => has(i, 'Book', 'matthew') }, // The Sermon on the Mount
+  [fixtureId('program', 101)]: { prefer: 'psalms-shepherd-valley', pool: (i) => has(i, 'Book', 'psalms') }, // Psalms of Ascent
+  [fixtureId('program', 102)]: { prefer: 'acts-pentecost-gathering', pool: (i) => has(i, 'Book', 'acts') }, // Acts: The Early Church
+  [fixtureId('program', 103)]: { prefer: 'daniel-prayer-window', pool: (i) => has(i, 'Book', 'daniel') }, // Prayer That Changes Things
+  [fixtureId('program', 104)]: { prefer: 'luke-prodigal-embrace', pool: (i) => has(i, 'Book', 'luke') }, // Parables of Jesus
+  [fixtureId('program', 105)]: { prefer: 'genesis-creation-animals', pool: (i) => has(i, 'Book', 'genesis') }, // Genesis: Beginnings
+  [fixtureId('program', 106)]: { prefer: 'james-faith-feeds', pool: (i) => has(i, 'Book', 'james') }, // James: Faith at Work
+  [fixtureId('program', 107)]: { prefer: 'philippians-joy-confinement', pool: (i) => has(i, 'Book', 'philippians') }, // Philippians: Joy
+  [fixtureId('program', 108)]: { prefer: 'ruth-road-with-naomi', pool: (i) => has(i, 'Book', 'ruth') }, // Ruth and Esther
+  [fixtureId('program', 109)]: { prefer: '1-samuel-hannah-prayer', pool: (i) => has(i, 'Book', '1 samuel') }, // The Lord’s Prayer
 }
 
 export interface Selection {
@@ -250,8 +264,9 @@ export async function seedImages(ctx: FixtureContext): Promise<void> {
     if (slug && id) covers.push({ kind: 'GROUP_COVER', id, name: group?.name ?? '', slug })
   }
   for (const [id, slug] of Object.entries(manifest.programs)) {
+    // A program a later layer makes gets its cover there (placeProgramCovers).
     const program = ctx.created.programs.find((p) => p.id === id)
-    if (slug) covers.push({ kind: 'PROGRAM_COVER', id, name: program?.name ?? '', slug })
+    if (slug && program) covers.push({ kind: 'PROGRAM_COVER', id, name: program.name, slug })
   }
   const rows = []
   const usages = []
@@ -287,4 +302,57 @@ export async function seedImages(ctx: FixtureContext): Promise<void> {
     await prisma.member.update({ where: { id: memberId }, data: { profilePicture: getPublicUrl(key) } })
   }
   console.log(`fixtures: ${covers.length} covers, ${manifest.library.length} library photos, ${manifest.avatars.length} avatars in R2`)
+}
+
+/** Clear of base's media (n ≤ ~30) and study-program-home's usage (101). */
+const LAYER_COVER_ID_BASE = 500
+
+/**
+ * A later layer's programs (owner 2026-10-30): each manifest program cover among `programIds` placed
+ * exactly as seedImages places base's — the R2 ladder, the cover URL, a "<name> - Cover Image" Media
+ * row and its PROGRAM_COVER usage. Skipped when images are (the same switches as seedImages).
+ */
+export async function placeProgramCovers(ctx: FixtureContext, programIds: readonly string[]): Promise<void> {
+  const flag = process.env.FIXTURE_IMAGES
+  if (flag === 'off' || (process.env.VITEST && flag !== 'on')) return
+  if (flag !== 'on' && r2Unconfigured()) return
+  assertFixtureBucket()
+  if (!existsSync(MANIFEST_PATH)) throw new FixtureError(`no ${MANIFEST_PATH} — run npm run fixtures:images:refresh`)
+  const manifest = JSON.parse(await readFile(MANIFEST_PATH, 'utf8')) as ImageManifest
+  const { prisma } = ctx
+  const programs = await prisma.studyProgram.findMany({ where: { id: { in: [...programIds] } }, select: { id: true, name: true } })
+  for (const program of programs) {
+    const slug = manifest.programs[program.id]
+    if (!slug) continue
+    const source = await readSource(slug)
+    const placed = await placeLadder('programs', `program-${program.id}-${keyStamp(source)}`, source)
+    await prisma.studyProgram.update({ where: { id: program.id }, data: { coverImageUrl: placed.url } })
+    const n = LAYER_COVER_ID_BASE + Object.keys(manifest.programs).indexOf(program.id)
+    const info = manifest.images[slug]
+    const media = await prisma.media.create({
+      data: {
+        id: fixtureId('media', n),
+        title: `${program.name} - Cover Image`,
+        url: placed.url,
+        type: 'photo',
+        mimeType: 'image/jpeg',
+        fileSize: placed.fileSize,
+        thumbnailUrl: placed.thumbnailUrl,
+        organizationId: FIXTURE_ORG_ID,
+        uploadedBy: FIXTURE_USER_ID,
+        visibility: 'members',
+        uploadStatus: 'ready',
+        source: 'auto_capture',
+        width: placed.meta.width,
+        height: placed.meta.height,
+        aspectRatio: placed.meta.aspectRatio,
+        dominantColor: placed.meta.dominantColor ?? info?.mainColor ?? null,
+        altText: info?.alt ?? null,
+        createdAt: ctx.daysAgo(60),
+      },
+    })
+    await prisma.mediaUsage.create({
+      data: { id: fixtureId('mediaUsage', n), mediaId: media.id, usageType: 'PROGRAM_COVER', resourceId: program.id, resourceName: program.name },
+    })
+  }
 }

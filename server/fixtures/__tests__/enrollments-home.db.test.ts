@@ -8,7 +8,7 @@ import { FIXTURE_TZ, localDate } from '../context.js'
 import { FIXTURE_ENROLLMENT_IDS, FIXTURE_LEADER_USER_ID, FIXTURE_ORG_ID, FIXTURE_USER_ID } from '../ids.js'
 import { HOME_ENROLLMENT_ID, HOME_LESSON_COUNT, HOME_SMS_TIME } from '../screens/enrollment-home.js'
 import { DRAFT_PARTIAL_ID, DRAFT_STALE_ID, UPCOMING_ENROLLMENT_ID } from '../screens/enrollments-home.js'
-import { ENROLL_ENDED_ENROLLMENT_ID } from '../screens/groups-enroll-program.js'
+import { DRAFT_PRAYER_TEAM_ID, ENROLL_ENDED_ENROLLMENT_ID } from '../screens/groups-enroll-program.js'
 import { READ_IMAGE_URL, YOUTUBE_THUMBNAIL_URL } from '../screens/groups-detail.js'
 import { type FixturesDb, TEST_DB_URL, openFixturesDb } from './db-harness.js'
 
@@ -20,7 +20,7 @@ describe.skipIf(!TEST_DB_URL)('enrollments-home + enrollment-home full scenario 
   const ids = (feed: Awaited<ReturnType<Directory['getEnrollmentFeed']>>) =>
     feed.sections.flatMap((s) => s.items.map((i) => (i.kind === 'draft' ? i.draft.id : i.id)))
   const feedOf = (status: 'active' | 'upcoming' | 'completed' | 'draft' | 'all') =>
-    dir.getEnrollmentFeed(FIXTURE_USER_ID, { status, tz: FIXTURE_TZ })
+    dir.getEnrollmentFeed(FIXTURE_USER_ID, dir.feedQuerySchema.parse({ status, tz: FIXTURE_TZ }))
 
   beforeAll(async () => {
     db = await openFixturesDb()
@@ -43,8 +43,17 @@ describe.skipIf(!TEST_DB_URL)('enrollments-home + enrollment-home full scenario 
     expect(dates[0] < localDate(new Date(), FIXTURE_TZ)).toBe(true)
   })
 
-  it('Draft lists exactly the two drafts', async () => {
-    expect(ids(await feedOf('draft')).sort()).toEqual([DRAFT_PARTIAL_ID, DRAFT_STALE_ID].sort())
+  it('Draft lists exactly the three drafts', async () => {
+    expect(ids(await feedOf('draft')).sort()).toEqual([DRAFT_PARTIAL_ID, DRAFT_STALE_ID, DRAFT_PRAYER_TEAM_ID].sort())
+  })
+
+  it("a group's drafts lead its list (owner 2026-10-30)", async () => {
+    for (const section of (await feedOf('all')).sections) {
+      const kinds = section.items.map((i) => i.kind)
+      expect(kinds).toEqual([...kinds].sort((a, b) => (a === 'draft' ? 0 : 1) - (b === 'draft' ? 0 : 1)))
+    }
+    const prayer = (await feedOf('all')).sections.find((s) => s.group.name === 'Prayer Team')!
+    expect(prayer.items[0]).toMatchObject({ kind: 'draft', draft: { id: DRAFT_PRAYER_TEAM_ID } })
   })
 
   it('Upcoming lists exactly the Prayer Team upcoming enrollment', async () => {

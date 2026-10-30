@@ -13,6 +13,9 @@
  * enrollments reach today−182, each group on its own cadence (D21: Men's Mon/Wed/Fri, Young Adults
  * daily, Women's Mon–Fri) with a 3–10-day break before each one, so ~6 months of Activity shows
  * real gaps. History sittings are LESSON_OPENED + completion only — no video, so the 40 h holds.
+ * Each past run is a different program (owner 2026-10-30: a group never repeats a program, so the
+ * Enrollments list shows no duplicates): HISTORY_PROGRAMS, history-only programs with lessons and no
+ * activities, taken in turn from a per-group starting point and never reused within a group.
  *
  * Realism (D21, owner 2026-10-25):
  * - Completion: a member's rate (55–90%) × program fatigue (day 1 → 55% of it on the last day)
@@ -27,11 +30,13 @@
  *   check-ins. A sitting longer than 25 min re-opens every 20 min so it stays one session (the
  *   sessionizer splits at a 30-min gap).
  *
- * Ids: base sittings n = 1…; history enrollment n 10…, schedule (n)*1000+day, history progress and
+ * Ids: base sittings n = 1…; history program n 100…, its lessons (n)*1000+day; history enrollment
+ * n 10…, schedule (n)*1000+day, history progress and
  * opens n ≥ 1_000_000, resume opens n ≥ 2_000_000.
  */
 import type { Prisma } from '../../src/generated/prisma/index.js'
 import { PROGRAMS, VIDEO_SECONDS, WEEKDAYS, lessonId } from '../base.js'
+import { placeProgramCovers } from '../images.js'
 import { FIXTURE_TZ, type FixtureContext, FixtureError, addDays, localDate, weekdayOf, zonedTime } from '../context.js'
 import { FIXTURE_ENROLLMENT_IDS, FIXTURE_GROUP_IDS, FIXTURE_MEMBER_IDS, FIXTURE_ORG_ID, FIXTURE_USER_ID, fixtureId } from '../ids.js'
 
@@ -50,6 +55,20 @@ export const HISTORY_DAYS = 182
 /** D21: each group's history cadence, by group index. */
 export const HISTORY_CADENCE: readonly (readonly string[])[] = [['Mon', 'Wed', 'Fri'], ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], WEEKDAYS]
 export const BREAK_DAYS = { min: 3, max: 10 } as const
+
+/** The past runs' programs: more than any group's history needs, so none repeats within a group. */
+export const HISTORY_PROGRAMS = [
+  { name: 'The Sermon on the Mount', days: 14 },
+  { name: 'Psalms of Ascent', days: 15 },
+  { name: 'Acts: The Early Church', days: 28 },
+  { name: 'Prayer That Changes Things', days: 21 },
+  { name: 'Parables of Jesus', days: 18 },
+  { name: 'Genesis: Beginnings', days: 24 },
+  { name: 'James: Faith at Work', days: 15 },
+  { name: 'Philippians: Joy', days: 16 },
+  { name: 'Ruth and Esther', days: 20 },
+  { name: 'The Lord’s Prayer', days: 14 },
+].map((p, i) => ({ ...p, id: fixtureId('program', 100 + i), index: 100 + i }))
 
 /** D21: opening windows (local hours) per habit. */
 export const HABITS = {
@@ -172,7 +191,7 @@ export async function full(ctx: FixtureContext): Promise<void> {
   // ── Member-lessons: base, then the generated history ──────────────────────
   const enrollmentById = new Map(created.enrollments.map((e) => [e.id, e]))
   const lessonById = new Map(created.lessons.map((l) => [l.id, l]))
-  const programDays = new Map<string, number>(PROGRAMS.map((p) => [p.id, p.days]))
+  const programDays = new Map<string, number>([...PROGRAMS, ...HISTORY_PROGRAMS].map((p) => [p.id, p.days]))
   const membersOf = (groupId: string) =>
     created.groupMembers.filter((gm) => gm.groupId === groupId && gm.memberId).map((gm) => gm.memberId!)
 
@@ -453,6 +472,30 @@ type HistoryLesson = Omit<MemberLesson, 'memberId' | 'memberIndex' | 'base'>
  */
 async function seedHistorySchedules(ctx: FixtureContext, offsetOf: (date: string) => number): Promise<HistoryLesson[]> {
   const { prisma, created, rand } = ctx
+  await prisma.studyProgram.createMany({
+    data: HISTORY_PROGRAMS.map((p) => ({
+      id: p.id,
+      name: p.name,
+      days: p.days,
+      creatorId: FIXTURE_USER_ID,
+      organizationId: FIXTURE_ORG_ID,
+      isPublished: true,
+      publishedAt: ctx.daysAgo(HISTORY_DAYS + 30),
+      createdAt: ctx.daysAgo(HISTORY_DAYS + 30),
+    })),
+  })
+  await prisma.lesson.createMany({
+    data: HISTORY_PROGRAMS.flatMap((p) =>
+      Array.from({ length: p.days }, (_, i) => ({
+        id: lessonId(p.index, i + 1),
+        studyProgramId: p.id,
+        dayNumber: i + 1,
+        title: `Day ${i + 1}`,
+        estimatedMinutes: 25,
+      }))
+    ),
+  })
+  await placeProgramCovers(ctx, HISTORY_PROGRAMS.map((p) => p.id))
   const enrollments: Prisma.EnrollmentCreateManyInput[] = []
   const schedules: Prisma.LessonScheduleCreateManyInput[] = []
   const out: HistoryLesson[] = []
@@ -469,9 +512,12 @@ async function seedHistorySchedules(ctx: FixtureContext, offsetOf: (date: string
     const cadence = HISTORY_CADENCE[groupIndex]
     const meets = (o: number) => cadence.includes(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][weekdayOf(addDays(ctx.today, o))])
     let end = (firstBase.get(groupId) ?? 0) - rand.int(BREAK_DAYS.min, BREAK_DAYS.max)
-    let turn = groupIndex
+    // Each group starts at its own point in the list and never comes back round to a program.
+    const start = groupIndex * 3
+    let runs = 0
     while (end >= -HISTORY_DAYS) {
-      const program = PROGRAMS[turn++ % PROGRAMS.length]
+      if (runs === HISTORY_PROGRAMS.length) throw new FixtureError(`group ${groupIndex}'s history needs more than ${runs} programs`)
+      const program = HISTORY_PROGRAMS[(start + runs++) % HISTORY_PROGRAMS.length]
       // Walk back from `end` collecting meeting days until the program is full or the history ends.
       const offsets: number[] = []
       for (let o = end; o >= -HISTORY_DAYS && offsets.length < program.days; o--) if (meets(o)) offsets.unshift(o)

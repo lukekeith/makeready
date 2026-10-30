@@ -23,7 +23,12 @@ export const feedQuerySchema = z.object({
   orgId: z.string().uuid().optional(),
   groupId: z.string().uuid().optional(),
   leaderId: z.string().uuid().optional(),
-  status: z.enum(FEED_STATUSES).default('active'),
+  // owner 2026-10-29: a comma list (`active,draft`) — the iPhone status filter is multi-select;
+  // `all` (or every status) is the whole feed. A single value still parses as before.
+  status: z
+    .preprocess((v) => (typeof v === 'string' ? v.split(',').map((s) => s.trim()).filter(Boolean) : v), z.array(z.enum(FEED_STATUSES)).min(1))
+    .default(['active'])
+    .transform((list) => new Set<FeedStatus>(list.includes('all') ? ['active', 'upcoming', 'completed', 'draft'] : list)),
   tz: z.string().refine(isValidTimezone, { message: 'Invalid timezone' }).default('UTC'),
 })
 export type FeedQuery = z.infer<typeof feedQuerySchema>
@@ -191,17 +196,18 @@ export async function getEnrollmentFeed(userId: string, query: FeedQuery, now: D
   const today = todayInTimezone(query.tz, now)
   const programSelect = { select: { id: true, name: true, coverImageUrl: true } } as const
 
+  const wantsEnrollments = ['active', 'upcoming', 'completed'].some((b) => query.status.has(b as FeedStatus))
   const enrollments =
-    query.status === 'draft' || groupIds.length === 0
+    !wantsEnrollments || groupIds.length === 0
       ? []
       : (
           await prisma.enrollment.findMany({
             where: { groupId: { in: groupIds }, studyProgram: { isActive: true } },
             select: { id: true, groupId: true, startDate: true, endDate: true, timezone: true, createdAt: true, studyProgram: programSelect },
           })
-        ).filter((e) => query.status === 'all' || bucketOf(e, today) === query.status)
+        ).filter((e) => query.status.has(bucketOf(e, today)))
   const drafts =
-    (query.status === 'draft' || query.status === 'all') && groupIds.length > 0
+    query.status.has('draft') && groupIds.length > 0
       ? await prisma.enrollmentDraft.findMany({
           where: { groupId: { in: groupIds }, studyProgram: { isActive: true } },
           select: { ...DRAFT_SELECT, studyProgram: programSelect },
@@ -272,6 +278,10 @@ export async function getEnrollmentFeed(userId: string, query: FeedQuery, now: D
       sections.set(groupId, section)
     }
     section.items.push(item)
+  }
+  // Owner 2026-10-30: a group's drafts lead its list, then its enrollments — each kept in D17 order.
+  for (const section of sections.values()) {
+    section.items = [...section.items.filter((i) => i.kind === 'draft'), ...section.items.filter((i) => i.kind !== 'draft')]
   }
   return { sections: [...sections.values()], options }
 }
