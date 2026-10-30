@@ -28,7 +28,11 @@ struct GroupSectionHeader: View {
     /// §4 `initials` — "The fallback initials for C-038, derived by the caller from `groupName`".
     /// Unrequired (R-07): optional because C-038's is.
     var initials: String?
-    /// §4 `onOpen` — "Called when the arrow is tapped. The screen decides the destination".
+    /// §4 `count` (owner 2026-10-30) — "Optional. When set, the number is shown at the trailing
+    /// end in place of the arrow, and the whole header opens the group". `nil` keeps the arrow.
+    var count: Int? = nil
+    /// §4 `onOpen` — "Called when the arrow is tapped — or, with a `count`, the whole header. The
+    /// screen decides the destination".
     /// C-021's `action`, with R-03's no-op default.
     var onOpen: () -> Void = {}
 
@@ -37,12 +41,46 @@ struct GroupSectionHeader: View {
     private static let avatarSize: CGFloat = 40
 
     var body: some View {
-        // §2 Root: "Horizontal stack, gap **8** (`space-element-gap`), cross-axis **centre**".
+        root
+            .ui2Element("GroupSectionHeader")         // capture element map — UI2Element.swift
+    }
+
+    @ViewBuilder private var root: some View {
+        if let count {
+            // §3 `with-count` / OQ-C-058-2 (amended 2026-10-30): with no arrow to carry the tap,
+            // the whole header is the button. A plain style: no pressed state is designed.
+            SwiftUI.Button(action: onOpen) {
+                row { countText(count) }
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Open \(groupName)")
+            .accessibilityValue(String(count))
+            .accessibilityAddTraits(.isButton)
+        } else {
+            row { arrow }
+        }
+    }
+
+    // §2 Root: "Horizontal stack, gap **8** (`space-element-gap`), cross-axis **centre**".
+    private func row<Trailing: View>(@ViewBuilder trailing: () -> Trailing) -> some View {
         HStack(alignment: .center, spacing: Token.Space.elementGap) {
             identityBlock
-            arrow
+            trailing()
         }
-        .ui2Element("GroupSectionHeader")             // capture element map — UI2Element.swift
+    }
+
+    // §2 Count (owner 2026-10-30, C-037 ListResultRow's count look): "`type-body-sm` Regular
+    // 14/20 in `color-accent`, one line, trailing, in place of the arrow".
+    private func countText(_ count: Int) -> some View {
+        Text(String(count))
+            .designTextStyle(Token.TypeStyle.bodySm)
+            .foregroundStyle(Token.accent)
+            .lineLimit(1)
+            .fixedSize()
+            .frame(height: lineBox(Token.TypeStyle.bodySm))
+            .ui2Element("Count")
     }
 
     // MARK: - Parts (§2 anatomy)

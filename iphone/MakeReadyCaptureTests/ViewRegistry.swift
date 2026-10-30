@@ -2576,7 +2576,9 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 groupName: ui2C058GroupName,
                 leaderName: ui2C058LeaderName,
                 imageURL: ui2C058ImageURL,
-                initials: c.initials
+                initials: c.initials,
+                // §4 `count` (2026-10-30): optional — absent keeps the arrow.
+                count: c.count
             ),
             // C-058 §2: the row "fills the width it is given (408 at design)" — the master width,
             // margin and ground live here (R-16).

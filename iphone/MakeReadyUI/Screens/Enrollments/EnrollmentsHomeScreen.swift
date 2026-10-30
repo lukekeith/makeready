@@ -17,7 +17,7 @@ import SwiftUI
 /// directory, grouped by group. A header of C-034 search over four C-035 filter chips, pinned below
 /// the shell's TopNav, then one section per group — a C-058 header over its C-059 rows — with a
 /// C-088 rule between consecutive sections (§2). The C-019 TopNav is the shell's (§1 deviation 3).
-/// Composed only of §4's C-034, C-035, C-058, C-059, C-033 and C-088; C-021 and C-038 render inside C-058, C-057 and C-043 inside C-059.
+/// Composed only of §4's C-034, C-035, C-058, C-059, C-033 and C-088; C-038 renders inside C-058 (C-021 no longer — the header shows a count), C-057 and C-043 inside C-059.
 /// §2 `rail` layout (enrollments-rail, 2026-10-30): each group's enrollments are a horizontal
 /// rail of C-033 ObjectCards instead of C-059 rows — `program` per enrollment, `pending` per draft.
 /// C-036 FilterMenuOverlay is presented by a chip but §4 drops it ("presented, not on the
@@ -94,7 +94,7 @@ struct EnrollmentsHomeScreen: View {
     // the shell's TopNav owns them.)
     var onSearch: (String) -> Void = { _ in }       // §3: live local text filter (300ms, min 2)
     var onOpenFilter: (String) -> Void = { _ in }   // §3: chip tap → C-036 for that dimension
-    var onOpenGroup: (Int) -> Void = { _ in }       // §3: C-058 arrow → groups-detail, by section
+    var onOpenGroup: (Int) -> Void = { _ in }       // §3: C-058 header tap → groups-detail, by section
     /// §3: row tap → `onOpenProgram(section, row)` — enrollment and draft rows alike; the host
     /// decides the destination.
     var onOpenProgram: (Int, Int) -> Void = { _, _ in }
@@ -284,6 +284,9 @@ struct EnrollmentsHomeScreen: View {
                 leaderName: state.groupLeaderNames[safe: section] ?? "",
                 imageURL: Self.url(state.groupPhotoURLs[safe: section]),
                 initials: Self.initials(state.groupNames[section]),
+                // §2 (2026-10-30): the header shows the group's enrollment count — its rows,
+                // drafts included — in place of the arrow, and the whole header opens the group.
+                count: visibleRows(in: section).count,
                 onOpen: { onOpenGroup(section) }
             )
             .ui2Element(Self.partName("C-058 GroupSectionHeader", ordinal: ordinal))
