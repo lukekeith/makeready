@@ -498,6 +498,9 @@ struct CaptureComponent: Codable {
     // It could not be bent into any existing field (rule 3's second bound): `items`,
     // `buttons` and `options` above are 1.0 shapes for 1.0 cases.
     let actions: [CaptureUI2Action]?           // C-066 — the closed action list
+    // C-066 §4 `doneLabel` (Confirmation, 2026-10-29). `title` and `message` above already
+    // carry the contract's own names and types, so they are reused.
+    let doneLabel: String?                     // C-066 — the bottom button's label
     // C-023 RailCard `kind=day` (ex-C-025 DayActivityCard, merged 2026-09-21). `series` above is C-024 SparkBarChart's own prop and C-023 §4
     // delegates to it under the same name, so it is reused rather than duplicated. `date` is
     // retyped above (see the note there). These three are additive: no existing field carries
@@ -869,6 +872,7 @@ struct CaptureComponent: Codable {
     // C-058 GroupSectionHeader build 2026-09-30. `groupName`, `imageURL` and `initials` already
     // exist above under the contract's own names and types; `leaderName` is additive.
     let leaderName: String?                    // C-058 — the group leader's display name
+    let onAdd: Bool?                           // C-058 §3 with-count-add: true = `onAdd` set (add button)
     // ── preview props ──
     // C-083 NavBarButton build 2026-09-30. `glyph` and `active` already exist above under the
     // contract's own names and types; `accessibilityLabel` is additive.
@@ -1197,9 +1201,9 @@ struct CaptureComponent: Codable {
     // C-128 DateRangePicker. Additive; reuses `lessonCount` (Int), `today` (string reading),
     // `startDate` (String) and `enabledDays` ([Int]) as-is — same names, same types.
     let overriddenDates: [String]?             // C-128 — yyyy-MM-dd, inclusion flipped
-    let existingLessonDates: [String]?         // C-128 — yyyy-MM-dd, event dots + overlap check
+    let existingLessonDates: [String]?         // C-128 — yyyy-MM-dd, event dots only
     let currentScheduleDates: [String]?        // C-128 — yyyy-MM-dd, schedule ghost
-    let prompt: String?                        // C-128 — none | override(yyyy-MM-dd) | overlap(yyyy-MM-dd)
+    let prompt: String?                        // C-128 — none | override(yyyy-MM-dd)
     // ── screen enrollment-select-group ──
     // Additive; reuses `searchText`, `orgFilterVisible`, `orgFilterLabel`, `leaderFilterLabel`,
     // `groupNames`, `groupPhotoURLs`, `groupLeaderNames`, `groupMemberCounts`, `selectedIndex`,
@@ -1510,6 +1514,7 @@ struct CaptureDateOrBlock: Codable {
 struct CaptureUI2Action: Codable {
     let glyph: String
     let label: String
+    let tone: String?                          // C-067 §4 — "standard" | "destructive"; absent = standard
 }
 
 /// C-042 §4 `indicator: (text: String, tone: positive|negative)?`. A struct only because a

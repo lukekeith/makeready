@@ -47,6 +47,9 @@ struct EnrollmentSelectScheduleScreen: View {
     // §3 interactions that leave the screen — each an on<Verb> closure with R-03's no-op default.
     var onBack: () -> Void = {}                                              // §3 Back: discard + pop
     var onSelect: (Date, Date, Set<Int>, Set<Date>) -> Void = { _, _, _, _ in } // §3 Select: commit + pop
+    /// Owner 2026-10-30: the live draft (start, weekdays, overrides) on open and after every change,
+    /// so the host can note a schedule that overlaps the group's lessons. No render effect.
+    var onScheduleChange: (Date?, Set<Int>, Set<Date>) -> Void = { _, _, _ in }
 
     // §3 "Screen-local draft (D43): startDate, enabledDays, overriddenDates, prompt."
     @SwiftUI.State private var startDate: Date?
@@ -57,15 +60,17 @@ struct EnrollmentSelectScheduleScreen: View {
     init(
         state: State,
         onBack: @escaping () -> Void = {},
-        onSelect: @escaping (Date, Date, Set<Int>, Set<Date>) -> Void = { _, _, _, _ in }
+        onSelect: @escaping (Date, Date, Set<Int>, Set<Date>) -> Void = { _, _, _, _ in },
+        onScheduleChange: @escaping (Date?, Set<Int>, Set<Date>) -> Void = { _, _, _ in }
     ) {
         self.state = state
         self.onBack = onBack
         self.onSelect = onSelect
+        self.onScheduleChange = onScheduleChange
         let days = state.enabledDays.isEmpty ? Self.defaultDays : Set(state.enabledDays)
         let overrides = Set(state.overriddenDates.compactMap(Self.day))
-        // §3 cascades: a seeded start that fails the §5 check (before `today`, or not on an
-        // included day) is dropped, and the screen opens in no-start with the seeded weekdays.
+        // §3 cascades: a seeded start that fails the §5 check (before `today`) is dropped, and the
+        // screen opens in no-start with the seeded weekdays.
         let seeded = Self.day(state.startDate).flatMap { start in
             Self.passes(start: start, today: Self.day(state.today) ?? start,
                         days: days, overrides: overrides, lessonCount: state.lessonCount) ? start : nil
@@ -130,6 +135,14 @@ struct EnrollmentSelectScheduleScreen: View {
         }
         .frame(maxWidth: .infinity, alignment: .top)
         .background(Token.layoutBackground)                       // §2: the page background
+        .onAppear { reportSchedule() }
+        .onChange(of: startDate) { reportSchedule() }
+        .onChange(of: enabledDays) { reportSchedule() }
+        .onChange(of: overriddenDates) { reportSchedule() }
+    }
+
+    private func reportSchedule() {
+        onScheduleChange(startDate, enabledDays, overriddenDates)
     }
 
     /// §2 L1: C-040 `style: backAndLink` (D60) — back glyph, centred title, trailing "Select";
@@ -274,14 +287,15 @@ struct EnrollmentSelectScheduleScreen: View {
                            overrides: overriddenDates, lessonCount: state.lessonCount)
     }
 
-    /// §5 check: start ≥ today, on an included day, weekdays not empty, an end date computed.
+    /// §5 check: start ≥ today, weekdays not empty, an end date computed. A start on a turned-off
+    /// weekday passes (owner 2026-10-30, superseding OQ-004): the lessons begin at the first
+    /// included day after it.
     private static func passes(start: Date, today: Date, days: Set<Int>, overrides: Set<Date>,
                                lessonCount: Int) -> Bool {
         let scratch = scratch(start: start, days: days, overrides: overrides, lessonCount: lessonCount)
         return lessonCount > 0
             && start >= today
             && !days.isEmpty
-            && scratch.isDateIncluded(start)
             && scratch.calculatedEndDate != nil
     }
 
@@ -314,10 +328,6 @@ struct EnrollmentSelectScheduleScreen: View {
         if raw.hasPrefix("override("), raw.hasSuffix(")"),
            let date = day(String(raw.dropFirst(9).dropLast())) {
             return .override(date)
-        }
-        if raw.hasPrefix("overlap("), raw.hasSuffix(")"),
-           let date = day(String(raw.dropFirst(8).dropLast())) {
-            return .overlap(date)
         }
         return .none
     }

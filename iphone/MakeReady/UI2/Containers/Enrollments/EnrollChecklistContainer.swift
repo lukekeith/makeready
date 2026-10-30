@@ -85,10 +85,14 @@ struct EnrollChecklistContainer: View {
             onDiscard: Self.offersDiscard(draft) ? { discardMenuOpen = true } : nil
         )
         .ui2PushedPageFill()
-        // D10/D29: one red row; Done keeps editing. Hosted by the shell's `.ui2OverlayHost()`.
+        // D10/D29: the C-066 Confirmation form — title, message, one red Delete, and the keep
+        // button that leaves the checklist as it is. Hosted by the shell's `.ui2OverlayHost()`.
         .actionMenuPresentation(isPresented: discardMenuOpen, onDismiss: { discardMenuOpen = false }) {
             ActionMenuOverlay(
+                title: EnrollDiscard.confirmTitle,
+                message: EnrollDiscard.confirmMessage,
                 actions: [EnrollDiscard.action],
+                doneLabel: EnrollDiscard.keepLabel,
                 onSelect: { _ in
                     discardMenuOpen = false
                     Task { @MainActor in

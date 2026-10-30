@@ -120,14 +120,14 @@ final class EnrollmentBrowseActionsTests: XCTestCase {
     private let feedJSON = #"{"success":true,"sections":[{"group":{"id":"g1","name":"Young Professionals","coverImageUrl":null,"leader":{"id":"u1","name":"Luke Keith"}},"items":[{"kind":"enrollment","id":"e1","studyProgram":{"id":"p1","name":"Romans","coverImageUrl":"https://x/p1.png"},"startDate":"2035-01-08","endDate":"2035-02-01","enrolledAt":"2035-01-01T15:00:00.000Z","progress":0.5,"completedMembers":3,"memberCount":12,"plannedMinutes":90,"recencyAt":"2035-01-05T00:00:00.000Z"},{"kind":"draft","draft":{"id":"d1","groupId":"g1","studyProgramId":"p2","startDate":null,"enabledDays":null,"overriddenDates":null,"scheduleDates":null,"smsTime":null,"timezone":null,"syncMode":null,"lessonAccess":null,"createdBy":{"id":"u1","name":"Luke Keith"},"createdAt":"2035-01-01T00:00:00.000Z","updatedAt":"2035-01-04T00:00:00.000Z"},"studyProgram":{"id":"p2","name":"John","coverImageUrl":null},"recencyAt":"2035-01-04T00:00:00.000Z"}]}],"options":{"groups":[{"id":"g1","name":"Young Professionals"}],"leaders":[{"id":"u1","name":"Luke Keith"}]}}"#
 
     func testFeedPathCarriesTheFilterAndTheDeviceZone() {
-        XCTAssertEqual(EnrollmentFeedFilter().path(timeZone: chicago), "/api/enrollments-feed?status=active&tz=America/Chicago")
-        XCTAssertEqual(EnrollmentFeedFilter(orgId: "o1", groupId: "g1", leaderId: "u1", status: .draft).path(timeZone: chicago),
+        XCTAssertEqual(EnrollmentFeedFilter().path(timeZone: chicago), "/api/enrollments-feed?status=all&tz=America/Chicago")
+        XCTAssertEqual(EnrollmentFeedFilter(orgId: "o1", groupId: "g1", leaderId: "u1", statuses: [.draft]).path(timeZone: chicago),
                        "/api/enrollments-feed?orgId=o1&groupId=g1&leaderId=u1&status=draft&tz=America/Chicago")
-        XCTAssertEqual(EnrollmentFeedFilter.Status.allCases.map(\.label), ["Active", "Upcoming", "Completed", "Draft", "All"])
+        XCTAssertEqual(EnrollmentFeedFilter.Status.allCases.map(\.label), ["Active", "Upcoming", "Completed", "Draft"])
     }
 
     func testLoadFeedDecodesAndIsCacheFirst() async throws {
-        api.stub("GET", "/api/enrollments-feed?status=active&tz=America/Chicago", json: feedJSON)
+        api.stub("GET", "/api/enrollments-feed?status=all&tz=America/Chicago", json: feedJSON)
         let actions = EnrollmentActions(api: api, state: state)
         try await actions.loadFeed(filter: EnrollmentFeedFilter(), timeZone: chicago)
         let feed = try XCTUnwrap(state.enrollmentFeed[EnrollmentFeedFilter()])

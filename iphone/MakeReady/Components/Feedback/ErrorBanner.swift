@@ -78,7 +78,7 @@ struct ErrorBanner: View {
 
     private var glyph: String {
         switch kind {
-        case .error: return "exclamationmark.triangle.fill"
+        case .error, .warning: return "exclamationmark.triangle.fill"
         case .notice: return "info.circle.fill"
         }
     }
@@ -87,6 +87,7 @@ struct ErrorBanner: View {
         switch kind {
         case .error: return Color.error
         case .notice: return Color.accentBlue
+        case .warning: return Color.warning
         }
     }
 

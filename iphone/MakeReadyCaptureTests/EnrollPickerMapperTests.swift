@@ -106,6 +106,17 @@ final class EnrollPickerMapperTests: XCTestCase {
         XCTAssertFalse(e.scheduleDone)
     }
 
+    /// Owner 2026-10-30: a start on a turned-off weekday is allowed — the draft starts at the first
+    /// lesson. 2035-01-09 is a Tuesday; Mondays/Wednesdays only → Wed Jan 10 then Mon Jan 15.
+    func testApplyMovesAnOffDayStartToTheFirstLesson() {
+        var d = EnrollmentDraft(id: UUID()); d.setProgram("p1")
+        XCTAssertTrue(EnrollSelectScheduleMapper.apply(start: day("2035-01-09"), end: day("2035-01-15"), days: [1, 3],
+                                                       overrides: [], lessonCount: 2, to: &d))
+        XCTAssertEqual(d.startDate, day("2035-01-10"))
+        XCTAssertEqual(d.scheduleDates, [day("2035-01-10"), day("2035-01-15")])
+        XCTAssertTrue(d.scheduleDone)
+    }
+
     /// A4: the rule's own count guard — Mondays only, one lesson, the first two Mondays switched
     /// off → short of the lesson count, so Select is refused and the draft keeps what it had.
     func testApplyRefusesWhenOverridesExhaustTheIterationCap() {

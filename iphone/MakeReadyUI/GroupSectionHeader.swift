@@ -35,6 +35,10 @@ struct GroupSectionHeader: View {
     /// screen decides the destination".
     /// C-021's `action`, with R-03's no-op default.
     var onOpen: () -> Void = {}
+    /// §4 `onAdd` (owner 2026-10-30) — "Only read when `count` is set. When non-nil, a C-021 add
+    /// GlyphButton sits right of the count and fires `onAdd` only (it never fires `onOpen`).
+    /// `nil` shows no add button".
+    var onAdd: (() -> Void)? = nil
 
     /// §2 Avatar: "**C-038 Avatar** `size=40`". A diameter is C-038's `size` prop, not a
     /// spacing value, so it has no token row (the same way C-021's 24pt glyph box has none).
@@ -47,20 +51,34 @@ struct GroupSectionHeader: View {
 
     @ViewBuilder private var root: some View {
         if let count {
-            // §3 `with-count` / OQ-C-058-2 (amended 2026-10-30): with no arrow to carry the tap,
-            // the whole header is the button. A plain style: no pressed state is designed.
-            SwiftUI.Button(action: onOpen) {
-                row { countText(count) }
-                    .contentShape(Rectangle())
+            if let onAdd {
+                // §3 `with-count-add` (owner 2026-10-30): §2 "Open button (with `count`) — Wraps
+                // identity block and count as ONE button firing `onOpen`. The add button is a
+                // sibling outside it, never nested", gap 16 (`space-card-padding`, owner 2026-10-30).
+                HStack(alignment: .center, spacing: Token.Space.cardPadding) {
+                    openButton(count)
+                    addButton(onAdd)
+                }
+            } else {
+                openButton(count)
             }
-            .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Open \(groupName)")
-            .accessibilityValue(String(count))
-            .accessibilityAddTraits(.isButton)
         } else {
             row { arrow }
         }
+    }
+
+    // §3 `with-count` / OQ-C-058-2 (amended 2026-10-30): with no arrow to carry the tap, the
+    // identity block and count are the button. A plain style: no pressed state is designed.
+    private func openButton(_ count: Int) -> some View {
+        SwiftUI.Button(action: onOpen) {
+            row { countText(count) }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Open \(groupName)")
+        .accessibilityValue(String(count))
+        .accessibilityAddTraits(.isButton)
     }
 
     // §2 Root: "Horizontal stack, gap **8** (`space-element-gap`), cross-axis **centre**".
@@ -71,12 +89,12 @@ struct GroupSectionHeader: View {
         }
     }
 
-    // §2 Count (owner 2026-10-30, C-037 ListResultRow's count look): "`type-body-sm` Regular
-    // 14/20 in `color-accent`, one line, trailing, in place of the arrow".
+    // §2 Count (owner 2026-10-30): "`type-body-sm` Regular 14/20, one line, trailing, in place of
+    // the arrow", in `color-white-50` — the leader name's colour (owner 2026-10-30, was `color-accent`).
     private func countText(_ count: Int) -> some View {
         Text(String(count))
             .designTextStyle(Token.TypeStyle.bodySm)
-            .foregroundStyle(Token.accent)
+            .foregroundStyle(Token.white50)
             .lineLimit(1)
             .fixedSize()
             .frame(height: lineBox(Token.TypeStyle.bodySm))
@@ -146,6 +164,16 @@ struct GroupSectionHeader: View {
             .accessibilityLabel("Open \(groupName)")
             .accessibilityAddTraits(.isButton)
             .ui2Element("Arrow")
+    }
+
+    // §2 Add button (owner 2026-10-30): "**C-021 GlyphButton** `glyph=add`, 24×24 layout box,
+    // 44×44 hit target (deviation 2), to the right of the count … centred on the row".
+    private func addButton(_ onAdd: @escaping () -> Void) -> some View {
+        GlyphButton(glyph: .add, onTap: onAdd)
+            // §4 Accessibility: "label **\"New enrollment for \(groupName)\"**, `.isButton` trait."
+            .accessibilityLabel("New enrollment for \(groupName)")
+            .accessibilityAddTraits(.isButton)
+            .ui2Element("Add button")
     }
 
     private func lineBox(_ style: DesignTextStyle) -> CGFloat {

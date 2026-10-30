@@ -44,6 +44,19 @@ enum EnrollPickerWarnings {
             : "\(date) and \(days.count - 1) more \(days.count == 2 ? "date" : "dates") clash with \(with)"
     }
 
+    /// Owner 2026-10-30: the Select schedule page's amber note — any schedule is allowed, an overlap
+    /// is only named. One day: "Nov 4 is already scheduled for Foundations of Faith"; several:
+    /// "3 lessons already scheduled from Nov 4 - Nov 12" (first to last clashing day); "" for none.
+    static func scheduleOverlapNote(_ scheduleDates: [Date], existing: [ExistingLesson]) -> String {
+        let days = clashDays(scheduleDates, existing: existing)
+        guard let first = days.first, let last = days.last else { return "" }
+        if days.count == 1 {
+            let program = existing.first { Calendar.current.isDate($0.date, inSameDayAs: first) }?.programName ?? ""
+            return "\(monthDay.string(from: first)) is already scheduled for \(program.isEmpty ? "another enrollment" : program)"
+        }
+        return "\(days.count) lessons already scheduled from \(monthDay.string(from: first)) - \(monthDay.string(from: last))"
+    }
+
     /// The schedule's days that fall on an existing lesson's day, ascending.
     private static func clashDays(_ scheduleDates: [Date], existing: [ExistingLesson]) -> [Date] {
         let cal = Calendar.current

@@ -51,6 +51,19 @@ final class EnrollPickerWarningsTests: XCTestCase {
                        "Nov 4 clashes with another enrollment")
     }
 
+    func testOverlapNoteNamesOneDayOrCountsTheRange() {   // owner 2026-10-30
+        let cal = Calendar(identifier: .gregorian)
+        func d(_ m: Int, _ day: Int, hour: Int = 0) -> Date { cal.date(from: DateComponents(year: 2026, month: m, day: day, hour: hour))! }
+        let existing = [EnrollPickerWarnings.ExistingLesson(date: d(11, 4, hour: 9), programName: "Foundations of Faith"),
+                        EnrollPickerWarnings.ExistingLesson(date: d(11, 6, hour: 9), programName: "Foundations of Faith"),
+                        EnrollPickerWarnings.ExistingLesson(date: d(11, 12, hour: 9), programName: "Walking Through John")]
+        XCTAssertEqual(EnrollPickerWarnings.scheduleOverlapNote([d(11, 3), d(11, 4)], existing: existing),
+                       "Nov 4 is already scheduled for Foundations of Faith")
+        XCTAssertEqual(EnrollPickerWarnings.scheduleOverlapNote([d(11, 4), d(11, 5), d(11, 6), d(11, 12)], existing: existing),
+                       "3 lessons already scheduled from Nov 4 - Nov 12")
+        XCTAssertEqual(EnrollPickerWarnings.scheduleOverlapNote([d(11, 5)], existing: existing), "")
+    }
+
     func testCopy() {
         XCTAssertEqual(EnrollPickerWarnings.alreadyEnrolledMessage, "This group is already enrolled in this program")
     }

@@ -63,8 +63,12 @@ final class EnrollDraftLifecycleTests: XCTestCase {
         XCTAssertTrue(EnrollChecklistContainer.offersDiscard(d))
         d.phase = .processing
         XCTAssertFalse(EnrollChecklistContainer.offersDiscard(d))
-        XCTAssertEqual(EnrollDiscard.action.label, "Discard enrollment")
+        XCTAssertEqual(EnrollDiscard.label, "Discard enrollment")
+        XCTAssertEqual(EnrollDiscard.confirmTitle, "Delete enrollment?")
+        XCTAssertEqual(EnrollDiscard.confirmMessage, "This enrollment will be permanently deleted.")
+        XCTAssertEqual(EnrollDiscard.action.label, "Delete enrollment")
         XCTAssertEqual(EnrollDiscard.action.tone, .destructive)
+        XCTAssertEqual(EnrollDiscard.keepLabel, "Never mind, keep it")
     }
 
     func testDiscardDeletesEndsTheFlowAndPops() async {

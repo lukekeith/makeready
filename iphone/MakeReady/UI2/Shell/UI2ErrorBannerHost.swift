@@ -57,7 +57,7 @@ struct UI2ErrorBannerHost: View {
             Text(message)
                 .designTextStyle(Token.TypeStyle.labelEmphasis)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .lineLimit(2)
+                .lineLimit(3)
             if let onRetry {
                 SwiftUI.Button(action: onRetry) {
                     HStack(spacing: 4) {
@@ -77,7 +77,7 @@ struct UI2ErrorBannerHost: View {
         .foregroundStyle(Token.textPrimary)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(kind == .notice ? Token.cardBackground : Token.error)
+        .background(Self.background(kind))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -86,6 +86,16 @@ struct UI2ErrorBannerHost: View {
         .accessibilityIdentifier("ui2-error-banner")
         .onTapGesture { dismiss() }
         .gesture(DragGesture(minimumDistance: 15).onEnded { if $0.translation.height < -20 { dismiss() } })
+    }
+
+    /// Owner 2026-10-29: a notice is `color-emerald-700` — informational, nothing to act on.
+    /// Owner 2026-10-30: a warning is `color-amber-700` — allowed, but worth knowing.
+    static func background(_ kind: AppMessageKind) -> Color {
+        switch kind {
+        case .error: return Token.error
+        case .notice: return Token.emerald700
+        case .warning: return Token.amber700
+        }
     }
 
     private func dismiss() {

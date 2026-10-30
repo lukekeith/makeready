@@ -16,14 +16,15 @@ import SwiftUI
 /// and All at once (`all-at-once`). Only Save commits. C-040 header over two C-047 rows (§2).
 /// Composed only of §4's C-040 and C-047.
 ///
-/// §3 names two states — `one-at-a-time` (row 1 selected) and `all-at-once` (row 2 selected).
-/// There is no loading, empty, error or disabled state: Save is always enabled (§3).
+/// §3 names three states — `unset` (no row selected, Save disabled), `one-at-a-time` (row 1
+/// selected) and `all-at-once` (row 2 selected). There is no loading, empty-list or error state:
+/// Save is enabled exactly when a row is selected (§3).
 struct EnrollmentSelectAccessScreen: View {
 
     /// One §3 state's inputs. Every §3 state is reachable by these alone.
     struct State {
         /// The checklist draft's `lessonAccess` (§5): "one-at-a-time", "all-at-once", or "" when
-        /// unset. Any value outside those two opens on one-at-a-time (§3 opening value).
+        /// unset. Any value outside those two opens on unset (§3 opening value).
         var lessonAccess: String
     }
 
@@ -44,10 +45,11 @@ struct EnrollmentSelectAccessScreen: View {
         self.state = state
         self.onBack = onBack
         self.onSave = onSave
-        // §3 opening value: the saved value when it is one of the two, else the recommended
-        // one-at-a-time.
+        // §3 opening value: the saved value when it is one of the two, else unset ("") — the
+        // recommended option is not preselected (owner ruling 2026-10-30).
         _selection = SwiftUI.State(
-            initialValue: state.lessonAccess == Self.allAtOnce ? Self.allAtOnce : Self.oneAtATime
+            initialValue: [Self.oneAtATime, Self.allAtOnce].contains(state.lessonAccess)
+                ? state.lessonAccess : ""
         )
     }
 
@@ -85,7 +87,7 @@ struct EnrollmentSelectAccessScreen: View {
     }
 
     /// §2 L2: C-040 `style: backAndLink` (D60) — back glyph, centred title, trailing "Save",
-    /// always enabled (§3).
+    /// enabled exactly when a row is selected; disabled in §3 `unset`.
     private var header: some View {
         PageHeader(
             style: .backAndLink,
@@ -93,9 +95,9 @@ struct EnrollmentSelectAccessScreen: View {
             leadingGlyph: .back,
             rightButtons: [],
             trailingLabel: Self.saveLabel,
-            trailingEnabled: true,
+            trailingEnabled: !selection.isEmpty,
             onLeading: onBack,
-            onDone: { onSave(selection) }
+            onDone: { if !selection.isEmpty { onSave(selection) } }
         )
         .ui2Element("C-040 PageHeader")
     }
@@ -126,6 +128,8 @@ struct EnrollmentSelectAccessScreen: View {
 // capture case)
 
 extension EnrollmentSelectAccessScreen.State {
+    /// §3 `unset` — the draft holds no `lessonAccess`.
+    static let unset = Self(lessonAccess: "")
     /// §3 `one-at-a-time` (frame `one-at-a-time`) — the draft holds `one-at-a-time`.
     static let oneAtATime = Self(lessonAccess: "one-at-a-time")
     /// §3 `all-at-once` — the draft holds `all-at-once`.
@@ -133,6 +137,13 @@ extension EnrollmentSelectAccessScreen.State {
 }
 
 // MARK: - Previews (D21) — one per preview, in the fixture's order, inside the device canvas (D22)
+
+#Preview("unset") {
+    EnrollmentSelectAccessScreen(state: .unset)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
 
 #Preview("one-at-a-time") {
     EnrollmentSelectAccessScreen(state: .oneAtATime)

@@ -39,6 +39,11 @@ struct EnrollmentsHomeContainer: View {
             onOpenGroup: { section in
                 if let next = output.groupDestination(section: section) { navigator.push(next) }
             },
+            // Owner 2026-10-30: the header's add → the enroll checklist with that group chosen.
+            onAddEnrollment: { section in
+                guard output.sections.indices.contains(section) else { return }
+                EnrollEntry.open(groupId: output.sections[section].id, studyProgramId: nil, push: { navigator.push($0) })
+            },
             onOpenProgram: { _, row in EnrollDraftOpen.route(output.target(atRow: row), navigator: navigator) },
             onSearchActiveChange: { searchActive = $0 }
         )
@@ -47,8 +52,8 @@ struct EnrollmentsHomeContainer: View {
             if let dimension = openMenu {
                 FilterMenuOverlay(
                     options: EnrollmentsHomeMapper.menu(dimension, options: options, organizations: app.myOrganizations),
-                    selectionMode: .single,
-                    selectedIDs: [EnrollmentsHomeMapper.selectedId(dimension, selection)],
+                    selectionMode: EnrollmentsHomeMapper.isMultiSelect(dimension) ? .multiple : .single,
+                    selectedIDs: EnrollmentsHomeMapper.selectedIds(dimension, selection),
                     onSelect: { option in
                         selection = EnrollmentsHomeMapper.selecting(option, in: dimension, selection)
                         openMenu = nil
@@ -58,7 +63,11 @@ struct EnrollmentsHomeContainer: View {
                         selection = EnrollmentsHomeMapper.clearing(dimension, selection)
                         openMenu = nil
                     },
-                    clearEnabled: !EnrollmentsHomeMapper.isAtRest(dimension, selection)
+                    clearEnabled: !EnrollmentsHomeMapper.isAtRest(dimension, selection),
+                    onSave: EnrollmentsHomeMapper.isMultiSelect(dimension) ? { ids in
+                        selection = EnrollmentsHomeMapper.savingStatuses(ids, selection)
+                        openMenu = nil
+                    } : nil
                 )
             }
         }

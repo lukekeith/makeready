@@ -24,7 +24,9 @@ enum EnrollSelectScheduleMapper {
                       to draft: inout EnrollmentDraft) -> Bool {
         guard let dates = EnrollScheduleMath.dates(start: start, days: days, overrides: overrides,
                                                    lessonCount: lessonCount) else { return false }
-        draft.startDate = start
+        // Owner 2026-10-30: a start on a turned-off weekday is allowed — the schedule starts at its
+        // first lesson.
+        draft.startDate = dates.first ?? start
         draft.enabledDays = days
         draft.overriddenDates = overrides
         draft.scheduleDates = dates

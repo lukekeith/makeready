@@ -14,16 +14,15 @@ import SwiftUI
 /// `EnrollCalendarRepresentable` + `EnrollmentDateState` in `EnrollCalendar.swift`, ported
 /// unchanged. This view is only the controlled (R-01) shell over it: it mirrors the §4 props into
 /// the port's state object, routes the port's taps through the 1.0 page's rules (§2 *Tap*), and
-/// presents the 1.0 page's override dialog and overlap alert from `prompt` (§1 deviation 5).
+/// presents the 1.0 page's override dialog from `prompt` (§1 deviation 5). No overlap alert (§1 deviation 8).
 ///
 /// §2: "It fills the given width and height (it is a scroll body)" — no background, no padding.
 struct DateRangePicker: View {
 
-    /// §4 `prompt` — "`.none`, `.override(Date)` (the dialog) or `.overlap(Date)` (the alert)" (R-36).
+    /// §4 `prompt` — "`.none` or `.override(Date)` (the dialog)" (R-36).
     enum Prompt: Equatable {
         case none
         case override(Date)
-        case overlap(Date)
     }
 
     /// §4 `lessonCount` — "the program's lesson count; drives the end date".
@@ -36,7 +35,7 @@ struct DateRangePicker: View {
     let enabledDays: Set<Int>
     /// §4 `overriddenDates` — "start-of-day dates whose inclusion is flipped".
     let overriddenDates: Set<Date>
-    /// §4 `existingLessonDates` — "days the group already has a lesson (dots + overlap check)".
+    /// §4 `existingLessonDates` — "days the group already has a lesson; draws event dots only".
     let existingLessonDates: Set<Date>
     /// §4 `currentScheduleDates` — "ghost of an existing schedule; the enrollment flow passes `[]`".
     let currentScheduleDates: Set<Date>
@@ -47,7 +46,7 @@ struct DateRangePicker: View {
     /// §4 `onOverriddenDatesChange` — "the override set after a long-press/drag flip, "Remove
     /// Override", or a start pick (empty)".
     var onOverriddenDatesChange: (Set<Date>) -> Void = { _ in }
-    /// §4 `onPromptChange` — "open a prompt (tap rules, §2) or close it (any button, or dismiss → `.none`)".
+    /// §4 `onPromptChange` — "open the override dialog (tap rules, §2) or close it (any button, or dismiss → `.none`)".
     var onPromptChange: (Prompt) -> Void = { _ in }
 
     var body: some View {
@@ -76,7 +75,6 @@ private extension DateRangePicker {
         var body: some View {
             mirrored
                 .modifier(OverridePrompt(picker: picker, title: overrideTitle, message: overrideExplanation))
-                .modifier(OverlapPrompt(picker: picker))
         }
 
         private var mirrored: some View {
@@ -146,24 +144,6 @@ private struct OverridePrompt: ViewModifier {
     }
 }
 
-/// §4 `.overlap(d)` — the 1.0 page's "Lesson already scheduled" alert, verbatim.
-private struct OverlapPrompt: ViewModifier {
-    let picker: DateRangePicker
-
-    func body(content: Content) -> some View {
-        content.alert("Lesson already scheduled", isPresented: promptBinding(picker, \.isOverlap)) {
-            SwiftUI.Button("Choose another date", role: .cancel) {}
-            SwiftUI.Button("Schedule anyway", action: scheduleAnyway)
-        } message: {
-            Text("This member already has a lesson on the selected date. MakeReady recommends one lesson per day per member. Choose another date or schedule anyway if this overlap is intentional.")
-        }
-    }
-
-    private func scheduleAnyway() {
-        if case .overlap(let date) = picker.prompt { picker.pick(date, force: false) }
-    }
-}
-
 /// §4: any button, or a dismissal, closes the prompt → `onPromptChange(.none)`.
 private func promptBinding(_ picker: DateRangePicker, _ kind: KeyPath<DateRangePicker.Prompt, Bool>) -> Binding<Bool> {
     Binding(
@@ -174,7 +154,6 @@ private func promptBinding(_ picker: DateRangePicker, _ kind: KeyPath<DateRangeP
 
 private extension DateRangePicker.Prompt {
     var isOverride: Bool { if case .override = self { return true } else { return false } }
-    var isOverlap: Bool { if case .overlap = self { return true } else { return false } }
 }
 
 // MARK: - The 1.0 page's rules, emitted instead of applied
@@ -199,47 +178,15 @@ private extension DateRangePicker {
         return state
     }
 
-    /// 1.0 `handleDateSelection`: the overlap check runs first (ported quirk, §2), then the pick.
+    /// 1.0 `handleDateSelection`, less the overlap check (§1 deviation 8) and the included check
+    /// (§1 deviation 9): any day ≥ `today` becomes the start (§2 *Tap*).
     func handleDateSelection(_ date: Date) {
-        let calendar = Foundation.Calendar.current
-        let overlapping = calculatePotentialDates(startingFrom: date).contains { potential in
-            existingLessonDates.contains(calendar.startOfDay(for: potential))
-        }
-        if overlapping {
-            onPromptChange(.overlap(date))
-        } else {
-            pick(date, force: false)
-        }
+        pick(date, force: true)
     }
 
-    /// 1.0 `calculatePotentialDates`: the would-be schedule from `startDate`, overrides applied.
-    func calculatePotentialDates(startingFrom startDate: Date) -> Set<Date> {
-        let calendar = Foundation.Calendar.current
-        var dates: Set<Date> = []
-        var currentDate = startDate
-        var lessonsScheduled = 0
-        let maxIterations = lessonCount * 10
-
-        for _ in 0..<maxIterations {
-            let weekday = calendar.component(.weekday, from: currentDate) - 1
-            let isWeekdayEnabled = enabledDays.contains(weekday)
-            let dayStart = calendar.startOfDay(for: currentDate)
-            let isOverridden = overriddenDates.contains(dayStart)
-
-            if isWeekdayEnabled != isOverridden {
-                dates.insert(dayStart)
-                lessonsScheduled += 1
-                if lessonsScheduled >= lessonCount { break }
-            }
-
-            guard let nextDate = calendar.date(byAdding: .day, value: 1, to: currentDate) else { break }
-            currentDate = nextDate
-        }
-        return dates
-    }
-
-    /// The port's `selectStartDate(_:force:)` on a scratch copy: its past / included guards decide,
-    /// and a pass emits the new start, then the cleared override set (§4 `onStartDateChange`).
+    /// The port's `selectStartDate(_:force:)` on a scratch copy: its past guard (and, unforced, its
+    /// included guard) decides, and a pass emits the new start, then the cleared override set
+    /// (§4 `onStartDateChange`).
     func pick(_ date: Date, force: Bool) {
         let scratch = makeState()
         scratch.startDate = nil

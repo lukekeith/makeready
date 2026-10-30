@@ -4,7 +4,7 @@ import Foundation
 /// The `AppState.enrollmentFeed` key: one cached answer per filter.
 struct EnrollmentFeedFilter: Hashable {
     enum Status: String, CaseIterable {
-        case active, upcoming, completed, draft, all
+        case active, upcoming, completed, draft
         /// D8: the chip and menu text, in the menu's order.
         var label: String {
             switch self {
@@ -12,7 +12,6 @@ struct EnrollmentFeedFilter: Hashable {
             case .upcoming: return "Upcoming"
             case .completed: return "Completed"
             case .draft: return "Draft"
-            case .all: return "All"
             }
         }
     }
@@ -20,7 +19,13 @@ struct EnrollmentFeedFilter: Hashable {
     var orgId: String?
     var groupId: String?
     var leaderId: String?
-    var status: Status = .active
+    /// Owner 2026-10-29: multi-select; empty = every status (sent as `all`).
+    var statuses: Set<Status> = []
+
+    /// `active,draft` in the menu's order; `all` when nothing is picked.
+    var statusParam: String {
+        statuses.isEmpty ? "all" : Status.allCases.filter(statuses.contains).map(\.rawValue).joined(separator: ",")
+    }
 
     /// The request path; `tz` is the device zone (D8's "today").
     func path(timeZone: TimeZone) -> String {
@@ -30,7 +35,7 @@ struct EnrollmentFeedFilter: Hashable {
             orgId.map { URLQueryItem(name: "orgId", value: $0) },
             groupId.map { URLQueryItem(name: "groupId", value: $0) },
             leaderId.map { URLQueryItem(name: "leaderId", value: $0) },
-            URLQueryItem(name: "status", value: status.rawValue),
+            URLQueryItem(name: "status", value: statusParam),
             URLQueryItem(name: "tz", value: timeZone.identifier)
         ].compactMap { $0 }
         return c.string ?? c.path

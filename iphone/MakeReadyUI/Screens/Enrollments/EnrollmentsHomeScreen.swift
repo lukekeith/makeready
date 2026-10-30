@@ -95,6 +95,9 @@ struct EnrollmentsHomeScreen: View {
     var onSearch: (String) -> Void = { _ in }       // §3: live local text filter (300ms, min 2)
     var onOpenFilter: (String) -> Void = { _ in }   // §3: chip tap → C-036 for that dimension
     var onOpenGroup: (Int) -> Void = { _ in }       // §3: C-058 header tap → groups-detail, by section
+    /// Owner 2026-10-30: C-058's add button → a new enrollment for that section's group. nil draws
+    /// no add button (the previews).
+    var onAddEnrollment: ((Int) -> Void)?
     /// §3: row tap → `onOpenProgram(section, row)` — enrollment and draft rows alike; the host
     /// decides the destination.
     var onOpenProgram: (Int, Int) -> Void = { _, _ in }
@@ -112,6 +115,7 @@ struct EnrollmentsHomeScreen: View {
         onSearch: @escaping (String) -> Void = { _ in },
         onOpenFilter: @escaping (String) -> Void = { _ in },
         onOpenGroup: @escaping (Int) -> Void = { _ in },
+        onAddEnrollment: ((Int) -> Void)? = nil,
         onOpenProgram: @escaping (Int, Int) -> Void = { _, _ in },
         onSearchActiveChange: @escaping (Bool) -> Void = { _ in }
     ) {
@@ -119,6 +123,7 @@ struct EnrollmentsHomeScreen: View {
         self.onSearch = onSearch
         self.onOpenFilter = onOpenFilter
         self.onOpenGroup = onOpenGroup
+        self.onAddEnrollment = onAddEnrollment
         self.onOpenProgram = onOpenProgram
         self.onSearchActiveChange = onSearchActiveChange
         _query = SwiftUI.State(initialValue: state.searchText)
@@ -287,7 +292,8 @@ struct EnrollmentsHomeScreen: View {
                 // §2 (2026-10-30): the header shows the group's enrollment count — its rows,
                 // drafts included — in place of the arrow, and the whole header opens the group.
                 count: visibleRows(in: section).count,
-                onOpen: { onOpenGroup(section) }
+                onOpen: { onOpenGroup(section) },
+                onAdd: onAddEnrollment.map { add in { add(section) } }
             )
             .ui2Element(Self.partName("C-058 GroupSectionHeader", ordinal: ordinal))
             switch state.programLayout {

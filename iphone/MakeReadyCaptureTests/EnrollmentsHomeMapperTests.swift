@@ -64,7 +64,10 @@ final class EnrollmentsHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.groupPhotoURLs, ["https://x/g1.png", ""])
         XCTAssertEqual(s.programGroupIndexes, [0, 0, 1])
         XCTAssertEqual(s.programTitles, ["Romans", "John", "Daily Inspiration"])
-        XCTAssertEqual(s.programProgress, [0.5, 0, 1])
+        XCTAssertEqual(s.programProgress, [0.5, 2.0 / 6, 1])                  // a draft: its checklist steps
+        XCTAssertEqual(s.programLayout, .rail)                                 // owner 2026-10-30: ObjectCards
+        XCTAssertEqual(s.programMemberCounts, ["12", "", "4"])
+        XCTAssertEqual(s.programDayCounts, ["", "", ""])                       // no program in the store
         XCTAssertEqual(s.programCompleteCounts, ["3/12", "", "4/4"])          // D16
         XCTAssertEqual(s.programHours, ["1.5", "", "12"])                      // D12
         XCTAssertEqual(s.programEnrolledDates, ["Jan 1, 2035", "", "Jan 1, 2035"])
@@ -73,6 +76,13 @@ final class EnrollmentsHomeMapperTests: XCTestCase {
         XCTAssertEqual(s.programDraftStarters, ["", "Started by Luke Keith", ""])
         XCTAssertFalse(s.loading); XCTAssertFalse(s.failed)
         XCTAssertEqual(s.searchText, "")                                       // D27: the screen filters locally
+    }
+
+    func testADraftCardShowsItsProgramsDays() {
+        let program = StudyProgram(id: "p2", name: "John", days: 21)
+        let o = EnrollmentsHomeMapper.output(.init(feed: feed([draftItem(draft("d1"))]), program: { $0 == "p2" ? program : nil }),
+                                             today: today, timeZone: zone)
+        XCTAssertEqual(o.state.programDayCounts, ["21", ""])
     }
 
     func testRowTargetsAndGroupArrow() {
@@ -118,18 +128,33 @@ final class EnrollmentsHomeMapperTests: XCTestCase {
         var sel = EnrollmentsHomeMapper.Selection()
         var s = output(nil, selection: sel).state
         XCTAssertEqual([s.orgFilterLabel, s.groupFilterLabel, s.leaderFilterLabel, s.statusFilterLabel],
-                       ["All Orgs", "All groups", "All Leaders", "Active"])
+                       ["All Orgs", "All groups", "All Leaders", "Status"])
         sel = EnrollmentsHomeMapper.selecting(.init(id: "o1", label: "Grace Church"), in: .orgs, sel)
         sel = EnrollmentsHomeMapper.selecting(.init(id: "draft", label: "Draft"), in: .status, sel)
         s = output(nil, selection: sel).state
         XCTAssertEqual(s.orgFilterLabel, "Grace Church")
         XCTAssertEqual(s.statusFilterLabel, "Draft")
-        XCTAssertEqual(sel.filter, EnrollmentFeedFilter(orgId: "o1", status: .draft))
+        XCTAssertEqual(sel.filter, EnrollmentFeedFilter(orgId: "o1", statuses: [.draft]))
         sel = EnrollmentsHomeMapper.selecting(.init(id: "", label: "All Orgs"), in: .orgs, sel)   // D15: "All Orgs" = no orgId
         XCTAssertNil(sel.filter.orgId)
         sel = EnrollmentsHomeMapper.clearing(.status, sel)
-        XCTAssertEqual(sel.filter.status, .active)
+        XCTAssertEqual(sel.filter.statuses, [])
         XCTAssertTrue(EnrollmentsHomeMapper.isAtRest(.status, sel))
+    }
+
+    func testStatusIsMultiSelectAndEmptyMeansAll() {                         // owner 2026-10-29
+        var sel = EnrollmentsHomeMapper.Selection()
+        XCTAssertTrue(EnrollmentsHomeMapper.isMultiSelect(.status))
+        XCTAssertFalse(EnrollmentsHomeMapper.isMultiSelect(.orgs))
+        XCTAssertEqual(sel.filter.statusParam, "all")
+        sel = EnrollmentsHomeMapper.savingStatuses(["draft", "active"], sel)
+        XCTAssertEqual(sel.filter.statusParam, "active,draft")
+        XCTAssertEqual(output(nil, selection: sel).state.statusFilterLabel, "2 statuses")
+        XCTAssertFalse(EnrollmentsHomeMapper.isAtRest(.status, sel))
+        sel = EnrollmentsHomeMapper.savingStatuses(["upcoming"], sel)
+        XCTAssertEqual(output(nil, selection: sel).state.statusFilterLabel, "Upcoming")
+        sel = EnrollmentsHomeMapper.savingStatuses([], sel)
+        XCTAssertEqual(output(nil, selection: sel).state.statusFilterLabel, "Status")
     }
 
     func testMenus() throws {
@@ -139,8 +164,8 @@ final class EnrollmentsHomeMapperTests: XCTestCase {
         XCTAssertEqual(EnrollmentsHomeMapper.menu(.groups, options: options, organizations: orgs).map(\.id), ["g1"])
         XCTAssertEqual(EnrollmentsHomeMapper.menu(.leaders, options: options, organizations: orgs).map(\.label), ["Luke Keith"])
         XCTAssertEqual(EnrollmentsHomeMapper.menu(.status, options: nil, organizations: []).map(\.label),
-                       ["Active", "Upcoming", "Completed", "Draft", "All"])
-        XCTAssertEqual(EnrollmentsHomeMapper.selectedId(.orgs, .init()), "")      // "All Orgs" checked at rest
-        XCTAssertEqual(EnrollmentsHomeMapper.selectedId(.status, .init()), "active")
+                       ["Active", "Upcoming", "Completed", "Draft"])
+        XCTAssertEqual(EnrollmentsHomeMapper.selectedIds(.orgs, .init()), [""])   // "All Orgs" checked at rest
+        XCTAssertEqual(EnrollmentsHomeMapper.selectedIds(.status, .init()), [])
     }
 }

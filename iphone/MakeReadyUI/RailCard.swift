@@ -262,10 +262,12 @@ struct RailCard: View {
                 intro: intro
             )
         case .percentCircle:
-            // §2b: "a 97×86 `Percent` wrapper centring an 80×80 C-062 PercentDisc at (8.5, 3)".
-            // §5: "at its 80pt size" — C-062's `Green 1` is the 80pt diameter; the colour is
-            // C-062's ramp from `percent`, never chosen here (§4, OQ-C-023-008).
-            PercentDisc(percent: percent ?? 0, size: .green1)
+            // §2b: a 97×86 `Percent` wrapper centring a C-062 PercentDisc "whose diameter
+            // follows `percent`" — 40 at 0% to 80 at 100%, linear, clamped (owner ruling
+            // 2026-10-30). The disc's 80×80 slot is centred, so the disc stays centred on
+            // (48.5, 43) at every diameter. The colour is C-062's ramp from `percent`, never
+            // chosen here (§4, OQ-C-023-008). `size` is overridden by `diameter`.
+            PercentDisc(percent: percent ?? 0, size: .green1, diameter: Self.discDiameter(for: percent ?? 0))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .ui2Element("Percent")
         }
@@ -311,6 +313,17 @@ struct RailCard: View {
     private static let valuePairHeight: CGFloat = 36           // §2b slot 3
     private static let chartBodyHeight: CGFloat = 68           // §2b: `standard`'s body slot
     private static let openBodyHeight: CGFloat = 86            // §2b: `transparent` / `percentCircle`
+
+    /// §2b: `diameter = 40 + (80 − 40) × clamp(percent, 0, 100) / 100` — continuous, not
+    /// rounded to C-062's six named sizes. 40 is C-062's `size6`, 80 its `Green 1`.
+    private static func discDiameter(for percent: Int) -> CGFloat {
+        let p = CGFloat(min(max(percent, 0), 100))
+        return minDiscDiameter + (maxDiscDiameter - minDiscDiameter) * p / 100
+    }
+
+    private static let minDiscDiameter = PercentDisc.Size.size6.diameter     // §2b: 40
+    private static let maxDiscDiameter = PercentDisc.Size.green1.diameter    // §2b: 80
+
     private static let titleLineCap = 2                        // §3c / OQ-C-023-002 (closed)
 
     // §2a: "1px `color-card-border` inside the frame"; §2b: "1px border + 16".

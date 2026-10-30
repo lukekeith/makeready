@@ -50,8 +50,15 @@ struct ActionMenuOverlay: View {
         var id: String { "\(glyph)|\(label)" }
     }
 
+    /// §4 `title` (owner 2026-10-29, §3 Confirmation): non-empty draws the confirmation header
+    /// above the actions. nil or empty = the Default menu, header absent.
+    var title: String? = nil
+    /// §4 `message`: the description below the title. Drawn only when `title` is non-empty.
+    var message: String? = nil
     /// §4: `actions: [ActionItem]` — closed per instantiation (§1 deviation 1).
     let actions: [ActionItem]
+    /// §4 `doneLabel`: the bottom prominent button's label (§3 Confirmation: "Never mind, keep it").
+    var doneLabel: String = "Done"
     /// §4: `onSelect(action)`. Interaction-bearing, so it has no render effect; emitted as a
     /// defaulted no-op so the promoted view keeps its real signature (OQ-PB-3).
     var onSelect: (ActionItem) -> Void = { _ in }
@@ -77,8 +84,18 @@ struct ActionMenuOverlay: View {
     var body: some View {
         // §2: "internal gap 16" — between the actions list and the Done button.
         VStack(spacing: Self.gap) {
+            if let title, !title.isEmpty {
+                header(title: title).ui2Element("Header")
+            }
             if let confirmLabel {
                 PageActionButton(label: confirmLabel, role: Self.confirmRole, onTap: onConfirm).ui2Element("Confirm")
+            } else if isConfirmation {
+                // §3 Confirmation (revised 2026-10-29): each action is a full-width C-048, label
+                // centred, no glyph, no chevron, no hairline — stacked with the card's 16 gap.
+                ForEach(Array(actions.enumerated()), id: \.element.id) { index, action in
+                    PageActionButton(label: action.label, role: Self.confirmationRole(action.tone)) { onSelect(action) }
+                        .ui2Element("Action \(index + 1)")
+                }
             } else {
                 actionsList.ui2Element("Actions list")
             }
@@ -94,6 +111,14 @@ struct ActionMenuOverlay: View {
         // §2: "Container: `color-modal-background` fill, `radius-modal` (16)".
         .background(Token.modalBackground, in: RoundedRectangle(cornerRadius: Token.Radius.modal))
         .ui2Element("ActionMenuOverlay")            // capture element map — UI2Element.swift
+    }
+
+    /// §3 Confirmation: set when `title` is non-empty.
+    private var isConfirmation: Bool { !(title ?? "").isEmpty }
+
+    /// §3 Confirmation: an action's C-048 role by its tone — destructive → Red, standard → Muted.
+    static func confirmationRole(_ tone: ActionMenuRow.Tone) -> PageActionButton.Role {
+        tone == .destructive ? .destructive : .secondary
     }
 
     /// §2: "Actions list — N × C-067 ActionMenuRow, each followed by a 1px
@@ -117,6 +142,25 @@ struct ActionMenuOverlay: View {
         }
     }
 
+    /// §3 Confirmation: the bold white title, then the message 8pt below it — left-aligned,
+    /// full card width. §4 (R-17): the title is an accessibility header, read before the rows.
+    private func header(title: String) -> some View {
+        VStack(alignment: .leading, spacing: Token.Space.elementGap) {
+            Text(title)
+                .designTextStyle(Token.TypeStyle.titleCard)
+                .foregroundStyle(Token.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+                .ui2Element("Title")
+            if let message, !message.isEmpty {
+                Text(message)
+                    .designTextStyle(Token.TypeStyle.bodySm)
+                    .foregroundStyle(Token.white50)
+                    .ui2Element("Message")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
     private var hairline: some View {
         Rectangle()
             .fill(Token.layoutBorder)
@@ -132,7 +176,7 @@ struct ActionMenuOverlay: View {
     /// §2 item 2: "C-048 PageActionButton, `color=White` — white FILL (not bordered), r8,
     /// centered label 'Done'" — 44pt tall, C-048's own height (owner ruling 2026-10-28).
     private var doneButton: some View {
-        PageActionButton(label: "Done", role: Self.doneRole(confirming: confirmLabel != nil), onTap: onDone)
+        PageActionButton(label: doneLabel, role: Self.doneRole(confirming: confirmLabel != nil), onTap: onDone)
     }
 
     /// The confirmation button's C-048 look (Figma 4733:53757).

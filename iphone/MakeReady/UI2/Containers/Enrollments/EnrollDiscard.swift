@@ -6,9 +6,12 @@ import SwiftUI
 @MainActor
 enum EnrollDiscard {
     static let label = "Discard enrollment"
+    /// D29 (owner 2026-10-29): the C-066 Confirmation form, worded as its example.
+    static let confirmTitle = "Delete enrollment?"
+    static let confirmMessage = "This enrollment will be permanently deleted."
+    static let keepLabel = "Never mind, keep it"
+    static let action = ActionMenuOverlay.ActionItem(glyph: "trash-2", label: "Delete enrollment", tone: .destructive)
     static let failedMessage = "Couldn't discard the draft"
-    /// D29: the C-066 menu's one row; its Done keeps editing.
-    static let action = ActionMenuOverlay.ActionItem(glyph: "trash-2", label: label, tone: .destructive)
 
     @discardableResult
     static func run(flowId: UUID, state: AppState? = nil, actions: EnrollmentDraftActions? = nil,

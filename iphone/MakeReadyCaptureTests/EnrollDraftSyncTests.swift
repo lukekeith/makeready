@@ -177,6 +177,16 @@ final class EnrollDraftSyncTests: XCTestCase {
         XCTAssertEqual(st.enrollmentDraftBaselines[id], d)
         XCTAssertFalse(gone)                                                   // no navigation
         XCTAssertEqual(api.callCount("PATCH", "/api/enrollment-drafts/d1"), 1) // a 409 is not retried
+        XCTAssertEqual(st.activeSurfacedError?.kind, .notice)                  // owner 2026-10-29
+        XCTAssertEqual(st.activeSurfacedError?.message,
+                       EnrollDraftSync.existsMessage(groupName: nil, programName: nil))
+    }
+
+    func testTheExistsNoticeNamesThePair() {                                 // owner 2026-10-29
+        XCTAssertEqual(EnrollDraftSync.existsMessage(groupName: "Tuesday's Men's Group", programName: "Walking Through John"),
+                       "Tuesday's Men's Group already has a draft for Walking Through John. Opened it so you can pick up where you left off.")
+        XCTAssertEqual(EnrollDraftSync.existsMessage(groupName: "", programName: nil),
+                       "This group already has a draft for this program. Opened it so you can pick up where you left off.")
     }
 
     func testA404EndsTheFlowWithTheGoneBanner() async {                       // D30

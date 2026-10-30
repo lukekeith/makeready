@@ -6,6 +6,8 @@ enum EnrollmentsHomeMapper {
     static let allOrgsLabel = "All Orgs"
     static let allGroupsLabel = "All groups"
     static let allLeadersLabel = "All Leaders"
+    /// Owner 2026-10-29: the status chip at rest — no status picked shows every status.
+    static let restingStatusLabel = "Status"
 
     /// The four chips, by the dimension name the screen's `onOpenFilter` passes.
     enum Dimension: String, CaseIterable { case orgs = "Orgs", groups = "Groups", leaders = "Leaders", status = "Status" }
@@ -18,10 +20,10 @@ enum EnrollmentsHomeMapper {
         var groupLabel: String?
         var leaderId: String?
         var leaderLabel: String?
-        var status: EnrollmentFeedFilter.Status = .active
+        var statuses: Set<EnrollmentFeedFilter.Status> = []
 
         var filter: EnrollmentFeedFilter {
-            EnrollmentFeedFilter(orgId: orgId, groupId: groupId, leaderId: leaderId, status: status)
+            EnrollmentFeedFilter(orgId: orgId, groupId: groupId, leaderId: leaderId, statuses: statuses)
         }
     }
 
@@ -56,6 +58,7 @@ enum EnrollmentsHomeMapper {
         var indexes: [Int] = [], titles: [String] = [], progress: [Double] = []
         var completes: [String] = [], hoursLabels: [String] = [], enrolled: [String] = [], covers: [String] = []
         var draftLabels: [String] = [], starters: [String] = []
+        var memberCounts: [String] = [], dayCounts: [String] = []
         var targets: [EnrollmentRowTarget] = []
         for (sectionIndex, section) in sections.enumerated() {
             for item in section.items {
@@ -66,7 +69,12 @@ enum EnrollmentsHomeMapper {
                     let n = draftCompletedSteps(wire, group: input.group(wire.groupId), program: input.program(wire.studyProgramId),
                                                 groupName: section.group.name, programName: item.studyProgram.name,
                                                 today: today, timeZone: timeZone)
-                    progress.append(0); completes.append(""); hoursLabels.append(""); enrolled.append("")
+                    // Rail (owner 2026-10-30): a pending card's line is the checklist's step progress,
+                    // its days row the program's length.
+                    progress.append(Double(n) / Double(checklistSteps))
+                    completes.append(""); hoursLabels.append(""); enrolled.append("")
+                    memberCounts.append("")
+                    dayCounts.append(input.program(wire.studyProgramId).map { "\($0.days)" } ?? "")
                     draftLabels.append(draftLabel(completed: n))
                     starters.append(starterLabel(wire.createdBy?.name))
                     targets.append(.draft(wire, groupName: section.group.name, programName: item.studyProgram.name))
@@ -76,6 +84,7 @@ enum EnrollmentsHomeMapper {
                     hoursLabels.append(hours(minutes: item.plannedMinutes ?? 0))                       // D12
                     enrolled.append(item.enrolledAt.flatMap(MembersHomeMapper.parseDate)
                         .map { MembersHomeMapper.mediumDate($0, timeZone: timeZone) } ?? "")
+                    memberCounts.append("\(item.memberCount ?? 0)"); dayCounts.append("")
                     draftLabels.append(""); starters.append("")
                     targets.append(.enrollment(id: item.id ?? "", name: item.studyProgram.name))
                 }
@@ -87,7 +96,9 @@ enum EnrollmentsHomeMapper {
             orgFilterLabel: sel.orgLabel ?? allOrgsLabel,
             groupFilterLabel: sel.groupLabel ?? allGroupsLabel,
             leaderFilterLabel: sel.leaderLabel ?? allLeadersLabel,
-            statusFilterLabel: sel.status.label,
+            statusFilterLabel: FilterMenuOverlay.chipLabel(
+                picked: EnrollmentFeedFilter.Status.allCases.filter(sel.statuses.contains).map(\.label),
+                resting: restingStatusLabel, noun: "statuses"),
             loading: input.loading && input.feed == nil,
             failed: input.failed && input.feed == nil,
             groupNames: sections.map(\.group.name),
@@ -103,6 +114,10 @@ enum EnrollmentsHomeMapper {
         )
         state.programDraftLabels = draftLabels                                          // D14.1
         state.programDraftStarters = starters
+        // Owner 2026-10-30: each group's entries as a rail of C-033 ObjectCards.
+        state.programLayout = .rail
+        state.programMemberCounts = memberCounts
+        state.programDayCounts = dayCounts
         return Output(state: state, rowTargets: targets, sections: sections.map(\.group))
     }
 
@@ -112,7 +127,10 @@ enum EnrollmentsHomeMapper {
         return tenths % 10 == 0 ? "\(tenths / 10)" : "\(tenths / 10).\(tenths % 10)"
     }
 
-    static func draftLabel(completed: Int) -> String { "Draft · \(completed)/6" }
+    /// The enroll checklist's step count (D14.3).
+    static let checklistSteps = 6
+
+    static func draftLabel(completed: Int) -> String { "Draft · \(completed)/\(checklistSteps)" }
 
     /// D7: "Started by «name»"; no starter (a deleted user, F9) → "".
     static func starterLabel(_ name: String?) -> String {
@@ -133,7 +151,8 @@ enum EnrollmentsHomeMapper {
         return GroupsEnrollProgramScreen.completedSteps(state)
     }
 
-    // MARK: - The four C-036 menus (D8, D13, D15) — single pick; Clear returns the chip to rest
+    // MARK: - The four C-036 menus (D8, D13, D15) — single pick, except Status (multi-select, owner
+    // 2026-10-29); Clear returns the chip to rest
 
     static func menu(_ dimension: Dimension, options: EnrollmentFeedOptions?,
                      organizations: [OrganizationData]) -> [FilterMenuOverlay.Option] {
@@ -149,13 +168,23 @@ enum EnrollmentsHomeMapper {
         }
     }
 
-    static func selectedId(_ dimension: Dimension, _ s: Selection) -> String {
+    /// Status picks several (Save applies them); the other three pick one.
+    static func isMultiSelect(_ dimension: Dimension) -> Bool { dimension == .status }
+
+    static func selectedIds(_ dimension: Dimension, _ s: Selection) -> Set<String> {
         switch dimension {
-        case .orgs: return s.orgId ?? ""
-        case .groups: return s.groupId ?? ""
-        case .leaders: return s.leaderId ?? ""
-        case .status: return s.status.rawValue
+        case .orgs: return [s.orgId ?? ""]
+        case .groups: return [s.groupId ?? ""]
+        case .leaders: return [s.leaderId ?? ""]
+        case .status: return Set(s.statuses.map(\.rawValue))
         }
+    }
+
+    /// The Status menu's Save.
+    static func savingStatuses(_ ids: Set<String>, _ s: Selection) -> Selection {
+        var next = s
+        next.statuses = Set(ids.compactMap(EnrollmentFeedFilter.Status.init(rawValue:)))
+        return next
     }
 
     static func selecting(_ option: FilterMenuOverlay.Option, in dimension: Dimension, _ s: Selection) -> Selection {
@@ -165,16 +194,16 @@ enum EnrollmentsHomeMapper {
         case .orgs: next.orgId = id; next.orgLabel = id == nil ? nil : option.label
         case .groups: next.groupId = id; next.groupLabel = id == nil ? nil : option.label
         case .leaders: next.leaderId = id; next.leaderLabel = id == nil ? nil : option.label
-        case .status: next.status = EnrollmentFeedFilter.Status(rawValue: option.id) ?? .active
+        case .status: next.statuses = Set([EnrollmentFeedFilter.Status(rawValue: option.id)].compactMap { $0 })
         }
         return next
     }
 
     static func clearing(_ dimension: Dimension, _ s: Selection) -> Selection {
-        selecting(.init(id: dimension == .status ? EnrollmentFeedFilter.Status.active.rawValue : "", label: ""), in: dimension, s)
+        selecting(.init(id: "", label: ""), in: dimension, s)
     }
 
     static func isAtRest(_ dimension: Dimension, _ s: Selection) -> Bool {
-        dimension == .status ? s.status == .active : selectedId(dimension, s).isEmpty
+        dimension == .status ? s.statuses.isEmpty : selectedIds(dimension, s) == [""]
     }
 }

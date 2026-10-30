@@ -34,9 +34,12 @@ enum AppMessageKind {
     /// Something failed. Red, warning glyph.
     case error
     /// Nothing failed — the app is stating a fact the user needs
-    /// ("All lessons in this study are already scheduled"). Neutral styling,
+    /// ("All lessons in this study are already scheduled"). Emerald-700 in the 2.0 banner (owner 2026-10-29),
     /// no retry: there is nothing to re-run.
     case notice
+    /// Nothing failed, but the user should know before going on (owner 2026-10-30: a schedule
+    /// that overlaps the group's lessons). Amber-700 in the 2.0 banner, no retry.
+    case warning
 }
 
 struct AppError: Identifiable {
@@ -393,6 +396,13 @@ final class AppState {
             kind: .notice,
             surface: true
         )
+        Log.state.info("\(context, privacy: .public): \(message, privacy: .public)")
+    }
+
+    /// A heads-up about what the user just did — allowed, but worth knowing (amber). Like a notice:
+    /// no retry, not added to the `errors` history.
+    func showWarning(_ message: String, context: String) {
+        activeSurfacedError = AppError(context: context, message: message, kind: .warning, surface: true)
         Log.state.info("\(context, privacy: .public): \(message, privacy: .public)")
     }
 

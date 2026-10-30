@@ -61,6 +61,14 @@ struct PercentDisc: View {
     /// consumer (OQ-C-062-11's policy — "a consumer supplies statusColor only when a sibling
     /// element must agree with the disc"). `nil` leaves every existing capture unchanged.
     var statusColor: Color?
+    /// C-062: an optional continuous diameter. When given it replaces `size`'s named diameter;
+    /// omitted ⇒ the six sizes of §3a, so every existing consumer is unchanged.
+    ///
+    /// Added 2026-10-30 for C-023 RailCard `day · percentCircle`, whose disc diameter follows
+    /// `percent` from 40 to 80 (C-023 §2b, owner ruling 2026-10-30). The 80×80 slot does not
+    /// change. C-062's own contract still holds the diameter independent of `percent`
+    /// (OQ-C-062-9) — the mapping is the consumer's, not this row's.
+    var diameter: CGFloat?
 
     var body: some View {
         // §2: Slot — 80×80 in every variant, no fill, contents centred on both axes. This is
@@ -77,9 +85,14 @@ struct PercentDisc: View {
         // PARSED (it is "50%", not a point value), so the shape is what names it.
         Circle()
             .fill(discColor.opacity(Self.groundOpacity))
-            .frame(width: size.diameter, height: size.diameter)
+            .frame(width: discDiameter, height: discDiameter)
             .overlay(numberBlock)
             .ui2Element("Disc")
+    }
+
+    /// The continuous `diameter` when a consumer gives one, else `size`'s named diameter.
+    private var discDiameter: CGFloat {
+        diameter ?? size.diameter
     }
 
     /// §2: the number block is **28×24 and identical in all six variants** — it does not scale

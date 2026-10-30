@@ -549,9 +549,16 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             // defaulted to no-ops in the view (OQ-PB-3).
             return AnyView(
                 MakeReadyUI.ActionMenuOverlay(
+                    title: c.title,
+                    message: c.message,
                     actions: actions.map {
-                        MakeReadyUI.ActionMenuOverlay.ActionItem(glyph: $0.glyph, label: $0.label)
-                    }
+                        MakeReadyUI.ActionMenuOverlay.ActionItem(
+                            glyph: $0.glyph,
+                            label: $0.label,
+                            tone: $0.tone == "destructive" ? .destructive : .standard
+                        )
+                    },
+                    doneLabel: c.doneLabel ?? "Done"
                 )
                 // OQ-PB-1 default: the contract's master width. §2 — "432pt wide in the
                 // frame (content 384)" — and §1 deviation 3 makes only the HEIGHT
@@ -2578,7 +2585,10 @@ private func buildCaptureViewPart8(_ fixture: CaptureFixture, authManager: AuthM
                 imageURL: ui2C058ImageURL,
                 initials: c.initials,
                 // §4 `count` (2026-10-30): optional — absent keeps the arrow.
-                count: c.count
+                count: c.count,
+                // §4 `onAdd` (2026-10-30): a closure has no fixture value; `true` sets a no-op one
+                // so §3 `with-count-add` renders its add button. Absent keeps it nil.
+                onAdd: c.onAdd == true ? {} : nil
             ),
             // C-058 §2: the row "fills the width it is given (408 at design)" — the master width,
             // margin and ground live here (R-16).
@@ -3258,18 +3268,16 @@ private func buildUI2C128(_ fixture: CaptureFixture) throws -> AnyView {
         throw ViewRegistryError.unknownView("component.ui2.C-128: props.enabledDays is required (0 = Sun … 6 = Sat)")
     }
     guard let promptRaw = c.prompt else {
-        throw ViewRegistryError.unknownView("component.ui2.C-128: props.prompt is required (none|override(d)|overlap(d))")
+        throw ViewRegistryError.unknownView("component.ui2.C-128: props.prompt is required (none|override(d))")
     }
-    // §3 writes the prompt as `none`, `override(yyyy-MM-dd)` or `overlap(yyyy-MM-dd)`.
+    // §3 writes the prompt as `none` or `override(yyyy-MM-dd)`.
     let prompt: MakeReadyUI.DateRangePicker.Prompt
     if promptRaw == "none" {
         prompt = .none
     } else if promptRaw.hasPrefix("override("), promptRaw.hasSuffix(")") {
         prompt = .override(try day(String(promptRaw.dropFirst(9).dropLast()), "prompt"))
-    } else if promptRaw.hasPrefix("overlap("), promptRaw.hasSuffix(")") {
-        prompt = .overlap(try day(String(promptRaw.dropFirst(8).dropLast()), "prompt"))
     } else {
-        throw ViewRegistryError.unknownView("component.ui2.C-128: props.prompt \"\(promptRaw)\" must be none|override(d)|overlap(d)")
+        throw ViewRegistryError.unknownView("component.ui2.C-128: props.prompt \"\(promptRaw)\" must be none|override(d)")
     }
     return declareCase(
         MakeReadyUI.DateRangePicker(

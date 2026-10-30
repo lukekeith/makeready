@@ -14,6 +14,14 @@ final class EnrollDraftSync {
     static let retryDelay: Duration = .seconds(2)
     static let saveFailedMessage = "Couldn't save the draft"
 
+    /// Owner 2026-10-29: D6's re-seed is announced — a notice banner naming the pair, so a checklist
+    /// that suddenly shows every step done explains itself.
+    static func existsMessage(groupName: String?, programName: String?) -> String {
+        let group = groupName.flatMap { $0.isEmpty ? nil : $0 } ?? "This group"
+        let program = programName.flatMap { $0.isEmpty ? nil : $0 } ?? "this program"
+        return "\(group) already has a draft for \(program). Opened it so you can pick up where you left off."
+    }
+
     let flowId: UUID
     private let state: AppState
     private let actions: EnrollmentDraftActions
@@ -152,6 +160,11 @@ final class EnrollDraftSync {
             let wire = try await actions.load(id: draftId)
             guard !Task.isCancelled else { return }
             state.seedEnrollmentDraft(wire, flowId: flowId)
+            if !isFinishing {                                   // after Back there is nothing to explain
+                state.showNotice(Self.existsMessage(groupName: state.groups[wire.groupId]?.name,
+                                                    programName: state.programs[wire.studyProgramId]?.name),
+                                 context: "EnrollDraftSync.exists")
+            }
         }
         settle()
     }
