@@ -85,19 +85,18 @@ struct FilterChip: View {
 
     // MARK: - Variant resolution (§3a's closed matrix)
 
-    /// §3a Ground: `Menu/true` `color-text-primary` (white, OQ-C-035-4b) · `Button/true`
-    /// `color-neutral-800` · `Font/true` `color-white-100` · every inactive row none.
+    /// §3a Ground: `Button/true` `color-neutral-800` · `Font/true` `color-white-100` · `Menu/true`
+    /// none (clear, like inactive — owner restyle 2026-10-30) · every inactive row none.
     private var ground: Color {
         switch (type, active) {
-        case (.menu, true): return Token.textPrimary
         case (.button, true): return Token.neutral800
         case (.font, true): return Token.white100
         default: return .clear
         }
     }
 
-    /// §3a Border: `Menu/false` 1px `color-neutral-600` · `Menu/true` 1px white, invisible (§1
-    /// deviation 3 — drawn so the active pill keeps §3a's 70) · `Font/false` 1pt `color-nav-border`
+    /// §3a Border: `Menu/false` 1px `color-neutral-600` · `Menu/true` 1px `color-text-primary`
+    /// (white, owner restyle 2026-10-30) · `Font/false` 1pt `color-nav-border`
     /// · `Font/true` none ("the border is dropped, not recoloured") · `Button` none.
     private var border: Color? {
         switch (type, active) {
@@ -108,14 +107,14 @@ struct FilterChip: View {
         }
     }
 
-    /// §3a Chevron: `color-text-secondary` inactive, `color-black` active (`Menu` only).
-    private var chevronColor: Color { active ? Token.black : Token.textSecondary }
+    /// §3a Chevron: `color-text-secondary` inactive, `color-text-primary` active (`Menu` only).
+    private var chevronColor: Color { active ? Token.textPrimary : Token.textSecondary }
 
     /// §3a Label colour.
     private var labelColor: Color {
         switch (type, active) {
-        case (.menu, true), (.font, true): return Token.black
-        case (.button, true): return Token.textPrimary
+        case (.font, true): return Token.black
+        case (.menu, true), (.button, true): return Token.textPrimary
         case (.font, false): return Token.navText
         default: return Token.textNavigation
         }

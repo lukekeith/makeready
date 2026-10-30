@@ -73,8 +73,8 @@ final class GroupsHomeMapperTests: XCTestCase {
     /// D3: an empty selection is "all"; two picks read "2 leaders".
     func testChipLabels() {
         let leaders = [leader("u1", "Tony", "Stark"), leader("u2", "Pepper", "Potts")]
-        XCTAssertEqual(output([], leaders: leaders).state.leaderFilterLabel, "All Leaders")
-        XCTAssertEqual(output([], leaders: leaders).state.orgFilterLabel, "All Orgs")
+        XCTAssertEqual(output([], leaders: leaders).state.leaderFilterLabel, "Leaders")
+        XCTAssertEqual(output([], leaders: leaders).state.orgFilterLabel, "Orgs")
         XCTAssertEqual(output([], leaders: leaders, selection: .init(leaderLabels: ["Tony Stark", "Pepper Potts"]))
             .state.leaderFilterLabel, "2 leaders")
     }

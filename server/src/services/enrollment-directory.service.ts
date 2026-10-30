@@ -18,11 +18,17 @@ export type FeedStatus = (typeof FEED_STATUSES)[number]
 /** D25: the most items one response carries, across all sections. */
 export const FEED_ITEM_CAP = 200
 
+/** A comma list of uuids (`a,b`), one uuid, or absent → the ids, or undefined for "no filter". */
+const idList = z
+  .preprocess((v) => (typeof v === 'string' ? v.split(',').map((s) => s.trim()).filter(Boolean) : v), z.array(z.string().uuid()).optional())
+  .transform((list) => (list && list.length > 0 ? list : undefined))
+
 // Not .strict(): an unknown query param (e.g. a `q`) is ignored, never a 400 (D27).
+// owner 2026-10-30: org, group and leader are multi-select too — each a comma list (any of them).
 export const feedQuerySchema = z.object({
-  orgId: z.string().uuid().optional(),
-  groupId: z.string().uuid().optional(),
-  leaderId: z.string().uuid().optional(),
+  orgId: idList,
+  groupId: idList,
+  leaderId: idList,
   // owner 2026-10-29: a comma list (`active,draft`) — the iPhone status filter is multi-select;
   // `all` (or every status) is the whole feed. A single value still parses as before.
   status: z
@@ -92,14 +98,15 @@ export function bucketOf(e: { startDate: Date; endDate: Date; timezone: string |
 }
 
 /** D15 + D25: the groups the feed may show. */
-async function feedGroupScope(userId: string, orgId: string | undefined): Promise<Prisma.GroupWhereInput> {
+async function feedGroupScope(userId: string, picked: string[] | undefined): Promise<Prisma.GroupWhereInput> {
   const orgIds = await getManageableOrgIds(userId)
-  if (orgId) {
+  if (picked) {
+    const foreign = picked.filter((id) => !orgIds.includes(id))
     const allowed =
-      orgIds.includes(orgId) ||
-      ((await isSuperAdmin(userId)) && (await prisma.organization.count({ where: { id: orgId } })) > 0)
+      foreign.length === 0 ||
+      ((await isSuperAdmin(userId)) && (await prisma.organization.count({ where: { id: { in: foreign } } })) === foreign.length)
     if (!allowed) throw new DirectoryError(400, 'orgId is not one of your organizations')
-    return { isActive: true, organizationId: orgId }
+    return { isActive: true, organizationId: { in: picked } }
   }
   return { isActive: true, OR: [{ organizationId: { in: orgIds } }, { creatorId: userId }] }
 }
@@ -224,7 +231,8 @@ export async function getEnrollmentFeed(userId: string, query: FeedQuery, now: D
   }
 
   const keep = (groupId: string) =>
-    (!query.groupId || groupId === query.groupId) && (!query.leaderId || groupById.get(groupId)?.creatorId === query.leaderId)
+    (!query.groupId || query.groupId.includes(groupId)) &&
+    (!query.leaderId || query.leaderId.includes(groupById.get(groupId)?.creatorId ?? ''))
   const keptEnrollments = enrollments.filter((e) => keep(e.groupId))
   const latest = await latestProgress(keptEnrollments.map((e) => e.id))
 

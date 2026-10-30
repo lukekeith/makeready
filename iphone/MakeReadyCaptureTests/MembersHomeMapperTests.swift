@@ -99,8 +99,8 @@ final class MembersHomeMapperTests: XCTestCase {
         var selection = MembersHomeMapper.Selection(search: "kent")
         var out = map(OrgMemberDirectory(), selection)
         XCTAssertEqual(out.state.searchText, "kent")
-        XCTAssertEqual(out.state.groupFilterLabel, "All Groups")
-        XCTAssertEqual(out.state.leaderFilterLabel, "All Leaders")
+        XCTAssertEqual(out.state.groupFilterLabel, "Groups")
+        XCTAssertEqual(out.state.leaderFilterLabel, "Leaders")
         XCTAssertEqual(out.state.selectedGroupIDs, [])
         selection.groupIds = ["g2"]
         selection.leaderIds = ["u1", "u2"]
@@ -132,7 +132,7 @@ final class MembersHomeMapperTests: XCTestCase {
         XCTAssertEqual(out.state.memberNames, [])
         XCTAssertEqual(out.memberIds, [])
         XCTAssertTrue(out.state.showsLeaderFilter)
-        XCTAssertEqual(out.state.groupFilterLabel, "All Groups")
+        XCTAssertEqual(out.state.groupFilterLabel, "Groups")
     }
 
     func testParseDateTakesFractionalAndPlainStamps() {

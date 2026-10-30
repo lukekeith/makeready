@@ -16,9 +16,10 @@ struct EnrollmentFeedFilter: Hashable {
         }
     }
 
-    var orgId: String?
-    var groupId: String?
-    var leaderId: String?
+    /// Owner 2026-10-30: org, group and leader are multi-select — empty = no filter.
+    var orgIds: Set<String> = []
+    var groupIds: Set<String> = []
+    var leaderIds: Set<String> = []
     /// Owner 2026-10-29: multi-select; empty = every status (sent as `all`).
     var statuses: Set<Status> = []
 
@@ -31,10 +32,14 @@ struct EnrollmentFeedFilter: Hashable {
     func path(timeZone: TimeZone) -> String {
         var c = URLComponents()
         c.path = "/api/enrollments-feed"
+        // Each list is sent sorted as one comma value (the server reads `a,b`).
+        func list(_ name: String, _ ids: Set<String>) -> URLQueryItem? {
+            ids.isEmpty ? nil : URLQueryItem(name: name, value: ids.sorted().joined(separator: ","))
+        }
         c.queryItems = [
-            orgId.map { URLQueryItem(name: "orgId", value: $0) },
-            groupId.map { URLQueryItem(name: "groupId", value: $0) },
-            leaderId.map { URLQueryItem(name: "leaderId", value: $0) },
+            list("orgId", orgIds),
+            list("groupId", groupIds),
+            list("leaderId", leaderIds),
             URLQueryItem(name: "status", value: statusParam),
             URLQueryItem(name: "tz", value: timeZone.identifier)
         ].compactMap { $0 }

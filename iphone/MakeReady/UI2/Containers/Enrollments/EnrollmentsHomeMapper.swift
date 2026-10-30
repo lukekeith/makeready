@@ -3,28 +3,33 @@ import Foundation
 /// ui2-enrollments-browse §iphone EnrollmentsHomeContainer: the feed → `EnrollmentsHomeScreen.State`.
 /// Pure. Rows keep the feed's order (D17); search is the screen's own local filter (D27).
 enum EnrollmentsHomeMapper {
-    static let allOrgsLabel = "All Orgs"
-    static let allGroupsLabel = "All groups"
-    static let allLeadersLabel = "All Leaders"
+    /// Owner 2026-10-30: each chip at rest names its dimension — no "All".
+    static let restingOrgsLabel = "Orgs"
+    static let restingGroupsLabel = "Groups"
+    static let restingLeadersLabel = "Leaders"
     /// Owner 2026-10-29: the status chip at rest — no status picked shows every status.
     static let restingStatusLabel = "Status"
 
     /// The four chips, by the dimension name the screen's `onOpenFilter` passes.
     enum Dimension: String, CaseIterable { case orgs = "Orgs", groups = "Groups", leaders = "Leaders", status = "Status" }
 
-    /// The chips' picks — ids for the request, labels for the chips.
+    /// The chips' picks — id → label (ids for the request, labels for the chips). Every dimension
+    /// is multi-select (owner 2026-10-30); empty = no filter.
     struct Selection: Equatable {
-        var orgId: String?
-        var orgLabel: String?
-        var groupId: String?
-        var groupLabel: String?
-        var leaderId: String?
-        var leaderLabel: String?
+        var orgs: [String: String] = [:]
+        var groups: [String: String] = [:]
+        var leaders: [String: String] = [:]
         var statuses: Set<EnrollmentFeedFilter.Status> = []
 
         var filter: EnrollmentFeedFilter {
-            EnrollmentFeedFilter(orgId: orgId, groupId: groupId, leaderId: leaderId, statuses: statuses)
+            EnrollmentFeedFilter(orgIds: Set(orgs.keys), groupIds: Set(groups.keys), leaderIds: Set(leaders.keys),
+                                 statuses: statuses)
         }
+    }
+
+    /// A chip's text: its resting name, the one pick, or "N <noun>".
+    private static func chip(_ picks: [String: String], resting: String, noun: String) -> String {
+        FilterMenuOverlay.chipLabel(picked: picks.values.sorted(), resting: resting, noun: noun)
     }
 
     struct Input {
@@ -93,9 +98,9 @@ enum EnrollmentsHomeMapper {
         let sel = input.selection
         var state = EnrollmentsHomeScreen.State(
             searchText: "",
-            orgFilterLabel: sel.orgLabel ?? allOrgsLabel,
-            groupFilterLabel: sel.groupLabel ?? allGroupsLabel,
-            leaderFilterLabel: sel.leaderLabel ?? allLeadersLabel,
+            orgFilterLabel: chip(sel.orgs, resting: restingOrgsLabel, noun: "orgs"),
+            groupFilterLabel: chip(sel.groups, resting: restingGroupsLabel, noun: "groups"),
+            leaderFilterLabel: chip(sel.leaders, resting: restingLeadersLabel, noun: "leaders"),
             statusFilterLabel: FilterMenuOverlay.chipLabel(
                 picked: EnrollmentFeedFilter.Status.allCases.filter(sel.statuses.contains).map(\.label),
                 resting: restingStatusLabel, noun: "statuses"),
@@ -151,14 +156,14 @@ enum EnrollmentsHomeMapper {
         return GroupsEnrollProgramScreen.completedSteps(state)
     }
 
-    // MARK: - The four C-036 menus (D8, D13, D15) — single pick, except Status (multi-select, owner
-    // 2026-10-29); Clear returns the chip to rest
+    // MARK: - The four C-036 menus (D8, D13, D15) — every one multi-select (owner 2026-10-29 Status,
+    // 2026-10-30 the rest): Save applies the ticks, Clear returns the chip to rest
 
     static func menu(_ dimension: Dimension, options: EnrollmentFeedOptions?,
                      organizations: [OrganizationData]) -> [FilterMenuOverlay.Option] {
         switch dimension {
         case .orgs:
-            return [.init(id: "", label: allOrgsLabel)] + organizations.map { .init(id: $0.id, label: $0.name) }
+            return organizations.map { .init(id: $0.id, label: $0.name) }
         case .groups:
             return (options?.groups ?? []).map { .init(id: $0.id, label: $0.name ?? "") }
         case .leaders:
@@ -168,42 +173,34 @@ enum EnrollmentsHomeMapper {
         }
     }
 
-    /// Status picks several (Save applies them); the other three pick one.
-    static func isMultiSelect(_ dimension: Dimension) -> Bool { dimension == .status }
-
     static func selectedIds(_ dimension: Dimension, _ s: Selection) -> Set<String> {
         switch dimension {
-        case .orgs: return [s.orgId ?? ""]
-        case .groups: return [s.groupId ?? ""]
-        case .leaders: return [s.leaderId ?? ""]
+        case .orgs: return Set(s.orgs.keys)
+        case .groups: return Set(s.groups.keys)
+        case .leaders: return Set(s.leaders.keys)
         case .status: return Set(s.statuses.map(\.rawValue))
         }
     }
 
-    /// The Status menu's Save.
-    static func savingStatuses(_ ids: Set<String>, _ s: Selection) -> Selection {
+    /// A menu's Save: the ticked ids, labelled from that menu's own options.
+    static func saving(_ ids: Set<String>, in dimension: Dimension, options: [FilterMenuOverlay.Option],
+                       _ s: Selection) -> Selection {
         var next = s
-        next.statuses = Set(ids.compactMap(EnrollmentFeedFilter.Status.init(rawValue:)))
-        return next
-    }
-
-    static func selecting(_ option: FilterMenuOverlay.Option, in dimension: Dimension, _ s: Selection) -> Selection {
-        var next = s
-        let id: String? = option.id.isEmpty ? nil : option.id
+        let picks = Dictionary(options.filter { ids.contains($0.id) }.map { ($0.id, $0.label) }, uniquingKeysWith: { a, _ in a })
         switch dimension {
-        case .orgs: next.orgId = id; next.orgLabel = id == nil ? nil : option.label
-        case .groups: next.groupId = id; next.groupLabel = id == nil ? nil : option.label
-        case .leaders: next.leaderId = id; next.leaderLabel = id == nil ? nil : option.label
-        case .status: next.statuses = Set([EnrollmentFeedFilter.Status(rawValue: option.id)].compactMap { $0 })
+        case .orgs: next.orgs = picks
+        case .groups: next.groups = picks
+        case .leaders: next.leaders = picks
+        case .status: next.statuses = Set(ids.compactMap(EnrollmentFeedFilter.Status.init(rawValue:)))
         }
         return next
     }
 
     static func clearing(_ dimension: Dimension, _ s: Selection) -> Selection {
-        selecting(.init(id: "", label: ""), in: dimension, s)
+        saving([], in: dimension, options: [], s)
     }
 
     static func isAtRest(_ dimension: Dimension, _ s: Selection) -> Bool {
-        dimension == .status ? s.statuses.isEmpty : selectedIds(dimension, s) == [""]
+        selectedIds(dimension, s).isEmpty
     }
 }

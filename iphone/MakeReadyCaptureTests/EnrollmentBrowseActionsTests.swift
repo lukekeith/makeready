@@ -121,7 +121,7 @@ final class EnrollmentBrowseActionsTests: XCTestCase {
 
     func testFeedPathCarriesTheFilterAndTheDeviceZone() {
         XCTAssertEqual(EnrollmentFeedFilter().path(timeZone: chicago), "/api/enrollments-feed?status=all&tz=America/Chicago")
-        XCTAssertEqual(EnrollmentFeedFilter(orgId: "o1", groupId: "g1", leaderId: "u1", statuses: [.draft]).path(timeZone: chicago),
+        XCTAssertEqual(EnrollmentFeedFilter(orgIds: ["o1"], groupIds: ["g1"], leaderIds: ["u1"], statuses: [.draft]).path(timeZone: chicago),
                        "/api/enrollments-feed?orgId=o1&groupId=g1&leaderId=u1&status=draft&tz=America/Chicago")
         XCTAssertEqual(EnrollmentFeedFilter.Status.allCases.map(\.label), ["Active", "Upcoming", "Completed", "Draft"])
     }

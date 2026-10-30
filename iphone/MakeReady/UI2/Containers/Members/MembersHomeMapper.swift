@@ -4,8 +4,8 @@ import Foundation
 /// Pure — the container owns the selection and the debounce. Order is the server's (`joinedAt`
 /// desc); the mapper never re-sorts.
 enum MembersHomeMapper {
-    static let allGroups = "All Groups"
-    static let allLeaders = "All Leaders"
+    static let allGroups = "Groups"
+    static let allLeaders = "Leaders"
 
     /// One chip-menu option: the id the server filters by, the label C-036 shows.
     struct Option: Equatable {

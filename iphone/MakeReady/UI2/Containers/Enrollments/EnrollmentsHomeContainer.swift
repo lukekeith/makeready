@@ -50,28 +50,26 @@ struct EnrollmentsHomeContainer: View {
         .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
             if let dimension = openMenu {
+                let menu = EnrollmentsHomeMapper.menu(dimension, options: options, organizations: app.myOrganizations)
+                // Owner 2026-10-30: every chip is multi-select — Save applies the ticks.
                 FilterMenuOverlay(
-                    options: EnrollmentsHomeMapper.menu(dimension, options: options, organizations: app.myOrganizations),
-                    selectionMode: EnrollmentsHomeMapper.isMultiSelect(dimension) ? .multiple : .single,
+                    options: menu,
+                    selectionMode: .multiple,
                     selectedIDs: EnrollmentsHomeMapper.selectedIds(dimension, selection),
-                    onSelect: { option in
-                        selection = EnrollmentsHomeMapper.selecting(option, in: dimension, selection)
-                        openMenu = nil
-                    },
                     onClose: { openMenu = nil },
                     onClear: {
                         selection = EnrollmentsHomeMapper.clearing(dimension, selection)
                         openMenu = nil
                     },
                     clearEnabled: !EnrollmentsHomeMapper.isAtRest(dimension, selection),
-                    onSave: EnrollmentsHomeMapper.isMultiSelect(dimension) ? { ids in
-                        selection = EnrollmentsHomeMapper.savingStatuses(ids, selection)
+                    onSave: { ids in
+                        selection = EnrollmentsHomeMapper.saving(ids, in: dimension, options: menu, selection)
                         openMenu = nil
-                    } : nil
+                    }
                 )
             }
         }
-        .task { await GroupActions(onUnauthorized: signOut).loadMyOrganizations() }      // D15 "All Orgs" menu
+        .task { await GroupActions(onUnauthorized: signOut).loadMyOrganizations() }      // D15 Orgs menu
         .task(id: LoadKey(filter: selection.filter, missing: feed == nil)) {
             if feed == nil { await reload(force: false) }
         }

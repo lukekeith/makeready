@@ -36,10 +36,10 @@ struct StudyProgramsScreen: View {
         /// §3 Filter API: the org chip is drawn only when true.
         var orgFilterVisible: Bool
         /// C-035 `label` per chip: "The label is the current selection, per the C-035 contract"
-        /// (§2). §2's resting labels: "All Orgs" · "All Leaders".
+        /// (§2). §2's resting labels: "Orgs" · "Leaders".
         var orgFilterLabel: String
         var leaderFilterLabel: String
-        /// §3 Filter API: C-036 options of the Orgs menu (org scopes; no "All Orgs" row — an
+        /// §3 Filter API: C-036 options of the Orgs menu (org scopes; no "Orgs" row — an
         /// empty selection means no filter).
         var orgOptions: [String]
         /// C-036 options of the Leaders menu — the org's program creators.
@@ -115,7 +115,7 @@ struct StudyProgramsScreen: View {
     private static let searchPlaceholder = "Search programs"
     /// §2's resting chip labels, in §2's order (org scope · leaders) — a chip off its resting
     /// label is narrowing.
-    private static let restingFilterLabels = ["All Orgs", "All Leaders"]
+    private static let restingFilterLabels = ["Orgs", "Leaders"]   // owner 2026-10-30: no "All"
     /// §3 `loading`: skeleton rows drawn while no row has landed — the frozen frame's count.
     private static let skeletonRowCount = 3
     /// §3 / OQ-study-programs-004 (closed): the two centred lines.
@@ -407,8 +407,8 @@ extension StudyProgramsScreen.State {
     static let loading = Self(
         searchText: "",
         orgFilterVisible: true,
-        orgFilterLabel: "All Orgs",
-        leaderFilterLabel: "All Leaders",
+        orgFilterLabel: "Orgs",
+        leaderFilterLabel: "Leaders",
         orgOptions: [],
         leaderOptions: [],
         loading: true,
@@ -423,8 +423,8 @@ extension StudyProgramsScreen.State {
     static let populated = Self(
         searchText: "",
         orgFilterVisible: true,
-        orgFilterLabel: "All Orgs",
-        leaderFilterLabel: "All Leaders",
+        orgFilterLabel: "Orgs",
+        leaderFilterLabel: "Leaders",
         orgOptions: [],
         leaderOptions: [],
         loading: false,
@@ -441,8 +441,8 @@ extension StudyProgramsScreen.State {
     static let filteredEmpty = Self(
         searchText: "Exodus",
         orgFilterVisible: true,
-        orgFilterLabel: "All Orgs",
-        leaderFilterLabel: "All Leaders",
+        orgFilterLabel: "Orgs",
+        leaderFilterLabel: "Leaders",
         orgOptions: [],
         leaderOptions: [],
         loading: false,
@@ -457,8 +457,8 @@ extension StudyProgramsScreen.State {
     static let empty = Self(
         searchText: "",
         orgFilterVisible: true,
-        orgFilterLabel: "All Orgs",
-        leaderFilterLabel: "All Leaders",
+        orgFilterLabel: "Orgs",
+        leaderFilterLabel: "Leaders",
         orgOptions: [],
         leaderOptions: [],
         loading: false,
@@ -474,8 +474,8 @@ extension StudyProgramsScreen.State {
     static let error = Self(
         searchText: "",
         orgFilterVisible: true,
-        orgFilterLabel: "All Orgs",
-        leaderFilterLabel: "All Leaders",
+        orgFilterLabel: "Orgs",
+        leaderFilterLabel: "Leaders",
         orgOptions: [],
         leaderOptions: [],
         loading: false,

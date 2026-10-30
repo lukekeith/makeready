@@ -45,7 +45,7 @@ struct EnrollmentsHomeScreen: View {
         /// C-034 `text`: the current query. "" shows the placeholder (§4 `Default`).
         var searchText: String
         /// C-035 `label` per chip: "label = current selection per C-035 contract" (§2). §2's
-        /// resting labels: "All Orgs" · "All groups" · "All Leaders" · "Active".
+        /// resting labels: "Orgs" · "Groups" · "Leaders" · "Active".
         var orgFilterLabel: String
         var groupFilterLabel: String
         var leaderFilterLabel: String
@@ -136,7 +136,7 @@ struct EnrollmentsHomeScreen: View {
     /// §3 chip dimensions, in §2's order: org scope · groups · leaders · enrollment status.
     private static let filterDimensions = ["Orgs", "Groups", "Leaders", "Status"]
     /// §2's resting chip labels, in the same order — a chip off its resting label is narrowing.
-    private static let restingFilterLabels = ["All Orgs", "All groups", "All Leaders", "Active"]
+    private static let restingFilterLabels = ["Orgs", "Groups", "Leaders", "Status"]   // owner 2026-10-29/30: no "All"
     /// §3 / OQ-enrollments-home-6 (closed): the two centred lines.
     private static let noMatchMessage = "No enrollments match"
     private static let emptyMessage = "No enrollments yet"
@@ -238,7 +238,11 @@ struct EnrollmentsHomeScreen: View {
         HorizontalRail {
             HStack(spacing: Token.Space.elementGap) {
                 ForEach(chipLabels.indices, id: \.self) { index in
-                    Self.menuChip(label: chipLabels[index]) { onOpenFilter(Self.filterDimensions[index]) }
+                    // Owner 2026-10-30: a chip with a setting (its label off its resting text) is active.
+                    Self.menuChip(label: chipLabels[index],
+                                  active: chipLabels[index] != Self.restingFilterLabels[index]) {
+                        onOpenFilter(Self.filterDimensions[index])
+                    }
                     .ui2Element(Self.partName("C-035 FilterChip", ordinal: index + 1))
                 }
             }
@@ -250,8 +254,8 @@ struct EnrollmentsHomeScreen: View {
     /// §3: a chip tap presents C-036. `onTap:` is passed by label: an unlabelled trailing closure on
     /// FilterChip binds to `onSelect` (Swift 5's backward scan), which a `Menu` chip never fires
     /// (agent walk round 1, E2/E3 — the GroupsHomeScreen precedent).
-    static func menuChip(label: String, onTap: @escaping () -> Void) -> FilterChip {
-        FilterChip(type: .menu, active: false, label: label, onTap: onTap)
+    static func menuChip(label: String, active: Bool = false, onTap: @escaping () -> Void) -> FilterChip {
+        FilterChip(type: .menu, active: active, label: label, onTap: onTap)
     }
 
     // MARK: §2 Sections
@@ -493,10 +497,10 @@ extension EnrollmentsHomeScreen.State {
     /// · "15 hours"). Photos and covers are stand-in URLs (the component previews' picsum seeds).
     static let populated = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "Active",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         failed: false,
         groupNames: ["Stickane Family", "Young Professionals"],
@@ -525,10 +529,10 @@ extension EnrollmentsHomeScreen.State {
     /// (image-fixtures).
     static let withDraft = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "Active",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         failed: false,
         groupNames: ["Stickane Family"],
@@ -555,10 +559,10 @@ extension EnrollmentsHomeScreen.State {
     /// days are C-033's own samples ("9", "15").
     static let populatedRail = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "Active",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         failed: false,
         groupNames: ["Stickane Family", "Young Professionals"],
@@ -590,10 +594,10 @@ extension EnrollmentsHomeScreen.State {
     /// §3 `loading`: "first launch with no cached data … search + chips render immediately".
     static let loading = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "Active",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: true,
         failed: false,
         groupNames: [],
@@ -608,15 +612,15 @@ extension EnrollmentsHomeScreen.State {
         programCoverURLs: []
     )
 
-    /// §3 `filtered-empty`: the "All groups" chip set to the frame's "Young Professionals" and
+    /// §3 `filtered-empty`: the "Groups" chip set to the frame's "Young Professionals" and
     /// the query "Romans" (a title on the frame that group does not have) — the feed answers
     /// nothing, so the body shows "No enrollments match".
     static let filteredEmpty = Self(
         searchText: "Romans",
-        orgFilterLabel: "All Orgs",
+        orgFilterLabel: "Orgs",
         groupFilterLabel: "Young Professionals",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "Active",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         failed: false,
         groupNames: [],
@@ -634,10 +638,10 @@ extension EnrollmentsHomeScreen.State {
     /// §3 `empty`: "zero enrollments org-wide", every chip at its resting label.
     static let empty = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "Active",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         failed: false,
         groupNames: [],
@@ -656,10 +660,10 @@ extension EnrollmentsHomeScreen.State {
     /// or copy (a spec gap), so the body is empty.
     static let error = Self(
         searchText: "",
-        orgFilterLabel: "All Orgs",
-        groupFilterLabel: "All groups",
-        leaderFilterLabel: "All Leaders",
-        statusFilterLabel: "Active",
+        orgFilterLabel: "Orgs",
+        groupFilterLabel: "Groups",
+        leaderFilterLabel: "Leaders",
+        statusFilterLabel: "Status",
         loading: false,
         failed: true,
         groupNames: [],

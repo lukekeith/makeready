@@ -5,8 +5,8 @@ import Foundation
 /// menus speak labels (`GroupsHomeScreen.State.selectedOrgs` / `selectedLeaders`), so a pick is a
 /// label set mapped to ids here; two leaders with one name select together (D3).
 enum GroupsHomeMapper {
-    static let allOrgs = "All Orgs"
-    static let allLeaders = "All Leaders"
+    static let allOrgs = "Orgs"
+    static let allLeaders = "Leaders"
 
     /// The container's query. `search` is the APPLIED text — written 300 ms after the last
     /// keystroke (D3); [] = no filter.
