@@ -517,7 +517,7 @@ struct CaptureComponent: Codable {
     // decodes both shapes: C-023 `kind=day` (ex-C-025) asks for `.intValue`, C-033 for `.stringValue`.
     let percent: CaptureIntOrString?           // C-023 kind=day (ex-C-025) — → C-062 PercentDisc; C-033 — the completion number
     let details: CaptureUI2ValuePair?          // C-023 kind=day (ex-C-025, legacy nested shape) — → C-071 ValuePair's props
-    // C-033 GroupFollowCard. `style`, `color`, `title`, `label` and `progress` already exist
+    // C-033 ObjectCard (was GroupFollowCard). `style`, `color`, `title`, `label` and `progress` already exist
     // above under the contract's own prop names, so C-033 reuses them rather than adding
     // duplicates; `percent` is retyped just above. These three are additive and none could be
     // bent into an existing field (rule 3's second bound): `avatarUrl`/`imageUrl` are 1.0

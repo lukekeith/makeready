@@ -465,7 +465,7 @@ struct HomeDashboardScreen: View {
     }
 
     /// §2.5: "per followed program: FollowedProgramHeader (40pt) → 32pt → horizontally
-    /// scrolling GroupFollowCard rail 179×228, gap 8, leading inset 16 → 32pt → next program
+    /// scrolling ObjectCard rail 179×228, gap 8, leading inset 16 → 32pt → next program
     /// block." The 32 before each block is the ForEach's; this is the header and its rail.
     private func programBlock(_ programIndex: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -481,7 +481,7 @@ struct HomeDashboardScreen: View {
             HorizontalRail {
                 HStack(alignment: .top, spacing: Token.Space.elementGap) {
                     ForEach(groupIndices(for: programIndex), id: \.self) { groupIndex in
-                        GroupFollowCard(
+                        ObjectCard(
                             style: .noBar,                           // §4: `style=No bar` at all three colours
                             color: Self.bandColor(state.groupColors[safe: groupIndex]),
                             title: state.groupTitles[groupIndex],
@@ -493,7 +493,7 @@ struct HomeDashboardScreen: View {
                             progress: 0,                             // `default` only — unused in `noBar`
                             onTap: { onOpenGroup(groupIndex) }
                         )
-                        .ui2Element(Self.partName("C-033 GroupFollowCard", ordinal: groupIndex + 1))
+                        .ui2Element(Self.partName("C-033 ObjectCard", ordinal: groupIndex + 1))
                     }
                 }
                 .padding(.horizontal, Token.Space.pageMargin)
@@ -644,7 +644,7 @@ struct HomeDashboardScreen: View {
         }
     }
 
-    private static func bandColor(_ raw: String?) -> GroupFollowCard.BandColor {
+    private static func bandColor(_ raw: String?) -> ObjectCard.BandColor {
         switch raw {
         case "yellow": return .yellow
         case "red": return .red

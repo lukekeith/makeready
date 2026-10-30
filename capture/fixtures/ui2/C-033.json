@@ -1,7 +1,7 @@
 {
   "id": "ui2-c-033",
   "registryId": "C-033",
-  "component": "GroupFollowCard",
+  "component": "ObjectCard",
   "view": "component.ui2.C-033",
   "devices": [
     "iphone-16-pro-max"

@@ -281,7 +281,7 @@
 		5100D35D5CAD6964E6871C2D /* EnrollmentStatusRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = B48ED78C47738F74C6C13A3C /* EnrollmentStatusRow.swift */; };
 		5104E5140AF155260B24A54D /* GroupSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0123C3EF5078A4FB1AB33D08 /* GroupSectionHeader.swift */; };
 		5111F771EA00BF999D3B5FBF /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = E2579257CC2CAD3AD6D70103 /* SnapshotTesting */; };
-		51A1D999FEE5E7099E13DF51 /* GroupFollowCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C14FAFBBE3EB8FD535649B /* GroupFollowCard.swift */; };
+		51A1D999FEE5E7099E13DF51 /* ObjectCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C14FAFBBE3EB8FD535649B /* ObjectCard.swift */; };
 		51EAE49BE0E4DDBEED9CCEB6 /* ScheduleSummaryFooter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27DB72DDA04CB5BBBF5F045A /* ScheduleSummaryFooter.swift */; };
 		51FC885FB31B6C4F666B6093 /* IconButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9864290A0E2B13B42DE130AC /* IconButton.swift */; };
 		5313A611EFF1A31A9AE13426 /* AuthStatusPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EE8D46D0C74242AD5EFCF3 /* AuthStatusPolicyTests.swift */; };
@@ -500,7 +500,7 @@
 		9980D469A2900C13114723EB /* ActivitySpinner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 072A3D7764A43A5B4953912C /* ActivitySpinner.swift */; };
 		9A229C53F5F140FE65FF1EB8 /* CalendarHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = F39EE6699A87B0DF8F4063A7 /* CalendarHomeScreen.swift */; };
 		9A359EB01DCC04FE6921CE94 /* WeekdayHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 464C09F1DDDAEB03E329151F /* WeekdayHeader.swift */; };
-		9A44C7ECEE06328567A64AD5 /* GroupFollowCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C14FAFBBE3EB8FD535649B /* GroupFollowCard.swift */; };
+		9A44C7ECEE06328567A64AD5 /* ObjectCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C14FAFBBE3EB8FD535649B /* ObjectCard.swift */; };
 		9A50BC4B6AA448FB519EC72A /* StudyProgramHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A60640A82D674D2B06F8637 /* StudyProgramHomeScreen.swift */; };
 		9AE1F4DC2F6C95CE40CC6315 /* ColorSwatch.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7975721ABB14E105D0754A64 /* ColorSwatch.swift */; };
 		9B219EBA3BFAAA3B09574E58 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 280805AC8E1F4024BA7D665C /* Foundation.framework */; };
@@ -757,7 +757,7 @@
 		E489AAA8979BCC8168F7AD2F /* EntityStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = STF7F960A70FAA4CFB9D79 /* EntityStore.swift */; };
 		E4A81963C2E474C36BC23753 /* ExtractedModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE8EB0BB473021AE48F32AF7 /* ExtractedModels.swift */; };
 		E506FDEFB48A7DEF9D3EAA57 /* MemberProfileAvatarTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B5C983BF26831FF08272540 /* MemberProfileAvatarTapTests.swift */; };
-		E52045C552B3DB9688D0AF37 /* GroupFollowCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C14FAFBBE3EB8FD535649B /* GroupFollowCard.swift */; };
+		E52045C552B3DB9688D0AF37 /* ObjectCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85C14FAFBBE3EB8FD535649B /* ObjectCard.swift */; };
 		E5C0336E52DCA6917556CEC7 /* EnrollmentSelectInviteTimeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75733538DFA580C9A87172B7 /* EnrollmentSelectInviteTimeScreen.swift */; };
 		E5C29BE4C48A53CED3928771 /* MembersHomeScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C255ED2E1B2AF33F0FBCD21 /* MembersHomeScreen.swift */; };
 		E6057893B437CD51727504DE /* CreateProgramSubmitTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A367658955341BDDA39713CE /* CreateProgramSubmitTests.swift */; };
@@ -1175,7 +1175,7 @@
 		8350B89429F04F72A2A9348A /* DataComponent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataComponent.swift; sourceTree = "<group>"; };
 		849C96836B2834440D490EB7 /* EnrollDraftLifecycleTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EnrollDraftLifecycleTests.swift; sourceTree = "<group>"; };
 		84EE8D46D0C74242AD5EFCF3 /* AuthStatusPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthStatusPolicyTests.swift; sourceTree = "<group>"; };
-		85C14FAFBBE3EB8FD535649B /* GroupFollowCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = GroupFollowCard.swift; sourceTree = "<group>"; };
+		85C14FAFBBE3EB8FD535649B /* ObjectCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ObjectCard.swift; sourceTree = "<group>"; };
 		875F284960A85B36FC4E88E7 /* ActivitiesEditorScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ActivitiesEditorScreen.swift; path = Screens/Activities/ActivitiesEditorScreen.swift; sourceTree = "<group>"; };
 		883183D291E9E697B727F876 /* LoginOutcomeTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LoginOutcomeTests.swift; sourceTree = "<group>"; };
 		88550B352EE04282DC290166 /* CaptureFixture.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CaptureFixture.swift; sourceTree = "<group>"; };
@@ -2345,7 +2345,7 @@
 				A01F7586EF6E6C5B6DF4E767 /* EditableFieldRow.swift */,
 				1415CE5DD9954FF8FEC16114 /* ActionMenuOverlay.swift */,
 				7D3337851DF02E5CCBFF9F59 /* ActionMenuRow.swift */,
-				85C14FAFBBE3EB8FD535649B /* GroupFollowCard.swift */,
+				85C14FAFBBE3EB8FD535649B /* ObjectCard.swift */,
 				35A7A0E8961A7C1CA6BA200B /* Ui2ImageCache.swift */,
 				8FBFFCF0CE689B47ED83F93C /* FieldGroup.swift */,
 				1F19BDEACACDBD227ACFB2CF /* Avatar.swift */,
@@ -3397,7 +3397,7 @@
 				239DFFACE47FE3D7C7FD0488 /* FollowedProgramHeader.swift in Sources */,
 				2A2F402CCD622AA39EED2085 /* Glyph.swift in Sources */,
 				ADCE66B8B937645058088335 /* GlyphButton.swift in Sources */,
-				E52045C552B3DB9688D0AF37 /* GroupFollowCard.swift in Sources */,
+				E52045C552B3DB9688D0AF37 /* ObjectCard.swift in Sources */,
 				507E98D602758B90803FA909 /* GroupSectionHeader.swift in Sources */,
 				5D79EC48FCBF7BF50743F360 /* IconButton.swift in Sources */,
 				F7ED2E28052EBE4A884821EE /* InlineDropdown.swift in Sources */,
@@ -3609,7 +3609,7 @@
 				AD0DFE8C18AC4AE04680B250 /* EditableFieldRow.swift in Sources */,
 				E33E7E6028D60D8906715C62 /* ActionMenuOverlay.swift in Sources */,
 				5039436E259A06FB9EA0E968 /* ActionMenuRow.swift in Sources */,
-				51A1D999FEE5E7099E13DF51 /* GroupFollowCard.swift in Sources */,
+				51A1D999FEE5E7099E13DF51 /* ObjectCard.swift in Sources */,
 				C4E1BC4F7CB5EA6675794643 /* Ui2ImageCache.swift in Sources */,
 				BF0093771F67ACC636A64C04 /* FieldGroup.swift in Sources */,
 				5FA14526DA18B52A0A99CD8A /* Avatar.swift in Sources */,
@@ -3872,7 +3872,7 @@
 				80B1E0A6C6F3AEAB3704FB9C /* FollowedProgramHeader.swift in Sources */,
 				DB400460D3E3552BEBBBAA93 /* Glyph.swift in Sources */,
 				F4496856C624A1ED0131156A /* GlyphButton.swift in Sources */,
-				9A44C7ECEE06328567A64AD5 /* GroupFollowCard.swift in Sources */,
+				9A44C7ECEE06328567A64AD5 /* ObjectCard.swift in Sources */,
 				5104E5140AF155260B24A54D /* GroupSectionHeader.swift in Sources */,
 				51FC885FB31B6C4F666B6093 /* IconButton.swift in Sources */,
 				71F7F6F9D60AD47C259A2CC1 /* InlineDropdown.swift in Sources */,

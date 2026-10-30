@@ -105,7 +105,7 @@ C-040 PageHeader set (2026-09-05): no new color variables either (`Purple/100%`,
 `color-text-primary`), and two type rows were added — note `type-page-title` (Regular 14/20)
 is the third 14-size row beside `type-body` (Regular 14, leading unmeasured) and
 `type-input` (Regular 14/24): whether these are two styles or three is a typography
-consolidation the owner should settle before the build phase generates code from this file. From the C-033 GroupFollowCard set (2026-09-10): no new colour variables
+consolidation the owner should settle before the build phase generates code from this file. From the C-033 ObjectCard set (2026-09-10): no new colour variables
 (`green`, `Text highlight`, `Red/100`, `White/50%`, `White/100%` are all bound) — but the
 card's fill `#1f2124` and border `#2f363a` are RAW hex again, the **third** row after C-034
 and C-045 to show that pattern, which is now the rule rather than the exception for card

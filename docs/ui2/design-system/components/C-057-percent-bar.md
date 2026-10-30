@@ -141,7 +141,7 @@ are the note's per §1 deviation 7.
 |---|---|---|---|---|---|---|
 | `sm` | `Right` | `solid` | `color-white-10` | 2 | one colour, right-anchored | **designed-unconsumed** (Figma `Thin`/`Right`) |
 | `sm` | `Right` | `gradient` | `color-white-10` | 2 | ramp, right-anchored | **unconsumed — note-created**, no Figma symbol |
-| `sm` | `Left` | `solid` | **none — no background is drawn** | 2 | one colour, left-anchored | **consumed** — C-033 GroupFollowCard (`style=Default`) · C-059 StudyProgramRow (`Progress`, and `state4` as a detached copy, OQ-C-059-4) |
+| `sm` | `Left` | `solid` | **none — no background is drawn** | 2 | one colour, left-anchored | **consumed** — C-033 ObjectCard (`style=Default`) · C-059 StudyProgramRow (`Progress`, and `state4` as a detached copy, OQ-C-059-4) |
 | `sm` | `Left` | `gradient` | **none — no background is drawn** | 2 | ramp, left-anchored | **unconsumed — note-created**, no Figma symbol |
 | `md` | `Right` | `solid` | `color-white-10` | 8 | one colour, right-anchored | **unconsumed — note-created**, no Figma symbol |
 | `md` | `Right` | `gradient` | `color-white-10` | 8 | ramp, right-anchored | **unconsumed — note-created**, no Figma symbol |
@@ -278,7 +278,7 @@ container with exactly one rectangle child. No nested instances, no vectors, no 
 | Row | Variant | Geometry there |
 |---|---|---|
 | **C-031** EnrollmentStatusRow | `Thick` / `Right` | 255×16, flexes with the row |
-| **C-033** GroupFollowCard | `Thin` / `Left` | 145×2, `style=Default` only (itself designed-unconsumed at screen level) |
+| **C-033** ObjectCard | `Thin` / `Left` | 145×2, `style=Default` only (itself designed-unconsumed at screen level) |
 | **C-059** StudyProgramRow | `Thin` / `Left` | 328×2 in `Progress`; `state4` is a detached copy at 1.0 (OQ-C-059-4) |
 
 ~~C-044~~ struck 2026-09-10 (absorbed into C-059). ~~C-054~~ orphaned 2026-09-10

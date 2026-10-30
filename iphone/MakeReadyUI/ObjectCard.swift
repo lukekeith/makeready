@@ -1,9 +1,11 @@
 //
-//  GroupFollowCard.swift
+//  ObjectCard.swift
 //  MakeReadyUI — the UI 2.0 module
 //
 //  Built from docs/ui2/design-system/components/C-033-group-follow-card.md (§2 geometry, §3
-//  states, §4 props). PREVIEW ONLY: referenced by no screen, route, tab or flag
+//  states, §4 props). Renamed from GroupFollowCard 2026-10-29, when the owner added the
+//  `Program` and `Pending` styles (Figma 4761:55042 / 4761:55076) for study programs, lessons
+//  and activities. PREVIEW ONLY: referenced by no screen, route, tab or flag
 //  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
 //
 //  Three dependencies, resolved per preview-build.md §4:
@@ -24,15 +26,16 @@
 
 import SwiftUI
 
-/// C-033 GroupFollowCard — a followed group's completion, in a horizontally-scrolling rail.
+/// C-033 ObjectCard — a group, study program, lesson or activity and its completion, in a
+/// horizontally-scrolling rail.
 ///
 /// Like C-025, NOT width-driven: §2 opens "179×228 in every state", so the footprint is the
 /// contract's and is stated here. It still paints no page background and adds no outer
 /// padding — the ground and the outer margin belong to the ViewRegistry call site
 /// (preview-build.md OQ-PB-1 / OQ-PB-2).
-struct GroupFollowCard: View {
+struct ObjectCard: View {
 
-    /// C-033 §4 `style: default | noBar` (§3a's two designed styles).
+    /// C-033 §4 `style: default | noBar | program | pending` (§3a's four designed styles).
     ///
     /// `standard` spells §4's `default`, which is a Swift keyword — the same substitution
     /// `PageHeader.Style` makes (and the retired `DayActivityCard.State` made), resolved at the ViewRegistry
@@ -40,6 +43,10 @@ struct GroupFollowCard: View {
     enum Style {
         case standard
         case noBar
+        /// §3a `Program`: `noBar` with the 145×64 banner in place of the avatar, no link mark.
+        case program
+        /// §3a `Pending`: banner, days row over an amber "finish setup", dotted amber border.
+        case pending
     }
 
     /// C-033 §4 `color: green | yellow | red` — §3b's completion band.
@@ -69,10 +76,12 @@ struct GroupFollowCard: View {
     let title: String
     /// C-033 §4: `photoURL: String?` → C-038 Avatar at 64.
     let photoURL: String?
-    /// C-033 §4: `members` — "`noBar` only — the members-row number". A display string, not a
+    /// C-033 §4: `members` — "`noBar` / `program` — the members-row number". A display string, not a
     /// count: the source types it as one and OQ-C-033-5 is open on whether that is the
     /// component's contract or the sample's.
     let members: String
+    /// C-033 §4: `days` — "`pending` only — the days-row number"; the word "Days" is designed.
+    var days: String = ""
     /// C-033 §4: `percent` — the completion number, likewise a display string ("55%").
     let percent: String
     /// C-033 §4: `label` — "`noBar` only — the word after `percent`"; `default` hard-codes
@@ -109,7 +118,10 @@ struct GroupFollowCard: View {
         // §2: "1px border `color-card-border`" (deviation 4 again, hex-equal `#2f363a`).
         .overlay(
             RoundedRectangle(cornerRadius: Token.Radius.card)
-                .strokeBorder(Token.cardBorder, lineWidth: Self.borderWidth)
+                .strokeBorder(
+                    style == .pending ? Token.amber500 : Token.cardBorder,
+                    style: StrokeStyle(lineWidth: Self.borderWidth, dash: style == .pending ? Self.pendingDash : [])
+                )
                 .ui2Element("Border")
         )
         // §2: `overflow: clip` — which is what OQ-C-033-4 says a fourth title line hits.
@@ -117,7 +129,7 @@ struct GroupFollowCard: View {
         // §4 `onTap`. A plain tap gesture, not a Button: §3f designs no pressed treatment and
         // a Button would supply one of its own.
         .onTapGesture(perform: onTap)
-        .ui2Element("GroupFollowCard")            // capture element map — UI2Element.swift
+        .ui2Element("ObjectCard")                 // capture element map — UI2Element.swift
     }
 
     // MARK: - Top slot (§2 slot 1)
@@ -127,7 +139,7 @@ struct GroupFollowCard: View {
         VStack(alignment: .leading, spacing: Token.Space.elementGap) {
             // §2: "C-038 Avatar at 64 — 64×64, `radius-circle`, image cover-cropped (the
             // source's 64×88 inner frame is the crop, not a size)."
-            Avatar(imageURL: photoURL.flatMap(URL.init(string:)), initials: nil, size: Self.avatarSize)
+            image
             // §2: "Title — `type-title-card` (Bold 14/20) `color-text-primary`, full content
             // width, WRAPS (the source sets `word-break: break-word`, not truncation)."
             Text(title)
@@ -151,6 +163,44 @@ struct GroupFollowCard: View {
             }
         }
         .ui2Element("Top")
+    }
+
+    /// §2 Image: the C-038 avatar circle in `Default` / `No bar`; in `Program` / `Pending` a
+    /// banner — "full content width (145) × 64, radius 4 … image cover-cropped".
+    @ViewBuilder
+    private var image: some View {
+        if usesBanner {
+            bannerPhoto(photoURL.flatMap(URL.init(string:)))
+                .frame(width: Self.contentWidth, height: Self.avatarSize)
+                .clipShape(RoundedRectangle(cornerRadius: Self.bannerRadius))
+                .ui2Element("Banner")
+        } else {
+            Avatar(imageURL: photoURL.flatMap(URL.init(string:)), initials: nil, size: Self.avatarSize)
+        }
+    }
+
+    private var usesBanner: Bool { style == .program || style == .pending }
+
+    /// Cache-first, as Avatar.swift's `photo(_:)`: a snapshot renders in one synchronous
+    /// layout pass, so an `AsyncImage` alone comes out empty in a capture (Ui2ImageCache.swift).
+    /// No photo, or one that fails, leaves the slot empty on the card's own ground.
+    @ViewBuilder
+    private func bannerPhoto(_ url: URL?) -> some View {
+        if let url, let cached = Ui2ImageCache.shared.image(for: url) {
+            Image(uiImage: cached)
+                .resizable()
+                .scaledToFill()
+        } else if let url {
+            AsyncImage(url: url) { image in
+                image
+                    .resizable()
+                    .scaledToFill()
+            } placeholder: {
+                Color.clear
+            }
+        } else {
+            Color.clear
+        }
     }
 
     // MARK: - Completion slot (§2 slot 2, contents are the §3a axis)
@@ -183,8 +233,8 @@ struct GroupFollowCard: View {
                 )
                 .ui2Element("Completion row")
             }
-        case .noBar:
-            // §3a `No bar`: "stack gap `space-meta-gap` (4): members row above completion
+        case .noBar, .program:
+            // §3a `No bar` (and `Program`, "as `No bar`"): "stack gap `space-meta-gap` (4): members row above completion
             // row. Slot 145×44."
             VStack(alignment: .leading, spacing: Token.Space.metaGap) {
                 // §3a: "The members row (\"9\" `color-text-primary` + \"members\"
@@ -206,6 +256,26 @@ struct GroupFollowCard: View {
                     labelColor: color.token
                 )
                 .ui2Element("Completion row")
+            }
+        case .pending:
+            // §3a `Pending`: "stack gap `space-meta-gap` (4): days row (`days`
+            // `color-text-primary` + literal \"Days\" `color-white-50`) above the literal
+            // \"finish setup\" in `color-amber-500`" — `color` has no effect.
+            VStack(alignment: .leading, spacing: Token.Space.metaGap) {
+                completionRow(
+                    value: days,
+                    valueColor: Token.textPrimary,
+                    label: Self.daysLabel,
+                    labelColor: Token.white50
+                )
+                .ui2Element("Days row")
+                Text(Self.pendingLabel)
+                    .designTextStyle(Token.TypeStyle.pageTitle)
+                    .foregroundColor(Token.amber500)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: Self.completionRowHeight,
+                           maxHeight: Self.completionRowHeight, alignment: .leading)
+                    .ui2Element("Pending row")
             }
         }
     }
@@ -243,6 +313,11 @@ struct GroupFollowCard: View {
     private static let height: CGFloat = 228
     private static let contentWidth: CGFloat = 145
     private static let avatarSize: CGFloat = 64
+    // FLAGGED LITERAL — C-033 §2: the `Program` / `Pending` banner's "radius 4 (no 4pt radius
+    // token)".
+    private static let bannerRadius: CGFloat = 4
+    // §2: `Pending`'s border is "dotted — 1pt stroke, dash 2 / gap 2" (owner 2026-10-29).
+    private static let pendingDash: [CGFloat] = [2, 2]
     private static let completionRowHeight: CGFloat = 20
 
     // §2: "1px border `color-card-border`", which is why every inset from the outer edge is
@@ -279,6 +354,9 @@ struct GroupFollowCard: View {
     // §3a: the members row's word is likewise designed, not content (deviation 1 lists the
     // sample strings; §4 gives the row only its number).
     private static let membersLabel = "members"
+    // §3a `Pending`: the days row's word and the amber line are designed, not content.
+    private static let daysLabel = "Days"
+    private static let pendingLabel = "finish setup"
 }
 
 // MARK: - C-038 Avatar

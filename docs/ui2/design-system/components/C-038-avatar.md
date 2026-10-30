@@ -108,7 +108,7 @@ is named for its role because the variable's name contradicts its binding — se
 
 | `state` | Inside the circle | Consumption |
 |---|---|---|
-| `Has photo` | the image, cover-cropped | **consumed** — members-home (32, in C-037) · members-profile (164) · groups-home (64, in C-037) · enrollments-home (40, in C-058) · invite-home (54) · C-033 GroupFollowCard (64) |
+| `Has photo` | the image, cover-cropped | **consumed** — members-home (32, in C-037) · members-profile (164) · groups-home (64, in C-037) · enrollments-home (40, in C-058) · invite-home (54) · C-033 ObjectCard (64) |
 | `Initials` | Bold 17/22 initials on `color-avatar-fallback` | **consumed** — members-home §4 and members-profile both specify the fallback; **this run is the first time it is DESIGNED rather than asserted**, which answers OQ-C-033-7 |
 | `Unknown user` | C-074 PersonGlyph at 60%, on `color-avatar-fallback` | **designed-unconsumed** — no screen spec reaches it (OQ-C-038-5) |
 
@@ -172,7 +172,7 @@ OQ-C-038-3.
 
 **Consumed by:** `members-home` (32, inside C-037) · `members-profile` (164) · `groups-home`
 (64, inside C-037) · `enrollments-home` (40, inside C-058) · `invite-home` (54) · **C-033
-GroupFollowCard** (64) · **C-037 ListResultRow** · **C-058 GroupSectionHeader**.
+ObjectCard** (64) · **C-037 ListResultRow** · **C-058 GroupSectionHeader**.
 
 **Anticipated:** every future person- or group-bearing row. This is a program primitive.
 

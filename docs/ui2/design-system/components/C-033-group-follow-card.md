@@ -1,7 +1,11 @@
-# C-033 GroupFollowCard — a followed group's completion, in a horizontally-scrolling rail
+# C-033 ObjectCard — a group, study program, lesson or activity and its completion, in a horizontally-scrolling rail
+
+> **2026-10-29:** renamed from GroupFollowCard; the owner added `style=Program` (`4761:55042`) and
+> `style=Pending` (`4761:55076`) for study programs, lessons and activities. Those two styles are
+> written in d2m's C-033 contract only, not in this file.
 
 Status: existing-modified · Specced: 2026-09-10 · Owner-designated: `/ui2-component
-GroupFollowCard <set url>` with the set `3620:4662` pasted by the owner 2026-09-10 (D10 —
+ObjectCard <set url>` with the set `3620:4662` pasted by the owner 2026-09-10 (D10 —
 the owner's paste designates the SET normative; the registry previously anchored this row to
 the home-dashboard frame INSTANCE `3622:5628`, which is one symbol of it). This file
 **relocates** the contract from `screens/home-dashboard.md` §4 (pointer left there).
@@ -155,7 +159,7 @@ Variants not in this table may not be built without a ruling.
 
 ## 4. Props contract
 
-**C-033 GroupFollowCard**
+**C-033 ObjectCard**
 
 | Prop | Type | Purpose |
 |---|---|---|

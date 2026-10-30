@@ -60,7 +60,7 @@ the screen spec's §Connections. Overlay presentations are edges too (`overlay` 
 | home-dashboard | home-kpi-picker | overlay | Overview header plus (GlyphButton) | `screens/home-dashboard.md` §6 |
 | home-dashboard | home-follow-picker | overlay | Following header plus (GlyphButton) | `screens/home-dashboard.md` §6 |
 | home-dashboard | (deferred) | push? | Engagement header arrow-right — destination OQ-home-dashboard-1 | `screens/home-dashboard.md` §8 |
-| home-dashboard | (deferred) | tap | GroupFollowCard tap + program ellipsis menu — OQ-home-dashboard-4 | `screens/home-dashboard.md` §8 |
+| home-dashboard | (deferred) | tap | ObjectCard tap + program ellipsis menu — OQ-home-dashboard-4 | `screens/home-dashboard.md` §8 |
 | shell-tabs | members-home | tab | tab select (Members — evidenced by both specced frames) | `screens/members-home.md` §6 |
 | shell-tabs | groups-home | tab | tab select (Groups) | `screens/groups-home.md` §6 |
 | shell-tabs | enrollments-home | tab | tab select (Enrollments — active in the specced frame) | `screens/enrollments-home.md` §6 |

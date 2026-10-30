@@ -595,17 +595,19 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         guard let c = fixture.state?.component else {
             throw ViewRegistryError.unknownView("component.ui2.C-033: missing state.component")
         }
-        let ui2C033Style: MakeReadyUI.GroupFollowCard.Style
+        let ui2C033Style: MakeReadyUI.ObjectCard.Style
         switch c.style {
         case "default": ui2C033Style = .standard
         case "noBar": ui2C033Style = .noBar
         default:
-            throw ViewRegistryError.unknownView("component.ui2.C-033: props.style must be default|noBar")
+            throw ViewRegistryError.unknownView("component.ui2.C-033: props.style must be default|noBar|program|pending")
         }
-        let ui2C033Color: MakeReadyUI.GroupFollowCard.BandColor
+        let ui2C033Color: MakeReadyUI.ObjectCard.BandColor
         switch c.color {
         case "green": ui2C033Color = .green
         case "yellow": ui2C033Color = .yellow
+        case "program": ui2C033Style = .program
+        case "pending": ui2C033Style = .pending
         case "red": ui2C033Color = .red
         default:
             throw ViewRegistryError.unknownView("component.ui2.C-033: props.color must be green|yellow|red")
@@ -627,7 +629,7 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
             throw ViewRegistryError.unknownView("component.ui2.C-033: props.title and props.percent are required")
         }
         return declareCase(
-            MakeReadyUI.GroupFollowCard(
+            MakeReadyUI.ObjectCard(
                 style: ui2C033Style,
                 color: ui2C033Color,
                 title: ui2C033Title,
@@ -643,6 +645,9 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
                 progress: c.progress ?? 0
             ),
             // OQ-PB-1: C-033 §2 opens "179×228 in every state", so the component states its
+                // §4 scopes `days` to `pending` — the fixture's `days` is the shared Int field
+                // (`CaptureDays.duration`), formatted here as the display string the view takes.
+                days: c.days?.duration.map(String.init) ?? "",
             // own footprint and the call site does not fix one — it only supplies the outer
             // margin and the ground.
             PreviewFrame(intrinsic: true)

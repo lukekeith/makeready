@@ -45,7 +45,7 @@ Five sections separated by 1px `color-layout-border` hairlines with `space-secti
    arrow-right) → EnrollmentStatusRow 408×64, inset 16.
 5. **Following** (`3622:5619`) — header (title + MetaPair "3 enrollments" + GlyphButton
    plus) → per followed program: FollowedProgramHeader (40pt: program title 14pt + meta line
-   "Author · Created <date>") → 32pt → horizontally scrolling GroupFollowCard rail 179×228,
+   "Author · Created <date>") → 32pt → horizontally scrolling ObjectCard rail 179×228,
    gap 8, leading inset 16 → 32pt → next program block.
 
 Component geometry lives in each component's §4 contract. Radii observed: KPI card 4,
@@ -76,7 +76,7 @@ only affordance.
 - Engagement arrow-right → detail destination deferred (OQ-home-dashboard-1).
 - Following plus → **add-enrollment-to-follow** picker (`home-follow-picker`, future spec).
 - FollowedProgramHeader ellipsis → context menu; contents deferred (OQ-home-dashboard-4).
-- GroupFollowCard tap → destination deferred (OQ-home-dashboard-4).
+- ObjectCard tap → destination deferred (OQ-home-dashboard-4).
 
 **Motion:** no bespoke motion on this screen beyond system scroll physics; nav morph
 motion is owned by `shell-topnav`. Chart entrance animation is a build-suite decision only
@@ -91,7 +91,7 @@ SectionHeader** · **C-021 GlyphButton** · **C-022 MetaPair** · **C-023 KpiCar
 TimeActivityChart** · **C-031 EnrollmentStatusRow** · **C-062 PercentDisc** (`size=Green 2`,
 with `statusColor` — was ~~C-073 StatusPercentDisc~~, merged 2026-09-11)
 (2026-09-10 — split out of C-031's anatomy by the full-set run; rendered here only inside
-C-031) · **C-032 FollowedProgramHeader** · **C-033 GroupFollowCard**.
+C-031) · **C-032 FollowedProgramHeader** · **C-033 ObjectCard**.
 
 Contracts for the rows this screen introduces (all `(new)`; measured from node
 `3622:5487`, get_design_context 2026-09-01):
@@ -218,7 +218,7 @@ inside one symbol (OQ-home-dashboard-6, and OQ-C-031-2 in the contract).
 (SF Pro Regular 12 `text/secondary`): author name · 4pt dot · "Created <Mon D, YYYY>";
 right-aligned GlyphButton `ellipsis`. Props: `title`, `author`, `createdLabel`, `onMenu`.
 
-### C-033 GroupFollowCard
+### C-033 ObjectCard
 **Contract relocated 2026-09-10** → `../design-system/components/C-033-group-follow-card.md`
 (full-set `/ui2-component` run on the owner-designated set `3620:4662`, which this section's
 node ref — `3622:5628` — is one **instance** of). The set designs **two axes this section did
@@ -266,7 +266,7 @@ policy from the analytics spec applies to everything above.
 - **Entry:** `shell-tabs` → home-dashboard (Home tab, the default tab).
 - **Exits/overlays:** Overview plus → `home-kpi-picker` (overlay, future spec) · Following
   plus → `home-follow-picker` (overlay, future spec) · Engagement arrow → deferred (OQ-1) ·
-  GroupFollowCard tap + program ellipsis menu → deferred (OQ-4).
+  ObjectCard tap + program ellipsis menu → deferred (OQ-4).
 - Nav row: tab selection edges are owned by `shell-tabs`/`shell-topnav`.
 
 ## 7. Legacy mapping

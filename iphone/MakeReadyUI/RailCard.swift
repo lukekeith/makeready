@@ -305,7 +305,7 @@ struct RailCard: View {
 
     // §2's stated dimensions. Component MEASUREMENTS, not spacing values: the spacing family
     // covers gaps and insets and has no vocabulary for a component's own footprint — the
-    // same treatment C-033 GroupFollowCard and C-024's sample footprint get.
+    // same treatment C-033 ObjectCard and C-024's sample footprint get.
     private static let height: CGFloat = 192                   // §2c: shared by both kinds
     private static let dateBlockHeight: CGFloat = 38           // §2b slot 1
     private static let valuePairHeight: CGFloat = 36           // §2b slot 3
