@@ -77,6 +77,7 @@ enum Token {
     static let layoutBackground = Color(red: 0.0118, green: 0.0157, blue: 0.0196, opacity: 1)
     static let black10 = Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.102)
     static let cardBackground = Color(red: 0.1216, green: 0.1294, blue: 0.1412, opacity: 1)
+    static let purpleCard = Color(red: 0.1255, green: 0.1059, blue: 0.2824, opacity: 1)
     static let black20 = Color(red: 0.0, green: 0.0, blue: 0.0, opacity: 0.2)
     static let cardBorder = Color(red: 0.1843, green: 0.2118, blue: 0.2275, opacity: 1)
     static let navText = Color(red: 0.6, green: 0.6314, blue: 0.6863, opacity: 1)

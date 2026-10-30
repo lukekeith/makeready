@@ -599,15 +599,16 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
         switch c.style {
         case "default": ui2C033Style = .standard
         case "noBar": ui2C033Style = .noBar
+        case "program": ui2C033Style = .program
+        case "pending": ui2C033Style = .pending
+        case "enrolled": ui2C033Style = .enrolled
         default:
-            throw ViewRegistryError.unknownView("component.ui2.C-033: props.style must be default|noBar|program|pending")
+            throw ViewRegistryError.unknownView("component.ui2.C-033: props.style must be default|noBar|program|pending|enrolled")
         }
         let ui2C033Color: MakeReadyUI.ObjectCard.BandColor
         switch c.color {
         case "green": ui2C033Color = .green
         case "yellow": ui2C033Color = .yellow
-        case "program": ui2C033Style = .program
-        case "pending": ui2C033Style = .pending
         case "red": ui2C033Color = .red
         default:
             throw ViewRegistryError.unknownView("component.ui2.C-033: props.color must be green|yellow|red")
@@ -638,6 +639,9 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
                 // the contract, not a missing default — and `Default` renders neither (it
                 // hard-codes "complete", deviation 7).
                 members: c.members ?? "",
+                // §4 scopes `days` to `pending` / `enrolled` — the fixture's `days` is the shared Int field
+                // (`CaptureDays.duration`), formatted here as the display string the view takes.
+                days: c.days?.duration.map(String.init) ?? "",
                 percent: ui2C033Percent,
                 label: c.label ?? "",
                 showLink: c.showLink ?? true,
@@ -645,9 +649,6 @@ private func buildCaptureViewPart6(_ fixture: CaptureFixture, authManager: AuthM
                 progress: c.progress ?? 0
             ),
             // OQ-PB-1: C-033 §2 opens "179×228 in every state", so the component states its
-                // §4 scopes `days` to `pending` — the fixture's `days` is the shared Int field
-                // (`CaptureDays.duration`), formatted here as the display string the view takes.
-                days: c.days?.duration.map(String.init) ?? "",
             // own footprint and the call site does not fix one — it only supplies the outer
             // margin and the ground.
             PreviewFrame(intrinsic: true)

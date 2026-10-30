@@ -3,6 +3,8 @@
 > **2026-10-29:** renamed from GroupFollowCard; the owner added `style=Program` (`4761:55042`) and
 > `style=Pending` (`4761:55076`) for study programs, lessons and activities. Those two styles are
 > written in d2m's C-033 contract only, not in this file.
+> **2026-10-30:** Pending redesigned (`color-purple-card` fill, dashed `color-accent` border,
+> progress line, "Tap to finish") and `Enrolled` added (`4762:55164`) — also d2m-only.
 
 Status: existing-modified · Specced: 2026-09-10 · Owner-designated: `/ui2-component
 ObjectCard <set url>` with the set `3620:4662` pasted by the owner 2026-09-10 (D10 —

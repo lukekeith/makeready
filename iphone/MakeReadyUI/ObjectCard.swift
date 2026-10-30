@@ -4,7 +4,7 @@
 //
 //  Built from docs/ui2/design-system/components/C-033-group-follow-card.md (§2 geometry, §3
 //  states, §4 props). Renamed from GroupFollowCard 2026-10-29, when the owner added the
-//  `Program` and `Pending` styles (Figma 4761:55042 / 4761:55076) for study programs, lessons
+//  `Program`, `Pending` and `Enrolled` styles (Figma 4761:55042 / 4761:55076 / 4762:55164) for study programs, lessons
 //  and activities. PREVIEW ONLY: referenced by no screen, route, tab or flag
 //  (docs/ui2/preview-build.md §3 rule 1). Promoted by the ui2-shell suite (§7).
 //
@@ -35,7 +35,9 @@ import SwiftUI
 /// (preview-build.md OQ-PB-1 / OQ-PB-2).
 struct ObjectCard: View {
 
-    /// C-033 §4 `style: default | noBar | program | pending` (§3a's four designed styles).
+    /// C-033 §4 `style: default | noBar | program | pending | enrolled` (§3a's five designed
+    /// styles). Figma spells the last two as `style=Pending` × `color=Tap to finish | Enrolled`;
+    /// they share nothing with the completion band, so the card takes them as styles.
     ///
     /// `standard` spells §4's `default`, which is a Swift keyword — the same substitution
     /// `PageHeader.Style` makes (and the retired `DayActivityCard.State` made), resolved at the ViewRegistry
@@ -45,8 +47,12 @@ struct ObjectCard: View {
         case noBar
         /// §3a `Program`: `noBar` with the 145×64 banner in place of the avatar, no link mark.
         case program
-        /// §3a `Pending`: banner, days row over an amber "finish setup", dotted amber border.
+        /// §3a `Pending` (Figma `Pending · Tap to finish`): `color-purple-card` ground, dashed
+        /// `color-accent` border, a white progress line, the days row, "Tap to finish".
         case pending
+        /// §3a `Enrolled` (Figma `Pending · Enrolled`): banner, the days row over the completion
+        /// row in `color-highlight`.
+        case enrolled
     }
 
     /// C-033 §4 `color: green | yellow | red` — §3b's completion band.
@@ -80,7 +86,7 @@ struct ObjectCard: View {
     /// count: the source types it as one and OQ-C-033-5 is open on whether that is the
     /// component's contract or the sample's.
     let members: String
-    /// C-033 §4: `days` — "`pending` only — the days-row number"; the word "Days" is designed.
+    /// C-033 §4: `days` — "`pending` / `enrolled` — the days-row number"; "Days" is designed.
     var days: String = ""
     /// C-033 §4: `percent` — the completion number, likewise a display string ("55%").
     let percent: String
@@ -89,7 +95,7 @@ struct ObjectCard: View {
     let label: String
     /// C-033 §4: `showLink` — "`noBar` only" (§3d, default true).
     let showLink: Bool
-    /// C-033 §4: `progress` — "`default` only" → C-057 PercentBar.
+    /// C-033 §4: `progress` — "`default` → C-057 PercentBar; `pending` → its progress line".
     let progress: Double
     /// C-033 §4: `onTap` — "no render effect, no designed pressed state (§3f)". Emitted as a
     /// defaulted no-op so the promoted view keeps its real signature (OQ-PB-3's default).
@@ -113,13 +119,13 @@ struct ObjectCard: View {
         // token — "not a new colour" — so the token is what is named here.
         .background(
             RoundedRectangle(cornerRadius: Token.Radius.card)
-                .fill(Token.cardBackground)
+                .fill(style == .pending ? Token.purpleCard : Token.cardBackground)
         )
         // §2: "1px border `color-card-border`" (deviation 4 again, hex-equal `#2f363a`).
         .overlay(
             RoundedRectangle(cornerRadius: Token.Radius.card)
                 .strokeBorder(
-                    style == .pending ? Token.amber500 : Token.cardBorder,
+                    style == .pending ? Token.accent : Token.cardBorder,
                     style: StrokeStyle(lineWidth: Self.borderWidth, dash: style == .pending ? Self.pendingDash : [])
                 )
                 .ui2Element("Border")
@@ -165,7 +171,8 @@ struct ObjectCard: View {
         .ui2Element("Top")
     }
 
-    /// §2 Image: the C-038 avatar circle in `Default` / `No bar`; in `Program` / `Pending` a
+    /// §2 Image: the C-038 avatar circle in `Default` / `No bar`; in `Program` / `Pending` /
+    /// `Enrolled` a
     /// banner — "full content width (145) × 64, radius 4 … image cover-cropped".
     @ViewBuilder
     private var image: some View {
@@ -179,7 +186,7 @@ struct ObjectCard: View {
         }
     }
 
-    private var usesBanner: Bool { style == .program || style == .pending }
+    private var usesBanner: Bool { style == .program || style == .pending || style == .enrolled }
 
     /// Cache-first, as Avatar.swift's `photo(_:)`: a snapshot renders in one synchronous
     /// layout pass, so an `AsyncImage` alone comes out empty in a capture (Ui2ImageCache.swift).
@@ -258,10 +265,12 @@ struct ObjectCard: View {
                 .ui2Element("Completion row")
             }
         case .pending:
-            // §3a `Pending`: "stack gap `space-meta-gap` (4): days row (`days`
+            // §3a `Pending`: "stack gap `space-meta-gap` (4): progress line (145×2, fill
+            // `color-text-primary` on a `color-white-20` track) above the days row (`days`
             // `color-text-primary` + literal \"Days\" `color-white-50`) above the literal
-            // \"finish setup\" in `color-amber-500`" — `color` has no effect.
+            // \"Tap to finish\" in `color-accent`. Slot 145×50; Top 134."
             VStack(alignment: .leading, spacing: Token.Space.metaGap) {
+                progressLine
                 completionRow(
                     value: days,
                     valueColor: Token.textPrimary,
@@ -271,13 +280,50 @@ struct ObjectCard: View {
                 .ui2Element("Days row")
                 Text(Self.pendingLabel)
                     .designTextStyle(Token.TypeStyle.pageTitle)
-                    .foregroundColor(Token.amber500)
+                    .foregroundColor(Token.accent)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, minHeight: Self.completionRowHeight,
                            maxHeight: Self.completionRowHeight, alignment: .leading)
                     .ui2Element("Pending row")
             }
+        case .enrolled:
+            // §3a `Enrolled`: "stack gap `space-meta-gap` (4): days row above the completion
+            // row, **both** number and label in `color-highlight`. Slot 145×44; Top 140."
+            VStack(alignment: .leading, spacing: Token.Space.metaGap) {
+                completionRow(
+                    value: days,
+                    valueColor: Token.textPrimary,
+                    label: Self.daysLabel,
+                    labelColor: Token.white50
+                )
+                .ui2Element("Days row")
+                completionRow(
+                    value: percent,
+                    valueColor: Token.highlight,
+                    label: label,
+                    labelColor: Token.highlight
+                )
+                .ui2Element("Completion row")
+            }
         }
+    }
+
+    // GAP — C-033 §2: `Pending`'s progress line draws a `color-white-20` track, and C-057
+    // PercentBar's `sm` draws `color-white-10` with no track-colour override — so the line is
+    // drawn here (2pt, square, left-anchored, fill = `progress` of the 145 width) rather than
+    // composed, until C-057 takes a track colour.
+    private var progressLine: some View {
+        ZStack(alignment: .leading) {
+            Rectangle()
+                .fill(Token.white20)
+                .ui2Element("Track")
+            Rectangle()
+                .fill(Token.textPrimary)
+                .frame(width: Self.contentWidth * min(max(progress, 0), 1))
+                .ui2Element("Fill")
+        }
+        .frame(width: Self.contentWidth, height: Self.progressLineHeight)
+        .ui2Element("Progress line")
     }
 
     /// §2: "both its rows are a `flex` pair with `space-meta-gap` (4) between the number and
@@ -316,7 +362,7 @@ struct ObjectCard: View {
     // FLAGGED LITERAL — C-033 §2: the `Program` / `Pending` banner's "radius 4 (no 4pt radius
     // token)".
     private static let bannerRadius: CGFloat = 4
-    // §2: `Pending`'s border is "dotted — 1pt stroke, dash 2 / gap 2" (owner 2026-10-29).
+    // §2: `Pending`'s border is "dashed — 1pt stroke, dash 2 / gap 2" (owner 2026-10-29/30).
     private static let pendingDash: [CGFloat] = [2, 2]
     private static let completionRowHeight: CGFloat = 20
 
@@ -340,13 +386,24 @@ struct ObjectCard: View {
     // §2: the Top slot "absorbs the whole height difference between the two styles (146 in
     // `Default`, 140 in `No bar`, exactly the 6pt the Completion slot differs by)".
     private var topSlotHeight: CGFloat {
-        style == .standard ? 146 : 140
+        switch style {
+        case .standard: 146
+        case .pending: 134
+        case .noBar, .program, .enrolled: 140
+        }
     }
 
-    // §3a: "Slot 145×38" (`Default`) / "Slot 145×44" (`No bar`).
+    // §3a: "Slot 145×38" (`Default`) / "Slot 145×50" (`Pending`) / "Slot 145×44" (the rest).
     private var completionSlotHeight: CGFloat {
-        style == .standard ? 38 : 44
+        switch style {
+        case .standard: 38
+        case .pending: 50
+        case .noBar, .program, .enrolled: 44
+        }
     }
+
+    // §3a `Pending`: the progress line is 2pt — C-057's `sm` height, FLAGGED there.
+    private static let progressLineHeight: CGFloat = 2
 
     // §3a: `Default`'s trailing label is the hard-coded string "complete" in the source, and
     // deviation 7 records exactly that — the state does not read `label`.
@@ -354,9 +411,9 @@ struct ObjectCard: View {
     // §3a: the members row's word is likewise designed, not content (deviation 1 lists the
     // sample strings; §4 gives the row only its number).
     private static let membersLabel = "members"
-    // §3a `Pending`: the days row's word and the amber line are designed, not content.
+    // §3a `Pending` / `Enrolled`: the days row's word and the purple line are designed.
     private static let daysLabel = "Days"
-    private static let pendingLabel = "finish setup"
+    private static let pendingLabel = "Tap to finish"
 }
 
 // MARK: - C-038 Avatar
