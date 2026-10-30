@@ -3613,7 +3613,11 @@ private func buildScreenEnrollmentsHome(_ fixture: CaptureFixture) throws -> Any
             programEnrolledDates: c.programEnrolledDates ?? sample.programEnrolledDates,
             programCoverURLs: programCoverURLs,
             programDraftLabels: c.programDraftLabels ?? sample.programDraftLabels,
-            programDraftStarters: c.programDraftStarters ?? sample.programDraftStarters
+            programDraftStarters: c.programDraftStarters ?? sample.programDraftStarters,
+            // enrollments-rail: an absent or unknown layout is the `list` every older preview is.
+            programLayout: c.programLayout.flatMap(MakeReadyUI.EnrollmentsHomeScreen.State.Layout.init(rawValue:)) ?? .list,
+            programMemberCounts: c.programMemberCounts ?? [],
+            programDayCounts: (c.programDayCounts ?? []).map(String.init)
         )
     ))
 }

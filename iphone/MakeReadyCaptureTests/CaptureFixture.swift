@@ -977,6 +977,10 @@ struct CaptureComponent: Codable {
     // same types).
     let failed: Bool?
     let programGroupIndexes: [Int]?
+    // enrollments-rail 2026-10-30 (the `rail` layout, C-033 ObjectCard cards): additive. The
+    // draft card's days reuse enrollment-select-program's `programDayCounts` ([Int], same meaning).
+    let programLayout: String?
+    let programMemberCounts: [String]?
     // ── screen search-home ──
     // Reused as-is: `searchText` (same name, same type).
     let activeChip: String?

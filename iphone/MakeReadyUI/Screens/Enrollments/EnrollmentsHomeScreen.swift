@@ -17,7 +17,9 @@ import SwiftUI
 /// directory, grouped by group. A header of C-034 search over four C-035 filter chips, pinned below
 /// the shell's TopNav, then one section per group — a C-058 header over its C-059 rows — with a
 /// C-088 rule between consecutive sections (§2). The C-019 TopNav is the shell's (§1 deviation 3).
-/// Composed only of §4's C-034, C-035, C-058, C-059 and C-088; C-021 and C-038 render inside C-058, C-057 and C-043 inside C-059.
+/// Composed only of §4's C-034, C-035, C-058, C-059, C-033 and C-088; C-021 and C-038 render inside C-058, C-057 and C-043 inside C-059.
+/// §2 `rail` layout (enrollments-rail, 2026-10-30): each group's enrollments are a horizontal
+/// rail of C-033 ObjectCards instead of C-059 rows — `program` per enrollment, `pending` per draft.
 /// C-036 FilterMenuOverlay is presented by a chip but §4 drops it ("presented, not on the
 /// screen"), so a chip tap leaves the screen through `onOpenFilter`.
 ///
@@ -32,6 +34,13 @@ struct EnrollmentsHomeScreen: View {
     /// section — because the preview's props are JSON and the §4 views take flat parameters
     /// (R-05). Order is the feed's (OQ-enrollments-home-1: most-recent activity first).
     struct State {
+        /// §2: how a group's enrollments are laid out — C-059 rows (`list`) or a horizontal rail
+        /// of C-033 ObjectCards (`rail`).
+        enum Layout: String {
+            case list
+            case rail
+        }
+
         // ── Header (§2) ──
         /// C-034 `text`: the current query. "" shows the placeholder (§4 `Default`).
         var searchText: String
@@ -71,6 +80,12 @@ struct EnrollmentsHomeScreen: View {
         var programDraftLabels: [String] = []
         /// A draft row's starter line under its label (e.g. "Started by Jane Doe"); "" = no line.
         var programDraftStarters: [String] = []
+        /// §2 layout; `list` unless a state asks for the rail.
+        var programLayout: Layout = .list
+        /// `rail` only — C-033 `members` per enrollment ("9"); a missing index reads as "".
+        var programMemberCounts: [String] = []
+        /// `rail` only — C-033 `days` per draft card ("15"); a missing index reads as "".
+        var programDayCounts: [String] = []
     }
 
     let state: State
@@ -272,14 +287,63 @@ struct EnrollmentsHomeScreen: View {
                 onOpen: { onOpenGroup(section) }
             )
             .ui2Element(Self.partName("C-058 GroupSectionHeader", ordinal: ordinal))
-            // §2: "one C-059 StudyProgramRow (408×96, `state=Progress`) per enrollment of that
-            // group, stacked with no gap and no separators."
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(visibleRows(in: section), id: \.self) { row in
-                    programRow(row)
+            switch state.programLayout {
+            case .list:
+                // §2: "one C-059 StudyProgramRow (408×96, `state=Progress`) per enrollment of that
+                // group, stacked with no gap and no separators."
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(visibleRows(in: section), id: \.self) { row in
+                        programRow(row)
+                    }
                 }
+            case .rail:
+                programRail(section)
             }
         }
+    }
+
+    /// §2 `rail`: "a horizontally scrolling C-033 ObjectCard rail 179×228, gap
+    /// `space-element-gap` (8), leading inset `space-page-margin` (16), full bleed" — the
+    /// home-dashboard Following rail's geometry. The container's 16 inset is undone so the rail
+    /// runs to both edges and its cards start 16 in.
+    private func programRail(_ section: Int) -> some View {
+        HorizontalRail {
+            HStack(alignment: .top, spacing: Token.Space.elementGap) {
+                ForEach(visibleRows(in: section), id: \.self) { row in
+                    programCard(row)
+                }
+            }
+            .padding(.horizontal, Token.Space.pageMargin)
+        }
+        .scrollIndicators(.hidden)
+        .padding(.horizontal, -Token.Space.pageMargin)
+    }
+
+    /// §2 `rail` card: an enrollment is C-033 `style=program` — cover as the banner, the
+    /// members row, then "N% complete" in the designed green; a draft is `style=pending` —
+    /// "Tap to finish", its days row and its step progress (`programProgress`) as the line.
+    private func programCard(_ row: Int) -> some View {
+        let isDraft = !(state.programDraftLabels[safe: row] ?? "").isEmpty
+        let progress = state.programProgress[safe: row] ?? 0
+        return ObjectCard(
+            style: isDraft ? .pending : .program,
+            color: .green,                                   // C-033 §3c: Program is drawn only at Green
+            title: state.programTitles[row],
+            photoURL: Self.url(state.programCoverURLs[safe: row])?.absoluteString,
+            members: state.programMemberCounts[safe: row] ?? "",
+            days: state.programDayCounts[safe: row] ?? "",
+            percent: Self.percentLabel(progress),
+            label: Self.completeLabel,
+            showLink: false,                                 // C-033 §3a: never rendered in program / pending
+            progress: progress,
+            onTap: { onOpenProgram(state.programGroupIndexes[safe: row] ?? 0, row) }
+        )
+        .ui2Element(Self.partName("C-033 ObjectCard", ordinal: row + 1))
+    }
+
+    /// C-033 `percent` is a display string: the enrollment's progress as a whole percent ("54%").
+    static func percentLabel(_ progress: Double) -> String {
+        "\(Int((min(max(progress, 0), 1) * 100).rounded()))%"
     }
 
     /// §2: one row per entry, chosen by its draft label (`programDraftLabels[i]`; missing = "").
@@ -476,6 +540,44 @@ extension EnrollmentsHomeScreen.State {
         programDraftStarters: ["", "", "Started by Jane Doe"]
     )
 
+    /// §3 `populated`, capture state `populated-rail` (enrollments-rail): `populated`'s groups and
+    /// enrollments in the `rail` layout, plus one draft (with-draft's "Wisdom at Work", 2 of 6
+    /// steps) second in the first group, so the capture shows its `pending` card. Members and
+    /// days are C-033's own samples ("9", "15").
+    static let populatedRail = Self(
+        searchText: "",
+        orgFilterLabel: "All Orgs",
+        groupFilterLabel: "All groups",
+        leaderFilterLabel: "All Leaders",
+        statusFilterLabel: "Active",
+        loading: false,
+        failed: false,
+        groupNames: ["Stickane Family", "Young Professionals"],
+        groupLeaderNames: ["Scott Stickane", "Luke Keith"],
+        groupPhotoURLs: [
+            "https://picsum.photos/seed/enrollments-home-group-1/256",
+            "https://picsum.photos/seed/enrollments-home-group-2/256"
+        ],
+        programGroupIndexes: [0, 0, 0, 0, 1],
+        programTitles: ["Daily Inspiration", "Wisdom at Work", "Romans in 30 days", "John 1:1-18", "Daily Inspiration"],
+        programProgress: [0.12, 0.33, 0.54, 0.31, 0.05],
+        programCompleteCounts: ["12", "", "12", "12", "12"],
+        programHours: ["15", "", "15", "15", "15"],
+        programEnrolledDates: ["Jan 3, 2025", "", "Jan 3, 2025", "Jan 3, 2025", "Jan 3, 2025"],
+        programCoverURLs: [
+            "https://picsum.photos/seed/c059/128/176",
+            "https://picsum.photos/seed/enrollments-home-4/128/176",
+            "https://picsum.photos/seed/enrollments-home-2/128/176",
+            "https://picsum.photos/seed/enrollments-home-3/128/176",
+            "https://picsum.photos/seed/c059/128/176"
+        ],
+        programDraftLabels: ["", "Draft · 2/6", "", "", ""],
+        programDraftStarters: ["", "Started by Jane Doe", "", "", ""],
+        programLayout: .rail,
+        programMemberCounts: ["9", "", "9", "9", "9"],
+        programDayCounts: ["", "15", "", "", ""]
+    )
+
     /// §3 `loading`: "first launch with no cached data … search + chips render immediately".
     static let loading = Self(
         searchText: "",
@@ -596,6 +698,13 @@ extension EnrollmentsHomeScreen.State {
 
 #Preview("error") {
     EnrollmentsHomeScreen(state: .error)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("populated-rail") {
+    EnrollmentsHomeScreen(state: .populatedRail)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)
