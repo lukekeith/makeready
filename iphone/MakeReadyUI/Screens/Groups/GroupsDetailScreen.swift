@@ -734,11 +734,11 @@ private extension Array {
 extension GroupsDetailScreen.State {
 
     private static let readStyled =
-        "file:///Users/lukekeith/www/makeready/capture/fixtures/iphone/create-read-activity/screenshots/iphone-16-pro-max/capture.03-styled-blocks.png"
+        "file:///Users/lukekeith/www/makeready/iphone/capture/fixtures/preview-images/create-read-activity-03-styled-blocks.png"
     private static let readBlocks =
-        "file:///Users/lukekeith/www/makeready/capture/fixtures/iphone/create-read-activity/screenshots/iphone-16-pro-max/capture.01-with-blocks.png"
+        "file:///Users/lukekeith/www/makeready/iphone/capture/fixtures/preview-images/create-read-activity-01-with-blocks.png"
     private static let video =
-        "file:///Users/lukekeith/www/makeready/capture/fixtures/iphone/create-video-activity/screenshots/iphone-16-pro-max/capture.03-youtube-loaded.png"
+        "file:///Users/lukekeith/www/makeready/iphone/capture/fixtures/preview-images/create-video-activity-03-youtube-loaded.png"
 
     /// §3 `populated` — every value is the text on the frozen frame `default` (node 3766:11160;
     /// §1 deviation 1: sample content). Images are stand-ins: the C-087 / C-063 / C-059 / C-037

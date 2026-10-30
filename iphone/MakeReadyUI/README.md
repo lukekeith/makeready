@@ -12,5 +12,5 @@ The sources sit in `iphone/MakeReadyUI/`, beside `iphone/MakeReady/`.
 
 **These views ship.** d2m builds them from contracts; the app wires them from `iphone/MakeReady/UI2/` containers (docs/features/ui2-shell SPEC D2, D29). Never hand-wire a file here — a d2m rebuild overwrites it.
 
-`Tokens.swift` is **generated** from `docs/ui2/design-system/tokens.md` by
-`node capture/lib/ui2-tokens.mjs` — never hand-edited.
+`Tokens.swift` is **generated** by d2m from its token store (`set_color_token` changes a value)
+— never hand-edited.

@@ -9,17 +9,12 @@ services:
     ports: !override
       - "8001:8000"
       - "5174:5174"
-    # The Dockerized client can't see the sibling ../capture dir the way a
-    # native `php artisan serve` can, so mount the screenshot fixtures in and
-    # point CaptureController at them explicitly for the /_capture preview route.
     volumes:
-      - ./capture/fixtures/client:/var/www/html/capture
       # vite.config.js isn't in the base compose mounts — mount it so config
       # changes (e.g. VITE_ORIGIN support) apply without an image rebuild.
       - ./client/vite.config.js:/var/www/html/vite.config.js
     environment:
       APP_URL: http://localhost:8001
-      CAPTURE_FIXTURES_PATH: /var/www/html/capture
       # Advertise the Vite dev server on the Mac's LAN IP so physical devices
       # (iPhone preview WebViews) can load dev assets — 0.0.0.0 is unroutable
       # from the phone. Works from the Mac too. Matches Configuration.swift's

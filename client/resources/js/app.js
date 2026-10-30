@@ -36,12 +36,10 @@ import GroupHeaderIsland from './components/domain/group-header-island/group-hea
 import MemberStudiesIsland from './components/domain/member-studies-island/member-studies-island.vue'
 import SlidesIsland from './islands/slides-island/slides-island.vue'
 import InvestorTimeline from './islands/investor-timeline/investor-timeline.vue'
-import ComponentCapture from './components/domain/component-capture/component-capture.vue'
 
 const componentRegistry = {
   'AdminIsland': AdminIsland,
   'LeaderApp': LeaderApp,
-  'ComponentCapture': ComponentCapture,
   'PhoneEntry': PhoneEntry,
   'VideoPlayer': VideoPlayer,
   'Digit': Digit,

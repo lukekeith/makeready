@@ -1,6 +1,5 @@
 .git/
 iphone/
-capture/
 client/
 node_modules/
 **/node_modules/

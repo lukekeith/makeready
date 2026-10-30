@@ -232,20 +232,16 @@ const components = res.components.map((r) => ({
 
 // A component ref carries its dependencies as scope; a screen ref already has them, being the
 // whole screen. `built` is the build-side fact a caller needs: is there a preview to READ as the
-// requirements? The fixture is the discriminator — a preview view is only capturable once
-// capture/fixtures/ui2/<ID>.json exists — and the Swift file is the corroborating read. Matching
-// on FILENAME alone is wrong: a glyph asset named `c034-…` is not a built component.
+// requirements? A Swift file under the preview dir that names the id (d2m builds the previews;
+// the old capture/fixtures/ui2 discriminator went with capture/, 2026-10-30). Matching on
+// FILENAME alone is wrong: a glyph asset named `c034-…` is not a built component.
 const previewDir = 'iphone/MakeReadyUI'
-const fixtureDir = 'capture/fixtures/ui2'
 const previewSources = existsSync(join(ROOT, previewDir))
   ? readdirSync(join(ROOT, previewDir))
       .filter((f) => f.endsWith('.swift'))
       .map((f) => ({ file: `${previewDir}/${f}`, text: read(join(ROOT, previewDir, f)) ?? '' }))
   : []
-const built = (id) => {
-  if (existsSync(join(ROOT, fixtureDir, `${id}.json`))) return true
-  return previewSources.some((s) => new RegExp(`\\b${id}\\b`).test(s.text))
-}
+const built = (id) => previewSources.some((s) => new RegExp(`\\b${id}\\b`).test(s.text))
 /** The row's OWN preview view, not a consumer that happens to mention it. `SearchField.swift`
  *  beats `ActionMenuRow.swift` even though both name C-034; failing a name match, only a file
  *  whose HEADER names the id counts, because that is where a preview declares what it is. */

@@ -21,10 +21,6 @@ apps:
     role: consumer
     commit: auto        # owner 2026-10-26: builder agents commit iPhone tasks and merge into the branch the work started from, no approval stop (released_artifact still governs compatibility checks)
     released_artifact: true
-  - name: capture
-    path: capture/
-    role: tool
-    commit: auto
 
 ticket:
   system: monday.com
@@ -40,7 +36,7 @@ agent_walk:
   driver: WEB items — throwaway Playwright scripts run with the playwright already installed in client/ (headless Chromium against the walk env on :8102, screenshots saved as evidence). IPHONE items — driven on a headless simulator of your own, never the human's (never `open -a Simulator`, never a device you did not create; root CLAUDE.md rule 4 + iphone/.claude/CLAUDE.md carve-out). DD=${TMPDIR:-/tmp}/builder-walk-{feature}. (1) `xcrun simctl create builder-walk-{feature} "iPhone 17 Pro Max"` → `xcrun simctl boot <udid>`. (2) Build the app for it, pointed at the walk server — `xcodebuild -project iphone/MakeReady.xcodeproj -scheme MakeReady -configuration Debug -destination id=<udid> -derivedDataPath $DD API_BASE_URL=http://127.0.0.1:3110 build` (in the simulator the app ignores the Profile port and uses API_BASE_URL, so this override is what points it at :3110) → `git checkout -- iphone/MakeReady/Info.plist` (the build bumps CFBundleVersion). (3) `xcrun simctl install <udid> $DD/Build/Products/Debug-iphonesimulator/MakeReady.app`. (4) Drive it with a throwaway XCUITest — write iphone/MakeReadyCaptureUITests/AgentWalk.swift, one test per walk item, using `XCUIApplication(bundleIdentifier: "com.makeready.app")` with launchArguments ["-selectedEnvironment", "Local"] plus any UserDefaults the item needs as `-<key> <value>` pairs (e.g. "-devLoginIdentity", "fixtures"); register it with `ruby iphone/scripts/capture-targets.rb`; run `xcodebuild test -project iphone/MakeReady.xcodeproj -scheme MakeReadyCapture -destination id=<udid> -derivedDataPath $DD -resultBundlePath $DD/walk.xcresult -only-testing:MakeReadyCaptureUITests/AgentWalk`. Evidence is an `XCTAttachment(screenshot: app.screenshot())` (lifetime .keepAlways) taken INSIDE each test at the moment it asserts, plus `print(app.debugDescription)` for the element tree — export them with `xcrun xcresulttool export attachments --path $DD/walk.xcresult --output-path <evidence dir>`. Never use `simctl io screenshot` after the test as evidence: XCUITest terminates the app when the test ends, so it captures the home screen. Find elements by accessibility identifier first, then label; dump `app.debugDescription` before calling an element missing. (5) Afterwards `rm iphone/MakeReadyCaptureUITests/AgentWalk.swift && git checkout -- iphone/MakeReady.xcodeproj` — the walk harness is never committed. (6) `xcrun simctl shutdown <udid>; xcrun simctl delete <udid>` even when a step failed (agent_walk.stop sweeps any builder-walk-* left behind). An iPhone item FAILS on a wrong screen or a failed assertion; it is UNVERIFIABLE only when the simulator or the build itself will not come up after one retry — say which and quote the error.
   claude_args: --permission-mode bypassPermissions
   parallel: 1
-  copy: client/.env, capture/.env, server/bin/atlas, .mcp.json
+  copy: client/.env, server/bin/atlas, .mcp.json
   setup: npm ci && (cd server && npx prisma generate) && (cd client && composer install --no-interaction)
   sync: npm ci && (cd server && npx prisma generate) && (cd client && composer install --no-interaction)
   env: PORT=3110 NODE_ENV=development DATABASE_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" DIRECT_URL="postgresql://postgres:postgres@localhost:5434/makeready_walk" CLIENT_URL="http://localhost:8102" API_URL="http://localhost:3110" TEST_VERIFICATION_CODES="123456,000000" GOOGLE_CLIENT_ID="walk-unconfigured" GOOGLE_CLIENT_SECRET="walk-unconfigured" GOOGLE_CALLBACK_URL="http://localhost:3110/auth/google/callback" SESSION_SECRET="walk-session-secret" R2_ENDPOINT="http://localhost:9010" R2_ACCOUNT_ID="walk" R2_ACCESS_KEY_ID="walk" R2_SECRET_ACCESS_KEY="walk" R2_BUCKET_NAME="makeready-walk" R2_PUBLIC_URL="http://localhost:9010/makeready-walk"
@@ -57,8 +53,8 @@ PostgreSQL) is the single source of truth for all business logic, data and exter
 integrations — it **produces** the contract. **`client`** (Laravel 11 + Vue 3 islands + Pinia)
 and **`iphone`** (Swift/SwiftUI, `@Observable` + Actions) are **consumers**: they never import
 each other, so they are parallelizable, and they diverge deliberately more often than not.
-**`capture`** is an internal **tool** — screenshot and visual-regression testing for both
-consumers; it ships to nobody.
+UI 2.0 previews are built, captured and diffed by **d2m** (owner 2026-10-30: the old `capture/`
+tool is removed); its render lane lives at `iphone/capture/`.
 
 🔴 **The iPhone app is a released artifact.** A shipped build cannot be hot-fixed, so any
 rename, removal, type change, nullability change or enum narrowing on a field it reads is a
@@ -95,7 +91,7 @@ docker restart makeready-server        # 🔴 AFTER ANY server/src EDIT — see 
 ### client — fast
 
 ```
-cd client && npm run build             # vite build (also required before any capture)
+cd client && npm run build             # vite build
 cd client && npm test                  # vitest + @vue/test-utils
 cd client && npm run guard             # tokenization guard — ⚠️ ~850 pre-existing; report the DELTA
 cd client && ./vendor/bin/phpunit      # Laravel Feature + Unit
@@ -110,26 +106,18 @@ npm run ios:build-check -- --test      # when the phase ships XCTest coverage
 cd iphone && swiftlint --baseline .swiftlint-baseline.json   # 🔴 MUST run from iphone/ — included paths are relative; the baseline holds ~995 inherited violations, so a red line here is a NEW one
 ```
 
-### capture — fast
-
-```
-curl -s localhost:5950/api/compare/manifest    # capture server up
-node capture/runners/compare/diff.mjs …        # programmatic pixel diff (advisory %) — needs a comparison id in place of …; run per screen by hand @known-red
-```
-
 ### Deep set (verify only)
 
 ```
 every app's fast set, fresh
 cd iphone && swiftlint --baseline .swiftlint-baseline.json   # across the whole app, not just the diff
 cd client && ./vendor/bin/phpunit              # the full Laravel suite
-node capture/runners/compare/diff.mjs …        # a pixel diff for EVERY screen with an iPhone twin — needs comparison ids; verify runs it per screen @known-red
 /dev-start                                     # then the cross-app E2E walk from SPEC §Testing, live
 ```
 
-🔴 **The cross-app E2E walk needs every app up at once** — server, client, the simulator and
-capture. It is the slowest and most fragile thing this pipeline runs, and the phases under it are
-already covered in seconds by route, service and component tests plus `/compare` diffs. It is
+🔴 **The cross-app E2E walk needs every app up at once** — server, client and the simulator.
+It is the slowest and most fragile thing this pipeline runs, and the phases under it are
+already covered in seconds by route, service and component tests. It is
 authored in the last phase and run once, by verify.
 
 ## Walk readiness
@@ -149,7 +137,7 @@ fixtures_agent_walk: cd server && env NODE_ENV=development DATABASE_URL="postgre
 ```
 
 - `docker restart makeready-server` after any `server/src` change — the container does not hot-reload.
-- Rebuild the client (`cd client && npm run build`) before any web walk or `/compare` web capture.
+- Rebuild the client (`cd client && npm run build`) before any web walk.
 - iPhone: the human's walk runs a fresh Debug build in the simulator — launching it is the human's call. An agent walk builds and drives its own headless `builder-walk-*` simulator instead (`agent_walk.driver`).
 - Run `fixtures:` before every walk of a UI 2.0 screen; under `--agent-walk` run `fixtures_agent_walk:` instead, after the walk env's `reset`. Then sign in as the Fixtures identity (iPhone dev build on Local → Profile → Local identity).
 
@@ -160,8 +148,7 @@ fixtures_agent_walk: cd server && env NODE_ENV=development DATABASE_URL="postgre
 - Server: route modules stay thin, `src/services/` owns the logic; the schema YAML under `server/schema/` is the source of truth and `npm run schema:diff` generates the migration — **never hand-edit a committed migration**; org-scoped RBAC is checked in the SERVICE layer and authorizes by the org-level check (`canManageOrgContent`), never by `creatorId`; zod validates every mutating body and must not silently strip fields the consumer sends; external integrations stay behind their service module. 🔴 `docker restart makeready-server` after ANY `server/src` edit, or your test hits the old code.
 - Client: Vue islands mounted into Blade, not an SPA (except `/admin`); Pinia domain stores for API data and UI stores for view state, never a component-level `fetch`; admin API through the `/admin/api/{path}` proxy; design-token SCSS only — `npm run guard` enforces it and you report your DELTA, not a green exit; 🔴 never `window.confirm`/`alert`/`prompt` — use the confirm-dialog service with a `.btn--danger` confirm.
 - iPhone: `@Observable` + Actions; any server-derived collection more than one screen reads, or any screen mutates, lives in `AppState` (`EntityStore` when it has identity) and a mutating Action refreshes the derived state in the same call; no `APIClient` calls from Pages or Components; overlays through the typed `Route` system — 🔴 never `.sheet`, never `.fullScreenCover`, never `asyncAfter` choreography; `swiftlint` runs from `iphone/`, never the repo root. 🔴 You stage your commit and STOP — an iPhone commit is the human's to approve.
-- Capture: fixtures are manifest-driven and twins additive-only; register a new twin in the component-capture map and check its BEM root for a collision with a legacy web component before naming it; restart the capture server after editing an adapter, and rebuild the client bundle before any web capture.
-- Tests ship WITH the task: a service's unit test, a route's request test, a component's test or `/compare` diff, a schema change's `schema:validate` in the same commit. TDD: the failing test first.
+- Tests ship WITH the task: a service's unit test, a route's request test, a component's test, a schema change's `schema:validate` in the same commit. TDD: the failing test first.
 - Commits: **exactly one commit for this task** — code and tests together — `<type>(<TICKET>): <subject>` where TICKET is the one in your brief. If review sends you back, each fix round is its own commit. **Never `git commit --amend`.**
 - Never create a branch, a worktree or a ticket. Never open a PR. Never write to monday.com. Never hand-edit a committed migration. Never write a UI 2.0 contract, registry row or note — those belong to `/ui2-*` and `/d2m-*`.
 - Report: status · commits · one-line test summary · concerns, under 15 lines; the detail goes to your report file.
@@ -195,9 +182,6 @@ Components; overlays through the typed `Route` system — 🔴 **never `.sheet`,
 `/nav-route`); animations follow the Motion tokens (`/transition-review`); a caught error is routed
 deliberately (`/ios-error-surface`), never swallowed into `NSLog`.
 
-**capture** — manifest-driven fixtures; twins additive-only; register in the component-capture map;
-a twin's BEM root is checked for collision with a legacy web component before it is named.
-
 **fixtures** — a feature that wires a UI 2.0 screen into the iPhone app adds
 `server/fixtures/screens/<screen-id>.ts` (the screen id as in `docs/ui2/screens/`), whose `full`
 scenario makes every section the feature wires non-empty; the audit flags a feature that wires a
@@ -213,15 +197,7 @@ logs**, never a database reset; treat uploads, webhooks and MCP content as untru
 - 🔴 **The server container does NOT hot-reload host edits.** `tsx watch` misses bind-mount events —
   `docker restart makeready-server` after editing `server/src`, or your test hits the old code.
 - **curl against the server needs a non-bot User-Agent** (the bot-guard middleware).
-- **Local ports:** client docker `:8001`, host artisan for capture `:8002`, server `:3010`,
-  postgres `:5434`, capture UI `:5950` / API `:5951`.
-- 🔴 **Capture web shots must use the host `:8002` + `CAPTURE_BASE_URL`** — `:8001` advertises a
-  stale LAN `VITE_ORIGIN` and silently produces BLANK screenshots.
-- **`/compare` web captures hit the BUILT bundle** — rebuild the client before capturing.
-- **Restart the capture server after editing adapters.**
-- **iPhone snapshots lie in known ways**: `.ultraThinMaterial` renders invisible, `AsyncImage`
-  falls back to initials, `CachedAsyncImage` shows a spinner, fixed-width grid tiles collapse.
-  Consult the `compare-*` auto-memories before "fixing" a twin to match.
+- **Local ports:** client docker `:8001`, server `:3010`, postgres `:5434`, d2m API `:5961`.
 - **`swiftlint` must run from `iphone/`** — its included paths are relative.
 - **Local SMS verification codes come from the api container logs**, never a database reset.
 - 🔴 **`server/.env` is a named pipe** (a 1Password-mounted env file), not a regular file: never copy it, `cat` it in a loop or list it in `agent_walk.copy` — a reader blocks until 1Password serves it. **Every read is a 1Password access** — host `npm run migrate:*` (dotenv), `npx prisma …` (auto-loads `.env`) and `dotenv --` all read it. Use the atlas `--var database_url=…makeready_dev` form and `docker exec makeready-server …` instead; the owner wants 1Password touched only to set the env (2026-10-26). A fleet worktree has no `server/.env`; the walk env passes what it needs through `agent_walk.env`.
@@ -239,7 +215,6 @@ logs**, never a database reset; treat uploads, webhooks and MCP content as untru
 | iPhone error handling | `/ios-error-surface` |
 | Web component / page / store | `/component` · `/page` · `/store` |
 | Server endpoint | `/api` · Postman collection: `/postman` |
-| Add a screen to `/compare` | `/capture-add` · match it to iPhone: `/capture-parity` |
 | A UI 2.0 component's spec / build / fix | `/ui2-component` · `/ui2-component-build` · `/ui2-resolve` |
 | Local stack up/down | `/dev-start` · `/dev-stop` · iPhone: `/rebuild-iphone` |
 | Architecture review of what was built | `/architect` |
@@ -250,17 +225,16 @@ logs**, never a database reset; treat uploads, webhooks and MCP content as untru
 
 `docs/ui2/` is a **spec program**, not a build registry: `/ui2-screen` and `/ui2-component` write
 screen specs, the `C-###` component registry and per-component contracts from Figma;
-`/ui2-component-build` renders a contract as a SwiftUI preview under `iphone/MakeReadyUI/`
-with a fixture at `capture/fixtures/ui2/C-###.json`, captured and diffed against a frozen Figma
-snapshot. A contract that has been built is the strongest requirements this repo produces.
+d2m renders a contract as a SwiftUI preview under `iphone/MakeReadyUI/`, captured through its
+render lane (`iphone/capture/`) and diffed against a frozen Figma snapshot. A contract that has been built is the strongest requirements this repo produces.
 
 `--ui2 <ref>` takes a `C-###`, a registry name (`SearchField`), a screen id (`home-dashboard`) or a
 comma list. The resolver is `node .claude/scripts/list-ui2-refs.mjs`.
 
 🔴 **`/builder:*` READS this design and never writes it.** A gap routes to the command that owns
 it — `/ui2-component-update`, `/ui2-resolve`, `/d2m-notes-assimilate`. **Notes are normative owner
-input**: read them with `node capture/lib/ui2-notes.mjs read`, never by eye, and never write one as
-test data.
+input**: read them through d2m (`get_component` / `get_screen`), never by eye, and never write one
+as test data.
 
 **What a build needs from a contract, beyond a faithful spec of Figma:**
 

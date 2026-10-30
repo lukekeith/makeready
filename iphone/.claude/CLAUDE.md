@@ -89,16 +89,15 @@ This includes:
 
 **Exception:** You may run `xcrun simctl list` to check available simulators, but NEVER build, install, or launch without permission.
 
-**Named carve-out — the UI 2.0 preview capture runner (owner ruling 2026-09-08).**
-`node capture/runners/ui2/capture.mjs <C-###> …` may be run **without asking**, including the
-`xcodebuild` and `simctl` invocations it makes internally through
-`capture/runners/iphone/capture.sh`. Running `/ui2-component-build` IS the permission — a
-build that stops before capturing produces nothing anyone can look at, which is the point of
-that lane (`docs/ui2/preview-build.md`). The command's phase 5 gates the run instead: target
-sync, SwiftLint clean, Postgres up, simulator present — a failure there stops it before any
-time is spent.
+**Named carve-out — d2m's render lane (owner ruling 2026-09-08; moved 2026-10-30).**
+d2m captures UI 2.0 previews through `iphone/capture/capture.sh` (stills) and
+`iphone/capture/record.sh` (recordings) — its project settings `renderCmd` / `recordCmd`, with
+jobs under `iphone/capture/fixtures/ztmp-ui2`. A capture d2m starts (its Capture button, its build
+runs, or its capture API) may run those scripts **without asking**, including the `xcodebuild` and
+`simctl` calls they make. Asking d2m to capture IS the permission. (The old `capture/` tool and
+its `node capture/runners/ui2/capture.mjs` were removed 2026-10-30.)
 
-This carve-out is deliberately narrow. It names ONE script. Everything else in the list above
+This carve-out is deliberately narrow. It names d2m's two scripts. Everything else in the list above
 is unchanged and still requires an explicit "yes": `/rebuild-iphone`, a bare `xcodebuild`,
 `xcrun simctl install`/`launch` run directly, opening Simulator, and building "to check if it
 compiles".

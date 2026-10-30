@@ -442,13 +442,13 @@ private extension Array {
 extension EnrollmentHomeScreen.State {
 
     private static let readStyled =
-        "file:///Users/lukekeith/www/makeready/capture/fixtures/iphone/create-read-activity/screenshots/iphone-16-pro-max/capture.03-styled-blocks.png"
+        "file:///Users/lukekeith/www/makeready/iphone/capture/fixtures/preview-images/create-read-activity-03-styled-blocks.png"
     private static let exegesis =
-        "file:///Users/lukekeith/www/makeready/capture/fixtures/iphone/create-exegesis-activity/screenshots/iphone-16-pro-max/capture.04-with-highlights-and-notes.png"
+        "file:///Users/lukekeith/www/makeready/iphone/capture/fixtures/preview-images/create-exegesis-activity-04-with-highlights-and-notes.png"
     private static let video =
-        "file:///Users/lukekeith/www/makeready/capture/fixtures/iphone/create-video-activity/screenshots/iphone-16-pro-max/capture.03-youtube-loaded.png"
+        "file:///Users/lukekeith/www/makeready/iphone/capture/fixtures/preview-images/create-video-activity-03-youtube-loaded.png"
     private static let readBlocks =
-        "file:///Users/lukekeith/www/makeready/capture/fixtures/iphone/create-read-activity/screenshots/iphone-16-pro-max/capture.01-with-blocks.png"
+        "file:///Users/lukekeith/www/makeready/iphone/capture/fixtures/preview-images/create-read-activity-01-with-blocks.png"
 
     /// §3 `populated` — every value is the text on the frozen frame `default` (node 3773:6944;
     /// §1 deviation 1: sample content). The fourth (TODAY, clipped) day's percent is 69, today's

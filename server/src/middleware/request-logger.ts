@@ -23,7 +23,6 @@ const SKIP_ROUTES = [
 
 const SKIP_PREFIXES = [
   '/themes/',                // static CSS files
-  '/_capture/',              // screenshot capture
   '/api/activity-logs',      // don't log log queries
   '/api/admin/activity-logs', // don't log admin log queries
 ]

@@ -1797,17 +1797,16 @@ struct CaptureFixtureLoader {
         return results
     }
 
-    /// Resolves the capture/ directory path relative to the project root.
+    /// Resolves the fixtures directory (iphone/capture/fixtures — d2m's render lane).
     static func captureRootPath() -> String {
         if let envPath = ProcessInfo.processInfo.environment["CAPTURE_ROOT"]?.nilIfEmpty {
             return envPath
         }
-        // Fallback: assume capture repo is a sibling of the iphone repo
+        // Fallback: iphone/capture/fixtures, beside this target's folder.
         let sourceFile = #file
         let testsDir = (sourceFile as NSString).deletingLastPathComponent
-        let projectDir = (testsDir as NSString).deletingLastPathComponent
-        let makereadyDir = (projectDir as NSString).deletingLastPathComponent
-        return (makereadyDir as NSString).appendingPathComponent("capture/fixtures/iphone")
+        let iphoneDir = (testsDir as NSString).deletingLastPathComponent
+        return (iphoneDir as NSString).appendingPathComponent("capture/fixtures")
     }
 }
 

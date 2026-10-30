@@ -34,9 +34,6 @@ client/storage/*.key
 client/storage/pail
 client/vendor/
 
-# Generated capture screenshots (JSON fixtures + assets stay tracked)
-client/capture/*/screenshots/
-client/capture/_ui/node_modules/
 
 # ============================================
 # Server
@@ -85,7 +82,6 @@ iphone/InjectionProject/
 # ============================================
 # Capture
 # ============================================
-capture/node_modules/
 
 # ============================================
 # Claude Code / GSD tool artifacts
@@ -106,5 +102,5 @@ capture/node_modules/
 
 # Fixture images pulled from d2m by fixtures:reset (home-dashboard-data D22)
 
-# capture runners' scratch workflows (ui2 capture.mjs TMP_WORKFLOW, compare capture-batch)
-capture/fixtures/*/ztmp-*/
+# d2m render lane scratch jobs (renderJobDir)
+iphone/capture/fixtures/ztmp-*/

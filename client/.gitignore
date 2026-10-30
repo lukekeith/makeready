@@ -25,6 +25,3 @@ Thumbs.db
 .histoire/
 .mcp.json
 
-# Generated capture screenshots (JSON fixtures + assets stay tracked)
-/capture/*/screenshots/
-/capture/_ui/node_modules/

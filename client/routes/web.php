@@ -23,7 +23,6 @@ use App\Http\Controllers\PreviewController;
 use App\Http\Controllers\AdminApiProxyController;
 use App\Http\Controllers\Admin\LogsController as AdminLogsController;
 use App\Http\Controllers\AdminAuthController;
-use App\Http\Controllers\CaptureController;
 
 // ─── Public (no auth required) ────────────────────────────────────────────────
 
@@ -222,18 +221,6 @@ Route::get('/pages/contact', fn () => view('pages.contact'))->name('legacy.conta
 
 if (app()->environment('testing')) {
     Route::get('/test/cva', fn () => view('test.cva-test'))->name('test.cva');
-}
-
-// ─── Screenshot capture (local-only) ───────────────────────────────────────────
-
-if (app()->environment('local')) {
-    // Live single-component render for the Compare tool's web iframe (no fixture).
-    Route::get('/_capture/live', [CaptureController::class, 'live'])->name('capture.live');
-    Route::get('/_capture/{workflow}/assets/{file}', [CaptureController::class, 'asset'])
-        ->where('file', '[A-Za-z0-9._-]+')
-        ->name('capture.asset');
-    Route::get('/_capture/{workflow}/{screen}', [CaptureController::class, 'show'])
-        ->name('capture.show');
 }
 
 
