@@ -50,14 +50,23 @@ struct TopNav: View {
     /// C-019 §4: `onAdd(tab)` — "absent for Home". No render effect (OQ-PB-3); which cards
     /// SHOW a slot is C-069 `hasAdd`, not this closure's presence.
     var onAdd: ((String) -> Void)?
-    /// C-019 §4: `pin` — "keeps the tab under the finger under it while the morph is scrubbed".
+    /// C-019 §4: `pin` — holds one tab horizontally fixed while the row morphs.
     /// nil = no effect (owner 2026-10-29).
     var pin: Pin? = nil
 
-    /// C-019 §4: `Pin { x: CGFloat (TopNav's own space), animation: Animation? }`.
+    /// C-019 §4: `Pin { x: CGFloat = 0 (TopNav's own space), tab: String? = nil, animation: Animation? }`.
+    /// `tab` nil = the finger pin (holds the tab under `x`); set = the named-tab pin (holds
+    /// that tab where it sits, `x` ignored).
     struct Pin: Equatable {
-        var x: CGFloat
+        var x: CGFloat = 0
+        var tab: String? = nil
         var animation: Animation?
+
+        /// §4 `pin` identity: a change of tab, or of a finger pin's `x`, re-holds; a change
+        /// of `animation` alone (the release settle) keeps the hold.
+        func sameHold(as other: Pin) -> Bool {
+            tab == other.tab && (tab != nil || x == other.x)
+        }
     }
 
     /// §4 `pin` 3: measured frames and hug widths in a non-observed reference box (ephemeral,
@@ -66,8 +75,8 @@ struct TopNav: View {
         var frames: [String: CGRect] = [:]
         var hugs: [String: CGFloat] = [:]
         var viewport: CGFloat = 0
-        /// §4 `pin` 1: the held (tab, f) while pinned.
-        var held: (tab: String, f: CGFloat)?
+        /// §4 `pin` 1: the held (tab, f) and held x while pinned.
+        var held: (tab: String, f: CGFloat, x: CGFloat)?
     }
     @State private var box = PinBox()
 
@@ -134,11 +143,16 @@ struct TopNav: View {
             .onChange(of: selectedTab) { _, tab in
                 withAnimation { proxy.scrollTo(tab, anchor: .leading) }
             }
-            // §4 `pin` 1–2: hold the touched tab when the pin is set, then keep it under `pin.x`
-            // on every `expansion` change.
+            // §4 `pin` 1–2: (re)hold when the pin's identity changes — the touched tab under
+            // `pin.x`, or the named tab where it sits — then keep it at the held x on every
+            // `expansion` change. §4 `pin` 5: on release, hand the row back to the selected tab.
             .onChange(of: pin) { old, new in
-                guard let new else { box.held = nil; return }
-                if old == nil { box.held = pinnedTab(at: new.x) }
+                guard let new else {
+                    box.held = nil
+                    reanchorOnSelection(proxy)
+                    return
+                }
+                if old.map({ !$0.sameHold(as: new) }) ?? true { box.held = hold(new) }
                 scrollToPin(new, proxy)
             }
             .onChange(of: expansion) { _, _ in
@@ -173,6 +187,15 @@ struct TopNav: View {
         }
     }
 
+    /// §4 `pin` 1: the hold a pin makes — a named tab at its measured `minX` with `f = 0`
+    /// (unmeasured holds nothing), else the finger's tab at `pin.x`.
+    private func hold(_ pin: Pin) -> (tab: String, f: CGFloat, x: CGFloat)? {
+        if let tab = pin.tab {
+            return box.frames[tab].map { (tab, 0, $0.minX) }
+        }
+        return pinnedTab(at: pin.x).map { ($0.tab, $0.f, pin.x) }
+    }
+
     /// §4 `pin` 1: the tab whose visible frame contains `x` — the nearest tab in a gap or past
     /// either end — and `f = (x − tab.minX) / tab.width`.
     private func pinnedTab(at x: CGFloat) -> (tab: String, f: CGFloat)? {
@@ -187,19 +210,34 @@ struct TopNav: View {
         x < frame.minX ? frame.minX - x : max(0, x - frame.maxX)
     }
 
-    /// §4 `pin` 2: scroll so `tab.minX = pin.x − f·w` at the current `expansion`, inside
+    /// §4 `pin` 2: scroll so `tab.minX = held x − f·w` at the current `expansion`, inside
     /// `withAnimation(pin.animation)`. `scrollTo` aligns the tab's anchor with the same anchor
     /// of the inset viewport, so the anchor solving `minX = inset + a·(V − 2·inset − w)` lands
     /// it there. Clamping at the scroll ends is accepted.
     private func scrollToPin(_ pin: Pin, _ proxy: ScrollViewProxy) {
-        guard let (tab, f) = box.held else { return }
+        guard let (tab, f, x) = box.held else { return }
         let growth = NavTabButton.growth(at: progress)
         let hug = box.hugs[tab] ?? box.frames[tab]?.width ?? Self.expandedWidth
         let width = hug + (Self.expandedWidth - hug) * growth
         let span = box.viewport - 2 * inset - width
         guard span > 0 else { return }
-        let anchor = UnitPoint(x: (pin.x - f * width - inset) / span, y: 0.5)
+        let anchor = UnitPoint(x: (x - f * width - inset) / span, y: 0.5)
         withAnimation(pin.animation) { proxy.scrollTo(tab, anchor: anchor) }
+    }
+
+    /// §4 `pin` 5 (owner 2026-10-29): on release, re-anchor the scroll on the SELECTED tab
+    /// where it currently sits — no movement, no animation. `scrollTo` leaves the ScrollView
+    /// re-applying its last target whenever the content size changes; the pin's
+    /// `scrollTo(heldTab, anchor: a)` replaced the selection's, so later morphs jumped sideways.
+    /// Same anchor solve as `scrollToPin`; skipped when unmeasured or the span is ≤ 0.
+    private func reanchorOnSelection(_ proxy: ScrollViewProxy) {
+        guard let frame = box.frames[selectedTab] else { return }
+        let span = box.viewport - 2 * inset - frame.width
+        guard span > 0 else { return }
+        let anchor = UnitPoint(x: (frame.minX - inset) / span, y: 0.5)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { proxy.scrollTo(selectedTab, anchor: anchor) }
     }
 
     // GAP — C-069 §2: "fixed 124×96" expanded card, the end of every tab's growth; C-019 §4

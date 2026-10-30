@@ -87,6 +87,10 @@ struct UI2ShellModel {
     /// true; selecting another tab makes it false, which resets the dashboard's chart intros.
     var homeActive: Bool { tab == .home }
     var expansion: Double = 0
+    /// C-019 `pin`: the tab TopNav holds still while `expansion` changes — the selected tab for a
+    /// morph with no finger on the row, the finger's tab during a row drag (owner 2026-10-29).
+    /// Set and cleared by `TopNavHost` only.
+    var topNavPin: TopNav.Pin?
     var scrollOffset: CGFloat = 0
     /// D1/D2: each tab's push path; a tab missing from the map is at its root.
     var paths: [TabBar.Tab: [UI2Destination]] = [:]

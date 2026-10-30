@@ -124,7 +124,7 @@ private struct SectionPageScroll<Content: View>: View {
     static var collapseScroll: CGFloat { 8 }
     // GAP — the reference's page-triggered morph settles in ~130ms (10.79→10.92s, 60fps); the
     // row drag keeps `TopNavHost.morphSpring`.
-    static var triggerSpring: Animation { .spring(duration: 0.15, bounce: 0) }
+    static var triggerDuration: TimeInterval { 0.15 }
 
     @State private var phase: ScrollPhase = .idle
 
@@ -155,9 +155,9 @@ private struct SectionPageScroll<Content: View>: View {
     private func react(to offset: CGFloat) {
         guard morphs else { return }
         if model.expansion == 0, phase == .interacting, offset <= -Self.expandPull {
-            withAnimation(Self.triggerSpring) { model.expansion = 1 }
+            TopNavHost.morph($model, to: 1, duration: Self.triggerDuration)
         } else if model.expansion == 1, offset >= Self.collapseScroll {
-            withAnimation(Self.triggerSpring) { model.expansion = 0 }
+            TopNavHost.morph($model, to: 0, duration: Self.triggerDuration)
         }
     }
 }

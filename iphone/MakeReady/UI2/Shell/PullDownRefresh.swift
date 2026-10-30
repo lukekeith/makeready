@@ -7,8 +7,8 @@
 //  2. let go — the page holds open below the spinner, which spins until the reload returns;
 //  3. then the page animates back up and the spinner dissolves with it.
 //  The spinner is fixed near the top of the scroll view (it never rides on the content), the
-//  standard system spinner in the muted text colour. While pulling, its opacity follows the pull —
-//  full only at the full pull — so a pull let go short of it fades away and never sits over the page.
+//  standard system spinner in the muted text colour. It stays hidden while pulling and appears
+//  only once the pull arms, with the tap (owner 2026-10-29) — a pull let go short of it shows nothing.
 //
 
 import SwiftUI
@@ -52,22 +52,16 @@ private struct PullDownRefresh: ViewModifier {
     // GAP — no pull distance in any spec: the full pull, where the reload arms. The page holds
     // open by the same distance while it reloads, so the spinner never moves.
     static var fullPull: CGFloat { 72 }
-    // GAP — the spinner stays clear for the first few points so a scroll bounce never shows it.
-    static var fadeStart: CGFloat { 12 }
+    // GAP — the spinner's fade in when the pull arms.
+    static var appear: Animation { .easeOut(duration: 0.15) }
     // GAP — the page's return once the reload is done.
     static var settle: Animation { .spring(duration: 0.35, bounce: 0) }
 
-    /// How far the page is pulled past its resting top, ≥ 0.
-    @State private var pull: CGFloat = 0
     @State private var phase: ScrollPhase = .idle
     /// Reached the full pull with the finger down; runs on release.
     @State private var armed = false
     /// Reloading: the page holds open by `fullPull` and the spinner shows in full.
     @State private var refreshing = false
-
-    static func opacity(pull: CGFloat) -> Double {
-        Double(min(1, max(0, (pull - fadeStart) / (fullPull - fadeStart))))
-    }
 
     func body(content: Content) -> some View {
         content
@@ -76,9 +70,8 @@ private struct PullDownRefresh: ViewModifier {
             .onScrollGeometryChange(for: CGFloat.self) { geometry in
                 max(0, -(geometry.contentOffset.y + geometry.contentInsets.top))
             } action: { _, new in
-                pull = new
                 if action != nil, !refreshing, !armed, phase == .interacting, new >= Self.fullPull {
-                    armed = true
+                    withAnimation(Self.appear) { armed = true }
                 }
             }
             .onScrollPhaseChange { _, new in
@@ -86,11 +79,11 @@ private struct PullDownRefresh: ViewModifier {
                 if new != .interacting, armed { start() }
             }
             .overlay(alignment: .top) {
-                if action != nil, refreshing || pull > Self.fadeStart {
+                // Hidden until the pull arms (owner 2026-10-29: not before the tap).
+                if action != nil, armed || refreshing {
                     ProgressView()
                         .tint(Token.textSecondary)
                         .frame(width: 24, height: 24)
-                        .opacity(refreshing ? 1 : Self.opacity(pull: pull))
                         .offset(y: spinnerTop + (Self.fullPull - 24) / 2)
                         .transition(.opacity)
                         .allowsHitTesting(false)
