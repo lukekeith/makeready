@@ -11,11 +11,22 @@ import UIKit
 import ImageIO
 import MobileCoreServices
 
+/// media-page D2: how a whole-library load ended.
+enum PhotoLoadOutcome: Equatable {
+    /// Every page landed.
+    case completed
+    /// Cancelled, signed out, or the org changed: nothing more was written.
+    case stopped
+    /// A page failed; the pages before it stay, and `mediaLibraryNextCursor` resumes it.
+    case failed
+}
+
 /// Actions for media library CRUD operations.
 struct MediaActions {
 
 private let api: APIClientProtocol
     private let stateOverride: AppState?
+    private let onUnauthorized: @MainActor () async -> Void
 
     /// Injected state when testing, else the shared singleton.
     @MainActor private var state: AppState { stateOverride ?? AppState.shared }
@@ -25,9 +36,12 @@ private let api: APIClientProtocol
     ///   - state: AppState to read/mutate; nil means AppState.shared (an
     ///     Optional because Swift 5 mode can't evaluate a @MainActor default
     ///     argument like `= .shared` from a nonisolated init)
-    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil) {
+    ///   - onUnauthorized: runs when a load is rejected with a 401 (the container signs out)
+    init(api: APIClientProtocol = APIClient.shared, state: AppState? = nil,
+         onUnauthorized: @escaping @MainActor () async -> Void = {}) {
         self.api = api
         self.stateOverride = state
+        self.onUnauthorized = onUnauthorized
     }
 
     // MARK: - Load Media Library
@@ -164,6 +178,54 @@ private let api: APIClientProtocol
 
         state.persist()
         NSLog("📸 MediaActions: Loaded \(cursor != nil ? "cursor page" : "page \(page)") (\(items.count) items, \(state.mediaLibrary.count)/\(state.mediaLibraryTotal), cursor: \(response.nextCursor != nil ? "yes" : "no"))")
+    }
+
+    /// media-page D2: the whole photo library, one page after another until the server says there is no
+    /// more. Page 1 replaces the store and later pages append, each written as it lands, so the grid
+    /// fills while it loads. Before each write: not cancelled, same session generation, same org (F6).
+    /// A failure is console-only (D13: background load) and keeps what loaded.
+    @MainActor
+    func loadAllPhotos(pageSize: Int = 200, resumeCursor: String? = nil) async -> PhotoLoadOutcome {
+        guard let orgId = state.organizationId else { return .stopped }
+        let generation = state.initialLoad.generation
+        var cursor = resumeCursor
+        var replaces = resumeCursor == nil
+        while true {
+            var endpoint = "/api/organizations/\(orgId)/media/library?type=photo&limit=\(pageSize)"
+            if let cursor { endpoint += "&cursor=\(DashboardActions.queryValue(cursor))" }
+            let response: MediaLibraryResponse
+            do {
+                response = try await api.get(endpoint, responseType: MediaLibraryResponse.self)
+            } catch {
+                if Task.isCancelled || UI2ImageLoader.isCancellation(error) { return .stopped }
+                if AuthStatusPolicy.shouldSignOut(after: error) {
+                    await onUnauthorized()
+                    return .stopped
+                }
+                state.recordError(error, context: "MediaActions.loadAllPhotos", surface: false)
+                return .failed
+            }
+            guard !Task.isCancelled, state.initialLoad.isCurrent(generation), state.organizationId == orgId else { return .stopped }
+            guard let items = response.data else {
+                state.recordError(APIError.serverError(response.error ?? "Failed to load media library"),
+                                  context: "MediaActions.loadAllPhotos", surface: false)
+                return .failed
+            }
+            if replaces {
+                state.mediaLibrary.replaceAll(items)
+                replaces = false
+            } else {
+                state.mediaLibrary.upsertMany(items)
+            }
+            if let total = response.total { state.mediaLibraryTotal = total }
+            state.mediaLibraryNextCursor = response.nextCursor
+            guard response.hasMore == true, let next = response.nextCursor else { break }
+            cursor = next
+        }
+        state.mediaLibraryTotal = state.mediaLibrary.count
+        state.mediaPhotosLoadedOrgId = orgId
+        state.persist()
+        return .completed
     }
 
     // MARK: - Delete Media
