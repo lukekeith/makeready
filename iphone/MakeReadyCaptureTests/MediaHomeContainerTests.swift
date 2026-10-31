@@ -50,7 +50,7 @@ final class MediaHomeContainerTests: XCTestCase {
     /// D10: at 5 columns a tile whose `-md` fails is followed, in the same request, by its thumb.
     func testAFailedMediumIsFollowedByTheThumb() async {
         let image = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in }
-        let images = MediaTileImages(countLimit: 10, maxConcurrent: 2, fetch: { url, _ in
+        let images = MediaTileImages(byteLimit: 64 * 1024 * 1024, maxConcurrent: 2, fetch: { url, _ in
             if url.absoluteString.hasSuffix("-md.jpeg") { throw URLError(.fileDoesNotExist) }
             return image
         })

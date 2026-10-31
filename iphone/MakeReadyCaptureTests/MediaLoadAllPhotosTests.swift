@@ -80,6 +80,41 @@ final class MediaLoadAllPhotosTests: XCTestCase {
         XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
     }
 
+    /// Holds the load's Task so the stub can cancel it between pages.
+    private final class TaskBox { var task: Task<PhotoLoadOutcome, Never>? }
+
+    /// §Testing "stops writing after cancellation": a refresh cancelled after page 1 writes no later page.
+    /// Final review I1: page 1 replaced the completed library, so the session no longer has a completed
+    /// load — the next open must load again.
+    func testARefreshCancelledAfterPage1StopsWritingAndForgetsTheCompletedLoad() async {
+        stubThreePages()
+        _ = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
+
+        let box = TaskBox()
+        api.beforeReturn = { endpoint, _ in if endpoint.hasSuffix("cursor=c1") { box.task?.cancel() } }
+        let actions = MediaActions(api: api, state: state)
+        let refresh = Task { await actions.loadAllPhotos(pageSize: 2) }
+        box.task = refresh
+        let outcome = await refresh.value
+        XCTAssertEqual(outcome, .stopped)
+        XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
+        XCTAssertNil(state.mediaPhotosLoadedOrgId)
+    }
+
+    /// Final review I1: a refresh that fails on page 2 leaves only page 1, so no completed load is recorded.
+    func testARefreshThatFailsOnPage2ForgetsTheCompletedLoad() async {
+        stubThreePages()
+        _ = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
+
+        api.errorFor = { endpoint, _ in endpoint.hasSuffix("cursor=c1") ? APIError.serverError("boom") : nil }
+        let outcome = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        XCTAssertEqual(outcome, .failed)
+        XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
+        XCTAssertNil(state.mediaPhotosLoadedOrgId)
+    }
+
     func testA401SignsOut() async {
         api.errorToThrow = APIError.unauthorized
         var signedOut = false

@@ -102,6 +102,11 @@ struct MediaHomeContainer: View {
             gridWidth = width
             requestImages(tiles: tiles)
         }
+        // Final review I3: a filter or page that changes the tiles without changing the reported range
+        // (equal counts at the newest end) gets no range callback, so the new tiles are asked for here.
+        .onChange(of: tiles.map(\.id)) {
+            requestImages(tiles: tiles)
+        }
         .preference(key: UI2HidesTopNavKey.self, value: searchActive)
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
             if let chip = openMenu { menu(for: chip, output: output) }

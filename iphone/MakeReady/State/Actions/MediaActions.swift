@@ -183,7 +183,9 @@ private let api: APIClientProtocol
     /// media-page D2: the whole photo library, one page after another until the server says there is no
     /// more. Page 1 replaces the store and later pages append, each written as it lands, so the grid
     /// fills while it loads. Before each write: not cancelled, same session generation, same org (F6).
-    /// A failure is console-only (D13: background load) and keeps what loaded.
+    /// A failure is console-only (D13: background load) and keeps what loaded. Page 1 forgets the
+    /// session's completed load (`mediaPhotosLoadedOrgId`), so a refresh that fails or is cancelled
+    /// after it leaves the next open to load again; completion records it.
     @MainActor
     func loadAllPhotos(pageSize: Int = 200, resumeCursor: String? = nil) async -> PhotoLoadOutcome {
         guard let orgId = state.organizationId else { return .stopped }
@@ -213,6 +215,8 @@ private let api: APIClientProtocol
             }
             if replaces {
                 state.mediaLibrary.replaceAll(items)
+                // The completed library is gone; only completion below records one again (D17).
+                state.mediaPhotosLoadedOrgId = nil
                 replaces = false
             } else {
                 state.mediaLibrary.upsertMany(items)
