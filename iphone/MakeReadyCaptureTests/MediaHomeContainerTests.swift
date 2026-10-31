@@ -47,4 +47,19 @@ final class MediaHomeContainerTests: XCTestCase {
         XCTAssertTrue(MediaHomeContainer.imageRequests(tiles: tiles, range: 8..<20, fiveColumns: false, tileSide: 44, scale: 3,
                                                        failed: { _ in false }).count == 2)
     }
+    /// D10: at 5 columns a tile whose `-md` fails is followed, in the same request, by its thumb.
+    func testAFailedMediumIsFollowedByTheThumb() async {
+        let image = UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in }
+        let images = MediaTileImages(countLimit: 10, maxConcurrent: 2, fetch: { url, _ in
+            if url.absoluteString.hasSuffix("-md.jpeg") { throw URLError(.fileDoesNotExist) }
+            return image
+        })
+        let tiles = [tile("a")]
+        await MediaHomeContainer.loadImages(into: images) {
+            MediaHomeContainer.imageRequests(tiles: tiles, range: 0..<1, fiveColumns: true, tileSide: 88, scale: 3,
+                                             failed: images.hasFailed)
+        }
+        XCTAssertTrue(images.hasFailed(URL(string: "https://img/a-md.jpeg")!))
+        XCTAssertNotNil(images.image(for: URL(string: "https://img/a-thumb.jpeg")!))
+    }
 }

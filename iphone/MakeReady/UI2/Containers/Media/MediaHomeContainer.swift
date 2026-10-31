@@ -236,8 +236,11 @@ struct MediaHomeContainer: View {
             isLoading = false
             refreshing = false
             failed = outcome == .failed
+            // A successful pull forgets failed tile URLs, so a transient outage doesn't blank them for the session.
+            if refresh, outcome == .completed { tileImages.clearFailures() }
             if refresh, outcome == .failed {
-                // D13: the pull is the leader's own action — the banner says so (the action already logged the cause).
+                // D13: the pull is the leader's own action, so it surfaces. loadAllPhotos already logged the real cause
+                // console-only and returns no error, so the banner carries this stand-in (a second, surfaced record).
                 AppState.shared.recordError(APIError.serverError("Media refresh failed"), context: "MediaHomeContainer.refresh",
                                             surface: true, friendlyMessage: "Couldn't refresh photos",
                                             retry: { startLoad(resume: nil, refresh: true) })
@@ -251,9 +254,7 @@ struct MediaHomeContainer: View {
         selection = next   // D9: the screen keeps the level and goes to the newest end on a filter change
     }
 
-    /// D18: the reported range at the current level. A newer request cancels the older one and waits for
-    /// it to wind down, so an image still in flight there is requested again rather than skipped. A `-md`
-    /// that failed is followed by its thumb (D10).
+    /// D18: the reported range at the current level; a newer request replaces the older one.
     private func requestImages(tiles: [MediaHomeMapper.Tile]) {
         guard gridWidth > 0 else { return }
         let columns = CGFloat(level.columns)
@@ -262,17 +263,18 @@ struct MediaHomeContainer: View {
         let build = { [range = visibleRange, five = level == .five, scale = displayScale] in
             Self.imageRequests(tiles: tiles, range: range, fiveColumns: five, tileSide: side, scale: scale, failed: images.hasFailed)
         }
-        let previous = imageTask
-        previous?.cancel()
-        imageTask = Task { @MainActor in
-            await previous?.value
-            guard !Task.isCancelled else { return }
-            let requests = build()
-            await images.load(requests)
-            guard !Task.isCancelled else { return }
-            let fallbacks = build()
-            if fallbacks != requests { await images.load(fallbacks) }
-        }
+        imageTask?.cancel()
+        imageTask = Task { @MainActor in await Self.loadImages(into: images, requests: build) }
+    }
+
+    /// D10/D18: loads `requests()`, then rebuilds them once — a `-md` that failed is followed by its thumb
+    /// (MediaTileImages doesn't bump `generation` on a failure, so nothing else would ask again).
+    static func loadImages(into images: MediaTileImages, requests: () -> [MediaTileImages.Request]) async {
+        let first = requests()
+        await images.load(first)
+        guard !Task.isCancelled else { return }
+        let fallbacks = requests()
+        if fallbacks != first { await images.load(fallbacks) }
     }
 
     /// D12: one item at a time, from the tile's global frame, seeded with the tile's loaded image.

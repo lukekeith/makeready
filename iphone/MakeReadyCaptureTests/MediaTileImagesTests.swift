@@ -52,4 +52,32 @@ final class MediaTileImagesTests: XCTestCase {
         XCTAssertTrue(tiles.hasFailed(url(0)))
         XCTAssertNil(tiles.image(for: url(0)))
     }
+    /// ImageCache.fetch runs the download in its own Task, so cancelling the caller never stops it —
+    /// the stub does the same. A load cancelled mid-flight and replaced by a request for the same range
+    /// must still end with every image (fix round 1: no in-flight skip, late images kept).
+    func testARangeReRequestedWhileItsFirstLoadIsCancelledMidFlightIsLoaded() async throws {
+        let counter = Counter()
+        let image = pixel()
+        let tiles = MediaTileImages(countLimit: 100, maxConcurrent: 6, fetch: { url, _ in
+            await counter.enter(url)
+            return try await Task { try await Task.sleep(nanoseconds: 30_000_000); return image }.value
+        })
+        let first = Task { await tiles.load(requests(0..<3)) }
+        while await counter.calls.count < 3 { try await Task.sleep(nanoseconds: 1_000_000) }
+        first.cancel()
+        await tiles.load(requests(0..<3))
+        await first.value
+        for n in 0..<3 { XCTAssertNotNil(tiles.image(for: url(n)), "tile \(n)") }
+        for n in 0..<3 { XCTAssertFalse(tiles.hasFailed(url(n)), "tile \(n)") }
+    }
+
+    /// A pull-to-refresh that succeeds forgets earlier failures, so a transient outage doesn't blank a
+    /// URL for the session.
+    func testClearFailuresForgetsFailedURLs() async {
+        let tiles = MediaTileImages(countLimit: 10, maxConcurrent: 1, fetch: { _, _ in throw URLError(.notConnectedToInternet) })
+        await tiles.load(requests(0..<1))
+        XCTAssertTrue(tiles.hasFailed(url(0)))
+        tiles.clearFailures()
+        XCTAssertFalse(tiles.hasFailed(url(0)))
+    }
 }

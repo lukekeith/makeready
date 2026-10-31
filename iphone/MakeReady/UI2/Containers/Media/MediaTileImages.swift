@@ -17,7 +17,6 @@ final class MediaTileImages {
     private(set) var generation = 0
     @ObservationIgnored private var images: [URL: UIImage] = [:]
     @ObservationIgnored private var order: [URL] = []
-    @ObservationIgnored private var inFlight: Set<URL> = []
     @ObservationIgnored private var failed: Set<URL> = []
     @ObservationIgnored private let countLimit: Int
     @ObservationIgnored private let maxConcurrent: Int
@@ -33,6 +32,9 @@ final class MediaTileImages {
 
     func hasFailed(_ url: URL) -> Bool { failed.contains(url) }
 
+    /// A successful pull-to-refresh forgets failures, so those URLs are requested again.
+    func clearFailures() { failed = [] }
+
     func clear() {
         images = [:]
         order = []
@@ -40,19 +42,20 @@ final class MediaTileImages {
         generation += 1
     }
 
+    /// Loads what isn't cached or failed. A URL another load is still fetching is asked again: ImageCache
+    /// shares the one download, so a replacement load never skips a tile its cancelled predecessor held.
+    /// Cancelled, it starts nothing new but keeps every image that still lands (the bytes are fetched).
     func load(_ requests: [Request]) async {
         var seen = Set<URL>()
         let wanted = requests.filter { seen.insert($0.url).inserted }
         let protected = Set(wanted.map(\.url))
-        let todo = wanted.filter { images[$0.url] == nil && !inFlight.contains($0.url) && !failed.contains($0.url) }
+        let todo = wanted.filter { images[$0.url] == nil && !failed.contains($0.url) }
         guard !todo.isEmpty else { return }
-        todo.forEach { inFlight.insert($0.url) }
-        defer { todo.forEach { inFlight.remove($0.url) } }
         let fetch = self.fetch
         await withTaskGroup(of: (URL, UIImage?).self) { group in
             var next = 0
             func addNext() {
-                guard next < todo.count else { return }
+                guard next < todo.count, !Task.isCancelled else { return }
                 let request = todo[next]
                 next += 1
                 group.addTask {
@@ -61,8 +64,11 @@ final class MediaTileImages {
             }
             for _ in 0..<min(maxConcurrent, todo.count) { addNext() }
             while let (url, image) = await group.next() {
-                if Task.isCancelled { group.cancelAll(); break }
-                if let image { store(image, for: url, protecting: protected) } else { failed.insert(url) }
+                if let image {
+                    store(image, for: url, protecting: protected)
+                } else if !Task.isCancelled {
+                    failed.insert(url)   // a fetch that ended because the load was cancelled isn't a failure
+                }
                 addNext()
             }
         }
