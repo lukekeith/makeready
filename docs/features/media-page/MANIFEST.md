@@ -1,7 +1,7 @@
 size: lg
 state: building
 next: /builder:resume --path docs/features/media-page
-head: c76decd3
+head: 5c815a8d
 ticket: none
 branch: builder/media-page
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: main
 walk: none
 verify: none
-ready: none
+ready: pending "dev env (fleet walk lane)"
 ui2: none
 auto: on 2026-10-31
 blocked: none

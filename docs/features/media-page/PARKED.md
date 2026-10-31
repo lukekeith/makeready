@@ -46,3 +46,4 @@ and finishes Tasks 8 and 11.
 - 2026-10-31 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-10-31 retry — channel cause cleared; C-129 minted, specced and built; media-home spec stops on d2m's proposed C-129 box on Design 4 (owner confirm) — parked again
 - 2026-10-31 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-10-31 retry — cause cleared: the owner confirmed the C-129 box and d2m finished cmvwp1b9k… (spec + build C-129 and media-home). Carried as 9022ec21 (+ the missing ViewRegistry key); fast-lane image inputs 88579eb3; Task 11 + fixes; final review I1–I3 fixed, I4 fixed by d2m (cmvws6a1k…, 38beb974); all phases closed, awaiting the walk lane
