@@ -1,9 +1,9 @@
 size: lg
-state: spec
+state: audited
 next: /builder:resume --path docs/features/media-page
-head: c9bd845d
+head: 64f33fc0
 ticket: none
-branch: main
+branch: builder/media-page
 pr: none
 apps: server+iphone
 contract: open
@@ -15,5 +15,6 @@ walk: none
 verify: none
 ready: none
 ui2: none
-auto: off
+auto: on 2026-10-31
 blocked: none
+agent-walk: on 2026-10-31
