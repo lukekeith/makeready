@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import { z } from 'zod'
 import sharp from 'sharp'
-import { extractImageMetadata } from '../services/media-metadata.js'
+import { extractImageMetadata, parseTakenAt } from '../services/media-metadata.js'
 import {
   createMedia,
   getMedia,
@@ -1175,6 +1175,8 @@ const uploadMediaSchema = z.object({
   imageData: z.string().optional(),
   tags: z.array(z.string()).optional(),
   maxDurationSeconds: z.number().int().min(1).max(600).optional(),
+  // media-page SC2 / D4: the client's capture date; validated by parseTakenAt (invalid = ignored).
+  takenAt: z.string().optional(),
 })
 
 router.post(
@@ -1191,7 +1193,7 @@ router.post(
         return res.status(400).json({ success: false, error: validation.error.errors[0].message })
       }
 
-      const { title, description, type, imageData, tags: tagList, maxDurationSeconds } = validation.data
+      const { title, description, type, imageData, tags: tagList, maxDurationSeconds, takenAt } = validation.data
 
       if (type === 'photo') {
         if (!imageData) {
@@ -1237,6 +1239,7 @@ router.post(
             dominantColor: imageMeta.dominantColor,
             fileHash: imageMeta.fileHash,
             exifData: (imageMeta.exifData as any) ?? undefined,
+            takenAt: parseTakenAt(takenAt, imageMeta.exifData),
           },
           include: {
             uploader: { select: { id: true, name: true, email: true } },

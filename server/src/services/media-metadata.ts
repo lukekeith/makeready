@@ -182,3 +182,37 @@ export function deriveVideoMetadata(input: {
 
   return result
 }
+
+// media-page D4: a full ISO 8601 date-time with Z or a numeric offset; date-only and offset-less are invalid.
+const TAKEN_AT_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:?\d{2})$/
+const EXIF_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/
+const TAKEN_AT_FLOOR_MS = Date.UTC(1990, 0, 1)
+const TAKEN_AT_LEAD_MS = 24 * 60 * 60 * 1000
+
+function boundedTakenAt(value: Date, now: Date): Date | null {
+  const ms = value.getTime()
+  if (!Number.isFinite(ms) || ms < TAKEN_AT_FLOOR_MS || ms > now.getTime() + TAKEN_AT_LEAD_MS) return null
+  return value
+}
+
+/**
+ * media-page D4: the date a photo was taken — the request's `takenAt` when valid, else the EXIF
+ * `dateTaken` the upload stored (exif-reader labels the camera's wall clock as UTC; accepted), else
+ * null. An invalid value is ignored, never an error.
+ */
+export function parseTakenAt(
+  input: unknown,
+  exifData: Record<string, unknown> | null | undefined,
+  now: Date = new Date(),
+): Date | null {
+  if (typeof input === 'string' && TAKEN_AT_PATTERN.test(input)) {
+    // "+0530" → "+05:30", so every engine parses the offset.
+    const normalized = input.replace(/([+-]\d{2})(\d{2})$/, '$1:$2')
+    const fromBody = boundedTakenAt(new Date(normalized), now)
+    if (fromBody) return fromBody
+  }
+  const exif = exifData?.dateTaken
+  if (exif instanceof Date) return boundedTakenAt(exif, now)
+  if (typeof exif === 'string' && EXIF_DATE_PATTERN.test(exif)) return boundedTakenAt(new Date(exif), now)
+  return null
+}
