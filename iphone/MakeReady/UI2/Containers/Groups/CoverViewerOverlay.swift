@@ -15,12 +15,13 @@ private struct CoverViewerPresentation: ViewModifier {
     let url: String?
     let sourceFrame: CGRect?
     let accessibilityLabel: String
+    let placeholder: UIImage?
     let onClose: () -> Void
     @Environment(\.ui2HostsOverlays) private var hosted
 
     func body(content: Content) -> some View {
         let layer = url.map {
-            ImageViewer(url: $0, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel, onClose: onClose)
+            ImageViewer(url: $0, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel, onClose: onClose, placeholder: placeholder)
         }
         if hosted {
             // The viewer animates its own open and close (rules 1 and 8): no host crossfade.
@@ -38,7 +39,8 @@ extension View {
     /// `sourceFrame` (global) is what the image grows from and flies back into; nil = in place.
     /// image-framing-editor D13: the image's accessibility label is the caller's.
     func coverViewerPresentation(url: String?, sourceFrame: CGRect? = nil, accessibilityLabel: String,
-                                 onClose: @escaping () -> Void) -> some View {
-        modifier(CoverViewerPresentation(url: url, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel, onClose: onClose))
+                                 placeholder: UIImage? = nil, onClose: @escaping () -> Void) -> some View {
+        modifier(CoverViewerPresentation(url: url, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel,
+                                         placeholder: placeholder, onClose: onClose))
     }
 }
