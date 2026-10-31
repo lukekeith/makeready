@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: none
 auto: on 2026-10-31
-blocked: "d2m won't spec MediaBrowser or media-home until you apply its registry proposal and attach the reference doc in the d2m app [Task 8] — next: in d2m apply 'Mint MediaBrowser', attach docs/ui2/references/media-browser.md to MediaBrowser and media-home, run the two spec actions, then /builder:agent"
+blocked: none
 agent-walk: on 2026-10-31
