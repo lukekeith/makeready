@@ -1,7 +1,7 @@
 size: lg
 state: audited
 next: /builder:resume --path docs/features/media-page
-head: 64f33fc0
+head: a561aa48
 ticket: none
 branch: builder/media-page
 pr: none
@@ -16,5 +16,5 @@ verify: none
 ready: none
 ui2: none
 auto: on 2026-10-31
-blocked: none
+blocked: "MediaBrowser's reference doc is only an uncommitted file in your main checkout, so d2m can't spec the grid [B1] — next: commit docs/ui2/references/media-browser.md to main, then /builder:agent"
 agent-walk: on 2026-10-31
