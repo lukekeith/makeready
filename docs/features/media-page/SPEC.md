@@ -135,9 +135,9 @@ the migration's backfill covers its rows.
 
 | # | Change | Model.field | Wire | Reason | Status |
 |---|---|---|---|---|---|
-| SC1 | ADD | `Media.takenAt` (datetime, nullable) | library items `takenAt` | the date the photo was taken (D4) | planned |
-| SC2 | EDIT | upload body (`uploadMediaSchema`) | `takenAt?` | parity with the cover routes (D3) | planned |
-| SC3 | EDIT | group and program `cover-image` bodies | `takenAt?` | the 2.0 iPhone sends the capture date of a picked cover (D3) | planned |
+| SC1 | ADD | `Media.takenAt` (datetime, nullable) | library items `takenAt` | the date the photo was taken (D4) | landed — migration 20261031055111_media_taken_at (a6bd6398) |
+| SC2 | EDIT | upload body (`uploadMediaSchema`) | `takenAt?` | parity with the cover routes (D3) | landed — ffe36c8e |
+| SC3 | EDIT | group and program `cover-image` bodies | `takenAt?` | the 2.0 iPhone sends the capture date of a picked cover (D3) | landed — d404184e |
 
 **Data plan:** SC1 is a nullable column added by an Atlas migration generated from
 `server/schema/schema.yaml`. The same new, uncommitted migration backfills it with a guarded cast,
