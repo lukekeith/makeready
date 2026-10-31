@@ -599,7 +599,9 @@ final class MediaBrowserTracker {
     var anchorUnit: UnitPoint = .center
     var outgoingScale: CGFloat = 1
 
-    private var sectionsKey = ""
+    private var cachedItems: [MediaBrowser.Item]?
+    private var cachedByYear = false
+    private var cachedTimeZone: TimeZone?
     private var cachedSections: [MediaBrowserSection] = []
 
     func beginPinch(at location: CGPoint, level: MediaBrowser.Level, size: CGSize, count: Int) {
@@ -651,10 +653,10 @@ final class MediaBrowserTracker {
     }
 
     /// Month (or year) sections cut from `Item.date` in `timeZone` (§2b, D5). Cached on the
-    /// library's identity, so a re-render does not re-walk 37k dates.
+    /// items themselves (an O(n) compare, far cheaper than re-walking 37k dates through a
+    /// calendar), so a library whose ends match but whose middle changed is re-sectioned.
     func sections(items: [MediaBrowser.Item], byYear: Bool, timeZone: TimeZone) -> [MediaBrowserSection] {
-        let key = "\(items.count)|\(items.first?.id ?? "")|\(items.last?.id ?? "")|\(timeZone.identifier)|\(byYear)"
-        if key == sectionsKey { return cachedSections }
+        if byYear == cachedByYear, timeZone == cachedTimeZone, items == cachedItems { return cachedSections }
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = timeZone
         // §2 Pill: "MMM yyyy" ("Oct 2026"). The month names come from a fixed English locale,
@@ -674,7 +676,9 @@ final class MediaBrowserTracker {
                 result.append(MediaBrowserSection(label: label, firstIndex: index))
             }
         }
-        sectionsKey = key
+        cachedItems = items
+        cachedByYear = byYear
+        cachedTimeZone = timeZone
         cachedSections = result
         return result
     }

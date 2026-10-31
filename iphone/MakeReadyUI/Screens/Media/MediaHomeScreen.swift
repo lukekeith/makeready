@@ -39,6 +39,9 @@ struct MediaHomeScreen: View {
         /// The photos C-129 shows (already filtered by the host's `MediaHomeMapper`, §5).
         /// "" = no image in the cache yet → C-129's dark placeholder.
         var photoURLs: [String]
+        /// Each photo's stable id, parallel to `photoURLs` — C-129's `Item.id` and the id `onTap`
+        /// reports. Empty → the ids are "photo-<index>" (previews, capture).
+        var photoIDs: [String] = []
         /// Each photo's date (`takenAt ?? createdAt`), "yyyy-MM-dd".
         var photoDates: [String]
         /// Each photo's title — its accessibility label.
@@ -143,20 +146,36 @@ struct MediaHomeScreen: View {
             let date = Self.parse(state.photoDates[index]) ?? .distantPast
             let title = state.photoTitles.indices.contains(index) ? state.photoTitles[index] : ""
             return MediaBrowser.Item(
-                id: Self.itemID(index),
+                id: itemID(index),
                 date: date,
                 accessibilityLabel: "\(title), \(Self.dayFormatter.string(from: date))"
             )
         }
     }
 
-    private static func itemID(_ index: Int) -> String { "photo-\(index)" }
+    /// `photoIDs[index]` when the host passed ids, else "photo-<index>".
+    private func itemID(_ index: Int) -> String {
+        state.photoIDs.indices.contains(index) ? state.photoIDs[index] : "photo-\(index)"
+    }
+
+    /// `photoIDs` → its `photoURLs` index, built once per render so a tile's lookup is O(1).
+    private var photoIndexByID: [String: Int] {
+        Dictionary(state.photoIDs.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+    }
+
+    /// The `photoURLs` index an item id names: its place in `photoIDs`, or the "photo-<index>" suffix.
+    private static func photoIndex(of id: String, in indexByID: [String: Int]) -> Int? {
+        if let index = indexByID[id] { return index }
+        guard id.hasPrefix("photo-") else { return nil }
+        return Int(id.dropFirst("photo-".count))
+    }
 
     /// §5: C-129 never loads an image; the screen reads the host's cache (Ui2ImageCache in the
-    /// preview module). §3 `loading`: "C-129 … with its dark placeholder tiles" → nil for all.
-    private func image(for id: String) -> UIImage? {
+    /// preview module), keyed by the photo's `photoURLs` entry. §3 `loading`: "C-129 … with its
+    /// dark placeholder tiles" → nil for all.
+    private func image(for id: String, indexByID: [String: Int]) -> UIImage? {
         guard state.phase != .loading,
-              let index = Int(id.dropFirst("photo-".count)),
+              let index = Self.photoIndex(of: id, in: indexByID),
               state.photoURLs.indices.contains(index),
               !state.photoURLs[index].isEmpty else { return nil }
         if let image { return image(state.photoURLs[index]) }
@@ -332,9 +351,10 @@ struct MediaHomeScreen: View {
 
     @ViewBuilder private var content: some View {
         if showsGrid {
+            let indexByID = photoIndexByID
             MediaBrowser(
                 items: items,
-                image: image(for:),
+                image: { image(for: $0, indexByID: indexByID) },
                 imageGeneration: imageGeneration,
                 level: level,
                 onLevelChange: { next in
