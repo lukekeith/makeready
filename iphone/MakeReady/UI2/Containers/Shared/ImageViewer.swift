@@ -6,7 +6,7 @@ import UIKit
 /// follows the finger, shrinks as it goes down while the page shows through, and on release flies
 /// back into the frame it opened from (or back to rest). Reused by the cover viewer now and the
 /// media library later. Build-made: no d2m design; its chrome is one close control.
-struct ImageViewerOverlay: View {
+struct ImageViewer: View {
     let url: String
     /// Where the image opens from and flies back to, in GLOBAL coordinates; nil = no source (the
     /// image grows in place and leaves off the bottom).
@@ -80,7 +80,7 @@ struct ImageViewerOverlay: View {
     @MainActor
     private func open(viewport: CGRect, origin: CGPoint) async {
         guard let u = URL(string: url) else { return }
-        if Ui2ImageCache.shared.image(for: u) == nil { _ = await UI2ImageLoader.seed([url], context: "ImageViewerOverlay") }
+        if Ui2ImageCache.shared.image(for: u) == nil { _ = await UI2ImageLoader.seed([url], context: "ImageViewer") }
         guard let loaded = Ui2ImageCache.shared.image(for: u) else { return }
         image = loaded
         let target = ImageViewerMath.fittedFrame(imageSize: loaded.size, in: viewport)

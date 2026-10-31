@@ -76,7 +76,7 @@
 		15EB241AECBFAC12BBE5CCE6 /* EditOptionsCustomFieldScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A52B503E5B111C68CF79691 /* EditOptionsCustomFieldScreen.swift */; };
 		15F5BA6C87A29C0906061BAD /* ImageSubjectDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9984E3AF58E3189E6D1E978 /* ImageSubjectDetector.swift */; };
 		161120BE39E982EEC7E0FCE4 /* SwipeState.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4DDECB9367F32B214ADEBB6 /* SwipeState.swift */; };
-		1637EA8ECDF20EF151A4DFE2 /* ImageViewerOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03024D879F254C36C9BEC3 /* ImageViewerOverlay.swift */; };
+		1637EA8ECDF20EF151A4DFE2 /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03024D879F254C36C9BEC3 /* ImageViewer.swift */; };
 		16653B87C42DDEDC3E31A86C /* StudyProgramRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8EADB43EEB3864563E630F71 /* StudyProgramRow.swift */; };
 		166E9BC4BD36E86410245599 /* ColorPickerWell.swift in Sources */ = {isa = PBXBuildFile; fileRef = 679B147467507A4B69BF0D70 /* ColorPickerWell.swift */; };
 		169BF1E77EE8783F6E64AAA8 /* EnrollmentProgressHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E914735F357B49E183769E8C /* EnrollmentProgressHeader.swift */; };
@@ -666,7 +666,7 @@
 		CAC675AF3B9410CAFC06C5DD /* MetaPair.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D91FF0005F3180CBFFEDAC5 /* MetaPair.swift */; };
 		CAL_MDL00000000000002 /* CalendarModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = CAL_MDL00000000000001 /* CalendarModels.swift */; };
 		CB060F05D3EB90EA4BD42EC0 /* CoverImageLoaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F882AD31D56CD6C70321D8C8 /* CoverImageLoaderTests.swift */; };
-		CB297769014FD09446EAB427 /* ImageViewerOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03024D879F254C36C9BEC3 /* ImageViewerOverlay.swift */; };
+		CB297769014FD09446EAB427 /* ImageViewer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE03024D879F254C36C9BEC3 /* ImageViewer.swift */; };
 		CB6E7B1A102CE6E8F7C2A94A /* ConfirmationMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E8AE89647C0C2149E14610D /* ConfirmationMark.swift */; };
 		CBA6E822EF1EDE6C26592A91 /* GroupPatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83258CB074CE451E434761D2 /* GroupPatchTests.swift */; };
 		CBBC766D9D836D6FFED5383B /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = APPDEL0002000000000001 /* AppDelegate.swift */; };
@@ -1274,7 +1274,7 @@
 		ACST000100000000000001 /* ActivityStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivityStyle.swift; sourceTree = "<group>"; };
 		AD3BCF3A8A02BB93C8528AF5 /* AuthManagerLaunchTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AuthManagerLaunchTests.swift; sourceTree = "<group>"; };
 		ADE8FE7EDC7A6D5D1B2C6858 /* NumberKeypad.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NumberKeypad.swift; sourceTree = "<group>"; };
-		AE03024D879F254C36C9BEC3 /* ImageViewerOverlay.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageViewerOverlay.swift; sourceTree = "<group>"; };
+		AE03024D879F254C36C9BEC3 /* ImageViewer.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = ImageViewer.swift; sourceTree = "<group>"; };
 		AE698C12540E4C979111EFA4 /* InviteMemberScreen.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = InviteMemberScreen.swift; path = Screens/Groups/InviteMemberScreen.swift; sourceTree = "<group>"; };
 		AEDC1F6AA772BBC0E2DFD010 /* LessonCard.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LessonCard.swift; sourceTree = "<group>"; };
 		APPDEL0002000000000001 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -1863,7 +1863,7 @@
 				1C37495CB83A38766D43E8E0 /* CoverOwner.swift */,
 				54608FD376D4319946A8F422 /* CoverImageLoader.swift */,
 				F32EBF20904DF63847DD15AC /* UI2ImageLoader.swift */,
-				AE03024D879F254C36C9BEC3 /* ImageViewerOverlay.swift */,
+				AE03024D879F254C36C9BEC3 /* ImageViewer.swift */,
 			);
 			name = Shared;
 			path = Shared;
@@ -3561,7 +3561,7 @@
 				CD6B5DBB972FCCFE7EF5F2B1 /* EditProgramCoverContainer.swift in Sources */,
 				625C241FE22E3E94A2D209EB /* CoverImageLoader.swift in Sources */,
 				D0BD439B6E29AB970A62F2C9 /* UI2ImageLoader.swift in Sources */,
-				CB297769014FD09446EAB427 /* ImageViewerOverlay.swift in Sources */,
+				CB297769014FD09446EAB427 /* ImageViewer.swift in Sources */,
 				0194C747D3622B49FBF5176D /* PullDownRefresh.swift in Sources */,
 				5AC9686E7A048A27FE2C1D92 /* EnrollmentDraft.swift in Sources */,
 				BD8F5727EAE892898AB1E036 /* EnrollChecklistMapper.swift in Sources */,
@@ -4036,7 +4036,7 @@
 				CA815F47BD922CE8CA2FA644 /* EditProgramCoverContainer.swift in Sources */,
 				2277B00775F8BC5723824C02 /* CoverImageLoader.swift in Sources */,
 				ADDF9A9E039A20357EBC46C9 /* UI2ImageLoader.swift in Sources */,
-				1637EA8ECDF20EF151A4DFE2 /* ImageViewerOverlay.swift in Sources */,
+				1637EA8ECDF20EF151A4DFE2 /* ImageViewer.swift in Sources */,
 				5385BEFA0FE0522F3A856640 /* PullDownRefresh.swift in Sources */,
 				2C25F170FE52E12AD8C1DF5D /* EnrollmentDraft.swift in Sources */,
 				7968F7B37DB1ACF8F59B9D7D /* EnrollChecklistMapper.swift in Sources */,

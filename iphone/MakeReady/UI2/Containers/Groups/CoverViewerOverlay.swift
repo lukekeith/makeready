@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// group-cover-image D8 → image-viewer-zoom-dismiss (owner 2026-10-28): "View image" shows the whole
-/// original in `ImageViewerOverlay` — pinch / double-tap zoom with pan, and Photos' drag-to-dismiss
+/// original in `ImageViewer` — pinch / double-tap zoom with pan, and Photos' drag-to-dismiss
 /// back into the cover it opened from (reference docs/ui2/references/image-viewer-zoom-dismiss.md).
 enum CoverViewerOverlay {
     static func viewerURL(group: UserGroup) -> String? {
@@ -20,7 +20,7 @@ private struct CoverViewerPresentation: ViewModifier {
 
     func body(content: Content) -> some View {
         let layer = url.map {
-            ImageViewerOverlay(url: $0, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel, onClose: onClose)
+            ImageViewer(url: $0, sourceFrame: sourceFrame, accessibilityLabel: accessibilityLabel, onClose: onClose)
         }
         if hosted {
             // The viewer animates its own open and close (rules 1 and 8): no host crossfade.
