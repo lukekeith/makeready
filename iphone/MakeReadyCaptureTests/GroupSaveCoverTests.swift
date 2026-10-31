@@ -53,6 +53,19 @@ final class GroupSaveCoverTests: XCTestCase {
         XCTAssertNil(api.calls.last?.body?["originalData"])
     }
 
+    func testNewPickSendsTakenAt() async throws {
+        stubSuccess()
+        _ = try await GroupActions(api: api, state: state).saveCover(groupId: "g1", rendered: image(), framing: framing,
+                                                                     original: image(), takenAt: "2025-06-14T09:30:00-05:00")
+        XCTAssertEqual(api.calls.last?.body?["takenAt"] as? String, "2025-06-14T09:30:00-05:00")
+    }
+
+    func testNoTakenAtSendsNoKey() async throws {
+        stubSuccess()
+        _ = try await GroupActions(api: api, state: state).saveCover(groupId: "g1", rendered: image(), framing: framing, original: nil)
+        XCTAssertNil(api.calls.last?.body?["takenAt"])
+    }
+
     func testSuccessPatchesTheThreeFieldsIntoAppState() async throws {
         stubSuccess()
         let result = try await GroupActions(api: api, state: state).saveCover(groupId: "g1", rendered: image(), framing: framing, original: image())

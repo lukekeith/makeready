@@ -70,7 +70,7 @@ struct EditMemberAvatarContainer: View {
     @MainActor
     private static func immediateOpening(memberId: String, source: ImageEditSource) -> Opening? {
         switch source {
-        case let .newPick(image):
+        case let .newPick(image, _):
             // At the floor, centred; the pick itself is uploaded as the original.
             return Opening(image: image, framing: .identity, isNewPick: true, hasStoredOriginal: true)
         case .stored:

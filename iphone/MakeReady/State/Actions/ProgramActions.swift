@@ -668,7 +668,7 @@ let api: APIClientProtocol
     /// (JPEG 0.9) with its framing — and the original on a new pick — then patch the three returned
     /// fields into the program and persist. `requestWithStatus` keeps a 404's status.
     @MainActor
-    func saveCover(programId: String, rendered: UIImage, framing: ImageFraming, original: UIImage?) async throws -> CoverSaveResult {
+    func saveCover(programId: String, rendered: UIImage, framing: ImageFraming, original: UIImage?, takenAt: String? = nil) async throws -> CoverSaveResult {
         struct Response: Decodable {
             let success: Bool
             let coverImageUrl: String?
@@ -690,6 +690,7 @@ let api: APIClientProtocol
             }
             body["originalData"] = originalJPEG.base64EncodedString()
         }
+        if let takenAt { body["takenAt"] = takenAt }
 
         let data = try await api.requestWithStatus(endpoint: "/api/programs/\(programId)/cover-image", method: "POST",
                                                    body: body, timeout: GroupActions.coverSaveTimeout)

@@ -337,7 +337,7 @@ private let api: APIClientProtocol
     /// stores it on R2 + automatically tags it via Claude Vision (fire-and-forget).
     /// Returns an UploadedPhoto; use `.url` as the background image URL.
     @MainActor
-    func uploadPhoto(image: UIImage, title: String = "Photo") async throws -> UploadedPhoto {
+    func uploadPhoto(image: UIImage, title: String = "Photo", sourceData: Data? = nil) async throws -> UploadedPhoto {
         guard let orgId = state.organizationId else {
             throw APIError.serverError("No organization context — cannot upload photo")
         }
@@ -357,11 +357,13 @@ private let api: APIClientProtocol
         }
         let base64 = (data as Data).base64EncodedString()
 
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "type":      "photo",
             "title":     title,
             "imageData": base64,
         ]
+        // media-page D3: the capture date is read from the source bytes (the upload above is re-encoded without EXIF).
+        if let takenAt = sourceData.flatMap({ CaptureDate.read(from: $0) }) { body["takenAt"] = takenAt }
 
         struct UploadResponse: Decodable {
             let success: Bool

@@ -37,6 +37,12 @@ final class EditGroupCoverContainerTests: XCTestCase {
         XCTAssertNotEqual(a, UI2Destination.editGroupCover(groupId: "g1", source: .stored))
     }
 
+    func testTakenAtMakesTwoPicksDiffer() {
+        let img = UIImage()
+        XCTAssertNotEqual(UI2Destination.editGroupCover(groupId: "g1", source: .newPick(img, takenAt: "2025-06-14T09:30:00-05:00")),
+                          UI2Destination.editGroupCover(groupId: "g1", source: .newPick(img)))
+    }
+
     /// D26: Cancel with a change asks to discard; with none it pops.
     func testCancelAction() {
         XCTAssertEqual(EditGroupCoverContainer.cancelAction(hasChanges: true, isSaving: false), .confirmDiscard)

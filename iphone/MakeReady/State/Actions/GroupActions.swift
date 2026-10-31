@@ -367,7 +367,7 @@ struct GroupActions {
     /// original on a new pick - then patch the three returned fields into the group and persist.
     /// Uses `requestWithStatus` so a 404 keeps its status (F6); a 401 throws `.unauthorized`.
     @MainActor
-    func saveCover(groupId: String, rendered: UIImage, framing: CoverFraming, original: UIImage?) async throws -> CoverSaveResult {
+    func saveCover(groupId: String, rendered: UIImage, framing: CoverFraming, original: UIImage?, takenAt: String? = nil) async throws -> CoverSaveResult {
         struct Response: Decodable {
             let success: Bool
             let coverImageUrl: String?
@@ -389,6 +389,7 @@ struct GroupActions {
             }
             body["originalData"] = originalJPEG.base64EncodedString()
         }
+        if let takenAt { body["takenAt"] = takenAt }
 
         let data = try await api.requestWithStatus(endpoint: "/api/groups/\(groupId)/cover-image", method: "POST",
                                                    body: body, timeout: Self.coverSaveTimeout)

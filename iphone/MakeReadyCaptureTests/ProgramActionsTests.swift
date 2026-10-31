@@ -108,6 +108,21 @@ final class ProgramActionsTests: XCTestCase {
         XCTAssertNil(api.calls.last?.body?["originalData"])
     }
 
+    func testNewPickSendsTakenAt() async throws {
+        state.programs.upsert(StudyProgram(id: "p1", name: "Walk"))
+        api.stub("POST", "/api/programs/p1/cover-image", json: #"{"success":true,"coverImageUrl":"https://img/new.jpeg"}"#)
+        _ = try await actions.saveCover(programId: "p1", rendered: image(), framing: .identity,
+                                        original: image(), takenAt: "2025-06-14T09:30:00-05:00")
+        XCTAssertEqual(api.calls.last?.body?["takenAt"] as? String, "2025-06-14T09:30:00-05:00")
+    }
+
+    func testNoTakenAtSendsNoKey() async throws {
+        state.programs.upsert(StudyProgram(id: "p1", name: "Walk"))
+        api.stub("POST", "/api/programs/p1/cover-image", json: #"{"success":true,"coverImageUrl":"https://img/new.jpeg"}"#)
+        _ = try await actions.saveCover(programId: "p1", rendered: image(), framing: .identity, original: nil)
+        XCTAssertNil(api.calls.last?.body?["takenAt"])
+    }
+
     // MARK: - Forget (D5)
 
     func testForgetClearsTheProgramItsLessonsAndItsEnrollmentsIndex() {
