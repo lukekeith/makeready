@@ -45,3 +45,4 @@ and finishes Tasks 8 and 11.
 - 2026-10-31 owner: the d2m channel now takes `references` and runs the whole chain itself
 - 2026-10-31 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-10-31 retry — channel cause cleared; C-129 minted, specced and built; media-home spec stops on d2m's proposed C-129 box on Design 4 (owner confirm) — parked again
+- 2026-10-31 unparked by a person — named to /builder:agent or /builder:fleet
