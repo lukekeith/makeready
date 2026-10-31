@@ -32,3 +32,4 @@ Alternatives: move the doc's content elsewhere and repoint D9/D11 (more work, sa
 - 2026-10-31 parked — MediaBrowser reference doc uncommitted in the owner's checkout (B1)
 - 2026-10-31 unparked by a person — named to /builder:agent or /builder:fleet
 - 2026-10-31 retry — B1 cleared (doc committed in 2c807640); carried on to the plan
+- 2026-10-31 resume (agent mode, unparked) — re-checked: `docs/ui2/references/media-browser.md` present in this worktree (2c807640 on main); state planned with go-ahead → build
