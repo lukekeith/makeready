@@ -1,12 +1,12 @@
 size: lg
 state: planned
 next: /builder:resume --path docs/features/media-page
-head: 0dbb2c89
+head: e8e1fe42
 ticket: none
 branch: builder/media-page
 pr: none
 apps: server+iphone
-contract: open
+contract: frozen 2026-10-31
 hold: none
 go-ahead: auto (recommended) 2026-10-31
 tests: slice=own+app end=risk review=slice
