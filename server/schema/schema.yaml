@@ -1004,6 +1004,10 @@ models:
         type: json
         nullable: true
         description: "EXIF metadata: camera, GPS, date taken, etc."
+      takenAt:
+        type: datetime
+        nullable: true
+        description: "When the photo was taken (media-page D4): the request's takenAt, else EXIF DateTimeOriginal, else null"
       videoResolution:
         type: string
         nullable: true
