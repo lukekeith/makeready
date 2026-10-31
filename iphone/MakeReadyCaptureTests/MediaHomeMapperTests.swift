@@ -1,0 +1,88 @@
+import XCTest
+@testable import MakeReady
+
+/// media-page D5–D8, D10: oldest→newest by takenAt ?? createdAt; search; Tags / Leaders / Time with AND.
+final class MediaHomeMapperTests: XCTestCase {
+    typealias M = MediaHomeMapper
+    private let chicago = TimeZone(identifier: "America/Chicago")!
+    private let today = ISO8601DateFormatter().date(from: "2026-10-31T17:00:00Z")!   // 12:00 in Chicago
+
+    private func date(_ iso: String) -> Date { ISO8601DateFormatter().date(from: iso)! }
+
+    private func item(_ id: String, created: String = "2026-10-01T12:00:00Z", taken: String? = nil, title: String = "",
+                      description: String? = nil, tags: [String] = [], uploader: (String, String)? = ("u1", "Ann"),
+                      url: String? = nil, thumb: String? = nil, type: String = "photo") -> MediaLibraryItem {
+        MediaLibraryItem(id: id, title: title, description: description, url: url ?? "https://img/\(id).jpeg", type: type,
+                         mimeType: nil, fileSize: nil, thumbnailUrl: thumb ?? "https://img/\(id)-thumb.jpeg",
+                         uploadStatus: "ready", duration: nil, tags: tags, usageCount: 0,
+                         uploader: uploader.map { MediaUploader(id: $0.0, name: $0.1) }, video: nil,
+                         createdAt: date(created), updatedAt: date(created), takenAt: taken.map(date))
+    }
+
+    private func ids(_ items: [MediaLibraryItem], _ s: M.Selection = .init()) -> [String] {
+        M.output(items: items, selection: s, today: today, timeZone: chicago).tiles.map(\.id)
+    }
+
+    func testOrdersOldestToNewestByTakenAtElseCreatedAtTiesById() {
+        let items = [item("c", created: "2026-10-03T00:00:00Z"),
+                     item("a", created: "2026-10-30T00:00:00Z", taken: "2025-06-14T14:30:00Z"),
+                     item("b", created: "2026-10-03T00:00:00Z"),
+                     item("v", type: "video")]
+        XCTAssertEqual(ids(items), ["a", "b", "c"])
+    }
+
+    func testSearchMatchesTitleDescriptionTagAndUploaderCaseInsensitively() {
+        let items = [item("t", title: "Easter Sunrise"), item("d", description: "at the LAKE"),
+                     item("g", tags: ["baptism"]), item("u", uploader: ("u9", "Nathan Hughes")), item("x")]
+        XCTAssertEqual(ids(items, .init(search: "sunrise")), ["t"])
+        XCTAssertEqual(ids(items, .init(search: "lake")), ["d"])
+        XCTAssertEqual(ids(items, .init(search: "BAPT")), ["g"])
+        XCTAssertEqual(ids(items, .init(search: "hughes")), ["u"])
+        XCTAssertEqual(ids(items, .init(search: "  ")).count, 5)
+    }
+
+    func testTagsAnyOfAndOptionsFromTheLoadedListSorted() {
+        let items = [item("1", tags: ["youth", "retreat"]), item("2", tags: ["family"]), item("3")]
+        XCTAssertEqual(ids(items, .init(tags: ["Retreat", "family"])), ["1", "2"])
+        XCTAssertEqual(M.output(items: items, selection: .init(), today: today, timeZone: chicago).tagOptions,
+                       ["family", "retreat", "youth"])
+    }
+
+    func testLeadersByIdSameNamesKeptApartAndNoUploaderOnlyWhenEmpty() {
+        let items = [item("1", uploader: ("u1", "Sam")), item("2", uploader: ("u2", "Sam")), item("3", uploader: nil)]
+        let out = M.output(items: items, selection: .init(), today: today, timeZone: chicago)
+        XCTAssertEqual(out.leaderOptions, [.init(id: "u1", label: "Sam"), .init(id: "u2", label: "Sam")])
+        XCTAssertEqual(ids(items, .init(leaderIds: ["u2"])), ["2"])
+        XCTAssertEqual(ids(items).count, 3)
+    }
+
+    func testTimeCutoffIsStartOfTodayMinusNMinusOneDaysInTheDeviceZone() {
+        // Chicago 2026-10-31: last 7 days starts 2026-10-25 00:00 CDT = 05:00Z.
+        XCTAssertEqual(M.cutoff(.last7, today: today, timeZone: chicago), date("2026-10-25T05:00:00Z"))
+        XCTAssertNil(M.cutoff(.all, today: today, timeZone: chicago))
+        let items = [item("in", taken: "2026-10-25T05:00:00Z"), item("out", taken: "2026-10-25T04:59:59Z")]
+        XCTAssertEqual(ids(items, .init(time: .last7)), ["in"])
+    }
+
+    func testChipsCombineWithAnd() {
+        let items = [item("1", tags: ["youth"], uploader: ("u1", "Ann")), item("2", tags: ["youth"], uploader: ("u2", "Bo"))]
+        XCTAssertEqual(ids(items, .init(tags: ["youth"], leaderIds: ["u2"])), ["2"])
+    }
+
+    func testTileURLFallbacks() {
+        XCTAssertEqual(M.tileURLs(url: "https://img/a.jpeg", thumbnailUrl: "https://img/a-thumb.jpeg").medium?.absoluteString, "https://img/a-md.jpeg")
+        let png = M.tileURLs(url: "https://img/a.png", thumbnailUrl: nil)
+        XCTAssertNil(png.medium)
+        XCTAssertEqual(png.thumb?.absoluteString, "https://img/a.png")
+    }
+
+    func testEmptyAndNoResultsAndDateRange() {
+        XCTAssertTrue(M.output(items: [], selection: .init(), today: today, timeZone: chicago).isEmptyLibrary)
+        let items = [item("a", taken: "2024-01-05T08:00:00Z"), item("b", taken: "2025-06-14T14:30:00Z")]
+        let none = M.output(items: items, selection: .init(search: "zzz"), today: today, timeZone: chicago)
+        XCTAssertTrue(none.isNoResults)
+        XCTAssertFalse(none.isEmptyLibrary)
+        XCTAssertEqual(M.output(items: items, selection: .init(), today: today, timeZone: chicago).dateRange,
+                       date("2024-01-05T08:00:00Z")...date("2025-06-14T14:30:00Z"))
+    }
+}
