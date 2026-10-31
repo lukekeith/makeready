@@ -17,10 +17,17 @@ enum SectionScrollMorph {
         if expansion == 1, offset >= collapseScroll { return 0 }
         return nil
     }
+
+    /// A section that owns its scroll sits below the row and SHRINKS from the top as the row grows, so its
+    /// bottom edge never moves (an offset would push it under the TabBar). 0 while the row is pushed out.
+    static func ownedScrollTopPadding(footprint: CGFloat, hidesNav: Bool, growth: CGFloat) -> CGFloat {
+        hidesNav ? 0 : footprint + growth
+    }
 }
 
 /// media-page D16: how a section that owns its scroll reports it to the shell's TopNav.
 struct SectionScrollReport {
+    /// The closure reads live expansion: a section must not cache it.
     let report: @MainActor (_ offset: CGFloat, _ interacting: Bool) -> Void
     static let none = SectionScrollReport { _, _ in }
 }

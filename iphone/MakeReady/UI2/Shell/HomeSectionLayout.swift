@@ -46,16 +46,18 @@ struct HomeSectionLayout<Content: View>: View {
                     content
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .background(Token.layoutBackground)
-                        .offset(y: hidesNav ? 0 : growth)
                         .id(model.section)
-                        .environment(\.topNavInset, hidesNav ? 0 : growth)
+                        // The content already starts below the row (it shrinks by `growth`), so pinned
+                        // elements need no extra inset.
+                        .environment(\.topNavInset, 0)
+                        // The closure reads live expansion: a section must not cache it.
                         .environment(\.sectionScrollReport, SectionScrollReport { [hidesNav] offset, interacting in
                             guard !hidesNav,
                                   let to = SectionScrollMorph.target(expansion: model.expansion, interacting: interacting, offset: offset)
                             else { return }
                             TopNavHost.morph($model, to: to, duration: SectionScrollMorph.triggerDuration)
                         })
-                        .padding(.top, hidesNav ? 0 : Self.collapsedFootprint)
+                        .padding(.top, SectionScrollMorph.ownedScrollTopPadding(footprint: Self.collapsedFootprint, hidesNav: hidesNav, growth: growth))
                 } else {
                     SectionPageScroll(model: $model, growth: growth, morphs: !hidesNav) { content }
                         .id(model.section)

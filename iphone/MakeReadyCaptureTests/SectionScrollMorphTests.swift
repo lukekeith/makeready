@@ -21,4 +21,10 @@ final class SectionScrollMorphTests: XCTestCase {
     func testOnlyMediaOwnsItsScroll() {
         XCTAssertEqual(UI2Section.allCases.filter(\.ownsScroll), [.media])
     }
+
+    func testAScrollOwningSectionShrinksFromTheTopByTheRowsGrowth() {
+        XCTAssertEqual(SectionScrollMorph.ownedScrollTopPadding(footprint: 60, hidesNav: false, growth: 0), 60)
+        XCTAssertEqual(SectionScrollMorph.ownedScrollTopPadding(footprint: 60, hidesNav: false, growth: 30), 90)
+        XCTAssertEqual(SectionScrollMorph.ownedScrollTopPadding(footprint: 60, hidesNav: true, growth: 30), 0)
+    }
 }
