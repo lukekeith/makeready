@@ -12,6 +12,7 @@ The Media page's grid (MediaBrowser) is specced by d2m from `docs/ui2/references
 and builder never writes design input, so the plan step refuses while SPEC §Findings B1 stands.
 
 ## What was tried
+- 2026-10-31 retry (resume after unpark) — cause no longer holds: `git log main -- docs/ui2/references/media-browser.md` → 2c807640; merged here in 60f2d5eb; `cmp` against the owner's file → identical. B1 marked resolved in SPEC §Findings.
 - Audit pass 1 (server + iphone agents) and pass 2 (cover-image routes) — done and committed (a561aa48); B1 is the only blocked row.
 - Copying the owner's uncommitted file into this worktree — not done: it is the owner's in-progress design input, and builder never writes the design source.
 
@@ -30,3 +31,4 @@ Alternatives: move the doc's content elsewhere and repoint D9/D11 (more work, sa
 ## History
 - 2026-10-31 parked — MediaBrowser reference doc uncommitted in the owner's checkout (B1)
 - 2026-10-31 unparked by a person — named to /builder:agent or /builder:fleet
+- 2026-10-31 retry — B1 cleared (doc committed in 2c807640); carried on to the plan
