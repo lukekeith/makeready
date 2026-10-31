@@ -1265,6 +1265,28 @@ struct CaptureComponent: Codable {
     // (String?) as-is; nil fields take the group-cover defaults (16:9 · rectangle · "Edit cover").
     let aspect: Double?                        // frame width ÷ height; 1 = the avatar square
     let mask: String?                          // "rectangle" | "circle"
+    // ── C-129 MediaBrowser ──
+    // Additive. `image` already exists as `String?` (C-079), so the C-129 closure prop is carried
+    // as a JSON string (the C-091 `passage` precedent): an object mapping each sample image's key
+    // to its catalog URL, `"{}"` = nil for every tile (§3 Loading). `items` is NOT decoded here:
+    // the existing `items: [CaptureListItem]?` is a different type, and a ~2,000-item library is
+    // too big for a preview's props, so the registry case builds §3's sample library itself.
+    let imageGeneration: Int?                  // C-129 §4
+    let level: String?                         // five | eight | fourteen | thirty
+    let hiddenItemID: String?                  // §3 viewer-open
+    let frozen: Bool?                          // §3 viewer-open
+    let scrollToNewestToken: Int?
+    let timeZone: String?                      // a TimeZone identifier ("UTC")
+    let refreshing: Bool?                      // §3 refreshing
+    // ── screen media-home ──
+    // Additive; reuses `phase`, `searchText`, `hiddenItemID`, `frozen` and `refreshing` as-is
+    // (same names, same types).
+    let selectedTags: [String]?                // §3 Tags chip selection
+    let selectedLeaders: [String]?             // §3 Leaders chip selection
+    let timeOption: String?                    // §3 Time chip option
+    let photoURLs: [String]?                   // C-129 items' catalog URLs, oldest → newest
+    let photoDates: [String]?                  // "yyyy-MM-dd" per photo
+    let photoTitles: [String]?                 // per photo, its accessibility label
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated
