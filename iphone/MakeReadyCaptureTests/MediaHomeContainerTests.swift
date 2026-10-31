@@ -20,6 +20,12 @@ final class MediaHomeContainerTests: XCTestCase {
         XCTAssertFalse(MediaHomeContainer.shouldLoad(loadedOrgId: nil, orgId: nil))
     }
 
+    func testATappedItemIDMapsToItsTileByID() {
+        let tiles = [tile("a"), tile("b"), tile("c")]
+        XCTAssertEqual(MediaHomeContainer.index(ofTileID: "b", in: tiles), 1)
+        XCTAssertNil(MediaHomeContainer.index(ofTileID: "photo-1", in: tiles))
+    }
+
     func testPhase() {
         XCTAssertEqual(MediaHomeContainer.phase(output: output([], empty: true), isLoading: true, failed: false), .loading)
         XCTAssertEqual(MediaHomeContainer.phase(output: output([], empty: true), isLoading: false, failed: false), .empty)

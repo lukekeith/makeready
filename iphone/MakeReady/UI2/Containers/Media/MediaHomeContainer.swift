@@ -67,9 +67,10 @@ struct MediaHomeContainer: View {
                     selectedLeaders: output.leaderOptions.filter { selection.leaderIds.contains($0.id) }.map(\.label),
                     timeOption: selection.time.label,
                     photoURLs: urls.map { $0?.absoluteString ?? "" },
+                    photoIDs: tiles.map(\.id),
                     photoDates: tiles.map { Self.dayFormatter.string(from: $0.date) },
                     photoTitles: tiles.map(\.title),
-                    hiddenItemID: viewer.map { Self.itemID($0.index) },
+                    hiddenItemID: viewer.flatMap { tiles.indices.contains($0.index) ? tiles[$0.index].id : nil },
                     frozen: viewer != nil,
                     refreshing: refreshing
                 ),
@@ -160,12 +161,9 @@ struct MediaHomeContainer: View {
 
     // MARK: - Mapping
 
-    /// MediaHomeScreen names its items "photo-<index>" over `photoURLs`.
-    private static func itemID(_ index: Int) -> String { "photo-\(index)" }
-
-    private static func index(ofItemID id: String) -> Int? {
-        guard id.hasPrefix("photo-") else { return nil }
-        return Int(id.dropFirst("photo-".count))
+    /// MediaHomeScreen reports a tapped item by the id the host passed in `photoIDs` — the tile's own id.
+    static func index(ofTileID id: String, in tiles: [MediaHomeMapper.Tile]) -> Int? {
+        tiles.firstIndex { $0.id == id }
     }
 
     /// MediaHomeScreen.State.photoDates: "yyyy-MM-dd" in the device time zone (D5).
@@ -284,7 +282,7 @@ struct MediaHomeContainer: View {
 
     /// D12: one item at a time, from the tile's global frame, seeded with the tile's loaded image.
     private func open(id: String, frame: CGRect, tiles: [MediaHomeMapper.Tile]) {
-        guard viewer == nil, let index = Self.index(ofItemID: id), tiles.indices.contains(index) else { return }
+        guard viewer == nil, let index = Self.index(ofTileID: id, in: tiles), tiles.indices.contains(index) else { return }
         let tile = tiles[index]
         let shown = Self.tileURL(tile, fiveColumns: level == .five, failed: tileImages.hasFailed).flatMap(tileImages.image(for:))
         frozenTiles = tiles
