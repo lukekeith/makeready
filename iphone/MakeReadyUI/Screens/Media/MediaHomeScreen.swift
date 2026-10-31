@@ -65,6 +65,11 @@ struct MediaHomeScreen: View {
     var onVisibleRangeChange: (Range<Int>) -> Void = { _ in }
     var onScrollChange: (CGFloat, Bool) -> Void = { _, _ in }
     var onRefresh: () -> Void = {}
+    /// §5 "the container loads … into a bounded cache": the host's image provider, keyed by the
+    /// photo's `photoURLs` entry. nil → the preview module's `Ui2ImageCache` (previews, capture).
+    var image: ((String) -> UIImage?)? = nil
+    /// C-129 `imageGeneration`, passed through: the host bumps it when new images land.
+    var imageGeneration: Int = 0
 
     // R-31 ephemeral UI: the query as typed, C-129's level (§3 "the screen holds C-129's
     // `level`. It opens at `five`"), the range C-129 last reported, and the scroll-to-newest bump.
@@ -86,7 +91,9 @@ struct MediaHomeScreen: View {
         onTap: @escaping (String, CGRect) -> Void = { _, _ in },
         onVisibleRangeChange: @escaping (Range<Int>) -> Void = { _ in },
         onScrollChange: @escaping (CGFloat, Bool) -> Void = { _, _ in },
-        onRefresh: @escaping () -> Void = {}
+        onRefresh: @escaping () -> Void = {},
+        image: ((String) -> UIImage?)? = nil,
+        imageGeneration: Int = 0
     ) {
         self.state = state
         self.onSearch = onSearch
@@ -101,6 +108,8 @@ struct MediaHomeScreen: View {
         self.onVisibleRangeChange = onVisibleRangeChange
         self.onScrollChange = onScrollChange
         self.onRefresh = onRefresh
+        self.image = image
+        self.imageGeneration = imageGeneration
         _query = SwiftUI.State(initialValue: state.searchText)
     }
 
@@ -149,7 +158,9 @@ struct MediaHomeScreen: View {
         guard state.phase != .loading,
               let index = Int(id.dropFirst("photo-".count)),
               state.photoURLs.indices.contains(index),
-              let url = URL(string: state.photoURLs[index]) else { return nil }
+              !state.photoURLs[index].isEmpty else { return nil }
+        if let image { return image(state.photoURLs[index]) }
+        guard let url = URL(string: state.photoURLs[index]) else { return nil }
         return Ui2ImageCache.shared.image(for: url)
     }
 
@@ -324,7 +335,7 @@ struct MediaHomeScreen: View {
             MediaBrowser(
                 items: items,
                 image: image(for:),
-                imageGeneration: 0,
+                imageGeneration: imageGeneration,
                 level: level,
                 onLevelChange: { next in
                     level = next
