@@ -24,7 +24,7 @@ assumed, plus two settled at spec.
 | # | Feature (folder) | Size | Apps | One line | Depends on |
 |---|---|---|---|---|---|
 | 1 | media-page | lg | server+iphone | A leader opens Media and browses the organization's photos in MediaBrowser: pinching through 5, ~8, ~13–15 and 30+ columns with month and year labels, searching, filtering by tags, leaders and time, ordered by the date each photo was taken, and tapping a photo to view it in ImageViewer and dismiss it back into its tile | — |
-| 2 | viewer-paging-video | md | iphone | In the viewer, the leader swipes sideways through the grid's items and closes back into the tile of the one they ended on. Videos join the grid with their length badge and play in the viewer, and the Type filter appears | 1 |
+| 2 | viewer-paging-video | md | iphone | ~~In the viewer, the leader swipes sideways through the grid's items and closes back into the tile of the one they ended on.~~ *Paging shipped in chat 2026-11-01 (89f5260c, media-viewer-paging; dismiss falls off the bottom when the paged-to tile is off screen instead of scrolling the grid to it).* Videos join the grid with their length badge and play in the viewer, and the Type filter appears | 1 |
 | 3 | media-library | lg | server+iphone | Media browses MakeReady's read-only cover library plus every org the leader belongs to (Source chip); leaders upload images and videos from Media into an org; group and program covers can be chosen from the library, linking to the original | 1 |
 
 ## Shared decisions
