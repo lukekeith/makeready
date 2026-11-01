@@ -588,3 +588,31 @@ export async function listBrowse(filters: BrowseFilters) {
     nextCursor: result.nextCursor,
   }
 }
+
+/**
+ * media-library D10: a cover chosen from the library. The source must be active MakeReady media or
+ * media in the resource's own org — anything else would record a usage that names this resource to
+ * another org. Throws LibraryPickError(404 | 403).
+ */
+export class LibraryPickError extends Error {
+  constructor(public status: 403 | 404, message: string) {
+    super(message)
+  }
+}
+
+export async function checkLibraryPick(sourceMediaId: string, resourceOrgId: string | null): Promise<void> {
+  const media = await prisma.media.findFirst({ where: { id: sourceMediaId, isActive: true }, select: { organizationId: true } })
+  if (!media) throw new LibraryPickError(404, 'Library media not found')
+  if (media.organizationId !== MAKEREADY_ORG_ID && media.organizationId !== resourceOrgId) {
+    throw new LibraryPickError(403, 'That media is not available to this organization')
+  }
+}
+
+/** media-library D10: link the cover to its library original instead of capturing a copy. */
+export async function recordLibraryPick(input: { sourceMediaId: string; usageType: string; resourceId: string; resourceName: string }) {
+  await prisma.mediaUsage.upsert({
+    where: { mediaId_usageType_resourceId: { mediaId: input.sourceMediaId, usageType: input.usageType, resourceId: input.resourceId } },
+    update: { resourceName: input.resourceName },
+    create: { mediaId: input.sourceMediaId, usageType: input.usageType, resourceId: input.resourceId, resourceName: input.resourceName },
+  })
+}

@@ -14,6 +14,7 @@ import { logSuccess } from '../lib/activity-log.js'
 import { ActivityTypes } from '../lib/activity-types.js'
 import { uploadImageVariants, uploadFile } from '../services/storage.js'
 import { trackActivity } from '../services/activity.js'
+import { captureToLibrary } from '../services/media-library.js'
 
 const router = Router()
 
@@ -1388,6 +1389,25 @@ router.post('/events/:id/cover-image', requireAuth, async (req, res) => {
       where: { id },
       data: { coverImageUrl },
     })
+
+    // media-library D12: an event cover lands in its group's org library, like group and program
+    // covers. Every save is a new image (events have no re-edit); captureToLibrary dedupes url+org.
+    if (event.group?.organizationId) {
+      captureToLibrary({
+        title: `${event.title} - Cover Image`,
+        url: coverImageUrl,
+        type: 'photo',
+        mimeType: 'image/jpeg',
+        fileSize: originalBuffer.length,
+        thumbnailUrl: coverImageUrl.replace('.jpeg', '-thumb.jpeg'),
+        organizationId: event.group.organizationId,
+        uploadedBy: userId,
+        source: 'auto_capture',
+        usageType: 'EVENT_COVER',
+        resourceId: event.id,
+        resourceName: event.title,
+      })
+    }
 
     res.json({ success: true, coverImageUrl, event: updatedEvent })
   } catch (error) {

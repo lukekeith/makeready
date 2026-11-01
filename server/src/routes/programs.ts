@@ -8,7 +8,7 @@ import { requireAuth } from '../middleware/auth.js'
 import { deleteFromR2, extractKeyFromUrl } from '../services/storage.js'
 import { trackActivity } from '../services/activity.js'
 import { exportProgram, importProgram } from '../services/program-export.js'
-import { captureToLibrary, getUserOrgId } from '../services/media-library.js'
+import { captureToLibrary, getUserOrgId, checkLibraryPick, LibraryPickError, recordLibraryPick } from '../services/media-library.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
 import { suggestProgramTags } from '../services/claude.js'
 import {
@@ -3916,6 +3916,8 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
       originalData: z.string().min(1).optional(),
       // media-page SC3 / D3: the capture date of a NEW pick (none on a re-edit); parseTakenAt validates it.
       takenAt: z.string().optional(),
+      // media-library D10: the library item this cover was framed from (link, don't capture).
+      sourceMediaId: z.string().uuid().optional(),
     })
 
     const body = schema.parse(req.body)
@@ -3930,6 +3932,8 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
     if (!program) {
       return res.status(404).json({ success: false, error: 'Program not found' })
     }
+
+    if (body.sourceMediaId) await checkLibraryPick(body.sourceMediaId, program.organizationId)
 
     const saved = await saveCover(
       { kind: 'program', id: program.id, coverOriginalUrl: program.coverOriginalUrl },
@@ -3951,7 +3955,9 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
     })
 
     // Auto-capture a new image to the program org's media library; a re-edit captures nothing.
-    if (program.organizationId && saved.isNewImage) {
+    if (body.sourceMediaId) {
+      await recordLibraryPick({ sourceMediaId: body.sourceMediaId, usageType: 'PROGRAM_COVER', resourceId: program.id, resourceName: program.name })
+    } else if (program.organizationId && saved.isNewImage) {
       const imageMeta = await extractImageMetadata(saved.renderedBuffer)
       captureToLibrary({
         title: `${program.name} - Cover Image`,
@@ -3986,6 +3992,9 @@ router.post('/programs/:id/cover-image', requireAuth, async (req, res) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
+    }
+    if (error instanceof LibraryPickError) {
+      return res.status(error.status).json({ success: false, error: error.message })
     }
     if (error instanceof CoverUploadError) {
       return res.status(error.status).json({ success: false, error: error.message })

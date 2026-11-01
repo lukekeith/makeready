@@ -7,7 +7,7 @@ import { Prisma } from '../generated/prisma/index.js'
 import { CoverUploadError, coverFramingSchema, saveGroupCover } from '../services/group-cover.js'
 import { generateUniqueGroupCode, normalizeGroupCode } from '../lib/group-code.js'
 import { trackActivity } from '../services/activity.js'
-import { captureToLibrary } from '../services/media-library.js'
+import { captureToLibrary, checkLibraryPick, LibraryPickError, recordLibraryPick } from '../services/media-library.js'
 import { isSuperAdmin, groupManageFilter, findManageableGroup } from '../services/permission.js'
 import { getGroupHistory } from '../services/group-history.js'
 import { extractImageMetadata } from '../services/media-metadata.js'
@@ -1276,6 +1276,8 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
       originalData: z.string().min(1).optional(),
       // media-page SC3 / D3: the capture date of a NEW pick (none on a re-edit); parseTakenAt validates it.
       takenAt: z.string().optional(),
+      // media-library D10: the library item this cover was framed from (link, don't capture).
+      sourceMediaId: z.string().uuid().optional(),
     })
 
     const body = schema.parse(req.body)
@@ -1291,6 +1293,8 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
     if (!group) {
       return res.status(404).json({ success: false, error: 'Group not found' })
     }
+
+    if (body.sourceMediaId) await checkLibraryPick(body.sourceMediaId, group.organizationId)
 
     const saved = await saveGroupCover({
       group: { id: group.id, coverOriginalUrl: group.coverOriginalUrl },
@@ -1313,7 +1317,9 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
 
     // group-cover-image D18: capture a new image (an original, or a framing-less upload); a re-edit
     // captures nothing, and the original is never captured.
-    if (group.organizationId && saved.isNewImage) {
+    if (body.sourceMediaId) {
+      await recordLibraryPick({ sourceMediaId: body.sourceMediaId, usageType: 'GROUP_COVER', resourceId: group.id, resourceName: group.name })
+    } else if (group.organizationId && saved.isNewImage) {
       const imageMeta = await extractImageMetadata(saved.renderedBuffer)
       captureToLibrary({
         title: `${group.name} - Cover Image`,
@@ -1348,6 +1354,9 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
   } catch (error) {
     if (error instanceof z.ZodError) {
       return res.status(400).json({ success: false, error: error.errors })
+    }
+    if (error instanceof LibraryPickError) {
+      return res.status(error.status).json({ success: false, error: error.message })
     }
     if (error instanceof CoverUploadError) {
       return res.status(error.status).json({ success: false, error: error.message })
