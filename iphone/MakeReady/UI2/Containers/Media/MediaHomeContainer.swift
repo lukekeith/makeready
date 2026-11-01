@@ -128,7 +128,11 @@ struct MediaHomeContainer: View {
                     requestImages(tiles: tiles)
                 },
                 onScrollChange: { offset, interacting in
-                    if mode == .browse { scrollReport.report(offset, interacting) }
+                    // The grid rests at its newest (bottom) end, so its offset is large before anyone
+                    // scrolls; reported as-is it read as "scrolled down" and closed the TopNav when the
+                    // tab opened. Only the leader's own drag, or a pull past the top, moves the row —
+                    // as a page scroll does on Groups and Members.
+                    if mode == .browse, interacting || offset < 0 { scrollReport.report(offset, interacting) }
                 },
                 onRefresh: { startLoad(resume: nil, refresh: true) },
                 image: { key in

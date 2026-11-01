@@ -201,7 +201,10 @@ struct StudyProgramsScreen: View {
             .ui2Element("C-034 SearchField")
             chipRow
         }
-        .padding(Token.Space.pageMargin)
+        // Owner 2026-11-01: no top padding — the shell's nav gap (16) is already the space under the
+        // TopNav, as on groups-home/members-home; the sides and bottom keep `space-page-margin`.
+        .padding(.horizontal, Token.Space.pageMargin)
+        .padding(.bottom, Token.Space.pageMargin)
     }
 
     /// §2: "Filter rail: 2 × C-035 FilterChip (`type=Menu`), gap `space-element-gap` (8), 24

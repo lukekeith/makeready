@@ -329,15 +329,19 @@ struct MediaHomeScreen: View {
             )
             .ui2Element("C-034 SearchField")
 
+            // Owner 2026-11-01: the search → chips gap matches groups-home/members-home (16).
             chipRow
-                .padding(.top, Token.Space.elementGap)
+                .padding(.top, Token.Space.cardPadding)
 
             if showsNotice {
                 noticeRow
                     .padding(.top, Token.Space.elementGap)
             }
         }
-        .padding(Token.Space.pageMargin)
+        // Owner 2026-11-01: no top padding — the shell's nav gap (16) is already the space under the
+        // TopNav, as on groups-home/members-home; the sides and bottom keep `space-page-margin`.
+        .padding(.horizontal, Token.Space.pageMargin)
+        .padding(.bottom, Token.Space.pageMargin)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Token.layoutBackground)
     }
