@@ -25,6 +25,7 @@ import {
 } from '../services/media-library.js'
 import { prisma } from '../lib/prisma.js'
 import { isMakeReadyOrg, mediaOrganizationId, scopeUsagesForCaller } from '../services/makeready-library.js'
+import { BrowseError, listBrowse, listSources } from '../services/media-library.js'
 import { getUserOrganizations } from '../services/organization.js'
 import { isSuperAdmin } from '../services/permission.js'
 import { uploadImageVariants } from '../services/storage.js'
@@ -290,6 +291,67 @@ router.get('/media/tags', requireAuth, async (req, res) => {
     })
   } catch (error) {
     console.error('Error fetching all media tags:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/media/sources:
+ *   get:
+ *     summary: The media sources the caller can browse (media-library D4)
+ *     description: MakeReady's library first, then the caller's organizations by name, each with canUpload.
+ *     tags: [Media Library]
+ *     security:
+ *       - userSession: []
+ *     responses:
+ *       200:
+ *         description: "{ success, data: [{ id, name, isMakeReady, canUpload }] }"
+ */
+// NOTE: registered BEFORE `/media/:mediaId`, like /media/tags.
+router.get('/media/sources', requireAuth, async (req, res) => {
+  try {
+    res.json({ success: true, data: await listSources((req.user as any).id) })
+  } catch (error) {
+    console.error('Error listing media sources:', error)
+    res.status(500).json({ success: false, error: 'Internal server error' })
+  }
+})
+
+/**
+ * @openapi
+ * /api/media/browse:
+ *   get:
+ *     summary: Browse MakeReady's library and the caller's organizations in one list (media-library D4/D16)
+ *     description: Cursor-paged like /organizations/{id}/media/library; each item adds organizationId and isMakeReady. limit 1-200 (default 200).
+ *     tags: [Media Library]
+ *     security:
+ *       - userSession: []
+ *     responses:
+ *       200:
+ *         description: "{ success, data, limit, hasMore, nextCursor }"
+ *       400:
+ *         description: Bad limit
+ *       403:
+ *         description: A source the caller cannot browse
+ */
+router.get('/media/browse', requireAuth, async (req, res) => {
+  try {
+    const { sources, type, tags, q, cursor, limit } = req.query
+    const list = (v: unknown) => (v ? String(v).split(',').map((x) => x.trim()).filter(Boolean) : undefined)
+    const result = await listBrowse({
+      userId: (req.user as any).id,
+      sources: list(sources),
+      type: type as string | undefined,
+      tags: list(tags),
+      q: q as string | undefined,
+      cursor: cursor as string | undefined,
+      limit: limit !== undefined ? Number(limit) : undefined,
+    })
+    res.json({ success: true, ...result })
+  } catch (error) {
+    if (error instanceof BrowseError) return res.status(error.status).json({ success: false, error: error.message })
+    console.error('Error browsing media:', error)
     res.status(500).json({ success: false, error: 'Internal server error' })
   }
 })

@@ -11,6 +11,9 @@
 import { prisma } from '../lib/prisma.js'
 import { analyzeImage } from './claude.js'
 import { parseTakenAt } from './media-metadata.js'
+import { ensureMakeReadyOrg, MAKEREADY_ORG_ID } from './makeready-library.js'
+import { getUserOrganizations } from './organization.js'
+import { hasPermission } from './permission.js'
 
 // ============================================================================
 // Types
@@ -44,7 +47,8 @@ export interface CaptureToLibraryParams {
 }
 
 export interface LibraryFilters {
-  organizationId: string
+  /// One org, or (media-library /media/browse) several.
+  organizationId: string | string[]
   uploadedBy?: string
   /// Multi-leader filter — when set, narrows to media uploaded by any of these
   /// user IDs. Used by the library "Group leaders" dropdown. Coexists with
@@ -350,7 +354,7 @@ export async function listLibrary(filters: LibraryFilters) {
     : uploadedBy ? { uploadedBy } : {}
 
   const where: any = {
-    organizationId,
+    organizationId: Array.isArray(organizationId) ? { in: organizationId } : organizationId,
     isActive,
     ...uploadedByClause,
     ...(type && { type }),
@@ -529,4 +533,58 @@ export async function listUsages(mediaId: string) {
     where: { mediaId },
     orderBy: { createdAt: 'desc' },
   })
+}
+
+// ============================================================================
+// media-library: browse across MakeReady + the caller's orgs
+// ============================================================================
+
+export interface MediaSource {
+  id: string
+  name: string
+  isMakeReady: boolean
+  canUpload: boolean
+}
+
+/** D4/D16: MakeReady first, then the caller's orgs by name; canUpload = media.create there. */
+export async function listSources(userId: string): Promise<MediaSource[]> {
+  await ensureMakeReadyOrg()
+  const orgs = ((await getUserOrganizations(userId)).data ?? []).slice().sort((a, b) => a.name.localeCompare(b.name))
+  const own = await Promise.all(
+    orgs.map(async (o) => ({
+      id: o.id,
+      name: o.name,
+      isMakeReady: false,
+      canUpload: await hasPermission({ userId }, 'media.create', 'organization', o.id),
+    })),
+  )
+  return [{ id: MAKEREADY_ORG_ID, name: 'MakeReady', isMakeReady: true, canUpload: false }, ...own]
+}
+
+export class BrowseError extends Error {
+  constructor(public status: 400 | 403, message: string) {
+    super(message)
+  }
+}
+
+export interface BrowseFilters extends Omit<LibraryFilters, 'organizationId' | 'page'> {
+  userId: string
+  sources?: string[]
+}
+
+/** D16/D17: one cursor-paged list over MakeReady + the caller's orgs (or the given subset of them). */
+export async function listBrowse(filters: BrowseFilters) {
+  const { userId, sources, ...rest } = filters
+  const limit = rest.limit ?? 200
+  if (!Number.isInteger(limit) || limit < 1 || limit > 200) throw new BrowseError(400, 'limit must be 1-200')
+  const allowed = (await listSources(userId)).map((s) => s.id)
+  const ids = sources && sources.length > 0 ? sources : allowed
+  if (ids.some((id) => !allowed.includes(id))) throw new BrowseError(403, 'Not a source you can browse')
+  const result = await listLibrary({ ...rest, organizationId: ids, limit })
+  return {
+    data: result.data.map((item: any) => ({ ...item, isMakeReady: item.organizationId === MAKEREADY_ORG_ID })),
+    limit: result.limit,
+    hasMore: result.hasMore,
+    nextCursor: result.nextCursor,
+  }
 }
