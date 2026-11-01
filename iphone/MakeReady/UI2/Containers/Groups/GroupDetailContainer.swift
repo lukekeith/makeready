@@ -167,7 +167,7 @@ struct GroupDetailContainer: View {
                   let image = CoverImageRendering.uprightDownsampled(data) else {
                 throw APIError.invalidResponse
             }
-            navigator.push(.editGroupCover(groupId: groupId, source: .newPick(image)))
+            navigator.push(.editGroupCover(groupId: groupId, source: .newPick(image, takenAt: CaptureDate.read(from: data))))
         } catch {
             if GroupActions.isCancellation(error) { return }
             AppState.shared.recordError(error, context: "GroupDetailContainer.openPicked", surface: true,

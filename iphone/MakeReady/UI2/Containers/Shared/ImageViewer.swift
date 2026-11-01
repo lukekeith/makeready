@@ -13,6 +13,8 @@ struct ImageViewer: View {
     let sourceFrame: CGRect?
     let accessibilityLabel: String
     let onClose: () -> Void
+    /// media-page D12: the tile's loaded image; the open flight starts from it while `url` loads.
+    var placeholder: UIImage?
 
     @State private var image: UIImage?
     /// The flying image's frame, in this view's coordinates — used while opening and dismissing.
@@ -77,13 +79,18 @@ struct ImageViewer: View {
 
     // MARK: - Open (rules 1–3)
 
+    /// media-page D12: what the open flight starts from — the full image when cached, else the tile's.
+    static func openingImage(cached: UIImage?, placeholder: UIImage?) -> UIImage? { cached ?? placeholder }
+
     @MainActor
     private func open(viewport: CGRect, origin: CGPoint) async {
         guard let u = URL(string: url) else { return }
-        if Ui2ImageCache.shared.image(for: u) == nil { _ = await UI2ImageLoader.seed([url], context: "ImageViewer") }
-        guard let loaded = Ui2ImageCache.shared.image(for: u) else { return }
-        image = loaded
-        let target = ImageViewerMath.fittedFrame(imageSize: loaded.size, in: viewport)
+        if Ui2ImageCache.shared.image(for: u) == nil, placeholder == nil {
+            _ = await UI2ImageLoader.seed([url], context: "ImageViewer")
+        }
+        guard let first = Self.openingImage(cached: Ui2ImageCache.shared.image(for: u), placeholder: placeholder) else { return }
+        image = first
+        let target = ImageViewerMath.fittedFrame(imageSize: first.size, in: viewport)
         flightFrame = ImageViewerMath.startFrame(source: sourceFrame?.offsetBy(dx: -origin.x, dy: -origin.y), fitted: target)
         withAnimation(ImageViewerMath.openSpring) {
             flightFrame = target
@@ -91,6 +98,9 @@ struct ImageViewer: View {
         } completion: {
             zoomLive = true
         }
+        guard Ui2ImageCache.shared.image(for: u) == nil else { return }
+        _ = await UI2ImageLoader.seed([url], context: "ImageViewer")
+        if !closing, let full = Ui2ImageCache.shared.image(for: u) { image = full }
     }
 
     // MARK: - Drag to dismiss (rules 4–9)

@@ -3195,6 +3195,12 @@ private func buildCaptureViewPart10(_ fixture: CaptureFixture, authManager: Auth
     case "screen.2.0.groups-enroll-program":
         // Out of line for the same stack-frame reason as C-083.
         return try buildScreenGroupsEnrollProgram(fixture)
+    case "component.ui2.C-129":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildUI2C129(fixture)
+    case "screen.2.0.media-home":
+        // Out of line for the same stack-frame reason as C-083.
+        return try buildScreenMediaHome(fixture)
     default:
         return nil
     }
@@ -5403,5 +5409,190 @@ enum ViewRegistry {
         "component.ui2.C-123",
         "component.ui2.C-124",
         "screen.2.0.groups-enroll-program",
+        "component.ui2.C-129",
+        "screen.2.0.media-home",
     ]
+}
+
+/// `component.ui2.C-129` — C-129 MediaBrowser. See the case in `buildCaptureViewPart10`.
+@MainActor @inline(never)
+private func buildUI2C129(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("component.ui2.C-129: missing state.component")
+    }
+    // C-129 §4 (R-07): `image`, `imageGeneration` and `level` are required, so a nil is a fixture
+    // bug, not a value to guess. Every other prop takes §4's default (`hiddenItemID` nil,
+    // `frozen` false, `scrollToNewestToken` 0, `timeZone` .current, `refreshing` false), and every
+    // callback takes the view's no-op default.
+    guard let rawImage = c.image,
+          let imageData = rawImage.data(using: .utf8),
+          let imageURLs = try? JSONDecoder().decode([String: String].self, from: imageData) else {
+        throw ViewRegistryError.unknownView("component.ui2.C-129: props.image is required (a JSON object of image key → catalog URL)")
+    }
+    guard let generation = c.imageGeneration else {
+        throw ViewRegistryError.unknownView("component.ui2.C-129: props.imageGeneration is required")
+    }
+    guard let rawLevel = c.level, let level = MakeReadyUI.MediaBrowser.Level(rawValue: rawLevel) else {
+        throw ViewRegistryError.unknownView("component.ui2.C-129: props.level must be five | eight | fourteen | thirty")
+    }
+    let timeZone: TimeZone
+    if let identifier = c.timeZone {
+        guard let zone = TimeZone(identifier: identifier) else {
+            throw ViewRegistryError.unknownView("component.ui2.C-129: props.timeZone \"\(identifier)\" is not a time zone")
+        }
+        timeZone = zone
+    } else {
+        timeZone = .current
+    }
+    // Load the catalog images synchronously so the snapshot's single layout pass draws them. This
+    // is the C-033 photo-seeding reason: an async load cannot finish inside that pass. The view
+    // only ever sees the resolved `image` closure (R-04).
+    var images: [String: UIImage] = [:]
+    for (key, urlString) in imageURLs {
+        guard let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true,
+              let data = try? Data(contentsOf: url), let picture = UIImage(data: data) else { continue }
+        images[key] = picture
+    }
+    return declareCase(
+        MakeReadyUI.MediaBrowser(
+            items: UI2C129SampleLibrary.items,
+            // A sample item's id is "<image key>-<NNNN>", so the lookup strips the counter.
+            image: { id in
+                guard let dash = id.lastIndex(of: "-") else { return nil }
+                return images[String(id[..<dash])]
+            },
+            imageGeneration: generation,
+            level: level,
+            hiddenItemID: c.hiddenItemID,
+            frozen: c.frozen ?? false,
+            scrollToNewestToken: c.scrollToNewestToken ?? 0,
+            timeZone: timeZone,
+            refreshing: c.refreshing ?? false
+        ),
+        // §2: the grid runs edge to edge and its height is the host's. The frame is the
+        // reference recording's 440×956 pt screen, with no margin.
+        PreviewFrame(width: 440, height: 956, margin: 0)
+    )
+}
+
+/// C-129 §3's preview library, built here because ~2,000 items are too many for a preview's
+/// props. Per the owner (reference §6): the 13 catalog portraits repeat in a fixed shuffle (never
+/// a plain 1–13 loop), and the dates run Jan 2025 → Oct 2026 in UTC, enough items for `thirty` to
+/// fill the screen. The month sizes are chosen so that, at rest at the newest end, `fourteen`
+/// shows two pills mid push-off and `five` ends on a short row (3 of 5). Deterministic: the same
+/// ids every run (the `viewer-open` preview hides "matt-murdock-2041").
+private enum UI2C129SampleLibrary {
+    static let imageKeys = [
+        "barry-allen", "bruce-banner", "bruce-wayne", "clark-kent", "guy-gardner", "hal-jordan",
+        "logan", "luke-cage", "matt-murdock", "peter-parker", "steven-strange", "tony-stark",
+        "wade-wilson",
+    ]
+    /// Items per month, Jan 2025 → Oct 2026.
+    static let monthCounts = [
+        88, 74, 102, 95, 81, 110, 97, 69, 104, 91, 86, 118,
+        79, 93, 84, 107, 99, 72, 112, 90, 96, 101,
+    ]
+
+    static let labelFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "UTC")
+        f.dateFormat = "MMM d, yyyy"
+        return f
+    }()
+
+    static let items: [MakeReadyUI.MediaBrowser.Item] = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        var dates: [Date] = []
+        for (offset, count) in monthCounts.enumerated() {
+            let year = 2025 + offset / 12
+            let month = offset % 12 + 1
+            guard let first = calendar.date(from: DateComponents(year: year, month: month, day: 1, hour: 8)),
+                  let days = calendar.range(of: .day, in: .month, for: first)?.count else { continue }
+            for k in 0..<count {
+                let day = (k * days) / count
+                let seconds = (k * 3779) % 36000
+                dates.append(first.addingTimeInterval(TimeInterval(day * 86_400 + seconds)))
+            }
+        }
+        // Fixed shuffle: an LCG pick that never repeats the previous image.
+        var seed = 12_345
+        var previous = -1
+        var result: [MakeReadyUI.MediaBrowser.Item] = []
+        for (index, date) in dates.enumerated() {
+            var pick = 0
+            repeat {
+                seed = (seed &* 1_103_515_245 &+ 12_345) % 2_147_483_648
+                pick = (seed >> 16) % imageKeys.count
+            } while pick == previous
+            previous = pick
+            result.append(MakeReadyUI.MediaBrowser.Item(
+                id: "\(imageKeys[pick])-\(String(format: "%04d", index))",
+                date: date,
+                accessibilityLabel: "Photo, \(labelFormatter.string(from: date))"
+            ))
+        }
+        // OQ-C-129-002 / reference §6: at least one video duration and one favourite at `five`.
+        let n = result.count
+        func badge(_ index: Int, duration: String? = nil, favorite: Bool = false) {
+            let old = result[index]
+            result[index] = MakeReadyUI.MediaBrowser.Item(
+                id: old.id,
+                date: old.date,
+                accessibilityLabel: duration == nil ? old.accessibilityLabel
+                    : old.accessibilityLabel.replacingOccurrences(of: "Photo", with: "Video"),
+                duration: duration ?? old.duration,
+                favorite: favorite || old.favorite
+            )
+        }
+        badge(n - 2, duration: "0:35")
+        badge(n - 9, duration: "2:22")
+        badge(n - 4, favorite: true)
+        badge(n - 12, favorite: true)
+        return result
+    }()
+}
+
+/// `screen.2.0.media-home` — the media-home screen preview. See the case beside `component.ui2.C-129`.
+@MainActor @inline(never)
+private func buildScreenMediaHome(_ fixture: CaptureFixture) throws -> AnyView {
+    guard let c = fixture.state?.component else {
+        throw ViewRegistryError.unknownView("screen.2.0.media-home: missing state.component")
+    }
+    // A missing field takes this build's `loaded` sample (§3), single-sourced on the screen's State.
+    let sample = MakeReadyUI.MediaHomeScreen.State.loaded
+    let phase: MakeReadyUI.MediaHomeScreen.State.Phase
+    if let raw = c.phase {
+        guard let parsed = MakeReadyUI.MediaHomeScreen.State.Phase(rawValue: raw) else {
+            throw ViewRegistryError.unknownView("screen.2.0.media-home: props.phase must be loading | loaded | empty | noResults | failed")
+        }
+        phase = parsed
+    } else {
+        phase = sample.phase
+    }
+    let photoURLs = c.photoURLs ?? sample.photoURLs
+    // Seed the preview module's image cache synchronously so the snapshot's single layout pass
+    // draws the tiles (the C-033 / C-129 photo-seeding reason). The view only reads the cache.
+    for raw in Set(photoURLs) where !raw.isEmpty {
+        guard let url = URL(string: raw), url.scheme?.hasPrefix("http") == true,
+              MakeReadyUI.Ui2ImageCache.shared.image(for: url) == nil,
+              let data = try? Data(contentsOf: url), let image = UIImage(data: data) else { continue }
+        MakeReadyUI.Ui2ImageCache.shared.seed(image, for: url)
+    }
+    return AnyView(MakeReadyUI.MediaHomeScreen(
+        state: .init(
+            phase: phase,
+            searchText: c.searchText ?? sample.searchText,
+            selectedTags: c.selectedTags ?? sample.selectedTags,
+            selectedLeaders: c.selectedLeaders ?? sample.selectedLeaders,
+            timeOption: c.timeOption ?? sample.timeOption,
+            photoURLs: photoURLs,
+            photoDates: c.photoDates ?? sample.photoDates,
+            photoTitles: c.photoTitles ?? sample.photoTitles,
+            hiddenItemID: c.hiddenItemID,
+            frozen: c.frozen ?? false,
+            refreshing: c.refreshing ?? false
+        )
+    ))
 }

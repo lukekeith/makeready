@@ -10,6 +10,7 @@
 
 import { prisma } from '../lib/prisma.js'
 import { analyzeImage } from './claude.js'
+import { parseTakenAt } from './media-metadata.js'
 
 // ============================================================================
 // Types
@@ -34,6 +35,8 @@ export interface CaptureToLibraryParams {
   dominantColor?: string
   fileHash?: string
   exifData?: Record<string, unknown>
+  /** media-page D3/D4: the capture date the client read from the picked file (ISO 8601 with offset). */
+  takenAt?: string
   videoResolution?: string
   usageType?: string // LESSON_ACTIVITY, PROGRAM_COVER, GROUP_COVER, POST
   resourceId?: string
@@ -169,6 +172,7 @@ export function captureToLibrary(params: CaptureToLibraryParams): void {
             dominantColor: params.dominantColor ?? undefined,
             fileHash: params.fileHash ?? undefined,
             exifData: (params.exifData as any) ?? undefined,
+            takenAt: parseTakenAt(params.takenAt, params.exifData),
             videoResolution: params.videoResolution ?? undefined,
             visibility: 'members',
           },

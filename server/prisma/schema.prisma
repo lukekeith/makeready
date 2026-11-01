@@ -498,6 +498,7 @@ model Media {
   altText              String? // Accessibility alt text
   fileHash             String? // SHA-256 hash for deduplication
   exifData             Json? // EXIF metadata: camera, GPS, date taken, etc.
+  takenAt              DateTime? // When the photo was taken (media-page D4): the request's takenAt, else EXIF DateTimeOriginal, else null
   videoResolution      String? // Video resolution e.g. 720p, 1080p, 4k
   isActive             Boolean @default(true)
   createdAt            DateTime @default(now())

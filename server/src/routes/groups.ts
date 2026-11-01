@@ -1274,6 +1274,8 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
       contentType: z.string().default('image/jpeg'),
       framing: coverFramingSchema.optional(),
       originalData: z.string().min(1).optional(),
+      // media-page SC3 / D3: the capture date of a NEW pick (none on a re-edit); parseTakenAt validates it.
+      takenAt: z.string().optional(),
     })
 
     const body = schema.parse(req.body)
@@ -1332,6 +1334,7 @@ router.post('/:id/cover-image', requireAuth, async (req, res) => {
         dominantColor: imageMeta.dominantColor ?? undefined,
         fileHash: imageMeta.fileHash,
         exifData: imageMeta.exifData ?? undefined,
+        takenAt: body.takenAt,
       })
     }
 

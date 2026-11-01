@@ -102,7 +102,7 @@ describe('followed enrollments (D12)', () => {
 })
 
 describe('layer discovery (D2, D6)', () => {
-  it('finds base plus the groups, groups-enroll-program, home-dashboard, invite-member, members and shared-edit-field layers; only shared-edit-field adds a scenario (sparse)', async () => {
+  it('finds base plus the groups, groups-enroll-program, home-dashboard, invite-member, media-home, members and shared-edit-field layers; only shared-edit-field adds a scenario (sparse)', async () => {
     const layers = await loadLayers(FIXTURES_DIR)
     expect(layers.screens.map((s) => s.name)).toEqual([
       'create-group',
@@ -114,6 +114,7 @@ describe('layer discovery (D2, D6)', () => {
       'groups-home',
       'home-dashboard',
       'invite-member',
+      'media-home',
       'members-home',
       'members-profile',
       'shared-edit-field',

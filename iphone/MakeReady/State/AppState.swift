@@ -229,6 +229,9 @@ final class AppState {
     /// page-derived paging for deploy-order safety).
     var mediaLibraryNextCursor: String? = nil
 
+    /// media-page D17: the org whose whole photo library this session has loaded; nil = load on open.
+    var mediaPhotosLoadedOrgId: String?
+
     /// Bible translations
     var bibleTranslations: [BibleVersion] = knownBibleVersions
 
@@ -972,6 +975,7 @@ final class AppState {
         userOrganizations = []
         mediaLibraryTotal = 0
         mediaLibraryNextCursor = nil
+        mediaPhotosLoadedOrgId = nil
 
         programEnrollmentIndex.clear()
         groupEnrollmentIndex.clear()

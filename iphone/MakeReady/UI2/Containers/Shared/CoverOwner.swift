@@ -36,12 +36,12 @@ enum CoverOwner: Hashable {
 
     /// Uploads the rendered cover (+ the original on a new pick); returns the new cover URL.
     @MainActor
-    func save(rendered: UIImage, framing: ImageFraming, original: UIImage?) async throws -> String {
+    func save(rendered: UIImage, framing: ImageFraming, original: UIImage?, takenAt: String? = nil) async throws -> String {
         switch self {
         case .group(let id):
-            return try await GroupActions().saveCover(groupId: id, rendered: rendered, framing: framing, original: original).coverImageUrl
+            return try await GroupActions().saveCover(groupId: id, rendered: rendered, framing: framing, original: original, takenAt: takenAt).coverImageUrl
         case .program(let id):
-            return try await ProgramActions().saveCover(programId: id, rendered: rendered, framing: framing, original: original).coverImageUrl
+            return try await ProgramActions().saveCover(programId: id, rendered: rendered, framing: framing, original: original, takenAt: takenAt).coverImageUrl
         }
     }
 

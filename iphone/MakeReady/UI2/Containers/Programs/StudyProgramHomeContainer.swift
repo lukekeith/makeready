@@ -210,7 +210,7 @@ struct StudyProgramHomeContainer: View {
                   let image = CoverImageRendering.uprightDownsampled(data) else {
                 throw APIError.invalidResponse
             }
-            navigator.push(coverOwner.destination(.newPick(image)))
+            navigator.push(coverOwner.destination(.newPick(image, takenAt: CaptureDate.read(from: data))))
         } catch {
             if GroupActions.isCancellation(error) { return }
             AppState.shared.recordError(error, context: "StudyProgramHomeContainer.openPicked", surface: true,

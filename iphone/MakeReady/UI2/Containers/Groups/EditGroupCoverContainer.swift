@@ -62,6 +62,7 @@ struct EditGroupCoverContainer: View {
         let framing: ImageFraming
         let isNewPick: Bool
         let hasStoredOriginal: Bool
+        let takenAt: String?
     }
 
     /// Cache-first: a new pick, or a stored original already in Ui2ImageCache, is in hand before the
@@ -79,15 +80,15 @@ struct EditGroupCoverContainer: View {
     @MainActor
     private static func immediateOpening(owner: CoverOwner, source: ImageEditSource) -> Opening? {
         switch source {
-        case let .newPick(image):
+        case let .newPick(image, takenAt):
             // D6 at the floor, centred; the pick itself is uploaded as the original.
-            return Opening(image: image, framing: .identity, isNewPick: true, hasStoredOriginal: true)
+            return Opening(image: image, framing: .identity, isNewPick: true, hasStoredOriginal: true, takenAt: takenAt)
         case .stored:
             guard let fields = owner.fields,
                   let stored = Self.opening(fields),
                   let url = URL(string: stored.url),
                   let image = Ui2ImageCache.shared.image(for: url) else { return nil }
-            return Opening(image: image, framing: stored.framing, isNewPick: false, hasStoredOriginal: stored.hasOriginal)
+            return Opening(image: image, framing: stored.framing, isNewPick: false, hasStoredOriginal: stored.hasOriginal, takenAt: nil)
         }
     }
 
@@ -211,8 +212,9 @@ struct EditGroupCoverContainer: View {
     /// The model is built once, from the first laid-out frame that has a size.
     private func makeModelIfReady() {
         guard model == nil, let opening, frameRect.width > 0, frameRect.height > 0 else { return }
+        let takenAt = opening.takenAt
         let save: @MainActor (UIImage, ImageFraming, UIImage?) async throws -> String = { [owner] rendered, framing, original in
-            try await owner.save(rendered: rendered, framing: framing, original: original)
+            try await owner.save(rendered: rendered, framing: framing, original: original, takenAt: takenAt)
         }
         let built = ImageFramingModel(image: opening.image, framing: opening.framing,
                                       isNewPick: opening.isNewPick, hasStoredOriginal: opening.hasStoredOriginal,

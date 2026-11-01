@@ -4,7 +4,8 @@ import UIKit
 /// image-framing-editor D1 (group-cover-image §iphone Edit cover): where the framing editor opens from.
 enum ImageEditSource: Hashable {
     /// A photo just picked, already upright and ≤ 2400px (group-cover-image D3/D6, image-framing-editor D7).
-    case newPick(UIImage)
+    /// media-page D3: the pick's capture date, sent with a new cover.
+    case newPick(UIImage, takenAt: String? = nil)
     /// The stored original (or the image itself) at its stored framing (group-cover-image D7, image-framing-editor D5).
     case stored
 }

@@ -36,6 +36,8 @@ export const FIXTURE_KIND = {
   readBlock: '001a',
   // ui2-enrollments-browse D22: saved enroll checklists.
   enrollmentDraft: '001b',
+  // media-page D14: the Media page's tags.
+  mediaTag: '001c',
 } as const
 
 export type FixtureKind = keyof typeof FIXTURE_KIND

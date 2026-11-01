@@ -41,11 +41,30 @@ struct HomeSectionLayout<Content: View>: View {
             // row's growth instead. One section, one scroll: a switch starts the new page at its
             // top (the row is outside the `id`, so it keeps its own scroll position, D12).
             ZStack(alignment: .top) {
-                SectionPageScroll(model: $model, growth: growth, morphs: !hidesNav) { content }
-                    .id(model.section)
-                    // topnav-height-env: the row's live growth, for the page's pinned elements.
-                    .environment(\.topNavInset, hidesNav ? 0 : growth)
-                    .padding(.top, hidesNav ? 0 : Self.collapsedFootprint)
+                if model.section.ownsScroll {
+                    // media-page D16: the section scrolls itself and reports to the same morph rule.
+                    content
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .background(Token.layoutBackground)
+                        .id(model.section)
+                        // The content already starts below the row (it shrinks by `growth`), so pinned
+                        // elements need no extra inset.
+                        .environment(\.topNavInset, 0)
+                        // The closure reads live expansion: a section must not cache it.
+                        .environment(\.sectionScrollReport, SectionScrollReport { [hidesNav] offset, interacting in
+                            guard !hidesNav,
+                                  let to = SectionScrollMorph.target(expansion: model.expansion, interacting: interacting, offset: offset)
+                            else { return }
+                            TopNavHost.morph($model, to: to, duration: SectionScrollMorph.triggerDuration)
+                        })
+                        .padding(.top, SectionScrollMorph.ownedScrollTopPadding(footprint: Self.collapsedFootprint, hidesNav: hidesNav, growth: growth))
+                } else {
+                    SectionPageScroll(model: $model, growth: growth, morphs: !hidesNav) { content }
+                        .id(model.section)
+                        // topnav-height-env: the row's live growth, for the page's pinned elements.
+                        .environment(\.topNavInset, hidesNav ? 0 : growth)
+                        .padding(.top, hidesNav ? 0 : Self.collapsedFootprint)
+                }
                 navRow.background(Token.layoutBackground)
                     .offset(y: hidesNav ? -Self.collapsedFootprint : 0)
                 // members-search-pinned: the status-bar strip stays page background, so the row
@@ -94,9 +113,9 @@ struct HomeSectionLayout<Content: View>: View {
 /// SPEC D14, revised 2026-10-25 against the owner's reference recording
 /// (`Design reference/Navigation/navigation feel.MP4`) — the page's own scroll triggers the
 /// morph, and the page keeps its native scroll and bounce throughout:
-/// (a) pulling past the page top by `expandPull` springs the row open (10.79–10.92s: the morph
+/// (a) pulling past the page top by `SectionScrollMorph.expandPull` springs the row open (10.79–10.92s: the morph
 ///     fires on a short pull while the page keeps rubber-banding under the finger);
-/// (c) scrolling the page up by `collapseScroll` while the row is open springs it shut as the
+/// (c) scrolling the page up by `SectionScrollMorph.collapseScroll` while the row is open springs it shut as the
 ///     page scrolls on (8.27–8.40s: collapse and scroll run together).
 /// The page always bounces (`.always`), so a page shorter than the screen — EmptyPage — pulls too.
 ///
@@ -114,17 +133,8 @@ private struct SectionPageScroll<Content: View>: View {
     @State private var refresh: PageRefresh?
 
     // home-dashboard-data D24: the pull-down reload is `pullDownRefresh` — its full pull (72pt) is
-    // well past `expandPull`, so a pull first opens the row, then refreshes. The system refresh
+    // well past `SectionScrollMorph.expandPull`, so a pull first opens the row, then refreshes. The system refresh
     // control would sit under the floating row.
-
-    // GAP — no pull distance in C-019 or the analysis; the reference fires on a short pull
-    // (10.62–10.79s shows the page barely moved before the morph): 12pt past the top.
-    static var expandPull: CGFloat { 12 }
-    // GAP — the reference collapses as soon as the page moves up: 8pt, past touch jitter.
-    static var collapseScroll: CGFloat { 8 }
-    // GAP — the reference's page-triggered morph settles in ~130ms (10.79→10.92s, 60fps); the
-    // row drag keeps `TopNavHost.morphSpring`.
-    static var triggerDuration: TimeInterval { 0.15 }
 
     @State private var phase: ScrollPhase = .idle
 
@@ -153,11 +163,9 @@ private struct SectionPageScroll<Content: View>: View {
     }
 
     private func react(to offset: CGFloat) {
-        guard morphs else { return }
-        if model.expansion == 0, phase == .interacting, offset <= -Self.expandPull {
-            TopNavHost.morph($model, to: 1, duration: Self.triggerDuration)
-        } else if model.expansion == 1, offset >= Self.collapseScroll {
-            TopNavHost.morph($model, to: 0, duration: Self.triggerDuration)
-        }
+        guard morphs,
+              let to = SectionScrollMorph.target(expansion: model.expansion, interacting: phase == .interacting, offset: offset)
+        else { return }
+        TopNavHost.morph($model, to: to, duration: SectionScrollMorph.triggerDuration)
     }
 }

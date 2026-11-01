@@ -54,6 +54,8 @@ struct MediaLibraryItem: Codable, Identifiable, Hashable {
     var video: MediaVideo?
     let createdAt: Date
     var updatedAt: Date
+    /// media-page D4: when the photo was taken; nil = unknown (sort by createdAt).
+    var takenAt: Date? = nil
 
     /// Parsed media type
     var mediaType: MediaType {
@@ -82,6 +84,9 @@ struct MediaLibraryItem: Codable, Identifiable, Hashable {
     var displayTitle: String {
         title.isEmpty ? "Untitled" : title
     }
+
+    /// media-page D5: the grid's order and its month/year pills.
+    var sortDate: Date { takenAt ?? createdAt }
 
     static func == (lhs: MediaLibraryItem, rhs: MediaLibraryItem) -> Bool {
         lhs.id == rhs.id
