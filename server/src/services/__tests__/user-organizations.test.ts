@@ -37,11 +37,11 @@ describe('getUserOrganizations (ui2-members-browse D18)', () => {
     expect(result.success).toBe(true)
     expect(result.data?.map((o) => o.id)).toEqual(['o-owned', 'o-a', 'o-b'])
     expect(prismaMock.organization.findMany).toHaveBeenNthCalledWith(1, {
-      where: { ownerId: 'u1', isActive: true },
+      where: { ownerId: 'u1', isActive: true, isMakeReady: false },
     })
     expect(prismaMock.userRole.findMany).toHaveBeenCalledWith({ where: { userId: 'u1' }, select: { organizationId: true } })
     expect(prismaMock.organization.findMany).toHaveBeenNthCalledWith(2, {
-      where: { id: { in: ['o-b', 'o-a'] }, isActive: true },
+      where: { id: { in: ['o-b', 'o-a'] }, isActive: true, isMakeReady: false },
       orderBy: [{ name: 'asc' }, { id: 'asc' }],
     })
   })
