@@ -480,15 +480,14 @@ private struct MediaBrowserLevelGrid: View {
 
     /// OQ-C-129-003 (owner): "a C-076 ActivitySpinner centred in the bottom content inset,
     /// below the last row, while `refreshing` is true."
-    // STUB — C-076, not a linked component. §5 Consumes lists no registry rows, so this build
-    // draws the spinner's 24 pt slot only. Linking C-076 in §5 (a /d2m:component:spec re-run)
-    // makes it real.
+    // §5 Consumes C-076 ActivitySpinner at its default size (24 pt = `spinnerSize`, which the
+    // footer metrics reserve). C-076 hides itself from accessibility (OQ-C-076-003), so this
+    // region carries the "Refreshing" label.
     private var refreshIndicator: some View {
-        Rectangle()
-            .strokeBorder(Token.textPrimary, style: StrokeStyle(lineWidth: 1, dash: [3]))
-            .frame(width: MediaBrowserStyle.spinnerSize, height: MediaBrowserStyle.spinnerSize)
+        ActivitySpinner()
             .padding(.vertical, Token.Space.cardPadding)
             .frame(width: size.width)
+            .accessibilityElement(children: .ignore)
             .accessibilityLabel("Refreshing")
             .ui2Element("Refresh indicator")
     }
