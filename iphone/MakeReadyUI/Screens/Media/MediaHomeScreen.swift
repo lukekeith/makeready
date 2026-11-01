@@ -93,6 +93,12 @@ struct MediaHomeScreen: View {
     @SwiftUI.State private var dateLabelShown = false
     @SwiftUI.State private var lastScrollOffset: CGFloat?
     @SwiftUI.State private var dateLabelHideTask: Task<Void, Never>?
+    /// Owner 2026-11-01: the search's own focus, as on groups-home/members-home.
+    @SwiftUI.State private var searchFocused = false
+
+    /// Owner 2026-11-01 (groups-home's rule): search is active while the field is focused or holds
+    /// a query — the dismiss x shows, and the shell is told (`onSearchActiveChange`).
+    private var searchActive: Bool { searchFocused || !query.isEmpty }
 
     init(
         state: State,
@@ -283,6 +289,7 @@ struct MediaHomeScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Token.layoutBackground)              // §2: page ground
         .onChange(of: filterKey) { scrollToNewestToken += 1 }
+        .onChange(of: searchActive, initial: true) { _, active in onSearchActiveChange(active) }
         .onDisappear { dateLabelHideTask?.cancel() }
     }
 
@@ -323,7 +330,11 @@ struct MediaHomeScreen: View {
                     query = ""
                     onSearch("")
                 },
-                onFocusChange: onSearchActiveChange,
+                // Owner 2026-11-01: the same dismiss x as every other search — shown while active, and
+                // tapping it clears the query and ends the search.
+                showsClearWhenEmpty: searchActive,
+                onFocusChange: { searchFocused = $0 },
+                clearDismisses: true,
                 editable: true
             )
             .ui2Element("C-034 SearchField")
