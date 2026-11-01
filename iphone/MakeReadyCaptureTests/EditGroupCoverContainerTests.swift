@@ -39,6 +39,8 @@ final class EditGroupCoverContainerTests: XCTestCase {
 
     func testTakenAtMakesTwoPicksDiffer() {
         let img = UIImage()
+        XCTAssertNotEqual(UI2Destination.editGroupCover(groupId: "g1", source: .newPick(img, sourceMediaId: "m-1")),
+                          UI2Destination.editGroupCover(groupId: "g1", source: .newPick(img)))
         XCTAssertNotEqual(UI2Destination.editGroupCover(groupId: "g1", source: .newPick(img, takenAt: "2025-06-14T09:30:00-05:00")),
                           UI2Destination.editGroupCover(groupId: "g1", source: .newPick(img)))
     }

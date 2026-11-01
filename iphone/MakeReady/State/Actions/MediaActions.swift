@@ -180,20 +180,21 @@ private let api: APIClientProtocol
         NSLog("📸 MediaActions: Loaded \(cursor != nil ? "cursor page" : "page \(page)") (\(items.count) items, \(state.mediaLibrary.count)/\(state.mediaLibraryTotal), cursor: \(response.nextCursor != nil ? "yes" : "no"))")
     }
 
-    /// media-page D2: the whole photo library, one page after another until the server says there is no
-    /// more. Page 1 replaces the store and later pages append, each written as it lands, so the grid
+    /// media-page D2 / media-library D4: the whole library — MakeReady's plus every org the leader belongs
+    /// to (`GET /api/media/browse`) — one page after another until the server says there is no more.
+    /// Every type is requested; the Media mapper shows photos only until viewer-paging-video (D21). Page 1 replaces the store and later pages append, each written as it lands, so the grid
     /// fills while it loads. Before each write: not cancelled, same session generation, same org (F6).
     /// A failure is console-only (D13: background load) and keeps what loaded. Page 1 forgets the
     /// session's completed load (`mediaPhotosLoadedOrgId`), so a refresh that fails or is cancelled
     /// after it leaves the next open to load again; completion records it.
     @MainActor
-    func loadAllPhotos(pageSize: Int = 200, resumeCursor: String? = nil) async -> PhotoLoadOutcome {
+    func loadAllMedia(pageSize: Int = 200, resumeCursor: String? = nil) async -> PhotoLoadOutcome {
         guard let orgId = state.organizationId else { return .stopped }
         let generation = state.initialLoad.generation
         var cursor = resumeCursor
         var replaces = resumeCursor == nil
         while true {
-            var endpoint = "/api/organizations/\(orgId)/media/library?type=photo&limit=\(pageSize)"
+            var endpoint = "/api/media/browse?limit=\(pageSize)"
             if let cursor { endpoint += "&cursor=\(DashboardActions.queryValue(cursor))" }
             let response: MediaLibraryResponse
             do {
@@ -204,13 +205,13 @@ private let api: APIClientProtocol
                     await onUnauthorized()
                     return .stopped
                 }
-                state.recordError(error, context: "MediaActions.loadAllPhotos", surface: false)
+                state.recordError(error, context: "MediaActions.loadAllMedia", surface: false)
                 return .failed
             }
             guard !Task.isCancelled, state.initialLoad.isCurrent(generation), state.organizationId == orgId else { return .stopped }
             guard let items = response.data else {
                 state.recordError(APIError.serverError(response.error ?? "Failed to load media library"),
-                                  context: "MediaActions.loadAllPhotos", surface: false)
+                                  context: "MediaActions.loadAllMedia", surface: false)
                 return .failed
             }
             if replaces {
@@ -230,6 +231,26 @@ private let api: APIClientProtocol
         state.mediaPhotosLoadedOrgId = orgId
         state.persist()
         return .completed
+    }
+
+    /// media-library D4/D8: the sources the Media page filters by and uploads into. A failure keeps the
+    /// last list (console-only: the grid still loads; upload falls back to the primary org).
+    @MainActor
+    func loadSources() async {
+        do {
+            let response: MediaSourcesResponse = try await api.get("/api/media/sources", responseType: MediaSourcesResponse.self)
+            guard let sources = response.data else {
+                throw APIError.serverError(response.error ?? "Failed to load media sources")
+            }
+            state.mediaSources = sources
+        } catch {
+            if Task.isCancelled || UI2ImageLoader.isCancellation(error) { return }
+            if AuthStatusPolicy.shouldSignOut(after: error) {
+                await onUnauthorized()
+                return
+            }
+            state.recordError(error, context: "MediaActions.loadSources", surface: false)
+        }
     }
 
     // MARK: - Delete Media
@@ -403,8 +424,9 @@ private let api: APIClientProtocol
     /// stores it on R2 + automatically tags it via Claude Vision (fire-and-forget).
     /// Returns an UploadedPhoto; use `.url` as the background image URL.
     @MainActor
-    func uploadPhoto(image: UIImage, title: String = "Photo", sourceData: Data? = nil) async throws -> UploadedPhoto {
-        guard let orgId = state.organizationId else {
+    func uploadPhoto(image: UIImage, title: String = "Photo", sourceData: Data? = nil, orgId: String? = nil) async throws -> UploadedPhoto {
+        // media-library D8: the Media page names the org; every other caller uploads to the primary org.
+        guard let orgId = orgId ?? state.organizationId else {
             throw APIError.serverError("No organization context — cannot upload photo")
         }
 
@@ -449,6 +471,28 @@ private let api: APIClientProtocol
 
         NSLog("📸 MediaActions: Uploaded photo \(item.id) → \(item.url)")
         return item
+    }
+
+    /// media-library D13: a video from the Media page — `/media/upload` (type video) creates the pending
+    /// library row in `orgId` and hands back Cloudflare's direct-upload URL; the bytes go there. The row
+    /// turns ready when Cloudflare finishes, so nothing is inserted locally (it shows on the next load).
+    @MainActor
+    func uploadVideo(fileURL: URL, title: String, orgId: String) async throws {
+        struct VideoStart: Decodable { let uploadUrl: String? }
+        struct VideoStartResponse: Decodable {
+            let success: Bool
+            let data: VideoStart?
+            let error: String?
+        }
+        let response: VideoStartResponse = try await api.post(
+            "/api/organizations/\(orgId)/media/upload",
+            body: ["type": "video", "title": title],
+            responseType: VideoStartResponse.self
+        )
+        guard response.success, let uploadUrl = response.data?.uploadUrl else {
+            throw APIError.serverError(response.error ?? "Failed to start video upload")
+        }
+        try await VideoActions(api: api, state: state).uploadVideo(from: fileURL, to: uploadUrl)
     }
 
     /// Downscale to keep upload sizes sane.

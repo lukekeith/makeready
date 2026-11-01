@@ -232,6 +232,12 @@ final class AppState {
     /// media-page D17: the org whose whole photo library this session has loaded; nil = load on open.
     var mediaPhotosLoadedOrgId: String?
 
+    /// media-library D4: MakeReady's library and the leader's orgs, from `GET /api/media/sources`.
+    var mediaSources: [MediaSource] = []
+
+    /// media-library D13: the Media page's uploads, owned here so leaving Media never cancels them.
+    let mediaUploads = MediaUploadQueue()
+
     /// Bible translations
     var bibleTranslations: [BibleVersion] = knownBibleVersions
 
@@ -976,6 +982,8 @@ final class AppState {
         mediaLibraryTotal = 0
         mediaLibraryNextCursor = nil
         mediaPhotosLoadedOrgId = nil
+        mediaSources = []
+        mediaUploads.cancelAll()
 
         programEnrollmentIndex.clear()
         groupEnrollmentIndex.clear()

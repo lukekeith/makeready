@@ -30,8 +30,11 @@ enum MediaHomeMapper {
         var tags: Set<String> = []
         var leaderIds: Set<String> = []
         var time: TimeWindow = .all
+        /// media-library D7: the chosen sources (org ids, MakeReady's included); empty = every source.
+        var sourceIds: Set<String> = []
         var hasFilters: Bool {
-            !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tags.isEmpty || !leaderIds.isEmpty || time != .all
+            !search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !tags.isEmpty || !leaderIds.isEmpty
+                || time != .all || !sourceIds.isEmpty
         }
     }
 
@@ -62,8 +65,7 @@ enum MediaHomeMapper {
     }
 
     static func output(items: [MediaLibraryItem], selection: Selection, today: Date, timeZone: TimeZone) -> Output {
-        let photos = items.filter { $0.type == "photo" }
-            .sorted { $0.sortDate == $1.sortDate ? $0.id < $1.id : $0.sortDate < $1.sortDate }
+        let photos = items.filter { $0.type == "photo" }.sorted(by: gridOrder)
         let tagOptions = Set(photos.flatMap { $0.tags.map { $0.lowercased() } }).sorted()
         var leaders: [String: String] = [:]
         for item in photos { if let u = item.uploader { leaders[u.id] = u.name } }
@@ -81,16 +83,40 @@ enum MediaHomeMapper {
                 guard let id = item.uploader?.id, selection.leaderIds.contains(id) else { return false }
             }
             if let cutoff, item.sortDate < cutoff { return false }
+            if !selection.sourceIds.isEmpty {
+                guard let org = item.organizationId, selection.sourceIds.contains(org) else { return false }
+            }
             return true
         }
+        // media-library D22: MakeReady covers lead the grid, so their tile date is clamped to the oldest
+        // org item's — the grid's dates (month/year pills, the range) stay oldest → newest.
+        let oldestOrgDate = shown.first { $0.isMakeReady != true }?.sortDate
         let tiles = shown.map { item -> Tile in
             let urls = tileURLs(url: item.url, thumbnailUrl: item.thumbnailUrl)
+            let date = item.isMakeReady == true ? min(item.sortDate, oldestOrgDate ?? item.sortDate) : item.sortDate
             return Tile(id: item.id, mediumURL: urls.medium, thumbURL: urls.thumb, fullURL: item.url,
-                        date: item.sortDate, title: item.displayTitle)
+                        date: date, title: item.displayTitle)
         }
         let range = tiles.first.flatMap { first in tiles.last.map { first.date...$0.date } }
         return Output(tiles: tiles, tagOptions: tagOptions, leaderOptions: leaderOptions, dateRange: range,
                       isEmptyLibrary: photos.isEmpty, isNoResults: !photos.isEmpty && tiles.isEmpty)
+    }
+
+    /// media-library D22: MakeReady's covers sit at the oldest end (before every org item), A–Z by title,
+    /// so a fresh import never fills the newest end the grid opens on; org items keep D5's order.
+    static func gridOrder(_ a: MediaLibraryItem, _ b: MediaLibraryItem) -> Bool {
+        let aMR = a.isMakeReady == true, bMR = b.isMakeReady == true
+        if aMR != bMR { return aMR }
+        if aMR {
+            let order = a.title.localizedCaseInsensitiveCompare(b.title)
+            return order == .orderedSame ? a.id < b.id : order == .orderedAscending
+        }
+        return a.sortDate == b.sortDate ? a.id < b.id : a.sortDate < b.sortDate
+    }
+
+    /// media-library D7: the Source chip's options, in `/api/media/sources` order (MakeReady, then orgs).
+    static func sourceOptions(_ sources: [MediaSource]) -> [Option] {
+        sources.map { Option(id: $0.id, label: $0.name) }
     }
 
     /// D10: `.jpeg` → `-md.jpeg` for the 5-column tile; `thumbnailUrl ?? url` otherwise and as the fallback.

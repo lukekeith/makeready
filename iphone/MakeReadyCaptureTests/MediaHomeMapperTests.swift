@@ -31,6 +31,42 @@ final class MediaHomeMapperTests: XCTestCase {
         XCTAssertEqual(ids(items), ["a", "b", "c"])
     }
 
+    private func sourced(_ id: String, org: String, makeReady: Bool = false, title: String = "",
+                         created: String = "2026-10-01T12:00:00Z") -> MediaLibraryItem {
+        var i = item(id, created: created, title: title)
+        i.organizationId = org
+        i.isMakeReady = makeReady ? true : nil
+        return i
+    }
+
+    /// media-library D22: MakeReady covers first (the oldest end), A–Z by title; org items by date after them.
+    func testMakeReadyCoversSitAtTheOldestEndByTitle() {
+        let items = [sourced("o-new", org: "o1", created: "2026-10-30T00:00:00Z"),
+                     sourced("mr-b", org: "mr", makeReady: true, title: "Book of Ruth", created: "2026-11-01T00:00:00Z"),
+                     sourced("o-old", org: "o1", created: "2024-01-01T00:00:00Z"),
+                     sourced("mr-a", org: "mr", makeReady: true, title: "acts — pentecost", created: "2026-11-01T00:00:00Z")]
+        XCTAssertEqual(ids(items), ["mr-a", "mr-b", "o-old", "o-new"])
+        let out = M.output(items: items, selection: .init(), today: today, timeZone: chicago)
+        let dates = out.tiles.map(\.date)
+        XCTAssertEqual(dates, dates.sorted(), "tile dates stay oldest → newest")
+        XCTAssertEqual(out.dateRange, date("2024-01-01T00:00:00Z")...date("2026-10-30T00:00:00Z"))
+    }
+
+    /// media-library D7: an empty Source selection shows every source; a choice narrows to those orgs.
+    func testSourceFilterNarrowsByOrganization() {
+        let items = [sourced("m", org: "mr", makeReady: true, title: "m"), sourced("a", org: "o1"), sourced("b", org: "o2")]
+        XCTAssertEqual(Set(ids(items)), ["m", "a", "b"])
+        XCTAssertEqual(ids(items, .init(sourceIds: ["o1"])), ["a"])
+        XCTAssertEqual(Set(ids(items, .init(sourceIds: ["mr", "o2"]))), ["m", "b"])
+        XCTAssertTrue(M.Selection(sourceIds: ["o1"]).hasFilters)
+    }
+
+    func testSourceOptionsKeepTheServerOrder() {
+        let sources = [MediaSource(id: "mr", name: "MakeReady", isMakeReady: true, canUpload: false),
+                       MediaSource(id: "o1", name: "Alpha", isMakeReady: false, canUpload: true)]
+        XCTAssertEqual(M.sourceOptions(sources), [.init(id: "mr", label: "MakeReady"), .init(id: "o1", label: "Alpha")])
+    }
+
     func testSearchMatchesTitleDescriptionTagAndUploaderCaseInsensitively() {
         let items = [item("t", title: "Easter Sunrise"), item("d", description: "at the LAKE"),
                      item("g", tags: ["baptism"]), item("u", uploader: ("u9", "Nathan Hughes")), item("x")]

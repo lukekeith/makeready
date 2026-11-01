@@ -60,13 +60,16 @@ enum UI2Destination: Hashable {
     case enrollSelectInviteTime(flowId: UUID)
     case enrollSelectSync(flowId: UUID)
     case enrollSelectAccess(flowId: UUID)
+    /// media-library D9: the Media grid in pick mode, above a group's or program's page; a pick
+    /// replaces it with that owner's Edit cover page.
+    case chooseCoverFromLibrary(owner: CoverOwner)
 }
 
 extension UI2Destination {
     /// A page that takes the whole screen, with no TabBar under it.
     var isFullScreen: Bool {
         switch self {
-        case .editGroupCover, .editMemberAvatar, .editProgramCover: return true
+        case .editGroupCover, .editMemberAvatar, .editProgramCover, .chooseCoverFromLibrary: return true
         // Owner 2026-10-29: no TabBar on any enrollment page — the enrollment's own page, the
         // checklist and its six pickers.
         case .enrollmentHome, .enrollChecklist, .enrollSelectGroup, .enrollSelectProgram, .enrollSelectSchedule,
@@ -92,6 +95,8 @@ struct UI2ShellModel {
     /// Set and cleared by `TopNavHost` only.
     var topNavPin: TopNav.Pin?
     var scrollOffset: CGFloat = 0
+    /// media-library D13: bumped by the Media section's TopNav `add`; MediaHomeContainer starts an upload.
+    var mediaAddRequest = 0
     /// D1/D2: each tab's push path; a tab missing from the map is at its root.
     var paths: [TabBar.Tab: [UI2Destination]] = [:]
 

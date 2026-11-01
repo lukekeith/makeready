@@ -5592,7 +5592,9 @@ private func buildScreenMediaHome(_ fixture: CaptureFixture) throws -> AnyView {
             photoTitles: c.photoTitles ?? sample.photoTitles,
             hiddenItemID: c.hiddenItemID,
             frozen: c.frozen ?? false,
-            refreshing: c.refreshing ?? false
+            refreshing: c.refreshing ?? false,
+            sourceLabel: c.sourceLabel,
+            sourceActive: c.sourceActive ?? false
         )
     ))
 }

@@ -21,6 +21,8 @@ struct GroupDetailContainer: View {
     @State private var pickedItem: PhotosPickerItem?
     /// D2: the cover menu, and the row chosen in it — acted on once the menu has slid out (D8).
     @State private var coverMenuOpen = false
+    /// media-library D9: the rows the cover menu shows — with a cover, or the no-cover pair.
+    @State private var coverMenuRows = GroupDetailContainer.coverActions
     @State private var pendingCoverChoice: CoverChoice?
     /// D8: the viewer's URL while it is up.
     @State private var viewerURL: String?
@@ -93,7 +95,7 @@ struct GroupDetailContainer: View {
         .actionMenuPresentation(isPresented: coverMenuOpen, onDismiss: { coverMenuOpen = false },
                                 onHidden: { runPendingCoverChoice() }) {
             ActionMenuOverlay(
-                actions: Self.coverActions,
+                actions: coverMenuRows,
                 onSelect: { item in
                     pendingCoverChoice = CoverChoice(label: item.label)
                     coverMenuOpen = false
@@ -123,15 +125,25 @@ struct GroupDetailContainer: View {
 
     enum CoverChoice: String {
         case change = "Change image", edit = "Edit image", view = "View image"
+        /// media-library D9: the library picker, and (no cover yet) the phone's Photos.
+        case library = "Choose from library", photos = "Photos"
         init?(label: String) { self.init(rawValue: label) }
     }
 
     /// group-cover-image D2: the menu rows — Edit · Change · View (order: owner 2026-10-27,
     /// image-framing-editor D4) — existing glyphs (an unknown name renders the red stub).
+    /// media-library D9: "Choose from library" after "Change image".
     static let coverActions: [ActionMenuOverlay.ActionItem] = [
         .init(glyph: "edit", label: CoverChoice.edit.rawValue),
         .init(glyph: "upload", label: CoverChoice.change.rawValue),
+        .init(glyph: "image", label: CoverChoice.library.rawValue),
         .init(glyph: "eye", label: CoverChoice.view.rawValue)
+    ]
+
+    /// media-library D9: with no cover the tap that opened Photos directly now offers both sources.
+    static let noCoverActions: [ActionMenuOverlay.ActionItem] = [
+        .init(glyph: "upload", label: CoverChoice.photos.rawValue),
+        .init(glyph: "image", label: CoverChoice.library.rawValue)
     ]
 
     /// D1/D2/F7: read from AppState's group — inert until it has loaded.
@@ -143,8 +155,12 @@ struct GroupDetailContainer: View {
     private func handleCoverTap() {
         switch Self.coverTap(group: AppState.shared.groups[groupId]) {
         case .none: break
-        case .picker: pickerOpen = true
-        case .menu: coverMenuOpen = true
+        case .picker:
+            coverMenuRows = Self.noCoverActions
+            coverMenuOpen = true
+        case .menu:
+            coverMenuRows = Self.coverActions
+            coverMenuOpen = true
         }
     }
 
@@ -152,7 +168,8 @@ struct GroupDetailContainer: View {
         guard let choice = pendingCoverChoice else { return }
         pendingCoverChoice = nil
         switch choice {
-        case .change: pickerOpen = true
+        case .change, .photos: pickerOpen = true
+        case .library: navigator.push(.chooseCoverFromLibrary(owner: .group(groupId)))
         case .edit: navigator.push(.editGroupCover(groupId: groupId, source: .stored))
         case .view: viewerURL = AppState.shared.groups[groupId].flatMap(CoverViewerOverlay.viewerURL(group:))
         }

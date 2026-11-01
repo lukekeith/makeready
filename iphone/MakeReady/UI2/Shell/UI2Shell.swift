@@ -209,6 +209,7 @@ struct UI2Shell: View {
         case let .enrollSelectInviteTime(flowId): EnrollSelectInviteTimeContainer(flowId: flowId)
         case let .enrollSelectSync(flowId): EnrollSelectSyncContainer(flowId: flowId)
         case let .enrollSelectAccess(flowId): EnrollSelectAccessContainer(flowId: flowId)
+        case let .chooseCoverFromLibrary(owner): MediaHomeContainer(mode: .pick(owner))  // media-library D9
         }
     }
 
@@ -219,7 +220,7 @@ struct UI2Shell: View {
         case .groups: GroupsHomeContainer(destination: { .groupDetail(id: $0, name: $1) })  // ui2-groups-browse D1/D3
         case .programs: StudyProgramsContainer(destination: { .studyProgramHome(id: $0, name: $1) })  // ui2-programs D1/D3
         case .enrollments: EnrollmentsHomeContainer()  // ui2-enrollments-browse R1
-        case .media: MediaHomeContainer()     // media-page D1
+        case .media: MediaHomeContainer(addRequest: model.mediaAddRequest)  // media-page D1, media-library D13
         default: EmptyPage()                  // SPEC D10: Library…Invites are unwired
         }
     }

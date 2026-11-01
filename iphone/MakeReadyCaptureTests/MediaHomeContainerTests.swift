@@ -68,4 +68,37 @@ final class MediaHomeContainerTests: XCTestCase {
         XCTAssertTrue(images.hasFailed(URL(string: "https://img/a-md.jpeg")!))
         XCTAssertNotNil(images.image(for: URL(string: "https://img/a-thumb.jpeg")!))
     }
+
+    // MARK: media-library D7/D8
+
+    private let sources = [MediaSource(id: "mr", name: "MakeReady", isMakeReady: true, canUpload: false),
+                           MediaSource(id: "o1", name: "Alpha", isMakeReady: false, canUpload: true),
+                           MediaSource(id: "o2", name: "Beta", isMakeReady: false, canUpload: true),
+                           MediaSource(id: "o3", name: "Gamma", isMakeReady: false, canUpload: false)]
+
+    func testSourceLabelFollowsTheChipRule() {
+        XCTAssertNil(MediaHomeContainer.sourceLabel([], sources: sources))
+        XCTAssertEqual(MediaHomeContainer.sourceLabel(["o2"], sources: sources), "Beta")
+        XCTAssertEqual(MediaHomeContainer.sourceLabel(["o2", "mr"], sources: sources), "MakeReady +1")
+    }
+
+    func testUploadTargets() {
+        typealias C = MediaHomeContainer
+        // Several orgs accept uploads → the menu, MakeReady and read-only orgs left out.
+        let many = C.uploadTargets(sources: sources, selection: .init(), primaryOrgId: "o1")
+        XCTAssertEqual(many.options.map(\.id), ["o1", "o2"])
+        XCTAssertNil(many.direct)
+        XCTAssertNil(many.preselected)
+        // Narrowed to one uploadable org → preselected.
+        XCTAssertEqual(C.uploadTargets(sources: sources, selection: .init(sourceIds: ["o2"]), primaryOrgId: nil).preselected, "o2")
+        // One org → straight in.
+        let one = C.uploadTargets(sources: Array(sources.prefix(2)), selection: .init(), primaryOrgId: nil)
+        XCTAssertEqual(one.direct, "o1")
+        // Sources not loaded → the primary org.
+        XCTAssertEqual(C.uploadTargets(sources: [], selection: .init(), primaryOrgId: "o9").direct, "o9")
+        // Nowhere to upload → no options, no direct target.
+        let none = C.uploadTargets(sources: [sources[0], sources[3]], selection: .init(), primaryOrgId: "o1")
+        XCTAssertTrue(none.options.isEmpty)
+        XCTAssertNil(none.direct)
+    }
 }

@@ -1,14 +1,31 @@
+import PhotosUI
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// media-page §iphone Container: Home's Media section (D1). Shows what AppState.mediaLibrary already
 /// holds at once and loads the whole photo library once per session per org (D17), in pages that fill
 /// the grid as they land (D2). Search and chips run on the phone (MediaHomeMapper); the chips' C-036
 /// menus are presented here, as EnrollmentsHomeContainer presents them. The section owns its scroll
 /// (D16): MediaBrowser reports it to the shell's TopNav. A tile opens ImageViewer over the shell (D12).
+///
+/// media-library: the grid lists MakeReady's library and every org the leader belongs to (D4), with a
+/// Source chip (D7); the section's TopNav `add` uploads photos and videos into an org (D8/D13). In
+/// `.pick` mode (D9) the same grid sits under a C-040 header and a tap frames that photo as a cover.
 struct MediaHomeContainer: View {
     static let pageSize = 200
 
+    enum Mode: Equatable {
+        case browse
+        /// media-library D9: choose a group's or program's cover from the library.
+        case pick(CoverOwner)
+    }
+
+    let mode: Mode
+    /// media-library D13: bumped by the Media TopNav `add`.
+    let addRequest: Int
+
     @Environment(AuthManager.self) private var authManager
+    @Environment(\.ui2Navigator) private var navigator
     @Environment(\.displayScale) private var displayScale
     @Environment(\.sectionScrollReport) private var scrollReport
     @State private var selection = MediaHomeMapper.Selection()
@@ -29,8 +46,14 @@ struct MediaHomeContainer: View {
     /// D12: the open item, and the tile list frozen while it is open (pages that land meanwhile apply on close).
     @State private var viewer: Viewer?
     @State private var frozenTiles: [MediaHomeMapper.Tile]?
+    /// media-library D8/D13: the org an upload goes to, the system picker and its picks.
+    @State private var uploadOrgId: String?
+    @State private var uploadPickerOpen = false
+    @State private var uploadPicks: [PhotosPickerItem] = []
+    /// media-library D9: a pick whose full image is loading (taps are ignored meanwhile).
+    @State private var picking = false
 
-    private enum ChipMenu { case tags, leaders, time }
+    private enum ChipMenu { case source, tags, leaders, time, uploadTo }
 
     private struct Viewer {
         let index: Int
@@ -40,7 +63,9 @@ struct MediaHomeContainer: View {
         let placeholder: UIImage?
     }
 
-    init() {
+    init(mode: Mode = .browse, addRequest: Int = 0) {
+        self.mode = mode
+        self.addRequest = addRequest
         let app = AppState.shared
         _isLoading = State(initialValue: app.mediaPhotosLoadedOrgId == nil || app.mediaPhotosLoadedOrgId != app.organizationId)
     }
@@ -57,8 +82,15 @@ struct MediaHomeContainer: View {
             return (url.absoluteString, thumb)
         }, uniquingKeysWith: { first, _ in first })
         let images = tileImages
+        let sources = app.mediaSources
         // Only this reader observes `generation`, so a landed image redraws the screen, not the mapper.
-        MediaImageGenerationReader(images: images) { generation in
+        VStack(spacing: 0) {
+          if case .pick = mode {
+            // media-library D9: the picker page's header — back, and what it is for.
+            PageHeader(style: .default, title: "Choose image", showIcons: false, rightButtons: [],
+                       onLeading: { navigator.pop() })
+          }
+          MediaImageGenerationReader(images: images) { generation in
             MediaHomeScreen(
                 state: .init(
                     phase: Self.phase(output: output, isLoading: isLoading, failed: failed),
@@ -72,10 +104,13 @@ struct MediaHomeContainer: View {
                     photoTitles: tiles.map(\.title),
                     hiddenItemID: viewer.flatMap { tiles.indices.contains($0.index) ? tiles[$0.index].id : nil },
                     frozen: viewer != nil,
-                    refreshing: refreshing
+                    refreshing: refreshing,
+                    sourceLabel: Self.sourceLabel(selection.sourceIds, sources: sources),
+                    sourceActive: !selection.sourceIds.isEmpty
                 ),
                 onSearch: { text in update { $0.search = text } },
                 onSearchActiveChange: { searchActive = $0 },
+                onSource: { openMenu = .source },
                 onTapTags: { openMenu = .tags },
                 onTapLeaders: { openMenu = .leaders },
                 onTapTime: { openMenu = .time },
@@ -85,12 +120,16 @@ struct MediaHomeContainer: View {
                     level = next
                     requestImages(tiles: tiles)
                 },
-                onTap: { id, frame in open(id: id, frame: frame, tiles: tiles) },
+                onTap: { id, frame in
+                    if case .pick(let owner) = mode { pick(id: id, owner: owner) } else { open(id: id, frame: frame, tiles: tiles) }
+                },
                 onVisibleRangeChange: { range in
                     visibleRange = range
                     requestImages(tiles: tiles)
                 },
-                onScrollChange: { offset, interacting in scrollReport.report(offset, interacting) },
+                onScrollChange: { offset, interacting in
+                    if mode == .browse { scrollReport.report(offset, interacting) }
+                },
                 onRefresh: { startLoad(resume: nil, refresh: true) },
                 image: { key in
                     if let url = URL(string: key), let image = images.image(for: url) { return image }
@@ -98,6 +137,7 @@ struct MediaHomeContainer: View {
                 },
                 imageGeneration: generation
             )
+          }
         }
         .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width in
             gridWidth = width
@@ -108,14 +148,25 @@ struct MediaHomeContainer: View {
         .onChange(of: tiles.map(\.id)) {
             requestImages(tiles: tiles)
         }
-        .preference(key: UI2HidesTopNavKey.self, value: searchActive)
+        .background(Token.layoutBackground.ignoresSafeArea())
+        .preference(key: UI2HidesTopNavKey.self, value: mode == .browse && searchActive)
         .filterMenuPresentation(isPresented: openMenu != nil, onDismiss: { openMenu = nil }) {
-            if let chip = openMenu { menu(for: chip, output: output) }
+            if let chip = openMenu { menu(for: chip, output: output, sources: sources) }
         }
+        // media-library D13: the system picker — a modifier, not .sheet/.fullScreenCover.
+        .photosPicker(isPresented: $uploadPickerOpen, selection: $uploadPicks, maxSelectionCount: 20,
+                      matching: .any(of: [.images, .videos]))
+        .onChange(of: uploadPicks) { _, picks in
+            guard !picks.isEmpty, let orgId = uploadOrgId else { return }
+            uploadPicks = []
+            Task { await enqueueUploads(picks, orgId: orgId) }
+        }
+        .onChange(of: addRequest) { beginUpload() }
         .coverViewerPresentation(url: viewer?.url, sourceFrame: viewer?.frame, accessibilityLabel: viewer?.title ?? "",
                                  placeholder: viewer?.placeholder, onClose: { viewer = nil; frozenTiles = nil })
         .task {
             await AppState.shared.loadInitialData()   // waits for the org (as MembersHomeContainer)
+            await actions.loadSources()                // media-library D4: Source options + upload targets
             if Self.shouldLoad(loadedOrgId: AppState.shared.mediaPhotosLoadedOrgId, orgId: AppState.shared.organizationId) {
                 startLoad(resume: nil, refresh: false)
             } else {
@@ -134,6 +185,35 @@ struct MediaHomeContainer: View {
     static func shouldLoad(loadedOrgId: String?, orgId: String?) -> Bool {
         guard let orgId else { return false }
         return loadedOrgId != orgId
+    }
+
+    /// media-library D7: the Source chip's label — nil (resting "Source") with no choice, else the
+    /// chosen names in source order, as "«first» +«n−1»".
+    static func sourceLabel(_ ids: Set<String>, sources: [MediaSource]) -> String? {
+        let names = sources.filter { ids.contains($0.id) }.map(\.name)
+        switch names.count {
+        case 0: return nil
+        case 1: return names[0]
+        default: return "\(names[0]) +\(names.count - 1)"
+        }
+    }
+
+    /// media-library D8: where an upload goes. `options` are the orgs the leader may upload into
+    /// (never MakeReady); with one, it is `direct`; with several, the Upload-to menu shows them,
+    /// preselecting the one org the Source chip is narrowed to. Sources not loaded → the primary org.
+    struct UploadTargets: Equatable {
+        let options: [MediaSource]
+        let preselected: String?
+        let direct: String?
+    }
+
+    static func uploadTargets(sources: [MediaSource], selection: MediaHomeMapper.Selection,
+                              primaryOrgId: String?) -> UploadTargets {
+        if sources.isEmpty { return .init(options: [], preselected: nil, direct: primaryOrgId) }
+        let options = sources.filter { !$0.isMakeReady && $0.canUpload }
+        if options.count == 1 { return .init(options: options, preselected: options[0].id, direct: options[0].id) }
+        let narrowed = options.filter { selection.sourceIds.contains($0.id) }
+        return .init(options: options, preselected: narrowed.count == 1 ? narrowed[0].id : nil, direct: nil)
     }
 
     /// D13 + R4: loading only while nothing is shown yet; a failure with photos shown keeps them.
@@ -176,8 +256,29 @@ struct MediaHomeContainer: View {
     }()
 
     /// D7: Tags and Leaders are multi-select with Save/Clear; Time is single-select with Clear.
-    @ViewBuilder private func menu(for chip: ChipMenu, output: MediaHomeMapper.Output) -> some View {
+    @ViewBuilder private func menu(for chip: ChipMenu, output: MediaHomeMapper.Output, sources: [MediaSource]) -> some View {
         switch chip {
+        case .source:
+            FilterMenuOverlay(
+                options: MediaHomeMapper.sourceOptions(sources).map { FilterMenuOverlay.Option(id: $0.id, label: $0.label) },
+                selectionMode: .multiple, selectedIDs: selection.sourceIds,
+                onClose: { openMenu = nil },
+                onSave: { ids in
+                    update { $0.sourceIds = ids }
+                    openMenu = nil
+                })
+        case .uploadTo:
+            FilterMenuOverlay(
+                options: Self.uploadTargets(sources: sources, selection: selection, primaryOrgId: nil).options
+                    .map { FilterMenuOverlay.Option(id: $0.id, label: $0.name) },
+                selectionMode: .single,
+                selectedIDs: Self.uploadTargets(sources: sources, selection: selection, primaryOrgId: nil).preselected.map { [$0] } ?? [],
+                onSelect: { option in
+                    openMenu = nil
+                    uploadOrgId = option.id
+                    uploadPickerOpen = true
+                },
+                onClose: { openMenu = nil })
         case .tags:
             FilterMenuOverlay(
                 options: output.tagOptions.map { FilterMenuOverlay.Option(id: $0, label: $0) },
@@ -233,7 +334,7 @@ struct MediaHomeContainer: View {
         failed = false
         if refresh { refreshing = true }
         loadTask = Task { @MainActor in
-            let outcome = await actions.loadAllPhotos(pageSize: Self.pageSize, resumeCursor: resume)
+            let outcome = await actions.loadAllMedia(pageSize: Self.pageSize, resumeCursor: resume)
             // A cancelled load (a newer one, or the section left) leaves the flags to whoever replaced it.
             guard !Task.isCancelled else { return }
             isLoading = false
@@ -242,7 +343,7 @@ struct MediaHomeContainer: View {
             // A successful pull forgets failed tile URLs, so a transient outage doesn't blank them for the session.
             if refresh, outcome == .completed { tileImages.clearFailures() }
             if refresh, outcome == .failed {
-                // D13: the pull is the leader's own action, so it surfaces. loadAllPhotos already logged the real cause
+                // D13: the pull is the leader's own action, so it surfaces. loadAllMedia already logged the real cause
                 // console-only and returns no error, so the banner carries this stand-in (a second, surfaced record).
                 AppState.shared.recordError(APIError.serverError("Media refresh failed"), context: "MediaHomeContainer.refresh",
                                             surface: true, friendlyMessage: "Couldn't refresh photos",
@@ -280,6 +381,65 @@ struct MediaHomeContainer: View {
         if fallbacks != first { await images.load(fallbacks) }
     }
 
+    /// media-library D8/D13: the TopNav `add` — straight to Photos for one org, the Upload-to menu for
+    /// several, a banner when the leader can upload nowhere.
+    private func beginUpload() {
+        guard mode == .browse else { return }
+        let app = AppState.shared
+        let targets = Self.uploadTargets(sources: app.mediaSources, selection: selection, primaryOrgId: app.organizationId)
+        if let direct = targets.direct {
+            uploadOrgId = direct
+            uploadPickerOpen = true
+        } else if targets.options.isEmpty {
+            app.recordError(APIError.serverError("No organization accepts uploads"), context: "MediaHomeContainer.upload",
+                            surface: true, friendlyMessage: "You can't upload media in this organization")
+        } else {
+            openMenu = .uploadTo
+        }
+    }
+
+    /// media-library D13: reads each pick (photo bytes, or a video file) and hands them to AppState's queue.
+    @MainActor
+    private func enqueueUploads(_ picks: [PhotosPickerItem], orgId: String) async {
+        var items: [PickedMedia] = []
+        for pick in picks {
+            do {
+                if pick.supportedContentTypes.contains(where: { $0.conforms(to: .movie) }) {
+                    if let movie = try await pick.loadTransferable(type: PickedMovie.self) { items.append(.video(movie.url)) }
+                } else if let data = try await pick.loadTransferable(type: Data.self),
+                          let image = CoverImageRendering.uprightDownsampled(data) {
+                    items.append(.photo(image, data: data))
+                }
+            } catch {
+                if UI2ImageLoader.isCancellation(error) { return }
+                AppState.shared.recordError(error, context: "MediaHomeContainer.readPick", surface: true,
+                                            friendlyMessage: "Couldn't read that item")
+            }
+        }
+        let user = authManager.currentUser
+        AppState.shared.mediaUploads.enqueue(items, orgId: orgId, uploader: user.map { MediaUploader(id: $0.id, name: $0.name) },
+                                             state: AppState.shared)
+    }
+
+    /// media-library D9: frame the tapped photo as `owner`'s cover; the picker page is replaced by the
+    /// Edit cover page. A photo that won't load leaves the picker up with a banner.
+    private func pick(id: String, owner: CoverOwner) {
+        guard !picking, let item = AppState.shared.mediaLibrary[id], let url = URL(string: item.url) else { return }
+        picking = true
+        Task { @MainActor in
+            defer { picking = false }
+            do {
+                let image = try await UI2ImageLoader.live(url, CoverImageRendering.originalMaxPixels)
+                navigator.replaceTop(.chooseCoverFromLibrary(owner: owner),
+                                     owner.destination(.newPick(image, takenAt: nil, sourceMediaId: item.id)))
+            } catch {
+                if UI2ImageLoader.isCancellation(error) { return }
+                AppState.shared.recordError(error, context: "MediaHomeContainer.pick", surface: true,
+                                            friendlyMessage: "Couldn't open that photo")
+            }
+        }
+    }
+
     /// D12: one item at a time, from the tile's global frame, seeded with the tile's loaded image.
     private func open(id: String, frame: CGRect, tiles: [MediaHomeMapper.Tile]) {
         guard viewer == nil, let index = Self.index(ofTileID: id, in: tiles), tiles.indices.contains(index) else { return }
@@ -298,4 +458,21 @@ private struct MediaImageGenerationReader<Content: View>: View {
     @ViewBuilder let content: (Int) -> Content
 
     var body: some View { content(images.generation) }
+}
+
+/// media-library D13: a picked video, copied out of the picker's temporary file so the upload queue can
+/// read it after the picker has gone.
+struct PickedMovie: Transferable {
+    let url: URL
+
+    static var transferRepresentation: some TransferRepresentation {
+        FileRepresentation(contentType: .movie) { movie in
+            SentTransferredFile(movie.url)
+        } importing: { received in
+            let copy = FileManager.default.temporaryDirectory
+                .appendingPathComponent("media-upload-\(UUID().uuidString).\(received.file.pathExtension)")
+            try FileManager.default.copyItem(at: received.file, to: copy)
+            return PickedMovie(url: copy)
+        }
+    }
 }

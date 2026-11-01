@@ -27,9 +27,17 @@ final class GroupDetailCoverTapTests: XCTestCase {
     /// D2 (order: owner 2026-10-27, image-framing-editor D4): Edit · Change · View, with existing glyphs.
     func testMenuRows() {
         let rows = GroupDetailContainer.coverActions
-        XCTAssertEqual(rows.map(\.label), ["Edit image", "Change image", "View image"])
-        XCTAssertEqual(rows.map(\.glyph), ["edit", "upload", "eye"])
+        XCTAssertEqual(rows.map(\.label), ["Edit image", "Change image", "Choose from library", "View image"])
+        XCTAssertEqual(rows.map(\.glyph), ["edit", "upload", "image", "eye"])
         for row in rows { XCTAssertNotNil(GlyphName(rawValue: row.glyph), row.glyph) }
-        XCTAssertEqual(rows.map { GroupDetailContainer.CoverChoice(label: $0.label) }, [.edit, .change, .view])
+        XCTAssertEqual(rows.map { GroupDetailContainer.CoverChoice(label: $0.label) }, [.edit, .change, .library, .view])
+    }
+
+    /// media-library D9: no cover yet → Photos · Choose from library.
+    func testNoCoverRows() {
+        let rows = GroupDetailContainer.noCoverActions
+        XCTAssertEqual(rows.map(\.label), ["Photos", "Choose from library"])
+        for row in rows { XCTAssertNotNil(GlyphName(rawValue: row.glyph), row.glyph) }
+        XCTAssertEqual(rows.map { GroupDetailContainer.CoverChoice(label: $0.label) }, [.photos, .library])
     }
 }

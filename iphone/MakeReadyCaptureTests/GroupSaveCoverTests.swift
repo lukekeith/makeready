@@ -53,6 +53,16 @@ final class GroupSaveCoverTests: XCTestCase {
         XCTAssertNil(api.calls.last?.body?["originalData"])
     }
 
+    /// media-library D10: a cover framed from the library names its source; a phone pick sends none.
+    func testALibraryPickSendsSourceMediaId() async throws {
+        stubSuccess()
+        _ = try await GroupActions(api: api, state: state).saveCover(groupId: "g1", rendered: image(), framing: framing,
+                                                                     original: image(), sourceMediaId: "m-1")
+        XCTAssertEqual(api.calls.last?.body?["sourceMediaId"] as? String, "m-1")
+        _ = try await GroupActions(api: api, state: state).saveCover(groupId: "g1", rendered: image(), framing: framing, original: image())
+        XCTAssertNil(api.calls.last?.body?["sourceMediaId"])
+    }
+
     func testNewPickSendsTakenAt() async throws {
         stubSuccess()
         _ = try await GroupActions(api: api, state: state).saveCover(groupId: "g1", rendered: image(), framing: framing,

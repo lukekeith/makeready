@@ -1,13 +1,13 @@
 import XCTest
 @testable import MakeReady
 
-/// media-page D2/D13/F6: loadAllPhotos follows nextCursor until hasMore is false, writing each page as it
+/// media-page D2/D13/F6 (media-library D4: now /api/media/browse): loadAllMedia follows nextCursor until hasMore is false, writing each page as it
 /// lands; an error keeps the loaded pages; cancellation, a sign-out or an org change stops the writes.
 @MainActor
 final class MediaLoadAllPhotosTests: XCTestCase {
     private var state: AppState!
     private var api: StubAPIClient!
-    private let base = "/api/organizations/o1/media/library?type=photo&limit=2"
+    private let base = "/api/media/browse?limit=2"
 
     override func setUp() {
         super.setUp()
@@ -40,7 +40,7 @@ final class MediaLoadAllPhotosTests: XCTestCase {
 
     func testFollowsTheCursorUntilHasMoreIsFalse() async {
         stubThreePages()
-        let outcome = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        let outcome = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(outcome, .completed)
         XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b", "c", "d", "e"])
         XCTAssertEqual(api.calls.count, 3)
@@ -52,14 +52,14 @@ final class MediaLoadAllPhotosTests: XCTestCase {
     func testAnErrorKeepsTheLoadedPagesAndARetryResumesFromTheCursor() async {
         stubThreePages()
         api.errorFor = { endpoint, _ in endpoint.hasSuffix("cursor=c1") ? APIError.serverError("boom") : nil }
-        let failed = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        let failed = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(failed, .failed)
         XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
         XCTAssertEqual(state.mediaLibraryNextCursor, "c1")
         XCTAssertNil(state.mediaPhotosLoadedOrgId)
 
         api.errorFor = nil
-        let resumed = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2, resumeCursor: "c1")
+        let resumed = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2, resumeCursor: "c1")
         XCTAssertEqual(resumed, .completed)
         XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b", "c", "d", "e"])
     }
@@ -67,7 +67,7 @@ final class MediaLoadAllPhotosTests: XCTestCase {
     func testASignOutMidLoadStopsTheWrites() async {
         stubThreePages()
         api.beforeReturn = { [state] endpoint, _ in if endpoint.hasSuffix("cursor=c1") { state?.initialLoad.reset() } }
-        let outcome = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        let outcome = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(outcome, .stopped)
         XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
     }
@@ -75,7 +75,7 @@ final class MediaLoadAllPhotosTests: XCTestCase {
     func testAnOrgChangeMidLoadStopsTheWrites() async {
         stubThreePages()
         api.beforeReturn = { [state] endpoint, _ in if endpoint.hasSuffix("cursor=c1") { state?.organizationId = "o2" } }
-        let outcome = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        let outcome = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(outcome, .stopped)
         XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
     }
@@ -88,13 +88,13 @@ final class MediaLoadAllPhotosTests: XCTestCase {
     /// load — the next open must load again.
     func testARefreshCancelledAfterPage1StopsWritingAndForgetsTheCompletedLoad() async {
         stubThreePages()
-        _ = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        _ = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
 
         let box = TaskBox()
         api.beforeReturn = { endpoint, _ in if endpoint.hasSuffix("cursor=c1") { box.task?.cancel() } }
         let actions = MediaActions(api: api, state: state)
-        let refresh = Task { await actions.loadAllPhotos(pageSize: 2) }
+        let refresh = Task { await actions.loadAllMedia(pageSize: 2) }
         box.task = refresh
         let outcome = await refresh.value
         XCTAssertEqual(outcome, .stopped)
@@ -105,11 +105,11 @@ final class MediaLoadAllPhotosTests: XCTestCase {
     /// Final review I1: a refresh that fails on page 2 leaves only page 1, so no completed load is recorded.
     func testARefreshThatFailsOnPage2ForgetsTheCompletedLoad() async {
         stubThreePages()
-        _ = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        _ = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
 
         api.errorFor = { endpoint, _ in endpoint.hasSuffix("cursor=c1") ? APIError.serverError("boom") : nil }
-        let outcome = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        let outcome = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(outcome, .failed)
         XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
         XCTAssertNil(state.mediaPhotosLoadedOrgId)
@@ -118,15 +118,34 @@ final class MediaLoadAllPhotosTests: XCTestCase {
     func testA401SignsOut() async {
         api.errorToThrow = APIError.unauthorized
         var signedOut = false
-        let outcome = await MediaActions(api: api, state: state, onUnauthorized: { signedOut = true }).loadAllPhotos(pageSize: 2)
+        let outcome = await MediaActions(api: api, state: state, onUnauthorized: { signedOut = true }).loadAllMedia(pageSize: 2)
         XCTAssertEqual(outcome, .stopped)
         XCTAssertTrue(signedOut)
     }
 
+    func testLoadSourcesStoresMakeReadyThenOrgs() async {
+        api.stub("GET", "/api/media/sources", json: #"{"success":true,"data":[{"id":"mr","name":"MakeReady","isMakeReady":true,"canUpload":false},{"id":"o1","name":"Alpha","isMakeReady":false,"canUpload":true}]}"#)
+        await MediaActions(api: api, state: state).loadSources()
+        XCTAssertEqual(state.mediaSources.map(\.id), ["mr", "o1"])
+        XCTAssertEqual(state.mediaSources.first?.isMakeReady, true)
+        XCTAssertEqual(state.mediaSources.last?.canUpload, true)
+    }
+
+    func testBrowseItemsDecodeTheirSourceAndOldItemsStillDecode() async {
+        let mr = #"{"id":"m","title":"m","url":"https://img/m.jpeg","type":"photo","uploadStatus":"ready","tags":[],"usageCount":0,"createdAt":"2026-10-01T12:00:00.000Z","updatedAt":"2026-10-01T12:00:00.000Z","organizationId":"mr","isMakeReady":true}"#
+        api.stub("GET", base, json: #"{"success":true,"data":[\#(mr),\#(item("a"))],"hasMore":false,"nextCursor":null}"#)
+        _ = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
+        XCTAssertEqual(state.mediaLibrary.all.first { $0.id == "m" }?.isMakeReady, true)
+        XCTAssertEqual(state.mediaLibrary.all.first { $0.id == "m" }?.organizationId, "mr")
+        XCTAssertNil(state.mediaLibrary.all.first { $0.id == "a" }?.isMakeReady)
+    }
+
     func testClearInMemoryForgetsTheLoadedOrg() async {
         stubThreePages()
-        _ = await MediaActions(api: api, state: state).loadAllPhotos(pageSize: 2)
+        _ = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
+        state.mediaSources = [MediaSource(id: "o1", name: "Alpha", isMakeReady: false, canUpload: true)]
         state.clearAllData()
         XCTAssertNil(state.mediaPhotosLoadedOrgId)
+        XCTAssertTrue(state.mediaSources.isEmpty)
     }
 }

@@ -63,6 +63,8 @@ struct EditGroupCoverContainer: View {
         let isNewPick: Bool
         let hasStoredOriginal: Bool
         let takenAt: String?
+        /// media-library D10: the library item the pick came from.
+        var sourceMediaId: String? = nil
     }
 
     /// Cache-first: a new pick, or a stored original already in Ui2ImageCache, is in hand before the
@@ -80,9 +82,10 @@ struct EditGroupCoverContainer: View {
     @MainActor
     private static func immediateOpening(owner: CoverOwner, source: ImageEditSource) -> Opening? {
         switch source {
-        case let .newPick(image, takenAt):
+        case let .newPick(image, takenAt, sourceMediaId):
             // D6 at the floor, centred; the pick itself is uploaded as the original.
-            return Opening(image: image, framing: .identity, isNewPick: true, hasStoredOriginal: true, takenAt: takenAt)
+            return Opening(image: image, framing: .identity, isNewPick: true, hasStoredOriginal: true, takenAt: takenAt,
+                           sourceMediaId: sourceMediaId)
         case .stored:
             guard let fields = owner.fields,
                   let stored = Self.opening(fields),
@@ -213,8 +216,10 @@ struct EditGroupCoverContainer: View {
     private func makeModelIfReady() {
         guard model == nil, let opening, frameRect.width > 0, frameRect.height > 0 else { return }
         let takenAt = opening.takenAt
+        let sourceMediaId = opening.sourceMediaId
         let save: @MainActor (UIImage, ImageFraming, UIImage?) async throws -> String = { [owner] rendered, framing, original in
-            try await owner.save(rendered: rendered, framing: framing, original: original, takenAt: takenAt)
+            try await owner.save(rendered: rendered, framing: framing, original: original, takenAt: takenAt,
+                                 sourceMediaId: sourceMediaId)
         }
         let built = ImageFramingModel(image: opening.image, framing: opening.framing,
                                       isNewPick: opening.isNewPick, hasStoredOriginal: opening.hasStoredOriginal,

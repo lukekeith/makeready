@@ -32,6 +32,8 @@ struct StudyProgramHomeContainer: View {
     @State private var pickedItem: PhotosPickerItem?
     /// D11: the cover menu, and the row chosen in it — acted on once the menu has slid out.
     @State private var coverMenuOpen = false
+    /// media-library D9: the rows the cover menu shows — with a cover, or the no-cover pair.
+    @State private var coverMenuRows = GroupDetailContainer.coverActions
     @State private var pendingCoverChoice: GroupDetailContainer.CoverChoice?
     /// D11: the viewer's URL while it is up.
     @State private var viewerURL: String?
@@ -94,7 +96,7 @@ struct StudyProgramHomeContainer: View {
         .actionMenuPresentation(isPresented: coverMenuOpen, onDismiss: { coverMenuOpen = false },
                                 onHidden: { runPendingCoverChoice() }) {
             ActionMenuOverlay(
-                actions: GroupDetailContainer.coverActions,
+                actions: coverMenuRows,
                 onSelect: { item in
                     pendingCoverChoice = GroupDetailContainer.CoverChoice(label: item.label)
                     coverMenuOpen = false
@@ -186,8 +188,12 @@ struct StudyProgramHomeContainer: View {
     private func handleCoverTap() {
         switch CoverOwner.coverTap(coverOwner.fields) {
         case .none: break
-        case .picker: pickerOpen = true
-        case .menu: coverMenuOpen = true
+        case .picker:
+            coverMenuRows = GroupDetailContainer.noCoverActions
+            coverMenuOpen = true
+        case .menu:
+            coverMenuRows = GroupDetailContainer.coverActions
+            coverMenuOpen = true
         }
     }
 
@@ -195,7 +201,8 @@ struct StudyProgramHomeContainer: View {
         guard let choice = pendingCoverChoice else { return }
         pendingCoverChoice = nil
         switch choice {
-        case .change: pickerOpen = true
+        case .change, .photos: pickerOpen = true
+        case .library: navigator.push(.chooseCoverFromLibrary(owner: coverOwner))
         case .edit: navigator.push(coverOwner.destination(.stored))
         case .view: viewerURL = coverOwner.fields.flatMap(CoverOwner.viewerURL)
         }

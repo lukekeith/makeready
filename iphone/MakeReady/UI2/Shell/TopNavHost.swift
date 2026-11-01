@@ -104,6 +104,7 @@ struct TopNavHost: View {
                 case .programs?: model.push(.createStudyProgram, on: .home)  // ui2-programs D1/D8
                 case .enrollments?:                                            // ui2-enrollment-create D2
                     EnrollEntry.open(groupId: nil, studyProgramId: nil, push: { model.push($0, on: .home) })
+                case .media?: model.mediaAddRequest += 1                     // media-library D13
                 default: return
                 }
             },

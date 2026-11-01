@@ -11,7 +11,7 @@
 import SwiftUI
 
 /// Media home — the Home tab's Media section root (§6, D64): a browse-only photo library. A fixed
-/// top bar (C-034 search, three C-035 Menu chips, the date-range line) over C-129 MediaBrowser,
+/// top bar (C-034 search, four C-035 Menu chips, the date-range line) over C-129 MediaBrowser,
 /// the screen's only scroller (media-page D16). No TopNav, no TabBar: the shell's
 /// `HomeSectionLayout` owns both (§1 deviation 1).
 ///
@@ -52,12 +52,18 @@ struct MediaHomeScreen: View {
         var frozen: Bool = false
         /// §3 pull past the newest end: C-129 `refreshing` while the reload runs.
         var refreshing: Bool = false
+        /// §3 Source chip label (media-library D7): nil = the resting "Source"; else the host's
+        /// own "«first» +«n−1»" string. The screen never computes the Source options.
+        var sourceLabel: String? = nil
+        /// §3 Source chip `active`: ≥1 source selected.
+        var sourceActive: Bool = false
     }
 
     let state: State
     // §3 "Actions out of the screen (D14, no-op defaults)" — R-03 / R-33.
     var onSearch: (String) -> Void = { _ in }
     var onSearchActiveChange: (Bool) -> Void = { _ in }
+    var onSource: () -> Void = {}                        // §3 Source chip tap → host presents C-036 .multiple
     var onTapTags: () -> Void = {}                       // §3 R2: chip tap → host presents C-036
     var onTapLeaders: () -> Void = {}
     var onTapTime: () -> Void = {}
@@ -85,6 +91,7 @@ struct MediaHomeScreen: View {
         state: State,
         onSearch: @escaping (String) -> Void = { _ in },
         onSearchActiveChange: @escaping (Bool) -> Void = { _ in },
+        onSource: @escaping () -> Void = {},
         onTapTags: @escaping () -> Void = {},
         onTapLeaders: @escaping () -> Void = {},
         onTapTime: @escaping () -> Void = {},
@@ -101,6 +108,7 @@ struct MediaHomeScreen: View {
         self.state = state
         self.onSearch = onSearch
         self.onSearchActiveChange = onSearchActiveChange
+        self.onSource = onSource
         self.onTapTags = onTapTags
         self.onTapLeaders = onTapLeaders
         self.onTapTime = onTapTime
@@ -308,30 +316,38 @@ struct MediaHomeScreen: View {
         .background(Token.layoutBackground)
     }
 
-    /// §2.1 Chip row: three C-035 `type: Menu`, `space-element-gap` apart; no horizontal scroll.
+    /// §2.1 Chip row: four C-035 `type: Menu` — Source · Tags · Leaders · Time —
+    /// `space-element-gap` apart; no horizontal scroll.
     private var chipRow: some View {
         HStack(spacing: Token.Space.elementGap) {
+            FilterChip(
+                type: .menu,
+                active: state.sourceActive,
+                label: state.sourceLabel ?? "Source",
+                onTap: onSource
+            )
+            .ui2Element("C-035 FilterChip")
             FilterChip(
                 type: .menu,
                 active: !state.selectedTags.isEmpty,
                 label: Self.chipLabel("Tags", state.selectedTags),
                 onTap: onTapTags
             )
-            .ui2Element("C-035 FilterChip")
+            .ui2Element("C-035 FilterChip 2")
             FilterChip(
                 type: .menu,
                 active: !state.selectedLeaders.isEmpty,
                 label: Self.chipLabel("Leaders", state.selectedLeaders),
                 onTap: onTapLeaders
             )
-            .ui2Element("C-035 FilterChip 2")
+            .ui2Element("C-035 FilterChip 3")
             FilterChip(
                 type: .menu,
                 active: timeActive,
                 label: state.timeOption,
                 onTap: onTapTime
             )
-            .ui2Element("C-035 FilterChip 3")
+            .ui2Element("C-035 FilterChip 4")
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -450,6 +466,12 @@ extension MediaHomeScreen.State {
         timeOption: "All time", photoURLs: samplePhotoURLs, photoDates: samplePhotoDates,
         photoTitles: samplePhotoTitles
     )
+    /// Capture state `source-active` — the Source chip active as "MakeReady +1"; the rest as `loaded`.
+    static let sourceActive = Self(
+        phase: .loaded, searchText: "", selectedTags: [], selectedLeaders: [],
+        timeOption: "All time", photoURLs: samplePhotoURLs, photoDates: samplePhotoDates,
+        photoTitles: samplePhotoTitles, sourceLabel: "MakeReady +1", sourceActive: true
+    )
 
     // The owner's 13 catalog portraits (media-browser.md §6) in a fixed shuffle, four a day over
     // Oct 11–22, 2026 (the reference's header range, §1 t 4.0): 48 photos, a short last row.
@@ -567,6 +589,13 @@ extension MediaHomeScreen.State {
 
 #Preview("failed") {
     MediaHomeScreen(state: .failed)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("source-active") {
+    MediaHomeScreen(state: .sourceActive)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

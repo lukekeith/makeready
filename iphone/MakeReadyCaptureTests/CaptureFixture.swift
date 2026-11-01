@@ -1287,6 +1287,8 @@ struct CaptureComponent: Codable {
     let photoURLs: [String]?                   // C-129 items' catalog URLs, oldest → newest
     let photoDates: [String]?                  // "yyyy-MM-dd" per photo
     let photoTitles: [String]?                 // per photo, its accessibility label
+    let sourceLabel: String?                   // §3 Source chip label (nil = "Source")
+    let sourceActive: Bool?                    // §3 Source chip active
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated

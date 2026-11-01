@@ -56,6 +56,11 @@ struct MediaLibraryItem: Codable, Identifiable, Hashable {
     var updatedAt: Date
     /// media-page D4: when the photo was taken; nil = unknown (sort by createdAt).
     var takenAt: Date? = nil
+    /// media-library D17: the org that owns the item (MakeReady's library is an org too). Optional so
+    /// one-org responses and caches written by older builds still decode.
+    var organizationId: String? = nil
+    /// media-library D17: true for MakeReady's own read-only library.
+    var isMakeReady: Bool? = nil
 
     /// Parsed media type
     var mediaType: MediaType {
@@ -109,6 +114,22 @@ struct MediaVideo: Codable, Hashable {
     var playbackUrl: String?
     var duration: Int?
     var status: String?
+}
+
+/// media-library D4: one source the Media page can browse — MakeReady's library or one of the leader's
+/// organizations — as `GET /api/media/sources` lists it (MakeReady first, then orgs by name).
+struct MediaSource: Codable, Identifiable, Hashable {
+    let id: String
+    let name: String
+    let isMakeReady: Bool
+    /// The leader may upload into it (media.create there); always false for MakeReady.
+    let canUpload: Bool
+}
+
+struct MediaSourcesResponse: Codable {
+    let success: Bool?
+    let data: [MediaSource]?
+    let error: String?
 }
 
 /// API response for media library listing
