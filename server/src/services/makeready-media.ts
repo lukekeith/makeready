@@ -153,3 +153,24 @@ export async function importFromCatalog(items: CatalogItem[]): Promise<{ created
   }
   return out
 }
+
+/** One image in d2m's catalog (`GET /api/projects/makeready/images`), as much as the import reads. */
+export interface D2mCatalogImage {
+  slug: string
+  url: string
+  title: string
+  alt?: string | null
+  retired?: boolean
+  terms?: Array<{ taxonomy: string; term: string }>
+}
+
+/** D5: the live `Use=cover` images, each with its Subject + Book terms as lower-case tags, by slug. */
+export function catalogCovers(catalog: D2mCatalogImage[]): Array<D2mCatalogImage & { tags: string[] }> {
+  return catalog
+    .filter((i) => !i.retired && (i.terms ?? []).some((t) => t.taxonomy === 'Use' && t.term === 'cover'))
+    .map((i) => ({
+      ...i,
+      tags: normalizeTags((i.terms ?? []).filter((t) => t.taxonomy === 'Subject' || t.taxonomy === 'Book').map((t) => t.term)),
+    }))
+    .sort((a, b) => a.slug.localeCompare(b.slug))
+}
