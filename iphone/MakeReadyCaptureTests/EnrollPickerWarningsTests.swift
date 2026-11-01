@@ -33,7 +33,9 @@ final class EnrollPickerWarningsTests: XCTestCase {
     func testScheduleClashComparesCalendarDays() {
         let today = Calendar.current.startOfDay(for: now)
         XCTAssertTrue(EnrollPickerWarnings.scheduleClashes([today], existingLessonDates: [today.addingTimeInterval(9 * 3600)]))
-        XCTAssertFalse(EnrollPickerWarnings.scheduleClashes([today], existingLessonDates: [today.addingTimeInterval(day)]))
+        // The next CALENDAR day, not +24h: on a DST fall-back day (25h) +24h is still today.
+        let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: today)!
+        XCTAssertFalse(EnrollPickerWarnings.scheduleClashes([today], existingLessonDates: [tomorrow]))
         XCTAssertFalse(EnrollPickerWarnings.scheduleClashes([], existingLessonDates: [today]))
     }
 
