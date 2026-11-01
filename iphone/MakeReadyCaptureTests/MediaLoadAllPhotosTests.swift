@@ -83,10 +83,9 @@ final class MediaLoadAllPhotosTests: XCTestCase {
     /// Holds the load's Task so the stub can cancel it between pages.
     private final class TaskBox { var task: Task<PhotoLoadOutcome, Never>? }
 
-    /// §Testing "stops writing after cancellation": a refresh cancelled after page 1 writes no later page.
-    /// Final review I1: page 1 replaced the completed library, so the session no longer has a completed
-    /// load — the next open must load again.
-    func testARefreshCancelledAfterPage1StopsWritingAndForgetsTheCompletedLoad() async {
+    /// media-library: a refresh over a shown library swaps once at the end, so a cancel keeps the
+    /// whole old library (and its completed load) instead of leaving page 1.
+    func testARefreshCancelledAfterPage1KeepsTheOldLibrary() async {
         stubThreePages()
         _ = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
@@ -98,12 +97,12 @@ final class MediaLoadAllPhotosTests: XCTestCase {
         box.task = refresh
         let outcome = await refresh.value
         XCTAssertEqual(outcome, .stopped)
-        XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
-        XCTAssertNil(state.mediaPhotosLoadedOrgId)
+        XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b", "c", "d", "e"])
+        XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
     }
 
-    /// Final review I1: a refresh that fails on page 2 leaves only page 1, so no completed load is recorded.
-    func testARefreshThatFailsOnPage2ForgetsTheCompletedLoad() async {
+    /// media-library: a refresh that fails on page 2 keeps the old library and its completed load.
+    func testARefreshThatFailsOnPage2KeepsTheOldLibrary() async {
         stubThreePages()
         _ = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
@@ -111,8 +110,24 @@ final class MediaLoadAllPhotosTests: XCTestCase {
         api.errorFor = { endpoint, _ in endpoint.hasSuffix("cursor=c1") ? APIError.serverError("boom") : nil }
         let outcome = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
         XCTAssertEqual(outcome, .failed)
-        XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b"])
-        XCTAssertNil(state.mediaPhotosLoadedOrgId)
+        XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b", "c", "d", "e"])
+        XCTAssertEqual(state.mediaPhotosLoadedOrgId, "o1")
+    }
+
+    /// media-library: the pull-to-refresh jump — while a refresh pages through, the grid keeps the whole
+    /// old library; the new one replaces it in one write when the last page lands.
+    func testARefreshNeverShrinksTheLibraryMidway() async {
+        stubThreePages()
+        _ = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
+        state.mediaLibrary.upsert(state.mediaLibrary.all[0].withId("gone"))
+        var midway: Set<String> = []
+        api.beforeReturn = { [state] endpoint, _ in
+            if endpoint.hasSuffix("cursor=c2") { midway = Set(state?.mediaLibrary.all.map(\.id) ?? []) }
+        }
+        let outcome = await MediaActions(api: api, state: state).loadAllMedia(pageSize: 2)
+        XCTAssertEqual(outcome, .completed)
+        XCTAssertEqual(midway, ["a", "b", "c", "d", "e", "gone"])
+        XCTAssertEqual(Set(state.mediaLibrary.all.map(\.id)), ["a", "b", "c", "d", "e"])
     }
 
     func testA401SignsOut() async {
@@ -147,5 +162,14 @@ final class MediaLoadAllPhotosTests: XCTestCase {
         state.clearAllData()
         XCTAssertNil(state.mediaPhotosLoadedOrgId)
         XCTAssertTrue(state.mediaSources.isEmpty)
+    }
+}
+
+private extension MediaLibraryItem {
+    func withId(_ id: String) -> MediaLibraryItem {
+        MediaLibraryItem(id: id, title: title, description: description, url: url, type: type, mimeType: mimeType,
+                         fileSize: fileSize, thumbnailUrl: thumbnailUrl, uploadStatus: uploadStatus, duration: duration,
+                         tags: tags, usageCount: usageCount, uploader: uploader, video: video, createdAt: createdAt,
+                         updatedAt: updatedAt, takenAt: takenAt)
     }
 }

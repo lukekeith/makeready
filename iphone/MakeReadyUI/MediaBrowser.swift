@@ -86,6 +86,9 @@ struct MediaBrowser: View {
     let imageGeneration: Int
     let level: Level
     var onLevelChange: (Level) -> Void = { _ in }
+    /// Whether pinch steps between levels (§2b). false: the grid stays at `level` (owner
+    /// 2026-11-01, media-home holds `five` until the pinch is reworked).
+    var pinchEnabled: Bool = true
     var hiddenItemID: String? = nil
     var frozen: Bool = false
     var scrollToNewestToken: Int = 0
@@ -135,7 +138,7 @@ struct MediaBrowser: View {
             .frame(width: size.width, height: size.height, alignment: .topLeading)
             .clipped()
             .animation(MediaBrowserMotion.crossfade, value: level)
-            .simultaneousGesture(pinch(size: size), including: frozen ? .none : .all)
+            .simultaneousGesture(pinch(size: size), including: frozen || !pinchEnabled ? .none : .all)
         }
         .ui2Element("MediaBrowser")
     }

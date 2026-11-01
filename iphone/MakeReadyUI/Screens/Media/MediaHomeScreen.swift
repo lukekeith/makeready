@@ -11,8 +11,8 @@
 import SwiftUI
 
 /// Media home — the Home tab's Media section root (§6, D64): a browse-only photo library. A fixed
-/// top bar (C-034 search, four C-035 Menu chips, the date-range line) over C-129 MediaBrowser,
-/// the screen's only scroller (media-page D16). No TopNav, no TabBar: the shell's
+/// top bar (C-034 search, four C-035 Menu chips) over C-129 MediaBrowser, the screen's only
+/// scroller (media-page D16), with the date-range label floating over the grid's top-leading corner. No TopNav, no TabBar: the shell's
 /// `HomeSectionLayout` owns both (§1 deviation 1).
 ///
 /// C-036 FilterMenuOverlay and ImageViewer are presented by the host (§4 "Not on this list", §6),
@@ -57,6 +57,9 @@ struct MediaHomeScreen: View {
         var sourceLabel: String? = nil
         /// §3 Source chip `active`: ≥1 source selected.
         var sourceActive: Bool = false
+        /// §3 date-range label capture input: nil = automatic (shown while scrolling, hidden
+        /// ~2 s after), true = forced shown, false = forced hidden.
+        var dateLabelVisible: Bool? = nil
     }
 
     let state: State
@@ -69,6 +72,7 @@ struct MediaHomeScreen: View {
     var onTapTime: () -> Void = {}
     var onClearFilters: () -> Void = {}                  // §3 noResults "Clear filters"
     var onRetry: () -> Void = {}                         // §3 failed "Retry"
+    /// §3 "`onLevelChange` is not wired while pinch is off": kept for callers, never called.
     var onLevelChange: (MediaBrowser.Level) -> Void = { _ in }
     var onTap: (String, CGRect) -> Void = { _, _ in }    // §3 opening a photo → ImageViewer
     var onVisibleRangeChange: (Range<Int>) -> Void = { _ in }
@@ -80,12 +84,15 @@ struct MediaHomeScreen: View {
     /// C-129 `imageGeneration`, passed through: the host bumps it when new images land.
     var imageGeneration: Int = 0
 
-    // R-31 ephemeral UI: the query as typed, C-129's level (§3 "the screen holds C-129's
-    // `level`. It opens at `five`"), the range C-129 last reported, and the scroll-to-newest bump.
+    // R-31 ephemeral UI: the query as typed, the range C-129 last reported, the scroll-to-newest
+    // bump, and the date label's scroll-driven visibility (§3 "screen-level ephemeral `@State`
+    // … The fade-out wait is a cancellable `Task.sleep`").
     @SwiftUI.State private var query: String
-    @SwiftUI.State private var level: MediaBrowser.Level = .five
     @SwiftUI.State private var visibleRange: Range<Int>?
     @SwiftUI.State private var scrollToNewestToken = 0
+    @SwiftUI.State private var dateLabelShown = false
+    @SwiftUI.State private var lastScrollOffset: CGFloat?
+    @SwiftUI.State private var dateLabelHideTask: Task<Void, Never>?
 
     init(
         state: State,
@@ -134,6 +141,10 @@ struct MediaHomeScreen: View {
     // height; under the capture harness (which proposes no height) that is the device height
     // (956) less the 59pt top inset the harness draws. No layout token.
     private static let canvasHeight: CGFloat = 897
+    /// §3 "Pinch is off": C-129 opens at `five` and stays there.
+    private static let level: MediaBrowser.Level = .five
+    /// §3 Visibility: "fades out about 2 seconds after scrolling stops".
+    private static let dateLabelHold: Duration = .seconds(2)
 
     // MARK: - Derived (§3)
 
@@ -191,13 +202,17 @@ struct MediaHomeScreen: View {
         return Ui2ImageCache.shared.image(for: url)
     }
 
-    /// §2.1 / §3: the date line shows only at `five`, with photos on screen, and not while the
-    /// failed notice row holds its slot (§2.4) or while loading ("No date line").
-    private var showsDateLine: Bool {
-        level == .five && state.phase == .loaded && !state.photoDates.isEmpty
+    /// §2.4: the date label is not drawn with no photos on screen (loading, empty, noResults,
+    /// failed with no photos).
+    private var drawsDateLabel: Bool {
+        guard !state.photoDates.isEmpty else { return false }
+        return state.phase == .loaded || state.phase == .failed
     }
 
-    /// §2.4: failed with photos loaded → the notice row in the date line's slot.
+    /// §3 Visibility: the capture input wins; nil → the scroll-driven state.
+    private var dateLabelVisible: Bool { state.dateLabelVisible ?? dateLabelShown }
+
+    /// §2.5: failed with photos loaded → the notice row below the chips.
     private var showsNotice: Bool { state.phase == .failed && !state.photoDates.isEmpty }
 
     /// §2.2: C-129 stays for loading, loaded and failed-with-photos; §2.3's lines replace it
@@ -210,7 +225,7 @@ struct MediaHomeScreen: View {
         }
     }
 
-    /// §3 Date-range line: the dates of the items C-129 reports (all items until it reports).
+    /// §3 Date-range label: the dates of the items C-129 reports (all items until it reports).
     private var dateRange: String {
         let all = items
         guard !all.isEmpty else { return "" }
@@ -269,11 +284,30 @@ struct MediaHomeScreen: View {
         .frame(maxWidth: .infinity, minHeight: Self.canvasHeight, maxHeight: .infinity, alignment: .top)
         .background(Token.layoutBackground)              // §2: page ground
         .onChange(of: filterKey) { scrollToNewestToken += 1 }
+        .onDisappear { dateLabelHideTask?.cancel() }
+    }
+
+    /// §3 Visibility: any change of C-129's reported offset shows the label; it fades out
+    /// `dateLabelHold` after the last change, and a new scroll restarts the wait. The first
+    /// report only records where the grid rests, so the label stays hidden at rest.
+    private func scrollChanged(_ offset: CGFloat) {
+        defer { lastScrollOffset = offset }
+        guard let last = lastScrollOffset, last != offset else { return }
+        if !dateLabelShown {
+            withAnimation(Token.Motion.menuFadeIn) { dateLabelShown = true }
+        }
+        dateLabelHideTask?.cancel()
+        dateLabelHideTask = Task { @MainActor in
+            try? await Task.sleep(for: Self.dateLabelHold)
+            guard !Task.isCancelled else { return }
+            withAnimation(Token.Motion.menuFadeOut) { dateLabelShown = false }
+        }
     }
 
     // MARK: §2.1 Top bar
 
-    /// §2.1: fixed, full width, `color-layout-background`, `space-page-margin` padding.
+    /// §2.1: fixed, full width, `color-layout-background`, `space-page-margin` padding; the
+    /// search field and the chip row only (plus §2.5's notice when failed with photos).
     private var topBar: some View {
         VStack(alignment: .leading, spacing: 0) {
             SearchField(
@@ -298,15 +332,7 @@ struct MediaHomeScreen: View {
             chipRow
                 .padding(.top, Token.Space.elementGap)
 
-            if showsDateLine {
-                // §2.1 Date-range line (OQ-media-home-004).
-                Text(dateRange)
-                    .designTextStyle(Token.TypeStyle.caption)
-                    .foregroundStyle(Token.textSecondary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                    .padding(.top, Token.Space.elementGap)
-            } else if showsNotice {
+            if showsNotice {
                 noticeRow
                     .padding(.top, Token.Space.elementGap)
             }
@@ -352,7 +378,7 @@ struct MediaHomeScreen: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// §2.4: "Some photos didn't load · Retry", Retry in `type-link`, `color-accent`.
+    /// §2.5: "Some photos didn't load · Retry", Retry in `type-link`, `color-accent`.
     private var noticeRow: some View {
         HStack(spacing: 0) {
             Text("Some photos didn't load · ")
@@ -372,25 +398,30 @@ struct MediaHomeScreen: View {
                 items: items,
                 image: { image(for: $0, indexByID: indexByID) },
                 imageGeneration: imageGeneration,
-                level: level,
-                onLevelChange: { next in
-                    level = next
-                    onLevelChange(next)
-                },
+                level: Self.level,
+                // §3 "Pinch is off" (owner 2026-11-01): `onLevelChange` never fires, not wired.
+                pinchEnabled: false,
                 hiddenItemID: state.hiddenItemID,
                 frozen: state.frozen,
                 scrollToNewestToken: scrollToNewestToken,
                 timeZone: .current,
                 refreshing: state.refreshing,
                 onVisibleRangeChange: onVisibleRangeChange,
-                // §3 Date-range line: the items ON SCREEN, not the prefetch range, which
+                // §3 Date-range label: the items ON SCREEN, not the prefetch range, which
                 // carries a one-viewport margin each way.
                 onVisibleItemsChange: { range in visibleRange = range },
                 onTap: onTap,
-                onScrollChange: onScrollChange,
+                // §3 Scroll: forwarded to the shell, and drives the date label.
+                onScrollChange: { offset, fingerDown in
+                    scrollChanged(offset)
+                    onScrollChange(offset, fingerDown)
+                },
                 onRefresh: onRefresh
             )
             .ui2Element("C-129 MediaBrowser")
+            .overlay(alignment: .topLeading) {
+                if drawsDateLabel { dateLabel }
+            }
         } else {
             switch state.phase {
             case .empty:
@@ -404,6 +435,25 @@ struct MediaHomeScreen: View {
                 stateLines("Couldn't load photos", action: ("Retry", onRetry))
             }
         }
+    }
+
+    /// §2.2 Date-range label (OQ-media-home-004): top-leading over the grid, `space-page-margin`
+    /// in from its left and top edges, `type-caption` on a translucent dark capsule like C-129's
+    /// month pills. It takes no layout space and passes touches through to the grid.
+    private var dateLabel: some View {
+        Text(dateRange)
+            .designTextStyle(Token.TypeStyle.caption)
+            .foregroundStyle(Token.textPrimary)
+            .lineLimit(1)
+            .truncationMode(.tail)
+            .padding(.vertical, Token.Space.metaGap)
+            .padding(.horizontal, Token.Space.elementGap)
+            // C-129's pill fill is "black at 50% opacity" (OQ-C-129-004); `color-black-50`.
+            .background(Capsule().fill(Token.black50))
+            .padding(Token.Space.pageMargin)
+            .opacity(dateLabelVisible ? 1 : 0)
+            .accessibilityHidden(!dateLabelVisible)
+            .allowsHitTesting(false)
     }
 
     /// §2.3: the message `type-body-sm` `color-text-secondary`, centred, `space-page-margin` side
@@ -422,7 +472,7 @@ struct MediaHomeScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    /// §2.3 / §2.4 text action (OQ-media-home-005: accent text, not a registry button). R-17.
+    /// §2.3 / §2.5 text action (OQ-media-home-005: accent text, not a registry button). R-17.
     private func actionButton(_ label: String, action: @escaping () -> Void) -> some View {
         SwiftUI.Button(action: action) {   // the module's C-049 `Button` shadows SwiftUI's
             Text(label)
@@ -460,7 +510,7 @@ extension MediaHomeScreen.State {
         phase: .noResults, searchText: "Noah", selectedTags: [], selectedLeaders: [],
         timeOption: "All time", photoURLs: [], photoDates: [], photoTitles: []
     )
-    /// §3 `failed` — some photos loaded: C-129 keeps them and §2.4's notice row shows.
+    /// §3 `failed` — some photos loaded: C-129 keeps them and §2.5's notice row shows.
     static let failed = Self(
         phase: .failed, searchText: "", selectedTags: [], selectedLeaders: [],
         timeOption: "All time", photoURLs: samplePhotoURLs, photoDates: samplePhotoDates,
@@ -471,6 +521,12 @@ extension MediaHomeScreen.State {
         phase: .loaded, searchText: "", selectedTags: [], selectedLeaders: [],
         timeOption: "All time", photoURLs: samplePhotoURLs, photoDates: samplePhotoDates,
         photoTitles: samplePhotoTitles, sourceLabel: "MakeReady +1", sourceActive: true
+    )
+    /// Capture state `date-visible` — `loaded` with the date label forced shown.
+    static let dateVisible = Self(
+        phase: .loaded, searchText: "", selectedTags: [], selectedLeaders: [],
+        timeOption: "All time", photoURLs: samplePhotoURLs, photoDates: samplePhotoDates,
+        photoTitles: samplePhotoTitles, dateLabelVisible: true
     )
 
     // The owner's 13 catalog portraits (media-browser.md §6) in a fixed shuffle, four a day over
@@ -596,6 +652,13 @@ extension MediaHomeScreen.State {
 
 #Preview("source-active") {
     MediaHomeScreen(state: .sourceActive)
+        .padding(.top, 59)
+        .frame(width: 440, alignment: .top)
+        .frame(minHeight: 956, alignment: .top)
+}
+
+#Preview("date-visible") {
+    MediaHomeScreen(state: .dateVisible)
         .padding(.top, 59)
         .frame(width: 440, alignment: .top)
         .frame(minHeight: 956, alignment: .top)

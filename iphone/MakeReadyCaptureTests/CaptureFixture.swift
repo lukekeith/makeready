@@ -1289,6 +1289,7 @@ struct CaptureComponent: Codable {
     let photoTitles: [String]?                 // per photo, its accessibility label
     let sourceLabel: String?                   // §3 Source chip label (nil = "Source")
     let sourceActive: Bool?                    // §3 Source chip active
+    let dateLabelVisible: Bool?                // §3 date label capture input (nil = automatic)
 }
 
 /// C-123 §4 `look` — "Fixtures encode `look` as an object: `{\"kind\": \"<case>\", …associated

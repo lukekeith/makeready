@@ -193,6 +193,11 @@ private let api: APIClientProtocol
         let generation = state.initialLoad.generation
         var cursor = resumeCursor
         var replaces = resumeCursor == nil
+        // A refresh over a library already on screen collects every page and swaps once at the end:
+        // writing page 1 first emptied the grid down to the newest 200 rows (MakeReady's freshly
+        // imported covers) and threw the scroll position. A failure or cancel keeps the old library.
+        let swapsAtEnd = replaces && !state.mediaLibrary.all.isEmpty
+        var collected: [MediaLibraryItem] = []
         while true {
             var endpoint = "/api/media/browse?limit=\(pageSize)"
             if let cursor { endpoint += "&cursor=\(DashboardActions.queryValue(cursor))" }
@@ -214,7 +219,9 @@ private let api: APIClientProtocol
                                   context: "MediaActions.loadAllMedia", surface: false)
                 return .failed
             }
-            if replaces {
+            if swapsAtEnd {
+                collected.append(contentsOf: items)
+            } else if replaces {
                 state.mediaLibrary.replaceAll(items)
                 // The completed library is gone; only completion below records one again (D17).
                 state.mediaPhotosLoadedOrgId = nil
@@ -222,10 +229,16 @@ private let api: APIClientProtocol
             } else {
                 state.mediaLibrary.upsertMany(items)
             }
-            if let total = response.total { state.mediaLibraryTotal = total }
-            state.mediaLibraryNextCursor = response.nextCursor
+            if !swapsAtEnd {
+                if let total = response.total { state.mediaLibraryTotal = total }
+                state.mediaLibraryNextCursor = response.nextCursor
+            }
             guard response.hasMore == true, let next = response.nextCursor else { break }
             cursor = next
+        }
+        if swapsAtEnd {
+            state.mediaLibrary.replaceAll(collected)
+            state.mediaLibraryNextCursor = nil
         }
         state.mediaLibraryTotal = state.mediaLibrary.count
         state.mediaPhotosLoadedOrgId = orgId
