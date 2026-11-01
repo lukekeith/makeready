@@ -1,7 +1,7 @@
 size: lg
 state: built
-next: /builder:resume --path docs/features/media-page
-head: 0364edb0
+next: /builder:agent-walk --path docs/features/media-page
+head: fb2437cb
 ticket: none
 branch: builder/media-page
 pr: none
@@ -13,7 +13,7 @@ tests: slice=own+app end=risk review=slice
 target: main
 walk: none
 verify: none
-ready: pending "dev env (fleet walk lane)"
+ready: yes 2026-11-01 fb2437cb
 ui2: none
 auto: on 2026-10-31
 blocked: none
