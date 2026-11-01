@@ -259,3 +259,21 @@ the owner runs the import. No existing media row changes.
 | F14 | Upload tasks tied to the view would cancel on leaving Media | D13 AppState queue |
 | F15 | Fixtures had one org, so Upload-to and a multi-org Source chip couldn't be walked | D20 second fixture org |
 | F16 | MakeReady covers sort by import time = the newest end, where the grid opens | D22: oldest end |
+
+## Plan
+
+The plan, with its code: `docs/features/media-library/PLAN.md` (§PLAN.md).
+
+- Phase 1 · Task 1 · MakeReady org flag, system owner and `ensureMakeReadyOrg`
+- Phase 1 · Task 2 · Read rule, usages scoping and the closed write paths
+- Phase 1 · Task 3 · MakeReady admin endpoints
+- Phase 2 · Task 4 · `/api/media/sources` and `/api/media/browse`
+- Phase 2 · Task 5 · Library-pick covers and event-cover capture
+- Phase 2 · Task 6 · Import command
+- Phase 2 · Task 7 · Fixtures — 223 MakeReady covers and a second org; freeze the contract
+- Phase 3 · Task 8 · d2m — Source chip on media-home and the media-picker screen
+- Phase 4 · Task 9 · State — sources, browse items and the load gate
+- Phase 4 · Task 10 · Upload queue (photos and videos)
+- Phase 4 · Task 11 · Mapper — Source filter and MakeReady ordering
+- Phase 4 · Task 12 · Media page — browse, Source chip, upload with Upload-to
+- Phase 4 · Task 13 · Choose from library on group and program covers
