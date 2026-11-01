@@ -25,6 +25,7 @@ import groupMembersRoutes from './routes/group-members.js'
 import groupsRoutes from './routes/groups.js'
 import rolesRoutes from './routes/roles.js'
 import mediaRoutes from './routes/media.js'
+import makeReadyMediaRoutes from './routes/makeready-media.js'
 import bibleRoutes from './routes/bible.js'
 import searchRoutes from './routes/search.js'
 import preferencesRoutes from './routes/preferences.js'
@@ -444,6 +445,8 @@ app.use('/api', rolesRoutes)
 
 // Media management routes
 app.use('/api', mediaRoutes)
+// media-library D15: MakeReady's own media library (super admin only)
+app.use('/api', makeReadyMediaRoutes)
 
 // Bible routes
 app.use('/api/bible', bibleRoutes)
